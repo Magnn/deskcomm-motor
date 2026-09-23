@@ -774,6 +774,12 @@ export const AUDIT_ACTIONS = [
   // "quando esta chave foi trocada, e por quem" é a pergunta que só esta linha
   // responde — a coluna `updated_at` se move por qualquer motivo.
   "ai.credential_updated",
+  // Uma voz CLONADA a partir de amostras de áudio (POST /ai/voices/clone) ou apagada
+  // (DELETE /ai/voices/:provedor/:id). A linha de `cloned` carrega o
+  // CONSENTIMENTO declarado por quem clonou (quem, quando, e o texto que aceitou):
+  // voz é dado pessoal, e "quem autorizou esta voz" é a pergunta que só ela responde.
+  "ai.voice_cloned",
+  "ai.voice_deleted",
   // Rodada do canal-mudo-watcher que ABRIU ou FECHOU aviso (doc 11, decisão B).
   // Só com efeito: varredura diária que não achou nada não é mutação.
   "channel.canal_mudo_watcher_run",

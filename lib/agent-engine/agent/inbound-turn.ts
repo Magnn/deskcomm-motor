@@ -76,6 +76,12 @@ import {
   prepararFotosDoProduto,
   type FotoParaEnvio,
 } from './fotos-do-produto';
+import {
+  dependenciasReaisDeNota,
+  enviarNotasDeVoz,
+  inboundEhAudio,
+  prepararNotasDeVoz,
+} from './nota-de-voz';
 import { enqueueJob, rescheduleJob, type JobRow, type Queryable } from '../queue/queue';
 import {
   applyLeadStateUpdate,
@@ -2225,6 +2231,21 @@ async function executarTurnoDoAgente(
           inboundMessageId: input.inboundMessageId,
         });
 
+  // Resposta em ÁUDIO (espelho): a config do agente está ligada E a pessoa falou por
+  // áudio. Preview nunca fala — não há canal, e cada teste custaria uma síntese.
+  // Follow-up (sem `inboundMessageId`) também não: ninguém falou para espelhar.
+  const voiceReply =
+    !preview &&
+    agentConfig?.voiceReply &&
+    input.inboundMessageId !== undefined &&
+    (await inboundEhAudio(pool, {
+      tenantId,
+      conversationId: input.conversationId,
+      inboundMessageId: input.inboundMessageId,
+    }))
+      ? agentConfig.voiceReply
+      : null;
+
   // Seam de canal (F2-25): o envio vai SÓ pela interface ChannelAdapter — o
   // default WAHA-via-CRM envolve o sink F2-06. Instanciado por job (o pool é
   // per-job neste codebase); trocar o adapter não muda nada abaixo.
@@ -3065,7 +3086,7 @@ async function executarTurnoDoAgente(
               const jitter = () => 1200 + Math.floor(Math.random() * 800); // piso no throttle anti-ban (1.2s) — bolhas são mensagens físicas
               const enviar = (
                 corpo: string,
-                media?: FotoParaEnvio,
+                media?: FotoParaEnvio & { kind?: 'image' | 'audio' },
               ): Promise<ChannelSendResult> => {
                 seq += 1;
                 return liveChannel().send({
@@ -3080,6 +3101,37 @@ async function executarTurnoDoAgente(
                   ...(media ? { media } : {}),
                 });
               };
+              const comoTexto = (texto: string) =>
+                sendInBubbles(texto, {
+                  enabled: agentConfig?.splitMessages ?? false,
+                  maxChars: agentConfig?.splitMaxChars ?? 600,
+                  sleep,
+                  jitter,
+                  // A pausa humana do turno NÃO mora mais aqui: ela subiu para
+                  // `esperaForaDoLock` (paga antes de o guardrail tomar o lock do número) —
+                  // issue #654. Neste ponto fica só o jitter anti-ban entre bolhas.
+                  send: (bubble) => enviar(bubble),
+                });
+              // A pessoa falou por áudio e o agente tem voz: responde com nota de voz.
+              // QUALQUER falha (chave, cota, provedor, formato) cai para `comoTexto` — a
+              // pessoa nunca fica sem resposta por causa da voz.
+              const comoVoz = async (texto: string): Promise<ChannelSendResult> => {
+                if (!voiceReply) return comoTexto(texto);
+                const preparadas = await prepararNotasDeVoz(dependenciasReaisDeNota(runLog), {
+                  tenantId,
+                  conversationId: input.conversationId,
+                  texto,
+                  config: voiceReply,
+                });
+                if (!preparadas.ok) return comoTexto(texto);
+                return enviarNotasDeVoz(preparadas, {
+                  sleep,
+                  jitter,
+                  enviarNota: (nota) =>
+                    enviar(nota.fala, { storagePath: nota.storagePath, mime: nota.mime, kind: 'audio' }),
+                  enviarTexto: (link) => enviar(link),
+                });
+              };
               // Cada foto é uma mensagem física: só vão as que cabem no que resta do teto
               // do turno (a checagem de `max_sends_per_turn` acima roda uma vez, antes).
               const fotosNoTeto = fotosDoProduto.slice(0, Math.max(0, maxSendsPerTurn - seq));
@@ -3087,17 +3139,7 @@ async function executarTurnoDoAgente(
                 sleep,
                 jitter,
                 enviarFoto: (foto, legenda) => enviar(legenda, foto),
-                enviarTexto: (texto) =>
-                  sendInBubbles(texto, {
-                    enabled: agentConfig?.splitMessages ?? false,
-                    maxChars: agentConfig?.splitMaxChars ?? 600,
-                    sleep,
-                    jitter,
-                    // A pausa humana do turno NÃO mora mais aqui: ela subiu para
-                    // `esperaForaDoLock` (paga antes de o guardrail tomar o lock do número) —
-                    // issue #654. Neste ponto fica só o jitter anti-ban entre bolhas.
-                    send: (bubble) => enviar(bubble),
-                  }),
+                enviarTexto: comoVoz,
               });
             },
           };

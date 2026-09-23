@@ -15,6 +15,8 @@
  */
 import type pg from 'pg';
 
+import { lerVoiceReply, type VoiceReplyConfig } from '@/lib/voz/tipos';
+
 import { lerJanelaDeAtendimento, type JanelaDeAtendimento } from './janela-de-atendimento';
 
 export interface PublishedAgentConfig {
@@ -85,6 +87,12 @@ export interface PublishedAgentConfig {
    * conserta (o campo existia na tela e nenhum leitor vivo o consultava).
    */
   janelaDeAtendimento: JanelaDeAtendimento | null;
+  /**
+   * Resposta em ÁUDIO (`ai_agents.config.voice_reply`). `null` = desligada.
+   * Opcional no tipo porque quem monta um `PublishedAgentConfig` à mão (teste,
+   * preview) não precisa saber da voz: ausente e `null` significam a mesma coisa.
+   */
+  voiceReply?: VoiceReplyConfig | null;
   /** criadores (p/ mint do token efêmero de audit — padrão do runtime nativo). */
   versionCreatedBy: string | null;
   agentCreatedBy: string | null;
@@ -215,6 +223,9 @@ function mapAgentConfigRow(r: Row): PublishedAgentConfig {
     // Leitura DEFENSIVA e que falha ABERTA: jsonb livre com shape estranho vira
     // `null` (sem janela ⇒ atende sempre), nunca uma mordaça acidental.
     janelaDeAtendimento: lerJanelaDeAtendimento(r.trigger_config),
+    // Leitura defensiva: `config` é jsonb livre, e shape estranho vira
+    // "desligada" — a direção segura é continuar respondendo em texto.
+    voiceReply: lerVoiceReply(r.config),
     versionCreatedBy: r.version_created_by,
     agentCreatedBy: r.agent_created_by,
   };

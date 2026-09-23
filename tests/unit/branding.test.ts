@@ -822,6 +822,11 @@ const HOSTS_DECLARADOS: Record<string, EntradaDeHost> = {
     motivo:
       "endpoint da API da OpenAI (embeddings da busca e transcrição de áudio). É o destino do request: trocar pelo domínio do revendedor faria a chamada não chegar a lugar nenhum.",
   },
+  "api.elevenlabs.io": {
+    categoria: "FORNECEDOR",
+    motivo:
+      "endpoint da API da ElevenLabs (lista de vozes, síntese de voz e clonagem — lib/voz/provedores/elevenlabs.ts). É o destino do request: trocar pelo domínio do revendedor faria a voz nunca chegar a lugar nenhum.",
+  },
   "api.anthropic.com": {
     categoria: "FORNECEDOR",
     motivo:
@@ -891,6 +896,11 @@ const HOSTS_DECLARADOS: Record<string, EntradaDeHost> = {
     categoria: "CONSOLE",
     motivo:
       "painel onde o usuário gera a PRÓPRIA chave da OpenAI. O endereço é do fornecedor e é a informação que a tela tem de dar — mandar para outro lugar seria pior.",
+  },
+  "elevenlabs.io": {
+    categoria: "CONSOLE",
+    motivo:
+      "painel onde o usuário gera a PRÓPRIA chave da ElevenLabs (aba Voz do agente). O endereço é do fornecedor e é a informação que a tela tem de dar — mandar para outro lugar seria pior.",
   },
   "console.anthropic.com": {
     categoria: "CONSOLE",
@@ -1094,6 +1104,7 @@ describe("catraca de host de terceiro no código que embarca", () => {
       "aistudio.google.com",
       "console.anthropic.com",
       "deskcomm.app",
+      "elevenlabs.io",
       "meet.google.com",
       "meusistema.com",
       "mi-gateway.ejemplo.com",

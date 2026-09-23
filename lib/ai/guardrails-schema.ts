@@ -4,6 +4,8 @@
  */
 import { z } from "zod";
 
+import { voiceReplySchema } from "@/lib/voz/tipos";
+
 // ---------------------------------------------------------------------------
 // Models permitidos (Vercel AI Gateway)
 // ---------------------------------------------------------------------------
@@ -126,6 +128,10 @@ export const agentConfigSchema = z.object({
   // sessão rejeita a configuração.
   voice_speed: z.number().min(0.25).max(1.5).default(0.85),
   voice_model: agentVoiceModelSchema.default("gpt-realtime"),
+  // Resposta em ÁUDIO no WhatsApp de texto (a agente fala quando a pessoa falou).
+  // Sem default de propósito: ausente = desligada, e um agente que nunca ouviu
+  // falar disto não ganha a chave no merge do PATCH. Ver `lib/voz/tipos.ts`.
+  voice_reply: voiceReplySchema.optional(),
 });
 export type AgentConfig = z.infer<typeof agentConfigSchema>;
 

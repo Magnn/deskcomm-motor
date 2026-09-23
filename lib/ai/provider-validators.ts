@@ -9,6 +9,8 @@
  * Timeout 5s, sem retry. Erros 401 são distintos de erros de rede.
  */
 import { PROVEDORES } from "@/lib/ai/pontos/provedores";
+import { implementacaoDeVoz } from "@/lib/voz/provedores";
+import type { IdDeProvedorDeVoz } from "@/lib/voz/tipos";
 import { env } from "@/lib/env";
 
 /**
@@ -22,6 +24,14 @@ import { env } from "@/lib/env";
  * chave dela.
  */
 export type Provider = (typeof PROVEDORES)[number]["id"];
+
+/**
+ * Tudo que a tabela de chaves guarda: os provedores que CONVERSAM (`Provider`)
+ * e os que FALAM (`IdDeProvedorDeVoz`, ver `lib/voz/tipos.ts`). São listas
+ * separadas de propósito — o teste `provedores-x-registry` casa `PROVEDORES` com
+ * o registry de modelos, e uma ElevenLabs ali não tem modelo de chat nenhum.
+ */
+export type ProviderDeCredencial = Provider | IdDeProvedorDeVoz;
 
 export interface ValidationOk {
   ok: true;
@@ -240,11 +250,19 @@ export async function validateDeepSeekKey(apiKey: string): Promise<ValidationRes
   }
 }
 
+/** A ElevenLabs não lista modelos de chat: provar a chave é o que interessa. */
+async function validarChaveDeVoz(id: IdDeProvedorDeVoz, apiKey: string): Promise<ValidationResult> {
+  const r = await implementacaoDeVoz(id).validarChave(apiKey);
+  return r.ok ? { ok: true, models: [] } : { ok: false, error: r.error };
+}
+
 export function validateProviderKey(
-  provider: Provider,
+  provider: ProviderDeCredencial,
   apiKey: string,
 ): Promise<ValidationResult> {
   switch (provider) {
+    case "elevenlabs":
+      return validarChaveDeVoz("elevenlabs", apiKey);
     case "anthropic":
       return validateAnthropicKey(apiKey);
     case "openai":
