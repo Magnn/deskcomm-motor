@@ -103,5 +103,30 @@ export async function sinalizarDigitando(
     organizationId: input.organizationId,
     sessionRef: resolveSessionRef(sessao),
     recipient,
+    inboundExternalId: await ultimaRecebidaDaPessoa(supabase, input),
   });
+}
+
+/**
+ * `external_id` da última mensagem que a PESSOA mandou nesta conversa.
+ *
+ * O canal oficial só acende "digitando…" pendurado no "lida" de uma mensagem
+ * dela; quem endereça por telefone ignora o valor. Falha de leitura vira
+ * `null` — o indicador é decoração e não pode derrubar o turno.
+ */
+async function ultimaRecebidaDaPessoa(
+  supabase: SupabaseClient,
+  input: SinalizarDigitandoInput,
+): Promise<string | null> {
+  const { data } = await supabase
+    .from("messages")
+    .select("external_id")
+    .eq("organization_id", input.organizationId)
+    .eq("conversation_id", input.conversationId)
+    .eq("direction", "inbound")
+    .not("external_id", "is", null)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return (data as { external_id: string | null } | null)?.external_id ?? null;
 }

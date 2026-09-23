@@ -19,6 +19,21 @@ vi.mock("@/lib/waha/client", async (original) => ({
   getWahaClient: () => clienteDoTransporte,
 }));
 
+const fetchDoTransporte = vi.fn();
+vi.stubGlobal("fetch", fetchDoTransporte);
+
+// Credencial da sessão: o teste dubla só o cofre; o resto do caminho é real.
+vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: () => ({}) }));
+vi.mock("@/lib/channels/meta/credentials", async (original) => ({
+  ...(await original<typeof import("@/lib/channels/meta/credentials")>()),
+  resolveMetaCreds: async (_db: unknown, q: { phoneNumberId: string }) => ({
+    phoneNumberId: q.phoneNumberId,
+    token: "TOKEN_DE_TESTE",
+    graphVersion: "v21.0",
+    source: "session" as const,
+  }),
+}));
+
 import { sinalizarDigitando } from "@/lib/messaging/presenca";
 
 interface LinhaDeConversa {
@@ -31,19 +46,32 @@ interface LinhaDeConversa {
 }
 
 let linha: LinhaDeConversa | null = null;
+/** `external_id` da última mensagem recebida da pessoa (null = nenhuma). */
+let ultimaRecebida: string | null = "wamid.ULTIMA";
 /** Todo par (coluna, valor) que a leitura filtrou — a prova do escopo de tenant. */
 let filtros: Array<[string, unknown]> = [];
 
 function supabaseDeTeste(): never {
-  const chain = {
-    select: () => chain,
-    eq: (col: string, val: unknown) => {
-      filtros.push([col, val]);
-      return chain;
-    },
-    maybeSingle: async () => ({ data: linha, error: null }),
+  const cadeia = (resultado: () => unknown) => {
+    const chain: Record<string, unknown> = {
+      select: () => chain,
+      eq: (col: string, val: unknown) => {
+        filtros.push([col, val]);
+        return chain;
+      },
+      not: () => chain,
+      order: () => chain,
+      limit: () => chain,
+      maybeSingle: async () => ({ data: resultado(), error: null }),
+    };
+    return chain;
   };
-  return { from: () => chain } as never;
+  return {
+    from: (tabela: string) =>
+      tabela === "messages"
+        ? cadeia(() => (ultimaRecebida ? { external_id: ultimaRecebida } : null))
+        : cadeia(() => linha),
+  } as never;
 }
 
 const CONVERSA_NORMAL: LinhaDeConversa = {
@@ -63,7 +91,9 @@ beforeEach(() => {
   setPresence.mockClear();
   clienteDoTransporte = { setPresence };
   linha = structuredClone(CONVERSA_NORMAL);
+  ultimaRecebida = "wamid.ULTIMA";
   filtros = [];
+  fetchDoTransporte.mockReset();
 });
 
 describe("sinalizarDigitando", () => {
@@ -114,15 +144,77 @@ describe("sinalizarDigitando", () => {
     // O adapter do canal intermediado não implementa `signalTyping`. Quem chama
     // testa a presença do método — nunca pergunta QUAL provider é.
     linha!.channel_sessions = {
-      provider: "meta_cloud",
+      provider: "zernio",
       waha_session_name: null,
-      meta_phone_number_id: "123456",
-      zernio_account_id: null,
+      meta_phone_number_id: null,
+      zernio_account_id: "acc-1",
       status: "WORKING",
     };
     await expect(
       sinalizarDigitando(supabaseDeTeste(), { organizationId: "org-1", conversationId: "conv-1" }),
     ).resolves.toBeUndefined();
     expect(setPresence).not.toHaveBeenCalled();
+  });
+});
+
+describe("sinalizarDigitando no canal oficial da Meta", () => {
+  const conversaMeta = (): LinhaDeConversa => ({
+    ...structuredClone(CONVERSA_NORMAL),
+    channel_sessions: {
+      provider: "meta_cloud",
+      waha_session_name: null,
+      meta_phone_number_id: "PHONE_ID_1",
+      zernio_account_id: null,
+      status: "WORKING",
+    },
+  });
+
+  beforeEach(() => {
+    linha = conversaMeta();
+    fetchDoTransporte.mockResolvedValue({ ok: true, status: 200, json: async () => ({ success: true }) });
+  });
+
+  it("pendura o 'digitando' no 'lida' da última mensagem recebida", async () => {
+    await sinalizarDigitando(supabaseDeTeste(), { organizationId: "org-1", conversationId: "conv-1" });
+
+    expect(fetchDoTransporte).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchDoTransporte.mock.calls[0] as [
+      string,
+      { body: string; headers: Record<string, string> },
+    ];
+    expect(url).toMatch(/\/PHONE_ID_1\/messages$/);
+    expect(init.headers.Authorization).toBe("Bearer TOKEN_DE_TESTE");
+    expect(JSON.parse(init.body)).toEqual({
+      messaging_product: "whatsapp",
+      status: "read",
+      message_id: "wamid.ULTIMA",
+      typing_indicator: { type: "text" },
+    });
+  });
+
+  it("a busca da última recebida é escopada por organização e conversa", async () => {
+    await sinalizarDigitando(supabaseDeTeste(), { organizationId: "org-1", conversationId: "conv-1" });
+    expect(filtros).toContainEqual(["organization_id", "org-1"]);
+    expect(filtros).toContainEqual(["conversation_id", "conv-1"]);
+    expect(filtros).toContainEqual(["direction", "inbound"]);
+  });
+
+  it("sem mensagem recebida para pendurar, não chama a Meta e não lança", async () => {
+    ultimaRecebida = null;
+    await expect(
+      sinalizarDigitando(supabaseDeTeste(), { organizationId: "org-1", conversationId: "conv-1" }),
+    ).resolves.toBeUndefined();
+    expect(fetchDoTransporte).not.toHaveBeenCalled();
+  });
+
+  it("a recusa da Meta sobe (quem decide engolir é o atraso humano)", async () => {
+    fetchDoTransporte.mockResolvedValue({
+      ok: false,
+      status: 400,
+      json: async () => ({ error: { code: 131009, message: "Parameter value is not valid" } }),
+    });
+    await expect(
+      sinalizarDigitando(supabaseDeTeste(), { organizationId: "org-1", conversationId: "conv-1" }),
+    ).rejects.toThrow(/meta_131009/);
   });
 });

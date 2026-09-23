@@ -184,6 +184,52 @@ export const metaCloudAdapter: ChannelAdapter = {
     }
   },
 
+  /**
+   * "digitando…" no canal oficial.
+   *
+   * Diferença que morde quem copia o WAHA: aqui NÃO existe "presença" avulsa. A
+   * Cloud API acende o indicador como apêndice do "lida" de uma mensagem que a
+   * pessoa mandou (`status: "read"` + `message_id` + `typing_indicator`), e ele
+   * dura até 25 s ou até a próxima mensagem nossa. Efeito colateral aceito e
+   * desejável: a pessoa vê o "visto" azul quando a IA começa a responder.
+   *
+   * Sem `inboundExternalId` não há a que pendurar — silêncio, não erro. Lança se
+   * a Meta recusa (quem chama engole: o indicador é decoração).
+   */
+  async signalTyping(input): Promise<void> {
+    if (!input.inboundExternalId) return;
+    const creds = await resolveMetaCreds(createAdminClient(), {
+      organizationId: input.organizationId,
+      phoneNumberId: input.sessionRef,
+    });
+    if (!creds) return;
+
+    const res = await fetch(
+      `https://graph.facebook.com/${creds.graphVersion}/${creds.phoneNumberId}/messages`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${creds.token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          messaging_product: "whatsapp",
+          status: "read",
+          message_id: input.inboundExternalId,
+          typing_indicator: { type: "text" },
+        }),
+        // Teto curto: este passo roda antes da 1ª bolha, com a pessoa esperando.
+        signal: AbortSignal.timeout(8_000),
+      },
+    );
+    if (!res.ok) {
+      const body = (await res.json().catch(() => ({}))) as {
+        error?: { code?: number; message?: string };
+      };
+      throw new Error(`meta_${body.error?.code ?? res.status}: ${body.error?.message ?? "typing_indicator_recusado"}`);
+    }
+  },
+
   codes: {
     notConfigured: "meta_not_configured",
     sendFailed: "meta_error",

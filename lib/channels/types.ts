@@ -285,6 +285,13 @@ export interface ChannelAdapter {
   signalTyping?(input: ChannelTenantScope & {
     sessionRef: string;
     recipient: string;
+    /**
+     * `external_id` da última mensagem RECEBIDA da pessoa (o `wamid` no canal
+     * oficial). O canal oficial não aceita "digitando" solto: o indicador é um
+     * apêndice do "lida" de uma mensagem específica. Quem não precisa (WAHA,
+     * que endereça por telefone) ignora o campo.
+     */
+    inboundExternalId?: string | null;
   }): Promise<void>;
 
   /**
