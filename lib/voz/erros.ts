@@ -11,6 +11,7 @@ export type CodigoDeErroDeVoz =
   | "sem_chave" // nenhuma chave cadastrada para o provedor
   | "chave_invalida" // 401/403
   | "sem_permissao_de_clonagem" // plano do provedor não inclui clonagem
+  | "sem_permissao_de_biblioteca" // plano do provedor não usa vozes da biblioteca pela API
   | "limite_do_provedor" // 429 ou cota esgotada
   | "voz_inexistente" // 404 na voz escolhida
   | "recusado" // 4xx que não é nenhum dos acima
@@ -41,6 +42,8 @@ export function explicarErroDeVoz(e: unknown): string {
       return "O provedor recusou a chave. Confira se ela está ativa e tem permissão de voz.";
     case "sem_permissao_de_clonagem":
       return "O plano da sua conta no provedor não inclui clonagem de voz.";
+    case "sem_permissao_de_biblioteca":
+      return "O plano da sua conta no provedor não permite adicionar vozes da biblioteca. Escolha uma voz já disponível ou faça upgrade do plano.";
     case "limite_do_provedor":
       return "O provedor atingiu o limite de uso. Tente de novo em instantes ou confira a cota.";
     case "voz_inexistente":

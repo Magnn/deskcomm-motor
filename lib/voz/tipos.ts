@@ -124,6 +124,8 @@ export const voiceReplySchema = z.object({
   stability: z.number().min(0).max(1).optional(),
   /** ElevenLabs: o quanto ela se agarra à voz original. */
   similarity_boost: z.number().min(0).max(1).optional(),
+  /** ElevenLabs: exagero de estilo/emoção. 0 = neutra; acima de ~0.5 pode ficar teatral. */
+  style: z.number().min(0).max(1).optional(),
   /** OpenAI: como falar ("voz calma e acolhedora, ritmo lento"). */
   style_instructions: z.string().trim().max(400).optional(),
   /** Acima disto o texto vira mais de uma nota — nota longa demais ninguém ouve. */

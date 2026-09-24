@@ -11,6 +11,7 @@
  *     lida letra por letra estragam a voz; `textoParaFala` limpa antes de
  *     sintetizar. O TEXTO original segue como legenda da mensagem no inbox.
  */
+import { valoresEmReaisPorExtenso } from "./extenso";
 import type { PedidoDeSintese } from "./provedores/tipos";
 import { implementacaoDeVoz } from "./provedores";
 import type { AudioGerado, IdDeProvedorDeVoz, VoiceReplyConfig } from "./tipos";
@@ -19,8 +20,9 @@ import type { AudioGerado, IdDeProvedorDeVoz, VoiceReplyConfig } from "./tipos";
 const EMOJI = /[\p{Extended_Pictographic}‍️]/gu;
 
 export function textoParaFala(texto: string): string {
-  return texto
+  return valoresEmReaisPorExtenso(texto) // "R$ 130" → "cento e trinta reais"
     .replace(/https?:\/\/\S+/g, "") // link não se fala
+    .replace(/\.{3,}/g, "…") // "..." é uma pausa só, não três pontos
     .replace(EMOJI, "")
     .replace(/[*_~`]+/g, "") // marcação do WhatsApp
     .replace(/([.!?…])[ \t]*\n+[ \t]*/g, "$1 ") // já havia pontuação: só junta
@@ -55,7 +57,7 @@ export function dividirEmNotas(texto: string, max: number): string[] {
 export interface PedidoDeNota {
   provedor: IdDeProvedorDeVoz;
   apiKey: string;
-  config: Pick<VoiceReplyConfig, "voice_id" | "model" | "speed" | "stability" | "similarity_boost" | "style_instructions">;
+  config: Pick<VoiceReplyConfig, "voice_id" | "model" | "speed" | "stability" | "similarity_boost" | "style" | "style_instructions">;
   /** Já limpo por `textoParaFala`. */
   texto: string;
   formato?: PedidoDeSintese["formato"];
@@ -72,6 +74,7 @@ export function sintetizarNota(p: PedidoDeNota): Promise<AudioGerado> {
       ...(p.config.speed !== undefined ? { speed: p.config.speed } : {}),
       ...(p.config.stability !== undefined ? { stability: p.config.stability } : {}),
       ...(p.config.similarity_boost !== undefined ? { similarity_boost: p.config.similarity_boost } : {}),
+      ...(p.config.style !== undefined ? { style: p.config.style } : {}),
       ...(p.config.style_instructions !== undefined ? { style_instructions: p.config.style_instructions } : {}),
     },
   });

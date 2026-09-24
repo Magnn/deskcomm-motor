@@ -13,7 +13,7 @@ export interface PedidoDeSintese {
   texto: string;
   formato: FormatoDoAudio;
   /** Só os ajustes de fala; o provedor ignora o que não é dele. */
-  ajustes?: Partial<Pick<VoiceReplyConfig, "model" | "speed" | "stability" | "similarity_boost" | "style_instructions">>;
+  ajustes?: Partial<Pick<VoiceReplyConfig, "model" | "speed" | "stability" | "similarity_boost" | "style" | "style_instructions">>;
 }
 
 export interface AmostraDeVoz {
@@ -30,6 +30,31 @@ export interface PedidoDeClonagem {
   amostras: AmostraDeVoz[];
 }
 
+/** Uma voz da BIBLIOTECA pública do provedor — ainda não está na conta de ninguém. */
+export interface VozDaBiblioteca {
+  /** Quem publicou a voz; junto do `id`, é o que o pedido de "adicionar" precisa. */
+  publicOwnerId: string;
+  id: string;
+  nome: string;
+  genero: GeneroDaVoz;
+  /** Ex.: "brazilian". Vem do provedor; pode faltar. */
+  sotaque?: string;
+  /** Ex.: "pt-BR". */
+  locale?: string;
+  idade?: string;
+  /** Ex.: "conversational", "narrative". */
+  usoIndicado?: string;
+  descricao?: string;
+  previewUrl?: string;
+}
+
+export interface BuscaNaBiblioteca {
+  /** ISO 639-1. Padrão: "pt". */
+  idioma?: string;
+  genero?: GeneroDaVoz;
+  texto?: string;
+}
+
 export type ResultadoDaChave = { ok: true } | { ok: false; error: string };
 
 export interface ImplementacaoDeVoz {
@@ -40,4 +65,7 @@ export interface ImplementacaoDeVoz {
   /** Só quem clona implementa. */
   clonar?(pedido: PedidoDeClonagem): Promise<VozDisponivel>;
   apagarVoz?(apiKey: string, vozId: string): Promise<void>;
+  /** Só quem tem biblioteca pública implementa. */
+  buscarNaBiblioteca?(apiKey: string, busca: BuscaNaBiblioteca): Promise<VozDaBiblioteca[]>;
+  adicionarDaBiblioteca?(apiKey: string, pedido: { publicOwnerId: string; vozId: string; nome: string }): Promise<VozDisponivel>;
 }

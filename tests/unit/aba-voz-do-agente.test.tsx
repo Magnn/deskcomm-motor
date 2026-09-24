@@ -141,6 +141,51 @@ describe("aba Voz", () => {
     expect(voiceReplySchema.safeParse(corpo.config.voice_reply).success).toBe(true);
   });
 
+  it("biblioteca: busca voz brasileira, ouve a amostra e adiciona à conta com o dono e o id que o provedor pede", async () => {
+    api.get.mockImplementation(async (url: string) => {
+      if (url === "/api/v1/ai/voices") return RESPOSTA_DE_VOZES;
+      if (url === "/api/v1/ai/credentials") return { data: [] };
+      if (url.startsWith("/api/v1/ai/voices/library")) {
+        return {
+          data: {
+            vozes: [
+              {
+                publicOwnerId: "dono-1",
+                id: "lib-1",
+                nome: "Helena",
+                genero: "feminina",
+                sotaque: "brazilian",
+                descricao: "Calorosa.",
+                previewUrl: "https://exemplo.test/helena.mp3",
+              },
+            ],
+          },
+        };
+      }
+      throw new Error(`GET inesperado: ${url}`);
+    });
+    api.post.mockResolvedValue({ data: { provedor: "elevenlabs", id: "nova-1", nome: "Helena", genero: "neutra", categoria: "pronta" } });
+
+    renderizar({});
+    fireEvent.click(await screen.findByRole("button", { name: /ElevenLabs/ }));
+    await screen.findByTestId("biblioteca-de-vozes");
+    fireEvent.click(screen.getByRole("button", { name: "Buscar" }));
+
+    const lista = await screen.findByTestId("lista-da-biblioteca");
+    expect(lista).toHaveTextContent("Helena");
+    expect(lista).toHaveTextContent("brazilian");
+    expect(api.get).toHaveBeenCalledWith(expect.stringContaining("genero=feminina"));
+
+    fireEvent.click(screen.getByRole("button", { name: "Adicionar à minha conta" }));
+    await waitFor(() => expect(api.post).toHaveBeenCalledTimes(1));
+    expect(api.post).toHaveBeenCalledWith("/api/v1/ai/voices/library", {
+      public_owner_id: "dono-1",
+      voice_id: "lib-1",
+      name: "Helena",
+    });
+    await waitFor(() => expect(toast.success).toHaveBeenCalled());
+  });
+
   it("não deixa ligar sem escolher uma voz", async () => {
     renderizar({});
     fireEvent.click(await screen.findByRole("switch", { name: "Responder em áudio" }));

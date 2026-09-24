@@ -29,6 +29,7 @@ import { useT } from "@/hooks/i18n/useT";
 import { credentialsListQueryKey, type CredentialRow } from "@/hooks/ai/useCredentials";
 import { apiClient } from "@/lib/api/client";
 import { TEXTO_DO_CONSENTIMENTO } from "@/lib/voz/consentimento";
+import type { VozDaBiblioteca } from "@/lib/voz/provedores/tipos";
 import {
   PROVEDORES_DE_VOZ,
   voiceReplySchema,
@@ -135,6 +136,7 @@ export function VozDoAgente({ agentId, config, active, readOnly }: Props) {
       ...(form.speed !== undefined ? { speed: form.speed } : {}),
       ...(form.stability !== undefined ? { stability: form.stability } : {}),
       ...(form.similarity_boost !== undefined ? { similarity_boost: form.similarity_boost } : {}),
+      ...(form.style !== undefined ? { style: form.style } : {}),
       ...(form.style_instructions ? { style_instructions: form.style_instructions } : {}),
     };
   };
@@ -365,6 +367,10 @@ export function VozDoAgente({ agentId, config, active, readOnly }: Props) {
                             provider: v.provedor,
                             voice_id: v.id,
                             ...(form.model ? { model: form.model } : {}),
+                            ...(v.provedor === "elevenlabs" && form.stability !== undefined ? { stability: form.stability } : {}),
+                            ...(v.provedor === "elevenlabs" && form.similarity_boost !== undefined ? { similarity_boost: form.similarity_boost } : {}),
+                            ...(v.provedor === "elevenlabs" && form.style !== undefined ? { style: form.style } : {}),
+                            ...(form.speed !== undefined ? { speed: form.speed } : {}),
                             ...(form.style_instructions ? { style_instructions: form.style_instructions } : {}),
                           })
                         }
@@ -387,6 +393,17 @@ export function VozDoAgente({ agentId, config, active, readOnly }: Props) {
             </ul>
           )}
         </Card>
+      ) : null}
+
+      {provedorAtual === "elevenlabs" && infoDoProvedor("elevenlabs")?.configurado ? (
+        <BibliotecaDeVozes
+          readOnly={readOnly}
+          onAdicionada={(voz) => {
+            void qc.invalidateQueries({ queryKey: vozesQueryKey });
+            patch({ provider: voz.provedor, voice_id: voz.id, voice_name: voz.nome });
+            toast.success(t("Voz adicionada. Ouça e clique em Salvar voz para usá-la."));
+          }}
+        />
       ) : null}
 
       {form.provider && form.voice_id ? (
@@ -423,6 +440,44 @@ export function VozDoAgente({ agentId, config, active, readOnly }: Props) {
                   onChange={(n) => patch({ similarity_boost: n })}
                   desabilitado={readOnly}
                 />
+                <Regua
+                  rotulo={t("Expressividade (estilo)")}
+                  min={0}
+                  max={1}
+                  passo={0.05}
+                  valor={form.style ?? 0}
+                  onChange={(n) => patch({ style: n })}
+                  desabilitado={readOnly}
+                  dica={t("Acima de 0,5 costuma ficar teatral. Para conversa, de 0 a 0,3.")}
+                />
+                <div className="flex flex-col gap-1">
+                  <Label htmlFor="voz-modelo">{t("Modelo da voz")}</Label>
+                  <select
+                    id="voz-modelo"
+                    className="h-9 rounded-md border bg-background px-2 text-sm"
+                    value={form.model ?? ""}
+                    disabled={readOnly}
+                    onChange={(e) => patch({ model: e.target.value || undefined })}
+                  >
+                    <option value="">{t("Padrão (multilíngue, estável)")}</option>
+                    <option value="eleven_v3">{t("v3 (mais expressiva — ouça antes de salvar)")}</option>
+                    <option value="eleven_flash_v2_5">{t("Flash (mais rápida, menos natural)")}</option>
+                  </select>
+                </div>
+                <div className="flex flex-col justify-end gap-1">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={readOnly}
+                    onClick={() => patch({ stability: 0.35, similarity_boost: 0.8, style: 0.2, speed: 0.95 })}
+                  >
+                    {t("Deixar mais natural")}
+                  </Button>
+                  <p className="text-xs text-muted-foreground">
+                    {t("Menos estável = mais variação de tom, como fala de gente. Ouça antes de salvar.")}
+                  </p>
+                </div>
               </>
             ) : null}
             <div className="flex flex-col gap-1">
@@ -621,6 +676,116 @@ function ChaveDaElevenLabs(props: {
         {t("A chave fica guardada criptografada e a cobrança vai direto para a sua conta na ElevenLabs. Pegue em elevenlabs.io › Configurações › Chaves de API.")}
       </p>
     </div>
+  );
+}
+
+function BibliotecaDeVozes(props: { readOnly?: boolean; onAdicionada: (v: VozDisponivel) => void }) {
+  const t = useT();
+  const [texto, setTexto] = React.useState("");
+  const [genero, setGenero] = React.useState<"all" | GeneroDaVoz>("feminina");
+  const [resultado, setResultado] = React.useState<VozDaBiblioteca[] | null>(null);
+  const [buscando, setBuscando] = React.useState(false);
+  const [adicionando, setAdicionando] = React.useState<string | null>(null);
+
+  const buscar = async () => {
+    setBuscando(true);
+    try {
+      const q = new URLSearchParams();
+      if (texto.trim() !== "") q.set("q", texto.trim());
+      if (genero !== "all") q.set("genero", genero);
+      const qs = q.toString();
+      const res = await apiClient.get<{ data: { vozes: VozDaBiblioteca[] } }>(
+        `/api/v1/ai/voices/library${qs ? `?${qs}` : ""}`,
+      );
+      setResultado(res.data.vozes);
+    } catch (err) {
+      showApiError(err);
+    } finally {
+      setBuscando(false);
+    }
+  };
+
+  const adicionar = async (v: VozDaBiblioteca) => {
+    setAdicionando(v.id);
+    try {
+      const res = await apiClient.post<{ data: VozDisponivel }>("/api/v1/ai/voices/library", {
+        public_owner_id: v.publicOwnerId,
+        voice_id: v.id,
+        name: v.nome.slice(0, 60),
+      });
+      props.onAdicionada({ ...res.data, genero: v.genero });
+    } catch (err) {
+      showApiError(err);
+    } finally {
+      setAdicionando(null);
+    }
+  };
+
+  return (
+    <Card className="flex flex-col gap-3 p-4" data-testid="biblioteca-de-vozes">
+      <div className="space-y-1">
+        <h2 className="text-base font-medium">{t("Vozes em português do Brasil")}</h2>
+        <p className="max-w-2xl text-sm text-muted-foreground">
+          {t(
+            "As vozes prontas costumam ser de falantes de inglês e ganham sotaque estrangeiro em português — é o que mais denuncia uma nota de voz de robô. Aqui você acha vozes brasileiras na biblioteca da ElevenLabs, ouve a amostra e adiciona à sua conta. Pode exigir plano pago.",
+          )}
+        </p>
+      </div>
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <Input
+          aria-label={t("Buscar voz")}
+          placeholder={t("Ex.: acolhedora, calma, madura")}
+          value={texto}
+          onChange={(e) => setTexto(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") void buscar();
+          }}
+        />
+        <div className="flex gap-1" role="group" aria-label={t("Filtrar por gênero")}>
+          {(["feminina", "masculina", "all"] as const).map((g) => (
+            <Button key={g} type="button" size="sm" variant={genero === g ? "default" : "outline"} onClick={() => setGenero(g)}>
+              {g === "all" ? t("Todas") : g === "feminina" ? t("Femininas") : t("Masculinas")}
+            </Button>
+          ))}
+        </div>
+        <Button type="button" disabled={buscando} onClick={() => void buscar()}>
+          {buscando ? t("Buscando…") : t("Buscar")}
+        </Button>
+      </div>
+      {resultado !== null && resultado.length === 0 ? (
+        <p className="text-sm text-muted-foreground">{t("Nenhuma voz encontrada. Tente outra palavra.")}</p>
+      ) : null}
+      {resultado && resultado.length > 0 ? (
+        <ul className="grid gap-2 md:grid-cols-2" data-testid="lista-da-biblioteca">
+          {resultado.map((v) => (
+            <li key={`${v.publicOwnerId}:${v.id}`} className="flex flex-col gap-2 rounded-md border p-3">
+              <div className="min-w-0 space-y-1">
+                <p className="flex flex-wrap items-center gap-2 text-sm font-medium">
+                  {v.nome}
+                  <Badge variant="outline">
+                    {v.genero === "feminina" ? t("Feminina") : v.genero === "masculina" ? t("Masculina") : t("Neutra")}
+                  </Badge>
+                  {v.sotaque ? <Badge variant="secondary">{v.sotaque}</Badge> : null}
+                </p>
+                {v.descricao ? <p className="line-clamp-2 text-xs text-muted-foreground">{v.descricao}</p> : null}
+              </div>
+              {v.previewUrl ? <audio controls preload="none" src={v.previewUrl} className="h-8 w-full" /> : null}
+              <div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  disabled={props.readOnly || adicionando !== null}
+                  onClick={() => void adicionar(v)}
+                >
+                  {adicionando === v.id ? t("Adicionando…") : t("Adicionar à minha conta")}
+                </Button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </Card>
   );
 }
 

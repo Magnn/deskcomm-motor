@@ -26,7 +26,7 @@ export async function fetchComTempo(
  * clonagem) e NUNCA é copiado para a exceção: o erro de um provedor de síntese
  * pode ecoar o texto que a pessoa ia ouvir.
  */
-export async function erroDaResposta(res: Response, contexto: "sintese" | "clonagem" | "outro" = "outro"): Promise<ErroDeVoz> {
+export async function erroDaResposta(res: Response, contexto: "sintese" | "clonagem" | "biblioteca" | "outro" = "outro"): Promise<ErroDeVoz> {
   const status = res.status;
   let corpo = "";
   try {
@@ -35,6 +35,9 @@ export async function erroDaResposta(res: Response, contexto: "sintese" | "clona
     // sem corpo legível: o status basta
   }
   if (status === 401) return new ErroDeVoz("chave_invalida", status);
+  if (contexto === "biblioteca" && (status === 402 || status === 403 || ((status === 400 || status === 422) && /subscription|plan|upgrade|paid|payment/.test(corpo)))) {
+    return new ErroDeVoz("sem_permissao_de_biblioteca", status);
+  }
   if (status === 403) {
     if (contexto === "clonagem" || /clon|instant_voice|can_use_instant|subscription|plan/.test(corpo)) {
       return new ErroDeVoz("sem_permissao_de_clonagem", status);

@@ -35,6 +35,7 @@ const bodySchema = z.object({
   speed: z.number().min(0.7).max(1.2).optional(),
   stability: z.number().min(0).max(1).optional(),
   similarity_boost: z.number().min(0).max(1).optional(),
+  style: z.number().min(0).max(1).optional(),
   style_instructions: z.string().trim().max(400).optional(),
 });
 
@@ -88,6 +89,7 @@ export async function POST(req: NextRequest): Promise<Response> {
         ...(b.speed !== undefined ? { speed: b.speed } : {}),
         ...(b.stability !== undefined ? { stability: b.stability } : {}),
         ...(b.similarity_boost !== undefined ? { similarity_boost: b.similarity_boost } : {}),
+        ...(b.style !== undefined ? { style: b.style } : {}),
         ...(b.style_instructions !== undefined ? { style_instructions: b.style_instructions } : {}),
       },
       texto: textoParaFala(b.text ?? TEXTO_PADRAO),

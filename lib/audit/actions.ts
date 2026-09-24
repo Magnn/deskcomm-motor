@@ -782,6 +782,9 @@ export const AUDIT_ACTIONS = [
   // voz é dado pessoal, e "quem autorizou esta voz" é a pergunta que só ela responde.
   "ai.voice_cloned",
   "ai.voice_deleted",
+  // Uma voz da BIBLIOTECA pública da ElevenLabs adicionada à conta do cliente
+  // (POST /ai/voices/library) — muda a conta dele no provedor, por isso audita.
+  "ai.voice_added_from_library",
   // Rodada do canal-mudo-watcher que ABRIU ou FECHOU aviso (doc 11, decisão B).
   // Só com efeito: varredura diária que não achou nada não é mutação.
   "channel.canal_mudo_watcher_run",

@@ -16,7 +16,7 @@ import { converterParaNotaDeVoz } from "../converter";
 import { erroDaResposta, fetchComTempo } from "../http";
 import { ehOggOpus } from "../ogg";
 import { MIME_DA_NOTA_DE_VOZ, type AudioGerado, type GeneroDaVoz, type VozDisponivel } from "../tipos";
-import type { ImplementacaoDeVoz, PedidoDeClonagem, PedidoDeSintese } from "./tipos";
+import type { BuscaNaBiblioteca, ImplementacaoDeVoz, PedidoDeClonagem, PedidoDeSintese, VozDaBiblioteca } from "./tipos";
 
 const BASE = "https://api.elevenlabs.io/v1";
 /** Bom em português e o mais estável para falas longas. */
@@ -55,11 +55,58 @@ export function vozDaApi(v: VozDaApi): VozDisponivel {
   };
 }
 
+interface VozCompartilhadaDaApi {
+  public_owner_id?: string;
+  voice_id?: string;
+  name?: string;
+  gender?: string | null;
+  age?: string | null;
+  accent?: string | null;
+  locale?: string | null;
+  language?: string | null;
+  use_case?: string | null;
+  descriptive?: string | null;
+  description?: string | null;
+  preview_url?: string | null;
+}
+
+const TEXTO_DE_SOTAQUE_BRASILEIRO = /brazil|brasil|pt-br/i;
+
+/**
+ * A biblioteca devolve português de Portugal e do Brasil misturados (`language=pt`).
+ * Fica o que se declara brasileiro; se o provedor não declara nada em nenhuma voz da
+ * página, devolve tudo — sumir com a lista por causa de um campo ausente seria pior.
+ */
+export function vozesDaBiblioteca(brutas: VozCompartilhadaDaApi[]): VozDaBiblioteca[] {
+  const todas: Array<VozDaBiblioteca & { brasileira: boolean }> = [];
+  for (const v of brutas) {
+    if (!v.voice_id || !v.public_owner_id || !v.name) continue;
+    const descricao = [v.descriptive, v.description].filter((x): x is string => !!x && x.trim() !== "").join(" — ");
+    todas.push({
+      publicOwnerId: v.public_owner_id,
+      id: v.voice_id,
+      nome: v.name,
+      genero: generoDaElevenLabs(v.gender ?? undefined),
+      ...(v.accent ? { sotaque: v.accent } : {}),
+      ...(v.locale ? { locale: v.locale } : {}),
+      ...(v.age ? { idade: v.age } : {}),
+      ...(v.use_case ? { usoIndicado: v.use_case } : {}),
+      ...(descricao ? { descricao } : {}),
+      ...(v.preview_url ? { previewUrl: v.preview_url } : {}),
+      brasileira: TEXTO_DE_SOTAQUE_BRASILEIRO.test(`${v.accent ?? ""} ${v.locale ?? ""}`),
+    });
+  }
+  const brasileiras = todas.filter((v) => v.brasileira);
+  const escolhidas = brasileiras.length > 0 ? brasileiras : todas;
+  return escolhidas.map(({ brasileira: _b, ...voz }) => voz);
+}
+
 export function corpoDaSinteseElevenLabs(p: PedidoDeSintese): Record<string, unknown> {
   const a = p.ajustes ?? {};
   const voiceSettings: Record<string, unknown> = {
     ...(a.stability !== undefined ? { stability: a.stability } : {}),
     ...(a.similarity_boost !== undefined ? { similarity_boost: a.similarity_boost } : {}),
+    ...(a.style !== undefined ? { style: a.style } : {}),
     ...(a.speed !== undefined ? { speed: a.speed } : {}),
     use_speaker_boost: true,
   };
@@ -113,6 +160,37 @@ export const elevenlabsVoz: ImplementacaoDeVoz = {
     const mp3 = await pedirAudio(p, FORMATO_NOTA_PLANO_B);
     if (!mp3.ok) throw await erroDaResposta(mp3, "sintese");
     return converterParaNotaDeVoz(Buffer.from(await mp3.arrayBuffer()));
+  },
+
+  async buscarNaBiblioteca(apiKey, busca: BuscaNaBiblioteca) {
+    const q = new URLSearchParams({
+      page_size: "60",
+      language: busca.idioma ?? "pt",
+      sort: "trending",
+    });
+    if (busca.genero === "feminina") q.set("gender", "female");
+    if (busca.genero === "masculina") q.set("gender", "male");
+    if (busca.texto && busca.texto.trim() !== "") q.set("search", busca.texto.trim().slice(0, 80));
+    const res = await fetchComTempo(`${BASE}/shared-voices?${q.toString()}`, { headers: { "xi-api-key": apiKey } }, 20_000);
+    if (!res.ok) throw await erroDaResposta(res, "biblioteca");
+    const json = (await res.json().catch(() => ({}))) as { voices?: VozCompartilhadaDaApi[] };
+    return vozesDaBiblioteca(json.voices ?? []);
+  },
+
+  async adicionarDaBiblioteca(apiKey, p) {
+    const res = await fetchComTempo(
+      `${BASE}/voices/add/${encodeURIComponent(p.publicOwnerId)}/${encodeURIComponent(p.vozId)}`,
+      {
+        method: "POST",
+        headers: { "xi-api-key": apiKey, "Content-Type": "application/json" },
+        body: JSON.stringify({ new_name: p.nome }),
+      },
+      20_000,
+    );
+    if (!res.ok) throw await erroDaResposta(res, "biblioteca");
+    const json = (await res.json().catch(() => ({}))) as { voice_id?: string };
+    if (!json.voice_id) throw new ErroDeVoz("recusado", res.status);
+    return { provedor: "elevenlabs", id: json.voice_id, nome: p.nome, genero: "neutra", categoria: "pronta" };
   },
 
   async validarChave(apiKey) {
