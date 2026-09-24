@@ -1,8 +1,9 @@
 # Voz da agente — respostas em áudio no WhatsApp
 
 A agente responde com **nota de voz** (a bolha com a onda) quando a pessoa mandou
-áudio. Em todos os outros casos segue em texto. A voz pode ser uma voz pronta ou uma
-voz **clonada** a partir de gravações.
+áudio — e, se você escolher o modo "momentos", também nas respostas longas. Nos demais
+casos segue em texto. A voz pode ser uma voz pronta ou uma voz **clonada** a partir de
+gravações.
 
 ## Como ligar
 
@@ -17,11 +18,26 @@ voz **clonada** a partir de gravações.
    clique em **Salvar voz**. Vale a partir da próxima conversa: não há versão para
    publicar.
 
+## Quando ela fala: dois modos
+
+- **`mirror` (padrão):** só quando a mensagem que abriu o turno é um áudio da pessoa
+  (`messages.type = 'audio'`, `direction = 'inbound'`).
+- **`moments`:** o espelho **mais** as respostas longas — a fala (texto sem link e
+  emoji) com pelo menos `min_chars_for_voice` caracteres (padrão 240, faixa 80–1500).
+  Serve para o trecho em que a agente explica algo (uma leitura, uma orientação)
+  sair falado enquanto a pessoa escreve; o "ok, tarot ou mão?" segue em texto.
+  A decisão é **só pelo tamanho** (`lib/voz/decisao.ts`): nenhum marcador no prompt,
+  então nada como "[voz]" pode vazar para a pessoa. Quem já tinha a voz ligada sem
+  `mode` continua em `mirror`.
+
+Em ambos, quem decide é `deveResponderEmAudio`, por mensagem: a mesma resposta pode
+sair falada num turno e escrita no outro.
+
 ## O que acontece no turno
 
-- Só responde em áudio se o agente tem `voice_reply.enabled` **e** a mensagem que abriu
-  o turno é um áudio da pessoa (`messages.type = 'audio'`, `direction = 'inbound'`).
-  Follow-up e o painel de Teste nunca falam.
+- Só responde em áudio se o agente tem `voice_reply.enabled` **e**
+  `deveResponderEmAudio` manda falar (acima). Follow-up e o painel de Teste nunca
+  falam.
 - A resposta vira **uma nota por até `max_chars_per_note` caracteres** (padrão 700),
   cortando em fim de frase. Passou de 3 notas, sai como texto.
 - Emoji, marcação do WhatsApp e URLs saem da fala. **Links saem como texto, depois do

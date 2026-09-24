@@ -1,6 +1,7 @@
 "use client";
 /**
- * A aba "Voz": a agente responde em ÁUDIO quando a pessoa mandou áudio.
+ * A aba "Voz": a agente responde em ÁUDIO quando a pessoa mandou áudio (e, no modo
+ * "momentos", também nas respostas longas).
  *
  * Aqui o operador escolhe o provedor (OpenAI ou ElevenLabs), ouve as vozes
  * antes de escolher, ajusta a fala e — na ElevenLabs — clona uma voz a partir
@@ -168,7 +169,7 @@ export function VozDoAgente({ agentId, config, active, readOnly }: Props) {
       const corpo = form.provider && form.voice_id
         ? {
             ...form,
-            mode: "mirror" as const,
+            mode: form.mode ?? ("mirror" as const),
             voice_name: vozEscolhida?.nome ?? form.voice_name,
           }
         : { enabled: false, mode: "mirror" as const };
@@ -203,6 +204,46 @@ export function VozDoAgente({ agentId, config, active, readOnly }: Props) {
             disabled={readOnly}
             aria-label={t("Responder em áudio")}
           />
+        </div>
+
+        <div className="flex flex-col gap-2" role="radiogroup" aria-label={t("Quando a agente fala")}>
+          {(
+            [
+              ["mirror", t("Só quando a pessoa mandar áudio")],
+              ["moments", t("Também nas respostas longas (as explicações)")],
+            ] as const
+          ).map(([valor, rotulo]) => (
+            <label key={valor} className="flex items-center gap-2 text-sm">
+              <input
+                type="radio"
+                name="voz-modo"
+                value={valor}
+                checked={(form.mode ?? "mirror") === valor}
+                onChange={() => patch({ mode: valor })}
+                disabled={readOnly}
+              />
+              {rotulo}
+            </label>
+          ))}
+          {(form.mode ?? "mirror") === "moments" ? (
+            <div className="flex flex-col gap-1 pl-6">
+              <Label htmlFor="voz-min-chars">{t("Falar a partir de quantos caracteres")}</Label>
+              <Input
+                id="voz-min-chars"
+                type="number"
+                min={80}
+                max={1500}
+                value={form.min_chars_for_voice ?? 240}
+                onChange={(e) => patch({ min_chars_for_voice: Number(e.target.value) })}
+                disabled={readOnly}
+              />
+              <p className="text-xs text-muted-foreground">
+                {t(
+                  "Respostas curtas seguem em texto; as mais longas (uma leitura, uma explicação) saem em áudio mesmo que a pessoa esteja escrevendo. Link e emoji não contam.",
+                )}
+              </p>
+            </div>
+          ) : null}
         </div>
       </Card>
 

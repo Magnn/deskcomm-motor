@@ -99,13 +99,19 @@ export const MIME_DA_NOTA_DE_VOZ = "audio/ogg;codecs=opus";
 /**
  * A configuração de resposta em áudio de UM agente (`ai_agents.config.voice_reply`).
  *
- * Chaves em snake_case, como o resto do `config`. `mode: "mirror"` é o único
- * modo de hoje: responde em áudio quando a pessoa mandou áudio. O enum existe
- * para que "sempre" e "só nos momentos-chave" entrem sem trocar o formato.
+ * Chaves em snake_case, como o resto do `config`. Dois modos:
+ *  - `mirror`: responde em áudio quando a pessoa mandou áudio.
+ *  - `moments`: o espelho MAIS as respostas longas (`min_chars_for_voice`) — o
+ *    trecho em que a agente explica algo (uma leitura, uma orientação) sai falado
+ *    mesmo que a pessoa esteja escrevendo. A decisão é determinística, pelo
+ *    tamanho: nenhum marcador no prompt, então não há como um "[voz]" vazar para
+ *    a pessoa.
  */
 export const voiceReplySchema = z.object({
   enabled: z.boolean().default(false),
-  mode: z.enum(["mirror"]).default("mirror"),
+  mode: z.enum(["mirror", "moments"]).default("mirror"),
+  /** Só vale em `moments`: a fala (sem link e emoji) precisa ter pelo menos isto. */
+  min_chars_for_voice: z.number().int().min(80).max(1500).default(240),
   provider: z.enum(IDS_DE_PROVEDOR_DE_VOZ),
   voice_id: z.string().trim().min(1).max(120),
   /** Só para a tela mostrar o nome sem consultar o provedor. */

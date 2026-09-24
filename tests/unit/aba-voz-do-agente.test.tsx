@@ -122,6 +122,25 @@ describe("aba Voz", () => {
     expect(voiceReplySchema.safeParse(salvo).success).toBe(true);
   });
 
+  it("modo momentos: o operador escolhe falar também nas respostas longas e o limite vai no PATCH", async () => {
+    renderizar({});
+    fireEvent.click(await screen.findByRole("button", { name: /OpenAI/ }));
+    await screen.findByTestId("lista-de-vozes");
+    fireEvent.click(screen.getAllByRole("button", { name: "Usar" })[0]!);
+    fireEvent.click(screen.getByRole("switch", { name: "Responder em áudio" }));
+
+    // O limite só aparece no modo que o usa.
+    expect(screen.queryByLabelText("Falar a partir de quantos caracteres")).toBeNull();
+    fireEvent.click(screen.getByLabelText("Também nas respostas longas (as explicações)"));
+    fireEvent.change(screen.getByLabelText("Falar a partir de quantos caracteres"), { target: { value: "180" } });
+    fireEvent.click(screen.getByRole("button", { name: "Salvar voz" }));
+
+    await waitFor(() => expect(api.patch).toHaveBeenCalledTimes(1));
+    const [, corpo] = api.patch.mock.calls[0] as [string, { config: { voice_reply: Record<string, unknown> } }];
+    expect(corpo.config.voice_reply).toMatchObject({ enabled: true, mode: "moments", min_chars_for_voice: 180 });
+    expect(voiceReplySchema.safeParse(corpo.config.voice_reply).success).toBe(true);
+  });
+
   it("não deixa ligar sem escolher uma voz", async () => {
     renderizar({});
     fireEvent.click(await screen.findByRole("switch", { name: "Responder em áudio" }));

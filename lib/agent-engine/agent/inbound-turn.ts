@@ -82,6 +82,7 @@ import {
   inboundEhAudio,
   prepararNotasDeVoz,
 } from './nota-de-voz';
+import { deveResponderEmAudio } from '@/lib/voz/decisao';
 import { enqueueJob, rescheduleJob, type JobRow, type Queryable } from '../queue/queue';
 import {
   applyLeadStateUpdate,
@@ -2231,20 +2232,23 @@ async function executarTurnoDoAgente(
           inboundMessageId: input.inboundMessageId,
         });
 
-  // Resposta em ÁUDIO (espelho): a config do agente está ligada E a pessoa falou por
-  // áudio. Preview nunca fala — não há canal, e cada teste custaria uma síntese.
-  // Follow-up (sem `inboundMessageId`) também não: ninguém falou para espelhar.
+  // Resposta em ÁUDIO: a config do agente está ligada. QUANDO fala é decidido por
+  // mensagem (`deveResponderEmAudio`): espelho (a pessoa falou por áudio) e, no modo
+  // "momentos", também a resposta longa. Preview nunca fala — não há canal, e cada
+  // teste custaria uma síntese. Follow-up (sem `inboundMessageId`) também não: ninguém
+  // falou e ninguém está esperando uma voz no meio da noite.
   const voiceReply =
-    !preview &&
-    agentConfig?.voiceReply &&
+    !preview && agentConfig?.voiceReply && input.inboundMessageId !== undefined
+      ? agentConfig.voiceReply
+      : null;
+  const pessoaMandouAudio =
+    voiceReply !== null &&
     input.inboundMessageId !== undefined &&
     (await inboundEhAudio(pool, {
       tenantId,
       conversationId: input.conversationId,
       inboundMessageId: input.inboundMessageId,
-    }))
-      ? agentConfig.voiceReply
-      : null;
+    }));
 
   // Seam de canal (F2-25): o envio vai SÓ pela interface ChannelAdapter — o
   // default WAHA-via-CRM envolve o sink F2-06. Instanciado por job (o pool é
@@ -3112,11 +3116,14 @@ async function executarTurnoDoAgente(
                   // issue #654. Neste ponto fica só o jitter anti-ban entre bolhas.
                   send: (bubble) => enviar(bubble),
                 });
-              // A pessoa falou por áudio e o agente tem voz: responde com nota de voz.
+              // O agente tem voz e esta resposta é um caso de áudio (a pessoa falou, ou é
+              // uma resposta longa no modo "momentos"): responde com nota de voz.
               // QUALQUER falha (chave, cota, provedor, formato) cai para `comoTexto` — a
               // pessoa nunca fica sem resposta por causa da voz.
               const comoVoz = async (texto: string): Promise<ChannelSendResult> => {
-                if (!voiceReply) return comoTexto(texto);
+                if (!voiceReply || !deveResponderEmAudio(voiceReply, { pessoaMandouAudio, texto })) {
+                  return comoTexto(texto);
+                }
                 const preparadas = await prepararNotasDeVoz(dependenciasReaisDeNota(runLog), {
                   tenantId,
                   conversationId: input.conversationId,

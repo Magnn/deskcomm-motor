@@ -23,6 +23,7 @@ import {
   type NotaPreparada,
 } from "@/lib/agent-engine/agent/nota-de-voz";
 import { corpoDoEnvio } from "@/lib/agent-engine/edge/crm/send-message";
+import { deveResponderEmAudio } from "@/lib/voz/decisao";
 import { ErroDeVoz } from "@/lib/voz/erros";
 import { MIME_DA_NOTA_DE_VOZ, voiceReplySchema, type VoiceReplyConfig } from "@/lib/voz/tipos";
 
@@ -275,5 +276,50 @@ describe("inboundEhAudio", () => {
       },
     };
     expect(await inboundEhAudio(quebrado as never, ids)).toBe(false);
+  });
+});
+
+describe("deveResponderEmAudio", () => {
+  const espelho = voiceReplySchema.parse({ enabled: true, provider: "openai", voice_id: "coral" });
+  const momentos = voiceReplySchema.parse({
+    enabled: true,
+    mode: "moments",
+    min_chars_for_voice: 200,
+    provider: "openai",
+    voice_id: "coral",
+  });
+  const longa = "A Lua fala de coisa que ficou sem ser dita, e o Dois de Copas mostra que o laço ainda existe dos dois lados. ".repeat(3);
+
+  it("espelho: só fala quando a pessoa mandou áudio — resposta longa não muda isso", () => {
+    expect(deveResponderEmAudio(espelho, { pessoaMandouAudio: true, texto: "oi" })).toBe(true);
+    expect(deveResponderEmAudio(espelho, { pessoaMandouAudio: false, texto: longa })).toBe(false);
+  });
+
+  it("momentos: o espelho continua valendo, mesmo para resposta curta", () => {
+    expect(deveResponderEmAudio(momentos, { pessoaMandouAudio: true, texto: "oi" })).toBe(true);
+  });
+
+  it("momentos: pessoa escrevendo — curta fica em texto, longa (explicação) vira áudio", () => {
+    expect(deveResponderEmAudio(momentos, { pessoaMandouAudio: false, texto: "Entendi. Tarot ou mão?" })).toBe(false);
+    expect(deveResponderEmAudio(momentos, { pessoaMandouAudio: false, texto: longa })).toBe(true);
+  });
+
+  it("momentos: conta a FALA — link e emoji não fazem uma resposta curta virar áudio", () => {
+    const soLink = `O trabalho custa R$ 130. https://pay.cakto.com.br/${"a".repeat(300)} 🌙`;
+    expect(deveResponderEmAudio(momentos, { pessoaMandouAudio: false, texto: soLink })).toBe(false);
+  });
+});
+
+describe("voiceReplySchema: modos", () => {
+  const base = { enabled: true, provider: "openai", voice_id: "coral" };
+
+  it("sem `mode` continua sendo espelho (quem já configurou não muda de comportamento)", () => {
+    expect(voiceReplySchema.parse(base)).toMatchObject({ mode: "mirror", min_chars_for_voice: 240 });
+  });
+
+  it("aceita momentos e recusa limite fora da faixa", () => {
+    expect(voiceReplySchema.safeParse({ ...base, mode: "moments", min_chars_for_voice: 160 }).success).toBe(true);
+    expect(voiceReplySchema.safeParse({ ...base, mode: "moments", min_chars_for_voice: 10 }).success).toBe(false);
+    expect(voiceReplySchema.safeParse({ ...base, mode: "sempre" }).success).toBe(false);
   });
 });
