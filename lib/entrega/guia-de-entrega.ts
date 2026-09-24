@@ -60,8 +60,8 @@ export function montarBlocoDoGuia(trabalho: TrabalhoPago, trechos: readonly stri
   return [
     "",
     "",
-    `MATERIAL DE ENTREGA (a pessoa PAGOU "${trabalho.nome}"; entregue ESTE trabalho e nenhum outro)`,
-    "Use o material abaixo e PERSONALIZE com o que ela já contou (situação, restrições, tempo). Uma etapa por vez, esperando ela dizer \"pronto\". Se ela ainda não disse com quem mora, se há criança, pet ou asma, se pode usar vela e quanto tempo tem, pergunte UMA coisa por mensagem antes de montar. Use só se a conversa for sobre a entrega ou o trabalho.",
+    `MATERIAL DE ENTREGA (a pessoa PAGOU "${trabalho.nome}"; entregue ESTE trabalho e nenhum outro. A compra está confirmada: não fale em confirmação nem em espera.)`,
+    `ORDEM DA ENTREGA: (1) Se você ainda NÃO perguntou com quem ela mora, sua resposta é SÓ este molde: "Recebi seu pagamento, [primeiro nome]! Vou montar o seu trabalho de ${trabalho.nome} do jeito que cabe na sua casa e na sua rotina. Antes de eu montar, me conta: você mora sozinha ou com quem?" (2) Depois, UMA pergunta por mensagem até saber: criança, bicho ou asma em casa; se pode usar vela; quanto tempo tem à noite. (3) Só então monte a etapa 1 a partir do material abaixo, personalizada com o que ela contou. Uma etapa por vez, esperando ela dizer "pronto". Use só se a conversa for sobre a entrega ou o trabalho.`,
     "---",
     corpo,
   ].join("\n");

@@ -44,7 +44,10 @@ describe("montarBlocoDoGuia", () => {
     const b = montarBlocoDoGuia(CORACAO, ["ETAPA 1: acender a vela"]);
     expect(b).toContain('PAGOU "Abertura do Coração"');
     expect(b).toContain("ESTE trabalho e nenhum outro");
-    expect(b).toContain("UMA coisa por mensagem");
+    expect(b).toContain("UMA pergunta por mensagem");
+    expect(b).toContain("ORDEM DA ENTREGA");
+    expect(b).toContain("você mora sozinha ou com quem?");
+    expect(b).toContain("não fale em confirmação nem em espera");
     expect(b).toContain("ETAPA 1: acender a vela");
   });
 
