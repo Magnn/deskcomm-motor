@@ -83,6 +83,7 @@ import {
   prepararNotasDeVoz,
 } from './nota-de-voz';
 import { blocoDePreco } from '@/lib/preco/bloco-do-prompt';
+import { carregarGuiaDeEntrega, trabalhoPagoDasTags } from '@/lib/entrega/guia-de-entrega';
 import { precoPermitidoAgora, reclamacoesDeValor } from '@/lib/preco/estado-da-negociacao';
 import { deveResponderEmAudio } from '@/lib/voz/decisao';
 import { enqueueJob, rescheduleJob, type JobRow, type Queryable } from '../queue/queue';
@@ -2243,7 +2244,42 @@ async function executarTurnoDoAgente(
     agentConfig?.pricing != null
       ? precoPermitidoAgora(agentConfig.pricing, reclamacoesDeValorNoTurno)
       : undefined;
-  const systemDoTurno = blocoDePrecoDoTurno === '' ? system : `${system}${blocoDePrecoDoTurno}`;
+  // Entrega personalizada: quem PAGOU (tags `pago` + `produto:<trabalho>`, postas pela compra
+  // aprovada na Cakto) recebe, neste turno, o guia do trabalho certo e as regras gerais — buscados
+  // pelo código, porque o modelo pequeno não chamava a busca. Sem as duas tags, nada é injetado.
+  const trabalhoPago = trabalhoPagoDasTags(openingContext.context.contact.tags);
+  const fontesDoAgente = agentConfig?.knowledgeSourceIds ?? [];
+  let blocoDaEntrega = '';
+  if (trabalhoPago !== null && fontesDoAgente.length > 0) {
+    try {
+      blocoDaEntrega = await carregarGuiaDeEntrega(
+        {
+          buscar: async (query, topK) => {
+            const out = await searchKnowledge(
+              pool,
+              {
+                organizationId: tenantId,
+                knowledgeSourceIds: fontesDoAgente,
+                kbVersionId: agentConfig?.activeKbVersionId ?? null,
+                query,
+                topK,
+                threshold: 0.2,
+                jobId: job?.id,
+                agentId: agentConfig?.agentId ?? null,
+              },
+              { log: runLog, embed: deps.embed },
+            );
+            return out.ok ? out.results : [];
+          },
+        },
+        trabalhoPago,
+      );
+    } catch (err) {
+      // A entrega segue sem o guia (a agente cai no que o prompt diz) — nunca derruba o turno.
+      runLog.warn('guia de entrega indisponível', { erro: err instanceof Error ? err.message.slice(0, 120) : 'desconhecido' });
+    }
+  }
+  const systemDoTurno = `${system}${blocoDePrecoDoTurno}${blocoDaEntrega}`;
   const currentInboundText =
     input.inboundMessageId === undefined
       ? null
