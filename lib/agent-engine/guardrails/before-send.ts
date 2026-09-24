@@ -55,6 +55,7 @@ import { loadRecentCopies, loadSpinningKnobs, recordCopy } from '../spinning/sto
 import type { SpinningKnobs } from '../spinning/defaults';
 import { decidePromise } from './promise/engine';
 import { loadPromiseTable } from './promise/table';
+import { tabelaDoTurno } from '@/lib/preco/estado-da-negociacao';
 import type { PromiseTable } from './promise/table';
 import { renderSemanticPromiseVeto } from './promise/semantic';
 import type { PromiseClassification } from './promise/semantic';
@@ -857,6 +858,11 @@ export type BeforeSendResult =
     };
 
 export interface RunBeforeSendArgs {
+  /**
+   * Piso de preço DESTE turno em centavos (a escada de negociação: `lib/preco`). Só SOBE o
+   * `minPriceCents` da tabela da organização, nunca o desce. Ausente = a tabela vale como está.
+   */
+  promiseMinPriceCents?: number;
   agentOperation?: AgentOperationContext;
   approvedReply?: ApprovedReplyContext;
   /** Contexto interno do único comando Meet; a origem é relida, nunca um booleano de bypass. */
@@ -1207,7 +1213,7 @@ export async function runBeforeSend(args: RunBeforeSendArgs): Promise<BeforeSend
       spinning: { knobs: spinningKnobs, window },
       ...(args.enforceSpinning === false ? { spinningEnforced: false as const } : {}),
       promise: {
-        table: promise?.table ?? null,
+        table: tabelaDoTurno(promise?.table ?? null, args.promiseMinPriceCents),
         ...(promise?.versionId !== undefined ? { versionId: promise.versionId } : {}),
       },
       semanticPromise,

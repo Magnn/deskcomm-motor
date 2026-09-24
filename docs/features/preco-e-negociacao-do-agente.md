@@ -17,11 +17,33 @@ pagamento desmente. Por isso o schema (`lib/preco/tipos.ts`) recusa degrau sem `
 ## O que acontece no turno
 
 1. `lerPricing(config)` lê `ai_agents.config.pricing`; desligado ou inválido = `null` = o agente **não negocia**.
-2. `blocoDePreco` (`lib/preco/bloco-do-prompt.ts`) monta o texto e o turno o anexa depois do prompt do
-   agente (`inbound-turn.ts`). Mudar o valor na tela vale no PRÓXIMO turno, sem publicar versão.
-3. A trava de promessas (`lib/agent-engine/guardrails/promise/`) é a rede de segurança: ao salvar, o
+2. O **código conta** (`lib/preco/estado-da-negociacao.ts`) quantas vezes a pessoa reclamou do valor
+   (caro, desconto, "faz por menos", "não tenho como pagar"…) **depois de o agente ter dito um preço**.
+   Antes do preço dito não há o que negociar (`null`).
+3. `blocoDePreco` (`lib/preco/bloco-do-prompt.ts`) monta o bloco com **UM molde só**, o do passo atual, e
+   `inbound-turn.ts` o anexa no FIM do system do turno (o prefixo cacheável não muda). Os degraus
+   seguintes nem aparecem no prompt — então também não vazam. Mudar o valor na tela vale no PRÓXIMO turno.
+
+   | Contagem | O agente recebe |
+   |---|---|
+   | preço ainda não dito | "não fale de desconto" |
+   | 0 | "ela não reclamou: não ofereça nada" |
+   | 1 | mantém o valor de venda e pergunta se faz sentido |
+   | 2 … n+1 | oferece SÓ o degrau (n = nº de degraus), com o cupom/link dele; o último é o mínimo |
+   | > n+1 | "esse é o menor valor que consigo"; oferece lembrar depois |
+
+4. A trava de promessas (`lib/agent-engine/guardrails/promise/`) é a rede de segurança: ao salvar, o
    piso vira `minPriceCents` (e o teto de desconto, arredondado para baixo, `maxDiscountPercent`).
    Mensagem que cita valor abaixo do mínimo é vetada antes de sair.
+
+**Por que o código conta e não o modelo.** No painel de Teste, com a escada inteira no prompt, o modelo
+pequeno errava o passo: repetia a 1ª resposta na 2ª reclamação ou já oferecia o degrau na 1ª. A contagem
+é heurística de palavras e pode errar para os dois lados em casos raros; errar custa um passo a mais ou a
+menos — o piso continua garantido pela trava.
+
+**Testar no painel de Teste.** O painel roda uma mensagem só. Cole nela um histórico com linhas
+`Lead: …` e `Esmeralda: …` (ou `Cliente:`/`Agente:`) e a mensagem nova por último: cada linha vira
+uma mensagem, e a escada anda como na conversa real.
 
 ## Honestidade da âncora
 

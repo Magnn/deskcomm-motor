@@ -83,6 +83,7 @@ import {
   prepararNotasDeVoz,
 } from './nota-de-voz';
 import { blocoDePreco } from '@/lib/preco/bloco-do-prompt';
+import { precoPermitidoAgora, reclamacoesDeValor } from '@/lib/preco/estado-da-negociacao';
 import { deveResponderEmAudio } from '@/lib/voz/decisao';
 import { enqueueJob, rescheduleJob, type JobRow, type Queryable } from '../queue/queue';
 import {
@@ -2177,9 +2178,7 @@ async function executarTurnoDoAgente(
   const playbook = await loadPlaybook(
     pool,
     tenantId,
-    agentConfig !== null
-      ? { agentLayer: agentConfig.systemPrompt + blocoDePreco(agentConfig.pricing) + prospectingContext }
-      : undefined,
+    agentConfig !== null ? { agentLayer: agentConfig.systemPrompt + prospectingContext } : undefined,
   );
   // Skills situacionais (F3-09): índice (name+description) SEMPRE residente — vai junto do
   // system do playbook, no prefixo estável org-wide (disclosure progressivo; cacheável F2-17).
@@ -2230,6 +2229,21 @@ async function executarTurnoDoAgente(
     // sumiu) — ambos re-tentam pela fila e morrem em 'dead' se persistirem.
     throw new Error(`abertura do turno falhou em get_lead_context (${openingContext.error.code})`);
   }
+  // Preço e negociação (`config.pricing`): o bloco depende de ONDE a conversa está — quantas vezes a
+  // pessoa reclamou do valor depois do preço dito — e isso é contado aqui, em código, sobre as
+  // mensagens do contexto (o painel de Teste incluso). Vai no FIM do system: o prefixo estável e
+  // cacheável não muda. Sem `pricing` ligado, `blocoDePreco` devolve "" e o system segue idêntico.
+  const reclamacoesDeValorNoTurno = reclamacoesDeValor(openingContext.context.messages);
+  const blocoDePrecoDoTurno = blocoDePreco(agentConfig?.pricing, {
+    reclamacoes: reclamacoesDeValorNoTurno,
+  });
+  // A REDE: o mesmo passo vira o piso de preço da trava de promessas deste turno. Se o modelo
+  // oferecer o desconto antes da hora, a mensagem é vetada antes de sair (`before-send`).
+  const promiseMinPriceCents =
+    agentConfig?.pricing != null
+      ? precoPermitidoAgora(agentConfig.pricing, reclamacoesDeValorNoTurno)
+      : undefined;
+  const systemDoTurno = blocoDePrecoDoTurno === '' ? system : `${system}${blocoDePrecoDoTurno}`;
   const currentInboundText =
     input.inboundMessageId === undefined
       ? null
@@ -3042,6 +3056,7 @@ async function executarTurnoDoAgente(
           const beforeSendArgs = {
             pool,
             log: runLog,
+            ...(promiseMinPriceCents !== undefined ? { promiseMinPriceCents } : {}),
             agentOperation,
             tenantId,
             leadId,
@@ -4116,7 +4131,7 @@ async function executarTurnoDoAgente(
         // "Nenhuma execução ainda" com o agente respondendo no WhatsApp.
         agentId: agentConfig?.agentId ?? null,
         purpose: preview ? 'agent_preview' : 'agent_turn',
-        system,
+        system: systemDoTurno,
         messages: openingMessages,
         tools,
         maxSteps,
@@ -4251,7 +4266,7 @@ async function executarTurnoDoAgente(
               },
             }
           : {}),
-        system,
+        system: systemDoTurno,
         messages: [
           // prune: o checkpoint reusa a abertura só como texto — a mídia nativa (cara) já
           // fez seu trabalho na 1ª chamada e não precisa ir de novo.
