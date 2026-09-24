@@ -789,6 +789,9 @@ export const AUDIT_ACTIONS = [
   // Dinheiro que a agente cobra e o mínimo que aceita: "quem mudou o piso, e quando" é a
   // pergunta que só esta linha responde.
   "ai.pricing_updated",
+  // Um aviso da Cakto que MUDOU algo (compra aprovada → entrega, reembolso, chargeback). O evento
+  // que não muda nada (Pix gerado, abandono) só entra em `webhook_events_log`, não aqui.
+  "webhook.cakto_evento_aplicado",
   // Rodada do canal-mudo-watcher que ABRIU ou FECHOU aviso (doc 11, decisão B).
   // Só com efeito: varredura diária que não achou nada não é mutação.
   "channel.canal_mudo_watcher_run",

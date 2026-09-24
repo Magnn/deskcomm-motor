@@ -36,6 +36,8 @@ import {
 import { origemDaPagina, registrarCaptacao } from "@/lib/webhooks/captacao";
 import { ipDoClienteParaInet } from "@/lib/http/ip-do-cliente";
 import { decryptWebhookSecret } from "@/lib/webhooks/secrets";
+import { aplicarEventoDaCakto, depsReais as depsDaCompra } from "@/lib/pagamentos/compra-cakto";
+import { isCaktoPayload, mapCaktoPayload, segredoDaCaktoConfere } from "@/lib/webhooks/cakto";
 import { ApiError } from "@/lib/api/types";
 import { autorizarContatoParaIA } from "@/lib/ai/elegibilidade/autorizacao";
 import { kickLocalPipeline } from "@/lib/dev/kick-local-pipeline";
@@ -123,6 +125,98 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<NextRespons
     webhookSourceId: source.id as string,
     sourceName: (source.name as string) ?? "Fonte sem nome",
   };
+
+  // AVISO DE COMPRA DA CAKTO. A Cakto não assina o corpo com HMAC: ela devolve, DENTRO dele, o
+  // `secret` que o dono digitou ao criar o webhook. Por isso este ramo vem ANTES da checagem de
+  // assinatura abaixo (que exigiria o cabeçalho e recusaria todo aviso) e exige o segredo da
+  // fonte — sem segredo configurado nada é aceito: aviso de pagamento forjado entregaria
+  // trabalho de graça. Responde rápido com 200, como a Cakto pede.
+  if (isCaktoPayload(payload)) {
+    const segredoDaFonte = source.secret_encrypted
+      ? await decryptWebhookSecret(admin, source.secret_encrypted as unknown as string)
+      : null;
+    if (!segredoDaCaktoConfere(payload, segredoDaFonte)) {
+      await audit({
+        action: "webhook.inbound_invalid_signature",
+        organizationId: source.organization_id,
+        resourceType: "webhook_source",
+        resourceId: source.id,
+        requestId,
+      });
+      await registrarCaptacao(admin, {
+        ...fonteDaCaptacao,
+        ...origemDaCaptacao,
+        outcome: "recusado",
+        rejectReason: "assinatura_invalida",
+      });
+      return fail("unauthenticated", "invalid_secret", 401, { requestId });
+    }
+
+    const compra = mapCaktoPayload(payload);
+    // O segredo NUNCA vai para o log: o corpo é regravado sem ele.
+    const semSegredo = { ...(payload as Record<string, unknown>), secret: "[omitido]" };
+    let efeito: Awaited<ReturnType<typeof aplicarEventoDaCakto>> | null = null;
+    try {
+      efeito = compra
+        ? await aplicarEventoDaCakto(depsDaCompra(admin, source.organization_id, requestId, source.id), compra)
+        : { resultado: "ignorada", evento: "payload_incompleto" };
+    } catch (err) {
+      logger.error("[webhooks.inbound] aviso da Cakto falhou", {
+        webhookSourceId: source.id,
+        organizationId: source.organization_id,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      await admin.from("webhook_events_log").insert({
+        organization_id: source.organization_id,
+        provider: "generic",
+        webhook_path_token: token,
+        http_method: "POST",
+        headers: {},
+        raw_body: JSON.stringify(semSegredo),
+        payload_parsed: semSegredo as never,
+        signature_header: null,
+        valid_signature: true,
+        event_type: `cakto.${String((payload as Record<string, unknown>).event)}`,
+        external_id: compra?.pedidoId ?? null,
+        status: "error",
+        attempts: 1,
+      });
+      // 5xx: a Cakto reenvia, e o reenvio é seguro — a marca do pedido impede entrega dupla.
+      return fail("internal_error", "cakto_event_failed", 500, { requestId });
+    }
+
+    await admin.from("webhook_events_log").insert({
+      organization_id: source.organization_id,
+      provider: "generic",
+      webhook_path_token: token,
+      http_method: "POST",
+      headers: {},
+      raw_body: JSON.stringify(semSegredo),
+      payload_parsed: semSegredo as never,
+      signature_header: null,
+      valid_signature: true,
+      event_type: `cakto.${String((payload as Record<string, unknown>).event)}`,
+      external_id: compra?.pedidoId ?? null,
+      status: "processed",
+      attempts: 1,
+    });
+    if (efeito.resultado !== "ignorada") {
+      await audit({
+        action: "webhook.cakto_evento_aplicado",
+        organizationId: source.organization_id,
+        resourceType: "webhook_source",
+        resourceId: source.id,
+        requestId,
+        metadata: {
+          evento: compra?.evento ?? null,
+          resultado: efeito.resultado,
+          pedido: compra?.pedidoId ?? null,
+          trabalho: "trabalho" in efeito ? efeito.trabalho : null,
+        },
+      });
+    }
+    return ok({ received: true, resultado: efeito.resultado }, { requestId }) as NextResponse;
+  }
 
   const sigHeader = req.headers.get("x-deskcomm-signature");
   // secret cifrado at-rest (migration 0041). Decrypt falhou (chave da GUC
