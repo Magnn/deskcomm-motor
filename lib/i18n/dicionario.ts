@@ -59,6 +59,7 @@ export const DICIONARIO: Traducoes = {
   "A agente só oferece desconto se a pessoa pedir ou disser que está caro, e um degrau por vez, na ordem. Cada degrau precisa dizer como se paga aquele valor: um cupom do checkout ou um link que já cobra o valor. O último degrau é o mínimo.": { es: "La agente solo ofrece descuento si la persona lo pide o dice que está caro, y un escalón por vez, en orden. Cada escalón debe decir cómo se paga ese valor: un cupón del checkout o un enlace que ya cobra ese valor. El último escalón es el mínimo." },
   "Cupom no checkout": { es: "Cupón en el checkout" },
   "ou link que cobra este valor": { es: "o enlace que cobra este valor" },
+  "Nome do trabalho | https://…": { es: "Nombre del trabajo | https://…" },
   "ou um link por trabalho (uma linha cada: Nome | https://…)": { es: "o un enlace por trabajo (una línea cada uno: Nombre | https://…)" },
   "Cada linha dos links por trabalho deve ser: Nome | https://…": { es: "Cada línea de los enlaces por trabajo debe ser: Nombre | https://…" },
   "Este é o mínimo: a agente nunca desce dele.": { es: "Este es el mínimo: la agente nunca baja de él." },

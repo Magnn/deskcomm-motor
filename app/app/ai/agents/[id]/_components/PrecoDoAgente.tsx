@@ -281,7 +281,7 @@ export function PrecoDoAgente({ agentId, config, readOnly }: Props) {
               <Textarea
                 id={`degrau-links-${i}`}
                 rows={3}
-                placeholder="Abertura do Coração | https://…"
+                placeholder={t("Nome do trabalho | https://…")}
                 value={d.links}
                 onChange={(e) => mudaDegrau(i, { links: e.target.value })}
                 disabled={readOnly}
