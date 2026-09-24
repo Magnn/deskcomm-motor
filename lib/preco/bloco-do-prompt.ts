@@ -20,7 +20,16 @@
 import { pisoEmCentavos, reais, type PricingConfig } from "./tipos";
 
 /** Como a pessoa paga aquele valor, numa frase que a agente pode dizer. */
-function comoPagar(d: { coupon_code?: string | undefined; payment_url?: string | undefined }): string {
+function comoPagar(d: {
+  coupon_code?: string | undefined;
+  payment_url?: string | undefined;
+  product_links?: readonly { name: string; url: string }[] | undefined;
+}): string {
+  // Um link por produto: o molde leva um marcador e a lista vem numa linha à parte, para a agente
+  // mandar SÓ o link do produto que indicou (uma lista dentro do molde vazaria os outros).
+  if ((d.product_links?.length ?? 0) > 0 && !d.coupon_code && !d.payment_url) {
+    return "pague por este link: [o link do trabalho que você indicou, da lista de LINKS NESTE VALOR abaixo]";
+  }
   if (d.coupon_code && d.payment_url) {
     return `use o cupom ${d.coupon_code} no pagamento, ou pague por este link: ${d.payment_url}`;
   }
@@ -56,7 +65,13 @@ function instrucaoDeNegociacao(c: PricingConfig, reclamacoes: number | null): st
     const molde = ultimo
       ? `Esse é o menor valor que consigo: ${valor}. Pra pagar, ${como}. Quer seguir?`
       : `Vou ver o que consigo pra você. Fica ${valor}: ${como}. Fica bom assim?`;
-    return `- NEGOCIAÇÃO: ela reclamou do valor de novo. Ofereça SÓ ${valor}${ultimo ? ", que é o MENOR valor possível" : ""}. Responda com ESTE molde e nenhum outro (sem perguntar o motivo, sem chamar outra pessoa): "${molde}"`;
+    const lista =
+      degrau.product_links && degrau.product_links.length > 0
+        ? `\n- LINKS NESTE VALOR (${valor}) — mande SÓ o do trabalho que você indicou, nunca a lista: ${degrau.product_links
+            .map((l) => `${l.name}: ${l.url}`)
+            .join(" | ")}`
+        : "";
+    return `- NEGOCIAÇÃO: ela reclamou do valor de novo. Ofereça SÓ ${valor}${ultimo ? ", que é o MENOR valor possível" : ""}. Responda com ESTE molde e nenhum outro (sem perguntar o motivo, sem chamar outra pessoa): "${molde}"${lista}`;
   }
   return `- NEGOCIAÇÃO: ela já recebeu o menor valor possível (${reais(piso)}) e ainda pede menos. Responda com ESTE molde e nenhum outro, sem oferecer mais nada e sem perguntar o motivo: "Esse é o menor valor que consigo, ${reais(piso)}. Se agora não der, sem problema: quer que eu te lembre amanhã?"`;
 }

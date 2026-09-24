@@ -342,3 +342,49 @@ describe("a escada vira piso da trava, turno a turno", () => {
     expect(cadeia).toContain("tabelaDoTurno(promise?.table ?? null, args.promiseMinPriceCents)");
   });
 });
+
+describe("um link por produto no degrau (cada trabalho tem o seu link de oferta)", () => {
+  const LINKS = [
+    { name: "Abertura do Coração", url: "https://pay.cakto.com.br/5bvpedx" },
+    { name: "Limpeza e Proteção", url: "https://pay.cakto.com.br/3vmnf6v" },
+  ];
+  const cfg = pricingSchema.parse({ ...BASE, steps: [{ price_cents: 5_070, product_links: LINKS }] });
+
+  it("o degrau vale só com links por produto (sem cupom nem link único)", () => {
+    expect(pricingSchema.safeParse({ ...BASE, steps: [{ price_cents: 5_070, product_links: LINKS }] }).success).toBe(true);
+    expect(pricingSchema.safeParse({ ...BASE, steps: [{ price_cents: 5_070, product_links: [] }] }).success).toBe(false);
+  });
+
+  it("recusa link que não é https e nome vazio", () => {
+    expect(
+      pricingSchema.safeParse({ ...BASE, steps: [{ price_cents: 5_070, product_links: [{ name: "X", url: "http://a.com/x" }] }] }).success,
+    ).toBe(false);
+    expect(
+      pricingSchema.safeParse({ ...BASE, steps: [{ price_cents: 5_070, product_links: [{ name: " ", url: "https://a.com/x" }] }] }).success,
+    ).toBe(false);
+  });
+
+  it("o molde leva um marcador (não a lista) e a lista vem à parte, para a agente mandar só um", () => {
+    const b = blocoDePreco(cfg, { reclamacoes: 2 });
+    expect(b).toContain("R$ 50,70");
+    expect(b).toContain("[o link do trabalho que você indicou");
+    expect(b).toContain("LINKS NESTE VALOR (R$ 50,70)");
+    expect(b).toContain("Abertura do Coração: https://pay.cakto.com.br/5bvpedx");
+    expect(b).toContain("Limpeza e Proteção: https://pay.cakto.com.br/3vmnf6v");
+    // o molde entre aspas NÃO carrega URL nenhuma
+    const molde = b.match(/ESTE molde e nenhum outro[^"]*"([^"]+)"/)?.[1] ?? "";
+    expect(molde).not.toContain("https://");
+  });
+
+  it("antes do degrau, nenhum link do valor menor aparece (não vaza)", () => {
+    for (const reclamacoes of [null, 0, 1]) {
+      const b = blocoDePreco(cfg, { reclamacoes });
+      expect(b).not.toContain("5bvpedx");
+      expect(b).not.toContain("LINKS NESTE VALOR");
+    }
+  });
+
+  it("o piso continua sendo o valor do degrau", () => {
+    expect(pisoEmCentavos(cfg)).toBe(5_070);
+  });
+});

@@ -22,6 +22,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import { useT } from "@/hooks/i18n/useT";
 import { apiClient } from "@/lib/api/client";
 import { MAX_DEGRAUS, pisoEmCentavos, pricingSchema, reais, type PricingConfig } from "@/lib/preco/tipos";
@@ -37,6 +38,8 @@ interface DegrauNaTela {
   preco: string;
   cupom: string;
   link: string;
+  /** Um link por produto, uma linha cada: "Nome | https://…". */
+  links: string;
 }
 
 interface Formulario {
@@ -71,8 +74,21 @@ function formularioInicial(config: Props["config"]): Formulario {
       preco: emTexto(s.price_cents),
       cupom: s.coupon_code ?? "",
       link: s.payment_url ?? "",
+      links: (s.product_links ?? []).map((l) => `${l.name} | ${l.url}`).join("\n"),
     })),
   };
+}
+
+/** "Nome | https://…" por linha. Linha sem o separador é erro, não link perdido em silêncio. */
+function lerLinksPorProduto(texto: string): { links: { name: string; url: string }[] } | { erro: string } {
+  const links: { name: string; url: string }[] = [];
+  for (const linha of texto.split("\n")) {
+    if (linha.trim() === "") continue;
+    const corte = linha.indexOf("|");
+    if (corte < 0) return { erro: "Cada linha dos links por trabalho deve ser: Nome | https://…" };
+    links.push({ name: linha.slice(0, corte).trim(), url: linha.slice(corte + 1).trim() });
+  }
+  return { links };
 }
 
 /** O que o servidor recebe. `null` + mensagem quando a tela ainda não tem o que mandar. */
@@ -84,10 +100,13 @@ function paraCorpo(f: Formulario): { corpo: PricingConfig } | { erro: string } {
   for (const d of f.degraus) {
     const preco = emCentavos(d.preco);
     if (preco === null) return { erro: "Informe o valor de cada degrau." };
+    const porProduto = lerLinksPorProduto(d.links);
+    if ("erro" in porProduto) return { erro: porProduto.erro };
     steps.push({
       price_cents: preco,
       ...(d.cupom.trim() !== "" ? { coupon_code: d.cupom.trim() } : {}),
       ...(d.link.trim() !== "" ? { payment_url: d.link.trim() } : {}),
+      ...(porProduto.links.length > 0 ? { product_links: porProduto.links } : {}),
     });
   }
   const candidato = {
@@ -257,6 +276,17 @@ export function PrecoDoAgente({ agentId, config, readOnly }: Props) {
                 {t("Remover")}
               </Button>
             </div>
+            <div className="flex flex-col gap-1 md:col-span-4">
+              <Label htmlFor={`degrau-links-${i}`}>{t("ou um link por trabalho (uma linha cada: Nome | https://…)")}</Label>
+              <Textarea
+                id={`degrau-links-${i}`}
+                rows={3}
+                placeholder="Abertura do Coração | https://…"
+                value={d.links}
+                onChange={(e) => mudaDegrau(i, { links: e.target.value })}
+                disabled={readOnly}
+              />
+            </div>
             {i === form.degraus.length - 1 ? (
               <p className="text-xs text-muted-foreground md:col-span-4">{t("Este é o mínimo: a agente nunca desce dele.")}</p>
             ) : null}
@@ -274,7 +304,7 @@ export function PrecoDoAgente({ agentId, config, readOnly }: Props) {
               size="sm"
               variant="outline"
               disabled={readOnly}
-              onClick={() => patch({ degraus: [...form.degraus, { preco: "", cupom: "", link: "" }] })}
+              onClick={() => patch({ degraus: [...form.degraus, { preco: "", cupom: "", link: "", links: "" }] })}
             >
               {t("Adicionar degrau")}
             </Button>

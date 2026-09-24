@@ -24,6 +24,23 @@ import { z } from "zod";
 
 const centavos = z.number().int().min(100).max(10_000_000);
 
+/**
+ * Link que já cobra o valor do degrau, POR PRODUTO. Serve a quem vende vários produtos no mesmo
+ * agente (cada um com o seu link de oferta): a agente manda só o link do produto que indicou.
+ */
+export const linkPorProdutoSchema = z.object({
+  name: z.string().trim().min(1).max(80),
+  url: z
+    .string()
+    .trim()
+    .url()
+    .max(300)
+    .refine((u) => u.startsWith("https://"), "o link precisa ser https"),
+});
+export type LinkPorProduto = z.infer<typeof linkPorProdutoSchema>;
+
+export const MAX_LINKS_POR_PRODUTO = 12;
+
 export const degrauDeNegociacaoSchema = z
   .object({
     price_cents: centavos,
@@ -43,10 +60,13 @@ export const degrauDeNegociacaoSchema = z
       .max(300)
       .refine((u) => u.startsWith("https://"), "o link precisa ser https")
       .optional(),
+    /** Um link por produto, quando cada produto tem o seu. Vale no lugar do `payment_url`. */
+    product_links: z.array(linkPorProdutoSchema).max(MAX_LINKS_POR_PRODUTO).optional(),
   })
-  .refine((d) => d.coupon_code !== undefined || d.payment_url !== undefined, {
-    message: "informe o cupom ou o link que cobra este valor",
-  });
+  .refine(
+    (d) => d.coupon_code !== undefined || d.payment_url !== undefined || (d.product_links?.length ?? 0) > 0,
+    { message: "informe o cupom ou o link que cobra este valor" },
+  );
 export type DegrauDeNegociacao = z.infer<typeof degrauDeNegociacaoSchema>;
 
 export const MAX_DEGRAUS = 3;

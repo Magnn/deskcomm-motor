@@ -104,3 +104,15 @@ describe("carregarGuiaDeEntrega — o que entra no prompt", () => {
     ).rejects.toThrow("embed fora");
   });
 });
+
+describe("a fiação no turno", () => {
+  it("o turno anexa o guia da entrega ao prompt, depois do bloco de preço, quando o contato pagou", async () => {
+    const { readFileSync } = await import("node:fs");
+    const turno = readFileSync("lib/agent-engine/agent/inbound-turn.ts", "utf8");
+    expect(turno).toContain("trabalhoPagoDasTags(openingContext.context.contact.tags)");
+    expect(turno).toContain("carregarGuiaDeEntrega(");
+    expect(turno).toContain("`${system}${blocoDePrecoDoTurno}${blocoDaEntrega}`");
+    // a falha da busca não derruba o turno
+    expect(turno).toContain("guia de entrega indisponível");
+  });
+});
