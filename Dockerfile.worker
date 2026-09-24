@@ -10,8 +10,6 @@ LABEL org.opencontainers.image.source="https://github.com/melgarafael/DeskcommCR
       org.opencontainers.image.licenses="MIT" \
       org.opencontainers.image.title="DeskcommCRM worker"
 
-ARG APP_VERSION=dev
-ENV APP_VERSION=$APP_VERSION
 # ffmpeg: PLANO B da resposta em áudio (`lib/voz/converter.ts`). O turno da agente roda
 # neste processo, e só precisa converter quando o provedor de voz recusa o formato
 # Opus e devolve mp3. Sem o binário o turno cai para texto — funciona, mas sem voz.
@@ -24,6 +22,13 @@ COPY patches ./patches
 RUN pnpm install --frozen-lockfile
 
 COPY . .
+
+# A versão por ÚLTIMO. Declarada antes do `pnpm install`, como estava, a
+# instrução `ARG` entrava na chave de cache de tudo o que vem depois e a
+# instalação INTEIRA de dependências era refeita a cada release, só porque o
+# número mudou. Aqui ela só invalida o que não custa nada.
+ARG APP_VERSION=dev
+ENV APP_VERSION=$APP_VERSION
 
 # Healthz do worker (bind 0.0.0.0 dentro do container).
 EXPOSE 8787
