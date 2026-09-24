@@ -84,6 +84,8 @@ import {
 } from './nota-de-voz';
 import { blocoDePreco, semObjecaoDePrecoQuandoHaBloco } from '@/lib/preco/bloco-do-prompt';
 import { carregarGuiaDeEntrega, trabalhoPagoDasTags } from '@/lib/entrega/guia-de-entrega';
+import { blocoDaLeitura } from '@/lib/leitura/bloco-do-prompt';
+import { passoDaLeitura } from '@/lib/leitura/estado-da-leitura';
 import { precoPermitidoAgora, reclamacoesDeValor } from '@/lib/preco/estado-da-negociacao';
 import { deveResponderEmAudio } from '@/lib/voz/decisao';
 import { enqueueJob, rescheduleJob, type JobRow, type Queryable } from '../queue/queue';
@@ -2282,7 +2284,12 @@ async function executarTurnoDoAgente(
       runLog.warn('guia de entrega indisponível', { erro: err instanceof Error ? err.message.slice(0, 120) : 'desconhecido' });
     }
   }
-  const systemDoTurno = `${system}${blocoDePrecoDoTurno}${blocoDaEntrega}`;
+  // Leitura de tarot: a pessoa escolheu 3 números do baralho fechado (achado no histórico) →
+  // o código sorteia de verdade (nunca o modelo) e revela uma carta por turno; depois das 3,
+  // a causa raiz. Sem escolha nenhuma na janela, `passoDaLeitura` devolve null e o bloco some.
+  const passoDaLeituraNoTurno = passoDaLeitura(`${tenantId}:${leadId}`, openingContext.context.messages);
+  const blocoDaLeituraDoTurno = blocoDaLeitura(passoDaLeituraNoTurno);
+  const systemDoTurno = `${system}${blocoDaLeituraDoTurno}${blocoDePrecoDoTurno}${blocoDaEntrega}`;
   const currentInboundText =
     input.inboundMessageId === undefined
       ? null
