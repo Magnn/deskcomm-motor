@@ -15,6 +15,7 @@
  */
 import type pg from 'pg';
 
+import { lerPricing, type PricingConfig } from '@/lib/preco/tipos';
 import { lerVoiceReply, type VoiceReplyConfig } from '@/lib/voz/tipos';
 
 import { lerJanelaDeAtendimento, type JanelaDeAtendimento } from './janela-de-atendimento';
@@ -93,6 +94,11 @@ export interface PublishedAgentConfig {
    * preview) não precisa saber da voz: ausente e `null` significam a mesma coisa.
    */
   voiceReply?: VoiceReplyConfig | null;
+  /**
+   * Preço e negociação (`ai_agents.config.pricing`). `null` = desligado: a agente não
+   * negocia e o turno segue como sempre. Ausente e `null` significam a mesma coisa.
+   */
+  pricing?: PricingConfig | null;
   /** criadores (p/ mint do token efêmero de audit — padrão do runtime nativo). */
   versionCreatedBy: string | null;
   agentCreatedBy: string | null;
@@ -226,6 +232,7 @@ function mapAgentConfigRow(r: Row): PublishedAgentConfig {
     // Leitura defensiva: `config` é jsonb livre, e shape estranho vira
     // "desligada" — a direção segura é continuar respondendo em texto.
     voiceReply: lerVoiceReply(r.config),
+    pricing: lerPricing(r.config),
     versionCreatedBy: r.version_created_by,
     agentCreatedBy: r.agent_created_by,
   };

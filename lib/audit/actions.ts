@@ -785,6 +785,10 @@ export const AUDIT_ACTIONS = [
   // Uma voz da BIBLIOTECA pública da ElevenLabs adicionada à conta do cliente
   // (POST /ai/voices/library) — muda a conta dele no provedor, por isso audita.
   "ai.voice_added_from_library",
+  // O preço, a referência e os degraus de negociação de um agente (PUT /ai/agents/:id/pricing).
+  // Dinheiro que a agente cobra e o mínimo que aceita: "quem mudou o piso, e quando" é a
+  // pergunta que só esta linha responde.
+  "ai.pricing_updated",
   // Rodada do canal-mudo-watcher que ABRIU ou FECHOU aviso (doc 11, decisão B).
   // Só com efeito: varredura diária que não achou nada não é mutação.
   "channel.canal_mudo_watcher_run",

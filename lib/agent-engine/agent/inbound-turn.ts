@@ -82,6 +82,7 @@ import {
   inboundEhAudio,
   prepararNotasDeVoz,
 } from './nota-de-voz';
+import { blocoDePreco } from '@/lib/preco/bloco-do-prompt';
 import { deveResponderEmAudio } from '@/lib/voz/decisao';
 import { enqueueJob, rescheduleJob, type JobRow, type Queryable } from '../queue/queue';
 import {
@@ -2176,7 +2177,9 @@ async function executarTurnoDoAgente(
   const playbook = await loadPlaybook(
     pool,
     tenantId,
-    agentConfig !== null ? { agentLayer: agentConfig.systemPrompt + prospectingContext } : undefined,
+    agentConfig !== null
+      ? { agentLayer: agentConfig.systemPrompt + blocoDePreco(agentConfig.pricing) + prospectingContext }
+      : undefined,
   );
   // Skills situacionais (F3-09): índice (name+description) SEMPRE residente — vai junto do
   // system do playbook, no prefixo estável org-wide (disclosure progressivo; cacheável F2-17).
