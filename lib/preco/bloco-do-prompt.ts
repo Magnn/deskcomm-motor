@@ -115,3 +115,21 @@ export function blocoDePreco(
   );
   return linhas.join("\n");
 }
+
+/** Nome da skill de plataforma que trata "tá caro" (seed 0069). */
+export const SKILL_DE_OBJECAO_DE_PRECO = "objecao-preco";
+
+/**
+ * Com a negociação ligada, quem cuida do valor é o bloco de preço — e a skill de plataforma
+ * `objecao-preco` manda o oposto do molde dele: perguntar "é o valor em si, ou você esperava
+ * algo diferente?" antes de responder. Medido no painel de Teste: com as duas no turno o modelo
+ * segue a skill (o que casa por palavra, "caro", chega mais perto da mensagem) e a escada de
+ * degraus nunca é oferecida. Sem `pricing` ligado nada muda: a skill segue valendo.
+ */
+export function semObjecaoDePrecoQuandoHaBloco<T extends { name: string }>(
+  skills: readonly T[],
+  c: PricingConfig | null | undefined,
+): T[] {
+  if (!c || !c.enabled) return [...skills];
+  return skills.filter((s) => s.name !== SKILL_DE_OBJECAO_DE_PRECO);
+}

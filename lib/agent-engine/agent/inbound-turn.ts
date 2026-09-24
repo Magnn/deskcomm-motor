@@ -82,7 +82,7 @@ import {
   inboundEhAudio,
   prepararNotasDeVoz,
 } from './nota-de-voz';
-import { blocoDePreco } from '@/lib/preco/bloco-do-prompt';
+import { blocoDePreco, semObjecaoDePrecoQuandoHaBloco } from '@/lib/preco/bloco-do-prompt';
 import { carregarGuiaDeEntrega, trabalhoPagoDasTags } from '@/lib/entrega/guia-de-entrega';
 import { precoPermitidoAgora, reclamacoesDeValor } from '@/lib/preco/estado-da-negociacao';
 import { deveResponderEmAudio } from '@/lib/voz/decisao';
@@ -2185,7 +2185,9 @@ async function executarTurnoDoAgente(
   // system do playbook, no prefixo estável org-wide (disclosure progressivo; cacheável F2-17).
   // O CORPO só carrega no match, no sufixo por-lead (mais abaixo). loadSkills resolve os
   // ponteiros a cada run: trocar/rollback de skill = mover o ponteiro, sem restart.
-  const skills = await loadSkills(pool, tenantId);
+  // Com a negociação de preço ligada (aba Preço), o bloco de preço manda no "tá caro": a skill de
+  // plataforma de objeção de preço pediria o contrário do molde dele (ver semObjecaoDePrecoQuandoHaBloco).
+  const skills = semObjecaoDePrecoQuandoHaBloco(await loadSkills(pool, tenantId), agentConfig?.pricing);
   const skillIndex = renderSkillIndex(skills);
   // Fase 1 (harness): memória geral da org — prefixo estável, resolvida a cada
   // turno como o playbook (publicar ⇒ próximo turno vale). composeSystemPrompt já

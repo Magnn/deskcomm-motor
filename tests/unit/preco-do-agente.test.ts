@@ -14,7 +14,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import { decidePromise } from "@/lib/agent-engine/guardrails/promise/engine";
-import { blocoDePreco } from "@/lib/preco/bloco-do-prompt";
+import { blocoDePreco, semObjecaoDePrecoQuandoHaBloco } from "@/lib/preco/bloco-do-prompt";
 import { expandirHistoricoColado, precoPermitidoAgora, reclamacoesDeValor, tabelaDoTurno } from "@/lib/preco/estado-da-negociacao";
 import { sincronizarPiso, tabelaDoPiso } from "@/lib/preco/sincronizar-piso";
 import { lerPricing, pisoEmCentavos, pricingSchema, reais } from "@/lib/preco/tipos";
@@ -386,5 +386,25 @@ describe("um link por produto no degrau (cada trabalho tem o seu link de oferta)
 
   it("o piso continua sendo o valor do degrau", () => {
     expect(pisoEmCentavos(cfg)).toBe(5_070);
+  });
+});
+
+describe("a skill de objeção de preço não briga com o bloco de preço", () => {
+  const skills = [{ name: "agendamento" }, { name: "objecao-preco" }];
+
+  it("com a negociação ligada, a skill de objeção sai do turno (as outras ficam)", () => {
+    const cfg = pricingSchema.parse({ ...BASE, steps: [{ price_cents: 5_070, coupon_code: "X1" }] });
+    expect(semObjecaoDePrecoQuandoHaBloco(skills, cfg).map((s) => s.name)).toEqual(["agendamento"]);
+  });
+
+  it("sem preço configurado ou desligado, nada muda", () => {
+    expect(semObjecaoDePrecoQuandoHaBloco(skills, undefined)).toHaveLength(2);
+    expect(semObjecaoDePrecoQuandoHaBloco(skills, null)).toHaveLength(2);
+    expect(semObjecaoDePrecoQuandoHaBloco(skills, pricingSchema.parse({ ...BASE, enabled: false }))).toHaveLength(2);
+  });
+
+  it("a fiação: o turno filtra as skills antes de montar o índice e o matcher", () => {
+    const turno = readFileSync("lib/agent-engine/agent/inbound-turn.ts", "utf8");
+    expect(turno).toContain("semObjecaoDePrecoQuandoHaBloco(await loadSkills(pool, tenantId), agentConfig?.pricing)");
   });
 });
