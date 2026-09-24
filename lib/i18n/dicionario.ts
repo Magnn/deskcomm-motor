@@ -46,6 +46,7 @@ export const DICIONARIO: Traducoes = {
   "Responder em áudio": { es: "Responder en audio" },
   "Quando a pessoa mandar um áudio, a agente responde com uma nota de voz. Se qualquer coisa falhar com a voz, ela responde em texto — a pessoa nunca fica sem resposta. O link de pagamento sempre vai como texto, depois do áudio.": { es: "Cuando la persona envíe un audio, la agente responde con una nota de voz. Si algo falla con la voz, responde en texto: la persona nunca se queda sin respuesta. El enlace de pago siempre va como texto, después del audio." },
   "Quando a agente fala": { es: "Cuándo habla la agente" },
+  "Dica: um degrau só (o mínimo) funciona melhor que vários — com vários, a agente às vezes pula os intermediários.": { es: "Consejo: un solo escalón (el mínimo) funciona mejor que varios: con varios, la agente a veces salta los intermedios." },
   "Usar esta política de preço": { es: "Usar esta política de precio" },
   "Preço e negociação": { es: "Precio y negociación" },
   "Defina o valor de venda e, se quiser, até onde a agente pode negociar. Sem isto ligado, ela não dá desconto. Vale a partir da próxima conversa, sem publicar versão.": { es: "Define el valor de venta y, si quieres, hasta dónde puede negociar la agente. Sin esto activado, no da descuento. Vale desde la próxima conversación, sin publicar versión." },

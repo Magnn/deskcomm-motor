@@ -263,6 +263,10 @@ export function PrecoDoAgente({ agentId, config, readOnly }: Props) {
           </div>
         ))}
 
+        <p className="text-xs text-muted-foreground">
+          {t("Dica: um degrau só (o mínimo) funciona melhor que vários — com vários, a agente às vezes pula os intermediários.")}
+        </p>
+
         {form.degraus.length < MAX_DEGRAUS ? (
           <div>
             <Button
