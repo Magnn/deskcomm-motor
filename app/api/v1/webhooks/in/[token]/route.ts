@@ -219,15 +219,18 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<NextRespons
 
     // O LEDGER FINANCEIRO (migration 0401) — independente do resultado de
     // negócio acima. Grava o FATO (charge/refund/chargeback) sempre que há
-    // `compra` e um contato resolvido, mesmo em `ja_processada`/
-    // `compra_registrada_sem_fluxo`: dinheiro se moveu nos dois casos, e o
-    // ledger tem o PRÓPRIO dedupe (unique de banco), independente da tag do
-    // CRM. `registrarReceita` nunca lança — falha de gravação vira log, não
-    // 500 pra Cakto, e nunca atrasa/derruba a entrega já decidida acima.
-    if (compra !== null && "contatoId" in efeito) {
+    // `compra`, mesmo em `ja_processada`/`compra_registrada_sem_fluxo` e mesmo
+    // em `contato_nao_encontrado` (aí `contact_id` fica nulo): dinheiro se moveu
+    // em todos os casos, e a compra sem contato correspondente é justamente a
+    // que mais precisa de conciliação — perdê-la do ledger seria o pior lugar
+    // para ter um buraco. O ledger tem o PRÓPRIO dedupe (unique de banco),
+    // independente da tag do CRM. `registrarReceita` nunca lança — falha de
+    // gravação vira log, não 500 pra Cakto, e nunca atrasa/derruba a entrega
+    // já decidida acima.
+    if (compra !== null) {
       const ledger = await depsDoLedgerReais(admin, source.organization_id, source.id).registrarReceita(
         compra,
-        efeito.contatoId,
+        "contatoId" in efeito ? efeito.contatoId : null,
       );
       if (ledger?.novo) {
         await audit({

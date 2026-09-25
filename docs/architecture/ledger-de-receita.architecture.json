@@ -28,7 +28,7 @@
     { "id": "auditlog", "lane": "banco", "col": 6, "type": "database", "label": "api_audit_log — financeiro.receita_registrada", "sublabel": "só na gravação NOVA; dedupe não audita" },
 
     { "id": "entrega", "lane": "operador", "col": 5, "type": "frontend", "label": "Entrega / CRM do contato", "sublabel": "decisão de negócio de aplicarEventoDaCakto — não lê o ledger" },
-    { "id": "painel", "lane": "operador", "col": 7, "type": "frontend", "label": "Audit Log (/admin/audit)", "sublabel": "filtro financeiro.* já existente — hoje o único lugar da UI que enxerga o fato" },
+    { "id": "painel", "lane": "operador", "col": 7, "type": "frontend", "label": "Audit Log (/app/audit)", "sublabel": "filtro por ação `financeiro.receita_registrada` (a lista do filtro sai de AUDIT_ACTIONS) — hoje o único lugar da UI que enxerga o fato" },
 
     { "id": "logfalha", "lane": "volta", "col": 4, "type": "service", "label": "logger.error — falha de gravação", "sublabel": "erro real (não-dedupe) nunca vira exceção — o ledger é observação, não porta de entrada" }
   ],

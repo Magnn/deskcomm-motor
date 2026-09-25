@@ -14,6 +14,6 @@ webhook nunca duplica a linha.
 
 Igual à auditoria (`api_audit_log`, migration 0258): `anon`, `authenticated` e `service_role` não
 têm UPDATE, DELETE nem TRUNCATE na tabela — só o dono do banco. Nenhuma tela nova; a gravação nova
-aparece hoje como `financeiro.receita_registrada` no Audit Log já existente (`/admin/audit`).
+aparece hoje como `financeiro.receita_registrada` no Audit Log já existente (`/app/audit`).
 
 Migration 0401.
