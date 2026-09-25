@@ -37,6 +37,7 @@ import { origemDaPagina, registrarCaptacao } from "@/lib/webhooks/captacao";
 import { ipDoClienteParaInet } from "@/lib/http/ip-do-cliente";
 import { decryptWebhookSecret } from "@/lib/webhooks/secrets";
 import { aplicarEventoDaCakto, depsReais as depsDaCompra } from "@/lib/pagamentos/compra-cakto";
+import { depsDoLedgerReais } from "@/lib/pagamentos/ledger-de-receita";
 import { isCaktoPayload, mapCaktoPayload, segredoDaCaktoConfere } from "@/lib/webhooks/cakto";
 import { ApiError } from "@/lib/api/types";
 import { autorizarContatoParaIA } from "@/lib/ai/elegibilidade/autorizacao";
@@ -215,6 +216,35 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<NextRespons
         },
       });
     }
+
+    // O LEDGER FINANCEIRO (migration 0401) — independente do resultado de
+    // negócio acima. Grava o FATO (charge/refund/chargeback) sempre que há
+    // `compra` e um contato resolvido, mesmo em `ja_processada`/
+    // `compra_registrada_sem_fluxo`: dinheiro se moveu nos dois casos, e o
+    // ledger tem o PRÓPRIO dedupe (unique de banco), independente da tag do
+    // CRM. `registrarReceita` nunca lança — falha de gravação vira log, não
+    // 500 pra Cakto, e nunca atrasa/derruba a entrega já decidida acima.
+    if (compra !== null && "contatoId" in efeito) {
+      const ledger = await depsDoLedgerReais(admin, source.organization_id, source.id).registrarReceita(
+        compra,
+        efeito.contatoId,
+      );
+      if (ledger?.novo) {
+        await audit({
+          action: "financeiro.receita_registrada",
+          organizationId: source.organization_id,
+          resourceType: "revenue_ledger",
+          resourceId: ledger.id,
+          requestId,
+          metadata: {
+            evento: compra.evento,
+            pedido: compra.pedidoId,
+            valor_centavos: compra.valorCentavos,
+          },
+        });
+      }
+    }
+
     return ok({ received: true, resultado: efeito.resultado }, { requestId }) as NextResponse;
   }
 

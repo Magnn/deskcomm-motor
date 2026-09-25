@@ -271,6 +271,20 @@ const PROVA_PROPRIA: readonly Excecao[] = [
       "`describe.each`. Guarda as UTMs de cada clique no botão da landing " +
       "page e o ref curto que as liga à mensagem do WhatsApp.",
   },
+  {
+    tabela: "revenue_ledger",
+    razao:
+      "tests/invariants/revenue-ledger-append-only-e-isolamento.test.ts — " +
+      "\"cada organização enxerga só o próprio fato de receita\" prova " +
+      "isolamento com JWT simulado + contagem cross-org (mesmo molde de " +
+      "TABLES). Fora de TABLES de propósito: a tabela não tem NENHUMA policy " +
+      "de INSERT/UPDATE/DELETE para authenticated (só service_role escreve, " +
+      "via webhook) — o controle positivo de escrita de TABLES exigiria uma " +
+      "policy que esta tabela não tem e não deveria ganhar. O mesmo arquivo " +
+      "também prova append-only sob o default ACL do Supabase (molde da " +
+      "migration 0258) e o dedupe por (organization_id, provider, " +
+      "event_type, external_event_id).",
+  },
 ];
 
 /**

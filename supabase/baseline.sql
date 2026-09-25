@@ -38092,3 +38092,74 @@ end $$;
 -- a lista de erros benignos do update.sh, então a atualização não diz
 -- "atualizado" com módulo fora do ar. Instalação nova não tem módulo: no-op.
 do $f$ begin perform public.fn_conferir_modulos_instalados(); end $f$;
+
+-- ---- o ledger financeiro imutável (migration 0401) ----
+--
+-- Fato de receita bruto (charge/refund/chargeback/adjustment), dedupe por
+-- (organization_id, provider, event_type, external_event_id), append-only nos
+-- dois níveis (RLS + GRANT, mesmo padrão de api_audit_log/0258). Motivo
+-- completo e o que foi deliberadamente deixado de fora do Revenue Graph do
+-- NEXUS: cabeçalho de supabase/migrations/20260925070000_0401_ledger_de_receita.sql.
+
+create table if not exists public.revenue_ledger (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references public.organizations(id) on delete cascade,
+
+  event_type text not null check (event_type in ('charge', 'refund', 'chargeback', 'adjustment')),
+
+  amount_cents bigint not null,
+  currency text not null default 'BRL' check (char_length(currency) = 3),
+  constraint revenue_ledger_valor_por_tipo check (
+    (event_type = 'adjustment' and amount_cents <> 0)
+    or (event_type <> 'adjustment' and amount_cents > 0)
+  ),
+
+  provider text not null check (provider in ('cakto')),
+  webhook_source_id uuid references public.webhook_sources(id) on delete set null,
+
+  external_event_id text not null,
+  external_ref_id text,
+
+  occurred_at timestamptz not null default now(),
+  created_at timestamptz not null default now(),
+
+  related_event_id uuid references public.revenue_ledger(id) on delete set null,
+
+  contact_id uuid references public.contacts(id) on delete set null,
+
+  metadata jsonb not null default '{}'::jsonb,
+
+  created_by_user_id uuid references auth.users(id) on delete set null
+);
+
+create unique index if not exists revenue_ledger_dedupe_key
+  on public.revenue_ledger (organization_id, provider, event_type, external_event_id);
+
+create index if not exists revenue_ledger_org_data_idx
+  on public.revenue_ledger (organization_id, occurred_at desc);
+create index if not exists revenue_ledger_contato_idx
+  on public.revenue_ledger (organization_id, contact_id)
+  where contact_id is not null;
+create index if not exists revenue_ledger_related_idx
+  on public.revenue_ledger (related_event_id)
+  where related_event_id is not null;
+
+alter table public.revenue_ledger enable row level security;
+
+drop policy if exists tenant_isolation_revenue_ledger_select on public.revenue_ledger;
+create policy tenant_isolation_revenue_ledger_select
+  on public.revenue_ledger
+  for select
+  using (organization_id in (select public.fn_user_org_ids()) or public.fn_is_platform_admin());
+
+revoke all on table public.revenue_ledger from anon;
+revoke insert, update, delete, truncate on table public.revenue_ledger from authenticated;
+revoke update, delete, truncate on table public.revenue_ledger from service_role;
+
+grant select on table public.revenue_ledger to authenticated;
+grant select, insert on table public.revenue_ledger to service_role;
+
+comment on table public.revenue_ledger is
+  'Ledger financeiro imutável (equivalente ao RevenueEvent do NEXUS Revenue Graph, sem nenhuma peça de decisão). Fato de receita bruto por evento de gateway externo (charge/refund/chargeback/adjustment), dedupe por (organization_id, provider, event_type, external_event_id). Append-only: anon/authenticated/service_role sem UPDATE/DELETE/TRUNCATE (migration 0401, mesmo padrão de api_audit_log/0258) — só o dono do banco pode. Escrito hoje só pelo webhook da Cakto (lib/pagamentos/ledger-de-receita.ts); NÃO tem regra de decisão nenhuma, só reconciliação e relatório.';
+
+notify pgrst, 'reload schema';
