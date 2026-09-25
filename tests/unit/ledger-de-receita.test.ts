@@ -121,6 +121,20 @@ describe("depsDoLedgerReais().registrarReceita", () => {
     expect(JSON.stringify(inserted[0])).not.toContain("987654321");
   });
 
+  it("compra sem contato encontrado ainda vira fato: contact_id nulo, valor e pedido preservados", async () => {
+    const { admin, inserted } = fakeAdmin({ insertResult: { data: { id: "led-sem-contato" }, error: null } });
+    const deps = depsDoLedgerReais(admin, "org-1", "src-1");
+    const r = await deps.registrarReceita(compra(), null);
+    expect(r).toEqual({ id: "led-sem-contato", novo: true });
+    expect(inserted[0]).toMatchObject({
+      organization_id: "org-1",
+      event_type: "charge",
+      amount_cents: 5070,
+      contact_id: null,
+      external_event_id: "81b408ee-2a91-427d-80bd-226cbeae1fa0",
+    });
+  });
+
   it("refund vira event_type=refund; chargeback vira event_type=chargeback", async () => {
     for (const [evento, tipo] of [
       ["refund", "refund"],
