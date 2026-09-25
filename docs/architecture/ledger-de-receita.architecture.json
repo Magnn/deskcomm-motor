@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Ledger financeiro imutável — fato de receita, não decisão",
+    "subtitle": "migration 0416: a única peça do Revenue Graph do NEXUS trazida ao DeskcommCRM, sem decide() nenhum",
+    "output": "ledger-de-receita.html",
+    "quality_profile": "standard"
+  },
+  "lanes": [
+    { "id": "externo", "label": "Gateway externo" },
+    { "id": "borda", "label": "Borda HTTP (webhook)" },
+    { "id": "regra", "label": "Regra — mapeia e grava, não decide" },
+    { "id": "banco", "label": "Persistência (append-only)" },
+    { "id": "operador", "label": "O que o operador vê" },
+    { "id": "volta", "label": "O laço de retorno" }
+  ],
+  "mainPath": ["cakto", "rota", "ledgerlib", "tabela", "auditlog", "painel"],
+  "nodes": [
+    { "id": "cakto", "lane": "externo", "col": 1, "type": "service", "label": "Cakto — aviso de pagamento", "sublabel": "purchase_approved / refund / chargeback; segredo no corpo, não HMAC" },
+
+    { "id": "rota", "lane": "borda", "col": 2, "type": "api", "label": "POST /api/v1/webhooks/in/[token]", "sublabel": "ramo isCaktoPayload — organization_id resolvido do path_token, nunca do body" },
+
+    { "id": "compra", "lane": "regra", "col": 3, "type": "service", "label": "aplicarEventoDaCakto (compra-cakto.ts)", "sublabel": "decide entrega/parada — INTOCADO por esta migration" },
+    { "id": "ledgerlib", "lane": "regra", "col": 4, "type": "service", "label": "registrarReceita (ledger-de-receita.ts)", "sublabel": "mapeia evento→event_type; SEM regra de decisão nenhuma" },
+
+    { "id": "tabela", "lane": "banco", "col": 5, "type": "database", "label": "revenue_ledger", "sublabel": "charge/refund/chargeback/adjustment; dedupe (org,provider,type,external_event_id); UPDATE/DELETE/TRUNCATE revogados de anon/authenticated/service_role" },
+    { "id": "auditlog", "lane": "banco", "col": 6, "type": "database", "label": "api_audit_log — financeiro.receita_registrada", "sublabel": "só na gravação NOVA; dedupe não audita" },
+
+    { "id": "entrega", "lane": "operador", "col": 5, "type": "frontend", "label": "Entrega / CRM do contato", "sublabel": "decisão de negócio de aplicarEventoDaCakto — não lê o ledger" },
+    { "id": "painel", "lane": "operador", "col": 7, "type": "frontend", "label": "Audit Log (/app/audit)", "sublabel": "filtro por ação `financeiro.receita_registrada` (a lista do filtro sai de AUDIT_ACTIONS) — hoje o único lugar da UI que enxerga o fato" },
+
+    { "id": "logfalha", "lane": "volta", "col": 4, "type": "service", "label": "logger.error — falha de gravação", "sublabel": "erro real (não-dedupe) nunca vira exceção — o ledger é observação, não porta de entrada" }
+  ],
+  "edges": [
+    { "id": "e1", "from": "cakto", "to": "rota", "label": "POST com secret no corpo" },
+    { "id": "e2", "from": "rota", "to": "compra", "label": "aplicarEventoDaCakto(deps, compra)" },
+    { "id": "e3", "from": "compra", "to": "entrega", "label": "entrega_iniciada / reembolso_registrado" },
+    { "id": "e4", "from": "rota", "to": "ledgerlib", "label": "registrarReceita(compra, contatoId) — independente do resultado de negócio" },
+    { "id": "e5", "from": "ledgerlib", "to": "tabela", "label": "insert com a chave de dedupe" },
+    { "id": "e6", "from": "tabela", "to": "ledgerlib", "label": "23505 ⇒ devolve a linha existente (novo:false)" },
+    { "id": "e7", "from": "ledgerlib", "to": "auditlog", "label": "só quando novo:true" },
+    { "id": "e8", "from": "auditlog", "to": "painel", "label": "consulta existente do Audit Log" },
+    { "id": "e9", "from": "ledgerlib", "to": "logfalha", "label": "erro de gravação real (não-dedupe)" },
+    { "id": "e10", "from": "logfalha", "to": "rota", "label": "webhook responde 200 do mesmo jeito — nunca deriva 5xx por causa do ledger" }
+  ]
+}

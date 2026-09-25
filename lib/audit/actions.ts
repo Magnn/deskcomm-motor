@@ -893,6 +893,17 @@ export const AUDIT_ACTIONS = [
   "ai.jev.ligado",
   "ai.jev.desligado",
   "ai.jev.modo_alterado",
+  // O LEDGER FINANCEIRO IMUTÁVEL (migration 0416) — um fato de receita novo
+  // (compra aprovada, reembolso ou chargeback) chegou pelo webhook e foi
+  // gravado em `revenue_ledger`, sem colidir com um fato já registrado. Audita
+  // só a gravação NOVA — reentrega do mesmo webhook (dedupe pela unique de
+  // organização+provedor+tipo+id externo) não é mutação e não audita, mesma
+  // régua do cron que só audita quando fez algo. Isto NÃO é o resultado de
+  // negócio (entrega iniciada, fluxo parado) — esse já audita como
+  // `webhook.cakto_evento_aplicado`; este código é sobre o FATO financeiro em
+  // si, para quem está reconciliando caixa, não para quem está vendo o
+  // atendimento.
+  "financeiro.receita_registrada",
   // Simulador do construtor de fluxo (POST .../simulate-classify) — dry-run:
   // a ÚNICA parte do simulador que chama IA de verdade (classificação). Não
   // muda `followup_flow_pointers` nem cria enrollment; audita porque consome
