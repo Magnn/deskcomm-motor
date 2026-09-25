@@ -13,7 +13,9 @@ import type { FlowGraph, FlowNode, FlowEdge, NodeType } from "./graph-schema";
 // `errors` is UI-only (Task 6.2 — publish 422 anchored to the offending node),
 // never read/written by the mappers below; `data` is `Record<string, unknown>`
 // per @xyflow/react's Node<NodeData> constraint, so it can't be dropped here.
-export type RFNodeData = { label: string; config: FlowNode["config"]; errors?: string[] };
+// `simulating` is UI-only too (Simulador do construtor — SimulatorPanel marca
+// o nó em que a simulação está parada agora), mesmo padrão de `errors`.
+export type RFNodeData = { label: string; config: FlowNode["config"]; errors?: string[]; simulating?: boolean };
 export type RFNode = Node<RFNodeData, NodeType>;
 
 export type RFEdgeData = { priority: number; condition: FlowEdge["condition"] };

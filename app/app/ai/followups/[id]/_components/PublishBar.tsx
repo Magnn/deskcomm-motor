@@ -36,7 +36,7 @@ import {
   useUpdateHandoffPolicy,
   type FollowupFlowDetailRow,
 } from "@/hooks/followup/useFollowupFlow";
-import { Trash, TreeStructure } from "@/lib/ui/icons";
+import { Play, Trash, TreeStructure } from "@/lib/ui/icons";
 import { FlowStatusBadge } from "../../_components/FlowStatusBadge";
 import { DeleteFollowupFlowButton } from "../../_components/DeleteFollowupFlowButton";
 import { RenameFollowupFlowButton } from "../../_components/RenameFollowupFlowButton";
@@ -54,6 +54,8 @@ interface Props {
   onPublishSuccess: () => void;
   onAutoFit?: () => void;
   canAutoFit?: boolean;
+  onOpenSimulator: () => void;
+  simulatorOpen: boolean;
 }
 
 const HANDOFF_LABEL: Record<FollowupFlowDetailRow["handoff_policy"], string> = {
@@ -74,6 +76,8 @@ export function PublishBar({
   onPublishSuccess,
   onAutoFit,
   canAutoFit = false,
+  onOpenSimulator,
+  simulatorOpen,
 }: Props) {
   const t = useT();
   const [openDeleteSelection, setOpenDeleteSelection] = useState(false);
@@ -166,6 +170,16 @@ export function PublishBar({
         </Button>
         <Button type="button" size="sm" disabled={busy} onClick={onPublish} data-testid="publish-button">
           {publish.isPending ? t("Publicando…") : t("Publicar")}
+        </Button>
+        <Button
+          type="button"
+          variant={simulatorOpen ? "default" : "outline"}
+          size="sm"
+          onClick={onOpenSimulator}
+          data-testid="open-simulator"
+        >
+          <Play size={14} aria-hidden className="mr-1" />
+          {t("Simular")}
         </Button>
         <Button
           type="button"

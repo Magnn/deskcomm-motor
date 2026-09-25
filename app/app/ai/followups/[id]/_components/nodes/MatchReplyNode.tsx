@@ -19,6 +19,7 @@ export function MatchReplyNode({ id, data, selected }: NodeProps<RFNode>) {
       subtitle={describeNodeConfig("match_reply", data.config, t)}
       selected={selected}
       errors={data.errors}
+      simulating={data.simulating}
       branches={nodeBranches({ type: "match_reply", config: data.config as ConfigOf<"match_reply"> })}
     />
   );

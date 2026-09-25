@@ -1,0 +1,115 @@
+{
+  "schema_version": 1,
+  "diagram_type": "fluxo",
+  "meta": {
+    "titulo": "Simulador do construtor de fluxo de follow-up",
+    "pergunta": "Como testar um fluxo de follow-up sem sair da tela de edição e sem mandar mensagem real?",
+    "resumo": "Painel de chat dentro do MESMO construtor (/app/ai/followups/[id]) que reaproveita o executor puro do motor real (processNode, node-handlers.ts) num driver síncrono em memória — nunca cria followup_enrollments nem toca contacts. A única chamada de IA de verdade é a classificação (ai_classify), pela rota /simulate-classify; ação e skill mostram só o que SERIAM feitos."
+  },
+  "lanes": [
+    { "id": "humano", "label": "O que o humano vê" },
+    { "id": "borda", "label": "Borda HTTP" },
+    { "id": "regra", "label": "Regras puras" },
+    { "id": "dados", "label": "Banco" }
+  ],
+  "mainPath": ["construtor", "botao", "painel", "driver", "processNode"],
+  "nodes": [
+    {
+      "id": "construtor",
+      "lane": "humano",
+      "col": 1,
+      "type": "frontend",
+      "label": "FlowCanvas (/app/ai/followups/[id])",
+      "sublabel": "o mesmo grafo em edição — draft_graph com ou sem alterações salvas"
+    },
+    {
+      "id": "botao",
+      "lane": "humano",
+      "col": 2,
+      "type": "frontend",
+      "label": "PublishBar › \"Simular\"",
+      "sublabel": "mesma barra do Publicar/Salvar/Rollback"
+    },
+    {
+      "id": "painel",
+      "lane": "humano",
+      "col": 3,
+      "type": "frontend",
+      "label": "SimulatorPanel",
+      "sublabel": "chat efêmero — vive só no estado do React, some ao fechar"
+    },
+    {
+      "id": "canvas_highlight",
+      "lane": "humano",
+      "col": 2,
+      "type": "frontend",
+      "label": "NodeCard.simulating",
+      "sublabel": "o nó onde a simulação está parada acende no canvas"
+    },
+    {
+      "id": "rota_classify",
+      "lane": "borda",
+      "col": 4,
+      "type": "api",
+      "label": "POST .../simulate-classify",
+      "sublabel": "manager+ · dry-run · leadId NULL (nunca um contato real)"
+    },
+    {
+      "id": "driver",
+      "lane": "regra",
+      "col": 4,
+      "type": "regra",
+      "label": "lib/followup/simulate.ts",
+      "sublabel": "avancarSimulacao() — síncrono, em memória, sem DB"
+    },
+    {
+      "id": "processNode",
+      "lane": "regra",
+      "col": 5,
+      "type": "regra",
+      "label": "node-handlers.ts processNode()",
+      "sublabel": "REAPROVEITADO do motor real — não é um interpretador novo"
+    },
+    {
+      "id": "classify",
+      "lane": "regra",
+      "col": 5,
+      "type": "regra",
+      "label": "classifyFollowupReply()",
+      "sublabel": "mesmo classificador da produção (followup-flow-classify.ts)"
+    },
+    {
+      "id": "llm_calls",
+      "lane": "dados",
+      "col": 6,
+      "type": "tabela",
+      "label": "llm_calls",
+      "sublabel": "único efeito real — custo/latência do provedor, contact_id NULL"
+    }
+  ],
+  "edges": [
+    { "id": "s1", "from": "construtor", "to": "botao", "label": "PublishBar recebe liveGraph (nós+arestas em edição)" },
+    { "id": "s2", "from": "botao", "to": "painel", "label": "abre o dock lateral — MESMA tela, fecha node/edge panel (mutuamente exclusivos)" },
+    { "id": "s3", "from": "painel", "to": "driver", "label": "iniciarSimulacao() + avancarSimulacao(), a cada mensagem/'sem resposta'" },
+    { "id": "s4", "from": "driver", "to": "processNode", "label": "chamado nó a nó — wait/condition/match_reply/repeat/action/end resolvidos como em produção" },
+    { "id": "s5", "from": "painel", "to": "canvas_highlight", "label": "onActiveNodeChange(nodeId) → setNodes injeta data.simulating" },
+    { "id": "s6", "from": "driver", "to": "rota_classify", "label": "só quando um ai_classify recebe mensagem digitada (nunca em 'sem resposta' — mesmo caminho $0 da produção)" },
+    { "id": "s7", "from": "rota_classify", "to": "classify", "label": "candidate_text + classes do nó" },
+    { "id": "s8", "from": "classify", "to": "llm_calls", "label": "runModelCall grava custo/latência — mesmo ponto de IA 'followup_classify'" },
+    { "id": "s9", "from": "classify", "to": "driver", "label": "classe devolvida → selectEdge()/classEdgeMatch() roteia, igual à ponte real (turn-bridge.ts)" }
+  ],
+  "cards": [
+    {
+      "titulo": "Por que não é um interpretador de grafo novo",
+      "texto": "processNode() (node-handlers.ts) já é puro e sem I/O — o comentário do próprio arquivo diz 'PURE, no DB access'. O driver do simulador (lib/followup/simulate.ts) só resolve SÍNCRONO, num turno só, o que em produção o motor resolve em vários ticks assíncronos (claim → job → callback da ponte): sem relógio real, sem fila, cada 'avanço automático' (trigger, condition, repeat, action) é só chamar processNode de novo até ele pedir insumo do operador (wait/ai_classify/match_reply)."
+    },
+    {
+      "titulo": "A não-ligação declarada: nada toca followup_enrollments",
+      "texto": "O driver constrói um EnrollmentRow FICTÍCIO em memória (id/organization_id/contact_id = 'simulacao', nunca gravado) só para satisfazer a assinatura de processNode(). Não há INSERT/UPDATE em followup_enrollments, followup_enrollment_events, contacts.custom_fields nem crm_leads em lugar nenhum do caminho — provado em tests/e2e/followup-simulador.spec.ts, que consulta o banco depois de simular e espera zero linhas."
+    },
+    {
+      "titulo": "Por que ai_classify roda de verdade e action/skill não",
+      "texto": "Classificar uma mensagem não tem efeito colateral externo — é só uma chamada de modelo, e sem rodá-la de verdade não dá para provar que o roteamento por classe está certo. action (envio) e a pergunta de confirmação do match_reply SEMPRE seriam um envio real de WhatsApp em produção; o simulador nunca tem capacidade de envio, então mostra só o texto que SERIA mandado (origem 'texto_fixo'/'ia'/'modelo_salvo'/'confirmacao'), rotulado 'Simulado — não é enviado de verdade' na tela."
+    }
+  ]
+}

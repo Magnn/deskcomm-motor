@@ -131,6 +131,14 @@ const ESCRITORES: Record<string, { agenda: "agora" | "futuro" | "nenhum"; nota: 
     agenda: "nenhum",
     nota: "traduz o campo para a timeline do dossiê; não escreve.",
   },
+  "simulate.ts": {
+    agenda: "nenhum",
+    nota:
+      "Driver do Simulador do construtor de fluxo — reaproveita processNode em memória, no navegador " +
+      "(via a rota /simulate-classify só para o ai_classify). `next_eval_at: null` aparece só como " +
+      "campo do objeto FICTÍCIO `enrollmentFicticio()` que alimenta processNode() — nunca é INSERT/UPDATE " +
+      "de banco nenhum; a simulação inteira não persiste em followup_enrollments.",
+  },
 };
 
 function modulosQueMencionam(): string[] {
