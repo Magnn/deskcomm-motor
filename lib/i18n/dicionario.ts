@@ -3206,6 +3206,15 @@ export const DICIONARIO: Traducoes = {
   "As retomadas saem todas no mesmo horário fixo, sem respeitar o ritmo de cada cliente.": {
     es: "Los seguimientos salen todos a la misma hora fija, sin respetar el ritmo de cada cliente.",
   },
+  "Rodar o prompt livre do fluxo": {
+    es: "Ejecutar el prompt libre del flujo",
+  },
+  "Executa a instrução que você escreveu no nó de IA do construtor de fluxo e grava o texto que o modelo escrever num campo do lead, pra usar depois em condições ou mensagens.": {
+    es: "Ejecuta la instrucción que escribiste en el nodo de IA del constructor de flujo y guarda el texto que el modelo escriba en un campo del lead, para usarlo después en condiciones o mensajes.",
+  },
+  "O nó de IA do fluxo trava nesse passo e o campo que ele deveria preencher fica vazio.": {
+    es: "El nodo de IA del flujo se traba en ese paso y el campo que debería completar queda vacío.",
+  },
   "Barrar tentativa de manipulação": {
     es: "Frenar intentos de manipulación",
   },
@@ -8016,6 +8025,43 @@ export const DICIONARIO: Traducoes = {
   "Inscrições e versões deste fluxo são apagadas junto. Não é possível desfazer.": { es: "Las inscripciones y versiones de este flujo también se borran. No se puede deshacer." },
   "Follow-ups reengajam contatos após silêncio, mudança de etapa, uma regra em Webhooks ou a resposta do contato — sem depender de alguém lembrar de mandar mensagem.": { es: "Los seguimientos reactivan la conversación con los contactos tras un silencio, un cambio de etapa, una regla en Webhooks o una respuesta del contacto, sin depender de que alguien se acuerde de escribir." },
   "Fluxos automáticos de reengajamento — silêncio, etapa, webhook ou resposta do contato, sem intervenção em cada mensagem.": { es: "Flujos automáticos para reactivar contactos: silencio, etapa, webhook o respuesta del contacto, sin intervenir en cada mensaje." },
+  // ── Lote 1 do construtor de fluxo (A/B split, IA livre, API externa, notificar, anotar) ──
+  "Caminhos e percentual de cada um": { es: "Caminos y porcentaje de cada uno" },
+  "Novo caminho": { es: "Nuevo camino" },
+  "Adicionar caminho": { es: "Agregar camino" },
+  "precisa somar 100%": { es: "debe sumar 100%" },
+  "Texto da nota": { es: "Texto de la nota" },
+  "Fica registrada na conversa, como uma nota interna — o contato nunca recebe mensagem nenhuma.": {
+    es: "Queda registrada en la conversación, como una nota interna — el contacto nunca recibe ningún mensaje.",
+  },
+  "A IA lê a conversa do lead e segue esta instrução — nunca fala com o cliente diretamente.": {
+    es: "La IA lee la conversación del lead y sigue esta instrucción — nunca habla directamente con el cliente.",
+  },
+  "Gravar o resultado em": { es: "Guardar el resultado en" },
+  "Chave livre": { es: "Clave libre" },
+  "Crie os campos em Configurações → Funis. O valor grava toda vez que o nó rodar (sempre sobrescreve).": {
+    es: "Crea los campos en Configuración → Embudos. El valor se guarda cada vez que el nodo se ejecuta (siempre sobrescribe).",
+  },
+  "Não consegui ler este cURL — confira se ele tem uma URL http:// ou https://.": {
+    es: "No pude leer este cURL — comprueba que tenga una URL http:// o https://.",
+  },
+  "Colar um cURL (preenche os campos abaixo)": { es: "Pegar un cURL (completa los campos abajo)" },
+  'curl -X POST https://example.com/webhook -H "Content-Type: application/json" -d \'{"lead":"ok"}\'': {
+    es: 'curl -X POST https://example.com/webhook -H "Content-Type: application/json" -d \'{"lead":"ok"}\'',
+  },
+  "Preencher com este cURL": { es: "Completar con este cURL" },
+  Método: { es: "Método" },
+  URL: { es: "URL" },
+  "Esta URL aponta para um endereço local/privado — a chamada será recusada quando o fluxo rodar.": {
+    es: "Esta URL apunta a una dirección local/privada — la llamada se rechazará cuando el flujo se ejecute.",
+  },
+  "Cabeçalhos (headers)": { es: "Encabezados (headers)" },
+  "Adicionar cabeçalho": { es: "Agregar encabezado" },
+  "Corpo (opcional)": { es: "Cuerpo (opcional)" },
+  "Mensagem do aviso": { es: "Mensaje del aviso" },
+  "Abre um item na Central de avisos, apontando para este atendimento — ninguém assume a conversa por você.": {
+    es: "Abre un ítem en la Central de avisos, apuntando a esta atención — nadie toma la conversación por ti.",
+  },
   "Nenhum material ainda.": { es: "Todavía no hay materiales." },
   "O agente ainda não conhece o seu negócio": { es: "El agente todavía no conoce tu negocio" },
   "Comece pelo que ele mais vai precisar: as perguntas que se repetem, e a política que você mais explica. Ele passa a consultar isso antes de responder, em vez de improvisar.": { es: "Empieza por lo que más va a necesitar: las preguntas que se repiten y la política que más explicas. Empezará a consultarlo antes de responder, en vez de improvisar." },

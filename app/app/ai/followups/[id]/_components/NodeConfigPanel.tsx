@@ -17,6 +17,11 @@ import { EndForm } from "./forms/EndForm";
 import { MatchReplyForm } from "./forms/MatchReplyForm";
 import { RepeatForm } from "./forms/RepeatForm";
 import { WaitForm } from "./forms/WaitForm";
+import { AbSplitForm } from "./forms/AbSplitForm";
+import { AiGenericForm } from "./forms/AiGenericForm";
+import { ApiCallForm } from "./forms/ApiCallForm";
+import { NotifyAgentForm } from "./forms/NotifyAgentForm";
+import { AddNoteForm } from "./forms/AddNoteForm";
 import type { ConfigOf } from "./forms/shared";
 import { NODE_VISUALS } from "./nodes/nodeVisuals";
 
@@ -121,6 +126,24 @@ export function NodeConfigPanel({ node, onChange, onDelete, ramosLigados }: Prop
         )}
         {type === "end" && (
           <EndForm config={node.data.config as ConfigOf<"end">} onChange={(config) => onChange({ config })} />
+        )}
+        {type === "ab_split" && (
+          <AbSplitForm config={node.data.config as ConfigOf<"ab_split">} onChange={(config) => onChange({ config })} />
+        )}
+        {type === "ai_generic" && (
+          <AiGenericForm config={node.data.config as ConfigOf<"ai_generic">} onChange={(config) => onChange({ config })} />
+        )}
+        {type === "api_call" && (
+          <ApiCallForm config={node.data.config as ConfigOf<"api_call">} onChange={(config) => onChange({ config })} />
+        )}
+        {type === "notify_agent" && (
+          <NotifyAgentForm
+            config={node.data.config as ConfigOf<"notify_agent">}
+            onChange={(config) => onChange({ config })}
+          />
+        )}
+        {type === "add_note" && (
+          <AddNoteForm config={node.data.config as ConfigOf<"add_note">} onChange={(config) => onChange({ config })} />
         )}
       </div>
 

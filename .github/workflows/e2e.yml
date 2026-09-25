@@ -1076,6 +1076,7 @@ jobs:
         filtro-por-marcador-pela-tela.spec.ts
         funil-arquivado-volta-pela-tela.spec.ts
         followup-builder.spec.ts
+        followup-nos-lote1.spec.ts
         followup-simulador.spec.ts
         followup-journey.spec.ts
         followup-dossie.spec.ts

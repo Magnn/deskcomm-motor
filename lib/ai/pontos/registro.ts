@@ -338,6 +338,18 @@ export const PONTOS_DE_IA: readonly PontoDeIa[] = [
       "As retomadas saem todas no mesmo horário fixo, sem respeitar o ritmo de cada cliente.",
     registraEm: "llm_calls",
   },
+  {
+    id: "followup_generic_ai",
+    rotulo: "Rodar o prompt livre do fluxo",
+    oQueFaz:
+      "Executa a instrução que você escreveu no nó de IA do construtor de fluxo e grava o texto que o modelo escrever num campo do lead, pra usar depois em condições ou mensagens.",
+    papel: "entender",
+    exige: {},
+    emissor: "lib/agent-engine/agent/followup-flow-generic-ai.ts",
+    sintomaDeFalha:
+      "O nó de IA do fluxo trava nesse passo e o campo que ele deveria preencher fica vazio.",
+    registraEm: "llm_calls",
+  },
 
   {
     id: "flow_validate",

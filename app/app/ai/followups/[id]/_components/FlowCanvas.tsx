@@ -60,6 +60,11 @@ import { MatchReplyNode } from "./nodes/MatchReplyNode";
 import { RepeatNode } from "./nodes/RepeatNode";
 import { ActionNode } from "./nodes/ActionNode";
 import { EndNode } from "./nodes/EndNode";
+import { AbSplitNode } from "./nodes/AbSplitNode";
+import { AiGenericNode } from "./nodes/AiGenericNode";
+import { ApiCallNode } from "./nodes/ApiCallNode";
+import { NotifyAgentNode } from "./nodes/NotifyAgentNode";
+import { AddNoteNode } from "./nodes/AddNoteNode";
 
 const EMPTY_GRAPH: FlowGraph = { nodes: [], edges: [] };
 const DND_MIME = "application/x-followup-node-type";
@@ -75,6 +80,11 @@ const nodeTypes: NodeTypes = {
   repeat: RepeatNode,
   action: ActionNode,
   end: EndNode,
+  ab_split: AbSplitNode,
+  ai_generic: AiGenericNode,
+  api_call: ApiCallNode,
+  notify_agent: NotifyAgentNode,
+  add_note: AddNoteNode,
 };
 
 interface Props {

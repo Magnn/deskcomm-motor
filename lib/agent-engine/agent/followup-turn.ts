@@ -52,6 +52,7 @@ import {
   type EsperaParaPlanejar,
   type PropostaDeEsperaBruta,
 } from './followup-flow-classify';
+import { runGenericAiNode } from './followup-flow-generic-ai';
 
 const DAY_MS = 86_400_000;
 const HOUR_MS = 3_600_000;
@@ -78,7 +79,9 @@ export const followupTurnPayloadSchema = z
     // (schedule_followup / F3-03 / F3-04) intocado — nem lido.
     followup_enrollment_id: z.string().uuid().optional(),
     node_id: z.string().min(1).optional(),
-    purpose: z.enum(['send_message', 'classify', 'plan_timing']).optional(),
+    // 'generic_ai' — nó ai_generic (lote 1): reaproveita prompt_hint pro
+    // texto do prompt livre, o MESMO campo que a ação `ai_message` já usa.
+    purpose: z.enum(['send_message', 'classify', 'plan_timing', 'generic_ai']).optional(),
     prompt_hint: z.string().optional(),
     /** action mode `text` — enviado pela cadeia de guardrails, sem LLM. */
     fixed_body: z.string().min(1).max(4000).optional(),
@@ -111,7 +114,9 @@ export type FollowupFlowTurnResult =
   | { kind: 'classified'; class: string }
   /** O envio ficou estacionado até `until` (janela fechada) — nem saiu, nem foi recusado. */
   | { kind: 'deferred'; until: Date; reason: string }
-  | { kind: 'planned'; propostas: PropostaDeEsperaBruta[]; modelo: string };
+  | { kind: 'planned'; propostas: PropostaDeEsperaBruta[]; modelo: string }
+  /** nó `ai_generic` (lote 1) — o texto que o prompt livre devolveu. */
+  | { kind: 'generic_ai_done'; text: string };
 
 /**
  * `InboundTurnDeps` + o callback que fecha o turno dirigido por fluxo de volta
@@ -410,7 +415,7 @@ async function runFlowDrivenTurn(
   input: {
     enrollmentId: string;
     nodeId: string | undefined;
-    purpose: 'send_message' | 'classify' | 'plan_timing' | undefined;
+    purpose: 'send_message' | 'classify' | 'plan_timing' | 'generic_ai' | undefined;
     promptHint: string | undefined;
     fixedBody: string | undefined;
     templateId: string | undefined;
@@ -492,6 +497,36 @@ async function runFlowDrivenTurn(
       { ...(deps.registry !== undefined ? { registry: deps.registry } : {}), log: runLog },
     );
     await complete(pool, { jobId:job.id,jobClaim:claimOfJob(job), organizationId: target.tenantId, enrollmentId, nodeId, result: { kind: 'classified', class: cls } });
+    return;
+  }
+
+  if (input.purpose === 'generic_ai') {
+    // nó ai_generic (lote 1): prompt livre com o MESMO contexto de lead que o
+    // planejador de tempo já monta (getLeadContext) — o prompt referencia a
+    // conversa, não só a última mensagem.
+    if (!input.promptHint) {
+      throw new Error('turno de IA genérica do fluxo sem prompt no payload — payload do engine incompleto');
+    }
+    const fuso = await fusoDaOrganizacao(pool, target.tenantId, runLog);
+    const context = await getLeadContext(pool, deps.crmCfg, { tenantId: target.tenantId, leadId: target.leadId, fuso }, {
+      historyLimit: deps.knobs.historyLimit,
+      maxTokens: deps.knobs.maxContextTokens,
+    });
+    if (!context.ok) {
+      throw new Error(`turno de IA genérica do fluxo falhou em get_lead_context (${context.error.code})`);
+    }
+    const text = await runGenericAiNode(
+      pool,
+      deps.llmCfg,
+      { tenantId: target.tenantId, leadId: target.leadId, jobId: job.id },
+      {
+        prompt: input.promptHint,
+        context: context.context,
+        ...(deps.knobs.followupAi?.model !== undefined ? { model: deps.knobs.followupAi.model } : {}),
+      },
+      { ...(deps.registry !== undefined ? { registry: deps.registry } : {}), log: runLog },
+    );
+    await complete(pool, { jobId: job.id, jobClaim: claimOfJob(job), organizationId: target.tenantId, enrollmentId, nodeId, result: { kind: 'generic_ai_done', text } });
     return;
   }
 

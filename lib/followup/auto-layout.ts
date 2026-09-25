@@ -45,6 +45,12 @@ const TYPE_ORDER: Record<NodeType, number> = {
   skill: 7,
   action: 8,
   end: 9,
+  // Lote 1 (aditivo) — números novos ao final, os existentes não mudam.
+  ab_split: 10,
+  ai_generic: 11,
+  api_call: 12,
+  notify_agent: 13,
+  add_note: 14,
 };
 
 export type NodeSize = { width: number; height: number };

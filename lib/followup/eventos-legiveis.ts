@@ -133,6 +133,12 @@ const TIPO_DO_NO: Record<FlowNode["type"], string> = {
   skill: "Skill",
   action: "Mensagem",
   end: "Fim",
+  // Lote 1 (aditivo)
+  ab_split: "A/B split",
+  ai_generic: "IA (prompt livre)",
+  api_call: "API externa",
+  notify_agent: "Notificar atendente",
+  add_note: "Anotação no contato",
 };
 
 const DESFECHO: Record<string, string> = {
@@ -198,6 +204,21 @@ export function resumoDoNo(node: FlowNode): NoDoDossie {
       };
     case "end":
       return { ...base, resumo: `encerra — ${DESFECHO[node.config.outcome] ?? node.config.outcome}` };
+    case "ab_split":
+      return {
+        ...base,
+        resumo: `divide o tráfego em ${node.config.branches.length} caminhos: ${node.config.branches
+          .map((b) => `${b.label} ${b.percent}%`)
+          .join(", ")}`,
+      };
+    case "ai_generic":
+      return { ...base, resumo: "roda um prompt livre de IA e grava o resultado num campo" };
+    case "api_call":
+      return { ...base, resumo: `chama uma API externa (${node.config.method} ${node.config.url})` };
+    case "notify_agent":
+      return { ...base, resumo: "notifica um atendente humano, sem transferir a conversa" };
+    case "add_note":
+      return { ...base, resumo: "grava uma anotação no histórico do contato" };
   }
 }
 

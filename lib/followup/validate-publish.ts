@@ -70,8 +70,39 @@ export interface ContextoDoPublish {
  * recusava em silêncio; a recusa aqui é o erro que a pessoa lê no editor.
  */
 export const NOS_DA_SUPERFICIE: Record<FollowupFlowSurface, readonly NodeType[]> = {
-  followup: ['trigger', 'wait', 'condition', 'ai_classify', 'match_reply', 'repeat', 'action', 'end'],
-  crm_automation: ['trigger', 'wait', 'condition', 'ai_classify', 'match_reply', 'repeat', 'action', 'end'],
+  // Lote 1 (aditivo): os 5 nós novos ao final são do relógio do follow-up,
+  // como condition/ai_classify/action — não do roteiro de atendimento
+  // (que segue início → pergunta/skill → fim, em linha, sem ramificação).
+  followup: [
+    'trigger',
+    'wait',
+    'condition',
+    'ai_classify',
+    'match_reply',
+    'repeat',
+    'action',
+    'end',
+    'ab_split',
+    'ai_generic',
+    'api_call',
+    'notify_agent',
+    'add_note',
+  ],
+  crm_automation: [
+    'trigger',
+    'wait',
+    'condition',
+    'ai_classify',
+    'match_reply',
+    'repeat',
+    'action',
+    'end',
+    'ab_split',
+    'ai_generic',
+    'api_call',
+    'notify_agent',
+    'add_note',
+  ],
   atendimento: ['trigger', 'collect', 'skill', 'end'],
 };
 
@@ -535,6 +566,14 @@ export function validateFlowForPublish(
     const outgoing = outEdges.get(node.id) ?? [];
 
     cobrirRamos(node, outgoing, errors, nomes);
+  }
+
+  // ab_split (lote 1): cada braço precisa de aresta — sem cobrança aqui, um
+  // braço órfão perde a fatia de tráfego dele em silêncio (o motor cai no
+  // fallback 'always', mudando quem recebe o quê sem ninguém decidir isso).
+  for (const node of [...nodes].sort(byId)) {
+    if (node.type !== 'ab_split') continue;
+    cobrirRamos(node, outEdges.get(node.id) ?? [], errors, nomes);
   }
 
   for (const node of [...nodes].sort(byId)) {
