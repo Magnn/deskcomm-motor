@@ -4338,6 +4338,9 @@ export const DICIONARIO: Traducoes = {
   "Atribuir a um atendente": { es: "Asignar a un asesor" },
   "Avisar outro sistema (webhook)": { es: "Avisar a otro sistema (webhook)" },
   "Gravar campo do lead": { es: "Guardar campo del lead" },
+  "Esse contato ainda não tem nenhum negócio (lead), então não havia onde gravar o campo.": {
+    es: "Ese contacto todavía no tiene ningún negocio (lead), así que no había dónde guardar el campo.",
+  },
   "Nome do campo": { es: "Nombre del campo" },
   "Valor a gravar": { es: "Valor a guardar" },
   "O valor é fixo — o mesmo sempre que a regra disparar. Grava no lead mais recente do contato, sem apagar os outros campos já preenchidos.": {
