@@ -19,6 +19,7 @@ export function ClassifyNode({ id, data, selected }: NodeProps<RFNode>) {
       subtitle={describeNodeConfig("ai_classify", data.config, t)}
       selected={selected}
       errors={data.errors}
+      simulating={data.simulating}
       branches={nodeBranches({ type: "ai_classify", config: data.config as ConfigOf<"ai_classify"> })}
     />
   );

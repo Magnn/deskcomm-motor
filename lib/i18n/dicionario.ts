@@ -11985,6 +11985,54 @@ export const DICIONARIO: Traducoes = {
   },
   "Versão não encontrada para esta skill.": { es: "No se encontró esa versión para esta skill." },
   "Versão da skill não encontrada.": { es: "No se encontró la versión de la skill." },
+
+  // Simulador do construtor de fluxo (/app/ai/followups/[id])
+  Simular: { es: "Simular" },
+  Simulador: { es: "Simulador" },
+  "Processando…": { es: "Procesando…" },
+  "Simulação concluída.": { es: "Simulación concluida." },
+  "Digite como se fosse o lead…": { es: "Escribe como si fueras el lead…" },
+  "Simular: sem resposta / prazo esgotado": { es: "Simular: sin respuesta / plazo vencido" },
+  "Reiniciar simulação": { es: "Reiniciar simulación" },
+  "Dados do lead (simulados)": { es: "Datos del lead (simulados)" },
+  "JSON opcional — lead_stage, tags e custom_fields — lido pelos nós de Condição e de Resposta.": {
+    es: "JSON opcional — lead_stage, tags y custom_fields — leído por los nodos de Condición y de Respuesta.",
+  },
+  "JSON inválido — os dados do lead não foram atualizados nesta rodada.": {
+    es: "JSON inválido — los datos del lead no se actualizaron en esta ronda.",
+  },
+  "Simulação em memória: nenhuma mensagem é enviada de verdade e nenhum lead ou contato é criado. A classificação por IA roda de verdade (consome créditos do provedor); ações e skills só mostram o que SERIAM feitas.":
+    {
+      es: "Simulación en memoria: ningún mensaje se envía de verdad y no se crea ningún lead ni contacto. La clasificación por IA corre de verdad (consume créditos del proveedor); acciones y skills solo muestran lo que SERÍAN hechas.",
+    },
+  "(simulação: sem resposta — prazo esgotado)": { es: "(simulación: sin respuesta — plazo vencido)" },
+  "Simulado — não é enviado de verdade": { es: "Simulado — no se envía de verdad" },
+  "Orientação que a IA receberia para gerar a mensagem (não foi gerada aqui).": {
+    es: "Orientación que la IA recibiría para generar el mensaje (no se generó aquí).",
+  },
+  "Usaria este modelo salvo; o conteúdo dele não é pré-visualizado no simulador.": {
+    es: "Usaría esta plantilla guardada; su contenido no se previsualiza en el simulador.",
+  },
+  "Pergunta de confirmação — o dado já está preenchido nos dados simulados do lead.": {
+    es: "Pregunta de confirmación — el dato ya está completado en los datos simulados del lead.",
+  },
+  "Aguardando o fim da espera configurada neste nó.": {
+    es: "Esperando el fin de la espera configurada en este nodo.",
+  },
+  "Aguardando a resposta do lead para classificar com IA.": {
+    es: "Esperando la respuesta del lead para clasificar con IA.",
+  },
+  "Aguardando a resposta do lead para casar com as regras deste nó.": {
+    es: "Esperando la respuesta del lead para casar con las reglas de este nodo.",
+  },
+  "Classificado como:": { es: "Clasificado como:" },
+  "Fluxo concluído.": { es: "Flujo concluido." },
+  "Ao concluir, seria ativada a skill:": { es: "Al concluir, se activaría la skill:" },
+  "Ao concluir, encadearia para o fluxo:": { es: "Al concluir, encadenaría hacia el flujo:" },
+  "Ao concluir, a IA assumiria a conversa livremente.": {
+    es: "Al concluir, la IA asumiría la conversación libremente.",
+  },
+  "Erro ao simular.": { es: "Error al simular." },
 };
 
 /**

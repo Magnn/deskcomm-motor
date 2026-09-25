@@ -457,7 +457,33 @@ diálogo e é asserida na spec.
 
 ---
 
-## J9 — Ver o que o follow-up já fez, e intervir sem matá-lo `[P1]`
+## J33 — Simular a conversa dentro do construtor de fluxo, sem sair da tela `[P1]`
+
+Contexto do código: `/app/ai/followups/[id]` (FlowCanvas) sempre exigiu publicar
+para testar de verdade — não havia como ver o grafo responder sem enrolar um
+lead real e mandar mensagem via WAHA. O Simulador (`SimulatorPanel.tsx`) abre um
+painel de chat NA MESMA tela: reaproveita o executor puro do motor real
+(`processNode`, `node-handlers.ts`) num driver síncrono em memória
+(`lib/followup/simulate.ts`) — não cria `followup_enrollments`, não toca
+`contacts`. A única chamada de IA de verdade é a classificação (`ai_classify`,
+via `POST .../simulate-classify`); ação e a pergunta de confirmação do
+`match_reply` mostram só o texto que SERIA enviado, nunca enviam.
+
+Spec: `tests/e2e/followup-simulador.spec.ts` — dirige a tela; monta o grafo pela
+paleta/drag-and-drop (mesmo `connectHandles` de `followup-builder.spec.ts`),
+abre o simulador, digita como o lead, e prova por consulta direta ao Postgres
+que `followup_enrollments` continua com zero linhas para o fluxo simulado.
+
+| # | Caso | Expectativa | Resultado |
+|---|------|-------------|-----------|
+| J33.1 | Botão "Simular" na PublishBar | abre um painel na MESMA tela (não navega) | PASS |
+| J33.2 | Rajada inicial (trigger→action→wait) | atravessa sozinha até parar no `wait`, mostrando a mensagem do `action` rotulada "Simulado — não é enviado de verdade" — sem chamar IA nenhuma | PASS |
+| J33.3 | Nó ativo acende no canvas | `data-simulating="true"` no card do nó onde a simulação está parada, e só nele | PASS |
+| J33.4 | Digitar como o lead e enviar | avança até o Fim; a mensagem digitada aparece no transcript | PASS |
+| J33.5 | "Reiniciar simulação" | volta ao início, mesmo grafo, novo transcript | PASS |
+| J33.6 | Depois de simular (2×, incl. reinício) | `followup_enrollments` segue com **zero** linhas para o `pointer_id` do fluxo — prova por SQL direto, não por inferência de tela | PASS |
+
+
 
 Contexto do código: o dossiê do enrollment (`/app/ai/followups/enrollments/[id]`,
 wave FV-W1-FILA). `followup_enrollment_events` gravava cada passo do motor desde a

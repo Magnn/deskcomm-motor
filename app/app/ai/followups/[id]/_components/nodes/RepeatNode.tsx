@@ -19,6 +19,7 @@ export function RepeatNode({ id, data, selected }: NodeProps<RFNode>) {
       subtitle={describeNodeConfig("repeat", data.config, t)}
       selected={selected}
       errors={data.errors}
+      simulating={data.simulating}
       branches={nodeBranches({ type: "repeat", config: data.config as ConfigOf<"repeat"> })}
     />
   );

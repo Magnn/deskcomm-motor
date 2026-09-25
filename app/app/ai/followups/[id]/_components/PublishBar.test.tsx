@@ -70,6 +70,8 @@ function montar(selection: "node" | "edge" | null) {
       onPublishErrors={() => {}}
       onPublishSuccess={() => {}}
       canAutoFit={false}
+      onOpenSimulator={() => {}}
+      simulatorOpen={false}
     />,
   );
   return onDeleteSelection;

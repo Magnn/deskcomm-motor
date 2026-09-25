@@ -17,6 +17,7 @@ export function ActionNode({ id, data, selected }: NodeProps<RFNode>) {
       subtitle={describeNodeConfig("action", data.config, t)}
       selected={selected}
       errors={data.errors}
+      simulating={data.simulating}
     />
   );
 }
