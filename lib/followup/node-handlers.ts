@@ -106,7 +106,7 @@ export type NodeResult =
   | { kind: "wait"; next_eval_at: Date; wake_status?: "active" | "waiting_reply" | "dormente" }
   | {
       kind: "enqueue_turn";
-      purpose: "send_message" | "classify" | "plan_timing";
+      purpose: "send_message" | "classify" | "plan_timing" | "generic_ai";
       wake_status: "active" | "waiting_reply";
       fixed_body?: string;
     }
@@ -309,14 +309,25 @@ export function occupancyEventCount(events: EnrollmentEventRef[], nodeId: string
 }
 
 /**
- * O turno de envio desta estadia no `action` já fechou (`action_sent`).
- * Se o enrollment ainda aponta pro action, foi corrida com `action_recheck`
- * (ou update perdido no completeTurn) — o motor deve avançar, não rechecar.
+ * O turno de envio desta estadia no `action` (ou o turno de IA genérica do
+ * `ai_generic`) já fechou. Se o enrollment ainda aponta pro nó, foi corrida
+ * com o recheck (ou update perdido no completeTurn) — o motor deve avançar,
+ * não rechecar.
+ *
+ * `doneEventType` é parâmetro (default `"action_sent"`, o comportamento de
+ * sempre) porque o `ai_generic` fecha com um evento PRÓPRIO
+ * (`"ai_generic_done"`) — os dois nós compartilham o mesmo contrato de
+ * ocupação/recheck/dead-man (ver `processNode`), só o rótulo do evento de
+ * conclusão muda.
  */
-export function actionTurnCompleted(events: EnrollmentEventRef[], nodeId: string): boolean {
+export function actionTurnCompleted(
+  events: EnrollmentEventRef[],
+  nodeId: string,
+  doneEventType: string = "action_sent",
+): boolean {
   for (let i = events.length - 1; i >= 0; i--) {
     if (events[i]!.node_id !== nodeId) break;
-    if (events[i]!.event_type === "action_sent") return true;
+    if (events[i]!.event_type === doneEventType) return true;
   }
   return false;
 }
@@ -472,6 +483,119 @@ function evaluateCondition(
 ): boolean {
   const results = config.checks.map((check) => evaluateCheck(check, lead));
   return config.combinator === "and" ? results.every(Boolean) : results.some(Boolean);
+}
+
+/**
+ * Escolhe o braço do A/B split — DETERMINÍSTICO por inscrição: o mesmo
+ * `seed` sempre cai no mesmo braço, então reavaliar o mesmo passo (retry,
+ * corrida de tick) nunca redivide o tráfego, e a "conversão por caminho"
+ * medida depois (via `followup_enrollment_events`) fica estável. Hash
+ * FNV-1a de 32 bits — não é criptográfico, só precisa ser bem distribuído.
+ */
+export function hashSeedParaUnidade(seed: string): number {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < seed.length; i++) {
+    h ^= seed.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0) / 4294967296; // [0, 1)
+}
+
+export function escolherRamoDoSplit(
+  config: Extract<FlowNode, { type: "ab_split" }>["config"],
+  seed: string,
+): string {
+  const sorteio = hashSeedParaUnidade(seed) * 100;
+  let acumulado = 0;
+  for (const branch of config.branches) {
+    acumulado += branch.percent;
+    if (sorteio < acumulado) return branch.id;
+  }
+  // Guarda de arredondamento: soma já é validada em 100 pelo schema, mas
+  // float é float — o último braço fecha o intervalo.
+  return config.branches[config.branches.length - 1]!.id;
+}
+
+/** O que `notify_agent` precisa gravar na Central de avisos — I/O fica com o engine. */
+export interface AvisoDeFluxo {
+  organization_id: string;
+  title: string;
+  body: string;
+  ref_id: string;
+}
+
+/**
+ * Reaproveita a Central de avisos (`agent_inbox_items`, kind `other` — "Aviso
+ * do assistente") em vez de inventar um canal de notificação novo: é o MESMO
+ * mecanismo que `engine.ts` já usa pra `followup_dead`/
+ * `appointment_recovery_review`, só com um `kind` genérico já existente no
+ * vocabulário (evita migration só por um rótulo — precedente explícito no
+ * comentário de `abrirAvisoRecuperacaoEsgotada`).
+ */
+export function avisoDeNotificarAtendente(
+  enrollment: EnrollmentRow,
+  node: FlowNode,
+  result: NodeResult,
+): AvisoDeFluxo | null {
+  if (node.type !== "notify_agent") return null;
+  if (result.kind !== "advance") return null;
+  return {
+    organization_id: enrollment.organization_id,
+    title: "Aviso de um fluxo de follow-up",
+    body: node.config.message,
+    ref_id: enrollment.id,
+  };
+}
+
+/** O que `add_note` precisa gravar como nota interna — I/O fica com o engine. */
+export interface NotaDeFluxo {
+  organization_id: string;
+  conversation_id: string;
+  body: string;
+  enrollment_id: string;
+}
+
+/**
+ * Reaproveita `conversation_notes` (o MESMO destino de `conversation.note_added`,
+ * a nota que um humano cria pela Inbox) em vez de uma tabela nova. Sem
+ * conversa vinculada à inscrição (`conversation_id` nulo) devolve `null` — o
+ * fluxo AVANÇA do mesmo jeito (uma nota sem onde morar não pode travar o
+ * passo), e o engine registra a ausência num log, não em silêncio total.
+ */
+export function notaDeFluxo(
+  enrollment: EnrollmentRow,
+  node: FlowNode,
+  result: NodeResult,
+): NotaDeFluxo | null {
+  if (node.type !== "add_note") return null;
+  if (result.kind !== "advance") return null;
+  if (!enrollment.conversation_id) return null;
+  return {
+    organization_id: enrollment.organization_id,
+    conversation_id: enrollment.conversation_id,
+    body: node.config.body,
+    enrollment_id: enrollment.id,
+  };
+}
+
+/** O que `api_call` precisa disparar — I/O (fetch + anti-SSRF) fica com o engine. */
+export interface ChamadaDeApiFluxo {
+  method: string;
+  url: string;
+  headers: Record<string, string>;
+  body: string | null;
+}
+
+/** Reaproveita a config do nó tal como o cURL colado a preencheu — nenhuma transformação aqui. */
+export function chamadaDeApiDoFluxo(node: FlowNode, result: NodeResult): ChamadaDeApiFluxo | null {
+  if (node.type !== "api_call") return null;
+  if (result.kind !== "advance") return null;
+  return {
+    method: node.config.method,
+    url: node.config.url,
+    headers: Object.fromEntries(node.config.headers.map((h) => [h.key, h.value])),
+    body: node.config.body ?? null,
+  };
 }
 
 /**
@@ -637,6 +761,18 @@ export function processNode(input: {
       const result = evaluateCondition(node.config, lead);
       const edge = selectEdge(edges, node.id, { type: "cond_result", value: result });
       if (!edge) return { kind: "fail", error: `condition node "${node.id}" has no matching edge for result ${result}` };
+      return { kind: "advance", next_node_id: edge.target, next_eval_at: clock() };
+    }
+
+    case "ab_split": {
+      const branchId = escolherRamoDoSplit(node.config, `${enrollment.id}:${node.id}`);
+      const edge = selectEdge(edges, node.id, { type: "branch", branch_id: branchId });
+      if (!edge) {
+        return {
+          kind: "fail",
+          error: `ab_split node "${node.id}" has no edge for branch "${branchId}" (fallback also missing)`,
+        };
+      }
       return { kind: "advance", next_node_id: edge.target, next_eval_at: clock() };
     }
 
@@ -828,6 +964,57 @@ export function processNode(input: {
         kind: "recheck",
         next_eval_at: new Date(clock().getTime() + atrasoDoRecheck(actionRecheckCount ?? 0)),
       };
+    }
+
+    case "ai_generic": {
+      // Mesmo contrato de ocupação/recheck/dead-man do `action` (ver o case
+      // acima): enfileira o turno de IA UMA vez por estadia, recheca até o
+      // turno fechar (`ai_generic_done`, ver turn-bridge.ts), desiste depois
+      // de MAX_ACTION_RECHECKS. O motor NUNCA chama o modelo diretamente
+      // aqui — `processNode` é puro; quem chama é o turno do agent-engine,
+      // pelo MESMO seam de custo/auditoria que `ai_classify` usa
+      // (`followup_generic_ai` em lib/ai/pontos/registro.ts, `llm_calls`).
+      if (!actionEnqueued && !actionCompleted) {
+        return { kind: "enqueue_turn", purpose: "generic_ai", wake_status: "active" };
+      }
+      if (actionCompleted) {
+        const edge = selectEdge(edges, node.id, { type: "always" });
+        if (!edge) return { kind: "fail", error: `ai_generic node "${node.id}" has no outbound edge` };
+        return { kind: "advance", next_node_id: edge.target, next_eval_at: clock() };
+      }
+      if ((actionRecheckCount ?? 0) >= MAX_ACTION_RECHECKS) {
+        return { kind: "dead", reason: "ai_generic_turn_never_completed" };
+      }
+      return {
+        kind: "recheck",
+        next_eval_at: new Date(clock().getTime() + atrasoDoRecheck(actionRecheckCount ?? 0)),
+      };
+    }
+
+    case "api_call": {
+      // Chamada de I/O de verdade (fetch) mora no engine — este nó só decide
+      // o roteamento (passagem única, como `action`/`skill`/`collect`). O
+      // engine dispara a chamada olhando `chamadaDeApiDoFluxo(node, result)`
+      // sobre ESTE resultado, best-effort: falhar a chamada não trava o fluxo.
+      const edge = selectEdge(edges, node.id, { type: "always" });
+      if (!edge) return { kind: "fail", error: `api_call node "${node.id}" has no outbound edge` };
+      return { kind: "advance", next_node_id: edge.target, next_eval_at: clock() };
+    }
+
+    case "notify_agent": {
+      // Passagem única; o engine grava o aviso na Central olhando
+      // `avisoDeNotificarAtendente(enrollment, node, result)` sobre ESTE
+      // resultado.
+      const edge = selectEdge(edges, node.id, { type: "always" });
+      if (!edge) return { kind: "fail", error: `notify_agent node "${node.id}" has no outbound edge` };
+      return { kind: "advance", next_node_id: edge.target, next_eval_at: clock() };
+    }
+
+    case "add_note": {
+      // Passagem única; o engine grava a nota olhando `notaDeFluxo(enrollment, node, result)`.
+      const edge = selectEdge(edges, node.id, { type: "always" });
+      if (!edge) return { kind: "fail", error: `add_note node "${node.id}" has no outbound edge` };
+      return { kind: "advance", next_node_id: edge.target, next_eval_at: clock() };
     }
 
     case "end": {

@@ -49,7 +49,9 @@ export type TurnResult =
    */
   | { kind: "deferred"; until: Date; reason: string }
   /** Plano de tempo do fluxo inteiro, proposto no acionamento — cru, antes do clamp. */
-  | { kind: "planned"; propostas: PropostaDeEspera[]; modelo: string };
+  | { kind: "planned"; propostas: PropostaDeEspera[]; modelo: string }
+  /** nó `ai_generic` (lote 1) — o texto que o prompt livre devolveu. */
+  | { kind: "generic_ai_done"; text: string };
 
 /**
  * Traduz o resultado de um turno concluído em progressão do enrollment —
@@ -220,6 +222,35 @@ export async function completeTurnForEnrollment(
     await applyStep(
       "ai_classified",
       { class: result.class },
+      { current_node_id: edge.target, status: "active", next_eval_at: now.toISOString() },
+    );
+    return;
+  }
+
+  if (result.kind === "generic_ai_done") {
+    if (node.type !== "ai_generic") {
+      throw new Error(`completeTurnForEnrollment: resultado 'generic_ai_done' mas o nó "${node.id}" não é 'ai_generic'`);
+    }
+    const edge = selectEdge(graph.edges, node.id, { type: "always" });
+    if (!edge) throw new Error(`ai_generic node "${node.id}" sem aresta 'always' de saída`);
+    try {
+      // Melhor esforço, ANTES do passo — a mesma doutrina do `catch` em
+      // engine.ts (persistirRespostaFollowup falhando não pode travar o
+      // avanço do fluxo). Chamar antes do `applyStep` é seguro mesmo em
+      // replay: o valor é sempre o MESMO texto já decidido pelo modelo —
+      // regravar não duplica nem perde nada, só é redundante.
+      await db.persistirRespostaFollowup({
+        organization_id: orgId,
+        contact_id: enrollment.contact_id,
+        save_to: node.config.save_to,
+        value: result.text,
+      });
+    } catch {
+      // segue mesmo assim — o próximo passo importa mais que o registro do dado.
+    }
+    await applyStep(
+      "ai_generic_done",
+      { text: result.text },
       { current_node_id: edge.target, status: "active", next_eval_at: now.toISOString() },
     );
     return;

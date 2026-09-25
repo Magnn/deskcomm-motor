@@ -2,7 +2,13 @@ import { describe, it, expect } from "vitest";
 
 import {
   BACKOFF_MS,
+  MAX_ACTION_RECHECKS,
   actionTurnCompleted,
+  avisoDeNotificarAtendente,
+  chamadaDeApiDoFluxo,
+  escolherRamoDoSplit,
+  hashSeedParaUnidade,
+  notaDeFluxo,
   occupancyEventCount,
   pisoDoInboundDaEspera,
   processNode,
@@ -1169,5 +1175,338 @@ describe("processNode — repeat", () => {
       repeatTotal: null,
     });
     expect(result).toMatchObject({ kind: "advance", next_node_id: "de-novo" });
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// Lote 1 (aditivo) — comparativo ChatbotX/AcassIA/Desk
+// ═══════════════════════════════════════════════════════════════════════
+
+describe("hashSeedParaUnidade", () => {
+  it("é determinístico — o mesmo seed sempre devolve o mesmo número", () => {
+    expect(hashSeedParaUnidade("enr-1:split-1")).toBe(hashSeedParaUnidade("enr-1:split-1"));
+  });
+
+  it("devolve um número em [0, 1)", () => {
+    for (const seed of ["a", "b", "enr-42:split-9", ""]) {
+      const v = hashSeedParaUnidade(seed);
+      expect(v).toBeGreaterThanOrEqual(0);
+      expect(v).toBeLessThan(1);
+    }
+  });
+
+  it("seeds diferentes tendem a distribuir — não degenera num valor fixo", () => {
+    const valores = new Set(Array.from({ length: 50 }, (_, i) => hashSeedParaUnidade(`enr-${i}:split-1`)));
+    expect(valores.size).toBeGreaterThan(40);
+  });
+});
+
+describe("escolherRamoDoSplit", () => {
+  const config = {
+    branches: [
+      { id: "a", label: "A", percent: 30 },
+      { id: "b", label: "B", percent: 70 },
+    ],
+  };
+
+  it("é determinístico por inscrição — reavaliar o mesmo passo nunca redivide o tráfego", () => {
+    const escolha1 = escolherRamoDoSplit(config, "enr-7:split-1");
+    const escolha2 = escolherRamoDoSplit(config, "enr-7:split-1");
+    expect(escolha1).toBe(escolha2);
+  });
+
+  it("só escolhe entre os ids declarados", () => {
+    for (let i = 0; i < 30; i++) {
+      const escolha = escolherRamoDoSplit(config, `enr-${i}:split-1`);
+      expect(["a", "b"]).toContain(escolha);
+    }
+  });
+
+  it("distribui pelos dois braços numa amostra razoável (nem tudo cai no mesmo)", () => {
+    const escolhas = new Set(Array.from({ length: 40 }, (_, i) => escolherRamoDoSplit(config, `enr-${i}:split-1`)));
+    expect(escolhas.size).toBe(2);
+  });
+});
+
+describe("processNode — ab_split", () => {
+  function splitNode(): FlowNode {
+    return {
+      id: "sp1",
+      type: "ab_split",
+      label: "A/B",
+      position: { x: 0, y: 0 },
+      config: {
+        branches: [
+          { id: "a", label: "A", percent: 30 },
+          { id: "b", label: "B", percent: 70 },
+        ],
+      },
+    };
+  }
+  const edges = [
+    edge({ source: "sp1", target: "va", condition: { type: "branch", branch_id: "a" } }),
+    edge({ source: "sp1", target: "vb", condition: { type: "branch", branch_id: "b" } }),
+  ];
+
+  it("a mesma inscrição sempre avança para o mesmo destino", () => {
+    const enr = enrollment({ id: "enr-fixo" });
+    const r1 = processNode({ node: splitNode(), edges, enrollment: enr, lead: lead(), clock });
+    const r2 = processNode({ node: splitNode(), edges, enrollment: enr, lead: lead(), clock });
+    expect(r1).toEqual(r2);
+    expect(r1.kind).toBe("advance");
+  });
+
+  it("falha com motivo claro quando o braço sorteado não tem aresta nem fallback", () => {
+    const semAresta: FlowEdge[] = [];
+    const r = processNode({ node: splitNode(), edges: semAresta, enrollment: enrollment(), lead: lead(), clock });
+    expect(r).toMatchObject({ kind: "fail" });
+  });
+
+  it("cai no fallback 'always' quando só o braço sorteado ficou sem ligação", () => {
+    const enr = enrollment({ id: "enr-fixo-2" });
+    const escolhido = escolherRamoDoSplit(splitNode().config as never, `${enr.id}:sp1`);
+    const outroBraco = escolhido === "a" ? "b" : "a";
+    const edgesParciais = [
+      edge({ source: "sp1", target: `via-${outroBraco}`, condition: { type: "branch", branch_id: outroBraco } }),
+      edge({ source: "sp1", target: "escape", condition: { type: "always" } }),
+    ];
+    const r = processNode({ node: splitNode(), edges: edgesParciais, enrollment: enr, lead: lead(), clock });
+    expect(r).toMatchObject({ kind: "advance", next_node_id: "escape" });
+  });
+});
+
+describe("actionTurnCompleted — evento de conclusão configurável (ai_generic)", () => {
+  it("por default só reconhece action_sent", () => {
+    const events = [{ node_id: "n1", idempotency_key: "n1:1", event_type: "ai_generic_done" }];
+    expect(actionTurnCompleted(events, "n1")).toBe(false);
+  });
+
+  it("com doneEventType 'ai_generic_done', reconhece o evento próprio do ai_generic", () => {
+    const events = [{ node_id: "n1", idempotency_key: "n1:1", event_type: "ai_generic_done" }];
+    expect(actionTurnCompleted(events, "n1", "ai_generic_done")).toBe(true);
+  });
+});
+
+describe("processNode — ai_generic (mesmo contrato de ocupação/recheck/dead-man do action)", () => {
+  function genericNode(): FlowNode {
+    return {
+      id: "ia1",
+      type: "ai_generic",
+      label: "IA livre",
+      position: { x: 0, y: 0 },
+      config: { prompt: "Resuma.", save_to: { kind: "lead_custom", key: "resumo" } },
+    };
+  }
+  const edges = [edge({ source: "ia1", target: "prox", condition: { type: "always" } })];
+
+  it("primeira entrada enfileira o turno com purpose 'generic_ai' — nunca chama o modelo aqui (puro)", () => {
+    const r = processNode({ node: genericNode(), edges, enrollment: enrollment(), lead: lead(), clock });
+    expect(r).toMatchObject({ kind: "enqueue_turn", purpose: "generic_ai", wake_status: "active" });
+  });
+
+  it("com o turno em voo (enfileirado, sem action_sent nem ai_generic_done), recheca", () => {
+    const r = processNode({
+      node: genericNode(),
+      edges,
+      enrollment: enrollment(),
+      lead: lead(),
+      clock,
+      actionEnqueued: true,
+      actionCompleted: false,
+      actionRecheckCount: 1,
+    });
+    expect(r.kind).toBe("recheck");
+  });
+
+  it("avança quando o turno já fechou (ai_generic_done)", () => {
+    const r = processNode({
+      node: genericNode(),
+      edges,
+      enrollment: enrollment(),
+      lead: lead(),
+      clock,
+      actionEnqueued: true,
+      actionCompleted: true,
+      actionRecheckCount: 3,
+    });
+    expect(r).toMatchObject({ kind: "advance", next_node_id: "prox" });
+  });
+
+  it("desiste (dead) depois de MAX_ACTION_RECHECKS sem o turno fechar", () => {
+    const r = processNode({
+      node: genericNode(),
+      edges,
+      enrollment: enrollment(),
+      lead: lead(),
+      clock,
+      actionEnqueued: true,
+      actionCompleted: false,
+      actionRecheckCount: MAX_ACTION_RECHECKS,
+    });
+    expect(r).toMatchObject({ kind: "dead", reason: "ai_generic_turn_never_completed" });
+  });
+});
+
+describe("processNode — api_call / notify_agent / add_note (passagem única no relógio)", () => {
+  it("api_call avança pela aresta única — o fetch de verdade fica com o engine, aqui é só roteamento", () => {
+    const node: FlowNode = {
+      id: "api1",
+      type: "api_call",
+      label: "Webhook",
+      position: { x: 0, y: 0 },
+      config: { method: "POST", url: "https://exemplo.com/x", headers: [] },
+    };
+    const edges = [edge({ source: "api1", target: "n2", condition: { type: "always" } })];
+    const r = processNode({ node, edges, enrollment: enrollment(), lead: lead(), clock });
+    expect(r).toMatchObject({ kind: "advance", next_node_id: "n2" });
+  });
+
+  it("notify_agent avança pela aresta única", () => {
+    const node: FlowNode = {
+      id: "na1",
+      type: "notify_agent",
+      label: "Avisar",
+      position: { x: 0, y: 0 },
+      config: { message: "Olha aqui." },
+    };
+    const edges = [edge({ source: "na1", target: "n2", condition: { type: "always" } })];
+    const r = processNode({ node, edges, enrollment: enrollment(), lead: lead(), clock });
+    expect(r).toMatchObject({ kind: "advance", next_node_id: "n2" });
+  });
+
+  it("add_note avança pela aresta única", () => {
+    const node: FlowNode = {
+      id: "an1",
+      type: "add_note",
+      label: "Anotar",
+      position: { x: 0, y: 0 },
+      config: { body: "Confirmou o CPF." },
+    };
+    const edges = [edge({ source: "an1", target: "n2", condition: { type: "always" } })];
+    const r = processNode({ node, edges, enrollment: enrollment(), lead: lead(), clock });
+    expect(r).toMatchObject({ kind: "advance", next_node_id: "n2" });
+  });
+
+  it("os três falham com motivo claro sem aresta de saída", () => {
+    const tipos: Array<[FlowNode, string]> = [
+      [
+        { id: "x1", type: "api_call", label: "x", position: { x: 0, y: 0 }, config: { method: "GET", url: "https://a.com", headers: [] } },
+        "x1",
+      ],
+      [{ id: "x2", type: "notify_agent", label: "x", position: { x: 0, y: 0 }, config: { message: "m" } }, "x2"],
+      [{ id: "x3", type: "add_note", label: "x", position: { x: 0, y: 0 }, config: { body: "b" } }, "x3"],
+    ];
+    for (const [node] of tipos) {
+      const r = processNode({ node, edges: [], enrollment: enrollment(), lead: lead(), clock });
+      expect(r).toMatchObject({ kind: "fail" });
+    }
+  });
+});
+
+describe("avisoDeNotificarAtendente", () => {
+  const notifyNode: FlowNode = {
+    id: "na1",
+    type: "notify_agent",
+    label: "Avisar",
+    position: { x: 0, y: 0 },
+    config: { message: "Cliente pediu para falar com humano." },
+  };
+
+  it("devolve o aviso quando o resultado é advance num nó notify_agent", () => {
+    const enr = enrollment({ organization_id: "org-x", id: "enr-x" });
+    const aviso = avisoDeNotificarAtendente(enr, notifyNode, {
+      kind: "advance",
+      next_node_id: "n2",
+      next_eval_at: NOW,
+    });
+    expect(aviso).toEqual({
+      organization_id: "org-x",
+      title: "Aviso de um fluxo de follow-up",
+      body: "Cliente pediu para falar com humano.",
+      ref_id: "enr-x",
+    });
+  });
+
+  it("devolve null pra qualquer outro tipo de nó", () => {
+    const outro: FlowNode = { id: "a1", type: "action", label: "x", position: { x: 0, y: 0 }, config: { mode: "text", body: "oi" } };
+    expect(avisoDeNotificarAtendente(enrollment(), outro, { kind: "advance", next_node_id: "n2", next_eval_at: NOW })).toBeNull();
+  });
+
+  it("devolve null quando o resultado não é advance (ex.: fail)", () => {
+    expect(avisoDeNotificarAtendente(enrollment(), notifyNode, { kind: "fail", error: "x" })).toBeNull();
+  });
+});
+
+describe("notaDeFluxo", () => {
+  const noteNode: FlowNode = {
+    id: "an1",
+    type: "add_note",
+    label: "Anotar",
+    position: { x: 0, y: 0 },
+    config: { body: "Confirmou o CPF por telefone." },
+  };
+
+  it("devolve a nota quando a inscrição tem conversation_id", () => {
+    const enr = enrollment({ conversation_id: "conv-1", organization_id: "org-x", id: "enr-x" });
+    const nota = notaDeFluxo(enr, noteNode, { kind: "advance", next_node_id: "n2", next_eval_at: NOW });
+    expect(nota).toEqual({
+      organization_id: "org-x",
+      conversation_id: "conv-1",
+      body: "Confirmou o CPF por telefone.",
+      enrollment_id: "enr-x",
+    });
+  });
+
+  it("devolve null sem conversation_id — não há onde a nota morar, mas o fluxo segue", () => {
+    const enr = enrollment({ conversation_id: null });
+    expect(notaDeFluxo(enr, noteNode, { kind: "advance", next_node_id: "n2", next_eval_at: NOW })).toBeNull();
+  });
+
+  it("devolve null pra qualquer outro tipo de nó", () => {
+    const outro: FlowNode = { id: "a1", type: "action", label: "x", position: { x: 0, y: 0 }, config: { mode: "text", body: "oi" } };
+    const enr = enrollment({ conversation_id: "conv-1" });
+    expect(notaDeFluxo(enr, outro, { kind: "advance", next_node_id: "n2", next_eval_at: NOW })).toBeNull();
+  });
+});
+
+describe("chamadaDeApiDoFluxo", () => {
+  const apiNode: FlowNode = {
+    id: "api1",
+    type: "api_call",
+    label: "Webhook",
+    position: { x: 0, y: 0 },
+    config: {
+      method: "POST",
+      url: "https://exemplo.com/x",
+      headers: [{ key: "Authorization", value: "Bearer x" }],
+      body: '{"a":1}',
+    },
+  };
+
+  it("devolve a chamada com headers já em Record", () => {
+    const chamada = chamadaDeApiDoFluxo(apiNode, { kind: "advance", next_node_id: "n2", next_eval_at: NOW });
+    expect(chamada).toEqual({
+      method: "POST",
+      url: "https://exemplo.com/x",
+      headers: { Authorization: "Bearer x" },
+      body: '{"a":1}',
+    });
+  });
+
+  it("body null quando o nó não configurou corpo", () => {
+    const semBody: FlowNode = {
+      id: "api2",
+      type: "api_call",
+      label: "x",
+      position: { x: 0, y: 0 },
+      config: { method: "GET", url: "https://exemplo.com/x", headers: [] },
+    };
+    const chamada = chamadaDeApiDoFluxo(semBody, { kind: "advance", next_node_id: "n2", next_eval_at: NOW });
+    expect(chamada?.body).toBeNull();
+  });
+
+  it("devolve null pra qualquer outro tipo de nó", () => {
+    const outro: FlowNode = { id: "a1", type: "action", label: "x", position: { x: 0, y: 0 }, config: { mode: "text", body: "oi" } };
+    expect(chamadaDeApiDoFluxo(outro, { kind: "advance", next_node_id: "n2", next_eval_at: NOW })).toBeNull();
   });
 });
