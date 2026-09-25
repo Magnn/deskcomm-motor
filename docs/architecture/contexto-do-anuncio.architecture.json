@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Contexto do anúncio no turno da IA — a agente sabe de onde a pessoa veio",
+    "subtitle": "o dado da atribuição (0164) já existia e só servia à conversão; agora também chega ao prompt do começo da conversa",
+    "output": "contexto-do-anuncio.html",
+    "quality_profile": "standard"
+  },
+  "lanes": [
+    { "id": "externo", "label": "Plataforma de anúncio" },
+    { "id": "borda", "label": "Entrada do canal" },
+    { "id": "banco", "label": "Persistência (contato)" },
+    { "id": "regra", "label": "Regra — lê, higieniza e monta o bloco" },
+    { "id": "turno", "label": "Turno da IA" },
+    { "id": "volta", "label": "O laço de retorno" }
+  ],
+  "mainPath": ["meta", "ingest", "contatos", "leitor", "bloco", "turno", "agente"],
+  "nodes": [
+    { "id": "meta", "lane": "externo", "col": 1, "type": "service", "label": "Meta — clique no anúncio (referral)", "sublabel": "título e texto do anúncio + clique, no webhook assinado da API oficial" },
+
+    { "id": "ingest", "lane": "borda", "col": 2, "type": "service", "label": "Ingest do canal (estamparAtribuicaoDoContato)", "sublabel": "grava a atribuição no contato — só na primeira vez" },
+
+    { "id": "contatos", "lane": "banco", "col": 3, "type": "database", "label": "contacts.source_metadata", "sublabel": "ad_platform, ad_title, ad_body — primeiro toque (fn_estampar_atribuicao_de_anuncio, 0164), nunca reescrito" },
+
+    { "id": "leitor", "lane": "regra", "col": 4, "type": "service", "label": "carregarAnuncioDoContato (lib/anuncio/contexto-do-anuncio.ts)", "sublabel": "filtra organization_id; higieniza (uma linha, sem aspas duplas, com teto); nunca lança" },
+    { "id": "conversao", "lane": "regra", "col": 5, "type": "service", "label": "lerAtribuicao (lib/conversoes/leitura-da-atribuicao.ts)", "sublabel": "consumidor que JÁ existia: usa só o clique, para reportar a venda à plataforma" },
+    { "id": "bloco", "lane": "regra", "col": 5, "type": "service", "label": "blocoDoAnuncio", "sublabel": "só no começo da conversa (até 4 mensagens da agente na janela); molde: uma frase, sem pular etapa, sem repetir promessa do anúncio" },
+
+    { "id": "turno", "lane": "turno", "col": 6, "type": "service", "label": "systemDoTurno (inbound-turn.ts)", "sublabel": "anexado ao FIM do system, antes dos blocos de leitura, preço e entrega; prefixo cacheável intacto" },
+    { "id": "agente", "lane": "turno", "col": 7, "type": "service", "label": "Agente responde à pessoa", "sublabel": "no painel de Teste não há contato real: o carregador não roda" },
+
+    { "id": "logbloco", "lane": "volta", "col": 5, "type": "service", "label": "runLog.info — contexto do anúncio no turno", "sublabel": "registra a plataforma quando o bloco entrou; visível nos logs do worker" }
+  ],
+  "edges": [
+    { "id": "e1", "from": "meta", "to": "ingest", "label": "webhook com referral" },
+    { "id": "e2", "from": "ingest", "to": "contatos", "label": "carimba a origem (primeiro toque)" },
+    { "id": "e3", "from": "contatos", "to": "leitor", "label": "select por contato E organização" },
+    { "id": "e4", "from": "leitor", "to": "bloco", "label": "AnuncioDoContato (plataforma, título, texto)" },
+    { "id": "e5", "from": "bloco", "to": "turno", "label": "texto do bloco ('' quando não há anúncio ou já passou do começo)" },
+    { "id": "e6", "from": "turno", "to": "agente", "label": "system do turno" },
+    { "id": "e7", "from": "contatos", "to": "conversao", "label": "mesma linha, outro consumidor" },
+    { "id": "e8", "from": "bloco", "to": "logbloco", "label": "só quando o bloco entrou" },
+    { "id": "e9", "from": "leitor", "to": "turno", "label": "erro do banco ou sem anúncio => null => turno idêntico ao de antes" }
+  ]
+}

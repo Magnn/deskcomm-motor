@@ -85,6 +85,7 @@ import {
 import { blocoDePreco, semObjecaoDePrecoQuandoHaBloco } from '@/lib/preco/bloco-do-prompt';
 import { carregarGuiaDeEntrega, trabalhoPagoDasTags } from '@/lib/entrega/guia-de-entrega';
 import { blocoDaLeitura } from '@/lib/leitura/bloco-do-prompt';
+import { blocoDoAnuncio, carregarAnuncioDoContato } from '@/lib/anuncio/contexto-do-anuncio';
 import { passoDaLeitura } from '@/lib/leitura/estado-da-leitura';
 import { precoPermitidoAgora, reclamacoesDeValor } from '@/lib/preco/estado-da-negociacao';
 import { deveResponderEmAudio } from '@/lib/voz/decisao';
@@ -2289,7 +2290,15 @@ async function executarTurnoDoAgente(
   // a causa raiz. Sem escolha nenhuma na janela, `passoDaLeitura` devolve null e o bloco some.
   const passoDaLeituraNoTurno = passoDaLeitura(`${tenantId}:${leadId}`, openingContext.context.messages);
   const blocoDaLeituraDoTurno = blocoDaLeitura(passoDaLeituraNoTurno);
-  const systemDoTurno = `${system}${blocoDaLeituraDoTurno}${blocoDePrecoDoTurno}${blocoDaEntrega}`;
+  // Contexto do anúncio: quem chegou por um anúncio (atribuição de 1º toque em `contacts.source_metadata`)
+  // tem o título/texto dele no prompt DO COMEÇO da conversa. Vai ANTES dos blocos diretivos acima, para
+  // que leitura, preço e entrega vençam em caso de conflito. No painel de Teste não há contato real.
+  const anuncioDoContato = preview ? null : await carregarAnuncioDoContato(pool, { tenantId, contactId: leadId });
+  const blocoDoAnuncioDoTurno = blocoDoAnuncio(anuncioDoContato, openingContext.context.messages);
+  if (blocoDoAnuncioDoTurno !== '') {
+    runLog.info('contexto do anúncio no turno', { plataforma: anuncioDoContato?.plataforma });
+  }
+  const systemDoTurno = `${system}${blocoDoAnuncioDoTurno}${blocoDaLeituraDoTurno}${blocoDePrecoDoTurno}${blocoDaEntrega}`;
   const currentInboundText =
     input.inboundMessageId === undefined
       ? null
