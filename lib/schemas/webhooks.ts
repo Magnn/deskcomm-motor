@@ -96,6 +96,21 @@ export const actionSchema = z.discriminatedUnion("type", [
     type: z.literal("start_message_flow"),
     config: z.object({ flow_pointer_id: z.string().uuid() }),
   }),
+  z.object({
+    type: z.literal("set_lead_custom_field"),
+    config: z.object({
+      // Mesmo vocabulário de chave de `replySaveTo.lead_custom` (graph-schema.ts do
+      // follow-up) — os dois escrevem no mesmo lugar (crm_leads.custom_fields).
+      key: z
+        .string()
+        .min(1)
+        .max(60)
+        .regex(/^[a-z][a-z0-9_]*$/i, "Use letras, números ou underscore"),
+      // Valor FIXO da regra (ex.: a variante escolhida pelo ramo que disparou) —
+      // ao contrário do save_to do follow-up, que grava o texto que a PESSOA digitou.
+      value: z.string().min(1).max(2000),
+    }),
+  }),
 ]);
 
 export const createWebhookSourceSchema = z.object({

@@ -4337,6 +4337,15 @@ export const DICIONARIO: Traducoes = {
   "Adicionar tag": { es: "Agregar etiqueta" },
   "Atribuir a um atendente": { es: "Asignar a un asesor" },
   "Avisar outro sistema (webhook)": { es: "Avisar a otro sistema (webhook)" },
+  "Gravar campo do lead": { es: "Guardar campo del lead" },
+  "Esse contato ainda não tem nenhum negócio (lead), então não havia onde gravar o campo.": {
+    es: "Ese contacto todavía no tiene ningún negocio (lead), así que no había dónde guardar el campo.",
+  },
+  "Nome do campo": { es: "Nombre del campo" },
+  "Valor a gravar": { es: "Valor a guardar" },
+  "O valor é fixo — o mesmo sempre que a regra disparar. Grava no lead mais recente do contato, sem apagar os outros campos já preenchidos.": {
+    es: "El valor es fijo — el mismo siempre que la regla se dispare. Se guarda en el lead más reciente del contacto, sin borrar los otros campos ya completados.",
+  },
   "Esse lead entrou sem contato vinculado, então não havia para quem escrever.": {
     es: "Ese lead entró sin contacto vinculado, así que no había a quién escribirle.",
   },
