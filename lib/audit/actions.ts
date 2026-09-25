@@ -893,6 +893,11 @@ export const AUDIT_ACTIONS = [
   "ai.jev.ligado",
   "ai.jev.desligado",
   "ai.jev.modo_alterado",
+  // Simulador do construtor de fluxo (POST .../simulate-classify) — dry-run:
+  // a ÚNICA parte do simulador que chama IA de verdade (classificação). Não
+  // muda `followup_flow_pointers` nem cria enrollment; audita porque consome
+  // crédito do provider (mesmo racional do "ai_agent.tested" do Testar Agente).
+  "followup_flow.simulated",
 ] as const;
 
 /** Um código de auditoria. Derivado de `AUDIT_ACTIONS` — não redigite a lista. */

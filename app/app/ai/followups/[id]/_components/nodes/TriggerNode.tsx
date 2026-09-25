@@ -17,6 +17,7 @@ export function TriggerNode({ id, data, selected }: NodeProps<RFNode>) {
       subtitle={describeNodeConfig("trigger", data.config, t)}
       selected={selected}
       errors={data.errors}
+      simulating={data.simulating}
       showTarget={false}
     />
   );

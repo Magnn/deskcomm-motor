@@ -32,6 +32,8 @@ interface Props {
   subtitle: string;
   selected?: boolean;
   errors?: string[];
+  /** O Simulador marca aqui o nó em que a simulação está parada agora — feedback visual "turno a turno". */
+  simulating?: boolean;
   showTarget?: boolean;
   showSource?: boolean;
   /**
@@ -65,6 +67,7 @@ export function NodeCard({
   subtitle,
   selected,
   errors,
+  simulating,
   showTarget = true,
   showSource = true,
   branches,
@@ -83,9 +86,14 @@ export function NodeCard({
         "w-56 rounded-md border border-l-4 border-border bg-surface shadow-sm transition-shadow",
         visual.borderClassName,
         selected && "ring-2 ring-accent-500 ring-offset-1 ring-offset-bg",
+        // Simulação tem prioridade visual sobre seleção (o operador está de olho
+        // "onde a conversa está agora"), mas nunca some com o erro de publish —
+        // um nó não fica com cara de saudável só porque a simulação passou por ele.
+        simulating && !hasError && "ring-2 ring-success ring-offset-1 ring-offset-bg animate-pulse",
         hasError && "border-error ring-2 ring-error ring-offset-1 ring-offset-bg",
       )}
       data-testid={`node-card-${id}`}
+      data-simulating={simulating || undefined}
       title={hasError ? errors!.join("; ") : undefined}
     >
       {showTarget && <Handle type="target" position={Position.Top} />}

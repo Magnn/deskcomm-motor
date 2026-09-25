@@ -50,6 +50,7 @@ import { EdgeConfigPanel } from "./EdgeConfigPanel";
 import { EtapasDoFluxoProvider, useEtapasDoFluxo } from "./EtapasDoFluxo";
 import { NodePalette } from "./NodePalette";
 import { PublishBar } from "./PublishBar";
+import { SimulatorPanel } from "./SimulatorPanel";
 import { NODE_VISUALS, configPadraoDaAcao } from "./nodes/nodeVisuals";
 import { TriggerNode } from "./nodes/TriggerNode";
 import { WaitNode } from "./nodes/WaitNode";
@@ -104,6 +105,7 @@ function FlowCanvasInner({ flowId, initialData }: Props) {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [simulatorOpen, setSimulatorOpen] = useState(false);
 
   const liveGraph = useMemo(() => fromReactFlow(nodes, edges), [nodes, edges]);
   const dirty = useMemo(() => !graphsEqual(liveGraph, savedGraph), [liveGraph, savedGraph]);
@@ -119,18 +121,38 @@ function FlowCanvasInner({ flowId, initialData }: Props) {
   }, [setNodes]);
 
   // Node and edge selection are mutually exclusive — opening one panel closes the other's.
+  // O Simulador entra na mesma exclusão: os três painéis dividem o MESMO
+  // dock lateral, e abrir um fecha os outros dois.
   const onNodeClick = useCallback<NodeMouseHandler<RFNode>>((_, node) => {
     setSelectedNodeId(node.id);
     setSelectedEdgeId(null);
+    setSimulatorOpen(false);
   }, []);
   const onEdgeClick = useCallback<EdgeMouseHandler<RFEdge>>((_, edge) => {
     setSelectedEdgeId(edge.id);
     setSelectedNodeId(null);
+    setSimulatorOpen(false);
   }, []);
   const onPaneClick = useCallback(() => {
     setSelectedNodeId(null);
     setSelectedEdgeId(null);
   }, []);
+
+  const onOpenSimulator = useCallback(() => {
+    setSimulatorOpen(true);
+    setSelectedNodeId(null);
+    setSelectedEdgeId(null);
+  }, []);
+  const onCloseSimulator = useCallback(() => setSimulatorOpen(false), []);
+
+  // O nó em que a simulação está parada agora — feedback visual no canvas
+  // (Living System checklist item 4/8: continuidade visível, turno a turno).
+  const onSimulatorActiveNodeChange = useCallback(
+    (nodeId: string | null) => {
+      setNodes((nds) => nds.map((n) => ({ ...n, data: { ...n.data, simulating: n.id === nodeId } })));
+    },
+    [setNodes],
+  );
 
   const updateNodeData = useCallback(
     (id: string, patch: Partial<RFNodeData>) => {
@@ -317,6 +339,8 @@ function FlowCanvasInner({ flowId, initialData }: Props) {
           onPublishSuccess={clearNodeErrors}
           onAutoFit={onAutoFit}
           canAutoFit={nodes.length > 0}
+          onOpenSimulator={onOpenSimulator}
+          simulatorOpen={simulatorOpen}
         />
       )}
       <div className="flex flex-1 overflow-hidden">
@@ -380,7 +404,21 @@ function FlowCanvasInner({ flowId, initialData }: Props) {
           bottom sheet (`fixed`, ancorado embaixo, com teto de altura e X pra
           fechar) só nesse intervalo de tela.
         */}
-        {selectedNode && (
+        {simulatorOpen && (
+          <aside
+            className="fixed inset-x-0 bottom-0 z-40 flex max-h-[75vh] flex-col overflow-hidden rounded-t-lg border-t border-border bg-surface shadow-lg lg:static lg:z-auto lg:h-full lg:w-96 lg:max-h-none lg:shrink-0 lg:rounded-none lg:border-l lg:border-t-0 lg:shadow-none"
+            data-testid="simulator-sheet"
+          >
+            <SimulatorPanel
+              flowId={flowId}
+              graph={liveGraph}
+              onActiveNodeChange={onSimulatorActiveNodeChange}
+              onClose={onCloseSimulator}
+            />
+          </aside>
+        )}
+
+        {!simulatorOpen && selectedNode && (
           <aside
             className="fixed inset-x-0 bottom-0 z-40 flex max-h-[75vh] flex-col overflow-hidden rounded-t-lg border-t border-border bg-surface shadow-lg lg:static lg:z-auto lg:h-full lg:w-96 lg:max-h-none lg:shrink-0 lg:rounded-none lg:border-l lg:border-t-0 lg:shadow-none"
             data-testid="node-config-sheet"
@@ -411,7 +449,7 @@ function FlowCanvasInner({ flowId, initialData }: Props) {
           </aside>
         )}
 
-        {selectedEdge && (
+        {!simulatorOpen && selectedEdge && (
           <aside
             className="fixed inset-x-0 bottom-0 z-40 flex max-h-[75vh] flex-col overflow-hidden rounded-t-lg border-t border-border bg-surface shadow-lg lg:static lg:z-auto lg:h-full lg:w-96 lg:max-h-none lg:shrink-0 lg:rounded-none lg:border-l lg:border-t-0 lg:shadow-none"
             data-testid="edge-config-sheet"

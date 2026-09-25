@@ -17,6 +17,7 @@ export function EndNode({ id, data, selected }: NodeProps<RFNode>) {
       subtitle={describeNodeConfig("end", data.config, t)}
       selected={selected}
       errors={data.errors}
+      simulating={data.simulating}
       showSource={false}
     />
   );
