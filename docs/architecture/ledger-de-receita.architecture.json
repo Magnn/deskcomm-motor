@@ -3,7 +3,7 @@
   "diagram_type": "architecture",
   "meta": {
     "title": "Ledger financeiro imutável — fato de receita, não decisão",
-    "subtitle": "migration 0401: a única peça do Revenue Graph do NEXUS trazida ao DeskcommCRM, sem decide() nenhum",
+    "subtitle": "migration 0416: a única peça do Revenue Graph do NEXUS trazida ao DeskcommCRM, sem decide() nenhum",
     "output": "ledger-de-receita.html",
     "quality_profile": "standard"
   },

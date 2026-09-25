@@ -38093,13 +38093,13 @@ end $$;
 -- "atualizado" com módulo fora do ar. Instalação nova não tem módulo: no-op.
 do $f$ begin perform public.fn_conferir_modulos_instalados(); end $f$;
 
--- ---- o ledger financeiro imutável (migration 0401) ----
+-- ---- o ledger financeiro imutável (migration 0416) ----
 --
 -- Fato de receita bruto (charge/refund/chargeback/adjustment), dedupe por
 -- (organization_id, provider, event_type, external_event_id), append-only nos
 -- dois níveis (RLS + GRANT, mesmo padrão de api_audit_log/0258). Motivo
 -- completo e o que foi deliberadamente deixado de fora do Revenue Graph do
--- NEXUS: cabeçalho de supabase/migrations/20260925070000_0401_ledger_de_receita.sql.
+-- NEXUS: cabeçalho de supabase/migrations/20260925190000_0416_ledger_de_receita.sql.
 
 create table if not exists public.revenue_ledger (
   id uuid primary key default gen_random_uuid(),
@@ -38160,6 +38160,6 @@ grant select on table public.revenue_ledger to authenticated;
 grant select, insert on table public.revenue_ledger to service_role;
 
 comment on table public.revenue_ledger is
-  'Ledger financeiro imutável (equivalente ao RevenueEvent do NEXUS Revenue Graph, sem nenhuma peça de decisão). Fato de receita bruto por evento de gateway externo (charge/refund/chargeback/adjustment), dedupe por (organization_id, provider, event_type, external_event_id). Append-only: anon/authenticated/service_role sem UPDATE/DELETE/TRUNCATE (migration 0401, mesmo padrão de api_audit_log/0258) — só o dono do banco pode. Escrito hoje só pelo webhook da Cakto (lib/pagamentos/ledger-de-receita.ts); NÃO tem regra de decisão nenhuma, só reconciliação e relatório.';
+  'Ledger financeiro imutável (equivalente ao RevenueEvent do NEXUS Revenue Graph, sem nenhuma peça de decisão). Fato de receita bruto por evento de gateway externo (charge/refund/chargeback/adjustment), dedupe por (organization_id, provider, event_type, external_event_id). Append-only: anon/authenticated/service_role sem UPDATE/DELETE/TRUNCATE (migration 0416, mesmo padrão de api_audit_log/0258) — só o dono do banco pode. Escrito hoje só pelo webhook da Cakto (lib/pagamentos/ledger-de-receita.ts); NÃO tem regra de decisão nenhuma, só reconciliação e relatório.';
 
 notify pgrst, 'reload schema';

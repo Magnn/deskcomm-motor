@@ -189,6 +189,6 @@ grant select on table public.revenue_ledger to authenticated;
 grant select, insert on table public.revenue_ledger to service_role;
 
 comment on table public.revenue_ledger is
-  'Ledger financeiro imutável (equivalente ao RevenueEvent do NEXUS Revenue Graph, sem nenhuma peça de decisão). Fato de receita bruto por evento de gateway externo (charge/refund/chargeback/adjustment), dedupe por (organization_id, provider, event_type, external_event_id). Append-only: anon/authenticated/service_role sem UPDATE/DELETE/TRUNCATE (migration 0401, mesmo padrão de api_audit_log/0258) — só o dono do banco pode. Escrito hoje só pelo webhook da Cakto (lib/pagamentos/ledger-de-receita.ts); NÃO tem regra de decisão nenhuma, só reconciliação e relatório.';
+  'Ledger financeiro imutável (equivalente ao RevenueEvent do NEXUS Revenue Graph, sem nenhuma peça de decisão). Fato de receita bruto por evento de gateway externo (charge/refund/chargeback/adjustment), dedupe por (organization_id, provider, event_type, external_event_id). Append-only: anon/authenticated/service_role sem UPDATE/DELETE/TRUNCATE (migration 0416, mesmo padrão de api_audit_log/0258) — só o dono do banco pode. Escrito hoje só pelo webhook da Cakto (lib/pagamentos/ledger-de-receita.ts); NÃO tem regra de decisão nenhuma, só reconciliação e relatório.';
 
 notify pgrst, 'reload schema';

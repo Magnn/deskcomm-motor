@@ -1,6 +1,6 @@
 /**
  * O LEDGER DE RECEITA — grava o FATO financeiro do webhook da Cakto em
- * `public.revenue_ledger` (migration 0401), sem decidir nada.
+ * `public.revenue_ledger` (migration 0416), sem decidir nada.
  *
  * ─── O que é, e o que NÃO é ──────────────────────────────────────────────
  *
@@ -21,7 +21,7 @@
  * caem em `resultado: "ignorada"`). Nenhum dos outros é dinheiro se
  * movendo (exceto `subscription_renewed`, que É uma cobrança real — mas
  * ampliar o tratamento de assinatura é mudança de comportamento fora do
- * escopo desta entrega, registrado no MANIFEST da 0401).
+ * escopo desta entrega, registrado no MANIFEST da 0416).
  *
  * ─── Dedupe ───────────────────────────────────────────────────────────────
  *

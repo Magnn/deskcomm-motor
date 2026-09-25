@@ -217,7 +217,7 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<NextRespons
       });
     }
 
-    // O LEDGER FINANCEIRO (migration 0401) — independente do resultado de
+    // O LEDGER FINANCEIRO (migration 0416) — independente do resultado de
     // negócio acima. Grava o FATO (charge/refund/chargeback) sempre que há
     // `compra`, mesmo em `ja_processada`/`compra_registrada_sem_fluxo` e mesmo
     // em `contato_nao_encontrado` (aí `contact_id` fica nulo): dinheiro se moveu

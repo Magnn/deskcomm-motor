@@ -893,7 +893,7 @@ export const AUDIT_ACTIONS = [
   "ai.jev.ligado",
   "ai.jev.desligado",
   "ai.jev.modo_alterado",
-  // O LEDGER FINANCEIRO IMUTÁVEL (migration 0401) — um fato de receita novo
+  // O LEDGER FINANCEIRO IMUTÁVEL (migration 0416) — um fato de receita novo
   // (compra aprovada, reembolso ou chargeback) chegou pelo webhook e foi
   // gravado em `revenue_ledger`, sem colidir com um fato já registrado. Audita
   // só a gravação NOVA — reentrega do mesmo webhook (dedupe pela unique de

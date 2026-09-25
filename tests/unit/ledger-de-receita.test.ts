@@ -1,5 +1,5 @@
 /**
- * LEDGER FINANCEIRO IMUTÁVEL (migration 0401) — o que este arquivo segura:
+ * LEDGER FINANCEIRO IMUTÁVEL (migration 0416) — o que este arquivo segura:
  *
  *  - só os três eventos que `aplicarEventoDaCakto` já trata viram fato do
  *    ledger; os demais (Pix gerado, abandono, assinatura…) não mapeiam;
