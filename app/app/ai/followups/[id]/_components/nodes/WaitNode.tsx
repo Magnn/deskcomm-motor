@@ -17,6 +17,7 @@ export function WaitNode({ id, data, selected }: NodeProps<RFNode>) {
       subtitle={describeNodeConfig("wait", data.config, t)}
       selected={selected}
       errors={data.errors}
+      simulating={data.simulating}
     />
   );
 }

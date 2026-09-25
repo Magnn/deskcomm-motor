@@ -19,6 +19,7 @@ export function ConditionNode({ id, data, selected }: NodeProps<RFNode>) {
       subtitle={describeNodeConfig("condition", data.config, t)}
       selected={selected}
       errors={data.errors}
+      simulating={data.simulating}
       branches={nodeBranches({ type: "condition", config: data.config as ConfigOf<"condition"> })}
     />
   );

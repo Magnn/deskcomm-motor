@@ -17,6 +17,9 @@ import { assertServiceBoundarySupabase } from "@/lib/atendimento/origem";
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { audit } from "@/lib/audit";
+import { assertDestinoResolvidoSeguro } from "@/lib/automation/outbound-ip";
+import { assertSafeOutboundUrl } from "@/lib/automation/outbound-url";
 import { idsDoContatoEGemeos } from "@/lib/channels/contato-por-telefone";
 import { logger } from "@/lib/logger";
 
@@ -24,8 +27,11 @@ import { flowGraphSchema, type FlowGraph, type FlowNode, type ReplySaveTo } from
 import {
   ACTION_RECHECK_MS,
   BACKOFF_MS,
+  avisoDeNotificarAtendente,
+  chamadaDeApiDoFluxo,
   ehConfirmacao,
   latestRepeatIndex,
+  notaDeFluxo,
   occupancyEventCount,
   pisoDoInboundDaEspera,
   rechecksOciososDaAcao,
@@ -36,12 +42,15 @@ import {
   resolveWaitPhase,
   selectEdge,
   ultimoDesfechoDe,
+  type AvisoDeFluxo,
+  type ChamadaDeApiFluxo,
   type EnrollmentEventRef,
   type EnrollmentOutcome,
   type EnrollmentRow,
   type EnrollmentStatus,
   type LeadFacts,
   type NodeResult,
+  type NotaDeFluxo,
 } from "./node-handlers";
 import { coletarEsperasAdaptativas, type EsperaAdaptativa, type TimingPlan } from "./timing-plan";
 import {
@@ -79,7 +88,7 @@ export interface FollowupJobRequest {
     followup_enrollment_id: string;
     node_id: string;
     source_step_key?: string;
-    purpose: "send_message" | "classify" | "plan_timing";
+    purpose: "send_message" | "classify" | "plan_timing" | "generic_ai";
     /** action (mode 'ai_message') — Task 5.1: repassado ao turno pra virar o bloco de orientação. */
     prompt_hint?: string;
     /** action (mode 'text') — corpo pronto; o turno envia sem chamar o modelo. */
@@ -132,6 +141,20 @@ export interface AdminClient {
   updateEnrollment(id: string, orgId: string, patch: EnrollmentPatch): Promise<void>;
   loadFlowPointerName(orgId: string, pointerId: string): Promise<string | null>;
   insertDeadInboxItem(item: { organization_id: string; title: string; body: string; ref_id: string }): Promise<void>;
+  /**
+   * Os três abaixo são OPCIONAIS de propósito — mesmo padrão de
+   * `abrirAvisoRecuperacaoEsgotada?`/`assertAgenda?`: um adaptador de teste
+   * que não exercita o lote 1 dos nós novos (ab_split/ai_generic/api_call/
+   * notify_agent/add_note) não precisa implementá-los, e um adaptador que
+   * não os implementa simplesmente não produz o efeito colateral — o fluxo
+   * segue (`applyResult` usa `?.()`), nunca quebra.
+   */
+  /** nó `notify_agent` (lote 1) — reaproveita a Central de avisos (agent_inbox_items, kind 'other'). */
+  insertFlowAgentAlert?(item: AvisoDeFluxo): Promise<void>;
+  /** nó `add_note` (lote 1) — reaproveita `conversation_notes`, o mesmo destino de `conversation.note_added`. */
+  insertFlowContactNote?(item: NotaDeFluxo): Promise<void>;
+  /** nó `api_call` (lote 1) — chamada best-effort a uma API de terceiro; nunca lança (falha vira log). */
+  chamarWebhookDoFluxo?(chamada: ChamadaDeApiFluxo): Promise<void>;
   /**
    * Régua de recuperação de falta esgotada sem resposta — abre um item na
    * Central referenciando o COMPROMISSO. Opcional: só a produção precisa; os
@@ -258,6 +281,10 @@ function turnPayloadExtras(
   }
   if (node.type === "ai_classify") {
     return { classes: node.config.classes, ...(node.config.hint !== undefined ? { hint: node.config.hint } : {}) };
+  }
+  if (node.type === "ai_generic") {
+    // Reaproveita `prompt_hint` — o MESMO campo que a ação `ai_message` já carrega.
+    return { prompt_hint: node.config.prompt };
   }
   if (node.type === "trigger") {
     // As esperas vêm do GRAFO PINADO, não do nó — o trigger não as conhece, e é
@@ -481,6 +508,56 @@ async function applyResult(
 
   await db.updateEnrollment(enrollment.id, enrollment.organization_id, patch);
 
+  // Lote 1 (aditivo) — efeitos colaterais de `notify_agent`/`add_note`/`api_call`.
+  // Best-effort e DEPOIS do avanço, mesma doutrina do bloco de
+  // `persistirRespostaFollowup` logo abaixo: o passo do fluxo já aconteceu, e
+  // uma notificação/nota/chamada que falha não pode desfazer isso nem travar
+  // o próximo tick. `!isReplay` evita duplicar o efeito quando o mesmo passo
+  // é reaplicado (retry, corrida de claim).
+  if (!isReplay) {
+    const avisoDeFluxo = avisoDeNotificarAtendente(enrollment, node, result);
+    if (avisoDeFluxo) {
+      try {
+        await db.insertFlowAgentAlert?.(avisoDeFluxo);
+      } catch (err) {
+        logger.warn("followup: aviso ao atendente falhou; o fluxo já avançou", {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
+
+    const nota = notaDeFluxo(enrollment, node, result);
+    if (nota) {
+      try {
+        await db.insertFlowContactNote?.(nota);
+      } catch (err) {
+        logger.warn("followup: anotação no contato falhou; o fluxo já avançou", {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    } else if (node.type === "add_note" && result.kind === "advance") {
+      // Sem conversa vinculada à inscrição — não há onde a nota morar. O
+      // fluxo segue (não é um erro do nó), mas a ausência fica em log, nunca
+      // em silêncio total.
+      logger.warn("followup: nó add_note sem conversation_id na inscrição — nota não gravada", {
+        enrollment_id: enrollment.id,
+        node_id: node.id,
+      });
+    }
+
+    const chamada = chamadaDeApiDoFluxo(node, result);
+    if (chamada) {
+      try {
+        await db.chamarWebhookDoFluxo?.(chamada);
+      } catch (err) {
+        logger.warn("followup: chamada de API externa falhou; o fluxo já avançou", {
+          error: err instanceof Error ? err.message : String(err),
+          url: chamada.url,
+        });
+      }
+    }
+  }
+
   if (
     result.kind === "advance" &&
     !isReplay &&
@@ -625,6 +702,9 @@ async function processEnrollment(
     node.type === "ai_classify" ||
     node.type === "match_reply" ||
     node.type === "action" ||
+    // ai_generic (lote 1) segue o MESMO contrato de ocupação/recheck/dead-man
+    // do action — precisa dos eventos pra saber se o turno já foi enfileirado/fechou.
+    node.type === "ai_generic" ||
     node.type === "repeat" ||
     // O `condition` só entra aqui por causa de `last_outcome`: o desfecho do
     // passo anterior mora nos eventos (evento `ai_classified`), e sem lê-los o
@@ -644,7 +724,13 @@ async function processEnrollment(
     planRecheckCount = events.filter((e) => e.node_id === node.id).length;
   }
 
-  if (node.type === "wait" || node.type === "ai_classify" || node.type === "match_reply" || node.type === "action") {
+  if (
+    node.type === "wait" ||
+    node.type === "ai_classify" ||
+    node.type === "match_reply" ||
+    node.type === "action" ||
+    node.type === "ai_generic"
+  ) {
     waitElapsed = resolveWaitPhase(events, node.id, enrollment.steps_taken);
     // match_reply de captação: a confirmação já enfileirou um evento neste nó.
     // O claim seguinte às vezes chega com steps_taken desalinhado da chave
@@ -659,13 +745,15 @@ async function processEnrollment(
       const wakeKey = `${node.id}:${enrollment.steps_taken}:wake`;
       wokeEarly = events.some((e) => e.node_id === node.id && e.idempotency_key === wakeKey);
     }
-    if (node.type === "action") {
+    if (node.type === "action" || node.type === "ai_generic") {
       actionEnqueued = waitElapsed;
       // NÃO é `occupancyEventCount`: o dead-man mede ociosidade DESDE A ÚLTIMA
       // prova de vida do turno, e um adiamento de janela é prova de vida. Ver
       // `rechecksOciososDaAcao` / `EVENTO_ACAO_ADIADA` em node-handlers.ts.
       actionRecheckCount = rechecksOciososDaAcao(events, node.id);
-      actionCompleted = actionTurnCompleted(events, node.id);
+      // ai_generic fecha com o evento PRÓPRIO `ai_generic_done` (turn-bridge.ts),
+      // não `action_sent` — ver o parâmetro novo de `actionTurnCompleted`.
+      actionCompleted = actionTurnCompleted(events, node.id, node.type === "ai_generic" ? "ai_generic_done" : "action_sent");
     }
   }
   const textoInbound = inboundBodyOverride?.trim() ?? "";
@@ -970,6 +1058,70 @@ export function createSupabaseAdminClient(admin: SupabaseClient): AdminClient {
     },
     async persistirRespostaFollowup(input) {
       await persistirRespostaFollowupSupabase(admin, input);
+    },
+    async insertFlowAgentAlert(item) {
+      // `kind: 'other'` — o vocabulário genérico já existente ("Aviso do
+      // assistente"), o MESMO precedente de `abrirAvisoRecuperacaoEsgotada`
+      // logo acima ("evita migration só para um rótulo"). Sem isso, cada nó
+      // de notificação novo pediria uma migration só pra um CHECK.
+      const { error } = await admin.from("agent_inbox_items").insert({
+        organization_id: item.organization_id,
+        kind: "other",
+        severity: "info",
+        title: item.title,
+        body: item.body,
+        ref_kind: "followup_enrollment",
+        ref_id: item.ref_id,
+      });
+      if (error) throw new Error(error.message);
+    },
+    async insertFlowContactNote(item) {
+      const { data, error } = await admin
+        .from("conversation_notes")
+        .insert({
+          organization_id: item.organization_id,
+          conversation_id: item.conversation_id,
+          body: item.body,
+          created_by_user_id: null,
+          created_by_name: "Fluxo de follow-up",
+        })
+        .select("id")
+        .single();
+      if (error) throw new Error(error.message);
+      // Mesma ação de auditoria que a nota criada por um humano pela Inbox
+      // (`app/api/v1/conversations/[id]/notes/route.ts`) — quem audita "quem
+      // anotou esta conversa" precisa ver as automáticas também.
+      // `actorUserId` ausente = ator do sistema, não uma pessoa.
+      void audit({
+        action: "conversation.note_added",
+        organizationId: item.organization_id,
+        resourceType: "conversation_note",
+        resourceId: (data as { id: string }).id,
+        metadata: { conversation_id: item.conversation_id, source: "followup_flow", enrollment_id: item.enrollment_id },
+      });
+    },
+    async chamarWebhookDoFluxo(chamada) {
+      // DIRC: as MESMAS duas peças que a ação de automação `call_webhook` já
+      // usa (lib/automation/actions/call-webhook.ts, J6.8) — textual primeiro
+      // (grátis), DNS depois (resolve de verdade, contra rebinding: um host
+      // que resolvia público ontem pode não resolver assim hoje).
+      assertSafeOutboundUrl(chamada.url);
+      await assertDestinoResolvidoSeguro(new URL(chamada.url).hostname);
+
+      const resposta = await fetch(chamada.url, {
+        method: chamada.method,
+        headers: chamada.headers,
+        ...(chamada.body !== null ? { body: chamada.body } : {}),
+        // Nunca seguir 3xx automaticamente — a mesma razão do call-webhook:
+        // uma URL aprovada pelo guard pode redirecionar para um endereço
+        // interno, e um fetch que segue redirect ignoraria o guard. Um 3xx
+        // vira falha comum (cai no catch de applyResult, best-effort).
+        redirect: "manual",
+        signal: AbortSignal.timeout(10_000),
+      });
+      if (!resposta.ok) {
+        throw new Error(`api_call: resposta ${resposta.status} de "${chamada.url}"`);
+      }
     },
   };
 }

@@ -1,6 +1,22 @@
 import type { ComponentType } from "react";
 
-import { Play, Clock, GitBranch, Brain, ChatCircle, ArrowsClockwise, PaperPlaneTilt, Flag, Question, PuzzlePiece } from "@/lib/ui/icons";
+import {
+  Play,
+  Clock,
+  GitBranch,
+  Brain,
+  ChatCircle,
+  ArrowsClockwise,
+  PaperPlaneTilt,
+  Flag,
+  Question,
+  PuzzlePiece,
+  TreeStructure,
+  Sparkle,
+  WebhooksLogo,
+  Bell,
+  Note,
+} from "@/lib/ui/icons";
 import type { FlowNode, NodeType } from "@/lib/followup/graph-schema";
 import { RESULTADOS_DO_FIM } from "@/lib/followup/vocabulario";
 import { NOS_DA_SUPERFICIE } from "@/lib/followup/validate-publish";
@@ -160,6 +176,63 @@ export const NODE_VISUALS: Record<NodeType, NodeVisual> = {
     defaultLabel: "Fim do fluxo",
     defaultConfig: () => ({ outcome: "exhausted" }),
   },
+  // ── Lote 1 (aditivo) — comparativo ChatbotX/AcassIA/Desk ──
+  ab_split: {
+    type: "ab_split",
+    paletteLabel: "A/B split",
+    icon: TreeStructure,
+    chipClassName: "bg-warning-bg text-warning-fg",
+    borderClassName: "border-l-warning",
+    defaultLabel: "Dividir tráfego (A/B)",
+    defaultConfig: () => ({
+      branches: [
+        { id: "a", label: "A", percent: 50 },
+        { id: "b", label: "B", percent: 50 },
+      ],
+    }),
+  },
+  ai_generic: {
+    type: "ai_generic",
+    paletteLabel: "IA (prompt livre)",
+    icon: Sparkle,
+    chipClassName: "bg-accent text-accent-foreground",
+    borderClassName: "border-l-accent-700",
+    defaultLabel: "Rodar prompt de IA",
+    defaultConfig: () => ({
+      prompt: "Resuma em uma frase o que o cliente disse sobre a necessidade dele.",
+      save_to: { kind: "lead_custom", key: "resultado_ia" },
+    }),
+  },
+  api_call: {
+    type: "api_call",
+    paletteLabel: "API externa",
+    icon: WebhooksLogo,
+    chipClassName: "bg-info-bg text-info-fg",
+    borderClassName: "border-l-info",
+    defaultLabel: "Chamar API externa",
+    // `example.com`, não `exemplo.com`: RFC 2606, reservado e nunca resolve —
+    // o mesmo domínio que a catraca de host de terceiro (branding.test.ts)
+    // já isenta de declaração para amostra de formato de campo.
+    defaultConfig: () => ({ method: "POST", url: "https://example.com/webhook", headers: [] }),
+  },
+  notify_agent: {
+    type: "notify_agent",
+    paletteLabel: "Notificar atendente",
+    icon: Bell,
+    chipClassName: "bg-warning-bg text-warning-fg",
+    borderClassName: "border-l-warning",
+    defaultLabel: "Notificar atendente",
+    defaultConfig: () => ({ message: "Configure o aviso." }),
+  },
+  add_note: {
+    type: "add_note",
+    paletteLabel: "Anotação no contato",
+    icon: Note,
+    chipClassName: "bg-info-bg text-info-fg",
+    borderClassName: "border-l-info",
+    defaultLabel: "Anotar no contato",
+    defaultConfig: () => ({ body: "Configure a nota." }),
+  },
 };
 
 /**
@@ -245,6 +318,26 @@ export function describeNodeConfig(
     case "end": {
       const c = config as ConfigOf<"end">;
       return t(RESULTADOS_DO_FIM[c.outcome]);
+    }
+    case "ab_split": {
+      const c = config as ConfigOf<"ab_split">;
+      return c.branches.map((b) => `${b.label} ${b.percent}%`).join(" · ");
+    }
+    case "ai_generic": {
+      const c = config as ConfigOf<"ai_generic">;
+      return c.prompt;
+    }
+    case "api_call": {
+      const c = config as ConfigOf<"api_call">;
+      return `${c.method} ${c.url}`;
+    }
+    case "notify_agent": {
+      const c = config as ConfigOf<"notify_agent">;
+      return c.message;
+    }
+    case "add_note": {
+      const c = config as ConfigOf<"add_note">;
+      return c.body;
     }
     default: {
       const exhaustive: never = type;

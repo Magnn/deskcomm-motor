@@ -54,6 +54,7 @@ import {
   type conditionConfigSchema,
   type contactFlowFieldTypeSchema,
   type endConfigSchema,
+  type HttpMethod,
   type waitConfigSchema,
 } from "./graph-schema";
 import type { EnrollmentOutcome, EnrollmentStatus } from "./node-handlers";
@@ -587,4 +588,20 @@ export const GATILHOS: Record<TipoDeGatilho, string> = {
   case_opened: "Quando o agente pede ajuda de um humano",
   inbound_after_silence: "Cliente voltou",
   conversation_end: "Fim da conversa",
+};
+
+// ─── API externa (nó api_call, lote 1) ───────────────────────────────────
+
+/**
+ * Verbo HTTP do nó `api_call`. Sigla internacional sem tradução — "GET"/"POST"
+ * são exatamente o que aparece na tela, de propósito (allowlist
+ * `COINCIDENCIAS_ACEITAS` em vocabulario.test.ts): traduzir inventaria um
+ * termo que não existe, e quem cola um cURL já reconhece o verbo cru.
+ */
+export const METODOS_HTTP: Record<HttpMethod, string> = {
+  GET: "GET",
+  POST: "POST",
+  PUT: "PUT",
+  PATCH: "PATCH",
+  DELETE: "DELETE",
 };

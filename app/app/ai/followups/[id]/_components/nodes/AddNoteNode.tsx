@@ -7,18 +7,16 @@ import { useT } from "@/hooks/i18n/useT";
 import { NODE_VISUALS, describeNodeConfig } from "./nodeVisuals";
 import { NodeCard } from "./NodeCard";
 
-export function EndNode({ id, data, selected }: NodeProps<RFNode>) {
+export function AddNoteNode({ id, data, selected }: NodeProps<RFNode>) {
   const t = useT();
   return (
     <NodeCard
       id={id}
-      visual={NODE_VISUALS.end}
+      visual={NODE_VISUALS.add_note}
       label={data.label}
-      subtitle={describeNodeConfig("end", data.config, t)}
+      subtitle={describeNodeConfig("add_note", data.config, t)}
       selected={selected}
       errors={data.errors}
-      simulating={data.simulating}
-      showSource={false}
     />
   );
 }

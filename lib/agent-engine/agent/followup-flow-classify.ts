@@ -65,7 +65,15 @@ export function parseFollowupClassification(text: string, classes: string[]): st
 export async function classifyFollowupReply(
   db: pg.Pool,
   cfg: LlmEdgeConfig,
-  ids: { tenantId: string; leadId: string; jobId: string },
+  // `leadId` aceita `null` desde o Simulador do construtor de fluxo
+  // (POST .../simulate-classify): a classificação ali roda de verdade contra
+  // texto digitado por quem testa, mas NUNCA aponta pra um `contacts.id` real
+  // — e `llm_calls.contact_id` tem FK contra `contacts(id)`, então um id
+  // inventado quebraria o INSERT com 23503. `runModelCall` já trata `leadId`
+  // como `string | null | undefined` (grava `contact_id` NULL); o único
+  // chamador de produção (`followup-turn.ts`) sempre passa um lead real, e
+  // `string` continua assignable a `string | null` — nenhum call site quebra.
+  ids: { tenantId: string; leadId: string | null; jobId: string },
   args: { candidateText: string | null; classes: string[]; hint?: string; model?: string },
   deps: { registry?: ProviderRegistry; log: Logger },
 ): Promise<string> {

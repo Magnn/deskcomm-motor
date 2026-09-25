@@ -13,7 +13,9 @@ import type { FlowGraph, FlowNode, FlowEdge, NodeType } from "./graph-schema";
 // `errors` is UI-only (Task 6.2 — publish 422 anchored to the offending node),
 // never read/written by the mappers below; `data` is `Record<string, unknown>`
 // per @xyflow/react's Node<NodeData> constraint, so it can't be dropped here.
-export type RFNodeData = { label: string; config: FlowNode["config"]; errors?: string[] };
+// `simulating` is UI-only too (Simulador do construtor — SimulatorPanel marca
+// o nó em que a simulação está parada agora), mesmo padrão de `errors`.
+export type RFNodeData = { label: string; config: FlowNode["config"]; errors?: string[]; simulating?: boolean };
 export type RFNode = Node<RFNodeData, NodeType>;
 
 export type RFEdgeData = { priority: number; condition: FlowEdge["condition"] };
@@ -79,6 +81,16 @@ export function toFlowNode(n: RFNode): FlowNode {
       return { ...shared, type, config: n.data.config as ConfigOf<"collect"> };
     case "skill":
       return { ...shared, type, config: n.data.config as ConfigOf<"skill"> };
+    case "ab_split":
+      return { ...shared, type, config: n.data.config as ConfigOf<"ab_split"> };
+    case "ai_generic":
+      return { ...shared, type, config: n.data.config as ConfigOf<"ai_generic"> };
+    case "api_call":
+      return { ...shared, type, config: n.data.config as ConfigOf<"api_call"> };
+    case "notify_agent":
+      return { ...shared, type, config: n.data.config as ConfigOf<"notify_agent"> };
+    case "add_note":
+      return { ...shared, type, config: n.data.config as ConfigOf<"add_note"> };
     default: {
       const exhaustive: never = type;
       throw new Error(`unknown node type: ${String(exhaustive)}`);

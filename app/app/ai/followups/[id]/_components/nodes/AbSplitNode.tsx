@@ -9,18 +9,17 @@ import type { ConfigOf } from "../forms/shared";
 import { NODE_VISUALS, describeNodeConfig } from "./nodeVisuals";
 import { NodeCard } from "./NodeCard";
 
-export function ClassifyNode({ id, data, selected }: NodeProps<RFNode>) {
+export function AbSplitNode({ id, data, selected }: NodeProps<RFNode>) {
   const t = useT();
   return (
     <NodeCard
       id={id}
-      visual={NODE_VISUALS.ai_classify}
+      visual={NODE_VISUALS.ab_split}
       label={data.label}
-      subtitle={describeNodeConfig("ai_classify", data.config, t)}
+      subtitle={describeNodeConfig("ab_split", data.config, t)}
       selected={selected}
       errors={data.errors}
-      simulating={data.simulating}
-      branches={nodeBranches({ type: "ai_classify", config: data.config as ConfigOf<"ai_classify"> })}
+      branches={nodeBranches({ type: "ab_split", config: data.config as ConfigOf<"ab_split"> })}
     />
   );
 }

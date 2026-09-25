@@ -21,6 +21,11 @@ import {
   nodeBranches,
   branchIdForCondition,
   conditionForBranch,
+  abSplitConfigSchema,
+  aiGenericConfigSchema,
+  apiCallConfigSchema,
+  notifyAgentConfigSchema,
+  addNoteConfigSchema,
 } from './graph-schema';
 import type { NodeType, FlowGraph, FlowNode, FlowEdge } from './graph-schema';
 import { toReactFlow, fromReactFlow } from './graph-mappers';
@@ -39,6 +44,12 @@ describe('graph-schema', () => {
         'skill',
         'action',
         'end',
+        // Lote 1 (aditivo): comparativo ChatbotX/AcassIA/Desk.
+        'ab_split',
+        'ai_generic',
+        'api_call',
+        'notify_agent',
+        'add_note',
       ]);
     });
 
@@ -565,6 +576,176 @@ describe('graph-schema', () => {
     });
   });
 
+  // ── Lote 1 (aditivo) — comparativo ChatbotX/AcassIA/Desk ──────────────────
+
+  describe('abSplitConfigSchema', () => {
+    it('aceita 2 caminhos somando 100%', () => {
+      const result = abSplitConfigSchema.safeParse({
+        branches: [
+          { id: 'a', label: 'A', percent: 50 },
+          { id: 'b', label: 'B', percent: 50 },
+        ],
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it('aceita até 6 caminhos', () => {
+      const branches = Array.from({ length: 6 }, (_, i) => ({ id: `c${i}`, label: `C${i}`, percent: i === 0 ? 50 : 10 }));
+      expect(abSplitConfigSchema.safeParse({ branches }).success).toBe(true);
+    });
+
+    it('recusa menos de 2 caminhos — split de 1 caminho não divide nada', () => {
+      expect(abSplitConfigSchema.safeParse({ branches: [{ id: 'a', label: 'A', percent: 100 }] }).success).toBe(false);
+    });
+
+    it('recusa mais de 6 caminhos', () => {
+      const branches = Array.from({ length: 7 }, (_, i) => ({ id: `c${i}`, label: `C${i}`, percent: 100 / 7 }));
+      expect(abSplitConfigSchema.safeParse({ branches }).success).toBe(false);
+    });
+
+    it('recusa quando o total não soma 100% (campo obrigatório efetivamente vazio)', () => {
+      const result = abSplitConfigSchema.safeParse({
+        branches: [
+          { id: 'a', label: 'A', percent: 40 },
+          { id: 'b', label: 'B', percent: 40 },
+        ],
+      });
+      expect(result.success).toBe(false);
+    });
+
+    it('recusa id de caminho repetido', () => {
+      const result = abSplitConfigSchema.safeParse({
+        branches: [
+          { id: 'a', label: 'A', percent: 50 },
+          { id: 'a', label: 'A de novo', percent: 50 },
+        ],
+      });
+      expect(result.success).toBe(false);
+    });
+
+    it('recusa id reservado (colidiria com o contrato de ramos)', () => {
+      const result = abSplitConfigSchema.safeParse({
+        branches: [
+          { id: FALLBACK_BRANCH_ID, label: 'A', percent: 50 },
+          { id: 'b', label: 'B', percent: 50 },
+        ],
+      });
+      expect(result.success).toBe(false);
+    });
+  });
+
+  describe('aiGenericConfigSchema', () => {
+    it('aceita prompt + destino no contato', () => {
+      const result = aiGenericConfigSchema.safeParse({
+        prompt: 'Resuma o pedido do cliente.',
+        save_to: { kind: 'contact_name' },
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it('aceita prompt + destino num campo personalizado do lead', () => {
+      const result = aiGenericConfigSchema.safeParse({
+        prompt: 'Resuma o pedido do cliente.',
+        save_to: { kind: 'lead_custom', key: 'resumo_ia' },
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it('recusa prompt vazio (campo obrigatório)', () => {
+      const result = aiGenericConfigSchema.safeParse({
+        prompt: '',
+        save_to: { kind: 'contact_name' },
+      });
+      expect(result.success).toBe(false);
+    });
+
+    it('recusa sem save_to — a variável de saída é o ponto do nó', () => {
+      const result = aiGenericConfigSchema.safeParse({ prompt: 'Resuma.' });
+      expect(result.success).toBe(false);
+    });
+
+    it('recusa model por nó — a escolha é centralizada por ponto de IA', () => {
+      const result = aiGenericConfigSchema.safeParse({
+        prompt: 'Resuma.',
+        save_to: { kind: 'contact_name' },
+        model: 'gpt-4',
+      });
+      expect(result.success).toBe(false);
+    });
+  });
+
+  describe('apiCallConfigSchema', () => {
+    it('aceita método + URL https + headers + body', () => {
+      const result = apiCallConfigSchema.safeParse({
+        method: 'POST',
+        url: 'https://api.exemplo.com/webhook',
+        headers: [{ key: 'Authorization', value: 'Bearer x' }],
+        body: '{"lead_id":"1"}',
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it('method tem default POST quando ausente', () => {
+      const result = apiCallConfigSchema.safeParse({ url: 'https://api.exemplo.com/x' });
+      expect(result.success).toBe(true);
+      if (result.success) expect(result.data.method).toBe('POST');
+    });
+
+    it('headers/body são opcionais — headers vira lista vazia por default', () => {
+      const result = apiCallConfigSchema.safeParse({ url: 'https://api.exemplo.com/x' });
+      expect(result.success).toBe(true);
+      if (result.success) expect(result.data.headers).toEqual([]);
+    });
+
+    it('recusa URL vazia (campo obrigatório efetivamente vazio)', () => {
+      expect(apiCallConfigSchema.safeParse({ url: '' }).success).toBe(false);
+    });
+
+    it('recusa URL sem http/https — mitigação estática contra esquema arbitrário', () => {
+      expect(apiCallConfigSchema.safeParse({ url: 'ftp://exemplo.com/x' }).success).toBe(false);
+      expect(apiCallConfigSchema.safeParse({ url: 'javascript:alert(1)' }).success).toBe(false);
+    });
+
+    it('recusa método fora do vocabulário', () => {
+      expect(apiCallConfigSchema.safeParse({ method: 'TRACE', url: 'https://x.com' }).success).toBe(false);
+    });
+
+    it('recusa mais de 20 headers', () => {
+      const headers = Array.from({ length: 21 }, (_, i) => ({ key: `H${i}`, value: 'v' }));
+      expect(apiCallConfigSchema.safeParse({ url: 'https://x.com', headers }).success).toBe(false);
+    });
+  });
+
+  describe('notifyAgentConfigSchema', () => {
+    it('aceita uma mensagem', () => {
+      expect(notifyAgentConfigSchema.safeParse({ message: 'Cliente pediu para falar com humano.' }).success).toBe(
+        true,
+      );
+    });
+
+    it('recusa mensagem vazia (campo obrigatório)', () => {
+      expect(notifyAgentConfigSchema.safeParse({ message: '' }).success).toBe(false);
+    });
+
+    it('recusa mensagem acima de 500 caracteres', () => {
+      expect(notifyAgentConfigSchema.safeParse({ message: 'x'.repeat(501) }).success).toBe(false);
+    });
+  });
+
+  describe('addNoteConfigSchema', () => {
+    it('aceita um texto de nota', () => {
+      expect(addNoteConfigSchema.safeParse({ body: 'Cliente confirmou o CPF por telefone.' }).success).toBe(true);
+    });
+
+    it('recusa nota vazia (campo obrigatório)', () => {
+      expect(addNoteConfigSchema.safeParse({ body: '' }).success).toBe(false);
+    });
+
+    it('recusa nota acima de 2000 caracteres', () => {
+      expect(addNoteConfigSchema.safeParse({ body: 'x'.repeat(2001) }).success).toBe(false);
+    });
+  });
+
   describe('flowGraphSchema integridade (superRefine do original)', () => {
     const no = (id: string, type: 'trigger' | 'end') => ({
       id,
@@ -937,6 +1118,67 @@ describe('graph-schema', () => {
         extra_key: 'should reject',
       });
       expect(result.success).toBe(false);
+    });
+
+    // ── Lote 1 (aditivo) ────────────────────────────────────────────────
+    it('accepts ab_split node', () => {
+      const result = flowNodeSchema.safeParse({
+        id: 'split-1',
+        type: 'ab_split',
+        label: 'A/B',
+        position: { x: 0, y: 0 },
+        config: {
+          branches: [
+            { id: 'a', label: 'A', percent: 50 },
+            { id: 'b', label: 'B', percent: 50 },
+          ],
+        },
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it('accepts ai_generic node', () => {
+      const result = flowNodeSchema.safeParse({
+        id: 'ia-1',
+        type: 'ai_generic',
+        label: 'IA livre',
+        position: { x: 0, y: 0 },
+        config: { prompt: 'Resuma.', save_to: { kind: 'contact_name' } },
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it('accepts api_call node', () => {
+      const result = flowNodeSchema.safeParse({
+        id: 'api-1',
+        type: 'api_call',
+        label: 'Webhook',
+        position: { x: 0, y: 0 },
+        config: { method: 'POST', url: 'https://exemplo.com/x', headers: [] },
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it('accepts notify_agent node', () => {
+      const result = flowNodeSchema.safeParse({
+        id: 'notify-1',
+        type: 'notify_agent',
+        label: 'Avisar',
+        position: { x: 0, y: 0 },
+        config: { message: 'Olha aqui.' },
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it('accepts add_note node', () => {
+      const result = flowNodeSchema.safeParse({
+        id: 'note-1',
+        type: 'add_note',
+        label: 'Anotar',
+        position: { x: 0, y: 0 },
+        config: { body: 'Confirmou o CPF.' },
+      });
+      expect(result.success).toBe(true);
     });
   });
 
@@ -1669,6 +1911,39 @@ describe('graph-schema', () => {
         const node = classifyNode([{ id: 'br_q', label: 'quente' }]);
         expect(branchIdForCondition(node, { type: 'class_match', value: 'quente' })).toBe('br_q');
       });
+    });
+  });
+
+  describe('nodeBranches — ab_split (lote 1)', () => {
+    const splitNode = (branches: { id: string; label: string; percent: number }[]) =>
+      flowNodeSchema.parse({
+        id: 'split-1',
+        type: 'ab_split',
+        label: 'Dividir',
+        position: { x: 0, y: 0 },
+        config: { branches },
+      });
+
+    it('um ramo por caminho, na ordem declarada, com o percentual no rótulo', () => {
+      const node = splitNode([
+        { id: 'a', label: 'A', percent: 30 },
+        { id: 'b', label: 'B', percent: 70 },
+      ]);
+      const branches = nodeBranches(node);
+      expect(branches.map((b) => ({ id: b.id, label: b.label, kind: b.kind }))).toEqual([
+        { id: 'a', label: 'A (30%)', kind: 'match' },
+        { id: 'b', label: 'B (70%)', kind: 'match' },
+        { id: FALLBACK_BRANCH_ID, label: 'Outros casos', kind: 'fallback' },
+      ]);
+    });
+
+    it('cada braço aponta a condição branch com o próprio id — a mesma dos demais nós v2', () => {
+      const node = splitNode([
+        { id: 'a', label: 'A', percent: 50 },
+        { id: 'b', label: 'B', percent: 50 },
+      ]);
+      expect(conditionForBranch(node, 'a')).toEqual({ type: 'branch', branch_id: 'a' });
+      expect(conditionForBranch(node, 'b')).toEqual({ type: 'branch', branch_id: 'b' });
     });
   });
 });

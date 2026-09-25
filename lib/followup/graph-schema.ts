@@ -16,6 +16,13 @@ export const NODE_TYPES = [
   'skill',
   'action',
   'end',
+  // Lote 1 do construtor de fluxo (comparativo ChatbotX/AcassIA/Desk) — os 5
+  // ADITIVOS abaixo. Nada acima desta linha mudou de forma nem de sentido.
+  'ab_split',
+  'ai_generic',
+  'api_call',
+  'notify_agent',
+  'add_note',
 ] as const;
 export type NodeType = (typeof NODE_TYPES)[number];
 
@@ -379,6 +386,99 @@ export const endConfigSchema = z.strictObject({
 });
 
 /**
+ * ---------------------------------------------------------------------------
+ * Lote 1 (aditivo): A/B split, IA genérica, API externa, notificar atendente,
+ * anotação no contato. Pesquisa comparativa ChatbotX/AcassIA/Desk — 5
+ * capacidades de alto valor e baixa complexidade que faltavam no construtor.
+ * Nenhum destes precisou de tabela nova (DIRC): config vive no `jsonb` do
+ * grafo já existente, como todo nó do fluxo.
+ * ---------------------------------------------------------------------------
+ */
+
+/** Um caminho do A/B split: id estável do ramo + rótulo + fatia percentual. */
+export const abSplitBranchSchema = z.strictObject({
+  id: declaredBranchIdSchema,
+  label: z.string().min(1).max(40),
+  percent: z.number().int().min(1).max(100),
+});
+export type AbSplitBranch = z.infer<typeof abSplitBranchSchema>;
+
+/**
+ * A/B split de tráfego — divide o lead entre 2+ caminhos por percentual
+ * configurável. A escolha do caminho é DETERMINÍSTICA por inscrição
+ * (`escolherRamoDoSplit` em node-handlers.ts, hash de `enrollment_id:node_id`),
+ * então reavaliar o mesmo passo (retry, corrida) nunca sorteia de novo — a
+ * mesma inscrição sempre cai no mesmo braço.
+ */
+export const abSplitConfigSchema = z
+  .strictObject({
+    branches: z.array(abSplitBranchSchema).min(2).max(6),
+  })
+  .refine((c) => new Set(c.branches.map((b) => b.id)).size === c.branches.length, {
+    message: 'branches[].id must be unique within the node',
+    path: ['branches'],
+  })
+  .refine((c) => c.branches.reduce((soma, b) => soma + b.percent, 0) === 100, {
+    message: 'the percentages must add up to 100',
+    path: ['branches'],
+  });
+
+/**
+ * IA genérica — chama um LLM com um prompt livre e grava o resultado numa
+ * variável do fluxo (reaproveita `ReplySaveTo`/`persistirRespostaFollowup`,
+ * o MESMO destino que `match_reply`/`collect` já gravam). Sem campo de
+ * modelo por nó DE PROPÓSITO: a escolha de modelo é centralizada por PONTO
+ * DE IA (`lib/ai/pontos/registro.ts`, id `followup_generic_ai`), o mesmo
+ * padrão que `ai_classify` já segue em Configurações → Provedores — um
+ * seletor por nó duplicaria essa configuração em vez de reaproveitá-la.
+ */
+export const aiGenericConfigSchema = z.strictObject({
+  prompt: z.string().min(1).max(2000),
+  save_to: replySaveToSchema,
+});
+
+/** Um cabeçalho HTTP do nó `api_call` — par ordenado, não `Record`, pra edição de chave livre no formulário. */
+export const apiCallHeaderSchema = z.strictObject({
+  key: z.string().min(1).max(100),
+  value: z.string().max(2000),
+});
+export type ApiCallHeader = z.infer<typeof apiCallHeaderSchema>;
+
+export const HTTP_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] as const;
+export type HttpMethod = (typeof HTTP_METHODS)[number];
+
+/**
+ * API externa (webhook genérico) — chama uma API de terceiro. O construtor
+ * oferece colar um cURL que preenche método/URL/headers/body (`parseCurl` em
+ * `lib/followup/api-call.ts`); o schema só valida a FORMA já decidida.
+ * `https?://` apenas — mitigação estática de SSRF (a mitigação em tempo de
+ * execução, contra host privado/local, mora em `ehHostBloqueadoPorSsrf`,
+ * chamada de novo no momento da chamada, porque um host que hoje resolve
+ * público pode não resolver assim amanhã).
+ */
+export const apiCallConfigSchema = z.strictObject({
+  method: z.enum(HTTP_METHODS).default('POST'),
+  url: z
+    .string()
+    .max(2000)
+    .refine((v) => /^https?:\/\/[^\s]+$/i.test(v.trim()), {
+      message: 'a URL precisa começar com http:// ou https://',
+    }),
+  headers: z.array(apiCallHeaderSchema).max(20).default([]),
+  body: z.string().max(10_000).optional(),
+});
+
+/** Notificar atendente humano — 1 aviso na Central (`agent_inbox_items`), sem transferir a conversa. */
+export const notifyAgentConfigSchema = z.strictObject({
+  message: z.string().min(1).max(500),
+});
+
+/** Anotação no contato — 1 nota no histórico da conversa (`conversation_notes`), sem mandar mensagem. */
+export const addNoteConfigSchema = z.strictObject({
+  body: z.string().min(1).max(2000),
+});
+
+/**
  * Flow node schema — discriminated union based on node type.
  * Each node type has its specific config schema.
  */
@@ -490,6 +590,61 @@ export const flowNodeSchema = z.discriminatedUnion('type', [
       y: z.number(),
     }),
     config: endConfigSchema,
+  }),
+  // A/B split node: divides traffic between 2+ weighted paths
+  z.strictObject({
+    id: z.string().min(1),
+    type: z.literal('ab_split'),
+    label: z.string().min(1).max(60),
+    position: z.strictObject({
+      x: z.number(),
+      y: z.number(),
+    }),
+    config: abSplitConfigSchema,
+  }),
+  // Generic AI node: free prompt -> flow variable
+  z.strictObject({
+    id: z.string().min(1),
+    type: z.literal('ai_generic'),
+    label: z.string().min(1).max(60),
+    position: z.strictObject({
+      x: z.number(),
+      y: z.number(),
+    }),
+    config: aiGenericConfigSchema,
+  }),
+  // External API node: generic webhook call
+  z.strictObject({
+    id: z.string().min(1),
+    type: z.literal('api_call'),
+    label: z.string().min(1).max(60),
+    position: z.strictObject({
+      x: z.number(),
+      y: z.number(),
+    }),
+    config: apiCallConfigSchema,
+  }),
+  // Notify agent node: opens an item in the agent inbox, no conversation transfer
+  z.strictObject({
+    id: z.string().min(1),
+    type: z.literal('notify_agent'),
+    label: z.string().min(1).max(60),
+    position: z.strictObject({
+      x: z.number(),
+      y: z.number(),
+    }),
+    config: notifyAgentConfigSchema,
+  }),
+  // Add note node: records a note on the contact's conversation, no message sent
+  z.strictObject({
+    id: z.string().min(1),
+    type: z.literal('add_note'),
+    label: z.string().min(1).max(60),
+    position: z.strictObject({
+      x: z.number(),
+      y: z.number(),
+    }),
+    config: addNoteConfigSchema,
   }),
 ]);
 
@@ -794,6 +949,17 @@ export function nodeBranches(node: BranchableNode): FlowBranch[] {
         },
         fallbackBranch(FALLBACK_OTHERS_LABEL),
       ];
+    }
+
+    case 'ab_split': {
+      const branches: FlowBranch[] = node.config.branches.map((b) => ({
+        id: b.id,
+        label: `${b.label} (${b.percent}%)`,
+        check: null,
+        kind: 'match' as const,
+        condition: { type: 'branch' as const, branch_id: b.id },
+      }));
+      return [...branches, fallbackBranch(FALLBACK_OTHERS_LABEL)];
     }
 
     case 'repeat':

@@ -7,18 +7,16 @@ import { useT } from "@/hooks/i18n/useT";
 import { NODE_VISUALS, describeNodeConfig } from "./nodeVisuals";
 import { NodeCard } from "./NodeCard";
 
-export function EndNode({ id, data, selected }: NodeProps<RFNode>) {
+export function AiGenericNode({ id, data, selected }: NodeProps<RFNode>) {
   const t = useT();
   return (
     <NodeCard
       id={id}
-      visual={NODE_VISUALS.end}
+      visual={NODE_VISUALS.ai_generic}
       label={data.label}
-      subtitle={describeNodeConfig("end", data.config, t)}
+      subtitle={describeNodeConfig("ai_generic", data.config, t)}
       selected={selected}
       errors={data.errors}
-      simulating={data.simulating}
-      showSource={false}
     />
   );
 }
