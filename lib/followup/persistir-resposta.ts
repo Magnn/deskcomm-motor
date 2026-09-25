@@ -27,12 +27,22 @@ export type PersistirRespostaInput = {
   value: string;
 };
 
+/**
+ * `applied: false` quando `lead_custom` não achou nenhum lead para este
+ * contato -- não é erro, é "não havia onde guardar", e quem chama decide se
+ * isso é `skipped` ou ignorável. `leadId` vem preenchido só no caso
+ * `lead_custom` bem-sucedido (é a linha que mudou; `contact_name` não tem
+ * lead, então fica `null`), para quem chama poder emitir evento sobre a
+ * entidade certa sem reconsultar o que este módulo já resolveu.
+ */
+export type PersistirRespostaResultado = { applied: true; leadId: string | null } | { applied: false };
+
 export async function persistirRespostaFollowupSupabase(
   admin: SupabaseClient,
   input: PersistirRespostaInput,
-): Promise<void> {
+): Promise<PersistirRespostaResultado> {
   const value = recorteDaResposta(input.value);
-  if (value.length === 0) return;
+  if (value.length === 0) return { applied: false };
 
   if (input.save_to.kind === "contact_name") {
     const { error } = await admin
@@ -41,7 +51,7 @@ export async function persistirRespostaFollowupSupabase(
       .eq("organization_id", input.organization_id)
       .eq("id", input.contact_id);
     if (error) throw new Error(error.message);
-    return;
+    return { applied: true, leadId: null };
   }
 
   const { data: lead, error: selErr } = await admin
@@ -53,7 +63,7 @@ export async function persistirRespostaFollowupSupabase(
     .limit(1)
     .maybeSingle();
   if (selErr) throw new Error(selErr.message);
-  if (!lead) return;
+  if (!lead) return { applied: false };
 
   const prev =
     lead.custom_fields && typeof lead.custom_fields === "object" && !Array.isArray(lead.custom_fields)
@@ -68,6 +78,7 @@ export async function persistirRespostaFollowupSupabase(
     .eq("organization_id", input.organization_id)
     .eq("id", lead.id);
   if (error) throw new Error(error.message);
+  return { applied: true, leadId: lead.id };
 }
 
 export async function persistirRespostaFollowupPg(

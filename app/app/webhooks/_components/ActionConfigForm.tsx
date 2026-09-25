@@ -32,7 +32,8 @@ export type ActionItem =
   | { type: "add_tag"; config: { tags: string[] } }
   | { type: "assign_owner"; config: { user_id: string } }
   | { type: "call_webhook"; config: { url: string; secret?: string; secret_enc?: string } }
-  | { type: "start_message_flow"; config: { flow_pointer_id: string } };
+  | { type: "start_message_flow"; config: { flow_pointer_id: string } }
+  | { type: "set_lead_custom_field"; config: { key: string; value: string } };
 
 export function defaultActionConfig(type: ActionItem["type"]): ActionItem {
   switch (type) {
@@ -50,6 +51,8 @@ export function defaultActionConfig(type: ActionItem["type"]): ActionItem {
       return { type, config: { url: "" } };
     case "start_message_flow":
       return { type, config: { flow_pointer_id: "" } };
+    case "set_lead_custom_field":
+      return { type, config: { key: "", value: "" } };
   }
 }
 
@@ -422,6 +425,36 @@ function StartMessageFlowForm({ config, onChange }: FormProps<{ flow_pointer_id:
   );
 }
 
+function SetLeadCustomFieldForm({
+  config,
+  onChange,
+}: FormProps<{ key: string; value: string }>) {
+  const t = useT();
+  return (
+    <div className="grid gap-2 sm:grid-cols-2">
+      <div className="space-y-1">
+        <Label>{t("Nome do campo")}</Label>
+        <Input
+          value={config.key}
+          onChange={(e) => onChange({ ...config, key: e.target.value })}
+          placeholder="momento_da_casa"
+        />
+      </div>
+      <div className="space-y-1">
+        <Label>{t("Valor a gravar")}</Label>
+        <Input
+          value={config.value}
+          onChange={(e) => onChange({ ...config, value: e.target.value })}
+          placeholder="casa_nova"
+        />
+      </div>
+      <p className="text-xs text-muted-foreground sm:col-span-2">
+        {t("O valor é fixo — o mesmo sempre que a regra disparar. Grava no lead mais recente do contato, sem apagar os outros campos já preenchidos.")}
+      </p>
+    </div>
+  );
+}
+
 export function ActionConfigForm({
   action,
   onChange,
@@ -475,6 +508,13 @@ export function ActionConfigForm({
     case "start_message_flow":
       return (
         <StartMessageFlowForm
+          config={action.config}
+          onChange={(config) => onChange({ type: action.type, config })}
+        />
+      );
+    case "set_lead_custom_field":
+      return (
+        <SetLeadCustomFieldForm
           config={action.config}
           onChange={(config) => onChange({ type: action.type, config })}
         />
