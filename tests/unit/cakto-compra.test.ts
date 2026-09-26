@@ -30,7 +30,7 @@ const AVISO = {
     fees: 2.49,
     paymentMethod: "pix",
     paidAt: "2026-09-24T11:39:57.113068-03:00",
-    coupon: "lua50k7q",
+    coupon: "cupomteste1",
   },
 };
 
@@ -50,7 +50,7 @@ describe("leitura do aviso", () => {
       pedidoId: "81b408ee-2a91-427d-80bd-226cbeae1fa0",
       produtoNome: "Trabalho Espiritual: Abertura do Coração",
       valorCentavos: 5070,
-      cupom: "lua50k7q",
+      cupom: "cupomteste1",
       metodo: "pix",
     });
     expect(c.cliente.telefone).toBe("+5511987654321");
@@ -132,9 +132,9 @@ describe("compra aprovada", () => {
     expect(gravado[0]!.tags).toEqual(
       expect.arrayContaining(["lead-quente", "pago", "produto:abertura-do-coracao", "compra:81b408ee-2a91-427d-80bd-226cbeae1fa0"]),
     );
-    expect(gravado[0]!.ultimaCompra).toMatchObject({ valor_centavos: 5070, cupom: "lua50k7q" });
+    expect(gravado[0]!.ultimaCompra).toMatchObject({ valor_centavos: 5070, cupom: "cupomteste1" });
     expect(notas[0]).toContain("R$ 50,70");
-    expect(notas[0]).toContain("cupom lua50k7q");
+    expect(notas[0]).toContain("cupom cupomteste1");
     // Quem pagou não recebe o "quer continuar?" — parar ANTES de inscrever.
     expect(chamadas.indexOf("parar:compra_aprovada")).toBeGreaterThan(-1);
     expect(chamadas.indexOf("parar:compra_aprovada")).toBeLessThan(chamadas.indexOf("inscrever:fluxo-entrega"));
