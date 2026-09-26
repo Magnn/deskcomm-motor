@@ -83,6 +83,7 @@ const STATUS: Record<string, { rotulo: string; tom: TomDoStatus }> = {
   paused_handoff: { rotulo: "Pausado (atendimento humano)", tom: "warning" },
   paused_manual: { rotulo: "Pausado por uma pessoa", tom: "warning" },
   coletando: { rotulo: "Coletando respostas do roteiro", tom: "info" },
+  com_agente: { rotulo: "Um agente de IA está conversando", tom: "info" },
   completed: { rotulo: "Concluído", tom: "neutral" },
   cancelled: { rotulo: "Cancelado", tom: "neutral" },
   dead: { rotulo: "Parou de tentar", tom: "error" },

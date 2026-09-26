@@ -59,6 +59,7 @@ const STATUS_OPTIONS: FollowupEnrollmentStatus[] = [
   "active",
   "waiting_reply",
   "dormente",
+  "com_agente",
   "paused_manual",
   "paused_handoff",
   "completed",
@@ -70,7 +71,7 @@ const STATUS_OPTIONS: FollowupEnrollmentStatus[] = [
 // quem espera a data do retorno tem de aparecer na fila. Um acompanhamento que
 // some da tela por 28 dias é uma ilha — ninguém sabe que ele existe nem o
 // cancela quando a cliente já voltou por outro caminho.
-const LIVE_ENROLLMENT_STATUSES = new Set(["active", "waiting_reply", "dormente", "paused_handoff", "paused_manual", "coletando"]);
+const LIVE_ENROLLMENT_STATUSES = new Set(["active", "waiting_reply", "dormente", "paused_handoff", "paused_manual", "coletando", "com_agente"]);
 
 /**
  * O que ainda dá para desmarcar.

@@ -25,6 +25,8 @@ export type FollowupEnrollmentStatus =
   // Roteiro de atendimento em andamento (0394): conduzido pelo turno do agente,
   // não pelo relógio. O motor de follow-up nunca o lê.
   | "coletando"
+  // Um agente de IA conduz a conversa dentro de um fluxo (0901): pelo turno, com relógio de silêncio.
+  | "com_agente"
   | "completed"
   | "cancelled"
   | "dead";

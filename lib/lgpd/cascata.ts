@@ -61,6 +61,8 @@ export const STATUS_DA_REGUA_VIVA = [
   // Dorme, mas corre: tem hora marcada para voltar a falar. Deixá-lo de fora
   // faria o expurgo passar ao largo de uma régua que acorda meses depois.
   "dormente",
+  // Uma conversa com um agente de IA também corre: ele fala a cada mensagem da pessoa.
+  "com_agente",
   "paused_handoff",
   "paused_manual",
 ] as const;
