@@ -66,6 +66,30 @@ describe("aberturas repetidas", () => {
     expect(blocoDeVariacao(msgs)).toContain('Não abra de novo com "Entendi"');
   });
 
+  it("'Entendi', 'Entendo' e 'Entendida' são o MESMO tique: a família conta junta e o bloco lista as formas", () => {
+    // Medido no painel de Teste (modelo de verdade): mandado não abrir com "Entendi", o modelo abriu
+    // com "Entendo". Comparar a palavra inteira deixava o tique passar disfarçado.
+    const msgs = conversa([
+      ["a", "Entendi! Me conta mais."],
+      ["b", "Entendo. Isso pesa."],
+      ["c", "Entendida a sua situação, vamos por partes."],
+    ]);
+    const r = lerRepeticoesDaAgente(msgs);
+    expect(r?.aberturas).toEqual(["Entendida", "Entendo", "Entendi"]);
+    expect(blocoDeVariacao(msgs)).toContain('"Entendida", "Entendo", "Entendi", nem com outra forma da mesma palavra');
+  });
+
+  it("controle: palavras curtas parecidas NÃO são a mesma abertura ('Certo' e 'Certeza')", () => {
+    const msgs = conversa([
+      ["a", "Certo, anotei."],
+      ["b", "Certeza que você quer isso?"],
+      ["c", "Certo, vamos seguir."],
+    ]);
+    // "Certo" repete em 2 dos 3 últimos (é tique de verdade); "Certeza" (7 letras, família "certe")
+    // é outra coisa e não entra na lista por causa dele.
+    expect(lerRepeticoesDaAgente(msgs)?.aberturas).toEqual(["Certo"]);
+  });
+
   it("os balões do MESMO turno contam como um turno só (3 balões abrindo igual não é repetição)", () => {
     const msgs = conversa([
       ["oi", "Olá!"],

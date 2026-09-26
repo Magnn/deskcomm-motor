@@ -2305,6 +2305,11 @@ async function executarTurnoDoAgente(
   // própria agente e lista o que ela já repetiu (abertura, fecho, frase feita, emoji), porque o modelo
   // pequeno não se vigia entre turnos. Turno de molde (marcador em caixa alta) fica fora da conta.
   const blocoDeVariacaoDoTurno = blocoDeVariacao(openingContext.context.messages);
+  if (blocoDeVariacaoDoTurno !== '') {
+    // Só o fato, nunca o texto da conversa: quem investiga "por que ela não repetiu?" vê nos logs do
+    // worker (e do app, no painel de Teste) que o bloco entrou neste turno.
+    runLog.info('variação de estilo no turno', { linhas: blocoDeVariacaoDoTurno.split('\n').length });
+  }
   // A ORDEM dos blocos mora em `blocos-do-turno.ts` (é dado lá, com o porquê): aqui só se diz qual
   // texto é de qual bloco. Bloco novo = um nome na fila lá + uma chave aqui; o typecheck cobra os dois.
   const systemDoTurno = comporSystemDoTurno(system, {

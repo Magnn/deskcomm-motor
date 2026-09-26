@@ -17,7 +17,8 @@
  *
  * ─── O que se conta ────────────────────────────────────────────────────────────
  * Sobre os últimos turnos DELA (uma sequência de balões seguidos, sem a pessoa no meio):
- *   1. aberturas — a mesma primeira palavra em 2 dos 3 últimos turnos, ou em 3 dos 5;
+ *   1. aberturas — a mesma primeira palavra (ou a mesma FAMÍLIA: "Entendi"/"Entendo") em 2 dos 3
+ *      últimos turnos, ou em 3 dos 5;
  *   2. frases feitas de atendente ("com certeza", "fico à disposição") em 2 dos 4 últimos;
  *   3. fecho — a última frase do turno, quase igual (palavras em comum) em 2 dos 4 últimos;
  *   4. emoji — o mesmo em 3 dos 4 últimos; ou emoji em 3 dos 4 últimos com a pessoa sem usar nenhum;
@@ -124,12 +125,19 @@ function turnosDaAgente(mensagens: readonly MensagemParaContar[]): Turno[] {
 
 const ehTurnoDeMolde = (t: Turno): boolean => t.bolhas.some((b) => ABRE_COM_MARCADOR_DE_MOLDE.test(b));
 
-/** A primeira palavra de verdade da fala dela (sem emoji, aspas ou pontuação na frente). */
+/**
+ * A primeira palavra de verdade da fala dela (sem emoji, aspas ou pontuação na frente), e a FAMÍLIA
+ * dela: as 5 primeiras letras quando a palavra tem 6 ou mais. "Entendi", "Entendo" e "Entendida" são
+ * o mesmo tique com outra terminação — medido no painel de Teste, o modelo obedeceu "não abra com
+ * Entendi" abrindo com "Entendo". A palavra curta (até 5 letras) vale inteira: "Certo" e "Certeza"
+ * não são a mesma abertura.
+ */
 function primeiraPalavra(turno: Turno): { chave: string; exibida: string } | null {
   const achou = /\p{L}[\p{L}\p{N}'-]*/u.exec(turno.bolhas[0] ?? "");
   if (achou === null) return null;
-  const chave = normalizar(achou[0]);
-  if (chave.length < 3 || ABERTURAS_QUE_NAO_SAO_TIQUE.has(chave)) return null;
+  const palavra = normalizar(achou[0]);
+  if (palavra.length < 3 || ABERTURAS_QUE_NAO_SAO_TIQUE.has(palavra)) return null;
+  const chave = palavra.length >= 6 ? palavra.slice(0, 5) : palavra;
   return { chave, exibida: achou[0] };
 }
 
@@ -181,20 +189,21 @@ export function lerRepeticoesDaAgente(mensagens: readonly MensagemParaContar[]):
   const ultimos4 = turnos.slice(-4);
 
   // 1. aberturas
-  const contagem = new Map<string, { exibida: string; nos3: number; nos5: number }>();
+  const contagem = new Map<string, { formas: string[]; nos3: number; nos5: number }>();
   turnos.forEach((t, i) => {
     const p = primeiraPalavra(t);
     if (p === null) return;
-    const c = contagem.get(p.chave) ?? { exibida: p.exibida, nos3: 0, nos5: 0 };
+    const c = contagem.get(p.chave) ?? { formas: [], nos3: 0, nos5: 0 };
     c.nos5++;
     if (i >= turnos.length - 3) c.nos3++;
-    c.exibida = p.exibida; // a forma mais recente, como ela escreveu
+    // As formas da família que ela escreveu, sem repetir, a mais recente por último ("Entendi", "Entendo").
+    c.formas = [...c.formas.filter((f) => f !== p.exibida), p.exibida];
     contagem.set(p.chave, c);
   });
   const aberturas = [...contagem.values()]
     .filter((c) => c.nos3 >= 2 || c.nos5 >= 3)
-    .map((c) => c.exibida)
-    .reverse();
+    .reverse() // a família mais recente primeiro...
+    .flatMap((c) => [...c.formas].reverse()); // ...e, dentro dela, a forma mais recente primeiro
 
   // 2. frases feitas
   const frasesFeitas = FRASES_FEITAS.filter((frase) => {
@@ -259,7 +268,9 @@ export function blocoDeVariacao(mensagens: readonly MensagemParaContar[]): strin
     "Você vem se repetindo. Nesta resposta:",
   ];
   if (r.aberturas.length > 0) {
-    linhas.push(`- Não abra de novo com ${listaEntreAspas(r.aberturas.slice(0, 3))}. Comece por outra palavra.`);
+    linhas.push(
+      `- Não abra de novo com ${listaEntreAspas(r.aberturas.slice(0, 3))}, nem com outra forma da mesma palavra. Comece por outra palavra.`,
+    );
   }
   if (r.frasesFeitas.length > 0) {
     linhas.push(`- Deixe de fora as frases de sempre: ${listaEntreAspas(r.frasesFeitas.slice(0, 3))}.`);
