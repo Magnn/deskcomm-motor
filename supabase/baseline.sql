@@ -12005,9 +12005,10 @@ begin
        and rel.relname = 'followup_enrollments'
        and con.contype = 'c'
        and pg_get_constraintdef(con.oid) like '%paused_handoff%'
-       -- A versão EM VIGOR tem 'coletando' (0394). Qualquer uma sem ele — a de
-       -- antes da 'dormente' ou a de antes da 0394 — sai aqui e é recriada abaixo.
-       and pg_get_constraintdef(con.oid) not like '%coletando%'
+       -- A versão EM VIGOR tem 'com_agente' (0901). Qualquer uma sem ele — a de
+       -- antes da 'dormente', a de antes da 0394 ou a de antes da 0901 — sai aqui e
+       -- é recriada abaixo.
+       and pg_get_constraintdef(con.oid) not like '%com_agente%'
   loop
     execute format('alter table public.followup_enrollments drop constraint %I', c.conname);
   end loop;
@@ -12016,14 +12017,14 @@ end $$;
 do $$ begin
   alter table public.followup_enrollments
     add constraint followup_enrollments_status_valido
-    check (status in ('active','waiting_reply','dormente','paused_handoff','paused_manual','coletando','completed','cancelled','dead'));
+    check (status in ('active','waiting_reply','dormente','paused_handoff','paused_manual','coletando','com_agente','completed','cancelled','dead'));
 exception when duplicate_object then null; end $$;
 
 do $$ begin
   alter table public.followup_enrollments
     add constraint followup_enrollments_relogio_coerente
     check (
-      (status in ('active','waiting_reply','dormente') and next_eval_at is not null)
+      (status in ('active','waiting_reply','dormente','com_agente') and next_eval_at is not null)
       or (status in ('paused_handoff','paused_manual','coletando','completed','cancelled','dead'))
     );
 exception when duplicate_object then null; end $$;
@@ -12031,6 +12032,10 @@ exception when duplicate_object then null; end $$;
 -- TURNO e não pelo relógio — por isso no grupo sem `next_eval_at`, e por isso
 -- fora do `idx_followup_enrollments_one_live` logo abaixo.  Blocos ÚNICOS dos dois
 -- CHECKs; a 0394 não os reconstrói no apêndice.
+-- 'com_agente' (0901): um agente de IA conduz a conversa dentro de um fluxo — conduzido
+-- pelo TURNO, mas COM relógio (o prazo de silêncio do nó), por isso no grupo com
+-- `next_eval_at`, e DENTRO do `idx_followup_enrollments_one_live`: ocupa a vaga. A 0901
+-- também não reconstrói estes CHECKs no apêndice; o valor novo já está nos blocos acima.
 
 -- ⚠️ AS COLUNAS SÃO (organization_id, contact_id), NÃO (pointer_id, contact_id).
 --
@@ -12047,16 +12052,18 @@ exception when duplicate_object then null; end $$;
 -- de copiar a definição EM VIGOR, não a da DDL original — recriar a partir da
 -- linha errada reverte a garantia sem conflito de merge e sem sintoma imediato.
 -- Corrigido na integração; ver a nota no MANIFEST da 0145.
--- Só derruba a versão sem `paused_manual` (issue #1041): numa reaplicação o
--- índice já está na versão final, e reconstruí-lo deixaria a trava de "um
--- follow-up vivo por contato" ausente durante o build, com o app no ar.
+-- Só derruba a versão sem `paused_manual` (issue #1041) ou sem `com_agente` (0901):
+-- numa reaplicação o índice já está na versão final, e reconstruí-lo deixaria a
+-- trava de "um follow-up vivo por contato" ausente durante o build, com o app no ar.
+-- `com_agente` OCUPA a vaga (quem conversa com um agente não entra noutra cadência);
+-- `dormente` e `coletando` ficam de fora, cada um por sua razão (0308, 0394).
 do $$
 begin
   if exists (
     select 1 from pg_indexes
     where schemaname = 'public'
       and indexname  = 'idx_followup_enrollments_one_live'
-      and indexdef not ilike '%paused_manual%'
+      and indexdef not ilike '%com_agente%'
   ) then
     execute 'drop index public.idx_followup_enrollments_one_live';
   end if;
@@ -12064,7 +12071,7 @@ end
 $$;
 create unique index if not exists idx_followup_enrollments_one_live
   on public.followup_enrollments (organization_id, contact_id)
-  where status in ('active','waiting_reply','paused_handoff','paused_manual');
+  where status in ('active','waiting_reply','paused_handoff','paused_manual','com_agente');
 
 create index if not exists idx_followup_events_enrollment_tempo
   on public.followup_enrollment_events (enrollment_id, created_at);
@@ -28455,9 +28462,27 @@ notify pgrst, 'reload schema';
 -- ⚠️ É AQUI QUE ESTA MIGRATION FALHA CALADA se alguém a encurtar. Sem `dormente`
 -- nas duas listas da função, a inscrição dorme e NUNCA acorda: nada reclama a
 -- linha, nada reprova, e o retorno simplesmente não acontece no dia 28.
+--
+-- 0901: `com_agente` (um agente de IA conduz a conversa dentro de um fluxo) entra nas
+-- duas listas da função e no predicado do índice, pelo mesmo motivo — sem ele o prazo
+-- de silêncio do nó nunca acordaria a inscrição. O índice é derrubado só quando o
+-- predicado em vigor ainda não o conhece (o `create ... if not exists` de cima, da 0146,
+-- cria a versão antiga numa base nova; sem este guard ela sobreviveria a este bloco).
+do $$
+begin
+  if exists (
+    select 1 from pg_indexes
+    where schemaname = 'public'
+      and indexname  = 'idx_followup_enrollments_due_por_org'
+      and indexdef not ilike '%com_agente%'
+  ) then
+    execute 'drop index public.idx_followup_enrollments_due_por_org';
+  end if;
+end
+$$;
 create index if not exists idx_followup_enrollments_due_por_org
   on public.followup_enrollments (organization_id, next_eval_at)
-  where status in ('active','waiting_reply','dormente');
+  where status in ('active','waiting_reply','dormente','com_agente');
 
 create or replace function fn_claim_due_followup_enrollments(p_limit int, p_lease_seconds int)
 returns setof followup_enrollments
@@ -28470,7 +28495,7 @@ as $$
     -- organização cujos vencidos estão todos com lease apenas devolve zero linhas.
     select distinct organization_id
       from followup_enrollments
-     where status in ('active','waiting_reply','dormente')
+     where status in ('active','waiting_reply','dormente','com_agente')
        and next_eval_at <= now()
   ),
   fila as (
@@ -28482,7 +28507,7 @@ as $$
                row_number() over (order by d.next_eval_at) as posicao_na_org
           from followup_enrollments d
          where d.organization_id = orgs.organization_id
-           and d.status in ('active','waiting_reply','dormente')
+           and d.status in ('active','waiting_reply','dormente','com_agente')
            and d.next_eval_at <= now()
            and (d.claimed_until is null or d.claimed_until < now())
          order by d.next_eval_at

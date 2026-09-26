@@ -24,6 +24,7 @@ const ENROLLMENT_STATUSES = [
   "paused_handoff",
   "paused_manual",
   "coletando",
+  "com_agente",
   "completed",
   "cancelled",
   "dead",

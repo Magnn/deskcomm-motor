@@ -30,6 +30,16 @@ export type EnrollmentStatus =
    * (`reactivity.ts`) e o cancelamento pela fila o encerra.
    */
   | "coletando"
+  /**
+   * Um agente de IA conduz a conversa dentro de um fluxo (nó `agent`, migration 0901).
+   *
+   * Conduzido pelo TURNO, como o `coletando` — a mensagem da pessoa é um turno do
+   * agente, não um motivo para o fluxo cancelar ou acordar —, mas COM relógio, como o
+   * `dormente`: o `next_eval_at` é o prazo de silêncio do nó, e o claim o acorda.
+   * Fora de `LIVE_STATUSES` (`reactivity.ts`) pelo mesmo motivo do `dormente`: a
+   * reatividade nem o carrega. O opt-out e a LGPD o alcançam, como a todos.
+   */
+  | "com_agente"
   | "completed"
   | "cancelled"
   | "dead";

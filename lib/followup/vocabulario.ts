@@ -555,6 +555,8 @@ export const SITUACOES_DO_ACOMPANHAMENTO: Record<EnrollmentStatus, string> = {
   dormente: "Aguardando a data do retorno",
   paused_handoff: "Pausado — um humano assumiu",
   coletando: "Coletando respostas do roteiro",
+  // Não é "aguardando": a conversa está acontecendo agora, com um agente de IA à frente.
+  com_agente: "Um agente de IA está conversando",
   completed: "Concluído",
   cancelled: "Cancelado",
   dead: "Parou por falha",

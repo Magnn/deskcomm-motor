@@ -27,7 +27,9 @@ const UUID_RX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 // passo, e entre o retomar e o cancelar o motor poderia mandar a mensagem.
 // `coletando` (0394) é o roteiro de atendimento em andamento: quem opera pode
 // encerrá-lo pela fila — antes, a rota devolvia 409 como se já tivesse acabado.
-const LIVE_STATUSES = ["active", "waiting_reply", "paused_handoff", "paused_manual", "coletando"];
+// `com_agente` (0901) é um agente de IA conversando dentro de um fluxo: encerrar é o
+// botão de emergência de quem vê a conversa indo para onde não devia.
+const LIVE_STATUSES = ["active", "waiting_reply", "paused_handoff", "paused_manual", "coletando", "com_agente"];
 
 type RouteCtx = { params: Promise<{ id: string }> };
 

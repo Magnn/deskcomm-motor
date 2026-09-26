@@ -1900,6 +1900,7 @@ export const DICIONARIO: Traducoes = {
   "Pausado (atendimento humano)": { es: "Pausado (atención humana)" },
   "Pausado por uma pessoa": { es: "Pausado por una persona" },
   "Coletando respostas do roteiro": { es: "Recopilando respuestas del guion" },
+  "Um agente de IA está conversando": { es: "Un agente de IA está conversando" },
   "Parou de tentar": { es: "Dejó de intentar" },
   Cancelado: { es: "Cancelado" },
   Agendada: { es: "Programada" },
