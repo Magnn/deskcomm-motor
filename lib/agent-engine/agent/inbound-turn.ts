@@ -3798,7 +3798,6 @@ async function executarTurnoDoAgente(
             estado: estadoDoFluxo,
             saida: AGENT_CONCLUDED_BRANCH_ID,
             ...(resumo !== undefined ? { resumo } : {}),
-            agora: clock(),
           });
           if (!saiu.ok && saiu.motivo === 'sem_aresta') {
             runLog.warn('agente do fluxo: a saída de objetivo cumprido não leva a lugar nenhum no grafo', {
@@ -4376,7 +4375,6 @@ async function executarTurnoDoAgente(
             organizationId: tenantId,
             estado: agenteDoFluxo,
             saida: AGENT_LIMIT_BRANCH_ID,
-            agora: clock(),
           });
           runLog.info('agente do fluxo: limite de respostas atingido', {
             enrollment_id: agenteDoFluxo.enrollment.id,

@@ -229,7 +229,6 @@ describe("encerrarAgenteNoFluxo", () => {
       estado: estado(),
       saida: AGENT_CONCLUDED_BRANCH_ID,
       resumo: "Visita marcada para sábado",
-      agora: AGORA,
     });
     expect(r).toEqual({ ok: true, para: "f-ok" });
     expect(chamadas).toHaveLength(1);
@@ -237,14 +236,16 @@ describe("encerrarAgenteNoFluxo", () => {
     // as garantias de segurança moram no próprio comando: status, nó, passo E lease
     expect(sql).toContain("status = 'com_agente'");
     expect(sql).toContain("current_node_id = $3");
-    expect(sql).toContain("steps_taken = $6");
-    expect(sql).toContain("claimed_until is null or claimed_until < $5");
+    expect(sql).toContain("steps_taken = $5");
+    // o instante de "avaliar agora" e o do lease são os do BANCO (now()), nunca o do processo
     expect(sql).toContain("steps_taken = steps_taken + 1");
     expect(valores[3]).toBe("f-ok");
-    expect(valores[5]).toBe(4);
-    expect(valores[6]).toBe(EVENTO_SAIDA_DO_AGENTE);
-    expect(JSON.parse(String(valores[7]))).toEqual({ saida: "concluiu", para: "f-ok", resumo: "Visita marcada para sábado" });
-    expect(valores[8]).toBe(`${EVENTO_SAIDA_DO_AGENTE}:4`);
+    expect(sql).toContain("claimed_until is null or claimed_until < now()");
+    expect(sql).toContain("next_eval_at = now()");
+    expect(valores[4]).toBe(4);
+    expect(valores[5]).toBe(EVENTO_SAIDA_DO_AGENTE);
+    expect(JSON.parse(String(valores[6]))).toEqual({ saida: "concluiu", para: "f-ok", resumo: "Visita marcada para sábado" });
+    expect(valores[7]).toBe(`${EVENTO_SAIDA_DO_AGENTE}:4`);
   });
 
   it.each([
@@ -252,19 +253,19 @@ describe("encerrarAgenteNoFluxo", () => {
     [AGENT_LIMIT_BRANCH_ID, "f-limite"],
   ] as const)("a saída '%s' segue a aresta certa (%s)", async (saidaEscolhida, destino) => {
     const { db } = bancoFalso([{ rows: [{ id: "ev" }] }]);
-    expect(await encerrarAgenteNoFluxo(db, { organizationId: ORG, estado: estado(), saida: saidaEscolhida, agora: AGORA })).toEqual({ ok: true, para: destino });
+    expect(await encerrarAgenteNoFluxo(db, { organizationId: ORG, estado: estado(), saida: saidaEscolhida })).toEqual({ ok: true, para: destino });
   });
 
   it("quem chega em segundo (o comando não moveu nada) recebe `ja_saiu`, sem erro", async () => {
     const { db } = bancoFalso([{ rows: [] }]);
-    expect(await encerrarAgenteNoFluxo(db, { organizationId: ORG, estado: estado(), saida: AGENT_LIMIT_BRANCH_ID, agora: AGORA })).toEqual({ ok: false, motivo: "ja_saiu" });
+    expect(await encerrarAgenteNoFluxo(db, { organizationId: ORG, estado: estado(), saida: AGENT_LIMIT_BRANCH_ID })).toEqual({ ok: false, motivo: "ja_saiu" });
   });
 
   it("grafo que não liga a saída a lugar nenhum: `sem_aresta`, e NENHUM comando é enviado ao banco", async () => {
     const e = estado();
     e.graph = { ...e.graph, edges: e.graph.edges.filter((x) => !(x.condition.type === "branch" && x.condition.branch_id === "concluiu")) };
     const { db, chamadas } = bancoFalso([]);
-    expect(await encerrarAgenteNoFluxo(db, { organizationId: ORG, estado: e, saida: AGENT_CONCLUDED_BRANCH_ID, agora: AGORA })).toEqual({ ok: false, motivo: "sem_aresta" });
+    expect(await encerrarAgenteNoFluxo(db, { organizationId: ORG, estado: e, saida: AGENT_CONCLUDED_BRANCH_ID })).toEqual({ ok: false, motivo: "sem_aresta" });
     expect(chamadas).toHaveLength(0);
   });
 
@@ -275,9 +276,8 @@ describe("encerrarAgenteNoFluxo", () => {
       estado: estado(),
       saida: AGENT_CONCLUDED_BRANCH_ID,
       resumo: `combinou "sábado"\n\n${"x".repeat(400)}`,
-      agora: AGORA,
     });
-    const payload = JSON.parse(String(chamadas[0]!.valores[7])) as { resumo: string };
+    const payload = JSON.parse(String(chamadas[0]!.valores[6])) as { resumo: string };
     expect(payload.resumo).not.toContain("\n");
     expect(payload.resumo).not.toContain('"');
     expect(payload.resumo.length).toBeLessThanOrEqual(300);

@@ -218,7 +218,7 @@ describe("encerrarAgenteNoFluxo — UM comando condicionado", () => {
 
   it("cumpriu o objetivo: a inscrição volta a `active` no destino, com o passo avançado, avaliação imediata e o evento com o resumo", async () => {
     const { enr, estado } = await preparar();
-    const r = await encerrarAgenteNoFluxo(pool, { organizationId: ORG, estado, saida: AGENT_CONCLUDED_BRANCH_ID, resumo: "Visita marcada para sábado", agora: new Date() });
+    const r = await encerrarAgenteNoFluxo(pool, { organizationId: ORG, estado, saida: AGENT_CONCLUDED_BRANCH_ID, resumo: "Visita marcada para sábado" });
     expect(r).toEqual({ ok: true, para: "f-ok" });
 
     const depois = await inscricao(enr);
@@ -231,17 +231,17 @@ describe("encerrarAgenteNoFluxo — UM comando condicionado", () => {
 
   it("quem chega em segundo (o relógio, uma segunda chamada da ferramenta) NÃO move nada e NÃO duplica o evento", async () => {
     const { enr, estado } = await preparar();
-    expect((await encerrarAgenteNoFluxo(pool, { organizationId: ORG, estado, saida: AGENT_CONCLUDED_BRANCH_ID, agora: new Date() })).ok).toBe(true);
+    expect((await encerrarAgenteNoFluxo(pool, { organizationId: ORG, estado, saida: AGENT_CONCLUDED_BRANCH_ID })).ok).toBe(true);
     // o mesmo estado (velho) tentando de novo, e por OUTRA saída: nada acontece
-    expect(await encerrarAgenteNoFluxo(pool, { organizationId: ORG, estado, saida: AGENT_CONCLUDED_BRANCH_ID, agora: new Date() })).toEqual({ ok: false, motivo: "ja_saiu" });
-    expect(await encerrarAgenteNoFluxo(pool, { organizationId: ORG, estado, saida: AGENT_LIMIT_BRANCH_ID, agora: new Date() })).toEqual({ ok: false, motivo: "ja_saiu" });
+    expect(await encerrarAgenteNoFluxo(pool, { organizationId: ORG, estado, saida: AGENT_CONCLUDED_BRANCH_ID })).toEqual({ ok: false, motivo: "ja_saiu" });
+    expect(await encerrarAgenteNoFluxo(pool, { organizationId: ORG, estado, saida: AGENT_LIMIT_BRANCH_ID })).toEqual({ ok: false, motivo: "ja_saiu" });
     expect(await eventos(enr, EVENTO_SAIDA_DO_AGENTE)).toHaveLength(1);
     expect((await inscricao(enr)).current_node_id).toBe("f-ok");
   });
 
   it("um tick com o lease vivo (claimed_until no futuro) BLOQUEIA a saída: quem move é o tick", async () => {
     const { enr, estado } = await preparar({ lease: "now() + interval '2 minutes'" });
-    expect(await encerrarAgenteNoFluxo(pool, { organizationId: ORG, estado, saida: AGENT_LIMIT_BRANCH_ID, agora: new Date() })).toEqual({ ok: false, motivo: "ja_saiu" });
+    expect(await encerrarAgenteNoFluxo(pool, { organizationId: ORG, estado, saida: AGENT_LIMIT_BRANCH_ID })).toEqual({ ok: false, motivo: "ja_saiu" });
     expect(await eventos(enr, EVENTO_SAIDA_DO_AGENTE)).toHaveLength(0);
     expect((await inscricao(enr)).status).toBe("com_agente");
   });
@@ -249,7 +249,7 @@ describe("encerrarAgenteNoFluxo — UM comando condicionado", () => {
   it("o passo é parte da condição: um estado de uma visita ANTERIOR ao nó não move a inscrição de agora", async () => {
     const { enr, estado } = await preparar();
     const velho = { ...estado, enrollment: { ...estado.enrollment, steps_taken: 3 } };
-    expect(await encerrarAgenteNoFluxo(pool, { organizationId: ORG, estado: velho, saida: AGENT_CONCLUDED_BRANCH_ID, agora: new Date() })).toEqual({ ok: false, motivo: "ja_saiu" });
+    expect(await encerrarAgenteNoFluxo(pool, { organizationId: ORG, estado: velho, saida: AGENT_CONCLUDED_BRANCH_ID })).toEqual({ ok: false, motivo: "ja_saiu" });
     expect((await inscricao(enr)).current_node_id).toBe("ag");
   });
 });

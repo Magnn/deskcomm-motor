@@ -259,7 +259,6 @@ export async function encerrarAgenteNoFluxo(
     saida: SaidaDoTurno;
     /** O que o agente diz que ficou combinado (só na saída "cumpriu"). Curto: vai para a linha do tempo. */
     resumo?: string;
-    agora: Date;
   },
 ): Promise<ResultadoDaSaida> {
   const { estado } = args;
@@ -267,27 +266,30 @@ export async function encerrarAgenteNoFluxo(
   if (aresta === null) return { ok: false, motivo: "sem_aresta" };
 
   const resumo = args.resumo === undefined ? null : umaLinha(args.resumo).slice(0, 300);
-  const agora = args.agora.toISOString();
+  // "Avaliar agora": o instante é o `now()` do PRÓPRIO Postgres, nunca o relógio do processo. O claim compara
+  // `next_eval_at` com `now()` do banco, e o do processo fica 17–34 ms à frente — a inscrição esperaria o tick
+  // DEPOIS do que devia (`tests/unit/followup-agendamento-declarado.test.ts`, migration 0147). Sendo SQL, `now()`
+  // resolve; o `fn_agora()` existe para quem grava por PostgREST.
   const { rows } = await db.query<{ id: string }>(
     `with movida as (
        update followup_enrollments
           set status = 'active',
               current_node_id = $4,
               steps_taken = steps_taken + 1,
-              next_eval_at = $5,
+              next_eval_at = now(),
               claimed_until = null,
               attempts = 0,
-              updated_at = $5
+              updated_at = now()
         where id = $1 and organization_id = $2
           and status = 'com_agente'
           and current_node_id = $3
-          and steps_taken = $6
-          and (claimed_until is null or claimed_until < $5)
+          and steps_taken = $5
+          and (claimed_until is null or claimed_until < now())
         returning id
      )
      insert into followup_enrollment_events
        (organization_id, enrollment_id, node_id, event_type, payload, idempotency_key)
-     select $2, id, $3, $7, $8::jsonb, $9 from movida
+     select $2, id, $3, $6, $7::jsonb, $8 from movida
      on conflict (enrollment_id, idempotency_key) where idempotency_key is not null do nothing
      returning id`,
     [
@@ -295,7 +297,6 @@ export async function encerrarAgenteNoFluxo(
       args.organizationId,
       estado.enrollment.current_node_id,
       aresta.target,
-      agora,
       estado.enrollment.steps_taken,
       EVENTO_SAIDA_DO_AGENTE,
       JSON.stringify({ saida: args.saida, para: aresta.target, ...(resumo !== null && resumo !== "" ? { resumo } : {}) }),
