@@ -64,7 +64,7 @@ const TETOS: Record<string, { minutos: number; razao: string }> = {
   "ci.yml::verify-parte": {
     minutos: 15,
     razao:
-      "a suíte foi repartida em partes (#1185 via #1190; três desde 22/09/2026); cada parte roda uma fatia de uma suíte " +
+      "a suíte foi repartida em partes (#1185 via #1190; três desde 22/09/2026, cinco no fork privado de 2 vCPU desde 26/09/2026); cada parte roda uma fatia de uma suíte " +
       "que custava 649s de unit num verde. 15 é guarda de travamento; quem denuncia crescimento " +
       "é o passo `Orçamento de tempo do verify-parte` (12 min por parte, medido em 19/09)",
   },
