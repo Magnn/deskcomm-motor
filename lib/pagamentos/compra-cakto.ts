@@ -1,7 +1,7 @@
 /**
  * O QUE UMA COMPRA FAZ NO CRM — pagou, a entrega começa; reembolsou, ela para.
  *
- * O aviso da Cakto chega SEM conversa: a pessoa pagou o link que a Cigana mandou, mas o
+ * O aviso da Cakto chega SEM conversa: a pessoa pagou o link que a agente mandou, mas o
  * pagamento não passa pelo WhatsApp. Este módulo faz a ponte:
  *
  *   purchase_approved → acha a pessoa (telefone do checkout, senão e-mail) → marca `pago`,

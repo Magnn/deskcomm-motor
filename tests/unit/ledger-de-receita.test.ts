@@ -24,7 +24,7 @@ function compra(overrides: Partial<CompraDaCakto> = {}): CompraDaCakto {
     produtoNome: "Trabalho Espiritual: Abertura do Coração",
     ofertaNome: "Oferta Única",
     valorCentavos: 5070,
-    cupom: "lua50k7q",
+    cupom: "cupomteste1",
     metodo: "pix",
     pagoEm: "2026-09-24T11:39:57.113068-03:00",
     status: "paid",
