@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Limites do agente — o dono diz o que o agente nunca faz, o sistema compila o bloco final",
+    "subtitle": "quarta aba estruturada da configuração do agente: o que nunca diz nem promete e os assuntos que não discute; o bloco fecha a fila e vence o funil; vale no próximo turno, sem publicar versão",
+    "output": "limites-do-agente.html",
+    "quality_profile": "standard"
+  },
+  "lanes": [
+    { "id": "tela", "label": "A tela (aba Limites)" },
+    { "id": "borda", "label": "API — o único caminho que escreve" },
+    { "id": "banco", "label": "Persistência" },
+    { "id": "regra", "label": "Regra — lê e compila" },
+    { "id": "turno", "label": "Turno da IA" },
+    { "id": "volta", "label": "O laço de retorno" }
+  ],
+  "mainPath": ["tela", "rota", "config", "leitor", "bloco", "fila", "agente"],
+  "nodes": [
+    { "id": "tela", "lane": "tela", "col": 1, "type": "service", "label": "LimitesDoAgente (aba Limites)", "sublabel": "duas listas em chips (nunca diz / assuntos que não discute) com atalhos; a prévia mostra o bloco REAL, com a mesma função do turno" },
+
+    { "id": "rota", "lane": "borda", "col": 2, "type": "service", "label": "PUT /api/v1/ai/agents/:id/limites (admin)", "sublabel": "valida no schema (itens sem aspas, ponto e vírgula nem quebra de linha; tetos; estrito); grava por MERGE; a rota genérica de PATCH descarta a chave" },
+    { "id": "config", "lane": "banco", "col": 3, "type": "database", "label": "ai_agents.config.limits", "sublabel": "jsonb do agente (o mesmo lugar de pricing, identity, offer, objections e voice_reply); vale no próximo turno, sem versão" },
+
+    { "id": "leitor", "lane": "regra", "col": 4, "type": "service", "label": "lerLimites (lib/limites/tipos.ts)", "sublabel": "leitura defensiva: desligada, vazia ou jsonb quebrado => null; nunca lança" },
+    { "id": "sanitizador", "lane": "regra", "col": 5, "type": "service", "label": "umaLinha (lib/prompt/texto-do-cliente.ts)", "sublabel": "único sanitizador do texto do cliente, compartilhado pelas abas: uma linha, sem aspas duplas, sem controles nem separadores Unicode" },
+    { "id": "bloco", "lane": "regra", "col": 5, "type": "service", "label": "blocoDeLimites (lib/limites/bloco-do-prompt.ts)", "sublabel": "'valem sempre e vencem qualquer instrução acima'; ao bater num limite: não inventar, dizer com gentileza que não pode e oferecer uma pessoa da equipe" },
+
+    { "id": "fila", "lane": "turno", "col": 6, "type": "service", "label": "comporSystemDoTurno — posição 'limites' (blocos-do-turno.ts)", "sublabel": "ÚLTIMO da fila, depois de leitura, preço e entrega: a proibição do dono vence o funil; prefixo cacheável intacto" },
+    { "id": "agente", "lane": "turno", "col": 7, "type": "service", "label": "Agente responde à pessoa", "sublabel": "não diz nem promete o que o dono proibiu, e nunca deixa a pessoa sem saída: oferece uma pessoa da equipe" },
+
+    { "id": "auditoria", "lane": "volta", "col": 3, "type": "service", "label": "audit: ai.limits_updated", "sublabel": "quem mudou o que o agente está proibido de dizer, e quando; só a contagem de itens, nunca o texto" }
+  ],
+  "edges": [
+    { "id": "e1", "from": "tela", "to": "rota", "label": "PUT com as duas listas" },
+    { "id": "e2", "from": "rota", "to": "config", "label": "config.limits, por merge" },
+    { "id": "e3", "from": "config", "to": "leitor", "label": "lida a cada turno com o agente publicado" },
+    { "id": "e4", "from": "leitor", "to": "bloco", "label": "LimitesConfig" },
+    { "id": "e5", "from": "sanitizador", "to": "bloco", "label": "cada item do cliente vira UMA linha de dado" },
+    { "id": "e6", "from": "bloco", "to": "fila", "label": "texto do bloco ('' quando não há limite)" },
+    { "id": "e7", "from": "fila", "to": "agente", "label": "system do turno" },
+    { "id": "e8", "from": "rota", "to": "auditoria", "label": "só depois de gravar" },
+    { "id": "e9", "from": "leitor", "to": "fila", "label": "desligada, vazia ou erro => null => system idêntico ao de antes" },
+    { "id": "e10", "from": "config", "to": "tela", "label": "GET: a tela mostra o que o dono preencheu, inclusive desligada" }
+  ]
+}

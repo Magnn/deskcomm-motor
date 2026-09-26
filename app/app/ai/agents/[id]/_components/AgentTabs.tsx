@@ -17,6 +17,7 @@ import { PrecoDoAgente } from "./PrecoDoAgente";
 import { IdentidadeDoAgente } from "./IdentidadeDoAgente";
 import { OfertaDoAgente } from "./OfertaDoAgente";
 import { ObjecoesDoAgente } from "./ObjecoesDoAgente";
+import { LimitesDoAgente } from "./LimitesDoAgente";
 import { VozDoAgente } from "./VozDoAgente";
 import { ProposalsPanel } from "./ProposalsPanel";
 import type { AgentRow } from "@/hooks/ai/useAgent";
@@ -48,7 +49,7 @@ interface Props {
 export function AgentTabs(props: Props) {
   const t = useT();
   const [tab, setTab] = React.useState<
-    "configuration" | "identity" | "offer" | "objections" | "test" | "capacidades" | "voice" | "price" | "runs" | "history" | "proposals"
+    "configuration" | "identity" | "offer" | "objections" | "limits" | "test" | "capacidades" | "voice" | "price" | "runs" | "history" | "proposals"
   >("configuration");
   const hasVersion = !!(props.draft || props.published);
 
@@ -63,6 +64,7 @@ export function AgentTabs(props: Props) {
         <TabsTrigger value="identity">{t("Identidade")}</TabsTrigger>
         <TabsTrigger value="offer">{t("Oferta")}</TabsTrigger>
         <TabsTrigger value="objections">{t("Objeções")}</TabsTrigger>
+        <TabsTrigger value="limits">{t("Limites")}</TabsTrigger>
         <TabsTrigger value="test" disabled={!hasVersion}>
           {t("Teste")}
         </TabsTrigger>
@@ -103,6 +105,10 @@ export function AgentTabs(props: Props) {
 
       <TabsContent value="objections" className="m-0">
         <ObjecoesDoAgente agentId={props.agent.id} config={props.agent.config} readOnly={props.readOnly} />
+      </TabsContent>
+
+      <TabsContent value="limits" className="m-0">
+        <LimitesDoAgente agentId={props.agent.id} config={props.agent.config} readOnly={props.readOnly} />
       </TabsContent>
 
       <TabsContent value="test" className="m-0">

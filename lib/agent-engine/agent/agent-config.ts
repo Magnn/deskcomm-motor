@@ -16,6 +16,7 @@
 import type pg from 'pg';
 
 import { lerIdentidade, type IdentidadeConfig } from '@/lib/identidade/tipos';
+import { lerLimites, type LimitesConfig } from '@/lib/limites/tipos';
 import { lerObjecoes, type ObjecoesConfig } from '@/lib/objecoes/tipos';
 import { lerOferta, type OfertaConfig } from '@/lib/oferta/tipos';
 import { lerPricing, type PricingConfig } from '@/lib/preco/tipos';
@@ -120,6 +121,12 @@ export interface PublishedAgentConfig {
    * significam a mesma coisa.
    */
   objections?: ObjecoesConfig | null;
+  /**
+   * Limites (`ai_agents.config.limits`, aba "Limites"): o que o agente nunca diz nem promete e os assuntos
+   * que não discute, ditos pelo dono. `null` = desligada: o turno segue como sempre. Ausente e `null`
+   * significam a mesma coisa.
+   */
+  limits?: LimitesConfig | null;
   /** criadores (p/ mint do token efêmero de audit — padrão do runtime nativo). */
   versionCreatedBy: string | null;
   agentCreatedBy: string | null;
@@ -257,6 +264,7 @@ function mapAgentConfigRow(r: Row): PublishedAgentConfig {
     identity: lerIdentidade(r.config),
     offer: lerOferta(r.config),
     objections: lerObjecoes(r.config),
+    limits: lerLimites(r.config),
     versionCreatedBy: r.version_created_by,
     agentCreatedBy: r.agent_created_by,
   };
