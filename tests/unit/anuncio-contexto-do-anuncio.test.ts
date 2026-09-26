@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 
+import { BLOCOS_DO_TURNO } from "@/lib/agent-engine/agent/blocos-do-turno";
 import {
   ATE_QUANTAS_MENSAGENS_DA_AGENTE,
   TETO_DO_CORPO,
@@ -141,12 +142,10 @@ describe("fiação no turno da IA", () => {
   const fonte = readFileSync(join(process.cwd(), "lib/agent-engine/agent/inbound-turn.ts"), "utf8");
 
   it("o bloco do anúncio entra no system do turno, antes dos blocos diretivos", () => {
-    const linha = fonte.split("\n").find((l) => l.includes("const systemDoTurno ="));
-    expect(linha).toBeDefined();
-    expect(linha!.indexOf("blocoDoAnuncioDoTurno")).toBeGreaterThan(-1);
-    expect(linha!.indexOf("blocoDoAnuncioDoTurno")).toBeLessThan(linha!.indexOf("blocoDaLeituraDoTurno"));
-    expect(linha!.indexOf("blocoDoAnuncioDoTurno")).toBeLessThan(linha!.indexOf("blocoDePrecoDoTurno"));
-    expect(linha!.indexOf("blocoDoAnuncioDoTurno")).toBeLessThan(linha!.indexOf("blocoDaEntrega"));
+    // O informativo ABRE a fila (a ordem mora em `blocos-do-turno.ts`); a ligação de todas as chaves é
+    // afirmada por inteiro em `blocos-do-turno.test.ts`. Aqui só a que é DESTE bloco.
+    expect(BLOCOS_DO_TURNO[0]).toBe("anuncio");
+    expect(fonte).toContain("anuncio: blocoDoAnuncioDoTurno");
   });
 
   it("no painel de Teste (preview) não há contato real: o carregador não é chamado", () => {
