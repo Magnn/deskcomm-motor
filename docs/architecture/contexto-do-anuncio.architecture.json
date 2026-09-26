@@ -27,7 +27,7 @@
     { "id": "conversao", "lane": "regra", "col": 5, "type": "service", "label": "lerAtribuicao (lib/conversoes/leitura-da-atribuicao.ts)", "sublabel": "consumidor que JÁ existia: usa só o clique, para reportar a venda à plataforma" },
     { "id": "bloco", "lane": "regra", "col": 5, "type": "service", "label": "blocoDoAnuncio", "sublabel": "só no começo da conversa (até 4 mensagens da agente na janela); molde: uma frase, sem pular etapa, sem repetir promessa do anúncio" },
 
-    { "id": "turno", "lane": "turno", "col": 6, "type": "service", "label": "systemDoTurno (inbound-turn.ts)", "sublabel": "anexado ao FIM do system, antes dos blocos de leitura, preço e entrega; prefixo cacheável intacto" },
+    { "id": "turno", "lane": "turno", "col": 6, "type": "service", "label": "comporSystemDoTurno (lib/agent-engine/agent/blocos-do-turno.ts)", "sublabel": "a fila BLOCOS_DO_TURNO (anúncio, leitura, preço, entrega) anexada ao FIM do system, nessa ordem; o informativo abre; prefixo cacheável intacto" },
     { "id": "agente", "lane": "turno", "col": 7, "type": "service", "label": "Agente responde à pessoa", "sublabel": "no painel de Teste não há contato real: o carregador não roda" },
 
     { "id": "logbloco", "lane": "volta", "col": 5, "type": "service", "label": "runLog.info — contexto do anúncio no turno", "sublabel": "registra a plataforma quando o bloco entrou; visível nos logs do worker" }

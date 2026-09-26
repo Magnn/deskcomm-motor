@@ -86,6 +86,7 @@ import { blocoDePreco, semObjecaoDePrecoQuandoHaBloco } from '@/lib/preco/bloco-
 import { carregarGuiaDeEntrega, trabalhoPagoDasTags } from '@/lib/entrega/guia-de-entrega';
 import { blocoDaLeitura } from '@/lib/leitura/bloco-do-prompt';
 import { blocoDoAnuncio, carregarAnuncioDoContato } from '@/lib/anuncio/contexto-do-anuncio';
+import { comporSystemDoTurno } from './blocos-do-turno';
 import { passoDaLeitura } from '@/lib/leitura/estado-da-leitura';
 import { precoPermitidoAgora, reclamacoesDeValor } from '@/lib/preco/estado-da-negociacao';
 import { deveResponderEmAudio } from '@/lib/voz/decisao';
@@ -2299,7 +2300,14 @@ async function executarTurnoDoAgente(
   if (blocoDoAnuncioDoTurno !== '') {
     runLog.info('contexto do anúncio no turno', { plataforma: anuncioDoContato?.plataforma });
   }
-  const systemDoTurno = `${system}${blocoDoAnuncioDoTurno}${blocoDaLeituraDoTurno}${blocoDePrecoDoTurno}${blocoDaEntrega}`;
+  // A ORDEM dos blocos mora em `blocos-do-turno.ts` (é dado lá, com o porquê): aqui só se diz qual
+  // texto é de qual bloco. Bloco novo = um nome na fila lá + uma chave aqui; o typecheck cobra os dois.
+  const systemDoTurno = comporSystemDoTurno(system, {
+    anuncio: blocoDoAnuncioDoTurno,
+    leitura: blocoDaLeituraDoTurno,
+    preco: blocoDePrecoDoTurno,
+    entrega: blocoDaEntrega,
+  });
   const currentInboundText =
     input.inboundMessageId === undefined
       ? null
