@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { blocosDoSystemDoTurno, foraDeOrdem } from "@/tests/helpers/blocos-do-system-do-turno";
+
 import {
   TETO_DO_GUIA,
   carregarGuiaDeEntrega,
@@ -114,7 +116,8 @@ describe("a fiação no turno", () => {
     const turno = readFileSync("lib/agent-engine/agent/inbound-turn.ts", "utf8");
     expect(turno).toContain("trabalhoPagoDasTags(openingContext.context.contact.tags)");
     expect(turno).toContain("carregarGuiaDeEntrega(");
-    expect(turno).toContain("`${system}${blocoDePrecoDoTurno}${blocoDaEntrega}`");
+    // A ordem, não a linha inteira: o guia vem DEPOIS do preço (blocos novos em outro ponto da fila não importam).
+    expect(foraDeOrdem(blocosDoSystemDoTurno(), ["system", "blocoDePrecoDoTurno", "blocoDaEntrega"])).toBeNull();
     // a falha da busca não derruba o turno
     expect(turno).toContain("guia de entrega indisponível");
   });
