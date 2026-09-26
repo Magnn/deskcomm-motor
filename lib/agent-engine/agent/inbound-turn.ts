@@ -89,6 +89,7 @@ import { blocoDoAnuncio, carregarAnuncioDoContato } from '@/lib/anuncio/contexto
 import { comporSystemDoTurno } from './blocos-do-turno';
 import { blocoDeVariacao } from '@/lib/estilo/variacao-do-agente';
 import { blocoDeIdentidade } from '@/lib/identidade/bloco-do-prompt';
+import { blocoDeLimites } from '@/lib/limites/bloco-do-prompt';
 import { blocoDeObjecoes } from '@/lib/objecoes/bloco-do-prompt';
 import { blocoDeOferta } from '@/lib/oferta/bloco-do-prompt';
 import { passoDaLeitura } from '@/lib/leitura/estado-da-leitura';
@@ -2316,6 +2317,8 @@ async function executarTurnoDoAgente(
   const blocoDeOfertaDoTurno = blocoDeOferta(agentConfig?.offer ?? null);
   // Objeções (aba "Objeções"): as respostas que o dono aprovou ao que a pessoa levanta para não fechar.
   const blocoDeObjecoesDoTurno = blocoDeObjecoes(agentConfig?.objections ?? null);
+  // Limites (aba "Limites"): o que o dono proíbe. Vai por ÚLTIMO na fila: o que ele proíbe vence o que o funil manda.
+  const blocoDeLimitesDoTurno = blocoDeLimites(agentConfig?.limits ?? null);
   const blocoDeVariacaoDoTurno = blocoDeVariacao(openingContext.context.messages, {
     emojiLivre: identidadeDoAgente?.emojis === 'livre',
   });
@@ -2335,6 +2338,7 @@ async function executarTurnoDoAgente(
     leitura: blocoDaLeituraDoTurno,
     preco: blocoDePrecoDoTurno,
     entrega: blocoDaEntrega,
+    limites: blocoDeLimitesDoTurno,
   });
   const currentInboundText =
     input.inboundMessageId === undefined

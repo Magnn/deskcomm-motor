@@ -31,13 +31,17 @@
  *   6. `leitura`  — DIRETIVO: qual carta revelar agora (ou a causa raiz).
  *   7. `preco`    — DIRETIVO: o degrau de preço e o que dizer.
  *   8. `entrega`  — DIRETIVO: o guia do trabalho que a pessoa já pagou.
+ *   9. `limites`  — PROIBIÇÃO DO DONO: o que o agente nunca diz nem promete e os assuntos que não
+ *                   discute (aba Limites). ÚLTIMO de propósito: o que o dono PROÍBE tem de vencer o que
+ *                   o funil manda — se um limite conflita com leitura, preço ou entrega, o limite ganha.
  *
  * A base, o informativo e o estilo vão ANTES dos diretivos para que, num
  * conflito, leitura, preço e entrega vençam: o modelo dá mais peso ao que vem por
  * último. (O estilo ainda diz, no próprio texto, que molde literal manda; e a
  * identidade também.) A identidade vem ANTES do estilo de propósito: o estilo
  * universal é a regra mais fraca e não desfaz uma escolha explícita do cliente.
- * Entre os três diretivos a ordem é a do funil (revelar → cobrar → entregar).
+ * Entre os três diretivos a ordem é a do funil (revelar → cobrar → entregar). Os limites do
+ * dono fecham a fila: a proibição vence o funil, e não o contrário.
  *
  * ── Bloco novo ─────────────────────────────────────────────────────────────
  *
@@ -49,7 +53,7 @@
  * Sem nenhum bloco (todos ''), o system sai idêntico ao de entrada — o prefixo
  * estável e cacheável não muda.
  */
-export const BLOCOS_DO_TURNO = ['identidade', 'oferta', 'objecoes', 'anuncio', 'estilo', 'leitura', 'preco', 'entrega'] as const;
+export const BLOCOS_DO_TURNO = ['identidade', 'oferta', 'objecoes', 'anuncio', 'estilo', 'leitura', 'preco', 'entrega', 'limites'] as const;
 
 export type NomeDoBlocoDoTurno = (typeof BLOCOS_DO_TURNO)[number];
 
