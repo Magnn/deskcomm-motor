@@ -127,6 +127,20 @@ jobs:
   # `--shard` corta por contagem, e o terço de cada um só se sabe rodando. O
   # custo é um job a mais por rodada na fila de runners (~25 s de preâmbulo), NÃO
   # MEDIDO quanto à espera.
+  #
+  # CINCO PARTES NO FORK PRIVADO (26/09/2026). Repositório privado recebe o runner
+  # padrão de 2 vCPU e 7 GB; o público, o de 4 vCPU e 16 GB para o qual os números
+  # acima foram medidos. Medido no fork Magnn/deskcomm-motor (run 36206553823, PR
+  # #11, sem nenhuma mudança de teste): `Unit tests` levou 681 s e 738 s numa
+  # fatia de UM TERÇO da suíte — cerca de 2.100 s de unit no total contra ~850 s
+  # nas duas partes que o texto acima mede —, e o job inteiro 808 s e 856 s contra
+  # o orçamento de 12 min. Não é a suíte que cresceu: é o hardware. O remédio é o
+  # que o próprio orçamento prescreve (mais uma parte, não subir o número): com
+  # cinco fatias o unit cai para ~430 s, e os fixos — typecheck ~70–120 s na 1,
+  # lint 86 s na 2, cercas 81 s na 3 — cabem com folga. Repositório público ou
+  # runner maior tornariam as três partes suficientes de novo; a matriz é o único
+  # lugar a mexer, e `preambulo-do-ci-nao-come-o-relogio` exige que --shard bata
+  # com ela.
   verify-parte:
     # Guarda de travamento. O DETECTOR de crescimento é o passo `Orçamento de
     # tempo` no fim de cada parte; a medição que justifica o número está em
@@ -153,7 +167,7 @@ jobs:
       # Sem fail-fast: um vermelho numa parte não esconde o da outra.
       fail-fast: false
       matrix:
-        parte: [1, 2, 3]
+        parte: [1, 2, 3, 4, 5]
     steps:
       - uses: actions/checkout@v7
 
@@ -247,6 +261,13 @@ jobs:
 
       - name: Typecheck
         if: matrix.parte == 1
+        env:
+          # O `tsc` deste projeto passa dos 2 GB de heap que o Node dá por padrão
+          # num runner de 7 GB: no fork privado (2 vCPU, 7 GB) ele morria com
+          # `JavaScript heap out of memory` aos ~53 s (exit 134). 5 GB deixam ~2
+          # GB ao sistema; no runner de 16 GB de repositório público o teto maior
+          # é inofensivo, o `tsc` só usa o que precisa.
+          NODE_OPTIONS: --max-old-space-size=5120
         run: pnpm typecheck
 
       # Na parte 2, não na 1: o porquê e a conta estão no cabeçalho do job.
@@ -334,11 +355,11 @@ jobs:
           echo "OK — ${total} migrations na árvore, nenhum NNNN nem timestamp repetido."
 
       # `--project produto` é o `pnpm test:unit` MENOS as cercas, que já
-      # rodaram acima; `--shard` divide os arquivos entre as três partes. Juntos
+      # rodaram acima; `--shard` divide os arquivos entre as partes. Juntos
       # são a suíte inteira, uma vez só. Localmente o comando continua sendo
       # `pnpm test:unit`, sem recorte.
-      - name: Unit tests (parte ${{ matrix.parte }}/3)
-        run: pnpm test:unit --project produto --shard=${{ matrix.parte }}/3
+      - name: Unit tests (parte ${{ matrix.parte }}/5)
+        run: pnpm test:unit --project produto --shard=${{ matrix.parte }}/5
 
       # O ACERVO DE `.changes/` CABE NA TELA DA VPS? — e por que fora de PR.
       #
@@ -453,11 +474,11 @@ jobs:
             exit 0
           fi
           decorrido=$(( ($(date +%s) - VERIFY_INICIO) / 60 ))
-          echo "verify parte ${{ matrix.parte }}/3: ${decorrido} min (orçamento ${ORCAMENTO_MIN} min, teto de travamento 15 min)"
+          echo "verify parte ${{ matrix.parte }}/5: ${decorrido} min (orçamento ${ORCAMENTO_MIN} min, teto de travamento 15 min)"
           if [ "$decorrido" -le "${ORCAMENTO_MIN}" ]; then
             exit 0
           fi
-          echo "::error::A parte ${{ matrix.parte }}/3 do verify levou ${decorrido} min contra um orçamento de ${ORCAMENTO_MIN} min."
+          echo "::error::A parte ${{ matrix.parte }}/5 do verify levou ${decorrido} min contra um orçamento de ${ORCAMENTO_MIN} min."
           echo "::error::Isto NÃO é defeito do seu PR: a suíte unitária cresceu. Em 18/09/2026, \`Unit tests\` já era 10,3 dos 13,2 min do job."
           echo "::error::O conserto é mais uma parte em \`verify-parte\` (matrix + --shard), não subir este número."
           exit 1
