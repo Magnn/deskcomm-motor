@@ -1027,6 +1027,13 @@ export function processNode(input: {
       return { kind: "advance", next_node_id: edge.target, next_eval_at: clock() };
     }
 
+    case "agent": {
+      // O MOTOR deste nó ainda não existe (fatia 3). O publish recusa o nó (`no_em_construcao`), então uma inscrição
+      // nunca chega aqui; se chegar, o passo FALHA com o motivo, em vez de avançar sem o agente e mandar a pessoa
+      // por uma saída que ninguém percorreu.
+      return { kind: "fail", error: `agent node "${node.id}": o motor do nó Agente de IA ainda não existe` };
+    }
+
     case "end": {
       if (node.config.outcome === "custom") {
         return { kind: "complete", outcome: null, cancel_reason: node.config.note };

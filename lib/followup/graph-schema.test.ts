@@ -50,6 +50,8 @@ describe('graph-schema', () => {
         'api_call',
         'notify_agent',
         'add_note',
+        // O agente de IA no comando (fatia 2 do nó): aditivo.
+        'agent',
       ]);
     });
 

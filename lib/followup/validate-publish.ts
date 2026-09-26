@@ -1,6 +1,7 @@
 import type { FlowGraph, FlowEdge, FlowNode, NodeType } from './graph-schema';
 import type { FollowupFlowSurface } from './api-schemas';
-import { branchIdForCondition, nodeBranches } from './graph-schema';
+import type { AgenteCitado } from './agentes-citados';
+import { AGENT_NODE_UNSET_ID, branchIdForCondition, nodeBranches } from './graph-schema';
 import { rotuloDoRamo } from './rotulo-do-ramo';
 import type { NomesDeValor } from './vocabulario';
 
@@ -32,6 +33,9 @@ export const PUBLISH_ERROR_CODES = [
   'no_fora_da_superficie',
   'roteiro_ramificado',
   'campo_repetido',
+  'no_em_construcao',
+  'agente_nao_escolhido',
+  'agente_indisponivel',
 ] as const;
 export type PublishErrorCode = (typeof PUBLISH_ERROR_CODES)[number];
 
@@ -56,7 +60,17 @@ export interface ContextoDoPublish {
   etapas?: ReadonlyMap<string, { nome: string; arquivada: boolean }>;
   /** Superfície do pointer. Ausente = follow-up (o que a coluna tem por padrão). */
   surface?: FollowupFlowSurface;
+  /** Os agentes citados pelos nós "Agente de IA", por `agent_id` (`carregaAgentesCitados`). Ausente, a conferência de existência não roda. */
+  agentes?: ReadonlyMap<string, AgenteCitado>;
 }
+
+/**
+ * Tipos de nó que o esquema já conhece mas cujo MOTOR ainda não existe. O publish os RECUSA, com o motivo
+ * verdadeiro, em vez de deixar publicar um fluxo cujo passo falharia em toda inscrição. Ficam fora de
+ * `NOS_DA_SUPERFICIE` de propósito: a paleta do editor é derivada dela, e a tela não oferece o que o motor não
+ * roda. Quando o motor entra, o tipo sai desta lista e entra lá — nessa ordem, no mesmo PR.
+ */
+export const NOS_EM_CONSTRUCAO: readonly NodeType[] = ['agent'];
 
 /**
  * Os tipos de nó que cada superfície EXECUTA. É a mesma lista que a paleta do
@@ -110,6 +124,14 @@ export const NOS_DA_SUPERFICIE: Record<FollowupFlowSurface, readonly NodeType[]>
 function validarSuperficie(graph: FlowGraph, surface: FollowupFlowSurface, errors: PublishValidationError[]): void {
   const permitidos = new Set<NodeType>(NOS_DA_SUPERFICIE[surface]);
   for (const n of [...graph.nodes].sort(byId)) {
+    if (NOS_EM_CONSTRUCAO.includes(n.type)) {
+      errors.push({
+        node_id: n.id,
+        code: 'no_em_construcao',
+        message: `A caixa "${n.label}" ainda não roda: o motor do Agente de IA está em construção e ela não pode ser publicada.`,
+      });
+      continue;
+    }
     if (!permitidos.has(n.type)) {
       errors.push({
         node_id: n.id,
@@ -169,6 +191,8 @@ function waitMs(config: Extract<FlowNode, { type: 'wait' }>['config']): number {
 
 /** A wait node whose duration meets the 5min floor required to break a cycle. */
 function isSufficientWaitNode(node: FlowNode): boolean {
+  // O agente no comando espera a pessoa por `silencio_minutos` (piso 5 min no schema) antes de sair por silêncio.
+  if (node.type === 'agent') return true;
   if (node.type === 'match_reply') return node.config.grace_timeout_ms >= MIN_CYCLE_WAIT_MS;
   if (node.type !== 'wait') return false;
   return node.config.mode === 'fixed'
@@ -460,6 +484,59 @@ function conferirRegras(
   });
 }
 
+/**
+ * O nó "Agente de IA": escolheu um agente, o agente existe NESTA organização e conduz uma conversa, e as três
+ * saídas (cumpriu / passou do limite / silêncio) levam a algum lugar. A saída de escape (`else`) NÃO é cobrada: as
+ * três saídas esgotam o que o motor produz, e exigir uma quarta ligação seria exigir um caminho que nunca corre.
+ */
+function validarAgentes(
+  graph: FlowGraph,
+  contexto: ContextoDoPublish,
+  outEdges: Map<string, FlowEdge[]>,
+  errors: PublishValidationError[],
+  nomes: NomesDeValor
+): void {
+  for (const node of [...graph.nodes].sort(byId)) {
+    if (node.type !== 'agent') continue;
+    const id = node.config.agent_id;
+    if (id === AGENT_NODE_UNSET_ID) {
+      errors.push({
+        node_id: node.id,
+        code: 'agente_nao_escolhido',
+        message: `A caixa "${node.label}" ainda não tem um agente: escolha quem conduz esta etapa.`,
+      });
+    } else if (contexto.agentes !== undefined) {
+      const agente = contexto.agentes.get(id);
+      const problema =
+        agente === undefined
+          ? 'O agente escolhido não existe mais neste workspace — escolha outro.'
+          : agente.arquivado
+            ? `O agente «${agente.nome}» foi arquivado — escolha outro.`
+            : agente.tipo !== 'mcp_agent'
+              ? `«${agente.nome}» é um agente antigo e não conduz conversa dentro de um fluxo — escolha um agente novo.`
+              : !agente.publicado
+                ? `O agente «${agente.nome}» ainda não tem versão publicada — publique-o antes de usá-lo aqui.`
+                : null;
+      if (problema !== null) {
+        errors.push({ node_id: node.id, code: 'agente_indisponivel', message: `Caixa "${node.label}": ${problema}` });
+      }
+    }
+
+    // Cobertura das três saídas — as de tipo 'match'; o escape fica de fora (ver o cabeçalho).
+    const saidas = outEdges.get(node.id) ?? [];
+    for (const branch of nodeBranches(node)) {
+      if (branch.kind !== 'match') continue;
+      if (saidas.some((e) => branchIdForCondition(node, e.condition) === branch.id)) continue;
+      errors.push({
+        node_id: node.id,
+        code: 'missing_branch_edge',
+        branch_id: branch.id,
+        message: `Nó "${node.id}": a saída "${rotuloDoRamo(branch, nomes)}" não está ligada a nada.`,
+      });
+    }
+  }
+}
+
 const UUID_RX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function validateFlowForPublish(
@@ -579,6 +656,8 @@ export function validateFlowForPublish(
   for (const node of [...nodes].sort(byId)) {
     if (node.type === 'condition') conferirRegras(node, contexto, errors);
   }
+
+  validarAgentes(graph, contexto, outEdges, errors, nomes);
 
   for (const node of [...nodes].sort(byId)) {
     if (node.type !== 'ai_classify' && node.type !== 'match_reply' && node.type !== 'repeat') continue;

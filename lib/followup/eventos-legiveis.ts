@@ -140,6 +140,7 @@ const TIPO_DO_NO: Record<FlowNode["type"], string> = {
   api_call: "API externa",
   notify_agent: "Notificar atendente",
   add_note: "Anotação no contato",
+  agent: "Agente de IA",
 };
 
 const DESFECHO: Record<string, string> = {
@@ -220,6 +221,10 @@ export function resumoDoNo(node: FlowNode): NoDoDossie {
       return { ...base, resumo: "notifica um atendente humano, sem transferir a conversa" };
     case "add_note":
       return { ...base, resumo: "grava uma anotação no histórico do contato" };
+    // Sem o `objetivo` nem o agente: é projeção para quem só lê (a instrução que o dono do fluxo escreveu não vai
+    // para a tela de leitura).
+    case "agent":
+      return { ...base, resumo: `um agente de IA conduz a conversa (até ${node.config.max_turnos} respostas)` };
   }
 }
 

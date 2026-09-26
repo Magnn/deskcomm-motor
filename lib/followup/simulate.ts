@@ -6,7 +6,14 @@ import {
   type LeadFacts,
   type NodeResult,
 } from "./node-handlers";
-import type { EndFinish, FlowGraph, FlowNode } from "./graph-schema";
+import {
+  AGENT_SILENCE_BRANCH_ID,
+  type AGENT_CONCLUDED_BRANCH_ID,
+  type AGENT_LIMIT_BRANCH_ID,
+  type EndFinish,
+  type FlowGraph,
+  type FlowNode,
+} from "./graph-schema";
 
 /**
  * Simulador do construtor de fluxo (`/app/ai/followups/[id]`) — Living System
@@ -51,6 +58,13 @@ import type { EndFinish, FlowGraph, FlowNode } from "./graph-schema";
  * (`TurnBridgeAdminClient`), só que aqui a "porta estreita" é uma função, não
  * uma interface de banco.
  *
+ * O NÓ "AGENTE DE IA" É UMA CAIXA-PRETA AQUI. Quem conduz a conversa é um agente de verdade (prompt, ferramentas,
+ * memória, várias mensagens), e simulá-lo exigiria rodá-lo — com custo, e com efeito na conversa de quem está
+ * sendo atendido se algo escapasse. O simulador testa o ROTEAMENTO do grafo, que é o que ele sabe testar: ao
+ * chegar no nó, PARA e pede ao operador por qual das três saídas fixas seguir (cumpriu o objetivo, passou do
+ * limite de turnos, ficou em silêncio). "Sem resposta" vale como silêncio, o mesmo sinal de prazo esgotado que
+ * ele já dá nos outros nós. Uma mensagem digitada não avança: o agente ainda estaria conduzindo.
+ *
  * Esperas adaptativas (`smartWaits`) NUNCA são planejadas por IA aqui — o
  * driver sempre passa `smartWaits: []` a `processNode`, o que faz um `wait`
  * em modo `smart` cair no próprio `max_ms` (a mesma degradação que o motor
@@ -74,10 +88,19 @@ export interface SimLeadFacts {
   last_outcome: string | null;
 }
 
-export type SimEntrada = { kind: "mensagem"; texto: string } | { kind: "sem_resposta" };
+/** As três saídas do nó Agente de IA (`nodeBranches`), como o operador as escolhe no simulador. */
+export type SaidaDoAgente =
+  | typeof AGENT_CONCLUDED_BRANCH_ID
+  | typeof AGENT_LIMIT_BRANCH_ID
+  | typeof AGENT_SILENCE_BRANCH_ID;
+
+export type SimEntrada =
+  | { kind: "mensagem"; texto: string }
+  | { kind: "sem_resposta" }
+  | { kind: "saida_do_agente"; saida: SaidaDoAgente };
 
 /** O que o simulador está esperando do operador para continuar. */
-export type SimAguardando = "wait" | "ai_classify" | "match_reply" | null;
+export type SimAguardando = "wait" | "ai_classify" | "match_reply" | "agent" | null;
 
 export type SimStatus = "aguardando_entrada" | "concluido" | "erro";
 
@@ -98,7 +121,9 @@ export type SimTranscriptEntry =
       origem: "texto_fixo" | "ia" | "modelo_salvo" | "confirmacao";
     }
   | { kind: "transicao"; nodeId: string; label: string; repeat?: { index: number; total: number } }
-  | { kind: "aguardando"; nodeId: string; motivo: "wait" | "ai_classify" | "match_reply" }
+  | { kind: "aguardando"; nodeId: string; motivo: "wait" | "ai_classify" | "match_reply" | "agent" }
+  /** O operador escolheu por onde o agente sai (o agente em si não roda no simulador). */
+  | { kind: "saida_do_agente"; nodeId: string; saida: SaidaDoAgente }
   | { kind: "classificado"; nodeId: string; classe: string }
   | { kind: "fim"; nodeId: string; outcome: string | null; nota?: string }
   | { kind: "finalizacao"; nodeId: string; tipo: EndFinish["tipo"]; detalhe?: string }
@@ -253,6 +278,11 @@ export async function avancarSimulacao(args: {
     state = { ...state, transcript: [...state.transcript, { kind: "lead", texto: entrada.texto }] };
   } else if (entrada?.kind === "sem_resposta") {
     state = { ...state, transcript: [...state.transcript, { kind: "lead_sem_resposta" }] };
+  } else if (entrada?.kind === "saida_do_agente") {
+    state = {
+      ...state,
+      transcript: [...state.transcript, { kind: "saida_do_agente", nodeId: state.currentNodeId, saida: entrada.saida }],
+    };
   }
 
   const mensagemAtual = entrada?.kind === "mensagem" ? entrada.texto : null;
@@ -261,6 +291,35 @@ export async function avancarSimulacao(args: {
   for (let i = 0; i < LIMITE_PASSOS; i++) {
     const node = porId.get(state.currentNodeId);
     if (!node) return falha(state, `O nó "${state.currentNodeId}" não existe mais no grafo.`);
+
+    // Agente de IA: caixa-preta (ver o cabeçalho). Só a saída escolhida pelo operador — ou "sem resposta", que é o
+    // silêncio — avança; qualquer outra coisa deixa a simulação parada no nó, esperando.
+    if (node.type === "agent") {
+      const saida: SaidaDoAgente | null =
+        primeiroPasso && entrada?.kind === "saida_do_agente"
+          ? entrada.saida
+          : primeiroPasso && entrada?.kind === "sem_resposta"
+            ? AGENT_SILENCE_BRANCH_ID
+            : null;
+      primeiroPasso = false;
+      if (saida === null) {
+        const jaAguardava = state.aguardando === "agent" && state.currentNodeId === node.id;
+        return {
+          ...state,
+          aguardando: "agent",
+          status: "aguardando_entrada",
+          transcript: jaAguardava
+            ? state.transcript
+            : [...state.transcript, { kind: "aguardando", nodeId: node.id, motivo: "agent" }],
+        };
+      }
+      const edge = selectEdge(edges, node.id, { type: "branch", branch_id: saida });
+      if (!edge) {
+        return falha(state, `O nó "${node.label}" não tem aresta para a saída "${saida}" (nem saída padrão).`, node.id);
+      }
+      state = avancarPara({ ...state, aguardando: null }, edge.target, porId, null);
+      continue;
+    }
 
     const imune =
       node.type === "wait" && node.config.mode === "fixed" && node.config.immune_to_reply === true;
