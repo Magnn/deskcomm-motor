@@ -13,13 +13,24 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 
 import { loginComoAdmin, lerCreds, type CredsE2E } from "./helpers/login-admin";
 
 const EVIDENCIA = path.join(process.cwd(), "evidence", "identidade-do-agente");
 
 let creds: CredsE2E = lerCreds();
+
+/**
+ * Zera a aba pelo MESMO caminho da tela (o PUT): a spec não pode depender do que outra rodada deixou no
+ * banco — sem isto ela só passava uma vez por banco, e reexecutar na mesma bancada falhava em "abre vazia".
+ */
+async function zerarIdentidade(page: Page, agente: string): Promise<void> {
+  const r = await page.request.put(`/api/v1/ai/agents/${agente}/identidade`, {
+    data: { enabled: false, palavras_da_casa: [], palavras_a_evitar: [] },
+  });
+  expect(r.status(), "zerar a identidade pela API").toBe(200);
+}
 
 test.use({ locale: "pt-BR" });
 test.describe.configure({ timeout: 240_000 });
@@ -32,6 +43,7 @@ test.beforeEach(async ({ page }) => {
 test("preencher, ver a prévia, salvar e recarregar: a identidade fica", async ({ page }) => {
   const agente = creds.default_agent_id;
   expect(agente, "o seed de credenciais devia ter criado um agente").toBeTruthy();
+  await zerarIdentidade(page, agente!);
 
   await page.goto(`/app/ai/agents/${agente}`);
   await page.getByRole("tab", { name: "Identidade" }).click();
