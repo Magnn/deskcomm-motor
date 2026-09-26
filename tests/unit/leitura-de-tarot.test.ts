@@ -276,9 +276,9 @@ describe("a fiação no turno", () => {
     const turno = readFileSync("lib/agent-engine/agent/inbound-turn.ts", "utf8");
     expect(turno).toContain("passoDaLeitura(`${tenantId}:${leadId}`, openingContext.context.messages)");
     expect(turno).toContain("blocoDaLeitura(passoDaLeituraNoTurno)");
-    // O contexto do anúncio (informativo) abre a fila; os três blocos DIRETIVOS seguem na mesma
+    // O contexto do anúncio (informativo) vem antes dos DIRETIVOS, e os três seguem na mesma
     // ordem — leitura, depois preço, depois entrega.
-    expect(BLOCOS_DO_TURNO.indexOf("anuncio")).toBe(0);
+    expect(BLOCOS_DO_TURNO.indexOf("anuncio")).toBeLessThan(BLOCOS_DO_TURNO.indexOf("leitura"));
     expect(BLOCOS_DO_TURNO.indexOf("leitura")).toBeLessThan(BLOCOS_DO_TURNO.indexOf("preco"));
     expect(BLOCOS_DO_TURNO.indexOf("preco")).toBeLessThan(BLOCOS_DO_TURNO.indexOf("entrega"));
     // A ligação de cada chave ao seu bloco é afirmada por inteiro em `blocos-do-turno.test.ts`.

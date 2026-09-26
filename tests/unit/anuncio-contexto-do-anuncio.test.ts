@@ -142,9 +142,13 @@ describe("fiação no turno da IA", () => {
   const fonte = readFileSync(join(process.cwd(), "lib/agent-engine/agent/inbound-turn.ts"), "utf8");
 
   it("o bloco do anúncio entra no system do turno, antes dos blocos diretivos", () => {
-    // O informativo ABRE a fila (a ordem mora em `blocos-do-turno.ts`); a ligação de todas as chaves é
-    // afirmada por inteiro em `blocos-do-turno.test.ts`. Aqui só a que é DESTE bloco.
-    expect(BLOCOS_DO_TURNO[0]).toBe("anuncio");
+    // O informativo vem ANTES dos diretivos (a ordem mora em `blocos-do-turno.ts`); a ligação de todas
+    // as chaves é afirmada por inteiro em `blocos-do-turno.test.ts`. Aqui só a que é DESTE bloco.
+    for (const diretivo of ["leitura", "preco", "entrega"] as const) {
+      expect(BLOCOS_DO_TURNO.indexOf("anuncio"), `anúncio antes de ${diretivo}`).toBeLessThan(
+        BLOCOS_DO_TURNO.indexOf(diretivo),
+      );
+    }
     expect(fonte).toContain("anuncio: blocoDoAnuncioDoTurno");
   });
 

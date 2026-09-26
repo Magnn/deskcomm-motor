@@ -178,8 +178,20 @@ function citar(frase: string): string {
   return `${corte.slice(0, Math.max(corte.lastIndexOf(" "), 1))}…`;
 }
 
+export interface OpcoesDeVariacao {
+  /**
+   * O dono do negócio escolheu, na aba Identidade, deixar o agente usar emoji à vontade. A regra de
+   * "a pessoa não usa emoji, então não use nenhum" é uma heurística do estilo universal; uma escolha
+   * EXPLÍCITA do cliente vence uma heurística. O emoji que se repete demais continua sendo apontado.
+   */
+  emojiLivre?: boolean;
+}
+
 /** As repetições da agente nas últimas mensagens; `null` quando não há o que dizer. */
-export function lerRepeticoesDaAgente(mensagens: readonly MensagemParaContar[]): RepeticoesDaAgente | null {
+export function lerRepeticoesDaAgente(
+  mensagens: readonly MensagemParaContar[],
+  opcoes: OpcoesDeVariacao = {},
+): RepeticoesDaAgente | null {
   const todos = turnosDaAgente(mensagens);
   // Molde não conta: repete por construção, e é a máquina de estado (não o estilo) que o governa.
   const turnos = todos.filter((t) => !ehTurnoDeMolde(t)).slice(-JANELA_DE_TURNOS);
@@ -227,7 +239,8 @@ export function lerRepeticoesDaAgente(mensagens: readonly MensagemParaContar[]):
     .slice(-6);
   const pessoaUsaEmoji = daPessoa.some((m) => emojisDe(m.body ?? "").size > 0);
   const turnosComEmoji = ultimos4.filter((t) => emojisDoTurno(t).size > 0).length;
-  const semEmojiPelaPessoa = ultimos4.length >= 3 && turnosComEmoji >= 3 && !pessoaUsaEmoji;
+  const semEmojiPelaPessoa =
+    opcoes.emojiLivre !== true && ultimos4.length >= 3 && turnosComEmoji >= 3 && !pessoaUsaEmoji;
   const porEmoji = new Map<string, number>();
   for (const t of ultimos4) for (const e of emojisDoTurno(t)) porEmoji.set(e, (porEmoji.get(e) ?? 0) + 1);
   const emojis = semEmojiPelaPessoa ? [] : [...porEmoji].filter(([, n]) => n >= 3).map(([e]) => e);
@@ -252,10 +265,10 @@ const listaEntreAspas = (itens: readonly string[]): string => itens.map((i) => `
  * O bloco do turno. `''` quando a agente não se repetiu — a maioria dos turnos, e é assim que o
  * system segue idêntico. Vai no FIM do prompt, na posição de `estilo` da fila de blocos.
  */
-export function blocoDeVariacao(mensagens: readonly MensagemParaContar[]): string {
+export function blocoDeVariacao(mensagens: readonly MensagemParaContar[], opcoes: OpcoesDeVariacao = {}): string {
   let r: RepeticoesDaAgente | null;
   try {
-    r = lerRepeticoesDaAgente(mensagens);
+    r = lerRepeticoesDaAgente(mensagens, opcoes);
   } catch {
     return ""; // o estilo nunca derruba o turno
   }

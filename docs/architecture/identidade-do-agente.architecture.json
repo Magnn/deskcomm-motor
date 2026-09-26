@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Identidade e tom do agente — o cliente preenche campos, o sistema compila o bloco",
+    "subtitle": "primeira aba estruturada da configuração do agente: quem é, de que empresa fala e com que tom; vale no próximo turno, sem publicar versão",
+    "output": "identidade-do-agente.html",
+    "quality_profile": "standard"
+  },
+  "lanes": [
+    { "id": "tela", "label": "A tela (aba Identidade)" },
+    { "id": "borda", "label": "API — o único caminho que escreve" },
+    { "id": "banco", "label": "Persistência" },
+    { "id": "regra", "label": "Regra — lê e compila" },
+    { "id": "turno", "label": "Turno da IA" },
+    { "id": "volta", "label": "O laço de retorno" }
+  ],
+  "mainPath": ["tela", "rota", "config", "leitor", "bloco", "fila", "agente"],
+  "nodes": [
+    { "id": "tela", "lane": "tela", "col": 1, "type": "service", "label": "IdentidadeDoAgente (aba Identidade)", "sublabel": "campos e escolhas (tom, tratamento, emoji, tamanho como botões); a prévia mostra o bloco REAL, com a mesma função do turno" },
+
+    { "id": "rota", "lane": "borda", "col": 2, "type": "service", "label": "PUT /api/v1/ai/agents/:id/identidade (admin)", "sublabel": "valida no schema (tom fechado, sem aspas nem quebra de linha nas palavras, tetos); grava por MERGE; a rota genérica de PATCH descarta a chave" },
+    { "id": "config", "lane": "banco", "col": 3, "type": "database", "label": "ai_agents.config.identity", "sublabel": "jsonb do agente (o mesmo lugar de pricing e voice_reply); vale no próximo turno, sem versão" },
+
+    { "id": "leitor", "lane": "regra", "col": 4, "type": "service", "label": "lerIdentidade (lib/identidade/tipos.ts)", "sublabel": "leitura defensiva: desligada, vazia ou jsonb quebrado => null; nunca lança" },
+    { "id": "bloco", "lane": "regra", "col": 5, "type": "service", "label": "blocoDeIdentidade (lib/identidade/bloco-do-prompt.ts)", "sublabel": "frases-molde fixas para o vocabulário fechado; o que o cliente digita entra como dado, numa linha, sem aspas duplas; '' sem campo" },
+
+    { "id": "fila", "lane": "turno", "col": 6, "type": "service", "label": "comporSystemDoTurno — posição 'identidade' (blocos-do-turno.ts)", "sublabel": "abre a fila; anúncio, estilo, leitura, preço e entrega vêm depois e vencem em conflito; prefixo cacheável intacto" },
+    { "id": "agente", "lane": "turno", "col": 7, "type": "service", "label": "Agente responde à pessoa", "sublabel": "emoji 'à vontade' desliga a regra universal 'a pessoa não usa emoji, então não use'" },
+
+    { "id": "auditoria", "lane": "volta", "col": 3, "type": "service", "label": "audit: ai.identity_updated", "sublabel": "quem mudou como o agente fala, e quando; só o formato (campos preenchidos, escolhas), nunca o texto digitado" }
+  ],
+  "edges": [
+    { "id": "e1", "from": "tela", "to": "rota", "label": "PUT com o formulário (snake_case)" },
+    { "id": "e2", "from": "rota", "to": "config", "label": "config.identity, por merge" },
+    { "id": "e3", "from": "config", "to": "leitor", "label": "lida a cada turno com o agente publicado" },
+    { "id": "e4", "from": "leitor", "to": "bloco", "label": "IdentidadeConfig" },
+    { "id": "e5", "from": "bloco", "to": "fila", "label": "texto do bloco ('' quando não há identidade)" },
+    { "id": "e6", "from": "fila", "to": "agente", "label": "system do turno" },
+    { "id": "e7", "from": "rota", "to": "auditoria", "label": "só depois de gravar" },
+    { "id": "e8", "from": "leitor", "to": "fila", "label": "desligada, vazia ou erro => null => system idêntico ao de antes" },
+    { "id": "e9", "from": "config", "to": "tela", "label": "GET: a tela mostra o que o dono preencheu, inclusive desligada" }
+  ]
+}

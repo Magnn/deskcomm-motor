@@ -18,17 +18,21 @@
  *
  * ── A ordem, e por quê ─────────────────────────────────────────────────────
  *
- *   1. `anuncio`  — INFORMATIVO: de que anúncio a pessoa veio. Abre a fila.
- *   2. `estilo`   — ESTILO UNIVERSAL: o que a agente já repetiu (abertura, fecho,
+ *   1. `identidade` — BASE: quem o agente é e como fala (aba Identidade, definida
+ *                     pelo dono do negócio). Abre a fila: é o contexto-base.
+ *   2. `anuncio`  — INFORMATIVO: de que anúncio a pessoa veio.
+ *   3. `estilo`   — ESTILO UNIVERSAL: o que a agente já repetiu (abertura, fecho,
  *                   frase feita, emoji). Regra de forma, a mais fraca do prompt.
- *   3. `leitura`  — DIRETIVO: qual carta revelar agora (ou a causa raiz).
- *   4. `preco`    — DIRETIVO: o degrau de preço e o que dizer.
- *   5. `entrega`  — DIRETIVO: o guia do trabalho que a pessoa já pagou.
+ *   4. `leitura`  — DIRETIVO: qual carta revelar agora (ou a causa raiz).
+ *   5. `preco`    — DIRETIVO: o degrau de preço e o que dizer.
+ *   6. `entrega`  — DIRETIVO: o guia do trabalho que a pessoa já pagou.
  *
- * O informativo e o estilo vão ANTES dos diretivos para que, num conflito,
- * leitura, preço e entrega vençam: o modelo dá mais peso ao que vem por último.
- * (O estilo ainda diz, no próprio texto, que molde literal manda.) Entre os três
- * diretivos a ordem é a do funil (revelar → cobrar → entregar).
+ * A base, o informativo e o estilo vão ANTES dos diretivos para que, num
+ * conflito, leitura, preço e entrega vençam: o modelo dá mais peso ao que vem por
+ * último. (O estilo ainda diz, no próprio texto, que molde literal manda; e a
+ * identidade também.) A identidade vem ANTES do estilo de propósito: o estilo
+ * universal é a regra mais fraca e não desfaz uma escolha explícita do cliente.
+ * Entre os três diretivos a ordem é a do funil (revelar → cobrar → entregar).
  *
  * ── Bloco novo ─────────────────────────────────────────────────────────────
  *
@@ -40,7 +44,7 @@
  * Sem nenhum bloco (todos ''), o system sai idêntico ao de entrada — o prefixo
  * estável e cacheável não muda.
  */
-export const BLOCOS_DO_TURNO = ['anuncio', 'estilo', 'leitura', 'preco', 'entrega'] as const;
+export const BLOCOS_DO_TURNO = ['identidade', 'anuncio', 'estilo', 'leitura', 'preco', 'entrega'] as const;
 
 export type NomeDoBlocoDoTurno = (typeof BLOCOS_DO_TURNO)[number];
 

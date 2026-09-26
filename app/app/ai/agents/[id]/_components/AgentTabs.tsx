@@ -14,6 +14,7 @@ import { RunsTable } from "./RunsTable";
 import { UsoDasCapacidades } from "./UsoDasCapacidades";
 import { VersionHistory } from "./VersionHistory";
 import { PrecoDoAgente } from "./PrecoDoAgente";
+import { IdentidadeDoAgente } from "./IdentidadeDoAgente";
 import { VozDoAgente } from "./VozDoAgente";
 import { ProposalsPanel } from "./ProposalsPanel";
 import type { AgentRow } from "@/hooks/ai/useAgent";
@@ -45,7 +46,7 @@ interface Props {
 export function AgentTabs(props: Props) {
   const t = useT();
   const [tab, setTab] = React.useState<
-    "configuration" | "test" | "capacidades" | "voice" | "price" | "runs" | "history" | "proposals"
+    "configuration" | "identity" | "test" | "capacidades" | "voice" | "price" | "runs" | "history" | "proposals"
   >("configuration");
   const hasVersion = !!(props.draft || props.published);
 
@@ -57,6 +58,7 @@ export function AgentTabs(props: Props) {
     >
       <TabsList>
         <TabsTrigger value="configuration">{t("Configuração")}</TabsTrigger>
+        <TabsTrigger value="identity">{t("Identidade")}</TabsTrigger>
         <TabsTrigger value="test" disabled={!hasVersion}>
           {t("Teste")}
         </TabsTrigger>
@@ -85,6 +87,10 @@ export function AgentTabs(props: Props) {
           routerMembership={props.routerMembership}
           readOnly={props.readOnly}
         />
+      </TabsContent>
+
+      <TabsContent value="identity" className="m-0">
+        <IdentidadeDoAgente agentId={props.agent.id} config={props.agent.config} readOnly={props.readOnly} />
       </TabsContent>
 
       <TabsContent value="test" className="m-0">

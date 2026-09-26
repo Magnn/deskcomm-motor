@@ -457,6 +457,38 @@ diálogo e é asserida na spec.
 
 ---
 
+## J34 — Dar identidade e tom ao agente preenchendo campos, sem escrever prosa `[P1]` (2026-09-26)
+
+Contexto do código: até aqui, dizer ao agente quem ele é e como fala era escrever tudo no campo
+de instruções ("prompt único"). A aba **Identidade** (`IdentidadeDoAgente.tsx`, na página do
+agente) pede campos — nome, empresa, o que faz, público, apresentação, tom, tratamento, emojis,
+tamanho, palavras da casa e a evitar — e o código os compila num bloco literal do turno
+(`lib/identidade/bloco-do-prompt.ts`). Grava em `ai_agents.config.identity` por
+`PUT /api/v1/ai/agents/:id/identidade` (só admin) e vale no próximo turno, sem publicar.
+
+Spec: `tests/e2e/identidade-do-agente.spec.ts` — dirige a tela logada como admin, num banco
+Supabase pg15 real (baseline aplicado POR CIMA de um banco antigo, como o `update.sh` faz num
+cliente), e confere o que o servidor guardou pela própria API.
+
+| # | Caso | Expectativa | Resultado |
+|---|------|-------------|-----------|
+| J34.1 | Abrir o agente e a aba "Identidade" | a aba está entre "Configuração" e "Teste"; abre desligada e vazia, e a prévia pede para preencher | PASS |
+| J34.2 | Preencher nome, empresa, público, tom, tratamento, emoji e uma palavra da casa | a prévia mostra o bloco REAL (`- Você é Ana, da Clínica Bem-Estar.`, `- Tom: caloroso e paciente…`, `- Use as palavras da casa…`) | PASS |
+| J34.3 | "Salvar identidade" | mensagem "Identidade salva. Vale a partir da próxima conversa."; `GET …/identidade` devolve o que foi salvo no formato do schema | PASS |
+| J34.4 | Recarregar a página e reabrir a aba | os campos, o tom escolhido e o interruptor voltam como estavam (não é só estado do navegador) | PASS |
+| J34.5 | Desligar e salvar | mensagem "Identidade desligada…"; o servidor guarda `enabled: false` e o texto preenchido (a tela o mostra, o turno não o lê) | PASS |
+| J34.6 | Tema escuro e largura de 390 px | escuro legível; a 390 px o grid vira 1 coluna, sem rolagem horizontal, e a prévia deixa de ser fixa | **PASS isolado** — visto num servidor descartável com o CSS real, **não** dentro do app |
+| J34.7 | Manager tenta salvar | a rota devolve 403 e nada é gravado | **NÃO COBERTO em tela** — guardado por `app/api/v1/ai/agents/[id]/identidade/route.test.ts` |
+| J34.8 | O agente de verdade passa a falar com o tom escolhido | a resposta do modelo segue o bloco | **NÃO COBERTO** — depende do painel de Teste com o modelo (o bloco em si é provado por `tests/unit/identidade-do-agente.test.ts`) |
+
+Ferramenta, não produto: o helper `tests/e2e/helpers/login-admin.ts` chama `execFileSync("npx")`,
+que no Windows não existe como executável (só `npx.cmd`) e derruba a spec com `spawnSync npx
+ENOENT` antes de qualquer teste. Quem monta bancada em Windows semeia à mão
+(`npx tsx scripts/seed-e2e-credentials.ts` e `scripts/seed-e2e-followup-agent.ts`) para o
+`.e2e-creds.json` já existir.
+
+---
+
 ## J33 — Simular a conversa dentro do construtor de fluxo, sem sair da tela `[P1]`
 
 Contexto do código: `/app/ai/followups/[id]` (FlowCanvas) sempre exigiu publicar
