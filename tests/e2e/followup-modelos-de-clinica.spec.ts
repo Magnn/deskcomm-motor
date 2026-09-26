@@ -46,7 +46,7 @@ test.describe("follow-ups · modelos prontos de clínica", () => {
   test("manager instala um modelo e cai no construtor com o fluxo desenhado", async ({ page }) => {
     await login(page, creds.users.manager!.email);
     await page.goto("/app/ai/followups");
-    await expect(page.getByRole("heading", { name: "Follow-ups" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Fluxos", exact: true })).toBeVisible();
 
     await page.getByRole("button", { name: /Começar de um modelo/i }).click();
     const dialog = page.getByRole("dialog");
@@ -121,7 +121,7 @@ test.describe("follow-ups · modelos prontos de clínica", () => {
   test("viewer não vê a galeria de modelos (RBAC)", async ({ page }) => {
     await login(page, creds.users.viewer!.email);
     await page.goto("/app/ai/followups");
-    await expect(page.getByRole("heading", { name: "Follow-ups" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Fluxos", exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: /Começar de um modelo/i })).toHaveCount(0);
   });
 });

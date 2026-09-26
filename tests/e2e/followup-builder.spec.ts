@@ -104,7 +104,7 @@ test.describe("followup flows — lista + criação (Task 6.1)", () => {
     await login(page, creds.users.manager!.email);
 
     await page.goto("/app/ai/followups");
-    await expect(page.getByRole("heading", { name: "Follow-ups" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Fluxos", exact: true })).toBeVisible();
     await page.screenshot({ path: "test-results/followup-6.1-01-list.png", fullPage: true });
 
     const flowName = `E2E Follow-up ${Date.now()}`;
@@ -170,7 +170,7 @@ test.describe("followup flows — lista + criação (Task 6.1)", () => {
     // botão "Novo fluxo" não aparece pro viewer.
     await login(page, creds.users.viewer!.email);
     await page.goto("/app/ai/followups");
-    await expect(page.getByRole("heading", { name: "Follow-ups" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Fluxos", exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "Novo fluxo" })).toHaveCount(0);
   });
 });
