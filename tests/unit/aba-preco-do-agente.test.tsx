@@ -55,7 +55,7 @@ describe("aba Preço", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Adicionar degrau" }));
     fireEvent.change(screen.getByLabelText("Valor (R$)"), { target: { value: "110" } });
-    fireEvent.change(screen.getByLabelText("Cupom no checkout"), { target: { value: "ESMERALDA110" } });
+    fireEvent.change(screen.getByLabelText("Cupom no checkout"), { target: { value: "CUPOM110" } });
     fireEvent.click(screen.getByRole("button", { name: "Adicionar degrau" }));
     const valores = screen.getAllByLabelText("Valor (R$)");
     fireEvent.change(valores[1]!, { target: { value: "100" } });
@@ -75,7 +75,7 @@ describe("aba Preço", () => {
       anchor_price_cents: 26_000,
       anchor_is_real: true,
       steps: [
-        { price_cents: 11_000, coupon_code: "ESMERALDA110" },
+        { price_cents: 11_000, coupon_code: "CUPOM110" },
         { price_cents: 10_000, payment_url: "https://pay.cakto.com.br/abc_100" },
       ],
     });
@@ -107,12 +107,12 @@ describe("aba Preço", () => {
       pricing: {
         enabled: true,
         list_price_cents: 13_000,
-        steps: [{ price_cents: 11_000, coupon_code: "ESMERALDA110" }],
+        steps: [{ price_cents: 11_000, coupon_code: "CUPOM110" }],
       },
     });
     expect(screen.getByRole("switch", { name: "Usar esta política de preço" })).toHaveAttribute("aria-checked", "true");
     expect(screen.getByLabelText("Valor de venda (R$)")).toHaveValue("130,00");
-    expect(screen.getByLabelText("Cupom no checkout")).toHaveValue("ESMERALDA110");
+    expect(screen.getByLabelText("Cupom no checkout")).toHaveValue("CUPOM110");
     fireEvent.click(screen.getByRole("button", { name: "Remover" }));
     expect(screen.queryByLabelText("Cupom no checkout")).not.toBeInTheDocument();
     expect(screen.getByTestId("resumo-do-preco")).toHaveTextContent("Mínimo que a agente aceita: R$ 130.");

@@ -4,7 +4,7 @@ Aba **Preço** no detalhe do agente. Três campos e uma trava:
 
 | Campo | O que é | Efeito |
 |---|---|---|
-| Valor de venda | O que o link de pagamento cobra | O agente só o diz depois de entregar o valor (leitura, no funil da Cigana) |
+| Valor de venda | O que o link de pagamento cobra | O agente só o diz depois de entregar o valor (leitura, num funil de venda de leitura) |
 | Valor de referência (opcional) | O preço cheio | Citado UMA vez, como "valor de referência", sem prazo nem pressão. Exige a declaração `anchor_is_real` |
 | Degraus (até 3) | Valores menores, cada um com **cupom ou link** | Oferecidos um por vez, na ordem, só se a pessoa pedir desconto ou disser que está caro. O último é o **mínimo** |
 

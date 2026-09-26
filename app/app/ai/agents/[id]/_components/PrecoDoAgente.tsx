@@ -249,7 +249,7 @@ export function PrecoDoAgente({ agentId, config, readOnly }: Props) {
               <Label htmlFor={`degrau-cupom-${i}`}>{t("Cupom no checkout")}</Label>
               <Input
                 id={`degrau-cupom-${i}`}
-                placeholder="ESMERALDA110"
+                placeholder="CUPOM110"
                 value={d.cupom}
                 onChange={(e) => mudaDegrau(i, { cupom: e.target.value })}
                 disabled={readOnly}
