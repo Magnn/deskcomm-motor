@@ -87,6 +87,7 @@ import { carregarGuiaDeEntrega, trabalhoPagoDasTags } from '@/lib/entrega/guia-d
 import { blocoDaLeitura } from '@/lib/leitura/bloco-do-prompt';
 import { blocoDoAnuncio, carregarAnuncioDoContato } from '@/lib/anuncio/contexto-do-anuncio';
 import { comporSystemDoTurno } from './blocos-do-turno';
+import { blocoDeVariacao } from '@/lib/estilo/variacao-do-agente';
 import { passoDaLeitura } from '@/lib/leitura/estado-da-leitura';
 import { precoPermitidoAgora, reclamacoesDeValor } from '@/lib/preco/estado-da-negociacao';
 import { deveResponderEmAudio } from '@/lib/voz/decisao';
@@ -2300,10 +2301,15 @@ async function executarTurnoDoAgente(
   if (blocoDoAnuncioDoTurno !== '') {
     runLog.info('contexto do anúncio no turno', { plataforma: anuncioDoContato?.plataforma });
   }
+  // Variação de estilo (camada UNIVERSAL, invisível ao cliente): o código lê as últimas mensagens da
+  // própria agente e lista o que ela já repetiu (abertura, fecho, frase feita, emoji), porque o modelo
+  // pequeno não se vigia entre turnos. Turno de molde (marcador em caixa alta) fica fora da conta.
+  const blocoDeVariacaoDoTurno = blocoDeVariacao(openingContext.context.messages);
   // A ORDEM dos blocos mora em `blocos-do-turno.ts` (é dado lá, com o porquê): aqui só se diz qual
   // texto é de qual bloco. Bloco novo = um nome na fila lá + uma chave aqui; o typecheck cobra os dois.
   const systemDoTurno = comporSystemDoTurno(system, {
     anuncio: blocoDoAnuncioDoTurno,
+    estilo: blocoDeVariacaoDoTurno,
     leitura: blocoDaLeituraDoTurno,
     preco: blocoDePrecoDoTurno,
     entrega: blocoDaEntrega,
