@@ -2285,9 +2285,10 @@ async function executarTurnoDoAgente(
       runLog.warn('guia de entrega indisponível', { erro: err instanceof Error ? err.message.slice(0, 120) : 'desconhecido' });
     }
   }
-  // Leitura de tarot: a pessoa escolheu 3 números do baralho fechado (achado no histórico) →
-  // o código sorteia de verdade (nunca o modelo) e revela uma carta por turno; depois das 3,
-  // a causa raiz. Sem escolha nenhuma na janela, `passoDaLeitura` devolve null e o bloco some.
+  // Leitura de tarot: a pessoa escolheu 3 números do baralho fechado (achado no histórico, DEPOIS de a
+  // agente oferecê-lo) → o código sorteia de verdade (nunca o modelo) e revela uma carta por turno;
+  // depois das 3, a causa raiz. Sem escolha na janela, ou com a causa raiz já dita, `passoDaLeitura`
+  // devolve null e o bloco some.
   const passoDaLeituraNoTurno = passoDaLeitura(`${tenantId}:${leadId}`, openingContext.context.messages);
   const blocoDaLeituraDoTurno = blocoDaLeitura(passoDaLeituraNoTurno);
   // Contexto do anúncio: quem chegou por um anúncio (atribuição de 1º toque em `contacts.source_metadata`)
