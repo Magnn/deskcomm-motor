@@ -15,6 +15,7 @@
  */
 import type pg from 'pg';
 
+import { lerIdentidade, type IdentidadeConfig } from '@/lib/identidade/tipos';
 import { lerPricing, type PricingConfig } from '@/lib/preco/tipos';
 import { lerVoiceReply, type VoiceReplyConfig } from '@/lib/voz/tipos';
 
@@ -99,6 +100,12 @@ export interface PublishedAgentConfig {
    * negocia e o turno segue como sempre. Ausente e `null` significam a mesma coisa.
    */
   pricing?: PricingConfig | null;
+  /**
+   * Identidade e tom (`ai_agents.config.identity`, aba "Identidade"): como o agente se chama, de que
+   * empresa fala, com que tom. `null` = desligada: o turno segue como sempre. Ausente e `null`
+   * significam a mesma coisa.
+   */
+  identity?: IdentidadeConfig | null;
   /** criadores (p/ mint do token efêmero de audit — padrão do runtime nativo). */
   versionCreatedBy: string | null;
   agentCreatedBy: string | null;
@@ -233,6 +240,7 @@ function mapAgentConfigRow(r: Row): PublishedAgentConfig {
     // "desligada" — a direção segura é continuar respondendo em texto.
     voiceReply: lerVoiceReply(r.config),
     pricing: lerPricing(r.config),
+    identity: lerIdentidade(r.config),
     versionCreatedBy: r.version_created_by,
     agentCreatedBy: r.agent_created_by,
   };

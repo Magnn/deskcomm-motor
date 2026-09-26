@@ -88,6 +88,7 @@ import { blocoDaLeitura } from '@/lib/leitura/bloco-do-prompt';
 import { blocoDoAnuncio, carregarAnuncioDoContato } from '@/lib/anuncio/contexto-do-anuncio';
 import { comporSystemDoTurno } from './blocos-do-turno';
 import { blocoDeVariacao } from '@/lib/estilo/variacao-do-agente';
+import { blocoDeIdentidade } from '@/lib/identidade/bloco-do-prompt';
 import { passoDaLeitura } from '@/lib/leitura/estado-da-leitura';
 import { precoPermitidoAgora, reclamacoesDeValor } from '@/lib/preco/estado-da-negociacao';
 import { deveResponderEmAudio } from '@/lib/voz/decisao';
@@ -2304,7 +2305,14 @@ async function executarTurnoDoAgente(
   // Variação de estilo (camada UNIVERSAL, invisível ao cliente): o código lê as últimas mensagens da
   // própria agente e lista o que ela já repetiu (abertura, fecho, frase feita, emoji), porque o modelo
   // pequeno não se vigia entre turnos. Turno de molde (marcador em caixa alta) fica fora da conta.
-  const blocoDeVariacaoDoTurno = blocoDeVariacao(openingContext.context.messages);
+  // Identidade e tom (aba "Identidade", definida pelo dono do negócio): campos compilados num bloco
+  // literal. Sem a aba preenchida devolve '' e o turno segue idêntico. Uma escolha explícita de emoji
+  // "à vontade" vence a heurística universal de "a pessoa não usa emoji, então não use".
+  const identidadeDoAgente = agentConfig?.identity ?? null;
+  const blocoDeIdentidadeDoTurno = blocoDeIdentidade(identidadeDoAgente);
+  const blocoDeVariacaoDoTurno = blocoDeVariacao(openingContext.context.messages, {
+    emojiLivre: identidadeDoAgente?.emojis === 'livre',
+  });
   if (blocoDeVariacaoDoTurno !== '') {
     // Só o fato, nunca o texto da conversa: quem investiga "por que ela não repetiu?" vê nos logs do
     // worker (e do app, no painel de Teste) que o bloco entrou neste turno.
@@ -2313,6 +2321,7 @@ async function executarTurnoDoAgente(
   // A ORDEM dos blocos mora em `blocos-do-turno.ts` (é dado lá, com o porquê): aqui só se diz qual
   // texto é de qual bloco. Bloco novo = um nome na fila lá + uma chave aqui; o typecheck cobra os dois.
   const systemDoTurno = comporSystemDoTurno(system, {
+    identidade: blocoDeIdentidadeDoTurno,
     anuncio: blocoDoAnuncioDoTurno,
     estilo: blocoDeVariacaoDoTurno,
     leitura: blocoDaLeituraDoTurno,
