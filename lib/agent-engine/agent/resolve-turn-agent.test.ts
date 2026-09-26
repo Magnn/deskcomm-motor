@@ -392,3 +392,69 @@ describe('resolveConversationTurn — contexto curto do classificador', () => {
     expect(classifyIntent).not.toHaveBeenCalled();
   });
 });
+
+describe('resolveTurnAgent — degrau 0: um fluxo pôs um agente no comando (nó "Agente de IA")', () => {
+  const entrada = { ...baseInput, signal: 'quero marcar', stickyAgentId: null, stickyIntent: null };
+
+  function comFluxo(agenteDoFluxo: ReturnType<typeof vi.fn>, extras: Parameters<typeof makeDeps>[0] = {}) {
+    return { ...(makeDeps(extras) as object), agenteDoFluxo } as never;
+  }
+
+  it('o agente do fluxo atende, com outcome "fluxo" — e nem a campanha, nem o roteador, nem o classificador são consultados', async () => {
+    const agenteDoFluxo = vi.fn().mockResolvedValue('agent-do-fluxo');
+    const agenteDaCampanha = vi.fn().mockResolvedValue('agent-campanha');
+    const loadActiveRouter = vi.fn().mockResolvedValue(router());
+    const classifyIntent = vi.fn();
+    const loadPublishedAgentConfigById = idAwareLoader();
+    const deps = { ...(comFluxo(agenteDoFluxo, { loadActiveRouter, classifyIntent, loadPublishedAgentConfigById }) as object), agenteDaCampanha } as never;
+
+    const out = await resolveTurnAgent({} as never, {} as never, entrada, deps);
+
+    expect(out.outcome).toBe('fluxo');
+    expect(out.config?.agentId).toBe('agent-do-fluxo');
+    expect(agenteDoFluxo).toHaveBeenCalledWith({}, 'org-1', 'lead-1');
+    expect(agenteDaCampanha).not.toHaveBeenCalled();
+    expect(loadActiveRouter).not.toHaveBeenCalled();
+    expect(classifyIntent).not.toHaveBeenCalled();
+  });
+
+  it('ninguém no comando: a régua de sempre segue intacta (sem router → agente da sessão)', async () => {
+    const agenteDoFluxo = vi.fn().mockResolvedValue(null);
+    const loadActiveRouter = vi.fn().mockResolvedValue(null);
+    const loadPublishedAgentConfig = vi.fn().mockResolvedValue(fakeConfig('agent-sessao'));
+    const out = await resolveTurnAgent({} as never, {} as never, entrada, comFluxo(agenteDoFluxo, { loadActiveRouter, loadPublishedAgentConfig }));
+    expect(out.outcome).toBe('no_router');
+    expect(out.config?.agentId).toBe('agent-sessao');
+  });
+
+  it('o agente do fluxo sem versão publicada cai FALHA-ABERTA na régua normal, com aviso — o turno não cala', async () => {
+    const agenteDoFluxo = vi.fn().mockResolvedValue('agent-sem-versao');
+    const loadPublishedAgentConfigById = vi.fn().mockResolvedValue(null);
+    const loadActiveRouter = vi.fn().mockResolvedValue(null);
+    const loadPublishedAgentConfig = vi.fn().mockResolvedValue(fakeConfig('agent-sessao'));
+    const deps = comFluxo(agenteDoFluxo, { loadPublishedAgentConfigById, loadActiveRouter, loadPublishedAgentConfig });
+    const out = await resolveTurnAgent({} as never, {} as never, entrada, deps);
+    expect(out.outcome).toBe('no_router');
+    expect(out.config?.agentId).toBe('agent-sessao');
+    expect((deps as unknown as { log: { warn: ReturnType<typeof vi.fn> } }).log.warn).toHaveBeenCalledWith(
+      expect.stringContaining('agente do fluxo sem versão publicada'),
+      expect.anything(),
+    );
+  });
+
+  it('a LEITURA do fluxo falhar não vira "o roteador quebrou": a campanha e o roteador seguem valendo', async () => {
+    const agenteDoFluxo = vi.fn().mockRejectedValue(new Error('banco fora do ar'));
+    const loadActiveRouter = vi.fn().mockResolvedValue(router({ sticky: false }));
+    const classifyIntent = vi.fn().mockResolvedValue({ intentName: 'vendas', confidence: 0.9 });
+    const loadPublishedAgentConfigById = idAwareLoader();
+    const deps = comFluxo(agenteDoFluxo, { loadActiveRouter, classifyIntent, loadPublishedAgentConfigById });
+    const out = await resolveTurnAgent({} as never, {} as never, entrada, deps);
+    // o resultado é o do ROTEADOR (classified), e não o rebaixamento "classifier_failed" do catch geral
+    expect(out.outcome).toBe('classified');
+    expect(out.config?.agentId).toBe('agent-vendas');
+    expect((deps as unknown as { log: { warn: ReturnType<typeof vi.fn> } }).log.warn).toHaveBeenCalledWith(
+      expect.stringContaining('não consegui ler o agente do fluxo'),
+      expect.anything(),
+    );
+  });
+});

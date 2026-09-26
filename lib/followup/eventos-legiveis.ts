@@ -386,6 +386,14 @@ export function descreveEvento(
       return { titulo: "Seguiu em frente", detalhe: `foi para ${refDoNo(texto(p.next_node_id), nos)}`, ...motor };
     case "wait_started": {
       const ate = quandoLegivel(p.next_eval_at, idioma);
+      // A chegada ao nó "Agente de IA": não é uma espera, é a passagem da conversa para o agente.
+      if (texto(p.wake_status) === "com_agente") {
+        return {
+          titulo: "A conversa passou para o agente",
+          detalhe: ate ? `se a pessoa não responder, o fluxo segue em ${ate}` : null,
+          ...motor,
+        };
+      }
       const modo = texto(p.mode) === "smart" ? " (tempo escolhido pelo agente)" : "";
       return { titulo: "Começou a esperar", detalhe: ate ? `volta a olhar em ${ate}${modo}` : null, ...motor };
     }
@@ -420,6 +428,19 @@ export function descreveEvento(
     }
     case "action_sent":
       return { titulo: "Mensagem enviada", detalhe: null, ...motor };
+    case "agente_turno":
+      return { titulo: "O agente respondeu", detalhe: null, ...motor };
+    case "agente_saiu": {
+      // O resumo é o que o agente escreveu ao encerrar; o objetivo (instrução do dono do fluxo) nunca aparece aqui.
+      const saida = texto(p.saida);
+      const titulo =
+        saida === "concluiu"
+          ? "O agente cumpriu o objetivo"
+          : saida === "limite"
+            ? "O agente chegou ao limite de respostas"
+            : "O agente saiu da etapa";
+      return { titulo, detalhe: texto(p.resumo), ...motor };
+    }
     case "ai_classified":
       return {
         titulo: "O agente interpretou a resposta",

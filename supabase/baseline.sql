@@ -38187,4 +38187,20 @@ grant select, insert on table public.revenue_ledger to service_role;
 comment on table public.revenue_ledger is
   'Ledger financeiro imutável (equivalente ao RevenueEvent do NEXUS Revenue Graph, sem nenhuma peça de decisão). Fato de receita bruto por evento de gateway externo (charge/refund/chargeback/adjustment), dedupe por (organization_id, provider, event_type, external_event_id). Append-only: anon/authenticated/service_role sem UPDATE/DELETE/TRUNCATE (migration 0416, mesmo padrão de api_audit_log/0258) — só o dono do banco pode. Escrito hoje só pelo webhook da Cakto (lib/pagamentos/ledger-de-receita.ts); NÃO tem regra de decisão nenhuma, só reconciliação e relatório.';
 
+-- ---- inscrição com relógio conta como "atual" no guarda de agenda (migration 0902) ----
+-- `fn_appointment_enrollment_current` só reconhecia active/waiting_reply: uma inscrição `com_agente` (0901) ou
+-- `dormente` (0308) VENCIDA era cancelada pelo tick com "Atendimento encerrado ou substituído". Última definição
+-- vence (o arquivo é aplicado inteiro e em ordem). Idempotente.
+create or replace function public.fn_appointment_enrollment_current(p_org uuid,p_id uuid,p_node text default null)
+returns boolean language sql stable security definer set search_path=public as $$
+ select exists(select 1 from public.followup_enrollments e where e.organization_id=p_org and e.id=p_id
+  and e.status in ('active','waiting_reply','dormente','com_agente') and (p_node is null or e.current_node_id=p_node)
+  and (e.appointment_revision is null or exists(select 1 from public.calendar_appointments a
+   where a.organization_id=p_org and a.id=e.appointment_id and a.revision=e.appointment_revision and a.status='no_show'
+    and a.outcome_recorded_at is not null and a.contact_id=e.contact_id
+    and exists(select 1 from public.appointment_recovery_receipts r where r.organization_id=p_org and r.appointment_id=a.id and r.appointment_revision=a.revision and r.result='started' and r.invalidated_at is null))));
+$$;
+revoke all on function public.fn_appointment_enrollment_current(uuid,uuid,text) from public,anon,authenticated;
+grant execute on function public.fn_appointment_enrollment_current(uuid,uuid,text) to service_role;
+
 notify pgrst, 'reload schema';

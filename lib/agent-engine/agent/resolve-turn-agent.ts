@@ -60,6 +60,7 @@ import type pg from 'pg';
 
 import type { Logger } from '../obs/logger';
 import type { LlmEdgeConfig } from '../edge/llm/run-model-call';
+import { agenteDoFluxoDoContato } from '@/lib/followup/agente-no-fluxo';
 import { agenteDaCampanhaDaConversa } from './agente-da-campanha';
 import { loadActiveRouter, type RouterMember } from './router-config';
 import {
@@ -92,7 +93,9 @@ export interface TurnAgentResolution {
     | 'no_match'
     | 'classifier_failed'
     /** A conversa nasceu de uma campanha que declarou agente (migration 0267). */
-    | 'campanha';
+    | 'campanha'
+    /** Um fluxo pôs um agente no comando da conversa (nó "Agente de IA", status `com_agente`). */
+    | 'fluxo';
   /**
    * Fluxo de atendimento que o membro casado aponta (migration 0394; 0237 na branch do autor). O turno
    * começa o fluxo para o contato; `null` = nenhum. Só rótulos casados o trazem
@@ -105,6 +108,7 @@ export interface ResolveTurnAgentDeps {
   log: Logger;
   /** Injetável para o teste não precisar de banco. */
   agenteDaCampanha?: typeof agenteDaCampanhaDaConversa;
+  agenteDoFluxo?: typeof agenteDoFluxoDoContato;
   loadActiveRouter?: typeof loadActiveRouter;
   loadPublishedAgentConfigById?: typeof loadPublishedAgentConfigById;
   loadPublishedAgentConfig?: typeof loadPublishedAgentConfig;
@@ -134,7 +138,38 @@ export async function resolveTurnAgent(
   const _classifyIntent = deps.classifyIntent ?? classifyIntent;
 
   try {
-    // ─── Degrau 0: a campanha que criou esta conversa ───
+    // ─── Degrau 0 (acima de tudo): um fluxo pôs um agente no comando ───
+    //
+    // O nó "Agente de IA" de um fluxo (inscrição `com_agente`) escolheu QUEM conduz esta conversa até o objetivo,
+    // o limite ou o silêncio. Vale mais que a campanha e que o roteador: é uma decisão explícita, tomada pelo dono
+    // do fluxo para ESTA etapa, e o roteador reclassificaria o assunto no meio dela e trocaria a voz.
+    //
+    // Falha ABERTA, como a campanha: agente sem versão publicada devolve `null` e o turno segue pela régua normal
+    // em vez de calar — e a leitura do fluxo que falha não pode derrubar o atendimento (o `catch` no fim desta
+    // função já cai no agente da sessão).
+    const _agenteDoFluxo = deps.agenteDoFluxo ?? agenteDoFluxoDoContato;
+    let idDoFluxo: string | null = null;
+    try {
+      idDoFluxo = await _agenteDoFluxo(db, input.tenantId, input.leadId);
+    } catch (err) {
+      // A LEITURA do fluxo falhar não pode cair no `catch` do fim da função: ele diria "o roteador quebrou" e pularia
+      // a campanha e o roteador de quem nem tem fluxo. Aqui a falha só significa "ninguém no comando".
+      deps.log.warn('resolve-turn-agent: não consegui ler o agente do fluxo — seguindo sem ele', {
+        error: err instanceof Error ? err.message.slice(0, 160) : String(err).slice(0, 160),
+      });
+    }
+    if (idDoFluxo !== null) {
+      const config = await _loadAgentById(db, input.tenantId, idDoFluxo);
+      if (config !== null) {
+        return { config, routerId: null, intentName: null, confidence: null, outcome: 'fluxo' };
+      }
+      deps.log.warn('agente do fluxo sem versão publicada; seguindo pela régua do número', {
+        tenantId: input.tenantId,
+        conversationId: input.conversationId,
+      });
+    }
+
+    // ─── Degrau 1: a campanha que criou esta conversa ───
     //
     // ACIMA do roteador de propósito. O roteador é do NÚMERO e classifica
     // assunto; a campanha é a razão de a conversa existir, e ela sabe algo que

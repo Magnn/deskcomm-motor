@@ -10,8 +10,8 @@ visita") e, a partir dali, é o agente quem conduz a conversa, turno a turno, at
 | Fatia | O que é | Estado |
 |---|---|---|
 | 1 | O status `com_agente` da inscrição (migration `0901` + código) | mesclada; a migration **não** está aplicada no banco de produção |
-| 2 | Esquema do nó, publicação e simulador | **esta** — o nó existe no grafo, mas **não publica** |
-| 3 | O motor: o turno conduzido pelo fluxo, o bloco `fluxo` no prompt e a ferramenta `concluir_etapa` | pendente (exige a migration `0901` aplicada) |
+| 2 | Esquema do nó, publicação e simulador | mesclada — o nó existe no grafo, mas **não publica** |
+| 3 | O motor: chegada, turno conduzido, bloco `fluxo`, ferramenta `concluir_etapa`, limite e silêncio | **esta** — o motor roda, mas o nó continua **sem publicar**; exige as migrations `0901` e `0902` aplicadas |
 | 4 | O editor: paleta, painel de configuração e o seletor de agente | pendente |
 
 ## O nó
@@ -58,11 +58,48 @@ qual das três saídas seguir (`saida_do_agente`); "sem resposta" vale como sil�
 digitada não avança (o agente ainda estaria conduzindo). O painel (fatia 4) ainda não desenha essas
 escolhas; a lógica já é testada em `lib/followup/no-agente.test.ts`.
 
-## O motor, enquanto não existe
+## O motor (fatia 3)
 
-`processNode` devolve `fail` com o motivo para um nó `agent`. É uma rede de segurança, não um
-caminho: o publish já recusa o nó, então nenhuma inscrição chega lá. A alternativa — avançar sem o
-agente — mandaria a pessoa por uma saída que ninguém percorreu.
+Quem conduz a conversa é o **turno**, não o relógio. O relógio só decide o silêncio.
+
+1. **Chegada.** `processNode` no nó `agent`, com a inscrição `active`, a estaciona em `com_agente` com o prazo de
+   silêncio (`silencio_minutos`) como relógio. **O agente não abre a conversa**: assume quando a pessoa responde. Para
+   abrir, o dono do fluxo põe uma caixa de **Mensagem antes** do agente — o fluxo fala, o agente conduz o que vem depois,
+   e não nasce um segundo caminho de envio com as suas travas.
+2. **Quem atende.** No degrau 0 do resolvedor do turno (`resolveTurnAgent`), acima da campanha e do roteador, o agente
+   do nó atende (`outcome: 'fluxo'`). **Falha aberta**: agente sem versão publicada, ou erro ao ler o fluxo, seguem a
+   régua normal — e o erro de leitura não vira "o roteador quebrou".
+3. **O turno.** Só na resposta à pessoa e fora do painel de Teste, `carregarAgenteDoFluxo` traz o objetivo e as
+   respostas restantes; o bloco `FLUXO` entra na fila (depois do estilo, antes de leitura/preço/entrega/limites) e a
+   ferramenta `concluir_etapa` existe **só neste turno**. Na última resposta o bloco pede um fechamento gentil.
+4. **As três saídas.**
+   - **Cumpriu** — o agente chama `concluir_etapa`; `encerrarAgenteNoFluxo` move a inscrição num comando SQL só, que
+     exige `com_agente`, o mesmo nó, o mesmo passo e nenhum lease de tick; quem chega depois recebe "etapa já
+     encerrada", não um erro.
+   - **Limite** — depois de o envio dar certo, o turno é contado (idempotente pela mensagem que o motivou, pelo índice
+     único de eventos) e, ao atingir `max_turnos`, a inscrição sai pela mesma função. `>=`, e não `===`.
+   - **Silêncio** — o prazo vence, o claim acorda a inscrição e `processNode` a leva pela saída de silêncio. Cada
+     resposta do agente **renova** o prazo.
+5. **Uma pessoa assume a conversa:** quem manda é a política de transferência do ponteiro, não uma saída do nó.
+
+A contagem de respostas é **por passo** (`steps_taken` da inscrição): duas visitas ao mesmo nó, num laço, não somam.
+Falha de contagem ou de leitura **nunca derruba o turno**: a resposta já saiu, e o relógio de silêncio pega o resto.
+
+### O defeito que o Postgres de verdade achou (migration 0902)
+
+O guarda de agenda (`fn_appointment_enrollment_current`, 0224) só reconhecia `active` e `waiting_reply`. O tick o
+chama em toda inscrição que reclama, então uma `com_agente` **vencida** era cancelada com "Atendimento encerrado ou
+substituído" em vez de sair pelo silêncio. Nenhum teste de TypeScript alcança isso (o guarda mora em SQL); apareceu ao
+ligar o motor num banco real. A mesma sonda mostrou que uma inscrição **`dormente`** (espera longa imune, 0308) vencida
+é cancelada pelo mesmo caminho — defeito anterior à 0901. A 0902 passa a lista para os quatro status com relógio.
+**Não trata** `fn_appointment_recover` (no-show), cuja checagem de "outro fluxo vivo" também não lista `com_agente`:
+hoje um índice único impede o conflito, mas com erro em vez de resposta graciosa.
+
+### Enquanto o nó não publica
+
+O publish continua recusando o nó (`no_em_construcao`) e a paleta não o oferece: o editor é a fatia 4, e as migrations
+0901/0902 ainda **não estão aplicadas no banco de produção** (aplicar exige autorização do dono). Tudo o que o motor
+faz só acontece para uma inscrição `com_agente`, que ninguém consegue criar antes disso.
 
 ## A tela de leitura
 
@@ -72,7 +109,12 @@ instrução que o dono do fluxo escreveu para o agente.
 
 ## Provas
 
-`lib/followup/no-agente.test.ts` (30 testes: schema, saídas, publicação, carregador, simulador, motor e
-a projeção de leitura). Oito mutações — o gate de "em construção", a organização na consulta, o agente
-arquivado, a cobertura das saídas, a mensagem digitada no simulador, o motor avançando em vez de falhar,
-o resumo vazando o objetivo e o schema deixando de ser estrito — caem nos testes certos.
+- `lib/followup/no-agente.test.ts` (fatia 2: schema, saídas, publicação, carregador, simulador, projeção de leitura) e
+  `lib/followup/agente-no-fluxo.test.ts` (fatia 3: bloco, contagem, saída atômica, motor), com banco de mentira;
+- `tests/invariants/agente-no-fluxo-runtime.test.ts`, **contra um Postgres de verdade** (`pnpm test:db`): o SQL de
+  leitura e de escrita, a idempotência pelo índice único, a saída condicionada (segunda chamada, lease vivo, passo
+  velho), a **chegada e o silêncio pelo tick de produção**, e a 0902;
+- `tests/unit/agente-no-fluxo-fiacao.test.ts` (a costura no `inbound-turn.ts`) e os casos do degrau 0 em
+  `resolve-turn-agent.test.ts`;
+- mutações que caem nos testes certos: as da fatia 2 e, na 3, a ferramenta fora do `if`, o painel de Teste carregando
+  o estado, o limite sem exigir turno novo e a contagem antes de checar o envio.
