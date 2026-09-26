@@ -48,6 +48,7 @@
 #      pela cabeça publicada com o número antigo).
 #  29. cópia de PR em refs/remotes/*/pr/N (fetch de triagem) não traz fantasma de volta.
 #  30. mais de 30 PRs abertos: o gate pede --limit, senão o gh corta calado em 30.
+#  34. o número do próprio PR vem do GITHUB_REF do CI — e o ambiente de quem roda não vaza.
 set -uo pipefail
 
 RAIZ="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -124,6 +125,13 @@ GH
 chmod +x "$TMP/bin/gh"
 export PATH="$TMP/bin:$PATH"
 unset FAKE_GH_PRS FAKE_GH_PRS_FECHADOS FAKE_GH_PAI FAKE_GH_SEM_NUMERO
+# O gate lê o número do PRÓPRIO PR em `GITHUB_REF` (refs/pull/N/merge) e o tira da lista. No CI
+# essa variável vem preenchida, e os casos daqui usam PRs FALSOS de número baixo (5, 7, 9, 11…):
+# quando o PR real tem o mesmo número, o "outro PR" do caso vira o próprio e some da lista. Nos
+# repositórios de número alto isso nunca aparecia; num fork, com PRs #1, #2…, o caso 26 falhava
+# só porque a rodada era do PR #11. Cada caso cria o ambiente que quer (o 34 exercita o
+# GITHUB_REF de propósito) — o de quem roda não entra.
+unset GITHUB_REF
 
 # ── um "repositório principal" mínimo, com duas migrations já aplicadas ──────────────
 principal="$TMP/principal"; mkdir -p "$principal/supabase/migrations"
@@ -626,6 +634,19 @@ assert_exit "$code" 0 "a falha transiente de checkout é absorvida"
 assert_exit "$(wc -l < "$n33" | tr -d ' ')" 2 "e absorvida REPETINDO o clone, não aceitando o da 1ª tentativa"
 if [ -n "$(ls "$d/supabase/migrations/" 2>/dev/null)" ]; then ok "a árvore chega inteira"
 else falha "a árvore chega inteira" "supabase/migrations vazio: seguiu com o clone pela metade"; fi
+
+echo "34. o número do próprio PR vem do GITHUB_REF do CI, e o ambiente de quem roda não vaza"
+# Sem GITHUB_REF (o estado a que o topo do arquivo leva) o #7 é OUTRO PR e entra na lista; no CI
+# o mesmo #7 é o próprio PR e sai dela. É o par que faltava: nenhum caso exercitava o GITHUB_REF,
+# e foi por isso que a rodada do PR #11 de um fork passou despercebida até falhar o caso 26.
+c="$TMP/c34"; clonar "$c"; git -C "$c" switch -q -c fix/pr
+migrar "$c" "20260918000500_0263_meu.sql"; commit "$c" "PR com número livre"
+saida="$(gate_prs "7" "$c")"; code=$?
+assert_exit "$code" 0 "o gate passa com o #7 aberto"
+assert_not_contains "$saida" "O seu fica fora" "sem GITHUB_REF o #7 é outro PR (nenhum é 'o seu')"
+saida="$( export GITHUB_REF=refs/pull/7/merge; gate_prs "7" "$c" )"; code=$?
+assert_exit "$code" 0 "o gate passa no CI do #7"
+assert_contains "$saida" "O seu fica fora: #7" "no CI, o número do próprio PR sai do GITHUB_REF e ele fica fora da lista"
 
 echo
 if [ "$falhas" = 0 ]; then echo "colisao-de-migration: $casos casos, todos verdes"; exit 0
