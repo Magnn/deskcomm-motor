@@ -16,6 +16,7 @@
 import type pg from 'pg';
 
 import { lerIdentidade, type IdentidadeConfig } from '@/lib/identidade/tipos';
+import { lerOferta, type OfertaConfig } from '@/lib/oferta/tipos';
 import { lerPricing, type PricingConfig } from '@/lib/preco/tipos';
 import { lerVoiceReply, type VoiceReplyConfig } from '@/lib/voz/tipos';
 
@@ -106,6 +107,12 @@ export interface PublishedAgentConfig {
    * significam a mesma coisa.
    */
   identity?: IdentidadeConfig | null;
+  /**
+   * Oferta (`ai_agents.config.offer`, aba "Oferta"): o que a empresa vende, em campos — produtos, o que
+   * inclui, entrega, garantia real, o que nunca prometer. `null` = desligada: o turno segue como sempre.
+   * Ausente e `null` significam a mesma coisa.
+   */
+  offer?: OfertaConfig | null;
   /** criadores (p/ mint do token efêmero de audit — padrão do runtime nativo). */
   versionCreatedBy: string | null;
   agentCreatedBy: string | null;
@@ -241,6 +248,7 @@ function mapAgentConfigRow(r: Row): PublishedAgentConfig {
     voiceReply: lerVoiceReply(r.config),
     pricing: lerPricing(r.config),
     identity: lerIdentidade(r.config),
+    offer: lerOferta(r.config),
     versionCreatedBy: r.version_created_by,
     agentCreatedBy: r.agent_created_by,
   };

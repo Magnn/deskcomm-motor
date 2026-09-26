@@ -793,6 +793,10 @@ export const AUDIT_ACTIONS = [
   // palavras da casa. Vale no PRÓXIMO turno, sem publicar versão — então "quem mudou como o agente
   // fala, e quando" é a pergunta que só esta linha responde. O texto digitado não vai na auditoria.
   "ai.identity_updated",
+  // A oferta de um agente (PUT /ai/agents/:id/oferta): produtos, o que inclui, entrega, garantia, o que
+  // nunca prometer. Vale no PRÓXIMO turno, sem publicar versão — "quem mudou o que o agente diz que a
+  // empresa vende, e quando" é a pergunta que só esta linha responde. O texto digitado não vai na auditoria.
+  "ai.offer_updated",
   // Um aviso da Cakto que MUDOU algo (compra aprovada → entrega, reembolso, chargeback). O evento
   // que não muda nada (Pix gerado, abandono) só entra em `webhook_events_log`, não aqui.
   "webhook.cakto_evento_aplicado",

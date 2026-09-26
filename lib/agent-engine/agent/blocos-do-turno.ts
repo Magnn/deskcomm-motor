@@ -20,12 +20,14 @@
  *
  *   1. `identidade` — BASE: quem o agente é e como fala (aba Identidade, definida
  *                     pelo dono do negócio). Abre a fila: é o contexto-base.
- *   2. `anuncio`  — INFORMATIVO: de que anúncio a pessoa veio.
- *   3. `estilo`   — ESTILO UNIVERSAL: o que a agente já repetiu (abertura, fecho,
+ *   2. `oferta`   — BASE: o que a empresa vende, em fatos (aba Oferta, definida pelo
+ *                   dono do negócio). Sem preço: o valor mora no bloco de preço.
+ *   3. `anuncio`  — INFORMATIVO: de que anúncio a pessoa veio.
+ *   4. `estilo`   — ESTILO UNIVERSAL: o que a agente já repetiu (abertura, fecho,
  *                   frase feita, emoji). Regra de forma, a mais fraca do prompt.
- *   4. `leitura`  — DIRETIVO: qual carta revelar agora (ou a causa raiz).
- *   5. `preco`    — DIRETIVO: o degrau de preço e o que dizer.
- *   6. `entrega`  — DIRETIVO: o guia do trabalho que a pessoa já pagou.
+ *   5. `leitura`  — DIRETIVO: qual carta revelar agora (ou a causa raiz).
+ *   6. `preco`    — DIRETIVO: o degrau de preço e o que dizer.
+ *   7. `entrega`  — DIRETIVO: o guia do trabalho que a pessoa já pagou.
  *
  * A base, o informativo e o estilo vão ANTES dos diretivos para que, num
  * conflito, leitura, preço e entrega vençam: o modelo dá mais peso ao que vem por
@@ -44,7 +46,7 @@
  * Sem nenhum bloco (todos ''), o system sai idêntico ao de entrada — o prefixo
  * estável e cacheável não muda.
  */
-export const BLOCOS_DO_TURNO = ['identidade', 'anuncio', 'estilo', 'leitura', 'preco', 'entrega'] as const;
+export const BLOCOS_DO_TURNO = ['identidade', 'oferta', 'anuncio', 'estilo', 'leitura', 'preco', 'entrega'] as const;
 
 export type NomeDoBlocoDoTurno = (typeof BLOCOS_DO_TURNO)[number];
 

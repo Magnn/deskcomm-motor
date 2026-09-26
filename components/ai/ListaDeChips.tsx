@@ -5,8 +5,9 @@
  * não oferece…).
  *
  * A tela não deixa entrar o que o servidor recusaria: aspas duplas e quebra de linha (os itens costumam ir
- * entre aspas no prompt e a aspa fecharia o trecho), texto acima do teto, item repetido e mais itens que o
- * máximo. O servidor valida de novo; aqui é só para o dono não digitar algo que some em silêncio.
+ * entre aspas no prompt e a aspa fecharia o trecho) e os outros caracteres que a aba declarar proibidos,
+ * texto acima do teto, item repetido e mais itens que o máximo. O servidor valida de novo; aqui é só para o
+ * dono não digitar algo que some em silêncio.
  */
 import * as React from "react";
 
@@ -26,6 +27,8 @@ interface Props {
   max?: number;
   /** Tamanho máximo de cada item. Default 40. */
   tamanhoMax?: number;
+  /** Caracteres que o servidor recusa neste campo. Default: aspas duplas e quebra de linha. */
+  proibidos?: readonly string[];
 }
 
 export function ListaDeChips({
@@ -38,13 +41,14 @@ export function ListaDeChips({
   desabilitado,
   max = 10,
   tamanhoMax = 40,
+  proibidos = ['"', "\n"],
 }: Props) {
   const t = useT();
   const [texto, setTexto] = React.useState("");
 
   const adicionar = () => {
     const nova = texto.trim().replace(/,+$/, "").trim();
-    if (nova === "" || nova.includes('"') || nova.includes("\n") || nova.length > tamanhoMax) return;
+    if (nova === "" || proibidos.some((c) => nova.includes(c)) || nova.length > tamanhoMax) return;
     if (itens.includes(nova) || itens.length >= max) return;
     aoMudar([...itens, nova]);
     setTexto("");

@@ -1090,6 +1090,7 @@ jobs:
         olhar-telas-do-epico.spec.ts
         jev-decisoes-rapidas.spec.ts
         identidade-do-agente.spec.ts
+        oferta-do-agente.spec.ts
 
       # ─── FORA_DO_CI — as que ficaram fora, e o motivo de cada uma ───
       #
