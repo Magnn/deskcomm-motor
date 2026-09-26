@@ -25,7 +25,7 @@ const COM_DEGRAUS = {
   anchor_price_cents: 26_000,
   anchor_is_real: true,
   steps: [
-    { price_cents: 11_000, coupon_code: "ESMERALDA110" },
+    { price_cents: 11_000, coupon_code: "CUPOM110" },
     { price_cents: 10_000, payment_url: "https://pay.cakto.com.br/abc_100" },
   ],
 };
@@ -137,19 +137,19 @@ describe("blocoDePreco", () => {
     // 2ª: SÓ o degrau 1.
     const b2 = blocoDePreco(cfg, { reclamacoes: 2 });
     expect(b2).toContain("Ofereça SÓ R$ 110");
-    expect(b2).toContain("use o cupom ESMERALDA110 no pagamento, no mesmo link");
+    expect(b2).toContain("use o cupom CUPOM110 no pagamento, no mesmo link");
     expect(b2).not.toContain("pay.cakto.com.br/abc_100");
     expect(b2).not.toContain("MENOR valor possível");
     // 3ª: o último degrau, que é o mínimo, com o link dele.
     const b3 = blocoDePreco(cfg, { reclamacoes: 3 });
     expect(b3).toContain("Ofereça SÓ R$ 100, que é o MENOR valor possível");
     expect(b3).toContain("pague por este link: https://pay.cakto.com.br/abc_100");
-    expect(b3).not.toContain("ESMERALDA110");
+    expect(b3).not.toContain("CUPOM110");
     // 4ª em diante: já recebeu o menor valor; não oferece mais nada.
     const b4 = blocoDePreco(cfg, { reclamacoes: 4 });
     expect(b4).toContain("já recebeu o menor valor possível (R$ 100)");
     expect(b4).toContain("quer que eu te lembre amanhã");
-    expect(b4).not.toContain("ESMERALDA110");
+    expect(b4).not.toContain("CUPOM110");
   });
 
   it("sem degraus: o valor é único e a agente não inventa cupom, qualquer que seja a contagem", () => {
@@ -325,11 +325,11 @@ describe("a escada vira piso da trava, turno a turno", () => {
   it("desconto oferecido CEDO demais é vetado; o do degrau liberado passa (a rede de verdade)", () => {
     // 1ª reclamação: o modelo ignora o molde e oferece R$ 110 → vetado.
     const cedo = tabelaDoTurno({ minPriceCents: 10_000 }, precoPermitidoAgora(cfg, 1));
-    expect(decidePromise({ candidate: "Fica R$ 110 com o cupom ESMERALDA110.", table: cedo! }).allow).toBe(false);
+    expect(decidePromise({ candidate: "Fica R$ 110 com o cupom CUPOM110.", table: cedo! }).allow).toBe(false);
     expect(decidePromise({ candidate: "Entendo. O valor é R$ 130, pagamento único.", table: cedo! }).allow).toBe(true);
     // 2ª reclamação: R$ 110 já é permitido; R$ 100 ainda não.
     const segunda = tabelaDoTurno({ minPriceCents: 10_000 }, precoPermitidoAgora(cfg, 2));
-    expect(decidePromise({ candidate: "Fica R$ 110 com o cupom ESMERALDA110.", table: segunda! }).allow).toBe(true);
+    expect(decidePromise({ candidate: "Fica R$ 110 com o cupom CUPOM110.", table: segunda! }).allow).toBe(true);
     expect(decidePromise({ candidate: "Consigo R$ 100 pra você.", table: segunda! }).allow).toBe(false);
   });
 
