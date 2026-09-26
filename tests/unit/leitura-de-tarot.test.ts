@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { blocosDoSystemDoTurno, foraDeOrdem } from "@/tests/helpers/blocos-do-system-do-turno";
+
 import { BARALHO, CARTA_POR_ID, TAMANHO_DO_BARALHO } from "@/lib/leitura/baralho";
 import { blocoDaLeitura } from "@/lib/leitura/bloco-do-prompt";
 import { passoDaLeitura } from "@/lib/leitura/estado-da-leitura";
@@ -276,8 +278,14 @@ describe("a fiação no turno", () => {
     expect(turno).toContain("blocoDaLeitura(passoDaLeituraNoTurno)");
     // O contexto do anúncio (informativo) abre a fila; os três blocos DIRETIVOS seguem na mesma
     // ordem — leitura, depois preço, depois entrega.
-    expect(turno).toContain(
-      "`${system}${blocoDoAnuncioDoTurno}${blocoDaLeituraDoTurno}${blocoDePrecoDoTurno}${blocoDaEntrega}`",
-    );
+    expect(
+      foraDeOrdem(blocosDoSystemDoTurno(), [
+        "system",
+        "blocoDoAnuncioDoTurno",
+        "blocoDaLeituraDoTurno",
+        "blocoDePrecoDoTurno",
+        "blocoDaEntrega",
+      ]),
+    ).toBeNull();
   });
 });
