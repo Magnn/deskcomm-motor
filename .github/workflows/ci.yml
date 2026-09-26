@@ -132,6 +132,17 @@ jobs:
     # tempo` no fim de cada parte; a medição que justifica o número está em
     # `TETOS`, em tests/unit/preambulo-do-ci-nao-come-o-relogio.test.ts.
     timeout-minutes: 15
+    # Este job LÊ os arquivos do PR (passo "A prévia deste PR mediu a main de
+    # agora?"). Em repositório público isso é dado público e o token do topo
+    # (`contents: read`) basta; em repositório PRIVADO a API de arquivos do PR
+    # exige `pull-requests: read`. Sem ele o passo saía com status 1 e nenhuma
+    # mensagem — medido no fork Magnn/deskcomm-motor (PR #10: token só com
+    # Contents e Metadata), onde a guarda derrubava o verify por um motivo que
+    # não era do PR. Somente leitura e só neste job: o escopo mínimo que a
+    # medição precisa.
+    permissions:
+      contents: read
+      pull-requests: read
     # Executor próprio para trabalho nosso quando EXECUTOR_PROPRIO=ligado; o
     # porquê e a guarda contra fork: comentário do e2e-parte no e2e.yml.
     runs-on: ${{ vars.EXECUTOR_PROPRIO == 'ligado' && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository) && 'deskcomm-proprio' || 'ubuntu-latest' }}
@@ -182,7 +193,12 @@ jobs:
             echo "::warning::não consegui comparar a base da prévia com a ${GITHUB_BASE_REF:-main} — NÃO MEDIDO"; exit 0; }
           atraso=$(printf '%s' "$comp" | jq -r '.ahead_by // 0')
           printf '%s' "$comp" | jq -r '.files[]?.filename' | sort -u > /tmp/main-andou.txt
-          gh api --paginate "repos/${GITHUB_REPOSITORY}/pulls/${PR}/files" --jq '.[].filename' 2>/dev/null | sort -u > /tmp/pr-toca.txt
+          # Mesma regra da comparação acima: instrumento que não consegue medir
+          # diz NÃO MEDIDO e segue. Antes, a falha desta chamada saía pelo
+          # `-e` + `pipefail` do shell como uma saída com status 1 e nenhuma mensagem.
+          arquivos_do_pr=$(gh api --paginate "repos/${GITHUB_REPOSITORY}/pulls/${PR}/files" --jq '.[].filename' 2>/dev/null) || {
+            echo "::warning::não consegui listar os arquivos deste PR — NÃO MEDIDO (falta a permissão pull-requests: read no token?)"; exit 0; }
+          printf '%s\n' "$arquivos_do_pr" | sort -u > /tmp/pr-toca.txt
           cruzamento=$(comm -12 /tmp/main-andou.txt /tmp/pr-toca.txt)
           n=$(printf '%s' "$cruzamento" | grep -c . || true)
           {
