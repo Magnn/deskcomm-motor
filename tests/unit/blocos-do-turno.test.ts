@@ -30,30 +30,32 @@ describe("comporSystemDoTurno", () => {
 
   it("produz EXATAMENTE o que a linha antiga de inbound-turn.ts produzia (refactor sem efeito)", () => {
     // Caracterização: a expressão que este módulo substituiu, escrita por extenso, contra a função — em
-    // todas as combinações de bloco presente/ausente (2^7), com textos que têm quebra de linha, `${}` e
+    // todas as combinações de bloco presente/ausente (2^8), com textos que têm quebra de linha, `${}` e
     // acento, que é o que um bloco real carrega. Se este teste um dia divergir, o system dos agentes em
-    // produção mudou de texto sem ninguém ter decidido. (Estilo, identidade e oferta entraram depois: a
+    // produção mudou de texto sem ninguém ter decidido. (Estilo, identidade, oferta e objeções entraram depois: a
     // expressão "antiga" aqui é a fila decidida, escrita por extenso.)
     const textos = {
       identidade: "\n\nIDENTIDADE E TOM — você é a Ana\n",
       oferta: "\n\nOFERTA — use SÓ estes fatos ${z}\n",
+      objecoes: "\n\nOBJEÇÕES — responda no sentido de ${w}\n",
       anuncio: "\n\nCONTEXTO DO ANÚNCIO ${x}\n",
       estilo: '\n\nVARIAÇÃO DE ESTILO — não abra com "Entendi"\n',
       leitura: "\n\nLEITURA — REVELE A CARTA 2 DE 3\n",
       preco: "\n\nPREÇO: R$ 130\n",
       entrega: "\n\nGUIA DA ENTREGA ${y}\n",
     };
-    for (let mascara = 0; mascara < 128; mascara++) {
+    for (let mascara = 0; mascara < 256; mascara++) {
       const b = {
         identidade: mascara & 1 ? textos.identidade : "",
         oferta: mascara & 2 ? textos.oferta : "",
-        anuncio: mascara & 4 ? textos.anuncio : "",
-        estilo: mascara & 8 ? textos.estilo : "",
-        leitura: mascara & 16 ? textos.leitura : "",
-        preco: mascara & 32 ? textos.preco : "",
-        entrega: mascara & 64 ? textos.entrega : "",
+        objecoes: mascara & 4 ? textos.objecoes : "",
+        anuncio: mascara & 8 ? textos.anuncio : "",
+        estilo: mascara & 16 ? textos.estilo : "",
+        leitura: mascara & 32 ? textos.leitura : "",
+        preco: mascara & 64 ? textos.preco : "",
+        entrega: mascara & 128 ? textos.entrega : "",
       };
-      const antiga = `BASE${b.identidade}${b.oferta}${b.anuncio}${b.estilo}${b.leitura}${b.preco}${b.entrega}`;
+      const antiga = `BASE${b.identidade}${b.oferta}${b.objecoes}${b.anuncio}${b.estilo}${b.leitura}${b.preco}${b.entrega}`;
       expect(comporSystemDoTurno("BASE", b), `combinação ${mascara}`).toBe(antiga);
     }
   });
@@ -76,7 +78,7 @@ describe("a fila BLOCOS_DO_TURNO", () => {
   it("é a ordem decidida: identidade, anúncio e estilo abrem; leitura, preço e entrega seguem o funil", () => {
     // Trocar a ordem muda quem vence num conflito — o modelo pesa mais o que vem por último. É decisão
     // de produto: se este teste precisar mudar, mude junto o comentário de `blocos-do-turno.ts`.
-    expect([...BLOCOS_DO_TURNO]).toEqual(["identidade", "oferta", "anuncio", "estilo", "leitura", "preco", "entrega"]);
+    expect([...BLOCOS_DO_TURNO]).toEqual(["identidade", "oferta", "objecoes", "anuncio", "estilo", "leitura", "preco", "entrega"]);
   });
 
   it("não repete nome (um bloco duplicado seria anexado duas vezes)", () => {
@@ -105,6 +107,7 @@ describe("a fiação no turno", () => {
     expect(chavesDaChamada()).toEqual({
       identidade: "blocoDeIdentidadeDoTurno",
       oferta: "blocoDeOfertaDoTurno",
+      objecoes: "blocoDeObjecoesDoTurno",
       anuncio: "blocoDoAnuncioDoTurno",
       estilo: "blocoDeVariacaoDoTurno",
       leitura: "blocoDaLeituraDoTurno",

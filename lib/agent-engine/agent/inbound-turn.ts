@@ -89,6 +89,7 @@ import { blocoDoAnuncio, carregarAnuncioDoContato } from '@/lib/anuncio/contexto
 import { comporSystemDoTurno } from './blocos-do-turno';
 import { blocoDeVariacao } from '@/lib/estilo/variacao-do-agente';
 import { blocoDeIdentidade } from '@/lib/identidade/bloco-do-prompt';
+import { blocoDeObjecoes } from '@/lib/objecoes/bloco-do-prompt';
 import { blocoDeOferta } from '@/lib/oferta/bloco-do-prompt';
 import { passoDaLeitura } from '@/lib/leitura/estado-da-leitura';
 import { precoPermitidoAgora, reclamacoesDeValor } from '@/lib/preco/estado-da-negociacao';
@@ -2313,6 +2314,8 @@ async function executarTurnoDoAgente(
   const blocoDeIdentidadeDoTurno = blocoDeIdentidade(identidadeDoAgente);
   // Oferta (aba "Oferta"): os fatos do que a empresa vende, sem preço (o valor é do bloco de preço).
   const blocoDeOfertaDoTurno = blocoDeOferta(agentConfig?.offer ?? null);
+  // Objeções (aba "Objeções"): as respostas que o dono aprovou ao que a pessoa levanta para não fechar.
+  const blocoDeObjecoesDoTurno = blocoDeObjecoes(agentConfig?.objections ?? null);
   const blocoDeVariacaoDoTurno = blocoDeVariacao(openingContext.context.messages, {
     emojiLivre: identidadeDoAgente?.emojis === 'livre',
   });
@@ -2326,6 +2329,7 @@ async function executarTurnoDoAgente(
   const systemDoTurno = comporSystemDoTurno(system, {
     identidade: blocoDeIdentidadeDoTurno,
     oferta: blocoDeOfertaDoTurno,
+    objecoes: blocoDeObjecoesDoTurno,
     anuncio: blocoDoAnuncioDoTurno,
     estilo: blocoDeVariacaoDoTurno,
     leitura: blocoDaLeituraDoTurno,
