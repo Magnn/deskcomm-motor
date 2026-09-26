@@ -457,6 +457,35 @@ diálogo e é asserida na spec.
 
 ---
 
+## J35 — Dizer ao agente o que a empresa vende, em fatos, sem escrever prosa `[P1]` (2026-09-26)
+
+Contexto do código: o que o agente sabe sobre o que vende costumava estar em prosa nas
+instruções, e é ali que ele inventa (um item que não inclui, uma entrega que não existe, uma
+garantia que ninguém deu). A aba **Oferta** (`OfertaDoAgente.tsx`) pede campos — um cartão por
+produto (nome, o que é, o que inclui, para quem, entrega), a garantia REAL e o que a empresa não
+oferece — e o código os compila num bloco "use SÓ estes fatos" (`lib/oferta/bloco-do-prompt.ts`).
+Grava em `ai_agents.config.offer` por `PUT /api/v1/ai/agents/:id/oferta` (só admin), por merge.
+O PREÇO não entra: tem aba própria (o schema recusa um campo de preço).
+
+Spec: `tests/e2e/oferta-do-agente.spec.ts` — dirige a tela logada como admin num Supabase pg15 real
+e confere o que o servidor guardou pela própria API. **Zera a aba pelo PUT antes de começar**:
+uma primeira versão assumia um agente vazio e só passava uma vez por banco (reexecutar na mesma
+bancada falhava em "abre vazia"); agora passa em rodadas seguidas no mesmo banco.
+
+| # | Caso | Expectativa | Resultado |
+|---|------|-------------|-----------|
+| J35.1 | Abrir a aba "Oferta" | fica entre "Identidade" e "Teste"; abre desligada, sem produto ("Nenhum produto ainda") | PASS |
+| J35.2 | Adicionar um produto e preencher nome, o que é, o que inclui (chips), entrega, garantia e uma exclusão | a prévia mostra o bloco REAL (`- Leitura Completa: …`, `Inclui: …; ….`, `- Nunca prometa nem ofereça: …`) | PASS |
+| J35.3 | "Salvar oferta" | "Oferta salva…"; `GET …/oferta` devolve o que foi salvo no formato do schema | PASS |
+| J35.4 | Recarregar e reabrir a aba | produto, interruptor e prévia voltam como estavam | PASS |
+| J35.5 | Salvar a oferta no mesmo agente que tem identidade | a identidade **continua lá** (merge, não troca): as duas abas estruturadas convivem | PASS |
+| J35.6 | Duas rodadas seguidas no mesmo banco | as duas passam (a spec não depende do que a anterior deixou) | PASS |
+| J35.7 | Produto sem nome, ou dois com o mesmo nome | a tela avisa ("Dê um nome a cada produto." / "…mesmo nome…") e nada vai ao servidor | **PASS (componente)** — `aba-oferta-do-agente.test.tsx`; não dirigido em e2e |
+| J35.8 | Manager tenta salvar | 403 e nada gravado | **NÃO COBERTO em tela** — guardado por `route.test.ts` |
+| J35.9 | O agente de verdade só usa os fatos declarados e repete a garantia sem acrescentar nada | a resposta do modelo segue o bloco | **NÃO COBERTO** — depende do painel de Teste com o modelo |
+
+---
+
 ## J34 — Dar identidade e tom ao agente preenchendo campos, sem escrever prosa `[P1]` (2026-09-26)
 
 Contexto do código: até aqui, dizer ao agente quem ele é e como fala era escrever tudo no campo

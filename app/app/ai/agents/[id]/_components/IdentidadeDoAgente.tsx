@@ -18,6 +18,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { showApiError } from "@/components/feedback/ApiErrorToast";
+import { ListaDeChips } from "@/components/ai/ListaDeChips";
+import { PreviaDoBloco } from "@/components/ai/PreviaDoBloco";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -32,7 +34,6 @@ import {
   FRASE_DO_EMOJI,
   FRASE_DO_TAMANHO,
   FRASE_DO_TRATAMENTO,
-  MAX_PALAVRAS,
   TAMANHOS,
   TONS,
   TRATAMENTOS,
@@ -44,7 +45,6 @@ import {
   type Tratamento,
   type UsoDeEmoji,
 } from "@/lib/identidade/tipos";
-import { Eye } from "@/lib/ui/icons";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -181,77 +181,6 @@ function Escolha<T extends string>({
           );
         })}
       </div>
-    </div>
-  );
-}
-
-/** Palavras como chips: digita e aperta Enter (ou vírgula) para adicionar. */
-function ListaDePalavras({
-  id,
-  rotulo,
-  dica,
-  itens,
-  aoMudar,
-  desabilitado,
-  placeholder,
-}: {
-  id: string;
-  rotulo: string;
-  dica: string;
-  itens: string[];
-  aoMudar: (v: string[]) => void;
-  desabilitado?: boolean;
-  placeholder: string;
-}) {
-  const t = useT();
-  const [texto, setTexto] = React.useState("");
-
-  const adicionar = () => {
-    const nova = texto.trim().replace(/,+$/, "").trim();
-    // O servidor recusa aspas duplas e quebra de linha; a tela nem deixa entrar.
-    if (nova === "" || nova.includes('"') || nova.includes("\n") || nova.length > 40) return;
-    if (itens.includes(nova) || itens.length >= MAX_PALAVRAS) return;
-    aoMudar([...itens, nova]);
-    setTexto("");
-  };
-
-  return (
-    <div className="flex flex-col gap-1.5">
-      <Label htmlFor={id}>{rotulo}</Label>
-      <div className="flex flex-wrap gap-1.5" data-testid={`${id}-chips`}>
-        {itens.map((p) => (
-          <span
-            key={p}
-            className="inline-flex items-center gap-1 rounded-full border border-border bg-surface-elevated py-0.5 pl-2.5 pr-1 text-sm"
-          >
-            {p}
-            <button
-              type="button"
-              aria-label={`${t("Remover")} ${p}`}
-              disabled={desabilitado}
-              onClick={() => aoMudar(itens.filter((i) => i !== p))}
-              className="flex h-5 w-5 items-center justify-center rounded-full text-text-muted hover:bg-border"
-            >
-              ×
-            </button>
-          </span>
-        ))}
-      </div>
-      <Input
-        id={id}
-        value={texto}
-        placeholder={placeholder}
-        disabled={desabilitado || itens.length >= MAX_PALAVRAS}
-        onChange={(e) => setTexto(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === ",") {
-            e.preventDefault();
-            adicionar();
-          }
-        }}
-        onBlur={adicionar}
-      />
-      <p className="text-xs text-text-muted">{dica}</p>
     </div>
   );
 }
@@ -457,7 +386,7 @@ export function IdentidadeDoAgente({ agentId, config, readOnly }: Props) {
         <Card className="flex flex-col gap-4 p-4">
           <h3 className="text-sm font-medium">{t("O vocabulário da casa")}</h3>
           <div className="grid gap-4 md:grid-cols-2">
-            <ListaDePalavras
+            <ListaDeChips
               id="identidade-palavras-da-casa"
               rotulo={t("Palavras que a casa usa")}
               dica={t("Digite e aperte Enter. O agente as usa quando couber.")}
@@ -466,7 +395,7 @@ export function IdentidadeDoAgente({ agentId, config, readOnly }: Props) {
               aoMudar={(palavrasDaCasa) => patch({ palavrasDaCasa })}
               desabilitado={readOnly}
             />
-            <ListaDePalavras
+            <ListaDeChips
               id="identidade-palavras-a-evitar"
               rotulo={t("Palavras que ele nunca usa")}
               dica={t("Digite e aperte Enter. O agente evita estas palavras.")}
@@ -487,33 +416,7 @@ export function IdentidadeDoAgente({ agentId, config, readOnly }: Props) {
         ) : null}
       </div>
 
-      <aside className="lg:sticky lg:top-4 lg:self-start">
-        <Card className="flex flex-col gap-3 p-4" data-testid="previa-da-identidade">
-          <div className="flex items-center gap-2">
-            <Eye size={16} aria-hidden className="text-text-muted" />
-            <h3 className="text-sm font-medium">{t("O que o agente recebe")}</h3>
-            {!form.enabled ? (
-              <span className="ml-auto rounded-full bg-surface-elevated px-2 py-0.5 text-xs text-text-muted">
-                {t("Desligada")}
-              </span>
-            ) : null}
-          </div>
-          {previa !== "" ? (
-            <pre className="whitespace-pre-wrap break-words rounded-md bg-surface-elevated p-3 text-xs leading-relaxed text-text">
-              {previa}
-            </pre>
-          ) : (
-            <p className="text-sm text-text-muted">
-              {t("Preencha os campos ao lado para ver a instrução que o agente vai receber.")}
-            </p>
-          )}
-          <p className="text-xs text-text-muted">
-            {t(
-              "É exatamente este texto que vai ao agente, no fim das instruções. Frases prontas e regras de segurança do agente continuam valendo mais.",
-            )}
-          </p>
-        </Card>
-      </aside>
+      <PreviaDoBloco texto={previa} ligada={form.enabled} testId="previa-da-identidade" />
     </div>
   );
 }

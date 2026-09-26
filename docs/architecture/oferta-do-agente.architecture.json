@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Oferta do agente — o dono declara os fatos, o sistema compila o bloco",
+    "subtitle": "segunda aba estruturada da configuração do agente: o que a empresa vende, sem preço; vale no próximo turno, sem publicar versão",
+    "output": "oferta-do-agente.html",
+    "quality_profile": "standard"
+  },
+  "lanes": [
+    { "id": "tela", "label": "A tela (aba Oferta)" },
+    { "id": "borda", "label": "API — o único caminho que escreve" },
+    { "id": "banco", "label": "Persistência" },
+    { "id": "regra", "label": "Regra — lê e compila" },
+    { "id": "turno", "label": "Turno da IA" },
+    { "id": "volta", "label": "O laço de retorno" }
+  ],
+  "mainPath": ["tela", "rota", "config", "leitor", "bloco", "fila", "agente"],
+  "nodes": [
+    { "id": "tela", "lane": "tela", "col": 1, "type": "service", "label": "OfertaDoAgente (aba Oferta)", "sublabel": "um cartão por produto, chips para o que inclui e o que não se oferece; a prévia mostra o bloco REAL, com a mesma função do turno" },
+
+    { "id": "rota", "lane": "borda", "col": 2, "type": "service", "label": "PUT /api/v1/ai/agents/:id/oferta (admin)", "sublabel": "valida no schema (nome único, itens sem aspas nem ponto e vírgula, tetos, sem campo de preço); grava por MERGE; a rota genérica de PATCH descarta a chave" },
+    { "id": "config", "lane": "banco", "col": 3, "type": "database", "label": "ai_agents.config.offer", "sublabel": "jsonb do agente (o mesmo lugar de pricing, identity e voice_reply); vale no próximo turno, sem versão" },
+
+    { "id": "leitor", "lane": "regra", "col": 4, "type": "service", "label": "lerOferta (lib/oferta/tipos.ts)", "sublabel": "leitura defensiva: desligada, vazia ou jsonb quebrado => null; nunca lança" },
+    { "id": "bloco", "lane": "regra", "col": 5, "type": "service", "label": "blocoDeOferta (lib/oferta/bloco-do-prompt.ts)", "sublabel": "'use SÓ estes fatos'; garantia como frase literal entre aspas; nunca carrega número de dinheiro; texto do cliente numa linha, sem aspas duplas" },
+
+    { "id": "preco", "lane": "regra", "col": 6, "type": "service", "label": "Aba Preço (config.pricing)", "sublabel": "a ÚNICA fonte de valor e de desconto; o bloco de oferta manda o agente buscar lá" },
+
+    { "id": "fila", "lane": "turno", "col": 6, "type": "service", "label": "comporSystemDoTurno — posição 'oferta' (blocos-do-turno.ts)", "sublabel": "logo depois da identidade; anúncio, estilo, leitura, preço e entrega vêm depois e vencem em conflito; prefixo cacheável intacto" },
+    { "id": "agente", "lane": "turno", "col": 7, "type": "service", "label": "Agente responde à pessoa", "sublabel": "fala do que a empresa vende só com os fatos declarados" },
+
+    { "id": "auditoria", "lane": "volta", "col": 3, "type": "service", "label": "audit: ai.offer_updated", "sublabel": "quem mudou o que o agente diz que a empresa vende, e quando; só contagens, nunca o nome de um produto nem o texto da garantia" }
+  ],
+  "edges": [
+    { "id": "e1", "from": "tela", "to": "rota", "label": "PUT com o formulário (snake_case)" },
+    { "id": "e2", "from": "rota", "to": "config", "label": "config.offer, por merge" },
+    { "id": "e3", "from": "config", "to": "leitor", "label": "lida a cada turno com o agente publicado" },
+    { "id": "e4", "from": "leitor", "to": "bloco", "label": "OfertaConfig" },
+    { "id": "e5", "from": "bloco", "to": "fila", "label": "texto do bloco ('' quando não há oferta)" },
+    { "id": "e6", "from": "fila", "to": "agente", "label": "system do turno" },
+    { "id": "e7", "from": "rota", "to": "auditoria", "label": "só depois de gravar" },
+    { "id": "e8", "from": "leitor", "to": "fila", "label": "desligada, vazia ou erro => null => system idêntico ao de antes" },
+    { "id": "e9", "from": "config", "to": "tela", "label": "GET: a tela mostra o que o dono preencheu, inclusive desligada" },
+    { "id": "e10", "from": "preco", "to": "agente", "label": "valor e desconto vêm do bloco de preço, nunca da oferta" }
+  ]
+}

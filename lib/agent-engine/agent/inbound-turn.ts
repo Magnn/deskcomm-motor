@@ -89,6 +89,7 @@ import { blocoDoAnuncio, carregarAnuncioDoContato } from '@/lib/anuncio/contexto
 import { comporSystemDoTurno } from './blocos-do-turno';
 import { blocoDeVariacao } from '@/lib/estilo/variacao-do-agente';
 import { blocoDeIdentidade } from '@/lib/identidade/bloco-do-prompt';
+import { blocoDeOferta } from '@/lib/oferta/bloco-do-prompt';
 import { passoDaLeitura } from '@/lib/leitura/estado-da-leitura';
 import { precoPermitidoAgora, reclamacoesDeValor } from '@/lib/preco/estado-da-negociacao';
 import { deveResponderEmAudio } from '@/lib/voz/decisao';
@@ -2310,6 +2311,8 @@ async function executarTurnoDoAgente(
   // "à vontade" vence a heurística universal de "a pessoa não usa emoji, então não use".
   const identidadeDoAgente = agentConfig?.identity ?? null;
   const blocoDeIdentidadeDoTurno = blocoDeIdentidade(identidadeDoAgente);
+  // Oferta (aba "Oferta"): os fatos do que a empresa vende, sem preço (o valor é do bloco de preço).
+  const blocoDeOfertaDoTurno = blocoDeOferta(agentConfig?.offer ?? null);
   const blocoDeVariacaoDoTurno = blocoDeVariacao(openingContext.context.messages, {
     emojiLivre: identidadeDoAgente?.emojis === 'livre',
   });
@@ -2322,6 +2325,7 @@ async function executarTurnoDoAgente(
   // texto é de qual bloco. Bloco novo = um nome na fila lá + uma chave aqui; o typecheck cobra os dois.
   const systemDoTurno = comporSystemDoTurno(system, {
     identidade: blocoDeIdentidadeDoTurno,
+    oferta: blocoDeOfertaDoTurno,
     anuncio: blocoDoAnuncioDoTurno,
     estilo: blocoDeVariacaoDoTurno,
     leitura: blocoDaLeituraDoTurno,
