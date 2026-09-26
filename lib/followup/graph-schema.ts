@@ -23,6 +23,9 @@ export const NODE_TYPES = [
   'api_call',
   'notify_agent',
   'add_note',
+  // O agente de IA no comando: um agente JÁ configurado conduz a conversa dentro do fluxo, até cumprir o
+  // objetivo, estourar o limite de turnos ou a pessoa sumir. ADITIVO: nada acima mudou de forma nem de sentido.
+  'agent',
 ] as const;
 export type NodeType = (typeof NODE_TYPES)[number];
 
@@ -57,6 +60,10 @@ export const CONDITION_FALSE_BRANCH_ID = 'false';
 export const REPEAT_BODY_BRANCH_ID = 'body';
 /** Saída do `repeat` quando o contador chegou a zero. */
 export const REPEAT_DONE_BRANCH_ID = 'done';
+/** As três saídas do nó `agent`: o agente cumpriu o objetivo, gastou os turnos, ou a pessoa ficou em silêncio. */
+export const AGENT_CONCLUDED_BRANCH_ID = 'concluiu';
+export const AGENT_LIMIT_BRANCH_ID = 'limite';
+export const AGENT_SILENCE_BRANCH_ID = 'silencio';
 
 /** Branch ids the contract owns — a user-declared branch may not claim one. */
 export const RESERVED_BRANCH_IDS = [
@@ -437,6 +444,39 @@ export const aiGenericConfigSchema = z.strictObject({
   save_to: replySaveToSchema,
 });
 
+/**
+ * `agent_id` de um nó recém-posto no canvas, antes de a pessoa escolher o agente. É um UUID válido (o rascunho
+ * precisa salvar meio-montado — "rejecting it at parse time would make a half-built draft unsaveable"), e é a
+ * publicação quem o recusa (`agente_nao_escolhido`). O UUID nulo nunca é o id de um agente de verdade.
+ */
+export const AGENT_NODE_UNSET_ID = '00000000-0000-0000-0000-000000000000';
+
+/** Padrões do nó `agent`: quantas vezes o agente responde, e quanto tempo a pessoa pode ficar sem responder. */
+export const AGENT_NODE_DEFAULT_MAX_TURNS = 10;
+export const AGENT_NODE_DEFAULT_SILENCE_MINUTES = 60;
+
+/**
+ * Agente de IA no comando — pluga um agente JÁ configurado (aba Identidade, Oferta, Objeções, Limites…) num
+ * ponto do fluxo e diz o que ele deve conseguir. A partir dali é o agente quem conduz a conversa, turno a
+ * turno, até uma de três saídas FIXAS (`nodeBranches`): cumpriu o objetivo, gastou os turnos, ou a pessoa
+ * ficou em silêncio. Se uma pessoa da equipe assume a conversa, quem manda é a política de transferência do
+ * agente (`handoff_policy` do ponteiro), não uma saída do nó.
+ *
+ * Sem campo de modelo, de prompt nem de ferramentas por nó DE PROPÓSITO: tudo isso é do AGENTE, configurado
+ * uma vez nas abas dele. O nó só diz QUEM (`agent_id`), PARA QUÊ (`objetivo`) e ATÉ QUANDO (limites) — um
+ * seletor por nó duplicaria a configuração do agente e a faria divergir.
+ *
+ * `objetivo` é texto do dono do fluxo e entra no prompt como DADO (uma linha, sem aspas duplas, pelo
+ * sanitizador `lib/prompt/texto-do-cliente.ts`), nunca como instrução do sistema.
+ */
+export const agentNodeConfigSchema = z.strictObject({
+  agent_id: z.string().uuid(),
+  objetivo: z.string().trim().min(1).max(500),
+  max_turnos: z.number().int().min(1).max(30).default(AGENT_NODE_DEFAULT_MAX_TURNS),
+  silencio_minutos: z.number().int().min(5).max(1440).default(AGENT_NODE_DEFAULT_SILENCE_MINUTES),
+});
+export type AgentNodeConfig = z.infer<typeof agentNodeConfigSchema>;
+
 /** Um cabeçalho HTTP do nó `api_call` — par ordenado, não `Record`, pra edição de chave livre no formulário. */
 export const apiCallHeaderSchema = z.strictObject({
   key: z.string().min(1).max(100),
@@ -645,6 +685,17 @@ export const flowNodeSchema = z.discriminatedUnion('type', [
       y: z.number(),
     }),
     config: addNoteConfigSchema,
+  }),
+  // Agent node: a configured AI agent leads the conversation until the objective, the turn limit or silence
+  z.strictObject({
+    id: z.string().min(1),
+    type: z.literal('agent'),
+    label: z.string().min(1).max(60),
+    position: z.strictObject({
+      x: z.number(),
+      y: z.number(),
+    }),
+    config: agentNodeConfigSchema,
   }),
 ]);
 
@@ -977,6 +1028,32 @@ export function nodeBranches(node: BranchableNode): FlowBranch[] {
           check: null,
           kind: 'match',
           condition: { type: 'branch', branch_id: REPEAT_DONE_BRANCH_ID },
+        },
+        fallbackBranch(FALLBACK_OTHERS_LABEL),
+      ];
+
+    case 'agent':
+      return [
+        {
+          id: AGENT_CONCLUDED_BRANCH_ID,
+          label: 'Cumpriu o objetivo',
+          check: null,
+          kind: 'match',
+          condition: { type: 'branch', branch_id: AGENT_CONCLUDED_BRANCH_ID },
+        },
+        {
+          id: AGENT_LIMIT_BRANCH_ID,
+          label: 'Passou do limite de turnos',
+          check: null,
+          kind: 'match',
+          condition: { type: 'branch', branch_id: AGENT_LIMIT_BRANCH_ID },
+        },
+        {
+          id: AGENT_SILENCE_BRANCH_ID,
+          label: 'Ficou em silêncio',
+          check: null,
+          kind: 'match',
+          condition: { type: 'branch', branch_id: AGENT_SILENCE_BRANCH_ID },
         },
         fallbackBranch(FALLBACK_OTHERS_LABEL),
       ];

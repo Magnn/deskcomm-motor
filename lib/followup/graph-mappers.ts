@@ -91,6 +91,8 @@ export function toFlowNode(n: RFNode): FlowNode {
       return { ...shared, type, config: n.data.config as ConfigOf<"notify_agent"> };
     case "add_note":
       return { ...shared, type, config: n.data.config as ConfigOf<"add_note"> };
+    case "agent":
+      return { ...shared, type, config: n.data.config as ConfigOf<"agent"> };
     default: {
       const exhaustive: never = type;
       throw new Error(`unknown node type: ${String(exhaustive)}`);

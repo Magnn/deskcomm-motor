@@ -85,6 +85,14 @@
       "type": "tabela",
       "label": "llm_calls",
       "sublabel": "único efeito real — custo/latência do provedor, contact_id NULL"
+    },
+    {
+      "id": "no_agente",
+      "lane": "regra",
+      "col": 5,
+      "type": "regra",
+      "label": "nó \"Agente de IA\" — caixa-preta",
+      "sublabel": "o simulador NÃO roda o agente: para no nó e o operador escolhe a saída (cumpriu / limite / silêncio)"
     }
   ],
   "edges": [
@@ -96,7 +104,9 @@
     { "id": "s6", "from": "driver", "to": "rota_classify", "label": "só quando um ai_classify recebe mensagem digitada (nunca em 'sem resposta' — mesmo caminho $0 da produção)" },
     { "id": "s7", "from": "rota_classify", "to": "classify", "label": "candidate_text + classes do nó" },
     { "id": "s8", "from": "classify", "to": "llm_calls", "label": "runModelCall grava custo/latência — mesmo ponto de IA 'followup_classify'" },
-    { "id": "s9", "from": "classify", "to": "driver", "label": "classe devolvida → selectEdge()/classEdgeMatch() roteia, igual à ponte real (turn-bridge.ts)" }
+    { "id": "s9", "from": "classify", "to": "driver", "label": "classe devolvida → selectEdge()/classEdgeMatch() roteia, igual à ponte real (turn-bridge.ts)" },
+    { "id": "s10", "from": "driver", "to": "no_agente", "label": "ao chegar num nó agent: aguardando \"agent\"; só saida_do_agente (ou \"sem resposta\" = silêncio) avança, pela aresta branch" },
+    { "id": "s11", "from": "no_agente", "to": "painel", "label": "o painel mostra o agente conduzindo e as três saídas; uma mensagem digitada não avança, porque o agente ainda estaria conduzindo" }
   ],
   "cards": [
     {
@@ -110,6 +120,10 @@
     {
       "titulo": "Por que ai_classify roda de verdade e action/skill não",
       "texto": "Classificar uma mensagem não tem efeito colateral externo — é só uma chamada de modelo, e sem rodá-la de verdade não dá para provar que o roteamento por classe está certo. action (envio) e a pergunta de confirmação do match_reply SEMPRE seriam um envio real de WhatsApp em produção; o simulador nunca tem capacidade de envio, então mostra só o texto que SERIA mandado (origem 'texto_fixo'/'ia'/'modelo_salvo'/'confirmacao'), rotulado 'Simulado — não é enviado de verdade' na tela."
+    },
+    {
+      "titulo": "O agente de IA é caixa-preta no simulador",
+      "texto": "Quem conduz a conversa no nó Agente de IA é um agente de verdade (prompt, ferramentas, memória, várias mensagens). Simulá-lo exigiria rodá-lo, com custo e risco de efeito na conversa de quem está sendo atendido. O simulador testa o ROTEAMENTO do grafo, que é o que ele sabe testar: ao chegar no nó, para e deixa o operador escolher por qual das três saídas fixas seguir. O nó ainda não publica (o motor é a fatia 3), então a paleta não o oferece e o publish o recusa como \"em construção\"."
     }
   ]
 }

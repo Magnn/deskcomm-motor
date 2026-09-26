@@ -16,8 +16,15 @@ import {
   WebhooksLogo,
   Bell,
   Note,
+  Robot,
 } from "@/lib/ui/icons";
-import type { FlowNode, NodeType } from "@/lib/followup/graph-schema";
+import {
+  AGENT_NODE_DEFAULT_MAX_TURNS,
+  AGENT_NODE_DEFAULT_SILENCE_MINUTES,
+  AGENT_NODE_UNSET_ID,
+  type FlowNode,
+  type NodeType,
+} from "@/lib/followup/graph-schema";
 import { RESULTADOS_DO_FIM } from "@/lib/followup/vocabulario";
 import { NOS_DA_SUPERFICIE } from "@/lib/followup/validate-publish";
 
@@ -233,6 +240,22 @@ export const NODE_VISUALS: Record<NodeType, NodeVisual> = {
     defaultLabel: "Anotar no contato",
     defaultConfig: () => ({ body: "Configure a nota." }),
   },
+  // Fora da paleta (`NODE_VISUAL_LIST` vem de `NOS_DA_SUPERFICIE`) até o motor existir: a tabela é exaustiva por
+  // `NodeType`, mas só entra na paleta o que a superfície executa.
+  agent: {
+    type: "agent",
+    paletteLabel: "Agente de IA",
+    icon: Robot,
+    chipClassName: "bg-accent text-accent-foreground",
+    borderClassName: "border-l-accent-700",
+    defaultLabel: "Agente de IA",
+    defaultConfig: () => ({
+      agent_id: AGENT_NODE_UNSET_ID,
+      objetivo: "Configure o objetivo.",
+      max_turnos: AGENT_NODE_DEFAULT_MAX_TURNS,
+      silencio_minutos: AGENT_NODE_DEFAULT_SILENCE_MINUTES,
+    }),
+  },
 };
 
 /**
@@ -338,6 +361,10 @@ export function describeNodeConfig(
     case "add_note": {
       const c = config as ConfigOf<"add_note">;
       return c.body;
+    }
+    case "agent": {
+      const c = config as ConfigOf<"agent">;
+      return c.objetivo;
     }
     default: {
       const exhaustive: never = type;

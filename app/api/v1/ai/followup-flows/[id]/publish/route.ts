@@ -18,6 +18,7 @@ import { ok, fail } from "@/lib/api/wrappers";
 import { audit } from "@/lib/audit";
 import { requireRole } from "@/lib/auth/require-role";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { carregaAgentesCitados } from "@/lib/followup/agentes-citados";
 import { carregaEtapasCitadas } from "@/lib/followup/etapas-citadas";
 import type { FollowupFlowSurface } from "@/lib/followup/api-schemas";
 import { moduloLigado } from "@/lib/instalacao/modulos";
@@ -168,7 +169,11 @@ export async function POST(_req: NextRequest, ctx: RouteCtx): Promise<Response> 
   // está ativa — sem esta leitura, uma regra que nunca decide publicaria calada.
   const citadas = await carregaEtapasCitadas(admin, activeOrg.orgId, graph.nodes);
   if (!citadas.ok) return fail("internal_error", citadas.mensagem, 500, { requestId });
-  const validation = validateFlowForPublish(graph, { etapas: citadas.etapas, surface });
+  // O nó "Agente de IA" guarda só o `agent_id`; se o agente existe NESTA organização, se está ativo e publicado é
+  // coisa que só o banco sabe.
+  const agentesCitados = await carregaAgentesCitados(admin, activeOrg.orgId, graph.nodes);
+  if (!agentesCitados.ok) return fail("internal_error", agentesCitados.mensagem, 500, { requestId });
+  const validation = validateFlowForPublish(graph, { etapas: citadas.etapas, agentes: agentesCitados.agentes, surface });
   if (!validation.ok) {
     return fail("validation_failed", t("Fluxo reprovado na validação de publish."), 422, {
       requestId,
