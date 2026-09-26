@@ -518,7 +518,17 @@ e Oferta).
 | J36.7 | Salvar as objeções no mesmo agente que tem oferta | a oferta **continua lá** (merge, não troca) | PASS |
 | J36.8 | Objeção pela metade, ou a mesma frase duas vezes | a tela avisa e nada vai ao servidor | **PASS (componente)** — `aba-objecoes-do-agente.test.tsx`; não dirigido em e2e |
 | J36.9 | Manager tenta salvar | 403 e nada gravado | **NÃO COBERTO em tela** — guardado por `route.test.ts` |
-| J36.10 | O agente de verdade responde no sentido aprovado, com palavras próprias, e não pressiona quem repete a objeção | a resposta do modelo segue o bloco | **NÃO COBERTO** — depende do painel de Teste com o modelo |
+| J36.10 | O agente de verdade responde no sentido aprovado, com palavras próprias, e não pressiona quem repete a objeção | a resposta do modelo segue o bloco | **PASS PARCIAL (manual)** — "Vou pensar" (3 amostras com a aba) e "Preciso falar com meu marido" (1) saíram no sentido aprovado, com palavras diferentes a cada vez e sem urgência inventada. **NÃO coberto:** a objeção REPETIDA (o painel de Teste recebe uma mensagem só, sem histórico). Método e ressalvas: nota "Validação com o modelo real" abaixo da tabela de J36. |
+
+**Validação com o modelo real (manual, 26/09/2026).** Agente descartável criado na produção só como rascunho, sem canal, sem
+publicar e fora do roteamento (a Cigana seguiu como agente padrão, intacta), com `gpt-5.4-mini` e um prompt-base propositalmente
+curto; abas Identidade, Oferta e Objeções ligadas pelas MESMAS rotas da tela; perguntas pelo painel de Teste
+(`POST /api/v1/ai/agents/:id/versions/:vid/test`); agente arquivado no fim. **Controle** (abas desligadas): sem nome, com emoji,
+e "Temos sim" para uma mentoria individual que a empresa não tem. **Com as abas:** "Eu sou a Bia, da Escola Planilha Viva",
+sem emoji, mensagens curtas; "Não. O curso não inclui mentoria individual."; "Vou pensar" e "Preciso falar com meu marido"
+no sentido aprovado. **Ressalvas:** amostra pequena (14 chamadas: 3 de controle, sem controle para certificado e para o marido, e 11 com as abas) — é evidência de direção, não medida;
+1 das chamadas com as abas falhou com `preview_failed` (erro do teste, sem resposta do modelo; causa não investigada); a aba
+Limites ainda não estava em produção e NÃO foi testada com o modelo (J37.9).
 
 ---
 
@@ -547,7 +557,7 @@ bancada falhava em "abre vazia"); agora passa em rodadas seguidas no mesmo banco
 | J35.6 | Duas rodadas seguidas no mesmo banco | as duas passam (a spec não depende do que a anterior deixou) | PASS |
 | J35.7 | Produto sem nome, ou dois com o mesmo nome | a tela avisa ("Dê um nome a cada produto." / "…mesmo nome…") e nada vai ao servidor | **PASS (componente)** — `aba-oferta-do-agente.test.tsx`; não dirigido em e2e |
 | J35.8 | Manager tenta salvar | 403 e nada gravado | **NÃO COBERTO em tela** — guardado por `route.test.ts` |
-| J35.9 | O agente de verdade só usa os fatos declarados e repete a garantia sem acrescentar nada | a resposta do modelo segue o bloco | **NÃO COBERTO** — depende do painel de Teste com o modelo |
+| J35.9 | O agente de verdade só usa os fatos declarados e repete a garantia sem acrescentar nada | a resposta do modelo segue o bloco | **PASS PARCIAL (manual)** — sem a aba o agente INVENTOU "Temos sim" para mentoria individual; com "não oferecemos: mentoria individual" respondeu que não em 2 de 2 respostas válidas, e o mesmo para suporte por telefone (2 de 2); certificado, que estava em "inclui", saiu certo. **NÃO coberto:** a GARANTIA (ninguém perguntou por ela). Método e ressalvas: nota "Validação com o modelo real" abaixo da tabela de J36. |
 
 ---
 
@@ -573,7 +583,7 @@ cliente), e confere o que o servidor guardou pela própria API.
 | J34.5 | Desligar e salvar | mensagem "Identidade desligada…"; o servidor guarda `enabled: false` e o texto preenchido (a tela o mostra, o turno não o lê) | PASS |
 | J34.6 | Tema escuro e largura de 390 px | escuro legível; a 390 px o grid vira 1 coluna, sem rolagem horizontal, e a prévia deixa de ser fixa | **PASS isolado** — visto num servidor descartável com o CSS real, **não** dentro do app |
 | J34.7 | Manager tenta salvar | a rota devolve 403 e nada é gravado | **NÃO COBERTO em tela** — guardado por `app/api/v1/ai/agents/[id]/identidade/route.test.ts` |
-| J34.8 | O agente de verdade passa a falar com o tom escolhido | a resposta do modelo segue o bloco | **NÃO COBERTO** — depende do painel de Teste com o modelo (o bloco em si é provado por `tests/unit/identidade-do-agente.test.ts`) |
+| J34.8 | O agente de verdade passa a falar com o tom escolhido | a resposta do modelo segue o bloco | **PASS (manual)** — com nome, empresa, tom direto, sem emoji e mensagens curtas: "Oi! Eu sou a Bia, da Escola Planilha Viva." (sem a aba: sem nome, com emoji). Método e ressalvas: nota "Validação com o modelo real" abaixo da tabela de J36. |
 
 Ferramenta, não produto: o helper `tests/e2e/helpers/login-admin.ts` chama `execFileSync("npx")`,
 que no Windows não existe como executável (só `npx.cmd`) e derruba a spec com `spawnSync npx
