@@ -22,7 +22,7 @@ import { NAV_DESTINATIONS } from "@/lib/navigation/registry";
  * Na ordem em que fazem sentido para quem acabou de montar o funcionário.
  *
  * `comoChamar` existe porque os rótulos do menu ainda são "Inbox", "Kanban",
- * "Follow-ups", "Alertas" — nomes que quem instalou o sistema há dez minutos não
+ * "Fluxos", "Alertas" — nomes que quem instalou o sistema há dez minutos não
  * reconhece. Aqui a peça é apresentada pelo que ela FAZ. O menu continua com os
  * nomes dele (mudá-los é outra frente, com contrato de teste próprio); o que
  * este arquivo não faz é reescrever a DESCRIÇÃO, que segue vindo do registro.

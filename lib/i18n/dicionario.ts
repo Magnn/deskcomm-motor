@@ -950,7 +950,6 @@ export const DICIONARIO: Traducoes = {
   "Tipos de agendamento": { es: "Tipos de cita" },
   Automação: { es: "Automatización" },
   Agentes: { es: "Agentes" },
-  "Follow-ups": { es: "Seguimientos" },
   Roteadores: { es: "Enrutadores" },
   "Ver tudo em IA": { es: "Ver todo en IA" },
   "Ver tudo em CRM": { es: "Ver todo en CRM" },
@@ -1123,8 +1122,8 @@ export const DICIONARIO: Traducoes = {
   "Quem atende por você: instruções, modelo, ferramentas e publicação.": {
     es: "Quién atiende por ti: instrucciones, modelo, herramientas y publicación.",
   },
-  "Como o agente retoma uma conversa que esfriou, para nenhuma morrer no silêncio.": {
-    es: "Cómo el agente retoma una conversación que se enfrió, para que ninguna muera en silencio.",
+  "Os caminhos automáticos da conversa: retomar quem esfriou e reagir a uma etapa ou a um evento.": {
+    es: "Los caminos automáticos de la conversación: retomar a quien se enfrió y reaccionar a una etapa o a un evento.",
   },
   "Qual agente pega qual conversa, e quando o humano assume.": {
     es: "Qué agente toma cada conversación y cuándo interviene una persona.",

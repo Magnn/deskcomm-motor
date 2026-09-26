@@ -408,8 +408,8 @@ export const NAV_CATALOG = [
   },
   {
     href: "/app/ai/followups",
-    label: "Follow-ups",
-    description: "Como o agente retoma uma conversa que esfriou, para nenhuma morrer no silêncio.",
+    label: "Fluxos",
+    description: "Os caminhos automáticos da conversa: retomar quem esfriou e reagir a uma etapa ou a um evento.",
     icon: "FlowArrow",
     group: "ia",
     section: "Montar o agente",
