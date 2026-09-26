@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Objeções do agente — o dono aprova a resposta, o sistema compila o bloco",
+    "subtitle": "terceira aba estruturada da configuração do agente: o que a pessoa diz para não fechar e o sentido da resposta aprovada; sem valor em dinheiro; vale no próximo turno, sem publicar versão",
+    "output": "objecoes-do-agente.html",
+    "quality_profile": "standard"
+  },
+  "lanes": [
+    { "id": "tela", "label": "A tela (aba Objeções)" },
+    { "id": "borda", "label": "API — o único caminho que escreve" },
+    { "id": "banco", "label": "Persistência" },
+    { "id": "regra", "label": "Regra — lê e compila" },
+    { "id": "turno", "label": "Turno da IA" },
+    { "id": "volta", "label": "O laço de retorno" }
+  ],
+  "mainPath": ["tela", "rota", "config", "leitor", "bloco", "fila", "agente"],
+  "nodes": [
+    { "id": "tela", "lane": "tela", "col": 1, "type": "service", "label": "ObjecoesDoAgente (aba Objeções)", "sublabel": "um cartão por objeção, com atalhos para as mais comuns; a prévia mostra o bloco REAL, com a mesma função do turno" },
+
+    { "id": "rota", "lane": "borda", "col": 2, "type": "service", "label": "PUT /api/v1/ai/agents/:id/objecoes (admin)", "sublabel": "valida no schema (frase única, tetos, SEM valor em dinheiro na resposta); grava por MERGE; a rota genérica de PATCH descarta a chave" },
+    { "id": "config", "lane": "banco", "col": 3, "type": "database", "label": "ai_agents.config.objections", "sublabel": "jsonb do agente (o mesmo lugar de pricing, identity, offer e voice_reply); vale no próximo turno, sem versão" },
+
+    { "id": "leitor", "lane": "regra", "col": 4, "type": "service", "label": "lerObjecoes (lib/objecoes/tipos.ts)", "sublabel": "leitura defensiva: desligada, vazia ou jsonb quebrado => null; nunca lança" },
+    { "id": "sanitizador", "lane": "regra", "col": 5, "type": "service", "label": "umaLinha (lib/prompt/texto-do-cliente.ts)", "sublabel": "único sanitizador do texto do cliente, compartilhado pelas abas: uma linha, sem aspas duplas, sem controles nem separadores Unicode" },
+    { "id": "bloco", "lane": "regra", "col": 5, "type": "service", "label": "blocoDeObjecoes (lib/objecoes/bloco-do-prompt.ts)", "sublabel": "'no sentido de', com as palavras do agente; não inventa prova, prazo, garantia nem desconto; objeção repetida não é pressionada" },
+
+    { "id": "preco", "lane": "regra", "col": 6, "type": "service", "label": "Aba Preço (config.pricing)", "sublabel": "a ÚNICA fonte de valor e de desconto; o bloco de objeções manda o agente buscar lá, e o bloco de preço vem depois e vence" },
+
+    { "id": "fila", "lane": "turno", "col": 6, "type": "service", "label": "comporSystemDoTurno — posição 'objecoes' (blocos-do-turno.ts)", "sublabel": "logo depois da oferta, de que depende; anúncio, estilo, leitura, preço e entrega vêm depois e vencem em conflito; prefixo cacheável intacto" },
+    { "id": "agente", "lane": "turno", "col": 7, "type": "service", "label": "Agente responde à pessoa", "sublabel": "quem hesita recebe a resposta que o dono aprovou, dita com as palavras do agente" },
+
+    { "id": "auditoria", "lane": "volta", "col": 3, "type": "service", "label": "audit: ai.objections_updated", "sublabel": "quem mudou como o agente responde a uma objeção, e quando; só a contagem, nunca a frase da pessoa nem a resposta" }
+  ],
+  "edges": [
+    { "id": "e1", "from": "tela", "to": "rota", "label": "PUT com o formulário" },
+    { "id": "e2", "from": "rota", "to": "config", "label": "config.objections, por merge" },
+    { "id": "e3", "from": "config", "to": "leitor", "label": "lida a cada turno com o agente publicado" },
+    { "id": "e4", "from": "leitor", "to": "bloco", "label": "ObjecoesConfig" },
+    { "id": "e5", "from": "sanitizador", "to": "bloco", "label": "cada texto do cliente vira UMA linha de dado" },
+    { "id": "e6", "from": "bloco", "to": "fila", "label": "texto do bloco ('' quando não há objeção)" },
+    { "id": "e7", "from": "fila", "to": "agente", "label": "system do turno" },
+    { "id": "e8", "from": "rota", "to": "auditoria", "label": "só depois de gravar" },
+    { "id": "e9", "from": "leitor", "to": "fila", "label": "desligada, vazia ou erro => null => system idêntico ao de antes" },
+    { "id": "e10", "from": "config", "to": "tela", "label": "GET: a tela mostra o que o dono preencheu, inclusive desligada" },
+    { "id": "e11", "from": "preco", "to": "agente", "label": "valor e desconto vêm do bloco de preço, nunca da resposta a uma objeção" }
+  ]
+}

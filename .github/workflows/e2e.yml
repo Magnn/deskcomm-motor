@@ -1091,6 +1091,7 @@ jobs:
         jev-decisoes-rapidas.spec.ts
         identidade-do-agente.spec.ts
         oferta-do-agente.spec.ts
+        objecoes-do-agente.spec.ts
 
       # ─── FORA_DO_CI — as que ficaram fora, e o motivo de cada uma ───
       #

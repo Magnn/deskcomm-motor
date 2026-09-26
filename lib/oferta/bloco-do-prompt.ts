@@ -23,22 +23,9 @@
  * ─── Sem campo, sem bloco ────────────────────────────────────────────────────────────────────────
  * `null`, desligado ou sem produto, garantia nem exclusão devolve '' — o system segue idêntico.
  */
+import { umaLinha } from "@/lib/prompt/texto-do-cliente";
+
 import type { OfertaConfig } from "./tipos";
-
-/** Troca por espaço o que não é texto: controles, DEL e os separadores de linha/parágrafo do Unicode. */
-function semControle(texto: string): string {
-  let saida = "";
-  for (const ch of texto) {
-    const c = ch.codePointAt(0) ?? 0;
-    saida += c < 0x20 || c === 0x7f || c === 0x2028 || c === 0x2029 ? " " : ch;
-  }
-  return saida;
-}
-
-/** O texto do cliente como UMA linha, sem aspas duplas nem caracteres de controle. */
-function umaLinha(texto: string): string {
-  return semControle(texto).replace(/["“”]/g, "'").replace(/\s+/g, " ").trim();
-}
 
 const lista = (itens: readonly string[]): string =>
   itens

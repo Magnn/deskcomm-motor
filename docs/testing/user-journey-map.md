@@ -457,6 +457,37 @@ diálogo e é asserida na spec.
 
 ---
 
+## J36 — Dizer ao agente como responder a quem hesita, com a resposta aprovada, sem escrever prosa `[P1]` (2026-09-26)
+
+Contexto do código: objeção ("tá caro", "vou pensar", "preciso falar com meu marido") é o momento
+em que o agente mais improvisa — inventa urgência, prova ou garantia. A aba **Objeções**
+(`ObjecoesDoAgente.tsx`) pede, por cartão, a frase da pessoa e o SENTIDO da resposta aprovada, com
+atalhos para as objeções comuns, e o código os compila num bloco (`lib/objecoes/bloco-do-prompt.ts`)
+que diz "responda no sentido de… com as suas palavras; não invente prova, prazo, garantia nem
+desconto; valor e desconto vêm do bloco de preço; objeção repetida não é pressionada". Grava em
+`ai_agents.config.objections` por `PUT /api/v1/ai/agents/:id/objecoes` (só admin), por merge. VALOR
+EM DINHEIRO na resposta é recusado (o preço mora só na aba Preço).
+
+Spec: `tests/e2e/objecoes-do-agente.spec.ts` — dirige a tela logada como admin num Supabase pg15 real
+e confere o que o servidor guardou pela própria API. Zera a aba pelo PUT antes de cada caso (passa
+em rodadas seguidas no mesmo banco; provado com 2 rodadas, 7/7 cada, junto das specs de Identidade
+e Oferta).
+
+| # | Caso | Expectativa | Resultado |
+|---|------|-------------|-----------|
+| J36.1 | Abrir a aba "Objeções" | fica entre "Oferta" e "Teste"; abre desligada, sem objeção, com os atalhos à vista | PASS |
+| J36.2 | Clicar num atalho ("Vou pensar") | o cartão nasce com a frase pronta e o atalho some da lista; a prévia só mostra a objeção depois de haver resposta | PASS |
+| J36.3 | Adicionar uma objeção do zero e preencher frase e resposta | a prévia mostra o bloco REAL (`- Se a pessoa disser algo como "…": responda no sentido de "…"` e o cabeçalho com "reconheça e siga sem pressionar") | PASS |
+| J36.4 | "Salvar objeções" | "Objeções salvas…"; `GET …/objecoes` devolve o que foi salvo no formato do schema | PASS |
+| J36.5 | Recarregar e reabrir a aba | frases, interruptor e prévia voltam como estavam | PASS |
+| J36.6 | Resposta com valor em dinheiro ("Fecho por R$ 80 hoje.") | a tela mostra "Sem valores em dinheiro na resposta — o preço e o desconto vêm da aba Preço." e nada é gravado; o PUT direto pela API, com a mesma sessão, dá 422 | PASS |
+| J36.7 | Salvar as objeções no mesmo agente que tem oferta | a oferta **continua lá** (merge, não troca) | PASS |
+| J36.8 | Objeção pela metade, ou a mesma frase duas vezes | a tela avisa e nada vai ao servidor | **PASS (componente)** — `aba-objecoes-do-agente.test.tsx`; não dirigido em e2e |
+| J36.9 | Manager tenta salvar | 403 e nada gravado | **NÃO COBERTO em tela** — guardado por `route.test.ts` |
+| J36.10 | O agente de verdade responde no sentido aprovado, com palavras próprias, e não pressiona quem repete a objeção | a resposta do modelo segue o bloco | **NÃO COBERTO** — depende do painel de Teste com o modelo |
+
+---
+
 ## J35 — Dizer ao agente o que a empresa vende, em fatos, sem escrever prosa `[P1]` (2026-09-26)
 
 Contexto do código: o que o agente sabe sobre o que vende costumava estar em prosa nas

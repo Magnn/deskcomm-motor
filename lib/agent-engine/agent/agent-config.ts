@@ -16,6 +16,7 @@
 import type pg from 'pg';
 
 import { lerIdentidade, type IdentidadeConfig } from '@/lib/identidade/tipos';
+import { lerObjecoes, type ObjecoesConfig } from '@/lib/objecoes/tipos';
 import { lerOferta, type OfertaConfig } from '@/lib/oferta/tipos';
 import { lerPricing, type PricingConfig } from '@/lib/preco/tipos';
 import { lerVoiceReply, type VoiceReplyConfig } from '@/lib/voz/tipos';
@@ -113,6 +114,12 @@ export interface PublishedAgentConfig {
    * Ausente e `null` significam a mesma coisa.
    */
   offer?: OfertaConfig | null;
+  /**
+   * Objeções (`ai_agents.config.objections`, aba "Objeções"): o que a pessoa costuma dizer para não fechar e
+   * a resposta que o dono aprovou. `null` = desligada: o turno segue como sempre. Ausente e `null`
+   * significam a mesma coisa.
+   */
+  objections?: ObjecoesConfig | null;
   /** criadores (p/ mint do token efêmero de audit — padrão do runtime nativo). */
   versionCreatedBy: string | null;
   agentCreatedBy: string | null;
@@ -249,6 +256,7 @@ function mapAgentConfigRow(r: Row): PublishedAgentConfig {
     pricing: lerPricing(r.config),
     identity: lerIdentidade(r.config),
     offer: lerOferta(r.config),
+    objections: lerObjecoes(r.config),
     versionCreatedBy: r.version_created_by,
     agentCreatedBy: r.agent_created_by,
   };
