@@ -24,7 +24,9 @@
     { "id": "fila", "lane": "turno", "col": 5, "type": "service", "label": "comporSystemDoTurno — posição 'estilo' (lib/agent-engine/agent/blocos-do-turno.ts)", "sublabel": "antes de leitura, preço e entrega: o que vem depois vence, então molde e diretivo mandam sobre o estilo; prefixo cacheável intacto" },
     { "id": "agente", "lane": "turno", "col": 6, "type": "service", "label": "Agente responde à pessoa", "sublabel": "o modelo pequeno não se vigia entre turnos: a lista concreta do que já disse é o que faltava" },
 
-    { "id": "resposta", "lane": "volta", "col": 3, "type": "service", "label": "A resposta dela vira histórico", "sublabel": "no turno seguinte é ela mesma que o detector lê: se o bloco funcionou, a repetição some da conta" }
+    { "id": "resposta", "lane": "volta", "col": 3, "type": "service", "label": "A resposta dela vira histórico", "sublabel": "no turno seguinte é ela mesma que o detector lê: se o bloco funcionou, a repetição some da conta" },
+
+    { "id": "logbloco", "lane": "volta", "col": 5, "type": "service", "label": "runLog.info — variação de estilo no turno", "sublabel": "registra só o fato de o bloco ter entrado (nunca o texto da conversa); visível nos logs do worker e, no painel de Teste, do app" }
   ],
   "edges": [
     { "id": "e1", "from": "mensagens", "to": "leitor", "label": "falas da agente e da pessoa" },
@@ -34,6 +36,7 @@
     { "id": "e5", "from": "fila", "to": "agente", "label": "system do turno" },
     { "id": "e6", "from": "agente", "to": "resposta", "label": "mensagem enviada" },
     { "id": "e7", "from": "resposta", "to": "mensagens", "label": "laço de retorno: a próxima leitura já enxerga o que ela acabou de dizer" },
-    { "id": "e8", "from": "leitor", "to": "fila", "label": "poucos turnos, sem repetição ou erro => null => system idêntico ao de antes" }
+    { "id": "e8", "from": "leitor", "to": "fila", "label": "poucos turnos, sem repetição ou erro => null => system idêntico ao de antes" },
+    { "id": "e9", "from": "bloco", "to": "logbloco", "label": "só quando o bloco entrou" }
   ]
 }
