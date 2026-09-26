@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Variação de estilo — a camada universal que impede a agente de se repetir",
+    "subtitle": "o código lê as últimas falas da própria agente e lista o que ela já repetiu; vale para todo agente, o cliente não vê nem edita",
+    "output": "estilo-universal.html",
+    "quality_profile": "standard"
+  },
+  "lanes": [
+    { "id": "conversa", "label": "A conversa" },
+    { "id": "regra", "label": "Regra — conta o que se repetiu" },
+    { "id": "turno", "label": "Turno da IA" },
+    { "id": "volta", "label": "O laço de retorno" }
+  ],
+  "mainPath": ["mensagens", "leitor", "bloco", "fila", "agente"],
+  "nodes": [
+    { "id": "mensagens", "lane": "conversa", "col": 1, "type": "database", "label": "Mensagens da conversa (contexto do turno)", "sublabel": "as últimas falas da agente e da pessoa; no painel de Teste, o histórico colado ('Lead:' / 'Esmeralda:') é expandido antes" },
+
+    { "id": "molde", "lane": "regra", "col": 2, "type": "service", "label": "Turno de molde (marcador em caixa alta, ex.: 'CARTA 1:')", "sublabel": "FICA FORA da conta: repete a abertura por construção, e a máquina de estado da leitura o procura na mensagem" },
+    { "id": "leitor", "lane": "regra", "col": 3, "type": "service", "label": "lerRepeticoesDaAgente (lib/estilo/variacao-do-agente.ts)", "sublabel": "agrupa os balões em turnos; conta abertura, frase feita, fecho, emoji e pergunta nos últimos 5 turnos; pura, determinística, nunca lança" },
+    { "id": "bloco", "lane": "regra", "col": 4, "type": "service", "label": "blocoDeVariacao", "sublabel": "lista literal do que evitar agora, citando a própria fala dela; '' quando não se repetiu; diz que molde literal vale mais" },
+
+    { "id": "fila", "lane": "turno", "col": 5, "type": "service", "label": "comporSystemDoTurno — posição 'estilo' (lib/agent-engine/agent/blocos-do-turno.ts)", "sublabel": "antes de leitura, preço e entrega: o que vem depois vence, então molde e diretivo mandam sobre o estilo; prefixo cacheável intacto" },
+    { "id": "agente", "lane": "turno", "col": 6, "type": "service", "label": "Agente responde à pessoa", "sublabel": "o modelo pequeno não se vigia entre turnos: a lista concreta do que já disse é o que faltava" },
+
+    { "id": "resposta", "lane": "volta", "col": 3, "type": "service", "label": "A resposta dela vira histórico", "sublabel": "no turno seguinte é ela mesma que o detector lê: se o bloco funcionou, a repetição some da conta" }
+  ],
+  "edges": [
+    { "id": "e1", "from": "mensagens", "to": "leitor", "label": "falas da agente e da pessoa" },
+    { "id": "e2", "from": "molde", "to": "leitor", "label": "turno de molde é excluído da conta" },
+    { "id": "e3", "from": "leitor", "to": "bloco", "label": "RepeticoesDaAgente (aberturas, frases feitas, fecho, emojis, pergunta)" },
+    { "id": "e4", "from": "bloco", "to": "fila", "label": "texto do bloco ('' quando ela não se repetiu)" },
+    { "id": "e5", "from": "fila", "to": "agente", "label": "system do turno" },
+    { "id": "e6", "from": "agente", "to": "resposta", "label": "mensagem enviada" },
+    { "id": "e7", "from": "resposta", "to": "mensagens", "label": "laço de retorno: a próxima leitura já enxerga o que ela acabou de dizer" },
+    { "id": "e8", "from": "leitor", "to": "fila", "label": "poucos turnos, sem repetição ou erro => null => system idêntico ao de antes" }
+  ]
+}
