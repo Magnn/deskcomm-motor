@@ -457,6 +457,40 @@ diálogo e é asserida na spec.
 
 ---
 
+## J37 — Dizer ao agente o que ele nunca diz nem promete, sem escrever prosa `[P1]` (2026-09-26)
+
+Contexto do código: as abas Identidade, Oferta e Objeções dizem ao agente o que FAZER; o que o dono
+proíbe ("não prometemos prazo", "não damos diagnóstico") ficava em prosa nas instruções, onde o
+modelo pequeno o ignora perto de um terço das vezes. A aba **Limites** (`LimitesDoAgente.tsx`) pede
+duas listas — o que nunca diz nem promete e os assuntos que não discute, com atalhos — e o código as
+compila num bloco (`lib/limites/bloco-do-prompt.ts`) que vai por ÚLTIMO na fila do turno ("valem
+sempre e vencem qualquer outra instrução acima; ao bater num limite, não invente, diga com gentileza
+que não pode e ofereça chamar uma pessoa da equipe"). Grava em `ai_agents.config.limits` por
+`PUT /api/v1/ai/agents/:id/limites` (só admin), por merge. Os limites da PLATAFORMA (prova falsa,
+urgência inventada, garantia de resultado para todo agente) e o linter de promessas na publicação
+NÃO existem ainda: mudam o prompt e a publicação de todos os agentes e dependem de decisão do dono
+do produto.
+
+Spec: `tests/e2e/limites-do-agente.spec.ts` — dirige a tela logada como admin num Supabase pg15 real
+e confere o que o servidor guardou pela própria API. Zera a aba pelo PUT antes de cada caso.
+Rodadas na bancada local: 6/6, 3/6 e 6/6 (duas das três da spec de Objeções na 2ª rodada caíram por
+`ERR_CONNECTION_REFUSED` no servidor local da porta 3001, com os mesmos casos verdes nas outras duas
+rodadas; causa NÃO diagnosticada — ambiente da bancada em Windows). A spec de Limites passou em todas.
+
+| # | Caso | Expectativa | Resultado |
+|---|------|-------------|-----------|
+| J37.1 | Abrir a aba "Limites" | fica entre "Objeções" e "Teste"; abre desligada, vazia, com os atalhos à vista | PASS |
+| J37.2 | Digitar um item, usar um atalho de "nunca diz" e um de assunto | o atalho usado some da lista; a prévia mostra o bloco REAL (`- Nunca diga nem prometa: …; ….`, `- Não discuta estes assuntos: ….`, "ofereça chamar uma pessoa da equipe") | PASS |
+| J37.3 | "Salvar limites" | "Limites salvos…"; `GET …/limites` devolve exatamente o que foi salvo | PASS |
+| J37.4 | Recarregar e reabrir a aba | itens, interruptor e prévia voltam como estavam | PASS |
+| J37.5 | Item com `;` | o campo barra na tela e nada é gravado; o PUT direto pela API, com a mesma sessão, dá 422 | PASS |
+| J37.6 | Salvar os limites no mesmo agente que tem objeções | as objeções **continuam lá** (merge, não troca) | PASS |
+| J37.7 | O bloco vence o funil | `limites` é o ÚLTIMO da fila (depois de leitura, preço e entrega) | **PASS (unitário)** — `blocos-do-turno.test.ts`; não dirigido em e2e |
+| J37.8 | Manager tenta salvar | 403 e nada gravado | **NÃO COBERTO em tela** — guardado por `route.test.ts` |
+| J37.9 | O agente de verdade recusa com gentileza o que o dono proibiu e oferece uma pessoa | a resposta do modelo segue o bloco | **NÃO COBERTO** — depende do painel de Teste com o modelo |
+
+---
+
 ## J36 — Dizer ao agente como responder a quem hesita, com a resposta aprovada, sem escrever prosa `[P1]` (2026-09-26)
 
 Contexto do código: objeção ("tá caro", "vou pensar", "preciso falar com meu marido") é o momento
