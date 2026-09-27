@@ -1,17 +1,18 @@
 "use client";
 /**
  * O prompt COMPLETO que o agente recebe — a soma das instruções base com os blocos que as abas
- * estruturadas (Identidade, Oferta, Objeções, Limites) compilam, na MESMA ordem e com as MESMAS
- * funções puras que o turno usa (`comporSystemDoTurno`, `blocos-do-turno.ts`). Sem mágica, como o
- * `PreviaDoBloco` de cada aba: o que está escrito aqui é o que o agente lê.
+ * estruturadas (Identidade, Oferta, Consciência, Objeções, Limites) compilam, na MESMA ordem e com
+ * as MESMAS funções puras que o turno usa (`comporSystemDoTurno`, `blocos-do-turno.ts`). Sem mágica,
+ * como o `PreviaDoBloco` de cada aba: o que está escrito aqui é o que o agente lê.
  *
  * Blocos que só existem DURANTE um atendimento real (anúncio, estilo, o objetivo de um fluxo,
  * leitura, preço, entrega) entram como '' aqui de propósito — eles dependem da conversa, e uma
  * prévia estática não tem conversa nenhuma para descrever. O aviso na tela diz isso, para o dono
  * não estranhar quando o prompt real de um atendimento for maior que esta prévia.
  *
- * Identidade/Oferta/Objeções/Limites vêm de `agent.config`, que é lido pela mesma versão SALVA nas
- * abas correspondentes — não do que está sendo digitado lá agora, se a aba ainda não foi salva.
+ * Identidade/Oferta/Consciência/Objeções/Limites vêm de `agent.config`, que é lido pela mesma
+ * versão SALVA nas abas correspondentes — não do que está sendo digitado lá agora, se a aba ainda
+ * não foi salva.
  */
 import * as React from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -24,10 +25,12 @@ import { TokenCounter } from "@/lib/ui/TokenCounter";
 
 import { lerIdentidade } from "@/lib/identidade/tipos";
 import { lerOferta } from "@/lib/oferta/tipos";
+import { lerConsciencia } from "@/lib/consciencia/tipos";
 import { lerObjecoes } from "@/lib/objecoes/tipos";
 import { lerLimites } from "@/lib/limites/tipos";
 import { blocoDeIdentidade } from "@/lib/identidade/bloco-do-prompt";
 import { blocoDeOferta } from "@/lib/oferta/bloco-do-prompt";
+import { blocoDeConsciencia } from "@/lib/consciencia/bloco-do-prompt";
 import { blocoDeObjecoes } from "@/lib/objecoes/bloco-do-prompt";
 import { blocoDeLimites } from "@/lib/limites/bloco-do-prompt";
 import { comporSystemDoTurno } from "@/lib/agent-engine/agent/blocos-do-turno";
@@ -69,11 +72,13 @@ export function PreviaCompletaDoAgente({ systemPrompt, config, toolIds, contextW
   const promptCompleto = React.useMemo(() => {
     const identidade = blocoDeIdentidade(lerIdentidade(config ?? null));
     const oferta = blocoDeOferta(lerOferta(config ?? null));
+    const consciencia = blocoDeConsciencia(lerConsciencia(config ?? null));
     const objecoes = blocoDeObjecoes(lerObjecoes(config ?? null));
     const limites = blocoDeLimites(lerLimites(config ?? null));
     return comporSystemDoTurno(systemPrompt, {
       identidade,
       oferta,
+      consciencia,
       objecoes,
       // Só existem dentro de um atendimento real — ver o cabeçalho do arquivo.
       anuncio: "",
@@ -95,7 +100,7 @@ export function PreviaCompletaDoAgente({ systemPrompt, config, toolIds, contextW
       </div>
       <p className="text-xs text-muted-foreground">
         {t(
-          "É a soma das instruções acima com o que as abas Identidade, Oferta, Objeções e Limites têm SALVO agora, na mesma ordem que o motor monta em cada atendimento. Blocos que só existem durante uma conversa real — leitura, preço, entrega, estilo, o objetivo de um fluxo — não entram aqui.",
+          "É a soma das instruções acima com o que as abas Identidade, Oferta, Consciência, Objeções e Limites têm SALVO agora, na mesma ordem que o motor monta em cada atendimento. Blocos que só existem durante uma conversa real — leitura, preço, entrega, estilo, o objetivo de um fluxo — não entram aqui.",
         )}
       </p>
       <pre

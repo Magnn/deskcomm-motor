@@ -12222,8 +12222,38 @@ export const DICIONARIO: Traducoes = {
 
   // ── Prévia completa do agente (prompt montado + capacidades) ───────────────
   "O prompt completo que o agente recebe": { es: "El prompt completo que recibe el agente" },
-  "É a soma das instruções acima com o que as abas Identidade, Oferta, Objeções e Limites têm SALVO agora, na mesma ordem que o motor monta em cada atendimento. Blocos que só existem durante uma conversa real — leitura, preço, entrega, estilo, o objetivo de um fluxo — não entram aqui.":
-    { es: "Es la suma de las instrucciones de arriba con lo que las pestañas Identidad, Oferta, Objeciones y Límites tienen GUARDADO ahora, en el mismo orden en que el motor las arma en cada atención. Los bloques que solo existen durante una conversación real —lectura, precio, entrega, estilo, el objetivo de un flujo— no entran aquí." },
+  "É a soma das instruções acima com o que as abas Identidade, Oferta, Consciência, Objeções e Limites têm SALVO agora, na mesma ordem que o motor monta em cada atendimento. Blocos que só existem durante uma conversa real — leitura, preço, entrega, estilo, o objetivo de um fluxo — não entram aqui.":
+    { es: "Es la suma de las instrucciones de arriba con lo que las pestañas Identidad, Oferta, Consciencia, Objeciones y Límites tienen GUARDADO ahora, en el mismo orden en que el motor las arma en cada atención. Los bloques que solo existen durante una conversación real —lectura, precio, entrega, estilo, el objetivo de un flujo— no entran aquí." },
+
+  // ── Consciência do lead (aba "Consciência", 5 níveis de Schwartz + desejo/medo/promessa) ─────
+  "Consciência": { es: "Consciencia" },
+  "Consciência do lead": { es: "Consciencia del lead" },
+  "Diga quem costuma chegar até este agente e o quanto essa pessoa já entende do próprio problema. Isso calibra COMO conduzir a conversa até a oferta — a mesma oferta soa diferente para quem ainda nem percebeu o problema e para quem já está comparando. Vale a partir da próxima conversa, sem publicar versão.":
+    { es: "Di quién suele llegar hasta este agente y cuánto esa persona ya entiende de su propio problema. Esto calibra CÓMO conducir la conversación hasta la oferta — la misma oferta suena diferente para quien todavía ni percibió el problema y para quien ya está comparando. Vale desde la próxima conversación, sin publicar versión." },
+  "Usar esta consciência do lead": { es: "Usar esta consciencia del lead" },
+  "Nível de consciência mais comum": { es: "Nivel de consciencia más común" },
+  "Escolha o que descreve melhor quem costuma chegar até este agente.": { es: "Elige lo que describe mejor a quien suele llegar hasta este agente." },
+  "Ainda não percebeu o problema": { es: "Todavía no percibió el problema" },
+  "Não fala em resolver nada específico — só comenta um incômodo solto, sem nome.": { es: "No habla de resolver nada específico — solo comenta una molestia suelta, sin nombre." },
+  "Sabe do problema, não conhece solução": { es: "Sabe del problema, no conoce solución" },
+  "Já nomeia o que a incomoda, mas não sabe que existe algo que resolve isso.": { es: "Ya nombra lo que la molesta, pero no sabe que existe algo que resuelve eso." },
+  "Sabe que existem soluções, não conhece a sua": { es: "Sabe que existen soluciones, no conoce la tuya" },
+  "Já pesquisou ou já tentou outras coisas, mas não conhece a sua oferta.": { es: "Ya investigó o ya intentó otras cosas, pero no conoce tu oferta." },
+  "Já conhece a oferta, ainda não decidiu": { es: "Ya conoce la oferta, todavía no decidió" },
+  "Já sabe o que você vende — falta o empurrão para decidir.": { es: "Ya sabe lo que vendes — falta el empujón para decidir." },
+  "Pronto para decidir": { es: "Listo para decidir" },
+  "Já quer comprar — só falta o caminho para pagar.": { es: "Ya quiere comprar — solo falta el camino para pagar." },
+  "O que move esta pessoa": { es: "Qué mueve a esta persona" },
+  "O que ela mais quer resolver ou conquistar": { es: "Qué es lo que más quiere resolver o conquistar" },
+  "Nas palavras do seu negócio — não existe lista pronta aqui.": { es: "Con las palabras de tu negocio — no hay una lista lista aquí." },
+  "O medo de fundo, raramente dito em voz alta": { es: "El miedo de fondo, rara vez dicho en voz alta" },
+  "Diferente de uma objeção: é o que ela não chega a falar.": { es: "Diferente de una objeción: es lo que ella no llega a decir." },
+  "O agente reconhece isso com delicadeza; nunca nomeia de forma crua nem repete de volta à pessoa.": { es: "El agente reconoce esto con delicadeza; nunca lo nombra de forma cruda ni lo repite de vuelta a la persona." },
+  "A promessa central desta oferta": { es: "La promesa central de esta oferta" },
+  "O que faz a sua oferta ser diferente do resto.": { es: "Lo que hace tu oferta diferente del resto." },
+  "Salvar consciência do lead": { es: "Guardar consciencia del lead" },
+  "Consciência do lead salva. Vale a partir da próxima conversa.": { es: "Consciencia del lead guardada. Vale desde la próxima conversación." },
+  "Consciência do lead desligada. O agente volta a usar só as instruções dele.": { es: "Consciencia del lead desactivada. El agente vuelve a usar solo sus instrucciones." },
   "O que ele pode fazer": { es: "Qué puede hacer" },
   "Nenhuma capacidade ligada.": { es: "Ninguna capacidad activada." },
 };

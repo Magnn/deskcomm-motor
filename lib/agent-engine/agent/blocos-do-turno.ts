@@ -22,19 +22,22 @@
  *                     pelo dono do negócio). Abre a fila: é o contexto-base.
  *   2. `oferta`   — BASE: o que a empresa vende, em fatos (aba Oferta, definida pelo
  *                   dono do negócio). Sem preço: o valor mora no bloco de preço.
- *   3. `objecoes` — BASE: como responder ao que a pessoa levanta para não fechar (aba
+ *   3. `consciencia` — BASE: quem é esta pessoa e o quanto já entende do próprio problema (aba
+ *                   Consciência, definida pelo dono do negócio). Calibra COMO conduzir até a oferta;
+ *                   vem depois dela, de que depende, e ANTES de objeções, que a decisão já considera.
+ *   4. `objecoes` — BASE: como responder ao que a pessoa levanta para não fechar (aba
  *                   Objeções, definida pelo dono do negócio). Vem depois da oferta, de que
  *                   depende, e ANTES do preço: valor e desconto são do bloco de preço, que vence.
- *   4. `anuncio`  — INFORMATIVO: de que anúncio a pessoa veio.
- *   5. `estilo`   — ESTILO UNIVERSAL: o que a agente já repetiu (abertura, fecho,
+ *   5. `anuncio`  — INFORMATIVO: de que anúncio a pessoa veio.
+ *   6. `estilo`   — ESTILO UNIVERSAL: o que a agente já repetiu (abertura, fecho,
  *                   frase feita, emoji). Regra de forma, a mais fraca do prompt.
- *   6. `fluxo`    — DIRETIVO: o objetivo da etapa de um fluxo que pôs este agente no comando (nó
+ *   7. `fluxo`    — DIRETIVO: o objetivo da etapa de um fluxo que pôs este agente no comando (nó
  *                   "Agente de IA") e quantas respostas restam. Geral: vem ANTES dos diretivos
  *                   específicos do funil, que vencem se houver conflito.
- *   7. `leitura`  — DIRETIVO: qual carta revelar agora (ou a causa raiz).
- *   8. `preco`    — DIRETIVO: o degrau de preço e o que dizer.
- *   9. `entrega`  — DIRETIVO: o guia do trabalho que a pessoa já pagou.
- *  10. `limites`  — PROIBIÇÃO DO DONO: o que o agente nunca diz nem promete e os assuntos que não
+ *   8. `leitura`  — DIRETIVO: qual carta revelar agora (ou a causa raiz).
+ *   9. `preco`    — DIRETIVO: o degrau de preço e o que dizer.
+ *  10. `entrega`  — DIRETIVO: o guia do trabalho que a pessoa já pagou.
+ *  11. `limites`  — PROIBIÇÃO DO DONO: o que o agente nunca diz nem promete e os assuntos que não
  *                   discute (aba Limites). ÚLTIMO de propósito: o que o dono PROÍBE tem de vencer o que
  *                   o funil manda — se um limite conflita com leitura, preço ou entrega, o limite ganha.
  *
@@ -56,7 +59,7 @@
  * Sem nenhum bloco (todos ''), o system sai idêntico ao de entrada — o prefixo
  * estável e cacheável não muda.
  */
-export const BLOCOS_DO_TURNO = ['identidade', 'oferta', 'objecoes', 'anuncio', 'estilo', 'fluxo', 'leitura', 'preco', 'entrega', 'limites'] as const;
+export const BLOCOS_DO_TURNO = ['identidade', 'oferta', 'consciencia', 'objecoes', 'anuncio', 'estilo', 'fluxo', 'leitura', 'preco', 'entrega', 'limites'] as const;
 
 export type NomeDoBlocoDoTurno = (typeof BLOCOS_DO_TURNO)[number];
 

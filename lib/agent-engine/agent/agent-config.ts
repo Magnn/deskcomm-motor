@@ -15,6 +15,7 @@
  */
 import type pg from 'pg';
 
+import { lerConsciencia, type ConscienciaConfig } from '@/lib/consciencia/tipos';
 import { lerIdentidade, type IdentidadeConfig } from '@/lib/identidade/tipos';
 import { lerLimites, type LimitesConfig } from '@/lib/limites/tipos';
 import { lerObjecoes, type ObjecoesConfig } from '@/lib/objecoes/tipos';
@@ -115,6 +116,12 @@ export interface PublishedAgentConfig {
    * Ausente e `null` significam a mesma coisa.
    */
   offer?: OfertaConfig | null;
+  /**
+   * Consciência do lead (`ai_agents.config.consciencia`, aba "Consciência"): o nível de consciência
+   * (Schwartz), o desejo/dor declarado e o medo oculto, e a promessa central da oferta. `null` =
+   * desligada: o turno segue como sempre. Ausente e `null` significam a mesma coisa.
+   */
+  consciencia?: ConscienciaConfig | null;
   /**
    * Objeções (`ai_agents.config.objections`, aba "Objeções"): o que a pessoa costuma dizer para não fechar e
    * a resposta que o dono aprovou. `null` = desligada: o turno segue como sempre. Ausente e `null`
@@ -263,6 +270,7 @@ function mapAgentConfigRow(r: Row): PublishedAgentConfig {
     pricing: lerPricing(r.config),
     identity: lerIdentidade(r.config),
     offer: lerOferta(r.config),
+    consciencia: lerConsciencia(r.config),
     objections: lerObjecoes(r.config),
     limits: lerLimites(r.config),
     versionCreatedBy: r.version_created_by,
