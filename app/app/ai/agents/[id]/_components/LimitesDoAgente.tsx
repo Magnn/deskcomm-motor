@@ -19,6 +19,7 @@ import { toast } from "sonner";
 
 import { ListaDeChips } from "@/components/ai/ListaDeChips";
 import { PreviaDoBloco } from "@/components/ai/PreviaDoBloco";
+import { RascunhoComIA } from "@/components/ai/RascunhoComIA";
 import { showApiError } from "@/components/feedback/ApiErrorToast";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -77,6 +78,38 @@ export function LimitesDoAgente({ agentId, config, readOnly }: Props) {
   const [salvando, setSalvando] = React.useState(false);
   const patch = (p: Partial<Formulario>) => setForm((f) => ({ ...f, ...p }));
 
+  /**
+   * O rascunho por IA ACRESCENTA às listas existentes (não substitui): quem já preencheu
+   * alguns itens e pede um rascunho não quer perdê-los. Mesmo teto de caractere e mesmos
+   * caracteres proibidos que `ListaDeChips` já aplica em quem digita à mão — ver
+   * `PROIBIDOS_NA_LISTA` acima e `lib/rascunho-ia/tipos.ts` sobre por que a validação de
+   * verdade continua sendo só a do servidor, no Salvar.
+   */
+  const aoRascunho = (dados: Record<string, unknown>) => {
+    const lista = (v: unknown, max: number, tamanhoMax: number, existentes: string[]): string[] | undefined => {
+      if (!Array.isArray(v)) return undefined;
+      const limpos = v
+        .filter((x): x is string => typeof x === "string")
+        .map((s) => s.replace(/["\n;]/g, "").trim())
+        .filter((s) => s !== "" && s.length <= tamanhoMax);
+      const combinados = [...existentes];
+      for (const item of limpos) {
+        if (combinados.length >= max) break;
+        if (combinados.some((i) => i.toLowerCase() === item.toLowerCase())) continue;
+        combinados.push(item);
+      }
+      return combinados;
+    };
+
+    const nuncaDiz = lista(dados.nunca_diz, MAX_NUNCA_DIZ, TAMANHO_NUNCA_DIZ, form.nuncaDiz);
+    const evitaAssuntos = lista(dados.evita_assuntos, MAX_ASSUNTOS, TAMANHO_ASSUNTO, form.evitaAssuntos);
+
+    patch({
+      ...(nuncaDiz !== undefined ? { nuncaDiz } : {}),
+      ...(evitaAssuntos !== undefined ? { evitaAssuntos } : {}),
+    });
+  };
+
   // A prévia é o bloco REAL: a mesma função que o turno usa, sobre os mesmos campos, com o interruptor
   // ligado (desligada, a pessoa ainda vê o que passaria a valer).
   const previa = React.useMemo(() => {
@@ -123,12 +156,15 @@ export function LimitesDoAgente({ agentId, config, readOnly }: Props) {
                 )}
               </p>
             </div>
-            <Switch
-              checked={form.enabled}
-              onCheckedChange={(v) => patch({ enabled: v })}
-              disabled={readOnly}
-              aria-label={t("Usar estes limites")}
-            />
+            <div className="flex items-center gap-3">
+              {!readOnly ? <RascunhoComIA agentId={agentId} campo="limites" onRascunho={aoRascunho} /> : null}
+              <Switch
+                checked={form.enabled}
+                onCheckedChange={(v) => patch({ enabled: v })}
+                disabled={readOnly}
+                aria-label={t("Usar estes limites")}
+              />
+            </div>
           </div>
         </Card>
 

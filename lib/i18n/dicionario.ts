@@ -12282,6 +12282,20 @@ export const DICIONARIO: Traducoes = {
   "Brief apagado.": { es: "Brief eliminado." },
   "O que ele pode fazer": { es: "Qué puede hacer" },
   "Nenhuma capacidade ligada.": { es: "Ninguna capacidad activada." },
+
+  // ── Rascunho por IA (botão nas abas Identidade e Limites) ───────────────────────────
+  "Gerar rascunho com IA": { es: "Generar borrador con IA" },
+  "Conte em poucas frases sobre o negócio. A IA propõe os campos desta aba — você revisa e edita antes de salvar.": {
+    es: "Cuenta en pocas frases sobre el negocio. La IA propone los campos de esta pestaña — tú revisas y editas antes de guardar.",
+  },
+  "Ex.: somos uma clínica de estética em Fortaleza, atendemos mulheres de 25 a 50 anos, o carro-chefe é limpeza de pele e botox.": {
+    es: "Ej.: somos una clínica de estética en Fortaleza, atendemos a mujeres de 25 a 50 años, el producto estrella es limpieza facial y bótox.",
+  },
+  "Isto não é salvo em lugar nenhum — só vai para a geração do rascunho.": {
+    es: "Esto no se guarda en ningún lugar — solo se usa para generar el borrador.",
+  },
+  "Rascunho gerado. Revise e ajuste antes de salvar.": { es: "Borrador generado. Revísalo y ajústalo antes de guardar." },
+  Gerar: { es: "Generar" },
 };
 
 /**

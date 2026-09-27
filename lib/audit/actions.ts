@@ -817,6 +817,13 @@ export const AUDIT_ACTIONS = [
   "ai.ad_brief_created",
   "ai.ad_brief_updated",
   "ai.ad_brief_deleted",
+  // Um rascunho por IA gerado (POST /ai/agents/:id/rascunho): não escreve no agente, só
+  // devolve campos soltos para a tela mostrar — o texto do dono (contexto) e o da IA
+  // (rascunho) não vão para a auditoria, só o campo pedido e quantos vieram preenchidos.
+  // "Quantas vezes este agente gerou rascunho, e de qual aba" é a pergunta que só esta
+  // linha responde; o "quem editou o quê" continua sendo `ai.identity_updated`/
+  // `ai.limits_updated`, no Salvar.
+  "ai.rascunho_gerado",
   // Um aviso da Cakto que MUDOU algo (compra aprovada → entrega, reembolso, chargeback). O evento
   // que não muda nada (Pix gerado, abandono) só entra em `webhook_events_log`, não aqui.
   "webhook.cakto_evento_aplicado",
