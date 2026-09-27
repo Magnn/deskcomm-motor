@@ -25,7 +25,15 @@ describe("lerAnuncioDoContato", () => {
       plataforma: "meta_ads",
       titulo: "Recomece com leveza",
       corpo: "Uma leitura pra quem quer virar a página.",
+      adId: null,
     });
+  });
+
+  it("lê o adId quando presente — identificador puro, nunca passa pelo higienizador de prosa", () => {
+    expect(lerAnuncioDoContato({ ...META, ad_id: "1234567890" })?.adId).toBe("1234567890");
+    expect(lerAnuncioDoContato({ ...META, ad_id: "  123  " })?.adId).toBe("123");
+    expect(lerAnuncioDoContato({ ...META, ad_id: "" })?.adId).toBeNull();
+    expect(lerAnuncioDoContato({ ...META, ad_id: 123 })?.adId).toBeNull();
   });
 
   it("não há anúncio quando o contato não veio de anúncio, ou o dado não é um objeto", () => {

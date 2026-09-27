@@ -20,6 +20,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { PreviaDoBloco } from "@/components/ai/PreviaDoBloco";
+import { BriefsDeAnuncioDoAgente } from "./BriefsDeAnuncioDoAgente";
 import { showApiError } from "@/components/feedback/ApiErrorToast";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -227,6 +228,8 @@ export function ConscienciaDoAgente({ agentId, config, readOnly }: Props) {
             </Button>
           </div>
         ) : null}
+
+        <BriefsDeAnuncioDoAgente agentId={agentId} readOnly={readOnly} />
       </div>
 
       <PreviaDoBloco texto={previa} ligada={form.enabled} testId="previa-da-consciencia" />
