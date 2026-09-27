@@ -52,6 +52,7 @@ import {
   type actionConfigSchema,
   type aiClassifyConfigSchema,
   type conditionConfigSchema,
+  type ConteudoItemType,
   type contactFlowFieldTypeSchema,
   type endConfigSchema,
   type HttpMethod,
@@ -512,6 +513,18 @@ export const MODOS_DA_ACAO: Record<ModoDaAcao, string> = {
   text: "Texto fixo",
   ai_message: "Mensagem escrita pela IA",
   template: "Modelo de mensagem pronto",
+  content: "Conteúdo (texto, mídia, contato…)",
+};
+
+/** Rótulo + ícone (por nome, resolvido na tela) de cada tipo de item do nó Conteúdo. */
+export const TIPOS_DE_ITEM_DE_CONTEUDO: Record<ConteudoItemType, string> = {
+  text: "Texto",
+  image: "Imagem",
+  video: "Vídeo",
+  audio: "Áudio (nota de voz)",
+  document: "Documento",
+  contact: "Contato",
+  delay: "Pausa",
 };
 
 // ─── pergunta do fluxo de atendimento (nó collect) ───────────────────────

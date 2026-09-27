@@ -111,3 +111,34 @@ describe("NodeCard — regra que não aponta para etapa nenhuma se acusa no card
     expect(linha).not.toHaveTextContent("(não encontrada)");
   });
 });
+
+describe("NodeCard — prévia de conteúdo (nó Ação, modo content)", () => {
+  it("mostra uma linha por item, com o texto real (não uma frase genérica)", () => {
+    render(
+      <NodeCard
+        id="c1"
+        visual={NODE_VISUALS.action}
+        label="Enviar mensagem"
+        subtitle="2 itens"
+        previewRows={[
+          { texto: "Segue o material combinado", Icon: () => <span data-testid="icon-text" /> },
+          { texto: "Pausa 3s", Icon: () => <span data-testid="icon-delay" /> },
+        ]}
+      />,
+    );
+
+    const prévia = screen.getByTestId("node-preview-c1");
+    expect(prévia).toHaveTextContent("Segue o material combinado");
+    expect(prévia).toHaveTextContent("Pausa 3s");
+  });
+
+  it("sem previewRows (ou lista vazia), a seção nem aparece", () => {
+    render(<NodeCard id="c1" visual={NODE_VISUALS.action} label="Enviar mensagem" subtitle="1 item" />);
+    expect(screen.queryByTestId("node-preview-c1")).toBeNull();
+
+    render(
+      <NodeCard id="c2" visual={NODE_VISUALS.action} label="Enviar mensagem" subtitle="0 itens" previewRows={[]} />,
+    );
+    expect(screen.queryByTestId("node-preview-c2")).toBeNull();
+  });
+});

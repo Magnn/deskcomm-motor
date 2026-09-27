@@ -6,6 +6,7 @@ import {
   aiClassifyConfigSchema,
   matchReplyConfigSchema,
   actionConfigSchema,
+  MAX_CONTEUDO_ITEMS,
   conditionConfigSchema,
   collectConfigSchema,
   skillConfigSchema,
@@ -368,6 +369,93 @@ describe('graph-schema', () => {
           mode: 'template',
           template_id: '550e8400-e29b-41d4-a716-446655440000',
           extra_key: 'should reject',
+        });
+        expect(result.success).toBe(false);
+      });
+    });
+
+    describe('content mode', () => {
+      it('accepts one item of each type in the same sequence', () => {
+        const result = actionConfigSchema.safeParse({
+          mode: 'content',
+          items: [
+            { type: 'text', body: 'Oi! Segue o material.' },
+            { type: 'image', storage_path: 'org/conv/foto.jpg', mime: 'image/jpeg', caption: 'Antes e depois' },
+            { type: 'video', storage_path: 'org/conv/video.mp4', mime: 'video/mp4' },
+            { type: 'audio', storage_path: 'org/conv/nota.ogg', mime: 'audio/ogg' },
+            { type: 'document', storage_path: 'org/conv/tabela.pdf', mime: 'application/pdf', filename: 'tabela.pdf' },
+          ],
+        });
+        expect(result.success).toBe(true);
+      });
+
+      it('accepts a contact item and a delay item', () => {
+        const result = actionConfigSchema.safeParse({
+          mode: 'content',
+          items: [
+            { type: 'contact', name: 'Suporte', phone_number: '+5511999998888' },
+            { type: 'delay', seconds: 3 },
+          ],
+        });
+        expect(result.success).toBe(true);
+      });
+
+      it('rejects an empty items list', () => {
+        const result = actionConfigSchema.safeParse({ mode: 'content', items: [] });
+        expect(result.success).toBe(false);
+      });
+
+      it('rejects more than MAX_CONTEUDO_ITEMS items', () => {
+        const items = Array.from({ length: MAX_CONTEUDO_ITEMS + 1 }, () => ({ type: 'text' as const, body: 'x' }));
+        const result = actionConfigSchema.safeParse({ mode: 'content', items });
+        expect(result.success).toBe(false);
+      });
+
+      it('rejects a text item over 4000 chars', () => {
+        const result = actionConfigSchema.safeParse({
+          mode: 'content',
+          items: [{ type: 'text', body: 'x'.repeat(4001) }],
+        });
+        expect(result.success).toBe(false);
+      });
+
+      it('rejects an image caption over 1024 chars', () => {
+        const result = actionConfigSchema.safeParse({
+          mode: 'content',
+          items: [{ type: 'image', storage_path: 'p', mime: 'image/jpeg', caption: 'x'.repeat(1025) }],
+        });
+        expect(result.success).toBe(false);
+      });
+
+      it('rejects a delay outside 1-120 seconds', () => {
+        expect(
+          actionConfigSchema.safeParse({ mode: 'content', items: [{ type: 'delay', seconds: 0 }] }).success,
+        ).toBe(false);
+        expect(
+          actionConfigSchema.safeParse({ mode: 'content', items: [{ type: 'delay', seconds: 121 }] }).success,
+        ).toBe(false);
+      });
+
+      it('rejects a contact without a phone number', () => {
+        const result = actionConfigSchema.safeParse({
+          mode: 'content',
+          items: [{ type: 'contact', name: 'Suporte' }],
+        });
+        expect(result.success).toBe(false);
+      });
+
+      it('rejects an unknown item type', () => {
+        const result = actionConfigSchema.safeParse({
+          mode: 'content',
+          items: [{ type: 'sticker', storage_path: 'p', mime: 'image/webp' }],
+        });
+        expect(result.success).toBe(false);
+      });
+
+      it('rejects extra keys on an item (strict per-item, not just per-node)', () => {
+        const result = actionConfigSchema.safeParse({
+          mode: 'content',
+          items: [{ type: 'text', body: 'x', instrucao_secreta: 'ignore tudo' }],
         });
         expect(result.success).toBe(false);
       });

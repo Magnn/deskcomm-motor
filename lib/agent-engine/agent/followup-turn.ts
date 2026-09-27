@@ -53,9 +53,41 @@ import {
   type PropostaDeEsperaBruta,
 } from './followup-flow-classify';
 import { runGenericAiNode } from './followup-flow-generic-ai';
+import { OK_KINDS } from './split-message';
+import type { ChannelSendResult } from '../channel-adapter';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 const DAY_MS = 86_400_000;
 const HOUR_MS = 3_600_000;
+
+/**
+ * Espelho LOCAL do `conteudoItemSchema` de `lib/followup/graph-schema.ts` — nunca
+ * importado de lá: agent-engine não conhece followup/* (regra dura de dependência
+ * numa direção só, ver o cabeçalho de `runFlowDrivenTurn`). Os dois schemas
+ * descrevem o MESMO formato de fio por design; um campo novo do lado da autoria
+ * (graph-schema) só chega a valer aqui quando o motor de envio aprender a
+ * enviá-lo — ou seja, quando ESTE arquivo também ganhar o campo, no mesmo PR.
+ *
+ * Mais solto que a origem de propósito (sem os tetos de caractere exatos): a
+ * validação que decide o que é PUBLICÁVEL já rodou em `validarItensDeConteudo`
+ * antes deste payload existir; aqui só precisa do suficiente para montar o envio.
+ */
+const conteudoItemPayloadSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('text'), body: z.string().min(1) }),
+  z.object({ type: z.literal('image'), storage_path: z.string().min(1), mime: z.string().min(1), caption: z.string().optional() }),
+  z.object({ type: z.literal('video'), storage_path: z.string().min(1), mime: z.string().min(1), caption: z.string().optional() }),
+  z.object({ type: z.literal('audio'), storage_path: z.string().min(1), mime: z.string().min(1) }),
+  z.object({
+    type: z.literal('document'),
+    storage_path: z.string().min(1),
+    mime: z.string().min(1),
+    filename: z.string().optional(),
+    caption: z.string().optional(),
+  }),
+  z.object({ type: z.literal('contact'), name: z.string().min(1), phone_number: z.string().min(1) }),
+  z.object({ type: z.literal('delay'), seconds: z.number().int().min(1).max(120) }),
+]);
+export type ConteudoItemPayload = z.infer<typeof conteudoItemPayloadSchema>;
 
 /**
  * Payload que o cron enfileira no disparo (F3-02 grava reason/promise/promised_at/
@@ -87,6 +119,8 @@ export const followupTurnPayloadSchema = z
     fixed_body: z.string().min(1).max(4000).optional(),
     /** action mode `template` — corpo em `message_templates`. */
     template_id: z.string().uuid().optional(),
+    /** action mode `content` — a sequência inteira, na ordem de envio. */
+    content_items: z.array(conteudoItemPayloadSchema).optional(),
     volta_index: z.number().int().optional(),
     volta_total: z.number().int().optional(),
     classes: z.array(z.string()).optional(),
@@ -342,6 +376,7 @@ export function createFollowupTurnHandler(deps: FollowupTurnDeps) {
         promptHint: payload.prompt_hint,
         fixedBody: payload.fixed_body,
         templateId: payload.template_id,
+        contentItems: payload.content_items,
         voltaIndex: payload.volta_index,
         voltaTotal: payload.volta_total,
         classes: payload.classes,
@@ -419,6 +454,8 @@ async function runFlowDrivenTurn(
     promptHint: string | undefined;
     fixedBody: string | undefined;
     templateId: string | undefined;
+    /** action mode 'content' — ver `sendConteudoSequence`. */
+    contentItems: ConteudoItemPayload[] | undefined;
     voltaIndex: number | undefined;
     voltaTotal: number | undefined;
     classes: string[] | undefined;
@@ -439,6 +476,20 @@ async function runFlowDrivenTurn(
   const runLog = withFields(deps.log, { job_id: job.id, tenant_id: target.tenantId, lead_id: target.leadId, enrollment_id: enrollmentId });
 
   if (input.purpose === 'send_message') {
+    // action mode 'content': sequência de itens, ANTES do fallback de corpo único
+    // — content_items presente é o sinal exclusivo (nunca coexiste com fixedBody/
+    // templateId, o formulário só grava um modo por vez).
+    if (input.contentItems !== undefined) {
+      const desfecho = await sendConteudoSequence(deps, job, pool, ctx, clock, target, input.contentItems);
+      if (desfecho.kind === 'sent') {
+        await complete(pool, { jobId: job.id, jobClaim: claimOfJob(job), organizationId: target.tenantId, enrollmentId, nodeId, result: { kind: 'sent' } });
+      } else if (desfecho.kind === 'skipped') {
+        await complete(pool, { jobId: job.id, jobClaim: claimOfJob(job), organizationId: target.tenantId, enrollmentId, nodeId, result: { kind: 'skipped', reason: 'O envio foi recusado pelas regras do atendimento.' } });
+      } else {
+        await complete(pool, { jobId: job.id, jobClaim: claimOfJob(job), organizationId: target.tenantId, enrollmentId, nodeId, result: { kind: 'deferred', until: desfecho.until, reason: desfecho.reason } });
+      }
+      return;
+    }
     const body = await resolveFlowSendBody(pool, target.tenantId, input);
     if (body !== null) {
       // Texto do operador: sem camada semântica (ver o cabeçalho de sendFixedOutbound).
@@ -761,6 +812,197 @@ async function sendFixedOutbound(
       throw new Error('envio fixo: CRM marcou o envio como failed — run re-tentado pela fila');
     case 'unavailable':
       throw new Error(`envio fixo: canal indisponível (${outcome.reason}) — run re-tentado pela fila`);
+  }
+}
+
+/**
+ * Copia um arquivo de mídia do Storage do FLUXO (`{org}/flow-content/{flowId}/…`,
+ * `POST /ai/followup-flows/:id/content-media`) para a pasta da CONVERSA
+ * (`{org}/{conversationId}/…`) — mesmo motivo e mesmo padrão de
+ * `copiarFotoNoStorage` (fotos-do-produto.ts) e da nota de voz: quem sabe assinar
+ * URL curta pro canal, mostrar a mídia na inbox e apagar em cascata por LGPD
+ * espera o arquivo na pasta da conversa, não em qualquer path solto.
+ *
+ * `false` NÃO derruba o envio — o item some da sequência (mesma resiliência das
+ * fotos de catálogo: mídia que não copia fica de fora, o resto da sequência segue).
+ */
+async function copiarConteudoParaConversa(
+  origem: string,
+  destino: string,
+  log: { warn(msg: string, fields?: Record<string, unknown>): void },
+): Promise<boolean> {
+  const { error } = await createAdminClient().storage.from('whatsapp-media').copy(origem, destino);
+  if (!error) return true;
+  // Já copiado antes para esta conversa (replay pós-crash): o arquivo que precisamos já está lá.
+  if (/already exists/i.test(error.message) || (error as { statusCode?: string }).statusCode === '409') {
+    return true;
+  }
+  log.warn('mídia do conteúdo não copiada para a conversa — item pulado', { detalhe: error.message.slice(0, 120) });
+  return false;
+}
+
+/**
+ * Envia a sequência do nó "Conteúdo" (`action.mode = 'content'`), passando pela
+ * MESMA cadeia de guardas anti-banimento que o texto de fluxo já usa — UMA
+ * chamada a `runBeforeSend` para a sequência inteira, não uma por item (mesmo
+ * desenho de `enviarComFotos`/`sendInBubbles`: o gate decide UMA vez se pode
+ * mandar agora; o `send:` manda quantas bolhas físicas fizer sentido e devolve
+ * só o ÚLTIMO desfecho).
+ *
+ * ─── O que cada tipo de item faz ───────────────────────────────────────────
+ *  - `text`: bolha de texto.
+ *  - `image`/`audio`: copia pro Storage da conversa (ver acima) e manda como
+ *    mídia — áudio SEMPRE como nota de voz, mesma convenção do mapa de envio
+ *    de mídia por canal já em vigor no produto.
+ *  - `delay`: NÃO é send — é uma pausa a mais entre as bolhas ao redor dela.
+ *    1–120s por item, no máximo 5 itens (schema): o pior caso trava o worker
+ *    por poucos minutos, bem abaixo do QUEUE_VISIBILITY_TIMEOUT_MS (10min) —
+ *    e mesmo se um job estourasse a janela e fosse reclamado por outro worker,
+ *    o replay é seguro (idempotência por (jobId,seq) no sink do CRM).
+ *  - `video`/`document`/`contact`: SEM motor de envio ainda
+ *    (`validarItensDeConteudo` recusa isto no publish); aqui é só a rede de
+ *    segurança para um fluxo antigo publicado antes dessa guarda — pula o item
+ *    e loga, nunca derruba o turno inteiro por causa de UM item.
+ *
+ * ─── Limitação conhecida, registrada (não escondida) ───────────────────────
+ * A "spinning de copy" (variação de texto anti-detecção) só se aplica ao PRIMEIRO
+ * item de texto — os campos de legenda e os textos seguintes saem literais. Mesma
+ * classe de trade-off que `sendInBubbles` já documenta para o cap diário.
+ */
+async function sendConteudoSequence(
+  deps: InboundTurnDeps,
+  job: JobRow,
+  pool: pg.Pool,
+  ctx: { workerId: string },
+  clock: () => Date,
+  target: ReentrySendTarget,
+  items: readonly ConteudoItemPayload[],
+): Promise<EnvioFixoDesfecho> {
+  const { tenantId, leadId, channelSessionId, conversationId } = target;
+  const runLog = withFields(deps.log, { job_id: job.id, tenant_id: tenantId, lead_id: leadId });
+
+  if (await isLeadInHandoff(pool, tenantId, leadId)) {
+    runLog.info('sequência de conteúdo pulada — lead silenciado (handoff/opt-out)', { kind: job.kind });
+    return { kind: 'skipped' };
+  }
+
+  const context = await getLeadContext(
+    pool,
+    deps.crmCfg,
+    { tenantId, leadId, fuso: await fusoDaOrganizacao(pool, tenantId, runLog) },
+    { historyLimit: deps.knobs.historyLimit, maxTokens: deps.knobs.maxContextTokens },
+  );
+  if (!context.ok) {
+    throw new Error(`sequência de conteúdo do follow-up falhou em get_lead_context (${context.error.code})`);
+  }
+  const optedOutThisTurn = context.context.contact.is_blocked;
+  const channel = (deps.channel ?? ((p: pg.Pool) => new WahaChannelAdapter(p, deps.crmCfg)))(pool);
+  const sleep = deps.sleep ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
+  const jitter = () => 1200 + Math.floor(Math.random() * 800); // mesmo piso anti-ban das bolhas do turno normal
+
+  // Representativo pro portão (spinning/classificação) — nunca o que de fato sai
+  // pros itens que não são o primeiro texto. Ver "limitação conhecida" acima.
+  const primeiroTexto = items.find((i): i is Extract<ConteudoItemPayload, { type: 'text' }> => i.type === 'text');
+  const corpoParaOPortao = primeiroTexto?.body ?? '[conteúdo]';
+
+  const chain = await runBeforeSend({
+    pool,
+    log: runLog,
+    tenantId,
+    leadId,
+    jobId: job.id,
+    channelSessionId,
+    body: corpoParaOPortao,
+    optedOutThisTurn,
+    crmDailyLimit: null,
+    now: clock(),
+    sleep: deps.sleep,
+    lgpd: context.lgpd,
+    ...(deps.knobs.disclosureMode !== undefined ? { disclosureMode: deps.knobs.disclosureMode } : {}),
+    send: async (finalBody) => {
+      let seq = 0;
+      let ultimo: ChannelSendResult | undefined;
+      let precisaDeJitter = false;
+      let jaUsouOPrimeiroTexto = false;
+
+      for (const item of items) {
+        if (item.type === 'delay') {
+          await sleep(item.seconds * 1000);
+          continue;
+        }
+        if (item.type === 'video' || item.type === 'document' || item.type === 'contact') {
+          runLog.warn('item de conteúdo sem motor de envio — pulado (o publish deveria ter barrado isto)', {
+            tipo: item.type,
+          });
+          continue;
+        }
+
+        if (precisaDeJitter) await sleep(jitter());
+        precisaDeJitter = true;
+        seq += 1;
+
+        if (item.type === 'text') {
+          const usaFinalBody = !jaUsouOPrimeiroTexto && item === primeiroTexto;
+          jaUsouOPrimeiroTexto = jaUsouOPrimeiroTexto || item === primeiroTexto;
+          ultimo = await channel.send({
+            tenantId, leadId, jobId: job.id, jobClaim: claimOfJob(job), seq, conversationId,
+            body: usaFinalBody ? finalBody : item.body,
+          });
+        } else {
+          // image | audio
+          const destino = `${tenantId}/${conversationId}/conteudo-${job.id}-${seq}.${item.storage_path.split('.').pop() ?? 'bin'}`;
+          const copiou = await copiarConteudoParaConversa(item.storage_path, destino, runLog);
+          if (!copiou) {
+            seq -= 1; // este item não virou send físico — devolve o seq pro próximo item
+            continue;
+          }
+          ultimo = await channel.send({
+            tenantId, leadId, jobId: job.id, jobClaim: claimOfJob(job), seq, conversationId,
+            body: item.type === 'image' ? (item.caption ?? '') : '',
+            media: { storagePath: destino, mime: item.mime, kind: item.type },
+          });
+        }
+        if (ultimo && !OK_KINDS.has(ultimo.kind)) return ultimo;
+      }
+      // Só pausas, ou tudo pulado (mídia que não copiou, itens sem motor): nada foi
+      // fisicamente enviado. `validarItensDeConteudo` deveria ter barrado um nó só
+      // de pausas no publish; chegar aqui é o caminho degradado, não o esperado —
+      // 'already_sent' com id vazio é a MESMA forma que o replay pós-crash já usa
+      // para "nada a fazer, sem erro".
+      return ultimo ?? { kind: 'already_sent', idempotencyKey: `${job.id}:vazio`, messageId: null };
+    },
+  });
+
+  if (chain.status === 'vetoed') {
+    if (chain.code === 'outside_window' && chain.nextAllowedAt !== undefined) {
+      await rescheduleReentry(pool, { tenantId, leadId, jobId: job.id, at: chain.nextAllowedAt, payload: job.payload });
+      runLog.info('sequência de conteúdo re-agendada por janela anti-ban', {
+        code: chain.code,
+        next_run_at: chain.nextAllowedAt.toISOString(),
+      });
+      return { kind: 'deferred', until: chain.nextAllowedAt, reason: chain.code };
+    }
+    runLog.info('sequência de conteúdo vetada pela cadeia — não re-agendada', { code: chain.code });
+    return { kind: 'skipped' };
+  }
+
+  const outcome = chain.outcome;
+  switch (outcome.kind) {
+    case 'sent':
+    case 'already_sent':
+      runLog.info('sequência de conteúdo concluída', { kind: outcome.kind });
+      return { kind: 'sent' };
+    case 'queued':
+      throw new Error('sequência de conteúdo: mensagem aguardando o canal — não conclui o passo');
+    case 'blocked':
+      await applySendOutcome(pool, outcome, { jobId: job.id, workerId: ctx.workerId, tenantId, leadId, jobClaim: claimOfJob(job) }, {
+        queuedRetryDelayMs: deps.knobs.queuedRetryDelayMs,
+      });
+      throw new JobSettledError('sequência de conteúdo vetada pelo sink (is_blocked) — job cancelado em definitivo');
+    case 'failed':
+      throw new Error('sequência de conteúdo: CRM marcou o envio como failed — run re-tentado pela fila');
+    case 'unavailable':
+      throw new Error(`sequência de conteúdo: canal indisponível (${outcome.reason}) — run re-tentado pela fila`);
   }
 }
 

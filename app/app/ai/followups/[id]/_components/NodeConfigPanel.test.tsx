@@ -32,7 +32,7 @@ function montar(type: (typeof NODE_TYPES)[number], onDelete = vi.fn()) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <QueryClientProvider client={client}>
-      <NodeConfigPanel node={noDe(type)} onChange={() => {}} onDelete={onDelete} />
+      <NodeConfigPanel node={noDe(type)} flowId="11111111-1111-4111-8111-111111111111" onChange={() => {}} onDelete={onDelete} />
     </QueryClientProvider>,
   );
   return onDelete;

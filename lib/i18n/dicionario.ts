@@ -2171,6 +2171,21 @@ export const DICIONARIO: Traducoes = {
   "Como escrever a mensagem": { es: "Cómo escribir el mensaje" },
   "Mensagem escrita pela IA": { es: "Mensaje escrito por la IA" },
   "Modelo de mensagem pronto": { es: "Plantilla de mensaje predefinida" },
+  "Conteúdo (texto, mídia, contato…)": { es: "Contenido (texto, medios, contacto…)" },
+  "O envio deste tipo ainda não está pronto — o publish vai recusar este item.": {
+    es: "El envío de este tipo todavía no está listo — el publish va a rechazar este elemento.",
+  },
+  "Mover para cima": { es: "Mover hacia arriba" },
+  "Mover para baixo": { es: "Mover hacia abajo" },
+  "itens por nó.": { es: "elementos por nodo." },
+  "O que este balão diz": { es: "Lo que dice este globo" },
+  "segundos (1 a 120) — pausa antes do próximo item": { es: "segundos (1 a 120) — pausa antes del próximo elemento" },
+  "Telefone, com DDI (ex.: +5511999998888)": { es: "Teléfono, con código de país (ej.: +5511999998888)" },
+  "Trocar arquivo": { es: "Cambiar archivo" },
+  "Escolher arquivo": { es: "Elegir archivo" },
+  "Nenhum arquivo ainda": { es: "Ningún archivo todavía" },
+  item: { es: "elemento" },
+  itens: { es: "elementos" },
   "Instrução para a IA": { es: "Instrucción para la IA" },
   "Se a IA não conseguir escrever, mandar este modelo": { es: "Si la IA no puede redactar el mensaje, enviar esta plantilla" },
   "Modelo de mensagem": { es: "Plantilla de mensaje" },
@@ -5980,9 +5995,11 @@ export const DICIONARIO: Traducoes = {
   // ─── Inbox: mídia (áudio, imagem, figurinha, vídeo, documento) ───
   "Mídia indisponível": { es: "Contenido no disponible" },
   Áudio: { es: "Audio" },
+  "Áudio (nota de voz)": { es: "Audio (nota de voz)" },
   Imagem: { es: "Imagen" },
   Figurinha: { es: "Sticker" },
   Vídeo: { es: "Video" },
+  Pausa: { es: "Pausa" },
   "Pausar áudio": { es: "Pausar audio" },
   "Reproduzir áudio": { es: "Reproducir audio" },
   "Progresso do áudio": { es: "Progreso del audio" },
@@ -12201,6 +12218,9 @@ export const DICIONARIO: Traducoes = {
   },
   "Pergunta de confirmação — o dado já está preenchido nos dados simulados do lead.": {
     es: "Pregunta de confirmación — el dato ya está completado en los datos simulados del lead.",
+  },
+  "Prévia da sequência de itens, na ordem de envio — mídia e contato não são pré-visualizados aqui.": {
+    es: "Vista previa de la secuencia de elementos, en el orden de envío — medios y contacto no se previsualizan aquí.",
   },
   "Aguardando o fim da espera configurada neste nó.": {
     es: "Esperando el fin de la espera configurada en este nodo.",

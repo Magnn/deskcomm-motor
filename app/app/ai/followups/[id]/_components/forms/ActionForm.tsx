@@ -11,11 +11,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { actionConfigSchema } from "@/lib/followup/graph-schema";
+import { actionConfigSchema, type ConteudoItem } from "@/lib/followup/graph-schema";
 import { MODOS_DA_ACAO, opcoes, type ModoDaAcao } from "@/lib/followup/vocabulario";
 import { useMessageTemplates } from "@/hooks/inbox/useMessageTemplates";
 import { useT } from "@/hooks/i18n/useT";
 
+import { ConteudoItemsEditor } from "./ConteudoItemsEditor";
 import type { ConfigOf } from "./shared";
 
 /**
@@ -77,9 +78,12 @@ function SeletorDeModelo({
 
 export function ActionForm({
   config,
+  flowId,
   onChange,
 }: {
   config: ConfigOf<"action">;
+  /** Dono da mídia do modo `content` — ver `ConteudoItemsEditor`. */
+  flowId: string;
   onChange: (c: ConfigOf<"action">) => void;
 }) {
   const t = useT();
@@ -90,6 +94,7 @@ export function ActionForm({
     config.mode === "ai_message" ? (config.fallback_template_id ?? "") : "",
   );
   const [templateId, setTemplateId] = useState(config.mode === "template" ? config.template_id : "");
+  const [items, setItems] = useState<ConteudoItem[]>(config.mode === "content" ? config.items : []);
   const [error, setError] = useState<string | null>(null);
 
   const commit = (next: {
@@ -98,6 +103,7 @@ export function ActionForm({
     promptHint: string;
     fallbackTemplateId: string;
     templateId: string;
+    items: ConteudoItem[];
   }) => {
     const candidate =
       next.mode === "text"
@@ -108,7 +114,9 @@ export function ActionForm({
               prompt_hint: next.promptHint,
               ...(next.fallbackTemplateId.trim() ? { fallback_template_id: next.fallbackTemplateId } : {}),
             }
-          : { mode: "template" as const, template_id: next.templateId };
+          : next.mode === "template"
+            ? { mode: "template" as const, template_id: next.templateId }
+            : { mode: "content" as const, items: next.items };
     const parsed = actionConfigSchema.safeParse(candidate);
     if (!parsed.success) {
       setError(parsed.error.issues[0]?.message ?? t("Configuração inválida."));
@@ -118,7 +126,7 @@ export function ActionForm({
     onChange(parsed.data);
   };
 
-  const fields = { body, promptHint, fallbackTemplateId, templateId };
+  const fields = { body, promptHint, fallbackTemplateId, templateId, items };
 
   return (
     <div className="space-y-3">
@@ -188,7 +196,7 @@ export function ActionForm({
             />
           </div>
         </>
-      ) : (
+      ) : mode === "template" ? (
         <div className="space-y-2">
           <Label htmlFor="action-template-id">{t("Modelo de mensagem")}</Label>
           <SeletorDeModelo
@@ -201,6 +209,15 @@ export function ActionForm({
             }}
           />
         </div>
+      ) : (
+        <ConteudoItemsEditor
+          flowId={flowId}
+          items={items}
+          onChange={(next) => {
+            setItems(next);
+            commit({ mode, ...fields, items: next });
+          }}
+        />
       )}
       {error && <p className="text-xs text-error-fg">{error}</p>}
     </div>

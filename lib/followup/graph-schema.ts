@@ -239,10 +239,97 @@ export const aiClassifyConfigSchema = z
   );
 
 /**
+ * Um item do nó "Conteúdo" (`action.mode = 'content'`) — texto, uma mídia, um
+ * contato ou uma pausa, numa lista ORDENADA que o motor envia em sequência.
+ *
+ * ─── Por que MAIS SOLTO que caberia ────────────────────────────────────────
+ * Os tetos aqui (1024 na legenda, 4000 no texto) espelham o que a Meta aceita
+ * de verdade, mas o TAMANHO DO ARQUIVO e o FORMATO são responsabilidade do
+ * upload (`lib/messaging/media/upload-validation.ts`), não deste schema: o
+ * `storage_path` já aponta para um arquivo que passou por lá. Duplicar o
+ * limite de bytes aqui seria uma segunda fonte da mesma verdade, sem poder
+ * vigiar o arquivo em si (que já está no Storage quando este schema roda).
+ *
+ * ─── Mídia é PATH, nunca URL ───────────────────────────────────────────────
+ * `storage_path` é o caminho no bucket `whatsapp-media` (mesma convenção de
+ * `SendMessageInput.media_storage_path`), não uma URL assinada — que expira
+ * em ~10 min (`app/api/v1/messages/_handler.ts`). Quem envia assina de novo
+ * na hora, como o composer manual já faz.
+ *
+ * ─── Áudio é sempre nota de voz ────────────────────────────────────────────
+ * Convenção já em vigor neste produto (seção de mídia de mensagem, mapa de
+ * envio por canal): `type: 'audio'` só tem o caminho de nota de voz. Quem quer
+ * mandar um arquivo de áudio BAIXÁVEL (não nota de voz) usa `type: 'document'`.
+ *
+ * ─── Contato usa o MESMO formato de `sendMessageSchema.metadata.shared_contact` ──
+ * Não é vCard cru: nome + telefone, e quem monta o vCard de verdade (com o
+ * `whatsappId` resolvido) é o adapter no envio — igual ao composer manual.
+ *
+ * ─── Delay é PAUSA CURTA de ritmo, não o `wait` do fluxo ───────────────────
+ * 1–120s: simula o intervalo natural entre balões de uma pessoa digitando.
+ * Para esperas longas (dias/meses) o nó certo continua sendo `wait` — os dois
+ * convivem sem conflito, um de ritmo e outro de cadência.
+ */
+const conteudoTextoSchema = z.strictObject({
+  type: z.literal('text'),
+  body: z.string().min(1).max(4000),
+});
+const conteudoImagemSchema = z.strictObject({
+  type: z.literal('image'),
+  storage_path: z.string().min(1).max(500),
+  mime: z.string().min(1).max(120),
+  caption: z.string().max(1024).optional(),
+});
+const conteudoVideoSchema = z.strictObject({
+  type: z.literal('video'),
+  storage_path: z.string().min(1).max(500),
+  mime: z.string().min(1).max(120),
+  caption: z.string().max(1024).optional(),
+});
+const conteudoAudioSchema = z.strictObject({
+  type: z.literal('audio'),
+  storage_path: z.string().min(1).max(500),
+  mime: z.string().min(1).max(120),
+});
+const conteudoDocumentoSchema = z.strictObject({
+  type: z.literal('document'),
+  storage_path: z.string().min(1).max(500),
+  mime: z.string().min(1).max(120),
+  filename: z.string().min(1).max(240).optional(),
+  caption: z.string().max(1024).optional(),
+});
+const conteudoContatoSchema = z.strictObject({
+  type: z.literal('contact'),
+  name: z.string().min(1).max(120),
+  phone_number: z.string().min(8).max(40),
+});
+const conteudoDelaySchema = z.strictObject({
+  type: z.literal('delay'),
+  seconds: z.number().int().min(1).max(120),
+});
+
+export const conteudoItemSchema = z.discriminatedUnion('type', [
+  conteudoTextoSchema,
+  conteudoImagemSchema,
+  conteudoVideoSchema,
+  conteudoAudioSchema,
+  conteudoDocumentoSchema,
+  conteudoContatoSchema,
+  conteudoDelaySchema,
+]);
+export type ConteudoItem = z.infer<typeof conteudoItemSchema>;
+export type ConteudoItemType = ConteudoItem['type'];
+
+/** Mesmo teto do AcassIA, e pelo mesmo motivo: um nó não pode virar um fluxo inteiro escondido dentro dele. */
+export const MAX_CONTEUDO_ITEMS = 5;
+
+/**
  * Action node configuration schema.
  * - text: send this body as-is (no model)
  * - ai_message: generate a message using AI with a prompt hint
  * - template: send a canned message from Ajustes → Modelos
+ * - content: an ORDERED sequence of items (text/media/contact/delay), sent one
+ *   by one — see `conteudoItemSchema` above for why each field is shaped as it is.
  */
 export const actionConfigSchema = z.discriminatedUnion('mode', [
   z.strictObject({
@@ -257,6 +344,10 @@ export const actionConfigSchema = z.discriminatedUnion('mode', [
   z.strictObject({
     mode: z.literal('template'),
     template_id: z.string().uuid(),
+  }),
+  z.strictObject({
+    mode: z.literal('content'),
+    items: z.array(conteudoItemSchema).min(1).max(MAX_CONTEUDO_ITEMS),
   }),
 ]);
 

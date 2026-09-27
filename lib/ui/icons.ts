@@ -102,6 +102,7 @@ export {
   MicrophoneSlash,
   Image as ImageIcon,
   ImageSquare,
+  VideoCamera,
   MusicNote,
   Note,
   FileText,

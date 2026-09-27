@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { validateFlowForPublish } from './validate-publish';
-import type { FlowGraph, FlowNode, FlowEdge } from './graph-schema';
+import type { ConteudoItem, FlowGraph, FlowNode, FlowEdge } from './graph-schema';
 
 const pos = { x: 0, y: 0 };
 const TEMPLATE_ID = '00000000-0000-4000-8000-000000000000';
@@ -40,6 +40,9 @@ function actionAiMessage(id: string, opts: { fallback?: string } = {}): FlowNode
     position: pos,
     config: { mode: 'ai_message', prompt_hint: 'hint', fallback_template_id: opts.fallback },
   };
+}
+function actionContent(id: string, items: ConteudoItem[]): FlowNode {
+  return { id, type: 'action', label: id, position: pos, config: { mode: 'content', items } };
 }
 function end(id: string, outcome: 'converted' | 'exhausted' | 'custom' = 'exhausted'): FlowNode {
   return { id, type: 'end', label: id, position: pos, config: { outcome } };
@@ -792,5 +795,60 @@ describe('publish por superfície (roteiro de atendimento, #1130)', () => {
       [edge('t', 'a', always()), edge('a', 'b', always()), edge('b', 'f', always())],
     );
     expect(codigos(g, 'atendimento')).toContain('campo_repetido');
+  });
+});
+
+describe('validarItensDeConteudo — motor de envio por tipo de item', () => {
+  const codigos = (g: FlowGraph) => {
+    const r = validateFlowForPublish(g);
+    return r.ok ? [] : r.errors.map((e) => e.code);
+  };
+
+  it('texto/imagem/áudio/pausa (motor pronto): publica limpo', () => {
+    const g = graph(
+      [
+        trigger('t'),
+        actionContent('a', [
+          { type: 'text', body: 'Oi' },
+          { type: 'image', storage_path: 'p', mime: 'image/jpeg' },
+          { type: 'audio', storage_path: 'p2', mime: 'audio/ogg' },
+          { type: 'delay', seconds: 3 },
+        ]),
+        end('f'),
+      ],
+      [edge('t', 'a', always()), edge('a', 'f', always())],
+    );
+    expect(codigos(g)).not.toContain('item_de_conteudo_em_construcao');
+  });
+
+  it.each([
+    ['video' as const, { type: 'video' as const, storage_path: 'p', mime: 'video/mp4' }],
+    ['document' as const, { type: 'document' as const, storage_path: 'p', mime: 'application/pdf' }],
+    ['contact' as const, { type: 'contact' as const, name: 'Suporte', phone_number: '+5511999998888' }],
+  ])('%s (motor ainda não existe): recusa no publish', (_tipo, item) => {
+    const g = graph(
+      [trigger('t'), actionContent('a', [item]), end('f')],
+      [edge('t', 'a', always()), edge('a', 'f', always())],
+    );
+    expect(codigos(g)).toContain('item_de_conteudo_em_construcao');
+  });
+
+  it('acusa o ÍNDICE do item dentro do nó, não só o nó', () => {
+    const g = graph(
+      [
+        trigger('t'),
+        actionContent('a', [
+          { type: 'text', body: 'Oi' },
+          { type: 'video', storage_path: 'p', mime: 'video/mp4' },
+        ]),
+        end('f'),
+      ],
+      [edge('t', 'a', always()), edge('a', 'f', always())],
+    );
+    const r = validateFlowForPublish(g);
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.errors.find((e) => e.code === 'item_de_conteudo_em_construcao')?.message).toContain('item 2');
+    }
   });
 });

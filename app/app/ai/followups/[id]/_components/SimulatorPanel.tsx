@@ -95,6 +95,11 @@ function Entrada({ entry }: { entry: SimTranscriptEntry }) {
               {t("Pergunta de confirmação — o dado já está preenchido nos dados simulados do lead.")}
             </p>
           )}
+          {entry.origem === "conteudo" && (
+            <p className="mt-1 text-xs text-text-muted">
+              {t("Prévia da sequência de itens, na ordem de envio — mídia e contato não são pré-visualizados aqui.")}
+            </p>
+          )}
         </Bolha>
       );
 
