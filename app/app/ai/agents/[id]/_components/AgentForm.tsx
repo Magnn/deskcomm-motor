@@ -44,6 +44,7 @@ import { rotuloDoEstadoDoCanal } from "@/lib/channels/estado";
 import { bloqueioDePublicacao } from "@/lib/ai/agents/bloqueio-de-publicacao";
 import { mesmoRascunho } from "@/lib/ai/agents/mesmo-rascunho";
 import { ToolPicker } from "./ToolPicker";
+import { PreviaCompletaDoAgente } from "@/components/ai/PreviaCompletaDoAgente";
 import { TriggerEditor, type TriggerValue } from "./TriggerEditor";
 import { HandoffKeywordsInput } from "./HandoffKeywordsInput";
 import { FollowupFlowPicker } from "./FollowupFlowPicker";
@@ -1231,6 +1232,15 @@ export function AgentForm(props: Props) {
           </Card>
         </div>
       </div>
+
+      {papel === "conversa" ? (
+        <PreviaCompletaDoAgente
+          systemPrompt={form.system_prompt}
+          config={isEdit ? props.agent.config : null}
+          toolIds={form.tool_ids}
+          contextWindow={modelMeta?.context_window ?? null}
+        />
+      ) : null}
 
       {/* Publish dialog */}
       {isEdit && props.draft ? (

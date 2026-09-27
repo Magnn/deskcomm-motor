@@ -12219,6 +12219,13 @@ export const DICIONARIO: Traducoes = {
     es: "Al concluir, la IA asumiría la conversación libremente.",
   },
   "Erro ao simular.": { es: "Error al simular." },
+
+  // ── Prévia completa do agente (prompt montado + capacidades) ───────────────
+  "O prompt completo que o agente recebe": { es: "El prompt completo que recibe el agente" },
+  "É a soma das instruções acima com o que as abas Identidade, Oferta, Objeções e Limites têm SALVO agora, na mesma ordem que o motor monta em cada atendimento. Blocos que só existem durante uma conversa real — leitura, preço, entrega, estilo, o objetivo de um fluxo — não entram aqui.":
+    { es: "Es la suma de las instrucciones de arriba con lo que las pestañas Identidad, Oferta, Objeciones y Límites tienen GUARDADO ahora, en el mismo orden en que el motor las arma en cada atención. Los bloques que solo existen durante una conversación real —lectura, precio, entrega, estilo, el objetivo de un flujo— no entran aquí." },
+  "O que ele pode fazer": { es: "Qué puede hacer" },
+  "Nenhuma capacidade ligada.": { es: "Ninguna capacidad activada." },
 };
 
 /**
