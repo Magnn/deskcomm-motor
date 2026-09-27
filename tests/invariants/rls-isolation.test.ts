@@ -158,6 +158,21 @@ beforeAll(() => {
               'pending', 'RLS invariant private reply');
         end if;
 
+        -- migration 0904 — o brief de anúncio: qual "consciência" (nível, desejo/dor,
+        -- medo oculto, promessa) o agente aplica a quem chegou por aquele ad_id. Texto
+        -- privado do dono sobre a estratégia de venda de cada anúncio; vazar entre
+        -- organizações entregaria ao vizinho o ângulo de copy e a promessa exatos.
+        -- Resolve o agente pelo nome em vez de reusar v_agent, que só é atribuído
+        -- dentro do bloco condicional acima — robusto a reexecução idempotente.
+        if not exists (select 1 from public.ai_agent_ad_briefs where organization_id = v_org) then
+          select id into v_agent from public.ai_agents
+            where organization_id = v_org and name = 'RLS Invariant Assistant' limit 1;
+          insert into public.ai_agent_ad_briefs
+            (organization_id, agent_id, rotulo, ad_id, nivel, desejo_ou_dor)
+            values (v_org, v_agent, 'RLS Invariant Ad Brief', 'rls-invariant-ad-brief',
+                    'sabe_do_problema', 'RLS invariant private desire');
+        end if;
+
         -- 0281: a conversa INTERNA da equipe com a IA sobre um caso. Guarda o
         -- texto que a pessoa perguntou e a resposta que a IA deu sobre um
         -- contato identificável — vazar entre organizações entregaria ao
@@ -630,6 +645,11 @@ export const TABLES = [
   "campaigns",
   "campaign_templates",
   "campaign_channel_sessions",
+  // migration 0904 — brief de anúncio por agente: desejo/dor, medo oculto e promessa
+  // que o dono escreveu para um ad_id específico. A LEITURA é org-scoped sem gate de
+  // papel (o `agent` semeado aqui é controle positivo legítimo); a ESCRITA exige
+  // admin e NÃO é medida por este molde genérico.
+  "ai_agent_ad_briefs",
 ] as const;
 
 describe("RLS tenant isolation (fn_user_org_ids pattern)", () => {

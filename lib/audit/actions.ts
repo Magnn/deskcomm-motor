@@ -805,6 +805,18 @@ export const AUDIT_ACTIONS = [
   // não discute. Vale no PRÓXIMO turno, sem publicar versão — "quem mudou o que o agente está proibido de
   // dizer, e quando" é a pergunta que só esta linha responde. O texto digitado não vai na auditoria.
   "ai.limits_updated",
+  // A consciência do lead de um agente (PUT /ai/agents/:id/consciencia): nível de consciência
+  // (Schwartz), desejo/dor, medo oculto e a promessa central da oferta. Vale no PRÓXIMO turno, sem
+  // publicar versão — "quem mudou como o agente calibra a conversa para quem chega, e quando" é a
+  // pergunta que só esta linha responde. O texto digitado não vai na auditoria.
+  "ai.consciencia_updated",
+  // Um brief de anúncio (PUT/POST/DELETE /ai/agents/:id/ad-briefs): nível de consciência, desejo/dor,
+  // medo oculto e promessa POR ANÚNCIO específico, não pelo agente inteiro. "Quem criou/mudou/apagou
+  // a calibração de qual anúncio, e quando" é a pergunta que só estas três linhas respondem. O texto
+  // digitado (desejo/medo/promessa) não vai na auditoria.
+  "ai.ad_brief_created",
+  "ai.ad_brief_updated",
+  "ai.ad_brief_deleted",
   // Um aviso da Cakto que MUDOU algo (compra aprovada → entrega, reembolso, chargeback). O evento
   // que não muda nada (Pix gerado, abandono) só entra em `webhook_events_log`, não aqui.
   "webhook.cakto_evento_aplicado",

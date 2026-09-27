@@ -89,6 +89,8 @@ import { blocoDoAnuncio, carregarAnuncioDoContato } from '@/lib/anuncio/contexto
 import { comporSystemDoTurno } from './blocos-do-turno';
 import { blocoDeVariacao } from '@/lib/estilo/variacao-do-agente';
 import { blocoDeIdentidade } from '@/lib/identidade/bloco-do-prompt';
+import { blocoDeConsciencia } from '@/lib/consciencia/bloco-do-prompt';
+import { resolverConscienciaDoAnuncio } from '@/lib/consciencia/ad-briefs';
 import { blocoDeLimites } from '@/lib/limites/bloco-do-prompt';
 import { blocoDeObjecoes } from '@/lib/objecoes/bloco-do-prompt';
 import { blocoDeOferta } from '@/lib/oferta/bloco-do-prompt';
@@ -2336,6 +2338,27 @@ async function executarTurnoDoAgente(
   const blocoDeIdentidadeDoTurno = blocoDeIdentidade(identidadeDoAgente);
   // Oferta (aba "Oferta"): os fatos do que a empresa vende, sem preço (o valor é do bloco de preço).
   const blocoDeOfertaDoTurno = blocoDeOferta(agentConfig?.offer ?? null);
+  // Consciência (aba "Consciência" + brief por anúncio): nível de consciência (Schwartz), desejo/dor
+  // e medo oculto do lead, e a promessa central da oferta. Um brief de anúncio (por ad_id exato ou por
+  // trecho do título, `lib/consciencia/ad-briefs.ts`) VENCE o default do agente quando bate — o dono
+  // sabe o ângulo de cada anúncio que ele mesmo escreveu; a IA nunca adivinha isso pela mensagem.
+  // Falha de leitura vira "sem brief": o turno segue com o default do agente, nunca quebra por causa disto.
+  let conscienciaResolvida = agentConfig?.consciencia ?? null;
+  if (!preview && agentConfig !== null) {
+    try {
+      const doAnuncio = await resolverConscienciaDoAnuncio(pool, {
+        organizationId: tenantId,
+        agentId: agentConfig.agentId,
+        anuncio: anuncioDoContato ? { adId: anuncioDoContato.adId, titulo: anuncioDoContato.titulo } : null,
+      });
+      if (doAnuncio !== null) conscienciaResolvida = doAnuncio;
+    } catch (err) {
+      runLog.warn('brief de anúncio: não consegui resolver — o turno segue com o default do agente', {
+        error: (err instanceof Error ? err.message : String(err)).slice(0, 160),
+      });
+    }
+  }
+  const blocoDeConscienciaDoTurno = blocoDeConsciencia(conscienciaResolvida);
   // Objeções (aba "Objeções"): as respostas que o dono aprovou ao que a pessoa levanta para não fechar.
   const blocoDeObjecoesDoTurno = blocoDeObjecoes(agentConfig?.objections ?? null);
   // Limites (aba "Limites"): o que o dono proíbe. Vai por ÚLTIMO na fila: o que ele proíbe vence o que o funil manda.
@@ -2373,6 +2396,7 @@ async function executarTurnoDoAgente(
   const systemDoTurno = comporSystemDoTurno(system, {
     identidade: blocoDeIdentidadeDoTurno,
     oferta: blocoDeOfertaDoTurno,
+    consciencia: blocoDeConscienciaDoTurno,
     objecoes: blocoDeObjecoesDoTurno,
     anuncio: blocoDoAnuncioDoTurno,
     estilo: blocoDeVariacaoDoTurno,

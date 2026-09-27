@@ -407,6 +407,14 @@ const PARES: Array<{
     arquivo: "lib/schemas/team.ts",
     simbolo: "ROLES",
   },
+  {
+    tabela: "ai_agent_ad_briefs",
+    coluna: "nivel",
+    // lib/consciencia/tipos.ts → NIVEIS_DE_CONSCIENCIA (tupla `as const`). Mesmo enum da aba
+    // "Consciência" (jsonb) — nasce com o par no mesmo commit da migration 0904.
+    arquivo: "lib/consciencia/tipos.ts",
+    simbolo: "NIVEIS_DE_CONSCIENCIA",
+  },
 ];
 
 /** Tira um nível de parênteses externos, se ele envolver a expressão inteira. */

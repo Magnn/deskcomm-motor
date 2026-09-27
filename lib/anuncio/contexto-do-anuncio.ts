@@ -28,6 +28,13 @@ export interface AnuncioDoContato {
   plataforma: PlataformaDeAnuncio;
   titulo: string | null;
   corpo: string | null;
+  /**
+   * O id do anúncio (`ad_id` em `source_metadata`, gravado por `atribuicao-de-anuncio.ts`). É
+   * IDENTIFICADOR, nunca prosa — não passa por `higienizarTextoDoAnuncio` (que é para texto que vai
+   * ao prompt) e nunca é injetado no bloco do anúncio. Único uso: casar com um brief de anúncio
+   * (`lib/consciencia/ad-briefs.ts`) por igualdade exata, em consulta parametrizada.
+   */
+  adId: string | null;
 }
 
 export const TETO_DO_TITULO = 140;
@@ -75,7 +82,8 @@ export function lerAnuncioDoContato(sourceMetadata: unknown): AnuncioDoContato |
   const titulo = higienizarTextoDoAnuncio(meta.ad_title, TETO_DO_TITULO);
   const corpo = higienizarTextoDoAnuncio(meta.ad_body, TETO_DO_CORPO);
   if (titulo === null && corpo === null) return null;
-  return { plataforma: meta.ad_platform, titulo, corpo };
+  const adId = typeof meta.ad_id === "string" && meta.ad_id.trim() !== "" ? meta.ad_id.trim().slice(0, 100) : null;
+  return { plataforma: meta.ad_platform, titulo, corpo, adId };
 }
 
 /**

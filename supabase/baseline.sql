@@ -37330,6 +37330,54 @@ end; $$;
 revoke all on function public.fn_appointment_recover(uuid,uuid) from public,anon,authenticated;
 grant execute on function public.fn_appointment_recover(uuid,uuid) to service_role;
 
+-- ---- briefs de anúncio por agente: consciência/desejo/medo/promessa POR ANÚNCIO (migration 0904) ----
+-- Anexa nível de consciência, desejo/dor, medo oculto e promessa a um ANÚNCIO específico (por `ad_id`
+-- exato ou por trecho do título) — não só ao agente inteiro (aba "Consciência", jsonb). O dono sabe o
+-- ângulo de cada anúncio que ele mesmo escreveu; não é uma IA adivinhando pela primeira mensagem.
+create table if not exists public.ai_agent_ad_briefs (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references public.organizations(id) on delete cascade,
+  agent_id uuid not null references public.ai_agents(id) on delete cascade,
+  rotulo text not null,
+  ad_id text,
+  titulo_contem text,
+  nivel text,
+  desejo_ou_dor text,
+  medo_oculto text,
+  promessa text,
+  ativo boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  created_by uuid,
+  constraint ai_agent_ad_briefs_rotulo_check check (char_length(btrim(rotulo)) > 0 and char_length(rotulo) <= 80),
+  constraint ai_agent_ad_briefs_ad_id_check check (ad_id is null or (char_length(btrim(ad_id)) > 0 and char_length(ad_id) <= 100)),
+  constraint ai_agent_ad_briefs_titulo_contem_check check (titulo_contem is null or (char_length(btrim(titulo_contem)) > 0 and char_length(titulo_contem) <= 140)),
+  constraint ai_agent_ad_briefs_nivel_check check (nivel is null or nivel = any (array['nao_sabe_do_problema','sabe_do_problema','conhece_solucoes','conhece_a_oferta','pronto_para_decidir'])),
+  constraint ai_agent_ad_briefs_desejo_ou_dor_check check (desejo_ou_dor is null or char_length(desejo_ou_dor) <= 300),
+  constraint ai_agent_ad_briefs_medo_oculto_check check (medo_oculto is null or char_length(medo_oculto) <= 300),
+  constraint ai_agent_ad_briefs_promessa_check check (promessa is null or char_length(promessa) <= 300),
+  constraint ai_agent_ad_briefs_tem_casamento_check check (ad_id is not null or titulo_contem is not null)
+);
+create unique index if not exists idx_ai_agent_ad_briefs_ad_id_unico
+  on public.ai_agent_ad_briefs (agent_id, ad_id)
+  where ativo and ad_id is not null;
+create index if not exists idx_ai_agent_ad_briefs_por_agente
+  on public.ai_agent_ad_briefs (organization_id, agent_id)
+  where ativo;
+alter table public.ai_agent_ad_briefs enable row level security;
+drop policy if exists tenant_isolation_ai_agent_ad_briefs_select on public.ai_agent_ad_briefs;
+create policy tenant_isolation_ai_agent_ad_briefs_select on public.ai_agent_ad_briefs
+  for select using (organization_id in (select public.fn_user_org_ids()));
+drop policy if exists tenant_isolation_ai_agent_ad_briefs_write on public.ai_agent_ad_briefs;
+create policy tenant_isolation_ai_agent_ad_briefs_write on public.ai_agent_ad_briefs
+  for all using (
+    organization_id in (select public.fn_user_org_ids())
+      and public.fn_role_at_least(organization_id, 'admin')
+  ) with check (
+    organization_id in (select public.fn_user_org_ids())
+      and public.fn_role_at_least(organization_id, 'admin')
+  );
+
 -- ---- VARREDURA anon: função nova nasce exposta em quem ATUALIZA (migration 0116) ----
 --
 -- ⚠️ DE PROPÓSITO, NENHUMA FUNÇÃO É CRIADA DEPOIS DESTE BLOCO. Apêndice que cria
