@@ -852,8 +852,8 @@ async function copiarConteudoParaConversa(
  * ─── O que cada tipo de item faz ───────────────────────────────────────────
  *  - `text`: bolha de texto.
  *  - `image`/`audio`: copia pro Storage da conversa (ver acima) e manda como
- *    mídia — áudio SEMPRE como nota de voz, convenção já em vigor no produto
- *    (`lib/waha/media-send.ts`).
+ *    mídia — áudio SEMPRE como nota de voz, mesma convenção do mapa de envio
+ *    de mídia por canal já em vigor no produto.
  *  - `delay`: NÃO é send — é uma pausa a mais entre as bolhas ao redor dela.
  *    1–120s por item, no máximo 5 itens (schema): o pior caso trava o worker
  *    por poucos minutos, bem abaixo do QUEUE_VISIBILITY_TIMEOUT_MS (10min) —

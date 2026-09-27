@@ -257,8 +257,8 @@ export const aiClassifyConfigSchema = z
  * na hora, como o composer manual já faz.
  *
  * ─── Áudio é sempre nota de voz ────────────────────────────────────────────
- * Convenção já em vigor neste produto (`lib/waha/media-send.ts`,
- * `wahaSendPlanFor`): `type: 'audio'` só tem o caminho `sendVoice`. Quem quer
+ * Convenção já em vigor neste produto (seção de mídia de mensagem, mapa de
+ * envio por canal): `type: 'audio'` só tem o caminho de nota de voz. Quem quer
  * mandar um arquivo de áudio BAIXÁVEL (não nota de voz) usa `type: 'document'`.
  *
  * ─── Contato usa o MESMO formato de `sendMessageSchema.metadata.shared_contact` ──
