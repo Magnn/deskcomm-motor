@@ -92,6 +92,13 @@ const ESCRITORES: Record<string, { agenda: "agora" | "futuro" | "nenhum"; nota: 
       "ele é conduzido pelo turno do agente e não tem relógio (o CHECK `relogio_coerente` o põe " +
       "no grupo sem relógio). Omitir a coluna daria o default now() — nulo é não agendar.",
   },
+  "agente-no-fluxo.ts": {
+    agenda: "agora",
+    nota:
+      "O agente no comando de um fluxo (nó \"Agente de IA\"). A SAÍDA do nó (`encerrarAgenteNoFluxo`) agenda \"avaliar agora\" " +
+      "e grava `next_eval_at = now()` NO SQL — o relógio do BANCO, sem relógio de processo. A contagem do turno " +
+      "(`registrarTurnoDoAgente`) renova o prazo de silêncio (agora + silencio_minutos, no FUTURO, minutos de margem).",
+  },
   "aplicar-inbound.ts": {
     agenda: "nenhum",
     nota:

@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Agente no comando de um fluxo — o turno conduz, o relógio só decide o silêncio",
+    "subtitle": "fatia 3 do nó \"Agente de IA\": a inscrição fica com_agente; cada resposta da pessoa é do agente do nó; saídas cumpriu (ferramenta), limite (contagem) e silêncio (relógio)",
+    "output": "agente-no-comando-do-fluxo.html",
+    "quality_profile": "standard"
+  },
+  "lanes": [
+    { "id": "motor", "label": "Motor do fluxo (relógio, tick)" },
+    { "id": "banco", "label": "Persistência" },
+    { "id": "resolvedor", "label": "Quem atende o turno" },
+    { "id": "turno", "label": "Turno da IA (resposta à pessoa)" },
+    { "id": "saidas", "label": "Saídas do nó" }
+  ],
+  "mainPath": ["chegada", "inscricao", "resolvedor", "estado", "bloco", "agente", "conta"],
+  "nodes": [
+    { "id": "chegada", "lane": "motor", "col": 1, "type": "service", "label": "processNode — nó agent (chegada)", "sublabel": "inscrição active no nó: estaciona em com_agente com o prazo de silêncio como relógio; o agente NÃO abre a conversa (uma caixa de Mensagem antes dele abre)" },
+    { "id": "inscricao", "lane": "banco", "col": 2, "type": "database", "label": "followup_enrollments (status com_agente)", "sublabel": "ocupa a vaga de 'um follow-up vivo por contato'; next_eval_at = prazo de silêncio; resposta da pessoa NÃO a acorda (o agente responde no turno)" },
+    { "id": "eventos", "lane": "banco", "col": 3, "type": "database", "label": "followup_enrollment_events", "sublabel": "agente_turno (idempotente pelo índice único) e agente_saiu; a contagem de respostas é por passo (visita ao nó)" },
+    { "id": "resolvedor", "lane": "resolvedor", "col": 3, "type": "service", "label": "resolveTurnAgent — degrau 0 (agenteDoFluxoDoContato)", "sublabel": "acima da campanha e do roteador; falha aberta: sem versão publicada ou erro de leitura seguem a régua normal" },
+    { "id": "estado", "lane": "turno", "col": 4, "type": "service", "label": "carregarAgenteDoFluxo", "sublabel": "só com outcome 'fluxo', fora do painel de Teste; filtra organização, contato e fluxo ATIVO; nó, objetivo e respostas restantes" },
+    { "id": "bloco", "lane": "turno", "col": 5, "type": "service", "label": "blocoDoFluxo → posição 'fluxo' da fila", "sublabel": "objetivo (uma linha, como dado) + respostas restantes; na última resposta pede fechamento gentil; antes de leitura/preço/entrega/limites" },
+    { "id": "agente", "lane": "turno", "col": 6, "type": "service", "label": "Agente do nó responde à pessoa", "sublabel": "com a ferramenta concluir_etapa (mutante) só neste turno" },
+    { "id": "conta", "lane": "turno", "col": 7, "type": "service", "label": "registrarTurnoDoAgente", "sublabel": "depois do envio ter dado certo; conta o turno pela mensagem que o motivou e renova o relógio de silêncio" },
+    { "id": "concluiu", "lane": "saidas", "col": 6, "type": "service", "label": "saída 'cumpriu o objetivo' (ferramenta)", "sublabel": "encerrarAgenteNoFluxo: UM comando — só move quem está com_agente, neste nó, neste passo e sem lease de tick" },
+    { "id": "limite", "lane": "saidas", "col": 7, "type": "service", "label": "saída 'limite de respostas'", "sublabel": "contagem >= max_turnos depois do turno; mesma saída atômica" },
+    { "id": "silencio", "lane": "motor", "col": 4, "type": "service", "label": "saída 'silêncio' (relógio)", "sublabel": "prazo vencido: o claim acorda a inscrição e processNode a leva pela saída de silêncio" },
+    { "id": "guarda", "lane": "banco", "col": 5, "type": "database", "label": "fn_appointment_enrollment_current (0902)", "sublabel": "guarda de agenda que o tick chama; reconhece active, waiting_reply, dormente e com_agente — sem isso a inscrição vencida era cancelada" }
+  ],
+  "edges": [
+    { "id": "e1", "from": "chegada", "to": "inscricao", "label": "wait com wake_status com_agente (evento wait_started)" },
+    { "id": "e2", "from": "inscricao", "to": "resolvedor", "label": "o contato escreve: quem está no comando?" },
+    { "id": "e3", "from": "resolvedor", "to": "estado", "label": "outcome 'fluxo'" },
+    { "id": "e4", "from": "estado", "to": "bloco", "label": "EstadoDoAgenteNoFluxo" },
+    { "id": "e5", "from": "bloco", "to": "agente", "label": "system do turno" },
+    { "id": "e6", "from": "agente", "to": "conta", "label": "mensagem enviada com sucesso" },
+    { "id": "e7", "from": "conta", "to": "eventos", "label": "agente_turno; renova next_eval_at" },
+    { "id": "e8", "from": "agente", "to": "concluiu", "label": "concluir_etapa" },
+    { "id": "e9", "from": "conta", "to": "limite", "label": "turnosDados >= max_turnos" },
+    { "id": "e10", "from": "concluiu", "to": "inscricao", "label": "volta a active no destino, passo+1, avaliação imediata; evento agente_saiu" },
+    { "id": "e11", "from": "limite", "to": "inscricao", "label": "idem, pela saída de limite" },
+    { "id": "e12", "from": "inscricao", "to": "silencio", "label": "next_eval_at vence" },
+    { "id": "e13", "from": "silencio", "to": "guarda", "label": "assertAgenda no tick" },
+    { "id": "e14", "from": "silencio", "to": "inscricao", "label": "advance pela saída de silêncio; o motor segue dali" }
+  ]
+}

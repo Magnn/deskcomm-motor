@@ -442,6 +442,30 @@ describe("presença e recuperação transacionais", () => {
       ).rows[0].n,
     ).toBe(0);
   });
+  it("contato com um agente de IA no comando de outro fluxo (com_agente) não inicia recuperação, sem bater no índice único (0903)", async () => {
+    await stopFlows();
+    const pointer = await flow();
+    const version = (
+      await pool.query("select active_version_id from followup_flow_pointers where id=$1", [
+        pointer,
+      ])
+    ).rows[0].active_version_id;
+    const a = await fixture();
+    await change(a.id);
+    await pool.query(
+      "insert into followup_enrollments(organization_id,pointer_id,version_id,contact_id,current_node_id,status,next_eval_at) values($1,$2,$3,$4,'agente','com_agente',now()+interval '1 hour')",
+      [GOV_ORG, pointer, version, a.contact],
+    );
+    expect((await recover(a.id)).result).toBe("other_flow");
+    expect(
+      (
+        await pool.query(
+          "select count(*)::int n from followup_enrollments where appointment_id=$1",
+          [a.id],
+        )
+      ).rows[0].n,
+    ).toBe(0);
+  });
   it("recibo e callback com CAS não deixam evento órfão nem reativam cancelamento", async () => {
     await stopFlows();
     await flow();

@@ -4,7 +4,13 @@ import type { ServiceBoundary } from "@/lib/atendimento/fronteira";
  * `engine.ts` owns the tick/DB orchestration; this file only decides "given
  * this node + these facts, what happens next" so it's testable without Postgres.
  */
-import { NO_REPLY_BRANCH_ID, REPEAT_BODY_BRANCH_ID, REPEAT_DONE_BRANCH_ID, nodeBranches } from "./graph-schema";
+import {
+  AGENT_SILENCE_BRANCH_ID,
+  NO_REPLY_BRANCH_ID,
+  REPEAT_BODY_BRANCH_ID,
+  REPEAT_DONE_BRANCH_ID,
+  nodeBranches,
+} from "./graph-schema";
 import type { FlowEdge, FlowNode, ReplySaveTo } from "./graph-schema";
 import { parseReplyCount } from "./parse-count";
 import { clampEspera, esperaPlanejadaDe, type EsperaAdaptativa } from "./timing-plan";
@@ -112,8 +118,9 @@ export type NodeResult =
   // desistindo do plano de tempo (o turno nunca voltou). Vira event_type próprio
   // no engine — seguir sem plano é um fato que o operador precisa poder ler.
   | { kind: "advance"; next_node_id: string; next_eval_at: Date; reason?: "plan_timeout"; repeat?: { index: number; total: number } }
-  // stays on the node. `wake_status` parks `match_reply` in waiting_reply without a job.
-  | { kind: "wait"; next_eval_at: Date; wake_status?: "active" | "waiting_reply" | "dormente" }
+  // stays on the node. `wake_status` parks `match_reply` in waiting_reply without a job, and the `agent` node in
+  // `com_agente` (the agent leads by TURN; the clock is only the silence deadline).
+  | { kind: "wait"; next_eval_at: Date; wake_status?: "active" | "waiting_reply" | "dormente" | "com_agente" }
   | {
       kind: "enqueue_turn";
       purpose: "send_message" | "classify" | "plan_timing" | "generic_ai";
@@ -1028,10 +1035,22 @@ export function processNode(input: {
     }
 
     case "agent": {
-      // O MOTOR deste nó ainda não existe (fatia 3). O publish recusa o nó (`no_em_construcao`), então uma inscrição
-      // nunca chega aqui; se chegar, o passo FALHA com o motivo, em vez de avançar sem o agente e mandar a pessoa
-      // por uma saída que ninguém percorreu.
-      return { kind: "fail", error: `agent node "${node.id}": o motor do nó Agente de IA ainda não existe` };
+      // Duas visitas ao MESMO nó, distinguidas pelo STATUS da inscrição (o motor não precisa ler eventos):
+      //   • `com_agente` e o relógio venceu → a pessoa ficou em SILÊNCIO pelo prazo do nó: sai pela saída "silêncio".
+      //     (Quem acorda uma inscrição `com_agente` é só o relógio: resposta da pessoa NÃO a acorda — o agente é
+      //     quem responde, no turno, e as saídas "cumpriu" e "limite" são do turno: `agente-no-fluxo.ts`.)
+      //   • qualquer outro status → CHEGADA ao nó: a inscrição estaciona em `com_agente`, com o prazo de silêncio como
+      //     relógio. O agente NÃO abre a conversa; assume quando a pessoa responde.
+      if (enrollment.status === "com_agente") {
+        const edge = selectEdge(edges, node.id, { type: "branch", branch_id: AGENT_SILENCE_BRANCH_ID });
+        if (!edge) return { kind: "fail", error: `agent node "${node.id}" has no outbound edge for the silence exit` };
+        return { kind: "advance", next_node_id: edge.target, next_eval_at: clock() };
+      }
+      return {
+        kind: "wait",
+        next_eval_at: new Date(clock().getTime() + node.config.silencio_minutos * 60_000),
+        wake_status: "com_agente",
+      };
     }
 
     case "end": {

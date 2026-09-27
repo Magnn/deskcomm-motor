@@ -17,14 +17,13 @@ import {
   type FlowGraph,
   type FlowNode,
 } from "./graph-schema";
-import { processNode, type EnrollmentRow, type LeadFacts } from "./node-handlers";
 import { avancarSimulacao, iniciarSimulacao, type Classificador, type SimState } from "./simulate";
 import { NOS_DA_SUPERFICIE, NOS_EM_CONSTRUCAO, validateFlowForPublish } from "./validate-publish";
 
 /**
- * O nó "Agente de IA" — fatia 2 de 4: schema, publicação e simulador. O MOTOR (fatia 3) e o editor (fatia 4)
- * ainda não existem, então o nó nasce "no escuro": o publish o recusa (`no_em_construcao`), a paleta não o
- * oferece, e o passo do motor falha com o motivo se algum dia uma inscrição chegar nele.
+ * O nó "Agente de IA" — fatia 2 de 4: schema, publicação e simulador. O motor (fatia 3, `agente-no-fluxo.test.ts`)
+ * já roda, mas o editor (fatia 4) ainda não existe, então o nó continua "no escuro": o publish o recusa
+ * (`no_em_construcao`) e a paleta não o oferece.
  *
  * O que estes testes prendem, em ordem de importância:
  *   1. o nó NÃO PUBLICA enquanto o motor não existe — e quando o motor entrar, este teste é o que avisa que a
@@ -329,40 +328,6 @@ describe("simulador — o agente é uma caixa-preta e o operador escolhe a saíd
     const depois = await avancarSimulacao({ graph: g, state: parado, entrada: { kind: "saida_do_agente", saida: "limite" }, classificar: nuncaClassifica });
     expect(depois.status).toBe("erro");
     expect(depois.transcript.at(-1)).toMatchObject({ kind: "erro", nodeId: "ag" });
-  });
-});
-
-describe("motor — o passo do nó falha com o motivo até a fatia 3", () => {
-  const NOW = new Date("2026-09-26T12:00:00.000Z");
-  const inscricao: EnrollmentRow = {
-    id: "enr-1",
-    organization_id: "org-1",
-    pointer_id: "ptr-1",
-    version_id: "ver-1",
-    contact_id: "c-1",
-    conversation_id: null,
-    current_node_id: "ag",
-    status: "active",
-    next_eval_at: NOW.toISOString(),
-    claimed_until: null,
-    attempts: 0,
-    max_attempts: 5,
-    last_error: null,
-    steps_taken: 1,
-    outcome: null,
-    cancel_reason: null,
-    started_at: NOW.toISOString(),
-    completed_at: null,
-    updated_at: NOW.toISOString(),
-    timing_plan: null,
-  };
-  const fatos: LeadFacts = { lead_stage: null, tags: [], steps_taken: 1, last_outcome: null };
-
-  it("falha, em vez de avançar sem o agente e mandar a pessoa por uma saída que ninguém percorreu", () => {
-    const g = fluxoCompleto();
-    const r = processNode({ node: g.nodes[1]!, edges: g.edges, enrollment: inscricao, lead: fatos, clock: () => NOW });
-    expect(r.kind).toBe("fail");
-    if (r.kind === "fail") expect(r.error).toContain("ainda não existe");
   });
 });
 

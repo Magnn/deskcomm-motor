@@ -153,6 +153,15 @@ import { matchesHandoffKeyword } from './agent-config';
 import { garantirPerguntaDoRoteiro, prepararRoteiroDoTurno } from './roteiro-no-turno';
 import { validarRespostaDoFluxo } from './flow-validate';
 import { moduloLigadoComMemo } from '@/lib/instalacao/modulos';
+import {
+  blocoDoFluxo,
+  carregarAgenteDoFluxo,
+  encerrarAgenteNoFluxo,
+  limiteAtingido,
+  registrarTurnoDoAgente,
+  type EstadoDoAgenteNoFluxo,
+} from '@/lib/followup/agente-no-fluxo';
+import { AGENT_CONCLUDED_BRANCH_ID, AGENT_LIMIT_BRANCH_ID } from '@/lib/followup/graph-schema';
 import { msAteAJanelaAbrir } from './janela-de-atendimento';
 import { janelaDeEnvioAberta, proximaAberturaDaJanela } from '../pacing/engine';
 import { loadChannelKnobs } from '../pacing/store';
@@ -261,6 +270,18 @@ export const AGENT_TOOL_DEFS = {
           .optional()
           .describe('próxima ação concreta combinada com o lead'),
         reason: z.string().optional().describe('evidência curta do avanço (vai ao audit do CRM)'),
+      })
+      .passthrough(),
+  },
+  concluir_etapa: {
+    description:
+      'Encerra a etapa do fluxo que você está conduzindo, porque o objetivo dela foi cumprido. Chame quando o ' +
+      'que o fluxo pediu já foi feito ou combinado com a pessoa; o fluxo segue sozinho para o próximo passo. ' +
+      'Depois de chamar, encerre o turno — não avise a pessoa que está mudando de etapa.',
+    // Schema LARGO para o SDK; o resumo é lido de forma defensiva dentro do execute e nunca derruba o turno.
+    inputSchema: z
+      .object({
+        resumo: z.string().optional().describe('o que ficou combinado, em uma ou duas frases curtas'),
       })
       .passthrough(),
   },
@@ -2319,6 +2340,26 @@ async function executarTurnoDoAgente(
   const blocoDeObjecoesDoTurno = blocoDeObjecoes(agentConfig?.objections ?? null);
   // Limites (aba "Limites"): o que o dono proíbe. Vai por ÚLTIMO na fila: o que ele proíbe vence o que o funil manda.
   const blocoDeLimitesDoTurno = blocoDeLimites(agentConfig?.limits ?? null);
+  // Agente no comando de um fluxo (nó “Agente de IA”, inscrição `com_agente`): só quando o resolvedor do turno
+  // escolheu o agente DO FLUXO (`outcome: 'fluxo'`) e num turno de resposta à pessoa. Falha de leitura vira
+  // “ninguém no comando”: o cliente segue atendido, só sem o objetivo do fluxo neste turno.
+  let agenteDoFluxo: EstadoDoAgenteNoFluxo | null = null;
+  if (!preview && liveJob().kind === 'inbound_turn' && routed.outcome === 'fluxo') {
+    try {
+      agenteDoFluxo = await carregarAgenteDoFluxo(pool, { organizationId: tenantId, contactId: leadId });
+    } catch (err) {
+      runLog.warn('agente do fluxo: não consegui ler o estado — o turno segue sem o objetivo do fluxo', {
+        error: (err instanceof Error ? err.message : String(err)).slice(0, 160),
+      });
+    }
+  }
+  const blocoDoFluxoDoTurno = blocoDoFluxo(agenteDoFluxo);
+  if (blocoDoFluxoDoTurno !== '') {
+    runLog.info('agente no comando de um fluxo neste turno', {
+      enrollment_id: agenteDoFluxo?.enrollment.id,
+      respostas_restantes: agenteDoFluxo?.respostasRestantes,
+    });
+  }
   const blocoDeVariacaoDoTurno = blocoDeVariacao(openingContext.context.messages, {
     emojiLivre: identidadeDoAgente?.emojis === 'livre',
   });
@@ -2335,6 +2376,7 @@ async function executarTurnoDoAgente(
     objecoes: blocoDeObjecoesDoTurno,
     anuncio: blocoDoAnuncioDoTurno,
     estilo: blocoDeVariacaoDoTurno,
+    fluxo: blocoDoFluxoDoTurno,
     leitura: blocoDaLeituraDoTurno,
     preco: blocoDePrecoDoTurno,
     entrega: blocoDaEntrega,
@@ -3740,6 +3782,43 @@ async function executarTurnoDoAgente(
     });
   }
 
+  // Nó “Agente de IA”: `concluir_etapa` só existe quando este turno é de um agente NO COMANDO de um fluxo. É
+  // MUTANTE (move a inscrição para o próximo passo do fluxo), por isso fica fora de READ_ONLY_TOOLS. A inscrição
+  // vem do closure (`agenteDoFluxo`), nunca do payload do modelo. Idempotente: quem chega depois da saída (o
+  // relógio de silêncio, uma segunda chamada) recebe “etapa já encerrada”, não um erro.
+  if (agenteDoFluxo !== null) {
+    const estadoDoFluxo = agenteDoFluxo;
+    rawTools.concluir_etapa = tool({
+      ...AGENT_TOOL_DEFS.concluir_etapa,
+      execute: async (raw) => {
+        try {
+          const resumo = typeof raw?.resumo === 'string' ? raw.resumo : undefined;
+          const saiu = await encerrarAgenteNoFluxo(pool, {
+            organizationId: tenantId,
+            estado: estadoDoFluxo,
+            saida: AGENT_CONCLUDED_BRANCH_ID,
+            ...(resumo !== undefined ? { resumo } : {}),
+          });
+          if (!saiu.ok && saiu.motivo === 'sem_aresta') {
+            runLog.warn('agente do fluxo: a saída de objetivo cumprido não leva a lugar nenhum no grafo', {
+              enrollment_id: estadoDoFluxo.enrollment.id,
+            });
+          }
+          return { ok: true, status: saiu.ok ? 'etapa_concluida' : 'etapa_ja_encerrada' };
+        } catch (err) {
+          noteRunError(err instanceof Error ? err : new Error(String(err)));
+          return {
+            ok: false,
+            error: {
+              code: 'internal_error',
+              message: 'erro interno ao concluir a etapa — encerre o turno agora.',
+            },
+          };
+        }
+      },
+    });
+  }
+
   // Fase 2 (Task 6): read_skill_reference só entra quando alguma skill CASADA neste
   // turno carrega references no manifesto (Task 3) — sem isso oferecer a tool seria
   // ruído. Read-only (tool-breaker.ts); tenant/matched skills vêm do closure
@@ -4277,6 +4356,36 @@ async function executarTurnoDoAgente(
       // ponytail: retry re-roda o run inteiro (LLM incluso); seq N re-encontra a
       // linha do ledger — 'accepted' pula, 'failed' rotaciona a key (F2-06).
       throw new Error('envio marcado como failed pelo CRM — run re-tentado pela fila');
+    }
+
+    // AGENTE NO COMANDO DE UM FLUXO: este turno conta como UMA resposta do agente nesta etapa (idempotente pela
+    // mensagem que o motivou — um retry da fila não conta duas vezes) e renova o relógio de silêncio; ao atingir o
+    // limite de respostas do nó, a inscrição sai pela saída de limite. Só depois de o envio ter dado certo (acima),
+    // e nunca derruba o turno: a resposta já saiu, e uma falha aqui só atrasa a saída — o relógio de silêncio a pega.
+    if (agenteDoFluxo !== null) {
+      try {
+        const contado = await registrarTurnoDoAgente(pool, {
+          organizationId: tenantId,
+          estado: agenteDoFluxo,
+          chave: input.inboundMessageId ?? liveJob().id,
+          agora: clock(),
+        });
+        if (contado.novo && limiteAtingido(agenteDoFluxo.node.config.max_turnos, contado.turnosDados)) {
+          const saiu = await encerrarAgenteNoFluxo(pool, {
+            organizationId: tenantId,
+            estado: agenteDoFluxo,
+            saida: AGENT_LIMIT_BRANCH_ID,
+          });
+          runLog.info('agente do fluxo: limite de respostas atingido', {
+            enrollment_id: agenteDoFluxo.enrollment.id,
+            saiu: saiu.ok,
+          });
+        }
+      } catch (err) {
+        runLog.warn('agente do fluxo: não consegui contar o turno — a saída por limite fica para o relógio', {
+          error: (err instanceof Error ? err.message : String(err)).slice(0, 160),
+        });
+      }
     }
 
     // ROTEIRO: a pergunta pendente é compromisso. Se o modelo não a fez, o motor
