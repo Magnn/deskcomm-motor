@@ -92,8 +92,13 @@ chama em toda inscrição que reclama, então uma `com_agente` **vencida** era c
 substituído" em vez de sair pelo silêncio. Nenhum teste de TypeScript alcança isso (o guarda mora em SQL); apareceu ao
 ligar o motor num banco real. A mesma sonda mostrou que uma inscrição **`dormente`** (espera longa imune, 0308) vencida
 é cancelada pelo mesmo caminho — defeito anterior à 0901. A 0902 passa a lista para os quatro status com relógio.
-**Não trata** `fn_appointment_recover` (no-show), cuja checagem de "outro fluxo vivo" também não lista `com_agente`:
-hoje um índice único impede o conflito, mas com erro em vez de resposta graciosa.
+
+**`fn_appointment_recover` (no-show) — fechado pela 0903.** A checagem de "outro fluxo vivo" daquela função não
+listava `com_agente`, mas o `insert` que abriria a nova inscrição já morava num `begin/exception when
+unique_violation then result:='other_flow'` — o MESMO bloco que já converte com elegância o conflito para os
+outros status vivos. Uma falta com o contato `com_agente` já recebia `other_flow`, só pelo caminho caro
+(candidato/ponteiro/versão/agente/nó/fronteira de serviço resolvidos à toa antes da exceção). A 0903 só adianta a
+checagem; o resultado não muda. Prova em `tests/invariants/agenda-presenca-recuperacao.test.ts`.
 
 ### Enquanto o nó não publica
 
