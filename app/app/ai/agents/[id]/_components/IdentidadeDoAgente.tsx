@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import { showApiError } from "@/components/feedback/ApiErrorToast";
 import { ListaDeChips } from "@/components/ai/ListaDeChips";
 import { PreviaDoBloco } from "@/components/ai/PreviaDoBloco";
+import { RascunhoComIA } from "@/components/ai/RascunhoComIA";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -34,6 +35,7 @@ import {
   FRASE_DO_EMOJI,
   FRASE_DO_TAMANHO,
   FRASE_DO_TRATAMENTO,
+  MAX_PALAVRAS,
   TAMANHOS,
   TONS,
   TRATAMENTOS,
@@ -192,6 +194,46 @@ export function IdentidadeDoAgente({ agentId, config, readOnly }: Props) {
   const [salvando, setSalvando] = React.useState(false);
   const patch = (p: Partial<Formulario>) => setForm((f) => ({ ...f, ...p }));
 
+  /**
+   * O que o rascunho por IA propõe é MAIS SOLTO que `identidadeSchema` (ver
+   * `lib/rascunho-ia/tipos.ts`) — quem aterrissa o texto no formulário é quem aplica o
+   * mesmo teto de caractere que os campos abaixo já mostram na tela (`maxLength`), e quem
+   * tira aspas/quebra de linha das palavras é a mesma regra que `identidadeSchema` cobraria
+   * no Salvar. Nada disto substitui a validação do servidor; só evita um rascunho torto
+   * demais para editar.
+   */
+  const aoRascunho = (dados: Record<string, unknown>) => {
+    const texto = (v: unknown, max: number): string | undefined =>
+      typeof v === "string" && v.trim() !== "" ? v.trim().slice(0, max) : undefined;
+    const lista = (v: unknown, max: number): string[] | undefined => {
+      if (!Array.isArray(v)) return undefined;
+      const limpo = v
+        .filter((x): x is string => typeof x === "string")
+        .map((s) => s.replace(/["\n\r]/g, "").trim())
+        .filter((s) => s !== "" && s.length <= 40)
+        .slice(0, max);
+      return limpo.length > 0 ? limpo : undefined;
+    };
+
+    const nome = texto(dados.nome, 60);
+    const empresa = texto(dados.empresa, 80);
+    const oQueFaz = texto(dados.o_que_a_empresa_faz, 400);
+    const publico = texto(dados.publico, 300);
+    const apresentacao = texto(dados.apresentacao, 200);
+    const palavrasDaCasa = lista(dados.palavras_da_casa, MAX_PALAVRAS);
+    const palavrasAEvitar = lista(dados.palavras_a_evitar, MAX_PALAVRAS);
+
+    patch({
+      ...(nome !== undefined ? { nome } : {}),
+      ...(empresa !== undefined ? { empresa } : {}),
+      ...(oQueFaz !== undefined ? { oQueFaz } : {}),
+      ...(publico !== undefined ? { publico } : {}),
+      ...(apresentacao !== undefined ? { apresentacao } : {}),
+      ...(palavrasDaCasa !== undefined ? { palavrasDaCasa } : {}),
+      ...(palavrasAEvitar !== undefined ? { palavrasAEvitar } : {}),
+    });
+  };
+
   // A prévia é o bloco REAL: a mesma função que o turno usa, sobre os mesmos campos, com o interruptor
   // ligado (desligada, a pessoa ainda vê o que passaria a valer).
   const previa = React.useMemo(() => {
@@ -244,7 +286,12 @@ export function IdentidadeDoAgente({ agentId, config, readOnly }: Props) {
         </Card>
 
         <Card className="flex flex-col gap-4 p-4">
-          <h3 className="text-sm font-medium">{t("Quem é o agente")}</h3>
+          <div className="flex items-center justify-between gap-4">
+            <h3 className="text-sm font-medium">{t("Quem é o agente")}</h3>
+            {!readOnly ? (
+              <RascunhoComIA agentId={agentId} campo="identidade" onRascunho={aoRascunho} />
+            ) : null}
+          </div>
           <div className="grid gap-4 md:grid-cols-2">
             <div className="flex flex-col gap-1">
               <Label htmlFor="identidade-nome">{t("Como ele se chama")}</Label>
