@@ -17,16 +17,60 @@ import {
   Bell,
   Note,
   Robot,
+  FileText,
+  IdentificationCard,
+  ImageIcon,
+  Microphone,
+  VideoCamera,
 } from "@/lib/ui/icons";
 import {
   AGENT_NODE_DEFAULT_MAX_TURNS,
   AGENT_NODE_DEFAULT_SILENCE_MINUTES,
   AGENT_NODE_UNSET_ID,
+  type ConteudoItem,
+  type ConteudoItemType,
   type FlowNode,
   type NodeType,
 } from "@/lib/followup/graph-schema";
-import { RESULTADOS_DO_FIM } from "@/lib/followup/vocabulario";
+import { RESULTADOS_DO_FIM, TIPOS_DE_ITEM_DE_CONTEUDO } from "@/lib/followup/vocabulario";
 import { NOS_DA_SUPERFICIE } from "@/lib/followup/validate-publish";
+
+type IconeDeItem = ComponentType<{ size?: number; className?: string; "aria-hidden"?: boolean }>;
+
+/** Ícone por tipo de item do nó Conteúdo — compartilhado entre o card e o editor (`ConteudoItemsEditor`). */
+export const ICONES_DE_ITEM_DE_CONTEUDO: Record<ConteudoItemType, IconeDeItem> = {
+  text: ChatCircle,
+  image: ImageIcon,
+  video: VideoCamera,
+  audio: Microphone,
+  document: FileText,
+  contact: IdentificationCard,
+  delay: Clock,
+};
+
+/**
+ * Uma linha por item, para a PRÉVIA REAL do card (não uma frase descrevendo o
+ * nó — o conteúdo em si, como uma mini bolha de chat). Mídia mostra o mime ou
+ * a legenda; nada aqui baixa o arquivo nem assina URL, é só o que já está no
+ * config.
+ */
+export function descreverItemDeConteudo(item: ConteudoItem, t: (texto: string) => string): string {
+  switch (item.type) {
+    case "text":
+      return item.body;
+    case "image":
+    case "video":
+      return item.caption ? item.caption : t(TIPOS_DE_ITEM_DE_CONTEUDO[item.type]);
+    case "audio":
+      return t(TIPOS_DE_ITEM_DE_CONTEUDO.audio);
+    case "document":
+      return item.filename ?? t(TIPOS_DE_ITEM_DE_CONTEUDO.document);
+    case "contact":
+      return item.name;
+    case "delay":
+      return `${t(TIPOS_DE_ITEM_DE_CONTEUDO.delay)} ${item.seconds}s`;
+  }
+}
 
 /**
  * Visual identity per node type — shared by the palette (Task 6.2 increment 2)
@@ -336,7 +380,8 @@ export function describeNodeConfig(
       const c = config as ConfigOf<"action">;
       if (c.mode === "ai_message") return c.prompt_hint;
       if (c.mode === "text") return c.body;
-      return t("Template fixo");
+      if (c.mode === "template") return t("Template fixo");
+      return `${c.items.length} ${c.items.length === 1 ? t("item") : t("itens")}`;
     }
     case "end": {
       const c = config as ConfigOf<"end">;

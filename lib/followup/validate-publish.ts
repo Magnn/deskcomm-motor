@@ -1,4 +1,4 @@
-import type { FlowGraph, FlowEdge, FlowNode, NodeType } from './graph-schema';
+import type { ConteudoItemType, FlowGraph, FlowEdge, FlowNode, NodeType } from './graph-schema';
 import type { FollowupFlowSurface } from './api-schemas';
 import type { AgenteCitado } from './agentes-citados';
 import { AGENT_NODE_UNSET_ID, branchIdForCondition, nodeBranches } from './graph-schema';
@@ -36,6 +36,8 @@ export const PUBLISH_ERROR_CODES = [
   'no_em_construcao',
   'agente_nao_escolhido',
   'agente_indisponivel',
+  'item_de_conteudo_em_construcao',
+  'conteudo_so_pausas',
 ] as const;
 export type PublishErrorCode = (typeof PUBLISH_ERROR_CODES)[number];
 
@@ -71,6 +73,18 @@ export interface ContextoDoPublish {
  * roda. Quando o motor entra, o tipo sai desta lista e entra lá — nessa ordem, no mesmo PR.
  */
 export const NOS_EM_CONSTRUCAO: readonly NodeType[] = ['agent'];
+
+/**
+ * Mesma doutrina do `NOS_EM_CONSTRUCAO` acima, um degrau mais fundo: o nó
+ * "Ação" já roda (`node-handlers.ts` sempre soube enfileirar o turno), mas
+ * dentro do modo `content` nem todo TIPO de item tem motor de envio ainda —
+ * `lib/agent-engine/agent/followup-turn.ts` só sabe mandar texto/imagem/
+ * áudio/pausa. Vídeo, documento e contato o schema já aceita (a tela deixa
+ * configurar), mas publicar um fluxo com um desses itens seria publicar um
+ * passo que o motor pula em silêncio na hora de enviar. Quando o motor
+ * aprender um tipo novo, ele sai desta lista — no mesmo PR que ensina o envio.
+ */
+export const TIPOS_DE_ITEM_DE_CONTEUDO_EM_CONSTRUCAO: readonly ConteudoItemType[] = ["video", "document", "contact"];
 
 /**
  * Os tipos de nó que cada superfície EXECUTA. É a mesma lista que a paleta do
@@ -485,6 +499,37 @@ function conferirRegras(
 }
 
 /**
+ * O nó "Ação" no modo Conteúdo: cada item precisa ter motor de envio pronto.
+ * Ver `TIPOS_DE_ITEM_DE_CONTEUDO_EM_CONSTRUCAO`. Roda pra QUALQUER superfície
+ * (não só follow-up) — o roteiro de atendimento também usa `action`.
+ */
+function validarItensDeConteudo(graph: FlowGraph, errors: PublishValidationError[]): void {
+  const emConstrucao = new Set<ConteudoItemType>(TIPOS_DE_ITEM_DE_CONTEUDO_EM_CONSTRUCAO);
+  for (const node of [...graph.nodes].sort(byId)) {
+    if (node.type !== 'action' || node.config.mode !== 'content') continue;
+    for (const [i, item] of node.config.items.entries()) {
+      if (!emConstrucao.has(item.type)) continue;
+      errors.push({
+        node_id: node.id,
+        code: 'item_de_conteudo_em_construcao',
+        message: `A caixa "${node.label}", item ${i + 1}: o envio de ${item.type === 'video' ? 'vídeo' : item.type === 'document' ? 'documento' : 'contato'} ainda não roda — remova este item ou troque o tipo antes de publicar.`,
+      });
+    }
+    // Só pausa(s), nenhum item que de fato envia algo: o motor não teria o que
+    // mandar (ver o rodapé de `sendConteudoSequence`, que degrada isto para
+    // 'already_sent' vazio — melhor recusar aqui do que publicar um passo que
+    // não faz nada por design).
+    if (node.config.items.length > 0 && node.config.items.every((item) => item.type === 'delay')) {
+      errors.push({
+        node_id: node.id,
+        code: 'conteudo_so_pausas',
+        message: `A caixa "${node.label}" só tem pausas — acrescente ao menos um item de conteúdo de verdade (texto, imagem ou áudio).`,
+      });
+    }
+  }
+}
+
+/**
  * O nó "Agente de IA": escolheu um agente, o agente existe NESTA organização e conduz uma conversa, e as três
  * saídas (cumpriu / passou do limite / silêncio) levam a algum lugar. A saída de escape (`else`) NÃO é cobrada: as
  * três saídas esgotam o que o motor produz, e exigir uma quarta ligação seria exigir um caminho que nunca corre.
@@ -658,6 +703,7 @@ export function validateFlowForPublish(
   }
 
   validarAgentes(graph, contexto, outEdges, errors, nomes);
+  validarItensDeConteudo(graph, errors);
 
   for (const node of [...nodes].sort(byId)) {
     if (node.type !== 'ai_classify' && node.type !== 'match_reply' && node.type !== 'repeat') continue;

@@ -10,7 +10,13 @@ import { validateFlowForPublish } from "@/lib/followup/validate-publish";
 import { RESERVED_BRANCH_IDS, type FlowGraph } from "@/lib/followup/graph-schema";
 import { traduzir } from "@/lib/i18n/dicionario";
 
-import { describeNodeConfig, NODE_VISUAL_LIST, NODE_VISUALS, configPadraoDaAcao } from "./nodeVisuals";
+import {
+  describeNodeConfig,
+  descreverItemDeConteudo,
+  NODE_VISUAL_LIST,
+  NODE_VISUALS,
+  configPadraoDaAcao,
+} from "./nodeVisuals";
 
 /** Em português o dicionário devolve a própria chave — é o `t` do provider na língua da chave. */
 const pt = (texto: string) => texto;
@@ -158,6 +164,63 @@ describe("configPadraoDaAcao", () => {
       mode: "ai_message",
       prompt_hint: "Configure esta etapa.",
     });
+  });
+});
+
+describe("describeNodeConfig — nó de ação, modo content (\"Conteúdo\")", () => {
+  it("resume a contagem de itens, singular e plural", () => {
+    expect(describeNodeConfig("action", { mode: "content", items: [{ type: "text", body: "Oi" }] }, pt)).toBe(
+      "1 item",
+    );
+    expect(
+      describeNodeConfig(
+        "action",
+        { mode: "content", items: [{ type: "text", body: "Oi" }, { type: "delay", seconds: 3 }] },
+        pt,
+      ),
+    ).toBe("2 itens");
+  });
+});
+
+describe("descreverItemDeConteudo — a prévia de UM item, pra linha do card", () => {
+  it("texto: mostra o corpo literal", () => {
+    expect(descreverItemDeConteudo({ type: "text", body: "Segue o material" }, pt)).toBe("Segue o material");
+  });
+
+  it("imagem/vídeo: legenda quando existe, senão o rótulo do tipo", () => {
+    expect(
+      descreverItemDeConteudo({ type: "image", storage_path: "p", mime: "image/jpeg", caption: "Antes e depois" }, pt),
+    ).toBe("Antes e depois");
+    expect(descreverItemDeConteudo({ type: "image", storage_path: "p", mime: "image/jpeg" }, pt)).toBe("Imagem");
+    expect(descreverItemDeConteudo({ type: "video", storage_path: "p", mime: "video/mp4" }, pt)).toBe("Vídeo");
+  });
+
+  it("áudio: sempre o rótulo fixo (nunca tem legenda)", () => {
+    expect(descreverItemDeConteudo({ type: "audio", storage_path: "p", mime: "audio/ogg" }, pt)).toBe(
+      "Áudio (nota de voz)",
+    );
+  });
+
+  it("documento: nome do arquivo quando existe, senão o rótulo do tipo", () => {
+    expect(
+      descreverItemDeConteudo(
+        { type: "document", storage_path: "p", mime: "application/pdf", filename: "tabela.pdf" },
+        pt,
+      ),
+    ).toBe("tabela.pdf");
+    expect(descreverItemDeConteudo({ type: "document", storage_path: "p", mime: "application/pdf" }, pt)).toBe(
+      "Documento",
+    );
+  });
+
+  it("contato: o nome", () => {
+    expect(descreverItemDeConteudo({ type: "contact", name: "Suporte", phone_number: "+5511999998888" }, pt)).toBe(
+      "Suporte",
+    );
+  });
+
+  it("delay: rótulo + segundos", () => {
+    expect(descreverItemDeConteudo({ type: "delay", seconds: 5 }, pt)).toBe("Pausa 5s");
   });
 });
 

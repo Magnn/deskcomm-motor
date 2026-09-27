@@ -23,7 +23,7 @@ import { assertSafeOutboundUrl } from "@/lib/automation/outbound-url";
 import { idsDoContatoEGemeos } from "@/lib/channels/contato-por-telefone";
 import { logger } from "@/lib/logger";
 
-import { flowGraphSchema, type FlowGraph, type FlowNode, type ReplySaveTo } from "./graph-schema";
+import { flowGraphSchema, type ConteudoItem, type FlowGraph, type FlowNode, type ReplySaveTo } from "./graph-schema";
 import {
   ACTION_RECHECK_MS,
   BACKOFF_MS,
@@ -95,6 +95,8 @@ export interface FollowupJobRequest {
     fixed_body?: string;
     /** action (mode 'template') — id em `message_templates`; o turno carrega o corpo e envia sem modelo. */
     template_id?: string;
+    /** action (mode 'content') — a sequência inteira de itens, na ordem de envio. */
+    content_items?: ConteudoItem[];
     volta_index?: number;
     volta_total?: number;
     /** ai_classify — Task 5.1: classes possíveis + dica opcional pro classificador. */
@@ -278,6 +280,9 @@ function turnPayloadExtras(
       template_id: node.config.template_id,
       ...(volta ? { volta_index: volta.index, volta_total: volta.total } : {}),
     };
+  }
+  if (node.type === "action" && node.config.mode === "content") {
+    return { content_items: node.config.items };
   }
   if (node.type === "ai_classify") {
     return { classes: node.config.classes, ...(node.config.hint !== undefined ? { hint: node.config.hint } : {}) };

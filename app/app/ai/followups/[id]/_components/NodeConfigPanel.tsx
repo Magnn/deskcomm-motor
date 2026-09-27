@@ -27,6 +27,8 @@ import { NODE_VISUALS } from "./nodes/nodeVisuals";
 
 interface Props {
   node: RFNode;
+  /** Dono da mídia do nó Conteúdo — o upload é por FLUXO, não por conversa (ver content-media/route.ts). */
+  flowId: string;
   onChange: (patch: Partial<RFNodeData>) => void;
   onDelete: () => void;
   /** Ramos deste nó que já têm aresta — quem sabe isso é o canvas, que é dono do grafo. */
@@ -42,7 +44,7 @@ interface Props {
  * quando o candidato passa no schema — senão mostra erro inline e o canvas
  * mantém a última config válida (nunca um valor pela metade rio acima).
  */
-export function NodeConfigPanel({ node, onChange, onDelete, ramosLigados }: Props) {
+export function NodeConfigPanel({ node, flowId, onChange, onDelete, ramosLigados }: Props) {
   const t = useT();
   const type = node.type as FlowNode["type"];
   const visual = NODE_VISUALS[type];
@@ -122,7 +124,11 @@ export function NodeConfigPanel({ node, onChange, onDelete, ramosLigados }: Prop
           />
         )}
         {type === "action" && (
-          <ActionForm config={node.data.config as ConfigOf<"action">} onChange={(config) => onChange({ config })} />
+          <ActionForm
+            config={node.data.config as ConfigOf<"action">}
+            flowId={flowId}
+            onChange={(config) => onChange({ config })}
+          />
         )}
         {type === "end" && (
           <EndForm config={node.data.config as ConfigOf<"end">} onChange={(config) => onChange({ config })} />

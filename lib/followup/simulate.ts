@@ -10,6 +10,7 @@ import {
   AGENT_SILENCE_BRANCH_ID,
   type AGENT_CONCLUDED_BRANCH_ID,
   type AGENT_LIMIT_BRANCH_ID,
+  type ConteudoItem,
   type EndFinish,
   type FlowGraph,
   type FlowNode,
@@ -118,7 +119,7 @@ export type SimTranscriptEntry =
       kind: "mensagem_simulada";
       nodeId: string;
       texto: string;
-      origem: "texto_fixo" | "ia" | "modelo_salvo" | "confirmacao";
+      origem: "texto_fixo" | "ia" | "modelo_salvo" | "confirmacao" | "conteudo";
     }
   | { kind: "transicao"; nodeId: string; label: string; repeat?: { index: number; total: number } }
   | { kind: "aguardando"; nodeId: string; motivo: "wait" | "ai_classify" | "match_reply" | "agent" }
@@ -203,13 +204,34 @@ function interpolarVolta(texto: string, volta: { index: number; total: number } 
   return texto.replaceAll("{{volta}}", String(volta.index)).replaceAll("{{voltas}}", String(volta.total));
 }
 
+/** Uma linha por item, pra prévia do simulador — mídia/contato não são pré-visualizados (limitação documentada). */
+function resumoDeItemDeConteudo(item: ConteudoItem): string {
+  switch (item.type) {
+    case "text":
+      return item.body;
+    case "image":
+      return `[imagem]${item.caption ? ` ${item.caption}` : ""}`;
+    case "video":
+      return `[vídeo]${item.caption ? ` ${item.caption}` : ""}`;
+    case "audio":
+      return "[áudio]";
+    case "document":
+      return `[documento]${item.filename ? ` ${item.filename}` : ""}`;
+    case "contact":
+      return `[contato] ${item.name}`;
+    case "delay":
+      return `[pausa ${item.seconds}s]`;
+  }
+}
+
 function textoDaAcao(
   node: Extract<FlowNode, { type: "action" }>,
   volta: { index: number; total: number } | null,
-): { texto: string; origem: "texto_fixo" | "ia" | "modelo_salvo" } {
+): { texto: string; origem: "texto_fixo" | "ia" | "modelo_salvo" | "conteudo" } {
   const cfg = node.config;
   if (cfg.mode === "text") return { texto: interpolarVolta(cfg.body, volta), origem: "texto_fixo" };
   if (cfg.mode === "ai_message") return { texto: interpolarVolta(cfg.prompt_hint, volta), origem: "ia" };
+  if (cfg.mode === "content") return { texto: cfg.items.map(resumoDeItemDeConteudo).join(" · "), origem: "conteudo" };
   return { texto: cfg.template_id, origem: "modelo_salvo" };
 }
 

@@ -1,5 +1,7 @@
 "use client";
 
+import type { ComponentType } from "react";
+
 import { Handle, Position } from "@xyflow/react";
 
 import type { FlowBranch } from "@/lib/followup/graph-schema";
@@ -43,6 +45,13 @@ interface Props {
    * sem nome trocaria um problema por outro.
    */
   branches?: FlowBranch[];
+  /**
+   * A PRÉVIA REAL do conteúdo do nó (hoje só o modo `content` da Ação): uma
+   * linha por item, ícone + texto — não uma frase descrevendo o nó. É a
+   * mudança que mais eleva a leitura do card (achado da pesquisa de mercado:
+   * Typebot/ManyChat mostram o conteúdo, não um rótulo genérico).
+   */
+  previewRows?: Array<{ texto: string; Icon: ComponentType<{ size?: number; className?: string; "aria-hidden"?: boolean }> }>;
 }
 
 /**
@@ -71,6 +80,7 @@ export function NodeCard({
   showTarget = true,
   showSource = true,
   branches,
+  previewRows,
 }: Props) {
   const t = useT();
   const { nomes } = useEtapasDoFluxo();
@@ -122,6 +132,21 @@ export function NodeCard({
         >
           {errors![0]}
         </p>
+      )}
+      {previewRows !== undefined && previewRows.length > 0 && (
+        <ul className="border-t border-border" data-testid={`node-preview-${id}`}>
+          {previewRows.map((row, i) => (
+            <li
+              key={i}
+              className="flex items-center gap-1.5 border-t border-border/60 px-3 py-1 first:border-t-0"
+            >
+              <row.Icon size={12} aria-hidden className="shrink-0 text-text-muted" />
+              <span className="truncate text-xs text-text-muted" title={row.texto}>
+                {row.texto}
+              </span>
+            </li>
+          ))}
+        </ul>
       )}
       {branchRows !== null && (
         <ul className="border-t border-border" data-testid={`node-branches-${id}`}>

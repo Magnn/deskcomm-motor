@@ -451,6 +451,7 @@ function FlowCanvasInner({ flowId, initialData }: Props) {
               <NodeConfigPanel
                 key={selectedNode.id}
                 node={selectedNode}
+                flowId={flowId}
                 onChange={(patch) => updateNodeData(selectedNode.id, patch)}
                 onDelete={() => deleteNode(selectedNode.id)}
                 ramosLigados={ramosLigadosDoSelecionado}
