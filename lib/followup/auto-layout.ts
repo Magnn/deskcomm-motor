@@ -22,9 +22,13 @@ import type { NomesDeValor } from "./vocabulario";
  * genérica ignoraria essa ordem. Pure, sem DOM.
  */
 
-export const LAYOUT_NODE_WIDTH = 224;
-export const LAYOUT_NODE_HEIGHT = 64;
-const BRANCH_ROW_HEIGHT = 26;
+// 288/160 (card mais rico: cabeçalho com selo de categoria + corpo + rodapé
+// "Continuar") — eram 224/64, do card antigo de uma linha só. A MEDIDA REAL
+// pelo DOM (`FlowCanvas` passa `measured` ao auto-layout) sempre vence esta
+// estimativa; ela só importa pro PRIMEIRO layout, antes do nó ser medido.
+export const LAYOUT_NODE_WIDTH = 288;
+export const LAYOUT_NODE_HEIGHT = 160;
+const BRANCH_ROW_HEIGHT = 44;
 const H_GAP = 48;
 const V_GAP = 80;
 /** Offset padrão do SmoothStep do XYFlow — o primeiro segmento sai da bolinha. */
@@ -59,7 +63,7 @@ export type NodeSize = { width: number; height: number };
 export function estimateNodeSize(node: FlowNode): NodeSize {
   const branches = nodeBranches(node);
   const height =
-    branches.length > 1 ? 48 + branches.length * BRANCH_ROW_HEIGHT : LAYOUT_NODE_HEIGHT;
+    branches.length > 1 ? 64 + branches.length * BRANCH_ROW_HEIGHT : LAYOUT_NODE_HEIGHT;
   return { width: LAYOUT_NODE_WIDTH, height };
 }
 

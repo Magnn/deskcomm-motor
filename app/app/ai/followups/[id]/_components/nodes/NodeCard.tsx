@@ -7,11 +7,15 @@ import { Handle, Position } from "@xyflow/react";
 import type { FlowBranch } from "@/lib/followup/graph-schema";
 import { rotuloDoRamo } from "@/lib/followup/rotulo-do-ramo";
 import type { NomesDeValor } from "@/lib/followup/vocabulario";
-import { Warning } from "@/lib/ui/icons";
+import { ArrowRight, Warning, WarningOctagon } from "@/lib/ui/icons";
 import { cn } from "@/lib/utils";
 import { useT } from "@/hooks/i18n/useT";
 import { useEtapasDoFluxo } from "../EtapasDoFluxo";
 import type { NodeVisual } from "./nodeVisuals";
+
+/** Bolinha de conexão — maior e colorida por tipo, nunca o ponto cinza padrão do React Flow. */
+const HANDLE_BASE =
+  "!h-3.5 !w-3.5 !rounded-full !border-2 !border-surface !shadow-sm !transition-all hover:!scale-125";
 
 /**
  * A regra de etapa que não aponta para etapa ativa nenhuma: o nome digitado à
@@ -93,9 +97,10 @@ export function NodeCard({
   return (
     <div
       className={cn(
-        "w-56 rounded-md border border-l-4 border-border bg-surface shadow-sm transition-shadow",
-        visual.borderClassName,
-        selected && "ring-2 ring-accent-500 ring-offset-1 ring-offset-bg",
+        "group relative w-72 rounded-2xl border bg-surface font-sans shadow-sm transition-all duration-200 select-none",
+        selected
+          ? cn("ring-2 ring-offset-1 ring-offset-bg shadow-lg", visual.selectedClassName)
+          : cn("border-border hover:shadow-md hover:border-border-strong", visual.hoverBorderClassName),
         // Simulação tem prioridade visual sobre seleção (o operador está de olho
         // "onde a conversa está agora"), mas nunca some com o erro de publish —
         // um nó não fica com cara de saudável só porque a simulação passou por ele.
@@ -106,24 +111,47 @@ export function NodeCard({
       data-simulating={simulating || undefined}
       title={hasError ? errors!.join("; ") : undefined}
     >
-      {showTarget && <Handle type="target" position={Position.Top} />}
-      <div className="flex items-center gap-2 px-3 py-2">
+      {hasError && (
+        <span
+          aria-hidden
+          className="absolute -top-2 -right-2 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-error text-white shadow-md"
+        >
+          <WarningOctagon size={12} weight="fill" aria-hidden />
+        </span>
+      )}
+      {showTarget && (
+        <Handle type="target" position={Position.Top} className={cn(HANDLE_BASE, "!bg-surface !border-border-strong")} />
+      )}
+      <div className="flex items-center gap-2.5 border-b border-border/70 p-3">
         <span
           className={cn(
-            "flex h-6 w-6 shrink-0 items-center justify-center rounded-full",
+            "flex h-8 w-8 shrink-0 items-center justify-center rounded-xl shadow-sm",
             visual.chipClassName,
           )}
         >
-          <Icon size={14} aria-hidden />
+          <Icon size={16} aria-hidden />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium text-text" title={label}>
+          <p className="truncate text-sm font-semibold leading-tight text-text" title={label}>
             {label}
           </p>
-          <p className="line-clamp-2 break-words text-xs text-text-muted" title={subtitle}>
-            {subtitle}
-          </p>
+          <span
+            className={cn(
+              "mt-0.5 inline-block rounded-sm px-1 text-[10px] font-medium tracking-wide uppercase",
+              visual.badgeClassName,
+            )}
+          >
+            {t(visual.paletteLabel)}
+          </span>
         </div>
+      </div>
+      <div className="p-3">
+        <p
+          className="line-clamp-2 break-words rounded-lg border border-border/60 bg-surface-elevated px-2.5 py-1.5 text-xs leading-relaxed text-text-muted"
+          title={subtitle}
+        >
+          {subtitle}
+        </p>
       </div>
       {hasError && (
         <p
@@ -134,14 +162,14 @@ export function NodeCard({
         </p>
       )}
       {previewRows !== undefined && previewRows.length > 0 && (
-        <ul className="border-t border-border" data-testid={`node-preview-${id}`}>
+        <ul className="flex flex-col gap-1.5 border-t border-border/70 p-3 pt-2.5" data-testid={`node-preview-${id}`}>
           {previewRows.map((row, i) => (
             <li
               key={i}
-              className="flex items-center gap-1.5 border-t border-border/60 px-3 py-1 first:border-t-0"
+              className="flex items-center gap-2 rounded-lg border border-border/60 bg-surface-elevated px-2.5 py-1.5"
             >
-              <row.Icon size={12} aria-hidden className="shrink-0 text-text-muted" />
-              <span className="truncate text-xs text-text-muted" title={row.texto}>
+              <row.Icon size={13} aria-hidden className="shrink-0 text-text-muted" />
+              <span className="truncate text-xs text-text" title={row.texto}>
                 {row.texto}
               </span>
             </li>
@@ -149,7 +177,7 @@ export function NodeCard({
         </ul>
       )}
       {branchRows !== null && (
-        <ul className="border-t border-border" data-testid={`node-branches-${id}`}>
+        <ul className="flex flex-col gap-1.5 border-t border-border/70 p-3 pt-2.5" data-testid={`node-branches-${id}`}>
           {branchRows.map((branch) => {
             const rotulo = t(rotuloDoRamo(branch, nomes));
             const semEtapa = regraSemEtapa(branch, nomes);
@@ -157,11 +185,11 @@ export function NodeCard({
               <li
                 key={branch.id}
                 className={cn(
-                  "relative flex items-center gap-1.5 border-t border-border/60 px-3 py-1 first:border-t-0",
-                  // A saída de escape é a única que não veio de uma regra do usuário:
-                  // fica em itálico e apagada para se ler como "o resto cai aqui".
-                  branch.kind === "fallback" && "italic text-text-muted",
-                  semEtapa && "text-warning-fg",
+                  "relative flex items-center justify-between gap-2 rounded-lg border px-2.5 py-1.5",
+                  branch.kind === "fallback"
+                    ? "border-border/60 bg-surface-elevated text-text-muted"
+                    : "border-border/60 bg-surface-elevated text-text",
+                  semEtapa && "border-warning/50 bg-warning-bg text-warning-fg",
                 )}
                 data-testid={`node-branch-${id}-${branch.id}`}
                 data-regra-sem-etapa={semEtapa || undefined}
@@ -171,21 +199,30 @@ export function NodeCard({
                     : rotulo
                 }
               >
-                {semEtapa ? (
-                  <Warning size={12} aria-hidden className="shrink-0" />
-                ) : (
+                <div className="flex min-w-0 items-center gap-1.5">
+                  {semEtapa ? (
+                    <Warning size={12} aria-hidden className="shrink-0" />
+                  ) : (
+                    <span
+                      aria-hidden
+                      className={cn(
+                        "h-1.5 w-1.5 shrink-0 rounded-full",
+                        branch.kind === "fallback" ? "bg-text-muted/50" : visual.handleClassName,
+                      )}
+                    />
+                  )}
+                  {/* Três linhas, não duas: a frase da regra interpola dado do
+                      usuário («Etapa · Funil»), e o que estourava era justamente o
+                      fim — o nome do funil, que existe para desambiguar. */}
                   <span
-                    aria-hidden
                     className={cn(
-                      "h-1.5 w-1.5 shrink-0 rounded-full",
-                      branch.kind === "fallback" ? "bg-text-muted/50" : "bg-accent-500",
+                      "line-clamp-3 break-words text-xs leading-tight font-medium",
+                      branch.kind === "fallback" && "italic",
                     )}
-                  />
-                )}
-                {/* Três linhas, não duas: a frase da regra interpola dado do
-                    usuário («Etapa · Funil»), e o que estourava era justamente o
-                    fim — o nome do funil, que existe para desambiguar. */}
-                <span className="line-clamp-3 break-words text-xs leading-tight">{rotulo}</span>
+                  >
+                    {rotulo}
+                  </span>
+                </div>
                 <Handle
                   type="source"
                   id={branch.id}
@@ -193,6 +230,7 @@ export function NodeCard({
                   // Uma bolinha por LINHA: a saída sai ao lado do seu próprio rótulo,
                   // que é o que torna "qual aresta sai de qual regra" visível. No
                   // rodapé elas ficariam lado a lado, sem espaço para nome nenhum.
+                  className={cn(HANDLE_BASE, "!-right-[18px]", visual.handleClassName)}
                   style={{ top: "50%" }}
                 />
               </li>
@@ -200,7 +238,18 @@ export function NodeCard({
           })}
         </ul>
       )}
-      {showSource && branchRows === null && <Handle type="source" position={Position.Bottom} />}
+      {showSource && branchRows === null && (
+        <div className="relative flex items-center justify-end rounded-b-2xl border-t border-border/70 bg-surface-elevated/60 px-3 py-2">
+          <span className="flex items-center gap-1 text-[11px] font-medium text-text-muted">
+            {t("Continuar")}
+            <ArrowRight size={11} aria-hidden />
+          </span>
+          {/* Posição (Bottom, centralizada) é a mesma de sempre — só o estilo mudou.
+              Mover o handle para acompanhar visualmente o rótulo "Continuar" mexeria
+              no ponto onde as arestas já existentes se ancoram. */}
+          <Handle type="source" position={Position.Bottom} className={cn(HANDLE_BASE, visual.handleClassName)} />
+        </div>
+      )}
     </div>
   );
 }
