@@ -37,9 +37,9 @@ const TIPOS_PARA_ADICIONAR: readonly ConteudoItemType[] = [
   "image",
   "video",
   "audio",
-  "document",
-  "contact",
   "delay",
+  "contact",
+  "document",
 ];
 
 /**
@@ -60,14 +60,14 @@ const TIPOS_PARA_ADICIONAR: readonly ConteudoItemType[] = [
  */
 const ROTULO_CURTO_DA_GRADE: Partial<Record<ConteudoItemType, string>> = { audio: "Áudio" };
 
-const COR_DO_ITEM: Record<ConteudoItemType, { faixa: string; botao: string }> = {
-  text: { faixa: "bg-blue-500", botao: "text-blue-600 dark:text-blue-400" },
-  image: { faixa: "bg-orange-500", botao: "text-orange-600 dark:text-orange-400" },
-  video: { faixa: "bg-green-500", botao: "text-green-600 dark:text-green-400" },
-  audio: { faixa: "bg-purple-500", botao: "text-purple-600 dark:text-purple-400" },
-  document: { faixa: "bg-sky-500", botao: "text-sky-600 dark:text-sky-400" },
-  contact: { faixa: "bg-teal-500", botao: "text-teal-600 dark:text-teal-400" },
-  delay: { faixa: "bg-pink-500", botao: "text-pink-600 dark:text-pink-400" },
+const COR_DO_ITEM: Record<ConteudoItemType, { faixa: string; chip: string }> = {
+  text: { faixa: "bg-blue-500", chip: "bg-blue-500/10 text-blue-600 dark:text-blue-400" },
+  image: { faixa: "bg-emerald-500", chip: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" },
+  video: { faixa: "bg-violet-500", chip: "bg-violet-500/10 text-violet-600 dark:text-violet-400" },
+  audio: { faixa: "bg-orange-500", chip: "bg-orange-500/10 text-orange-600 dark:text-orange-400" },
+  document: { faixa: "bg-indigo-500", chip: "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400" },
+  contact: { faixa: "bg-pink-500", chip: "bg-pink-500/10 text-pink-600 dark:text-pink-400" },
+  delay: { faixa: "bg-cyan-500", chip: "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400" },
 };
 
 function itemPadrao(type: ConteudoItemType): ConteudoItem {
@@ -119,11 +119,14 @@ export function ConteudoItemsEditor({ flowId, items, onChange, disabled }: Props
 
   return (
     <div className="space-y-3">
-      {/* Grade de botões de adicionar — um clique por tipo, sem menu escondido.
+      {/* Grade de cards de adicionar — um clique por tipo, sem menu escondido.
           Fica no TOPO (como no editor da AcassIA) porque é o que se usa mais vezes
-          numa sessão de edição: montar a sequência item a item. */}
+          numa sessão de edição: montar a sequência item a item. Card com ícone em
+          círculo colorido + rótulo embaixo, não botão de barra — mesmo padrão
+          visual do "Adicionar Conteúdo" da AcassIA, ver
+          [[acassia-frontend-fluxos-e-agente]]. */}
       {!disabled && (
-        <div className="grid grid-cols-4 gap-1.5">
+        <div className="grid grid-cols-4 gap-2">
           {TIPOS_PARA_ADICIONAR.map((tipo) => {
             const Icon = ICONE_DO_TIPO[tipo];
             const cor = COR_DO_ITEM[tipo];
@@ -139,14 +142,18 @@ export function ConteudoItemsEditor({ flowId, items, onChange, disabled }: Props
                     : t(TIPOS_DE_ITEM_DE_CONTEUDO[tipo])
                 }
                 className={cn(
-                  "flex flex-col items-center justify-center gap-1 rounded-lg border border-border/70 bg-surface-elevated px-1 py-2.5",
-                  "text-[11px] font-semibold transition-all",
-                  atMax ? "cursor-not-allowed opacity-40" : "hover:-translate-y-px hover:border-border-strong hover:shadow-sm",
-                  cor.botao,
+                  "flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-surface px-1 py-3.5 transition-all",
+                  atMax
+                    ? "cursor-not-allowed opacity-40"
+                    : "hover:-translate-y-px hover:border-solid hover:border-border-strong hover:bg-surface-elevated hover:shadow-sm",
                 )}
               >
-                <Icon size={17} aria-hidden />
-                <span className="truncate">{t(ROTULO_CURTO_DA_GRADE[tipo] ?? TIPOS_DE_ITEM_DE_CONTEUDO[tipo])}</span>
+                <span className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-full", cor.chip)}>
+                  <Icon size={18} aria-hidden />
+                </span>
+                <span className="truncate text-[11px] font-medium text-text">
+                  {t(ROTULO_CURTO_DA_GRADE[tipo] ?? TIPOS_DE_ITEM_DE_CONTEUDO[tipo])}
+                </span>
               </button>
             );
           })}
