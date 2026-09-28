@@ -73,23 +73,72 @@ export function descreverItemDeConteudo(item: ConteudoItem, t: (texto: string) =
 }
 
 /**
- * Visual identity per node type — shared by the palette (Task 6.2 increment 2)
- * and the custom node cards (increment 3). Each type gets a DISTINCT icon +
- * Sage token pairing (never a bare default React Flow box): trigger=accent
- * (start), wait=info (calm/waiting), condition=warning (branch), ai_classify=
- * solid accent (the "smart" step), action=success (send/go), end=error
- * (terminal — reads as "stop", not literally an error).
+ * Uma cor DISTINTA por tipo de nó (16 matizes, sem repetição) — antes eram só
+ * 5 baldes semânticos (accent/info/warning/success/error) para 16 tipos, e o
+ * resultado era 4 tipos diferentes todos "warning" (mesma cor, mesmo peso
+ * visual): o card não respondia "que tipo é este" à distância, só de perto,
+ * lendo o rótulo. Migrado pela auditoria do construtor da AcassIA — mesma
+ * ideia (uma cor por tipo, não por família semântica), ver
+ * [[acassia-frontend-fluxos-e-agente]]. Cada matiz gera as quatro classes que
+ * o card/paleta precisam: `chip` (avatar sólido do cabeçalho), `badge` (selo
+ * suave abaixo do rótulo), `hoverBorder` (paleta, ao passar o mouse), `handle`
+ * (bolinha de conexão) e `selected` (contorno do card quando selecionado).
+ */
+const HUES = {
+  emerald: { chip: "bg-emerald-600 text-white", badge: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400", hoverBorder: "hover:border-emerald-500/60", handle: "!bg-emerald-600", selected: "border-emerald-400 dark:border-emerald-600 ring-emerald-500/20" },
+  indigo: { chip: "bg-indigo-600 text-white", badge: "bg-indigo-500/10 text-indigo-700 dark:text-indigo-400", hoverBorder: "hover:border-indigo-500/60", handle: "!bg-indigo-600", selected: "border-indigo-400 dark:border-indigo-600 ring-indigo-500/20" },
+  purple: { chip: "bg-purple-600 text-white", badge: "bg-purple-500/10 text-purple-700 dark:text-purple-400", hoverBorder: "hover:border-purple-500/60", handle: "!bg-purple-600", selected: "border-purple-400 dark:border-purple-600 ring-purple-500/20" },
+  violet: { chip: "bg-violet-600 text-white", badge: "bg-violet-500/10 text-violet-700 dark:text-violet-400", hoverBorder: "hover:border-violet-500/60", handle: "!bg-violet-600", selected: "border-violet-400 dark:border-violet-600 ring-violet-500/20" },
+  fuchsia: { chip: "bg-fuchsia-600 text-white", badge: "bg-fuchsia-500/10 text-fuchsia-700 dark:text-fuchsia-400", hoverBorder: "hover:border-fuchsia-500/60", handle: "!bg-fuchsia-600", selected: "border-fuchsia-400 dark:border-fuchsia-600 ring-fuchsia-500/20" },
+  sky: { chip: "bg-sky-600 text-white", badge: "bg-sky-500/10 text-sky-700 dark:text-sky-400", hoverBorder: "hover:border-sky-500/60", handle: "!bg-sky-600", selected: "border-sky-400 dark:border-sky-600 ring-sky-500/20" },
+  cyan: { chip: "bg-cyan-600 text-white", badge: "bg-cyan-500/10 text-cyan-700 dark:text-cyan-400", hoverBorder: "hover:border-cyan-500/60", handle: "!bg-cyan-600", selected: "border-cyan-400 dark:border-cyan-600 ring-cyan-500/20" },
+  teal: { chip: "bg-teal-600 text-white", badge: "bg-teal-500/10 text-teal-700 dark:text-teal-400", hoverBorder: "hover:border-teal-500/60", handle: "!bg-teal-600", selected: "border-teal-400 dark:border-teal-600 ring-teal-500/20" },
+  amber: { chip: "bg-amber-600 text-white", badge: "bg-amber-500/10 text-amber-700 dark:text-amber-400", hoverBorder: "hover:border-amber-500/60", handle: "!bg-amber-600", selected: "border-amber-400 dark:border-amber-600 ring-amber-500/20" },
+  lime: { chip: "bg-lime-600 text-white", badge: "bg-lime-500/10 text-lime-700 dark:text-lime-400", hoverBorder: "hover:border-lime-500/60", handle: "!bg-lime-600", selected: "border-lime-400 dark:border-lime-600 ring-lime-500/20" },
+  orange: { chip: "bg-orange-600 text-white", badge: "bg-orange-500/10 text-orange-700 dark:text-orange-400", hoverBorder: "hover:border-orange-500/60", handle: "!bg-orange-600", selected: "border-orange-400 dark:border-orange-600 ring-orange-500/20" },
+  pink: { chip: "bg-pink-600 text-white", badge: "bg-pink-500/10 text-pink-700 dark:text-pink-400", hoverBorder: "hover:border-pink-500/60", handle: "!bg-pink-600", selected: "border-pink-400 dark:border-pink-600 ring-pink-500/20" },
+  blue: { chip: "bg-blue-600 text-white", badge: "bg-blue-500/10 text-blue-700 dark:text-blue-400", hoverBorder: "hover:border-blue-500/60", handle: "!bg-blue-600", selected: "border-blue-400 dark:border-blue-600 ring-blue-500/20" },
+  rose: { chip: "bg-rose-600 text-white", badge: "bg-rose-500/10 text-rose-700 dark:text-rose-400", hoverBorder: "hover:border-rose-500/60", handle: "!bg-rose-600", selected: "border-rose-400 dark:border-rose-600 ring-rose-500/20" },
+  yellow: { chip: "bg-yellow-600 text-white", badge: "bg-yellow-500/10 text-yellow-700 dark:text-yellow-400", hoverBorder: "hover:border-yellow-500/60", handle: "!bg-yellow-600", selected: "border-yellow-400 dark:border-yellow-600 ring-yellow-500/20" },
+  zinc: { chip: "bg-zinc-700 text-white", badge: "bg-zinc-500/10 text-zinc-600 dark:text-zinc-400", hoverBorder: "hover:border-zinc-500/60", handle: "!bg-zinc-600", selected: "border-zinc-400 dark:border-zinc-600 ring-zinc-500/20" },
+} as const satisfies Record<string, { chip: string; badge: string; hoverBorder: string; handle: string; selected: string }>;
+
+type Hue = keyof typeof HUES;
+
+/**
+ * Visual identity per node type — shared by the palette, the config panel
+ * (`NodeConfigPanel`) and the custom node cards. Cada tipo tem ícone e matiz
+ * PRÓPRIOS (ver `HUES` acima) — nunca uma caixa cinza genérica do React Flow.
  */
 export interface NodeVisual {
   type: NodeType;
   paletteLabel: string;
+  /** Uma linha dizendo o que o nó faz — mostrado na paleta, abaixo do rótulo. */
+  paletteDesc: string;
   icon: ComponentType<{ size?: number; className?: string; "aria-hidden"?: boolean }>;
-  /** Icon chip background + text. */
+  /** Avatar sólido do cabeçalho do card / ícone da paleta e do painel de config. */
   chipClassName: string;
-  /** Left accent border on the node card. */
-  borderClassName: string;
+  /** Selo suave (categoria) abaixo do rótulo do card. */
+  badgeClassName: string;
+  /** Borda ao passar o mouse — usado no item da paleta. */
+  hoverBorderClassName: string;
+  /** Cor da bolinha de conexão (handle) que este nó emite. */
+  handleClassName: string;
+  /** Borda + anel quando o card está selecionado no canvas. */
+  selectedClassName: string;
   defaultLabel: string;
   defaultConfig: () => FlowNode["config"];
+}
+
+function visualDoMatiz(hue: Hue) {
+  const h = HUES[hue];
+  return {
+    chipClassName: h.chip,
+    badgeClassName: h.badge,
+    hoverBorderClassName: h.hoverBorder,
+    handleClassName: h.handle,
+    selectedClassName: h.selected,
+  };
 }
 
 type RegraDeCondicao = Extract<FlowNode, { type: "condition" }>["config"]["checks"][number];
@@ -127,36 +176,36 @@ export const NODE_VISUALS: Record<NodeType, NodeVisual> = {
   trigger: {
     type: "trigger",
     paletteLabel: "Gatilho",
+    paletteDesc: "Começa o fluxo",
     icon: Play,
-    chipClassName: "bg-accent-soft text-accent",
-    borderClassName: "border-l-accent-500",
+    ...visualDoMatiz("emerald"),
     defaultLabel: "Início do fluxo",
     defaultConfig: () => ({}),
   },
   wait: {
     type: "wait",
     paletteLabel: "Aguardar",
+    paletteDesc: "Pausa por um tempo",
     icon: Clock,
-    chipClassName: "bg-info-bg text-info-fg",
-    borderClassName: "border-l-info",
+    ...visualDoMatiz("orange"),
     defaultLabel: "Aguardar",
     defaultConfig: () => ({ mode: "fixed", duration_ms: 300_000 }),
   },
   condition: {
     type: "condition",
     paletteLabel: "Condição",
+    paletteDesc: "Ramifica por regra",
     icon: GitBranch,
-    chipClassName: "bg-warning-bg text-warning-fg",
-    borderClassName: "border-l-warning",
+    ...visualDoMatiz("sky"),
     defaultLabel: "Verificar condição",
     defaultConfig: () => ({ combinator: "and", checks: [regraEmBranco()] }),
   },
   ai_classify: {
     type: "ai_classify",
     paletteLabel: "Classificar (IA)",
+    paletteDesc: "IA classifica a resposta",
     icon: Brain,
-    chipClassName: "bg-accent text-accent-foreground",
-    borderClassName: "border-l-accent-700",
+    ...visualDoMatiz("violet"),
     defaultLabel: "Classificar resposta",
     defaultConfig: () => ({
       // Em português, e dizendo o CRITÉRIO: estes nomes são a definição inteira
@@ -173,9 +222,9 @@ export const NODE_VISUALS: Record<NodeType, NodeVisual> = {
   match_reply: {
     type: "match_reply",
     paletteLabel: "Resposta (texto)",
+    paletteDesc: "Casa texto da resposta",
     icon: ChatCircle,
-    chipClassName: "bg-info-bg text-info-fg",
-    borderClassName: "border-l-info",
+    ...visualDoMatiz("cyan"),
     defaultLabel: "Casar resposta",
     defaultConfig: () => ({
       branches: [{ id: "br_sim", label: "Sim", op: "contains", pattern: "sim" }],
@@ -185,45 +234,45 @@ export const NODE_VISUALS: Record<NodeType, NodeVisual> = {
   repeat: {
     type: "repeat",
     paletteLabel: "Repetir",
+    paletteDesc: "Volta e tenta de novo",
     icon: ArrowsClockwise,
-    chipClassName: "bg-warning-bg text-warning-fg",
-    borderClassName: "border-l-warning",
+    ...visualDoMatiz("teal"),
     defaultLabel: "Repetir pela resposta",
     defaultConfig: () => ({ max_count: 12 }),
   },
   collect: {
     type: "collect",
     paletteLabel: "Pergunta",
+    paletteDesc: "Pergunta e guarda a resposta",
     icon: Question,
-    chipClassName: "bg-info-bg text-info-fg",
-    borderClassName: "border-l-info",
+    ...visualDoMatiz("amber"),
     defaultLabel: "Nova pergunta",
     defaultConfig: () => ({ key: "novo_campo", label: "Nova pergunta", type: "text", required: true, permite_correcao: true }),
   },
   skill: {
     type: "skill",
     paletteLabel: "Skill",
+    paletteDesc: "Chama uma skill",
     icon: PuzzlePiece,
-    chipClassName: "bg-accent-soft text-accent",
-    borderClassName: "border-l-accent-500",
+    ...visualDoMatiz("lime"),
     defaultLabel: "Puxar skill",
     defaultConfig: () => ({ skill_name: "nome-da-skill" }),
   },
   action: {
     type: "action",
     paletteLabel: "Ação",
+    paletteDesc: "Envia mensagem, mídia ou contato",
     icon: PaperPlaneTilt,
-    chipClassName: "bg-success-bg text-success-fg",
-    borderClassName: "border-l-success",
+    ...visualDoMatiz("indigo"),
     defaultLabel: "Enviar mensagem",
     defaultConfig: () => configPadraoDaAcao(),
   },
   end: {
     type: "end",
     paletteLabel: "Fim",
+    paletteDesc: "Encerra o fluxo",
     icon: Flag,
-    chipClassName: "bg-error-bg text-error-fg",
-    borderClassName: "border-l-error",
+    ...visualDoMatiz("zinc"),
     defaultLabel: "Fim do fluxo",
     defaultConfig: () => ({ outcome: "exhausted" }),
   },
@@ -231,9 +280,9 @@ export const NODE_VISUALS: Record<NodeType, NodeVisual> = {
   ab_split: {
     type: "ab_split",
     paletteLabel: "A/B split",
+    paletteDesc: "Divide o tráfego em variantes",
     icon: TreeStructure,
-    chipClassName: "bg-warning-bg text-warning-fg",
-    borderClassName: "border-l-warning",
+    ...visualDoMatiz("pink"),
     defaultLabel: "Dividir tráfego (A/B)",
     defaultConfig: () => ({
       branches: [
@@ -245,9 +294,9 @@ export const NODE_VISUALS: Record<NodeType, NodeVisual> = {
   ai_generic: {
     type: "ai_generic",
     paletteLabel: "IA (prompt livre)",
+    paletteDesc: "Roda um prompt livre",
     icon: Sparkle,
-    chipClassName: "bg-accent text-accent-foreground",
-    borderClassName: "border-l-accent-700",
+    ...visualDoMatiz("fuchsia"),
     defaultLabel: "Rodar prompt de IA",
     defaultConfig: () => ({
       prompt: "Resuma em uma frase o que o cliente disse sobre a necessidade dele.",
@@ -257,9 +306,9 @@ export const NODE_VISUALS: Record<NodeType, NodeVisual> = {
   api_call: {
     type: "api_call",
     paletteLabel: "API externa",
+    paletteDesc: "Chama uma API externa",
     icon: WebhooksLogo,
-    chipClassName: "bg-info-bg text-info-fg",
-    borderClassName: "border-l-info",
+    ...visualDoMatiz("blue"),
     defaultLabel: "Chamar API externa",
     // `example.com`, não `exemplo.com`: RFC 2606, reservado e nunca resolve —
     // o mesmo domínio que a catraca de host de terceiro (branding.test.ts)
@@ -269,18 +318,18 @@ export const NODE_VISUALS: Record<NodeType, NodeVisual> = {
   notify_agent: {
     type: "notify_agent",
     paletteLabel: "Notificar atendente",
+    paletteDesc: "Avisa um atendente humano",
     icon: Bell,
-    chipClassName: "bg-warning-bg text-warning-fg",
-    borderClassName: "border-l-warning",
+    ...visualDoMatiz("rose"),
     defaultLabel: "Notificar atendente",
     defaultConfig: () => ({ message: "Configure o aviso." }),
   },
   add_note: {
     type: "add_note",
     paletteLabel: "Anotação no contato",
+    paletteDesc: "Anota algo no contato",
     icon: Note,
-    chipClassName: "bg-info-bg text-info-fg",
-    borderClassName: "border-l-info",
+    ...visualDoMatiz("yellow"),
     defaultLabel: "Anotar no contato",
     defaultConfig: () => ({ body: "Configure a nota." }),
   },
@@ -289,9 +338,9 @@ export const NODE_VISUALS: Record<NodeType, NodeVisual> = {
   agent: {
     type: "agent",
     paletteLabel: "Agente de IA",
+    paletteDesc: "Handoff para um agente de IA",
     icon: Robot,
-    chipClassName: "bg-accent text-accent-foreground",
-    borderClassName: "border-l-accent-700",
+    ...visualDoMatiz("purple"),
     defaultLabel: "Agente de IA",
     defaultConfig: () => ({
       agent_id: AGENT_NODE_UNSET_ID,

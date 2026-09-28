@@ -42,6 +42,34 @@ const TIPOS_PARA_ADICIONAR: readonly ConteudoItemType[] = [
   "delay",
 ];
 
+/**
+ * Uma cor por tipo de item — mesma ideia do `HUES` de `nodeVisuals.ts`, um
+ * degrau mais fundo (item DENTRO do nó Conteúdo, não o nó). A faixa lateral
+ * colorida é o que faz uma lista de 5 itens ler-se "de relance" — sem ela,
+ * cinco cards brancos empilhados são indistinguíveis até alguém ler o rótulo
+ * de cada um. Inspirado no `CardList` da AcassIA, ver
+ * [[acassia-frontend-fluxos-e-agente]].
+ */
+/**
+ * "Áudio (nota de voz)" não cabe numa coluna de grade (17 chars num botão de
+ * ~70px) — quebrava em 3 linhas e vazava por cima do botão vizinho, MEDIDO
+ * (`evidence/_visual-proof-redesign/01b-grade-de-tipos.png`, sessão da
+ * prova visual do redesenho). O rótulo completo continua no seletor de modo e
+ * no cabeçalho de cada item da lista (`TIPOS_DE_ITEM_DE_CONTEUDO`) — só o
+ * BOTÃO da grade, que é ícone + uma palavra, ganha o rótulo curto.
+ */
+const ROTULO_CURTO_DA_GRADE: Partial<Record<ConteudoItemType, string>> = { audio: "Áudio" };
+
+const COR_DO_ITEM: Record<ConteudoItemType, { faixa: string; botao: string }> = {
+  text: { faixa: "bg-blue-500", botao: "text-blue-600 dark:text-blue-400" },
+  image: { faixa: "bg-orange-500", botao: "text-orange-600 dark:text-orange-400" },
+  video: { faixa: "bg-green-500", botao: "text-green-600 dark:text-green-400" },
+  audio: { faixa: "bg-purple-500", botao: "text-purple-600 dark:text-purple-400" },
+  document: { faixa: "bg-sky-500", botao: "text-sky-600 dark:text-sky-400" },
+  contact: { faixa: "bg-teal-500", botao: "text-teal-600 dark:text-teal-400" },
+  delay: { faixa: "bg-pink-500", botao: "text-pink-600 dark:text-pink-400" },
+};
+
 function itemPadrao(type: ConteudoItemType): ConteudoItem {
   switch (type) {
     case "text":
@@ -87,94 +115,120 @@ export function ConteudoItemsEditor({ flowId, items, onChange, disabled }: Props
     onChange([...items, itemPadrao(type)]);
   };
 
+  const atMax = items.length >= MAX_CONTEUDO_ITEMS;
+
   return (
     <div className="space-y-3">
-      {items.map((item, i) => {
-        const Icon = ICONE_DO_TIPO[item.type];
-        return (
-          <div
-            key={i}
-            className="rounded-md border border-border bg-surface p-3"
-            data-testid={`conteudo-item-${i}`}
-          >
-            <div className="mb-2 flex items-center justify-between gap-2">
-              <div className="flex items-center gap-1.5 text-sm font-medium text-text">
-                <Icon size={16} aria-hidden />
-                {t(TIPOS_DE_ITEM_DE_CONTEUDO[item.type])}
-                {EM_CONSTRUCAO.has(item.type) ? (
-                  <span
-                    className="flex items-center gap-1 rounded-full bg-warning-bg px-2 py-0.5 text-xs font-normal text-warning-fg"
-                    title={t("O envio deste tipo ainda não está pronto — o publish vai recusar este item.")}
-                  >
-                    <Warning size={12} aria-hidden />
-                    {t("em breve")}
-                  </span>
-                ) : null}
-              </div>
-              <div className="flex items-center gap-1">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7"
-                  disabled={disabled || i === 0}
-                  onClick={() => mover(i, -1)}
-                  aria-label={t("Mover para cima")}
-                >
-                  <CaretUp size={14} aria-hidden />
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7"
-                  disabled={disabled || i === items.length - 1}
-                  onClick={() => mover(i, 1)}
-                  aria-label={t("Mover para baixo")}
-                >
-                  <CaretDown size={14} aria-hidden />
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7 text-error-fg"
-                  disabled={disabled}
-                  onClick={() => remover(i)}
-                  aria-label={t("Remover item")}
-                >
-                  <Trash size={14} aria-hidden />
-                </Button>
-              </div>
-            </div>
-            <ItemFields flowId={flowId} item={item} onChange={(next) => atualizar(i, next)} disabled={disabled} />
-          </div>
-        );
-      })}
-
-      {items.length < MAX_CONTEUDO_ITEMS && !disabled ? (
-        <div className="flex flex-wrap gap-1.5">
+      {/* Grade de botões de adicionar — um clique por tipo, sem menu escondido.
+          Fica no TOPO (como no editor da AcassIA) porque é o que se usa mais vezes
+          numa sessão de edição: montar a sequência item a item. */}
+      {!disabled && (
+        <div className="grid grid-cols-4 gap-1.5">
           {TIPOS_PARA_ADICIONAR.map((tipo) => {
             const Icon = ICONE_DO_TIPO[tipo];
+            const cor = COR_DO_ITEM[tipo];
             return (
-              <Button
+              <button
                 key={tipo}
                 type="button"
-                variant="outline"
-                size="sm"
-                className="gap-1.5"
+                disabled={atMax}
                 onClick={() => adicionar(tipo)}
+                title={
+                  atMax
+                    ? `${t("Até")} ${MAX_CONTEUDO_ITEMS} ${t("itens por nó.")}`
+                    : t(TIPOS_DE_ITEM_DE_CONTEUDO[tipo])
+                }
+                className={cn(
+                  "flex flex-col items-center justify-center gap-1 rounded-lg border border-border/70 bg-surface-elevated px-1 py-2.5",
+                  "text-[11px] font-semibold transition-all",
+                  atMax ? "cursor-not-allowed opacity-40" : "hover:-translate-y-px hover:border-border-strong hover:shadow-sm",
+                  cor.botao,
+                )}
               >
-                <Icon size={14} aria-hidden />
-                {t(TIPOS_DE_ITEM_DE_CONTEUDO[tipo])}
-                {EM_CONSTRUCAO.has(tipo) ? <span className="text-text-muted">({t("em breve")})</span> : null}
-              </Button>
+                <Icon size={17} aria-hidden />
+                <span className="truncate">{t(ROTULO_CURTO_DA_GRADE[tipo] ?? TIPOS_DE_ITEM_DE_CONTEUDO[tipo])}</span>
+              </button>
             );
           })}
         </div>
-      ) : (
-        <p className="text-xs text-text-muted">{t("Até")} {MAX_CONTEUDO_ITEMS} {t("itens por nó.")}</p>
       )}
+
+      {items.length === 0 ? (
+        <div className="rounded-full bg-accent px-4 py-2.5 text-center text-xs font-semibold text-accent-foreground">
+          {t("Nenhum item ainda — escolha um tipo acima para começar.")}
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {items.map((item, i) => {
+            const cor = COR_DO_ITEM[item.type];
+            return (
+              <div
+                key={i}
+                className="relative overflow-hidden rounded-xl border border-border/70 bg-surface pl-4 shadow-sm"
+                data-testid={`conteudo-item-${i}`}
+              >
+                <span aria-hidden className={cn("absolute top-1.5 bottom-1.5 left-0 w-1 rounded-full", cor.faixa)} />
+                <div className="p-3">
+                  <div className="mb-2.5 flex items-center justify-between gap-2">
+                    <span className="text-[10px] font-bold tracking-wide text-text-muted uppercase">
+                      {t(TIPOS_DE_ITEM_DE_CONTEUDO[item.type])} · {i + 1}
+                      {EM_CONSTRUCAO.has(item.type) ? (
+                        <span
+                          className="ml-1.5 inline-flex items-center gap-1 rounded-full bg-warning-bg px-2 py-0.5 text-[10px] font-normal normal-case text-warning-fg"
+                          title={t("O envio deste tipo ainda não está pronto — o publish vai recusar este item.")}
+                        >
+                          <Warning size={11} aria-hidden />
+                          {t("em breve")}
+                        </span>
+                      ) : null}
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className="h-7 w-7"
+                        disabled={disabled || i === 0}
+                        onClick={() => mover(i, -1)}
+                        aria-label={t("Mover para cima")}
+                      >
+                        <CaretUp size={14} aria-hidden />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className="h-7 w-7"
+                        disabled={disabled || i === items.length - 1}
+                        onClick={() => mover(i, 1)}
+                        aria-label={t("Mover para baixo")}
+                      >
+                        <CaretDown size={14} aria-hidden />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className="h-7 w-7 hover:border-error/50 hover:bg-error-bg hover:text-error-fg"
+                        disabled={disabled}
+                        onClick={() => remover(i)}
+                        aria-label={t("Remover item")}
+                      >
+                        <Trash size={14} aria-hidden />
+                      </Button>
+                    </div>
+                  </div>
+                  <ItemFields flowId={flowId} item={item} onChange={(next) => atualizar(i, next)} disabled={disabled} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <p className="text-center text-[11px] text-text-subtle">
+        {items.length} / {MAX_CONTEUDO_ITEMS} {t("itens por nó.")}
+      </p>
     </div>
   );
 }

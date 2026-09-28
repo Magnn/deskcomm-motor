@@ -2178,6 +2178,9 @@ export const DICIONARIO: Traducoes = {
   "Mover para cima": { es: "Mover hacia arriba" },
   "Mover para baixo": { es: "Mover hacia abajo" },
   "itens por nó.": { es: "elementos por nodo." },
+  "Nenhum item ainda — escolha um tipo acima para começar.": {
+    es: "Ningún elemento todavía — elige un tipo arriba para empezar.",
+  },
   "O que este balão diz": { es: "Lo que dice este globo" },
   "segundos (1 a 120) — pausa antes do próximo item": { es: "segundos (1 a 120) — pausa antes del próximo elemento" },
   "Telefone, com DDI (ex.: +5511999998888)": { es: "Teléfono, con código de país (ej.: +5511999998888)" },
