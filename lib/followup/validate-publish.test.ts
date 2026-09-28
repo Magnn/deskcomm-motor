@@ -741,7 +741,35 @@ describe('validateFlowForPublish — a regra precisa poder decidir', () => {
   });
 });
 
-describe('publish por superfície (roteiro de atendimento, #1130)', () => {
+  describe('publish de distribuição para atendente', () => {
+    const route: FlowNode = {
+      id: 'route',
+      type: 'attendant_route',
+      label: 'Distribuir',
+      position: pos,
+      config: { max_wait_minutes: 30 },
+    };
+    const nodes = [trigger('t1'), route, end('assigned', 'converted'), end('timeout')];
+    const edges = [
+      edge('t1', 'route', always()),
+      edge('route', 'assigned', { type: 'branch', branch_id: 'assigned' }),
+      edge('route', 'timeout', { type: 'branch', branch_id: 'timeout' }),
+      edge('route', 'timeout', always()),
+    ];
+
+    it('publica quando os ramos atribuído e prazo esgotado têm destino', () => {
+      expect(validateFlowForPublish(graph(nodes, edges))).toEqual({ ok: true });
+    });
+
+    it('reprova quando o ramo de prazo esgotado fica sem destino', () => {
+      const result = validateFlowForPublish(graph(nodes, edges.filter((e) => e.condition.type !== 'branch' || e.condition.branch_id !== 'timeout')));
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.errors.some((error) => error.code === 'missing_branch_edge' && error.branch_id === 'timeout')).toBe(true);
+    });
+  });
+
+  describe('publish por superfície (roteiro de atendimento, #1130)', () => {
   function pergunta(id: string, key = id): FlowNode {
     return {
       id,

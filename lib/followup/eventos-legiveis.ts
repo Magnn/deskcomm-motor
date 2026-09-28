@@ -129,6 +129,8 @@ const TIPO_DO_NO: Record<FlowNode["type"], string> = {
   condition: "Condição",
   ai_classify: "Interpretação da resposta",
   match_reply: "Resposta (texto)",
+  menu: "Menu de opções",
+  attendant_route: "Distribuir para atendente",
   repeat: "Repetição",
   collect: "Pergunta",
   skill: "Skill",
@@ -181,6 +183,16 @@ export function resumoDoNo(node: FlowNode): NoDoDossie {
       return {
         ...base,
         resumo: `casa a resposta com: ${node.config.branches.map((b) => b.label).join(", ")}`,
+      };
+    case "menu":
+      return {
+        ...base,
+        resumo: `apresenta ${node.config.options.length} opções: ${node.config.options.map((option) => option.label).join(", ")}`,
+      };
+    case "attendant_route":
+      return {
+        ...base,
+        resumo: `aguarda atribuição pelo rodízio por até ${node.config.max_wait_minutes} minutos`,
       };
     case "repeat":
       return {

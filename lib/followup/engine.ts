@@ -1,3 +1,7 @@
+import { routingConfigSchema } from "@/lib/schemas/routing";
+import { loadEligibleAttendants, InvalidRoutingChannel } from "@/lib/routing/eligibles";
+import { selectRoundRobin } from "@/lib/routing/decide";
+import { adotarLeadsDoContato } from "@/lib/routing/worker";
 import type { JobClaim } from "@/lib/agent-engine/queue/claim";
 import { assertAgendaEffectSupabase } from "@/lib/agenda/efeito";
 import { AgendaDeferredError } from "@/lib/agenda/protecao-followup";
@@ -170,6 +174,13 @@ export interface AdminClient {
     save_to: ReplySaveTo;
     value: string;
   }): Promise<void>;
+  ensureAttendantRouting?(input: {
+    organizationId: string;
+    contactId: string;
+    conversationId: string;
+    allowNewAssignment: boolean;
+    now: Date;
+  }): Promise<boolean>;
 }
 
 export interface TickDeps {
@@ -237,6 +248,7 @@ function eventPayload(result: NodeResult): Record<string, unknown> {
       return {
         next_eval_at: result.next_eval_at.toISOString(),
         ...(result.wake_status !== undefined ? { wake_status: result.wake_status } : {}),
+        ...(result.deadline_at !== undefined ? { deadline_at: result.deadline_at.toISOString() } : {}),
       };
     case "recheck":
       return { next_eval_at: result.next_eval_at.toISOString() };
@@ -469,7 +481,7 @@ async function applyResult(
       // node.type narrado (union discriminada de FlowNode) — sem cast: dentro
       // do `if`, node.config já é o config do ai_classify de verdade.
       const graceMs =
-        node.type === "ai_classify" || node.type === "match_reply"
+        node.type === "ai_classify" || node.type === "match_reply" || node.type === "menu"
           ? node.config.grace_timeout_ms
           : ACTION_RECHECK_MS;
       patch.next_eval_at = new Date(clock().getTime() + graceMs).toISOString();
@@ -697,6 +709,8 @@ async function processEnrollment(
   let repeatTaken: number | undefined;
   let repeatTotal: number | null | undefined;
   let matchReplyOcupado = false;
+  let attendantAssigned = false;
+  let attendantDeadlineAt: Date | null = null;
   let events: EnrollmentEventRef[] = [];
 
   const smartWaits = node.type === "trigger" ? coletarEsperasAdaptativas(graph.nodes) : [];
@@ -706,6 +720,8 @@ async function processEnrollment(
     node.type === "wait" ||
     node.type === "ai_classify" ||
     node.type === "match_reply" ||
+    node.type === "menu" ||
+      node.type === "attendant_route" ||
     node.type === "action" ||
     // ai_generic (lote 1) segue o MESMO contrato de ocupação/recheck/dead-man
     // do action — precisa dos eventos pra saber se o turno já foi enfileirado/fechou.
@@ -718,6 +734,30 @@ async function processEnrollment(
 
   if (precisaEventos) {
     events = await db.loadEnrollmentEvents(enrollment.id);
+  }
+
+  if (node.type === "attendant_route") {
+    const occupancyKey = `${node.id}:${enrollment.steps_taken - 1}`;
+    const priorWait = events.findLast(
+      (event) =>
+        event.node_id === node.id &&
+        event.idempotency_key === occupancyKey &&
+        typeof event.payload?.deadline_at === "string",
+    );
+    if (typeof priorWait?.payload?.deadline_at === "string") {
+      const deadline = Date.parse(priorWait.payload.deadline_at);
+      if (Number.isFinite(deadline)) attendantDeadlineAt = new Date(deadline);
+    }
+    const conversationId = enrollment.service_boundary?.conversation_id ?? enrollment.conversation_id;
+    if (!conversationId) throw new Error("attendant_route_requires_conversation");
+    attendantAssigned =
+      (await db.ensureAttendantRouting?.({
+        organizationId: enrollment.organization_id,
+        contactId: enrollment.contact_id,
+        conversationId,
+        allowNewAssignment: attendantDeadlineAt === null || clock().getTime() < attendantDeadlineAt.getTime(),
+        now: clock(),
+      })) ?? false;
   }
 
   if (node.type === "condition") {
@@ -733,6 +773,7 @@ async function processEnrollment(
     node.type === "wait" ||
     node.type === "ai_classify" ||
     node.type === "match_reply" ||
+    node.type === "menu" ||
     node.type === "action" ||
     node.type === "ai_generic"
   ) {
@@ -750,7 +791,7 @@ async function processEnrollment(
       const wakeKey = `${node.id}:${enrollment.steps_taken}:wake`;
       wokeEarly = events.some((e) => e.node_id === node.id && e.idempotency_key === wakeKey);
     }
-    if (node.type === "action" || node.type === "ai_generic") {
+    if (node.type === "action" || node.type === "ai_generic" || node.type === "menu") {
       actionEnqueued = waitElapsed;
       // NÃO é `occupancyEventCount`: o dead-man mede ociosidade DESDE A ÚLTIMA
       // prova de vida do turno, e um adiamento de janela é prova de vida. Ver
@@ -758,11 +799,12 @@ async function processEnrollment(
       actionRecheckCount = rechecksOciososDaAcao(events, node.id);
       // ai_generic fecha com o evento PRÓPRIO `ai_generic_done` (turn-bridge.ts),
       // não `action_sent` — ver o parâmetro novo de `actionTurnCompleted`.
-      actionCompleted = actionTurnCompleted(events, node.id, node.type === "ai_generic" ? "ai_generic_done" : "action_sent");
+      const doneEventType = node.type === "ai_generic" ? "ai_generic_done" : node.type === "menu" ? "menu_sent" : "action_sent";
+      actionCompleted = actionTurnCompleted(events, node.id, doneEventType);
     }
   }
   const textoInbound = inboundBodyOverride?.trim() ?? "";
-  if (textoInbound && (node.type === "match_reply" || node.type === "wait")) {
+  if (textoInbound && (node.type === "match_reply" || node.type === "menu" || node.type === "wait")) {
     wokeEarly = true;
   }
 
@@ -772,10 +814,11 @@ async function processEnrollment(
   }
 
   let lastInboundBody: string | undefined;
-  if (textoInbound && node.type === "match_reply") {
+  if (textoInbound && (node.type === "match_reply" || node.type === "menu")) {
     lastInboundBody = textoInbound;
   } else if (
     (node.type === "match_reply" && (wokeEarly || waitElapsed || matchReplyOcupado)) ||
+    (node.type === "menu" && (wokeEarly || waitElapsed)) ||
     (node.type === "repeat" && repeatTotal == null)
   ) {
     // Sempre no contato inteiro: a captação e o WhatsApp podem ser conversas
@@ -785,11 +828,11 @@ async function processEnrollment(
         enrollment.organization_id,
         enrollment.contact_id,
         null,
-        node.type === "match_reply"
+        node.type === "match_reply" || node.type === "menu"
           ? pisoDoInboundDaEspera(node, events, enrollment.updated_at)
           : enrollment.updated_at,
       )) ?? "";
-    if (node.type === "match_reply" && lastInboundBody.trim()) {
+    if ((node.type === "match_reply" || node.type === "menu") && lastInboundBody.trim()) {
       wokeEarly = true;
     }
   }
@@ -815,6 +858,8 @@ async function processEnrollment(
     repeatTaken,
     repeatTotal,
     proximo,
+    attendantAssigned,
+    attendantDeadlineAt,
   });
   await applyResult(
     deps,
@@ -933,6 +978,63 @@ export function createSupabaseAdminClient(admin: SupabaseClient): AdminClient {
       const { data, error } = await q.order("sent_at", { ascending: false }).limit(1).maybeSingle();
       if (error) throw new Error(error.message);
       return typeof data?.body === "string" ? data.body : null;
+    },
+    async ensureAttendantRouting({ organizationId, contactId, conversationId, allowNewAssignment, now }) {
+      const { data: conversation, error: conversationError } = await admin
+        .from("conversations")
+        .select("id, contact_id, channel_session_id, assigned_to_user_id, status")
+        .eq("organization_id", organizationId)
+        .eq("contact_id", contactId)
+        .eq("id", conversationId)
+        .maybeSingle();
+      if (conversationError) throw new Error(conversationError.message);
+      if (!conversation) throw new Error("attendant_route_conversation_missing");
+      if (conversation.assigned_to_user_id) return true;
+      if (!allowNewAssignment) return false;
+      if (!conversation.channel_session_id) throw new Error("attendant_route_channel_missing");
+
+      const { data: organization, error: organizationError } = await admin
+        .from("organizations")
+        .select("settings")
+        .eq("id", organizationId)
+        .maybeSingle();
+      if (organizationError) throw new Error(organizationError.message);
+      if (!organization) throw new Error("attendant_route_organization_missing");
+      const settings = (organization.settings ?? {}) as { routing?: unknown };
+      const routing = routingConfigSchema.parse(settings.routing ?? {});
+      if (routing.mode !== "round_robin") return false;
+
+      let candidates;
+      try {
+        candidates = await loadEligibleAttendants(admin, organizationId, now, {
+          kind: "conversation_channel",
+          channelSessionId: conversation.channel_session_id,
+        });
+      } catch (error) {
+        if (error instanceof InvalidRoutingChannel) throw new Error("attendant_route_channel_invalid");
+        throw error;
+      }
+      const userId = selectRoundRobin(candidates);
+      if (!userId) return false;
+
+      const { data: claim, error: claimError } = await admin.rpc("fn_channel_routing_claim", {
+        p_org: organizationId,
+        p_conversation: conversationId,
+        p_channel: conversation.channel_session_id,
+        p_user: userId,
+        p_reason: "routing",
+        p_schedule: candidates.find((candidate) => candidate.userId === userId)?.scheduleSnapshot ?? {},
+      });
+      if (claimError) throw new Error(claimError.message);
+      if (claim === "assigned") {
+        await adotarLeadsDoContato(admin, organizationId, contactId, userId);
+        return true;
+      }
+      if (claim === "already_assigned") return true;
+      if (["candidate_revoked", "candidate_not_allowed", "capacity_changed", "conversation_changed"].includes(String(claim))) {
+        return false;
+      }
+      throw new Error("attendant_route_claim_invalid_result");
     },
     async loadEnrollmentEvents(enrollmentId) {
       const { data, error } = await admin

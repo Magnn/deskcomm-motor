@@ -21,6 +21,7 @@ import {
   IdentificationCard,
   ImageIcon,
   Microphone,
+  UsersThree,
   VideoCamera,
 } from "@/lib/ui/icons";
 import {
@@ -99,8 +100,10 @@ const HUES = {
   pink: { chip: "bg-pink-600 text-white", badge: "bg-pink-500/10 text-pink-700 dark:text-pink-400", hoverBorder: "hover:border-pink-500/60", handle: "!bg-pink-600", selected: "border-pink-400 dark:border-pink-600 ring-pink-500/20" },
   blue: { chip: "bg-blue-600 text-white", badge: "bg-blue-500/10 text-blue-700 dark:text-blue-400", hoverBorder: "hover:border-blue-500/60", handle: "!bg-blue-600", selected: "border-blue-400 dark:border-blue-600 ring-blue-500/20" },
   rose: { chip: "bg-rose-600 text-white", badge: "bg-rose-500/10 text-rose-700 dark:text-rose-400", hoverBorder: "hover:border-rose-500/60", handle: "!bg-rose-600", selected: "border-rose-400 dark:border-rose-600 ring-rose-500/20" },
+  red: { chip: "bg-red-600 text-white", badge: "bg-red-500/10 text-red-700 dark:text-red-400", hoverBorder: "hover:border-red-500/60", handle: "!bg-red-600", selected: "border-red-400 dark:border-red-600 ring-red-500/20" },
   yellow: { chip: "bg-yellow-600 text-white", badge: "bg-yellow-500/10 text-yellow-700 dark:text-yellow-400", hoverBorder: "hover:border-yellow-500/60", handle: "!bg-yellow-600", selected: "border-yellow-400 dark:border-yellow-600 ring-yellow-500/20" },
   zinc: { chip: "bg-zinc-700 text-white", badge: "bg-zinc-500/10 text-zinc-600 dark:text-zinc-400", hoverBorder: "hover:border-zinc-500/60", handle: "!bg-zinc-600", selected: "border-zinc-400 dark:border-zinc-600 ring-zinc-500/20" },
+  slate: { chip: "bg-slate-700 text-white", badge: "bg-slate-500/10 text-slate-700 dark:text-slate-400", hoverBorder: "hover:border-slate-500/60", handle: "!bg-slate-600", selected: "border-slate-400 dark:border-slate-600 ring-slate-500/20" },
 } as const satisfies Record<string, { chip: string; badge: string; hoverBorder: string; handle: string; selected: string }>;
 
 type Hue = keyof typeof HUES;
@@ -224,12 +227,37 @@ export const NODE_VISUALS: Record<NodeType, NodeVisual> = {
     paletteLabel: "Resposta (texto)",
     paletteDesc: "Casa texto da resposta",
     icon: ChatCircle,
-    ...visualDoMatiz("cyan"),
+    ...visualDoMatiz("red"),
     defaultLabel: "Casar resposta",
     defaultConfig: () => ({
       branches: [{ id: "br_sim", label: "Sim", op: "contains", pattern: "sim" }],
       grace_timeout_ms: 900_000,
     }),
+  },
+  menu: {
+    type: "menu",
+    paletteLabel: "Menu de opções",
+    paletteDesc: "Apresenta escolhas e segue a resposta",
+    icon: ChatCircle,
+    ...visualDoMatiz("cyan"),
+    defaultLabel: "Escolha uma opção",
+    defaultConfig: () => ({
+      prompt: "Como podemos ajudar?",
+      options: [
+        { id: "opcao_1", label: "Primeira opção" },
+        { id: "opcao_2", label: "Segunda opção" },
+      ],
+      grace_timeout_ms: 900_000,
+    }),
+  },
+  attendant_route: {
+    type: "attendant_route",
+    paletteLabel: "Distribuir para atendente",
+    paletteDesc: "Aguarda atribuição pelo rodízio do canal",
+    icon: UsersThree,
+    ...visualDoMatiz("slate"),
+    defaultLabel: "Distribuir para atendente",
+    defaultConfig: () => ({ max_wait_minutes: 30 }),
   },
   repeat: {
     type: "repeat",
@@ -412,6 +440,14 @@ export function describeNodeConfig(
           ? ` · ${t("grava resposta")}${c.if_exists === "skip" ? ` · ${t("pula se já existir")}` : c.if_exists === "confirm" ? ` · ${t("confirma se já existir")}` : ""}`
           : ""
       }`;
+    }
+    case "menu": {
+      const c = config as ConfigOf<"menu">;
+      return `${c.options.length} ${t("opções · espera")} ${minutos(c.grace_timeout_ms)}`;
+    }
+    case "attendant_route": {
+      const c = config as ConfigOf<"attendant_route">;
+      return `${t("Aguarda até")} ${c.max_wait_minutes} ${t("min pela atribuição")}`;
     }
     case "repeat": {
       const c = config as ConfigOf<"repeat">;

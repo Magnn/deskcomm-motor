@@ -107,6 +107,8 @@ export const NOS_DA_SUPERFICIE: Record<FollowupFlowSurface, readonly NodeType[]>
     'condition',
     'ai_classify',
     'match_reply',
+    'menu',
+    'attendant_route',
     'repeat',
     'action',
     'end',
@@ -122,6 +124,8 @@ export const NOS_DA_SUPERFICIE: Record<FollowupFlowSurface, readonly NodeType[]>
     'condition',
     'ai_classify',
     'match_reply',
+    'menu',
+    'attendant_route',
     'repeat',
     'action',
     'end',
@@ -207,7 +211,8 @@ function waitMs(config: Extract<FlowNode, { type: 'wait' }>['config']): number {
 function isSufficientWaitNode(node: FlowNode): boolean {
   // O agente no comando espera a pessoa por `silencio_minutos` (piso 5 min no schema) antes de sair por silêncio.
   if (node.type === 'agent') return true;
-  if (node.type === 'match_reply') return node.config.grace_timeout_ms >= MIN_CYCLE_WAIT_MS;
+  if (node.type === 'match_reply' || node.type === 'menu') return node.config.grace_timeout_ms >= MIN_CYCLE_WAIT_MS;
+  if (node.type === 'attendant_route') return node.config.max_wait_minutes * 60_000 >= MIN_CYCLE_WAIT_MS;
   if (node.type !== 'wait') return false;
   return node.config.mode === 'fixed'
     ? node.config.duration_ms >= MIN_CYCLE_WAIT_MS
@@ -706,12 +711,12 @@ export function validateFlowForPublish(
   validarItensDeConteudo(graph, errors);
 
   for (const node of [...nodes].sort(byId)) {
-    if (node.type !== 'ai_classify' && node.type !== 'match_reply' && node.type !== 'repeat') continue;
+    if (node.type !== 'ai_classify' && node.type !== 'match_reply' && node.type !== 'menu' && node.type !== 'attendant_route' && node.type !== 'repeat') continue;
     const outgoing = outEdges.get(node.id) ?? [];
 
-    if (node.type === 'match_reply' || node.type === 'repeat' || node.config.branches !== undefined) {
+    if (node.type === 'match_reply' || node.type === 'menu' || node.type === 'attendant_route' || node.type === 'repeat' || node.config.branches !== undefined) {
       cobrirRamos(node, outgoing, errors, nomes);
-      if (node.type === 'repeat') continue;
+      if (node.type === 'repeat' || node.type === 'attendant_route') continue;
       if (node.config.grace_timeout_ms < 900_000) {
         errors.push({
           node_id: node.id,

@@ -11,6 +11,8 @@ export const NODE_TYPES = [
   'condition',
   'ai_classify',
   'match_reply',
+  'menu',
+  'attendant_route',
   'repeat',
   'collect',
   'skill',
@@ -190,6 +192,34 @@ export const matchReplyConfigSchema = z
     message: "branches[].id must be unique within the node",
     path: ["branches"],
   });
+
+export const menuOptionSchema = z.strictObject({
+  id: declaredBranchIdSchema,
+  label: z.string().trim().min(1).max(40),
+});
+
+export const menuConfigSchema = z
+  .strictObject({
+    prompt: z.string().trim().min(1).max(1000),
+    options: z.array(menuOptionSchema).min(2).max(8),
+    grace_timeout_ms: z.number().int().min(900_000),
+  })
+  .refine((c) => new Set(c.options.map((option) => option.id)).size === c.options.length, {
+    message: 'options[].id must be unique within the node',
+    path: ['options'],
+  })
+  .refine(
+    (c) => new Set(c.options.map((option) => option.label.normalize('NFKC').toLocaleLowerCase())).size === c.options.length,
+    { message: 'options[].label must be unique within the node', path: ['options'] },
+  )
+  .refine((c) => c.options.every((option) => !/^\d{1,2}[.)]?$/.test(option.label)), {
+    message: 'option labels cannot be numeric because numbers select menu options',
+    path: ['options'],
+  });
+
+export const attendantRouteConfigSchema = z.strictObject({
+  max_wait_minutes: z.number().int().min(5).max(1440).default(30),
+});
 
 /**
  * Repete o caminho `body` N vezes, onde N vem da última resposta do contato
@@ -670,6 +700,26 @@ export const flowNodeSchema = z.discriminatedUnion('type', [
   }),
   z.strictObject({
     id: z.string().min(1),
+    type: z.literal('menu'),
+    label: z.string().min(1).max(60),
+    position: z.strictObject({
+      x: z.number(),
+      y: z.number(),
+    }),
+    config: menuConfigSchema,
+  }),
+  z.strictObject({
+    id: z.string().min(1),
+    type: z.literal('attendant_route'),
+    label: z.string().min(1).max(60),
+    position: z.strictObject({
+      x: z.number(),
+      y: z.number(),
+    }),
+    config: attendantRouteConfigSchema,
+  }),
+  z.strictObject({
+    id: z.string().min(1),
     type: z.literal('repeat'),
     label: z.string().min(1).max(60),
     position: z.strictObject({
@@ -1092,6 +1142,46 @@ export function nodeBranches(node: BranchableNode): FlowBranch[] {
         fallbackBranch(FALLBACK_OTHERS_LABEL),
       ];
     }
+
+    case 'menu': {
+      const options: FlowBranch[] = node.config.options.map((option) => ({
+        id: option.id,
+        label: option.label,
+        check: null,
+        kind: 'match' as const,
+        condition: { type: 'branch' as const, branch_id: option.id },
+      }));
+      return [
+        ...options,
+        {
+          id: NO_REPLY_BRANCH_ID,
+          label: NO_REPLY_LABEL,
+          check: null,
+          kind: 'match',
+          condition: { type: 'branch', branch_id: NO_REPLY_BRANCH_ID },
+        },
+        fallbackBranch(FALLBACK_OTHERS_LABEL),
+      ];
+    }
+
+    case 'attendant_route':
+      return [
+        {
+          id: 'assigned',
+          label: 'Atendido por uma pessoa',
+          check: null,
+          kind: 'match',
+          condition: { type: 'branch', branch_id: 'assigned' },
+        },
+        {
+          id: 'timeout',
+          label: 'Sem atendente no prazo',
+          check: null,
+          kind: 'match',
+          condition: { type: 'branch', branch_id: 'timeout' },
+        },
+        fallbackBranch(FALLBACK_OTHERS_LABEL),
+      ];
 
     case 'ab_split': {
       const branches: FlowBranch[] = node.config.branches.map((b) => ({

@@ -534,3 +534,96 @@ describe("avancarSimulacao — grafo mal formado", () => {
     expect(state.transcript.at(-1)).toMatchObject({ kind: "erro" });
   });
 });
+
+describe("avancarSimulacao — menu", () => {
+  const graph: FlowGraph = {
+    nodes: [
+      no({ id: "t1", type: "trigger", label: "Início", config: {} }),
+      no({
+        id: "menu1",
+        type: "menu",
+        label: "Ajuda",
+        config: {
+          prompt: "Como podemos ajudar?",
+          options: [
+            { id: "suporte", label: "Suporte" },
+            { id: "vendas", label: "Vendas" },
+          ],
+          grace_timeout_ms: 900_000,
+        },
+      }),
+      no({ id: "suporte", type: "end", label: "Suporte", config: { outcome: "exhausted" } }),
+      no({ id: "vendas", type: "end", label: "Vendas", config: { outcome: "converted" } }),
+      no({ id: "timeout", type: "end", label: "Sem resposta", config: { outcome: "exhausted" } }),
+    ],
+    edges: [
+      aresta({ source: "t1", target: "menu1", condition: { type: "always" } }),
+      aresta({ source: "menu1", target: "suporte", condition: { type: "branch", branch_id: "suporte" } }),
+      aresta({ source: "menu1", target: "vendas", condition: { type: "branch", branch_id: "vendas" } }),
+      aresta({ source: "menu1", target: "timeout", condition: { type: "branch", branch_id: "no_reply" } }),
+      aresta({ source: "menu1", target: "timeout", condition: { type: "always" } }),
+    ],
+  };
+
+  it("exibe o menu e roteia uma resposta digitada", async () => {
+    const parado = await iniciar(graph);
+    expect(parado.aguardando).toBe("menu");
+    expect(parado.transcript).toContainEqual(
+      expect.objectContaining({ kind: "mensagem_simulada", origem: "menu", texto: "Como podemos ajudar?\n\n1. Suporte\n2. Vendas" }),
+    );
+    const escolhido = await avancarSimulacao({
+      graph,
+      state: parado,
+      entrada: { kind: "mensagem", texto: "2" },
+      classificar: nuncaClassifica,
+    });
+    expect(escolhido.outcome).toEqual({ outcome: "converted" });
+  });
+
+  it("roteia sem resposta para o ramo de timeout", async () => {
+    const parado = await iniciar(graph);
+    const timeout = await avancarSimulacao({
+      graph,
+      state: parado,
+      entrada: { kind: "sem_resposta" },
+      classificar: nuncaClassifica,
+    });
+    expect(timeout.outcome).toEqual({ outcome: "exhausted" });
+  });
+});
+
+describe("avancarSimulacao — attendant_route", () => {
+  const graph: FlowGraph = {
+    nodes: [
+      no({ id: "t1", type: "trigger", label: "Início", config: {} }),
+      no({ id: "route", type: "attendant_route", label: "Distribuir", config: { max_wait_minutes: 30 } }),
+      no({ id: "assigned", type: "end", label: "Atribuído", config: { outcome: "converted" } }),
+      no({ id: "timeout", type: "end", label: "Sem atendente", config: { outcome: "exhausted" } }),
+    ],
+    edges: [
+      aresta({ source: "t1", target: "route", condition: { type: "always" } }),
+      aresta({ source: "route", target: "assigned", condition: { type: "branch", branch_id: "assigned" } }),
+      aresta({ source: "route", target: "timeout", condition: { type: "branch", branch_id: "timeout" } }),
+      aresta({ source: "route", target: "timeout", condition: { type: "always" } }),
+    ],
+  };
+
+  it("permite simular atribuição confirmada e prazo esgotado", async () => {
+    const parado = await iniciar(graph);
+    expect(parado.aguardando).toBe("attendant_route");
+    const assigned = await avancarSimulacao({
+      graph,
+      state: parado,
+      entrada: { kind: "resultado_atribuicao", atribuido: true },
+      classificar: nuncaClassifica,
+    });
+    const timeout = await avancarSimulacao({
+      graph,
+      state: parado,
+      entrada: { kind: "resultado_atribuicao", atribuido: false },
+      classificar: nuncaClassifica,
+    });
+    expect(assigned.outcome).toEqual({ outcome: "converted" });
+    expect(timeout.outcome).toEqual({ outcome: "exhausted" });
+  });
+});
