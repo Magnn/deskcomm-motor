@@ -63,6 +63,7 @@ export {
   Play,
   SkipForward,
   Copy,
+  Browsers,
   DownloadSimple,
   Archive,
   // origem de uma captação de formulário (página, IP, link para o lead)

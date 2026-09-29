@@ -24,6 +24,7 @@ import {
   UsersThree,
   VideoCamera,
   List,
+  Browsers,
 } from "@/lib/ui/icons";
 import {
   AGENT_NODE_DEFAULT_MAX_TURNS,
@@ -294,7 +295,7 @@ export const NODE_VISUALS: Record<NodeType, NodeVisual> = {
     type: "action",
     paletteLabel: "Conteúdo",
     paletteDesc: "Enviar mensagem de texto, imagem...",
-    icon: PaperPlaneTilt,
+    icon: Browsers,
     ...visualDoMatiz("purple"),
     defaultLabel: "Conteúdo",
     defaultConfig: () => configPadraoDaAcao(),

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -270,6 +270,43 @@ function FlowCanvasInner({ flowId, initialData }: Props) {
     },
     [setNodes, setSelectedNodeId, t, triggerKind],
   );
+
+  useEffect(() => {
+    const handleDuplicate = (e: Event) => {
+      const { id } = (e as CustomEvent<{ id: string }>).detail ?? {};
+      if (!id) return;
+      const original = nodes.find((n) => n.id === id);
+      if (!original) return;
+      const type = original.type as NodeType;
+      const newId = `${type}-${nextId.current++}`;
+      const clone: RFNode = {
+        id: newId,
+        type,
+        position: { x: original.position.x + 40, y: original.position.y + 40 },
+        data: {
+          label: original.data.label,
+          config: JSON.parse(JSON.stringify(original.data.config)),
+        },
+      };
+      setNodes((nds) => nds.concat(clone));
+      setSelectedNodeId(newId);
+    };
+
+    const handleSelect = (e: Event) => {
+      const { id } = (e as CustomEvent<{ id: string }>).detail ?? {};
+      if (id) {
+        setSelectedNodeId(id);
+        setSelectedEdgeId(null);
+      }
+    };
+
+    window.addEventListener("flow-duplicate-node", handleDuplicate);
+    window.addEventListener("flow-select-node", handleSelect);
+    return () => {
+      window.removeEventListener("flow-duplicate-node", handleDuplicate);
+      window.removeEventListener("flow-select-node", handleSelect);
+    };
+  }, [nodes, setNodes]);
 
   const onPaletteAdd = useCallback(
     (type: NodeType) => {
