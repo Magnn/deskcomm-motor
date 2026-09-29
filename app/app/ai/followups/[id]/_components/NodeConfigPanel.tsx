@@ -149,13 +149,6 @@ export function NodeConfigPanel({ node, flowId, onChange, onDelete, ramosLigados
             onChange={(config) => onChange({ config })}
           />
         )}
-        {type === "action" && (
-          <ActionForm
-            config={node.data.config as ConfigOf<"action">}
-            flowId={flowId}
-            onChange={(config) => onChange({ config })}
-          />
-        )}
         {type === "end" && (
           <EndForm config={node.data.config as ConfigOf<"end">} onChange={(config) => onChange({ config })} />
         )}
