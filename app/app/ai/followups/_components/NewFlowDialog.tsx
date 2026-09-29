@@ -213,22 +213,21 @@ const PROVIDERS: Provider[] = [
     ),
   },
   {
-    id: "kirvano",
-    name: "Kirvano",
-    defaultEvent: "pagamento_aprovado",
+    id: "cakto",
+    name: "Cakto",
+    defaultEvent: "boleto_gerado",
     events: [
-      { value: "pagamento_aprovado", label: "Pagamento Aprovado" },
-      { value: "pagamento_recusado", label: "Pagamento recusado" },
-      { value: "aguardando_pagamento", label: "Aguardando pagamento" },
-      { value: "chargeback", label: "Chargeback" },
-      { value: "carrinho_abandonado", label: "Carrinho abandonado" },
       { value: "boleto_gerado", label: "Boleto gerado" },
       { value: "pix_gerado", label: "Pix gerado" },
+      { value: "picpay_gerado", label: "Picpay gerado" },
+      { value: "compra_aprovada", label: "Compra aprovada" },
+      { value: "carrinho_abandonado", label: "Carrinho abandonado" },
       { value: "reembolso", label: "Reembolso" },
+      { value: "chargeback", label: "Chargeback" },
     ],
     renderIcon: () => (
       <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#365314] shadow-xs">
-        {/* Ícone cacto estilizado */}
+        {/* Ícone cacto estilizado Cakto */}
         <svg width="15" height="15" viewBox="0 0 24 24" fill="white">
           <path d="M11 2C10.45 2 10 2.45 10 3V10H7C6.45 10 6 10.45 6 11V13C6 14.66 7.34 16 9 16H10V21C10 21.55 10.45 22 11 22H13C13.55 22 14 21.55 14 21V15H15C16.66 15 18 13.66 18 12V10C18 9.45 17.55 9 17 9H14V3C14 2.45 13.55 2 13 2H11Z" />
         </svg>
@@ -238,14 +237,15 @@ const PROVIDERS: Provider[] = [
   {
     id: "asaas",
     name: "Asaas",
-    defaultEvent: "cobranca_paga",
+    defaultEvent: "cobranca_criada",
     events: [
-      { value: "cobranca_paga", label: "Cobrança Recebida / Paga" },
-      { value: "cobranca_pendente", label: "Cobrança Pendente" },
-      { value: "cobranca_vencida", label: "Cobrança Vencida" },
-      { value: "pix_gerado", label: "Pix / Boleto gerado" },
-      { value: "cobranca_estornada", label: "Cobrança Estornada" },
-      { value: "assinatura_cancelada", label: "Assinatura cancelada" },
+      { value: "cobranca_criada", label: "Cobrança: criada" },
+      { value: "aguardando_analise_risco", label: "Cobrança: aguardando análise de risco" },
+      { value: "aprovada_analise_risco", label: "Cobrança: aprovada pela análise de risco" },
+      { value: "reprovada_analise_risco", label: "Cobrança: reprovada pela análise de risco" },
+      { value: "cobranca_recebida", label: "Cobrança: recebida" },
+      { value: "cobranca_vencida", label: "Cobrança: vencida" },
+      { value: "cobranca_estornada", label: "Cobrança: estornada" },
     ],
     renderIcon: () => (
       <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#002f6c] shadow-xs">
@@ -254,14 +254,16 @@ const PROVIDERS: Provider[] = [
     ),
   },
   {
-    id: "bling",
-    name: "Bling",
-    defaultEvent: "pedido_criado",
+    id: "bestfy",
+    name: "Bestfy",
+    defaultEvent: "processando",
     events: [
-      { value: "pedido_criado", label: "Pedido Criado" },
-      { value: "pedido_pago", label: "Pedido Faturado / Pago" },
-      { value: "pedido_cancelado", label: "Pedido Cancelado" },
-      { value: "pedido_enviado", label: "Pedido Enviado" },
+      { value: "processando", label: "Processando" },
+      { value: "autorizado", label: "Autorizado" },
+      { value: "aprovado", label: "Aprovado" },
+      { value: "reembolsado", label: "Reembolsado" },
+      { value: "cancelado", label: "Cancelado" },
+      { value: "chargeback", label: "Chargeback" },
     ],
     renderIcon: () => (
       <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#059669] shadow-xs">
@@ -272,12 +274,12 @@ const PROVIDERS: Provider[] = [
   {
     id: "tray",
     name: "Tray",
-    defaultEvent: "pedido_realizado",
+    defaultEvent: "aguardando_pagamento",
     events: [
-      { value: "pedido_realizado", label: "Pedido Realizado" },
-      { value: "pagamento_confirmado", label: "Pagamento Confirmado" },
-      { value: "pedido_cancelado", label: "Pedido Cancelado" },
-      { value: "carrinho_abandonado", label: "Carrinho Abandonado" },
+      { value: "aguardando_pagamento", label: "Aguardando Pagamento" },
+      { value: "pagamento_efetuado", label: "Pagamento efetuado" },
+      { value: "pedido_cancelado", label: "Pedido cancelado" },
+      { value: "carrinho_abandonado", label: "Carrinho abandonado" },
     ],
     renderIcon: () => (
       <div className="flex flex-col items-center justify-center">
@@ -320,6 +322,15 @@ export function NewFlowDialog({ open, onOpenChange }: Props) {
 
     create.mutate(trimmed, {
       onSuccess: (created) => {
+        if (typeof window !== "undefined" && created?.id) {
+          try {
+            localStorage.setItem(`flow_channel_${created.id}`, channel);
+            localStorage.setItem(`flow_provider_${created.id}`, selectedProvider);
+            localStorage.setItem(`flow_event_${created.id}`, selectedEvent || provider.defaultEvent);
+          } catch {
+            // silent
+          }
+        }
         setName("");
         setErro(null);
         onOpenChange(false);
@@ -380,10 +391,10 @@ export function NewFlowDialog({ open, onOpenChange }: Props) {
                 type="button"
                 onClick={() => setChannel("oficial")}
                 className={cn(
-                  "cursor-pointer rounded-full px-5 py-1.5 text-xs font-semibold transition-all",
+                  "cursor-pointer rounded-full px-6 py-1.5 text-xs font-semibold transition-all",
                   channel === "oficial"
-                    ? "bg-[#9333ea] text-white shadow-sm shadow-purple-500/30"
-                    : "text-purple-600 hover:text-purple-800 dark:text-purple-300",
+                    ? "bg-gradient-to-r from-[#9333ea] to-[#8b5cf6] text-white shadow-md shadow-purple-500/35"
+                    : "text-[#7e22ce] hover:text-purple-900 dark:text-purple-300",
                 )}
               >
                 Whatsapp API Oficial
@@ -392,10 +403,10 @@ export function NewFlowDialog({ open, onOpenChange }: Props) {
                 type="button"
                 onClick={() => setChannel("business")}
                 className={cn(
-                  "cursor-pointer rounded-full px-5 py-1.5 text-xs font-semibold transition-all",
+                  "cursor-pointer rounded-full px-6 py-1.5 text-xs font-semibold transition-all",
                   channel === "business"
-                    ? "bg-[#9333ea] text-white shadow-sm shadow-purple-500/30"
-                    : "text-purple-600 hover:text-purple-800 dark:text-purple-300",
+                    ? "bg-gradient-to-r from-[#9333ea] to-[#8b5cf6] text-white shadow-md shadow-purple-500/35"
+                    : "text-[#7e22ce] hover:text-purple-900 dark:text-purple-300",
                 )}
               >
                 Whatsapp Business
