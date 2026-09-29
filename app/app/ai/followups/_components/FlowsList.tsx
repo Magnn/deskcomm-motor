@@ -45,14 +45,17 @@ export function FlowsList({ initialData, canWrite }: Props) {
   // para a clínica nunca ter follow-up nenhum. Desenhar do zero continua a um
   // clique, para quem já sabe o que quer.
   const modelosButton = (
-    <Button onClick={() => setModelosOpen(true)} className="w-full sm:w-auto">
+    <Button onClick={() => setModelosOpen(true)} variant="outline" className="w-full sm:w-auto">
       <Sparkle size={14} aria-hidden className="mr-2" /> {t("Começar de um modelo")}
     </Button>
   );
 
   const newFlowButton = (
-    <Button onClick={() => setDialogOpen(true)} variant="outline" className="w-full sm:w-auto">
-      <Plus size={14} aria-hidden className="mr-2" /> Novo fluxo
+    <Button
+      onClick={() => setDialogOpen(true)}
+      className="w-full sm:w-auto bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-semibold shadow-md shadow-purple-500/20 active:scale-[0.98] transition-all border-0 cursor-pointer"
+    >
+      <Plus size={15} aria-hidden className="mr-1.5" /> {t("Criar novo fluxo")}
     </Button>
   );
 
