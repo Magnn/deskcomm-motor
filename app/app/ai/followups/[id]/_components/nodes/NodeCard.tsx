@@ -143,13 +143,12 @@ export function NodeCard({
   return (
     <div
       className={cn(
-        "group relative w-72 overflow-visible rounded-2xl border bg-surface font-sans shadow-md transition-all duration-200 select-none",
-        visual.type === "action" ? "border-purple-300 dark:border-purple-800" : "border-border",
+        "group relative min-w-[280px] max-w-[320px] w-[280px] overflow-visible rounded-[10px] border-[1.5px] border-slate-500 bg-white font-sans shadow-sm transition-all duration-300 select-none",
         selected
-          ? cn("shadow-lg ring-2 ring-offset-1 ring-offset-bg", visual.selectedClassName)
-          : cn("hover:border-border-strong hover:shadow-lg", visual.hoverBorderClassName),
-        simulating && !hasError && "animate-pulse ring-2 ring-success ring-offset-1 ring-offset-bg",
-        hasError && "border-error ring-2 ring-error ring-offset-1 ring-offset-bg",
+          ? "ring-2 ring-purple-600 shadow-md ring-offset-1"
+          : "hover:border-slate-600 hover:shadow-md",
+        simulating && !hasError && "animate-pulse ring-2 ring-emerald-500 ring-offset-1",
+        hasError && "border-red-500 ring-2 ring-red-500 ring-offset-1",
       )}
       data-testid={`node-card-${id}`}
       data-simulating={simulating || undefined}
@@ -164,59 +163,86 @@ export function NodeCard({
         </span>
       )}
 
-      {/* Entrada (Target) no lado ESQUERDO com seta estilizada */}
+      {/* Entrada (Target) no lado ESQUERDO com círculo branco, borda roxa e seta ▶ */}
       {showTarget && (
         <Handle
           type="target"
           position={Position.Left}
-          className={cn(
-            "!-left-2.5 z-10 !flex !h-5 !w-5 !items-center !justify-center !rounded-full !border-2 !bg-white !shadow-sm !transition-all hover:!scale-125",
-            BORDER_COLOR_BY_TYPE[visual.type] ?? "!border-purple-600 text-purple-600",
-          )}
-          style={handleTopStyle}
+          className="!w-[16px] !h-[16px] !bg-white !shadow-sm !rounded-full !-left-2 z-10 !border-0"
+          style={{ border: "2px solid #7e22ce", ...handleTopStyle }}
         >
-          <Play size={8} weight="fill" className="pointer-events-none ml-0.5" />
+          <svg
+            className="absolute left-1/2 top-1/2 -translate-x-[45%] -translate-y-1/2 pointer-events-none"
+            width="6"
+            height="8"
+            viewBox="0 0 8 10"
+            fill="none"
+          >
+            <path d="M8 5L0 10V0L8 5Z" fill="#7e22ce" />
+          </svg>
         </Handle>
       )}
 
-      {/* Cabeçalho sólido com botões de Duplicar e Editar */}
+      {/* Saída simples (Source) no lado DIREITO com círculo azul preenchido e seta branca ▶ */}
+      {showSource && branchRows === null && (
+        <Handle
+          type="source"
+          position={Position.Right}
+          className="!w-[16px] !h-[16px] !bg-blue-500 !border-2 !border-white !shadow-sm !rounded-full !-right-2 z-10"
+          style={handleTopStyle}
+        >
+          <svg
+            className="absolute left-1/2 top-1/2 -translate-x-[45%] -translate-y-1/2 pointer-events-none"
+            width="6"
+            height="8"
+            viewBox="0 0 8 10"
+            fill="none"
+          >
+            <path d="M8 5L0 10V0L8 5Z" fill="white" />
+          </svg>
+        </Handle>
+      )}
+
+      {/* Cabeçalho sólido com botões de Duplicar e Editar (AcassIA parity) */}
       <div
         className={cn(
-          "flex items-center justify-between rounded-t-2xl px-3 py-2.5 text-white shadow-xs",
+          "flex items-stretch justify-between rounded-t-[8px] overflow-hidden",
           headerBg,
         )}
       >
-        <div className="flex min-w-0 flex-1 items-center gap-2">
-          <Icon size={16} className="shrink-0 text-white" aria-hidden />
-          <p
-            className="truncate text-sm leading-tight font-semibold tracking-wide text-white"
+        <div className="flex min-w-0 flex-1 items-center gap-2.5 px-3 py-2.5 overflow-hidden">
+          <div className="flex items-center justify-center shrink-0">
+            <Icon size={16} className="text-white" aria-hidden />
+          </div>
+          <span
+            className="text-[13px] font-bold tracking-tight truncate capitalize text-white"
             title={label}
           >
             {label}
-          </p>
+          </span>
         </div>
-        <div className="ml-1.5 flex shrink-0 items-center gap-1">
+        <div className="flex items-stretch bg-black/10 shrink-0">
           <button
             type="button"
-            className="rounded p-1 text-white/80 transition-colors hover:bg-white/20 hover:text-white"
+            className="flex items-center justify-center w-[36px] hover:bg-black/20 transition-colors cursor-pointer border-r border-black/10 text-white"
             title={t("Duplicar nó")}
             onClick={(e) => {
               e.stopPropagation();
               window.dispatchEvent(new CustomEvent("flow-duplicate-node", { detail: { id } }));
             }}
           >
-            <Copy size={13} aria-hidden />
+            <Copy size={15} className="text-white" aria-hidden />
           </button>
           <button
             type="button"
-            className="rounded p-1 text-white/80 transition-colors hover:bg-white/20 hover:text-white"
+            className="flex items-center justify-center w-[36px] hover:bg-black/20 transition-colors cursor-pointer text-white"
             title={t("Editar nó")}
             onClick={(e) => {
               e.stopPropagation();
               window.dispatchEvent(new CustomEvent("flow-select-node", { detail: { id } }));
             }}
           >
-            <PencilSimple size={13} aria-hidden />
+            <PencilSimple size={15} className="text-white" aria-hidden />
           </button>
         </div>
       </div>
@@ -224,13 +250,11 @@ export function NodeCard({
       {/* Subtítulo ou visual customizado ou placeholder de configuração */}
       {customPreview ? (
         <div className="p-3">{customPreview}</div>
-      ) : (!previewRows || previewRows.length === 0) ? (
+      ) : !previewRows || previewRows.length === 0 ? (
         visual.type === "action" ? (
-          <div className="p-3">
-            <div className="flex flex-col items-center justify-center gap-2 py-6 min-h-[110px]">
-              <Smiley size={36} className="text-slate-400" aria-hidden />
-              <span className="text-[13px] font-medium text-slate-500">Aguardando Configuração...</span>
-            </div>
+          <div className="p-3 flex flex-col items-center justify-center gap-2 py-6 min-h-[110px]">
+            <Smiley size={40} className="text-slate-500" weight="regular" aria-hidden />
+            <span className="text-[13px] font-medium text-slate-500">Aguardando Configuração...</span>
           </div>
         ) : (
           <div className="p-3">
@@ -253,7 +277,7 @@ export function NodeCard({
         </p>
       )}
 
-      {/* Itens de conteúdo (Cards especializados: Delay, Texto, Áudio, etc.) */}
+      {/* Itens de conteúdo (Cards especializados: Delay, Texto, Áudio, etc. — padrão AcassIA) */}
       {previewRows !== undefined && previewRows.length > 0 && (
         <ul className="flex flex-col gap-2 p-3" data-testid={`node-preview-${id}`}>
           {previewRows.map((row, i) => {
@@ -261,12 +285,10 @@ export function NodeCard({
               return (
                 <li
                   key={i}
-                  className="flex items-center gap-2 rounded-lg border border-dashed border-rose-300 bg-[#fff5f5] px-3 py-2 text-rose-800 shadow-xs dark:border-rose-800 dark:bg-rose-950/30 dark:text-rose-200"
+                  className="flex items-center gap-2 rounded-[10px] border-[2px] border-dashed border-[#fbcfe8] bg-[rgba(253,242,248,0.85)] px-2.5 py-2 text-[11px] font-semibold text-[#be185d] leading-[1.4]"
                 >
-                  <row.Icon size={14} aria-hidden className="shrink-0 text-rose-500" />
-                  <span className="text-xs font-medium" title={row.texto}>
-                    {row.texto}
-                  </span>
+                  <row.Icon size={16} aria-hidden className="shrink-0 opacity-95 text-[#be185d]" />
+                  <span title={row.texto}>{row.texto}</span>
                 </li>
               );
             }
@@ -275,13 +297,13 @@ export function NodeCard({
               return (
                 <li
                   key={i}
-                  className="flex items-start gap-2.5 rounded-lg border border-dashed border-sky-300 bg-[#f0f9ff] p-3 shadow-xs dark:border-sky-800 dark:bg-sky-950/30"
+                  className="flex items-start gap-2 rounded-[10px] border-[2px] border-dashed border-[#93c5fd] bg-[rgba(219,234,254,0.85)] px-2.5 py-2 text-[11px] font-medium text-[#1e3a8a] leading-[1.4]"
                 >
-                  <span className="mt-0.5 shrink-0 font-serif text-sm leading-none font-bold text-sky-600 select-none dark:text-sky-400">
+                  <span className="shrink-0 font-serif text-sm font-bold leading-none select-none text-[#1e3a8a] mt-0.5">
                     T
                   </span>
                   <div
-                    className="min-w-0 flex-1 text-xs leading-relaxed break-words whitespace-pre-wrap text-neutral-800 dark:text-neutral-200"
+                    className="flex-1 min-w-0 break-words line-clamp-[14]"
                     title={row.texto}
                   >
                     {parts.map((part, idx) => {
@@ -289,7 +311,7 @@ export function NodeCard({
                         return (
                           <span
                             key={idx}
-                            className="mx-0.5 inline-block rounded bg-[#10b981] px-1.5 py-0.5 align-middle font-sans text-[9px] leading-tight font-bold tracking-wide text-white not-italic shadow-2xs"
+                            className="inline-block bg-[#10b981] text-white px-1.5 py-0 rounded font-bold text-[9px] tracking-wide align-middle leading-tight mt-[1px]"
                           >
                             {part}
                           </span>
@@ -305,13 +327,13 @@ export function NodeCard({
               return (
                 <li
                   key={i}
-                  className="flex items-center gap-2 rounded-lg border border-dashed border-purple-300 bg-[#faf5ff] px-3 py-2 text-purple-800 shadow-xs dark:border-purple-800 dark:bg-purple-950/30 dark:text-purple-200"
+                  className="flex items-center gap-2 rounded-[10px] border-[2px] border-dashed border-[#c4b5fd] bg-[rgba(237,233,254,0.85)] px-2.5 py-2 text-[11px] font-semibold text-[#5b21b6] leading-[1.4]"
                 >
-                  <row.Icon size={14} aria-hidden className="shrink-0 text-purple-600" />
-                  <span className="text-xs font-medium" title={row.texto}>
+                  <row.Icon size={16} aria-hidden className="shrink-0 opacity-95 text-[#5b21b6]" />
+                  <span title={row.texto}>
                     {row.texto === "Áudio (nota de voz)"
-                      ? "Enviando áudio gravado"
-                      : row.texto || "Enviando áudio gravado"}
+                      ? "Enviando um arquivo de áudio"
+                      : row.texto || "Enviando um arquivo de áudio"}
                   </span>
                 </li>
               );
@@ -320,12 +342,10 @@ export function NodeCard({
               return (
                 <li
                   key={i}
-                  className="flex items-center gap-2 rounded-lg border border-dashed border-amber-300 bg-[#fffbeb] px-3 py-2 text-amber-800 shadow-xs dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200"
+                  className="flex items-center gap-2 rounded-[10px] border-[2px] border-dashed border-[#7dd3fc] bg-[rgba(224,242,254,0.85)] px-2.5 py-2 text-[11px] font-semibold text-[#0369a1] leading-[1.4]"
                 >
-                  <row.Icon size={14} aria-hidden className="shrink-0 text-amber-600" />
-                  <span className="text-xs font-medium" title={row.texto}>
-                    {row.texto || "Enviando imagem"}
-                  </span>
+                  <row.Icon size={16} aria-hidden className="shrink-0 opacity-95 text-[#0369a1]" />
+                  <span title={row.texto}>{row.texto || "Enviando uma imagem"}</span>
                 </li>
               );
             }
@@ -333,12 +353,10 @@ export function NodeCard({
               return (
                 <li
                   key={i}
-                  className="flex items-center gap-2 rounded-lg border border-dashed border-emerald-300 bg-[#ecfdf5] px-3 py-2 text-emerald-800 shadow-xs dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200"
+                  className="flex items-center gap-2 rounded-[10px] border-[2px] border-dashed border-[#86efac] bg-[rgba(220,252,231,0.85)] px-2.5 py-2 text-[11px] font-semibold text-[#166534] leading-[1.4]"
                 >
-                  <row.Icon size={14} aria-hidden className="shrink-0 text-emerald-600" />
-                  <span className="text-xs font-medium" title={row.texto}>
-                    {row.texto || "Enviando vídeo"}
-                  </span>
+                  <row.Icon size={16} aria-hidden className="shrink-0 opacity-95 text-[#166534]" />
+                  <span title={row.texto}>{row.texto || "Enviando um vídeo"}</span>
                 </li>
               );
             }
@@ -346,12 +364,10 @@ export function NodeCard({
               return (
                 <li
                   key={i}
-                  className="flex items-center gap-2 rounded-lg border border-dashed border-blue-300 bg-[#eff6ff] px-3 py-2 text-blue-800 shadow-xs dark:border-blue-800 dark:bg-blue-950/30 dark:text-blue-200"
+                  className="flex items-center gap-2 rounded-[10px] border-[2px] border-dashed border-[#fdba74] bg-[rgba(255,237,213,0.85)] px-2.5 py-2 text-[11px] font-semibold text-[#c2410c] leading-[1.4]"
                 >
-                  <row.Icon size={14} aria-hidden className="shrink-0 text-blue-600" />
-                  <span className="text-xs font-medium" title={row.texto}>
-                    {row.texto || "Enviando documento"}
-                  </span>
+                  <row.Icon size={16} aria-hidden className="shrink-0 opacity-95 text-[#c2410c]" />
+                  <span title={row.texto}>{row.texto || "Enviando um documento"}</span>
                 </li>
               );
             }

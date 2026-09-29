@@ -17,7 +17,8 @@ import { actionConfigSchema, type ConteudoItem } from "@/lib/followup/graph-sche
 import { MODOS_DA_ACAO, opcoes, type ModoDaAcao } from "@/lib/followup/vocabulario";
 import { useMessageTemplates } from "@/hooks/inbox/useMessageTemplates";
 import { useT } from "@/hooks/i18n/useT";
-import { Check, PencilSimple, Trash } from "@/lib/ui/icons";
+import { Check, PencilSimple, Trash, X } from "@/lib/ui/icons";
+import { cn } from "@/lib/utils";
 
 import { ConteudoItemsEditor } from "./ConteudoItemsEditor";
 import type { ConfigOf } from "./shared";
@@ -80,6 +81,7 @@ export function ActionForm({
   nodeLabel,
   onLabelChange,
   onDelete,
+  onClose,
 }: {
   config: ConfigOf<"action">;
   /** Dono da mídia do modo `content` — ver `ConteudoItemsEditor`. */
@@ -88,6 +90,7 @@ export function ActionForm({
   nodeLabel?: string;
   onLabelChange?: (label: string) => void;
   onDelete?: () => void;
+  onClose?: () => void;
 }) {
   const t = useT();
   const [mode, setMode] = useState<ModoDaAcao>(config.mode ?? "content");
@@ -151,44 +154,65 @@ export function ActionForm({
 
   return (
     <div className="flex flex-col gap-4 font-sans">
-      {/* Cabeçalho estilo Lalla: Título à esquerda, Lápis roxo à direita */}
-      <div className="flex items-center justify-between pb-3 border-b border-neutral-200 dark:border-neutral-800">
+      {/* Cabeçalho AcassIA / Lalla: Título + "CONFIGURAR PARÂMETROS" + Botão Renomear + Fechar */}
+      <div className="flex items-center justify-between pb-3.5 border-b border-zinc-200 dark:border-zinc-800 flex-shrink-0 min-h-[52px]">
         {editingTitle ? (
           <div className="flex items-center gap-1.5 flex-1 mr-2">
-            <Input
+            <input
+              type="text"
               value={tempTitle}
               onChange={(e) => setTempTitle(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") salvarTitulo();
                 if (e.key === "Escape") setEditingTitle(false);
               }}
+              onBlur={salvarTitulo}
               autoFocus
-              className="h-8 text-sm font-semibold"
+              className="flex-1 text-sm font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight border border-indigo-500 rounded-xl px-2.5 py-1.5 outline-none focus:ring-2 focus:ring-indigo-500/30 bg-zinc-50 dark:bg-zinc-900"
             />
-            <Button size="sm" variant="ghost" className="h-8 px-2" onClick={salvarTitulo}>
-              <Check size={14} weight="bold" />
-            </Button>
           </div>
         ) : (
-          <h2 className="text-base font-semibold text-neutral-800 dark:text-neutral-100 tracking-tight">
-            {nodeLabel || t("Conteúdo")}
-          </h2>
+          <div className="flex flex-col min-w-0 pr-2">
+            <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight truncate">
+              {nodeLabel || t("Conteúdo")}
+            </span>
+            <span className="text-[10px] text-zinc-400 font-medium uppercase tracking-wider">
+              {t("Configurar Parâmetros")}
+            </span>
+          </div>
         )}
 
-        <button
-          type="button"
-          onClick={() => {
-            if (editingTitle) salvarTitulo();
-            else {
-              setTempTitle(nodeLabel || "Conteúdo");
-              setEditingTitle(true);
-            }
-          }}
-          className="flex h-7 w-7 items-center justify-center rounded-md text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/40 border border-purple-200 dark:border-purple-800/60 transition-colors"
-          title={t("Editar nome do nó")}
-        >
-          <PencilSimple size={14} weight="bold" aria-hidden />
-        </button>
+        <div className="flex items-center gap-1 shrink-0">
+          <button
+            type="button"
+            className="w-7 h-7 rounded-lg text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 flex items-center justify-center transition-colors"
+            title={editingTitle ? t("Confirmar") : t("Renomear")}
+            onClick={() => {
+              if (editingTitle) salvarTitulo();
+              else {
+                setTempTitle(nodeLabel || "Conteúdo");
+                setEditingTitle(true);
+              }
+            }}
+          >
+            {editingTitle ? (
+              <Check size={16} className="text-emerald-600" weight="bold" />
+            ) : (
+              <PencilSimple size={16} />
+            )}
+          </button>
+
+          {onClose && (
+            <button
+              type="button"
+              className="w-7 h-7 rounded-lg text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 flex items-center justify-center transition-colors"
+              title={t("Fechar painel")}
+              onClick={onClose}
+            >
+              <X size={16} />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Modo de conteúdo (Lalla padrão) */}
@@ -285,20 +309,25 @@ export function ActionForm({
 
       {error && <p className="text-xs text-error-fg">{error}</p>}
 
-      {/* Rodapé: Botão Salvar Dados Verde (Lalla) */}
-      <div className="mt-auto pt-4 space-y-2">
+      {/* Rodapé: Botão Salvar Alterações (AcassIA parity) */}
+      <div className="mt-auto pt-4 border-t border-zinc-100 dark:border-zinc-800/80 space-y-2">
         <button
           type="button"
           onClick={handleSave}
-          className="w-full py-3 px-4 rounded-xl bg-[#68a700] hover:bg-[#5b9200] active:scale-[0.99] text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 select-none"
+          className={cn(
+            "w-full py-2.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all shadow-xs select-none",
+            savedFeedback
+              ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 cursor-default"
+              : "bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white shadow-emerald-500/20",
+          )}
         >
           {savedFeedback ? (
             <>
-              <Check size={16} weight="bold" aria-hidden />
-              <span>{t("Dados Salvos!")}</span>
+              <Check size={14} weight="bold" aria-hidden />
+              <span>{t("Configurações Salvas")}</span>
             </>
           ) : (
-            <span>{t("Salvar Dados")}</span>
+            <span>{t("✓ Salvar Alterações")}</span>
           )}
         </button>
 
@@ -308,7 +337,7 @@ export function ActionForm({
               type="button"
               data-testid="delete-node"
               onClick={onDelete}
-              className="text-xs text-neutral-400 hover:text-rose-600 transition-colors inline-flex items-center gap-1"
+              className="text-xs text-neutral-400 hover:text-rose-600 transition-colors inline-flex items-center gap-1 cursor-pointer"
             >
               <Trash size={12} aria-hidden />
               {t("Excluir nó")}
