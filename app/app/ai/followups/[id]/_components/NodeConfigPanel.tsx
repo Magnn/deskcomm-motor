@@ -15,6 +15,8 @@ import { ClassifyForm } from "./forms/ClassifyForm";
 import { ConditionForm } from "./forms/ConditionForm";
 import { EndForm } from "./forms/EndForm";
 import { MatchReplyForm } from "./forms/MatchReplyForm";
+import { MenuForm } from "./forms/MenuForm";
+import { AttendantRouteForm } from "./forms/AttendantRouteForm";
 import { RepeatForm } from "./forms/RepeatForm";
 import { WaitForm } from "./forms/WaitForm";
 import { AbSplitForm } from "./forms/AbSplitForm";
@@ -114,6 +116,15 @@ export function NodeConfigPanel({ node, flowId, onChange, onDelete, ramosLigados
         {type === "match_reply" && (
           <MatchReplyForm
             config={node.data.config as ConfigOf<"match_reply">}
+            onChange={(config) => onChange({ config })}
+          />
+        )}
+        {type === "menu" && (
+          <MenuForm config={node.data.config as ConfigOf<"menu">} onChange={(config) => onChange({ config })} />
+        )}
+        {type === "attendant_route" && (
+          <AttendantRouteForm
+            config={node.data.config as ConfigOf<"attendant_route">}
             onChange={(config) => onChange({ config })}
           />
         )}

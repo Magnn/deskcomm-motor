@@ -175,6 +175,46 @@ describe("completeTurnForEnrollment — 'sent' (action)", () => {
   });
 });
 
+describe("completeTurnForEnrollment — Menu enviado", () => {
+  it("mantém a inscrição esperando resposta e inicia a carência após o envio", async () => {
+    const graph: FlowGraph = {
+      nodes: [
+        {
+          id: "menu1",
+          type: "menu",
+          label: "Ajuda",
+          position: { x: 0, y: 0 },
+          config: {
+            prompt: "Escolha",
+            options: [
+              { id: "suporte", label: "Suporte" },
+              { id: "vendas", label: "Vendas" },
+            ],
+            grace_timeout_ms: 900_000,
+          },
+        },
+      ],
+      edges: [],
+    };
+    const { db, updateEnrollment, insertEnrollmentEvent } = fakeDb({
+      enrollment: enrollment({ current_node_id: "menu1", status: "waiting_reply" }),
+      graph,
+    });
+
+    await completeTurnForEnrollment(db, "org-1", "enr-1", "menu1", { kind: "sent" }, clock);
+
+    const nextEvalAt = new Date(NOW.getTime() + 900_000).toISOString();
+    expect(insertEnrollmentEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ event_type: "menu_sent", idempotency_key: "menu1:4", payload: { next_eval_at: nextEvalAt } }),
+    );
+    expect(updateEnrollment).toHaveBeenCalledWith(
+      "enr-1",
+      "org-1",
+      expect.objectContaining({ current_node_id: "menu1", status: "waiting_reply", next_eval_at: nextEvalAt }),
+    );
+  });
+});
+
 describe("completeTurnForEnrollment — 'classified' (ai_classify)", () => {
   it("routes to the exact class_match edge", async () => {
     const { db, updateEnrollment } = fakeDb({ enrollment: enrollment({ current_node_id: "ac1" }), graph: CLASSIFY_GRAPH });

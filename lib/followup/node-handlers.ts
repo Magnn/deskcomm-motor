@@ -120,7 +120,12 @@ export type NodeResult =
   | { kind: "advance"; next_node_id: string; next_eval_at: Date; reason?: "plan_timeout"; repeat?: { index: number; total: number } }
   // stays on the node. `wake_status` parks `match_reply` in waiting_reply without a job, and the `agent` node in
   // `com_agente` (the agent leads by TURN; the clock is only the silence deadline).
-  | { kind: "wait"; next_eval_at: Date; wake_status?: "active" | "waiting_reply" | "dormente" | "com_agente" }
+  | {
+      kind: "wait";
+      next_eval_at: Date;
+      wake_status?: "active" | "waiting_reply" | "dormente" | "com_agente";
+      deadline_at?: Date;
+    }
   | {
       kind: "enqueue_turn";
       purpose: "send_message" | "classify" | "plan_timing" | "generic_ai";
@@ -172,6 +177,7 @@ export const ACTION_RECHECK_MAX_MS = 60 * 60_000;
  * — ver `rechecksOciososDaAcao` logo abaixo.
  */
 export const MAX_ACTION_RECHECKS = 14;
+export const ATTENDANT_ROUTE_POLL_MS = 60_000;
 
 /**
  * Quanto esperar até o próximo recheck da ação: 5min dobrando até 1h.
@@ -387,14 +393,15 @@ export function resolveWaitPhase(events: EnrollmentEventRef[], nodeId: string, s
  * então park = next_eval_at − grace_timeout_ms.
  */
 export function pisoDoInboundDaEspera(
-  node: Extract<FlowNode, { type: "match_reply" }>,
+  node: Extract<FlowNode, { type: "match_reply" | "menu" }>,
   events: EnrollmentEventRef[],
   fallback: string,
 ): string {
   for (let i = events.length - 1; i >= 0; i--) {
     const e = events[i]!;
     if (e.node_id !== node.id) continue;
-    if (e.event_type !== "wait_started") continue;
+    const eventoDeEspera = node.type === "menu" ? "menu_sent" : "wait_started";
+    if (e.event_type !== eventoDeEspera) continue;
     const next = e.payload?.next_eval_at;
     if (typeof next !== "string") break;
     const start = Date.parse(next) - node.config.grace_timeout_ms;
@@ -663,6 +670,8 @@ export function processNode(input: {
   repeatTotal?: number | null;
   /** Próximo nó pela aresta `always` — a ação olha o `match_reply` seguinte para pular o envio. */
   proximo?: FlowNode | null;
+  attendantAssigned?: boolean;
+  attendantDeadlineAt?: Date | null;
 }): NodeResult {
   const {
     node,
@@ -682,6 +691,8 @@ export function processNode(input: {
     repeatTaken,
     repeatTotal,
     proximo,
+    attendantAssigned,
+    attendantDeadlineAt,
   } = input;
 
   switch (node.type) {
@@ -888,6 +899,79 @@ export function processNode(input: {
         };
       }
       return { kind: "advance", next_node_id: edge.target, next_eval_at: clock() };
+    }
+
+    case "menu": {
+      if (!actionCompleted) {
+        if (!actionEnqueued) {
+          const body = `${node.config.prompt}\n\n${node.config.options
+            .map((option, index) => `${index + 1}. ${option.label}`)
+            .join("\n")}`;
+          return { kind: "enqueue_turn", purpose: "send_message", wake_status: "waiting_reply", fixed_body: body };
+        }
+        if ((actionRecheckCount ?? 0) >= MAX_ACTION_RECHECKS) {
+          return { kind: "dead", reason: "menu_send_never_completed" };
+        }
+        return {
+          kind: "recheck",
+          next_eval_at: new Date(clock().getTime() + atrasoDoRecheck(actionRecheckCount ?? 0)),
+        };
+      }
+
+      if (wokeEarly && lastInboundBody?.trim()) {
+        const reply = lastInboundBody.trim().toLocaleLowerCase();
+        const number = /^[0-9]{1,2}[.)]?$/.test(reply) ? Number.parseInt(reply, 10) : 0;
+        const selected =
+          (number > 0 ? node.config.options[number - 1] : undefined) ??
+          node.config.options.find((option) => option.label.trim().toLocaleLowerCase() === reply);
+        const edge = selected
+          ? selectEdge(edges, node.id, { type: "branch", branch_id: selected.id })
+          : selectEdge(edges, node.id, { type: "always" });
+        if (!edge) {
+          return {
+            kind: "fail",
+            error: `menu node "${node.id}" has no edge for branch "${selected?.id ?? "else"}"`,
+          };
+        }
+        return { kind: "advance", next_node_id: edge.target, next_eval_at: clock() };
+      }
+
+      if (!waitElapsed) {
+        return {
+          kind: "wait",
+          next_eval_at: new Date(clock().getTime() + node.config.grace_timeout_ms),
+          wake_status: "waiting_reply",
+        };
+      }
+      const edge = selectEdge(edges, node.id, { type: "branch", branch_id: NO_REPLY_BRANCH_ID });
+      if (!edge) return { kind: "fail", error: `menu node "${node.id}" has no timeout edge (fallback also missing)` };
+      return { kind: "advance", next_node_id: edge.target, next_eval_at: clock() };
+    }
+
+    case "attendant_route": {
+      const branchId = attendantAssigned ? "assigned" : "timeout";
+      const edge = attendantAssigned
+        ? selectEdge(edges, node.id, { type: "branch", branch_id: branchId })
+        : null;
+      if (attendantAssigned && !edge) {
+        return { kind: "fail", error: `attendant_route node "${node.id}" has no assigned edge` };
+      }
+      if (edge) return { kind: "advance", next_node_id: edge.target, next_eval_at: clock() };
+
+      const deadline = attendantDeadlineAt ?? new Date(clock().getTime() + node.config.max_wait_minutes * 60_000);
+      if (clock().getTime() >= deadline.getTime()) {
+        const timeoutEdge = selectEdge(edges, node.id, { type: "branch", branch_id: branchId });
+        if (!timeoutEdge) {
+          return { kind: "fail", error: `attendant_route node "${node.id}" has no timeout edge` };
+        }
+        return { kind: "advance", next_node_id: timeoutEdge.target, next_eval_at: clock() };
+      }
+      return {
+        kind: "wait",
+        next_eval_at: new Date(Math.min(clock().getTime() + ATTENDANT_ROUTE_POLL_MS, deadline.getTime())),
+        wake_status: "active",
+        deadline_at: deadline,
+      };
     }
 
     case "repeat": {

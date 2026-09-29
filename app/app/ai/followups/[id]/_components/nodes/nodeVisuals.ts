@@ -21,7 +21,9 @@ import {
   IdentificationCard,
   ImageIcon,
   Microphone,
+  UsersThree,
   VideoCamera,
+  List,
 } from "@/lib/ui/icons";
 import {
   AGENT_NODE_DEFAULT_MAX_TURNS,
@@ -85,23 +87,25 @@ export function descreverItemDeConteudo(item: ConteudoItem, t: (texto: string) =
  * (bolinha de conexão) e `selected` (contorno do card quando selecionado).
  */
 const HUES = {
-  emerald: { chip: "bg-emerald-600 text-white", badge: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400", hoverBorder: "hover:border-emerald-500/60", handle: "!bg-emerald-600", selected: "border-emerald-400 dark:border-emerald-600 ring-emerald-500/20" },
-  indigo: { chip: "bg-indigo-600 text-white", badge: "bg-indigo-500/10 text-indigo-700 dark:text-indigo-400", hoverBorder: "hover:border-indigo-500/60", handle: "!bg-indigo-600", selected: "border-indigo-400 dark:border-indigo-600 ring-indigo-500/20" },
-  purple: { chip: "bg-purple-600 text-white", badge: "bg-purple-500/10 text-purple-700 dark:text-purple-400", hoverBorder: "hover:border-purple-500/60", handle: "!bg-purple-600", selected: "border-purple-400 dark:border-purple-600 ring-purple-500/20" },
-  violet: { chip: "bg-violet-600 text-white", badge: "bg-violet-500/10 text-violet-700 dark:text-violet-400", hoverBorder: "hover:border-violet-500/60", handle: "!bg-violet-600", selected: "border-violet-400 dark:border-violet-600 ring-violet-500/20" },
-  fuchsia: { chip: "bg-fuchsia-600 text-white", badge: "bg-fuchsia-500/10 text-fuchsia-700 dark:text-fuchsia-400", hoverBorder: "hover:border-fuchsia-500/60", handle: "!bg-fuchsia-600", selected: "border-fuchsia-400 dark:border-fuchsia-600 ring-fuchsia-500/20" },
-  sky: { chip: "bg-sky-600 text-white", badge: "bg-sky-500/10 text-sky-700 dark:text-sky-400", hoverBorder: "hover:border-sky-500/60", handle: "!bg-sky-600", selected: "border-sky-400 dark:border-sky-600 ring-sky-500/20" },
-  cyan: { chip: "bg-cyan-600 text-white", badge: "bg-cyan-500/10 text-cyan-700 dark:text-cyan-400", hoverBorder: "hover:border-cyan-500/60", handle: "!bg-cyan-600", selected: "border-cyan-400 dark:border-cyan-600 ring-cyan-500/20" },
-  teal: { chip: "bg-teal-600 text-white", badge: "bg-teal-500/10 text-teal-700 dark:text-teal-400", hoverBorder: "hover:border-teal-500/60", handle: "!bg-teal-600", selected: "border-teal-400 dark:border-teal-600 ring-teal-500/20" },
-  amber: { chip: "bg-amber-600 text-white", badge: "bg-amber-500/10 text-amber-700 dark:text-amber-400", hoverBorder: "hover:border-amber-500/60", handle: "!bg-amber-600", selected: "border-amber-400 dark:border-amber-600 ring-amber-500/20" },
-  lime: { chip: "bg-lime-600 text-white", badge: "bg-lime-500/10 text-lime-700 dark:text-lime-400", hoverBorder: "hover:border-lime-500/60", handle: "!bg-lime-600", selected: "border-lime-400 dark:border-lime-600 ring-lime-500/20" },
-  orange: { chip: "bg-orange-600 text-white", badge: "bg-orange-500/10 text-orange-700 dark:text-orange-400", hoverBorder: "hover:border-orange-500/60", handle: "!bg-orange-600", selected: "border-orange-400 dark:border-orange-600 ring-orange-500/20" },
-  pink: { chip: "bg-pink-600 text-white", badge: "bg-pink-500/10 text-pink-700 dark:text-pink-400", hoverBorder: "hover:border-pink-500/60", handle: "!bg-pink-600", selected: "border-pink-400 dark:border-pink-600 ring-pink-500/20" },
-  blue: { chip: "bg-blue-600 text-white", badge: "bg-blue-500/10 text-blue-700 dark:text-blue-400", hoverBorder: "hover:border-blue-500/60", handle: "!bg-blue-600", selected: "border-blue-400 dark:border-blue-600 ring-blue-500/20" },
-  rose: { chip: "bg-rose-600 text-white", badge: "bg-rose-500/10 text-rose-700 dark:text-rose-400", hoverBorder: "hover:border-rose-500/60", handle: "!bg-rose-600", selected: "border-rose-400 dark:border-rose-600 ring-rose-500/20" },
-  yellow: { chip: "bg-yellow-600 text-white", badge: "bg-yellow-500/10 text-yellow-700 dark:text-yellow-400", hoverBorder: "hover:border-yellow-500/60", handle: "!bg-yellow-600", selected: "border-yellow-400 dark:border-yellow-600 ring-yellow-500/20" },
-  zinc: { chip: "bg-zinc-700 text-white", badge: "bg-zinc-500/10 text-zinc-600 dark:text-zinc-400", hoverBorder: "hover:border-zinc-500/60", handle: "!bg-zinc-600", selected: "border-zinc-400 dark:border-zinc-600 ring-zinc-500/20" },
-} as const satisfies Record<string, { chip: string; badge: string; hoverBorder: string; handle: string; selected: string }>;
+  emerald: { chip: "bg-emerald-600 text-white", badge: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400", hoverBorder: "hover:border-emerald-500/60", handle: "!bg-emerald-600", selected: "border-emerald-400 dark:border-emerald-600 ring-emerald-500/20", iconColor: "text-emerald-600" },
+  indigo: { chip: "bg-indigo-600 text-white", badge: "bg-indigo-500/10 text-indigo-700 dark:text-indigo-400", hoverBorder: "hover:border-indigo-500/60", handle: "!bg-indigo-600", selected: "border-indigo-400 dark:border-indigo-600 ring-indigo-500/20", iconColor: "text-indigo-600" },
+  purple: { chip: "bg-purple-600 text-white", badge: "bg-purple-500/10 text-purple-700 dark:text-purple-400", hoverBorder: "hover:border-purple-500/60", handle: "!bg-purple-600", selected: "border-purple-400 dark:border-purple-600 ring-purple-500/20", iconColor: "text-purple-600" },
+  violet: { chip: "bg-violet-600 text-white", badge: "bg-violet-500/10 text-violet-700 dark:text-violet-400", hoverBorder: "hover:border-violet-500/60", handle: "!bg-violet-600", selected: "border-violet-400 dark:border-violet-600 ring-violet-500/20", iconColor: "text-violet-600" },
+  fuchsia: { chip: "bg-fuchsia-600 text-white", badge: "bg-fuchsia-500/10 text-fuchsia-700 dark:text-fuchsia-400", hoverBorder: "hover:border-fuchsia-500/60", handle: "!bg-fuchsia-600", selected: "border-fuchsia-400 dark:border-fuchsia-600 ring-fuchsia-500/20", iconColor: "text-fuchsia-600" },
+  sky: { chip: "bg-sky-600 text-white", badge: "bg-sky-500/10 text-sky-700 dark:text-sky-400", hoverBorder: "hover:border-sky-500/60", handle: "!bg-sky-600", selected: "border-sky-400 dark:border-sky-600 ring-sky-500/20", iconColor: "text-sky-600" },
+  cyan: { chip: "bg-cyan-600 text-white", badge: "bg-cyan-500/10 text-cyan-700 dark:text-cyan-400", hoverBorder: "hover:border-cyan-500/60", handle: "!bg-cyan-600", selected: "border-cyan-400 dark:border-cyan-600 ring-cyan-500/20", iconColor: "text-cyan-600" },
+  teal: { chip: "bg-teal-600 text-white", badge: "bg-teal-500/10 text-teal-700 dark:text-teal-400", hoverBorder: "hover:border-teal-500/60", handle: "!bg-teal-600", selected: "border-teal-400 dark:border-teal-600 ring-teal-500/20", iconColor: "text-teal-600" },
+  amber: { chip: "bg-amber-600 text-white", badge: "bg-amber-500/10 text-amber-700 dark:text-amber-400", hoverBorder: "hover:border-amber-500/60", handle: "!bg-amber-600", selected: "border-amber-400 dark:border-amber-600 ring-amber-500/20", iconColor: "text-amber-600" },
+  lime: { chip: "bg-lime-600 text-white", badge: "bg-lime-500/10 text-lime-700 dark:text-lime-400", hoverBorder: "hover:border-lime-500/60", handle: "!bg-lime-600", selected: "border-lime-400 dark:border-lime-600 ring-lime-500/20", iconColor: "text-lime-600" },
+  orange: { chip: "bg-orange-600 text-white", badge: "bg-orange-500/10 text-orange-700 dark:text-orange-400", hoverBorder: "hover:border-orange-500/60", handle: "!bg-orange-600", selected: "border-orange-400 dark:border-orange-600 ring-orange-500/20", iconColor: "text-orange-600" },
+  pink: { chip: "bg-pink-600 text-white", badge: "bg-pink-500/10 text-pink-700 dark:text-pink-400", hoverBorder: "hover:border-pink-500/60", handle: "!bg-pink-600", selected: "border-pink-400 dark:border-pink-600 ring-pink-500/20", iconColor: "text-pink-600" },
+  blue: { chip: "bg-blue-600 text-white", badge: "bg-blue-500/10 text-blue-700 dark:text-blue-400", hoverBorder: "hover:border-blue-500/60", handle: "!bg-blue-600", selected: "border-blue-400 dark:border-blue-600 ring-blue-500/20", iconColor: "text-blue-600" },
+  rose: { chip: "bg-rose-600 text-white", badge: "bg-rose-500/10 text-rose-700 dark:text-rose-400", hoverBorder: "hover:border-rose-500/60", handle: "!bg-rose-600", selected: "border-rose-400 dark:border-rose-600 ring-rose-500/20", iconColor: "text-rose-600" },
+  red: { chip: "bg-red-600 text-white", badge: "bg-red-500/10 text-red-700 dark:text-red-400", hoverBorder: "hover:border-red-500/60", handle: "!bg-red-600", selected: "border-red-400 dark:border-red-600 ring-red-500/20", iconColor: "text-red-600" },
+  yellow: { chip: "bg-yellow-600 text-white", badge: "bg-yellow-500/10 text-yellow-700 dark:text-yellow-400", hoverBorder: "hover:border-yellow-500/60", handle: "!bg-yellow-600", selected: "border-yellow-400 dark:border-yellow-600 ring-yellow-500/20", iconColor: "text-yellow-600" },
+  zinc: { chip: "bg-zinc-700 text-white", badge: "bg-zinc-500/10 text-zinc-600 dark:text-zinc-400", hoverBorder: "hover:border-zinc-500/60", handle: "!bg-zinc-600", selected: "border-zinc-400 dark:border-zinc-600 ring-zinc-500/20", iconColor: "text-zinc-600" },
+  slate: { chip: "bg-slate-700 text-white", badge: "bg-slate-500/10 text-slate-700 dark:text-slate-400", hoverBorder: "hover:border-slate-500/60", handle: "!bg-slate-600", selected: "border-slate-400 dark:border-slate-600 ring-slate-500/20", iconColor: "text-slate-600" },
+} as const satisfies Record<string, { chip: string; badge: string; hoverBorder: string; handle: string; selected: string; iconColor: string }>;
 
 type Hue = keyof typeof HUES;
 
@@ -118,6 +122,8 @@ export interface NodeVisual {
   icon: ComponentType<{ size?: number; className?: string; "aria-hidden"?: boolean }>;
   /** Avatar sólido do cabeçalho do card / ícone da paleta e do painel de config. */
   chipClassName: string;
+  /** Apenas a cor do ícone (sem fundo) — para o item da paleta com fundo neutro. */
+  paletteIconClassName: string;
   /** Selo suave (categoria) abaixo do rótulo do card. */
   badgeClassName: string;
   /** Borda ao passar o mouse — usado no item da paleta. */
@@ -134,6 +140,7 @@ function visualDoMatiz(hue: Hue) {
   const h = HUES[hue];
   return {
     chipClassName: h.chip,
+    paletteIconClassName: h.iconColor,
     badgeClassName: h.badge,
     hoverBorderClassName: h.hoverBorder,
     handleClassName: h.handle,
@@ -176,7 +183,7 @@ export const NODE_VISUALS: Record<NodeType, NodeVisual> = {
   trigger: {
     type: "trigger",
     paletteLabel: "Gatilho",
-    paletteDesc: "Começa o fluxo",
+    paletteDesc: "Inicia o fluxo automaticamente",
     icon: Play,
     ...visualDoMatiz("emerald"),
     defaultLabel: "Início do fluxo",
@@ -184,8 +191,8 @@ export const NODE_VISUALS: Record<NodeType, NodeVisual> = {
   },
   wait: {
     type: "wait",
-    paletteLabel: "Aguardar",
-    paletteDesc: "Pausa por um tempo",
+    paletteLabel: "Delay",
+    paletteDesc: "Aguardar um período",
     icon: Clock,
     ...visualDoMatiz("orange"),
     defaultLabel: "Aguardar",
@@ -194,7 +201,7 @@ export const NODE_VISUALS: Record<NodeType, NodeVisual> = {
   condition: {
     type: "condition",
     paletteLabel: "Condição",
-    paletteDesc: "Ramifica por regra",
+    paletteDesc: "Validar uma condição",
     icon: GitBranch,
     ...visualDoMatiz("sky"),
     defaultLabel: "Verificar condição",
@@ -224,12 +231,37 @@ export const NODE_VISUALS: Record<NodeType, NodeVisual> = {
     paletteLabel: "Resposta (texto)",
     paletteDesc: "Casa texto da resposta",
     icon: ChatCircle,
-    ...visualDoMatiz("cyan"),
+    ...visualDoMatiz("red"),
     defaultLabel: "Casar resposta",
     defaultConfig: () => ({
       branches: [{ id: "br_sim", label: "Sim", op: "contains", pattern: "sim" }],
       grace_timeout_ms: 900_000,
     }),
+  },
+  menu: {
+    type: "menu",
+    paletteLabel: "Menu",
+    paletteDesc: "Menu de opções",
+    icon: List,
+    ...visualDoMatiz("cyan"),
+    defaultLabel: "Escolha uma opção",
+    defaultConfig: () => ({
+      prompt: "Como podemos ajudar?",
+      options: [
+        { id: "opcao_1", label: "Primeira opção" },
+        { id: "opcao_2", label: "Segunda opção" },
+      ],
+      grace_timeout_ms: 900_000,
+    }),
+  },
+  attendant_route: {
+    type: "attendant_route",
+    paletteLabel: "Divisão de Atendentes",
+    paletteDesc: "Distribuir contatos entre atendentes disponíveis",
+    icon: UsersThree,
+    ...visualDoMatiz("slate"),
+    defaultLabel: "Distribuir para atendente",
+    defaultConfig: () => ({ max_wait_minutes: 30 }),
   },
   repeat: {
     type: "repeat",
@@ -243,7 +275,7 @@ export const NODE_VISUALS: Record<NodeType, NodeVisual> = {
   collect: {
     type: "collect",
     paletteLabel: "Pergunta",
-    paletteDesc: "Pergunta e guarda a resposta",
+    paletteDesc: "Enviar pergunta",
     icon: Question,
     ...visualDoMatiz("amber"),
     defaultLabel: "Nova pergunta",
@@ -260,8 +292,8 @@ export const NODE_VISUALS: Record<NodeType, NodeVisual> = {
   },
   action: {
     type: "action",
-    paletteLabel: "Ação",
-    paletteDesc: "Envia mensagem, mídia ou contato",
+    paletteLabel: "Conteúdo",
+    paletteDesc: "Enviar mensagem de texto, imagem...",
     icon: PaperPlaneTilt,
     ...visualDoMatiz("indigo"),
     defaultLabel: "Enviar mensagem",
@@ -270,7 +302,7 @@ export const NODE_VISUALS: Record<NodeType, NodeVisual> = {
   end: {
     type: "end",
     paletteLabel: "Fim",
-    paletteDesc: "Encerra o fluxo",
+    paletteDesc: "Encerrar o fluxo",
     icon: Flag,
     ...visualDoMatiz("zinc"),
     defaultLabel: "Fim do fluxo",
@@ -279,8 +311,8 @@ export const NODE_VISUALS: Record<NodeType, NodeVisual> = {
   // ── Lote 1 (aditivo) — comparativo ChatbotX/AcassIA/Desk ──
   ab_split: {
     type: "ab_split",
-    paletteLabel: "A/B split",
-    paletteDesc: "Divide o tráfego em variantes",
+    paletteLabel: "Divisão",
+    paletteDesc: "Distribuição de contatos",
     icon: TreeStructure,
     ...visualDoMatiz("pink"),
     defaultLabel: "Dividir tráfego (A/B)",
@@ -293,8 +325,8 @@ export const NODE_VISUALS: Record<NodeType, NodeVisual> = {
   },
   ai_generic: {
     type: "ai_generic",
-    paletteLabel: "IA (prompt livre)",
-    paletteDesc: "Roda um prompt livre",
+    paletteLabel: "GPT",
+    paletteDesc: "Gerador de textos GPT",
     icon: Sparkle,
     ...visualDoMatiz("fuchsia"),
     defaultLabel: "Rodar prompt de IA",
@@ -305,8 +337,8 @@ export const NODE_VISUALS: Record<NodeType, NodeVisual> = {
   },
   api_call: {
     type: "api_call",
-    paletteLabel: "API externa",
-    paletteDesc: "Chama uma API externa",
+    paletteLabel: "API Request",
+    paletteDesc: "Requisição externa (API)",
     icon: WebhooksLogo,
     ...visualDoMatiz("blue"),
     defaultLabel: "Chamar API externa",
@@ -317,8 +349,8 @@ export const NODE_VISUALS: Record<NodeType, NodeVisual> = {
   },
   notify_agent: {
     type: "notify_agent",
-    paletteLabel: "Notificar atendente",
-    paletteDesc: "Avisa um atendente humano",
+    paletteLabel: "Notificar Atendente",
+    paletteDesc: "Enviar mensagem para atendente.",
     icon: Bell,
     ...visualDoMatiz("rose"),
     defaultLabel: "Notificar atendente",
@@ -326,8 +358,8 @@ export const NODE_VISUALS: Record<NodeType, NodeVisual> = {
   },
   add_note: {
     type: "add_note",
-    paletteLabel: "Anotação no contato",
-    paletteDesc: "Anota algo no contato",
+    paletteLabel: "Anotação",
+    paletteDesc: "Escrever uma anotação",
     icon: Note,
     ...visualDoMatiz("yellow"),
     defaultLabel: "Anotar no contato",
@@ -337,8 +369,8 @@ export const NODE_VISUALS: Record<NodeType, NodeVisual> = {
   // `NodeType`, mas só entra na paleta o que a superfície executa.
   agent: {
     type: "agent",
-    paletteLabel: "Agente de IA",
-    paletteDesc: "Handoff para um agente de IA",
+    paletteLabel: "Agente IA",
+    paletteDesc: "Diálogo autônomo por IA",
     icon: Robot,
     ...visualDoMatiz("purple"),
     defaultLabel: "Agente de IA",
@@ -412,6 +444,14 @@ export function describeNodeConfig(
           ? ` · ${t("grava resposta")}${c.if_exists === "skip" ? ` · ${t("pula se já existir")}` : c.if_exists === "confirm" ? ` · ${t("confirma se já existir")}` : ""}`
           : ""
       }`;
+    }
+    case "menu": {
+      const c = config as ConfigOf<"menu">;
+      return `${c.options.length} ${t("opções · espera")} ${minutos(c.grace_timeout_ms)}`;
+    }
+    case "attendant_route": {
+      const c = config as ConfigOf<"attendant_route">;
+      return `${t("Aguarda até")} ${c.max_wait_minutes} ${t("min pela atribuição")}`;
     }
     case "repeat": {
       const c = config as ConfigOf<"repeat">;

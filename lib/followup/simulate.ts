@@ -98,10 +98,11 @@ export type SaidaDoAgente =
 export type SimEntrada =
   | { kind: "mensagem"; texto: string }
   | { kind: "sem_resposta" }
+  | { kind: "resultado_atribuicao"; atribuido: boolean }
   | { kind: "saida_do_agente"; saida: SaidaDoAgente };
 
 /** O que o simulador está esperando do operador para continuar. */
-export type SimAguardando = "wait" | "ai_classify" | "match_reply" | "agent" | null;
+export type SimAguardando = "wait" | "ai_classify" | "match_reply" | "menu" | "attendant_route" | "agent" | null;
 
 export type SimStatus = "aguardando_entrada" | "concluido" | "erro";
 
@@ -119,10 +120,15 @@ export type SimTranscriptEntry =
       kind: "mensagem_simulada";
       nodeId: string;
       texto: string;
-      origem: "texto_fixo" | "ia" | "modelo_salvo" | "confirmacao" | "conteudo";
+      origem: "texto_fixo" | "ia" | "modelo_salvo" | "confirmacao" | "conteudo" | "menu";
     }
   | { kind: "transicao"; nodeId: string; label: string; repeat?: { index: number; total: number } }
-  | { kind: "aguardando"; nodeId: string; motivo: "wait" | "ai_classify" | "match_reply" | "agent" }
+  | {
+      kind: "aguardando";
+      nodeId: string;
+      motivo: "wait" | "ai_classify" | "match_reply" | "menu" | "attendant_route" | "agent";
+    }
+  | { kind: "resultado_atribuicao"; nodeId: string; atribuido: boolean }
   /** O operador escolheu por onde o agente sai (o agente em si não roda no simulador). */
   | { kind: "saida_do_agente"; nodeId: string; saida: SaidaDoAgente }
   | { kind: "classificado"; nodeId: string; classe: string }
@@ -305,6 +311,11 @@ export async function avancarSimulacao(args: {
       ...state,
       transcript: [...state.transcript, { kind: "saida_do_agente", nodeId: state.currentNodeId, saida: entrada.saida }],
     };
+  } else if (entrada?.kind === "resultado_atribuicao") {
+    state = {
+      ...state,
+      transcript: [...state.transcript, { kind: "resultado_atribuicao", nodeId: state.currentNodeId, atribuido: entrada.atribuido }],
+    };
   }
 
   const mensagemAtual = entrada?.kind === "mensagem" ? entrada.texto : null;
@@ -405,6 +416,14 @@ export async function avancarSimulacao(args: {
       repeatTaken: state.repeatProgress[node.id]?.taken,
       repeatTotal: state.repeatProgress[node.id]?.total ?? null,
       proximo,
+      actionEnqueued: node.type === "menu" && state.aguardando === "menu",
+      actionCompleted: node.type === "menu" && state.aguardando === "menu",
+      attendantAssigned:
+        node.type === "attendant_route" && entrada?.kind === "resultado_atribuicao" && entrada.atribuido,
+      attendantDeadlineAt:
+        node.type === "attendant_route" && entrada?.kind === "resultado_atribuicao" && !entrada.atribuido
+          ? clock()
+          : undefined,
     });
 
     primeiroPasso = false;
@@ -423,7 +442,14 @@ export async function avancarSimulacao(args: {
       }
 
       case "wait": {
-        const motivo: "wait" | "match_reply" = node.type === "wait" ? "wait" : "match_reply";
+        const motivo =
+          node.type === "wait"
+            ? "wait"
+            : node.type === "match_reply"
+              ? "match_reply"
+              : node.type === "menu"
+                ? "menu"
+                : "attendant_route";
         state = {
           ...state,
           aguardando: motivo,
@@ -445,6 +471,19 @@ export async function avancarSimulacao(args: {
         }
         if (result.purpose === "send_message") {
           if (result.wake_status === "waiting_reply") {
+            if (node.type === "menu") {
+              state = {
+                ...state,
+                aguardando: "menu",
+                status: "aguardando_entrada",
+                transcript: [
+                  ...state.transcript,
+                  { kind: "mensagem_simulada", nodeId: node.id, texto: result.fixed_body ?? "", origem: "menu" },
+                  { kind: "aguardando", nodeId: node.id, motivo: "menu" },
+                ],
+              };
+              return state;
+            }
             // match_reply em modo `if_exists: 'confirm'`: pergunta de
             // confirmação, e o fluxo PERMANECE no mesmo nó aguardando o
             // sim/não — nunca avança sozinho (espelha

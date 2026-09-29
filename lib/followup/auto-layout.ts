@@ -56,6 +56,8 @@ const TYPE_ORDER: Record<NodeType, number> = {
   notify_agent: 13,
   add_note: 14,
   agent: 15,
+  menu: 16,
+  attendant_route: 17,
 };
 
 export type NodeSize = { width: number; height: number };

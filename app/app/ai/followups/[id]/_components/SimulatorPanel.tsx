@@ -117,7 +117,11 @@ function Entrada({ entry }: { entry: SimTranscriptEntry }) {
           ? t("Aguardando o fim da espera configurada neste nó.")
           : entry.motivo === "ai_classify"
             ? t("Aguardando a resposta do lead para classificar com IA.")
-            : t("Aguardando a resposta do lead para casar com as regras deste nó.");
+            : entry.motivo === "match_reply"
+              ? t("Aguardando a resposta do lead para casar com as regras deste nó.")
+              : entry.motivo === "menu"
+                ? t("Aguardando a escolha pelo número ou nome da opção.")
+                : t("Aguardando o resultado da distribuição de atendentes.");
       return <p className="text-center text-xs text-text-muted">{texto}</p>;
     }
 
@@ -125,6 +129,13 @@ function Entrada({ entry }: { entry: SimTranscriptEntry }) {
       return (
         <p className="text-center text-xs text-text-muted">
           {t("Classificado como:")} «{entry.classe}»
+        </p>
+      );
+
+    case "resultado_atribuicao":
+      return (
+        <p className="text-center text-xs text-text-muted">
+          {entry.atribuido ? t("Atribuição confirmada (simulada).") : t("Prazo esgotado sem atribuição (simulado).")}
         </p>
       );
 
@@ -238,7 +249,9 @@ export function SimulatorPanel({ flowId, graph, onActiveNodeChange, onClose }: P
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const podeResponder = !!state && state.status === "aguardando_entrada" && !processando;
+  const podeResponder =
+    !!state && state.status === "aguardando_entrada" && state.aguardando !== "attendant_route" && !processando;
+  const podeSimularDistribuicao = !!state && state.aguardando === "attendant_route" && !processando;
 
   async function enviar() {
     if (!state || !mensagem.trim()) return;
@@ -299,29 +312,49 @@ export function SimulatorPanel({ flowId, graph, onActiveNodeChange, onClose }: P
             {t("Simulação concluída.")}
           </p>
         )}
-        <div className="flex gap-2">
-          <Input
-            value={mensagem}
-            onChange={(e) => setMensagem(e.target.value)}
-            placeholder={t("Digite como se fosse o lead…")}
-            disabled={!podeResponder}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                void enviar();
-              }
-            }}
-            data-testid="simulator-input"
-          />
-          <Button
-            type="button"
-            onClick={() => void enviar()}
-            disabled={!podeResponder || !mensagem.trim()}
-            data-testid="simulator-enviar"
-          >
-            {t("Enviar")}
-          </Button>
-        </div>
+        {state?.aguardando === "attendant_route" ? (
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              disabled={!podeSimularDistribuicao}
+              onClick={() => void passo(state, { kind: "resultado_atribuicao", atribuido: true })}
+            >
+              {t("Simular atendente atribuído")}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={!podeSimularDistribuicao}
+              onClick={() => void passo(state, { kind: "resultado_atribuicao", atribuido: false })}
+            >
+              {t("Simular prazo esgotado")}
+            </Button>
+          </div>
+        ) : (
+          <div className="flex gap-2">
+            <Input
+              value={mensagem}
+              onChange={(e) => setMensagem(e.target.value)}
+              placeholder={t("Digite como se fosse o lead…")}
+              disabled={!podeResponder}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  void enviar();
+                }
+              }}
+              data-testid="simulator-input"
+            />
+            <Button
+              type="button"
+              onClick={() => void enviar()}
+              disabled={!podeResponder || !mensagem.trim()}
+              data-testid="simulator-enviar"
+            >
+              {t("Enviar")}
+            </Button>
+          </div>
+        )}
         <div className="mt-2 flex flex-wrap justify-between gap-2">
           <Button
             type="button"

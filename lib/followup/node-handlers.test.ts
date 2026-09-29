@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 
 import {
   BACKOFF_MS,
+  ATTENDANT_ROUTE_POLL_MS,
   MAX_ACTION_RECHECKS,
   actionTurnCompleted,
   avisoDeNotificarAtendente,
@@ -1344,6 +1345,141 @@ describe("processNode — ai_generic (mesmo contrato de ocupação/recheck/dead-
       actionRecheckCount: MAX_ACTION_RECHECKS,
     });
     expect(r).toMatchObject({ kind: "dead", reason: "ai_generic_turn_never_completed" });
+  });
+});
+
+describe("processNode — attendant_route", () => {
+  const node: FlowNode = {
+    id: "route1",
+    type: "attendant_route",
+    label: "Distribuir",
+    position: { x: 0, y: 0 },
+    config: { max_wait_minutes: 30 },
+  };
+  const edges = [
+    edge({ source: "route1", target: "assigned-next", condition: { type: "branch", branch_id: "assigned" } }),
+    edge({ source: "route1", target: "timeout-next", condition: { type: "branch", branch_id: "timeout" } }),
+    edge({ source: "route1", target: "fallback", condition: { type: "always" } }),
+  ];
+
+  it("polls the existing channel router and persists one stable deadline", () => {
+    const result = processNode({ node, edges, enrollment: enrollment(), lead: lead(), clock });
+    expect(result).toEqual({
+      kind: "wait",
+      next_eval_at: new Date(NOW.getTime() + ATTENDANT_ROUTE_POLL_MS),
+      wake_status: "active",
+      deadline_at: new Date(NOW.getTime() + 30 * 60_000),
+    });
+  });
+
+  it("advances only after an owner is confirmed", () => {
+    const result = processNode({
+      node,
+      edges,
+      enrollment: enrollment(),
+      lead: lead(),
+      clock,
+      attendantAssigned: true,
+    });
+    expect(result).toMatchObject({ kind: "advance", next_node_id: "assigned-next" });
+  });
+
+  it("keeps the original deadline while polling and takes timeout when due", () => {
+    const deadline = new Date(NOW.getTime() + 120_000);
+    const waiting = processNode({
+      node,
+      edges,
+      enrollment: enrollment(),
+      lead: lead(),
+      clock,
+      attendantDeadlineAt: deadline,
+    });
+    const timedOut = processNode({
+      node,
+      edges,
+      enrollment: enrollment(),
+      lead: lead(),
+      clock,
+      attendantDeadlineAt: NOW,
+    });
+    expect(waiting).toMatchObject({ deadline_at: deadline });
+    expect(timedOut).toMatchObject({ kind: "advance", next_node_id: "timeout-next" });
+  });
+});
+
+describe("processNode — menu", () => {
+  const node: FlowNode = {
+    id: "menu1",
+    type: "menu",
+    label: "Ajuda",
+    position: { x: 0, y: 0 },
+    config: {
+      prompt: "Como podemos ajudar?",
+      options: [
+        { id: "suporte", label: "Suporte" },
+        { id: "vendas", label: "Vendas" },
+      ],
+      grace_timeout_ms: 900_000,
+    },
+  };
+  const edges = [
+    edge({ source: "menu1", target: "suporte-next", condition: { type: "branch", branch_id: "suporte" } }),
+    edge({ source: "menu1", target: "vendas-next", condition: { type: "branch", branch_id: "vendas" } }),
+    edge({ source: "menu1", target: "timeout", condition: { type: "branch", branch_id: "no_reply" } }),
+    edge({ source: "menu1", target: "fallback", condition: { type: "always" } }),
+  ];
+
+  it("enfileira a pergunta numerada exatamente uma vez", () => {
+    const result = processNode({ node, edges, enrollment: enrollment(), lead: lead(), clock });
+    expect(result).toMatchObject({
+      kind: "enqueue_turn",
+      purpose: "send_message",
+      wake_status: "waiting_reply",
+      fixed_body: ["Como podemos ajudar?", "", "1. Suporte", "2. Vendas"].join("\n"),
+    });
+  });
+
+  it("roteia por número ou nome da opção sem diferenciar maiúsculas", () => {
+    const porNumero = processNode({
+      node,
+      edges,
+      enrollment: enrollment(),
+      lead: lead(),
+      clock,
+      waitElapsed: true,
+      wokeEarly: true,
+      lastInboundBody: "2",
+      actionEnqueued: true,
+      actionCompleted: true,
+    });
+    const porNome = processNode({
+      node,
+      edges,
+      enrollment: enrollment(),
+      lead: lead(),
+      clock,
+      waitElapsed: true,
+      wokeEarly: true,
+      lastInboundBody: " SUPORTE ",
+      actionEnqueued: true,
+      actionCompleted: true,
+    });
+    expect(porNumero).toMatchObject({ kind: "advance", next_node_id: "vendas-next" });
+    expect(porNome).toMatchObject({ kind: "advance", next_node_id: "suporte-next" });
+  });
+
+  it("usa a saída no_reply quando o prazo vence", () => {
+    const result = processNode({
+      node,
+      edges,
+      enrollment: enrollment(),
+      lead: lead(),
+      clock,
+      waitElapsed: true,
+      actionEnqueued: true,
+      actionCompleted: true,
+    });
+    expect(result).toMatchObject({ kind: "advance", next_node_id: "timeout" });
   });
 });
 

@@ -5,6 +5,7 @@ import {
   waitConfigSchema,
   aiClassifyConfigSchema,
   matchReplyConfigSchema,
+  menuConfigSchema,
   actionConfigSchema,
   MAX_CONTEUDO_ITEMS,
   conditionConfigSchema,
@@ -40,6 +41,8 @@ describe('graph-schema', () => {
         'condition',
         'ai_classify',
         'match_reply',
+        'menu',
+        'attendant_route',
         'repeat',
         'collect',
         'skill',
@@ -1065,6 +1068,57 @@ describe('graph-schema', () => {
       expect(result.success).toBe(true);
     });
 
+    it('accepts a menu with stable option branches', () => {
+      const result = flowNodeSchema.safeParse({
+        id: 'menu-1',
+        type: 'menu',
+        label: 'Ajuda',
+        position: { x: 0, y: 0 },
+        config: {
+          prompt: 'Como podemos ajudar?',
+          options: [
+            { id: 'suporte', label: 'Suporte' },
+            { id: 'vendas', label: 'Vendas' },
+          ],
+          grace_timeout_ms: 900_000,
+        },
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it('accepts the attendant routing node with a bounded wait', () => {
+      const result = flowNodeSchema.safeParse({
+        id: 'route-1',
+        type: 'attendant_route',
+        label: 'Distribuir',
+        position: { x: 0, y: 0 },
+        config: { max_wait_minutes: 30 },
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it('rejects ambiguous menu options', () => {
+      const base = { prompt: 'Escolha', grace_timeout_ms: 900_000 };
+      expect(
+        menuConfigSchema.safeParse({
+          ...base,
+          options: [
+            { id: 'um', label: 'Suporte' },
+            { id: 'dois', label: 'suporte' },
+          ],
+        }).success,
+      ).toBe(false);
+      expect(
+        menuConfigSchema.safeParse({
+          ...base,
+          options: [
+            { id: 'um', label: '1' },
+            { id: 'dois', label: 'Vendas' },
+          ],
+        }).success,
+      ).toBe(false);
+    });
+
     it('rejects match_reply with grace below 15min', () => {
       const result = flowNodeSchema.safeParse({
         id: 'mr-1',
@@ -1951,6 +2005,42 @@ describe('graph-schema', () => {
         expect(branches[0]!.condition).toEqual({ type: 'branch', branch_id: 'br_sim' });
         expect(branches[2]!.condition).toEqual({ type: 'branch', branch_id: NO_REPLY_BRANCH_ID });
         expect(branches.at(-1)!.condition).toEqual({ type: 'always' });
+      });
+
+      it('menu: option branches + no_reply + always fallback', () => {
+        const node = flowNodeSchema.parse({
+          id: 'menu1',
+          type: 'menu',
+          label: 'Ajuda',
+          position: { x: 0, y: 0 },
+          config: {
+            prompt: 'Escolha',
+            options: [
+              { id: 'suporte', label: 'Suporte' },
+              { id: 'vendas', label: 'Vendas' },
+            ],
+            grace_timeout_ms: 900_000,
+          },
+        });
+        const branches = nodeBranches(node);
+        expect(branches.map((branch) => branch.id)).toEqual(['suporte', 'vendas', NO_REPLY_BRANCH_ID, FALLBACK_BRANCH_ID]);
+        expect(branches[0]!.condition).toEqual({ type: 'branch', branch_id: 'suporte' });
+        expect(branches[2]!.condition).toEqual({ type: 'branch', branch_id: NO_REPLY_BRANCH_ID });
+        expect(branches.at(-1)!.condition).toEqual({ type: 'always' });
+      });
+
+      it('attendant_route: confirmed and timeout branches + fallback', () => {
+        const node = flowNodeSchema.parse({
+          id: 'route1',
+          type: 'attendant_route',
+          label: 'Distribuir',
+          position: { x: 0, y: 0 },
+          config: { max_wait_minutes: 30 },
+        });
+        const branches = nodeBranches(node);
+        expect(branches.map((branch) => branch.id)).toEqual(['assigned', 'timeout', FALLBACK_BRANCH_ID]);
+        expect(branches[0]!.condition).toEqual({ type: 'branch', branch_id: 'assigned' });
+        expect(branches[1]!.condition).toEqual({ type: 'branch', branch_id: 'timeout' });
       });
     });
 
