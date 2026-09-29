@@ -14,11 +14,16 @@ export function ApiCallNode({ id, data, selected }: NodeProps<RFNode>) {
   const actionText = config.url ? `${config.method} ${config.url}` : "Executar ação";
 
   const customPreview = (
-    <div className="flex min-h-[38px] items-center justify-center rounded-lg border border-[#2d336b]/20 bg-slate-50 p-2.5 text-center dark:bg-surface-elevated">
-      <div className="flex items-center gap-1.5 rounded-full bg-[#10b981] px-3 py-1 text-xs font-bold text-white shadow-2xs">
-        <Play size={10} weight="fill" className="shrink-0" />
-        <span className="max-w-[200px] truncate">{actionText}</span>
-      </div>
+    <div className="flex items-center gap-2 p-1">
+      <span className="flex items-center gap-1.5 text-xs font-medium text-slate-700 dark:text-slate-300">
+        <span className="flex h-4 w-4 items-center justify-center rounded-full border border-slate-400 text-[10px] leading-none text-slate-500 font-bold">
+          +
+        </span>
+        Executar ação
+      </span>
+      <span className="max-w-[150px] truncate rounded-full bg-[#2563eb] px-2.5 py-0.5 text-[10px] font-bold text-white shadow-xs">
+        {actionText}
+      </span>
     </div>
   );
 

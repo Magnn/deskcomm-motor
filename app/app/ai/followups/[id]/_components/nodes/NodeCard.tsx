@@ -91,10 +91,10 @@ const HEADER_BG_BY_TYPE: Record<string, string> = {
   collect: "bg-[#ea580c]",
   ab_split: "bg-[#db2777]",
   ai_generic: "bg-[#16a34a]",
-  api_call: "bg-[#3730a3]",
+  api_call: "bg-[#2d336b]",
   notify_agent: "bg-[#2563eb]",
   add_note: "bg-[#ca8a04]",
-  attendant_route: "bg-[#c4b53f]",
+  attendant_route: "bg-[#0d9488]",
   end: "bg-[#52525b]",
 };
 
@@ -183,25 +183,7 @@ export function NodeCard({
         </Handle>
       )}
 
-      {/* Saída simples (Source) no lado DIREITO com círculo azul preenchido e seta branca ▶ */}
-      {showSource && branchRows === null && (
-        <Handle
-          type="source"
-          position={Position.Right}
-          className="!w-[16px] !h-[16px] !bg-blue-500 !border-2 !border-white !shadow-sm !rounded-full !-right-2 z-10"
-          style={handleTopStyle}
-        >
-          <svg
-            className="absolute left-1/2 top-1/2 -translate-x-[45%] -translate-y-1/2 pointer-events-none"
-            width="6"
-            height="8"
-            viewBox="0 0 8 10"
-            fill="none"
-          >
-            <path d="M8 5L0 10V0L8 5Z" fill="white" />
-          </svg>
-        </Handle>
-      )}
+
 
       {/* Cabeçalho sólido com botões de Duplicar e Editar (AcassIA parity) */}
       <div
@@ -413,34 +395,56 @@ export function NodeCard({
                     : rotulo
                 }
               >
-                <div className="flex min-w-0 items-center gap-1.5">
-                  {semEtapa ? (
-                    <Warning size={12} aria-hidden className="shrink-0" />
-                  ) : (
-                    <span
-                      aria-hidden
-                      className={cn(
-                        "h-1.5 w-1.5 shrink-0 rounded-full",
-                        branch.kind === "fallback" ? "bg-text-muted/50" : visual.handleClassName,
-                      )}
-                    />
-                  )}
-                  <span
-                    className={cn(
-                      "line-clamp-3 text-xs leading-tight font-medium break-words",
-                      branch.kind === "fallback" && "italic",
+                {visual.type === "ab_split" && branch.kind !== "fallback" ? (
+                  (() => {
+                    const match = rotulo.match(/^(.*?)\s*\((\d+(?:\.\d+)?%?)\)$/);
+                    if (match && match[1] && match[2]) {
+                      const pct = match[2];
+                      return (
+                        <div className="flex w-full min-w-0 items-center justify-between pr-2">
+                          <span className="text-xs font-semibold text-slate-800 dark:text-slate-100">{match[1]}</span>
+                          <span className="text-[11px] font-medium text-slate-500">{pct.endsWith("%") ? pct : pct + "%"}</span>
+                        </div>
+                      );
+                    }
+                    return (
+                      <div className="flex min-w-0 items-center gap-1.5">
+                        <span className="line-clamp-3 text-xs leading-tight font-medium break-words">{rotulo}</span>
+                      </div>
+                    );
+                  })()
+                ) : (
+                  <div className="flex min-w-0 items-center gap-1.5">
+                    {semEtapa ? (
+                      <Warning size={12} aria-hidden className="shrink-0" />
+                    ) : (
+                      <span
+                        aria-hidden
+                        className={cn(
+                          "h-1.5 w-1.5 shrink-0 rounded-full",
+                          branch.kind === "fallback" ? "bg-text-muted/50" : visual.handleClassName,
+                        )}
+                      />
                     )}
-                  >
-                    {rotulo}
-                  </span>
-                </div>
+                    <span
+                      className={cn(
+                        "line-clamp-3 text-xs leading-tight font-medium break-words",
+                        branch.kind === "fallback" && "italic",
+                      )}
+                    >
+                      {rotulo}
+                    </span>
+                  </div>
+                )}
                 <Handle
                   type="source"
                   id={branch.id}
                   position={Position.Right}
                   className={cn(
                     "!-right-2.5 !flex !h-5 !w-5 !items-center !justify-center !rounded-full !border-2 !border-white !shadow-sm !transition-all hover:!scale-125",
-                    visual.handleClassName,
+                    branch.id === "timeout" || branch.id === "sem_resposta"
+                      ? "!bg-[#ef4444] text-white"
+                      : "!bg-[#2563eb] text-white",
                   )}
                   style={{ top: "50%" }}
                 >
@@ -457,10 +461,7 @@ export function NodeCard({
         <Handle
           type="source"
           position={Position.Right}
-          className={cn(
-            "!-right-2.5 z-10 !flex !h-5 !w-5 !items-center !justify-center !rounded-full !border-2 !border-white !shadow-sm !transition-all hover:!scale-125",
-            visual.handleClassName,
-          )}
+          className="!-right-2.5 z-10 !flex !h-5 !w-5 !items-center !justify-center !rounded-full !border-2 !border-white !bg-[#2563eb] text-white !shadow-sm !transition-all hover:!scale-125"
           style={handleTopStyle}
         >
           <Play size={8} weight="fill" className="pointer-events-none ml-0.5 text-white" />
