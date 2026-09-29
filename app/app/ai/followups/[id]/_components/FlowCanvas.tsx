@@ -68,6 +68,7 @@ import { ApiCallNode } from "./nodes/ApiCallNode";
 import { NotifyAgentNode } from "./nodes/NotifyAgentNode";
 import { AddNoteNode } from "./nodes/AddNoteNode";
 import { CollectNode } from "./nodes/CollectNode";
+import { AgentNode } from "./nodes/AgentNode";
 
 const EMPTY_GRAPH: FlowGraph = { nodes: [], edges: [] };
 const DND_MIME = "application/x-followup-node-type";
@@ -91,6 +92,7 @@ const nodeTypes: NodeTypes = {
   notify_agent: NotifyAgentNode,
   add_note: AddNoteNode,
   collect: CollectNode,
+  agent: AgentNode,
 };
 
 interface Props {
@@ -225,6 +227,7 @@ function FlowCanvasInner({ flowId, initialData }: Props) {
     api_call: "#2563eb",
     notify_agent: "#ca8a04",
     add_note: "#d97706",
+    agent: "#8b5cf6",
     end: "#71717a",
   };
 
