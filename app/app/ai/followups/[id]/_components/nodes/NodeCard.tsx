@@ -7,7 +7,7 @@ import { Handle, Position } from "@xyflow/react";
 import type { FlowBranch } from "@/lib/followup/graph-schema";
 import { rotuloDoRamo } from "@/lib/followup/rotulo-do-ramo";
 import type { NomesDeValor } from "@/lib/followup/vocabulario";
-import { ArrowRight, Warning, WarningOctagon } from "@/lib/ui/icons";
+import { ArrowRight, Warning, WarningOctagon, Play, Copy, PencilSimple } from "@/lib/ui/icons";
 import { cn } from "@/lib/utils";
 import { useT } from "@/hooks/i18n/useT";
 import { useEtapasDoFluxo } from "../EtapasDoFluxo";
@@ -77,6 +77,24 @@ interface Props {
  * o texto inteiro no `title`. O canvas mede o card pelo DOM (`FlowCanvas` passa
  * `measured` ao auto-layout), então o card mais alto não desalinha nada.
  */
+const HEADER_BG_BY_TYPE: Record<string, string> = {
+  action: "bg-[#7c3aed]",
+  trigger: "bg-[#059669]",
+  wait: "bg-[#ea580c]",
+  condition: "bg-[#0284c7]",
+  ai_classify: "bg-[#7c3aed]",
+  match_reply: "bg-[#dc2626]",
+  menu: "bg-[#0891b2]",
+  repeat: "bg-[#0d9488]",
+  collect: "bg-[#ea580c]",
+  ab_split: "bg-[#db2777]",
+  ai_generic: "bg-[#c026d3]",
+  api_call: "bg-[#2563eb]",
+  notify_agent: "bg-[#ca8a04]",
+  add_note: "bg-[#d97706]",
+  end: "bg-[#52525b]",
+};
+
 export function NodeCard({
   id,
   visual,
@@ -94,20 +112,17 @@ export function NodeCard({
   const { nomes } = useEtapasDoFluxo();
   const Icon = visual.icon;
   const hasError = (errors?.length ?? 0) > 0;
-  // Uma saída só continua sendo a bolinha de sempre no rodapé: não há o que
-  // rotular, e mexer nisso quebraria o arrasto de todo nó não-ramificado.
   const branchRows = branches !== undefined && branches.length > 1 ? branches : null;
+  const headerBg = HEADER_BG_BY_TYPE[visual.type] ?? "bg-[#7c3aed]";
 
   return (
     <div
       className={cn(
-        "group relative w-72 rounded-2xl border bg-surface font-sans shadow-sm transition-all duration-200 select-none",
+        "group relative w-72 rounded-2xl border bg-surface font-sans shadow-md transition-all duration-200 select-none overflow-visible",
+        visual.type === "action" ? "border-purple-300 dark:border-purple-800" : "border-border",
         selected
           ? cn("ring-2 ring-offset-1 ring-offset-bg shadow-lg", visual.selectedClassName)
-          : cn("border-border hover:shadow-md hover:border-border-strong", visual.hoverBorderClassName),
-        // Simulação tem prioridade visual sobre seleção (o operador está de olho
-        // "onde a conversa está agora"), mas nunca some com o erro de publish —
-        // um nó não fica com cara de saudável só porque a simulação passou por ele.
+          : cn("hover:shadow-lg hover:border-border-strong", visual.hoverBorderClassName),
         simulating && !hasError && "ring-2 ring-success ring-offset-1 ring-offset-bg animate-pulse",
         hasError && "border-error ring-2 ring-error ring-offset-1 ring-offset-bg",
       )}
@@ -123,40 +138,77 @@ export function NodeCard({
           <WarningOctagon size={12} weight="fill" aria-hidden />
         </span>
       )}
+
+      {/* Entrada (Target) no lado ESQUERDO com seta estilizada */}
       {showTarget && (
-        <Handle type="target" position={Position.Top} className={cn(HANDLE_BASE, "!bg-surface !border-border-strong")} />
-      )}
-      <div className="flex items-center gap-2.5 border-b border-border/70 p-3">
-        <span
+        <Handle
+          type="target"
+          position={Position.Left}
           className={cn(
-            "flex h-8 w-8 shrink-0 items-center justify-center rounded-xl shadow-sm",
-            visual.chipClassName,
+            "!h-5 !w-5 !rounded-full !border-2 !bg-white !shadow-sm !flex !items-center !justify-center hover:!scale-125 !transition-all !-left-2.5",
+            visual.type === "action"
+              ? "!border-purple-600 dark:!border-purple-400"
+              : "!border-border-strong",
           )}
+          style={{ top: "50%" }}
         >
-          <Icon size={16} aria-hidden />
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold leading-tight text-text" title={label}>
+          <Play
+            size={8}
+            weight="fill"
+            className={cn(
+              "ml-0.5 pointer-events-none",
+              visual.type === "action" ? "text-purple-600 dark:text-purple-400" : "text-text-muted",
+            )}
+          />
+        </Handle>
+      )}
+
+      {/* Cabeçalho sólido com botões de Duplicar e Editar */}
+      <div className={cn("flex items-center justify-between px-3 py-2.5 rounded-t-2xl text-white shadow-xs", headerBg)}>
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          <Icon size={16} className="text-white shrink-0" aria-hidden />
+          <p className="truncate text-sm font-semibold leading-tight text-white tracking-wide" title={label}>
             {label}
           </p>
-          <span
-            className={cn(
-              "mt-0.5 inline-block rounded-sm px-1 text-[10px] font-medium tracking-wide uppercase",
-              visual.badgeClassName,
-            )}
+        </div>
+        <div className="flex items-center gap-1 shrink-0 ml-1.5">
+          <button
+            type="button"
+            className="p-1 rounded text-white/80 hover:text-white hover:bg-white/20 transition-colors"
+            title={t("Duplicar nó")}
+            onClick={(e) => {
+              e.stopPropagation();
+              window.dispatchEvent(new CustomEvent("flow-duplicate-node", { detail: { id } }));
+            }}
           >
-            {t(visual.paletteLabel)}
-          </span>
+            <Copy size={13} aria-hidden />
+          </button>
+          <button
+            type="button"
+            className="p-1 rounded text-white/80 hover:text-white hover:bg-white/20 transition-colors"
+            title={t("Editar nó")}
+            onClick={(e) => {
+              e.stopPropagation();
+              window.dispatchEvent(new CustomEvent("flow-select-node", { detail: { id } }));
+            }}
+          >
+            <PencilSimple size={13} aria-hidden />
+          </button>
         </div>
       </div>
-      <div className="p-3">
-        <p
-          className="line-clamp-2 break-words rounded-lg border border-border/60 bg-surface-elevated px-2.5 py-1.5 text-xs leading-relaxed text-text-muted"
-          title={subtitle}
-        >
-          {subtitle}
-        </p>
-      </div>
+
+      {/* Subtítulo somente quando não há itens de prévia */}
+      {(!previewRows || previewRows.length === 0) && (
+        <div className="p-3">
+          <p
+            className="line-clamp-2 break-words rounded-lg border border-border/60 bg-surface-elevated px-2.5 py-1.5 text-xs leading-relaxed text-text-muted"
+            title={subtitle}
+          >
+            {subtitle}
+          </p>
+        </div>
+      )}
+
       {hasError && (
         <p
           className="border-t border-error/30 px-3 py-1.5 text-xs leading-snug text-error-fg"
@@ -165,39 +217,110 @@ export function NodeCard({
           {errors![0]}
         </p>
       )}
+
+      {/* Itens de conteúdo (Cards especializados: Delay, Texto, Áudio, etc.) */}
       {previewRows !== undefined && previewRows.length > 0 && (
-        <ul className="flex flex-col gap-1.5 border-t border-border/70 p-3 pt-2.5" data-testid={`node-preview-${id}`}>
-          {previewRows.map((row, i) => (
-            <li
-              key={i}
-              className={cn(
-                "flex items-start gap-2 rounded-lg border px-2.5 py-1.5 transition-colors",
-                row.type === "delay"
-                  ? "border-rose-200/80 bg-rose-50/50 text-rose-700 dark:border-rose-900/40 dark:bg-rose-950/20 dark:text-rose-300"
-                  : row.type === "text"
-                    ? "border-sky-200/80 bg-sky-50/40 text-neutral-800 dark:border-sky-900/40 dark:bg-sky-950/20 dark:text-neutral-100"
-                    : "border-border/60 bg-surface-elevated text-text",
-              )}
-            >
-              {row.type === "text" ? (
-                <span className="font-serif font-bold text-xs text-sky-600 dark:text-sky-400 shrink-0 mt-0.5">T</span>
-              ) : (
-                <row.Icon
-                  size={13}
-                  aria-hidden
-                  className={cn(
-                    "shrink-0 mt-0.5",
-                    row.type === "delay" ? "text-rose-500" : "text-text-muted",
-                  )}
-                />
-              )}
-              <span className="line-clamp-2 text-xs leading-relaxed" title={row.texto}>
-                {row.texto}
-              </span>
-            </li>
-          ))}
+        <ul className="flex flex-col gap-2 p-3" data-testid={`node-preview-${id}`}>
+          {previewRows.map((row, i) => {
+            if (row.type === "delay") {
+              return (
+                <li
+                  key={i}
+                  className="flex items-center gap-2 rounded-lg border border-dashed border-rose-300 dark:border-rose-800 bg-[#fff5f5] dark:bg-rose-950/30 px-3 py-2 text-rose-800 dark:text-rose-200 shadow-xs"
+                >
+                  <row.Icon size={14} aria-hidden className="shrink-0 text-rose-500" />
+                  <span className="text-xs font-medium" title={row.texto}>
+                    {row.texto}
+                  </span>
+                </li>
+              );
+            }
+            if (row.type === "text") {
+              return (
+                <li
+                  key={i}
+                  className="flex items-start gap-2.5 rounded-lg border border-dashed border-sky-300 dark:border-sky-800 bg-[#f0f9ff] dark:bg-sky-950/30 p-3 shadow-xs"
+                >
+                  <span className="font-serif font-bold text-sm text-sky-600 dark:text-sky-400 shrink-0 leading-none select-none mt-0.5">
+                    T
+                  </span>
+                  <div
+                    className="text-xs text-neutral-800 dark:text-neutral-200 whitespace-pre-wrap leading-relaxed italic"
+                    title={row.texto}
+                  >
+                    {row.texto}
+                  </div>
+                </li>
+              );
+            }
+            if (row.type === "audio") {
+              return (
+                <li
+                  key={i}
+                  className="flex items-center gap-2 rounded-lg border border-dashed border-purple-300 dark:border-purple-800 bg-[#faf5ff] dark:bg-purple-950/30 px-3 py-2 text-purple-800 dark:text-purple-200 shadow-xs"
+                >
+                  <row.Icon size={14} aria-hidden className="shrink-0 text-purple-600" />
+                  <span className="text-xs font-medium" title={row.texto}>
+                    {row.texto === "Áudio (nota de voz)" ? "Enviando áudio gravado" : (row.texto || "Enviando áudio gravado")}
+                  </span>
+                </li>
+              );
+            }
+            if (row.type === "image") {
+              return (
+                <li
+                  key={i}
+                  className="flex items-center gap-2 rounded-lg border border-dashed border-amber-300 dark:border-amber-800 bg-[#fffbeb] dark:bg-amber-950/30 px-3 py-2 text-amber-800 dark:text-amber-200 shadow-xs"
+                >
+                  <row.Icon size={14} aria-hidden className="shrink-0 text-amber-600" />
+                  <span className="text-xs font-medium" title={row.texto}>
+                    {row.texto || "Enviando imagem"}
+                  </span>
+                </li>
+              );
+            }
+            if (row.type === "video") {
+              return (
+                <li
+                  key={i}
+                  className="flex items-center gap-2 rounded-lg border border-dashed border-emerald-300 dark:border-emerald-800 bg-[#ecfdf5] dark:bg-emerald-950/30 px-3 py-2 text-emerald-800 dark:text-emerald-200 shadow-xs"
+                >
+                  <row.Icon size={14} aria-hidden className="shrink-0 text-emerald-600" />
+                  <span className="text-xs font-medium" title={row.texto}>
+                    {row.texto || "Enviando vídeo"}
+                  </span>
+                </li>
+              );
+            }
+            if (row.type === "document") {
+              return (
+                <li
+                  key={i}
+                  className="flex items-center gap-2 rounded-lg border border-dashed border-blue-300 dark:border-blue-800 bg-[#eff6ff] dark:bg-blue-950/30 px-3 py-2 text-blue-800 dark:text-blue-200 shadow-xs"
+                >
+                  <row.Icon size={14} aria-hidden className="shrink-0 text-blue-600" />
+                  <span className="text-xs font-medium" title={row.texto}>
+                    {row.texto || "Enviando documento"}
+                  </span>
+                </li>
+              );
+            }
+            return (
+              <li
+                key={i}
+                className="flex items-start gap-2 rounded-lg border border-border/60 bg-surface-elevated px-2.5 py-1.5 text-text"
+              >
+                <row.Icon size={13} aria-hidden className="shrink-0 mt-0.5 text-text-muted" />
+                <span className="line-clamp-2 text-xs leading-relaxed" title={row.texto}>
+                  {row.texto}
+                </span>
+              </li>
+            );
+          })}
         </ul>
       )}
+
+      {/* Ramos para nós de saída múltipla */}
       {branchRows !== null && (
         <ul className="flex flex-col gap-1.5 border-t border-border/70 p-3 pt-2.5" data-testid={`node-branches-${id}`}>
           {branchRows.map((branch) => {
@@ -233,9 +356,6 @@ export function NodeCard({
                       )}
                     />
                   )}
-                  {/* Três linhas, não duas: a frase da regra interpola dado do
-                      usuário («Etapa · Funil»), e o que estourava era justamente o
-                      fim — o nome do funil, que existe para desambiguar. */}
                   <span
                     className={cn(
                       "line-clamp-3 break-words text-xs leading-tight font-medium",
@@ -249,28 +369,33 @@ export function NodeCard({
                   type="source"
                   id={branch.id}
                   position={Position.Right}
-                  // Uma bolinha por LINHA: a saída sai ao lado do seu próprio rótulo,
-                  // que é o que torna "qual aresta sai de qual regra" visível. No
-                  // rodapé elas ficariam lado a lado, sem espaço para nome nenhum.
-                  className={cn(HANDLE_BASE, "!-right-[18px]", visual.handleClassName)}
+                  className={cn(
+                    "!h-5 !w-5 !rounded-full !border-2 !border-white !shadow-sm !flex !items-center !justify-center hover:!scale-125 !transition-all !-right-2.5",
+                    visual.handleClassName,
+                  )}
                   style={{ top: "50%" }}
-                />
+                >
+                  <Play size={8} weight="fill" className="text-white ml-0.5 pointer-events-none" />
+                </Handle>
               </li>
             );
           })}
         </ul>
       )}
+
+      {/* Saída (Source) única no lado DIREITO com seta estilizada */}
       {showSource && branchRows === null && (
-        <div className="relative flex items-center justify-end rounded-b-2xl border-t border-border/70 bg-surface-elevated/60 px-3 py-2">
-          <span className="flex items-center gap-1 text-[11px] font-medium text-text-muted">
-            {t("Continuar")}
-            <ArrowRight size={11} aria-hidden />
-          </span>
-          {/* Posição (Bottom, centralizada) é a mesma de sempre — só o estilo mudou.
-              Mover o handle para acompanhar visualmente o rótulo "Continuar" mexeria
-              no ponto onde as arestas já existentes se ancoram. */}
-          <Handle type="source" position={Position.Bottom} className={cn(HANDLE_BASE, visual.handleClassName)} />
-        </div>
+        <Handle
+          type="source"
+          position={Position.Right}
+          className={cn(
+            "!h-5 !w-5 !rounded-full !border-2 !border-white !shadow-sm !flex !items-center !justify-center hover:!scale-125 !transition-all !-right-2.5",
+            visual.handleClassName,
+          )}
+          style={{ top: "50%" }}
+        >
+          <Play size={8} weight="fill" className="text-white ml-0.5 pointer-events-none" />
+        </Handle>
       )}
     </div>
   );
