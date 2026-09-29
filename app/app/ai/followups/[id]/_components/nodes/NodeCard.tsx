@@ -95,6 +95,24 @@ const HEADER_BG_BY_TYPE: Record<string, string> = {
   end: "bg-[#52525b]",
 };
 
+const BORDER_COLOR_BY_TYPE: Record<string, string> = {
+  action: "!border-purple-600 text-purple-600",
+  trigger: "!border-emerald-600 text-emerald-600",
+  wait: "!border-orange-500 text-orange-500",
+  condition: "!border-sky-600 text-sky-600",
+  ai_classify: "!border-purple-600 text-purple-600",
+  match_reply: "!border-red-600 text-red-600",
+  menu: "!border-cyan-600 text-cyan-600",
+  repeat: "!border-teal-600 text-teal-600",
+  collect: "!border-orange-500 text-orange-500",
+  ab_split: "!border-pink-600 text-pink-600",
+  ai_generic: "!border-fuchsia-600 text-fuchsia-600",
+  api_call: "!border-blue-600 text-blue-600",
+  notify_agent: "!border-yellow-600 text-yellow-600",
+  add_note: "!border-amber-600 text-amber-600",
+  end: "!border-zinc-500 text-zinc-500",
+};
+
 export function NodeCard({
   id,
   visual,
@@ -114,6 +132,8 @@ export function NodeCard({
   const hasError = (errors?.length ?? 0) > 0;
   const branchRows = branches !== undefined && branches.length > 1 ? branches : null;
   const headerBg = HEADER_BG_BY_TYPE[visual.type] ?? "bg-[#7c3aed]";
+  const hasContentItems = previewRows !== undefined && previewRows.length > 0;
+  const handleTopStyle = hasContentItems ? { top: "54px" } : { top: "50%" };
 
   return (
     <div
@@ -145,21 +165,12 @@ export function NodeCard({
           type="target"
           position={Position.Left}
           className={cn(
-            "!h-5 !w-5 !rounded-full !border-2 !bg-white !shadow-sm !flex !items-center !justify-center hover:!scale-125 !transition-all !-left-2.5",
-            visual.type === "action"
-              ? "!border-purple-600 dark:!border-purple-400"
-              : "!border-border-strong",
+            "!h-5 !w-5 !rounded-full !border-2 !bg-white !shadow-sm !flex !items-center !justify-center hover:!scale-125 !transition-all !-left-2.5 z-10",
+            BORDER_COLOR_BY_TYPE[visual.type] ?? "!border-purple-600 text-purple-600",
           )}
-          style={{ top: "50%" }}
+          style={handleTopStyle}
         >
-          <Play
-            size={8}
-            weight="fill"
-            className={cn(
-              "ml-0.5 pointer-events-none",
-              visual.type === "action" ? "text-purple-600 dark:text-purple-400" : "text-text-muted",
-            )}
-          />
+          <Play size={8} weight="fill" className="ml-0.5 pointer-events-none" />
         </Handle>
       )}
 
@@ -389,10 +400,10 @@ export function NodeCard({
           type="source"
           position={Position.Right}
           className={cn(
-            "!h-5 !w-5 !rounded-full !border-2 !border-white !shadow-sm !flex !items-center !justify-center hover:!scale-125 !transition-all !-right-2.5",
+            "!h-5 !w-5 !rounded-full !border-2 !border-white !shadow-sm !flex !items-center !justify-center hover:!scale-125 !transition-all !-right-2.5 z-10",
             visual.handleClassName,
           )}
-          style={{ top: "50%" }}
+          style={handleTopStyle}
         >
           <Play size={8} weight="fill" className="text-white ml-0.5 pointer-events-none" />
         </Handle>

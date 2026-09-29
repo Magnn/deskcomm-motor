@@ -193,6 +193,24 @@ function FlowCanvasInner({ flowId, initialData }: Props) {
   // Num nó que ramifica o texto vem do RAMO (o rótulo que o usuário leu na
   // bolinha de onde arrastou), não da condição crua: `conditionLabel` sozinho
   // mostraria o id do ramo, que não é palavra nenhuma para quem não programa.
+const EDGE_COLOR_BY_TYPE: Record<string, string> = {
+  action: "#7c3aed",
+  trigger: "#059669",
+  wait: "#ea580c",
+  condition: "#0284c7",
+  ai_classify: "#7c3aed",
+  match_reply: "#dc2626",
+  menu: "#0891b2",
+  repeat: "#0d9488",
+  collect: "#ea580c",
+  ab_split: "#db2777",
+  ai_generic: "#c026d3",
+  api_call: "#2563eb",
+  notify_agent: "#ca8a04",
+  add_note: "#d97706",
+  end: "#71717a",
+};
+
   const edgesForRender = useMemo(
     () =>
       edges.map((e) => {
@@ -203,11 +221,20 @@ function FlowCanvasInner({ flowId, initialData }: Props) {
               (b) => b.id === branchIdForCondition(toFlowNode(source), condition),
             )
           : undefined;
+        const sourceType = source?.type ?? "action";
+        const strokeColor = EDGE_COLOR_BY_TYPE[sourceType] ?? "#7c3aed";
+        const isSelected = e.id === selectedEdgeId;
+
         return {
           ...e,
-          type: "smoothstep" as const,
-          label: branch ? t(rotuloDoRamo(branch, nomes)) : t(conditionLabel(condition)),
-          selected: e.id === selectedEdgeId,
+          type: "bezier" as const,
+          label: branch && branch.kind !== "fallback" ? t(rotuloDoRamo(branch, nomes)) : undefined,
+          style: {
+            stroke: strokeColor,
+            strokeWidth: isSelected ? 4 : 3,
+            ...(isSelected ? { filter: `drop-shadow(0 0 6px ${strokeColor}aa)` } : {}),
+          },
+          selected: isSelected,
         };
       }),
     [edges, nodes, selectedEdgeId, t, nomes],
@@ -423,8 +450,12 @@ function FlowCanvasInner({ flowId, initialData }: Props) {
             onNodeClick={onNodeClick}
             onEdgeClick={onEdgeClick}
             onPaneClick={onPaneClick}
-            defaultEdgeOptions={{ type: "smoothstep" }}
-            connectionLineType={ConnectionLineType.SmoothStep}
+            defaultEdgeOptions={{
+              type: "bezier",
+              style: { strokeWidth: 3, stroke: "#7c3aed" },
+            }}
+            connectionLineType={ConnectionLineType.Bezier}
+            connectionLineStyle={{ stroke: "#7c3aed", strokeWidth: 3 }}
             // Enquadrar só o que já existia ao abrir. Num fluxo vazio o XYFlow
             // guarda o enquadramento para quando o PRIMEIRO nó for medido — e
             // enquadrar um nó só é ampliá-lo ao zoom máximo (2x): quem acabou de
