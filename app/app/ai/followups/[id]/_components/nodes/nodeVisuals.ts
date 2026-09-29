@@ -70,7 +70,7 @@ export function descreverItemDeConteudo(item: ConteudoItem, t: (texto: string) =
     case "contact":
       return item.name;
     case "delay":
-      return `${t(TIPOS_DE_ITEM_DE_CONTEUDO.delay)} ${item.seconds}s`;
+      return `Delay de ${item.seconds} Segundos`;
   }
 }
 
@@ -176,7 +176,7 @@ export function configPadraoDaAcao(triggerKind?: string): FlowNode["config"] {
   if (triggerKind === "inbound_after_silence") {
     return { mode: "text", body: "Configure esta mensagem." };
   }
-  return { mode: "ai_message", prompt_hint: "Configure esta etapa." };
+  return { mode: "content", items: [] };
 }
 
 export const NODE_VISUALS: Record<NodeType, NodeVisual> = {
@@ -295,8 +295,8 @@ export const NODE_VISUALS: Record<NodeType, NodeVisual> = {
     paletteLabel: "Conteúdo",
     paletteDesc: "Enviar mensagem de texto, imagem...",
     icon: PaperPlaneTilt,
-    ...visualDoMatiz("indigo"),
-    defaultLabel: "Enviar mensagem",
+    ...visualDoMatiz("purple"),
+    defaultLabel: "Conteúdo",
     defaultConfig: () => configPadraoDaAcao(),
   },
   end: {

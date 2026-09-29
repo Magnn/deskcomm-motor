@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -15,16 +17,11 @@ import { actionConfigSchema, type ConteudoItem } from "@/lib/followup/graph-sche
 import { MODOS_DA_ACAO, opcoes, type ModoDaAcao } from "@/lib/followup/vocabulario";
 import { useMessageTemplates } from "@/hooks/inbox/useMessageTemplates";
 import { useT } from "@/hooks/i18n/useT";
+import { Check, PencilSimple, Trash } from "@/lib/ui/icons";
 
 import { ConteudoItemsEditor } from "./ConteudoItemsEditor";
 import type { ConfigOf } from "./shared";
 
-/**
- * O seletor de modelo, no lugar dos dois `<Input>` que pediam um UUID colado à
- * mão. Trata os três estados em vez de fingir que a lista sempre chega:
- * carregando, vazia e erro — porque um seletor vazio sem explicação é o mesmo
- * beco sem saída que o campo de UUID era, só que mais bonito.
- */
 function SeletorDeModelo({
   id,
   valor,
@@ -80,14 +77,20 @@ export function ActionForm({
   config,
   flowId,
   onChange,
+  nodeLabel,
+  onLabelChange,
+  onDelete,
 }: {
   config: ConfigOf<"action">;
   /** Dono da mídia do modo `content` — ver `ConteudoItemsEditor`. */
   flowId: string;
   onChange: (c: ConfigOf<"action">) => void;
+  nodeLabel?: string;
+  onLabelChange?: (label: string) => void;
+  onDelete?: () => void;
 }) {
   const t = useT();
-  const [mode, setMode] = useState(config.mode);
+  const [mode, setMode] = useState<ModoDaAcao>(config.mode ?? "content");
   const [body, setBody] = useState(config.mode === "text" ? config.body : "");
   const [promptHint, setPromptHint] = useState(config.mode === "ai_message" ? config.prompt_hint : "");
   const [fallbackTemplateId, setFallbackTemplateId] = useState(
@@ -96,6 +99,11 @@ export function ActionForm({
   const [templateId, setTemplateId] = useState(config.mode === "template" ? config.template_id : "");
   const [items, setItems] = useState<ConteudoItem[]>(config.mode === "content" ? config.items : []);
   const [error, setError] = useState<string | null>(null);
+
+  // Edição inline do título (lápis roxo)
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [tempTitle, setTempTitle] = useState(nodeLabel || "Conteúdo");
+  const [savedFeedback, setSavedFeedback] = useState(false);
 
   const commit = (next: {
     mode: ModoDaAcao;
@@ -128,88 +136,63 @@ export function ActionForm({
 
   const fields = { body, promptHint, fallbackTemplateId, templateId, items };
 
+  const handleSave = () => {
+    commit({ mode, ...fields });
+    setSavedFeedback(true);
+    setTimeout(() => setSavedFeedback(false), 2000);
+  };
+
+  const salvarTitulo = () => {
+    if (tempTitle.trim().length > 0 && onLabelChange) {
+      onLabelChange(tempTitle.trim());
+    }
+    setEditingTitle(false);
+  };
+
   return (
-    <div className="space-y-3">
-      <div className="space-y-2">
-        <Label htmlFor="action-mode">{t("Como escrever a mensagem")}</Label>
-        <Select
-          value={mode}
-          onValueChange={(v) => {
-            const next = v as ModoDaAcao;
-            setMode(next);
-            commit({ mode: next, ...fields });
+    <div className="flex flex-col gap-4 font-sans">
+      {/* Cabeçalho estilo Lalla: Título à esquerda, Lápis roxo à direita */}
+      <div className="flex items-center justify-between pb-3 border-b border-neutral-200 dark:border-neutral-800">
+        {editingTitle ? (
+          <div className="flex items-center gap-1.5 flex-1 mr-2">
+            <Input
+              value={tempTitle}
+              onChange={(e) => setTempTitle(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") salvarTitulo();
+                if (e.key === "Escape") setEditingTitle(false);
+              }}
+              autoFocus
+              className="h-8 text-sm font-semibold"
+            />
+            <Button size="sm" variant="ghost" className="h-8 px-2" onClick={salvarTitulo}>
+              <Check size={14} weight="bold" />
+            </Button>
+          </div>
+        ) : (
+          <h2 className="text-base font-semibold text-neutral-800 dark:text-neutral-100 tracking-tight">
+            {nodeLabel || t("Conteúdo")}
+          </h2>
+        )}
+
+        <button
+          type="button"
+          onClick={() => {
+            if (editingTitle) salvarTitulo();
+            else {
+              setTempTitle(nodeLabel || "Conteúdo");
+              setEditingTitle(true);
+            }
           }}
+          className="flex h-7 w-7 items-center justify-center rounded-md text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/40 border border-purple-200 dark:border-purple-800/60 transition-colors"
+          title={t("Editar nome do nó")}
         >
-          <SelectTrigger id="action-mode">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {opcoes(MODOS_DA_ACAO).map(({ valor, rotulo }) => (
-              <SelectItem key={valor} value={valor}>
-                {t(rotulo)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          <PencilSimple size={14} weight="bold" aria-hidden />
+        </button>
       </div>
 
-      {mode === "text" ? (
-        <div className="space-y-2">
-          <Label htmlFor="action-body">{t("Texto enviado ao contato")}</Label>
-          <Textarea
-            id="action-body"
-            maxLength={4000}
-            value={body}
-            onChange={(e) => {
-              setBody(e.target.value);
-              commit({ mode, ...fields, body: e.target.value });
-            }}
-          />
-          <p className="text-xs text-text-muted">
-            {t("Sai exatamente assim, sem IA. No laço,")} {t("{{volta}}")} e {t("{{voltas}}")} {t("viram o número da volta.")}
-          </p>
-        </div>
-      ) : mode === "ai_message" ? (
-        <>
-          <div className="space-y-2">
-            <Label htmlFor="action-prompt-hint">{t("Instrução para a IA")}</Label>
-            <Textarea
-              id="action-prompt-hint"
-              maxLength={1000}
-              value={promptHint}
-              onChange={(e) => {
-                setPromptHint(e.target.value);
-                commit({ mode, ...fields, promptHint: e.target.value });
-              }}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="action-fallback">{t("Se a IA não conseguir escrever, mandar este modelo")}</Label>
-            <SeletorDeModelo
-              id="action-fallback"
-              valor={fallbackTemplateId}
-              permiteVazio
-              onChange={(v) => {
-                setFallbackTemplateId(v);
-                commit({ mode, ...fields, fallbackTemplateId: v });
-              }}
-            />
-          </div>
-        </>
-      ) : mode === "template" ? (
-        <div className="space-y-2">
-          <Label htmlFor="action-template-id">{t("Modelo de mensagem")}</Label>
-          <SeletorDeModelo
-            id="action-template-id"
-            valor={templateId}
-            permiteVazio={false}
-            onChange={(v) => {
-              setTemplateId(v);
-              commit({ mode, ...fields, templateId: v });
-            }}
-          />
-        </div>
-      ) : (
+      {/* Modo de conteúdo (Lalla padrão) */}
+      {mode === "content" ? (
         <ConteudoItemsEditor
           flowId={flowId}
           items={items}
@@ -218,8 +201,121 @@ export function ActionForm({
             commit({ mode, ...fields, items: next });
           }}
         />
+      ) : (
+        <div className="space-y-3">
+          <div className="space-y-2">
+            <Label htmlFor="action-mode">{t("Como escrever a mensagem")}</Label>
+            <Select
+              value={mode}
+              onValueChange={(v) => {
+                const next = v as ModoDaAcao;
+                setMode(next);
+                commit({ mode: next, ...fields });
+              }}
+            >
+              <SelectTrigger id="action-mode">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {opcoes(MODOS_DA_ACAO).map(({ valor, rotulo }) => (
+                  <SelectItem key={valor} value={valor}>
+                    {t(rotulo)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {mode === "text" && (
+            <div className="space-y-2">
+              <Label htmlFor="action-body">{t("Texto enviado ao contato")}</Label>
+              <Textarea
+                id="action-body"
+                maxLength={4000}
+                value={body}
+                onChange={(e) => {
+                  setBody(e.target.value);
+                  commit({ mode, ...fields, body: e.target.value });
+                }}
+              />
+            </div>
+          )}
+
+          {mode === "ai_message" && (
+            <div className="space-y-2">
+              <Label htmlFor="action-prompt-hint">{t("Instrução para a IA")}</Label>
+              <Textarea
+                id="action-prompt-hint"
+                maxLength={1000}
+                value={promptHint}
+                onChange={(e) => {
+                  setPromptHint(e.target.value);
+                  commit({ mode, ...fields, promptHint: e.target.value });
+                }}
+              />
+              <Label htmlFor="action-fallback">{t("Modelo de contingência")}</Label>
+              <SeletorDeModelo
+                id="action-fallback"
+                valor={fallbackTemplateId}
+                permiteVazio
+                onChange={(v) => {
+                  setFallbackTemplateId(v);
+                  commit({ mode, ...fields, fallbackTemplateId: v });
+                }}
+              />
+            </div>
+          )}
+
+          {mode === "template" && (
+            <div className="space-y-2">
+              <Label htmlFor="action-template-id">{t("Modelo de mensagem")}</Label>
+              <SeletorDeModelo
+                id="action-template-id"
+                valor={templateId}
+                permiteVazio={false}
+                onChange={(v) => {
+                  setTemplateId(v);
+                  commit({ mode, ...fields, templateId: v });
+                }}
+              />
+            </div>
+          )}
+        </div>
       )}
+
       {error && <p className="text-xs text-error-fg">{error}</p>}
+
+      {/* Rodapé: Botão Salvar Dados Verde (Lalla) */}
+      <div className="mt-auto pt-4 space-y-2">
+        <button
+          type="button"
+          onClick={handleSave}
+          className="w-full py-3 px-4 rounded-xl bg-[#68a700] hover:bg-[#5b9200] active:scale-[0.99] text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 select-none"
+        >
+          {savedFeedback ? (
+            <>
+              <Check size={16} weight="bold" aria-hidden />
+              <span>{t("Dados Salvos!")}</span>
+            </>
+          ) : (
+            <span>{t("Salvar Dados")}</span>
+          )}
+        </button>
+
+        {onDelete && (
+          <div className="text-center pt-1">
+            <button
+              type="button"
+              data-testid="delete-node"
+              onClick={onDelete}
+              className="text-xs text-neutral-400 hover:text-rose-600 transition-colors inline-flex items-center gap-1"
+            >
+              <Trash size={12} aria-hidden />
+              {t("Excluir nó")}
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -266,8 +266,9 @@ function FlowCanvasInner({ flowId, initialData }: Props) {
         data: { label: t(visual.defaultLabel), config },
       };
       setNodes((nds) => nds.concat(newNode));
+      setSelectedNodeId(id);
     },
-    [setNodes, t, triggerKind],
+    [setNodes, setSelectedNodeId, t, triggerKind],
   );
 
   const onPaletteAdd = useCallback(

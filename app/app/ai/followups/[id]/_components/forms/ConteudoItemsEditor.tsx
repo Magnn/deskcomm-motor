@@ -1,21 +1,20 @@
 "use client";
 /**
- * O editor de itens do modo `content` do nó Ação ("Conteúdo"): uma lista
- * ORDENADA de texto/mídia/contato/pausa, cada item com seu próprio card.
- *
- * Reordenar é por BOTÃO (cima/baixo), não arrastar — mesmo resultado
- * (mudar a ordem), bem mais simples de fazer acessível e sem depender de uma
- * biblioteca de drag-and-drop só para isto. Trocar por arrastar depois não
- * pede mudança de schema, só de interação.
- *
- * Upload de mídia é POR FLUXO (`useUploadFlowContentMedia`), não por
- * conversa: o arquivo existe antes de qualquer conversa acionar este fluxo.
+ * Editor de itens do nó "Conteúdo" no padrão visual da referência Lalla.
+ * Grade 2x3 de tipos no topo, divisor "Conteúdos", lista de cards
+ * com controle de slider (Delay), Campos Personalizados (Texto), upload de mídia,
+ * pill badges coloridos no rodapé de cada card e ações de duplicar (+) e excluir (lixeira).
  */
 import * as React from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { useUploadFlowContentMedia } from "@/hooks/ai/useUploadFlowContentMedia";
 import { useT } from "@/hooks/i18n/useT";
 import {
@@ -24,51 +23,77 @@ import {
   type ConteudoItemType,
 } from "@/lib/followup/graph-schema";
 import { TIPOS_DE_ITEM_DE_CONTEUDO_EM_CONSTRUCAO } from "@/lib/followup/validate-publish";
-import { TIPOS_DE_ITEM_DE_CONTEUDO } from "@/lib/followup/vocabulario";
-import { CaretDown, CaretUp, Trash, Warning } from "@/lib/ui/icons";
+import {
+  Clock,
+  Eye,
+  FileText,
+  ImageIcon,
+  Microphone,
+  Plus,
+  Trash,
+  VideoCamera,
+  Warning,
+} from "@/lib/ui/icons";
 import { cn } from "@/lib/utils";
-
-import { ICONES_DE_ITEM_DE_CONTEUDO as ICONE_DO_TIPO } from "../nodes/nodeVisuals";
 
 const EM_CONSTRUCAO = new Set<ConteudoItemType>(TIPOS_DE_ITEM_DE_CONTEUDO_EM_CONSTRUCAO);
 
-const TIPOS_PARA_ADICIONAR: readonly ConteudoItemType[] = [
-  "text",
-  "image",
-  "video",
-  "audio",
-  "delay",
-  "contact",
-  "document",
+const GRADE_LALLA = [
+  {
+    type: "text" as const,
+    label: "Texto",
+    color: "#0284c7",
+    textColor: "text-sky-600 dark:text-sky-400",
+    icon: (
+      <span className="flex h-5 w-5 items-center justify-center font-serif text-lg font-bold leading-none text-sky-600 dark:text-sky-400">
+        T
+      </span>
+    ),
+  },
+  {
+    type: "image" as const,
+    label: "Imagem",
+    color: "#f97316",
+    textColor: "text-orange-600 dark:text-orange-400",
+    icon: <ImageIcon size={20} className="text-orange-500" weight="bold" aria-hidden />,
+  },
+  {
+    type: "audio" as const,
+    label: "Áudio",
+    color: "#9333ea",
+    textColor: "text-purple-600 dark:text-purple-400",
+    icon: <Microphone size={20} className="text-purple-600" weight="bold" aria-hidden />,
+  },
+  {
+    type: "video" as const,
+    label: "Vídeo",
+    color: "#16a34a",
+    textColor: "text-emerald-600 dark:text-emerald-400",
+    icon: <VideoCamera size={20} className="text-emerald-600" weight="bold" aria-hidden />,
+  },
+  {
+    type: "document" as const,
+    label: "Documento",
+    color: "#2563eb",
+    textColor: "text-blue-600 dark:text-blue-400",
+    icon: <FileText size={20} className="text-blue-600" weight="bold" aria-hidden />,
+  },
+  {
+    type: "delay" as const,
+    label: "Delay",
+    color: "#e11d48",
+    textColor: "text-rose-600 dark:text-rose-400",
+    icon: <Clock size={20} className="text-rose-500" weight="bold" aria-hidden />,
+  },
+] as const;
+
+const CAMPOS_PERSONALIZADOS = [
+  { tag: "{{nome}}", label: "Nome do Contato" },
+  { tag: "{{primeiro_nome}}", label: "Primeiro Nome" },
+  { tag: "{{telefone}}", label: "Telefone" },
+  { tag: "{{email}}", label: "E-mail" },
+  { tag: "{{etapa}}", label: "Etapa Atual" },
 ];
-
-/**
- * Uma cor por tipo de item — mesma ideia do `HUES` de `nodeVisuals.ts`, um
- * degrau mais fundo (item DENTRO do nó Conteúdo, não o nó). A faixa lateral
- * colorida é o que faz uma lista de 5 itens ler-se "de relance" — sem ela,
- * cinco cards brancos empilhados são indistinguíveis até alguém ler o rótulo
- * de cada um. Inspirado no `CardList` da AcassIA, ver
- * [[acassia-frontend-fluxos-e-agente]].
- */
-/**
- * "Áudio (nota de voz)" não cabe numa coluna de grade (17 chars num botão de
- * ~70px) — quebrava em 3 linhas e vazava por cima do botão vizinho, MEDIDO
- * (`evidence/_visual-proof-redesign/01b-grade-de-tipos.png`, sessão da
- * prova visual do redesenho). O rótulo completo continua no seletor de modo e
- * no cabeçalho de cada item da lista (`TIPOS_DE_ITEM_DE_CONTEUDO`) — só o
- * BOTÃO da grade, que é ícone + uma palavra, ganha o rótulo curto.
- */
-const ROTULO_CURTO_DA_GRADE: Partial<Record<ConteudoItemType, string>> = { audio: "Áudio" };
-
-const COR_DO_ITEM: Record<ConteudoItemType, { faixa: string; chip: string }> = {
-  text: { faixa: "bg-blue-500", chip: "bg-blue-500/10 text-blue-600 dark:text-blue-400" },
-  image: { faixa: "bg-emerald-500", chip: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" },
-  video: { faixa: "bg-violet-500", chip: "bg-violet-500/10 text-violet-600 dark:text-violet-400" },
-  audio: { faixa: "bg-orange-500", chip: "bg-orange-500/10 text-orange-600 dark:text-orange-400" },
-  document: { faixa: "bg-indigo-500", chip: "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400" },
-  contact: { faixa: "bg-pink-500", chip: "bg-pink-500/10 text-pink-600 dark:text-pink-400" },
-  delay: { faixa: "bg-cyan-500", chip: "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400" },
-};
 
 function itemPadrao(type: ConteudoItemType): ConteudoItem {
   switch (type) {
@@ -85,7 +110,7 @@ function itemPadrao(type: ConteudoItemType): ConteudoItem {
     case "contact":
       return { type: "contact", name: "", phone_number: "" };
     case "delay":
-      return { type: "delay", seconds: 3 };
+      return { type: "delay", seconds: 2 };
   }
 }
 
@@ -99,17 +124,19 @@ interface Props {
 export function ConteudoItemsEditor({ flowId, items, onChange, disabled }: Props) {
   const t = useT();
 
-  const atualizar = (i: number, item: ConteudoItem) => onChange(items.map((it, idx) => (idx === i ? item : it)));
+  const atualizar = (i: number, item: ConteudoItem) =>
+    onChange(items.map((it, idx) => (idx === i ? item : it)));
+
   const remover = (i: number) => onChange(items.filter((_, idx) => idx !== i));
-  const mover = (i: number, dir: -1 | 1) => {
-    const j = i + dir;
-    if (j < 0 || j >= items.length) return;
+
+  const duplicar = (i: number) => {
+    if (items.length >= MAX_CONTEUDO_ITEMS) return;
     const next = [...items];
-    const tmp = next[i]!;
-    next[i] = next[j]!;
-    next[j] = tmp;
+    const clone = JSON.parse(JSON.stringify(items[i])) as ConteudoItem;
+    next.splice(i + 1, 0, clone);
     onChange(next);
   };
+
   const adicionar = (type: ConteudoItemType) => {
     if (items.length >= MAX_CONTEUDO_ITEMS) return;
     onChange([...items, itemPadrao(type)]);
@@ -118,197 +145,355 @@ export function ConteudoItemsEditor({ flowId, items, onChange, disabled }: Props
   const atMax = items.length >= MAX_CONTEUDO_ITEMS;
 
   return (
-    <div className="space-y-3">
-      {/* Grade de cards de adicionar — um clique por tipo, sem menu escondido.
-          Fica no TOPO (como no editor da AcassIA) porque é o que se usa mais vezes
-          numa sessão de edição: montar a sequência item a item. Card com ícone em
-          círculo colorido + rótulo embaixo, não botão de barra — mesmo padrão
-          visual do "Adicionar Conteúdo" da AcassIA, ver
-          [[acassia-frontend-fluxos-e-agente]]. */}
+    <div className="space-y-3 font-sans">
+      {/* Grade 2x3 de Adicionar Tipos (estilo Lalla) */}
       {!disabled && (
-        <div className="grid grid-cols-4 gap-2">
-          {TIPOS_PARA_ADICIONAR.map((tipo) => {
-            const Icon = ICONE_DO_TIPO[tipo];
-            const cor = COR_DO_ITEM[tipo];
-            return (
-              <button
-                key={tipo}
-                type="button"
-                disabled={atMax}
-                onClick={() => adicionar(tipo)}
-                title={
-                  atMax
-                    ? `${t("Até")} ${MAX_CONTEUDO_ITEMS} ${t("itens por nó.")}`
-                    : t(TIPOS_DE_ITEM_DE_CONTEUDO[tipo])
-                }
-                className={cn(
-                  "flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-surface px-1 py-3.5 transition-all",
-                  atMax
-                    ? "cursor-not-allowed opacity-40"
-                    : "hover:-translate-y-px hover:border-solid hover:border-border-strong hover:bg-surface-elevated hover:shadow-sm",
-                )}
-              >
-                <span className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-full", cor.chip)}>
-                  <Icon size={18} aria-hidden />
-                </span>
-                <span className="truncate text-[11px] font-medium text-text">
-                  {t(ROTULO_CURTO_DA_GRADE[tipo] ?? TIPOS_DE_ITEM_DE_CONTEUDO[tipo])}
-                </span>
-              </button>
-            );
-          })}
+        <div className="grid grid-cols-3 gap-2">
+          {GRADE_LALLA.map((g) => (
+            <button
+              key={g.type}
+              type="button"
+              disabled={atMax}
+              onClick={() => adicionar(g.type)}
+              title={atMax ? `${t("Até")} ${MAX_CONTEUDO_ITEMS} ${t("itens.")}` : t(g.label)}
+              className={cn(
+                "flex flex-col items-center justify-center gap-1.5 rounded-lg border border-neutral-200 dark:border-neutral-700/80 bg-neutral-50/60 dark:bg-neutral-800/40 py-2.5 px-2 transition-all select-none",
+                atMax
+                  ? "cursor-not-allowed opacity-40"
+                  : "hover:bg-white dark:hover:bg-neutral-800 hover:border-neutral-300 dark:hover:border-neutral-600 hover:shadow-xs active:scale-[0.98]",
+              )}
+            >
+              {g.icon}
+              <span className={cn("text-[11px] font-semibold leading-tight", g.textColor)}>
+                {t(g.label)}
+              </span>
+            </button>
+          ))}
         </div>
       )}
 
+      {/* Divisor "Conteúdos" */}
+      <div className="flex items-center gap-3 py-1">
+        <div className="h-px flex-1 bg-neutral-200 dark:bg-neutral-800" />
+        <span className="text-[11px] font-medium tracking-wide text-neutral-400 dark:text-neutral-500">
+          {t("Conteúdos")}
+        </span>
+        <div className="h-px flex-1 bg-neutral-200 dark:bg-neutral-800" />
+      </div>
+
+      {/* Lista dos cards de Conteúdo */}
       {items.length === 0 ? (
-        <div className="rounded-full bg-accent px-4 py-2.5 text-center text-xs font-semibold text-accent-foreground">
-          {t("Nenhum item ainda — escolha um tipo acima para começar.")}
+        <div className="rounded-xl border border-dashed border-neutral-300 dark:border-neutral-700 p-6 text-center text-xs text-neutral-400">
+          {t("Nenhum conteúdo adicionado. Clique nos botões acima para começar.")}
         </div>
       ) : (
         <div className="flex flex-col gap-3">
-          {items.map((item, i) => {
-            const cor = COR_DO_ITEM[item.type];
-            return (
-              <div
-                key={i}
-                className="relative overflow-hidden rounded-xl border border-border/70 bg-surface pl-4 shadow-sm"
-                data-testid={`conteudo-item-${i}`}
-              >
-                <span aria-hidden className={cn("absolute top-1.5 bottom-1.5 left-0 w-1 rounded-full", cor.faixa)} />
-                <div className="p-3">
-                  <div className="mb-2.5 flex items-center justify-between gap-2">
-                    <span className="text-[10px] font-bold tracking-wide text-text-muted uppercase">
-                      {t(TIPOS_DE_ITEM_DE_CONTEUDO[item.type])} · {i + 1}
-                      {EM_CONSTRUCAO.has(item.type) ? (
-                        <span
-                          className="ml-1.5 inline-flex items-center gap-1 rounded-full bg-warning-bg px-2 py-0.5 text-[10px] font-normal normal-case text-warning-fg"
-                          title={t("O envio deste tipo ainda não está pronto — o publish vai recusar este item.")}
-                        >
-                          <Warning size={11} aria-hidden />
-                          {t("em breve")}
-                        </span>
-                      ) : null}
-                    </span>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        className="h-7 w-7"
-                        disabled={disabled || i === 0}
-                        onClick={() => mover(i, -1)}
-                        aria-label={t("Mover para cima")}
-                      >
-                        <CaretUp size={14} aria-hidden />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        className="h-7 w-7"
-                        disabled={disabled || i === items.length - 1}
-                        onClick={() => mover(i, 1)}
-                        aria-label={t("Mover para baixo")}
-                      >
-                        <CaretDown size={14} aria-hidden />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        className="h-7 w-7 hover:border-error/50 hover:bg-error-bg hover:text-error-fg"
-                        disabled={disabled}
-                        onClick={() => remover(i)}
-                        aria-label={t("Remover item")}
-                      >
-                        <Trash size={14} aria-hidden />
-                      </Button>
-                    </div>
-                  </div>
-                  <ItemFields flowId={flowId} item={item} onChange={(next) => atualizar(i, next)} disabled={disabled} />
-                </div>
-              </div>
-            );
-          })}
+          {items.map((item, i) => (
+            <ItemCard
+              key={i}
+              index={i}
+              flowId={flowId}
+              item={item}
+              disabled={disabled}
+              onUpdate={(next) => atualizar(i, next)}
+              onDuplicate={() => duplicar(i)}
+              onRemove={() => remover(i)}
+            />
+          ))}
         </div>
       )}
-
-      <p className="text-center text-[11px] text-text-subtle">
-        {items.length} / {MAX_CONTEUDO_ITEMS} {t("itens por nó.")}
-      </p>
     </div>
   );
 }
 
-function ItemFields({
+function ItemCard({
+  index,
   flowId,
   item,
-  onChange,
   disabled,
+  onUpdate,
+  onDuplicate,
+  onRemove,
 }: {
+  index: number;
   flowId: string;
   item: ConteudoItem;
-  onChange: (item: ConteudoItem) => void;
   disabled?: boolean;
+  onUpdate: (item: ConteudoItem) => void;
+  onDuplicate: () => void;
+  onRemove: () => void;
 }) {
   const t = useT();
 
-  if (item.type === "text") {
-    return (
-      <Textarea
-        rows={3}
-        maxLength={4000}
-        placeholder={t("O que este balão diz")}
-        value={item.body}
-        disabled={disabled}
-        onChange={(e) => onChange({ ...item, body: e.target.value })}
-      />
-    );
-  }
-
+  // 1. DELAY CARD
   if (item.type === "delay") {
     return (
-      <div className="flex items-center gap-2">
-        <Input
-          type="number"
-          min={1}
-          max={120}
-          className="w-24"
-          value={item.seconds}
-          disabled={disabled}
-          onChange={(e) => {
-            const n = Math.round(Number(e.target.value));
-            onChange({ ...item, seconds: Number.isFinite(n) ? Math.max(1, Math.min(120, n)) : 1 });
-          }}
-        />
-        <span className="text-sm text-text-muted">{t("segundos (1 a 120) — pausa antes do próximo item")}</span>
+      <div
+        className="rounded-xl border border-rose-300 dark:border-rose-900/60 bg-white dark:bg-neutral-900 p-3 shadow-xs space-y-3"
+        data-testid={`conteudo-item-${index}`}
+      >
+        <div className="text-xs font-semibold text-neutral-800 dark:text-neutral-200">
+          {t("Delay")} ({item.seconds} {t("segundos")})
+        </div>
+
+        <div className="flex items-center gap-3 px-1 py-1">
+          <input
+            type="range"
+            min={1}
+            max={120}
+            value={item.seconds}
+            disabled={disabled}
+            onChange={(e) => {
+              const val = Math.round(Number(e.target.value));
+              onUpdate({ ...item, seconds: Number.isFinite(val) ? Math.max(1, Math.min(120, val)) : 1 });
+            }}
+            className="w-full h-1.5 bg-neutral-200 dark:bg-neutral-700 rounded-lg appearance-none cursor-pointer accent-purple-600 focus:outline-none"
+          />
+        </div>
+
+        <div className="flex items-center justify-between pt-1 border-t border-neutral-100 dark:border-neutral-800">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-rose-500 text-white shadow-xs">
+            <Clock size={11} weight="bold" aria-hidden />
+            {t("Delay")}
+          </span>
+
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={onDuplicate}
+              disabled={disabled}
+              title={t("Duplicar")}
+              className="p-1 text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 transition-colors"
+            >
+              <Plus size={15} weight="bold" aria-hidden />
+            </button>
+            <button
+              type="button"
+              onClick={onRemove}
+              disabled={disabled}
+              title={t("Remover")}
+              className="p-1 text-rose-500 hover:text-rose-700 transition-colors"
+            >
+              <Trash size={15} weight="bold" aria-hidden />
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
 
-  if (item.type === "contact") {
+  // 2. TEXTO CARD
+  if (item.type === "text") {
     return (
-      <div className="grid gap-2 sm:grid-cols-2">
-        <Input
-          placeholder={t("Nome")}
-          maxLength={120}
-          value={item.name}
+      <div
+        className="rounded-xl border border-sky-300 dark:border-sky-900/60 bg-white dark:bg-neutral-900 p-3 shadow-xs space-y-2.5"
+        data-testid={`conteudo-item-${index}`}
+      >
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-semibold text-neutral-800 dark:text-neutral-200">
+            {t("Texto a ser enviado")}
+          </span>
+
+          <Popover>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                className="inline-flex items-center gap-1 text-[11px] font-medium text-sky-600 dark:text-sky-400 hover:underline focus:outline-none"
+              >
+                <Eye size={13} aria-hidden />
+                {t("Campos Personalizados")}
+              </button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-56 p-2 space-y-1">
+              <p className="text-[10px] font-bold text-neutral-400 uppercase px-2 py-1">
+                {t("Inserir variável")}
+              </p>
+              {CAMPOS_PERSONALIZADOS.map((c) => (
+                <button
+                  key={c.tag}
+                  type="button"
+                  onClick={() => {
+                    const current = item.body;
+                    const next = current ? `${current} ${c.tag}` : c.tag;
+                    onUpdate({ ...item, body: next });
+                  }}
+                  className="w-full flex items-center justify-between px-2 py-1.5 text-xs text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-md transition-colors text-left"
+                >
+                  <span>{c.label}</span>
+                  <code className="text-[10px] text-sky-600 bg-sky-50 dark:bg-sky-950/60 px-1 py-0.5 rounded">
+                    {c.tag}
+                  </code>
+                </button>
+              ))}
+            </PopoverContent>
+          </Popover>
+        </div>
+
+        <Textarea
+          rows={3}
+          maxLength={4000}
+          placeholder={t("Digite a mensagem...")}
+          value={item.body}
           disabled={disabled}
-          onChange={(e) => onChange({ ...item, name: e.target.value })}
+          onChange={(e) => onUpdate({ ...item, body: e.target.value })}
+          className="w-full text-xs text-neutral-800 dark:text-neutral-100 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-neutral-50/40 p-2.5 resize-none focus:bg-white focus:outline-none focus:ring-1 focus:ring-sky-500"
         />
-        <Input
-          placeholder={t("Telefone, com DDI (ex.: +5511999998888)")}
-          maxLength={40}
-          value={item.phone_number}
-          disabled={disabled}
-          onChange={(e) => onChange({ ...item, phone_number: e.target.value })}
-        />
+
+        <div className="flex items-center justify-between pt-1 border-t border-neutral-100 dark:border-neutral-800">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-sky-600 text-white shadow-xs">
+            <span className="font-serif font-bold text-xs leading-none">T</span>
+            {t("Texto")}
+          </span>
+
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={onDuplicate}
+              disabled={disabled}
+              title={t("Duplicar")}
+              className="p-1 text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 transition-colors"
+            >
+              <Plus size={15} weight="bold" aria-hidden />
+            </button>
+            <button
+              type="button"
+              onClick={onRemove}
+              disabled={disabled}
+              title={t("Remover")}
+              className="p-1 text-rose-500 hover:text-rose-700 transition-colors"
+            >
+              <Trash size={15} weight="bold" aria-hidden />
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
 
-  // image | video | audio | document — mídia enviada pro Storage do fluxo.
-  return <UploadDeMidia flowId={flowId} item={item} onChange={onChange} disabled={disabled} />;
+  // 3. MEDIA CARDS (image | video | audio | document)
+  const isMedia =
+    item.type === "image" ||
+    item.type === "video" ||
+    item.type === "audio" ||
+    item.type === "document";
+
+  if (isMedia) {
+    const configMap = {
+      image: { label: "Imagem", border: "border-orange-300 dark:border-orange-900/60", badgeBg: "bg-orange-500", Icon: ImageIcon },
+      video: { label: "Vídeo", border: "border-emerald-300 dark:border-emerald-900/60", badgeBg: "bg-emerald-600", Icon: VideoCamera },
+      audio: { label: "Áudio", border: "border-purple-300 dark:border-purple-900/60", badgeBg: "bg-purple-600", Icon: Microphone },
+      document: { label: "Documento", border: "border-blue-300 dark:border-blue-900/60", badgeBg: "bg-blue-600", Icon: FileText },
+    }[item.type];
+
+    const Icon = configMap.Icon;
+
+    return (
+      <div
+        className={cn("rounded-xl border bg-white dark:bg-neutral-900 p-3 shadow-xs space-y-2.5", configMap.border)}
+        data-testid={`conteudo-item-${index}`}
+      >
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-semibold text-neutral-800 dark:text-neutral-200">
+            {t(configMap.label)}
+          </span>
+          {EM_CONSTRUCAO.has(item.type) && (
+            <span className="inline-flex items-center gap-1 text-[10px] text-amber-600 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded-full">
+              <Warning size={11} aria-hidden />
+              {t("em breve")}
+            </span>
+          )}
+        </div>
+
+        <UploadDeMidia flowId={flowId} item={item} onChange={onUpdate} disabled={disabled} />
+
+        <div className="flex items-center justify-between pt-1 border-t border-neutral-100 dark:border-neutral-800">
+          <span className={cn("inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold text-white shadow-xs", configMap.badgeBg)}>
+            <Icon size={11} weight="bold" aria-hidden />
+            {t(configMap.label)}
+          </span>
+
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={onDuplicate}
+              disabled={disabled}
+              title={t("Duplicar")}
+              className="p-1 text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 transition-colors"
+            >
+              <Plus size={15} weight="bold" aria-hidden />
+            </button>
+            <button
+              type="button"
+              onClick={onRemove}
+              disabled={disabled}
+              title={t("Remover")}
+              className="p-1 text-rose-500 hover:text-rose-700 transition-colors"
+            >
+              <Trash size={15} weight="bold" aria-hidden />
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 4. CONTATO CARD
+  return (
+    <div
+      className="rounded-xl border border-pink-300 dark:border-pink-900/60 bg-white dark:bg-neutral-900 p-3 shadow-xs space-y-2.5"
+      data-testid={`conteudo-item-${index}`}
+    >
+      <div className="text-xs font-semibold text-neutral-800 dark:text-neutral-200">
+        {t("Contato")}
+      </div>
+
+      <div className="grid gap-2">
+        <Input
+          placeholder={t("Nome do contato")}
+          maxLength={120}
+          value={(item as Extract<ConteudoItem, { type: "contact" }>).name}
+          disabled={disabled}
+          onChange={(e) => onUpdate({ ...item, name: e.target.value } as ConteudoItem)}
+          className="h-8 text-xs"
+        />
+        <Input
+          placeholder={t("Telefone com DDI (+55...)")}
+          maxLength={40}
+          value={(item as Extract<ConteudoItem, { type: "contact" }>).phone_number}
+          disabled={disabled}
+          onChange={(e) => onUpdate({ ...item, phone_number: e.target.value } as ConteudoItem)}
+          className="h-8 text-xs"
+        />
+      </div>
+
+      <div className="flex items-center justify-between pt-1 border-t border-neutral-100 dark:border-neutral-800">
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-pink-600 text-white shadow-xs">
+          {t("Contato")}
+        </span>
+
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={onDuplicate}
+            disabled={disabled}
+            title={t("Duplicar")}
+            className="p-1 text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 transition-colors"
+          >
+            <Plus size={15} weight="bold" aria-hidden />
+          </button>
+          <button
+            type="button"
+            onClick={onRemove}
+            disabled={disabled}
+            title={t("Remover")}
+            className="p-1 text-rose-500 hover:text-rose-700 transition-colors"
+          >
+            <Trash size={15} weight="bold" aria-hidden />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function UploadDeMidia({
@@ -334,7 +519,7 @@ function UploadDeMidia({
       const base = { ...item, storage_path: r.storage_path, mime: r.media_mime };
       onChange(item.type === "document" ? ({ ...base, filename: file.name } as ConteudoItem) : (base as ConteudoItem));
     } catch {
-      // showApiError já mostrou o toast no onError do hook.
+      // showApiError já tratou o toast
     }
   };
 
@@ -359,6 +544,7 @@ function UploadDeMidia({
           size="sm"
           disabled={disabled || upload.isPending}
           onClick={() => inputRef.current?.click()}
+          className="h-8 text-xs font-medium"
         >
           {upload.isPending
             ? t("Enviando…")
@@ -366,19 +552,24 @@ function UploadDeMidia({
               ? t("Trocar arquivo")
               : t("Escolher arquivo")}
         </Button>
-        <span className={cn("truncate text-xs", temArquivo ? "text-text" : "text-text-muted")}>
-          {temArquivo ? (item.type === "document" ? (item.filename ?? item.mime) : item.mime) : t("Nenhum arquivo ainda")}
+        <span className={cn("truncate text-xs", temArquivo ? "text-neutral-800 dark:text-neutral-200" : "text-neutral-400")}>
+          {temArquivo
+            ? item.type === "document"
+              ? item.filename ?? item.mime
+              : item.mime
+            : t("Nenhum arquivo")}
         </span>
       </div>
-      {item.type === "image" || item.type === "video" || item.type === "document" ? (
+      {(item.type === "image" || item.type === "video" || item.type === "document") && (
         <Input
           placeholder={t("Legenda (opcional)")}
           maxLength={1024}
           value={item.caption ?? ""}
           disabled={disabled}
           onChange={(e) => onChange({ ...item, caption: e.target.value || undefined } as ConteudoItem)}
+          className="h-8 text-xs"
         />
-      ) : null}
+      )}
     </div>
   );
 }

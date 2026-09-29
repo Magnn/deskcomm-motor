@@ -55,7 +55,11 @@ interface Props {
    * mudança que mais eleva a leitura do card (achado da pesquisa de mercado:
    * Typebot/ManyChat mostram o conteúdo, não um rótulo genérico).
    */
-  previewRows?: Array<{ texto: string; Icon: ComponentType<{ size?: number; className?: string; "aria-hidden"?: boolean }> }>;
+  previewRows?: Array<{
+    texto: string;
+    Icon: ComponentType<{ size?: number; className?: string; "aria-hidden"?: boolean }>;
+    type?: string;
+  }>;
 }
 
 /**
@@ -166,10 +170,28 @@ export function NodeCard({
           {previewRows.map((row, i) => (
             <li
               key={i}
-              className="flex items-center gap-2 rounded-lg border border-border/60 bg-surface-elevated px-2.5 py-1.5"
+              className={cn(
+                "flex items-start gap-2 rounded-lg border px-2.5 py-1.5 transition-colors",
+                row.type === "delay"
+                  ? "border-rose-200/80 bg-rose-50/50 text-rose-700 dark:border-rose-900/40 dark:bg-rose-950/20 dark:text-rose-300"
+                  : row.type === "text"
+                    ? "border-sky-200/80 bg-sky-50/40 text-neutral-800 dark:border-sky-900/40 dark:bg-sky-950/20 dark:text-neutral-100"
+                    : "border-border/60 bg-surface-elevated text-text",
+              )}
             >
-              <row.Icon size={13} aria-hidden className="shrink-0 text-text-muted" />
-              <span className="truncate text-xs text-text" title={row.texto}>
+              {row.type === "text" ? (
+                <span className="font-serif font-bold text-xs text-sky-600 dark:text-sky-400 shrink-0 mt-0.5">T</span>
+              ) : (
+                <row.Icon
+                  size={13}
+                  aria-hidden
+                  className={cn(
+                    "shrink-0 mt-0.5",
+                    row.type === "delay" ? "text-rose-500" : "text-text-muted",
+                  )}
+                />
+              )}
+              <span className="line-clamp-2 text-xs leading-relaxed" title={row.texto}>
                 {row.texto}
               </span>
             </li>

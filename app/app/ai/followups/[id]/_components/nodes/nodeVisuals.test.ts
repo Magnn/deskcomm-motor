@@ -154,15 +154,15 @@ describe("o nó de condição nasce sem decidir sozinho", () => {
 });
 
 describe("configPadraoDaAcao", () => {
-  it("gatilho de retorno nasce em texto fixo; os outros, em mensagem da IA", () => {
+  it("gatilho de retorno nasce em texto fixo; os outros, em modo content (Conteúdo)", () => {
     expect(configPadraoDaAcao("inbound_after_silence")).toEqual({
       mode: "text",
       body: "Configure esta mensagem.",
     });
-    expect(configPadraoDaAcao()).toEqual({ mode: "ai_message", prompt_hint: "Configure esta etapa." });
+    expect(configPadraoDaAcao()).toEqual({ mode: "content", items: [] });
     expect(NODE_VISUALS.action.defaultConfig()).toEqual({
-      mode: "ai_message",
-      prompt_hint: "Configure esta etapa.",
+      mode: "content",
+      items: [],
     });
   });
 });
@@ -220,7 +220,7 @@ describe("descreverItemDeConteudo — a prévia de UM item, pra linha do card", 
   });
 
   it("delay: rótulo + segundos", () => {
-    expect(descreverItemDeConteudo({ type: "delay", seconds: 5 }, pt)).toBe("Pausa 5s");
+    expect(descreverItemDeConteudo({ type: "delay", seconds: 5 }, pt)).toBe("Delay de 5 Segundos");
   });
 });
 

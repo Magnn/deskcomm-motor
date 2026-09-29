@@ -64,6 +64,21 @@ export function NodeConfigPanel({ node, flowId, onChange, onDelete, ramosLigados
     onChange({ label: value });
   };
 
+  if (type === "action") {
+    return (
+      <div className="flex h-full flex-col overflow-y-auto p-4 pt-0 lg:pt-2" data-testid="node-config-panel">
+        <ActionForm
+          config={node.data.config as ConfigOf<"action">}
+          flowId={flowId}
+          nodeLabel={label}
+          onLabelChange={commitLabel}
+          onChange={(config) => onChange({ config })}
+          onDelete={onDelete}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-full flex-col gap-5 overflow-y-auto" data-testid="node-config-panel">
       <div className="space-y-1">
