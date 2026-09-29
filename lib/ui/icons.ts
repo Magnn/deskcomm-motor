@@ -116,6 +116,7 @@ export {
   GitBranch,
   Flag,
   TreeStructure,
+  ShareNetwork,
   // misc
   DotsThree,
   DotsSixVertical,
