@@ -33,6 +33,7 @@ interface Props {
   flowId: string;
   onChange: (patch: Partial<RFNodeData>) => void;
   onDelete: () => void;
+  onClose?: () => void;
   /** Ramos deste nó que já têm aresta — quem sabe isso é o canvas, que é dono do grafo. */
   ramosLigados?: string[];
 }
@@ -46,7 +47,7 @@ interface Props {
  * quando o candidato passa no schema — senão mostra erro inline e o canvas
  * mantém a última config válida (nunca um valor pela metade rio acima).
  */
-export function NodeConfigPanel({ node, flowId, onChange, onDelete, ramosLigados }: Props) {
+export function NodeConfigPanel({ node, flowId, onChange, onDelete, onClose, ramosLigados }: Props) {
   const t = useT();
   const type = node.type as FlowNode["type"];
   const visual = NODE_VISUALS[type];
@@ -74,6 +75,7 @@ export function NodeConfigPanel({ node, flowId, onChange, onDelete, ramosLigados
           onLabelChange={commitLabel}
           onChange={(config) => onChange({ config })}
           onDelete={onDelete}
+          onClose={onClose}
         />
       </div>
     );

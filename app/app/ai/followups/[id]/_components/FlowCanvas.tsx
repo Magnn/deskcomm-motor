@@ -538,12 +538,10 @@ function FlowCanvasInner({ flowId, initialData }: Props) {
 
         {!simulatorOpen && selectedNode && (
           <aside
-            className="fixed inset-x-0 bottom-0 z-40 flex max-h-[75vh] flex-col overflow-hidden rounded-t-lg border-t border-border bg-surface shadow-lg lg:static lg:z-auto lg:h-full lg:max-h-none lg:w-96 lg:shrink-0 lg:rounded-none lg:border-t-0 lg:border-l lg:shadow-none"
+            className="fixed inset-x-0 bottom-0 z-40 flex max-h-[75vh] flex-col overflow-hidden rounded-t-lg border-t border-border bg-surface shadow-lg lg:static lg:z-auto lg:h-full lg:max-h-none lg:w-[360px] lg:shrink-0 lg:rounded-none lg:border-t-0 lg:border-l lg:shadow-none"
             data-testid="node-config-sheet"
           >
-            {/* Barra própria pro X, não sobreposta ao conteúdo — um botão
-                flutuante por cima do cabeçalho do painel colidiria com rótulo
-                comprido (texto sobre texto). */}
+            {/* Barra própria pro X no mobile */}
             <div className="flex shrink-0 justify-end p-2 lg:hidden">
               <Button
                 type="button"
@@ -562,6 +560,7 @@ function FlowCanvasInner({ flowId, initialData }: Props) {
                 flowId={flowId}
                 onChange={(patch) => updateNodeData(selectedNode.id, patch)}
                 onDelete={() => deleteNode(selectedNode.id)}
+                onClose={() => setSelectedNodeId(null)}
                 ramosLigados={ramosLigadosDoSelecionado}
               />
             </div>
