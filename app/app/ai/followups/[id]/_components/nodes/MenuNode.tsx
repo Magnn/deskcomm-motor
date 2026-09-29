@@ -12,16 +12,19 @@ import { NodeCard } from "./NodeCard";
 
 export function MenuNode({ id, data, selected }: NodeProps<RFNode>) {
   const t = useT();
+  const config = data.config as ConfigOf<"menu">;
+  
   return (
     <NodeCard
       id={id}
       visual={NODE_VISUALS.menu}
       label={data.label}
-      subtitle={describeNodeConfig("menu", data.config, t)}
+      subtitle={describeNodeConfig("menu", config, t)}
       selected={selected}
       errors={data.errors}
       simulating={data.simulating}
-      branches={nodeBranches({ type: "menu", config: data.config as ConfigOf<"menu"> })}
+      previewRows={[{ Icon: NODE_VISUALS.menu.icon, texto: config.prompt }]}
+      branches={nodeBranches({ type: "menu", config })}
     />
   );
 }
