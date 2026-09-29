@@ -298,6 +298,7 @@ export function NewFlowDialog({ open, onOpenChange }: Props) {
   const [channel, setChannel] = useState<"oficial" | "business">("business");
   const [selectedProvider, setSelectedProvider] = useState("whatsapp");
   const [selectedEvent, setSelectedEvent] = useState("mensagem_recebida");
+  const [keyword, setKeyword] = useState("");
   const [erro, setErro] = useState<string | null>(null);
 
   const create = useCreateFollowupFlow();
@@ -327,11 +328,15 @@ export function NewFlowDialog({ open, onOpenChange }: Props) {
             localStorage.setItem(`flow_channel_${created.id}`, channel);
             localStorage.setItem(`flow_provider_${created.id}`, selectedProvider);
             localStorage.setItem(`flow_event_${created.id}`, selectedEvent || provider.defaultEvent);
+            if (keyword.trim()) {
+              localStorage.setItem(`flow_keyword_${created.id}`, keyword.trim());
+            }
           } catch {
             // silent
           }
         }
         setName("");
+        setKeyword("");
         setErro(null);
         onOpenChange(false);
         if (created?.id && typeof window !== "undefined") {
@@ -497,6 +502,23 @@ export function NewFlowDialog({ open, onOpenChange }: Props) {
               </SelectContent>
             </Select>
           </div>
+
+          {/* Campo: Palavra-chave (quando o gatilho é WhatsApp) */}
+          {selectedProvider === "whatsapp" && (
+            <div className="space-y-1">
+              <Label htmlFor="flow-keyword" className="text-xs font-bold text-neutral-800 dark:text-neutral-200">
+                {t("Palavra-chave")} <span className="text-[11px] font-normal text-neutral-400">({t("Opcional")})</span>
+              </Label>
+              <Input
+                id="flow-keyword"
+                value={keyword}
+                onChange={(e) => setKeyword(e.target.value)}
+                placeholder={t("Ex: EU QUERO, QUERO SABER MAIS")}
+                className="h-10 rounded-lg border-neutral-300 text-sm focus:border-purple-500 focus:ring-1 focus:ring-purple-500 dark:border-neutral-700"
+                maxLength={60}
+              />
+            </div>
+          )}
 
           {erro && (
             <p role="alert" data-testid="new-flow-error" className="text-xs font-medium text-rose-500">
