@@ -333,7 +333,7 @@ export const NODE_VISUALS: Record<NodeType, NodeVisual> = {
     paletteLabel: "Delay",
     paletteDesc: "Aguardar um período",
     icon: Clock,
-    ...visualDoMatiz("orange"),
+    ...visualDoMatiz("slate"),
     defaultLabel: "Aguardar",
     defaultConfig: () => ({ mode: "fixed", duration_ms: 300_000 }),
   },
@@ -382,7 +382,7 @@ export const NODE_VISUALS: Record<NodeType, NodeVisual> = {
     paletteLabel: "Menu",
     paletteDesc: "Menu de opções",
     icon: List,
-    ...visualDoMatiz("cyan"),
+    ...visualDoMatiz("teal"),
     defaultLabel: "Escolha uma opção",
     defaultConfig: () => ({
       prompt: "Como podemos ajudar?",
@@ -398,7 +398,7 @@ export const NODE_VISUALS: Record<NodeType, NodeVisual> = {
     paletteLabel: "Divisão de Atendentes",
     paletteDesc: "Distribuir contatos entre atendentes disponíveis",
     icon: UsersThree,
-    ...visualDoMatiz("slate"),
+    ...visualDoMatiz("amber"),
     defaultLabel: "Distribuir para atendente",
     defaultConfig: () => ({ max_wait_minutes: 30 }),
   },
@@ -473,7 +473,7 @@ export const NODE_VISUALS: Record<NodeType, NodeVisual> = {
     paletteLabel: "GPT",
     paletteDesc: "Gerador de textos GPT",
     icon: Sparkle,
-    ...visualDoMatiz("fuchsia"),
+    ...visualDoMatiz("emerald"),
     defaultLabel: "Rodar prompt de IA",
     defaultConfig: () => ({
       prompt: "Resuma em uma frase o que o cliente disse sobre a necessidade dele.",
@@ -485,7 +485,7 @@ export const NODE_VISUALS: Record<NodeType, NodeVisual> = {
     paletteLabel: "Ação",
     paletteDesc: "Executar uma ação",
     icon: Cpu,
-    ...visualDoMatiz("blue"),
+    ...visualDoMatiz("indigo"),
     defaultLabel: "Chamar API externa",
     // `example.com`, não `exemplo.com`: RFC 2606, reservado e nunca resolve —
     // o mesmo domínio que a catraca de host de terceiro (branding.test.ts)
@@ -497,7 +497,7 @@ export const NODE_VISUALS: Record<NodeType, NodeVisual> = {
     paletteLabel: "Notificar Atendente",
     paletteDesc: "Enviar mensagem para atendente.",
     icon: Bell,
-    ...visualDoMatiz("rose"),
+    ...visualDoMatiz("blue"),
     defaultLabel: "Notificar atendente",
     defaultConfig: () => ({ message: "Configure o aviso." }),
   },
