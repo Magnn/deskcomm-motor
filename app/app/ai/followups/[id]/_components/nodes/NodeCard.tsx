@@ -138,12 +138,12 @@ export function NodeCard({
   return (
     <div
       className={cn(
-        "group relative w-72 rounded-2xl border bg-surface font-sans shadow-md transition-all duration-200 select-none overflow-visible",
+        "group relative w-72 overflow-visible rounded-2xl border bg-surface font-sans shadow-md transition-all duration-200 select-none",
         visual.type === "action" ? "border-purple-300 dark:border-purple-800" : "border-border",
         selected
-          ? cn("ring-2 ring-offset-1 ring-offset-bg shadow-lg", visual.selectedClassName)
-          : cn("hover:shadow-lg hover:border-border-strong", visual.hoverBorderClassName),
-        simulating && !hasError && "ring-2 ring-success ring-offset-1 ring-offset-bg animate-pulse",
+          ? cn("shadow-lg ring-2 ring-offset-1 ring-offset-bg", visual.selectedClassName)
+          : cn("hover:border-border-strong hover:shadow-lg", visual.hoverBorderClassName),
+        simulating && !hasError && "animate-pulse ring-2 ring-success ring-offset-1 ring-offset-bg",
         hasError && "border-error ring-2 ring-error ring-offset-1 ring-offset-bg",
       )}
       data-testid={`node-card-${id}`}
@@ -165,27 +165,35 @@ export function NodeCard({
           type="target"
           position={Position.Left}
           className={cn(
-            "!h-5 !w-5 !rounded-full !border-2 !bg-white !shadow-sm !flex !items-center !justify-center hover:!scale-125 !transition-all !-left-2.5 z-10",
+            "!-left-2.5 z-10 !flex !h-5 !w-5 !items-center !justify-center !rounded-full !border-2 !bg-white !shadow-sm !transition-all hover:!scale-125",
             BORDER_COLOR_BY_TYPE[visual.type] ?? "!border-purple-600 text-purple-600",
           )}
           style={handleTopStyle}
         >
-          <Play size={8} weight="fill" className="ml-0.5 pointer-events-none" />
+          <Play size={8} weight="fill" className="pointer-events-none ml-0.5" />
         </Handle>
       )}
 
       {/* Cabeçalho sólido com botões de Duplicar e Editar */}
-      <div className={cn("flex items-center justify-between px-3 py-2.5 rounded-t-2xl text-white shadow-xs", headerBg)}>
-        <div className="flex items-center gap-2 min-w-0 flex-1">
-          <Icon size={16} className="text-white shrink-0" aria-hidden />
-          <p className="truncate text-sm font-semibold leading-tight text-white tracking-wide" title={label}>
+      <div
+        className={cn(
+          "flex items-center justify-between rounded-t-2xl px-3 py-2.5 text-white shadow-xs",
+          headerBg,
+        )}
+      >
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          <Icon size={16} className="shrink-0 text-white" aria-hidden />
+          <p
+            className="truncate text-sm leading-tight font-semibold tracking-wide text-white"
+            title={label}
+          >
             {label}
           </p>
         </div>
-        <div className="flex items-center gap-1 shrink-0 ml-1.5">
+        <div className="ml-1.5 flex shrink-0 items-center gap-1">
           <button
             type="button"
-            className="p-1 rounded text-white/80 hover:text-white hover:bg-white/20 transition-colors"
+            className="rounded p-1 text-white/80 transition-colors hover:bg-white/20 hover:text-white"
             title={t("Duplicar nó")}
             onClick={(e) => {
               e.stopPropagation();
@@ -196,7 +204,7 @@ export function NodeCard({
           </button>
           <button
             type="button"
-            className="p-1 rounded text-white/80 hover:text-white hover:bg-white/20 transition-colors"
+            className="rounded p-1 text-white/80 transition-colors hover:bg-white/20 hover:text-white"
             title={t("Editar nó")}
             onClick={(e) => {
               e.stopPropagation();
@@ -212,7 +220,7 @@ export function NodeCard({
       {(!previewRows || previewRows.length === 0) && (
         <div className="p-3">
           <p
-            className="line-clamp-2 break-words rounded-lg border border-border/60 bg-surface-elevated px-2.5 py-1.5 text-xs leading-relaxed text-text-muted"
+            className="line-clamp-2 rounded-lg border border-border/60 bg-surface-elevated px-2.5 py-1.5 text-xs leading-relaxed break-words text-text-muted"
             title={subtitle}
           >
             {subtitle}
@@ -237,7 +245,7 @@ export function NodeCard({
               return (
                 <li
                   key={i}
-                  className="flex items-center gap-2 rounded-lg border border-dashed border-rose-300 dark:border-rose-800 bg-[#fff5f5] dark:bg-rose-950/30 px-3 py-2 text-rose-800 dark:text-rose-200 shadow-xs"
+                  className="flex items-center gap-2 rounded-lg border border-dashed border-rose-300 bg-[#fff5f5] px-3 py-2 text-rose-800 shadow-xs dark:border-rose-800 dark:bg-rose-950/30 dark:text-rose-200"
                 >
                   <row.Icon size={14} aria-hidden className="shrink-0 text-rose-500" />
                   <span className="text-xs font-medium" title={row.texto}>
@@ -247,19 +255,32 @@ export function NodeCard({
               );
             }
             if (row.type === "text") {
+              const parts = (row.texto || "").split(/(\{\{[^{}]+\}\})/g);
               return (
                 <li
                   key={i}
-                  className="flex items-start gap-2.5 rounded-lg border border-dashed border-sky-300 dark:border-sky-800 bg-[#f0f9ff] dark:bg-sky-950/30 p-3 shadow-xs"
+                  className="flex items-start gap-2.5 rounded-lg border border-dashed border-sky-300 bg-[#f0f9ff] p-3 shadow-xs dark:border-sky-800 dark:bg-sky-950/30"
                 >
-                  <span className="font-serif font-bold text-sm text-sky-600 dark:text-sky-400 shrink-0 leading-none select-none mt-0.5">
+                  <span className="mt-0.5 shrink-0 font-serif text-sm leading-none font-bold text-sky-600 select-none dark:text-sky-400">
                     T
                   </span>
                   <div
-                    className="text-xs text-neutral-800 dark:text-neutral-200 whitespace-pre-wrap leading-relaxed italic"
+                    className="min-w-0 flex-1 text-xs leading-relaxed break-words whitespace-pre-wrap text-neutral-800 dark:text-neutral-200"
                     title={row.texto}
                   >
-                    {row.texto}
+                    {parts.map((part, idx) => {
+                      if (part.startsWith("{{") && part.endsWith("}}")) {
+                        return (
+                          <span
+                            key={idx}
+                            className="mx-0.5 inline-block rounded bg-[#10b981] px-1.5 py-0.5 align-middle font-sans text-[9px] leading-tight font-bold tracking-wide text-white not-italic shadow-2xs"
+                          >
+                            {part}
+                          </span>
+                        );
+                      }
+                      return <span key={idx}>{part}</span>;
+                    })}
                   </div>
                 </li>
               );
@@ -268,11 +289,13 @@ export function NodeCard({
               return (
                 <li
                   key={i}
-                  className="flex items-center gap-2 rounded-lg border border-dashed border-purple-300 dark:border-purple-800 bg-[#faf5ff] dark:bg-purple-950/30 px-3 py-2 text-purple-800 dark:text-purple-200 shadow-xs"
+                  className="flex items-center gap-2 rounded-lg border border-dashed border-purple-300 bg-[#faf5ff] px-3 py-2 text-purple-800 shadow-xs dark:border-purple-800 dark:bg-purple-950/30 dark:text-purple-200"
                 >
                   <row.Icon size={14} aria-hidden className="shrink-0 text-purple-600" />
                   <span className="text-xs font-medium" title={row.texto}>
-                    {row.texto === "Áudio (nota de voz)" ? "Enviando áudio gravado" : (row.texto || "Enviando áudio gravado")}
+                    {row.texto === "Áudio (nota de voz)"
+                      ? "Enviando áudio gravado"
+                      : row.texto || "Enviando áudio gravado"}
                   </span>
                 </li>
               );
@@ -281,7 +304,7 @@ export function NodeCard({
               return (
                 <li
                   key={i}
-                  className="flex items-center gap-2 rounded-lg border border-dashed border-amber-300 dark:border-amber-800 bg-[#fffbeb] dark:bg-amber-950/30 px-3 py-2 text-amber-800 dark:text-amber-200 shadow-xs"
+                  className="flex items-center gap-2 rounded-lg border border-dashed border-amber-300 bg-[#fffbeb] px-3 py-2 text-amber-800 shadow-xs dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200"
                 >
                   <row.Icon size={14} aria-hidden className="shrink-0 text-amber-600" />
                   <span className="text-xs font-medium" title={row.texto}>
@@ -294,7 +317,7 @@ export function NodeCard({
               return (
                 <li
                   key={i}
-                  className="flex items-center gap-2 rounded-lg border border-dashed border-emerald-300 dark:border-emerald-800 bg-[#ecfdf5] dark:bg-emerald-950/30 px-3 py-2 text-emerald-800 dark:text-emerald-200 shadow-xs"
+                  className="flex items-center gap-2 rounded-lg border border-dashed border-emerald-300 bg-[#ecfdf5] px-3 py-2 text-emerald-800 shadow-xs dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200"
                 >
                   <row.Icon size={14} aria-hidden className="shrink-0 text-emerald-600" />
                   <span className="text-xs font-medium" title={row.texto}>
@@ -307,7 +330,7 @@ export function NodeCard({
               return (
                 <li
                   key={i}
-                  className="flex items-center gap-2 rounded-lg border border-dashed border-blue-300 dark:border-blue-800 bg-[#eff6ff] dark:bg-blue-950/30 px-3 py-2 text-blue-800 dark:text-blue-200 shadow-xs"
+                  className="flex items-center gap-2 rounded-lg border border-dashed border-blue-300 bg-[#eff6ff] px-3 py-2 text-blue-800 shadow-xs dark:border-blue-800 dark:bg-blue-950/30 dark:text-blue-200"
                 >
                   <row.Icon size={14} aria-hidden className="shrink-0 text-blue-600" />
                   <span className="text-xs font-medium" title={row.texto}>
@@ -321,7 +344,7 @@ export function NodeCard({
                 key={i}
                 className="flex items-start gap-2 rounded-lg border border-border/60 bg-surface-elevated px-2.5 py-1.5 text-text"
               >
-                <row.Icon size={13} aria-hidden className="shrink-0 mt-0.5 text-text-muted" />
+                <row.Icon size={13} aria-hidden className="mt-0.5 shrink-0 text-text-muted" />
                 <span className="line-clamp-2 text-xs leading-relaxed" title={row.texto}>
                   {row.texto}
                 </span>
@@ -333,7 +356,10 @@ export function NodeCard({
 
       {/* Ramos para nós de saída múltipla */}
       {branchRows !== null && (
-        <ul className="flex flex-col gap-1.5 border-t border-border/70 p-3 pt-2.5" data-testid={`node-branches-${id}`}>
+        <ul
+          className="flex flex-col gap-1.5 border-t border-border/70 p-3 pt-2.5"
+          data-testid={`node-branches-${id}`}
+        >
           {branchRows.map((branch) => {
             const rotulo = t(rotuloDoRamo(branch, nomes));
             const semEtapa = regraSemEtapa(branch, nomes);
@@ -369,7 +395,7 @@ export function NodeCard({
                   )}
                   <span
                     className={cn(
-                      "line-clamp-3 break-words text-xs leading-tight font-medium",
+                      "line-clamp-3 text-xs leading-tight font-medium break-words",
                       branch.kind === "fallback" && "italic",
                     )}
                   >
@@ -381,12 +407,12 @@ export function NodeCard({
                   id={branch.id}
                   position={Position.Right}
                   className={cn(
-                    "!h-5 !w-5 !rounded-full !border-2 !border-white !shadow-sm !flex !items-center !justify-center hover:!scale-125 !transition-all !-right-2.5",
+                    "!-right-2.5 !flex !h-5 !w-5 !items-center !justify-center !rounded-full !border-2 !border-white !shadow-sm !transition-all hover:!scale-125",
                     visual.handleClassName,
                   )}
                   style={{ top: "50%" }}
                 >
-                  <Play size={8} weight="fill" className="text-white ml-0.5 pointer-events-none" />
+                  <Play size={8} weight="fill" className="pointer-events-none ml-0.5 text-white" />
                 </Handle>
               </li>
             );
@@ -400,12 +426,12 @@ export function NodeCard({
           type="source"
           position={Position.Right}
           className={cn(
-            "!h-5 !w-5 !rounded-full !border-2 !border-white !shadow-sm !flex !items-center !justify-center hover:!scale-125 !transition-all !-right-2.5 z-10",
+            "!-right-2.5 z-10 !flex !h-5 !w-5 !items-center !justify-center !rounded-full !border-2 !border-white !shadow-sm !transition-all hover:!scale-125",
             visual.handleClassName,
           )}
           style={handleTopStyle}
         >
-          <Play size={8} weight="fill" className="text-white ml-0.5 pointer-events-none" />
+          <Play size={8} weight="fill" className="pointer-events-none ml-0.5 text-white" />
         </Handle>
       )}
     </div>
