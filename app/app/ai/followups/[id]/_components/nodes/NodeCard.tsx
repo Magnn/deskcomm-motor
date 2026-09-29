@@ -95,6 +95,7 @@ const HEADER_BG_BY_TYPE: Record<string, string> = {
   notify_agent: "bg-[#2563eb]",
   add_note: "bg-[#ca8a04]",
   attendant_route: "bg-[#0d9488]",
+  agent: "bg-[#8b5cf6]",
   end: "bg-[#52525b]",
 };
 
