@@ -36,7 +36,8 @@ import {
   useUpdateHandoffPolicy,
   type FollowupFlowDetailRow,
 } from "@/hooks/followup/useFollowupFlow";
-import { Play, Trash, TreeStructure } from "@/lib/ui/icons";
+import Link from "next/link";
+import { ArrowLeft, Play, Power, Trash, TreeStructure, WhatsappLogo, X } from "@/lib/ui/icons";
 import { FlowStatusBadge } from "../../_components/FlowStatusBadge";
 import { DeleteFollowupFlowButton } from "../../_components/DeleteFollowupFlowButton";
 import { RenameFollowupFlowButton } from "../../_components/RenameFollowupFlowButton";
@@ -132,87 +133,153 @@ export function PublishBar({
   const busy = save.isPending || publish.isPending || disable.isPending || rollback.isPending;
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-surface px-4 py-3">
-      <div className="flex items-center gap-1">
-        <h1 className="text-sm font-semibold text-text">{flow.name}</h1>
-        <RenameFollowupFlowButton
-          flowId={flowId}
-          flowName={flow.name}
-          variant="ghost"
-          size="icon"
-        />
-        <FlowStatusBadge status={flow.status} />
-        {dirty && (
-          <Badge variant="warning" data-testid="dirty-indicator">
-            {t("Alterações não salvas")}
-          </Badge>
-        )}
-      </div>
+    <div className="flex flex-col gap-2 border-b border-border bg-surface px-4 py-2.5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        {/* Lado Esquerdo: Botões estilo Lailla / AcassIA (Voltar roxo, Fechar laranja, Status verde) */}
+        <div className="flex items-center gap-2">
+          <Link
+            href="/app/ai/followups"
+            className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#7c3aed] text-white hover:bg-[#6d28d9] transition-all shadow-xs"
+            title={t("Voltar aos fluxos")}
+          >
+            <ArrowLeft size={16} weight="bold" />
+          </Link>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <TriggerConfigControl flowId={flowId} triggerConfig={flow.trigger_config} />
+          <button
+            type="button"
+            className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#f97316] text-white hover:bg-[#ea580c] transition-all shadow-xs"
+            onClick={() => window.history.back()}
+            title={t("Fechar")}
+          >
+            <X size={15} weight="bold" />
+          </button>
 
-        <Select value={flow.handoff_policy} onValueChange={(v) => handoffPolicy.mutate(v as FollowupFlowDetailRow["handoff_policy"])}>
-          <SelectTrigger className="w-56" aria-label={t("Política de handoff")}>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {(Object.keys(HANDOFF_LABEL) as Array<keyof typeof HANDOFF_LABEL>).map((k) => (
-              <SelectItem key={k} value={k}>
-                {t(HANDOFF_LABEL[k])}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          <button
+            type="button"
+            className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#10b981] text-white hover:bg-[#059669] transition-all shadow-xs"
+            onClick={onPublish}
+            disabled={busy}
+            title={t("Publicar / Ativo")}
+          >
+            <Power size={15} weight="bold" />
+          </button>
+        </div>
 
-        <Button type="button" variant="secondary" size="sm" disabled={!dirty || busy} onClick={onSave}>
-          {save.isPending ? t("Salvando…") : t("Salvar")}
-        </Button>
-        <Button type="button" size="sm" disabled={busy} onClick={onPublish} data-testid="publish-button">
-          {publish.isPending ? t("Publicando…") : t("Publicar")}
-        </Button>
-        <Button
-          type="button"
-          variant={simulatorOpen ? "default" : "outline"}
-          size="sm"
-          onClick={onOpenSimulator}
-          data-testid="open-simulator"
-        >
-          <Play size={14} aria-hidden className="mr-1" />
-          {t("Simular")}
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled={busy || flow.status === "disabled"}
-          onClick={onDisable}
-        >
-          {t("Desativar")}
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled={busy || !canRollback}
-          onClick={onRollback}
-          data-testid="rollback-button"
-        >
-          {t("Rollback")}
-        </Button>
-        {onAutoFit && (
+        {/* Centro: Título com Logo WhatsApp + Badge de Status + Seletor de Tabs */}
+        <div className="flex flex-col items-center gap-1">
+          <div className="flex items-center gap-2">
+            <WhatsappLogo size={18} weight="fill" className="text-emerald-500" />
+            <h1 className="text-sm font-bold text-slate-800 dark:text-neutral-100">{flow.name}</h1>
+            <RenameFollowupFlowButton
+              flowId={flowId}
+              flowName={flow.name}
+              variant="ghost"
+              size="icon"
+            />
+            {dirty ? (
+              <span className="rounded-full border border-amber-300 bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700 shadow-2xs dark:border-amber-800 dark:bg-amber-950/60 dark:text-amber-400">
+                {t("Alterações não salvas")}
+              </span>
+            ) : flow.status === "active" ? (
+              <span className="rounded-md bg-emerald-500 px-2 py-0.5 text-[10px] font-bold text-white shadow-2xs">
+                SALVO
+              </span>
+            ) : (
+              <FlowStatusBadge status={flow.status} />
+            )}
+          </div>
+
+          <div className="inline-flex items-center rounded-full border border-neutral-200 bg-neutral-100/80 p-0.5 text-xs shadow-2xs dark:border-neutral-800 dark:bg-neutral-900">
+            <button
+              type="button"
+              className="cursor-pointer rounded-full px-3 py-0.5 text-[11px] font-medium text-neutral-500 hover:text-neutral-900 dark:text-neutral-400"
+            >
+              Logs
+            </button>
+            <button
+              type="button"
+              className="cursor-pointer rounded-full bg-[#7c3aed] px-3.5 py-0.5 text-[11px] font-bold text-white shadow-xs"
+            >
+              Automação
+            </button>
+            <button
+              type="button"
+              className="cursor-pointer rounded-full px-3 py-0.5 text-[11px] font-medium text-neutral-500 hover:text-neutral-900 dark:text-neutral-400"
+            >
+              Relatórios
+            </button>
+          </div>
+        </div>
+
+        {/* Lado Direito: Ações rápidas */}
+        <div className="flex flex-wrap items-center gap-2">
+          <TriggerConfigControl flowId={flowId} triggerConfig={flow.trigger_config} />
+
+          <Select value={flow.handoff_policy} onValueChange={(v) => handoffPolicy.mutate(v as FollowupFlowDetailRow["handoff_policy"])}>
+            <SelectTrigger className="h-8 w-44 text-xs" aria-label={t("Política de handoff")}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {(Object.keys(HANDOFF_LABEL) as Array<keyof typeof HANDOFF_LABEL>).map((k) => (
+                <SelectItem key={k} value={k} className="text-xs">
+                  {t(HANDOFF_LABEL[k])}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Button type="button" variant="secondary" size="sm" className="h-8 text-xs font-semibold" disabled={!dirty || busy} onClick={onSave}>
+            {save.isPending ? t("Salvando…") : t("Salvar")}
+          </Button>
+          <Button type="button" size="sm" className="h-8 bg-[#7c3aed] hover:bg-[#6d28d9] text-white text-xs font-semibold" disabled={busy} onClick={onPublish} data-testid="publish-button">
+            {publish.isPending ? t("Publicando…") : t("Publicar")}
+          </Button>
+          <Button
+            type="button"
+            variant={simulatorOpen ? "default" : "outline"}
+            size="sm"
+            className="h-8 text-xs font-semibold"
+            onClick={onOpenSimulator}
+            data-testid="open-simulator"
+          >
+            <Play size={13} aria-hidden className="mr-1" />
+            {t("Simular")}
+          </Button>
           <Button
             type="button"
             variant="outline"
             size="sm"
-            disabled={!canAutoFit}
-            onClick={onAutoFit}
-            data-testid="auto-fit-flow"
+            className="h-8 text-xs font-semibold"
+            disabled={busy || flow.status === "disabled"}
+            onClick={onDisable}
           >
-            <TreeStructure size={14} aria-hidden className="mr-1" />
-            {t("Organizar")}
+            {t("Desativar")}
           </Button>
-        )}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 text-xs font-semibold"
+            disabled={busy || !canRollback}
+            onClick={onRollback}
+            data-testid="rollback-button"
+          >
+            {t("Rollback")}
+          </Button>
+          {onAutoFit && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8 text-xs font-semibold"
+              disabled={!canAutoFit}
+              onClick={onAutoFit}
+              data-testid="auto-fit-flow"
+            >
+              <TreeStructure size={13} aria-hidden className="mr-1" />
+              {t("Organizar")}
+            </Button>
+          )}
         {selection ? (
           <>
             <Button
@@ -258,5 +325,6 @@ export function PublishBar({
         )}
       </div>
     </div>
+  </div>
   );
 }

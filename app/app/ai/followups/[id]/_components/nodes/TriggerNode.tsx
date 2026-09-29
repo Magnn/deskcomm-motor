@@ -143,7 +143,7 @@ export function TriggerNode({ id, data, selected }: NodeProps<RFNode>) {
             ? t("Mudança de etapa")
             : triggerKind === "contact_created"
               ? t("Contato criado")
-              : t("Mensagem recebida");
+              : t("Ao receber uma palavra-chave");
 
   const bottomBadge =
     keywordText
@@ -152,55 +152,56 @@ export function TriggerNode({ id, data, selected }: NodeProps<RFNode>) {
         ? eventLabel
         : t("Qualquer mensagem");
 
+  const keywordPillText =
+    keywordText || eventLabel || "quero iniciar meu atendimento";
+
   return (
     <div
-      className="group relative flex w-[176px] flex-col items-center gap-0 font-sans transition-all select-none"
+      className={cn(
+        "group relative flex w-[185px] flex-col items-center gap-1.5 rounded-xl border-[1.5px] border-emerald-500 bg-white p-2.5 font-sans shadow-sm transition-all select-none dark:bg-neutral-900",
+        selected
+          ? "shadow-md ring-2 ring-emerald-500/30"
+          : "hover:border-emerald-600 hover:shadow-md",
+        data.simulating && "animate-pulse ring-2 ring-emerald-500",
+      )}
       data-testid={`trigger-node-${id}`}
     >
-      {/* Trigger Main Card */}
-      <div
-        className={cn(
-          "flex w-full flex-col overflow-hidden rounded-[10px] border bg-white shadow-sm transition-all dark:bg-neutral-900",
-          selected
-            ? "border-emerald-500 shadow-md ring-2 ring-emerald-500/30"
-            : "border-slate-300 hover:border-emerald-400 dark:border-neutral-700",
-          data.simulating && "animate-pulse ring-2 ring-emerald-500",
-        )}
-      >
-        <div className="grid min-h-[39px] grid-cols-[42px_1fr] items-center">
-          <div className="flex h-full items-center justify-center border-r border-slate-100 bg-white dark:border-neutral-800 dark:bg-neutral-900">
-            {providerIcon}
-          </div>
-          <div className="truncate px-2 text-center text-[12px] font-semibold tracking-tight text-slate-900 dark:text-neutral-100">
-            {providerName}
-          </div>
+      {/* Header com Ícone e Notificação '1' */}
+      <div className="flex w-full items-center gap-2">
+        <div className="relative flex shrink-0 items-center justify-center">
+          {providerIcon}
+          <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-red-500 text-[8.5px] font-bold text-white shadow-2xs">
+            1
+          </span>
         </div>
-        <div className="flex min-h-[26px] items-center justify-center border-t border-slate-100 bg-slate-50 px-1.5 py-1 text-center text-[9.5px] leading-tight font-medium text-slate-500 dark:border-neutral-800 dark:bg-neutral-800/60 dark:text-neutral-400">
-          {triggerDescription}
+        <div className="min-w-0 flex-1 truncate text-left text-xs font-bold tracking-tight text-slate-800 dark:text-neutral-100">
+          {providerName === "WhatsApp" ? t("Mensagem recebida") : providerName}
         </div>
       </div>
 
-      {/* Seta vertical para baixo */}
-      <div className="-mt-px mb-0.5 flex flex-col items-center justify-center text-emerald-500">
-        <div className="relative z-10 -mt-px block h-px w-[10px] bg-white dark:bg-neutral-900" />
-        <div className="flex h-[16px] w-3.5 flex-col items-center justify-center bg-emerald-500 shadow-2xs">
-          <svg width="8" height="6" viewBox="0 0 8 6" fill="currentColor">
-            <path d="M4 6L0 0H8L4 6Z" />
-          </svg>
-        </div>
+      {/* Descrição do gatilho */}
+      <div className="w-full text-center text-[10px] font-medium text-slate-500 dark:text-neutral-400">
+        {triggerDescription}
       </div>
 
-      {/* Bloco de Palavra-chave / Evento */}
-      <div className="flex min-h-[44px] w-full max-w-[162px] items-center justify-center rounded-lg border-[1.3px] border-emerald-500 bg-white px-2.5 py-1.5 text-center text-[9.5px] leading-tight font-semibold break-words text-slate-900 shadow-sm dark:bg-neutral-900 dark:text-neutral-100">
-        {bottomBadge}
+      {/* Ícone de seta para baixo */}
+      <div className="flex h-4 w-4 items-center justify-center rounded text-emerald-600 dark:text-emerald-400">
+        <svg width="10" height="8" viewBox="0 0 10 8" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M5 1v6M1 4l4 4 4-4" />
+        </svg>
       </div>
 
-      {/* Handle de saída no lado direito com flecha Play */}
+      {/* Badge verde inferior (palavra-chave / evento) */}
+      <div className="w-full truncate rounded-lg border border-emerald-500 bg-emerald-50/60 px-2 py-1 text-center text-[10.5px] font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+        {keywordPillText}
+      </div>
+
+      {/* Handle de saída no lado direito com flecha Play estilizada */}
       <Handle
         type="source"
         position={Position.Right}
         className="!-right-2.5 z-10 !flex !h-5 !w-5 !items-center !justify-center !rounded-full !border-2 !border-white !bg-[#2563eb] text-white !shadow-sm !transition-all hover:!scale-125"
-        style={{ top: "20px" }}
+        style={{ top: "22px" }}
       >
         <Play size={8} weight="fill" className="pointer-events-none ml-0.5 text-white" />
       </Handle>

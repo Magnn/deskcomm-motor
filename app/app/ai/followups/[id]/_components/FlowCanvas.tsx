@@ -67,6 +67,7 @@ import { AiGenericNode } from "./nodes/AiGenericNode";
 import { ApiCallNode } from "./nodes/ApiCallNode";
 import { NotifyAgentNode } from "./nodes/NotifyAgentNode";
 import { AddNoteNode } from "./nodes/AddNoteNode";
+import { CollectNode } from "./nodes/CollectNode";
 
 const EMPTY_GRAPH: FlowGraph = { nodes: [], edges: [] };
 const DND_MIME = "application/x-followup-node-type";
@@ -89,6 +90,7 @@ const nodeTypes: NodeTypes = {
   api_call: ApiCallNode,
   notify_agent: NotifyAgentNode,
   add_note: AddNoteNode,
+  collect: CollectNode,
 };
 
 interface Props {
