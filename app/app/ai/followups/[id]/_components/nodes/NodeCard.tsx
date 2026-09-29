@@ -7,7 +7,7 @@ import { Handle, Position } from "@xyflow/react";
 import type { FlowBranch } from "@/lib/followup/graph-schema";
 import { rotuloDoRamo } from "@/lib/followup/rotulo-do-ramo";
 import type { NomesDeValor } from "@/lib/followup/vocabulario";
-import { ArrowRight, Warning, WarningOctagon, Play, Copy, PencilSimple } from "@/lib/ui/icons";
+import { ArrowRight, Warning, WarningOctagon, Play, Copy, PencilSimple, Smiley } from "@/lib/ui/icons";
 import { cn } from "@/lib/utils";
 import { useT } from "@/hooks/i18n/useT";
 import { useEtapasDoFluxo } from "../EtapasDoFluxo";
@@ -60,6 +60,8 @@ interface Props {
     Icon: ComponentType<{ size?: number; className?: string; "aria-hidden"?: boolean }>;
     type?: string;
   }>;
+  /** Prévia rica personalizada idêntica ao AcassIA */
+  customPreview?: React.ReactNode;
 }
 
 /**
@@ -80,36 +82,38 @@ interface Props {
 const HEADER_BG_BY_TYPE: Record<string, string> = {
   action: "bg-[#7c3aed]",
   trigger: "bg-[#059669]",
-  wait: "bg-[#ea580c]",
-  condition: "bg-[#0284c7]",
-  ai_classify: "bg-[#7c3aed]",
+  wait: "bg-[#475569]",
+  condition: "bg-[#dc2626]",
+  ai_classify: "bg-[#7e22ce]",
   match_reply: "bg-[#dc2626]",
-  menu: "bg-[#0891b2]",
+  menu: "bg-[#0f766e]",
   repeat: "bg-[#0d9488]",
   collect: "bg-[#ea580c]",
   ab_split: "bg-[#db2777]",
-  ai_generic: "bg-[#c026d3]",
-  api_call: "bg-[#2563eb]",
-  notify_agent: "bg-[#ca8a04]",
-  add_note: "bg-[#d97706]",
+  ai_generic: "bg-[#16a34a]",
+  api_call: "bg-[#3730a3]",
+  notify_agent: "bg-[#2563eb]",
+  add_note: "bg-[#ca8a04]",
+  attendant_route: "bg-[#c4b53f]",
   end: "bg-[#52525b]",
 };
 
 const BORDER_COLOR_BY_TYPE: Record<string, string> = {
   action: "!border-purple-600 text-purple-600",
   trigger: "!border-emerald-600 text-emerald-600",
-  wait: "!border-orange-500 text-orange-500",
-  condition: "!border-sky-600 text-sky-600",
-  ai_classify: "!border-purple-600 text-purple-600",
+  wait: "!border-slate-600 text-slate-600",
+  condition: "!border-red-600 text-red-600",
+  ai_classify: "!border-purple-700 text-purple-700",
   match_reply: "!border-red-600 text-red-600",
-  menu: "!border-cyan-600 text-cyan-600",
+  menu: "!border-teal-700 text-teal-700",
   repeat: "!border-teal-600 text-teal-600",
   collect: "!border-orange-500 text-orange-500",
   ab_split: "!border-pink-600 text-pink-600",
-  ai_generic: "!border-fuchsia-600 text-fuchsia-600",
-  api_call: "!border-blue-600 text-blue-600",
-  notify_agent: "!border-yellow-600 text-yellow-600",
+  ai_generic: "!border-green-600 text-green-600",
+  api_call: "!border-indigo-600 text-indigo-600",
+  notify_agent: "!border-blue-600 text-blue-600",
   add_note: "!border-amber-600 text-amber-600",
+  attendant_route: "!border-yellow-600 text-yellow-600",
   end: "!border-zinc-500 text-zinc-500",
 };
 
@@ -125,6 +129,7 @@ export function NodeCard({
   showSource = true,
   branches,
   previewRows,
+  customPreview,
 }: Props) {
   const t = useT();
   const { nomes } = useEtapasDoFluxo();
@@ -216,17 +221,28 @@ export function NodeCard({
         </div>
       </div>
 
-      {/* Subtítulo somente quando não há itens de prévia */}
-      {(!previewRows || previewRows.length === 0) && (
-        <div className="p-3">
-          <p
-            className="line-clamp-2 rounded-lg border border-border/60 bg-surface-elevated px-2.5 py-1.5 text-xs leading-relaxed break-words text-text-muted"
-            title={subtitle}
-          >
-            {subtitle}
-          </p>
-        </div>
-      )}
+      {/* Subtítulo ou visual customizado ou placeholder de configuração */}
+      {customPreview ? (
+        <div className="p-3">{customPreview}</div>
+      ) : (!previewRows || previewRows.length === 0) ? (
+        visual.type === "action" ? (
+          <div className="p-3">
+            <div className="flex flex-col items-center justify-center gap-2 py-6 min-h-[110px]">
+              <Smiley size={36} className="text-slate-400" aria-hidden />
+              <span className="text-[13px] font-medium text-slate-500">Aguardando Configuração...</span>
+            </div>
+          </div>
+        ) : (
+          <div className="p-3">
+            <p
+              className="line-clamp-2 rounded-lg border border-border/60 bg-surface-elevated px-2.5 py-1.5 text-xs leading-relaxed break-words text-text-muted"
+              title={subtitle}
+            >
+              {subtitle}
+            </p>
+          </div>
+        )
+      ) : null}
 
       {hasError && (
         <p
