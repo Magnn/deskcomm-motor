@@ -111,7 +111,14 @@ export function FlowsList({ initialData, canWrite }: Props) {
                   <h3 className="min-w-0 flex-1 truncate font-medium" title={flow.name}>
                     {flow.name}
                   </h3>
-                  <FlowStatusBadge status={flow.status} />
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className="rounded-full border border-emerald-500/60 bg-emerald-50/60 px-2 py-0.5 text-[10.5px] font-semibold text-emerald-700 dark:border-emerald-600/50 dark:bg-emerald-950/40 dark:text-emerald-400">
+                      {typeof window !== "undefined" && localStorage.getItem(`flow_channel_${flow.id}`) === "oficial"
+                        ? "App Oficial"
+                        : "App Business"}
+                    </span>
+                    <FlowStatusBadge status={flow.status} />
+                  </div>
                 </div>
                 <dl className="grid grid-cols-2 gap-2 pt-1 text-xs">
                   <div>
