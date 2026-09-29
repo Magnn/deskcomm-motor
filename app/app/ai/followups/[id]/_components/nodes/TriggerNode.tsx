@@ -12,22 +12,144 @@ export function TriggerNode({ id, data, selected }: NodeProps<RFNode>) {
   const cfg = (data.config || {}) as Record<string, unknown>;
   const triggerKind = String(cfg.kind || "keyword");
 
-  const triggerDescription =
-    triggerKind === "inbound_after_silence"
-      ? t("Retorno após silêncio")
-      : triggerKind === "manual"
-        ? t("Disparo manual")
-        : triggerKind === "deal_stage_changed"
-          ? t("Mudança de etapa")
-          : triggerKind === "contact_created"
-            ? t("Contato criado")
-            : t("Mensagem recebida");
+  // Recupera dados persistidos do fluxo no localStorage se disponível
+  let storedProvider: string | null = null;
+  let storedEvent: string | null = null;
+  let storedKeyword: string | null = null;
+  if (typeof window !== "undefined") {
+    try {
+      const flowId = window.location.pathname.split("/").filter(Boolean).pop();
+      if (flowId) {
+        storedProvider = localStorage.getItem(`flow_provider_${flowId}`);
+        storedEvent = localStorage.getItem(`flow_event_${flowId}`);
+        storedKeyword = localStorage.getItem(`flow_keyword_${flowId}`);
+      }
+    } catch {
+      // silent
+    }
+  }
 
-  const keyword =
+  const providerId = String(cfg.provider || storedProvider || "whatsapp");
+  const eventLabel =
+    typeof cfg.event_label === "string" && cfg.event_label
+      ? cfg.event_label
+      : storedEvent
+        ? storedEvent.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())
+        : null;
+
+  const keywordText =
     typeof cfg.keyword === "string" && cfg.keyword
       ? cfg.keyword
-      : typeof cfg.label === "string" && cfg.label
-        ? cfg.label
+      : storedKeyword
+        ? storedKeyword
+        : typeof cfg.label === "string" && cfg.label
+          ? cfg.label
+          : null;
+
+  let providerName = data.label || "WhatsApp";
+  let providerIcon = (
+    <div className="flex h-[27px] w-[27px] items-center justify-center rounded-full bg-[#10b981] shadow-xs">
+      <WhatsappLogo size={16} weight="bold" className="text-white" />
+    </div>
+  );
+
+  if (providerId === "kiwify") {
+    providerName = "Kiwify";
+    providerIcon = (
+      <div className="flex h-[27px] w-[27px] items-center justify-center rounded-full bg-emerald-100 shadow-xs border border-emerald-400">
+        <span className="text-[9px] font-black text-emerald-800">kiwi</span>
+      </div>
+    );
+  } else if (providerId === "perfectpay") {
+    providerName = "Perfect Pay";
+    providerIcon = (
+      <div className="flex h-[27px] w-[27px] items-center justify-center rounded-full bg-[#00897b] shadow-xs text-white font-black text-xs italic">
+        P
+      </div>
+    );
+  } else if (providerId === "payt") {
+    providerName = "PayT";
+    providerIcon = (
+      <div className="flex h-[27px] w-[27px] items-center justify-center rounded-full bg-[#f97316] shadow-xs text-white font-black text-[9px]">
+        payt
+      </div>
+    );
+  } else if (providerId === "hotmart") {
+    providerName = "Hotmart";
+    providerIcon = (
+      <div className="flex h-[27px] w-[27px] items-center justify-center rounded-full bg-[#ea580c] shadow-xs text-white font-black text-[9px]">
+        🔥
+      </div>
+    );
+  } else if (providerId === "braip") {
+    providerName = "Braip";
+    providerIcon = (
+      <div className="flex h-[27px] w-[27px] items-center justify-center rounded-full bg-[#6d28d9] shadow-xs text-white font-black text-[8px]">
+        BRAIP
+      </div>
+    );
+  } else if (providerId === "yampi") {
+    providerName = "Yampi";
+    providerIcon = (
+      <div className="flex h-[27px] w-[27px] items-center justify-center rounded-full bg-gradient-to-tr from-pink-500 to-purple-500 shadow-xs text-white font-black text-xs">
+        ♥
+      </div>
+    );
+  } else if (providerId === "cakto") {
+    providerName = "Cakto";
+    providerIcon = (
+      <div className="flex h-[27px] w-[27px] items-center justify-center rounded-full bg-[#365314] shadow-xs text-white font-black text-xs">
+        🌵
+      </div>
+    );
+  } else if (providerId === "asaas") {
+    providerName = "Asaas";
+    providerIcon = (
+      <div className="flex h-[27px] w-[27px] items-center justify-center rounded-full bg-[#002f6c] shadow-xs text-white font-black text-[8px]">
+        ASAS
+      </div>
+    );
+  } else if (providerId === "bestfy") {
+    providerName = "Bestfy";
+    providerIcon = (
+      <div className="flex h-[27px] w-[27px] items-center justify-center rounded-full bg-[#059669] shadow-xs text-white font-serif font-black text-xs">
+        b
+      </div>
+    );
+  } else if (providerId === "tray") {
+    providerName = "Tray";
+    providerIcon = (
+      <div className="flex h-[27px] w-[27px] items-center justify-center rounded-full bg-[#0284c7] shadow-xs text-white font-black text-[9px]">
+        🛒
+      </div>
+    );
+  } else if (providerId === "webhook") {
+    providerName = "Webhook";
+    providerIcon = (
+      <div className="flex h-[27px] w-[27px] items-center justify-center rounded-full bg-gradient-to-tr from-blue-600 to-purple-600 shadow-xs text-amber-300 font-black text-xs">
+        ⚡
+      </div>
+    );
+  }
+
+  const triggerDescription =
+    eventLabel
+      ? t(eventLabel)
+      : triggerKind === "inbound_after_silence"
+        ? t("Retorno após silêncio")
+        : triggerKind === "manual"
+          ? t("Disparo manual")
+          : triggerKind === "deal_stage_changed"
+            ? t("Mudança de etapa")
+            : triggerKind === "contact_created"
+              ? t("Contato criado")
+              : t("Mensagem recebida");
+
+  const bottomBadge =
+    keywordText
+      ? `Palavra-chave: "${keywordText}"`
+      : eventLabel
+        ? eventLabel
         : t("Qualquer mensagem");
 
   return (
@@ -47,12 +169,10 @@ export function TriggerNode({ id, data, selected }: NodeProps<RFNode>) {
       >
         <div className="grid min-h-[39px] grid-cols-[42px_1fr] items-center">
           <div className="flex h-full items-center justify-center border-r border-slate-100 bg-white dark:border-neutral-800 dark:bg-neutral-900">
-            <div className="flex h-[27px] w-[27px] items-center justify-center rounded-full bg-[#10b981] shadow-xs">
-              <WhatsappLogo size={16} weight="bold" className="text-white" />
-            </div>
+            {providerIcon}
           </div>
           <div className="truncate px-2 text-center text-[12px] font-semibold tracking-tight text-slate-900 dark:text-neutral-100">
-            {data.label || "WhatsApp"}
+            {providerName}
           </div>
         </div>
         <div className="flex min-h-[26px] items-center justify-center border-t border-slate-100 bg-slate-50 px-1.5 py-1 text-center text-[9.5px] leading-tight font-medium text-slate-500 dark:border-neutral-800 dark:bg-neutral-800/60 dark:text-neutral-400">
@@ -72,7 +192,7 @@ export function TriggerNode({ id, data, selected }: NodeProps<RFNode>) {
 
       {/* Bloco de Palavra-chave / Evento */}
       <div className="flex min-h-[44px] w-full max-w-[162px] items-center justify-center rounded-lg border-[1.3px] border-emerald-500 bg-white px-2.5 py-1.5 text-center text-[9.5px] leading-tight font-semibold break-words text-slate-900 shadow-sm dark:bg-neutral-900 dark:text-neutral-100">
-        {keyword}
+        {bottomBadge}
       </div>
 
       {/* Handle de saída no lado direito com flecha Play */}
