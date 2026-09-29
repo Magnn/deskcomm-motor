@@ -12,7 +12,11 @@ export function ActionNode({ id, data, selected }: NodeProps<RFNode>) {
   const config = data.config as Extract<RFNode["data"]["config"], { mode: string }>;
   const previewRows =
     config.mode === "content"
-      ? config.items.map((item) => ({ Icon: ICONES_DE_ITEM_DE_CONTEUDO[item.type], texto: descreverItemDeConteudo(item, t) }))
+      ? config.items.map((item) => ({
+          type: item.type,
+          Icon: ICONES_DE_ITEM_DE_CONTEUDO[item.type],
+          texto: descreverItemDeConteudo(item, t),
+        }))
       : undefined;
   return (
     <NodeCard
