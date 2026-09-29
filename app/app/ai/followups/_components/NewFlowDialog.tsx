@@ -86,12 +86,16 @@ const PROVIDERS: Provider[] = [
   {
     id: "kiwify",
     name: "Kiwify",
-    defaultEvent: "compra_aprovada",
+    defaultEvent: "pagamento_aprovado",
     events: [
-      { value: "compra_aprovada", label: "Compra aprovada" },
+      { value: "pagamento_aprovado", label: "Pagamento Aprovado" },
+      { value: "pagamento_recusado", label: "Pagamento recusado" },
+      { value: "aguardando_pagamento", label: "Aguardando pagamento" },
+      { value: "chargeback", label: "Chargeback" },
       { value: "carrinho_abandonado", label: "Carrinho abandonado" },
-      { value: "boleto_gerado", label: "Boleto / Pix gerado" },
-      { value: "reembolso", label: "Reembolso solicitado" },
+      { value: "boleto_gerado", label: "Boleto gerado" },
+      { value: "pix_gerado", label: "Pix gerado" },
+      { value: "reembolso", label: "Reembolso" },
     ],
     renderIcon: () => (
       <div className="flex flex-col items-center justify-center">
@@ -109,10 +113,15 @@ const PROVIDERS: Provider[] = [
   {
     id: "perfectpay",
     name: "Perfect Pay",
-    defaultEvent: "compra_aprovada",
+    defaultEvent: "aguardando_pagamento",
     events: [
-      { value: "compra_aprovada", label: "Compra aprovada" },
-      { value: "carrinho_abandonado", label: "Carrinho abandonado" },
+      { value: "aguardando_pagamento", label: "Aguardando Pagamento" },
+      { value: "aprovado_autorizado", label: "Aprovado/Autorizado" },
+      { value: "em_revisao_manual", label: "Em revisão manual" },
+      { value: "em_moderacao", label: "Em moderação" },
+      { value: "chargeback", label: "Chargeback" },
+      { value: "reembolso", label: "Reembolso" },
+      { value: "cancelado", label: "Cancelado" },
     ],
     renderIcon: () => (
       <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#00897b] shadow-xs">
@@ -122,11 +131,16 @@ const PROVIDERS: Provider[] = [
   },
   {
     id: "payt",
-    name: "Payt",
-    defaultEvent: "compra_aprovada",
+    name: "PayT",
+    defaultEvent: "pagamento_aprovado",
     events: [
-      { value: "compra_aprovada", label: "Compra aprovada" },
-      { value: "carrinho_abandonado", label: "Carrinho abandonado" },
+      { value: "pagamento_aprovado", label: "Pagamento Aprovado" },
+      { value: "reservado_aguardando", label: "Reservado - Aguardando Pagamento" },
+      { value: "faturado", label: "Faturado" },
+      { value: "em_separacao", label: "Em separação" },
+      { value: "enviado", label: "Enviado" },
+      { value: "entregue", label: "Entregue" },
+      { value: "cancelado", label: "Cancelado" },
     ],
     renderIcon: () => (
       <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#f97316] shadow-xs">
@@ -137,10 +151,15 @@ const PROVIDERS: Provider[] = [
   {
     id: "hotmart",
     name: "Hotmart",
-    defaultEvent: "compra_aprovada",
+    defaultEvent: "abandono_carrinho",
     events: [
-      { value: "compra_aprovada", label: "Compra aprovada" },
-      { value: "carrinho_abandonado", label: "Carrinho abandonado" },
+      { value: "abandono_carrinho", label: "Abandono de carrinho" },
+      { value: "aguardando_pagamento", label: "Aguardando Pagamento" },
+      { value: "pedido_aprovado", label: "Pedido Aprovado" },
+      { value: "pedido_cancelado", label: "Pedido Cancelado" },
+      { value: "chargeback", label: "Chargeback" },
+      { value: "reclamacao", label: "Reclamação" },
+      { value: "reembolso", label: "Reembolso" },
     ],
     renderIcon: () => (
       <div className="flex flex-col items-center justify-center">
@@ -156,10 +175,14 @@ const PROVIDERS: Provider[] = [
   {
     id: "braip",
     name: "Braip",
-    defaultEvent: "compra_aprovada",
+    defaultEvent: "abandono_carrinho",
     events: [
-      { value: "compra_aprovada", label: "Compra aprovada" },
-      { value: "carrinho_abandonado", label: "Carrinho abandonado" },
+      { value: "abandono_carrinho", label: "Abandono de carrinho" },
+      { value: "aguardando_pagamento", label: "Aguardando Pagamento" },
+      { value: "pedido_aprovado", label: "Pedido aprovado" },
+      { value: "pedido_cancelado", label: "Pedido Cancelado" },
+      { value: "chargeback", label: "Chargeback" },
+      { value: "reembolso", label: "Reembolso" },
     ],
     renderIcon: () => (
       <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#6d28d9] shadow-xs">
@@ -168,12 +191,18 @@ const PROVIDERS: Provider[] = [
     ),
   },
   {
-    id: "cakto",
-    name: "Cakto / Lastlink",
-    defaultEvent: "compra_aprovada",
+    id: "yampi",
+    name: "Yampi",
+    defaultEvent: "pedido_criado",
     events: [
-      { value: "compra_aprovada", label: "Compra aprovada" },
-      { value: "carrinho_abandonado", label: "Carrinho abandonado" },
+      { value: "pedido_criado", label: "Pedido criado(Aguardando Pagamento)" },
+      { value: "pedido_aprovado", label: "Pedido aprovado" },
+      { value: "carrinho_abandonado", label: "Notificação de carrinho abandonado" },
+      { value: "pagamento_recusado", label: "Pagamento recusado" },
+      { value: "pedido_cancelado", label: "Pedido cancelado" },
+      { value: "pedido_faturado", label: "Pedido faturado" },
+      { value: "pedido_enviado", label: "Pedido enviado" },
+      { value: "pedido_entregue", label: "Pedido entregue" },
     ],
     renderIcon: () => (
       <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-tr from-pink-500 via-rose-500 to-purple-500 shadow-xs">
@@ -186,10 +215,16 @@ const PROVIDERS: Provider[] = [
   {
     id: "kirvano",
     name: "Kirvano",
-    defaultEvent: "compra_aprovada",
+    defaultEvent: "pagamento_aprovado",
     events: [
-      { value: "compra_aprovada", label: "Compra aprovada" },
+      { value: "pagamento_aprovado", label: "Pagamento Aprovado" },
+      { value: "pagamento_recusado", label: "Pagamento recusado" },
+      { value: "aguardando_pagamento", label: "Aguardando pagamento" },
+      { value: "chargeback", label: "Chargeback" },
       { value: "carrinho_abandonado", label: "Carrinho abandonado" },
+      { value: "boleto_gerado", label: "Boleto gerado" },
+      { value: "pix_gerado", label: "Pix gerado" },
+      { value: "reembolso", label: "Reembolso" },
     ],
     renderIcon: () => (
       <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#365314] shadow-xs">
@@ -205,9 +240,12 @@ const PROVIDERS: Provider[] = [
     name: "Asaas",
     defaultEvent: "cobranca_paga",
     events: [
-      { value: "cobranca_paga", label: "Cobrança paga" },
+      { value: "cobranca_paga", label: "Cobrança Recebida / Paga" },
+      { value: "cobranca_pendente", label: "Cobrança Pendente" },
+      { value: "cobranca_vencida", label: "Cobrança Vencida" },
       { value: "pix_gerado", label: "Pix / Boleto gerado" },
-      { value: "cobranca_vencida", label: "Cobrança vencida" },
+      { value: "cobranca_estornada", label: "Cobrança Estornada" },
+      { value: "assinatura_cancelada", label: "Assinatura cancelada" },
     ],
     renderIcon: () => (
       <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#002f6c] shadow-xs">
@@ -220,8 +258,10 @@ const PROVIDERS: Provider[] = [
     name: "Bling",
     defaultEvent: "pedido_criado",
     events: [
-      { value: "pedido_criado", label: "Pedido criado" },
-      { value: "pedido_pago", label: "Pedido faturado" },
+      { value: "pedido_criado", label: "Pedido Criado" },
+      { value: "pedido_pago", label: "Pedido Faturado / Pago" },
+      { value: "pedido_cancelado", label: "Pedido Cancelado" },
+      { value: "pedido_enviado", label: "Pedido Enviado" },
     ],
     renderIcon: () => (
       <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#059669] shadow-xs">
@@ -234,8 +274,10 @@ const PROVIDERS: Provider[] = [
     name: "Tray",
     defaultEvent: "pedido_realizado",
     events: [
-      { value: "pedido_realizado", label: "Pedido realizado" },
-      { value: "carrinho_abandonado", label: "Carrinho abandonado" },
+      { value: "pedido_realizado", label: "Pedido Realizado" },
+      { value: "pagamento_confirmado", label: "Pagamento Confirmado" },
+      { value: "pedido_cancelado", label: "Pedido Cancelado" },
+      { value: "carrinho_abandonado", label: "Carrinho Abandonado" },
     ],
     renderIcon: () => (
       <div className="flex flex-col items-center justify-center">
@@ -259,8 +301,12 @@ export function NewFlowDialog({ open, onOpenChange }: Props) {
   const create = useCreateFollowupFlow();
 
   const provider = PROVIDERS.find((p) => p.id === selectedProvider) ?? PROVIDERS[0]!;
-  const selectedEventObj = provider.events.find((e) => e.value === selectedEvent) ?? provider.events[0];
-  const selectedEventLabel = selectedEventObj?.label ?? "Mensagem recebida";
+  const dividerBadgeLabel =
+    selectedProvider === "whatsapp"
+      ? "Mensagem recebida"
+      : selectedProvider === "webhook"
+      ? "Webhook"
+      : provider.name;
 
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -392,7 +438,7 @@ export function NewFlowDialog({ open, onOpenChange }: Props) {
                     type="button"
                     onClick={() => {
                       setSelectedProvider(p.id);
-                      setSelectedEvent(p.defaultEvent);
+                      setSelectedEvent("");
                     }}
                     className={cn(
                       "flex h-12 w-full cursor-pointer items-center justify-center rounded-xl border bg-white p-1 transition-all shadow-2xs dark:bg-neutral-800",
@@ -417,7 +463,7 @@ export function NewFlowDialog({ open, onOpenChange }: Props) {
             <div className="relative flex items-center gap-1.5 bg-white px-3 text-xs text-neutral-500 dark:bg-neutral-900">
               <span>{t("Evento de gatilho")}</span>
               <span className="rounded bg-neutral-100 px-2 py-0.5 font-semibold text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
-                {t(selectedEventLabel)}
+                {t(dividerBadgeLabel)}
               </span>
             </div>
           </div>
@@ -431,7 +477,7 @@ export function NewFlowDialog({ open, onOpenChange }: Props) {
               <SelectTrigger id="event-select" className="h-10 rounded-lg border-neutral-300 text-sm">
                 <SelectValue placeholder={t("Selecione um evento")} />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="max-h-56 overflow-y-auto">
                 {provider.events.map((ev) => (
                   <SelectItem key={ev.value} value={ev.value}>
                     {t(ev.label)}
