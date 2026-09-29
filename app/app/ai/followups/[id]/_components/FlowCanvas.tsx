@@ -118,7 +118,8 @@ function FlowCanvasInner({ flowId, initialData }: Props) {
   const { screenToFlowPosition, fitView } = useReactFlow();
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
-  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(true);
+  const [mobilePaletteOpen, setMobilePaletteOpen] = useState(false);
   const [simulatorOpen, setSimulatorOpen] = useState(false);
 
   const liveGraph = useMemo(() => fromReactFlow(nodes, edges), [nodes, edges]);
@@ -126,12 +127,16 @@ function FlowCanvasInner({ flowId, initialData }: Props) {
 
   const markNodeErrors = useCallback(
     (errorsByNode: Record<string, string[]>) => {
-      setNodes((nds) => nds.map((n) => ({ ...n, data: { ...n.data, errors: errorsByNode[n.id] } })));
+      setNodes((nds) =>
+        nds.map((n) => ({ ...n, data: { ...n.data, errors: errorsByNode[n.id] } })),
+      );
     },
     [setNodes],
   );
   const clearNodeErrors = useCallback(() => {
-    setNodes((nds) => nds.map((n) => (n.data.errors ? { ...n, data: { ...n.data, errors: undefined } } : n)));
+    setNodes((nds) =>
+      nds.map((n) => (n.data.errors ? { ...n, data: { ...n.data, errors: undefined } } : n)),
+    );
   }, [setNodes]);
 
   // Node and edge selection are mutually exclusive — opening one panel closes the other's.
@@ -163,21 +168,27 @@ function FlowCanvasInner({ flowId, initialData }: Props) {
   // (Living System checklist item 4/8: continuidade visível, turno a turno).
   const onSimulatorActiveNodeChange = useCallback(
     (nodeId: string | null) => {
-      setNodes((nds) => nds.map((n) => ({ ...n, data: { ...n.data, simulating: n.id === nodeId } })));
+      setNodes((nds) =>
+        nds.map((n) => ({ ...n, data: { ...n.data, simulating: n.id === nodeId } })),
+      );
     },
     [setNodes],
   );
 
   const updateNodeData = useCallback(
     (id: string, patch: Partial<RFNodeData>) => {
-      setNodes((nds) => nds.map((n) => (n.id === id ? { ...n, data: { ...n.data, ...patch } } : n)));
+      setNodes((nds) =>
+        nds.map((n) => (n.id === id ? { ...n, data: { ...n.data, ...patch } } : n)),
+      );
     },
     [setNodes],
   );
   const updateEdgeCondition = useCallback(
     (id: string, condition: FlowEdge["condition"]) => {
       setEdges((eds) =>
-        eds.map((e) => (e.id === id ? { ...e, data: { priority: e.data?.priority ?? 0, condition } } : e)),
+        eds.map((e) =>
+          e.id === id ? { ...e, data: { priority: e.data?.priority ?? 0, condition } } : e,
+        ),
       );
     },
     [setEdges],
@@ -185,31 +196,35 @@ function FlowCanvasInner({ flowId, initialData }: Props) {
 
   const selectedNode = nodes.find((n) => n.id === selectedNodeId) ?? null;
   const selectedEdge = edges.find((e) => e.id === selectedEdgeId) ?? null;
-  const selectedEdgeSource = selectedEdge ? (nodes.find((n) => n.id === selectedEdge.source) ?? null) : null;
-  const selectedEdgeTarget = selectedEdge ? (nodes.find((n) => n.id === selectedEdge.target) ?? null) : null;
+  const selectedEdgeSource = selectedEdge
+    ? (nodes.find((n) => n.id === selectedEdge.source) ?? null)
+    : null;
+  const selectedEdgeTarget = selectedEdge
+    ? (nodes.find((n) => n.id === selectedEdge.target) ?? null)
+    : null;
 
   // Wire label: derived at render time from `data.condition`, never persisted on the edge
   // itself — `condition` alone stays the source of truth the mapper round-trips.
   // Num nó que ramifica o texto vem do RAMO (o rótulo que o usuário leu na
   // bolinha de onde arrastou), não da condição crua: `conditionLabel` sozinho
   // mostraria o id do ramo, que não é palavra nenhuma para quem não programa.
-const EDGE_COLOR_BY_TYPE: Record<string, string> = {
-  action: "#7c3aed",
-  trigger: "#059669",
-  wait: "#ea580c",
-  condition: "#0284c7",
-  ai_classify: "#7c3aed",
-  match_reply: "#dc2626",
-  menu: "#0891b2",
-  repeat: "#0d9488",
-  collect: "#ea580c",
-  ab_split: "#db2777",
-  ai_generic: "#c026d3",
-  api_call: "#2563eb",
-  notify_agent: "#ca8a04",
-  add_note: "#d97706",
-  end: "#71717a",
-};
+  const EDGE_COLOR_BY_TYPE: Record<string, string> = {
+    action: "#7c3aed",
+    trigger: "#059669",
+    wait: "#ea580c",
+    condition: "#0284c7",
+    ai_classify: "#7c3aed",
+    match_reply: "#dc2626",
+    menu: "#0891b2",
+    repeat: "#0d9488",
+    collect: "#ea580c",
+    ab_split: "#db2777",
+    ai_generic: "#c026d3",
+    api_call: "#2563eb",
+    notify_agent: "#ca8a04",
+    add_note: "#d97706",
+    end: "#71717a",
+  };
 
   const edgesForRender = useMemo(
     () =>
@@ -422,24 +437,30 @@ const EDGE_COLOR_BY_TYPE: Record<string, string> = {
           simulatorOpen={simulatorOpen}
         />
       )}
-      <div className="flex flex-1 overflow-hidden">
-        <NodePalette onAdd={onPaletteAdd} />
-        {/* Abaixo de `lg` a paleta fixa de 224px não cabe do lado do canvas —
-            vira um drawer, disparado por este botão flutuante. */}
-        <Sheet open={paletteOpen} onOpenChange={setPaletteOpen}>
-          <SheetContent side="left" className="w-72 max-w-[85vw] gap-0 p-0 lg:hidden">
+      <div className="relative flex flex-1 overflow-hidden">
+        {paletteOpen && <NodePalette onAdd={onPaletteAdd} onClose={() => setPaletteOpen(false)} />}
+        {/* Abaixo de `lg` a paleta fixa não cabe do lado do canvas —
+            vira um drawer (Sheet). */}
+        <Sheet open={mobilePaletteOpen} onOpenChange={setMobilePaletteOpen}>
+          <SheetContent side="left" className="w-80 max-w-[85vw] gap-0 p-0 lg:hidden">
             <SheetTitle className="sr-only">{t("Adicionar nó")}</SheetTitle>
             <NodePalette
               variant="mobile"
+              onClose={() => setMobilePaletteOpen(false)}
               onAdd={(type) => {
                 onPaletteAdd(type);
-                setPaletteOpen(false);
+                setMobilePaletteOpen(false);
               }}
             />
           </SheetContent>
         </Sheet>
 
-        <div className="relative h-full flex-1" data-testid="flow-canvas" onDragOver={onDragOver} onDrop={onDrop}>
+        <div
+          className="relative h-full flex-1"
+          data-testid="flow-canvas"
+          onDragOver={onDragOver}
+          onDrop={onDrop}
+        >
           <ReactFlow
             nodes={nodes}
             edges={edgesForRender}
@@ -467,12 +488,26 @@ const EDGE_COLOR_BY_TYPE: Record<string, string> = {
             <Background />
             <Controls />
           </ReactFlow>
+
+          {/* Botão flutuante '+' no lado esquerdo do canvas quando o menu está fechado */}
+          {!paletteOpen && (
+            <button
+              type="button"
+              onClick={() => setPaletteOpen(true)}
+              aria-label={t("Abrir menu de opções")}
+              title={t("Abrir menu de opções")}
+              className="absolute top-4 left-4 z-20 hidden h-10 w-10 cursor-pointer items-center justify-center rounded-xl border border-neutral-200 bg-white text-neutral-700 shadow-md transition-all hover:scale-105 hover:border-violet-500 hover:bg-neutral-50 hover:text-violet-600 active:scale-95 lg:flex dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+            >
+              <Plus size={20} className="font-bold text-violet-600 dark:text-violet-400" />
+            </button>
+          )}
+
           <Button
             type="button"
             variant="secondary"
             size="sm"
             className="absolute bottom-4 left-4 z-10 shadow-md lg:hidden"
-            onClick={() => setPaletteOpen(true)}
+            onClick={() => setMobilePaletteOpen(true)}
           >
             <Plus size={14} aria-hidden /> {t("Adicionar nó")}
           </Button>
@@ -489,7 +524,7 @@ const EDGE_COLOR_BY_TYPE: Record<string, string> = {
         */}
         {simulatorOpen && (
           <aside
-            className="fixed inset-x-0 bottom-0 z-40 flex max-h-[75vh] flex-col overflow-hidden rounded-t-lg border-t border-border bg-surface shadow-lg lg:static lg:z-auto lg:h-full lg:w-96 lg:max-h-none lg:shrink-0 lg:rounded-none lg:border-l lg:border-t-0 lg:shadow-none"
+            className="fixed inset-x-0 bottom-0 z-40 flex max-h-[75vh] flex-col overflow-hidden rounded-t-lg border-t border-border bg-surface shadow-lg lg:static lg:z-auto lg:h-full lg:max-h-none lg:w-96 lg:shrink-0 lg:rounded-none lg:border-t-0 lg:border-l lg:shadow-none"
             data-testid="simulator-sheet"
           >
             <SimulatorPanel
@@ -503,7 +538,7 @@ const EDGE_COLOR_BY_TYPE: Record<string, string> = {
 
         {!simulatorOpen && selectedNode && (
           <aside
-            className="fixed inset-x-0 bottom-0 z-40 flex max-h-[75vh] flex-col overflow-hidden rounded-t-lg border-t border-border bg-surface shadow-lg lg:static lg:z-auto lg:h-full lg:w-96 lg:max-h-none lg:shrink-0 lg:rounded-none lg:border-l lg:border-t-0 lg:shadow-none"
+            className="fixed inset-x-0 bottom-0 z-40 flex max-h-[75vh] flex-col overflow-hidden rounded-t-lg border-t border-border bg-surface shadow-lg lg:static lg:z-auto lg:h-full lg:max-h-none lg:w-96 lg:shrink-0 lg:rounded-none lg:border-t-0 lg:border-l lg:shadow-none"
             data-testid="node-config-sheet"
           >
             {/* Barra própria pro X, não sobreposta ao conteúdo — um botão
@@ -535,7 +570,7 @@ const EDGE_COLOR_BY_TYPE: Record<string, string> = {
 
         {!simulatorOpen && selectedEdge && (
           <aside
-            className="fixed inset-x-0 bottom-0 z-40 flex max-h-[75vh] flex-col overflow-hidden rounded-t-lg border-t border-border bg-surface shadow-lg lg:static lg:z-auto lg:h-full lg:w-96 lg:max-h-none lg:shrink-0 lg:rounded-none lg:border-l lg:border-t-0 lg:shadow-none"
+            className="fixed inset-x-0 bottom-0 z-40 flex max-h-[75vh] flex-col overflow-hidden rounded-t-lg border-t border-border bg-surface shadow-lg lg:static lg:z-auto lg:h-full lg:max-h-none lg:w-96 lg:shrink-0 lg:rounded-none lg:border-t-0 lg:border-l lg:shadow-none"
             data-testid="edge-config-sheet"
           >
             <div className="flex shrink-0 justify-end p-2 lg:hidden">

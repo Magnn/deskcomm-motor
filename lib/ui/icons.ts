@@ -149,4 +149,5 @@ export {
   GoogleLogo,
   MapPin,
   ArrowsOutSimple,
+  Cpu,
 } from "@phosphor-icons/react/dist/ssr";
