@@ -322,6 +322,15 @@ function FlowCanvasInner({ flowId, initialData }: Props) {
   const triggerKindRaw = flow?.trigger_config?.kind;
   const triggerKind = typeof triggerKindRaw === "string" ? triggerKindRaw : undefined;
 
+  const deleteNode = useCallback(
+    (id: string) => {
+      setNodes((nds) => semNo(nds, id));
+      setEdges((eds) => semArestasDoNo(eds, id));
+      setSelectedNodeId((cur) => (cur === id ? null : cur));
+    },
+    [setNodes, setEdges],
+  );
+
   const addNodeAt = useCallback(
     (type: NodeType, position: { x: number; y: number }) => {
       const visual = NODE_VISUALS[type];
@@ -331,12 +340,14 @@ function FlowCanvasInner({ flowId, initialData }: Props) {
         id,
         type,
         position,
+        selected: true,
         data: { label: t(visual.defaultLabel), config },
       };
-      setNodes((nds) => nds.concat(newNode));
+      setNodes((nds) => [...nds.map((n): RFNode => ({ ...n, selected: false })), newNode]);
       setSelectedNodeId(id);
+      setSelectedEdgeId(null);
     },
-    [setNodes, setSelectedNodeId, t, triggerKind],
+    [setNodes, setSelectedNodeId, setSelectedEdgeId, t, triggerKind],
   );
 
   useEffect(() => {
@@ -351,12 +362,13 @@ function FlowCanvasInner({ flowId, initialData }: Props) {
         id: newId,
         type,
         position: { x: original.position.x + 40, y: original.position.y + 40 },
+        selected: true,
         data: {
           label: original.data.label,
           config: JSON.parse(JSON.stringify(original.data.config)),
         },
       };
-      setNodes((nds) => nds.concat(clone));
+      setNodes((nds) => [...nds.map((n): RFNode => ({ ...n, selected: false })), clone]);
       setSelectedNodeId(newId);
     };
 
@@ -368,29 +380,38 @@ function FlowCanvasInner({ flowId, initialData }: Props) {
       }
     };
 
+    const handleDelete = (e: Event) => {
+      const { id } = (e as CustomEvent<{ id: string }>).detail ?? {};
+      if (id) deleteNode(id);
+    };
+
     window.addEventListener("flow-duplicate-node", handleDuplicate);
     window.addEventListener("flow-select-node", handleSelect);
+    window.addEventListener("flow-delete-node", handleDelete);
     return () => {
       window.removeEventListener("flow-duplicate-node", handleDuplicate);
       window.removeEventListener("flow-select-node", handleSelect);
+      window.removeEventListener("flow-delete-node", handleDelete);
     };
-  }, [nodes, setNodes]);
+  }, [nodes, setNodes, deleteNode]);
 
   const onPaletteAdd = useCallback(
     (type: NodeType) => {
-      const index = nodes.length;
-      addNodeAt(type, { x: 80 + (index % 4) * 220, y: 80 + Math.floor(index / 4) * 150 });
+      const refNode = selectedNode || (nodes.length > 0 ? nodes[nodes.length - 1] : null);
+      if (refNode) {
+        addNodeAt(type, {
+          x: refNode.position.x + 320,
+          y: refNode.position.y,
+        });
+      } else {
+        const centerPos = screenToFlowPosition({
+          x: typeof window !== "undefined" ? window.innerWidth / 2 : 400,
+          y: typeof window !== "undefined" ? window.innerHeight / 2 : 300,
+        });
+        addNodeAt(type, centerPos);
+      }
     },
-    [nodes.length, addNodeAt],
-  );
-
-  const deleteNode = useCallback(
-    (id: string) => {
-      setNodes((nds) => semNo(nds, id));
-      setEdges((eds) => semArestasDoNo(eds, id));
-      setSelectedNodeId((cur) => (cur === id ? null : cur));
-    },
-    [setNodes, setEdges],
+    [nodes, selectedNode, addNodeAt, screenToFlowPosition],
   );
 
   const deleteEdge = useCallback(
