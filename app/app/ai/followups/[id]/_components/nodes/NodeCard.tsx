@@ -392,8 +392,8 @@ export function NodeCard({
                   <row.Icon size={16} aria-hidden className="shrink-0 opacity-95 text-[#5b21b6]" />
                   <span title={row.texto}>
                     {row.texto === "Áudio (nota de voz)"
-                      ? "Enviando um arquivo de áudio"
-                      : row.texto || "Enviando um arquivo de áudio"}
+                      ? "Enviando áudio gravado"
+                      : row.texto || "Enviando áudio gravado"}
                   </span>
                 </li>
               );

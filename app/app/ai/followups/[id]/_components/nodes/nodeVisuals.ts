@@ -399,7 +399,7 @@ export const NODE_VISUALS: Record<NodeType, NodeVisual> = {
     paletteDesc: "Distribuir contatos entre atendentes disponíveis",
     icon: UsersThree,
     ...visualDoMatiz("amber"),
-    defaultLabel: "Distribuir para atendente",
+    defaultLabel: "Divisão de Atendentes",
     defaultConfig: () => ({ max_wait_minutes: 30 }),
   },
   repeat: {
@@ -417,7 +417,7 @@ export const NODE_VISUALS: Record<NodeType, NodeVisual> = {
     paletteDesc: "Enviar pergunta",
     icon: Question,
     ...visualDoMatiz("amber"),
-    defaultLabel: "Nova pergunta",
+    defaultLabel: "Pergunta",
     defaultConfig: () => ({
       key: "novo_campo",
       label: "Nova pergunta",
@@ -460,7 +460,7 @@ export const NODE_VISUALS: Record<NodeType, NodeVisual> = {
     paletteDesc: "Distribuição de contatos",
     icon: TreeStructure,
     ...visualDoMatiz("pink"),
-    defaultLabel: "Dividir tráfego (A/B)",
+    defaultLabel: "Teste A/B",
     defaultConfig: () => ({
       branches: [
         { id: "a", label: "A", percent: 50 },
