@@ -254,65 +254,57 @@ function ItemCard({
   return (
     <div
       className={cn(
-        "relative rounded-xl border bg-white dark:bg-zinc-900 overflow-hidden shadow-[0_1px_3px_rgba(15,23,42,0.05)] transition-all duration-200",
+        "relative rounded-xl border bg-white dark:bg-zinc-900 overflow-hidden shadow-xs transition-all duration-200",
         tc.border,
       )}
-      style={{ padding: "12px 12px 12px 16px" }}
+      style={{ padding: "12px 14px" }}
       data-testid={`conteudo-item-${index}`}
     >
-      {/* Color strip on left edge */}
-      <div className={cn("absolute left-0 top-[6px] bottom-[6px] w-1 rounded-[4px]", tc.strip)} />
-
-      {/* Toolbar: Badge + actions */}
+      {/* Top Header */}
       <div className="flex items-center justify-between gap-2 mb-2.5">
-        <div className="flex items-center gap-1.5 min-w-0">
-          <span className="inline-flex items-center justify-center w-5 h-5 text-[#94a3b8]">
-            <DotsSixVertical size={14} />
-          </span>
-          <span className="text-[10px] font-bold uppercase tracking-[0.06em] text-[#64748b]">
-            {labelPorTipo(item.type)} · {index + 1}
-          </span>
-        </div>
+        <span className="text-[12px] font-bold text-slate-800 dark:text-zinc-100">
+          {item.type === "text"
+            ? t("Texto a ser enviado")
+            : item.type === "delay"
+              ? `${t("Delay")} (${item.seconds} ${t("segundos")})`
+              : labelPorTipo(item.type)}
+        </span>
 
-        {/* Action buttons */}
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={() => onMove(-1)}
-            disabled={disabled || index === 0}
-            className="w-7 h-7 rounded-lg border border-[#e2e8f0] dark:border-zinc-800 bg-white dark:bg-zinc-900 flex items-center justify-center text-[#64748b] hover:bg-[#f1f5f9] dark:hover:bg-zinc-800 hover:text-[#4338ca] disabled:opacity-30 transition-colors"
-            title={t("Mover para cima")}
-          >
-            <CaretUp size={14} />
-          </button>
-          <button
-            type="button"
-            onClick={() => onMove(1)}
-            disabled={disabled || index === total - 1}
-            className="w-7 h-7 rounded-lg border border-[#e2e8f0] dark:border-zinc-800 bg-white dark:bg-zinc-900 flex items-center justify-center text-[#64748b] hover:bg-[#f1f5f9] dark:hover:bg-zinc-800 hover:text-[#4338ca] disabled:opacity-30 transition-colors"
-            title={t("Mover para baixo")}
-          >
-            <CaretDown size={14} />
-          </button>
-          <button
-            type="button"
-            onClick={onDuplicate}
-            disabled={disabled}
-            className="w-7 h-7 rounded-lg border border-[#e2e8f0] dark:border-zinc-800 bg-white dark:bg-zinc-900 flex items-center justify-center text-[#64748b] hover:bg-[#f1f5f9] dark:hover:bg-zinc-800 hover:text-[#4338ca] disabled:opacity-30 transition-colors"
-            title={t("Duplicar")}
-          >
-            <Plus size={14} />
-          </button>
-          <button
-            type="button"
-            onClick={onRemove}
-            disabled={disabled}
-            className="w-7 h-7 rounded-lg border border-[#e2e8f0] dark:border-zinc-800 bg-white dark:bg-zinc-900 flex items-center justify-center text-[#64748b] hover:text-[#e11d48] hover:border-[#fecdd3] hover:bg-[#fff1f2] dark:hover:bg-rose-950/40 disabled:opacity-30 transition-colors"
-            title={t("Remover")}
-          >
-            <Trash size={14} />
-          </button>
-        </div>
+        {item.type === "text" && (
+          <Popover>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                className="inline-flex items-center gap-1 text-[11px] font-medium text-sky-600 dark:text-sky-400 hover:underline focus:outline-hidden cursor-pointer"
+              >
+                <Eye size={13} aria-hidden />
+                {t("Campos Personalizados")}
+              </button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-56 p-2 space-y-1">
+              <p className="text-[10px] font-bold text-neutral-400 uppercase px-2 py-1">
+                {t("Inserir variável")}
+              </p>
+              {CAMPOS_PERSONALIZADOS.map((c) => (
+                <button
+                  key={c.tag}
+                  type="button"
+                  onClick={() => {
+                    const current = item.body;
+                    const next = current ? `${current} ${c.tag}` : c.tag;
+                    onUpdate({ ...item, body: next });
+                  }}
+                  className="w-full flex items-center justify-between px-2 py-1.5 text-xs text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-md transition-colors text-left cursor-pointer"
+                >
+                  <span>{c.label}</span>
+                  <code className="text-[10px] text-sky-600 bg-sky-50 dark:bg-sky-950/60 px-1 py-0.5 rounded-md">
+                    {c.tag}
+                  </code>
+                </button>
+              ))}
+            </PopoverContent>
+          </Popover>
+        )}
       </div>
 
       {/* Card Content body */}
@@ -330,60 +322,12 @@ function ItemCard({
             <p className="text-[10px] text-[#94a3b8]">
               Use <code className="bg-[#f1f5f9] dark:bg-zinc-800 px-1 rounded-md text-[9px] font-mono">{"{{variavel}}"}</code> para inserir variáveis.
             </p>
-            <Popover>
-              <PopoverTrigger asChild>
-                <button
-                  type="button"
-                  className="inline-flex items-center gap-1 text-[11px] font-medium text-sky-600 dark:text-sky-400 hover:underline focus:outline-hidden"
-                >
-                  <Eye size={13} aria-hidden />
-                  {t("Campos Personalizados")}
-                </button>
-              </PopoverTrigger>
-              <PopoverContent align="end" className="w-56 p-2 space-y-1">
-                <p className="text-[10px] font-bold text-neutral-400 uppercase px-2 py-1">
-                  {t("Inserir variável")}
-                </p>
-                {CAMPOS_PERSONALIZADOS.map((c) => (
-                  <button
-                    key={c.tag}
-                    type="button"
-                    onClick={() => {
-                      const current = item.body;
-                      const next = current ? `${current} ${c.tag}` : c.tag;
-                      onUpdate({ ...item, body: next });
-                    }}
-                    className="w-full flex items-center justify-between px-2 py-1.5 text-xs text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-md transition-colors text-left"
-                  >
-                    <span>{c.label}</span>
-                    <code className="text-[10px] text-sky-600 bg-sky-50 dark:bg-sky-950/60 px-1 py-0.5 rounded-md">
-                      {c.tag}
-                    </code>
-                  </button>
-                ))}
-              </PopoverContent>
-            </Popover>
           </div>
         </div>
       )}
 
       {item.type === "delay" && (
-        <div className="flex flex-col gap-2">
-          <div className="flex items-center gap-2">
-            <input
-              type="number"
-              min={1}
-              max={120}
-              value={item.seconds}
-              disabled={disabled}
-              onChange={(e) => {
-                const val = Math.round(Number(e.target.value));
-                onUpdate({ ...item, seconds: Number.isFinite(val) ? Math.max(1, Math.min(120, val)) : 1 });
-              }}
-              className="w-[70px] rounded-lg border border-[#e2e8f0] dark:border-zinc-800 bg-[#f1f5f9] dark:bg-zinc-950 px-2 py-1 text-[13px] text-center font-semibold text-[#475569] dark:text-zinc-200 focus:outline-hidden focus:border-[#6366f1] focus:ring-[2px] focus:ring-[rgba(99,102,241,0.14)] focus:bg-white"
-            />
-            <span className="text-[12px] font-medium text-[#94a3b8]">{t("segundos")}</span>
-          </div>
+        <div className="flex flex-col gap-2 py-2">
           <input
             type="range"
             min={1}
@@ -392,10 +336,8 @@ function ItemCard({
             value={item.seconds}
             disabled={disabled}
             onChange={(e) => onUpdate({ ...item, seconds: Number(e.target.value) })}
-            className="w-full"
-            style={{ accentColor: "#6366f1" }}
+            className="w-full cursor-pointer accent-[#8b5cf6]"
           />
-          <span className="text-[10px] text-[#94a3b8]">0–120s · pausa antes do próximo passo</span>
         </div>
       )}
 
@@ -416,7 +358,7 @@ function ItemCard({
             value={item.name}
             disabled={disabled}
             onChange={(e) => onUpdate({ ...item, name: e.target.value })}
-            className="h-8 text-xs"
+            className="h-8 text-xs rounded-md"
           />
           <Input
             placeholder={t("Telefone com DDI (+55...)")}
@@ -424,10 +366,77 @@ function ItemCard({
             value={item.phone_number}
             disabled={disabled}
             onChange={(e) => onUpdate({ ...item, phone_number: e.target.value })}
-            className="h-8 text-xs"
+            className="h-8 text-xs rounded-md"
           />
         </div>
       )}
+
+      {/* Bottom Footer: Pill + Action buttons */}
+      <div className="flex items-center justify-between pt-2.5 mt-2.5 border-t border-slate-100 dark:border-zinc-800/80">
+        <span
+          className={cn(
+            "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10.5px] font-bold text-white shadow-2xs",
+            item.type === "text" && "bg-[#0284c7]",
+            item.type === "delay" && "bg-[#e11d48]",
+            item.type === "audio" && "bg-[#9333ea]",
+            item.type === "image" && "bg-[#ea580c]",
+            item.type === "video" && "bg-[#16a34a]",
+            item.type === "document" && "bg-[#1e40af]",
+            item.type === "contact" && "bg-[#ec4899]",
+          )}
+        >
+          {item.type === "text" && <span className="font-serif font-bold text-xs leading-none">T</span>}
+          {item.type === "delay" && <Clock size={12} className="text-white" />}
+          {item.type === "audio" && <Microphone size={12} className="text-white" />}
+          {item.type === "image" && <ImageIcon size={12} className="text-white" />}
+          {item.type === "video" && <VideoCamera size={12} className="text-white" />}
+          {item.type === "document" && <FileText size={12} className="text-white" />}
+          <span>{labelPorTipo(item.type)}</span>
+        </span>
+
+        <div className="flex items-center gap-1.5">
+          {total > 1 && (
+            <>
+              <button
+                type="button"
+                onClick={() => onMove(-1)}
+                disabled={disabled || index === 0}
+                className="w-6 h-6 rounded-md border border-[#e2e8f0] dark:border-zinc-800 bg-white dark:bg-zinc-900 flex items-center justify-center text-[#64748b] hover:bg-[#f1f5f9] dark:hover:bg-zinc-800 disabled:opacity-30 transition-colors cursor-pointer"
+                title={t("Mover para cima")}
+              >
+                <CaretUp size={12} />
+              </button>
+              <button
+                type="button"
+                onClick={() => onMove(1)}
+                disabled={disabled || index === total - 1}
+                className="w-6 h-6 rounded-md border border-[#e2e8f0] dark:border-zinc-800 bg-white dark:bg-zinc-900 flex items-center justify-center text-[#64748b] hover:bg-[#f1f5f9] dark:hover:bg-zinc-800 disabled:opacity-30 transition-colors cursor-pointer"
+                title={t("Mover para baixo")}
+              >
+                <CaretDown size={12} />
+              </button>
+            </>
+          )}
+          <button
+            type="button"
+            onClick={onDuplicate}
+            disabled={disabled}
+            className="w-6 h-6 rounded-md border border-[#e2e8f0] dark:border-zinc-800 bg-white dark:bg-zinc-900 flex items-center justify-center text-[#64748b] hover:bg-[#f1f5f9] dark:hover:bg-zinc-800 hover:text-[#4338ca] disabled:opacity-30 transition-colors cursor-pointer"
+            title={t("Duplicar")}
+          >
+            <Plus size={13} />
+          </button>
+          <button
+            type="button"
+            onClick={onRemove}
+            disabled={disabled}
+            className="w-6 h-6 rounded-md border border-[#e2e8f0] dark:border-zinc-800 bg-white dark:bg-zinc-900 flex items-center justify-center text-rose-500 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 dark:hover:bg-rose-950/40 disabled:opacity-30 transition-colors cursor-pointer"
+            title={t("Remover")}
+          >
+            <Trash size={13} />
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
