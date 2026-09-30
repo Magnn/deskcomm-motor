@@ -3,8 +3,8 @@
 [🇧🇷 Português](README.md) · 🇺🇸 English · [🇪🇸 Español](README.es.md)
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/brand/deskcomm-logo-dark.svg">
-  <img src="docs/brand/deskcomm-logo.svg" alt="Deskcomm CRM" width="420">
+  <source media="(prefers-color-scheme: dark)" srcset="docs/brand/acassia-logo-dark.svg">
+  <img src="docs/brand/acassia-logo.svg" alt="AcassIA" width="420">
 </picture>
 
 # 🛠️ DeskcommCRM — The open-source AI Sales OS for WhatsApp

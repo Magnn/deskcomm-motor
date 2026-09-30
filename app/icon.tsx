@@ -43,7 +43,7 @@ import { marcaDaSaida, NEUTROS_DE_SAIDA } from "@/lib/branding/saida";
  * marca. O satori aceita `<svg>` inline (medido: 1.135 bytes de PNG válido com
  * o símbolo, em 2026-09-08), então continua sem rede e sem arquivo em `public/`.
  * Quem configurou um nome próprio segue com cor + inicial: o símbolo soletra
- * "D", e um "D" na aba de quem se chama "Acme" seria a nossa marca vazando.
+ * "A", e um "A" na aba de quem se chama "Acme" seria a nossa marca vazando.
  *
  * ─── `force-dynamic` não é zelo ─────────────────────────────────────────────
  *

@@ -48,7 +48,18 @@ function blocoRoot(css: string): string {
   return css.slice(i, fim);
 }
 
-function stopsSageDoCss(): string[] {
+/**
+ * A Sage — a rampa que o design system desenhou À MÃO e contra a qual `rampaDeSemente`
+ * foi calibrada. Já não é a accent do produto (a marca AcassIA é índigo, semente
+ * `#4b3fb8`), mas segue aqui congelada como FIXTURE: sem uma rampa independente do
+ * algoritmo, a calibração viraria tautologia — a derivação comparada com a própria saída.
+ */
+const SAGE_DO_DESIGN_SYSTEM = [
+  "#f3f6f1", "#e4ebe0", "#c8d6c1", "#a4ba9a", "#82a077", "#67885d",
+  "#506d48", "#41573b", "#374731", "#2f3c2b", "#171f15",
+] as const;
+
+function stopsDoProdutoDoCss(): string[] {
   const raiz = blocoRoot(CSS);
   return GRAUS.map((g) => {
     const m = new RegExp(`--color-accent-${g}:\\s*(#[0-9a-f]{6})`, "i").exec(raiz);
@@ -103,22 +114,33 @@ describe("conversões de cor", () => {
 });
 
 describe("rampaDeSemente — catraca de calibração contra o design system", () => {
-  const esperados = stopsSageDoCss();
+  const esperados = stopsDoProdutoDoCss();
 
   it("lê 11 stops distintos do globals.css (guarda de vacuidade)", () => {
     // Sem isto, um regex quebrado devolveria lista vazia e a comparação abaixo passaria
     // por não ter o que comparar — instrumento morto tem cara de teste verde.
     expect(esperados).toHaveLength(11);
     expect(new Set(esperados).size).toBe(11);
-    expect(esperados[K]).toBe("#506d48");
+    expect(esperados[K]).toBe("#4b3fb8");
   });
 
-  it("reproduz os 11 stops Sage a partir de #506d48 com Δ ≤ 2/255 por canal", () => {
+  it("reproduz os 11 stops Sage (desenhados à mão) a partir de #506d48 com Δ ≤ 2/255 por canal", () => {
     const derivada = rampaDeSemente("#506d48");
+    const distancias = SAGE_DO_DESIGN_SYSTEM.map((esperado, i) => distanciaPorCanal(esperado, derivada[i]!));
+    expect(
+      Math.max(...distancias),
+      `derivada: ${derivada.join(" ")}\nesperada: ${SAGE_DO_DESIGN_SYSTEM.join(" ")}\nΔ: ${distancias.join(",")}`,
+    ).toBeLessThanOrEqual(2);
+  });
+
+  it("a rampa da AcassIA no globals.css é a derivação da própria semente #4b3fb8", () => {
+    // O produto usa a mesma função que a instalação usa para trocar de cor: se alguém
+    // retocar um stop à mão, a marca padrão deixa de ser reproduzível pela tela de marca.
+    const derivada = rampaDeSemente("#4b3fb8");
     const distancias = esperados.map((esperado, i) => distanciaPorCanal(esperado, derivada[i]!));
     expect(
       Math.max(...distancias),
-      `derivada: ${derivada.join(" ")}\nesperada: ${esperados.join(" ")}\nΔ: ${distancias.join(",")}`,
+      `derivada: ${derivada.join(" ")}\nno css:    ${esperados.join(" ")}\nΔ: ${distancias.join(",")}`,
     ).toBeLessThanOrEqual(2);
   });
 
