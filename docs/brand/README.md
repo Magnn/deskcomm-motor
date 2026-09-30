@@ -4,11 +4,11 @@
 
 | Arquivo | O que é |
 |---|---|
-| `deskcomm-icon.svg` | O símbolo: D aberto com um módulo quadrado destacado. Quadrado de 216. |
-| `deskcomm-logo.svg` | Logotipo para fundo claro — símbolo em sálvia `#506d48`, nome em `#1c1a16`, "CRM" em `#5d594f`. |
-| `deskcomm-logo-dark.svg` | Logotipo para fundo escuro — sálvia `#82a077`, nome em `#f5f4ef`, "CRM" em `#8e8b7f`. |
+| `acassia-icon.svg` | O símbolo: A geométrico com um módulo quadrado sob o travessão (o ponto de IA). Quadrado de 216. |
+| `acassia-logo.svg` | Logotipo para fundo claro — símbolo e "IA" em índigo `#4b3fb8`, "Acass" em `#1c1a16`. |
+| `acassia-logo-dark.svg` | Logotipo para fundo escuro — símbolo e "IA" em índigo `#7c79fa`, "Acass" em `#f5f4ef`. |
 
-O texto do logotipo já está convertido em caminhos: nenhum arquivo depende de fonte.
+O texto do logotipo já está convertido em caminhos (Geist Regular, a fonte que o Next embarca): nenhum arquivo depende de fonte.
 
 **Estes SVGs são a fonte; o app NÃO os lê.** A geometria está copiada em
 `lib/branding/desenho.ts` e é desenhada inline por `components/branding/MarcaDoProduto.tsx`
@@ -76,4 +76,4 @@ mentindo, ou é refeito do zero com outra identidade.
   demanda deixa ao atravessar o sistema, terminando no follow-up — o mecanismo
   anti-morte. É o argumento do produto mostrado, não adjetivado.
 - Card de compartilhamento **sempre** carrega o logotipo (inline no HTML, lido de
-  `deskcomm-logo.svg`). Sem ele, quem vê a imagem não sabe de quem ela é.
+  `acassia-logo.svg`). Sem ele, quem vê a imagem não sabe de quem ela é.
