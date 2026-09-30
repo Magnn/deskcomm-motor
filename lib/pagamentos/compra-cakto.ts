@@ -34,6 +34,7 @@ export type ResultadoDaCompra =
   | { resultado: "contato_nao_encontrado" }
   | { resultado: "compra_registrada_sem_fluxo"; contatoId: string; motivo: string }
   | { resultado: "reembolso_registrado"; contatoId: string }
+  | { resultado: "fluxos_do_evento_iniciados"; contatoId: string; quantidade: number }
   | { resultado: "ignorada"; evento: string };
 
 export interface DepsDaCompra {
@@ -43,6 +44,39 @@ export interface DepsDaCompra {
   pararFluxosVivos(contatoId: string, motivo: string): Promise<number>;
   acharFluxoDeEntrega(): Promise<string | null>;
   inscrever(contatoId: string, fluxoId: string): Promise<{ ok: true } | { ok: false; motivo: string }>;
+  /** Fluxos ATIVOS cujo gatilho é «evento de pagamento» deste evento da Cakto. */
+  fluxosDoEvento(evento: string): Promise<string[]>;
+  /** Acrescenta marcas ao contato sem tocar no resto do cadastro. */
+  adicionarTags(contatoId: string, tags: string[]): Promise<void>;
+}
+
+/**
+ * O FILTRO POR EVENTO. O dono escolhe, no gatilho do fluxo, QUAL aviso da Cakto o inicia
+ * (compra aprovada, Pix gerado, carrinho abandonado, reembolso…). Até aqui só a compra
+ * aprovada fazia algo — e escolhia o fluxo pelo NOME começar com «Entrega».
+ *
+ * Idempotência por pedido+evento: a Cakto reenvia o mesmo aviso, e um fluxo que já terminou
+ * não pode recomeçar por causa do reenvio. Fluxo já vivo para o contato também não duplica
+ * (o banco permite um só) — `inscrever` devolve `ok:false` e isso NÃO é falha.
+ */
+async function dispararFluxosDoEvento(
+  deps: DepsDaCompra,
+  compra: CompraDaCakto,
+  contato: { id: string; tags: string[] },
+): Promise<{ configurados: number; iniciados: number; motivo?: string }> {
+  const fluxos = await deps.fluxosDoEvento(compra.evento);
+  if (fluxos.length === 0) return { configurados: 0, iniciados: 0 };
+  const marca = `cakto:${compra.evento}:${compra.pedidoId}`;
+  if (contato.tags.includes(marca)) return { configurados: fluxos.length, iniciados: 0, motivo: "evento já aplicado" };
+  let iniciados = 0;
+  let motivo: string | undefined;
+  for (const fluxo of fluxos) {
+    const r = await deps.inscrever(contato.id, fluxo);
+    if (r.ok) iniciados++;
+    else motivo = r.motivo;
+  }
+  if (iniciados > 0) await deps.adicionarTags(contato.id, [marca]);
+  return { configurados: fluxos.length, iniciados, ...(motivo !== undefined ? { motivo } : {}) };
 }
 
 const reaisTexto = (cents: number | null): string =>
@@ -66,10 +100,22 @@ export async function aplicarEventoDaCakto(deps: DepsDaCompra, compra: CompraDaC
     });
     await deps.pararFluxosVivos(c.id, `compra_${marca}`);
     await deps.anotar(c.id, `${marca === "reembolso" ? "Reembolso" : "Chargeback"} na Cakto: ${rotuloDoProduto} (${reaisTexto(compra.valorCentavos)}). Fluxos automáticos parados; uma pessoa deve olhar antes de qualquer nova mensagem.`);
+    // Quem configurou um fluxo para este evento (ex.: «pedir desculpas e entender o motivo») o vê começar
+    // DEPOIS de os fluxos vivos pararem — senão o próprio aviso o cancelaria.
+    await dispararFluxosDoEvento(deps, compra, c);
     return { resultado: "reembolso_registrado", contatoId: c.id };
   }
 
-  if (compra.evento !== "purchase_approved") return { resultado: "ignorada", evento: compra.evento };
+  if (compra.evento !== "purchase_approved") {
+    // Pix gerado, abandono, recusa, assinatura…: só há o que fazer se um fluxo pediu este evento.
+    if ((await deps.fluxosDoEvento(compra.evento)).length === 0) return { resultado: "ignorada", evento: compra.evento };
+    const c = await deps.acharContato(compra.cliente);
+    if (c === null) return { resultado: "contato_nao_encontrado" };
+    const r = await dispararFluxosDoEvento(deps, compra, c);
+    return r.iniciados > 0
+      ? { resultado: "fluxos_do_evento_iniciados", contatoId: c.id, quantidade: r.iniciados }
+      : { resultado: "ja_processada", contatoId: c.id };
+  }
 
   const contato = await deps.acharContato(compra.cliente);
   if (contato === null) return { resultado: "contato_nao_encontrado" };
@@ -96,6 +142,15 @@ export async function aplicarEventoDaCakto(deps: DepsDaCompra, compra: CompraDaC
 
   // Quem pagou não pode continuar recebendo a cobrança de "quer continuar?".
   await deps.pararFluxosVivos(contato.id, "compra_aprovada");
+
+  // Um fluxo que escolheu «Compra aprovada» como gatilho é QUEM entrega. Só sem nenhum, vale o
+  // legado: o fluxo ativo cujo nome começa com «Entrega».
+  const doEvento = await dispararFluxosDoEvento(deps, compra, contato);
+  if (doEvento.configurados > 0) {
+    return doEvento.iniciados > 0
+      ? { resultado: "entrega_iniciada", contatoId: contato.id, trabalho }
+      : { resultado: "compra_registrada_sem_fluxo", contatoId: contato.id, motivo: doEvento.motivo ?? "nenhum fluxo iniciado" };
+  }
 
   const fluxo = await deps.acharFluxoDeEntrega();
   if (fluxo === null) {
@@ -205,6 +260,34 @@ export function depsReais(admin: SupabaseClient, organizationId: string, request
         .order("updated_at", { ascending: false })
         .limit(1);
       return (data as Array<{ id: string }> | null)?.[0]?.id ?? null;
+    },
+
+    async fluxosDoEvento(evento) {
+      const { data } = await admin
+        .from("followup_flow_pointers")
+        .select("id")
+        .eq("organization_id", organizationId)
+        .eq("status", "active")
+        .eq("trigger_config->>kind", "payment_event")
+        .eq("trigger_config->params->>provider", "cakto")
+        .eq("trigger_config->params->>event", evento)
+        .order("created_at", { ascending: true });
+      return ((data as Array<{ id: string }> | null) ?? []).map((r) => r.id);
+    },
+
+    async adicionarTags(contatoId, novas) {
+      const { data } = await admin
+        .from("contacts")
+        .select("tags")
+        .eq("organization_id", organizationId)
+        .eq("id", contatoId)
+        .maybeSingle();
+      const atuais = ((data as { tags?: string[] } | null)?.tags ?? []) as string[];
+      await admin
+        .from("contacts")
+        .update({ tags: unir(atuais, novas) })
+        .eq("organization_id", organizationId)
+        .eq("id", contatoId);
     },
 
     async inscrever(contatoId, fluxoId) {

@@ -7,6 +7,7 @@
 import { z } from "zod";
 import { flowGraphSchema } from "./graph-schema";
 import { MAX_THRESHOLD_MINUTES, MIN_THRESHOLD_MINUTES } from "./gap-de-retorno";
+import { EVENTOS_DA_CAKTO } from "@/lib/pagamentos/eventos-da-cakto";
 
 /**
  * Vocabulário da coluna `surface` (0167; `atendimento` na 0394 — roteiro de
@@ -60,6 +61,16 @@ export const triggerConfigSchema = z.discriminatedUnion("kind", [
       // valor + unidade; o fio guarda só minutos.
       threshold_minutes: z.number().int().min(MIN_THRESHOLD_MINUTES).max(MAX_THRESHOLD_MINUTES),
       segments: z.array(z.string()).optional(),
+    }),
+    ...CANCEL_ON_REPLY,
+  }),
+  z.strictObject({
+    kind: z.literal("payment_event"),
+    // O fluxo começa quando a Cakto avisa ESTE evento de um contato que já existe no CRM.
+    // Só a Cakto tem produtor (`lib/pagamentos/compra-cakto.ts`); outro provedor entra por Webhooks.
+    params: z.strictObject({
+      provider: z.literal("cakto"),
+      event: z.enum(EVENTOS_DA_CAKTO),
     }),
     ...CANCEL_ON_REPLY,
   }),

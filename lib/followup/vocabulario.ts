@@ -610,8 +610,14 @@ export const GATILHOS: Record<TipoDeGatilho, string> = {
   // clínica, não quem escreveu o schema.
   case_opened: "Quando o agente pede ajuda de um humano",
   inbound_after_silence: "Cliente voltou",
+  payment_event: "Evento de pagamento",
   conversation_end: "Fim da conversa",
 };
+
+import { ROTULOS_DOS_EVENTOS_DA_CAKTO } from "@/lib/pagamentos/eventos-da-cakto";
+
+/** Gatilho «evento de pagamento» (Cakto): qual aviso dispara o fluxo (`params.event`). */
+export const EVENTOS_DO_PAGAMENTO = ROTULOS_DOS_EVENTOS_DA_CAKTO;
 
 // ─── API externa (nó api_call, lote 1) ───────────────────────────────────
 
