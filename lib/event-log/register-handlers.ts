@@ -1,5 +1,6 @@
 import { followupGatilhoPresencaHandler } from "@/lib/followup/gatilho-presenca.handler";
 import { followupGatilhoRetornoHandler } from "@/lib/followup/gatilho-retorno.handler";
+import { followupGatilhoMensagemHandler } from "@/lib/followup/gatilho-mensagem.handler";
 /**
  * Centralised handler registration for the event_log dispatcher.
  *
@@ -41,6 +42,8 @@ export function ensureHandlersRegistered(): void {
   // precisa rodar antes do LLM. Depois da reatividade, para o match_reply dos
   // fluxos já vivos ler a mensagem primeiro.
   registerHandler(followupGatilhoRetornoHandler);
+  // Mesmo critério para «mensagem recebida»: escrita curta, antes do LLM.
+  registerHandler(followupGatilhoMensagemHandler);
   registerHandler(aiResponseHandler);
   registerHandler(aiSentimentHandler);
   registerHandler(aiHandoffFromSentimentHandler);

@@ -20,6 +20,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { palavrasDe } from "@/lib/followup/gatilho-da-criacao";
+import { MODOS_DA_MENSAGEM, MODOS_DA_PALAVRA } from "@/lib/followup/vocabulario";
+import type { ModoDaMensagem, ModoDaPalavra } from "@/lib/followup/mensagem-casa";
 import { useUpdateTriggerConfig } from "@/hooks/followup/useFollowupFlow";
 import { etapasPorFunil, nomeDaEtapa, useEtapasDeGatilho } from "@/hooks/followup/useEtapasDeGatilho";
 import {
@@ -71,6 +74,7 @@ type TriggerKind =
   | "case_opened"
   | "webhook"
   | "inbound_after_silence"
+  | "inbound_message"
   | "lead_created";
 
 interface TriggerFormState {
@@ -82,6 +86,9 @@ interface TriggerFormState {
   stageId: string;
   cancelOnReply: boolean;
   eventTypeIds: string[];
+  msgMatch: ModoDaMensagem;
+  msgKeywords: string;
+  msgKeywordMode: ModoDaPalavra;
 }
 
 const DEFAULT_THRESHOLD_MINUTES = 60;
@@ -101,6 +108,7 @@ const KIND_LABEL: Record<TriggerKind, string> = {
   case_opened: "Agente pediu ajuda",
   webhook: "Automação (Webhooks)",
   inbound_after_silence: "Cliente voltou",
+  inbound_message: "Mensagem recebida",
   lead_created: "Lead criado",
 };
 
@@ -118,6 +126,8 @@ function parseTriggerConfig(raw: Record<string, unknown>): TriggerFormState {
         ? "silence"
         : raw.kind === "inbound_after_silence"
           ? "inbound_after_silence"
+          : raw.kind === "inbound_message"
+            ? "inbound_message"
           : raw.kind === "stage_change"
             ? "stage_change"
             : raw.kind === "case_opened"
@@ -128,7 +138,7 @@ function parseTriggerConfig(raw: Record<string, unknown>): TriggerFormState {
                   ? "lead_created"
                   : "manual";
   const params =
-    (raw.params as { threshold_minutes?: number; segments?: string[]; stage_id?: string; event_type_ids?: string[] } | undefined) ?? {};
+    (raw.params as { threshold_minutes?: number; segments?: string[]; stage_id?: string; event_type_ids?: string[]; match?: ModoDaMensagem; keywords?: string[]; keyword_mode?: ModoDaPalavra } | undefined) ?? {};
   const minutosRetorno =
     kind === "inbound_after_silence" && typeof params.threshold_minutes === "number"
       ? params.threshold_minutes
@@ -149,6 +159,9 @@ function parseTriggerConfig(raw: Record<string, unknown>): TriggerFormState {
         : "",
     stageId: kind === "stage_change" && typeof params.stage_id === "string" ? params.stage_id : "",
     cancelOnReply: raw.cancel_on_reply === true,
+    msgMatch: kind === "inbound_message" && params.match ? params.match : "any",
+    msgKeywords: kind === "inbound_message" && Array.isArray(params.keywords) ? params.keywords.join(", ") : "",
+    msgKeywordMode: kind === "inbound_message" && params.keyword_mode ? params.keyword_mode : "contains",
   };
 }
 
@@ -165,6 +178,17 @@ function toTriggerConfig(form: TriggerFormState): Record<string, unknown> {
   // todo fluxo armado assim.
   if (form.kind === "case_opened") return { kind: "case_opened", ...cancelOnReply };
   if (form.kind === "webhook") return { kind: "webhook", ...cancelOnReply };
+  if (form.kind === "inbound_message") {
+    const keywords = palavrasDe(form.msgKeywords);
+    return {
+      kind: "inbound_message",
+      params:
+        form.msgMatch === "keyword"
+          ? { match: "keyword", keywords, keyword_mode: form.msgKeywordMode }
+          : { match: form.msgMatch },
+      ...cancelOnReply,
+    };
+  }
   if (form.kind === "lead_created") return { kind: "lead_created", ...cancelOnReply };
 
   const segments = form.segments
@@ -225,6 +249,12 @@ function summaryLabel(
     // superfície que o dono lê uma semana depois, sem abrir nada.
     return etapa ? `Gatilho: entrou em «${etapa.stageName}» em ${etapa.pipelineName}` : "Gatilho: Etapa do funil";
   }
+  if (cfg.kind === "inbound_message") {
+    const p = (cfg.params as { match?: string; keywords?: string[] } | undefined) ?? {};
+    if (p.match === "keyword") return `${t("Gatilho")}: ${t("palavra-chave")} «${(p.keywords ?? []).join(", ")}»`;
+    if (p.match === "first_message") return `${t("Gatilho")}: ${t("primeira mensagem do contato")}`;
+    return `${t("Gatilho")}: ${t("qualquer mensagem recebida")}`;
+  }
   if (cfg.kind === "case_opened") return `${t("Gatilho")}: ${t("quando o agente pede ajuda")}`;
   if (cfg.kind === "webhook") return t("Disparado por uma automação em Webhooks");
   if (cfg.kind === "lead_created") return `${t("Gatilho")}: ${t("Lead criado")}`;
@@ -272,6 +302,8 @@ export function TriggerConfigControl({ flowId, triggerConfig }: Props) {
   // Gatilho de etapa sem etapa escolhida não é rascunho: é um fluxo que ficaria
   // ativo sem nunca disparar. O publish recusa; o Salvar recusa antes.
   const stageInvalid = form.kind === "stage_change" && form.stageId.trim().length === 0;
+  // Palavra-chave sem palavra é fluxo ativo que nunca dispara: o publish recusa, o Salvar recusa antes.
+  const palavraInvalid = form.kind === "inbound_message" && form.msgMatch === "keyword" && palavrasDe(form.msgKeywords).length === 0;
   const dirty =
     form.kind !== saved.kind ||
     (form.kind === "appointment_no_show" && form.eventTypeIds.join() !== saved.eventTypeIds.join()) ||
@@ -281,10 +313,14 @@ export function TriggerConfigControl({ flowId, triggerConfig }: Props) {
       (form.thresholdValor !== saved.thresholdValor ||
         form.thresholdUnidade !== saved.thresholdUnidade ||
         form.segments !== saved.segments)) ||
-    (form.kind === "stage_change" && form.stageId !== saved.stageId);
+    (form.kind === "stage_change" && form.stageId !== saved.stageId) ||
+    (form.kind === "inbound_message" &&
+      (form.msgMatch !== saved.msgMatch ||
+        form.msgKeywords !== saved.msgKeywords ||
+        form.msgKeywordMode !== saved.msgKeywordMode));
 
   const onSave = () => {
-    if (thresholdInvalid || stageInvalid) return;
+    if (thresholdInvalid || stageInvalid || palavraInvalid) return;
     update.mutate(toTriggerConfig(form), {
       onSuccess: () => {
         setSaved(form);
@@ -331,6 +367,7 @@ export function TriggerConfigControl({ flowId, triggerConfig }: Props) {
                 <SelectItem value="appointment_no_show">{t(KIND_LABEL.appointment_no_show)}</SelectItem>
                 <SelectItem value="case_opened">{t(KIND_LABEL.case_opened)}</SelectItem>
                 <SelectItem value="inbound_after_silence">{t(KIND_LABEL.inbound_after_silence)}</SelectItem>
+                <SelectItem value="inbound_message">{t(KIND_LABEL.inbound_message)}</SelectItem>
                 <SelectItem value="lead_created">{t(KIND_LABEL.lead_created)}</SelectItem>
                 <SelectItem value="webhook">{t(KIND_LABEL.webhook)}</SelectItem>
               </SelectContent>
@@ -397,6 +434,50 @@ export function TriggerConfigControl({ flowId, triggerConfig }: Props) {
               </p>
               <p className="text-xs text-muted-foreground">
                 {t("Se o caso for resolvido antes, o follow-up é cancelado sozinho.")}
+              </p>
+            </div>
+          )}
+
+          {form.kind === "inbound_message" && (
+            <div className="space-y-2" data-testid="trigger-mensagem">
+              <Label htmlFor="trigger-msg-match">{t("Quando disparar")}</Label>
+              <Select value={form.msgMatch} onValueChange={(v) => setForm((f) => ({ ...f, msgMatch: v as ModoDaMensagem }))}>
+                <SelectTrigger id="trigger-msg-match">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="any">{t(MODOS_DA_MENSAGEM.any)}</SelectItem>
+                  <SelectItem value="first_message">{t(MODOS_DA_MENSAGEM.first_message)}</SelectItem>
+                  <SelectItem value="keyword">{t(MODOS_DA_MENSAGEM.keyword)}</SelectItem>
+                </SelectContent>
+              </Select>
+              {form.msgMatch === "keyword" && (
+                <>
+                  <Label htmlFor="trigger-msg-keywords">{t("Palavras (separadas por vírgula)")}</Label>
+                  <Input
+                    id="trigger-msg-keywords"
+                    placeholder={t("ex: quero, preço, começar")}
+                    value={form.msgKeywords}
+                    onChange={(e) => setForm((f) => ({ ...f, msgKeywords: e.target.value }))}
+                    aria-invalid={palavraInvalid}
+                  />
+                  <Select
+                    value={form.msgKeywordMode}
+                    onValueChange={(v) => setForm((f) => ({ ...f, msgKeywordMode: v as ModoDaPalavra }))}
+                  >
+                    <SelectTrigger id="trigger-msg-mode" aria-label={t("Como casar a palavra")}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="contains">{t(MODOS_DA_PALAVRA.contains)}</SelectItem>
+                      <SelectItem value="equals">{t(MODOS_DA_PALAVRA.equals)}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {palavraInvalid && <p className="text-xs text-error-fg">{t("Informe ao menos uma palavra.")}</p>}
+                </>
+              )}
+              <p className="text-xs text-muted-foreground">
+                {t("O fluxo começa quando o cliente escreve e a mensagem casa. Maiúsculas e acentos não importam. Enquanto o fluxo responde, o agente fica em silêncio nessa mensagem — é uma voz só.")}
               </p>
             </div>
           )}
@@ -519,7 +600,7 @@ export function TriggerConfigControl({ flowId, triggerConfig }: Props) {
             type="button"
             size="sm"
             className="w-full"
-            disabled={!dirty || thresholdInvalid || stageInvalid || update.isPending}
+            disabled={!dirty || thresholdInvalid || stageInvalid || palavraInvalid || update.isPending}
             onClick={onSave}
             data-testid="trigger-config-save"
           >

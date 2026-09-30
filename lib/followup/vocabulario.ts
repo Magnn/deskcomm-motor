@@ -610,7 +610,21 @@ export const GATILHOS: Record<TipoDeGatilho, string> = {
   // clínica, não quem escreveu o schema.
   case_opened: "Quando o agente pede ajuda de um humano",
   inbound_after_silence: "Cliente voltou",
+  inbound_message: "Mensagem recebida",
   conversation_end: "Fim da conversa",
+};
+
+/** Gatilho «mensagem recebida»: quando a mensagem dispara o fluxo (`params.match`). */
+export const MODOS_DA_MENSAGEM: Record<"any" | "first_message" | "keyword", string> = {
+  any: "Qualquer mensagem",
+  first_message: "Primeira mensagem do contato",
+  keyword: "Palavra-chave",
+};
+
+/** Gatilho «mensagem recebida» por palavra: como casar (`params.keyword_mode`). */
+export const MODOS_DA_PALAVRA: Record<"contains" | "equals", string> = {
+  contains: "A mensagem contém a palavra",
+  equals: "A mensagem é exatamente a palavra",
 };
 
 // ─── API externa (nó api_call, lote 1) ───────────────────────────────────

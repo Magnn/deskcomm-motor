@@ -19,6 +19,9 @@ import {
 } from "@/components/ui/select";
 import { useCreateFollowupFlow } from "@/hooks/followup/useFollowupFlows";
 import { useT } from "@/hooks/i18n/useT";
+import { apiClient } from "@/lib/api/client";
+import { gatilhoDaEscolha } from "@/lib/followup/gatilho-da-criacao";
+import { showApiError } from "@/components/feedback/ApiErrorToast";
 import { Check, ShareNetwork, X } from "@/lib/ui/icons";
 import { cn } from "@/lib/utils";
 
@@ -321,8 +324,24 @@ export function NewFlowDialog({ open, onOpenChange }: Props) {
       return;
     }
 
+    // Palavra-chave sem palavra é gatilho que nunca dispara: recusa ANTES de criar.
+    const gatilho = gatilhoDaEscolha({ provider: selectedProvider, event: selectedEvent, keyword });
+    if (gatilho === null) {
+      setErro(t("Informe ao menos uma palavra-chave para este gatilho."));
+      return;
+    }
+
     create.mutate(trimmed, {
-      onSuccess: (created) => {
+      onSuccess: async (created) => {
+        // A escolha é PERSISTIDA como gatilho do fluxo (o motor a lê). O localStorage
+        // que existia aqui era só da tela: outro navegador não a via e nada disparava.
+        if (created?.id) {
+          try {
+            await apiClient.patch(`/api/v1/ai/followup-flows/${created.id}`, { trigger_config: gatilho });
+          } catch (err) {
+            showApiError(err);
+          }
+        }
         if (typeof window !== "undefined" && created?.id) {
           try {
             localStorage.setItem(`flow_channel_${created.id}`, channel);
