@@ -7,6 +7,7 @@
  * upload zone com limites oficiais e controles refinados.
  */
 import * as React from "react";
+import { CloudUpload, Image as LucideImage, Move, Video as LucideVideo } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 import {
@@ -48,17 +49,17 @@ const DEFAULT_TC = {
   btnText: "text-[#2563eb]",
   btnIcon: "text-[#2563eb]",
   strip: "bg-[#3b82f6]",
-  border: "border-[#60a5fa]/60 dark:border-blue-800",
+  border: "border-[#3b82f6] dark:border-blue-700",
 };
 
 const TYPE_COLORS: Record<string, { btnText: string; btnIcon: string; strip: string; border: string }> = {
-  text:     { btnText: "text-[#2563eb]", btnIcon: "text-[#2563eb]", strip: "bg-[#3b82f6]", border: "border-[#60a5fa]/60 dark:border-blue-800" },
-  image:    { btnText: "text-[#ea580c]", btnIcon: "text-[#ea580c]", strip: "bg-[#f97316]", border: "border-[#fb923c]/60 dark:border-orange-800" },
-  audio:    { btnText: "text-[#9333ea]", btnIcon: "text-[#9333ea]", strip: "bg-[#a855f7]", border: "border-[#c084fc]/60 dark:border-purple-800" },
-  video:    { btnText: "text-[#16a34a]", btnIcon: "text-[#16a34a]", strip: "bg-[#22c55e]", border: "border-[#4ade80]/60 dark:border-green-800" },
-  document: { btnText: "text-[#1e3a8a]", btnIcon: "text-[#1e40af]", strip: "bg-[#3b82f6]", border: "border-[#60a5fa]/60 dark:border-blue-800" },
-  delay:    { btnText: "text-[#db2777]", btnIcon: "text-[#e11d48]", strip: "bg-[#ec4899]", border: "border-[#f472b6]/60 dark:border-pink-800" },
-  contact:  { btnText: "text-[#db2777]", btnIcon: "text-[#db2777]", strip: "bg-[#ec4899]", border: "border-[#f472b6]/60 dark:border-pink-800" },
+  text:     { btnText: "text-[#2563eb]", btnIcon: "text-[#2563eb]", strip: "bg-[#3b82f6]", border: "border-[#3b82f6] dark:border-blue-700" },
+  image:    { btnText: "text-[#ea580c]", btnIcon: "text-[#ea580c]", strip: "bg-[#f97316]", border: "border-[#f97316] dark:border-orange-600" },
+  audio:    { btnText: "text-[#9333ea]", btnIcon: "text-[#9333ea]", strip: "bg-[#a855f7]", border: "border-[#a855f7] dark:border-purple-600" },
+  video:    { btnText: "text-[#16a34a]", btnIcon: "text-[#16a34a]", strip: "bg-[#22c55e]", border: "border-[#22c55e] dark:border-green-600" },
+  document: { btnText: "text-[#1e3a8a]", btnIcon: "text-[#1e40af]", strip: "bg-[#3b82f6]", border: "border-[#3b82f6] dark:border-blue-700" },
+  delay:    { btnText: "text-[#db2777]", btnIcon: "text-[#e11d48]", strip: "bg-[#ec4899]", border: "border-[#f43f5e] dark:border-pink-600" },
+  contact:  { btnText: "text-[#db2777]", btnIcon: "text-[#db2777]", strip: "bg-[#ec4899]", border: "border-[#ec4899] dark:border-pink-600" },
 };
 
 function labelPorTipo(t: string): string {
@@ -261,8 +262,8 @@ function ItemCard({
       style={{ padding: "12px 14px" }}
       data-testid={`conteudo-item-${index}`}
     >
-      {/* Top Header (não exibido em áudio que começa direto no player) */}
-      {item.type !== "audio" && (
+      {/* Top Header: apenas para Texto, Delay e Contato */}
+      {(item.type === "text" || item.type === "delay" || item.type === "contact") && (
         <div className="flex items-center justify-between gap-2 mb-2.5">
           <span className="text-[12px] font-bold text-slate-800 dark:text-zinc-100">
             {item.type === "text"
@@ -393,7 +394,7 @@ function ItemCard({
             item.type === "audio" && "bg-[#9333ea]",
             item.type === "image" && "bg-[#ea580c]",
             item.type === "video" && "bg-[#16a34a]",
-            item.type === "document" && "bg-[#1e40af]",
+            item.type === "document" && "bg-[#1d4ed8]",
             item.type === "contact" && "bg-[#ec4899]",
           )}
         >
@@ -403,7 +404,7 @@ function ItemCard({
           {item.type === "image" && <ImageIcon size={12} className="text-white" />}
           {item.type === "video" && <VideoCamera size={12} className="text-white" />}
           {item.type === "document" && <FileText size={12} className="text-white" />}
-          <span>{labelPorTipo(item.type)}</span>
+          <span>{item.type === "video" ? "Video" : labelPorTipo(item.type)}</span>
         </span>
 
         <div className="flex items-center gap-1.5">
@@ -411,10 +412,10 @@ function ItemCard({
             type="button"
             onClick={onDuplicate}
             disabled={disabled}
-            className="w-6 h-6 rounded-md border border-[#e2e8f0] dark:border-zinc-800 bg-white dark:bg-zinc-900 flex items-center justify-center text-[#64748b] hover:bg-[#f1f5f9] dark:hover:bg-zinc-800 hover:text-[#4338ca] disabled:opacity-30 transition-colors cursor-pointer"
-            title={t("Duplicar")}
+            className="w-6 h-6 rounded-md border border-[#e2e8f0] dark:border-zinc-800 bg-white dark:bg-zinc-900 flex items-center justify-center text-[#6366f1] hover:bg-[#f1f5f9] dark:hover:bg-zinc-800 disabled:opacity-30 transition-colors cursor-pointer"
+            title={t("Duplicar / Mover")}
           >
-            <Plus size={13} />
+            <Move size={13} />
           </button>
           <button
             type="button"
@@ -539,15 +540,6 @@ function AudioCardBody({
   );
 }
 
-const DEFAULT_UPLOAD_COPY = { title: "Clique para enviar uma imagem", formats: "JPEG, PNG (máx. 5 MB)" };
-
-const UPLOAD_COPY: Record<string, { title: string; formats: string }> = {
-  image:    { title: "Clique para enviar uma imagem", formats: "JPEG, PNG (máx. 5 MB)" },
-  video:    { title: "Clique para enviar um vídeo",  formats: "MP4, 3GP (máx. 16 MB)" },
-  audio:    { title: "Clique para enviar um áudio",  formats: "MP3, AAC, OGG, OPUS (máx. 16 MB)" },
-  document: { title: "Clique para enviar um documento", formats: "PDF, DOC, DOCX, XLS, PPT, TXT (máx. 100 MB)" },
-};
-
 function MediaSection({
   flowId,
   item,
@@ -555,7 +547,7 @@ function MediaSection({
   onChange,
 }: {
   flowId: string;
-  item: Extract<ConteudoItem, { type: "image" | "video" | "audio" | "document" }>;
+  item: Extract<ConteudoItem, { type: "image" | "video" | "document" }>;
   disabled?: boolean;
   onChange: (c: ConteudoItem) => void;
 }) {
@@ -563,7 +555,12 @@ function MediaSection({
   const upload = useUploadFlowContentMedia();
   const inputRef = React.useRef<HTMLInputElement>(null);
   const temArquivo = item.storage_path.trim() !== "";
-  const copy = UPLOAD_COPY[item.type] ?? DEFAULT_UPLOAD_COPY;
+
+  // Abas para Documento (Anexar | Link) e Imagem (Arquivo anexado | Campo de fluxo)
+  const [docTab, setDocTab] = React.useState<"anexar" | "link">("anexar");
+  const [imgTab, setImgTab] = React.useState<"anexado" | "campo">("anexado");
+  const [linkUrl, setLinkUrl] = React.useState("");
+  const [campoFluxo, setCampoFluxo] = React.useState("");
 
   const onPick = async (file: File) => {
     try {
@@ -582,11 +579,19 @@ function MediaSection({
     if (f) void onPick(f);
   };
 
+  const accept =
+    item.type === "image"
+      ? "image/svg+xml,image/png,image/jpeg,image/webp"
+      : item.type === "video"
+        ? "video/mp4,video/mkv,video/avi,video/quicktime,video/3gpp"
+        : ".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,application/pdf";
+
   return (
     <div className="space-y-2">
       <input
         ref={inputRef}
         type="file"
+        accept={accept}
         className="hidden"
         disabled={disabled || upload.isPending}
         onChange={(e) => {
@@ -596,7 +601,100 @@ function MediaSection({
         }}
       />
 
-      {!temArquivo ? (
+      {/* Segmented control para Documento (Anexar | Link) */}
+      {item.type === "document" && (
+        <div className="flex rounded-full bg-[#f1f5f9] dark:bg-zinc-800 p-0.5 mb-2.5">
+          <button
+            type="button"
+            onClick={() => setDocTab("anexar")}
+            className={cn(
+              "flex-1 py-1 text-xs font-semibold rounded-full transition-all cursor-pointer",
+              docTab === "anexar"
+                ? "bg-[#2563eb] text-white shadow-xs"
+                : "text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200",
+            )}
+          >
+            {t("Anexar")}
+          </button>
+          <button
+            type="button"
+            onClick={() => setDocTab("link")}
+            className={cn(
+              "flex-1 py-1 text-xs font-semibold rounded-full transition-all cursor-pointer",
+              docTab === "link"
+                ? "bg-[#2563eb] text-white shadow-xs"
+                : "text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200",
+            )}
+          >
+            {t("Link")}
+          </button>
+        </div>
+      )}
+
+      {/* Segmented control para Imagem (Arquivo anexado | Campo de fluxo) */}
+      {item.type === "image" && (
+        <div className="flex rounded-full bg-[#f1f5f9] dark:bg-zinc-800 p-0.5 mb-2.5">
+          <button
+            type="button"
+            onClick={() => setImgTab("anexado")}
+            className={cn(
+              "flex-1 py-1 text-xs font-semibold rounded-full transition-all cursor-pointer",
+              imgTab === "anexado"
+                ? "bg-[#ea580c] text-white shadow-xs"
+                : "text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200",
+            )}
+          >
+            {t("Arquivo anexado")}
+          </button>
+          <button
+            type="button"
+            onClick={() => setImgTab("campo")}
+            className={cn(
+              "flex-1 py-1 text-xs font-semibold rounded-full transition-all cursor-pointer",
+              imgTab === "campo"
+                ? "bg-[#ea580c] text-white shadow-xs"
+                : "text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200",
+            )}
+          >
+            {t("Campo de fluxo")}
+          </button>
+        </div>
+      )}
+
+      {/* Corpo do Documento com aba Link */}
+      {item.type === "document" && docTab === "link" ? (
+        <div className="space-y-1.5 py-1">
+          <Input
+            placeholder="https://exemplo.com/documento.pdf"
+            value={linkUrl}
+            disabled={disabled}
+            onChange={(e) => {
+              setLinkUrl(e.target.value);
+              onChange({ ...item, storage_path: e.target.value, mime: "application/pdf" });
+            }}
+            className="h-9 text-xs rounded-lg border-[#e2e8f0] dark:border-zinc-800 bg-[#f8fafc] dark:bg-zinc-950"
+          />
+          <p className="text-[10px] text-slate-400">
+            {t("Insira o link público do documento que deseja enviar.")}
+          </p>
+        </div>
+      ) : item.type === "image" && imgTab === "campo" ? (
+        <div className="space-y-1.5 py-1">
+          <Input
+            placeholder="{{url_imagem_lead}}"
+            value={campoFluxo}
+            disabled={disabled}
+            onChange={(e) => {
+              setCampoFluxo(e.target.value);
+              onChange({ ...item, storage_path: e.target.value, mime: "image/jpeg" });
+            }}
+            className="h-9 text-xs rounded-lg border-[#e2e8f0] dark:border-zinc-800 bg-[#f8fafc] dark:bg-zinc-950"
+          />
+          <p className="text-[10px] text-slate-400">
+            {t("Use a variável que contém a URL da imagem.")}
+          </p>
+        </div>
+      ) : !temArquivo ? (
         <button
           type="button"
           disabled={disabled || upload.isPending}
@@ -604,22 +702,47 @@ function MediaSection({
           onDragOver={(e) => e.preventDefault()}
           onDrop={handleDrop}
           className={cn(
-            "flex flex-col items-center justify-center gap-2 w-full py-5 px-3.5",
-            "border-2 border-dashed rounded-xl bg-[#f8fafc] dark:bg-zinc-950 text-[#64748b] cursor-pointer text-center",
-            "transition-all hover:border-[#94a3b8] hover:bg-[#f1f5f9] dark:hover:bg-zinc-900 hover:text-[#475569] border-[#cbd5e1] dark:border-zinc-800",
+            "flex flex-col items-center justify-center gap-1 w-full py-6 px-4",
+            "border border-dashed rounded-lg bg-transparent text-[#64748b] cursor-pointer text-center",
+            "transition-all hover:border-slate-400 hover:bg-slate-50/70 dark:hover:bg-zinc-900/50 border-[#cbd5e1] dark:border-zinc-700",
             upload.isPending && "opacity-50 pointer-events-none",
           )}
         >
-          {item.type === "image" && <ImageIcon size={28} className="opacity-90" />}
-          {item.type === "video" && <VideoCamera size={28} className="opacity-90" />}
-          {item.type === "audio" && <Microphone size={28} className="opacity-90" />}
-          {item.type === "document" && <FileText size={28} className="opacity-90" />}
-          <span className="text-[13px] font-semibold text-[#334155] dark:text-zinc-200 leading-tight">
-            {upload.isPending ? t("Enviando…") : t(copy.title)}
-          </span>
-          <span className="text-[11px] font-medium text-[#94a3b8] tracking-wide">
-            {copy.formats}
-          </span>
+          {item.type === "document" && (
+            <>
+              <CloudUpload size={38} className="text-[#94a3b8] mb-1" strokeWidth={1.5} />
+              <span className="text-[13px] font-semibold text-slate-700 dark:text-zinc-200">
+                {upload.isPending ? t("Enviando…") : t("Clique para enviar um documento")}
+              </span>
+              <span className="text-[11px] text-slate-400 dark:text-zinc-500">
+                {t("Arquivos de documentos (máx. 25 MB)")}
+              </span>
+            </>
+          )}
+
+          {item.type === "image" && (
+            <>
+              <LucideImage size={38} className="text-[#94a3b8] mb-1" strokeWidth={1.5} />
+              <span className="text-[13px] font-semibold text-slate-700 dark:text-zinc-200">
+                {upload.isPending ? t("Enviando…") : t("Selecionar arquivo")}
+              </span>
+              <span className="text-[11px] text-slate-400 dark:text-zinc-500">
+                SVG, PNG, JPG
+              </span>
+            </>
+          )}
+
+          {item.type === "video" && (
+            <>
+              <LucideVideo size={38} className="text-[#94a3b8] mb-1" strokeWidth={1.5} />
+              <span className="text-[13px] font-semibold text-slate-700 dark:text-zinc-200">
+                {upload.isPending ? t("Enviando…") : t("Clique para enviar um video")}
+              </span>
+              <span className="text-[11px] text-slate-400 dark:text-zinc-500">
+                mp4,mkv,avi,mov,3gp (máx. 50 MB)
+              </span>
+            </>
+          )}
         </button>
       ) : (
         <div className="flex items-center justify-between p-2.5 rounded-lg border border-[#e2e8f0] dark:border-zinc-800 bg-[#f8fafc] dark:bg-zinc-950">
@@ -630,34 +753,11 @@ function MediaSection({
             type="button"
             disabled={disabled || upload.isPending}
             onClick={() => inputRef.current?.click()}
-            className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:underline"
+            className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
           >
             {t("Trocar arquivo")}
           </button>
         </div>
-      )}
-
-      {/* Voice Toggle informativo para áudio gravado (AcassIA parity) */}
-      {item.type === "audio" && (
-        <div className="flex items-center justify-between p-2.5 rounded-lg border border-[#e8ecf1] dark:border-zinc-800 bg-white dark:bg-zinc-900 mt-1">
-          <span className="text-[12px] font-medium text-[#334155] dark:text-zinc-300">
-            {t("Enviar como áudio gravado?")}
-          </span>
-          <span className="text-[11px] font-semibold text-purple-600 bg-purple-50 dark:bg-purple-950/40 px-2 py-0.5 rounded-full">
-            {t("Sim (PTT)")}
-          </span>
-        </div>
-      )}
-
-      {item.type !== "audio" && (
-        <Input
-          placeholder={t("Legenda (opcional)")}
-          maxLength={1024}
-          value={(item as Extract<ConteudoItem, { caption?: string }>).caption ?? ""}
-          disabled={disabled}
-          onChange={(e) => onChange({ ...item, caption: e.target.value || undefined } as ConteudoItem)}
-          className="h-8 text-xs rounded-lg border-[#e2e8f0] dark:border-zinc-800 bg-[#f8fafc] dark:bg-zinc-950"
-        />
       )}
     </div>
   );
