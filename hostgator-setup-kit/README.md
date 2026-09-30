@@ -1,6 +1,6 @@
-# DeskcommCRM — Kit de Instalação (HostGator)
+# AcassIA — Kit de Instalação (HostGator)
 
-Este kit sobe o **DeskcommCRM** no seu servidor VPS da HostGator. Você tem dois caminhos:
+Este kit sobe a **AcassIA** no seu servidor VPS da HostGator. Você tem dois caminhos:
 
 > **Ainda nem tem servidor?** Comece por `comecar.sh` — ele roda **no seu computador**, antes
 > de existir VPS, e responde a pergunta que trava todo mundo no início: *o que eu preciso
