@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 import {
   Select,
   SelectContent,
@@ -196,40 +197,85 @@ export function ConditionForm({
           que o subtítulo do card tinha. O texto é o do vocabulário, não meu. */}
       {!porRegra && (
         <div className="space-y-2">
-          <Label htmlFor="cond-combinator">{t("Seguir por aqui quando")}</Label>
-          <Select
-            value={combinator}
-            onValueChange={(v) => {
-              const next = v as Combinador;
-              setCombinator(next);
-              commit({ combinator: next });
-            }}
-          >
-            <SelectTrigger id="cond-combinator">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {opcoes(COMBINADORES).map(({ valor, rotulo }) => (
-                <SelectItem key={valor} value={valor}>
-                  {t(rotulo)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="grid grid-cols-2 gap-2 pt-1">
+            <button
+              type="button"
+              onClick={() => {
+                setCombinator("and");
+                commit({ combinator: "and" });
+              }}
+              className={cn(
+                "p-2.5 rounded-xl border text-left flex flex-col justify-between transition-all cursor-pointer",
+                combinator === "and"
+                  ? "border-blue-500 bg-blue-50/50 dark:bg-blue-950/20 text-blue-900 dark:text-blue-200 ring-1 ring-blue-500 shadow-2xs"
+                  : "border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-600 dark:text-zinc-400 hover:border-slate-300"
+              )}
+            >
+              <span className="text-[11px] font-bold">{t("Corresponde a TODAS")}</span>
+              <span className="text-[10px] text-slate-500 dark:text-zinc-400 mt-1">E (AND) — todas válidas</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setCombinator("or");
+                commit({ combinator: "or" });
+              }}
+              className={cn(
+                "p-2.5 rounded-xl border text-left flex flex-col justify-between transition-all cursor-pointer",
+                combinator === "or"
+                  ? "border-blue-500 bg-blue-50/50 dark:bg-blue-950/20 text-blue-900 dark:text-blue-200 ring-1 ring-blue-500 shadow-2xs"
+                  : "border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-600 dark:text-zinc-400 hover:border-slate-300"
+              )}
+            >
+              <span className="text-[11px] font-bold">{t("Corresponde a QUALQUER")}</span>
+              <span className="text-[10px] text-slate-500 dark:text-zinc-400 mt-1">OU (OR) — pelo menos uma</span>
+            </button>
+          </div>
+
+          <div className="space-y-1">
+            <Label htmlFor="cond-combinator">{t("Seguir por aqui quando")}</Label>
+            <Select
+              value={combinator}
+              onValueChange={(v) => {
+                const next = v as Combinador;
+                setCombinator(next);
+                commit({ combinator: next });
+              }}
+            >
+              <SelectTrigger id="cond-combinator">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {opcoes(COMBINADORES).map(({ valor, rotulo }) => (
+                  <SelectItem key={valor} value={valor}>
+                    {t(rotulo)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       )}
 
       <div className="space-y-3">
         {checks.map((check, idx) => (
-          <div key={check.id ?? idx} className="space-y-2 rounded-sm border border-border p-2" data-testid={`condition-check-${idx}`}>
+          <div
+            key={check.id ?? idx}
+            className="space-y-2.5 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-3.5 shadow-2xs"
+            data-testid={`condition-check-${idx}`}
+          >
             <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-text-muted">{t("Condição")} {idx + 1}</span>
+              <span className="text-xs font-bold text-slate-800 dark:text-zinc-200">
+                {t("Condição")} {idx + 1}
+              </span>
               <Button
                 type="button"
                 variant="ghost"
                 size="icon"
                 aria-label={t("Remover condição")}
                 disabled={checks.length <= 1}
+                className="text-red-500 hover:text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 h-7 w-7 rounded-md cursor-pointer"
                 onClick={() => {
                   const next = checks.filter((_, i) => i !== idx);
                   setChecks(next);
@@ -353,7 +399,7 @@ export function ConditionForm({
 
       <Button
         type="button"
-        variant="secondary"
+        variant="outline"
         size="sm"
         disabled={checks.length >= 10}
         onClick={() => {
@@ -364,8 +410,11 @@ export function ConditionForm({
           setChecks(next);
           commit({ checks: next });
         }}
+        className="w-full h-11 rounded-xl border border-dashed border-blue-300 dark:border-blue-900/50 bg-blue-50/40 dark:bg-blue-950/20 hover:bg-blue-50 dark:hover:bg-blue-950/40 text-blue-600 dark:text-blue-400 font-semibold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-2xs"
       >
-        <Plus size={14} aria-hidden className="mr-1" /> {t("Condição")}
+        <Plus size={16} aria-hidden />
+        <div className="h-4 w-px bg-blue-200 dark:bg-blue-900/50" />
+        <span>{t("Condição")}</span>
       </Button>
       {error && <p className="text-xs text-error-fg">{error}</p>}
     </div>

@@ -187,6 +187,10 @@ export const matchReplyConfigSchema = z
     grace_timeout_ms: z.number().int().min(900_000),
     save_to: replySaveToSchema.optional(),
     if_exists: ifExistsSchema.optional(),
+    question: z.string().optional(),
+    agrupar_respostas_segundos: z.number().int().min(0).max(3600).optional(),
+    expiracao_tempo: z.number().int().min(1).max(10000).optional(),
+    expiracao_unidade: z.enum(['segundos', 'minutos', 'horas', 'dias']).optional(),
   })
   .refine((c) => new Set(c.branches.map((b) => b.id)).size === c.branches.length, {
     message: "branches[].id must be unique within the node",
@@ -203,6 +207,9 @@ export const menuConfigSchema = z
     prompt: z.string().trim().min(1).max(1000),
     options: z.array(menuOptionSchema).min(2).max(8),
     grace_timeout_ms: z.number().int().min(900_000),
+    agrupar_respostas_segundos: z.number().int().min(0).max(3600).optional(),
+    expiracao_tempo: z.number().int().min(1).max(10000).optional(),
+    expiracao_unidade: z.enum(['segundos', 'minutos', 'horas', 'dias']).optional(),
   })
   .refine((c) => new Set(c.options.map((option) => option.id)).size === c.options.length, {
     message: 'options[].id must be unique within the node',

@@ -638,3 +638,15 @@ export const MODOS_NOTIFICACAO_ATENDENTE: Record<ModoNotificacaoAtendente, strin
   automatico: "Automático",
 };
 
+// ─── Unidades de tempo (Tempos e limites) ────────────────────────────────
+
+export type UnidadeDeTempo = "segundos" | "minutos" | "horas" | "dias";
+
+export const UNIDADES_DE_TEMPO: Record<UnidadeDeTempo, string> = {
+  segundos: "Segundos",
+  minutos: "Minutos",
+  horas: "Horas",
+  dias: "Dias",
+};
+
+
