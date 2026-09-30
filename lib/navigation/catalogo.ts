@@ -433,7 +433,7 @@ export const NAV_CATALOG = [
     icon: "Microphone",
     group: "ia",
     section: "Montar o agente",
-    minRole: "agent",
+    minRole: "manager",
     sidebar: true,
   },
   {

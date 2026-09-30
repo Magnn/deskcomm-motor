@@ -77,6 +77,7 @@ export default function VoiceStudioPage() {
     genero?: string;
     categoria: "pronta" | "clonada";
     iniciais?: string;
+    provedor?: "elevenlabs" | "openai";
   } | null>(null);
 
   const [texto, setTexto] = React.useState("");
@@ -112,6 +113,7 @@ export default function VoiceStudioPage() {
       nome: v.nome,
       genero: v.genero,
       categoria: "clonada" as const,
+      provedor: v.provedor,
       iniciais: v.nome
         .split(" ")
         .slice(0, 2)
@@ -127,6 +129,7 @@ export default function VoiceStudioPage() {
         nome: v.nome,
         genero: v.genero,
         categoria: "pronta" as const,
+        provedor: v.provedor,
         iniciais: v.nome
           .split(" ")
           .slice(0, 2)
@@ -134,7 +137,9 @@ export default function VoiceStudioPage() {
           .join(""),
       }));
 
-    const prontas = prontasDaApi.length > 0 ? prontasDaApi : VOZES_PRE_CONFIGURADAS;
+    const prontas = prontasDaApi.length > 0
+      ? prontasDaApi
+      : VOZES_PRE_CONFIGURADAS.map((p) => ({ ...p, provedor: "elevenlabs" as const }));
     return [...clonadas, ...prontas];
   }, [vozesBackend, vozesClonadas]);
 
@@ -166,7 +171,7 @@ export default function VoiceStudioPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          provider: "elevenlabs",
+          provider: selectedVoice.provedor ?? "elevenlabs",
           voice_id: selectedVoice.id,
           text: texto.trim(),
           stability: estabilidade,
@@ -603,18 +608,27 @@ function AdicionarNovaVozModal({
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mr = new MediaRecorder(stream);
+      const preferredMime = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+        ? "audio/webm;codecs=opus"
+        : MediaRecorder.isTypeSupported("audio/webm")
+        ? "audio/webm"
+        : MediaRecorder.isTypeSupported("audio/mp4")
+        ? "audio/mp4"
+        : "";
+      const mr = preferredMime ? new MediaRecorder(stream, { mimeType: preferredMime }) : new MediaRecorder(stream);
       chunksRef.current = [];
       mr.ondataavailable = (e) => {
         if (e.data.size > 0) chunksRef.current.push(e.data);
       };
       mr.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
-        const file = new File([blob], `gravacao-${Date.now()}.webm`, { type: "audio/webm" });
+        const mime = preferredMime || mr.mimeType || "audio/webm";
+        const ext = mime.includes("mp4") ? "mp4" : "webm";
+        const blob = new Blob(chunksRef.current, { type: mime });
+        const file = new File([blob], `gravacao-${Date.now()}.${ext}`, { type: mime });
         setArquivos((prev) => [...prev, file].slice(0, 5));
         stream.getTracks().forEach((track) => track.stop());
       };
-      mr.start();
+      mr.start(250);
       mediaRecorderRef.current = mr;
       setGravando(true);
       setSegundosGravados(0);
@@ -739,6 +753,37 @@ function AdicionarNovaVozModal({
               placeholder="Ex.: Atendente Comercial"
               className="w-full h-10 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3.5 text-xs text-slate-800 dark:text-zinc-100 placeholder:text-slate-400 focus:outline-hidden focus:border-purple-500 transition-colors shadow-2xs"
             />
+          </div>
+
+          {/* Gênero da voz */}
+          <div className="space-y-1.5">
+            <label className="block font-bold text-slate-800 dark:text-zinc-200">
+              {t("Gênero da voz")}
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              {(
+                [
+                  { id: "feminina", label: "Feminina" },
+                  { id: "masculina", label: "Masculina" },
+                  { id: "neutra", label: "Neutra" },
+                ] as const
+              ).map((g) => (
+                <button
+                  key={g.id}
+                  type="button"
+                  onClick={() => setGenero(g.id)}
+                  className={cn(
+                    "h-9 rounded-xl border text-xs font-semibold transition-all cursor-pointer flex items-center justify-center gap-1.5",
+                    genero === g.id
+                      ? "border-purple-600 bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 shadow-2xs"
+                      : "border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-600 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-850"
+                  )}
+                >
+                  {genero === g.id && <Check size={13} className="text-purple-600 dark:text-purple-400" />}
+                  <span>{t(g.label)}</span>
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Amostras de Áudio */}
