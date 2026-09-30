@@ -4,38 +4,53 @@ import type { NodeProps } from "@xyflow/react";
 
 import type { RFNode } from "@/lib/followup/graph-mappers";
 import { nodeBranches } from "@/lib/followup/graph-schema";
+import { fraseDaCondicao } from "@/lib/followup/vocabulario";
 import { useT } from "@/hooks/i18n/useT";
+import { useEtapasDoFluxo } from "../EtapasDoFluxo";
 import type { ConfigOf } from "../forms/shared";
 import { NODE_VISUALS, describeNodeConfig } from "./nodeVisuals";
 import { NodeCard } from "./NodeCard";
 
+const REGRAS_NO_CARD = 3;
+
+/**
+ * Cada regra aparece pela frase do vocabulário (`fraseDaCondicao`), a mesma do
+ * painel e do publish — com o operador e o nome da etapa reais. Antes o card
+ * dizia "Validar se o campo <campo cru> é igual a" para QUALQUER operador, e
+ * um valor 0 aparecia como "vazio".
+ */
 export function ConditionNode({ id, data, selected }: NodeProps<RFNode>) {
   const t = useT();
+  const { nomes } = useEtapasDoFluxo();
   const config = data.config as ConfigOf<"condition">;
-  const checks = config.checks || [];
-  const combinator = config.combinator || "and";
-  const logicText = combinator === "or" ? "Qualquer condição é verdadeira:" : "Todas as condições são verdadeiras:";
+  const checks = config.checks ?? [];
+  const logicText =
+    config.combinator === "or" ? t("Qualquer condição é verdadeira:") : t("Todas as condições são verdadeiras:");
+  const restantes = checks.length - REGRAS_NO_CARD;
 
   const customPreview = (
-    <div className="flex w-full flex-col gap-1 rounded-lg border border-slate-100 bg-white p-1.5 dark:border-border/60 dark:bg-surface-elevated">
-      <div className="flex min-h-[40px] flex-col items-center gap-2 rounded-md border border-dashed border-[#ef4444]/40 bg-[#fff1f2] p-2.5 text-center dark:bg-red-950/20">
-        <div className="w-full text-center text-[11px] font-semibold leading-tight text-slate-700 dark:text-slate-300">
-          {logicText}
-        </div>
+    <div className="flex w-full flex-col gap-1 rounded-lg border border-border/60 bg-surface-elevated p-1.5">
+      <div className="flex min-h-[40px] flex-col gap-2 rounded-md border border-dashed border-error/40 bg-error-bg p-2.5">
+        {config.branching !== "per_check" && (
+          <div className="w-full text-center text-[11px] font-semibold leading-tight text-text">{logicText}</div>
+        )}
         <div className="flex w-full flex-col gap-1.5">
           {checks.length > 0 ? (
-            checks.slice(0, 2).map((check, i) => (
-              <div key={i} className="flex flex-col items-center justify-center gap-1">
-                <div className="rounded-md border border-dashed border-slate-200 bg-white px-2 py-1 text-[10px] leading-snug font-medium text-slate-600 dark:border-border dark:bg-surface dark:text-slate-400">
-                  Validar se o campo <span className="font-bold">{check.field}</span> é igual a
-                </div>
-                <div className="rounded-full bg-[#10b981] px-3 py-0.5 text-[10px] font-bold text-white shadow-2xs">
-                  {String(check.value || "vazio")}
-                </div>
+            checks.slice(0, REGRAS_NO_CARD).map((check, i) => (
+              <div
+                key={check.id ?? i}
+                className="rounded-md border border-dashed border-border bg-surface px-2 py-1 text-[10px] leading-snug font-medium text-text"
+              >
+                {fraseDaCondicao(check.field, check.op, check.value, nomes)}
               </div>
             ))
           ) : (
-            <div className="rounded-md border border-dotted px-2 py-1 text-[10px] text-slate-400">Sem condições</div>
+            <div className="rounded-md border border-dotted border-border px-2 py-1 text-[10px] text-text-muted">
+              {t("Sem condições")}
+            </div>
+          )}
+          {restantes > 0 && (
+            <div className="text-center text-[10px] font-medium text-text-muted">{`+${restantes}`}</div>
           )}
         </div>
       </div>

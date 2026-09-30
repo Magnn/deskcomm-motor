@@ -314,7 +314,7 @@ export function NodeCard({
         visual.type === "action" ? (
           <div className="p-3 flex flex-col items-center justify-center gap-2 py-6 min-h-[110px]">
             <Smiley size={40} className="text-slate-500" weight="regular" aria-hidden />
-            <span className="text-[13px] font-medium text-slate-500">Aguardando Configuração...</span>
+            <span className="text-[13px] font-medium text-slate-500">{t("Aguardando Configuração...")}</span>
           </div>
         ) : (
           <div className="p-3">
