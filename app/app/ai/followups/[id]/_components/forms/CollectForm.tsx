@@ -267,7 +267,7 @@ export function CollectForm({
                     className="w-full flex items-center justify-between px-2 py-1.5 text-xs text-slate-700 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-md transition-colors text-left cursor-pointer"
                   >
                     <span>{v.label}</span>
-                    <code className="text-[10px] text-blue-600 bg-blue-50 dark:bg-blue-950/60 px-1 py-0.5 rounded font-mono">
+                    <code className="text-[10px] text-blue-600 bg-blue-50 dark:bg-blue-950/60 px-1 py-0.5 rounded-md font-mono">
                       {v.tag}
                     </code>
                   </button>
@@ -280,7 +280,7 @@ export function CollectForm({
                     className="w-full flex items-center justify-between px-2 py-1.5 text-xs text-slate-700 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-md transition-colors text-left cursor-pointer"
                   >
                     <span>{f.label}</span>
-                    <code className="text-[10px] text-indigo-600 bg-indigo-50 dark:bg-indigo-950/60 px-1 py-0.5 rounded font-mono">
+                    <code className="text-[10px] text-indigo-600 bg-indigo-50 dark:bg-indigo-950/60 px-1 py-0.5 rounded-md font-mono">
                       {`{{${f.label}}}`}
                     </code>
                   </button>
@@ -321,7 +321,7 @@ export function CollectForm({
               >
                 {salvarEmCampo ? (
                   <div className="flex items-center gap-2 overflow-hidden">
-                    <span className="rounded bg-slate-100 dark:bg-zinc-800 px-2 py-0.5 text-[11px] font-mono text-slate-700 dark:text-zinc-300 border border-slate-200 dark:border-zinc-700 truncate">
+                    <span className="rounded-md bg-slate-100 dark:bg-zinc-800 px-2 py-0.5 text-[11px] font-mono text-slate-700 dark:text-zinc-300 border border-slate-200 dark:border-zinc-700 truncate">
                       {`{{${currentFieldLabel}}}`}
                     </span>
                   </div>
@@ -346,7 +346,7 @@ export function CollectForm({
                             handleClearField(e as unknown as React.MouseEvent);
                           }
                         }}
-                        className="p-0.5 rounded hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 cursor-pointer"
+                        className="p-0.5 rounded-md hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 cursor-pointer"
                         title={t("Remover campo")}
                       >
                         <X size={13} />

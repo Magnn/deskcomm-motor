@@ -539,6 +539,14 @@ export const TIPOS_DE_CAMPO: Record<TipoDeCampo, string> = {
   cpf: "CPF (confere o dígito)",
 };
 
+/** Unidade de tempo para expiração do bloco de pergunta (AcassIA parity). */
+export const UNIDADES_DE_EXPIRACAO: Record<"segundos" | "minutos" | "horas" | "dias", string> = {
+  segundos: "Segundos",
+  minutos: "Minutos",
+  horas: "Horas",
+  dias: "Dias",
+};
+
 // ─── nó final ────────────────────────────────────────────────────────────
 
 /**
