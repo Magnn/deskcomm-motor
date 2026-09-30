@@ -6,6 +6,11 @@ import type { RFNode } from "@/lib/followup/graph-mappers";
 import { nodeBranches } from "@/lib/followup/graph-schema";
 import { useT } from "@/hooks/i18n/useT";
 import { Sparkle, Clock, ChatCircle } from "@/lib/ui/icons";
+import {
+  AGENT_NODE_DEFAULT_MAX_TURNS,
+  AGENT_NODE_DEFAULT_SILENCE_MINUTES,
+} from "@/lib/followup/graph-schema";
+import type { ConfigOf } from "../forms/shared";
 import { NODE_VISUALS, describeNodeConfig } from "./nodeVisuals";
 import { NodeCard } from "./NodeCard";
 
@@ -19,8 +24,8 @@ export function AgentNode({ id, data, selected }: NodeProps<RFNode>) {
   };
 
   const objetivo = config.objetivo || "Conduzir diálogo inteligente com o lead até o objetivo.";
-  const turnos = config.max_turnos ?? 5;
-  const silencio = config.silencio_minutos ?? 15;
+  const turnos = config.max_turnos ?? AGENT_NODE_DEFAULT_MAX_TURNS;
+  const silencio = config.silencio_minutos ?? AGENT_NODE_DEFAULT_SILENCE_MINUTES;
 
   const customPreview = (
     <div className="flex w-full flex-col gap-2">
@@ -39,11 +44,11 @@ export function AgentNode({ id, data, selected }: NodeProps<RFNode>) {
       <div className="grid grid-cols-2 gap-1.5 text-[10.5px]">
         <div className="flex items-center gap-1.5 rounded-lg border border-slate-200/70 bg-slate-50 px-2 py-1 text-slate-600 dark:border-border dark:bg-surface dark:text-slate-400">
           <ChatCircle size={12} className="text-purple-600 shrink-0" />
-          <span>Máx. {turnos} turnos</span>
+          <span>{`${t("Máx.")} ${turnos} ${t("turnos")}`}</span>
         </div>
         <div className="flex items-center gap-1.5 rounded-lg border border-slate-200/70 bg-slate-50 px-2 py-1 text-slate-600 dark:border-border dark:bg-surface dark:text-slate-400">
           <Clock size={12} className="text-amber-600 shrink-0" />
-          <span>Silêncio: {silencio} min</span>
+          <span>{`${t("Silêncio:")} ${silencio} min`}</span>
         </div>
       </div>
     </div>
@@ -61,7 +66,7 @@ export function AgentNode({ id, data, selected }: NodeProps<RFNode>) {
       customPreview={customPreview}
       branches={nodeBranches({
         type: "agent",
-        config: data.config as any,
+        config: data.config as ConfigOf<"agent">,
       })}
     />
   );

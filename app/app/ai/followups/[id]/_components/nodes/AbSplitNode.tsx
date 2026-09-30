@@ -19,6 +19,7 @@ export function AbSplitNode({ id, data, selected }: NodeProps<RFNode>) {
       subtitle={describeNodeConfig("ab_split", data.config, t)}
       selected={selected}
       errors={data.errors}
+      simulating={data.simulating}
       branches={nodeBranches({ type: "ab_split", config: data.config as ConfigOf<"ab_split"> })}
     />
   );

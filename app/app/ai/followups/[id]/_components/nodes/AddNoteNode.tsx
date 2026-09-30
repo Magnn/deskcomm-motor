@@ -26,6 +26,7 @@ export function AddNoteNode({ id, data, selected }: NodeProps<RFNode>) {
       subtitle={describeNodeConfig("add_note", data.config, t)}
       selected={selected}
       errors={data.errors}
+      simulating={data.simulating}
       customPreview={customPreview}
     />
   );

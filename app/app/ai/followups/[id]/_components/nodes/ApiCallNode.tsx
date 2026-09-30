@@ -18,7 +18,7 @@ export function ApiCallNode({ id, data, selected }: NodeProps<RFNode>) {
     ? `${firstAction.label}${config.actions && config.actions.length > 1 ? ` (+${config.actions.length - 1})` : ""}`
     : config.url && config.url !== "https://example.com/webhook"
       ? `${config.method} ${config.url}`
-      : "Executar ação";
+      : t("Executar ação");
 
   const customPreview = (
     <div className="flex items-center gap-2 p-1">
@@ -26,7 +26,7 @@ export function ApiCallNode({ id, data, selected }: NodeProps<RFNode>) {
         <span className="flex h-4 w-4 items-center justify-center rounded-full border border-slate-400 text-[10px] leading-none text-slate-500 font-bold">
           +
         </span>
-        Executar ação
+        {t("Executar ação")}
       </span>
       <span className="max-w-[150px] truncate rounded-full bg-[#2563eb] px-2.5 py-0.5 text-[10px] font-bold text-white shadow-xs">
         {actionText}
@@ -42,6 +42,7 @@ export function ApiCallNode({ id, data, selected }: NodeProps<RFNode>) {
       subtitle={describeNodeConfig("api_call", data.config, t)}
       selected={selected}
       errors={data.errors}
+      simulating={data.simulating}
       customPreview={customPreview}
     />
   );

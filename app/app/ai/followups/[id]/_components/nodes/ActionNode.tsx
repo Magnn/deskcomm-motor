@@ -20,26 +20,6 @@ export function ActionNode({ id, data, selected }: NodeProps<RFNode>) {
         }))
       : undefined;
 
-  let customPreview: React.ReactNode = undefined;
-  const rawMode = (config as { mode?: string }).mode;
-  if (rawMode === "tag") {
-    const tagName = (config as any).tag || "Entrou no funil";
-    const op = (config as any).op === "remove" ? "Remover etiqueta" : "Adicionar etiqueta";
-    customPreview = (
-      <div className="flex items-center gap-2 p-1">
-        <span className="flex items-center gap-1.5 text-xs font-medium text-slate-700 dark:text-slate-300">
-          <span className="flex h-4 w-4 items-center justify-center rounded-full border border-slate-400 text-[10px] leading-none text-slate-500 font-bold">
-            +
-          </span>
-          {op}
-        </span>
-        <span className="rounded-full bg-[#2563eb] px-2.5 py-0.5 text-[10px] font-bold text-white shadow-xs">
-          {tagName}
-        </span>
-      </div>
-    );
-  }
-
   return (
     <NodeCard
       id={id}
@@ -50,7 +30,6 @@ export function ActionNode({ id, data, selected }: NodeProps<RFNode>) {
       errors={data.errors}
       simulating={data.simulating}
       previewRows={previewRows}
-      customPreview={customPreview}
     />
   );
 }

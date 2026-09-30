@@ -28,6 +28,7 @@ export function NotifyAgentNode({ id, data, selected }: NodeProps<RFNode>) {
       subtitle={describeNodeConfig("notify_agent", data.config, t)}
       selected={selected}
       errors={data.errors}
+      simulating={data.simulating}
       customPreview={customPreview}
     />
   );
