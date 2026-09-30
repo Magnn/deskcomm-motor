@@ -628,3 +628,13 @@ export const METODOS_HTTP: Record<HttpMethod, string> = {
   PATCH: "PATCH",
   DELETE: "DELETE",
 };
+
+// ─── Notificar atendente (nó notify_agent) ──────────────────────────────
+
+export type ModoNotificacaoAtendente = "manual" | "automatico";
+
+export const MODOS_NOTIFICACAO_ATENDENTE: Record<ModoNotificacaoAtendente, string> = {
+  manual: "Manual",
+  automatico: "Automático",
+};
+
