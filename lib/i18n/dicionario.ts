@@ -12356,6 +12356,9 @@ export const DICIONARIO: Traducoes = {
   },
   "Rascunho gerado. Revise e ajuste antes de salvar.": { es: "Borrador generado. Revísalo y ajústalo antes de guardar." },
   Gerar: { es: "Generar" },
+  "Não foi possível ouvir a voz agora.": { es: "No fue posible escuchar la voz ahora." },
+  "Sai como nota de voz no WhatsApp. Se a voz não puder ser gerada, a pessoa recebe o texto.": { es: "Sale como nota de voz en WhatsApp. Si no se puede generar la voz, la persona recibe el texto." },
+  "Abre a mensagem, antes do valor e da chave. Aceita {primeiro_nome}, {nome_completo} e {telefone}.": { es: "Abre el mensaje, antes del valor y la clave. Acepta {primeiro_nome}, {nome_completo} y {telefone}." },
 };
 
 /**

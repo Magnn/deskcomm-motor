@@ -673,3 +673,12 @@ export const UNIDADES_DE_TIMEOUT_WHATSAPP: Record<UnidadeDeTimeoutWhatsapp, stri
 
 
 
+
+// ─── Voice Studio (nó voice_studio) ─────────────────────────────────────
+
+export type ProvedorDeVozDoNo = "openai" | "elevenlabs";
+
+export const PROVEDORES_DE_VOZ_DO_NO: Record<ProvedorDeVozDoNo, string> = {
+  openai: "OpenAI",
+  elevenlabs: "ElevenLabs",
+};

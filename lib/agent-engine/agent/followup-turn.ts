@@ -56,6 +56,10 @@ import { runGenericAiNode } from './followup-flow-generic-ai';
 import { OK_KINDS } from './split-message';
 import type { ChannelSendResult } from '../channel-adapter';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { preencherVariaveisDoContato } from '@/lib/followup/variaveis-do-contato';
+import { configDeVozDoItem } from '@/lib/followup/nos-de-envio';
+import { IDS_DE_PROVEDOR_DE_VOZ } from '@/lib/voz/tipos';
+import { dependenciasReaisDeNota, enviarNotasDeVoz, prepararNotasDeVoz } from './nota-de-voz';
 
 const DAY_MS = 86_400_000;
 const HOUR_MS = 3_600_000;
@@ -86,6 +90,18 @@ const conteudoItemPayloadSchema = z.discriminatedUnion('type', [
   }),
   z.object({ type: z.literal('contact'), name: z.string().min(1), phone_number: z.string().min(1) }),
   z.object({ type: z.literal('delay'), seconds: z.number().int().min(1).max(120) }),
+  // Nó Voice Studio: o TEXTO vai no job e a voz é sintetizada na hora do envio, com a chave da
+  // organização — não há arquivo antes disso, então não há storage_path.
+  z.object({
+    type: z.literal('voice'),
+    text: z.string().min(1),
+    provider: z.enum(IDS_DE_PROVEDOR_DE_VOZ),
+    voice_id: z.string().min(1),
+    speed: z.number().optional(),
+    stability: z.number().optional(),
+    similarity_boost: z.number().optional(),
+    style: z.number().optional(),
+  }),
 ]);
 export type ConteudoItemPayload = z.infer<typeof conteudoItemPayloadSchema>;
 
@@ -876,7 +892,7 @@ async function sendConteudoSequence(
   ctx: { workerId: string },
   clock: () => Date,
   target: ReentrySendTarget,
-  items: readonly ConteudoItemPayload[],
+  itensBrutos: readonly ConteudoItemPayload[],
 ): Promise<EnvioFixoDesfecho> {
   const { tenantId, leadId, channelSessionId, conversationId } = target;
   const runLog = withFields(deps.log, { job_id: job.id, tenant_id: tenantId, lead_id: leadId });
@@ -896,6 +912,14 @@ async function sendConteudoSequence(
     throw new Error(`sequência de conteúdo do follow-up falhou em get_lead_context (${context.error.code})`);
   }
   const optedOutThisTurn = context.context.contact.is_blocked;
+  // {full_name}/{first_name}/{phone_number}/{email}: resolvidos aqui, com o contato lido NESTE turno.
+  const items = itensBrutos.map((i) =>
+    i.type === 'text'
+      ? { ...i, body: preencherVariaveisDoContato(i.body, context.context.contact) }
+      : i.type === 'voice'
+        ? { ...i, text: preencherVariaveisDoContato(i.text, context.context.contact) }
+        : i,
+  );
   const channel = (deps.channel ?? ((p: pg.Pool) => new WahaChannelAdapter(p, deps.crmCfg)))(pool);
   const sleep = deps.sleep ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
   const jitter = () => 1200 + Math.floor(Math.random() * 800); // mesmo piso anti-ban das bolhas do turno normal
@@ -903,7 +927,8 @@ async function sendConteudoSequence(
   // Representativo pro portão (spinning/classificação) — nunca o que de fato sai
   // pros itens que não são o primeiro texto. Ver "limitação conhecida" acima.
   const primeiroTexto = items.find((i): i is Extract<ConteudoItemPayload, { type: 'text' }> => i.type === 'text');
-  const corpoParaOPortao = primeiroTexto?.body ?? '[conteúdo]';
+  const primeiraVoz = items.find((i): i is Extract<ConteudoItemPayload, { type: 'voice' }> => i.type === 'voice');
+  const corpoParaOPortao = primeiroTexto?.body ?? primeiraVoz?.text ?? '[conteúdo]';
 
   const chain = await runBeforeSend({
     pool,
@@ -940,6 +965,44 @@ async function sendConteudoSequence(
         if (precisaDeJitter) await sleep(jitter());
         precisaDeJitter = true;
         seq += 1;
+
+        if (item.type === 'voice') {
+          const enviarTexto = (corpo: string) =>
+            channel.send({ tenantId, leadId, jobId: job.id, jobClaim: claimOfJob(job), seq, conversationId, body: corpo });
+          const preparadas = await prepararNotasDeVoz(dependenciasReaisDeNota(runLog), {
+            tenantId,
+            conversationId,
+            texto: item.text,
+            config: configDeVozDoItem(item),
+          });
+          if (!preparadas.ok) {
+            // Sem chave, cota, provedor fora ou texto longo demais: a pessoa recebe o TEXTO. Um passo
+            // de voz que some em silêncio é pior que um passo que chega escrito.
+            runLog.warn('Voice Studio caiu para texto', { motivo: preparadas.motivo });
+            ultimo = await enviarTexto(item.text);
+          } else {
+            let primeira = true;
+            ultimo = await enviarNotasDeVoz(preparadas, {
+              sleep,
+              jitter,
+              enviarNota: (nota) => {
+                if (!primeira) seq += 1;
+                primeira = false;
+                return channel.send({
+                  tenantId, leadId, jobId: job.id, jobClaim: claimOfJob(job), seq, conversationId,
+                  body: nota.fala,
+                  media: { storagePath: nota.storagePath, mime: nota.mime, kind: 'audio' },
+                });
+              },
+              enviarTexto: (link) => {
+                seq += 1;
+                return enviarTexto(link);
+              },
+            });
+          }
+          if (ultimo && !OK_KINDS.has(ultimo.kind)) return ultimo;
+          continue;
+        }
 
         if (item.type === 'text') {
           const usaFinalBody = !jaUsouOPrimeiroTexto && item === primeiroTexto;

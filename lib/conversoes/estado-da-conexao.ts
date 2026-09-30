@@ -146,4 +146,10 @@ export const MOTIVO_LEGIVEL: Record<string, string> = {
     "O lead veio de uma plataforma para a qual ainda não sabemos reportar conversão.",
   recusado_pela_plataforma:
     "A plataforma recusou o envio. O detalhe ao lado é a resposta dela.",
+  sem_atribuicao:
+    "Este lead não veio de um anúncio de clique para o WhatsApp, então não há clique a ligar ao evento.",
+  plataforma_diferente:
+    "O lead veio de outra plataforma de anúncio; o nó Pixel do fluxo reporta só à Meta.",
+  evento_desconhecido:
+    "O nó Pixel do fluxo tem um tipo de evento que a plataforma não reconhece. Escolha um da lista.",
 };

@@ -1,3 +1,4 @@
+import { bolhasDoPix } from "./nos-de-envio";
 import {
   processNode,
   selectEdge,
@@ -250,11 +251,9 @@ function mensagemSimuladaDePassagem(
     return { texto: `[Template WhatsApp] ${nome}`, origem: "modelo_salvo" };
   }
   if (node.type === "pix_payment") {
-    const valor = node.config.amount ? `R$ ${node.config.amount}` : "R$ 0,00";
-    const chave = node.config.pix_key || "(chave pendente)";
-    const texto = node.config.message_text
-      ? interpolarVolta(node.config.message_text, volta)
-      : `[PIX ${node.config.key_type}] Chave: ${chave} · Valor: ${valor}${node.config.beneficiary ? ` · Favorecido: ${node.config.beneficiary}` : ""}`;
+    // As MESMAS bolhas que o motor envia (`nos-de-envio.ts`): o que o simulador mostra é o que a pessoa recebe.
+    const bolhas = bolhasDoPix({ ...node.config, message_text: node.config.message_text ? interpolarVolta(node.config.message_text, volta) : undefined });
+    const texto = bolhas.length > 0 ? bolhas.map((b) => b.body).join("\n— próxima mensagem —\n") : "[PIX] (chave pendente)";
     return { texto, origem: "texto_fixo" };
   }
   if (node.type === "payment_gateway") {

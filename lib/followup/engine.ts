@@ -28,6 +28,8 @@ import { idsDoContatoEGemeos } from "@/lib/channels/contato-por-telefone";
 import { logger } from "@/lib/logger";
 
 import { flowGraphSchema, type ConteudoItem, type FlowGraph, type FlowNode, type ReplySaveTo } from "./graph-schema";
+import { baixarNosDeEnvio } from "./nos-de-envio";
+import { reportarEventoDoPixel, type PedidoDePixel } from "@/lib/conversoes/evento-do-pixel";
 import {
   ACTION_RECHECK_MS,
   BACKOFF_MS,
@@ -161,6 +163,8 @@ export interface AdminClient {
   insertFlowContactNote?(item: NotaDeFluxo): Promise<void>;
   /** nó `api_call` (lote 1) — chamada best-effort a uma API de terceiro; nunca lança (falha vira log). */
   chamarWebhookDoFluxo?(chamada: ChamadaDeApiFluxo): Promise<void>;
+  /** nó `meta_pixel` — reporta o evento à plataforma de anúncio; best-effort, o desfecho fica no livro-razão de conversões. */
+  reportarPixelDoFluxo?(pedido: PedidoDePixel): Promise<void>;
   /**
    * Régua de recuperação de falta esgotada sem resposta — abre um item na
    * Central referenciando o COMPROMISSO. Opcional: só a produção precisa; os
@@ -562,6 +566,23 @@ async function applyResult(
       });
     }
 
+    if (node.type === "meta_pixel" && result.kind === "advance") {
+      try {
+        await db.reportarPixelDoFluxo?.({
+          organizationId: enrollment.organization_id,
+          contactId: enrollment.contact_id,
+          enrollmentId: enrollment.id,
+          nodeId: node.id,
+          config: node.config,
+        });
+      } catch (err) {
+        logger.warn("followup: evento do pixel falhou; o fluxo já avançou", {
+          error: err instanceof Error ? err.message : String(err),
+          node_id: node.id,
+        });
+      }
+    }
+
     const chamada = chamadaDeApiDoFluxo(node, result);
     if (chamada) {
       try {
@@ -917,6 +938,8 @@ export async function runFollowupTick(deps: TickDeps, opts?: { limit?: number })
 /** Production adapter: `AdminClient` backed by the real Supabase service-role client. */
 export function createSupabaseAdminClient(admin: SupabaseClient): AdminClient {
   const revisions=new Map<string,number>();
+  // Versão publicada é imutável: lida e validada UMA vez por instância (= por tick), não por inscrição.
+  const grafos = new Map<string, FlowGraph | null>();
   return {
     async assertServiceBoundary(enrollment) { if(!revisions.has(enrollment.id) && enrollment.revision!==undefined) revisions.set(enrollment.id,enrollment.revision); await assertServiceBoundarySupabase(admin, enrollment.service_boundary ?? null); },
     async assertAgenda(enrollment){await assertAgendaEffectSupabase(admin,{organizationId:enrollment.organization_id,contactId:enrollment.contact_id,enrollmentId:enrollment.id,nodeId:enrollment.current_node_id});},
@@ -930,6 +953,8 @@ export function createSupabaseAdminClient(admin: SupabaseClient): AdminClient {
       return (data ?? []) as EnrollmentRow[];
     },
     async loadFlowGraph(orgId, versionId) {
+      const chave = `${orgId}:${versionId}`;
+      if (grafos.has(chave)) return grafos.get(chave) ?? null;
       const { data, error } = await admin
         .from("followup_flow_versions")
         .select("graph")
@@ -937,8 +962,10 @@ export function createSupabaseAdminClient(admin: SupabaseClient): AdminClient {
         .eq("id", versionId)
         .maybeSingle();
       if (error) throw new Error(error.message);
-      if (!data) return null;
-      return flowGraphSchema.parse(data.graph);
+      if (!data) return null; // ausência não é cacheada: a versão pode aparecer no próximo claim
+      const grafo = baixarNosDeEnvio(flowGraphSchema.parse(data.graph));
+      grafos.set(chave, grafo);
+      return grafo;
     },
     async loadLeadFacts(orgId, contactId) {
       const [{ data: lead, error: leadErr }, { data: contact, error: contactErr }] = await Promise.all([
@@ -1206,6 +1233,10 @@ export function createSupabaseAdminClient(admin: SupabaseClient): AdminClient {
         resourceId: (data as { id: string }).id,
         metadata: { conversation_id: item.conversation_id, source: "followup_flow", enrollment_id: item.enrollment_id },
       });
+    },
+    async reportarPixelDoFluxo(pedido) {
+      const desfecho = await reportarEventoDoPixel(admin, pedido);
+      logger.info("followup: nó pixel", { status: desfecho.status, motivo: desfecho.motivo, node_id: pedido.nodeId });
     },
     async chamarWebhookDoFluxo(chamada) {
       // DIRC: as MESMAS duas peças que a ação de automação `call_webhook` já

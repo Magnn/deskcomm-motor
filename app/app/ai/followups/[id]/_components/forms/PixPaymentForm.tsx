@@ -174,7 +174,7 @@ export function PixPaymentForm({ config, onChange }: Props) {
           />
           <div className="flex items-center justify-between pt-0.5 text-[10px] text-neutral-400">
             <span className="font-medium text-amber-700 dark:text-amber-400">
-              {t("Integração oficial (Meta): texto livre no card Pix. Conexões padrão ignoram este campo.")}
+              {t("Abre a mensagem, antes do valor e da chave. Aceita {primeiro_nome}, {nome_completo} e {telefone}.")}
             </span>
             <span>{messageText.length}/1024</span>
           </div>

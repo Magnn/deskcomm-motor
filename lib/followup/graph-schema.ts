@@ -754,8 +754,10 @@ export const voiceStudioConfigSchema = z.strictObject({
   style: z.number().min(0).max(1).default(0.5), // Sotaque
   speed: z.number().min(0.5).max(2.0).default(1.0), // Velocidade
   send_as_voice_note: z.boolean().default(true), // Enviar como áudio gravado?
-  voice_id: z.string().default('julieta'),
-  voice_name: z.string().default('Julieta'),
+  /** Provedor que sintetiza. Ausente = OpenAI (o que os fluxos salvos antes deste campo sempre usaram). */
+  provider: z.enum(['openai', 'elevenlabs']).optional(),
+  voice_id: z.string().default('coral'),
+  voice_name: z.string().default('Coral'),
 });
 export type VoiceStudioConfig = z.infer<typeof voiceStudioConfigSchema>;
 

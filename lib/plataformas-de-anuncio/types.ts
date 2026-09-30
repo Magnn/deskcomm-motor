@@ -44,8 +44,20 @@
  */
 export type PlataformaDeAnuncio = "meta_ads" | "google_ads";
 
-/** Só `Purchase` hoje. `Lead` é a Fase 2 e entra quando `lead.created` for consumido. */
-export type NomeDoEvento = "Purchase";
+/**
+ * `Purchase` é o evento da venda fechada (`lib/conversoes/envio.handler.ts`). Os demais só saem de
+ * um nó Pixel do fluxo (`lib/conversoes/evento-do-pixel.ts`), a pedido de quem montou o funil.
+ */
+export const EVENTOS_DE_CONVERSAO = [
+  "Purchase",
+  "Lead",
+  "InitiateCheckout",
+  "AddToCart",
+  "ViewContent",
+  "Contact",
+  "CustomizeProduct",
+] as const;
+export type NomeDoEvento = (typeof EVENTOS_DE_CONVERSAO)[number];
 
 /**
  * Uma conversão pronta para sair — no formato da CASA, não no da plataforma.
@@ -76,7 +88,8 @@ export interface ConversaoOffline {
   cliqueDeOrigem: string;
   /** E.164 sem `+`, ainda EM CLARO: o hash é responsabilidade do transporte. */
   telefone: string | null;
-  valorCentavos: number;
+  /** `null` = evento sem valor (só `Purchase` o exige — e quem o monta recusa antes de chegar aqui). */
+  valorCentavos: number | null;
   moeda: string;
 }
 

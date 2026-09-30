@@ -20,6 +20,7 @@ import type pg from "pg";
 
 import type { AdminClient, EnrollmentPatch } from "./engine";
 import { flowGraphSchema } from "./graph-schema";
+import { baixarNosDeEnvio } from "./nos-de-envio";
 import { EVENTO_ACAO_ADIADA, classEdgeMatch, selectEdge, type EnrollmentRow } from "./node-handlers";
 import { coletarEsperasAdaptativas, montarTimingPlan, type PropostaDeEspera } from "./timing-plan";
 import { persistirRespostaFollowupPg } from "./persistir-resposta";
@@ -372,7 +373,7 @@ export function createPgAdminClient(pool: pg.Pool): TurnBridgeAdminClient {
         [orgId, versionId],
       );
       if (rows.length === 0) return null;
-      return flowGraphSchema.parse(rows[0]!.graph);
+      return baixarNosDeEnvio(flowGraphSchema.parse(rows[0]!.graph));
     },
     async loadLeadFacts(orgId, contactId) {
       const { rows: leads } = await pool.query<{

@@ -882,7 +882,10 @@ describe('validarItensDeConteudo — motor de envio por tipo de item', () => {
 });
 
 describe('validateFlowForPublish — nós de paridade AcassIA', () => {
-  it('publica com sucesso fluxo contendo whatsapp_template, pix_payment, payment_gateway e meta_pixel', () => {
+  // Cobrança por gateway e Template da Meta ainda não têm motor: o publish recusa, com o motivo verdadeiro,
+  // e NÃO recusa as três caixas que o motor executa (PIX, Pixel, Voice Studio) — é o que prova que a
+  // recusa é por tipo e não por estarem no mesmo fluxo.
+  it('recusa só whatsapp_template e payment_gateway; pix_payment, meta_pixel e voice_studio publicam', () => {
     const g: FlowGraph = {
       nodes: [
         trigger('t'),
@@ -943,7 +946,51 @@ describe('validateFlowForPublish — nós de paridade AcassIA', () => {
     };
 
     const r = validateFlowForPublish(g);
-    expect(r.ok).toBe(true);
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.errors.map((e) => [e.node_id, e.code]).sort()).toEqual([
+        ['gw', 'no_em_construcao'],
+        ['wt', 'no_em_construcao'],
+      ]);
+      expect(r.errors.find((e) => e.node_id === 'gw')?.message).toContain('provedor de pagamento');
+      expect(r.errors.find((e) => e.node_id === 'wt')?.message).toContain('template oficial da Meta');
+    }
+  });
+
+  const so = (n: FlowNode) => {
+    const g: FlowGraph = {
+      nodes: [trigger('t'), n, end('f')],
+      edges: [edge('t', n.id, always()), edge(n.id, 'f', always())],
+    };
+    const r = validateFlowForPublish(g);
+    return r.ok ? [] : r.errors.map((e) => e.code);
+  };
+  const pix = (over: Record<string, unknown> = {}): FlowNode =>
+    ({ id: 'x', type: 'pix_payment', label: 'PIX', position: pos, config: { key_type: 'cpf', pix_key: '123', ...over } }) as FlowNode;
+  const voz = (over: Record<string, unknown> = {}): FlowNode =>
+    ({ id: 'x', type: 'voice_studio', label: 'Voz', position: pos, config: { text: 'Oi', ...over } }) as FlowNode;
+  const pixel = (over: Record<string, unknown> = {}): FlowNode =>
+    ({ id: 'x', type: 'meta_pixel', label: 'Pixel', position: pos, config: { event_type: 'Compra', ...over } }) as FlowNode;
+
+  it('PIX sem chave é recusado — não publica um passo que não tem o que enviar', () => {
+    expect(so(pix({ pix_key: '  ' }))).toEqual(['no_incompleto']);
+    expect(so(pix())).toEqual([]);
+  });
+
+  it('PIX com imagem do cartão é recusado: o campo não é enviado e não finge ser', () => {
+    expect(so(pix({ card_image_url: 'https://x/y.png' }))).toEqual(['no_incompleto']);
+  });
+
+  it('Voice Studio sem texto é recusado', () => {
+    expect(so(voz({ text: '   ' }))).toEqual(['no_incompleto']);
+    expect(so(voz())).toEqual([]);
+  });
+
+  it('Pixel com evento que a Meta não reconhece é recusado; "Compra" e os nomes da lista passam', () => {
+    expect(so(pixel({ event_type: 'Comprou' }))).toEqual(['no_incompleto']);
+    for (const ok of ['Compra', 'Purchase', 'Lead', 'InitiateCheckout', 'AddToCart', 'ViewContent', 'Contact', 'CustomizeProduct']) {
+      expect(so(pixel({ event_type: ok })), ok).toEqual([]);
+    }
   });
 });
 

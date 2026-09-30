@@ -1,3 +1,4 @@
+import { eventoDoNo } from '@/lib/plataformas-de-anuncio/evento-do-no';
 import type { ConteudoItemType, FlowGraph, FlowEdge, FlowNode, NodeType } from './graph-schema';
 import type { FollowupFlowSurface } from './api-schemas';
 import type { AgenteCitado } from './agentes-citados';
@@ -38,6 +39,7 @@ export const PUBLISH_ERROR_CODES = [
   'agente_indisponivel',
   'item_de_conteudo_em_construcao',
   'conteudo_so_pausas',
+  'no_incompleto',
 ] as const;
 export type PublishErrorCode = (typeof PUBLISH_ERROR_CODES)[number];
 
@@ -72,7 +74,16 @@ export interface ContextoDoPublish {
  * `NOS_DA_SUPERFICIE` de propósito: a paleta do editor é derivada dela, e a tela não oferece o que o motor não
  * roda. Quando o motor entra, o tipo sai desta lista e entra lá — nessa ordem, no mesmo PR.
  */
-export const NOS_EM_CONSTRUCAO: readonly NodeType[] = ['agent'];
+export const NOS_EM_CONSTRUCAO: readonly NodeType[] = ['agent', 'payment_gateway', 'whatsapp_template'];
+
+/** Por que cada caixa em construção não roda — o erro que a pessoa lê no editor, com o caminho que funciona. */
+const MOTIVO_EM_CONSTRUCAO: Partial<Record<NodeType, string>> = {
+  agent: 'o motor do Agente de IA está em construção',
+  payment_gateway:
+    'a cobrança por gateway ainda não roda — não há provedor de pagamento conectado. Para cobrar, use "Enviar PIX" ou receba pelo gatilho de pagamento',
+  whatsapp_template:
+    'o envio de template oficial da Meta ainda não roda dentro do fluxo. Use "Enviar mensagem" (modo Modelo) para uma mensagem fora da janela de 24h',
+};
 
 /**
  * Mesma doutrina do `NOS_EM_CONSTRUCAO` acima, um degrau mais fundo: o nó
@@ -118,8 +129,6 @@ export const NOS_DA_SUPERFICIE: Record<FollowupFlowSurface, readonly NodeType[]>
     'notify_agent',
     'add_note',
     'pix_payment',
-    'payment_gateway',
-    'whatsapp_template',
     'meta_pixel',
     'voice_studio',
   ],
@@ -140,8 +149,6 @@ export const NOS_DA_SUPERFICIE: Record<FollowupFlowSurface, readonly NodeType[]>
     'notify_agent',
     'add_note',
     'pix_payment',
-    'payment_gateway',
-    'whatsapp_template',
     'meta_pixel',
     'voice_studio',
   ],
@@ -156,7 +163,7 @@ function validarSuperficie(graph: FlowGraph, surface: FollowupFlowSurface, error
       errors.push({
         node_id: n.id,
         code: 'no_em_construcao',
-        message: `A caixa "${n.label}" ainda não roda: o motor do Agente de IA está em construção e ela não pode ser publicada.`,
+        message: `A caixa "${n.label}" ainda não roda: ${MOTIVO_EM_CONSTRUCAO[n.type] ?? 'o motor desta caixa está em construção'}. Ela não pode ser publicada.`,
       });
       continue;
     }
@@ -545,6 +552,29 @@ function validarItensDeConteudo(graph: FlowGraph, errors: PublishValidationError
 }
 
 /**
+ * Os nós que ENVIAM algo (PIX, Voice Studio) ou REPORTAM algo (Pixel) precisam do mínimo para fazê-lo.
+ * Sem isto o passo publica "configurado" e o motor passa por ele sem efeito nenhum.
+ */
+function validarNosDeEnvio(graph: FlowGraph, errors: PublishValidationError[]): void {
+  for (const node of [...graph.nodes].sort(byId)) {
+    const incompleto = (message: string) =>
+      errors.push({ node_id: node.id, code: 'no_incompleto', message: `A caixa "${node.label}": ${message}` });
+    if (node.type === 'pix_payment') {
+      if (node.config.pix_key.trim() === '') incompleto('informe a chave PIX que a pessoa vai copiar.');
+      if (node.config.card_image_url?.trim()) {
+        incompleto('a imagem do cartão ainda não é enviada — apague o campo, o PIX sai como texto (mensagem, valor e chave).');
+      }
+    } else if (node.type === 'voice_studio') {
+      if (node.config.text.trim() === '') incompleto('escreva o texto que a voz vai falar.');
+    } else if (node.type === 'meta_pixel') {
+      if (eventoDoNo(node.config.event_type) === null) {
+        incompleto(`o evento "${node.config.event_type}" não é um evento que a Meta reconhece — escolha um da lista.`);
+      }
+    }
+  }
+}
+
+/**
  * O nó "Agente de IA": escolheu um agente, o agente existe NESTA organização e conduz uma conversa, e as três
  * saídas (cumpriu / passou do limite / silêncio) levam a algum lugar. A saída de escape (`else`) NÃO é cobrada: as
  * três saídas esgotam o que o motor produz, e exigir uma quarta ligação seria exigir um caminho que nunca corre.
@@ -719,6 +749,7 @@ export function validateFlowForPublish(
 
   validarAgentes(graph, contexto, outEdges, errors, nomes);
   validarItensDeConteudo(graph, errors);
+  validarNosDeEnvio(graph, errors);
 
   for (const node of [...nodes].sort(byId)) {
     if (node.type !== 'ai_classify' && node.type !== 'match_reply' && node.type !== 'menu' && node.type !== 'attendant_route' && node.type !== 'repeat') continue;

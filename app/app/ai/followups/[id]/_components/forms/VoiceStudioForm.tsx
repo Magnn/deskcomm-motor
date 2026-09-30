@@ -14,6 +14,9 @@ import {
 } from "@/lib/ui/icons";
 import { useT } from "@/hooks/i18n/useT";
 import { voiceStudioConfigSchema } from "@/lib/followup/graph-schema";
+import { VOZ_LEGADA } from "@/lib/followup/nos-de-envio";
+import { preencherVariaveisDoContato } from "@/lib/followup/variaveis-do-contato";
+import { VOZES_DA_OPENAI } from "@/lib/voz/catalogo-openai";
 import type { ConfigOf } from "./shared";
 
 interface Props {
@@ -29,22 +32,20 @@ interface VoiceModel {
   pitch: number;
 }
 
-const PRE_CONFIGURED_VOICES: VoiceModel[] = [
-  { id: "julieta", name: "Julieta", subtitle: "Pré Configurada", gender: "female", pitch: 1.1 },
-  { id: "marcos_vinicius", name: "Marcos Vinicius", subtitle: "Pré Configurada", gender: "male", pitch: 0.9 },
-  { id: "carla", name: "Carla", subtitle: "Pré Configurada", gender: "female", pitch: 1.0 },
-  { id: "joao_pedro", name: "João Pedro", subtitle: "Pré Configurada", gender: "male", pitch: 0.85 },
-  { id: "maria_eduarda", name: "Maria Eduarda", subtitle: "Pré Configurada", gender: "female", pitch: 1.15 },
-  { id: "otavio_luiz", name: "Otavio Luiz", subtitle: "Pré Configurada", gender: "male", pitch: 0.95 },
-];
+// Vozes REAIS da OpenAI (a mesma lista do Voice Studio do menu e do agente). A chave é a da organização.
+const PRE_CONFIGURED_VOICES: VoiceModel[] = VOZES_DA_OPENAI.map((v) => ({
+  id: v.id,
+  name: v.nome,
+  subtitle: v.descricao ?? "",
+  gender: v.genero === "masculina" ? "male" : "female",
+  pitch: 1,
+}));
 
+// Só o que o motor resolve na hora do envio (`lib/followup/variaveis-do-contato.ts`).
 const CUSTOM_FIELDS = [
   { id: "{primeiro_nome}", label: "Primeiro Nome" },
   { id: "{nome_completo}", label: "Nome Completo" },
   { id: "{telefone}", label: "Telefone" },
-  { id: "{chave_pix}", label: "Chave PIX" },
-  { id: "{valor_cobranca}", label: "Valor" },
-  { id: "{nome_empresa}", label: "Empresa" },
 ];
 
 export function VoiceStudioForm({ config, onChange }: Props) {
@@ -55,9 +56,13 @@ export function VoiceStudioForm({ config, onChange }: Props) {
   const [similarity, setSimilarity] = useState(config.similarity ?? 0.7);
   const [style, setStyle] = useState(config.style ?? 0.5); // Sotaque
   const [speed, setSpeed] = useState(config.speed ?? 1.0); // Velocidade
-  const [sendAsVoiceNote, setSendAsVoiceNote] = useState(config.send_as_voice_note ?? true);
-  const [voiceId, setVoiceId] = useState(config.voice_id || "julieta");
-  const [voiceName, setVoiceName] = useState(config.voice_name || "Julieta");
+  const [sendAsVoiceNote] = useState(config.send_as_voice_note ?? true);
+  const vozInicial = VOZ_LEGADA[config.voice_id] ?? (config.voice_id || "coral");
+  const [voiceId, setVoiceId] = useState(vozInicial);
+  const [voiceName, setVoiceName] = useState(
+    PRE_CONFIGURED_VOICES.find((v) => v.id === vozInicial)?.name ?? config.voice_name ?? "Coral",
+  );
+  const [erroDaVoz, setErroDaVoz] = useState<string | null>(null);
 
   const [showCustomFields, setShowCustomFields] = useState(false);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
@@ -66,7 +71,7 @@ export function VoiceStudioForm({ config, onChange }: Props) {
   const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const audioIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const update = (patch: Partial<ConfigOf<"voice_studio">>) => {
     const next = {
@@ -78,6 +83,7 @@ export function VoiceStudioForm({ config, onChange }: Props) {
       send_as_voice_note: patch.send_as_voice_note !== undefined ? patch.send_as_voice_note : sendAsVoiceNote,
       voice_id: patch.voice_id !== undefined ? patch.voice_id : voiceId,
       voice_name: patch.voice_name !== undefined ? patch.voice_name : voiceName,
+      provider: "openai" as const,
     };
     const parsed = voiceStudioConfigSchema.safeParse(next);
     if (parsed.success) {
@@ -106,17 +112,53 @@ export function VoiceStudioForm({ config, onChange }: Props) {
     }, 50);
   };
 
-  // Áudio Player Test (usando Web Speech API se disponível no navegador)
+  // Prévia REAL: a rota sintetiza na chave da organização — o que se ouve é o que a pessoa vai receber.
   const stopAudio = () => {
-    if (typeof window !== "undefined" && "speechSynthesis" in window) {
-      window.speechSynthesis.cancel();
-    }
-    if (audioIntervalRef.current) {
-      clearInterval(audioIntervalRef.current);
-      audioIntervalRef.current = null;
+    const a = audioRef.current;
+    if (a) {
+      a.onended = null;
+      a.ontimeupdate = null;
+      a.pause();
+      audioRef.current = null;
     }
     setIsPlayingAudio(false);
     setPlayingVoiceId(null);
+  };
+
+  const tocarPrevia = async (texto: string, vozId: string) => {
+    setErroDaVoz(null);
+    const amostra = preencherVariaveisDoContato(texto, { name: "Maria Souza", phone: "11 99999-0000", email: "maria@exemplo.com" });
+    try {
+      const resp = await fetch("/api/v1/ai/voices/preview", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          provider: "openai",
+          voice_id: vozId,
+          text: amostra.slice(0, 300),
+          speed: Math.min(1.2, Math.max(0.7, speed || 1)),
+        }),
+      });
+      if (!resp.ok) {
+        const corpo = (await resp.json().catch(() => null)) as { error?: { message?: string } } | null;
+        throw new Error(corpo?.error?.message ?? t("Não foi possível ouvir a voz agora."));
+      }
+      const url = URL.createObjectURL(await resp.blob());
+      const audio = new Audio(url);
+      audioRef.current = audio;
+      audio.onloadedmetadata = () => setAudioDuration(Math.round(audio.duration) || 0);
+      audio.ontimeupdate = () => setAudioCurrentTime(audio.currentTime);
+      audio.onended = () => {
+        URL.revokeObjectURL(url);
+        setAudioCurrentTime(0);
+        stopAudio();
+      };
+      setIsPlayingAudio(true);
+      await audio.play();
+    } catch (e) {
+      stopAudio();
+      setErroDaVoz(e instanceof Error ? e.message : t("Não foi possível ouvir a voz agora."));
+    }
   };
 
   const handleTestAudio = () => {
@@ -124,44 +166,8 @@ export function VoiceStudioForm({ config, onChange }: Props) {
       stopAudio();
       return;
     }
-
-    const phraseToSpeak = text.trim() || `Olá! Este é um teste da voz ${voiceName} do Voice Studio no Deskcomm CRM.`;
-    const estimatedDuration = Math.max(3, Math.round(phraseToSpeak.length / 15 / (speed || 1)));
-    setAudioDuration(estimatedDuration);
     setAudioCurrentTime(0);
-    setIsPlayingAudio(true);
-
-    if (typeof window !== "undefined" && "speechSynthesis" in window) {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(phraseToSpeak);
-      utterance.rate = speed || 1.0;
-      utterance.lang = "pt-BR";
-      const activeVoiceObj = PRE_CONFIGURED_VOICES.find((v) => v.id === voiceId);
-      if (activeVoiceObj) {
-        utterance.pitch = activeVoiceObj.pitch;
-      }
-
-      utterance.onend = () => {
-        stopAudio();
-      };
-      utterance.onerror = () => {
-        stopAudio();
-      };
-
-      window.speechSynthesis.speak(utterance);
-    }
-
-    // Intervalo para animar o progresso
-    const startTime = Date.now();
-    audioIntervalRef.current = setInterval(() => {
-      const elapsed = (Date.now() - startTime) / 1000;
-      if (elapsed >= estimatedDuration) {
-        stopAudio();
-        setAudioCurrentTime(0);
-      } else {
-        setAudioCurrentTime(elapsed);
-      }
-    }, 100);
+    void tocarPrevia(text.trim() || `Olá! Este é um teste da voz ${voiceName} do Voice Studio.`, voiceId);
   };
 
   const handlePreviewVoice = (v: VoiceModel, e: React.MouseEvent) => {
@@ -170,29 +176,12 @@ export function VoiceStudioForm({ config, onChange }: Props) {
       stopAudio();
       return;
     }
-
     stopAudio();
     setPlayingVoiceId(v.id);
     setVoiceId(v.id);
     setVoiceName(v.name);
     update({ voice_id: v.id, voice_name: v.name });
-
-    const sampleText = `Olá! Eu sou a voz ${v.name}, pré-configurada no Voice Studio.`;
-    if (typeof window !== "undefined" && "speechSynthesis" in window) {
-      const utterance = new SpeechSynthesisUtterance(sampleText);
-      utterance.rate = speed || 1.0;
-      utterance.pitch = v.pitch;
-      utterance.lang = "pt-BR";
-      utterance.onend = () => {
-        setPlayingVoiceId(null);
-      };
-      utterance.onerror = () => {
-        setPlayingVoiceId(null);
-      };
-      window.speechSynthesis.speak(utterance);
-    } else {
-      setTimeout(() => setPlayingVoiceId(null), 2500);
-    }
+    void tocarPrevia(`Olá! Eu sou a voz ${v.name}.`, v.id).then(() => undefined);
   };
 
   useEffect(() => {
@@ -416,25 +405,16 @@ export function VoiceStudioForm({ config, onChange }: Props) {
         </div>
       </div>
 
-      {/* 5. Toggle Switch: Enviar como áudio gravado? */}
-      <div className="flex items-center justify-between pt-1">
-        <span className="text-xs font-semibold text-neutral-900 dark:text-neutral-100">
-          {t("Enviar como áudio gravado?")}
-        </span>
-        <label className="relative inline-flex items-center cursor-pointer select-none">
-          <input
-            type="checkbox"
-            checked={sendAsVoiceNote}
-            onChange={(e) => {
-              const val = e.target.checked;
-              setSendAsVoiceNote(val);
-              update({ send_as_voice_note: val });
-            }}
-            className="sr-only peer"
-          />
-          <div className="w-11 h-6 bg-neutral-200 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#9333ea] dark:bg-zinc-700" />
-        </label>
-      </div>
+      {erroDaVoz && (
+        <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[11px] text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">
+          {erroDaVoz}
+        </p>
+      )}
+
+      {/* O áudio sai sempre como nota de voz (o balão gravado do WhatsApp) — não há a opção de arquivo. */}
+      <p className="text-[11px] text-neutral-500 dark:text-neutral-400">
+        {t("Sai como nota de voz no WhatsApp. Se a voz não puder ser gerada, a pessoa recebe o texto.")}
+      </p>
 
       {/* 6. Divisor de Seção: Modelo de áudio */}
       <div className="relative flex items-center justify-center py-1">
