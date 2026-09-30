@@ -103,8 +103,8 @@ export function NodeConfigPanel({ node, flowId, onChange, onDelete, onClose, ram
       className="flex h-full flex-col min-h-0 bg-white dark:bg-zinc-950 font-sans text-text select-text"
       data-testid="node-config-panel"
     >
-      {/* Cabeçalho AcassIA: Título inline + Categoria + Ações */}
-      <header className="flex items-center justify-between px-5 py-3 border-b border-zinc-200 dark:border-zinc-800 shrink-0 min-h-[54px] bg-white dark:bg-zinc-950">
+      {/* Cabeçalho AcassIA: Título inline + Botão de renomear roxo */}
+      <header className="flex items-center justify-between px-5 py-3 border-b border-slate-200 dark:border-zinc-800 shrink-0 min-h-[52px] bg-white dark:bg-zinc-950">
         {editingTitle ? (
           <div className="flex items-center gap-1.5 flex-1 mr-2">
             <input
@@ -121,29 +121,19 @@ export function NodeConfigPanel({ node, flowId, onChange, onDelete, onClose, ram
                 }
               }}
               onBlur={confirmRename}
-              className="flex-1 text-sm font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight border border-indigo-500 rounded-xl px-2.5 py-1 outline-none focus:ring-2 focus:ring-indigo-500/30 bg-zinc-50 dark:bg-zinc-900"
+              className="flex-1 text-[15px] font-bold text-slate-900 dark:text-zinc-100 tracking-tight border border-purple-500 rounded-lg px-2.5 py-1 outline-hidden focus:ring-2 focus:ring-purple-500/30 bg-slate-50 dark:bg-zinc-900"
             />
           </div>
         ) : (
-          <div className="flex flex-col min-w-0 pr-2">
-            <div className="flex items-center gap-2">
-              <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${visual.chipClassName}`}>
-                <Icon size={12} aria-hidden />
-              </span>
-              <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight truncate">
-                {label || t(visual.paletteLabel)}
-              </span>
-            </div>
-            <span className="text-[10px] text-zinc-400 font-medium uppercase tracking-wider pl-7">
-              {t(visual.paletteLabel)} • {t("Configurar Parâmetros")}
-            </span>
-          </div>
+          <span className="text-[15px] font-bold text-slate-800 dark:text-zinc-100 tracking-tight truncate">
+            {label || t(visual.paletteLabel)}
+          </span>
         )}
 
-        <div className="flex items-center gap-1 shrink-0">
+        <div className="flex items-center gap-1.5 shrink-0">
           <button
             type="button"
-            className="w-7 h-7 rounded-lg text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 flex items-center justify-center transition-colors cursor-pointer"
+            className="p-1.5 rounded-md border border-purple-200 text-[#9333ea] bg-purple-50/50 hover:bg-purple-100/50 transition-colors cursor-pointer dark:border-purple-900/60 dark:bg-purple-950/30 dark:text-purple-400"
             title={editingTitle ? t("Confirmar") : t("Renomear")}
             onClick={() => {
               if (editingTitle) confirmRename();
@@ -151,20 +141,20 @@ export function NodeConfigPanel({ node, flowId, onChange, onDelete, onClose, ram
             }}
           >
             {editingTitle ? (
-              <Check size={16} className="text-emerald-600" weight="bold" />
+              <Check size={15} className="text-emerald-600" weight="bold" />
             ) : (
-              <PencilSimple size={16} />
+              <PencilSimple size={15} />
             )}
           </button>
 
           {onClose && (
             <button
               type="button"
-              className="w-7 h-7 rounded-lg text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 flex items-center justify-center transition-colors cursor-pointer"
+              className="w-7 h-7 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 flex items-center justify-center transition-colors cursor-pointer"
               title={t("Fechar painel")}
               onClick={onClose}
             >
-              <X size={16} />
+              <X size={15} />
             </button>
           )}
         </div>
@@ -264,28 +254,20 @@ export function NodeConfigPanel({ node, flowId, onChange, onDelete, onClose, ram
         )}
       </div>
 
-      {/* Rodapé fixo: Botão Salvar Verde + Excluir Nó */}
-      <footer className="px-5 py-3 border-t border-zinc-100 dark:border-zinc-800/80 bg-zinc-50/50 dark:bg-zinc-950/80 shrink-0 space-y-2">
+      {/* Rodapé fixo: Botão Salvar Verde AcassIA + Excluir Nó */}
+      <footer className="px-5 py-3 border-t border-slate-100 dark:border-zinc-800 bg-white dark:bg-zinc-950 shrink-0 space-y-2">
         <button
           type="button"
           onClick={handleSave}
-          disabled={!isDirty}
-          className={cn(
-            "w-full py-2.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all shadow-xs select-none",
-            isDirty
-              ? "bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white shadow-emerald-500/20 cursor-pointer"
-              : "bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 cursor-default"
-          )}
+          className="w-full py-2.5 rounded-lg bg-[#70b300] hover:bg-[#629c00] active:scale-[0.99] text-white font-semibold text-sm shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer select-none"
         >
           {savedFeedback ? (
             <>
-              <Check size={14} weight="bold" />
+              <Check size={16} weight="bold" />
               <span>{t("Dados Salvos!")}</span>
             </>
-          ) : isDirty ? (
-            t("✓ Salvar Alterações")
           ) : (
-            t("Configurações Salvas")
+            <span>{t("Salvar Dados")}</span>
           )}
         </button>
 
@@ -294,7 +276,7 @@ export function NodeConfigPanel({ node, flowId, onChange, onDelete, onClose, ram
             type="button"
             data-testid="delete-node"
             onClick={onDelete}
-            className="text-xs text-neutral-400 hover:text-rose-600 transition-colors inline-flex items-center justify-center gap-1.5 py-1 cursor-pointer w-full"
+            className="text-xs text-slate-400 hover:text-rose-600 transition-colors inline-flex items-center justify-center gap-1.5 py-1 cursor-pointer w-full"
           >
             <Trash size={13} aria-hidden />
             {t("Excluir nó")}

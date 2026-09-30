@@ -334,7 +334,7 @@ export const NODE_VISUALS: Record<NodeType, NodeVisual> = {
     paletteDesc: "Aguardar um período",
     icon: Clock,
     ...visualDoMatiz("slate"),
-    defaultLabel: "Aguardar",
+    defaultLabel: "Delay",
     defaultConfig: () => ({ mode: "fixed", duration_ms: 300_000 }),
   },
   condition: {

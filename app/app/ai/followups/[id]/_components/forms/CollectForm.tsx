@@ -105,7 +105,7 @@ export function CollectForm({
       {/* 1. Faça uma pergunta */}
       <div className="space-y-1.5">
         <div className="flex justify-between items-center">
-          <label htmlFor="collect-question" className="text-[12px] font-semibold text-slate-800 dark:text-zinc-200">
+          <label htmlFor="collect-question" className="block text-[12px] font-semibold text-slate-800 dark:text-zinc-200">
             {t("Faça uma pergunta:")}
           </label>
           <button
@@ -129,7 +129,7 @@ export function CollectForm({
           }}
           placeholder={t("Ex: Qual é o seu nome completo?")}
           maxLength={400}
-          className="w-full rounded-[10px] border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-2.5 text-[13px] text-slate-700 dark:text-zinc-100 placeholder:text-slate-400 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 shadow-xs resize-y"
+          className="w-full rounded-[10px] border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-2.5 text-[13px] text-slate-700 dark:text-zinc-100 placeholder:text-slate-400 outline-hidden focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 shadow-xs resize-y"
         />
 
         {showVars && (
@@ -163,7 +163,7 @@ export function CollectForm({
 
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
-          <label htmlFor="collect-key" className="text-[12px] font-semibold text-slate-800 dark:text-zinc-200">
+          <label htmlFor="collect-key" className="block text-[12px] font-semibold text-slate-800 dark:text-zinc-200">
             {t("Nome do campo (chave)")}
           </label>
           <input
@@ -176,12 +176,12 @@ export function CollectForm({
             }}
             placeholder="ex: cidade_lead"
             maxLength={60}
-            className="w-full rounded-[10px] border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2 text-[12px] text-slate-700 dark:text-zinc-100 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 shadow-xs"
+            className="w-full rounded-[10px] border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2 text-[12px] text-slate-700 dark:text-zinc-100 outline-hidden focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 shadow-xs"
           />
         </div>
 
         <div className="space-y-1.5">
-          <label htmlFor="collect-label" className="text-[12px] font-semibold text-slate-800 dark:text-zinc-200">
+          <label htmlFor="collect-label" className="block text-[12px] font-semibold text-slate-800 dark:text-zinc-200">
             {t("Rótulo de exibição")}
           </label>
           <input
@@ -193,13 +193,13 @@ export function CollectForm({
             }}
             placeholder="ex: Cidade do Lead"
             maxLength={80}
-            className="w-full rounded-[10px] border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2 text-[12px] text-slate-700 dark:text-zinc-100 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 shadow-xs"
+            className="w-full rounded-[10px] border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2 text-[12px] text-slate-700 dark:text-zinc-100 outline-hidden focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 shadow-xs"
           />
         </div>
       </div>
 
       <div className="space-y-1.5">
-        <label htmlFor="collect-type" className="text-[12px] font-semibold text-slate-800 dark:text-zinc-200">
+        <label htmlFor="collect-type" className="block text-[12px] font-semibold text-slate-800 dark:text-zinc-200">
           {t("Tipo do dado coletado")}
         </label>
         <select
@@ -210,7 +210,7 @@ export function CollectForm({
             setFieldType(v);
             commit({ type: v });
           }}
-          className="w-full rounded-[10px] border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2 text-[12px] text-slate-700 dark:text-zinc-100 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 shadow-xs"
+          className="w-full rounded-[10px] border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2 text-[12px] text-slate-700 dark:text-zinc-100 outline-hidden focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 shadow-xs"
         >
           {FIELD_TYPES.map((ft) => (
             <option key={ft.value} value={ft.value}>
@@ -222,7 +222,7 @@ export function CollectForm({
 
       {fieldType === "select" && (
         <div className="space-y-1.5 animate-in fade-in duration-150">
-          <label htmlFor="collect-options" className="text-[12px] font-semibold text-slate-800 dark:text-zinc-200">
+          <label htmlFor="collect-options" className="block text-[12px] font-semibold text-slate-800 dark:text-zinc-200">
             {t("Opções permitidas")}
           </label>
           <input
@@ -234,7 +234,7 @@ export function CollectForm({
               commit({ options: list });
             }}
             placeholder="Sim, Não, Talvez"
-            className="w-full rounded-[10px] border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2 text-[12px] text-slate-700 dark:text-zinc-100 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 shadow-xs"
+            className="w-full rounded-[10px] border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2 text-[12px] text-slate-700 dark:text-zinc-100 outline-hidden focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 shadow-xs"
           />
           <p className="text-[10px] text-slate-400">{t("Separe as opções por vírgula.")}</p>
         </div>
@@ -253,7 +253,7 @@ export function CollectForm({
               setRequired(next);
               commit({ required: next });
             }}
-            className={`relative inline-flex h-[22px] w-10 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+            className={`relative inline-flex h-[22px] w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden ${
               required ? "bg-[#9333ea]" : "bg-slate-200 dark:bg-zinc-700"
             }`}
           >
@@ -276,7 +276,7 @@ export function CollectForm({
               setPermiteCorrecao(next);
               commit({ permite_correcao: next });
             }}
-            className={`relative inline-flex h-[22px] w-10 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+            className={`relative inline-flex h-[22px] w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden ${
               permiteCorrecao ? "bg-[#9333ea]" : "bg-slate-200 dark:bg-zinc-700"
             }`}
           >

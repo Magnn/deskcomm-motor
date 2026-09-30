@@ -235,7 +235,7 @@ export function TriggerNode({ id, data, selected }: NodeProps<RFNode>) {
         </div>
 
         {/* Ícone de seta para baixo */}
-        <div className="flex h-4 w-4 items-center justify-center rounded text-emerald-600 dark:text-emerald-400">
+        <div className="flex h-4 w-4 items-center justify-center rounded-md text-emerald-600 dark:text-emerald-400">
           <svg width="10" height="8" viewBox="0 0 10 8" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M5 1v6M1 4l4 4 4-4" />
           </svg>

@@ -478,7 +478,7 @@ export function NewFlowDialog({ open, onOpenChange }: Props) {
             </div>
             <div className="relative flex items-center gap-1.5 bg-white px-3 text-xs text-neutral-500 dark:bg-neutral-900">
               <span>{t("Evento de gatilho")}</span>
-              <span className="rounded bg-neutral-100 px-2 py-0.5 font-semibold text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
+              <span className="rounded-md bg-neutral-100 px-2 py-0.5 font-semibold text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
                 {t(dividerBadgeLabel)}
               </span>
             </div>

@@ -75,7 +75,7 @@ export function AiGenericForm({
 
       <div className="space-y-1.5">
         <div className="flex justify-between items-center">
-          <label htmlFor="ai-generic-prompt" className="text-[12px] font-semibold text-slate-800 dark:text-zinc-200">
+          <label htmlFor="ai-generic-prompt" className="block text-[12px] font-semibold text-slate-800 dark:text-zinc-200">
             {t("Instrução do Sistema")}
           </label>
           <button
@@ -98,7 +98,7 @@ export function AiGenericForm({
             commit({ prompt: e.target.value, saveTo });
           }}
           placeholder={t("Analise a conversa do lead e identifique se há objeção de preço...")}
-          className="w-full rounded-[10px] border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-2.5 text-[13px] text-slate-700 dark:text-zinc-100 placeholder:text-slate-400 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 shadow-xs resize-none"
+          className="w-full rounded-[10px] border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-2.5 text-[13px] text-slate-700 dark:text-zinc-100 placeholder:text-slate-400 outline-hidden focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 shadow-xs resize-none"
         />
 
         {showVars && (
@@ -123,12 +123,12 @@ export function AiGenericForm({
       </div>
 
       <div className="space-y-1.5">
-        <label className="text-[12px] font-semibold text-slate-800 dark:text-zinc-200">
+        <label className="block text-[12px] font-semibold text-slate-800 dark:text-zinc-200">
           {t("Modelo de IA")}
         </label>
         <select
           defaultValue="gemini-2.5-flash"
-          className="w-full rounded-[10px] border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2 text-[12px] text-slate-700 dark:text-zinc-100 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 shadow-xs"
+          className="w-full rounded-[10px] border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2 text-[12px] text-slate-700 dark:text-zinc-100 outline-hidden focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 shadow-xs"
         >
           <option value="gemini-2.5-flash">Gemini 2.5 Flash (Padrão de alta velocidade)</option>
           <option value="gemini-2.5-pro">Gemini 2.5 Pro (Raciocínio complexo)</option>
@@ -177,7 +177,7 @@ export function AiGenericForm({
         <button
           type="button"
           onClick={() => setSendAsText(!sendAsText)}
-          className={`relative inline-flex h-[22px] w-10 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+          className={`relative inline-flex h-[22px] w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden ${
             sendAsText ? "bg-[#9333ea]" : "bg-slate-200 dark:bg-zinc-700"
           }`}
         >
@@ -190,7 +190,7 @@ export function AiGenericForm({
       </div>
 
       <div className="space-y-1.5 pt-1">
-        <label htmlFor="ai-generic-save" className="text-[12px] font-semibold text-slate-800 dark:text-zinc-200">
+        <label htmlFor="ai-generic-save" className="block text-[12px] font-semibold text-slate-800 dark:text-zinc-200">
           {t("Gravar retorno em campo de fluxo")}
         </label>
         <select
@@ -213,7 +213,7 @@ export function AiGenericForm({
             setSaveTo(next);
             commit({ prompt, saveTo: next });
           }}
-          className="w-full rounded-[10px] border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2 text-[12px] text-slate-700 dark:text-zinc-100 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 shadow-xs"
+          className="w-full rounded-[10px] border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2 text-[12px] text-slate-700 dark:text-zinc-100 outline-hidden focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 shadow-xs"
         >
           <option value="__contact_name__">{t("Nome do contato")}</option>
           {camposUnicos.map((c) => (
@@ -234,7 +234,7 @@ export function AiGenericForm({
               commit({ prompt, saveTo: next });
             }}
             placeholder="GPT_NomeLead"
-            className="w-full rounded-[10px] border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2 text-[12px] text-slate-700 dark:text-zinc-100 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 shadow-xs mt-1.5"
+            className="w-full rounded-[10px] border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2 text-[12px] text-slate-700 dark:text-zinc-100 outline-hidden focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 shadow-xs mt-1.5"
           />
         )}
       </div>

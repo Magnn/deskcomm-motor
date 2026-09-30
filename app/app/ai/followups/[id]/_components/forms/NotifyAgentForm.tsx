@@ -51,7 +51,7 @@ export function NotifyAgentForm({
       </div>
 
       <div className="space-y-1.5">
-        <label htmlFor="notify-agent-message" className="text-[12px] font-semibold text-slate-800 dark:text-zinc-200">
+        <label htmlFor="notify-agent-message" className="block text-[12px] font-semibold text-slate-800 dark:text-zinc-200">
           {t("Conteúdo do alerta")}
         </label>
         <textarea
@@ -60,7 +60,7 @@ export function NotifyAgentForm({
           maxLength={500}
           value={message}
           onChange={(e) => commit(e.target.value)}
-          className="w-full rounded-[10px] border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-2.5 text-[12px] font-mono text-slate-700 dark:text-zinc-100 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 shadow-xs resize-none"
+          className="w-full rounded-[10px] border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-2.5 text-[12px] font-mono text-slate-700 dark:text-zinc-100 outline-hidden focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 shadow-xs resize-none"
         />
         <p className="text-[11px] text-slate-400">
           {t("Suporta formatação do WhatsApp (*negrito*, _itálico_) e variáveis dinâmicas.")}
@@ -68,12 +68,12 @@ export function NotifyAgentForm({
       </div>
 
       <div className="space-y-1.5 pt-1">
-        <label className="text-[12px] font-semibold text-slate-800 dark:text-zinc-200">
+        <label className="block text-[12px] font-semibold text-slate-800 dark:text-zinc-200">
           {t("Destinatário da Notificação")}
         </label>
         <select
           defaultValue="all"
-          className="w-full rounded-[10px] border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2 text-[12px] text-slate-700 dark:text-zinc-100 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 shadow-xs"
+          className="w-full rounded-[10px] border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2 text-[12px] text-slate-700 dark:text-zinc-100 outline-hidden focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 shadow-xs"
         >
           <option value="all">{t("Todos os atendentes disponíveis")}</option>
           <option value="queue">{t("Fila de Atendimento Geral")}</option>

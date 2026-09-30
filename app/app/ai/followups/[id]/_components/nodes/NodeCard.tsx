@@ -217,10 +217,10 @@ export function NodeCard({
 
       <div
         className={cn(
-          "group relative min-w-[280px] max-w-[320px] w-[280px] overflow-visible rounded-[10px] border-[1.5px] border-slate-500 bg-white font-sans shadow-sm transition-all duration-300 select-none",
+          "group relative min-w-[280px] max-w-[320px] w-[280px] overflow-visible rounded-[10px] border-[1.5px] font-sans shadow-sm transition-all duration-300 select-none bg-white",
           selected
-            ? "ring-2 ring-purple-600 shadow-md ring-offset-1"
-            : "hover:border-slate-600 hover:shadow-md",
+            ? "border-purple-600 ring-1 ring-purple-600 shadow-md"
+            : "border-slate-500 hover:border-slate-600 hover:shadow-md",
           simulating && !hasError && "animate-pulse ring-2 ring-emerald-500 ring-offset-1",
           hasError && "border-red-500 ring-2 ring-red-500 ring-offset-1",
         )}
@@ -302,7 +302,7 @@ export function NodeCard({
               window.dispatchEvent(new CustomEvent("flow-select-node", { detail: { id } }));
             }}
           >
-            <PencilSimple size={15} className="text-white" aria-hidden />
+            <SquarePen className="h-3.5 w-3.5 text-white" aria-hidden />
           </button>
         </div>
       </div>
@@ -371,7 +371,7 @@ export function NodeCard({
                         return (
                           <span
                             key={idx}
-                            className="inline-block bg-[#10b981] text-white px-1.5 py-0 rounded font-bold text-[9px] tracking-wide align-middle leading-tight mt-[1px]"
+                            className="inline-block bg-[#10b981] text-white px-1.5 py-0 rounded-md font-bold text-[9px] tracking-wide align-middle leading-tight mt-[1px]"
                           >
                             {part}
                           </span>

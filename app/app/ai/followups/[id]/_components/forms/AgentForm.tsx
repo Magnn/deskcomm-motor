@@ -60,7 +60,7 @@ export function AgentForm({
       </div>
 
       <div className="space-y-1.5">
-        <label htmlFor="agent-objetivo" className="text-[12px] font-semibold text-slate-800 dark:text-zinc-200">
+        <label htmlFor="agent-objetivo" className="block text-[12px] font-semibold text-slate-800 dark:text-zinc-200">
           {t("Instrução Adicional / Objetivo do Agente")}
         </label>
         <textarea
@@ -73,7 +73,7 @@ export function AgentForm({
             commit({ objetivo: e.target.value });
           }}
           placeholder={t("Ex: Qualificar se o lead tem interesse no plano anual e direcionar para o link de compra.")}
-          className="w-full rounded-[10px] border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-2.5 text-[13px] text-slate-700 dark:text-zinc-100 placeholder:text-slate-400 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 shadow-xs resize-none"
+          className="w-full rounded-[10px] border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-2.5 text-[13px] text-slate-700 dark:text-zinc-100 placeholder:text-slate-400 outline-hidden focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 shadow-xs resize-none"
         />
         <p className="text-[11px] text-slate-400">
           {t("O que o agente deve focar em atingir neste ponto específico da jornada.")}
@@ -82,7 +82,7 @@ export function AgentForm({
 
       <div className="grid grid-cols-2 gap-3 pt-1">
         <div className="space-y-1.5">
-          <label htmlFor="agent-max-turnos" className="text-[12px] font-semibold text-slate-800 dark:text-zinc-200">
+          <label htmlFor="agent-max-turnos" className="block text-[12px] font-semibold text-slate-800 dark:text-zinc-200">
             {t("Máximo de turnos")}
           </label>
           <div className="flex items-center gap-1.5">
@@ -97,14 +97,14 @@ export function AgentForm({
                 setMaxTurnos(val);
                 commit({ max_turnos: val });
               }}
-              className="w-full rounded-[10px] border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2 text-[13px] text-slate-700 dark:text-zinc-100 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 shadow-xs"
+              className="w-full rounded-[10px] border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2 text-[13px] text-slate-700 dark:text-zinc-100 outline-hidden focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 shadow-xs"
             />
           </div>
           <span className="text-[10px] text-slate-400">{t("1 a 30 mensagens")}</span>
         </div>
 
         <div className="space-y-1.5">
-          <label htmlFor="agent-silencio" className="text-[12px] font-semibold text-slate-800 dark:text-zinc-200">
+          <label htmlFor="agent-silencio" className="block text-[12px] font-semibold text-slate-800 dark:text-zinc-200">
             {t("Silêncio")}
           </label>
           <div className="flex items-center gap-1.5">
@@ -119,7 +119,7 @@ export function AgentForm({
                 setSilencioMinutos(val);
                 commit({ silencio_minutos: val });
               }}
-              className="w-full rounded-[10px] border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2 text-[13px] text-slate-700 dark:text-zinc-100 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 shadow-xs"
+              className="w-full rounded-[10px] border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2 text-[13px] text-slate-700 dark:text-zinc-100 outline-hidden focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 shadow-xs"
             />
             <span className="rounded-lg border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-800/60 px-2 py-2 text-[12px] font-medium text-slate-600 dark:text-zinc-400">
               Min.
