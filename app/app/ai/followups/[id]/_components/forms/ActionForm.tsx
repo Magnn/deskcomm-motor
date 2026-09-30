@@ -309,25 +309,25 @@ export function ActionForm({
 
       {error && <p className="text-xs text-error-fg">{error}</p>}
 
-      {/* Rodapé: Botão Salvar Alterações (AcassIA parity) */}
+      {/* Rodapé: Botão Salvar Dados (AcassIA parity) */}
       <div className="mt-auto pt-4 border-t border-zinc-100 dark:border-zinc-800/80 space-y-2">
         <button
           type="button"
           onClick={handleSave}
           className={cn(
-            "w-full py-2.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all shadow-xs select-none",
+            "w-full py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all shadow-md select-none",
             savedFeedback
               ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 cursor-default"
-              : "bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white shadow-emerald-500/20",
+              : "bg-[#65a30d] hover:bg-[#4d7c0f] active:scale-[0.99] text-white shadow-lime-700/20 cursor-pointer",
           )}
         >
           {savedFeedback ? (
             <>
-              <Check size={14} weight="bold" aria-hidden />
-              <span>{t("Configurações Salvas")}</span>
+              <Check size={16} weight="bold" aria-hidden />
+              <span>{t("Dados Salvos!")}</span>
             </>
           ) : (
-            <span>{t("✓ Salvar Alterações")}</span>
+            <span>{t("Salvar Dados")}</span>
           )}
         </button>
 

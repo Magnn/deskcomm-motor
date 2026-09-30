@@ -193,15 +193,10 @@ export function ConteudoItemsEditor({ flowId, items, onChange, disabled }: Props
       {/* ── Empty state or card list ── */}
       <div className="min-h-0">
         {items.length === 0 ? (
-          <div
-            className="flex items-center justify-center w-full my-1 py-[11px] px-4 rounded-full text-[12px] font-semibold text-white text-center tracking-wide select-none"
-            style={{
-              background: "linear-gradient(180deg, #3b82f6 0%, #2563eb 100%)",
-              boxShadow: "0 1px 3px rgba(37,99,235,0.25)",
-              letterSpacing: "0.01em",
-            }}
-          >
-            {t("Nenhum conteúdo foi adicionado.")}
+          <div className="flex flex-col items-center justify-center p-6 border border-dashed border-zinc-200 dark:border-zinc-700 rounded-xl text-center bg-zinc-50/50 dark:bg-zinc-800/30 my-1">
+            <p className="text-xs text-zinc-400 font-normal leading-relaxed">
+              {t("Nenhum conteúdo adicionado. Clique nos botões acima para começar.")}
+            </p>
           </div>
         ) : (
           <div id="flow-content-list" className="flex flex-col gap-[14px] mt-0.5">

@@ -180,12 +180,10 @@ export function PublishBar({
               <span className="rounded-full border border-amber-300 bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700 shadow-2xs dark:border-amber-800 dark:bg-amber-950/60 dark:text-amber-400">
                 {t("Alterações não salvas")}
               </span>
-            ) : flow.status === "active" ? (
-              <span className="rounded-md bg-emerald-500 px-2 py-0.5 text-[10px] font-bold text-white shadow-2xs">
+            ) : (
+              <span className="rounded-md bg-emerald-600 px-2.5 py-0.5 text-[10px] font-bold text-white shadow-2xs tracking-wide">
                 SALVO
               </span>
-            ) : (
-              <FlowStatusBadge status={flow.status} />
             )}
           </div>
 
