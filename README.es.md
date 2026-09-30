@@ -7,7 +7,7 @@
   <img src="docs/brand/acassia-logo.svg" alt="AcassIA" width="420">
 </picture>
 
-# 🛠️ DeskcommCRM — el Sistema Operativo de Ventas con IA, open source, para WhatsApp
+# 🛠️ AcassIA — el Sistema Operativo de Ventas con IA, open source, para WhatsApp
 
 **Agentes de IA que atienden, califican y venden en WhatsApp — dentro de un CRM open source que corre en tu propio servidor.**
 **Sin mensualidad, sin funciones bloqueadas, tus datos siguen siendo tuyos. La alternativa abierta a Kommo, Octadesk e Intercom.**
@@ -27,7 +27,7 @@
 
 > ### ☁️ Corre este CRM en producción con 1 comando
 >
-> DeskcommCRM se desarrolla en **alianza con HostGator**: el [`hostgator-setup-kit/`](hostgator-setup-kit/)
+> AcassIA se desarrolla en **alianza con HostGator**: el [`hostgator-setup-kit/`](hostgator-setup-kit/)
 > instala el CRM completo (app + WhatsApp + base de datos) en un VPS con un único comando, y el
 > [runbook de producción](docs/runbooks/waha-hostgator.md) ya asume ese entorno.
 >
@@ -210,7 +210,7 @@ estaba ocupada, declarar `SUPABASE_DB_ADMIN_URL` cuando fue permiso). Restaurar 
 
 ## ✨ Qué es
 
-**Deskcomm** viene de **Desk** (escritorio) + **comm** (comercio): toda la operación de ventas de tu negocio en un solo escritorio, operada por personas y agentes de IA trabajando juntos.
+**AcassIA** lleva la **IA** en el nombre y en el centro del producto: toda la operación de ventas de tu negocio en un solo escritorio, operada por personas y agentes de IA trabajando juntos. (El proyecto se llamó DeskcommCRM; el nombre del repositorio y los comandos de instalación todavía lo usan.)
 
 El proyecto nació como CRM de e-commerce y la comunidad lo llevó mucho más lejos: hoy corre en **clínicas, inmobiliarias, infoproductos, agencias, tiendas y prestadores de servicios** — cualquier negocio que venda por WhatsApp. El producto acompañó ese giro y se convirtió en un **sistema operativo de ventas**: agentes de IA con RAG por tenant atienden, califican, mueven leads en el embudo, disparan automatizaciones y saben cuándo pasarle la conversación a una persona — con todo el CRM expuesto vía **MCP** para que los agentes lo operen de verdad. La historia completa está en [`VISION.md`](VISION.md).
 
@@ -415,7 +415,7 @@ Para **vulnerabilidades de seguridad**, **NO abras un issue público** — usa e
 
 ### 🔮 Próximo
 
-- **MCP público** — capacidades del CRM expuestas al ecosistema de agentes: enchufa el agente que quieras y opera el Deskcomm.
+- **MCP público** — capacidades del CRM expuestas al ecosistema de agentes: enchufa el agente que quieras y opera AcassIA.
 - **Plantillas por nicho** — embudos y vocabularios listos para clínicas, inmobiliarias, infoproductos y servicios (e-commerce ya entregado).
 - **Integraciones** — VTEX y Shopify vía adapter pattern (Nuvemshop ya entregado).
 - **Identidad probabilística** — unificación de contactos entre canales.
