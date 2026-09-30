@@ -28,6 +28,7 @@ import {
   DotsSixVertical,
   Eye,
   FileText,
+  Gear,
   ImageIcon,
   Microphone,
   Plus,
@@ -47,17 +48,17 @@ const DEFAULT_TC = {
   btnText: "text-[#2563eb]",
   btnIcon: "text-[#2563eb]",
   strip: "bg-[#3b82f6]",
-  border: "border-[rgba(37,99,235,0.28)]",
+  border: "border-[#60a5fa]/60 dark:border-blue-800",
 };
 
 const TYPE_COLORS: Record<string, { btnText: string; btnIcon: string; strip: string; border: string }> = {
-  text:     { btnText: "text-[#2563eb]", btnIcon: "text-[#2563eb]", strip: "bg-[#3b82f6]", border: "border-[rgba(37,99,235,0.28)]" },
-  image:    { btnText: "text-[#ea580c]", btnIcon: "text-[#ea580c]", strip: "bg-[#f97316]", border: "border-[rgba(234,88,12,0.38)]" },
-  audio:    { btnText: "text-[#9333ea]", btnIcon: "text-[#9333ea]", strip: "bg-[#a855f7]", border: "border-[rgba(147,51,234,0.32)]" },
-  video:    { btnText: "text-[#16a34a]", btnIcon: "text-[#16a34a]", strip: "bg-[#22c55e]", border: "border-[rgba(22,163,74,0.32)]" },
-  document: { btnText: "text-[#1e3a8a]", btnIcon: "text-[#1e40af]", strip: "bg-[#3b82f6]", border: "border-[rgba(59,130,246,0.35)]" },
-  delay:    { btnText: "text-[#db2777]", btnIcon: "text-[#e11d48]", strip: "bg-[#ec4899]", border: "border-[rgba(236,72,153,0.38)]" },
-  contact:  { btnText: "text-[#db2777]", btnIcon: "text-[#db2777]", strip: "bg-[#ec4899]", border: "border-[rgba(236,72,153,0.38)]" },
+  text:     { btnText: "text-[#2563eb]", btnIcon: "text-[#2563eb]", strip: "bg-[#3b82f6]", border: "border-[#60a5fa]/60 dark:border-blue-800" },
+  image:    { btnText: "text-[#ea580c]", btnIcon: "text-[#ea580c]", strip: "bg-[#f97316]", border: "border-[#fb923c]/60 dark:border-orange-800" },
+  audio:    { btnText: "text-[#9333ea]", btnIcon: "text-[#9333ea]", strip: "bg-[#a855f7]", border: "border-[#c084fc]/60 dark:border-purple-800" },
+  video:    { btnText: "text-[#16a34a]", btnIcon: "text-[#16a34a]", strip: "bg-[#22c55e]", border: "border-[#4ade80]/60 dark:border-green-800" },
+  document: { btnText: "text-[#1e3a8a]", btnIcon: "text-[#1e40af]", strip: "bg-[#3b82f6]", border: "border-[#60a5fa]/60 dark:border-blue-800" },
+  delay:    { btnText: "text-[#db2777]", btnIcon: "text-[#e11d48]", strip: "bg-[#ec4899]", border: "border-[#f472b6]/60 dark:border-pink-800" },
+  contact:  { btnText: "text-[#db2777]", btnIcon: "text-[#db2777]", strip: "bg-[#ec4899]", border: "border-[#f472b6]/60 dark:border-pink-800" },
 };
 
 function labelPorTipo(t: string): string {
@@ -260,52 +261,54 @@ function ItemCard({
       style={{ padding: "12px 14px" }}
       data-testid={`conteudo-item-${index}`}
     >
-      {/* Top Header */}
-      <div className="flex items-center justify-between gap-2 mb-2.5">
-        <span className="text-[12px] font-bold text-slate-800 dark:text-zinc-100">
-          {item.type === "text"
-            ? t("Texto a ser enviado")
-            : item.type === "delay"
-              ? `${t("Delay")} (${item.seconds} ${t("segundos")})`
-              : labelPorTipo(item.type)}
-        </span>
+      {/* Top Header (não exibido em áudio que começa direto no player) */}
+      {item.type !== "audio" && (
+        <div className="flex items-center justify-between gap-2 mb-2.5">
+          <span className="text-[12px] font-bold text-slate-800 dark:text-zinc-100">
+            {item.type === "text"
+              ? t("Texto a ser enviado")
+              : item.type === "delay"
+                ? `${t("Delay")} (${item.seconds} ${t("segundos")})`
+                : labelPorTipo(item.type)}
+          </span>
 
-        {item.type === "text" && (
-          <Popover>
-            <PopoverTrigger asChild>
-              <button
-                type="button"
-                className="inline-flex items-center gap-1 text-[11px] font-medium text-sky-600 dark:text-sky-400 hover:underline focus:outline-hidden cursor-pointer"
-              >
-                <Eye size={13} aria-hidden />
-                {t("Campos Personalizados")}
-              </button>
-            </PopoverTrigger>
-            <PopoverContent align="end" className="w-56 p-2 space-y-1">
-              <p className="text-[10px] font-bold text-neutral-400 uppercase px-2 py-1">
-                {t("Inserir variável")}
-              </p>
-              {CAMPOS_PERSONALIZADOS.map((c) => (
+          {item.type === "text" && (
+            <Popover>
+              <PopoverTrigger asChild>
                 <button
-                  key={c.tag}
                   type="button"
-                  onClick={() => {
-                    const current = item.body;
-                    const next = current ? `${current} ${c.tag}` : c.tag;
-                    onUpdate({ ...item, body: next });
-                  }}
-                  className="w-full flex items-center justify-between px-2 py-1.5 text-xs text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-md transition-colors text-left cursor-pointer"
+                  className="inline-flex items-center gap-1 text-[11px] font-medium text-sky-600 dark:text-sky-400 hover:underline focus:outline-hidden cursor-pointer"
                 >
-                  <span>{c.label}</span>
-                  <code className="text-[10px] text-sky-600 bg-sky-50 dark:bg-sky-950/60 px-1 py-0.5 rounded-md">
-                    {c.tag}
-                  </code>
+                  <Gear size={13} aria-hidden />
+                  {t("Campos Personalizados")}
                 </button>
-              ))}
-            </PopoverContent>
-          </Popover>
-        )}
-      </div>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-56 p-2 space-y-1">
+                <p className="text-[10px] font-bold text-neutral-400 uppercase px-2 py-1">
+                  {t("Inserir variável")}
+                </p>
+                {CAMPOS_PERSONALIZADOS.map((c) => (
+                  <button
+                    key={c.tag}
+                    type="button"
+                    onClick={() => {
+                      const current = item.body;
+                      const next = current ? `${current} ${c.tag}` : c.tag;
+                      onUpdate({ ...item, body: next });
+                    }}
+                    className="w-full flex items-center justify-between px-2 py-1.5 text-xs text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-md transition-colors text-left cursor-pointer"
+                  >
+                    <span>{c.label}</span>
+                    <code className="text-[10px] text-sky-600 bg-sky-50 dark:bg-sky-950/60 px-1 py-0.5 rounded-md">
+                      {c.tag}
+                    </code>
+                  </button>
+                ))}
+              </PopoverContent>
+            </Popover>
+          )}
+        </div>
+      )}
 
       {/* Card Content body */}
       {item.type === "text" && (
@@ -316,7 +319,7 @@ function ItemCard({
             onChange={(e) => onUpdate({ ...item, body: e.target.value })}
             rows={4}
             placeholder={t("Digite seu texto aqui")}
-            className="w-full rounded-[10px] border border-[#e2e8f0] dark:border-zinc-800 bg-[#f1f5f9] dark:bg-zinc-950 px-2.5 py-2 text-[13px] text-slate-800 dark:text-zinc-100 placeholder:text-slate-400 focus:outline-hidden focus:border-[#6366f1] focus:ring-[3px] focus:ring-[rgba(99,102,241,0.14)] focus:bg-white dark:focus:bg-zinc-900 transition-colors resize-y min-h-[88px] max-h-[260px] leading-[1.45]"
+            className="w-full rounded-[10px] border border-[#e2e8f0] dark:border-zinc-800 bg-[#f8fafc] dark:bg-zinc-950 px-2.5 py-2 text-[13px] text-slate-800 dark:text-zinc-100 placeholder:text-slate-400 focus:outline-hidden focus:border-[#2563eb] focus:bg-white dark:focus:bg-zinc-900 transition-colors resize-y min-h-[88px] max-h-[260px] leading-[1.45]"
           />
           <div className="flex items-center justify-between mt-1">
             <p className="text-[10px] text-[#94a3b8]">
@@ -327,7 +330,7 @@ function ItemCard({
       )}
 
       {item.type === "delay" && (
-        <div className="flex flex-col gap-2 py-2">
+        <div className="flex flex-col gap-2 py-1">
           <input
             type="range"
             min={1}
@@ -336,12 +339,21 @@ function ItemCard({
             value={item.seconds}
             disabled={disabled}
             onChange={(e) => onUpdate({ ...item, seconds: Number(e.target.value) })}
-            className="w-full cursor-pointer accent-[#8b5cf6]"
+            className="w-full cursor-pointer accent-[#9333ea]"
           />
         </div>
       )}
 
-      {(item.type === "image" || item.type === "video" || item.type === "audio" || item.type === "document") && (
+      {item.type === "audio" && (
+        <AudioCardBody
+          flowId={flowId}
+          item={item}
+          disabled={disabled}
+          onChange={onUpdate}
+        />
+      )}
+
+      {(item.type === "image" || item.type === "video" || item.type === "document") && (
         <MediaSection
           flowId={flowId}
           item={item}
@@ -395,28 +407,6 @@ function ItemCard({
         </span>
 
         <div className="flex items-center gap-1.5">
-          {total > 1 && (
-            <>
-              <button
-                type="button"
-                onClick={() => onMove(-1)}
-                disabled={disabled || index === 0}
-                className="w-6 h-6 rounded-md border border-[#e2e8f0] dark:border-zinc-800 bg-white dark:bg-zinc-900 flex items-center justify-center text-[#64748b] hover:bg-[#f1f5f9] dark:hover:bg-zinc-800 disabled:opacity-30 transition-colors cursor-pointer"
-                title={t("Mover para cima")}
-              >
-                <CaretUp size={12} />
-              </button>
-              <button
-                type="button"
-                onClick={() => onMove(1)}
-                disabled={disabled || index === total - 1}
-                className="w-6 h-6 rounded-md border border-[#e2e8f0] dark:border-zinc-800 bg-white dark:bg-zinc-900 flex items-center justify-center text-[#64748b] hover:bg-[#f1f5f9] dark:hover:bg-zinc-800 disabled:opacity-30 transition-colors cursor-pointer"
-                title={t("Mover para baixo")}
-              >
-                <CaretDown size={12} />
-              </button>
-            </>
-          )}
           <button
             type="button"
             onClick={onDuplicate}
@@ -436,6 +426,114 @@ function ItemCard({
             <Trash size={13} />
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function AudioCardBody({
+  flowId,
+  item,
+  disabled,
+  onChange,
+}: {
+  flowId: string;
+  item: Extract<ConteudoItem, { type: "audio" }>;
+  disabled?: boolean;
+  onChange: (c: ConteudoItem) => void;
+}) {
+  const t = useT();
+  const upload = useUploadFlowContentMedia();
+  const inputRef = React.useRef<HTMLInputElement>(null);
+  const [enviarComoGravado, setEnviarComoGravado] = React.useState(true);
+  const [transcricao, setTranscricao] = React.useState("");
+
+  const onPick = async (file: File) => {
+    try {
+      const r = await upload.mutateAsync({ flowId, file });
+      onChange({ ...item, storage_path: r.storage_path, mime: r.media_mime });
+    } catch {
+      // tratado pelo hook
+    }
+  };
+
+  const temArquivo = item.storage_path.trim() !== "";
+  const audioSrc = temArquivo ? `/api/v1/messages/media?path=${encodeURIComponent(item.storage_path)}` : undefined;
+
+  return (
+    <div className="space-y-2.5">
+      <input
+        ref={inputRef}
+        type="file"
+        accept="audio/*"
+        className="hidden"
+        disabled={disabled || upload.isPending}
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          e.target.value = "";
+          if (file) void onPick(file);
+        }}
+      />
+
+      {/* Player de áudio estilo AcassIA */}
+      <div className="flex items-center gap-2 p-1.5 rounded-lg border border-[#e2e8f0] dark:border-zinc-800 bg-[#f8fafc] dark:bg-zinc-950">
+        <audio controls className="w-full h-8 accent-[#9333ea]" src={audioSrc} preload="none">
+          <track kind="captions" />
+        </audio>
+      </div>
+
+      <div className="flex items-center justify-between text-[11px]">
+        <span className="text-slate-400 dark:text-zinc-500">
+          {temArquivo ? t("Áudio pronto") : t("Nenhum arquivo enviado")}
+        </span>
+        <button
+          type="button"
+          disabled={disabled || upload.isPending}
+          onClick={() => inputRef.current?.click()}
+          className="font-semibold text-purple-600 dark:text-purple-400 hover:underline cursor-pointer disabled:opacity-50"
+        >
+          {upload.isPending ? t("Enviando…") : temArquivo ? t("Trocar áudio") : t("Enviar áudio")}
+        </button>
+      </div>
+
+      {/* Switch: Enviar como áudio gravado? */}
+      <div className="flex items-center justify-between pt-1">
+        <span className="text-[12px] font-medium text-slate-700 dark:text-zinc-300">
+          {t("Enviar como áudio gravado?")}
+        </span>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={enviarComoGravado}
+          disabled={disabled}
+          onClick={() => setEnviarComoGravado(!enviarComoGravado)}
+          className={cn(
+            "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden",
+            enviarComoGravado ? "bg-[#9333ea]" : "bg-slate-300 dark:bg-zinc-700",
+          )}
+        >
+          <span
+            className={cn(
+              "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-xs ring-0 transition duration-200 ease-in-out",
+              enviarComoGravado ? "translate-x-4" : "translate-x-0",
+            )}
+          />
+        </button>
+      </div>
+
+      {/* Seção Transcrição */}
+      <div className="space-y-1 pt-1">
+        <label className="text-[12px] font-semibold text-slate-800 dark:text-zinc-200 block">
+          {t("Transcrição")}
+        </label>
+        <textarea
+          rows={2}
+          value={transcricao}
+          disabled={disabled}
+          onChange={(e) => setTranscricao(e.target.value)}
+          placeholder={t("A transcrição do áudio aparecerá aqui")}
+          className="w-full rounded-[10px] border border-[#e2e8f0] dark:border-zinc-800 bg-white dark:bg-zinc-950 px-2.5 py-2 text-[12px] text-slate-800 dark:text-zinc-100 placeholder:text-slate-400 focus:outline-hidden focus:border-[#a855f7] transition-colors resize-none leading-relaxed"
+        />
       </div>
     </div>
   );

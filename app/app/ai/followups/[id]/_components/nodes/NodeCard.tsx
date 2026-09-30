@@ -345,9 +345,9 @@ export function NodeCard({
               return (
                 <li
                   key={i}
-                  className="flex items-center gap-2 rounded-[10px] border-[2px] border-dashed border-[#fbcfe8] bg-[rgba(253,242,248,0.85)] px-2.5 py-2 text-[11px] font-semibold text-[#be185d] leading-[1.4]"
+                  className="flex items-center gap-2 rounded-[8px] border border-dashed border-[#f472b6]/60 bg-[#fdf2f8] dark:bg-pink-950/20 px-2.5 py-2 text-[11px] font-medium text-slate-700 dark:text-zinc-200 leading-[1.4]"
                 >
-                  <row.Icon size={16} aria-hidden className="shrink-0 opacity-95 text-[#be185d]" />
+                  <row.Icon size={15} aria-hidden className="shrink-0 text-[#f43f5e]" />
                   <span title={row.texto}>{row.texto}</span>
                 </li>
               );
@@ -357,13 +357,13 @@ export function NodeCard({
               return (
                 <li
                   key={i}
-                  className="flex items-start gap-2 rounded-[10px] border-[2px] border-dashed border-[#93c5fd] bg-[rgba(219,234,254,0.85)] px-2.5 py-2 text-[11px] font-medium text-[#1e3a8a] leading-[1.4]"
+                  className="flex items-start gap-2 rounded-[8px] border border-dashed border-[#60a5fa]/60 bg-[#eff6ff] dark:bg-blue-950/20 px-2.5 py-2 text-[11px] font-normal text-slate-700 dark:text-zinc-200 leading-relaxed"
                 >
-                  <span className="shrink-0 font-serif text-sm font-bold leading-none select-none text-[#1e3a8a] mt-0.5">
+                  <span className="shrink-0 font-serif text-sm font-bold leading-none select-none text-[#2563eb] mt-0.5">
                     T
                   </span>
                   <div
-                    className="flex-1 min-w-0 break-words line-clamp-[14]"
+                    className="flex-1 min-w-0 break-words whitespace-pre-wrap italic line-clamp-[14]"
                     title={row.texto}
                   >
                     {parts.map((part, idx) => {
@@ -371,7 +371,7 @@ export function NodeCard({
                         return (
                           <span
                             key={idx}
-                            className="inline-block bg-[#10b981] text-white px-1.5 py-0 rounded-md font-bold text-[9px] tracking-wide align-middle leading-tight mt-[1px]"
+                            className="inline-block bg-[#10b981] text-white px-1.5 py-0.5 rounded-md font-bold text-[9px] not-italic tracking-wide align-middle leading-tight mt-[1px]"
                           >
                             {part}
                           </span>
@@ -387,9 +387,9 @@ export function NodeCard({
               return (
                 <li
                   key={i}
-                  className="flex items-center gap-2 rounded-[10px] border-[2px] border-dashed border-[#c4b5fd] bg-[rgba(237,233,254,0.85)] px-2.5 py-2 text-[11px] font-semibold text-[#5b21b6] leading-[1.4]"
+                  className="flex items-center gap-2 rounded-[8px] border border-dashed border-[#c084fc]/60 bg-[#faf5ff] dark:bg-purple-950/20 px-2.5 py-2 text-[11px] font-medium text-slate-700 dark:text-zinc-200 leading-[1.4]"
                 >
-                  <row.Icon size={16} aria-hidden className="shrink-0 opacity-95 text-[#5b21b6]" />
+                  <row.Icon size={15} aria-hidden className="shrink-0 text-[#9333ea]" />
                   <span title={row.texto}>
                     {row.texto === "Áudio (nota de voz)"
                       ? "Enviando áudio gravado"
@@ -402,9 +402,9 @@ export function NodeCard({
               return (
                 <li
                   key={i}
-                  className="flex items-center gap-2 rounded-[10px] border-[2px] border-dashed border-[#7dd3fc] bg-[rgba(224,242,254,0.85)] px-2.5 py-2 text-[11px] font-semibold text-[#0369a1] leading-[1.4]"
+                  className="flex items-center gap-2 rounded-[8px] border border-dashed border-[#fb923c]/60 bg-[#fff7ed] dark:bg-orange-950/20 px-2.5 py-2 text-[11px] font-medium text-slate-700 dark:text-zinc-200 leading-[1.4]"
                 >
-                  <row.Icon size={16} aria-hidden className="shrink-0 opacity-95 text-[#0369a1]" />
+                  <row.Icon size={15} aria-hidden className="shrink-0 text-[#ea580c]" />
                   <span title={row.texto}>{row.texto || "Enviando uma imagem"}</span>
                 </li>
               );
@@ -413,9 +413,9 @@ export function NodeCard({
               return (
                 <li
                   key={i}
-                  className="flex items-center gap-2 rounded-[10px] border-[2px] border-dashed border-[#86efac] bg-[rgba(220,252,231,0.85)] px-2.5 py-2 text-[11px] font-semibold text-[#166534] leading-[1.4]"
+                  className="flex items-center gap-2 rounded-[8px] border border-dashed border-[#4ade80]/60 bg-[#f0fdf4] dark:bg-green-950/20 px-2.5 py-2 text-[11px] font-medium text-slate-700 dark:text-zinc-200 leading-[1.4]"
                 >
-                  <row.Icon size={16} aria-hidden className="shrink-0 opacity-95 text-[#166534]" />
+                  <row.Icon size={15} aria-hidden className="shrink-0 text-[#16a34a]" />
                   <span title={row.texto}>{row.texto || "Enviando um vídeo"}</span>
                 </li>
               );
@@ -424,9 +424,9 @@ export function NodeCard({
               return (
                 <li
                   key={i}
-                  className="flex items-center gap-2 rounded-[10px] border-[2px] border-dashed border-[#fdba74] bg-[rgba(255,237,213,0.85)] px-2.5 py-2 text-[11px] font-semibold text-[#c2410c] leading-[1.4]"
+                  className="flex items-center gap-2 rounded-[8px] border border-dashed border-[#60a5fa]/60 bg-[#eff6ff] dark:bg-blue-950/20 px-2.5 py-2 text-[11px] font-medium text-slate-700 dark:text-zinc-200 leading-[1.4]"
                 >
-                  <row.Icon size={16} aria-hidden className="shrink-0 opacity-95 text-[#c2410c]" />
+                  <row.Icon size={15} aria-hidden className="shrink-0 text-[#2563eb]" />
                   <span title={row.texto}>{row.texto || "Enviando um documento"}</span>
                 </li>
               );
