@@ -4,7 +4,8 @@ import { useState, useRef, useEffect, useCallback } from "react";
 
 import type { FlowNode } from "@/lib/followup/graph-schema";
 import type { RFNode, RFNodeData } from "@/lib/followup/graph-mappers";
-import { Check, PencilSimple, Trash, X } from "@/lib/ui/icons";
+import { Check, Trash, X } from "@/lib/ui/icons";
+import { SquarePen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useT } from "@/hooks/i18n/useT";
 
@@ -143,7 +144,7 @@ export function NodeConfigPanel({ node, flowId, onChange, onDelete, onClose, ram
             {editingTitle ? (
               <Check size={15} className="text-emerald-600" weight="bold" />
             ) : (
-              <PencilSimple size={15} />
+              <SquarePen className="w-4 h-4 text-[#9333ea]" />
             )}
           </button>
 
