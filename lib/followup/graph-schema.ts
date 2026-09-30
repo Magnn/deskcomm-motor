@@ -467,6 +467,14 @@ export const collectConfigSchema = z
     options: z.array(z.string().min(1).max(80)).max(20).optional(),
     /** Texto sugerido da pergunta; o agente pode reescrever (checklist guiado pela IA). */
     question: z.string().max(400).optional(),
+    /** Agrupar respostas em segundos (ex: 15s padrão). */
+    agrupar_respostas_segundos: z.number().int().min(0).max(3600).default(15).optional(),
+    /** Tempo máximo para expirar o bloco de pergunta. */
+    expiracao_tempo: z.number().int().min(1).max(10000).default(9).optional(),
+    /** Unidade do tempo de expiração. */
+    expiracao_unidade: z.enum(['segundos', 'minutos', 'horas', 'dias']).default('minutos').optional(),
+    /** Se o salvamento em campo de fluxo está ativo. */
+    salvar_resposta_campo: z.boolean().default(true).optional(),
   })
   .refine((c) => c.type !== 'select' || (c.options?.length ?? 0) > 0, {
     message: 'tipo "select" exige ao menos uma opção',
