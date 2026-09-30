@@ -671,6 +671,10 @@ export const apiCallConfigSchema = z.strictObject({
 /** Notificar atendente humano — 1 aviso na Central (`agent_inbox_items`), sem transferir a conversa. */
 export const notifyAgentConfigSchema = z.strictObject({
   message: z.string().min(1).max(500),
+  modo: z.enum(['manual', 'automatico']).optional(),
+  atendente_id: z.string().optional(),
+  notificar_atendente_chat: z.boolean().optional(),
+  notificar_seguidores: z.boolean().optional(),
 });
 
 /** Anotação no contato — 1 nota no histórico da conversa (`conversation_notes`), sem mandar mensagem. */
