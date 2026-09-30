@@ -25,7 +25,7 @@ const ORDEM_PALETA: readonly NodeType[] = [
   "menu",
   "action", // Conteúdo
   "collect", // Pergunta
-  "api_call", // Ação
+  "api_call", // API Request
   "wait", // Delay
   "condition", // Condição
   "notify_agent", // Notificar Atendente
