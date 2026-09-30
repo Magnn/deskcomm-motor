@@ -486,11 +486,11 @@ export const NODE_VISUALS: Record<NodeType, NodeVisual> = {
     paletteDesc: "Executar uma ação",
     icon: Cpu,
     ...visualDoMatiz("indigo"),
-    defaultLabel: "Chamar API externa",
+    defaultLabel: "Ação",
     // `example.com`, não `exemplo.com`: RFC 2606, reservado e nunca resolve —
     // o mesmo domínio que a catraca de host de terceiro (branding.test.ts)
     // já isenta de declaração para amostra de formato de campo.
-    defaultConfig: () => ({ method: "POST", url: "https://example.com/webhook", headers: [] }),
+    defaultConfig: () => ({ method: "POST", url: "https://example.com/webhook", headers: [], actions: [] }),
   },
   notify_agent: {
     type: "notify_agent",
@@ -631,6 +631,9 @@ export function describeNodeConfig(
     }
     case "api_call": {
       const c = config as ConfigOf<"api_call">;
+      if (c.actions && c.actions.length > 0) {
+        return `${c.actions.length} ${c.actions.length === 1 ? t("ação") : t("ações")}`;
+      }
       return `${c.method} ${c.url}`;
     }
     case "notify_agent": {

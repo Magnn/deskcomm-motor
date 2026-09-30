@@ -661,9 +661,11 @@ export const apiCallConfigSchema = z.strictObject({
     .max(2000)
     .refine((v) => /^https?:\/\/[^\s]+$/i.test(v.trim()), {
       message: 'a URL precisa começar com http:// ou https://',
-    }),
+    })
+    .default('https://example.com/webhook'),
   headers: z.array(apiCallHeaderSchema).max(20).default([]),
   body: z.string().max(10_000).optional(),
+  actions: z.array(z.record(z.string(), z.any())).optional(),
 });
 
 /** Notificar atendente humano — 1 aviso na Central (`agent_inbox_items`), sem transferir a conversa. */

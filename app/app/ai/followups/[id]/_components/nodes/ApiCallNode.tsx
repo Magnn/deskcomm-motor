@@ -10,8 +10,15 @@ import { NodeCard } from "./NodeCard";
 
 export function ApiCallNode({ id, data, selected }: NodeProps<RFNode>) {
   const t = useT();
-  const config = data.config as Extract<RFNode["data"]["config"], { method: string; url: string }>;
-  const actionText = config.url ? `${config.method} ${config.url}` : "Executar ação";
+  const config = data.config as Extract<RFNode["data"]["config"], { method: string; url: string }> & {
+    actions?: Array<{ label?: string; type?: string }>;
+  };
+  const firstAction = config.actions?.[0];
+  const actionText = firstAction?.label
+    ? `${firstAction.label}${config.actions && config.actions.length > 1 ? ` (+${config.actions.length - 1})` : ""}`
+    : config.url && config.url !== "https://example.com/webhook"
+      ? `${config.method} ${config.url}`
+      : "Executar ação";
 
   const customPreview = (
     <div className="flex items-center gap-2 p-1">
