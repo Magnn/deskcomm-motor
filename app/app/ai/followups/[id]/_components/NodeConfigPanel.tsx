@@ -26,6 +26,7 @@ import { NotifyAgentForm } from "./forms/NotifyAgentForm";
 import { AddNoteForm } from "./forms/AddNoteForm";
 import { CollectForm } from "./forms/CollectForm";
 import { AgentForm } from "./forms/AgentForm";
+import { SkillForm } from "./forms/SkillForm";
 import type { ConfigOf } from "./forms/shared";
 import { NODE_VISUALS } from "./nodes/nodeVisuals";
 
@@ -179,6 +180,9 @@ export function NodeConfigPanel({ node, flowId, onChange, onDelete, onClose, ram
         )}
         {type === "agent" && (
           <AgentForm config={node.data.config as ConfigOf<"agent">} onChange={(config) => onChange({ config })} />
+        )}
+        {type === "skill" && (
+          <SkillForm config={node.data.config as ConfigOf<"skill">} onChange={(config) => onChange({ config })} />
         )}
       </div>
 
