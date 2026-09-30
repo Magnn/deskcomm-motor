@@ -226,6 +226,8 @@ export const menuConfigSchema = z
 
 export const attendantRouteConfigSchema = z.strictObject({
   max_wait_minutes: z.number().int().min(5).max(1440).default(30),
+  attendant_ids: z.array(z.string()).optional(),
+  auto_follow: z.boolean().optional(),
 });
 
 /**
@@ -661,6 +663,12 @@ export type HttpMethod = (typeof HTTP_METHODS)[number];
  * chamada de novo no momento da chamada, porque um host que hoje resolve
  * público pode não resolver assim amanhã).
  */
+export const apiCallMappingSchema = z.strictObject({
+  json_path: z.string().max(200),
+  target_field: z.string().max(200),
+});
+export type ApiCallMapping = z.infer<typeof apiCallMappingSchema>;
+
 export const apiCallConfigSchema = z.strictObject({
   method: z.enum(HTTP_METHODS).default('POST'),
   url: z
@@ -672,6 +680,7 @@ export const apiCallConfigSchema = z.strictObject({
     .default('https://example.com/webhook'),
   headers: z.array(apiCallHeaderSchema).max(20).default([]),
   body: z.string().max(10_000).optional(),
+  response_mapping: z.array(apiCallMappingSchema).max(50).optional(),
   actions: z.array(z.record(z.string(), z.any())).optional(),
 });
 

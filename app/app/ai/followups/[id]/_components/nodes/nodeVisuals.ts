@@ -482,15 +482,22 @@ export const NODE_VISUALS: Record<NodeType, NodeVisual> = {
   },
   api_call: {
     type: "api_call",
-    paletteLabel: "Ação",
-    paletteDesc: "Executar uma ação",
-    icon: Cpu,
-    ...visualDoMatiz("indigo"),
-    defaultLabel: "Ação",
+    paletteLabel: "API Request",
+    paletteDesc: "Integrar via requisição HTTP/API",
+    icon: PaperPlaneTilt,
+    ...visualDoMatiz("purple"),
+    defaultLabel: "API Request",
     // `example.com`, não `exemplo.com`: RFC 2606, reservado e nunca resolve —
     // o mesmo domínio que a catraca de host de terceiro (branding.test.ts)
     // já isenta de declaração para amostra de formato de campo.
-    defaultConfig: () => ({ method: "POST", url: "https://example.com/webhook", headers: [], actions: [] }),
+    defaultConfig: () => ({
+      method: "POST",
+      url: "https://example.com/webhook",
+      headers: [],
+      body: "",
+      actions: [],
+      response_mapping: [],
+    }),
   },
   notify_agent: {
     type: "notify_agent",

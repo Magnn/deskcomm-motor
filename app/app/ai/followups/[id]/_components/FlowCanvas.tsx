@@ -245,7 +245,7 @@ function FlowCanvasInner({ flowId, initialData }: Props) {
     attendant_route: "#0d9488",
     ab_split: "#db2777",
     ai_generic: "#c026d3",
-    api_call: "#2563eb",
+    api_call: "#9333ea",
     notify_agent: "#ca8a04",
     add_note: "#d97706",
     agent: "#8b5cf6",
