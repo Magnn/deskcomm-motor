@@ -49,6 +49,7 @@ import { cn } from "@/lib/utils";
 import { NodeConfigPanel } from "./NodeConfigPanel";
 import { EdgeConfigPanel } from "./EdgeConfigPanel";
 import { EtapasDoFluxoProvider, useEtapasDoFluxo } from "./EtapasDoFluxo";
+import { GatilhoDoFluxoProvider } from "./GatilhoDoFluxo";
 import { NodePalette } from "./NodePalette";
 import { PublishBar } from "./PublishBar";
 import { SimulatorPanel } from "./SimulatorPanel";
@@ -508,6 +509,7 @@ function FlowCanvasInner({ flowId, initialData }: Props) {
           onDragOver={onDragOver}
           onDrop={onDrop}
         >
+          <GatilhoDoFluxoProvider value={(flow?.trigger_config as Record<string, unknown> | undefined) ?? null}>
           <ReactFlow
             nodes={nodes}
             edges={edgesForRender}
@@ -535,6 +537,7 @@ function FlowCanvasInner({ flowId, initialData }: Props) {
             <Background />
             <Controls />
           </ReactFlow>
+          </GatilhoDoFluxoProvider>
 
           {/* Botão flutuante circular '+' no canto inferior esquerdo (Lalla / AcassIA parity) */}
           <button

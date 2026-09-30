@@ -75,6 +75,22 @@ export const triggerConfigSchema = z.discriminatedUnion("kind", [
     ...CANCEL_ON_REPLY,
   }),
   z.strictObject({
+    kind: z.literal("inbound_message"),
+    // Qualquer mensagem, a primeira do contato, ou uma palavra-chave. O casamento
+    // mora em `mensagem-casa.ts` (o produtor e o silenciador do agente o dividem).
+    params: z
+      .strictObject({
+        match: z.enum(["any", "first_message", "keyword"]),
+        keywords: z.array(z.string().trim().min(1).max(80)).max(20).optional(),
+        keyword_mode: z.enum(["contains", "equals"]).optional(),
+      })
+      .refine((p) => p.match !== "keyword" || (p.keywords?.length ?? 0) > 0, {
+        message: "O gatilho por palavra-chave precisa de ao menos uma palavra.",
+        path: ["keywords"],
+      }),
+    ...CANCEL_ON_REPLY,
+  }),
+  z.strictObject({
     kind: z.literal("case_opened"),
     // ⚠️ `optional`, e não ausente. Um cliente que mande `params: {}` — o
     // formato dos outros kinds — tem de PARSEAR: `strictObject` sem a chave

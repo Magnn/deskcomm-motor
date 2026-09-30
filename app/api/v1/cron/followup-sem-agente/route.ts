@@ -71,6 +71,7 @@ const COMO_DISPARA: Record<string, string> = {
   case_opened: "quando um atendimento é aberto",
   appointment_no_show: "quando alguém confirma que o contato não compareceu",
   inbound_after_silence: "quando o contato volta a escrever depois de um tempo sem falar",
+  inbound_message: "quando o contato manda uma mensagem que casa com o gatilho",
   lead_created: "quando um negócio nasce",
 };
 

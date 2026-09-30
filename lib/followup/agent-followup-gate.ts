@@ -51,6 +51,7 @@ export const GATILHOS_QUE_EXIGEM_AGENTE = [
   "case_opened",
   "appointment_no_show",
   "inbound_after_silence",
+  "inbound_message",
   "lead_created",
 ] as const;
 
