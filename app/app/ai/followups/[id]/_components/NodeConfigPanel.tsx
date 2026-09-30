@@ -24,6 +24,8 @@ import { AiGenericForm } from "./forms/AiGenericForm";
 import { ApiCallForm } from "./forms/ApiCallForm";
 import { NotifyAgentForm } from "./forms/NotifyAgentForm";
 import { AddNoteForm } from "./forms/AddNoteForm";
+import { CollectForm } from "./forms/CollectForm";
+import { AgentForm } from "./forms/AgentForm";
 import type { ConfigOf } from "./forms/shared";
 import { NODE_VISUALS } from "./nodes/nodeVisuals";
 
@@ -171,6 +173,12 @@ export function NodeConfigPanel({ node, flowId, onChange, onDelete, onClose, ram
         )}
         {type === "add_note" && (
           <AddNoteForm config={node.data.config as ConfigOf<"add_note">} onChange={(config) => onChange({ config })} />
+        )}
+        {type === "collect" && (
+          <CollectForm config={node.data.config as ConfigOf<"collect">} onChange={(config) => onChange({ config })} />
+        )}
+        {type === "agent" && (
+          <AgentForm config={node.data.config as ConfigOf<"agent">} onChange={(config) => onChange({ config })} />
         )}
       </div>
 
