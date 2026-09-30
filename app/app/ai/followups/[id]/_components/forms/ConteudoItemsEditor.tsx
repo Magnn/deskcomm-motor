@@ -324,17 +324,17 @@ function ItemCard({
             onChange={(e) => onUpdate({ ...item, body: e.target.value })}
             rows={4}
             placeholder={t("Digite seu texto aqui")}
-            className="w-full rounded-[10px] border border-[#e2e8f0] dark:border-zinc-800 bg-[#f1f5f9] dark:bg-zinc-950 px-2.5 py-2 text-[13px] text-slate-800 dark:text-zinc-100 placeholder:text-slate-400 focus:outline-none focus:border-[#6366f1] focus:ring-[3px] focus:ring-[rgba(99,102,241,0.14)] focus:bg-white dark:focus:bg-zinc-900 transition-colors resize-y min-h-[88px] max-h-[260px] leading-[1.45]"
+            className="w-full rounded-[10px] border border-[#e2e8f0] dark:border-zinc-800 bg-[#f1f5f9] dark:bg-zinc-950 px-2.5 py-2 text-[13px] text-slate-800 dark:text-zinc-100 placeholder:text-slate-400 focus:outline-hidden focus:border-[#6366f1] focus:ring-[3px] focus:ring-[rgba(99,102,241,0.14)] focus:bg-white dark:focus:bg-zinc-900 transition-colors resize-y min-h-[88px] max-h-[260px] leading-[1.45]"
           />
           <div className="flex items-center justify-between mt-1">
             <p className="text-[10px] text-[#94a3b8]">
-              Use <code className="bg-[#f1f5f9] dark:bg-zinc-800 px-1 rounded text-[9px] font-mono">{"{{variavel}}"}</code> para inserir variáveis.
+              Use <code className="bg-[#f1f5f9] dark:bg-zinc-800 px-1 rounded-md text-[9px] font-mono">{"{{variavel}}"}</code> para inserir variáveis.
             </p>
             <Popover>
               <PopoverTrigger asChild>
                 <button
                   type="button"
-                  className="inline-flex items-center gap-1 text-[11px] font-medium text-sky-600 dark:text-sky-400 hover:underline focus:outline-none"
+                  className="inline-flex items-center gap-1 text-[11px] font-medium text-sky-600 dark:text-sky-400 hover:underline focus:outline-hidden"
                 >
                   <Eye size={13} aria-hidden />
                   {t("Campos Personalizados")}
@@ -356,7 +356,7 @@ function ItemCard({
                     className="w-full flex items-center justify-between px-2 py-1.5 text-xs text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-md transition-colors text-left"
                   >
                     <span>{c.label}</span>
-                    <code className="text-[10px] text-sky-600 bg-sky-50 dark:bg-sky-950/60 px-1 py-0.5 rounded">
+                    <code className="text-[10px] text-sky-600 bg-sky-50 dark:bg-sky-950/60 px-1 py-0.5 rounded-md">
                       {c.tag}
                     </code>
                   </button>
@@ -380,7 +380,7 @@ function ItemCard({
                 const val = Math.round(Number(e.target.value));
                 onUpdate({ ...item, seconds: Number.isFinite(val) ? Math.max(1, Math.min(120, val)) : 1 });
               }}
-              className="w-[70px] rounded-lg border border-[#e2e8f0] dark:border-zinc-800 bg-[#f1f5f9] dark:bg-zinc-950 px-2 py-1 text-[13px] text-center font-semibold text-[#475569] dark:text-zinc-200 focus:outline-none focus:border-[#6366f1] focus:ring-[2px] focus:ring-[rgba(99,102,241,0.14)] focus:bg-white"
+              className="w-[70px] rounded-lg border border-[#e2e8f0] dark:border-zinc-800 bg-[#f1f5f9] dark:bg-zinc-950 px-2 py-1 text-[13px] text-center font-semibold text-[#475569] dark:text-zinc-200 focus:outline-hidden focus:border-[#6366f1] focus:ring-[2px] focus:ring-[rgba(99,102,241,0.14)] focus:bg-white"
             />
             <span className="text-[12px] font-medium text-[#94a3b8]">{t("segundos")}</span>
           </div>

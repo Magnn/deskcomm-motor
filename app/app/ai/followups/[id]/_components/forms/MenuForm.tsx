@@ -85,7 +85,7 @@ export function MenuForm({
       </div>
 
       <div className="space-y-1.5">
-        <label htmlFor="menu-prompt" className="text-[12px] font-semibold text-slate-800 dark:text-zinc-200">
+        <label htmlFor="menu-prompt" className="block text-[12px] font-semibold text-slate-800 dark:text-zinc-200">
           {t("Mensagem de texto")}
         </label>
         <textarea
@@ -98,7 +98,7 @@ export function MenuForm({
             commit({ prompt: event.target.value, options, graceMin });
           }}
           placeholder={t("Selecione uma das opções abaixo:")}
-          className="w-full rounded-[10px] border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-2.5 text-[13px] text-slate-700 dark:text-zinc-100 placeholder:text-slate-400 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 shadow-xs resize-none"
+          className="w-full rounded-[10px] border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-2.5 text-[13px] text-slate-700 dark:text-zinc-100 placeholder:text-slate-400 outline-hidden focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 shadow-xs resize-none"
         />
       </div>
 
@@ -135,14 +135,14 @@ export function MenuForm({
                   maxLength={40}
                   value={option.label}
                   onChange={(event) => atualizarOpcao(index, event.target.value)}
-                  className="flex-1 px-2.5 py-1.5 text-[12px] border border-slate-200 dark:border-zinc-700 rounded-md outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-slate-700 dark:text-zinc-100 bg-transparent"
+                  className="flex-1 px-2.5 py-1.5 text-[12px] border border-slate-200 dark:border-zinc-700 rounded-md outline-hidden focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-slate-700 dark:text-zinc-100 bg-transparent"
                 />
                 <button
                   type="button"
                   aria-label={`${t("Remover opção")} ${index + 1}`}
                   disabled={options.length <= 2}
                   onClick={() => removerOpcao(index)}
-                  className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded transition-colors disabled:opacity-30 cursor-pointer"
+                  className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-md transition-colors disabled:opacity-30 cursor-pointer"
                 >
                   <Trash size={14} aria-hidden />
                 </button>
@@ -156,7 +156,7 @@ export function MenuForm({
       )}
 
       <div className="space-y-1.5 pt-1">
-        <label htmlFor="menu-grace" className="text-[12px] font-semibold text-slate-800 dark:text-zinc-200">
+        <label htmlFor="menu-grace" className="block text-[12px] font-semibold text-slate-800 dark:text-zinc-200">
           {t("Esperar resposta por (minutos)")}
         </label>
         <div className="flex items-center gap-2">
@@ -170,7 +170,7 @@ export function MenuForm({
               setGraceMin(next);
               commit({ prompt, options, graceMin: next });
             }}
-            className="w-full rounded-[10px] border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2 text-[13px] text-slate-700 dark:text-zinc-100 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 shadow-xs"
+            className="w-full rounded-[10px] border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2 text-[13px] text-slate-700 dark:text-zinc-100 outline-hidden focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 shadow-xs"
           />
           <span className="rounded-lg border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-800/60 px-3 py-2 text-[12px] font-medium text-slate-600 dark:text-zinc-400">
             Min.

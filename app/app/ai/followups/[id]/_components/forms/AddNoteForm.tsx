@@ -46,7 +46,7 @@ export function AddNoteForm({
       </div>
 
       <div className="space-y-1.5">
-        <label htmlFor="add-note-body" className="text-[12px] font-semibold text-slate-800 dark:text-zinc-200">
+        <label htmlFor="add-note-body" className="block text-[12px] font-semibold text-slate-800 dark:text-zinc-200">
           {t("Conteúdo da nota interna")}
         </label>
         <textarea
@@ -56,7 +56,7 @@ export function AddNoteForm({
           value={body}
           onChange={(e) => commit(e.target.value)}
           placeholder={t("Documente decisões, links, contexto ou observações importantes sobre este ponto...")}
-          className="w-full rounded-[10px] border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-2.5 text-[13px] text-slate-700 dark:text-zinc-100 placeholder:text-slate-400 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 shadow-xs resize-none"
+          className="w-full rounded-[10px] border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-2.5 text-[13px] text-slate-700 dark:text-zinc-100 placeholder:text-slate-400 outline-hidden focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 shadow-xs resize-none"
         />
       </div>
 

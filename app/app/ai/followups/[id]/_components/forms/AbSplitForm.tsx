@@ -102,14 +102,14 @@ export function AbSplitForm({
                 value={branch.label}
                 onChange={(e) => atualizar(index, { label: e.target.value })}
                 placeholder={t("Rótulo")}
-                className="flex-1 px-2.5 py-1 text-[12px] border border-slate-200 dark:border-zinc-700 rounded-md outline-none focus:border-indigo-500 text-slate-700 dark:text-zinc-100 bg-transparent"
+                className="flex-1 px-2.5 py-1 text-[12px] border border-slate-200 dark:border-zinc-700 rounded-md outline-hidden focus:border-indigo-500 text-slate-700 dark:text-zinc-100 bg-transparent"
               />
               <button
                 type="button"
                 aria-label={`Remover caminho ${index + 1}`}
                 disabled={branches.length <= 2}
                 onClick={() => removerTeste(index)}
-                className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded transition-colors disabled:opacity-30 cursor-pointer"
+                className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-md transition-colors disabled:opacity-30 cursor-pointer"
               >
                 <Trash size={14} aria-hidden />
               </button>

@@ -1,11 +1,42 @@
 "use client";
 
 import { useState } from "react";
+import { ChevronDown } from "lucide-react";
 
 import { waitConfigSchema } from "@/lib/followup/graph-schema";
 import { useT } from "@/hooks/i18n/useT";
+import { cn } from "@/lib/utils";
 
-import { msToMin, minToMs, type ConfigOf } from "./shared";
+import type { ConfigOf } from "./shared";
+
+type UnitType = "segundos" | "minutos" | "horas" | "dias";
+
+const UNIT_MULTIPLIERS: Record<UnitType, number> = {
+  segundos: 1_000,
+  minutos: 60_000,
+  horas: 3_600_000,
+  dias: 86_400_000,
+};
+
+const UNIT_LABELS: Record<UnitType, { singular: string; plural: string }> = {
+  segundos: { singular: "Segundo", plural: "Segundos" },
+  minutos: { singular: "Minuto", plural: "Minutos" },
+  horas: { singular: "Hora", plural: "Horas" },
+  dias: { singular: "Dia", plural: "Dias" },
+};
+
+function deduceUnitAndValue(ms: number): { value: number; unit: UnitType } {
+  if (ms >= 86_400_000 && ms % 86_400_000 === 0) {
+    return { value: Math.max(1, ms / 86_400_000), unit: "dias" };
+  }
+  if (ms >= 3_600_000 && ms % 3_600_000 === 0) {
+    return { value: Math.max(1, ms / 3_600_000), unit: "horas" };
+  }
+  if (ms >= 60_000) {
+    return { value: Math.max(1, Math.round(ms / 60_000)), unit: "minutos" };
+  }
+  return { value: Math.max(1, Math.round(ms / 1_000)), unit: "segundos" };
+}
 
 export function WaitForm({
   config,
@@ -16,40 +47,43 @@ export function WaitForm({
 }) {
   const t = useT();
   const [mode, setMode] = useState<"fixed" | "smart">(config.mode);
-  const [durationMin, setDurationMin] = useState(
-    config.mode === "fixed" ? msToMin(config.duration_ms) : 10,
-  );
-  const [minMin, setMinMin] = useState(config.mode === "smart" ? msToMin(config.min_ms) : 5);
-  const [maxMin, setMaxMin] = useState(config.mode === "smart" ? msToMin(config.max_ms) : 60);
-  const [guidance, setGuidance] = useState(config.mode === "smart" ? (config.guidance ?? "") : "");
-  const [immuneToReply, setImmuneToReply] = useState(
-    config.mode === "fixed" ? (config.immune_to_reply ?? false) : false,
-  );
-  const [statusTyping, setStatusTyping] = useState(false);
-  const [statusRecording, setStatusRecording] = useState(false);
+
+  const initialFixed = deduceUnitAndValue(config.mode === "fixed" ? config.duration_ms : 3_600_000);
+  const initialMin = deduceUnitAndValue(config.mode === "smart" ? config.min_ms : 3_600_000);
+  const initialMax = deduceUnitAndValue(config.mode === "smart" ? config.max_ms : 3_600_000);
+
+  const [unit, setUnit] = useState<UnitType>(config.mode === "fixed" ? initialFixed.unit : initialMin.unit);
+  const [fixedVal, setFixedVal] = useState<number>(initialFixed.value);
+  const [minVal, setMinVal] = useState<number>(initialMin.value);
+  const [maxVal, setMaxVal] = useState<number>(initialMax.value);
+
+  const [typing, setTyping] = useState<boolean>(false);
+  const [recording, setRecording] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  const commit = (next: {
-    mode: "fixed" | "smart";
-    durationMin: number;
-    minMin: number;
-    maxMin: number;
-    guidance: string;
-    immuneToReply: boolean;
-  }) => {
+  const commit = (
+    nextMode: "fixed" | "smart",
+    nextUnit: UnitType,
+    nextFixedVal: number,
+    nextMinVal: number,
+    nextMaxVal: number,
+  ) => {
+    const mult = UNIT_MULTIPLIERS[nextUnit];
+    // Piso de segurança: o schema do motor exige no mínimo 300_000 ms (5 min)
+    const toSafeMs = (v: number) => Math.max(300_000, Math.round(v * mult));
+
     const candidate =
-      next.mode === "fixed"
+      nextMode === "fixed"
         ? {
             mode: "fixed" as const,
-            duration_ms: minToMs(next.durationMin),
-            ...(next.immuneToReply ? { immune_to_reply: true } : {}),
+            duration_ms: toSafeMs(nextFixedVal),
           }
         : {
             mode: "smart" as const,
-            min_ms: minToMs(next.minMin),
-            max_ms: minToMs(next.maxMin),
-            ...(next.guidance.trim() ? { guidance: next.guidance } : {}),
+            min_ms: toSafeMs(nextMinVal),
+            max_ms: Math.max(toSafeMs(nextMinVal), toSafeMs(nextMaxVal)),
           };
+
     const parsed = waitConfigSchema.safeParse(candidate);
     if (!parsed.success) {
       setError(parsed.error.issues[0]?.message ?? t("Configuração inválida."));
@@ -61,247 +95,285 @@ export function WaitForm({
 
   const handleModeChange = (newMode: "fixed" | "smart") => {
     setMode(newMode);
-    commit({ mode: newMode, durationMin, minMin, maxMin, guidance, immuneToReply });
+    commit(newMode, unit, fixedVal, minVal, maxVal);
   };
 
-  const handleStep = (delta: number) => {
-    const next = Math.max(5, durationMin + delta);
-    setDurationMin(next);
-    commit({ mode, durationMin: next, minMin, maxMin, guidance, immuneToReply });
+  const handleUnitChange = (newUnit: UnitType) => {
+    setUnit(newUnit);
+    commit(mode, newUnit, fixedVal, minVal, maxVal);
   };
+
+  const stepFixed = (delta: number) => {
+    const next = Math.max(1, fixedVal + delta);
+    setFixedVal(next);
+    commit(mode, unit, next, minVal, maxVal);
+  };
+
+  const stepMin = (delta: number) => {
+    const next = Math.max(1, minVal + delta);
+    setMinVal(next);
+    commit(mode, unit, fixedVal, next, maxVal);
+  };
+
+  const stepMax = (delta: number) => {
+    const next = Math.max(1, maxVal + delta);
+    setMaxVal(next);
+    commit(mode, unit, fixedVal, minVal, next);
+  };
+
+  const unitPlural = UNIT_LABELS[unit].plural;
 
   return (
     <div className="space-y-4 font-sans text-xs">
-      <p className="text-[11px] text-slate-500 dark:text-zinc-400 leading-relaxed">
+      {/* Descrição textual idêntica ao AcassIA */}
+      <p className="text-[11.5px] text-slate-500 leading-relaxed dark:text-zinc-400">
         {t(
-          "O bloco de delay fará com que o fluxo fique em espera pelo tempo definido antes de continuar para o próximo bloco."
+          "O bloco de delay irá fazer com que o fluxo fique em espera pela quantidade de segundos definido acima antes de continuar para o próximo bloco."
         )}
       </p>
 
+      {/* Divisor Configurar */}
       <div className="flex items-center gap-3">
         <div className="h-px flex-1 bg-slate-200 dark:bg-zinc-800" />
-        <span className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest">
+        <span className="text-[11px] font-semibold text-slate-400 capitalize dark:text-zinc-500">
           {t("Configurar")}
         </span>
         <div className="h-px flex-1 bg-slate-200 dark:bg-zinc-800" />
       </div>
 
-      {/* Pill Toggle Switch: Fixo vs Inteligente */}
+      {/* Toggle Pill: Fixo vs Inteligente em Roxo AcassIA */}
       <div className="flex justify-center">
-        <div className="flex bg-slate-100 dark:bg-zinc-800/80 rounded-full p-1 border border-slate-200 dark:border-zinc-700 shadow-inner">
+        <div className="flex w-full bg-slate-100 p-1 rounded-full border border-slate-200 dark:border-zinc-700 dark:bg-zinc-800/80 shadow-xs">
           <button
             type="button"
             onClick={() => handleModeChange("fixed")}
-            className={`px-4 py-1 text-[11px] font-bold rounded-full transition-all ${
+            className={cn(
+              "flex-1 py-1.5 text-xs font-semibold rounded-full transition-all cursor-pointer",
               mode === "fixed"
-                ? "bg-[#06b6d4] text-white shadow-xs"
-                : "text-slate-500 hover:text-slate-700 dark:text-zinc-400"
-            }`}
+                ? "bg-[#7c3aed] text-white shadow-xs"
+                : "text-slate-600 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-zinc-200"
+            )}
           >
             {t("Fixo")}
           </button>
           <button
             type="button"
             onClick={() => handleModeChange("smart")}
-            className={`px-4 py-1 text-[11px] font-bold rounded-full transition-all ${
+            className={cn(
+              "flex-1 py-1.5 text-xs font-semibold rounded-full transition-all cursor-pointer",
               mode === "smart"
-                ? "bg-[#06b6d4] text-white shadow-xs"
-                : "text-slate-500 hover:text-slate-700 dark:text-zinc-400"
-            }`}
+                ? "bg-[#7c3aed] text-white shadow-xs"
+                : "text-slate-600 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-zinc-200"
+            )}
           >
             {t("Inteligente")}
           </button>
         </div>
       </div>
 
-      <div className="flex flex-col gap-1.5">
-        <label className="text-[12px] font-semibold text-slate-800 dark:text-zinc-100">
+      {/* Título dinâmico reativo */}
+      <div className="space-y-2 pt-1">
+        <label className="block text-[12.5px] font-semibold text-slate-800 dark:text-zinc-100">
           {mode === "fixed"
-            ? `${t("Delay de")} ${durationMin} ${t("Minutos")}`
-            : `${t("Delay entre")} ${minMin} ${t("a")} ${maxMin} ${t("Minutos")}`}
+            ? `${t("Delay de")} ${fixedVal} ${unitPlural}`
+            : `${t("Delay inteligente de")} ${minVal} ${t("a")} ${maxVal} ${unitPlural}`}
         </label>
-        <span className="text-[10px] text-slate-400">
-          {t("Limite operacional: 5 minutos a 90 dias por bloco.")}
-        </span>
 
         {mode === "fixed" ? (
-          <div className="flex items-center gap-2 pt-1">
-            <div className="flex rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-xs overflow-hidden flex-1 h-9">
+          <div className="flex items-center gap-3">
+            {/* Input com stepper roxo integrado */}
+            <div className="flex h-9 rounded-md border border-slate-200 bg-white overflow-hidden shadow-xs dark:border-zinc-800 dark:bg-zinc-900">
               <input
                 id="wait-duration"
                 type="number"
-                min="5"
-                value={durationMin}
+                min="1"
+                value={fixedVal}
                 onChange={(e) => {
-                  const v = Math.max(5, parseInt(e.target.value) || 5);
-                  setDurationMin(v);
-                  commit({ mode, durationMin: v, minMin, maxMin, guidance, immuneToReply });
+                  const v = Math.max(1, parseInt(e.target.value) || 1);
+                  setFixedVal(v);
+                  commit(mode, unit, v, minVal, maxVal);
                 }}
-                className="w-full px-3 text-[13px] outline-none text-slate-700 dark:text-zinc-100 bg-transparent"
+                className="w-16 px-2 text-center text-sm font-semibold text-slate-800 outline-hidden bg-transparent dark:text-zinc-100"
               />
-              <div className="flex flex-col border-l border-slate-200 dark:border-zinc-800 w-8">
+              <div className="flex flex-col bg-[#8b5cf6] text-white w-7 shrink-0">
                 <button
                   type="button"
-                  onClick={() => handleStep(5)}
-                  className="bg-[#a855f7] hover:bg-[#9333ea] text-white flex-1 flex items-center justify-center text-[12px] font-bold transition-colors"
+                  onClick={() => stepFixed(1)}
+                  className="flex-1 hover:bg-[#7c3aed] flex items-center justify-center text-xs font-bold leading-none py-1 transition-colors cursor-pointer"
+                  title="Aumentar"
                 >
                   +
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleStep(-5)}
-                  className="bg-[#a855f7] hover:bg-[#9333ea] text-white flex-1 flex items-center justify-center text-[12px] font-bold transition-colors border-t border-white/20"
+                  onClick={() => stepFixed(-1)}
+                  className="flex-1 hover:bg-[#7c3aed] flex items-center justify-center text-xs font-bold leading-none py-1 border-t border-white/20 transition-colors cursor-pointer"
+                  title="Diminuir"
                 >
-                  -
+                  —
                 </button>
               </div>
             </div>
-            <span className="rounded-lg border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-800/60 px-3 py-2 text-[12px] font-medium text-slate-600 dark:text-zinc-400">
-              Min.
-            </span>
+
+            {/* Select de unidade (Hora, Minuto, Segundo, Dia) */}
+            <div className="relative flex-1">
+              <select
+                value={unit}
+                onChange={(e) => handleUnitChange(e.target.value as UnitType)}
+                className="w-full appearance-none rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-xs outline-hidden pr-8 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200 cursor-pointer"
+              >
+                <option value="horas">Hora</option>
+                <option value="minutos">Minuto</option>
+                <option value="segundos">Segundo</option>
+                <option value="dias">Dia</option>
+              </select>
+              <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+            </div>
           </div>
         ) : (
-          <div className="flex items-center gap-2 pt-1">
-            <div className="flex-1">
-              <input
-                id="wait-min"
-                type="number"
-                min="5"
-                value={minMin}
-                onChange={(e) => {
-                  const v = Math.max(5, parseInt(e.target.value) || 5);
-                  setMinMin(v);
-                  commit({ mode, durationMin, minMin: v, maxMin, guidance, immuneToReply });
-                }}
-                placeholder={t("Mínimo")}
-                className="w-full rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2 text-[13px] text-slate-700 dark:text-zinc-100 outline-none"
-              />
+          <div className="flex items-start gap-2">
+            {/* Box Mínimo */}
+            <div className="flex flex-col gap-1 flex-1">
+              <div className="flex h-9 rounded-md border border-slate-200 bg-white overflow-hidden shadow-xs dark:border-zinc-800 dark:bg-zinc-900">
+                <input
+                  id="wait-min"
+                  type="number"
+                  min="1"
+                  value={minVal}
+                  onChange={(e) => {
+                    const v = Math.max(1, parseInt(e.target.value) || 1);
+                    setMinVal(v);
+                    commit(mode, unit, fixedVal, v, maxVal);
+                  }}
+                  className="w-full px-2 text-center text-sm font-semibold text-slate-800 outline-hidden bg-transparent dark:text-zinc-100"
+                />
+                <div className="flex flex-col bg-[#8b5cf6] text-white w-6 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => stepMin(1)}
+                    className="flex-1 hover:bg-[#7c3aed] flex items-center justify-center text-xs font-bold leading-none py-1 transition-colors cursor-pointer"
+                  >
+                    +
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => stepMin(-1)}
+                    className="flex-1 hover:bg-[#7c3aed] flex items-center justify-center text-xs font-bold leading-none py-1 border-t border-white/20 transition-colors cursor-pointer"
+                  >
+                    —
+                  </button>
+                </div>
+              </div>
+              <span className="text-[10px] text-slate-400 text-center dark:text-zinc-500">
+                {t("Mínimo")}
+              </span>
             </div>
-            <span className="text-slate-400 font-bold text-xs">{t("a")}</span>
-            <div className="flex-1">
-              <input
-                id="wait-max"
-                type="number"
-                min="5"
-                value={maxMin}
-                onChange={(e) => {
-                  const v = Math.max(5, parseInt(e.target.value) || 5);
-                  setMaxMin(v);
-                  commit({ mode, durationMin, minMin, maxMin: v, guidance, immuneToReply });
-                }}
-                placeholder={t("Máximo")}
-                className="w-full rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2 text-[13px] text-slate-700 dark:text-zinc-100 outline-none"
-              />
+
+            {/* Box Máximo */}
+            <div className="flex flex-col gap-1 flex-1">
+              <div className="flex h-9 rounded-md border border-slate-200 bg-white overflow-hidden shadow-xs dark:border-zinc-800 dark:bg-zinc-900">
+                <input
+                  id="wait-max"
+                  type="number"
+                  min="1"
+                  value={maxVal}
+                  onChange={(e) => {
+                    const v = Math.max(1, parseInt(e.target.value) || 1);
+                    setMaxVal(v);
+                    commit(mode, unit, fixedVal, minVal, v);
+                  }}
+                  className="w-full px-2 text-center text-sm font-semibold text-slate-800 outline-hidden bg-transparent dark:text-zinc-100"
+                />
+                <div className="flex flex-col bg-[#8b5cf6] text-white w-6 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => stepMax(1)}
+                    className="flex-1 hover:bg-[#7c3aed] flex items-center justify-center text-xs font-bold leading-none py-1 transition-colors cursor-pointer"
+                  >
+                    +
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => stepMax(-1)}
+                    className="flex-1 hover:bg-[#7c3aed] flex items-center justify-center text-xs font-bold leading-none py-1 border-t border-white/20 transition-colors cursor-pointer"
+                  >
+                    —
+                  </button>
+                </div>
+              </div>
+              <span className="text-[10px] text-slate-400 text-center dark:text-zinc-500">
+                {t("Máximo")}
+              </span>
             </div>
-            <span className="rounded-lg border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-800/60 px-2 py-2 text-[12px] font-medium text-slate-600 dark:text-zinc-400">
-              Min.
-            </span>
+
+            {/* Select de unidade */}
+            <div className="relative flex-1">
+              <select
+                value={unit}
+                onChange={(e) => handleUnitChange(e.target.value as UnitType)}
+                className="w-full appearance-none rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-xs outline-hidden pr-8 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200 cursor-pointer"
+              >
+                <option value="horas">Hora</option>
+                <option value="minutos">Minuto</option>
+                <option value="segundos">Segundo</option>
+                <option value="dias">Dia</option>
+              </select>
+              <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+            </div>
           </div>
         )}
       </div>
 
-      {mode === "smart" && (
-        <div className="space-y-1.5 pt-1">
-          <label htmlFor="wait-guidance" className="text-[12px] font-semibold text-slate-800 dark:text-zinc-100">
-            {t("Orientação para a IA")}
+      {/* Toggles de status digitando/gravando */}
+      <div className="space-y-3 pt-2">
+        <div className="flex flex-col gap-1.5">
+          <label className="block text-xs font-semibold text-slate-800 dark:text-zinc-200">
+            {t("Envia status (Digitando...)")}
           </label>
-          <textarea
-            id="wait-guidance"
-            maxLength={500}
-            rows={3}
-            value={guidance}
-            onChange={(e) => {
-              setGuidance(e.target.value);
-              commit({ mode, durationMin, minMin, maxMin, guidance: e.target.value, immuneToReply });
-            }}
-            placeholder={t("Ex: Espere menos se o lead mostrou pressa, ou mais em fins de semana.")}
-            className="w-full rounded-[10px] border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-2.5 text-[12px] text-slate-700 dark:text-zinc-100 placeholder:text-slate-400 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 shadow-xs resize-none"
-          />
-        </div>
-      )}
-
-      {/* Switches AcassIA */}
-      <div className="space-y-3 pt-3 border-t border-slate-100 dark:border-zinc-800/80">
-        {mode === "fixed" && (
-          <div className="flex items-center justify-between py-1">
-            <div className="flex flex-col pr-2">
-              <span className="text-[12px] font-medium text-slate-700 dark:text-zinc-300">
-                {t("Imunidade a resposta")}
-              </span>
-              <span className="text-[10px] text-slate-400">
-                {t("Não cancela a espera se o contato enviar mensagem")}
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                const next = !immuneToReply;
-                setImmuneToReply(next);
-                commit({ mode, durationMin, minMin, maxMin, guidance, immuneToReply: next });
-              }}
-              className={`relative inline-flex h-[22px] w-10 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                immuneToReply ? "bg-[#9333ea]" : "bg-slate-200 dark:bg-zinc-700"
-              }`}
-            >
-              <span
-                className={`pointer-events-none inline-block h-[18px] w-[18px] transform rounded-full bg-white shadow-xs ring-0 transition duration-200 ease-in-out ${
-                  immuneToReply ? "translate-x-5" : "translate-x-0"
-                }`}
-              />
-            </button>
-          </div>
-        )}
-
-        <div className="flex items-center justify-between py-1">
-          <div className="flex flex-col pr-2">
-            <span className="text-[12px] font-medium text-slate-700 dark:text-zinc-300">
-              {t("Envia status (Digitando...)")}
-            </span>
-            <span className="text-[10px] text-slate-400">
-              {t("Simula presença de digitação no WhatsApp")}
-            </span>
-          </div>
           <button
             type="button"
-            onClick={() => setStatusTyping(!statusTyping)}
-            className={`relative inline-flex h-[22px] w-10 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-              statusTyping ? "bg-[#9333ea]" : "bg-slate-200 dark:bg-zinc-700"
-            }`}
+            onClick={() => setTyping(!typing)}
+            className={cn(
+              "relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out outline-hidden",
+              typing ? "bg-[#8b5cf6]" : "bg-slate-200 dark:bg-zinc-700"
+            )}
           >
             <span
-              className={`pointer-events-none inline-block h-[18px] w-[18px] transform rounded-full bg-white shadow-xs ring-0 transition duration-200 ease-in-out ${
-                statusTyping ? "translate-x-5" : "translate-x-0"
-              }`}
+              className={cn(
+                "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-xs ring-0 transition duration-200 ease-in-out",
+                typing ? "translate-x-5" : "translate-x-0"
+              )}
             />
           </button>
         </div>
 
-        <div className="flex items-center justify-between py-1">
-          <div className="flex flex-col pr-2">
-            <span className="text-[12px] font-medium text-slate-700 dark:text-zinc-300">
-              {t("Envia status (Gravando...)")}
-            </span>
-            <span className="text-[10px] text-slate-400">
-              {t("Simula presença de gravação de áudio")}
-            </span>
-          </div>
+        <div className="flex flex-col gap-1.5">
+          <label className="block text-xs font-semibold text-slate-800 dark:text-zinc-200">
+            {t("Envia status (Gravando...)")}
+          </label>
           <button
             type="button"
-            onClick={() => setStatusRecording(!statusRecording)}
-            className={`relative inline-flex h-[22px] w-10 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-              statusRecording ? "bg-[#9333ea]" : "bg-slate-200 dark:bg-zinc-700"
-            }`}
+            onClick={() => setRecording(!recording)}
+            className={cn(
+              "relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out outline-hidden",
+              recording ? "bg-[#8b5cf6]" : "bg-slate-200 dark:bg-zinc-700"
+            )}
           >
             <span
-              className={`pointer-events-none inline-block h-[18px] w-[18px] transform rounded-full bg-white shadow-xs ring-0 transition duration-200 ease-in-out ${
-                statusRecording ? "translate-x-5" : "translate-x-0"
-              }`}
+              className={cn(
+                "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-xs ring-0 transition duration-200 ease-in-out",
+                recording ? "translate-x-5" : "translate-x-0"
+              )}
             />
           </button>
         </div>
       </div>
 
-      {error && <p className="text-xs text-error-fg font-medium">{error}</p>}
+      {error && (
+        <p className="rounded-md border border-red-200 bg-red-50 p-2 text-xs text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-400">
+          {error}
+        </p>
+      )}
     </div>
   );
 }
