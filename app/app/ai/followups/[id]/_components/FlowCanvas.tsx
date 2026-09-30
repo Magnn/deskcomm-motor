@@ -45,6 +45,7 @@ import { useT } from "@/hooks/i18n/useT";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Plus, X } from "@/lib/ui/icons";
+import { cn } from "@/lib/utils";
 import { NodeConfigPanel } from "./NodeConfigPanel";
 import { EdgeConfigPanel } from "./EdgeConfigPanel";
 import { EtapasDoFluxoProvider, useEtapasDoFluxo } from "./EtapasDoFluxo";
@@ -108,14 +109,30 @@ function FlowCanvasInner({ flowId, initialData }: Props) {
   const { data: flow } = useFollowupFlow(flowId, { initialData });
   // `initial` seeds React Flow state ONCE on mount — it must NOT react to
   // `flow` changing on every refetch (that would clobber in-progress edits).
-  const initial = useMemo(
-    () => toReactFlow(initialData.draft_graph ?? EMPTY_GRAPH),
+  const initial = useMemo(() => {
+    const rf = toReactFlow(initialData.draft_graph ?? EMPTY_GRAPH);
+    if (!rf.nodes || rf.nodes.length === 0) {
+      const triggerNode: RFNode = {
+        id: "trigger_1",
+        type: "trigger",
+        position: { x: 160, y: 120 },
+        data: {
+          label: "Início do fluxo",
+          config: {},
+        },
+      };
+      return { nodes: [triggerNode], edges: [] };
+    }
+    return rf;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [],
-  );
+  }, []);
   const [nodes, setNodes, onNodesChange] = useNodesState<RFNode>(initial.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState<RFEdge>(initial.edges);
-  const [savedGraph, setSavedGraph] = useState<FlowGraph>(initialData.draft_graph ?? EMPTY_GRAPH);
+  const [savedGraph, setSavedGraph] = useState<FlowGraph>(
+    initialData.draft_graph?.nodes?.length
+      ? initialData.draft_graph
+      : { nodes: [toFlowNode(initial.nodes[0]!)], edges: [] },
+  );
   // Continue after the largest persisted suffix. Starting again at 1 makes a
   // newly-created node/edge reuse an existing React Flow key and visually
   // replace a connection in older drafts.
@@ -498,28 +515,26 @@ function FlowCanvasInner({ flowId, initialData }: Props) {
             <Controls />
           </ReactFlow>
 
-          {/* Botão flutuante '+' no lado esquerdo do canvas quando o menu está fechado */}
-          {!paletteOpen && (
-            <button
-              type="button"
-              onClick={() => setPaletteOpen(true)}
-              aria-label={t("Abrir menu de opções")}
-              title={t("Abrir menu de opções")}
-              className="absolute top-4 left-4 z-20 hidden h-10 w-10 cursor-pointer items-center justify-center rounded-xl border border-neutral-200 bg-white text-neutral-700 shadow-md transition-all hover:scale-105 hover:border-violet-500 hover:bg-neutral-50 hover:text-violet-600 active:scale-95 lg:flex dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
-            >
-              <Plus size={20} className="font-bold text-violet-600 dark:text-violet-400" />
-            </button>
-          )}
-
-          <Button
+          {/* Botão flutuante circular '+' no canto inferior esquerdo (Lalla / AcassIA parity) */}
+          <button
             type="button"
-            variant="secondary"
-            size="sm"
-            className="absolute bottom-4 left-4 z-10 shadow-md lg:hidden"
-            onClick={() => setMobilePaletteOpen(true)}
+            onClick={() => {
+              if (typeof window !== "undefined" && window.innerWidth < 1024) {
+                setMobilePaletteOpen(true);
+              } else {
+                setPaletteOpen((prev) => !prev);
+              }
+            }}
+            aria-label={paletteOpen ? t("Fechar menu de opções") : t("Abrir menu de opções")}
+            title={paletteOpen ? t("Fechar menu de opções") : t("Abrir menu de opções")}
+            className="absolute bottom-6 left-6 z-20 flex h-12 w-12 cursor-pointer items-center justify-center rounded-full bg-[#9333ea] hover:bg-[#7e22ce] text-white shadow-xl shadow-purple-500/35 transition-all hover:scale-105 active:scale-95"
           >
-            <Plus size={14} aria-hidden /> {t("Adicionar nó")}
-          </Button>
+            <Plus
+              size={24}
+              weight="bold"
+              className={cn("transition-transform duration-200", paletteOpen && "lg:rotate-45")}
+            />
+          </button>
         </div>
 
         {/*
