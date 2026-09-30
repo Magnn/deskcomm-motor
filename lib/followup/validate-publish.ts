@@ -117,6 +117,10 @@ export const NOS_DA_SUPERFICIE: Record<FollowupFlowSurface, readonly NodeType[]>
     'api_call',
     'notify_agent',
     'add_note',
+    'pix_payment',
+    'payment_gateway',
+    'whatsapp_template',
+    'meta_pixel',
   ],
   crm_automation: [
     'trigger',
@@ -134,6 +138,10 @@ export const NOS_DA_SUPERFICIE: Record<FollowupFlowSurface, readonly NodeType[]>
     'api_call',
     'notify_agent',
     'add_note',
+    'pix_payment',
+    'payment_gateway',
+    'whatsapp_template',
+    'meta_pixel',
   ],
   atendimento: ['trigger', 'collect', 'skill', 'end'],
 };

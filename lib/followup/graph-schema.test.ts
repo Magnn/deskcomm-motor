@@ -56,6 +56,11 @@ describe('graph-schema', () => {
         'add_note',
         // O agente de IA no comando (fatia 2 do nó): aditivo.
         'agent',
+        // Lote 2 (paridade AcassIA)
+        'pix_payment',
+        'payment_gateway',
+        'whatsapp_template',
+        'meta_pixel',
       ]);
     });
 

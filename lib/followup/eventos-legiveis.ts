@@ -143,6 +143,10 @@ const TIPO_DO_NO: Record<FlowNode["type"], string> = {
   notify_agent: "Notificar atendente",
   add_note: "Anotação no contato",
   agent: "Agente de IA",
+  pix_payment: "PIX",
+  payment_gateway: "Pagamento",
+  whatsapp_template: "Template WhatsApp",
+  meta_pixel: "Pixel Facebook",
 };
 
 const DESFECHO: Record<string, string> = {
@@ -237,6 +241,14 @@ export function resumoDoNo(node: FlowNode): NoDoDossie {
     // para a tela de leitura).
     case "agent":
       return { ...base, resumo: `um agente de IA conduz a conversa (até ${node.config.max_turnos} respostas)` };
+    case "pix_payment":
+      return { ...base, resumo: "envia botão de pagamento PIX para o cliente" };
+    case "payment_gateway":
+      return { ...base, resumo: `gera cobrança no gateway (${node.config.currency} ${node.config.amount})` };
+    case "whatsapp_template":
+      return { ...base, resumo: `envia template WhatsApp oficial (${node.config.template_name || "Meta"})` };
+    case "meta_pixel":
+      return { ...base, resumo: `dispara evento do Pixel Meta (${node.config.event_type})` };
   }
 }
 

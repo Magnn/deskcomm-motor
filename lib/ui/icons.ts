@@ -154,4 +154,6 @@ export {
   MapPin,
   ArrowsOutSimple,
   Cpu,
+  CreditCard,
+  Target,
 } from "@phosphor-icons/react/dist/ssr";

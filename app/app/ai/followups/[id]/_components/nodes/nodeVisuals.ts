@@ -27,6 +27,8 @@ import {
   Browsers,
   Cpu,
   CheckCircle,
+  CreditCard,
+  Target,
 } from "@/lib/ui/icons";
 import {
   AGENT_NODE_DEFAULT_MAX_TURNS,
@@ -517,6 +519,59 @@ export const NODE_VISUALS: Record<NodeType, NodeVisual> = {
     defaultLabel: "Anotar no contato",
     defaultConfig: () => ({ body: "Configure a nota." }),
   },
+  pix_payment: {
+    type: "pix_payment",
+    paletteLabel: "PIX",
+    paletteDesc: "Enviar cobrança via PIX",
+    icon: CreditCard,
+    ...visualDoMatiz("emerald"),
+    defaultLabel: "Editar PIX",
+    defaultConfig: () => ({
+      key_type: "aleatoria",
+      pix_key: "",
+    }),
+  },
+  payment_gateway: {
+    type: "payment_gateway",
+    paletteLabel: "Pagamento",
+    paletteDesc: "Cobrança via gateway",
+    icon: CreditCard,
+    ...visualDoMatiz("purple"),
+    defaultLabel: "Editar Pagamento",
+    defaultConfig: () => ({
+      currency: "BRL",
+      amount: "100,00",
+      customer_name: "{full_name}",
+      customer_phone: "{phone_number}",
+    }),
+  },
+  whatsapp_template: {
+    type: "whatsapp_template",
+    paletteLabel: "Template WhatsApp",
+    paletteDesc: "Template oficial Meta",
+    icon: ChatCircle,
+    ...visualDoMatiz("blue"),
+    defaultLabel: "Template WhatsApp",
+    defaultConfig: () => ({
+      template_name: "",
+      timeout: 60,
+      timeout_unit: "Minutos",
+    }),
+  },
+  meta_pixel: {
+    type: "meta_pixel",
+    paletteLabel: "Pixel Meta",
+    paletteDesc: "Disparar evento do Facebook",
+    icon: Target,
+    ...visualDoMatiz("amber"),
+    defaultLabel: "Editar Pixel",
+    defaultConfig: () => ({
+      pixel_id: "",
+      event_type: "Compra",
+      page_id: "",
+      item_value: "",
+    }),
+  },
   // Fora da paleta (`NODE_VISUAL_LIST` vem de `NOS_DA_SUPERFICIE`) até o motor existir: a tabela é exaustiva por
   // `NodeType`, mas só entra na paleta o que a superfície executa.
   agent: {
@@ -654,6 +709,22 @@ export function describeNodeConfig(
     case "agent": {
       const c = config as ConfigOf<"agent">;
       return c.objetivo;
+    }
+    case "pix_payment": {
+      const c = config as ConfigOf<"pix_payment">;
+      return `${t("PIX")} ${c.amount ? `· R$ ${c.amount}` : ""} · ${c.pix_key || t("Sem chave")}`;
+    }
+    case "payment_gateway": {
+      const c = config as ConfigOf<"payment_gateway">;
+      return `${c.currency} ${c.open_amount ? t("Valor aberto") : c.amount}`;
+    }
+    case "whatsapp_template": {
+      const c = config as ConfigOf<"whatsapp_template">;
+      return `${c.template_name || t("Sem template")} · ${c.timeout} ${t(c.timeout_unit)}`;
+    }
+    case "meta_pixel": {
+      const c = config as ConfigOf<"meta_pixel">;
+      return `${c.event_type || t("Pixel")}${c.item_value ? ` · ${c.item_value}` : ""}`;
     }
     default: {
       const exhaustive: never = type;

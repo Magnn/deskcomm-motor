@@ -25,7 +25,11 @@ const ORDEM_PALETA: readonly NodeType[] = [
   "menu",
   "action", // Conteúdo
   "collect", // Pergunta
+  "whatsapp_template", // Template WhatsApp (Meta)
   "api_call", // API Request
+  "pix_payment", // PIX
+  "payment_gateway", // Pagamento
+  "meta_pixel", // Pixel Meta
   "wait", // Delay
   "condition", // Condição
   "notify_agent", // Notificar Atendente
@@ -45,7 +49,14 @@ const ORDEM_PALETA: readonly NodeType[] = [
 /** Tipos com badge "Popular" */
 const POPULARES = new Set<NodeType>(["action", "collect", "api_call", "condition"]);
 /** Tipos com badge "Novidade" */
-const NOVIDADES = new Set<NodeType>(["attendant_route", "agent"]);
+const NOVIDADES = new Set<NodeType>([
+  "attendant_route",
+  "agent",
+  "pix_payment",
+  "payment_gateway",
+  "whatsapp_template",
+  "meta_pixel",
+]);
 
 /** Sidebar palette — click to add. Native HTML5 drag-and-drop wired in FlowCanvas (increment 3). */
 export function NodePalette({ onAdd, onClose, variant = "desktop" }: Props) {
