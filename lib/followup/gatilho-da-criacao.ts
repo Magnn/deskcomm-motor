@@ -12,6 +12,7 @@
  * provedor/evento ali é rótulo de quem montou; o motor NÃO filtra por ela, e a tela
  * precisa dizer isso em vez de prometer um filtro que não existe.
  */
+import { EVENTOS_DA_CAKTO, ROTULOS_DOS_EVENTOS_DA_CAKTO, type EventoDaCakto } from "@/lib/pagamentos/eventos-da-cakto";
 import type { ParamsDaMensagem } from "./mensagem-casa";
 
 export interface EscolhaDeGatilho {
@@ -23,6 +24,7 @@ export interface EscolhaDeGatilho {
 
 export type TriggerConfigGravavel =
   | { kind: "inbound_message"; params: ParamsDaMensagem }
+  | { kind: "payment_event"; params: { provider: "cakto"; event: EventoDaCakto } }
   | { kind: "webhook" };
 
 export function palavrasDe(texto: string): string[] {
@@ -35,6 +37,11 @@ export function palavrasDe(texto: string): string[] {
 
 /** `null` = escolha incompleta (palavra-chave sem palavra): a tela recusa antes de criar. */
 export function gatilhoDaEscolha(escolha: EscolhaDeGatilho): TriggerConfigGravavel | null {
+  if (escolha.provider === "cakto") {
+    const evento = EVENTOS_DA_CAKTO.find((e) => e === escolha.event);
+    // Evento fora da lista é escolha incompleta: a tela recusa antes de criar, em vez de gravar um gatilho que nunca dispara.
+    return evento === undefined ? null : { kind: "payment_event", params: { provider: "cakto", event: evento } };
+  }
   if (escolha.provider !== "whatsapp") return { kind: "webhook" };
   switch (escolha.event) {
     case "inicio_conversa":
@@ -52,7 +59,7 @@ export function gatilhoDaEscolha(escolha: EscolhaDeGatilho): TriggerConfigGravav
 }
 
 export interface GatilhoDescrito {
-  providerId: "whatsapp" | "webhook" | "manual" | "outro";
+  providerId: "whatsapp" | "cakto" | "webhook" | "manual" | "outro";
   /** Texto curto do evento; `null` quando não há o que dizer. */
   evento: string | null;
   /** Palavras-chave quando o gatilho é por palavra. */
@@ -71,6 +78,10 @@ export function descreverGatilho(cfg: Record<string, unknown> | null | undefined
       return { providerId: "whatsapp", evento: "Início de conversa", palavras: [] };
     }
     return { providerId: "whatsapp", evento: "Qualquer mensagem", palavras: [] };
+  }
+  if (kind === "payment_event") {
+    const evento = (cfg?.params as { event?: EventoDaCakto } | undefined)?.event;
+    return { providerId: "cakto", evento: evento ? ROTULOS_DOS_EVENTOS_DA_CAKTO[evento] ?? null : null, palavras: [] };
   }
   if (kind === "inbound_after_silence") {
     return { providerId: "whatsapp", evento: "Retorno após silêncio", palavras: [] };

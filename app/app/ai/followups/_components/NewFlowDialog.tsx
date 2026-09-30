@@ -21,6 +21,7 @@ import { useCreateFollowupFlow } from "@/hooks/followup/useFollowupFlows";
 import { useT } from "@/hooks/i18n/useT";
 import { apiClient } from "@/lib/api/client";
 import { gatilhoDaEscolha } from "@/lib/followup/gatilho-da-criacao";
+import { EVENTOS_DA_CAKTO, ROTULOS_DOS_EVENTOS_DA_CAKTO } from "@/lib/pagamentos/eventos-da-cakto";
 import { showApiError } from "@/components/feedback/ApiErrorToast";
 import { Check, ShareNetwork, X } from "@/lib/ui/icons";
 import { cn } from "@/lib/utils";
@@ -67,6 +68,19 @@ const PROVIDERS: Provider[] = [
         <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[9px] font-bold text-white shadow-xs">
           1
         </span>
+      </div>
+    ),
+  },
+  {
+    // Único provedor de pagamento com produtor de evento: o aviso da Cakto inicia o fluxo que escolheu
+    // aquele evento (`lib/pagamentos/compra-cakto.ts`). Os valores são os nomes que a Cakto manda.
+    id: "cakto",
+    name: "Cakto",
+    defaultEvent: "purchase_approved",
+    events: EVENTOS_DA_CAKTO.map((e) => ({ value: e, label: ROTULOS_DOS_EVENTOS_DA_CAKTO[e] })),
+    renderIcon: () => (
+      <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#0b6b3a] shadow-xs">
+        <span className="font-sans text-sm font-black text-white">C</span>
       </div>
     ),
   },

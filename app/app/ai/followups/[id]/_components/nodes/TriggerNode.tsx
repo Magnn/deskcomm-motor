@@ -35,7 +35,14 @@ export function TriggerNode({ id, data, selected }: NodeProps<RFNode>) {
     </div>
   );
 
-  if (providerId === "kiwify") {
+  if (providerId === "cakto") {
+    providerName = "Cakto";
+    providerIcon = (
+      <div className="flex h-[27px] w-[27px] items-center justify-center rounded-full bg-[#0b6b3a] shadow-xs text-white font-black text-xs">
+        C
+      </div>
+    );
+  } else if (providerId === "kiwify") {
     providerName = "Kiwify";
     providerIcon = (
       <div className="flex h-[27px] w-[27px] items-center justify-center rounded-full bg-emerald-100 shadow-xs border border-emerald-400">

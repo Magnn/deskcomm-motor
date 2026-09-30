@@ -12379,6 +12379,21 @@ export const DICIONARIO: Traducoes = {
   "Retorno após silêncio": { es: "Regreso tras silencio" },
   "Disparado por Webhooks": { es: "Disparado por Webhooks" },
   "Disparo manual": { es: "Disparo manual" },
+  "Compra aprovada": { es: "Compra aprobada" },
+  "Compra recusada": { es: "Compra rechazada" },
+  "Pix gerado (aguardando pagamento)": { es: "Pix generado (esperando pago)" },
+  "Boleto gerado (aguardando pagamento)": { es: "Boleto generado (esperando pago)" },
+  "PicPay gerado (aguardando pagamento)": { es: "PicPay generado (esperando pago)" },
+  "Reembolso": { es: "Reembolso" },
+  "Chargeback": { es: "Contracargo" },
+  "Assinatura cancelada": { es: "Suscripción cancelada" },
+  "Assinatura renovada": { es: "Suscripción renovada" },
+  "Carrinho abandonado": { es: "Carrito abandonado" },
+  "Evento de pagamento (Cakto)": { es: "Evento de pago (Cakto)" },
+  "Evento da Cakto que inicia o fluxo": { es: "Evento de Cakto que inicia el flujo" },
+  "O fluxo começa quando a Cakto avisa este evento de uma pessoa que já está no CRM (pelo telefone ou e-mail do checkout). Quem nunca falou com você fica para uma pessoa olhar. O mesmo aviso reenviado não recomeça o fluxo.": { es: "El flujo empieza cuando Cakto avisa este evento de una persona que ya está en el CRM (por teléfono o correo del checkout). Quien nunca habló contigo queda para que una persona lo revise. El mismo aviso reenviado no reinicia el flujo." },
+  "Em «Compra aprovada», este fluxo passa a ser quem entrega — sem ele, vale o fluxo ativo cujo nome começa com «Entrega».": { es: "En «Compra aprobada», este flujo pasa a ser quien entrega — sin él, vale el flujo activo cuyo nombre empieza con «Entrega»." },
+  "Este provedor entra por Webhooks: uma regra usa a ação «Iniciar fluxo de mensagem» apontando para este fluxo. O evento não filtra — quem decide é a regra.": { es: "Este proveedor entra por Webhooks: una regla usa la acción «Iniciar flujo de mensaje» apuntando a este flujo. El evento no filtra — decide la regla." },
 };
 
 /**

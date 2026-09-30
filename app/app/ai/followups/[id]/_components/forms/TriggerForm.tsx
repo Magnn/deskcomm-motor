@@ -1,86 +1,99 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+
+import { Button } from "@/components/ui/button";
+import { useUpdateTriggerConfig } from "@/hooks/followup/useFollowupFlow";
 import { useT } from "@/hooks/i18n/useT";
+import { gatilhoDaEscolha, palavrasDe } from "@/lib/followup/gatilho-da-criacao";
+import { EVENTOS_DA_CAKTO, ROTULOS_DOS_EVENTOS_DA_CAKTO } from "@/lib/pagamentos/eventos-da-cakto";
+import { useGatilhoDoFluxo } from "../GatilhoDoFluxo";
 
-export function TriggerForm({
-  config = {},
-  onChange,
-}: {
-  config?: Record<string, unknown>;
-  onChange: (config: Record<string, unknown>) => void;
-}) {
+/**
+ * O painel do nó Gatilho edita o `trigger_config` REAL do fluxo — o mesmo que o botão
+ * «Gatilho» da barra e o diálogo de novo fluxo, e o que o motor lê.
+ *
+ * Antes ele gravava `{integration, event, keyword}` na configuração do PRÓPRIO nó, cujo
+ * schema é `strictObject({})`: nenhum motor lia aquilo e o rascunho salvo com esses campos
+ * seria recusado na validação. Agora a escolha vira gatilho (persistido, executado).
+ *
+ * Provedores além do WhatsApp e da Cakto entram por «Webhooks» (uma regra usa a ação
+ * «Iniciar fluxo de mensagem»): o evento escolhido ali é rótulo de quem montou, e o painel
+ * diz isso em vez de prometer um filtro que não existe.
+ */
+
+type Integracao = "whatsapp" | "cakto" | "hotmart" | "kiwify" | "asaas" | "stripe";
+
+const EVENTOS_DO_WHATSAPP = [
+  { value: "mensagem_recebida", label: "Qualquer mensagem" },
+  { value: "inicio_conversa", label: "Primeira mensagem do contato" },
+  { value: "palavra_chave", label: "Palavra-chave" },
+] as const;
+
+function estadoInicial(cfg: Record<string, unknown> | null): { integracao: Integracao; evento: string; palavras: string } {
+  const kind = cfg?.kind;
+  const params = (cfg?.params ?? {}) as { match?: string; keywords?: string[]; event?: string };
+  if (kind === "payment_event") {
+    return { integracao: "cakto", evento: params.event ?? "purchase_approved", palavras: "" };
+  }
+  if (kind === "inbound_message") {
+    const evento =
+      params.match === "keyword" ? "palavra_chave" : params.match === "first_message" ? "inicio_conversa" : "mensagem_recebida";
+    return { integracao: "whatsapp", evento, palavras: (params.keywords ?? []).join(", ") };
+  }
+  return { integracao: "whatsapp", evento: "mensagem_recebida", palavras: "" };
+}
+
+export function TriggerForm({ flowId }: { flowId: string }) {
   const t = useT();
-  const [integration, setIntegration] = useState<string>(
-    typeof config.integration === "string" ? config.integration : "whatsapp"
-  );
-  const [event, setEvent] = useState<string>(
-    typeof config.event === "string" ? config.event : "keyword"
-  );
-  const [keyword, setKeyword] = useState<string>(
-    typeof config.keyword === "string" ? config.keyword : ""
-  );
+  const atual = useGatilhoDoFluxo();
+  const update = useUpdateTriggerConfig(flowId);
+  const inicial = estadoInicial(atual);
+  const [integracao, setIntegracao] = useState<Integracao>(inicial.integracao);
+  const [evento, setEvento] = useState(inicial.evento);
+  const [palavras, setPalavras] = useState(inicial.palavras);
 
-  const isWhatsApp = integration === "whatsapp";
+  // O gatilho salvo chega (ou muda em outra aba): o formulário acompanha, sem pisar numa edição em curso.
+  const chave = JSON.stringify(atual);
+  useEffect(() => {
+    const e = estadoInicial(atual);
+    setIntegracao(e.integracao);
+    setEvento(e.evento);
+    setPalavras(e.palavras);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chave]);
 
-  const handleIntegrationChange = (val: string) => {
-    setIntegration(val);
-    const nextEvent = val === "whatsapp" ? "keyword" : "purchase";
-    setEvent(nextEvent);
-    onChange({
-      ...config,
-      integration: val,
-      event: nextEvent,
-    });
+  const gatilho = gatilhoDaEscolha({ provider: integracao, event: evento, keyword: palavras });
+  const incompleto = gatilho === null;
+  const entraPorWebhooks = integracao !== "whatsapp" && integracao !== "cakto";
+  const sujo = JSON.stringify(gatilho) !== JSON.stringify(atual === null ? null : { ...atual, cancel_on_reply: undefined });
+
+  const aoTrocarIntegracao = (v: Integracao) => {
+    setIntegracao(v);
+    setEvento(v === "whatsapp" ? "mensagem_recebida" : v === "cakto" ? "purchase_approved" : "pagamento_aprovado");
   };
 
-  const handleEventChange = (val: string) => {
-    setEvent(val);
-    onChange({
-      ...config,
-      integration,
-      event: val,
-    });
-  };
-
-  const handleKeywordChange = (val: string) => {
-    setKeyword(val);
-    onChange({
-      ...config,
-      integration,
-      event,
-      keyword: val,
-    });
-  };
+  const classeCampo =
+    "w-full rounded-[10px] border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2 text-[13px] text-slate-800 dark:text-zinc-100 outline-hidden focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 shadow-xs";
 
   return (
-    <div className="space-y-4 font-sans text-xs">
-      <div className="space-y-1 text-slate-500 dark:text-zinc-400 leading-relaxed text-[11px]">
-        <p>
-          {t(
-            "O nó de gatilho determina a porta de entrada dos contatos no funil. Escolha a integração e o evento disparador."
-          )}
-        </p>
-      </div>
-
-      <div className="flex items-center gap-3">
-        <div className="h-px flex-1 bg-slate-200 dark:bg-zinc-800" />
-        <span className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest">
-          {t("Configurar Gatilho")}
-        </span>
-        <div className="h-px flex-1 bg-slate-200 dark:bg-zinc-800" />
-      </div>
+    <div className="space-y-4 font-sans text-xs" data-testid="trigger-form">
+      <p className="text-[11px] leading-relaxed text-slate-500 dark:text-zinc-400">
+        {t("O nó de gatilho determina a porta de entrada dos contatos no funil. Escolha a integração e o evento disparador.")}
+      </p>
 
       <div className="space-y-1.5">
-        <label className="block text-[12px] font-semibold text-slate-800 dark:text-zinc-200">
+        <label className="block text-[12px] font-semibold text-slate-800 dark:text-zinc-200" htmlFor="gatilho-integracao">
           {t("Integração")}
         </label>
         <select
-          value={integration}
-          onChange={(e) => handleIntegrationChange(e.target.value)}
-          className="w-full rounded-[10px] border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2 text-[13px] text-slate-800 dark:text-zinc-100 outline-hidden focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 shadow-xs"
+          id="gatilho-integracao"
+          value={integracao}
+          onChange={(e) => aoTrocarIntegracao(e.target.value as Integracao)}
+          className={classeCampo}
         >
           <option value="whatsapp">WhatsApp (Oficial / Não Oficial)</option>
+          <option value="cakto">Cakto</option>
           <option value="hotmart">Hotmart</option>
           <option value="kiwify">Kiwify</option>
           <option value="asaas">Asaas</option>
@@ -88,60 +101,63 @@ export function TriggerForm({
         </select>
       </div>
 
-      <div className="space-y-1.5">
-        <label className="block text-[12px] font-semibold text-slate-800 dark:text-zinc-200">
-          {t("Evento")}
-        </label>
-        <select
-          value={event}
-          onChange={(e) => handleEventChange(e.target.value)}
-          className="w-full rounded-[10px] border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2 text-[13px] text-slate-800 dark:text-zinc-100 outline-hidden focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 shadow-xs"
-        >
-          {isWhatsApp ? (
-            <>
-              <option value="keyword">{t("Palavra-chave")}</option>
-              <option value="message_received">{t("Mensagem recebida")}</option>
-              <option value="inicio_conversa">{t("Início de conversa")}</option>
-            </>
-          ) : (
-            <>
-              <option value="purchase">{t("Compra aprovada")}</option>
-              <option value="abandon">{t("Carrinho abandonado")}</option>
-            </>
-          )}
-        </select>
-      </div>
-
-      {isWhatsApp && event === "keyword" && (
-        <div className="space-y-1.5 animate-in fade-in duration-200">
-          <div className="flex items-baseline justify-between">
-            <label className="block text-[12px] font-semibold text-slate-800 dark:text-zinc-200">
-              {t("Palavra-chave")}
-            </label>
-            <span className="text-[10px] text-slate-400">
-              {t("ativa o gatilho ao receber")}
-            </span>
-          </div>
-          <input
-            type="text"
-            value={keyword}
-            onChange={(e) => handleKeywordChange(e.target.value)}
-            placeholder='Ex.: "QUERO_PROPOSTA" ou "COMPRAR"'
-            className="w-full rounded-[10px] border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2 text-[13px] text-slate-800 dark:text-zinc-100 placeholder:text-slate-400 outline-hidden focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 shadow-xs"
-          />
+      {!entraPorWebhooks && (
+        <div className="space-y-1.5">
+          <label className="block text-[12px] font-semibold text-slate-800 dark:text-zinc-200" htmlFor="gatilho-evento">
+            {t("Evento")}
+          </label>
+          <select id="gatilho-evento" value={evento} onChange={(e) => setEvento(e.target.value)} className={classeCampo}>
+            {integracao === "whatsapp"
+              ? EVENTOS_DO_WHATSAPP.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {t(o.label)}
+                  </option>
+                ))
+              : EVENTOS_DA_CAKTO.map((e) => (
+                  <option key={e} value={e}>
+                    {t(ROTULOS_DOS_EVENTOS_DA_CAKTO[e])}
+                  </option>
+                ))}
+          </select>
         </div>
       )}
 
-      <div className="p-3 bg-indigo-50/60 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/40 rounded-xl space-y-1">
-        <p className="text-[11px] text-indigo-700 dark:text-indigo-400 font-medium">
-          💡 {t("Dica de Automação")}
+      {integracao === "whatsapp" && evento === "palavra_chave" && (
+        <div className="space-y-1.5">
+          <label className="block text-[12px] font-semibold text-slate-800 dark:text-zinc-200" htmlFor="gatilho-palavras">
+            {t("Palavras (separadas por vírgula)")}
+          </label>
+          <input
+            id="gatilho-palavras"
+            type="text"
+            value={palavras}
+            onChange={(e) => setPalavras(e.target.value)}
+            placeholder={t("ex: quero, preço, começar")}
+            className={classeCampo}
+            aria-invalid={incompleto}
+          />
+          {incompleto && <p className="text-[11px] text-error-fg">{t("Informe ao menos uma palavra.")}</p>}
+        </div>
+      )}
+
+      {entraPorWebhooks && (
+        <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-[11px] leading-relaxed text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-300">
+          {t("Este provedor entra por Webhooks: uma regra usa a ação «Iniciar fluxo de mensagem» apontando para este fluxo. O evento não filtra — quem decide é a regra.")}
         </p>
-        <p className="text-[11px] text-indigo-600/80 dark:text-indigo-400/80 leading-relaxed">
-          {t(
-            "Você pode vincular este funil a múltiplos disparos e canais em Ajustes do Fluxo."
-          )}
-        </p>
-      </div>
+      )}
+
+      <Button
+        type="button"
+        size="sm"
+        className="w-full"
+        disabled={incompleto || !sujo || update.isPending}
+        onClick={() => {
+          if (gatilho !== null) update.mutate({ ...gatilho, ...(atual?.cancel_on_reply === true ? { cancel_on_reply: true } : {}) });
+        }}
+        data-testid="trigger-form-save"
+      >
+        {update.isPending ? t("Salvando…") : t("Salvar gatilho")}
+      </Button>
     </div>
   );
 }
