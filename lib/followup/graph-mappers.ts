@@ -97,6 +97,14 @@ export function toFlowNode(n: RFNode): FlowNode {
       return { ...shared, type, config: n.data.config as ConfigOf<"add_note"> };
     case "agent":
       return { ...shared, type, config: n.data.config as ConfigOf<"agent"> };
+    case "pix_payment":
+      return { ...shared, type, config: n.data.config as ConfigOf<"pix_payment"> };
+    case "payment_gateway":
+      return { ...shared, type, config: n.data.config as ConfigOf<"payment_gateway"> };
+    case "whatsapp_template":
+      return { ...shared, type, config: n.data.config as ConfigOf<"whatsapp_template"> };
+    case "meta_pixel":
+      return { ...shared, type, config: n.data.config as ConfigOf<"meta_pixel"> };
     default: {
       const exhaustive: never = type;
       throw new Error(`unknown node type: ${String(exhaustive)}`);

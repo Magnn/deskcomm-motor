@@ -28,6 +28,11 @@ export const NODE_TYPES = [
   // O agente de IA no comando: um agente JÁ configurado conduz a conversa dentro do fluxo, até cumprir o
   // objetivo, estourar o limite de turnos ou a pessoa sumir. ADITIVO: nada acima mudou de forma nem de sentido.
   'agent',
+  // Novos nós de integração oficial e pagamentos (AcassIA parity)
+  'pix_payment',
+  'payment_gateway',
+  'whatsapp_template',
+  'meta_pixel',
 ] as const;
 export type NodeType = (typeof NODE_TYPES)[number];
 
@@ -698,6 +703,47 @@ export const addNoteConfigSchema = z.strictObject({
   body: z.string().min(1).max(2000),
 });
 
+/** Enviar PIX (AcassIA parity) */
+export const PIX_KEY_TYPES = ['aleatoria', 'cpf', 'cnpj', 'email', 'telefone'] as const;
+export type PixKeyType = (typeof PIX_KEY_TYPES)[number];
+
+export const pixPaymentConfigSchema = z.strictObject({
+  key_type: z.enum(PIX_KEY_TYPES).default('aleatoria'),
+  pix_key: z.string().max(200).default(''),
+  beneficiary: z.string().max(200).optional(),
+  amount: z.string().max(50).optional(),
+  message_text: z.string().max(1024).optional(),
+  card_image_url: z.string().max(2000).optional(),
+});
+export type PixPaymentConfig = z.infer<typeof pixPaymentConfigSchema>;
+
+/** Gateway de Pagamento / Cobrança (AcassIA parity) */
+export const paymentGatewayConfigSchema = z.strictObject({
+  currency: z.string().max(10).default('BRL'),
+  amount: z.string().max(50).default('100,00'),
+  open_amount: z.boolean().optional(),
+  customer_name: z.string().max(200).default('{full_name}'),
+  customer_phone: z.string().max(50).default('{phone_number}'),
+});
+export type PaymentGatewayConfig = z.infer<typeof paymentGatewayConfigSchema>;
+
+/** Template WhatsApp (Meta) (AcassIA parity) */
+export const whatsappTemplateConfigSchema = z.strictObject({
+  template_name: z.string().max(200).default(''),
+  timeout: z.number().int().min(1).max(10080).default(60),
+  timeout_unit: z.enum(['Minutos', 'Horas', 'Dias']).default('Minutos'),
+});
+export type WhatsappTemplateConfig = z.infer<typeof whatsappTemplateConfigSchema>;
+
+/** Pixel do Facebook / Meta CAPI (AcassIA parity) */
+export const metaPixelConfigSchema = z.strictObject({
+  pixel_id: z.string().max(100).default(''),
+  event_type: z.string().max(100).default('Compra'),
+  page_id: z.string().max(200).default(''),
+  item_value: z.string().max(50).default(''),
+});
+export type MetaPixelConfig = z.infer<typeof metaPixelConfigSchema>;
+
 /**
  * Flow node schema — discriminated union based on node type.
  * Each node type has its specific config schema.
@@ -896,6 +942,50 @@ export const flowNodeSchema = z.discriminatedUnion('type', [
       y: z.number(),
     }),
     config: agentNodeConfigSchema,
+  }),
+  // Enviar PIX
+  z.strictObject({
+    id: z.string().min(1),
+    type: z.literal('pix_payment'),
+    label: z.string().min(1).max(60),
+    position: z.strictObject({
+      x: z.number(),
+      y: z.number(),
+    }),
+    config: pixPaymentConfigSchema,
+  }),
+  // Gateway de Pagamento / Cobrança
+  z.strictObject({
+    id: z.string().min(1),
+    type: z.literal('payment_gateway'),
+    label: z.string().min(1).max(60),
+    position: z.strictObject({
+      x: z.number(),
+      y: z.number(),
+    }),
+    config: paymentGatewayConfigSchema,
+  }),
+  // Template WhatsApp (Meta)
+  z.strictObject({
+    id: z.string().min(1),
+    type: z.literal('whatsapp_template'),
+    label: z.string().min(1).max(60),
+    position: z.strictObject({
+      x: z.number(),
+      y: z.number(),
+    }),
+    config: whatsappTemplateConfigSchema,
+  }),
+  // Pixel do Facebook / Meta CAPI
+  z.strictObject({
+    id: z.string().min(1),
+    type: z.literal('meta_pixel'),
+    label: z.string().min(1).max(60),
+    position: z.strictObject({
+      x: z.number(),
+      y: z.number(),
+    }),
+    config: metaPixelConfigSchema,
   }),
 ]);
 

@@ -97,6 +97,10 @@ const HEADER_BG_BY_TYPE: Record<string, string> = {
   add_note: "bg-[#ca8a04]",
   attendant_route: "bg-[#0d9488]",
   agent: "bg-[#8b5cf6]",
+  pix_payment: "bg-[#059669]",
+  payment_gateway: "bg-[#7c3aed]",
+  whatsapp_template: "bg-[#2563eb]",
+  meta_pixel: "bg-[#d97706]",
   end: "bg-[#52525b]",
 };
 
@@ -116,6 +120,10 @@ const BORDER_COLOR_BY_TYPE: Record<string, string> = {
   notify_agent: "!border-blue-600 text-blue-600",
   add_note: "!border-amber-600 text-amber-600",
   attendant_route: "!border-yellow-600 text-yellow-600",
+  pix_payment: "!border-emerald-600 text-emerald-600",
+  payment_gateway: "!border-purple-600 text-purple-600",
+  whatsapp_template: "!border-blue-600 text-blue-600",
+  meta_pixel: "!border-amber-600 text-amber-600",
   end: "!border-zinc-500 text-zinc-500",
 };
 

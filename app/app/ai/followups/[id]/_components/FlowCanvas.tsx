@@ -71,6 +71,10 @@ import { AddNoteNode } from "./nodes/AddNoteNode";
 import { CollectNode } from "./nodes/CollectNode";
 import { AgentNode } from "./nodes/AgentNode";
 import { SkillNode } from "./nodes/SkillNode";
+import { PixPaymentNode } from "./nodes/PixPaymentNode";
+import { PaymentGatewayNode } from "./nodes/PaymentGatewayNode";
+import { WhatsappTemplateNode } from "./nodes/WhatsappTemplateNode";
+import { MetaPixelNode } from "./nodes/MetaPixelNode";
 
 const EMPTY_GRAPH: FlowGraph = { nodes: [], edges: [] };
 const DND_MIME = "application/x-followup-node-type";
@@ -96,6 +100,10 @@ const nodeTypes: NodeTypes = {
   collect: CollectNode,
   agent: AgentNode,
   skill: SkillNode,
+  pix_payment: PixPaymentNode,
+  payment_gateway: PaymentGatewayNode,
+  whatsapp_template: WhatsappTemplateNode,
+  meta_pixel: MetaPixelNode,
 };
 
 interface Props {
