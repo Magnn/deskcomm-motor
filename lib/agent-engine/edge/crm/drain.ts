@@ -23,6 +23,7 @@ import { avisoDeEventoMorto, IA_QUE_NAO_RESPONDEU } from '@/lib/event-log/aviso-
 import { TIPOS_DERIVAVEIS, DERIVACAO_TERMINADA } from '@/lib/messaging/media/derivable';
 import { decidirElegibilidadeDaConversa } from '@/lib/ai/elegibilidade/consulta-pg';
 import { deveCederTurnoAoRetorno } from '@/lib/followup/ceder-turno-ao-retorno';
+import { deveCederTurnoAMensagem } from '@/lib/followup/ceder-turno-a-mensagem';
 
 const DRAIN_CONSUMER = 'agent-engine';
 
@@ -353,6 +354,22 @@ async function processEvent(
     })
   ) {
     log.info('drain: turno cedido ao follow-up de retorno — inbound_turn pulado', {
+      event_id: event.id,
+      contact_id: p.contact_id,
+    });
+    return 'processado';
+  }
+
+  // UMA VOZ também para «mensagem recebida»: se esta mensagem já inscreveu o
+  // contato num fluxo, o fluxo é a resposta — o LLM não fala por cima.
+  if (
+    await deveCederTurnoAMensagem(pool, {
+      organizationId: event.organization_id,
+      contactId: p.contact_id,
+      messageId: p.inbound_message_id,
+    })
+  ) {
+    log.info('drain: turno cedido ao fluxo de mensagem recebida — inbound_turn pulado', {
       event_id: event.id,
       contact_id: p.contact_id,
     });

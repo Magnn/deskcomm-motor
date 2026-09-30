@@ -119,6 +119,10 @@ function fake(sobrescreve: Partial<DepsDaCompra> = {}) {
       chamadas.push(`inscrever:${fluxo}`);
       return { ok: true };
     },
+    async fluxosDoEvento(_compra) {
+      return [];
+    },
+    async adicionarTags() {},
     ...sobrescreve,
   };
   return { deps, chamadas, gravado, notas };

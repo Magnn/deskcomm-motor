@@ -181,10 +181,7 @@ export function NodeConfigPanel({ node, flowId, onChange, onDelete, onClose, ram
           />
         )}
         {type === "trigger" && (
-          <TriggerForm
-            config={node.data.config as Record<string, unknown>}
-            onChange={(config) => onChange({ config: config as FlowNode["config"] })}
-          />
+          <TriggerForm flowId={flowId} />
         )}
         {type === "wait" && (
           <WaitForm config={node.data.config as ConfigOf<"wait">} onChange={(config) => onChange({ config })} />

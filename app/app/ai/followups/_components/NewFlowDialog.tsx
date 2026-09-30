@@ -19,6 +19,10 @@ import {
 } from "@/components/ui/select";
 import { useCreateFollowupFlow } from "@/hooks/followup/useFollowupFlows";
 import { useT } from "@/hooks/i18n/useT";
+import { apiClient } from "@/lib/api/client";
+import { gatilhoDaEscolha } from "@/lib/followup/gatilho-da-criacao";
+import { EVENTOS_DA_CAKTO, ROTULOS_DOS_EVENTOS_DA_CAKTO } from "@/lib/pagamentos/eventos-da-cakto";
+import { showApiError } from "@/components/feedback/ApiErrorToast";
 import { Check, ShareNetwork, X } from "@/lib/ui/icons";
 import { cn } from "@/lib/utils";
 
@@ -64,6 +68,19 @@ const PROVIDERS: Provider[] = [
         <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[9px] font-bold text-white shadow-xs">
           1
         </span>
+      </div>
+    ),
+  },
+  {
+    // Único provedor de pagamento com produtor de evento: o aviso da Cakto inicia o fluxo que escolheu
+    // aquele evento (`lib/pagamentos/compra-cakto.ts`). Os valores são os nomes que a Cakto manda.
+    id: "cakto",
+    name: "Cakto",
+    defaultEvent: "purchase_approved",
+    events: EVENTOS_DA_CAKTO.map((e) => ({ value: e, label: ROTULOS_DOS_EVENTOS_DA_CAKTO[e] })),
+    renderIcon: () => (
+      <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#0b6b3a] shadow-xs">
+        <span className="font-sans text-sm font-black text-white">C</span>
       </div>
     ),
   },
@@ -299,6 +316,7 @@ export function NewFlowDialog({ open, onOpenChange }: Props) {
   const [selectedProvider, setSelectedProvider] = useState("whatsapp");
   const [selectedEvent, setSelectedEvent] = useState("mensagem_recebida");
   const [keyword, setKeyword] = useState("");
+  const [produtos, setProdutos] = useState("");
   const [erro, setErro] = useState<string | null>(null);
 
   const create = useCreateFollowupFlow();
@@ -321,8 +339,24 @@ export function NewFlowDialog({ open, onOpenChange }: Props) {
       return;
     }
 
+    // Palavra-chave sem palavra é gatilho que nunca dispara: recusa ANTES de criar.
+    const gatilho = gatilhoDaEscolha({ provider: selectedProvider, event: selectedEvent, keyword, produtos });
+    if (gatilho === null) {
+      setErro(t("Informe ao menos uma palavra-chave para este gatilho."));
+      return;
+    }
+
     create.mutate(trimmed, {
-      onSuccess: (created) => {
+      onSuccess: async (created) => {
+        // A escolha é PERSISTIDA como gatilho do fluxo (o motor a lê). O localStorage
+        // que existia aqui era só da tela: outro navegador não a via e nada disparava.
+        if (created?.id) {
+          try {
+            await apiClient.patch(`/api/v1/ai/followup-flows/${created.id}`, { trigger_config: gatilho });
+          } catch (err) {
+            showApiError(err);
+          }
+        }
         if (typeof window !== "undefined" && created?.id) {
           try {
             localStorage.setItem(`flow_channel_${created.id}`, channel);
@@ -337,6 +371,7 @@ export function NewFlowDialog({ open, onOpenChange }: Props) {
         }
         setName("");
         setKeyword("");
+        setProdutos("");
         setErro(null);
         onOpenChange(false);
         if (created?.id && typeof window !== "undefined") {
@@ -516,6 +551,23 @@ export function NewFlowDialog({ open, onOpenChange }: Props) {
                 placeholder={t("Ex: EU QUERO, QUERO SABER MAIS")}
                 className="h-10 rounded-lg border-neutral-300 text-sm focus:border-purple-500 focus:ring-1 focus:ring-purple-500 dark:border-neutral-700"
                 maxLength={60}
+              />
+            </div>
+          )}
+
+          {/* Campo: Produtos (quando o gatilho é a Cakto) */}
+          {selectedProvider === "cakto" && (
+            <div className="space-y-1">
+              <Label htmlFor="flow-produtos" className="text-xs font-bold text-neutral-800 dark:text-neutral-200">
+                {t("Produtos")} <span className="text-[11px] font-normal text-neutral-400">({t("Opcional")})</span>
+              </Label>
+              <Input
+                id="flow-produtos"
+                value={produtos}
+                onChange={(e) => setProdutos(e.target.value)}
+                placeholder={t("ID ou parte do nome, separados por vírgula — vazio = todos")}
+                className="h-10 rounded-lg border-neutral-300 text-sm focus:border-purple-500 focus:ring-1 focus:ring-purple-500 dark:border-neutral-700"
+                maxLength={300}
               />
             </div>
           )}

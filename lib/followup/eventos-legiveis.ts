@@ -549,6 +549,12 @@ export function descreveEvento(
         detalhe: "o card acabou de ser criado",
         ...motor,
       };
+    case "enrolled_by_inbound_message":
+      return {
+        titulo: "Começou porque o cliente mandou uma mensagem",
+        detalhe: "a mensagem casou com o gatilho escolhido para este fluxo",
+        ...motor,
+      };
     case "enrolled_by_inbound_after_silence":
       return {
         titulo: "Começou porque o cliente voltou a escrever",

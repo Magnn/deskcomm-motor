@@ -17,19 +17,10 @@ import { createHash, timingSafeEqual } from "node:crypto";
 
 import { normalizePhoneBR } from "./inbound";
 
-export const EVENTOS_DA_CAKTO = [
-  "purchase_approved",
-  "purchase_refused",
-  "pix_gerado",
-  "boleto_gerado",
-  "picpay_gerado",
-  "refund",
-  "chargeback",
-  "subscription_canceled",
-  "subscription_renewed",
-  "checkout_abandonment",
-] as const;
-export type EventoDaCakto = (typeof EVENTOS_DA_CAKTO)[number];
+import { EVENTOS_DA_CAKTO, type EventoDaCakto } from "@/lib/pagamentos/eventos-da-cakto";
+
+export { EVENTOS_DA_CAKTO };
+export type { EventoDaCakto };
 
 export interface CompraDaCakto {
   evento: EventoDaCakto;

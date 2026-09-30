@@ -7,6 +7,7 @@
 import { z } from "zod";
 import { flowGraphSchema } from "./graph-schema";
 import { MAX_THRESHOLD_MINUTES, MIN_THRESHOLD_MINUTES } from "./gap-de-retorno";
+import { EVENTOS_DA_CAKTO } from "@/lib/pagamentos/eventos-da-cakto";
 
 /**
  * Vocabulário da coluna `surface` (0167; `atendimento` na 0394 — roteiro de
@@ -61,6 +62,34 @@ export const triggerConfigSchema = z.discriminatedUnion("kind", [
       threshold_minutes: z.number().int().min(MIN_THRESHOLD_MINUTES).max(MAX_THRESHOLD_MINUTES),
       segments: z.array(z.string()).optional(),
     }),
+    ...CANCEL_ON_REPLY,
+  }),
+  z.strictObject({
+    kind: z.literal("payment_event"),
+    // O fluxo começa quando a Cakto avisa ESTE evento de um contato que já existe no CRM.
+    // Só a Cakto tem produtor (`lib/pagamentos/compra-cakto.ts`); outro provedor entra por Webhooks.
+    params: z.strictObject({
+      provider: z.literal("cakto"),
+      event: z.enum(EVENTOS_DA_CAKTO),
+      // ID ou parte do nome do produto na Cakto; ausente/vazio = qualquer produto.
+      products: z.array(z.string().trim().min(1).max(120)).max(20).optional(),
+    }),
+    ...CANCEL_ON_REPLY,
+  }),
+  z.strictObject({
+    kind: z.literal("inbound_message"),
+    // Qualquer mensagem, a primeira do contato, ou uma palavra-chave. O casamento
+    // mora em `mensagem-casa.ts` (o produtor e o silenciador do agente o dividem).
+    params: z
+      .strictObject({
+        match: z.enum(["any", "first_message", "keyword"]),
+        keywords: z.array(z.string().trim().min(1).max(80)).max(20).optional(),
+        keyword_mode: z.enum(["contains", "equals"]).optional(),
+      })
+      .refine((p) => p.match !== "keyword" || (p.keywords?.length ?? 0) > 0, {
+        message: "O gatilho por palavra-chave precisa de ao menos uma palavra.",
+        path: ["keywords"],
+      }),
     ...CANCEL_ON_REPLY,
   }),
   z.strictObject({

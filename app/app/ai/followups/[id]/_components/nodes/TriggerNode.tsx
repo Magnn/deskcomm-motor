@@ -6,6 +6,8 @@ import { Hash, SquarePen } from "lucide-react";
 
 import type { RFNode } from "@/lib/followup/graph-mappers";
 import { useT } from "@/hooks/i18n/useT";
+import { descreverGatilho } from "@/lib/followup/gatilho-da-criacao";
+import { useGatilhoDoFluxo } from "../GatilhoDoFluxo";
 import { WhatsappLogo, Play, Check } from "@/lib/ui/icons";
 import { cn } from "@/lib/utils";
 
@@ -21,42 +23,10 @@ export function TriggerNode({ id, data, selected }: NodeProps<RFNode>) {
       setTimeout(() => setCopiedId(false), 2000);
     }
   };
-  const cfg = (data.config || {}) as Record<string, unknown>;
-  const triggerKind = String(cfg.kind || "keyword");
-
-  // Recupera dados persistidos do fluxo no localStorage se disponível
-  let storedProvider: string | null = null;
-  let storedEvent: string | null = null;
-  let storedKeyword: string | null = null;
-  if (typeof window !== "undefined") {
-    try {
-      const flowId = window.location.pathname.split("/").filter(Boolean).pop();
-      if (flowId) {
-        storedProvider = localStorage.getItem(`flow_provider_${flowId}`);
-        storedEvent = localStorage.getItem(`flow_event_${flowId}`);
-        storedKeyword = localStorage.getItem(`flow_keyword_${flowId}`);
-      }
-    } catch {
-      // silent
-    }
-  }
-
-  const providerId = String(cfg.provider || storedProvider || "whatsapp");
-  const eventLabel =
-    typeof cfg.event_label === "string" && cfg.event_label
-      ? cfg.event_label
-      : storedEvent
-        ? storedEvent.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())
-        : null;
-
-  const keywordText =
-    typeof cfg.keyword === "string" && cfg.keyword
-      ? cfg.keyword
-      : storedKeyword
-        ? storedKeyword
-        : typeof cfg.label === "string" && cfg.label
-          ? cfg.label
-          : null;
+  const gatilho = descreverGatilho(useGatilhoDoFluxo());
+  const providerId: string = gatilho.providerId === "whatsapp" ? "whatsapp" : gatilho.providerId;
+  const eventLabel = gatilho.evento;
+  const keywordText = gatilho.palavras.length > 0 ? gatilho.palavras.join(", ") : null;
 
   let providerName = data.label || "WhatsApp";
   let providerIcon = (
@@ -65,7 +35,14 @@ export function TriggerNode({ id, data, selected }: NodeProps<RFNode>) {
     </div>
   );
 
-  if (providerId === "kiwify") {
+  if (providerId === "cakto") {
+    providerName = "Cakto";
+    providerIcon = (
+      <div className="flex h-[27px] w-[27px] items-center justify-center rounded-full bg-[#0b6b3a] shadow-xs text-white font-black text-xs">
+        C
+      </div>
+    );
+  } else if (providerId === "kiwify") {
     providerName = "Kiwify";
     providerIcon = (
       <div className="flex h-[27px] w-[27px] items-center justify-center rounded-full bg-emerald-100 shadow-xs border border-emerald-400">
@@ -144,28 +121,13 @@ export function TriggerNode({ id, data, selected }: NodeProps<RFNode>) {
     );
   }
 
-  const triggerDescription =
-    eventLabel
-      ? t(eventLabel)
-      : triggerKind === "inbound_after_silence"
-        ? t("Retorno após silêncio")
-        : triggerKind === "manual"
-          ? t("Disparo manual")
-          : triggerKind === "deal_stage_changed"
-            ? t("Mudança de etapa")
-            : triggerKind === "contact_created"
-              ? t("Contato criado")
-              : t("Ao receber uma palavra-chave");
+  const triggerDescription = eventLabel ? t(eventLabel) : t("Gatilho não configurado");
 
-  const bottomBadge =
-    keywordText
-      ? `Palavra-chave: "${keywordText}"`
-      : eventLabel
-        ? eventLabel
-        : t("Qualquer mensagem");
+  const bottomBadge = keywordText ? `Palavra-chave: "${keywordText}"` : eventLabel ?? t("Qualquer mensagem");
+  void bottomBadge;
 
   const keywordPillText =
-    keywordText || eventLabel || "quero iniciar meu atendimento";
+    keywordText || (eventLabel ? t(eventLabel) : t("Configure o gatilho"));
 
   return (
     <>
