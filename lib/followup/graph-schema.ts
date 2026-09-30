@@ -741,6 +741,7 @@ export const metaPixelConfigSchema = z.strictObject({
   event_type: z.string().max(100).default('Compra'),
   page_id: z.string().max(200).default(''),
   item_value: z.string().max(50).default(''),
+  currency: z.string().max(10).optional().default('BRL'),
 });
 export type MetaPixelConfig = z.infer<typeof metaPixelConfigSchema>;
 

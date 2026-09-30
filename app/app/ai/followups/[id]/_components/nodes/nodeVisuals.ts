@@ -570,6 +570,7 @@ export const NODE_VISUALS: Record<NodeType, NodeVisual> = {
       event_type: "Compra",
       page_id: "",
       item_value: "",
+      currency: "BRL",
     }),
   },
   // Fora da paleta (`NODE_VISUAL_LIST` vem de `NOS_DA_SUPERFICIE`) até o motor existir: a tabela é exaustiva por

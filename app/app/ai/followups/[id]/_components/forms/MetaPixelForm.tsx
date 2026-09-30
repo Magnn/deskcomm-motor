@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Target } from "@/lib/ui/icons";
+import { Target, CaretDown } from "@/lib/ui/icons";
 import { useT } from "@/hooks/i18n/useT";
 import { metaPixelConfigSchema } from "@/lib/followup/graph-schema";
 import type { ConfigOf } from "./shared";
@@ -12,7 +12,7 @@ interface Props {
 }
 
 const PIXEL_EVENTS = [
-  { id: "Compra", label: "Compra (Purchase)" },
+  { id: "Compra", label: "Compra" },
   { id: "Lead", label: "Lead" },
   { id: "InitiateCheckout", label: "Iniciar Finalização de Compra (InitiateCheckout)" },
   { id: "AddToCart", label: "Adicionar ao Carrinho (AddToCart)" },
@@ -21,12 +21,21 @@ const PIXEL_EVENTS = [
   { id: "CustomizeProduct", label: "Personalizar Produto (CustomizeProduct)" },
 ];
 
+const CURRENCY_INFO: Record<string, string> = {
+  BRL: "OK · BRL · Real brasileiro",
+  USD: "OK · USD · Dólar americano",
+  EUR: "OK · EUR · Euro",
+  ARS: "OK · ARS · Peso argentino",
+  MXN: "OK · MXN · Peso mexicano",
+};
+
 export function MetaPixelForm({ config, onChange }: Props) {
   const t = useT();
   const [pixelId, setPixelId] = useState(config.pixel_id || "");
   const [eventType, setEventType] = useState(config.event_type || "Compra");
   const [pageId, setPageId] = useState(config.page_id || "");
   const [itemValue, setItemValue] = useState(config.item_value || "");
+  const [currency, setCurrency] = useState(config.currency || "BRL");
 
   const update = (patch: Partial<ConfigOf<"meta_pixel">>) => {
     const next = {
@@ -34,12 +43,16 @@ export function MetaPixelForm({ config, onChange }: Props) {
       event_type: patch.event_type ?? eventType,
       page_id: patch.page_id ?? pageId,
       item_value: patch.item_value ?? itemValue,
+      currency: patch.currency ?? currency,
     };
     const parsed = metaPixelConfigSchema.safeParse(next);
     if (parsed.success) {
       onChange(parsed.data);
     }
   };
+
+  const currencyFeedback =
+    CURRENCY_INFO[currency.toUpperCase()] || `OK · ${currency.toUpperCase()}`;
 
   return (
     <div className="space-y-4 font-sans text-xs">
@@ -136,16 +149,90 @@ export function MetaPixelForm({ config, onChange }: Props) {
         <label className="block text-[11px] font-semibold text-neutral-700 dark:text-neutral-300">
           {t("Valor do item")} *
         </label>
-        <input
-          type="text"
-          value={itemValue}
-          onChange={(e) => {
-            setItemValue(e.target.value);
-            update({ item_value: e.target.value });
-          }}
-          placeholder="Ex: 197,00 ou {preco}"
-          className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-xs text-neutral-900 shadow-2xs outline-hidden focus:border-amber-500 focus:ring-1 focus:ring-amber-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100"
-        />
+        <div className="relative rounded-lg border border-neutral-300 bg-white p-2.5 shadow-2xs focus-within:border-amber-500 focus-within:ring-1 focus-within:ring-amber-500 dark:border-neutral-700 dark:bg-neutral-800">
+          <textarea
+            rows={4}
+            value={itemValue}
+            onChange={(e) => {
+              setItemValue(e.target.value);
+              update({ item_value: e.target.value });
+            }}
+            placeholder="Ex: 197,00 ou {preco}"
+            className="w-full bg-transparent text-xs text-neutral-900 outline-hidden resize-none dark:text-neutral-100 placeholder:text-neutral-400"
+          />
+          <div className="flex items-center pt-1 text-neutral-400 font-mono text-[11px]">
+            <span
+              onClick={() => {
+                setItemValue((prev) => (prev ? `${prev} {preco}` : "{preco}"));
+                update({ item_value: itemValue ? `${itemValue} {preco}` : "{preco}" });
+              }}
+              className="cursor-pointer hover:text-amber-600 transition-colors"
+              title={t("Inserir variável")}
+            >
+              &lt;&gt;
+            </span>
+          </div>
+        </div>
+        <p className="text-[11px] leading-relaxed text-neutral-500 dark:text-neutral-400">
+          {t(
+            "Usado apenas para eventos de compra. Use o botão de variáveis na barra de ferramentas para inserir campos dinâmicos."
+          )}
+        </p>
+      </div>
+
+      {/* Moeda */}
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between">
+          <label className="block text-[11px] font-semibold text-neutral-700 dark:text-neutral-300">
+            {t("Moeda")}
+          </label>
+          <button
+            type="button"
+            onClick={() => {
+              setCurrency("{moeda}");
+              update({ currency: "{moeda}" });
+            }}
+            className="flex items-center gap-1 text-[11px] font-medium text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 transition-colors cursor-pointer"
+          >
+            <span>&lt;&gt;</span>
+            <span>{t("Variáveis")}</span>
+          </button>
+        </div>
+
+        <div className="flex items-center rounded-lg border-2 border-emerald-500/80 bg-white px-2.5 py-1.5 shadow-2xs dark:border-emerald-600/80 dark:bg-neutral-800">
+          <div className="flex items-center gap-1 pr-2 text-neutral-400 border-r border-neutral-200 dark:border-neutral-700 mr-2">
+            <span className="flex h-5 w-5 items-center justify-center rounded-full border border-neutral-300 text-[10px] font-bold text-neutral-500 dark:border-neutral-600 dark:text-neutral-400">
+              $
+            </span>
+            <CaretDown size={12} />
+          </div>
+          <input
+            type="text"
+            value={currency}
+            onChange={(e) => {
+              setCurrency(e.target.value);
+              update({ currency: e.target.value });
+            }}
+            placeholder="BRL"
+            className="w-full bg-transparent text-xs font-medium text-neutral-900 outline-hidden dark:text-neutral-100"
+          />
+        </div>
+        <p className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+          {currencyFeedback}
+        </p>
+      </div>
+
+      {/* Card Como funciona */}
+      <div className="space-y-1.5 rounded-xl border border-neutral-200 bg-neutral-50/60 p-3.5 dark:border-neutral-800 dark:bg-neutral-900/60">
+        <div className="flex items-center gap-1.5 font-semibold text-neutral-800 dark:text-neutral-200">
+          <span className="text-neutral-400 text-xs font-bold">$</span>
+          <span>{t("Como funciona")}</span>
+        </div>
+        <p className="text-[11px] leading-relaxed text-neutral-600 dark:text-neutral-400">
+          {t(
+            "Este nó dispara eventos no Facebook através da Conversions API. Selecione um pixel configurado nas Configurações para usar."
+          )}
+        </p>
       </div>
     </div>
   );
