@@ -466,7 +466,7 @@ function FlowCanvasInner({ flowId, initialData }: Props) {
   );
 
   return (
-    <div className="flex h-full min-h-[600px] w-full flex-col">
+    <div className="flex h-full min-h-0 w-full flex-col">
       {flow && (
         <PublishBar
           flowId={flowId}
@@ -484,7 +484,7 @@ function FlowCanvasInner({ flowId, initialData }: Props) {
           simulatorOpen={simulatorOpen}
         />
       )}
-      <div className="relative flex flex-1 overflow-hidden">
+      <div className="relative flex flex-1 min-h-0 overflow-hidden">
         {paletteOpen && <NodePalette onAdd={onPaletteAdd} onClose={() => setPaletteOpen(false)} />}
         {/* Abaixo de `lg` a paleta fixa não cabe do lado do canvas —
             vira um drawer (Sheet). */}
@@ -503,7 +503,7 @@ function FlowCanvasInner({ flowId, initialData }: Props) {
         </Sheet>
 
         <div
-          className="relative h-full flex-1"
+          className="relative h-full min-h-0 flex-1"
           data-testid="flow-canvas"
           onDragOver={onDragOver}
           onDrop={onDrop}
@@ -569,7 +569,7 @@ function FlowCanvasInner({ flowId, initialData }: Props) {
         */}
         {simulatorOpen && (
           <aside
-            className="fixed inset-x-0 bottom-0 z-40 flex max-h-[75vh] flex-col overflow-hidden rounded-t-lg border-t border-border bg-surface shadow-lg lg:static lg:z-auto lg:h-full lg:max-h-none lg:w-96 lg:shrink-0 lg:rounded-none lg:border-t-0 lg:border-l lg:shadow-none"
+            className="fixed inset-x-0 bottom-0 z-40 flex max-h-[75vh] min-h-0 flex-col overflow-hidden rounded-t-lg border-t border-border bg-surface shadow-lg lg:static lg:z-auto lg:h-full lg:max-h-none lg:w-96 lg:shrink-0 lg:rounded-none lg:border-t-0 lg:border-l lg:shadow-none"
             data-testid="simulator-sheet"
           >
             <SimulatorPanel
@@ -583,7 +583,7 @@ function FlowCanvasInner({ flowId, initialData }: Props) {
 
         {!simulatorOpen && selectedNode && (
           <aside
-            className="fixed inset-x-0 bottom-0 z-40 flex max-h-[75vh] flex-col overflow-hidden rounded-t-lg border-t border-border bg-surface shadow-lg lg:static lg:z-auto lg:h-full lg:max-h-none lg:w-[360px] lg:shrink-0 lg:rounded-none lg:border-t-0 lg:border-l lg:shadow-none"
+            className="fixed inset-x-0 bottom-0 z-40 flex max-h-[75vh] min-h-0 flex-col overflow-hidden rounded-t-lg border-t border-border bg-surface shadow-lg lg:static lg:z-auto lg:h-full lg:max-h-none lg:w-[380px] lg:shrink-0 lg:rounded-none lg:border-t-0 lg:border-l lg:shadow-none"
             data-testid="node-config-sheet"
           >
             {/* Barra própria pro X no mobile */}
@@ -614,7 +614,7 @@ function FlowCanvasInner({ flowId, initialData }: Props) {
 
         {!simulatorOpen && selectedEdge && (
           <aside
-            className="fixed inset-x-0 bottom-0 z-40 flex max-h-[75vh] flex-col overflow-hidden rounded-t-lg border-t border-border bg-surface shadow-lg lg:static lg:z-auto lg:h-full lg:max-h-none lg:w-96 lg:shrink-0 lg:rounded-none lg:border-t-0 lg:border-l lg:shadow-none"
+            className="fixed inset-x-0 bottom-0 z-40 flex max-h-[75vh] min-h-0 flex-col overflow-hidden rounded-t-lg border-t border-border bg-surface shadow-lg lg:static lg:z-auto lg:h-full lg:max-h-none lg:w-96 lg:shrink-0 lg:rounded-none lg:border-t-0 lg:border-l lg:shadow-none"
             data-testid="edge-config-sheet"
           >
             <div className="flex shrink-0 justify-end p-2 lg:hidden">

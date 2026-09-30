@@ -13,7 +13,7 @@ import type { FollowupFlowDetailRow } from "@/hooks/followup/useFollowupFlow";
 const FlowCanvas = dynamic(() => import("./FlowCanvas").then((m) => m.FlowCanvas), {
   ssr: false,
   loading: () => (
-    <div className="flex h-full min-h-[600px] items-center justify-center p-6">
+    <div className="flex h-full min-h-0 items-center justify-center p-6">
       <Skeleton className="h-full w-full" />
     </div>
   ),
@@ -26,7 +26,7 @@ interface Props {
 
 export function FlowBuilder({ flowId, initialData }: Props) {
   return (
-    <div className="flex h-full min-h-[600px] flex-1 flex-col" data-testid="flow-builder-shell">
+    <div className="flex h-full min-h-0 flex-1 flex-col" data-testid="flow-builder-shell">
       <FlowCanvas flowId={flowId} initialData={initialData} />
     </div>
   );

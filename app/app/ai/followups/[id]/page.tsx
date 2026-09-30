@@ -62,7 +62,7 @@ export default async function FollowupFlowBuilderPage({
   };
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="-m-6 flex h-[calc(100dvh-3.5rem-max(0px,var(--rodape-ocupado,0px)))] flex-col overflow-hidden">
       <FlowBuilder flowId={id} initialData={flow} />
     </div>
   );

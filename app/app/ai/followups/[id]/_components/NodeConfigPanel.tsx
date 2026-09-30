@@ -172,7 +172,7 @@ export function NodeConfigPanel({ node, flowId, onChange, onDelete, onClose, ram
       )}
 
       {/* Corpo com formulário específico de cada nó */}
-      <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+      <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4 space-y-4 custom-scrollbar">
         {type === "action" && (
           <ActionForm
             config={node.data.config as ConfigOf<"action">}
