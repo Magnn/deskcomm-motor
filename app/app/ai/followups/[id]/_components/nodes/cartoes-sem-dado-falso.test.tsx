@@ -25,6 +25,7 @@ vi.mock("../EtapasDoFluxo", () => ({
 vi.mock("@xyflow/react", () => ({
   Handle: () => null,
   Position: { Top: "top", Right: "right", Bottom: "bottom", Left: "left" },
+  useEdges: () => [],
   NodeToolbar: () => null,
 }));
 
