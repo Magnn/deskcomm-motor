@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { CreditCard, UploadSimple, Info } from "@/lib/ui/icons";
+import { useState, useRef } from "react";
+import { CreditCard, UploadSimple, Info, Trash } from "@/lib/ui/icons";
 import { useT } from "@/hooks/i18n/useT";
 import { pixPaymentConfigSchema, type PixKeyType } from "@/lib/followup/graph-schema";
 import type { ConfigOf } from "./shared";
@@ -27,6 +27,7 @@ export function PixPaymentForm({ config, onChange }: Props) {
   const [amount, setAmount] = useState(config.amount || "");
   const [messageText, setMessageText] = useState(config.message_text || "");
   const [cardImageUrl, setCardImageUrl] = useState(config.card_image_url || "");
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const update = (patch: Partial<ConfigOf<"pix_payment">>) => {
     const next = {
@@ -201,15 +202,60 @@ export function PixPaymentForm({ config, onChange }: Props) {
           {t("Integração oficial (Meta): imagem no topo do card. Conexões padrão ignoram.")}
         </p>
 
-        <div>
+        <div className="flex items-center gap-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) {
+                const reader = new FileReader();
+                reader.onload = () => {
+                  if (typeof reader.result === "string") {
+                    setCardImageUrl(reader.result);
+                    update({ card_image_url: reader.result });
+                  }
+                };
+                reader.readAsDataURL(file);
+              }
+            }}
+          />
           <button
             type="button"
-            className="inline-flex items-center gap-1.5 rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 shadow-2xs transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700"
+            onClick={() => fileInputRef.current?.click()}
+            className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 shadow-2xs transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700"
           >
             <UploadSimple size={14} />
             <span>{t("Enviar imagem")}</span>
           </button>
+          {cardImageUrl && (
+            <button
+              type="button"
+              onClick={() => {
+                setCardImageUrl("");
+                update({ card_image_url: "" });
+              }}
+              title={t("Remover imagem")}
+              className="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2 py-1.5 text-xs font-semibold text-red-600 shadow-2xs transition-colors hover:bg-red-100 dark:border-red-900/60 dark:bg-red-950/20 dark:text-red-400"
+            >
+              <Trash size={13} />
+              <span>{t("Remover")}</span>
+            </button>
+          )}
         </div>
+
+        {cardImageUrl && (cardImageUrl.startsWith("http") || cardImageUrl.startsWith("data:image")) && (
+          <div className="relative mt-2 overflow-hidden rounded-lg border border-neutral-200 bg-neutral-100 p-1 dark:border-neutral-700 dark:bg-neutral-900 max-w-[200px]">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={cardImageUrl}
+              alt="Prévia do card PIX"
+              className="max-h-24 w-auto rounded object-contain mx-auto"
+            />
+          </div>
+        )}
 
         <p className="text-[11px] text-neutral-500 dark:text-neutral-400">
           {t("Use variáveis como {full_name} ou campos customizados. Valores são resolvidos na execução do fluxo.")}

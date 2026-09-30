@@ -40,6 +40,11 @@ export function PixPaymentNode({ id, data, selected }: NodeProps<RFNode>) {
           {t("Favorecido")}: {config.beneficiary}
         </div>
       )}
+      {config.card_image_url && (
+        <div className="text-[11px] text-emerald-700/80 dark:text-emerald-300/80 truncate">
+          📷 {t("Imagem do card configurada")}
+        </div>
+      )}
     </div>
   );
 

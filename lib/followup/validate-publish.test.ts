@@ -880,3 +880,53 @@ describe('validarItensDeConteudo — motor de envio por tipo de item', () => {
     }
   });
 });
+
+describe('validateFlowForPublish — nós de paridade AcassIA', () => {
+  it('publica com sucesso fluxo contendo whatsapp_template, pix_payment, payment_gateway e meta_pixel', () => {
+    const g: FlowGraph = {
+      nodes: [
+        trigger('t'),
+        {
+          id: 'wt',
+          type: 'whatsapp_template',
+          label: 'Template WhatsApp',
+          position: pos,
+          config: { template_name: 'modelo_aprovado', timeout: 60, timeout_unit: 'Minutos' },
+        },
+        {
+          id: 'pix',
+          type: 'pix_payment',
+          label: 'PIX',
+          position: pos,
+          config: { key_type: 'aleatoria', pix_key: 'chave-uuid', beneficiary: 'Deskcomm', amount: '50,00' },
+        },
+        {
+          id: 'gw',
+          type: 'payment_gateway',
+          label: 'Pagamento',
+          position: pos,
+          config: { currency: 'BRL', amount: '100,00', open_amount: false, customer_name: 'Lead', customer_phone: '11999999999' },
+        },
+        {
+          id: 'px',
+          type: 'meta_pixel',
+          label: 'Pixel',
+          position: pos,
+          config: { pixel_id: 'px-1', event_type: 'Lead', page_id: 'page-1', item_value: '100,00', currency: 'BRL' },
+        },
+        end('f'),
+      ],
+      edges: [
+        edge('t', 'wt', always()),
+        edge('wt', 'pix', always()),
+        edge('pix', 'gw', always()),
+        edge('gw', 'px', always()),
+        edge('px', 'f', always()),
+      ],
+    };
+
+    const r = validateFlowForPublish(g);
+    expect(r.ok).toBe(true);
+  });
+});
+

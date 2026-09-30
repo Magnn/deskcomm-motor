@@ -22,7 +22,7 @@ export function MetaPixelNode({ id, data, selected }: NodeProps<RFNode>) {
         </span>
         {config.item_value && (
           <span className="rounded-md bg-amber-100 px-1.5 py-0.5 font-bold text-amber-800 dark:bg-amber-900/50 dark:text-amber-300">
-            R$ {config.item_value}
+            {config.currency || "BRL"} {config.item_value}
           </span>
         )}
       </div>
