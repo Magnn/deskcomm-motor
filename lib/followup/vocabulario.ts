@@ -649,4 +649,27 @@ export const UNIDADES_DE_TEMPO: Record<UnidadeDeTempo, string> = {
   dias: "Dias",
 };
 
+// ─── Pagamento PIX (nó pix_payment) ─────────────────────────────────────
+
+export type TipoDeChavePix = "aleatoria" | "cpf" | "cnpj" | "email" | "telefone";
+
+export const TIPOS_DE_CHAVE_PIX: Record<TipoDeChavePix, string> = {
+  aleatoria: "Chave Aleatória",
+  cpf: "CPF",
+  cnpj: "CNPJ",
+  email: "E-mail",
+  telefone: "Telefone",
+};
+
+// ─── Template WhatsApp (nó whatsapp_template) ───────────────────────────
+
+export type UnidadeDeTimeoutWhatsapp = "Minutos" | "Horas" | "Dias";
+
+export const UNIDADES_DE_TIMEOUT_WHATSAPP: Record<UnidadeDeTimeoutWhatsapp, string> = {
+  Minutos: "Minutos",
+  Horas: "Horas",
+  Dias: "Dias",
+};
+
+
 

@@ -627,3 +627,57 @@ describe("avancarSimulacao — attendant_route", () => {
     expect(timeout.outcome).toEqual({ outcome: "exhausted" });
   });
 });
+
+describe("avancarSimulacao — nós paridade AcassIA (whatsapp_template, pix_payment, payment_gateway, meta_pixel)", () => {
+  it("passa pelos nós emitindo prévias simuladas no transcript e conclui", async () => {
+    const graph: FlowGraph = {
+      nodes: [
+        no({ id: "t1", type: "trigger", label: "Início", config: {} }),
+        no({
+          id: "wt1",
+          type: "whatsapp_template",
+          label: "Template",
+          config: { template_name: "oferta_exclusiva", timeout: 30, timeout_unit: "Minutos" },
+        }),
+        no({
+          id: "pix1",
+          type: "pix_payment",
+          label: "PIX",
+          config: { key_type: "cpf", pix_key: "123.456.789-00", amount: "99,90", beneficiary: "Deskcomm" },
+        }),
+        no({
+          id: "gw1",
+          type: "payment_gateway",
+          label: "Checkout",
+          config: { currency: "BRL", amount: "197,00", open_amount: false, customer_name: "Cliente Teste", customer_phone: "11999999999" },
+        }),
+        no({
+          id: "px1",
+          type: "meta_pixel",
+          label: "Pixel",
+          config: { pixel_id: "pixel_123", event_type: "Compra", page_id: "pg_456", item_value: "197,00", currency: "BRL" },
+        }),
+        no({ id: "e1", type: "end", label: "Fim", config: { outcome: "converted" } }),
+      ],
+      edges: [
+        aresta({ source: "t1", target: "wt1", condition: { type: "always" } }),
+        aresta({ source: "wt1", target: "pix1", condition: { type: "always" } }),
+        aresta({ source: "pix1", target: "gw1", condition: { type: "always" } }),
+        aresta({ source: "gw1", target: "px1", condition: { type: "always" } }),
+        aresta({ source: "px1", target: "e1", condition: { type: "always" } }),
+      ],
+    };
+
+    const final = await iniciar(graph);
+    expect(final.status).toBe("concluido");
+    expect(final.outcome).toEqual({ outcome: "converted" });
+
+    const msgs = final.transcript.filter((e) => e.kind === "mensagem_simulada");
+    expect(msgs).toHaveLength(4);
+    expect(msgs[0]?.texto).toContain("[Template WhatsApp] oferta_exclusiva");
+    expect(msgs[1]?.texto).toContain("[PIX cpf] Chave: 123.456.789-00");
+    expect(msgs[2]?.texto).toContain("[Cobrança Gateway] BRL 197,00");
+    expect(msgs[3]?.texto).toContain('[Meta Pixel] Evento "Compra"');
+  });
+});
+

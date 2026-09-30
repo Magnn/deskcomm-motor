@@ -1646,3 +1646,51 @@ describe("chamadaDeApiDoFluxo", () => {
     expect(chamadaDeApiDoFluxo(outro, { kind: "advance", next_node_id: "n2", next_eval_at: NOW })).toBeNull();
   });
 });
+
+describe("processNode — nós de paridade AcassIA (pix_payment, payment_gateway, whatsapp_template, meta_pixel)", () => {
+  const edges: FlowEdge[] = [
+    { id: "e1", source: "src", target: "dst", priority: 0, condition: { type: "always" } },
+  ];
+
+  it.each([
+    ["pix_payment", { key_type: "aleatoria" as const, pix_key: "abc" }],
+    ["payment_gateway", { currency: "BRL", amount: "100,00" }],
+    ["whatsapp_template", { template_name: "tmpl_1" }],
+    ["meta_pixel", { pixel_id: "px_1", event_type: "Lead" }],
+  ] as const)("avança pela aresta always no nó %s", (type, config) => {
+    const node: FlowNode = {
+      id: "src",
+      type: type as any,
+      label: type,
+      position: { x: 0, y: 0 },
+      config: config as any,
+    };
+    const result = processNode({
+      node,
+      edges,
+      enrollment: enrollment({ current_node_id: "src" }),
+      lead: lead(),
+      clock: () => new Date(),
+    });
+    expect(result).toMatchObject({ kind: "advance", next_node_id: "dst" });
+  });
+
+  it("retorna fail se não houver aresta de saída", () => {
+    const node: FlowNode = {
+      id: "src",
+      type: "pix_payment",
+      label: "PIX",
+      position: { x: 0, y: 0 },
+      config: { key_type: "aleatoria", pix_key: "abc" },
+    };
+    const result = processNode({
+      node,
+      edges: [],
+      enrollment: enrollment({ current_node_id: "src" }),
+      lead: lead(),
+      clock: () => new Date(),
+    });
+    expect(result).toMatchObject({ kind: "fail" });
+  });
+});
+
