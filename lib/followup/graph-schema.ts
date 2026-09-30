@@ -603,6 +603,24 @@ export const agentNodeConfigSchema = z.strictObject({
   objetivo: z.string().trim().min(1).max(500),
   max_turnos: z.number().int().min(1).max(30).default(AGENT_NODE_DEFAULT_MAX_TURNS),
   silencio_minutos: z.number().int().min(5).max(1440).default(AGENT_NODE_DEFAULT_SILENCE_MINUTES),
+  /** Modelo GPT selecionado para o nó no AcassIA. */
+  modelo_gpt: z.string().optional(),
+  /** Alternadores de recursos (toggles). */
+  pesquisar_internet: z.boolean().optional(),
+  pesquisar_arquivos: z.boolean().optional(),
+  leitura_imagem_pdf: z.boolean().optional(),
+  responder_com_audio: z.boolean().optional(),
+  desativar_quebra_mensagens: z.boolean().optional(),
+  /** Rotas condicionais do nó (intenções de saída). */
+  rotas: z.array(z.strictObject({
+    id: z.string(),
+    condicao: z.string(),
+    label: z.string(),
+  })).optional(),
+  /** Tempos e limites */
+  agrupar_respostas_segundos: z.number().int().min(0).max(3600).optional(),
+  expiracao_tempo: z.number().int().min(1).max(10000).optional(),
+  expiracao_unidade: z.enum(['segundos', 'minutos', 'horas', 'dias']).optional(),
 });
 export type AgentNodeConfig = z.infer<typeof agentNodeConfigSchema>;
 
