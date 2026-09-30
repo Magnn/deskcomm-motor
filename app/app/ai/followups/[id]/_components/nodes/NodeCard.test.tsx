@@ -20,6 +20,8 @@ vi.mock("../EtapasDoFluxo", () => ({ useEtapasDoFluxo: () => etapasDoFluxo }));
 vi.mock("@xyflow/react", () => ({
   Handle: () => null,
   Position: { Top: "top", Right: "right", Bottom: "bottom", Left: "left" },
+  NodeToolbar: ({ children, isVisible }: any) =>
+    isVisible ? <div data-testid="node-toolbar">{children}</div> : null,
 }));
 
 const LONGA = "O desfecho do passo anterior não foi “respondeu com interesse”";

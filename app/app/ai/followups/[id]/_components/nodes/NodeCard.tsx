@@ -1,13 +1,14 @@
 "use client";
 
-import type { ComponentType } from "react";
+import { useState, type ComponentType } from "react";
 
-import { Handle, Position } from "@xyflow/react";
+import { Handle, Position, NodeToolbar } from "@xyflow/react";
+import { Hash, SquarePen, Trash2 } from "lucide-react";
 
 import type { FlowBranch } from "@/lib/followup/graph-schema";
 import { rotuloDoRamo } from "@/lib/followup/rotulo-do-ramo";
 import type { NomesDeValor } from "@/lib/followup/vocabulario";
-import { ArrowRight, Warning, WarningOctagon, Play, Copy, PencilSimple, Smiley } from "@/lib/ui/icons";
+import { ArrowRight, Warning, WarningOctagon, Play, Copy, PencilSimple, Smiley, Check } from "@/lib/ui/icons";
 import { cn } from "@/lib/utils";
 import { useT } from "@/hooks/i18n/useT";
 import { useEtapasDoFluxo } from "../EtapasDoFluxo";
@@ -141,28 +142,104 @@ export function NodeCard({
   const hasContentItems = previewRows !== undefined && previewRows.length > 0;
   const handleTopStyle = hasContentItems ? { top: "54px" } : { top: "50%" };
 
+  const [copiedId, setCopiedId] = useState(false);
+
+  const handleCopyId = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
+      void navigator.clipboard.writeText(id);
+      setCopiedId(true);
+      setTimeout(() => setCopiedId(false), 2000);
+    }
+  };
+
   return (
-    <div
-      className={cn(
-        "group relative min-w-[280px] max-w-[320px] w-[280px] overflow-visible rounded-[10px] border-[1.5px] border-slate-500 bg-white font-sans shadow-sm transition-all duration-300 select-none",
-        selected
-          ? "ring-2 ring-purple-600 shadow-md ring-offset-1"
-          : "hover:border-slate-600 hover:shadow-md",
-        simulating && !hasError && "animate-pulse ring-2 ring-emerald-500 ring-offset-1",
-        hasError && "border-red-500 ring-2 ring-red-500 ring-offset-1",
-      )}
-      data-testid={`node-card-${id}`}
-      data-simulating={simulating || undefined}
-      title={hasError ? errors!.join("; ") : undefined}
-    >
-      {hasError && (
-        <span
-          aria-hidden
-          className="absolute -top-2 -right-2 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-error text-white shadow-md"
+    <>
+      {/* Barra de Ferramentas Flutuante (ChatbotX / AcassIA Parity) */}
+      <NodeToolbar
+        isVisible={selected}
+        position={Position.Top}
+        offset={12}
+        className="flex items-center gap-1 rounded-xl border border-zinc-700/80 bg-zinc-900/95 p-1 text-zinc-100 shadow-2xl backdrop-blur-md z-50 animate-in fade-in zoom-in-95 duration-150 select-none"
+      >
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            window.dispatchEvent(new CustomEvent("flow-select-node", { detail: { id } }));
+          }}
+          className="flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium text-zinc-200 transition-colors hover:bg-zinc-800 hover:text-white cursor-pointer"
+          title={t("Editar configurações")}
         >
-          <WarningOctagon size={12} weight="fill" aria-hidden />
-        </span>
-      )}
+          <SquarePen className="h-3.5 w-3.5 text-indigo-400" />
+          {t("Editar")}
+        </button>
+
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            window.dispatchEvent(new CustomEvent("flow-duplicate-node", { detail: { id } }));
+          }}
+          className="rounded-lg p-1.5 text-zinc-300 transition-colors hover:bg-zinc-800 hover:text-white cursor-pointer"
+          title={t("Duplicar nó")}
+        >
+          <Copy size={14} className="text-zinc-300" />
+        </button>
+
+        <button
+          type="button"
+          onClick={handleCopyId}
+          className="rounded-lg p-1.5 text-zinc-300 transition-colors hover:bg-zinc-800 hover:text-white cursor-pointer"
+          title={t("Copiar ID do nó")}
+        >
+          {copiedId ? (
+            <Check size={14} className="text-emerald-400" />
+          ) : (
+            <Hash className="h-3.5 w-3.5 text-zinc-300" />
+          )}
+        </button>
+
+        {visual.type !== "trigger" && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              window.dispatchEvent(new CustomEvent("flow-delete-node", { detail: { id } }));
+            }}
+            className="rounded-lg p-1.5 text-zinc-300 transition-colors hover:bg-red-500/20 hover:text-red-400 cursor-pointer"
+            title={t("Excluir nó")}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        )}
+      </NodeToolbar>
+
+      <div
+        className={cn(
+          "group relative min-w-[280px] max-w-[320px] w-[280px] overflow-visible rounded-[10px] border-[1.5px] border-slate-500 bg-white font-sans shadow-sm transition-all duration-300 select-none",
+          selected
+            ? "ring-2 ring-purple-600 shadow-md ring-offset-1"
+            : "hover:border-slate-600 hover:shadow-md",
+          simulating && !hasError && "animate-pulse ring-2 ring-emerald-500 ring-offset-1",
+          hasError && "border-red-500 ring-2 ring-red-500 ring-offset-1",
+        )}
+        data-testid={`node-card-${id}`}
+        data-simulating={simulating || undefined}
+        title={hasError ? errors!.join("; ") : undefined}
+        onDoubleClick={(e) => {
+          e.stopPropagation();
+          window.dispatchEvent(new CustomEvent("flow-select-node", { detail: { id } }));
+        }}
+      >
+        {hasError && (
+          <span
+            aria-hidden
+            className="absolute -top-2 -right-2 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-error text-white shadow-md"
+          >
+            <WarningOctagon size={12} weight="fill" aria-hidden />
+          </span>
+        )}
 
       {/* Entrada (Target) no lado ESQUERDO com círculo branco, borda roxa e seta ▶ */}
       {showTarget && (
@@ -469,5 +546,6 @@ export function NodeCard({
         </Handle>
       )}
     </div>
+    </>
   );
 }
