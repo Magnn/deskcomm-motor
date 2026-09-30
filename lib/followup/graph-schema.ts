@@ -571,6 +571,17 @@ export const abSplitConfigSchema = z
 export const aiGenericConfigSchema = z.strictObject({
   prompt: z.string().min(1).max(2000),
   save_to: replySaveToSchema,
+  /** Modelo GPT selecionado no AcassIA. */
+  modelo_gpt: z.string().optional(),
+  max_tokens: z.number().int().min(1).max(8192).optional(),
+  temperature: z.number().min(0).max(2).optional(),
+  enviar_resultado_texto: z.boolean().optional(),
+  manter_contexto: z.boolean().optional(),
+  leitura_imagem_pdf: z.boolean().optional(),
+  ativar_personalidade: z.boolean().optional(),
+  ativar_base_informacoes: z.boolean().optional(),
+  ativar_restricoes: z.boolean().optional(),
+  salvar_em_campo: z.boolean().optional(),
 });
 
 /**
