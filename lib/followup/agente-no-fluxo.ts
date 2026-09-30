@@ -40,7 +40,7 @@ import {
   type FlowGraph,
   type FlowNode,
 } from "./graph-schema";
-import { selectEdge } from "./node-handlers";
+import { selectEdgeExata } from "./node-handlers";
 
 export type BancoDoAgenteNoFluxo = Pick<pg.Pool, "query">;
 
@@ -262,7 +262,8 @@ export async function encerrarAgenteNoFluxo(
   },
 ): Promise<ResultadoDaSaida> {
   const { estado } = args;
-  const aresta = selectEdge(estado.graph.edges, estado.node.id, { type: "branch", branch_id: args.saida });
+  // Exata: «cumpriu» solta NÃO sai pelo escape — a conversa fica com o agente até alguém ligar a saída.
+  const aresta = selectEdgeExata(estado.graph.edges, estado.node.id, { type: "branch", branch_id: args.saida });
   if (aresta === null) return { ok: false, motivo: "sem_aresta" };
 
   const resumo = args.resumo === undefined ? null : umaLinha(args.resumo).slice(0, 300);

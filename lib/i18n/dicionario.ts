@@ -12360,6 +12360,9 @@ export const DICIONARIO: Traducoes = {
   "Aguardando a resposta do lead à pergunta (ou o prazo esgotar).": { es: "Esperando la respuesta del lead a la pregunta (o que venza el plazo)." },
   "O lead ficaria parado aqui": { es: "El lead quedaría detenido aquí" },
   "Ligue a saída no construtor para o fluxo seguir.": { es: "Conecta la salida en el constructor para que el flujo siga." },
+  "Esta saída não está ligada a nada: o lead que sair por aqui fica parado neste passo.": { es: "Esta salida no está conectada a nada: el lead que salga por aquí queda detenido en este paso." },
+  "sem ligação": { es: "sin conexión" },
+  "Sem ligação: o lead fica parado neste passo.": { es: "Sin conexión: el lead queda detenido en este paso." },
 };
 
 /**

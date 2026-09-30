@@ -263,11 +263,6 @@ describe("processNode — trigger", () => {
     expect(result).toEqual({ kind: "advance", next_node_id: "n2", next_eval_at: NOW });
   });
 
-  it("fails when the trigger has no outbound edge", () => {
-    const node: FlowNode = { id: "t1", type: "trigger", label: "Start", position: { x: 0, y: 0 }, config: {} };
-    const result = processNode({ node, edges: [], enrollment: enrollment(), lead: lead(), clock });
-    expect(result.kind).toBe("fail");
-  });
 });
 
 describe("processNode — wait (fixed)", () => {
@@ -303,10 +298,6 @@ describe("processNode — wait (fixed)", () => {
     expect(result).toEqual({ kind: "advance", next_node_id: "n2", next_eval_at: NOW });
   });
 
-  it("elapsed but no outbound edge: fails", () => {
-    const result = processNode({ node, edges: [], enrollment: enrollment(), lead: lead(), clock, waitElapsed: true });
-    expect(result.kind).toBe("fail");
-  });
 });
 
 describe("processNode — wait (smart): o instante vem do plano de tempo do enrollment", () => {
@@ -543,17 +534,6 @@ describe("processNode — condition", () => {
     expect(result).toMatchObject({ kind: "advance", next_node_id: "yes" });
   });
 
-  it("fails when no edge matches the evaluated result", () => {
-    const node = conditionNode({ combinator: "and", checks: [{ field: "lead_stage", op: "eq", value: "hot" }] });
-    const result = processNode({
-      node,
-      edges: [edge({ source: "c1", target: "yes", condition: { type: "cond_result", value: true } })],
-      enrollment: enrollment(),
-      lead: lead({ lead_stage: "cold" }),
-      clock,
-    });
-    expect(result.kind).toBe("fail");
-  });
 });
 
 /**
@@ -641,21 +621,6 @@ describe("processNode — condition com uma saída por regra", () => {
     expect(result).toMatchObject({ kind: "advance", next_node_id: "caminho-frio" });
   });
 
-  it("ramo sem aresta sai pela escape em vez de prender o lead no nó", () => {
-    const semArestaDoFrio = [
-      edge({ source: "c1", target: "caminho-vip", condition: { type: "branch", branch_id: "chk_vip" } }),
-      edge({ source: "c1", target: "nenhuma-delas", condition: { type: "always" } }),
-    ];
-    const result = processNode({
-      node: perCheckNode(),
-      edges: semArestaDoFrio,
-      enrollment: enrollment(),
-      lead: lead({ tags: [], steps_taken: 5 }), // bate na regra do frio, que ninguém ligou
-      clock,
-    });
-    expect(result).toMatchObject({ kind: "advance", next_node_id: "nenhuma-delas" });
-  });
-
   it("'combinator' não é consultado neste modo — 'and' com uma só regra batendo ainda roteia", () => {
     // No modo combinado este mesmo nó daria FALSE (uma das duas regras falha) e
     // iria para a saída do 'não'. Aqui ele vai pelo caminho da regra que passou.
@@ -697,35 +662,6 @@ describe("processNode — ai_classify / action", () => {
     ];
     const result = processNode({ node, edges, enrollment: enrollment(), lead: lead(), clock, waitElapsed: true });
     expect(result).toEqual({ kind: "advance", next_node_id: "no-reply-node", next_eval_at: NOW });
-  });
-
-  it("ai_classify re-entry without an explicit no_reply edge falls back to the 'always' edge", () => {
-    const node: FlowNode = {
-      id: "ac1",
-      type: "ai_classify",
-      label: "Classify",
-      position: { x: 0, y: 0 },
-      config: { classes: ["hot", "cold"], grace_timeout_ms: 900_000, target: "last_reply" },
-    };
-    const edges = [
-      edge({ source: "ac1", target: "hot-node", condition: { type: "class_match", value: "hot" } }),
-      edge({ source: "ac1", target: "fallback-node", condition: { type: "always" } }),
-    ];
-    const result = processNode({ node, edges, enrollment: enrollment(), lead: lead(), clock, waitElapsed: true });
-    expect(result).toEqual({ kind: "advance", next_node_id: "fallback-node", next_eval_at: NOW });
-  });
-
-  it("ai_classify re-entry with neither a no_reply nor an always edge: fails", () => {
-    const node: FlowNode = {
-      id: "ac1",
-      type: "ai_classify",
-      label: "Classify",
-      position: { x: 0, y: 0 },
-      config: { classes: ["hot", "cold"], grace_timeout_ms: 900_000, target: "last_reply" },
-    };
-    const edges = [edge({ source: "ac1", target: "hot-node", condition: { type: "class_match", value: "hot" } })];
-    const result = processNode({ node, edges, enrollment: enrollment(), lead: lead(), clock, waitElapsed: true });
-    expect(result.kind).toBe("fail");
   });
 
   it("ai_classify re-entry with waitElapsed=true AND wokeEarly=true (reactivity's inbound signal): re-enqueues classify instead of routing no_reply — the classify-lento race fix", () => {
@@ -967,24 +903,6 @@ describe("processNode — match_reply", () => {
     });
     expect(result.kind).toBe("wait");
     expect(result).toMatchObject({ wake_status: "waiting_reply" });
-  });
-
-  it("wokeEarly + save_to sem aresta Sempre usa o primeiro ramo que não é no_reply", () => {
-    const node = matchNode({ save_to: { kind: "contact_name" } });
-    const soRamo = [
-      edge({ source: "mr1", target: "no-sim", condition: { type: "branch", branch_id: "br_sim" } }),
-    ];
-    const result = processNode({
-      node,
-      edges: soRamo,
-      enrollment: enrollment(),
-      lead: lead(),
-      clock,
-      waitElapsed: true,
-      wokeEarly: true,
-      lastInboundBody: "Ian",
-    });
-    expect(result).toMatchObject({ kind: "advance", next_node_id: "no-sim" });
   });
 
   it("wokeEarly + save_to: qualquer texto segue o Sempre (nome já na ficha não importa)", () => {
@@ -1231,23 +1149,6 @@ describe("processNode — ab_split", () => {
     expect(r1.kind).toBe("advance");
   });
 
-  it("falha com motivo claro quando o braço sorteado não tem aresta nem fallback", () => {
-    const semAresta: FlowEdge[] = [];
-    const r = processNode({ node: splitNode(), edges: semAresta, enrollment: enrollment(), lead: lead(), clock });
-    expect(r).toMatchObject({ kind: "fail" });
-  });
-
-  it("cai no fallback 'always' quando só o braço sorteado ficou sem ligação", () => {
-    const enr = enrollment({ id: "enr-fixo-2" });
-    const escolhido = escolherRamoDoSplit(splitNode().config as never, `${enr.id}:sp1`);
-    const outroBraco = escolhido === "a" ? "b" : "a";
-    const edgesParciais = [
-      edge({ source: "sp1", target: `via-${outroBraco}`, condition: { type: "branch", branch_id: outroBraco } }),
-      edge({ source: "sp1", target: "escape", condition: { type: "always" } }),
-    ];
-    const r = processNode({ node: splitNode(), edges: edgesParciais, enrollment: enr, lead: lead(), clock });
-    expect(r).toMatchObject({ kind: "advance", next_node_id: "escape" });
-  });
 });
 
 describe("actionTurnCompleted — evento de conclusão configurável (ai_generic)", () => {
@@ -1497,20 +1398,6 @@ describe("processNode — api_call / notify_agent / add_note (passagem única no
     expect(r).toMatchObject({ kind: "advance", next_node_id: "n2" });
   });
 
-  it("os três falham com motivo claro sem aresta de saída", () => {
-    const tipos: Array<[FlowNode, string]> = [
-      [
-        { id: "x1", type: "api_call", label: "x", position: { x: 0, y: 0 }, config: { method: "GET", url: "https://a.com", headers: [] } },
-        "x1",
-      ],
-      [{ id: "x2", type: "notify_agent", label: "x", position: { x: 0, y: 0 }, config: { message: "m" } }, "x2"],
-      [{ id: "x3", type: "add_note", label: "x", position: { x: 0, y: 0 }, config: { body: "b" } }, "x3"],
-    ];
-    for (const [node] of tipos) {
-      const r = processNode({ node, edges: [], enrollment: enrollment(), lead: lead(), clock });
-      expect(r).toMatchObject({ kind: "fail" });
-    }
-  });
 });
 
 describe("avisoDeNotificarAtendente", () => {

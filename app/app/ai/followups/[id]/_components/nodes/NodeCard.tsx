@@ -2,7 +2,7 @@
 
 import { useState, type ComponentType } from "react";
 
-import { Handle, Position, NodeToolbar } from "@xyflow/react";
+import { Handle, Position, NodeToolbar, useEdges } from "@xyflow/react";
 import { Hash, SquarePen, Trash2 } from "lucide-react";
 
 import type { FlowBranch } from "@/lib/followup/graph-schema";
@@ -135,6 +135,10 @@ export function NodeCard({
 }: Props) {
   const t = useT();
   const { nomes } = useEtapasDoFluxo();
+  // Quais saídas deste nó têm aresta. Saída SEM ligação não é erro: o lead que sair por ela fica parado
+  // neste nó (o funil só avança até onde foi montado) — a tela só precisa mostrar isso ao dono.
+  const arestas = useEdges();
+  const saidasLigadas = new Set(arestas.filter((e) => e.source === id).map((e) => e.sourceHandle ?? null));
   const Icon = visual.icon;
   const hasError = (errors?.length ?? 0) > 0;
   const branchRows = branches !== undefined && branches.length > 1 ? branches : null;
@@ -514,6 +518,15 @@ export function NodeCard({
                     </span>
                   </div>
                 )}
+                {!saidasLigadas.has(branch.id) && (
+                  <span
+                    className="shrink-0 rounded-full border border-dashed border-border px-1.5 text-[9px] font-medium text-text-muted"
+                    title={t("Esta saída não está ligada a nada: o lead que sair por aqui fica parado neste passo.")}
+                    data-testid={`saida-solta-${id}-${branch.id}`}
+                  >
+                    {t("sem ligação")}
+                  </span>
+                )}
                 <Handle
                   type="source"
                   id={branch.id}
@@ -532,6 +545,15 @@ export function NodeCard({
             );
           })}
         </ul>
+      )}
+
+      {showSource && branchRows === null && saidasLigadas.size === 0 && (
+        <p
+          className="border-t border-dashed border-border/70 px-3 py-1 text-[10px] leading-snug text-text-muted"
+          data-testid={`saida-solta-${id}`}
+        >
+          {t("Sem ligação: o lead fica parado neste passo.")}
+        </p>
       )}
 
       {/* Saída (Source) única no lado DIREITO com seta estilizada */}
