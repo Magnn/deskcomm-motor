@@ -53,4 +53,53 @@ describe('runGenericAiNode', () => {
     expect(chamada.messages[0]!.content).toContain('Instrução única');
     expect(chamada.messages[0]!.content).toContain(JSON.stringify(context));
   });
+
+  it('repassa ao seam o modelo, a temperatura e o teto de tokens escolhidos no nó', async () => {
+    runModelCallMock.mockResolvedValueOnce({ result: { text: 'ok' }, model: 'x' });
+    await runGenericAiNode({} as never, {} as never, ids, { prompt: 'p', context, model: 'gpt-4o', temperature: 0.7, maxOutputTokens: 300 }, deps);
+    const chamada = runModelCallMock.mock.calls.at(-1)![2] as { model?: string; temperature?: number; maxOutputTokens?: number };
+    expect(chamada).toMatchObject({ model: 'gpt-4o', temperature: 0.7, maxOutputTokens: 300 });
+  });
+
+  it('sem opções, NÃO manda modelo, temperatura nem teto (vale o padrão da organização)', async () => {
+    runModelCallMock.mockResolvedValueOnce({ result: { text: 'ok' }, model: 'x' });
+    await runGenericAiNode({} as never, {} as never, ids, { prompt: 'p', context }, deps);
+    const chamada = runModelCallMock.mock.calls.at(-1)![2] as Record<string, unknown>;
+    expect(chamada).not.toHaveProperty('model');
+    expect(chamada).not.toHaveProperty('temperature');
+    expect(chamada).not.toHaveProperty('maxOutputTokens');
+  });
+
+  it('personalidade, restrições e base de informações entram como seções da instrução', async () => {
+    runModelCallMock.mockResolvedValueOnce({ result: { text: 'ok' }, model: 'x' });
+    await runGenericAiNode({} as never, {} as never, ids, {
+      prompt: 'Responda',
+      context,
+      blocos: { identidade: '- Você é Suzana.', limites: '- Nunca prometa cura.', conhecimento: ['O ritual dura 7 dias.'] },
+    }, deps);
+    const c = (runModelCallMock.mock.calls.at(-1)![2] as { messages: Array<{ content: string }> }).messages[0]!.content;
+    expect(c).toContain('## Identidade e tom');
+    expect(c).toContain('Você é Suzana.');
+    expect(c).toContain('## Restrições');
+    expect(c).toContain('Nunca prometa cura.');
+    expect(c).toContain('## Base de informações');
+    expect(c).toContain('[1] O ritual dura 7 dias.');
+  });
+
+  it('sem blocos, nenhuma dessas seções aparece', async () => {
+    runModelCallMock.mockResolvedValueOnce({ result: { text: 'ok' }, model: 'x' });
+    await runGenericAiNode({} as never, {} as never, ids, { prompt: 'p', context }, deps);
+    const c = (runModelCallMock.mock.calls.at(-1)![2] as { messages: Array<{ content: string }> }).messages[0]!.content;
+    expect(c).not.toContain('## Identidade');
+    expect(c).not.toContain('## Restrições');
+    expect(c).not.toContain('## Base de informações');
+  });
+
+  it('quando o texto vai ao cliente, a instrução deixa de dizer que é um campo interno', async () => {
+    runModelCallMock.mockResolvedValueOnce({ result: { text: 'ok' }, model: 'x' });
+    await runGenericAiNode({} as never, {} as never, ids, { prompt: 'p', context, paraCliente: true }, deps);
+    const c = (runModelCallMock.mock.calls.at(-1)![2] as { messages: Array<{ content: string }> }).messages[0]!.content;
+    expect(c).toContain('ENVIADO ao cliente');
+    expect(c).not.toContain('campo interno');
+  });
 });

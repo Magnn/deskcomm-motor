@@ -103,6 +103,8 @@ export interface FollowupJobRequest {
     content_items?: ConteudoItem[];
     volta_index?: number;
     volta_total?: number;
+    /** ai_generic — as opções do nó GPT (modelo, temperatura, contexto, personalidade…). Só o que foi configurado. */
+    generic_ai_opcoes?: Record<string, string | number | boolean>;
     /** ai_classify — Task 5.1: classes possíveis + dica opcional pro classificador. */
     classes?: string[];
     hint?: string;
@@ -275,7 +277,7 @@ function interpolarVolta(texto: string, events: EnrollmentEventRef[]): string {
   return texto.replaceAll("{{volta}}", String(volta.index)).replaceAll("{{voltas}}", String(volta.total));
 }
 
-function turnPayloadExtras(
+export function turnPayloadExtras(
   node: FlowNode,
   smartWaits: EsperaAdaptativa[],
   events: EnrollmentEventRef[] = [],
@@ -301,7 +303,19 @@ function turnPayloadExtras(
   }
   if (node.type === "ai_generic") {
     // Reaproveita `prompt_hint` — o MESMO campo que a ação `ai_message` já carrega.
-    return { prompt_hint: node.config.prompt };
+    const c = node.config;
+    const opcoes: Record<string, string | number | boolean> = {};
+    if (c.modelo_gpt !== undefined) opcoes.modelo_gpt = c.modelo_gpt;
+    if (c.max_tokens !== undefined) opcoes.max_tokens = c.max_tokens;
+    if (c.temperature !== undefined) opcoes.temperature = c.temperature;
+    if (c.enviar_resultado_texto !== undefined) opcoes.enviar_resultado_texto = c.enviar_resultado_texto;
+    if (c.manter_contexto !== undefined) opcoes.manter_contexto = c.manter_contexto;
+    if (c.leitura_imagem_pdf !== undefined) opcoes.leitura_imagem_pdf = c.leitura_imagem_pdf;
+    if (c.ativar_personalidade !== undefined) opcoes.ativar_personalidade = c.ativar_personalidade;
+    if (c.ativar_base_informacoes !== undefined) opcoes.ativar_base_informacoes = c.ativar_base_informacoes;
+    if (c.ativar_restricoes !== undefined) opcoes.ativar_restricoes = c.ativar_restricoes;
+    if (c.salvar_em_campo !== undefined) opcoes.salvar_em_campo = c.salvar_em_campo;
+    return { prompt_hint: c.prompt, ...(Object.keys(opcoes).length > 0 ? { generic_ai_opcoes: opcoes } : {}) };
   }
   if (node.type === "trigger") {
     // As esperas vêm do GRAFO PINADO, não do nó — o trigger não as conhece, e é

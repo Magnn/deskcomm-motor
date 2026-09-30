@@ -52,7 +52,20 @@ import {
   type EsperaParaPlanejar,
   type PropostaDeEsperaBruta,
 } from './followup-flow-classify';
-import { runGenericAiNode } from './followup-flow-generic-ai';
+import { runGenericAiNode, type BlocosDoGpt } from './followup-flow-generic-ai';
+import {
+  contextoDoNo,
+  interpolarVariaveis,
+  modeloEfetivo,
+  temperaturaValida,
+  variaveisDoPrompt,
+  type OpcoesDoGpt,
+} from './opcoes-do-gpt';
+import { resolveOrgLlmConfig } from '../edge/llm/credentials';
+import { loadPublishedAgentConfigById } from './agent-config';
+import { searchKnowledge } from './search-knowledge';
+import { blocoDeIdentidade } from '@/lib/identidade/bloco-do-prompt';
+import { blocoDeLimites } from '@/lib/limites/bloco-do-prompt';
 import { OK_KINDS } from './split-message';
 import type { ChannelSendResult } from '../channel-adapter';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -125,6 +138,21 @@ export const followupTurnPayloadSchema = z
     volta_total: z.number().int().optional(),
     classes: z.array(z.string()).optional(),
     hint: z.string().optional(),
+    // purpose 'generic_ai': as opções do nó GPT, campo a campo IDÊNTICAS às de `lib/followup/engine.ts`.
+    generic_ai_opcoes: z
+      .object({
+        modelo_gpt: z.string().optional(),
+        max_tokens: z.number().int().optional(),
+        temperature: z.number().optional(),
+        enviar_resultado_texto: z.boolean().optional(),
+        manter_contexto: z.boolean().optional(),
+        leitura_imagem_pdf: z.boolean().optional(),
+        ativar_personalidade: z.boolean().optional(),
+        ativar_base_informacoes: z.boolean().optional(),
+        ativar_restricoes: z.boolean().optional(),
+        salvar_em_campo: z.boolean().optional(),
+      })
+      .optional(),
     // purpose 'plan_timing': as esperas adaptativas do fluxo inteiro, na ordem.
     waits: z
       .array(
@@ -150,7 +178,7 @@ export type FollowupFlowTurnResult =
   | { kind: 'deferred'; until: Date; reason: string }
   | { kind: 'planned'; propostas: PropostaDeEsperaBruta[]; modelo: string }
   /** nó `ai_generic` (lote 1) — o texto que o prompt livre devolveu. */
-  | { kind: 'generic_ai_done'; text: string };
+  | { kind: 'generic_ai_done'; text: string; envio?: 'sent' | 'skipped' | 'deferred'; modelo?: string };
 
 /**
  * `InboundTurnDeps` + o callback que fecha o turno dirigido por fluxo de volta
@@ -381,6 +409,7 @@ export function createFollowupTurnHandler(deps: FollowupTurnDeps) {
         voltaTotal: payload.volta_total,
         classes: payload.classes,
         hint: payload.hint,
+        genericAiOpcoes: payload.generic_ai_opcoes,
         waits: payload.waits,
       });
       return;
@@ -460,6 +489,7 @@ async function runFlowDrivenTurn(
     voltaTotal: number | undefined;
     classes: string[] | undefined;
     hint: string | undefined;
+    genericAiOpcoes: OpcoesDoGpt | undefined;
     waits: EsperaParaPlanejar[] | undefined;
   },
 ): Promise<void> {
@@ -566,18 +596,110 @@ async function runFlowDrivenTurn(
     if (!context.ok) {
       throw new Error(`turno de IA genérica do fluxo falhou em get_lead_context (${context.error.code})`);
     }
+    const opcoes: OpcoesDoGpt = input.genericAiOpcoes ?? {};
+
+    // Variáveis do prompt ({{primeiro_nome}}, {{etapa_funil}}, campos do lead…): são as que a
+    // tela insere no cursor. Etapa e campos personalizados não vêm no contexto do lead.
+    const { rows: leadRows } = await pool.query<{ stage_name: string | null; custom_fields: Record<string, unknown> | null }>(
+      `select s.name as stage_name, l.custom_fields
+         from crm_leads l left join crm_stages s on s.id = l.stage_id
+        where l.organization_id = $1 and l.contact_id = $2
+        order by l.updated_at desc limit 1`,
+      [target.tenantId, target.leadId],
+    );
+    const contextoDoModelo = contextoDoNo(context.context, opcoes);
+    const promptFinal = interpolarVariaveis(
+      input.promptHint,
+      variaveisDoPrompt(context.context, {
+        etapa_funil: leadRows[0]?.stage_name ?? null,
+        campos: leadRows[0]?.custom_fields ?? null,
+      }),
+    );
+
+    // Modelo: o seletor é da OpenAI; só vale onde o provedor da organização o tem.
+    const orgLlm = await resolveOrgLlmConfig(pool, deps.llmCfg, target.tenantId);
+    const escolha = modeloEfetivo({ provider: orgLlm.provider, enabledModels: orgLlm.enabledModels }, opcoes.modelo_gpt);
+    if (escolha.motivo === 'provedor_sem_openai' || escolha.motivo === 'nao_habilitado') {
+      runLog.warn('nó GPT: modelo escolhido não se aplica a esta organização — usando o padrão', {
+        modelo_gpt: opcoes.modelo_gpt,
+        provedor: orgLlm.provider,
+        motivo: escolha.motivo,
+      });
+    }
+
+    // Personalidade, restrições e base de informações vêm do agente que ARMOU o fluxo.
+    const blocos: BlocosDoGpt = {};
+    if (opcoes.ativar_personalidade || opcoes.ativar_restricoes || opcoes.ativar_base_informacoes) {
+      const { rows: enr } = await pool.query<{ agent_id: string | null }>(
+        'select agent_id from followup_enrollments where organization_id = $1 and id = $2',
+        [target.tenantId, enrollmentId],
+      );
+      const agentId = enr[0]?.agent_id ?? null;
+      const agente = agentId ? await loadPublishedAgentConfigById(pool, target.tenantId, agentId) : null;
+      if (!agente) {
+        runLog.warn('nó GPT: personalidade/restrições/base pedidas, mas o fluxo não tem agente publicado — seguindo sem elas');
+      } else {
+        if (opcoes.ativar_personalidade) blocos.identidade = blocoDeIdentidade(agente.identity ?? null);
+        if (opcoes.ativar_restricoes) blocos.limites = blocoDeLimites(agente.limits ?? null);
+        if (opcoes.ativar_base_informacoes) {
+          const achados = await searchKnowledge(
+            pool,
+            {
+              organizationId: target.tenantId,
+              knowledgeSourceIds: agente.knowledgeSourceIds,
+              kbVersionId: agente.activeKbVersionId ?? null,
+              query: promptFinal.slice(0, 600),
+              topK: agente.ragTopK,
+              threshold: agente.ragSimilarityThreshold,
+              jobId: job.id,
+              agentId: agente.agentId,
+            },
+            { log: runLog },
+          );
+          if (achados.ok) blocos.conhecimento = achados.results.map((h) => h.content);
+          else runLog.warn('nó GPT: busca na base de informações falhou — seguindo sem ela', { erro: achados.error.code });
+        }
+      }
+    }
+
+    const temperature = temperaturaValida(opcoes.temperature);
     const text = await runGenericAiNode(
       pool,
       deps.llmCfg,
       { tenantId: target.tenantId, leadId: target.leadId, jobId: job.id },
       {
-        prompt: input.promptHint,
-        context: context.context,
-        ...(deps.knobs.followupAi?.model !== undefined ? { model: deps.knobs.followupAi.model } : {}),
+        prompt: promptFinal,
+        context: contextoDoModelo,
+        blocos,
+        paraCliente: opcoes.enviar_resultado_texto === true,
+        ...(escolha.model !== undefined
+          ? { model: escolha.model }
+          : deps.knobs.followupAi?.model !== undefined
+            ? { model: deps.knobs.followupAi.model }
+            : {}),
+        ...(temperature !== undefined ? { temperature } : {}),
+        ...(opcoes.max_tokens !== undefined ? { maxOutputTokens: opcoes.max_tokens } : {}),
       },
       { ...(deps.registry !== undefined ? { registry: deps.registry } : {}), log: runLog },
     );
-    await complete(pool, { jobId: job.id, jobClaim: claimOfJob(job), organizationId: target.tenantId, enrollmentId, nodeId, result: { kind: 'generic_ai_done', text } });
+
+    // «Enviar resultado como texto?»: o texto também vai ao cliente, pela cadeia de guardrails COM
+    // a camada semântica (é texto do modelo, não do operador). O desfecho fica no registro do passo:
+    // janela fechada ou recusa não perdem o texto — ele segue gravado e a timeline diz o que houve.
+    let envio: 'sent' | 'skipped' | 'deferred' | undefined;
+    if (opcoes.enviar_resultado_texto === true) {
+      const d = await sendFixedOutbound(deps, job, pool, ctx, clock, target, text, true);
+      envio = d.kind === 'sent' ? 'sent' : d.kind === 'skipped' ? 'skipped' : 'deferred';
+    }
+
+    await complete(pool, {
+      jobId: job.id,
+      jobClaim: claimOfJob(job),
+      organizationId: target.tenantId,
+      enrollmentId,
+      nodeId,
+      result: { kind: 'generic_ai_done', text, ...(envio !== undefined ? { envio } : {}), ...(escolha.model !== undefined ? { modelo: escolha.model } : {}) },
+    });
     return;
   }
 
