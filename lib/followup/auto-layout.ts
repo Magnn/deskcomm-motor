@@ -62,6 +62,7 @@ const TYPE_ORDER: Record<NodeType, number> = {
   payment_gateway: 19,
   whatsapp_template: 20,
   meta_pixel: 21,
+  voice_studio: 22,
 };
 
 export type NodeSize = { width: number; height: number };

@@ -101,6 +101,7 @@ const HEADER_BG_BY_TYPE: Record<string, string> = {
   payment_gateway: "bg-[#7c3aed]",
   whatsapp_template: "bg-[#2563eb]",
   meta_pixel: "bg-[#d97706]",
+  voice_studio: "bg-[#8b5cf6]",
   end: "bg-[#52525b]",
 };
 
@@ -124,6 +125,7 @@ const BORDER_COLOR_BY_TYPE: Record<string, string> = {
   payment_gateway: "!border-purple-600 text-purple-600",
   whatsapp_template: "!border-blue-600 text-blue-600",
   meta_pixel: "!border-amber-600 text-amber-600",
+  voice_studio: "!border-purple-600 text-purple-600",
   end: "!border-zinc-500 text-zinc-500",
 };
 

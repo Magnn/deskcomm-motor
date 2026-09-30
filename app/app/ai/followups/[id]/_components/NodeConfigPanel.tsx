@@ -31,6 +31,7 @@ import { PaymentGatewayForm } from "./forms/PaymentGatewayForm";
 import { WhatsappTemplateForm } from "./forms/WhatsappTemplateForm";
 import { PixPaymentForm } from "./forms/PixPaymentForm";
 import { MetaPixelForm } from "./forms/MetaPixelForm";
+import { VoiceStudioForm } from "./forms/VoiceStudioForm";
 import type { ConfigOf } from "./forms/shared";
 import { NODE_VISUALS } from "./nodes/nodeVisuals";
 
@@ -278,6 +279,12 @@ export function NodeConfigPanel({ node, flowId, onChange, onDelete, onClose, ram
         {type === "meta_pixel" && (
           <MetaPixelForm
             config={node.data.config as ConfigOf<"meta_pixel">}
+            onChange={(config) => onChange({ config })}
+          />
+        )}
+        {type === "voice_studio" && (
+          <VoiceStudioForm
+            config={node.data.config as ConfigOf<"voice_studio">}
             onChange={(config) => onChange({ config })}
           />
         )}
