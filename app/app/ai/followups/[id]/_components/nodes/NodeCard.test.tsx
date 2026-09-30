@@ -18,7 +18,15 @@ import { NODE_VISUALS } from "./nodeVisuals";
 let etapasDoFluxo: EtapasDoFluxo = { etapas: [], carregando: false, falhou: false, nomes: {} };
 vi.mock("../EtapasDoFluxo", () => ({ useEtapasDoFluxo: () => etapasDoFluxo }));
 vi.mock("@xyflow/react", () => ({
-  Handle: () => null,
+  Handle: (props: any) => (
+    <div
+      data-testid={`handle-${props.type}-${props.position}`}
+      data-style={JSON.stringify(props.style)}
+      data-class={props.className}
+    >
+      {props.children}
+    </div>
+  ),
   Position: { Top: "top", Right: "right", Bottom: "bottom", Left: "left" },
   NodeToolbar: ({ children, isVisible }: any) =>
     isVisible ? <div data-testid="node-toolbar">{children}</div> : null,
@@ -142,5 +150,19 @@ describe("NodeCard — prévia de conteúdo (nó Ação, modo content)", () => {
       <NodeCard id="c2" visual={NODE_VISUALS.action} label="Enviar mensagem" subtitle="0 itens" previewRows={[]} />,
     );
     expect(screen.queryByTestId("node-preview-c2")).toBeNull();
+  });
+
+  it("handles de entrada e saída têm exatamente o mesmo alinhamento vertical (68px)", () => {
+    const { getByTestId } = render(
+      <NodeCard id="c1" visual={NODE_VISUALS.action} label="Conteúdo" subtitle="0 itens" previewRows={[]} />,
+    );
+    const target = getByTestId("handle-target-left");
+    const source = getByTestId("handle-source-right");
+    expect(JSON.parse(target.dataset.style!).top).toBe("68px");
+    expect(JSON.parse(source.dataset.style!).top).toBe("68px");
+    expect(target.dataset.class).toContain("!h-5");
+    expect(target.dataset.class).toContain("!w-5");
+    expect(source.dataset.class).toContain("!h-5");
+    expect(source.dataset.class).toContain("!w-5");
   });
 });

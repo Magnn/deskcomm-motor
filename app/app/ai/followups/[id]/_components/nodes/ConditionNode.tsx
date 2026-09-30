@@ -123,6 +123,7 @@ export function ConditionNode({ id, data, selected }: NodeProps<RFNode>) {
       errors={data.errors}
       simulating={data.simulating}
       customPreview={customPreview}
+      showSource={isPerCheck}
       branches={isPerCheck ? nodeBranches({ type: "condition", config }) : []}
     />
   );
