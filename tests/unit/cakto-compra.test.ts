@@ -119,7 +119,7 @@ function fake(sobrescreve: Partial<DepsDaCompra> = {}) {
       chamadas.push(`inscrever:${fluxo}`);
       return { ok: true };
     },
-    async fluxosDoEvento() {
+    async fluxosDoEvento(_compra) {
       return [];
     },
     async adicionarTags() {},

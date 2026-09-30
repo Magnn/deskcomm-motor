@@ -15,6 +15,7 @@ import { describe, expect, it } from "vitest";
 
 import { aplicarEventoDaCakto, type DepsDaCompra } from "@/lib/pagamentos/compra-cakto";
 import { triggerConfigSchema } from "@/lib/followup/api-schemas";
+import { produtoCasa } from "@/lib/pagamentos/eventos-da-cakto";
 import { mapCaktoPayload } from "@/lib/webhooks/cakto";
 
 function aviso(evento: string, pedido = "pedido-1") {
@@ -55,8 +56,8 @@ function montar(over: Sobrescritas = {}) {
       log.push(`inscrever:${fluxo}`);
       return { ok: true };
     },
-    async fluxosDoEvento(evento) {
-      return fluxos?.[evento] ?? [];
+    async fluxosDoEvento(compra) {
+      return fluxos?.[compra.evento] ?? [];
     },
     async adicionarTags(_id, novas) {
       tagsGravadas.push(novas);
@@ -175,5 +176,42 @@ describe("triggerConfigSchema — payment_event", () => {
     expect(triggerConfigSchema.safeParse({ kind: "payment_event", params: { provider: "cakto", event: "nao_existe" } }).success).toBe(false);
     expect(triggerConfigSchema.safeParse({ kind: "payment_event", params: { provider: "kiwify", event: "pix_gerado" } }).success).toBe(false);
     expect(triggerConfigSchema.safeParse({ kind: "payment_event" }).success).toBe(false);
+  });
+});
+
+describe('produtoCasa — o filtro por produto é do dono da conta (nada amarrado a um produto)', () => {
+  const produto = { id: 'cd287b31-d4b7', nome: 'Curso de Fotografia: Módulo Avançado' };
+
+  it('sem filtro, vale qualquer produto', () => {
+    expect(produtoCasa(undefined, produto)).toBe(true);
+    expect(produtoCasa([], produto)).toBe(true);
+    expect(produtoCasa(['  '], produto)).toBe(true);
+  });
+
+  it('casa pelo ID (igualdade) ou por parte do nome (sem caixa nem acento)', () => {
+    expect(produtoCasa(['cd287b31-d4b7'], produto)).toBe(true);
+    expect(produtoCasa(['CD287B31-D4B7'], produto)).toBe(true);
+    expect(produtoCasa(['modulo avancado'], produto)).toBe(true);
+    expect(produtoCasa(['fotografia'], produto)).toBe(true);
+  });
+
+  it('não casa outro produto, nem pedaço de ID', () => {
+    expect(produtoCasa(['culinaria'], produto)).toBe(false);
+    expect(produtoCasa(['cd287b31'], produto)).toBe(false);
+  });
+
+  it('qualquer entrada da lista basta', () => {
+    expect(produtoCasa(['culinaria', 'fotografia'], produto)).toBe(true);
+  });
+
+  it('produto sem nome e sem id só casa quando não há filtro', () => {
+    expect(produtoCasa(['x'], { id: null, nome: null })).toBe(false);
+    expect(produtoCasa(undefined, { id: null, nome: null })).toBe(true);
+  });
+
+  it('o schema aceita a lista de produtos e recusa entrada vazia', () => {
+    const base = { kind: 'payment_event', params: { provider: 'cakto', event: 'pix_gerado' } };
+    expect(triggerConfigSchema.safeParse({ ...base, params: { ...base.params, products: ['a', 'b'] } }).success).toBe(true);
+    expect(triggerConfigSchema.safeParse({ ...base, params: { ...base.params, products: [''] } }).success).toBe(false);
   });
 });

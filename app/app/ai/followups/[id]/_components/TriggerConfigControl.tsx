@@ -89,6 +89,7 @@ interface TriggerFormState {
   cancelOnReply: boolean;
   eventTypeIds: string[];
   pagamentoEvento: EventoDaCakto;
+  pagamentoProdutos: string;
   msgMatch: ModoDaMensagem;
   msgKeywords: string;
   msgKeywordMode: ModoDaPalavra;
@@ -144,7 +145,7 @@ function parseTriggerConfig(raw: Record<string, unknown>): TriggerFormState {
                   ? "lead_created"
                   : "manual";
   const params =
-    (raw.params as { threshold_minutes?: number; segments?: string[]; stage_id?: string; event_type_ids?: string[]; match?: ModoDaMensagem; keywords?: string[]; keyword_mode?: ModoDaPalavra; event?: EventoDaCakto } | undefined) ?? {};
+    (raw.params as { threshold_minutes?: number; segments?: string[]; stage_id?: string; event_type_ids?: string[]; match?: ModoDaMensagem; keywords?: string[]; keyword_mode?: ModoDaPalavra; event?: EventoDaCakto; products?: string[] } | undefined) ?? {};
   const minutosRetorno =
     kind === "inbound_after_silence" && typeof params.threshold_minutes === "number"
       ? params.threshold_minutes
@@ -167,6 +168,7 @@ function parseTriggerConfig(raw: Record<string, unknown>): TriggerFormState {
     cancelOnReply: raw.cancel_on_reply === true,
     pagamentoEvento:
       kind === "payment_event" && params.event && EVENTOS_DA_CAKTO.includes(params.event) ? params.event : "purchase_approved",
+    pagamentoProdutos: kind === "payment_event" && Array.isArray(params.products) ? params.products.join(", ") : "",
     msgMatch: kind === "inbound_message" && params.match ? params.match : "any",
     msgKeywords: kind === "inbound_message" && Array.isArray(params.keywords) ? params.keywords.join(", ") : "",
     msgKeywordMode: kind === "inbound_message" && params.keyword_mode ? params.keyword_mode : "contains",
@@ -187,7 +189,12 @@ function toTriggerConfig(form: TriggerFormState): Record<string, unknown> {
   if (form.kind === "case_opened") return { kind: "case_opened", ...cancelOnReply };
   if (form.kind === "webhook") return { kind: "webhook", ...cancelOnReply };
   if (form.kind === "payment_event") {
-    return { kind: "payment_event", params: { provider: "cakto", event: form.pagamentoEvento }, ...cancelOnReply };
+    const products = palavrasDe(form.pagamentoProdutos);
+    return {
+      kind: "payment_event",
+      params: { provider: "cakto", event: form.pagamentoEvento, ...(products.length > 0 ? { products } : {}) },
+      ...cancelOnReply,
+    };
   }
   if (form.kind === "inbound_message") {
     const keywords = palavrasDe(form.msgKeywords);
@@ -262,7 +269,8 @@ function summaryLabel(
   }
   if (cfg.kind === "payment_event") {
     const e = (cfg.params as { event?: EventoDaCakto } | undefined)?.event;
-    return `${t("Gatilho")}: Cakto — ${e ? t(ROTULOS_DOS_EVENTOS_DA_CAKTO[e] ?? e) : t("evento")}`;
+    const prod = (cfg.params as { products?: string[] } | undefined)?.products ?? [];
+    return `${t("Gatilho")}: Cakto — ${e ? t(ROTULOS_DOS_EVENTOS_DA_CAKTO[e] ?? e) : t("evento")}${prod.length > 0 ? ` (${prod.join(", ")})` : ""}`;
   }
   if (cfg.kind === "inbound_message") {
     const p = (cfg.params as { match?: string; keywords?: string[] } | undefined) ?? {};
@@ -329,7 +337,8 @@ export function TriggerConfigControl({ flowId, triggerConfig }: Props) {
         form.thresholdUnidade !== saved.thresholdUnidade ||
         form.segments !== saved.segments)) ||
     (form.kind === "stage_change" && form.stageId !== saved.stageId) ||
-    (form.kind === "payment_event" && form.pagamentoEvento !== saved.pagamentoEvento) ||
+    (form.kind === "payment_event" &&
+      (form.pagamentoEvento !== saved.pagamentoEvento || form.pagamentoProdutos !== saved.pagamentoProdutos)) ||
     (form.kind === "inbound_message" &&
       (form.msgMatch !== saved.msgMatch ||
         form.msgKeywords !== saved.msgKeywords ||
@@ -473,6 +482,13 @@ export function TriggerConfigControl({ flowId, triggerConfig }: Props) {
                   ))}
                 </SelectContent>
               </Select>
+              <Label htmlFor="trigger-pagamento-produtos">{t("Produtos (opcional)")}</Label>
+              <Input
+                id="trigger-pagamento-produtos"
+                placeholder={t("ID ou parte do nome, separados por vírgula — vazio = todos")}
+                value={form.pagamentoProdutos}
+                onChange={(e) => setForm((f) => ({ ...f, pagamentoProdutos: e.target.value }))}
+              />
               <p className="text-xs text-muted-foreground">
                 {t("O fluxo começa quando a Cakto avisa este evento de uma pessoa que já está no CRM (pelo telefone ou e-mail do checkout). Quem nunca falou com você fica para uma pessoa olhar. O mesmo aviso reenviado não recomeça o fluxo.")}
               </p>

@@ -20,11 +20,13 @@ export interface EscolhaDeGatilho {
   event: string;
   /** Palavras separadas por vírgula ou quebra de linha. */
   keyword: string;
+  /** Cakto: produtos (ID ou parte do nome), separados por vírgula; vazio = todos. */
+  produtos?: string;
 }
 
 export type TriggerConfigGravavel =
   | { kind: "inbound_message"; params: ParamsDaMensagem }
-  | { kind: "payment_event"; params: { provider: "cakto"; event: EventoDaCakto } }
+  | { kind: "payment_event"; params: { provider: "cakto"; event: EventoDaCakto; products?: string[] } }
   | { kind: "webhook" };
 
 export function palavrasDe(texto: string): string[] {
@@ -40,7 +42,9 @@ export function gatilhoDaEscolha(escolha: EscolhaDeGatilho): TriggerConfigGravav
   if (escolha.provider === "cakto") {
     const evento = EVENTOS_DA_CAKTO.find((e) => e === escolha.event);
     // Evento fora da lista é escolha incompleta: a tela recusa antes de criar, em vez de gravar um gatilho que nunca dispara.
-    return evento === undefined ? null : { kind: "payment_event", params: { provider: "cakto", event: evento } };
+    if (evento === undefined) return null;
+    const products = palavrasDe(escolha.produtos ?? "");
+    return { kind: "payment_event", params: { provider: "cakto", event: evento, ...(products.length > 0 ? { products } : {}) } };
   }
   if (escolha.provider !== "whatsapp") return { kind: "webhook" };
   switch (escolha.event) {
@@ -80,8 +84,12 @@ export function descreverGatilho(cfg: Record<string, unknown> | null | undefined
     return { providerId: "whatsapp", evento: "Qualquer mensagem", palavras: [] };
   }
   if (kind === "payment_event") {
-    const evento = (cfg?.params as { event?: EventoDaCakto } | undefined)?.event;
-    return { providerId: "cakto", evento: evento ? ROTULOS_DOS_EVENTOS_DA_CAKTO[evento] ?? null : null, palavras: [] };
+    const p = cfg?.params as { event?: EventoDaCakto; products?: string[] } | undefined;
+    return {
+      providerId: "cakto",
+      evento: p?.event ? ROTULOS_DOS_EVENTOS_DA_CAKTO[p.event] ?? null : null,
+      palavras: p?.products ?? [],
+    };
   }
   if (kind === "inbound_after_silence") {
     return { providerId: "whatsapp", evento: "Retorno após silêncio", palavras: [] };

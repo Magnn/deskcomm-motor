@@ -71,6 +71,8 @@ export const triggerConfigSchema = z.discriminatedUnion("kind", [
     params: z.strictObject({
       provider: z.literal("cakto"),
       event: z.enum(EVENTOS_DA_CAKTO),
+      // ID ou parte do nome do produto na Cakto; ausente/vazio = qualquer produto.
+      products: z.array(z.string().trim().min(1).max(120)).max(20).optional(),
     }),
     ...CANCEL_ON_REPLY,
   }),

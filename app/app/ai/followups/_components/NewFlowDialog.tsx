@@ -316,6 +316,7 @@ export function NewFlowDialog({ open, onOpenChange }: Props) {
   const [selectedProvider, setSelectedProvider] = useState("whatsapp");
   const [selectedEvent, setSelectedEvent] = useState("mensagem_recebida");
   const [keyword, setKeyword] = useState("");
+  const [produtos, setProdutos] = useState("");
   const [erro, setErro] = useState<string | null>(null);
 
   const create = useCreateFollowupFlow();
@@ -339,7 +340,7 @@ export function NewFlowDialog({ open, onOpenChange }: Props) {
     }
 
     // Palavra-chave sem palavra é gatilho que nunca dispara: recusa ANTES de criar.
-    const gatilho = gatilhoDaEscolha({ provider: selectedProvider, event: selectedEvent, keyword });
+    const gatilho = gatilhoDaEscolha({ provider: selectedProvider, event: selectedEvent, keyword, produtos });
     if (gatilho === null) {
       setErro(t("Informe ao menos uma palavra-chave para este gatilho."));
       return;
@@ -370,6 +371,7 @@ export function NewFlowDialog({ open, onOpenChange }: Props) {
         }
         setName("");
         setKeyword("");
+        setProdutos("");
         setErro(null);
         onOpenChange(false);
         if (created?.id && typeof window !== "undefined") {
@@ -549,6 +551,23 @@ export function NewFlowDialog({ open, onOpenChange }: Props) {
                 placeholder={t("Ex: EU QUERO, QUERO SABER MAIS")}
                 className="h-10 rounded-lg border-neutral-300 text-sm focus:border-purple-500 focus:ring-1 focus:ring-purple-500 dark:border-neutral-700"
                 maxLength={60}
+              />
+            </div>
+          )}
+
+          {/* Campo: Produtos (quando o gatilho é a Cakto) */}
+          {selectedProvider === "cakto" && (
+            <div className="space-y-1">
+              <Label htmlFor="flow-produtos" className="text-xs font-bold text-neutral-800 dark:text-neutral-200">
+                {t("Produtos")} <span className="text-[11px] font-normal text-neutral-400">({t("Opcional")})</span>
+              </Label>
+              <Input
+                id="flow-produtos"
+                value={produtos}
+                onChange={(e) => setProdutos(e.target.value)}
+                placeholder={t("ID ou parte do nome, separados por vírgula — vazio = todos")}
+                className="h-10 rounded-lg border-neutral-300 text-sm focus:border-purple-500 focus:ring-1 focus:ring-purple-500 dark:border-neutral-700"
+                maxLength={300}
               />
             </div>
           )}

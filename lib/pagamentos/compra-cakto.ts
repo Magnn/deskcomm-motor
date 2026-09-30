@@ -26,6 +26,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { encontrarContatoPorTelefone } from "@/lib/channels/contato-por-telefone";
 import { enrollFollowupFlow } from "@/lib/followup/enroll";
 import { emitLeadActivity } from "@/lib/leads/activity-emitter";
+import { produtoCasa } from "@/lib/pagamentos/eventos-da-cakto";
 import { slugDoTrabalho, type CompraDaCakto } from "@/lib/webhooks/cakto";
 
 export type ResultadoDaCompra =
@@ -45,7 +46,7 @@ export interface DepsDaCompra {
   acharFluxoDeEntrega(): Promise<string | null>;
   inscrever(contatoId: string, fluxoId: string): Promise<{ ok: true } | { ok: false; motivo: string }>;
   /** Fluxos ATIVOS cujo gatilho é «evento de pagamento» deste evento da Cakto. */
-  fluxosDoEvento(evento: string): Promise<string[]>;
+  fluxosDoEvento(compra: CompraDaCakto): Promise<string[]>;
   /** Acrescenta marcas ao contato sem tocar no resto do cadastro. */
   adicionarTags(contatoId: string, tags: string[]): Promise<void>;
 }
@@ -64,7 +65,7 @@ async function dispararFluxosDoEvento(
   compra: CompraDaCakto,
   contato: { id: string; tags: string[] },
 ): Promise<{ configurados: number; iniciados: number; motivo?: string }> {
-  const fluxos = await deps.fluxosDoEvento(compra.evento);
+  const fluxos = await deps.fluxosDoEvento(compra);
   if (fluxos.length === 0) return { configurados: 0, iniciados: 0 };
   const marca = `cakto:${compra.evento}:${compra.pedidoId}`;
   if (contato.tags.includes(marca)) return { configurados: fluxos.length, iniciados: 0, motivo: "evento já aplicado" };
@@ -108,7 +109,7 @@ export async function aplicarEventoDaCakto(deps: DepsDaCompra, compra: CompraDaC
 
   if (compra.evento !== "purchase_approved") {
     // Pix gerado, abandono, recusa, assinatura…: só há o que fazer se um fluxo pediu este evento.
-    if ((await deps.fluxosDoEvento(compra.evento)).length === 0) return { resultado: "ignorada", evento: compra.evento };
+    if ((await deps.fluxosDoEvento(compra)).length === 0) return { resultado: "ignorada", evento: compra.evento };
     const c = await deps.acharContato(compra.cliente);
     if (c === null) return { resultado: "contato_nao_encontrado" };
     const r = await dispararFluxosDoEvento(deps, compra, c);
@@ -262,17 +263,20 @@ export function depsReais(admin: SupabaseClient, organizationId: string, request
       return (data as Array<{ id: string }> | null)?.[0]?.id ?? null;
     },
 
-    async fluxosDoEvento(evento) {
+    async fluxosDoEvento(compra) {
       const { data } = await admin
         .from("followup_flow_pointers")
-        .select("id")
+        .select("id, trigger_config")
         .eq("organization_id", organizationId)
         .eq("status", "active")
         .eq("trigger_config->>kind", "payment_event")
         .eq("trigger_config->params->>provider", "cakto")
-        .eq("trigger_config->params->>event", evento)
+        .eq("trigger_config->params->>event", compra.evento)
         .order("created_at", { ascending: true });
-      return ((data as Array<{ id: string }> | null) ?? []).map((r) => r.id);
+      // O filtro de produto é do fluxo: «Pix gerado» do produto A não inicia o fluxo do produto B.
+      return ((data as Array<{ id: string; trigger_config: { params?: { products?: string[] } } | null }> | null) ?? [])
+        .filter((r) => produtoCasa(r.trigger_config?.params?.products, { id: compra.produtoId, nome: compra.produtoNome }))
+        .map((r) => r.id);
     },
 
     async adicionarTags(contatoId, novas) {
