@@ -1,13 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import type { FlowNode } from "@/lib/followup/graph-schema";
 import type { RFNode, RFNodeData } from "@/lib/followup/graph-mappers";
-import { Trash } from "@/lib/ui/icons";
+import { Check, PencilSimple, Trash, X } from "@/lib/ui/icons";
+import { cn } from "@/lib/utils";
 import { useT } from "@/hooks/i18n/useT";
 
 import { ActionForm } from "./forms/ActionForm";
@@ -27,6 +25,7 @@ import { AddNoteForm } from "./forms/AddNoteForm";
 import { CollectForm } from "./forms/CollectForm";
 import { AgentForm } from "./forms/AgentForm";
 import { SkillForm } from "./forms/SkillForm";
+import { TriggerForm } from "./forms/TriggerForm";
 import type { ConfigOf } from "./forms/shared";
 import { NODE_VISUALS } from "./nodes/nodeVisuals";
 
@@ -42,80 +41,159 @@ interface Props {
 }
 
 /**
- * Casca do formulário de configuração: cabeçalho, rótulo do nó e o formulário
- * do tipo. Cada tipo mora em `forms/` — um arquivo por formulário, para que
- * duas pessoas mexendo em nós diferentes não disputem o mesmo arquivo.
- *
- * A regra que os formulários seguem: o campo só grava no nó vivo (`onChange`)
- * quando o candidato passa no schema — senão mostra erro inline e o canvas
- * mantém a última config válida (nunca um valor pela metade rio acima).
+ * Inspector unificado no padrão AcassIA / Lalla para TODOS os nós do fluxo:
+ * - Cabeçalho com título editável inline, botão de renomear e fechar.
+ * - Subtítulo com categoria do nó e "CONFIGURAR PARÂMETROS".
+ * - Barra de alterações não salvas (dot pulsante âmbar) quando há dados modificados.
+ * - Corpo específico de cada nó com formulários e controles enriquecidos.
+ * - Rodapé fixo com botão verde "✓ Salvar Alterações" e botão "Excluir nó".
  */
 export function NodeConfigPanel({ node, flowId, onChange, onDelete, onClose, ramosLigados }: Props) {
   const t = useT();
   const type = node.type as FlowNode["type"];
   const visual = NODE_VISUALS[type];
   const Icon = visual.icon;
-  const [label, setLabel] = useState(node.data.label);
-  const [labelError, setLabelError] = useState<string | null>(null);
 
-  const commitLabel = (value: string) => {
-    setLabel(value);
-    if (value.trim().length < 1 || value.length > 60) {
-      setLabelError(t("Rótulo precisa ter 1 a 60 caracteres."));
-      return;
+  // Estado de edição do título inline
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [label, setLabel] = useState(node.data.label || t(visual.paletteLabel));
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Rastreamento de alterações não salvas (dirty state)
+  const snapshotRef = useRef<string>(JSON.stringify(node.data));
+  const [isDirty, setIsDirty] = useState(false);
+  const [savedFeedback, setSavedFeedback] = useState(false);
+
+  useEffect(() => {
+    snapshotRef.current = JSON.stringify(node.data);
+    setLabel(node.data.label || t(visual.paletteLabel));
+    setIsDirty(false);
+    setEditingTitle(false);
+  }, [node.id, node.type, t, visual.paletteLabel]);
+
+  useEffect(() => {
+    const current = JSON.stringify(node.data);
+    setIsDirty(current !== snapshotRef.current);
+  }, [node.data]);
+
+  useEffect(() => {
+    if (editingTitle && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
     }
-    setLabelError(null);
-    onChange({ label: value });
+  }, [editingTitle]);
+
+  const confirmRename = useCallback(() => {
+    const trimmed = label.trim();
+    if (trimmed && trimmed !== node.data.label) {
+      onChange({ label: trimmed });
+    }
+    setEditingTitle(false);
+  }, [label, node.data.label, onChange]);
+
+  const handleSave = () => {
+    snapshotRef.current = JSON.stringify(node.data);
+    setIsDirty(false);
+    setSavedFeedback(true);
+    setTimeout(() => setSavedFeedback(false), 2000);
   };
 
-  if (type === "action") {
-    return (
-      <div className="flex h-full flex-col overflow-y-auto p-4 pt-0 lg:pt-2" data-testid="node-config-panel">
-        <ActionForm
-          config={node.data.config as ConfigOf<"action">}
-          flowId={flowId}
-          nodeLabel={label}
-          onLabelChange={commitLabel}
-          onChange={(config) => onChange({ config })}
-          onDelete={onDelete}
-          onClose={onClose}
-        />
-      </div>
-    );
-  }
-
   return (
-    <div className="flex h-full flex-col gap-5 overflow-y-auto" data-testid="node-config-panel">
-      <div className="space-y-1">
-        <h2 className="flex items-center gap-2 text-base font-semibold text-text">
-          <span className={`flex h-6 w-6 items-center justify-center rounded-full ${visual.chipClassName}`}>
-            <Icon size={14} aria-hidden />
-          </span>
-          {t(visual.paletteLabel)}
-        </h2>
-        <p className="text-sm text-text-muted">
-          {t("Alterações aplicam no rascunho ao digitar — salve na barra de publicação.")}
-        </p>
-      </div>
+    <div
+      className="flex h-full flex-col min-h-0 bg-white dark:bg-zinc-950 font-sans text-text select-text"
+      data-testid="node-config-panel"
+    >
+      {/* Cabeçalho AcassIA: Título inline + Categoria + Ações */}
+      <header className="flex items-center justify-between px-5 py-3 border-b border-zinc-200 dark:border-zinc-800 shrink-0 min-h-[54px] bg-white dark:bg-zinc-950">
+        {editingTitle ? (
+          <div className="flex items-center gap-1.5 flex-1 mr-2">
+            <input
+              ref={inputRef}
+              type="text"
+              value={label}
+              maxLength={60}
+              onChange={(e) => setLabel(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") confirmRename();
+                if (e.key === "Escape") {
+                  setLabel(node.data.label || t(visual.paletteLabel));
+                  setEditingTitle(false);
+                }
+              }}
+              onBlur={confirmRename}
+              className="flex-1 text-sm font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight border border-indigo-500 rounded-xl px-2.5 py-1 outline-none focus:ring-2 focus:ring-indigo-500/30 bg-zinc-50 dark:bg-zinc-900"
+            />
+          </div>
+        ) : (
+          <div className="flex flex-col min-w-0 pr-2">
+            <div className="flex items-center gap-2">
+              <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${visual.chipClassName}`}>
+                <Icon size={12} aria-hidden />
+              </span>
+              <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight truncate">
+                {label || t(visual.paletteLabel)}
+              </span>
+            </div>
+            <span className="text-[10px] text-zinc-400 font-medium uppercase tracking-wider pl-7">
+              {t(visual.paletteLabel)} • {t("Configurar Parâmetros")}
+            </span>
+          </div>
+        )}
 
-      <div className="space-y-2">
-        <Label htmlFor="node-label">{t("Rótulo")}</Label>
-        <Input
-          id="node-label"
-          value={label}
-          maxLength={60}
-          onChange={(e) => commitLabel(e.target.value)}
-        />
-        {labelError && <p className="text-xs text-error-fg">{labelError}</p>}
-      </div>
-
-      <div className="space-y-4 border-t border-border pt-4">
-        {type === "trigger" && (
-          <p className="text-sm text-text-muted">
-            {t(
-              "Início do fluxo — sem configuração adicional. O disparo (manual, mudança de etapa, silêncio ou fim de conversa) é definido nas configurações do fluxo.",
+        <div className="flex items-center gap-1 shrink-0">
+          <button
+            type="button"
+            className="w-7 h-7 rounded-lg text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 flex items-center justify-center transition-colors cursor-pointer"
+            title={editingTitle ? t("Confirmar") : t("Renomear")}
+            onClick={() => {
+              if (editingTitle) confirmRename();
+              else setEditingTitle(true);
+            }}
+          >
+            {editingTitle ? (
+              <Check size={16} className="text-emerald-600" weight="bold" />
+            ) : (
+              <PencilSimple size={16} />
             )}
-          </p>
+          </button>
+
+          {onClose && (
+            <button
+              type="button"
+              className="w-7 h-7 rounded-lg text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 flex items-center justify-center transition-colors cursor-pointer"
+              title={t("Fechar painel")}
+              onClick={onClose}
+            >
+              <X size={16} />
+            </button>
+          )}
+        </div>
+      </header>
+
+      {/* Indicador de alterações não salvas (AcassIA dirty indicator) */}
+      {isDirty && (
+        <div className="px-5 py-1.5 bg-amber-50 dark:bg-amber-950/40 border-b border-amber-200/60 dark:border-amber-900/40 flex items-center gap-2 shrink-0 animate-in fade-in duration-150">
+          <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+          <span className="text-[11px] text-amber-700 dark:text-amber-400 font-medium">
+            {t("Alterações não salvas")}
+          </span>
+        </div>
+      )}
+
+      {/* Corpo com formulário específico de cada nó */}
+      <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+        {type === "action" && (
+          <ActionForm
+            config={node.data.config as ConfigOf<"action">}
+            flowId={flowId}
+            onChange={(config) => onChange({ config })}
+          />
+        )}
+        {type === "trigger" && (
+          <TriggerForm
+            config={node.data.config as Record<string, unknown>}
+            onChange={(config) => onChange({ config: config as FlowNode["config"] })}
+          />
         )}
         {type === "wait" && (
           <WaitForm config={node.data.config as ConfigOf<"wait">} onChange={(config) => onChange({ config })} />
@@ -186,19 +264,43 @@ export function NodeConfigPanel({ node, flowId, onChange, onDelete, onClose, ram
         )}
       </div>
 
-      <div className="mt-auto border-t border-border pt-4">
-        <Button
+      {/* Rodapé fixo: Botão Salvar Verde + Excluir Nó */}
+      <footer className="px-5 py-3 border-t border-zinc-100 dark:border-zinc-800/80 bg-zinc-50/50 dark:bg-zinc-950/80 shrink-0 space-y-2">
+        <button
           type="button"
-          variant="outline"
-          size="sm"
-          className="w-full text-destructive"
-          data-testid="delete-node"
-          onClick={onDelete}
+          onClick={handleSave}
+          disabled={!isDirty}
+          className={cn(
+            "w-full py-2.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all shadow-xs select-none",
+            isDirty
+              ? "bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white shadow-emerald-500/20 cursor-pointer"
+              : "bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 cursor-default"
+          )}
         >
-          <Trash size={14} aria-hidden className="mr-1" />
-          {t("Excluir nó")}
-        </Button>
-      </div>
+          {savedFeedback ? (
+            <>
+              <Check size={14} weight="bold" />
+              <span>{t("Dados Salvos!")}</span>
+            </>
+          ) : isDirty ? (
+            t("✓ Salvar Alterações")
+          ) : (
+            t("Configurações Salvas")
+          )}
+        </button>
+
+        <div className="text-center pt-0.5">
+          <button
+            type="button"
+            data-testid="delete-node"
+            onClick={onDelete}
+            className="text-xs text-neutral-400 hover:text-rose-600 transition-colors inline-flex items-center justify-center gap-1.5 py-1 cursor-pointer w-full"
+          >
+            <Trash size={13} aria-hidden />
+            {t("Excluir nó")}
+          </button>
+        </div>
+      </footer>
     </div>
   );
 }

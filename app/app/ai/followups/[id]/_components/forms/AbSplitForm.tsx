@@ -2,9 +2,6 @@
 
 import { useState } from "react";
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { abSplitConfigSchema, type AbSplitBranch } from "@/lib/followup/graph-schema";
 import { Plus, Trash } from "@/lib/ui/icons";
 import { useT } from "@/hooks/i18n/useT";
@@ -18,13 +15,6 @@ function novoId(usados: ReadonlySet<string>): string {
   }
 }
 
-/**
- * A/B split de tráfego — referência de UX da pesquisa (AcassIA `ab_split`):
- * poucos campos, um por braço (rótulo + percentual), com o total sempre
- * visível. A "conversão por caminho ao vivo" da referência fica para uma
- * frente futura de métricas por nó — hoje o card mostra a divisão
- * CONFIGURADA (o que o operador decidiu), não o resultado medido.
- */
 export function AbSplitForm({
   config,
   onChange,
@@ -37,6 +27,7 @@ export function AbSplitForm({
   const [error, setError] = useState<string | null>(null);
 
   const total = branches.reduce((soma, b) => soma + (Number.isFinite(b.percent) ? b.percent : 0), 0);
+  const isBalanced = total === 100;
 
   const commit = (next: AbSplitBranch[]) => {
     const parsed = abSplitConfigSchema.safeParse({ branches: next });
@@ -54,66 +45,109 @@ export function AbSplitForm({
     commit(next);
   };
 
+  const handleSliderChange = (index: number, newValue: number) => {
+    const next = branches.map((b, i) => (i === index ? { ...b, percent: newValue } : b));
+    setBranches(next);
+    commit(next);
+  };
+
+  const adicionarTeste = () => {
+    if (branches.length >= 6) return;
+    const usados = new Set(branches.map((b) => b.id));
+    const restante = Math.max(0, 100 - total);
+    const next = [...branches, { id: novoId(usados), label: `${t("Teste")} ${branches.length + 1}`, percent: restante || 10 }];
+    setBranches(next);
+    commit(next);
+  };
+
+  const removerTeste = (index: number) => {
+    if (branches.length <= 2) return;
+    const next = branches.filter((_, i) => i !== index);
+    setBranches(next);
+    commit(next);
+  };
+
   return (
-    <div className="space-y-3">
-      <div className="space-y-2">
-        <Label>{t("Caminhos e percentual de cada um")}</Label>
+    <div className="space-y-4 font-sans text-xs">
+      <p className="text-[11px] text-slate-500 dark:text-zinc-400 leading-relaxed text-justify">
+        {t(
+          "É possível segmentar sua audiência para experimentar diversas variações de uma campanha e identificar qual delas apresenta o desempenho mais eficaz."
+        )}
+      </p>
+
+      <div className="flex justify-center pt-0.5">
+        <button
+          type="button"
+          disabled={branches.length >= 6}
+          onClick={adicionarTeste}
+          className="border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 rounded-full px-4 py-1.5 text-[11px] font-semibold text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 flex items-center gap-1.5 shadow-xs transition-colors disabled:opacity-50 cursor-pointer"
+        >
+          <Plus size={14} className="text-slate-400" />
+          <span>{t("Adicionar Teste")}</span>
+        </button>
+      </div>
+
+      <div className="space-y-3 pt-1">
         {branches.map((branch, index) => (
-          <div key={branch.id} className="flex items-center gap-2">
-            <Input
-              aria-label={`Rótulo do caminho ${index + 1}`}
-              value={branch.label}
-              onChange={(e) => atualizar(index, { label: e.target.value })}
-              placeholder={t("Rótulo")}
-              className="flex-1"
-            />
-            <Input
-              aria-label={`Percentual do caminho ${index + 1}`}
-              type="number"
-              min={1}
-              max={100}
-              value={branch.percent}
-              onChange={(e) => atualizar(index, { percent: Number(e.target.value) })}
-              className="w-20"
-            />
-            <span className="text-sm text-text-muted">%</span>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              aria-label={`Remover caminho ${index + 1}`}
-              disabled={branches.length <= 2}
-              onClick={() => {
-                const next = branches.filter((_, i) => i !== index);
-                setBranches(next);
-                commit(next);
-              }}
-            >
-              <Trash size={14} aria-hidden />
-            </Button>
+          <div
+            key={branch.id}
+            className="flex flex-col gap-2 p-3 border border-slate-200 dark:border-zinc-800 rounded-xl bg-white dark:bg-zinc-900 shadow-xs"
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-[12px] font-bold text-slate-700 dark:text-zinc-300 w-6">
+                T{index + 1}
+              </span>
+              <input
+                aria-label={`Rótulo do caminho ${index + 1}`}
+                value={branch.label}
+                onChange={(e) => atualizar(index, { label: e.target.value })}
+                placeholder={t("Rótulo")}
+                className="flex-1 px-2.5 py-1 text-[12px] border border-slate-200 dark:border-zinc-700 rounded-md outline-none focus:border-indigo-500 text-slate-700 dark:text-zinc-100 bg-transparent"
+              />
+              <button
+                type="button"
+                aria-label={`Remover caminho ${index + 1}`}
+                disabled={branches.length <= 2}
+                onClick={() => removerTeste(index)}
+                className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded transition-colors disabled:opacity-30 cursor-pointer"
+              >
+                <Trash size={14} aria-hidden />
+              </button>
+            </div>
+
+            <div className="flex items-center gap-3 pt-1">
+              <input
+                aria-label={`Percentual do caminho ${index + 1}`}
+                type="range"
+                min={1}
+                max={100}
+                value={branch.percent}
+                onChange={(e) => handleSliderChange(index, Number(e.target.value))}
+                className="flex-1 accent-[#a855f7] h-1.5 bg-slate-200 dark:bg-zinc-700 rounded-lg appearance-none cursor-pointer"
+              />
+              <span className="w-16 text-right font-bold text-[12px] text-blue-500 dark:text-blue-400">
+                {branch.percent}%
+              </span>
+            </div>
           </div>
         ))}
-        {branches.length < 6 && (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              const usados = new Set(branches.map((b) => b.id));
-              const restante = Math.max(0, 100 - total);
-              const next = [...branches, { id: novoId(usados), label: t("Novo caminho"), percent: restante || 10 }];
-              setBranches(next);
-              commit(next);
-            }}
-          >
-            <Plus size={14} aria-hidden className="mr-1" /> {t("Adicionar caminho")}
-          </Button>
-        )}
-        <p className={`text-xs ${total === 100 ? "text-text-muted" : "text-error-fg"}`}>
-          {t("Total")}: {total}% {total !== 100 && `(${t("precisa somar 100%")})`}
-        </p>
       </div>
-      {error && <p className="text-xs text-error-fg">{error}</p>}
+
+      {/* Banner de Validação 100% Calibrado */}
+      <div
+        className={`flex items-center justify-between p-2.5 rounded-xl border text-xs font-semibold ${
+          isBalanced
+            ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400"
+            : "bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400"
+        }`}
+      >
+        <span>{t("Total Distribuído:")}</span>
+        <span>
+          {total}% {isBalanced ? t("✓ 100% Calibrado") : t("⚠ Deve somar 100%")}
+        </span>
+      </div>
+
+      {error && <p className="text-xs text-error-fg font-medium">{error}</p>}
     </div>
   );
 }

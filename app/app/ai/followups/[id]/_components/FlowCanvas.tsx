@@ -598,7 +598,7 @@ function FlowCanvasInner({ flowId, initialData }: Props) {
                 <X size={16} aria-hidden />
               </Button>
             </div>
-            <div className="flex-1 overflow-y-auto p-4 pt-0 lg:pt-4">
+            <div className="flex-1 overflow-hidden flex flex-col min-h-0">
               <NodeConfigPanel
                 key={selectedNode.id}
                 node={selectedNode}
