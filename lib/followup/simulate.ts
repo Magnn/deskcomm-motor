@@ -102,7 +102,7 @@ export type SimEntrada =
   | { kind: "saida_do_agente"; saida: SaidaDoAgente };
 
 /** O que o simulador está esperando do operador para continuar. */
-export type SimAguardando = "wait" | "ai_classify" | "match_reply" | "menu" | "attendant_route" | "agent" | null;
+export type SimAguardando = "wait" | "ai_classify" | "match_reply" | "menu" | "collect" | "attendant_route" | "agent" | null;
 
 export type SimStatus = "aguardando_entrada" | "concluido" | "erro";
 
@@ -120,14 +120,16 @@ export type SimTranscriptEntry =
       kind: "mensagem_simulada";
       nodeId: string;
       texto: string;
-      origem: "texto_fixo" | "ia" | "modelo_salvo" | "confirmacao" | "conteudo" | "menu";
+      origem: "texto_fixo" | "ia" | "modelo_salvo" | "confirmacao" | "conteudo" | "menu" | "pergunta";
     }
   | { kind: "transicao"; nodeId: string; label: string; repeat?: { index: number; total: number } }
   | {
       kind: "aguardando";
       nodeId: string;
-      motivo: "wait" | "ai_classify" | "match_reply" | "menu" | "attendant_route" | "agent";
+      motivo: "wait" | "ai_classify" | "match_reply" | "menu" | "collect" | "attendant_route" | "agent";
     }
+  /** A saída do nó não está ligada a nada: no motor real o lead FICA PARADO aqui (não é erro). */
+  | { kind: "parado"; nodeId: string; motivo: string }
   | { kind: "resultado_atribuicao"; nodeId: string; atribuido: boolean }
   /** O operador escolheu por onde o agente sai (o agente em si não roda no simulador). */
   | { kind: "saida_do_agente"; nodeId: string; saida: SaidaDoAgente }
@@ -416,8 +418,8 @@ export async function avancarSimulacao(args: {
       repeatTaken: state.repeatProgress[node.id]?.taken,
       repeatTotal: state.repeatProgress[node.id]?.total ?? null,
       proximo,
-      actionEnqueued: node.type === "menu" && state.aguardando === "menu",
-      actionCompleted: node.type === "menu" && state.aguardando === "menu",
+      actionEnqueued: (node.type === "menu" && state.aguardando === "menu") || (node.type === "collect" && state.aguardando === "collect"),
+      actionCompleted: (node.type === "menu" && state.aguardando === "menu") || (node.type === "collect" && state.aguardando === "collect"),
       attendantAssigned:
         node.type === "attendant_route" && entrada?.kind === "resultado_atribuicao" && entrada.atribuido,
       attendantDeadlineAt:
@@ -449,7 +451,9 @@ export async function avancarSimulacao(args: {
               ? "match_reply"
               : node.type === "menu"
                 ? "menu"
-                : "attendant_route";
+                : node.type === "collect"
+                  ? "collect"
+                  : "attendant_route";
         state = {
           ...state,
           aguardando: motivo,
@@ -471,6 +475,19 @@ export async function avancarSimulacao(args: {
         }
         if (result.purpose === "send_message") {
           if (result.wake_status === "waiting_reply") {
+            if (node.type === "collect") {
+              state = {
+                ...state,
+                aguardando: "collect",
+                status: "aguardando_entrada",
+                transcript: [
+                  ...state.transcript,
+                  { kind: "mensagem_simulada", nodeId: node.id, texto: result.fixed_body ?? "", origem: "pergunta" },
+                  { kind: "aguardando", nodeId: node.id, motivo: "collect" },
+                ],
+              };
+              return state;
+            }
             if (node.type === "menu") {
               state = {
                 ...state,
@@ -557,6 +574,16 @@ export async function avancarSimulacao(args: {
         }
         return state;
       }
+
+      case "park":
+        // O lead fica aqui: o simulador para, sem erro, e diz o motivo — é o que o motor real faz.
+        return {
+          ...state,
+          status: "concluido",
+          aguardando: null,
+          outcome: { outcome: null, nota: result.reason },
+          transcript: [...state.transcript, { kind: "parado", nodeId: node.id, motivo: result.reason }],
+        };
 
       case "fail":
         return falha(state, result.error, node.id);

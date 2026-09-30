@@ -95,6 +95,11 @@ function Entrada({ entry }: { entry: SimTranscriptEntry }) {
               {t("Pergunta de confirmação — o dado já está preenchido nos dados simulados do lead.")}
             </p>
           )}
+          {entry.origem === "pergunta" && (
+            <p className="mt-1 text-xs text-text-muted">
+              {t("Pergunta do fluxo — a resposta do lead será gravada no campo configurado.")}
+            </p>
+          )}
           {entry.origem === "conteudo" && (
             <p className="mt-1 text-xs text-text-muted">
               {t("Prévia da sequência de itens, na ordem de envio — mídia e contato não são pré-visualizados aqui.")}
@@ -121,7 +126,9 @@ function Entrada({ entry }: { entry: SimTranscriptEntry }) {
               ? t("Aguardando a resposta do lead para casar com as regras deste nó.")
               : entry.motivo === "menu"
                 ? t("Aguardando a escolha pelo número ou nome da opção.")
-                : t("Aguardando o resultado da distribuição de atendentes.");
+                : entry.motivo === "collect"
+                  ? t("Aguardando a resposta do lead à pergunta (ou o prazo esgotar).")
+                  : t("Aguardando o resultado da distribuição de atendentes.");
       return <p className="text-center text-xs text-text-muted">{texto}</p>;
     }
 
@@ -156,6 +163,13 @@ function Entrada({ entry }: { entry: SimTranscriptEntry }) {
             : t("Ao concluir, a IA assumiria a conversa livremente.");
       return <p className="text-center text-xs text-text-muted">{texto}</p>;
     }
+
+    case "parado":
+      return (
+        <p className="text-center text-xs font-medium text-text-muted" data-testid="simulator-parado">
+          {t("O lead ficaria parado aqui")} — {entry.motivo}. {t("Ligue a saída no construtor para o fluxo seguir.")}
+        </p>
+      );
 
     case "erro":
       return (

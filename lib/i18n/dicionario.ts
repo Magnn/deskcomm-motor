@@ -12356,6 +12356,10 @@ export const DICIONARIO: Traducoes = {
   },
   "Rascunho gerado. Revise e ajuste antes de salvar.": { es: "Borrador generado. Revísalo y ajústalo antes de guardar." },
   Gerar: { es: "Generar" },
+  "Pergunta do fluxo — a resposta do lead será gravada no campo configurado.": { es: "Pregunta del flujo — la respuesta del lead se guardará en el campo configurado." },
+  "Aguardando a resposta do lead à pergunta (ou o prazo esgotar).": { es: "Esperando la respuesta del lead a la pregunta (o que venza el plazo)." },
+  "O lead ficaria parado aqui": { es: "El lead quedaría detenido aquí" },
+  "Ligue a saída no construtor para o fluxo seguir.": { es: "Conecta la salida en el constructor para que el flujo siga." },
 };
 
 /**

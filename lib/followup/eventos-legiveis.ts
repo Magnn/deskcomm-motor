@@ -409,6 +409,19 @@ export function descreveEvento(
       const modo = texto(p.mode) === "smart" ? " (tempo escolhido pelo agente)" : "";
       return { titulo: "Começou a esperar", detalhe: ate ? `volta a olhar em ${ate}${modo}` : null, ...motor };
     }
+    case "collect_sent":
+      return {
+        titulo: "Fez a pergunta e ficou esperando a resposta",
+        detalhe: quandoLegivel(p.next_eval_at, idioma) ? `sem resposta, o fluxo segue em ${quandoLegivel(p.next_eval_at, idioma)}` : null,
+        ...motor,
+      };
+    case "node_parked":
+      // Nada deu errado: a saída desse passo não está ligada a nada, então o fluxo não tem para onde ir.
+      return {
+        titulo: "Ficou parado neste passo",
+        detalhe: texto(p.reason) ? `${texto(p.reason)} — ligue a saída no construtor para o fluxo seguir` : "a saída deste passo não está ligada a nada",
+        ...motor,
+      };
     case "turn_enqueued":
       // O MESMO event_type serve a dois pedidos diferentes, e o `purpose` no
       // payload é o que os separa. Sem olhar para ele, o passo de PLANEJAMENTO
