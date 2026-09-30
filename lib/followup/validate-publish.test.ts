@@ -914,6 +914,22 @@ describe('validateFlowForPublish — nós de paridade AcassIA', () => {
           position: pos,
           config: { pixel_id: 'px-1', event_type: 'Lead', page_id: 'page-1', item_value: '100,00', currency: 'BRL' },
         },
+        {
+          id: 'vs',
+          type: 'voice_studio',
+          label: 'Voice Studio',
+          position: pos,
+          config: {
+            text: 'Olá do Voice Studio',
+            stability: 0.5,
+            similarity: 0.7,
+            style: 0.5,
+            speed: 1.0,
+            send_as_voice_note: true,
+            voice_id: 'julieta',
+            voice_name: 'Julieta',
+          },
+        },
         end('f'),
       ],
       edges: [
@@ -921,7 +937,8 @@ describe('validateFlowForPublish — nós de paridade AcassIA', () => {
         edge('wt', 'pix', always()),
         edge('pix', 'gw', always()),
         edge('gw', 'px', always()),
-        edge('px', 'f', always()),
+        edge('px', 'vs', always()),
+        edge('vs', 'f', always()),
       ],
     };
 

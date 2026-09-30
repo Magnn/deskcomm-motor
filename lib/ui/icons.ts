@@ -156,4 +156,5 @@ export {
   Cpu,
   CreditCard,
   Target,
+  SpeakerHigh,
 } from "@phosphor-icons/react/dist/ssr";

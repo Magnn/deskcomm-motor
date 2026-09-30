@@ -75,6 +75,7 @@ import { PixPaymentNode } from "./nodes/PixPaymentNode";
 import { PaymentGatewayNode } from "./nodes/PaymentGatewayNode";
 import { WhatsappTemplateNode } from "./nodes/WhatsappTemplateNode";
 import { MetaPixelNode } from "./nodes/MetaPixelNode";
+import { VoiceStudioNode } from "./nodes/VoiceStudioNode";
 
 const EMPTY_GRAPH: FlowGraph = { nodes: [], edges: [] };
 const DND_MIME = "application/x-followup-node-type";
@@ -104,6 +105,7 @@ const nodeTypes: NodeTypes = {
   payment_gateway: PaymentGatewayNode,
   whatsapp_template: WhatsappTemplateNode,
   meta_pixel: MetaPixelNode,
+  voice_studio: VoiceStudioNode,
 };
 
 interface Props {

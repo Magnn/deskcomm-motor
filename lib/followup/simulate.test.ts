@@ -657,6 +657,21 @@ describe("avancarSimulacao — nós paridade AcassIA (whatsapp_template, pix_pay
           label: "Pixel",
           config: { pixel_id: "pixel_123", event_type: "Compra", page_id: "pg_456", item_value: "197,00", currency: "BRL" },
         }),
+        no({
+          id: "vs1",
+          type: "voice_studio",
+          label: "Voice Studio",
+          config: {
+            text: "Olá! Seja muito bem-vindo!",
+            stability: 0.5,
+            similarity: 0.7,
+            style: 0.5,
+            speed: 1.0,
+            send_as_voice_note: true,
+            voice_id: "julieta",
+            voice_name: "Julieta",
+          },
+        }),
         no({ id: "e1", type: "end", label: "Fim", config: { outcome: "converted" } }),
       ],
       edges: [
@@ -664,7 +679,8 @@ describe("avancarSimulacao — nós paridade AcassIA (whatsapp_template, pix_pay
         aresta({ source: "wt1", target: "pix1", condition: { type: "always" } }),
         aresta({ source: "pix1", target: "gw1", condition: { type: "always" } }),
         aresta({ source: "gw1", target: "px1", condition: { type: "always" } }),
-        aresta({ source: "px1", target: "e1", condition: { type: "always" } }),
+        aresta({ source: "px1", target: "vs1", condition: { type: "always" } }),
+        aresta({ source: "vs1", target: "e1", condition: { type: "always" } }),
       ],
     };
 
@@ -673,11 +689,12 @@ describe("avancarSimulacao — nós paridade AcassIA (whatsapp_template, pix_pay
     expect(final.outcome).toEqual({ outcome: "converted" });
 
     const msgs = final.transcript.filter((e) => e.kind === "mensagem_simulada");
-    expect(msgs).toHaveLength(4);
+    expect(msgs).toHaveLength(5);
     expect(msgs[0]?.texto).toContain("[Template WhatsApp] oferta_exclusiva");
     expect(msgs[1]?.texto).toContain("[PIX cpf] Chave: 123.456.789-00");
     expect(msgs[2]?.texto).toContain("[Cobrança Gateway] BRL 197,00");
     expect(msgs[3]?.texto).toContain('[Meta Pixel] Evento "Compra"');
+    expect(msgs[4]?.texto).toContain('[Voice Studio · Julieta (Áudio gravado (PTT))] "Olá! Seja muito bem-vindo!"');
   });
 });
 

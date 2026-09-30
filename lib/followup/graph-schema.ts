@@ -33,6 +33,7 @@ export const NODE_TYPES = [
   'payment_gateway',
   'whatsapp_template',
   'meta_pixel',
+  'voice_studio',
 ] as const;
 export type NodeType = (typeof NODE_TYPES)[number];
 
@@ -745,6 +746,20 @@ export const metaPixelConfigSchema = z.strictObject({
 });
 export type MetaPixelConfig = z.infer<typeof metaPixelConfigSchema>;
 
+/** Voice Studio (AcassIA parity - Síntese e Clonagem de Áudio com IA) */
+export const voiceStudioConfigSchema = z.strictObject({
+  text: z.string().default(''),
+  stability: z.number().min(0).max(1).default(0.5),
+  similarity: z.number().min(0).max(1).default(0.7),
+  style: z.number().min(0).max(1).default(0.5), // Sotaque
+  speed: z.number().min(0.5).max(2.0).default(1.0), // Velocidade
+  send_as_voice_note: z.boolean().default(true), // Enviar como áudio gravado?
+  voice_id: z.string().default('julieta'),
+  voice_name: z.string().default('Julieta'),
+});
+export type VoiceStudioConfig = z.infer<typeof voiceStudioConfigSchema>;
+
+
 /**
  * Flow node schema — discriminated union based on node type.
  * Each node type has its specific config schema.
@@ -987,6 +1002,17 @@ export const flowNodeSchema = z.discriminatedUnion('type', [
       y: z.number(),
     }),
     config: metaPixelConfigSchema,
+  }),
+  // Voice Studio (Áudio com IA)
+  z.strictObject({
+    id: z.string().min(1),
+    type: z.literal('voice_studio'),
+    label: z.string().min(1).max(60),
+    position: z.strictObject({
+      x: z.number(),
+      y: z.number(),
+    }),
+    config: voiceStudioConfigSchema,
   }),
 ]);
 

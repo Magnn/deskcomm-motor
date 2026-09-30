@@ -26,6 +26,7 @@ const ORDEM_PALETA: readonly NodeType[] = [
   "action", // Conteúdo
   "collect", // Pergunta
   "whatsapp_template", // Template WhatsApp (Meta)
+  "voice_studio", // Voice Studio (Áudio IA)
   "api_call", // API Request
   "pix_payment", // PIX
   "payment_gateway", // Pagamento
@@ -56,6 +57,7 @@ const NOVIDADES = new Set<NodeType>([
   "payment_gateway",
   "whatsapp_template",
   "meta_pixel",
+  "voice_studio",
 ]);
 
 /** Sidebar palette — click to add. Native HTML5 drag-and-drop wired in FlowCanvas (increment 3). */

@@ -147,6 +147,7 @@ const TIPO_DO_NO: Record<FlowNode["type"], string> = {
   payment_gateway: "Pagamento",
   whatsapp_template: "Template WhatsApp",
   meta_pixel: "Pixel Facebook",
+  voice_studio: "Voice Studio",
 };
 
 const DESFECHO: Record<string, string> = {
@@ -249,6 +250,8 @@ export function resumoDoNo(node: FlowNode): NoDoDossie {
       return { ...base, resumo: `envia template WhatsApp oficial (${node.config.template_name || "Meta"})` };
     case "meta_pixel":
       return { ...base, resumo: `dispara evento do Pixel Meta (${node.config.event_type})` };
+    case "voice_studio":
+      return { ...base, resumo: `gera e envia áudio com IA (${node.config.voice_name || "Voz"})` };
   }
 }
 

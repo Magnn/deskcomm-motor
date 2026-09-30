@@ -105,6 +105,8 @@ export function toFlowNode(n: RFNode): FlowNode {
       return { ...shared, type, config: n.data.config as ConfigOf<"whatsapp_template"> };
     case "meta_pixel":
       return { ...shared, type, config: n.data.config as ConfigOf<"meta_pixel"> };
+    case "voice_studio":
+      return { ...shared, type, config: n.data.config as ConfigOf<"voice_studio"> };
     default: {
       const exhaustive: never = type;
       throw new Error(`unknown node type: ${String(exhaustive)}`);

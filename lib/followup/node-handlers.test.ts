@@ -1657,6 +1657,7 @@ describe("processNode — nós de paridade AcassIA (pix_payment, payment_gateway
     ["payment_gateway", { currency: "BRL", amount: "100,00" }],
     ["whatsapp_template", { template_name: "tmpl_1" }],
     ["meta_pixel", { pixel_id: "px_1", event_type: "Lead" }],
+    ["voice_studio", { text: "Olá", voice_id: "julieta" }],
   ] as const)("avança pela aresta always no nó %s", (type, config) => {
     const node: FlowNode = {
       id: "src",

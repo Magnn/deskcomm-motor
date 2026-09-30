@@ -275,6 +275,15 @@ function mensagemSimuladaDePassagem(
       origem: "conteudo",
     };
   }
+  if (node.type === "voice_studio") {
+    const voz = node.config.voice_name || "Julieta";
+    const formato = node.config.send_as_voice_note ? "Áudio gravado (PTT)" : "Arquivo de áudio";
+    const texto = node.config.text ? interpolarVolta(node.config.text, volta) : "(sem texto)";
+    return {
+      texto: `[Voice Studio · ${voz} (${formato})] "${texto}"`,
+      origem: "texto_fixo",
+    };
+  }
   if (node.type === "api_call") {
     return {
       texto: `[Requisição API] ${node.config.method} ${node.config.url || "(sem URL)"}`,

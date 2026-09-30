@@ -573,6 +573,24 @@ export const NODE_VISUALS: Record<NodeType, NodeVisual> = {
       currency: "BRL",
     }),
   },
+  voice_studio: {
+    type: "voice_studio",
+    paletteLabel: "Voice Studio",
+    paletteDesc: "Áudio com IA / ElevenLabs",
+    icon: Microphone,
+    ...visualDoMatiz("purple"),
+    defaultLabel: "Voice Studio",
+    defaultConfig: () => ({
+      text: "",
+      stability: 0.5,
+      similarity: 0.7,
+      style: 0.5,
+      speed: 1.0,
+      send_as_voice_note: true,
+      voice_id: "julieta",
+      voice_name: "Julieta",
+    }),
+  },
   // Fora da paleta (`NODE_VISUAL_LIST` vem de `NOS_DA_SUPERFICIE`) até o motor existir: a tabela é exaustiva por
   // `NodeType`, mas só entra na paleta o que a superfície executa.
   agent: {
@@ -726,6 +744,11 @@ export function describeNodeConfig(
     case "meta_pixel": {
       const c = config as ConfigOf<"meta_pixel">;
       return `${c.event_type || t("Pixel")}${c.item_value ? ` · ${c.item_value}` : ""}`;
+    }
+    case "voice_studio": {
+      const c = config as ConfigOf<"voice_studio">;
+      const snippet = c.text ? (c.text.length > 25 ? `${c.text.slice(0, 25)}...` : c.text) : t("Sem texto");
+      return `${c.voice_name || "Julieta"}: "${snippet}"`;
     }
     default: {
       const exhaustive: never = type;
