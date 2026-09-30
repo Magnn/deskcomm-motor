@@ -427,6 +427,16 @@ export const NAV_CATALOG = [
     sidebar: true,
   },
   {
+    href: "/app/ai/voice",
+    label: "Voice Studio",
+    description: "Gerencie as vozes disponíveis, sintetize falas com IA e clone novas vozes.",
+    icon: "Microphone",
+    group: "ia",
+    section: "Montar o agente",
+    minRole: "agent",
+    sidebar: true,
+  },
+  {
     href: "/app/ai/credentials",
     label: "Credenciais",
     description: "A chave do provedor de IA que os agentes usam para pensar.",

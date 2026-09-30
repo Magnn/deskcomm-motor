@@ -38,6 +38,10 @@ type Traducoes = Record<string, Partial<Record<Exclude<Idioma, "pt-BR">, string>
 
 export const DICIONARIO: Traducoes = {
 
+  // ── Voice Studio ───────────────────────────────────────────────────────────
+  "Voice Studio": { es: "Voice Studio" },
+  "Gerencie as vozes disponíveis, sintetize falas com IA e clone novas vozes.": { es: "Gestione las voces disponibles, sintetice voz con IA y clone nuevas voces." },
+
   // ── Voz da agente (aba "Voz", respostas em áudio) ──────────────────────────
   "Não consegui gerar a voz agora.": { es: "No pude generar la voz ahora." },
   "Escolha uma voz antes de ligar as respostas em áudio.": { es: "Elige una voz antes de activar las respuestas en audio." },
