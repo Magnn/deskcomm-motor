@@ -191,6 +191,14 @@ export async function POST(_req: NextRequest, ctx: RouteCtx): Promise<Response> 
     if (result.code === "pointer_not_found") {
       return fail("not_found", t("Fluxo não encontrado."), 404, { requestId });
     }
+    if (result.code === "trigger_conflict") {
+      return fail(
+        "trigger_conflict",
+        t("Outro fluxo publicado já usa uma destas palavras-gatilho. Altere os gatilhos ou desative o fluxo que conflita antes de publicar."),
+        409,
+        { requestId },
+      );
+    }
     return fail("internal_error", result.message, 500, { requestId });
   }
 

@@ -30,7 +30,7 @@ const TEXTO_PADRAO = "Oi, tudo bem? Eu sou a voz que vai conversar com você por
 const bodySchema = z.object({
   provider: z.enum(IDS_DE_PROVEDOR_DE_VOZ),
   voice_id: z.string().trim().min(1).max(120),
-  text: z.string().trim().min(1).max(300).optional(),
+  text: z.string().trim().min(1).max(1000).optional(),
   model: z.string().trim().max(80).optional(),
   speed: z.number().min(0.7).max(1.2).optional(),
   stability: z.number().min(0).max(1).optional(),

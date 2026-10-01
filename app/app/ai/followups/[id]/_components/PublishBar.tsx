@@ -37,7 +37,8 @@ import {
   type FollowupFlowDetailRow,
 } from "@/hooks/followup/useFollowupFlow";
 import Link from "next/link";
-import { ArrowLeft, Play, Power, Trash, TreeStructure, WhatsappLogo, X } from "@/lib/ui/icons";
+import { ArrowLeft, DownloadSimple, Play, Power, Trash, TreeStructure, WhatsappLogo, X } from "@/lib/ui/icons";
+import { exportFlowToTemplate } from "@/lib/followup/export-import";
 import { FlowStatusBadge } from "../../_components/FlowStatusBadge";
 import { DeleteFollowupFlowButton } from "../../_components/DeleteFollowupFlowButton";
 import { RenameFollowupFlowButton } from "../../_components/RenameFollowupFlowButton";
@@ -130,6 +131,26 @@ export function PublishBar({
     rollback.mutate(flow.previous_version_id);
   };
 
+  const handleExport = () => {
+    try {
+      const pkg = exportFlowToTemplate({
+        name: flow.name,
+        nodes: graph.nodes,
+        edges: graph.edges,
+      });
+      const blob = new Blob([JSON.stringify(pkg, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `fluxo-${flow.name.toLowerCase().replace(/[^a-z0-9]/g, "-") || "template"}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success(t("Modelo exportado com sucesso!"));
+    } catch {
+      toast.error(t("Erro ao exportar modelo de fluxo."));
+    }
+  };
+
   const busy = save.isPending || publish.isPending || disable.isPending || rollback.isPending;
 
   return (
@@ -198,13 +219,13 @@ export function PublishBar({
               type="button"
               className="cursor-pointer rounded-full bg-[#7c3aed] px-3.5 py-0.5 text-[11px] font-bold text-white shadow-xs"
             >
-              Automação
+              {t("Automação")}
             </button>
             <button
               type="button"
               className="cursor-pointer rounded-full px-3 py-0.5 text-[11px] font-medium text-neutral-500 hover:text-neutral-900 dark:text-neutral-400"
             >
-              Relatórios
+              {t("Relatórios")}
             </button>
           </div>
         </div>
@@ -278,6 +299,17 @@ export function PublishBar({
               {t("Organizar")}
             </Button>
           )}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 text-xs font-semibold"
+            onClick={handleExport}
+            data-testid="export-flow"
+          >
+            <DownloadSimple size={13} aria-hidden className="mr-1" />
+            {t("Exportar")}
+          </Button>
         {selection ? (
           <>
             <Button

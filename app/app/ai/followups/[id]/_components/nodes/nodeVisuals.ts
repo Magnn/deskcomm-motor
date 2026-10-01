@@ -27,6 +27,11 @@ import {
   Browsers,
   Cpu,
   CheckCircle,
+  CreditCard,
+  Target,
+  Smiley,
+  GoogleLogo,
+  Code,
 } from "@/lib/ui/icons";
 import {
   AGENT_NODE_DEFAULT_MAX_TURNS,
@@ -50,6 +55,7 @@ export const ICONES_DE_ITEM_DE_CONTEUDO: Record<ConteudoItemType, IconeDeItem> =
   audio: Microphone,
   document: FileText,
   contact: IdentificationCard,
+  sticker: Smiley,
   delay: Clock,
 };
 
@@ -72,6 +78,8 @@ export function descreverItemDeConteudo(item: ConteudoItem, t: (texto: string) =
       return item.filename ?? t(TIPOS_DE_ITEM_DE_CONTEUDO.document);
     case "contact":
       return item.name;
+    case "sticker":
+      return t(TIPOS_DE_ITEM_DE_CONTEUDO.sticker);
     case "delay":
       return `Delay de ${item.seconds} Segundos`;
   }
@@ -482,15 +490,22 @@ export const NODE_VISUALS: Record<NodeType, NodeVisual> = {
   },
   api_call: {
     type: "api_call",
-    paletteLabel: "Ação",
-    paletteDesc: "Executar uma ação",
-    icon: Cpu,
-    ...visualDoMatiz("indigo"),
-    defaultLabel: "Ação",
+    paletteLabel: "API Request",
+    paletteDesc: "Integrar via requisição HTTP/API",
+    icon: PaperPlaneTilt,
+    ...visualDoMatiz("purple"),
+    defaultLabel: "API Request",
     // `example.com`, não `exemplo.com`: RFC 2606, reservado e nunca resolve —
     // o mesmo domínio que a catraca de host de terceiro (branding.test.ts)
     // já isenta de declaração para amostra de formato de campo.
-    defaultConfig: () => ({ method: "POST", url: "https://example.com/webhook", headers: [], actions: [] }),
+    defaultConfig: () => ({
+      method: "POST",
+      url: "https://example.com/webhook",
+      headers: [],
+      body: "",
+      actions: [],
+      response_mapping: [],
+    }),
   },
   notify_agent: {
     type: "notify_agent",
@@ -509,6 +524,108 @@ export const NODE_VISUALS: Record<NodeType, NodeVisual> = {
     ...visualDoMatiz("yellow"),
     defaultLabel: "Anotar no contato",
     defaultConfig: () => ({ body: "Configure a nota." }),
+  },
+  pix_payment: {
+    type: "pix_payment",
+    paletteLabel: "PIX",
+    paletteDesc: "Enviar cobrança via PIX",
+    icon: CreditCard,
+    ...visualDoMatiz("emerald"),
+    defaultLabel: "Editar PIX",
+    defaultConfig: () => ({
+      key_type: "aleatoria",
+      pix_key: "",
+    }),
+  },
+  payment_gateway: {
+    type: "payment_gateway",
+    paletteLabel: "Pagamento",
+    paletteDesc: "Cobrança via gateway",
+    icon: CreditCard,
+    ...visualDoMatiz("purple"),
+    defaultLabel: "Editar Pagamento",
+    defaultConfig: () => ({
+      currency: "BRL",
+      amount: "100,00",
+      customer_name: "{full_name}",
+      customer_phone: "{phone_number}",
+    }),
+  },
+  whatsapp_template: {
+    type: "whatsapp_template",
+    paletteLabel: "Template WhatsApp",
+    paletteDesc: "Template oficial Meta",
+    icon: ChatCircle,
+    ...visualDoMatiz("blue"),
+    defaultLabel: "Template WhatsApp",
+    defaultConfig: () => ({
+      template_name: "",
+      timeout: 60,
+      timeout_unit: "Minutos",
+    }),
+  },
+  meta_pixel: {
+    type: "meta_pixel",
+    paletteLabel: "Pixel Meta",
+    paletteDesc: "Disparar evento do Facebook",
+    icon: Target,
+    ...visualDoMatiz("amber"),
+    defaultLabel: "Editar Pixel",
+    defaultConfig: () => ({
+      pixel_id: "",
+      event_type: "Compra",
+      page_id: "",
+      item_value: "",
+      currency: "BRL",
+    }),
+  },
+  voice_studio: {
+    type: "voice_studio",
+    paletteLabel: "Voice Studio",
+    paletteDesc: "Áudio com IA / ElevenLabs",
+    icon: Microphone,
+    ...visualDoMatiz("purple"),
+    defaultLabel: "Voice Studio",
+    defaultConfig: () => ({
+      text: "",
+      stability: 0.5,
+      similarity: 0.7,
+      style: 0.5,
+      speed: 1.0,
+      send_as_voice_note: true,
+      voice_id: "julieta",
+      voice_name: "Julieta",
+    }),
+  },
+  google_sheets: {
+    type: "google_sheets",
+    paletteLabel: "Google Sheets",
+    paletteDesc: "Ler ou gravar em planilhas",
+    icon: GoogleLogo,
+    ...visualDoMatiz("emerald"),
+    defaultLabel: "Google Sheets",
+    defaultConfig: () => ({
+      operation: "insert_row",
+      spreadsheet_id: "",
+      sheet_name: "Página1",
+      lookup_column: "",
+      lookup_value: "",
+      mappings: [],
+    }),
+  },
+  execute_code: {
+    type: "execute_code",
+    paletteLabel: "Código JS",
+    paletteDesc: "Executar script JavaScript",
+    icon: Code,
+    ...visualDoMatiz("amber"),
+    defaultLabel: "Executar Código",
+    defaultConfig: () => ({
+      code: '// Escreva o código JS\nreturn { status: "ok" };',
+      timeout_ms: 3000,
+      output_field: "",
+      mappings: [],
+    }),
   },
   // Fora da paleta (`NODE_VISUAL_LIST` vem de `NOS_DA_SUPERFICIE`) até o motor existir: a tabela é exaustiva por
   // `NodeType`, mas só entra na paleta o que a superfície executa.
@@ -647,6 +764,41 @@ export function describeNodeConfig(
     case "agent": {
       const c = config as ConfigOf<"agent">;
       return c.objetivo;
+    }
+    case "pix_payment": {
+      const c = config as ConfigOf<"pix_payment">;
+      return `${t("PIX")} ${c.amount ? `· R$ ${c.amount}` : ""} · ${c.pix_key || t("Sem chave")}`;
+    }
+    case "payment_gateway": {
+      const c = config as ConfigOf<"payment_gateway">;
+      return `${c.currency} ${c.open_amount ? t("Valor aberto") : c.amount}`;
+    }
+    case "whatsapp_template": {
+      const c = config as ConfigOf<"whatsapp_template">;
+      return `${c.template_name || t("Sem template")} · ${c.timeout} ${t(c.timeout_unit)}`;
+    }
+    case "meta_pixel": {
+      const c = config as ConfigOf<"meta_pixel">;
+      return `${c.event_type || t("Pixel")}${c.item_value ? ` · ${c.item_value}` : ""}`;
+    }
+    case "voice_studio": {
+      const c = config as ConfigOf<"voice_studio">;
+      const snippet = c.text ? (c.text.length > 25 ? `${c.text.slice(0, 25)}...` : c.text) : t("Sem texto");
+      return `${c.voice_name || "Julieta"}: "${snippet}"`;
+    }
+    case "google_sheets": {
+      const c = config as ConfigOf<"google_sheets">;
+      const opLabels: Record<string, string> = {
+        insert_row: t("Inserir linha"),
+        get_row: t("Buscar linha"),
+        update_row: t("Atualizar linha"),
+        clear_row: t("Limpar linha"),
+      };
+      return `${opLabels[c.operation] || t("Planilha")} · ${c.sheet_name || t("Página1")}`;
+    }
+    case "execute_code": {
+      const c = config as ConfigOf<"execute_code">;
+      return `${t("Script JS")} · ${c.mappings.length} ${c.mappings.length === 1 ? t("saída") : t("saídas")}`;
     }
     default: {
       const exhaustive: never = type;

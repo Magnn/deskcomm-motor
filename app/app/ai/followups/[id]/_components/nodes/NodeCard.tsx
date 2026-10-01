@@ -11,6 +11,7 @@ import type { NomesDeValor } from "@/lib/followup/vocabulario";
 import { ArrowRight, Warning, WarningOctagon, Play, Copy, PencilSimple, Smiley, Check } from "@/lib/ui/icons";
 import { cn } from "@/lib/utils";
 import { useT } from "@/hooks/i18n/useT";
+import { copyToClipboard } from "@/lib/clipboard";
 import { useEtapasDoFluxo } from "../EtapasDoFluxo";
 import type { NodeVisual } from "./nodeVisuals";
 
@@ -92,11 +93,18 @@ const HEADER_BG_BY_TYPE: Record<string, string> = {
   collect: "bg-[#ea580c]",
   ab_split: "bg-[#db2777]",
   ai_generic: "bg-[#16a34a]",
-  api_call: "bg-[#2d336b]",
+  api_call: "bg-[#9333ea]",
   notify_agent: "bg-[#2563eb]",
   add_note: "bg-[#ca8a04]",
   attendant_route: "bg-[#0d9488]",
   agent: "bg-[#8b5cf6]",
+  pix_payment: "bg-[#059669]",
+  payment_gateway: "bg-[#7c3aed]",
+  whatsapp_template: "bg-[#2563eb]",
+  meta_pixel: "bg-[#d97706]",
+  voice_studio: "bg-[#8b5cf6]",
+  google_sheets: "bg-[#15803d]",
+  execute_code: "bg-[#d97706]",
   end: "bg-[#52525b]",
 };
 
@@ -112,10 +120,17 @@ const BORDER_COLOR_BY_TYPE: Record<string, string> = {
   collect: "!border-orange-500 text-orange-500",
   ab_split: "!border-pink-600 text-pink-600",
   ai_generic: "!border-green-600 text-green-600",
-  api_call: "!border-indigo-600 text-indigo-600",
+  api_call: "!border-purple-600 text-purple-600",
   notify_agent: "!border-blue-600 text-blue-600",
   add_note: "!border-amber-600 text-amber-600",
   attendant_route: "!border-yellow-600 text-yellow-600",
+  pix_payment: "!border-emerald-600 text-emerald-600",
+  payment_gateway: "!border-purple-600 text-purple-600",
+  whatsapp_template: "!border-blue-600 text-blue-600",
+  meta_pixel: "!border-amber-600 text-amber-600",
+  voice_studio: "!border-purple-600 text-purple-600",
+  google_sheets: "!border-emerald-600 text-emerald-600",
+  execute_code: "!border-amber-600 text-amber-600",
   end: "!border-zinc-500 text-zinc-500",
 };
 
@@ -139,18 +154,16 @@ export function NodeCard({
   const hasError = (errors?.length ?? 0) > 0;
   const branchRows = branches !== undefined && branches.length > 1 ? branches : null;
   const headerBg = HEADER_BG_BY_TYPE[visual.type] ?? "bg-[#7c3aed]";
-  const hasContentItems = previewRows !== undefined && previewRows.length > 0;
-  const handleTopStyle = hasContentItems ? { top: "54px" } : { top: "50%" };
+  const targetBorderClass = BORDER_COLOR_BY_TYPE[visual.type] ?? "!border-purple-600 text-purple-600";
+  const handleTopStyle = { top: "68px" };
 
   const [copiedId, setCopiedId] = useState(false);
 
-  const handleCopyId = (e: React.MouseEvent) => {
+  const handleCopyId = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (typeof navigator !== "undefined" && navigator.clipboard) {
-      void navigator.clipboard.writeText(id);
-      setCopiedId(true);
-      setTimeout(() => setCopiedId(false), 2000);
-    }
+    if (!(await copyToClipboard(id))) return;
+    setCopiedId(true);
+    setTimeout(() => setCopiedId(false), 2000);
   };
 
   return (
@@ -241,23 +254,18 @@ export function NodeCard({
           </span>
         )}
 
-      {/* Entrada (Target) no lado ESQUERDO com círculo branco, borda roxa e seta ▶ */}
+      {/* Entrada (Target) no lado ESQUERDO com círculo branco, borda colorida e seta ▶ */}
       {showTarget && (
         <Handle
           type="target"
           position={Position.Left}
-          className="!w-[16px] !h-[16px] !bg-white !shadow-sm !rounded-full !-left-2 z-10 !border-0"
-          style={{ border: "2px solid #7e22ce", ...handleTopStyle }}
+          className={cn(
+            "z-10 !flex !h-5 !w-5 !items-center !justify-center !rounded-full !border-2 !bg-white !shadow-sm !transition-all hover:!scale-125",
+            targetBorderClass,
+          )}
+          style={handleTopStyle}
         >
-          <svg
-            className="absolute left-1/2 top-1/2 -translate-x-[45%] -translate-y-1/2 pointer-events-none"
-            width="6"
-            height="8"
-            viewBox="0 0 8 10"
-            fill="none"
-          >
-            <path d="M8 5L0 10V0L8 5Z" fill="#7e22ce" />
-          </svg>
+          <Play size={8} weight="fill" className="pointer-events-none ml-0.5" />
         </Handle>
       )}
 
@@ -314,7 +322,7 @@ export function NodeCard({
         visual.type === "action" ? (
           <div className="p-3 flex flex-col items-center justify-center gap-2 py-6 min-h-[110px]">
             <Smiley size={40} className="text-slate-500" weight="regular" aria-hidden />
-            <span className="text-[13px] font-medium text-slate-500">Aguardando Configuração...</span>
+            <span className="text-[13px] font-medium text-slate-500">{t("Aguardando Configuração...")}</span>
           </div>
         ) : (
           <div className="p-3">
@@ -392,8 +400,8 @@ export function NodeCard({
                   <row.Icon size={15} aria-hidden className="shrink-0 text-[#9333ea]" />
                   <span title={row.texto}>
                     {row.texto === "Áudio (nota de voz)"
-                      ? "Enviando áudio gravado"
-                      : row.texto || "Enviando áudio gravado"}
+                      ? t("Enviando áudio gravado")
+                      : row.texto || t("Enviando áudio gravado")}
                   </span>
                 </li>
               );
@@ -416,7 +424,7 @@ export function NodeCard({
                   className="flex items-center gap-2 rounded-[8px] border border-dashed border-[#4ade80]/60 bg-[#f0fdf4] dark:bg-green-950/20 px-2.5 py-2 text-[11px] font-medium text-slate-700 dark:text-zinc-200 leading-[1.4]"
                 >
                   <row.Icon size={15} aria-hidden className="shrink-0 text-[#16a34a]" />
-                  <span title={row.texto}>{row.texto || "Enviando um vídeo"}</span>
+                  <span title={row.texto}>{row.texto || t("Enviando um vídeo")}</span>
                 </li>
               );
             }
@@ -519,7 +527,7 @@ export function NodeCard({
                   id={branch.id}
                   position={Position.Right}
                   className={cn(
-                    "!-right-2.5 !flex !h-5 !w-5 !items-center !justify-center !rounded-full !border-2 !border-white !shadow-sm !transition-all hover:!scale-125",
+                    "!-right-[13.5px] !flex !h-5 !w-5 !items-center !justify-center !rounded-full !border-2 !border-white !shadow-sm !transition-all hover:!scale-125",
                     branch.id === "timeout" || branch.id === "sem_resposta"
                       ? "!bg-[#ef4444] text-white"
                       : "!bg-[#2563eb] text-white",
@@ -539,7 +547,7 @@ export function NodeCard({
         <Handle
           type="source"
           position={Position.Right}
-          className="!-right-2.5 z-10 !flex !h-5 !w-5 !items-center !justify-center !rounded-full !border-2 !border-white !bg-[#2563eb] text-white !shadow-sm !transition-all hover:!scale-125"
+          className="z-10 !flex !h-5 !w-5 !items-center !justify-center !rounded-full !border-2 !border-white !bg-[#2563eb] text-white !shadow-sm !transition-all hover:!scale-125"
           style={handleTopStyle}
         >
           <Play size={8} weight="fill" className="pointer-events-none ml-0.5 text-white" />

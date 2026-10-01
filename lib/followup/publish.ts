@@ -14,7 +14,7 @@ export interface PublishFlowOk {
 
 export interface PublishFlowFail {
   ok: false;
-  code: "pointer_not_found" | "internal_error";
+  code: "pointer_not_found" | "trigger_conflict" | "internal_error";
   message: string;
 }
 
@@ -35,6 +35,9 @@ export async function publishFollowupFlowVersion(
     const raw = (error.message ?? "").trim();
     if (raw === "pointer_not_found") {
       return { ok: false, code: "pointer_not_found", message: raw };
+    }
+    if (raw.includes("trigger_conflict")) {
+      return { ok: false, code: "trigger_conflict", message: raw };
     }
     return { ok: false, code: "internal_error", message: raw || "publish_failed" };
   }

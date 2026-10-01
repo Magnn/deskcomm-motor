@@ -18,6 +18,7 @@ import * as path from "node:path";
 
 import pg from "pg";
 import { test, expect, type Page } from "@playwright/test";
+import { arrastarDoMenu } from "./utils/canvas-do-fluxo";
 
 import { credenciaisSupabaseDeTeste } from "../../scripts/lib/env-de-teste";
 
@@ -101,10 +102,10 @@ test.describe("Simulador do construtor de fluxo", () => {
     if (!flowId) throw new Error("não consegui extrair o id do fluxo da URL");
     await expect(page.locator(".react-flow")).toBeVisible();
 
-    await page.getByTestId("palette-add-trigger").click();
-    await page.getByTestId("palette-add-action").click();
-    await page.getByTestId("palette-add-wait").click();
-    await page.getByTestId("palette-add-end").click();
+    await arrastarDoMenu(page, "trigger");
+    await arrastarDoMenu(page, "action");
+    await arrastarDoMenu(page, "wait");
+    await arrastarDoMenu(page, "end");
 
     const [triggerId] = await nodeIdsByPrefix(page, "trigger");
     const [actionId] = await nodeIdsByPrefix(page, "action");

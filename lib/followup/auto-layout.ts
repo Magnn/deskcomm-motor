@@ -58,6 +58,13 @@ const TYPE_ORDER: Record<NodeType, number> = {
   agent: 15,
   menu: 16,
   attendant_route: 17,
+  pix_payment: 18,
+  payment_gateway: 19,
+  whatsapp_template: 20,
+  meta_pixel: 21,
+  voice_studio: 22,
+  google_sheets: 23,
+  execute_code: 24,
 };
 
 export type NodeSize = { width: number; height: number };

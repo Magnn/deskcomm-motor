@@ -23,6 +23,9 @@ import { TAG_DE_CLIENTE } from "@/lib/contacts/cliente";
 import { useActiveOrg } from "@/hooks/auth/AuthProvider";
 import { MergeDialog } from "@/components/contacts/MergeDialog";
 import { EmptyContacts } from "@/components/empty";
+import { FiltroAvancadoContatos, type FiltrosAvancadosState } from "@/components/contacts/FiltroAvancadoContatos";
+import { useDefaultPipeline } from "@/hooks/pipelines/useDefaultPipeline";
+import { camposDoFunil } from "@/lib/leads/campos-do-funil";
 import type { ContactOrderBy } from "@/lib/schemas/contacts";
 
 const SOURCE_OPTIONS = [
@@ -87,6 +90,53 @@ export function ContactsListClient() {
     if (clientesLigado) set.add(TAG_DE_CLIENTE);
     return Array.from(set).sort();
   }, [allContacts, clientesLigado]);
+
+  const funilPadrao = useDefaultPipeline(true);
+  const camposPersonalizados = useMemo(() => {
+    return camposDoFunil(funilPadrao.data?.pipeline.settings ?? null);
+  }, [funilPadrao.data]);
+
+  const [filtrosAvancados, setFiltrosAvancados] = useState<FiltrosAvancadosState>({
+    statusCliente: "todos",
+    bloqueado: "todos",
+  });
+
+  const handleFiltrosAvancadosChange = useCallback((novos: FiltrosAvancadosState) => {
+    setFiltrosAvancados(novos);
+    setTag(novos.tag);
+    setSource(novos.source);
+  }, []);
+
+  const filteredContacts = useMemo(() => {
+    return allContacts.filter((c) => {
+      if (filtrosAvancados.statusCliente === "cliente") {
+        const ehCliente = c.tags.includes(TAG_DE_CLIENTE) || Boolean(c.first_service_at);
+        if (!ehCliente) return false;
+      } else if (filtrosAvancados.statusCliente === "nao_cliente") {
+        const ehCliente = c.tags.includes(TAG_DE_CLIENTE) || Boolean(c.first_service_at);
+        if (ehCliente) return false;
+      }
+
+      if (filtrosAvancados.bloqueado === "ativo" && c.is_blocked) return false;
+      if (filtrosAvancados.bloqueado === "bloqueado" && !c.is_blocked) return false;
+
+      if (filtrosAvancados.campoPersonalizado?.chave) {
+        const { chave, operador, valor } = filtrosAvancados.campoPersonalizado;
+        const val = c.custom_fields?.[chave];
+        const estaPreenchido = val !== undefined && val !== null && val !== "";
+
+        if (operador === "preenchido" && !estaPreenchido) return false;
+        if (operador === "vazio" && estaPreenchido) return false;
+        if (operador === "contem" && valor) {
+          if (!estaPreenchido) return false;
+          const strVal = String(val).toLowerCase();
+          if (!strVal.includes(valor.toLowerCase())) return false;
+        }
+      }
+
+      return true;
+    });
+  }, [allContacts, filtrosAvancados]);
 
   const handleSort = useCallback(
     (column: ContactOrderBy) => {
@@ -204,7 +254,16 @@ export function ContactsListClient() {
           </DropdownMenuContent>
         </DropdownMenu>
 
-        {(search || tag || source) && (
+        <FiltroAvancadoContatos
+          filtros={filtrosAvancados}
+          aoMudarFiltros={handleFiltrosAvancadosChange}
+          tagsDisponiveis={tagOptions}
+          opcoesOrigem={SOURCE_OPTIONS}
+          camposPersonalizados={camposPersonalizados}
+          clientesLigado={clientesLigado}
+        />
+
+        {(search || tag || source || filtrosAvancados.statusCliente !== "todos" || filtrosAvancados.bloqueado !== "todos" || filtrosAvancados.campoPersonalizado?.chave) && (
           <Button
             variant="ghost"
             size="sm"
@@ -213,6 +272,10 @@ export function ContactsListClient() {
               setSearch("");
               setTag(undefined);
               setSource(undefined);
+              setFiltrosAvancados({
+                statusCliente: "todos",
+                bloqueado: "todos",
+              });
             }}
           >
             {t("Limpar filtros")}
@@ -242,11 +305,32 @@ export function ContactsListClient() {
         <Card className="p-2">
           <EmptyContacts />
         </Card>
+      ) : filteredContacts.length === 0 ? (
+        <Card className="p-8 text-center">
+          <p className="text-sm text-muted-foreground">{t("Nenhum contato encontrado com os filtros selecionados.")}</p>
+          <Button
+            variant="outline"
+            size="sm"
+            className="mt-3"
+            onClick={() => {
+              setSearchInput("");
+              setSearch("");
+              setTag(undefined);
+              setSource(undefined);
+              setFiltrosAvancados({
+                statusCliente: "todos",
+                bloqueado: "todos",
+              });
+            }}
+          >
+            {t("Limpar filtros")}
+          </Button>
+        </Card>
       ) : (
         <>
           <Card className="overflow-hidden">
             <ContactsTable
-              contacts={allContacts}
+              contacts={filteredContacts}
               orderBy={orderBy}
               orderDir={orderDir}
               onSort={handleSort}
@@ -254,7 +338,7 @@ export function ContactsListClient() {
           </Card>
           <div className="flex flex-col items-center gap-2 sm:flex-row sm:justify-between">
             <p className="text-sm text-muted-foreground">
-              {allContacts.length} {allContacts.length === 1 ? t("contato") : t("contatos")}
+              {filteredContacts.length} {filteredContacts.length === 1 ? t("contato") : t("contatos")}
               {q.hasNextPage ? ` ${t("carregados — há mais resultados")}` : ""}
             </p>
             {q.hasNextPage && (
