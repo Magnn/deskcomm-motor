@@ -10,7 +10,13 @@ import { MagnifyingGlass, X } from "@/lib/ui/icons";
 import { NODE_VISUAL_LIST, type NodeVisual } from "./nodes/nodeVisuals";
 
 interface Props {
-  onAdd: (type: NodeType) => void;
+  /**
+   * Só no mobile: lá o menu é uma gaveta por cima do canvas e o toque não
+   * arrasta (HTML5 drag-and-drop não existe em tela de toque), então tocar no
+   * item é o único jeito de adicionar. No desktop o nó entra SÓ arrastando para
+   * o canvas — clicar no item não adiciona nada.
+   */
+  onAdd?: (type: NodeType) => void;
   onClose?: () => void;
   /** "mobile" = mesmo conteúdo dentro do Sheet que `FlowCanvas` abre abaixo de
    * `lg` — a barra fixa não cabia perto do canvas num celular. */
@@ -60,7 +66,7 @@ const NOVIDADES = new Set<NodeType>([
   "voice_studio",
 ]);
 
-/** Sidebar palette — click to add. Native HTML5 drag-and-drop wired in FlowCanvas (increment 3). */
+/** Menu de nós: no desktop o nó entra arrastando para o canvas (drop em FlowCanvas); no mobile, tocando. */
 export function NodePalette({ onAdd, onClose, variant = "desktop" }: Props) {
   const t = useT();
   const [busca, setBusca] = useState("");
@@ -141,7 +147,7 @@ function PaletteItem({
   t,
 }: {
   visual: NodeVisual;
-  onAdd: (type: NodeType) => void;
+  onAdd?: (type: NodeType) => void;
   t: (texto: string) => string;
 }) {
   const Icon = visual.icon;
@@ -156,7 +162,8 @@ function PaletteItem({
         e.dataTransfer.setData("application/x-followup-node-type", visual.type);
         e.dataTransfer.effectAllowed = "move";
       }}
-      onClick={() => onAdd(visual.type)}
+      onClick={onAdd ? () => onAdd(visual.type) : undefined}
+      title={onAdd ? undefined : t("Arraste para o canvas")}
       data-testid={`palette-add-${visual.type}`}
       className="group relative flex w-full cursor-grab items-start gap-3 rounded-xl border border-neutral-200/90 bg-white p-2.5 text-left shadow-xs transition-all duration-150 hover:border-violet-300 hover:bg-neutral-50/60 hover:shadow-sm active:cursor-grabbing dark:border-neutral-800 dark:bg-neutral-900 dark:hover:border-violet-600 dark:hover:bg-neutral-800/60"
     >

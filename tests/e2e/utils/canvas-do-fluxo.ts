@@ -27,3 +27,34 @@ export async function zoomAte(page: Page, alvo: number): Promise<void> {
     await page.waitForTimeout(80);
   }
 }
+
+/**
+ * Adiciona um nó do menu ao canvas do jeito que a pessoa faz: ARRASTANDO.
+ *
+ * No desktop clicar no item do menu não adiciona nada (decisão de produto:
+ * o nó entra só pelo arrasto, e entra sem abrir a configuração). Abaixo de
+ * `lg` o menu é uma gaveta por cima do canvas e o toque não arrasta — lá o
+ * toque no item adiciona, e este helper toca.
+ *
+ * O ponto de soltura é uma grade de 3 colunas dentro do canvas, escolhida
+ * pelo número de nós que já existem — cada nó novo cai num lugar livre, como
+ * a posição automática do antigo clique fazia.
+ */
+export async function arrastarDoMenu(page: Page, tipo: string): Promise<void> {
+  const item = page.getByTestId(`palette-add-${tipo}`).first();
+  const nos = page.locator(".react-flow__node");
+  const antes = await nos.count();
+  const largura = page.viewportSize()?.width ?? 1600;
+  if (largura < 1024) {
+    await item.click();
+  } else {
+    const canvas = page.getByTestId("flow-canvas");
+    await item.dragTo(canvas, {
+      targetPosition: { x: 140 + (antes % 3) * 320, y: 120 + Math.floor(antes / 3) * 240 },
+    });
+  }
+  await page.waitForFunction(
+    (n) => document.querySelectorAll(".react-flow__node").length > n,
+    antes,
+  );
+}

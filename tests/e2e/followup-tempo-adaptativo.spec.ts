@@ -48,7 +48,7 @@ import * as path from "node:path";
 
 import { test, expect, type Page } from "@playwright/test";
 
-import { zoomAte } from "./utils/canvas-do-fluxo";
+import { zoomAte, arrastarDoMenu } from "./utils/canvas-do-fluxo";
 
 const CREDS_PATH = path.join(process.cwd(), ".e2e-creds.json");
 // evidence/ é versionado; e2e-artifacts/ está no .gitignore e evidência citada
@@ -172,10 +172,10 @@ test.describe("nó de espera — o modo Adaptativo tem de decidir de verdade", (
     await expect(page.locator(".react-flow")).toBeVisible({ timeout: PRAZO_SOB_CARGA });
 
     // ─── 2. gatilho → espera → mensagem → fim, montado no canvas ─────────
-    await page.getByTestId("palette-add-trigger").click();
-    await page.getByTestId("palette-add-wait").click();
-    await page.getByTestId("palette-add-action").click();
-    await page.getByTestId("palette-add-end").click();
+    await arrastarDoMenu(page, "trigger");
+    await arrastarDoMenu(page, "wait");
+    await arrastarDoMenu(page, "action");
+    await arrastarDoMenu(page, "end");
 
     await zoomAte(page, 0.85);
 

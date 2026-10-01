@@ -13,7 +13,7 @@ import * as path from "node:path";
 
 import { test, expect, type Page } from "@playwright/test";
 
-import { zoomAte } from "./utils/canvas-do-fluxo";
+import { zoomAte, arrastarDoMenu } from "./utils/canvas-do-fluxo";
 
 import { afirmarAdminDeTenantPuro } from "./utils/precondicao";
 import { generateTotp, msUntilNextTotpWindow } from "./utils/totp";
@@ -275,10 +275,10 @@ test.describe("followup flow builder — canvas visual (Task 6.2)", () => {
     await page.waitForURL(/\/app\/ai\/followups\/[0-9a-f-]+$/);
     await expect(page.locator(".react-flow")).toBeVisible();
 
-    await page.getByTestId("palette-add-trigger").click();
-    await page.getByTestId("palette-add-wait").click();
-    await page.getByTestId("palette-add-action").click();
-    await page.getByTestId("palette-add-end").click();
+    await arrastarDoMenu(page, "trigger");
+    await arrastarDoMenu(page, "wait");
+    await arrastarDoMenu(page, "action");
+    await arrastarDoMenu(page, "end");
 
     const triggerCard = page.locator('[data-testid^="node-card-trigger-"]');
     const waitCard = page.locator('[data-testid^="node-card-wait-"]');
@@ -329,10 +329,10 @@ test.describe("followup flow builder — canvas visual (Task 6.2)", () => {
     await page.waitForURL(/\/app\/ai\/followups\/[0-9a-f-]+$/);
     await expect(page.locator(".react-flow")).toBeVisible();
 
-    await page.getByTestId("palette-add-trigger").click();
-    await page.getByTestId("palette-add-wait").click();
-    await page.getByTestId("palette-add-action").click();
-    await page.getByTestId("palette-add-end").click();
+    await arrastarDoMenu(page, "trigger");
+    await arrastarDoMenu(page, "wait");
+    await arrastarDoMenu(page, "action");
+    await arrastarDoMenu(page, "end");
 
     await zoomAte(page, 0.85);
 
@@ -401,8 +401,8 @@ test.describe("followup flow builder — canvas visual (Task 6.2)", () => {
     await page.waitForURL(/\/app\/ai\/followups\/[0-9a-f-]+$/);
     await expect(page.locator(".react-flow")).toBeVisible();
 
-    await page.getByTestId("palette-add-wait").click();
-    await page.getByTestId("palette-add-action").click();
+    await arrastarDoMenu(page, "wait");
+    await arrastarDoMenu(page, "action");
 
     // Wait node → 10 min.
     await page.locator('[data-testid^="node-card-wait-"]').click();
@@ -457,10 +457,10 @@ test.describe("followup flow builder — canvas visual (Task 6.2)", () => {
     await expect(page.locator(".react-flow")).toBeVisible();
 
     // 1. Build: trigger + wait + action + end.
-    await page.getByTestId("palette-add-trigger").click();
-    await page.getByTestId("palette-add-wait").click();
-    await page.getByTestId("palette-add-action").click();
-    await page.getByTestId("palette-add-end").click();
+    await arrastarDoMenu(page, "trigger");
+    await arrastarDoMenu(page, "wait");
+    await arrastarDoMenu(page, "action");
+    await arrastarDoMenu(page, "end");
 
     await zoomAte(page, 0.85);
 
@@ -590,8 +590,8 @@ test.describe("followup flow builder — canvas visual (Task 6.2)", () => {
     await page.waitForURL(/\/app\/ai\/followups\/[0-9a-f-]+$/);
     await expect(page.locator(".react-flow")).toBeVisible();
 
-    await page.getByTestId("palette-add-wait").click();
-    await page.getByTestId("palette-add-end").click();
+    await arrastarDoMenu(page, "wait");
+    await arrastarDoMenu(page, "end");
     await expect(page.locator('[data-testid^="node-card-wait-"]')).toBeVisible();
     await expect(page.locator('[data-testid^="node-card-end-"]')).toBeVisible();
 
@@ -616,8 +616,8 @@ test.describe("followup flow builder — canvas visual (Task 6.2)", () => {
     await page.getByRole("button", { name: "Excluir", exact: true }).click();
     await expect(page.locator('[data-testid^="node-card-end-"]')).toHaveCount(0);
 
-    await page.getByTestId("palette-add-trigger").click();
-    await page.getByTestId("palette-add-end").click();
+    await arrastarDoMenu(page, "trigger");
+    await arrastarDoMenu(page, "end");
     await zoomAte(page, 0.85);
     const triggerId = await page
       .locator('.react-flow__node[data-id^="trigger-"]')
@@ -729,12 +729,12 @@ test.describe("followup flow builder — editor de condição de aresta / ai_cla
     // no_reply, always-fallback) and React Flow's own `addEdge` refuses a 2nd edge
     // between the same (source, target, handle) pair — no_reply and the always
     // fallback can't both point at a single "end" node.
-    await page.getByTestId("palette-add-trigger").click();
-    await page.getByTestId("palette-add-ai_classify").click();
-    await page.getByTestId("palette-add-action").click();
-    await page.getByTestId("palette-add-action").click();
-    await page.getByTestId("palette-add-end").click();
-    await page.getByTestId("palette-add-end").click();
+    await arrastarDoMenu(page, "trigger");
+    await arrastarDoMenu(page, "ai_classify");
+    await arrastarDoMenu(page, "action");
+    await arrastarDoMenu(page, "action");
+    await arrastarDoMenu(page, "end");
+    await arrastarDoMenu(page, "end");
 
     const triggerId = await page
       .locator('.react-flow__node[data-id^="trigger-"]')

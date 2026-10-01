@@ -14,6 +14,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 
 import { test, expect, type Page } from "@playwright/test";
+import { arrastarDoMenu } from "./utils/canvas-do-fluxo";
 
 import { afirmarAdminDeTenantPuro } from "./utils/precondicao";
 
@@ -73,11 +74,11 @@ test.describe("followup flow builder — lote 1 dos nós novos (A/B split, IA li
     }
 
     // 2. Adiciona os 5, uma de cada vez, e confirma que cada card aparece.
-    await page.getByTestId("palette-add-ab_split").click();
-    await page.getByTestId("palette-add-ai_generic").click();
-    await page.getByTestId("palette-add-api_call").click();
-    await page.getByTestId("palette-add-notify_agent").click();
-    await page.getByTestId("palette-add-add_note").click();
+    await arrastarDoMenu(page, "ab_split");
+    await arrastarDoMenu(page, "ai_generic");
+    await arrastarDoMenu(page, "api_call");
+    await arrastarDoMenu(page, "notify_agent");
+    await arrastarDoMenu(page, "add_note");
 
     await expect(page.locator('[data-testid^="node-card-ab_split-"]')).toBeVisible();
     await expect(page.locator('[data-testid^="node-card-ai_generic-"]')).toBeVisible();
