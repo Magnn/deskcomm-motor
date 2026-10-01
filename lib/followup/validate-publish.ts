@@ -559,17 +559,8 @@ function validarItensDeConteudo(graph: FlowGraph, errors: PublishValidationError
         message: `A caixa "${node.label}", item ${i + 1}: o envio de ${TIPOS_DE_ITEM_DE_CONTEUDO[item.type].toLowerCase()} ainda não roda — remova este item ou troque o tipo antes de publicar.`,
       });
     }
-    // Só pausa(s), nenhum item que de fato envia algo: o motor não teria o que
-    // mandar (ver o rodapé de `sendConteudoSequence`, que degrada isto para
-    // 'already_sent' vazio — melhor recusar aqui do que publicar um passo que
-    // não faz nada por design).
-    if (node.config.items.length > 0 && node.config.items.every((item) => item.type === 'delay')) {
-      errors.push({
-        node_id: node.id,
-        code: 'conteudo_so_pausas',
-        message: `A caixa "${node.label}" só tem pausas — acrescente ao menos um item de conteúdo de verdade (texto, mídia, contato ou sticker).`,
-      });
-    }
+    // Caixa só com Delay é VÁLIDA: é uma pausa curta entre duas caixas. O motor
+    // espera o tempo somado e segue (ver o atalho no topo de `sendConteudoSequence`).
   }
 }
 

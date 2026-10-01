@@ -508,11 +508,14 @@ describe("sequência de conteúdo — texto, mídia e pausa", () => {
     expect(channelSend).toHaveBeenCalledTimes(1);
   });
 
-  it("só pausas (config degenerada que o publish deveria ter barrado): não lança, devolve sem enviar nada", async () => {
+  it("caixa só com Delay é uma pausa válida: espera o tempo de cada item, não envia nada e conclui o passo", async () => {
     const channelSend = fakeChannelSend({ kind: "sent", idempotencyKey: "k", messageId: "m" });
     const d = deps(channelSend);
-    await criarHandler(d)(job([{ type: "delay", seconds: 2 }]), fakePool(), ctx);
+    const sleep = vi.fn(async () => {});
+    (d as unknown as { sleep: typeof sleep }).sleep = sleep;
+    await criarHandler(d)(job([{ type: "delay", seconds: 2 }, { type: "delay", seconds: 5 }]), fakePool(), ctx);
 
+    expect(sleep.mock.calls.map((c) => (c as unknown[])[0])).toEqual([2000, 5000]);
     expect(channelSend).not.toHaveBeenCalled();
     expect((d as unknown as { completeFollowupTurn: ReturnType<typeof vi.fn> }).completeFollowupTurn).toHaveBeenCalledWith(
       expect.anything(),

@@ -717,7 +717,6 @@ describe('validarItensDeConteudo — motor de envio por tipo de item', () => {
     const codes = codigos(g);
     expect(codes).not.toContain('item_de_conteudo_em_construcao');
     expect(codes).not.toContain('midia_sem_arquivo');
-    expect(codes).not.toContain('conteudo_so_pausas');
   });
 
   it('a lista de tipos em construção está vazia — todo tipo do schema tem motor', () => {
@@ -755,8 +754,14 @@ describe('validarItensDeConteudo — motor de envio por tipo de item', () => {
     expect(codes).not.toContain('item_de_conteudo_em_construcao');
     expect(codes).not.toContain('contato_com_telefone_invalido');
     expect(codes).not.toContain('figurinha_fora_do_formato');
-    // Sozinhos já são "conteúdo de verdade": não é um nó só de pausas.
-    expect(codes).not.toContain('conteudo_so_pausas');
+  });
+
+  it('caixa só com Delay é uma pausa válida: publica', () => {
+    const g = graph(
+      [trigger('t'), actionContent('a', [{ type: 'delay', seconds: 5 }, { type: 'delay', seconds: 10 }]), end('f')],
+      [edge('t', 'a', always()), edge('a', 'f', always())],
+    );
+    expect(validateFlowForPublish(g)).toEqual({ ok: true });
   });
 
   it('contato com telefone que o canal não disca: recusa no publish, com o item', () => {

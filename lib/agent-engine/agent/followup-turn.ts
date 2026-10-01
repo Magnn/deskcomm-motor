@@ -1108,6 +1108,19 @@ async function sendConteudoSequence(
     return { kind: 'skipped' };
   }
 
+  const sleep = deps.sleep ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
+
+  // Caixa só com Delay: é uma PAUSA, não um envio. Espera e conclui o passo, sem
+  // passar pelo portão de envio — nada sai, então a janela anti-ban não tem o que
+  // adiar e nenhum limite de envio deve ser consumido.
+  if (itensDoFluxo.length > 0 && itensDoFluxo.every((i) => i.type === 'delay')) {
+    for (const item of itensDoFluxo) {
+      if (item.type === 'delay') await sleep(item.seconds * 1000);
+    }
+    runLog.info('sequência de conteúdo só com pausa — esperou e concluiu', { itens: itensDoFluxo.length });
+    return { kind: 'sent' };
+  }
+
   const context = await getLeadContext(
     pool,
     deps.crmCfg,
@@ -1119,7 +1132,6 @@ async function sendConteudoSequence(
   }
   const optedOutThisTurn = context.context.contact.is_blocked;
   const channel = (deps.channel ?? ((p: pg.Pool) => new WahaChannelAdapter(p, deps.crmCfg)))(pool);
-  const sleep = deps.sleep ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
   const jitter = () => 1200 + Math.floor(Math.random() * 800); // mesmo piso anti-ban das bolhas do turno normal
 
   // Variáveis do contato trocadas ANTES do portão: ele avalia o texto que sai.
@@ -1273,11 +1285,9 @@ async function sendConteudoSequence(
         }
         if (ultimo && !OK_KINDS.has(ultimo.kind)) return ultimo;
       }
-      // Só pausas, ou tudo pulado (mídia que não copiou, itens sem motor): nada foi
-      // fisicamente enviado. `validarItensDeConteudo` deveria ter barrado um nó só
-      // de pausas no publish; chegar aqui é o caminho degradado, não o esperado —
-      // 'already_sent' com id vazio é a MESMA forma que o replay pós-crash já usa
-      // para "nada a fazer, sem erro".
+      // Tudo pulado (mídia que não copiou, texto que ficou vazio depois das
+      // variáveis): nada foi fisicamente enviado. 'already_sent' com id vazio é a
+      // MESMA forma que o replay pós-crash já usa para "nada a fazer, sem erro".
       return ultimo ?? { kind: 'already_sent', idempotencyKey: `${job.id}:vazio`, messageId: null };
     },
   });
