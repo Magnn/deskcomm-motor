@@ -13048,6 +13048,15 @@ export const DICIONARIO: Traducoes = {
   "Cole o link público (https) do arquivo. Você também pode usar uma variável que guarde o link.": { es: "Pegue el enlace público (https) del archivo. También puede usar una variable que guarde el enlace." },
   "O arquivo é baixado na hora do envio.": { es: "El archivo se descarga al momento del envío." },
   "falta o link do arquivo — preencha-o ou troque para arquivo enviado.": { es: "falta el enlace del archivo: complételo o cambie a archivo enviado." },
+  "Para transcrever, cadastre uma chave da OpenAI em IA › Credenciais.": { es: "Para transcribir, registre una clave de OpenAI en IA › Credenciales." },
+  "Não foi possível transcrever o áudio agora.": { es: "No se pudo transcribir el audio ahora." },
+  "Envie o áudio primeiro.": { es: "Envíe el audio primero." },
+  "Transcrevendo…": { es: "Transcribiendo…" },
+  "Transcrever": { es: "Transcribir" },
+  "O contato não recebe este texto: ele fica na conversa, para a equipe e para o agente de IA.": { es: "El contacto no recibe este texto: queda en la conversación, para el equipo y para el agente de IA." },
+  "Arquivo não encontrado.": { es: "Archivo no encontrado." },
+  "Só áudio pode ser transcrito.": { es: "Solo se puede transcribir audio." },
+  "Áudio grande demais para transcrever.": { es: "Audio demasiado grande para transcribir." },
 };
 
 /**

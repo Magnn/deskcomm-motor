@@ -17,7 +17,9 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { useTranscribeFlowAudio } from "@/hooks/ai/useTranscribeFlowAudio";
 import { useUploadFlowContentMedia } from "@/hooks/ai/useUploadFlowContentMedia";
+import { ApiError } from "@/lib/api/types";
 import { useT } from "@/hooks/i18n/useT";
 import { prepararSticker, STICKER_FORMATOS_DE_ENTRADA } from "@/lib/media/sticker-no-navegador";
 import { STICKER_MAX_BYTES } from "@/lib/messaging/media/upload-validation";
@@ -486,10 +488,37 @@ function AudioCardBody({
   const upload = useUploadFlowContentMedia();
   const inputRef = React.useRef<HTMLInputElement>(null);
 
+  const transcricao = useTranscribeFlowAudio();
+
+  /**
+   * Pede a transcrição ao servidor e grava no item. `base` é o item como deve
+   * ficar (com o arquivo novo): passar `item` aqui usaria o valor de ANTES do
+   * upload, e a transcrição sobrescreveria o arquivo recém-enviado.
+   */
+  const transcrever = async (base: typeof item, avisarSeFaltarChave: boolean) => {
+    try {
+      const texto = await transcricao.mutateAsync({ flowId, storage_path: base.storage_path, mime: base.mime });
+      const { transcript: _antes, ...semTranscricao } = base;
+      onChange((texto === "" ? semTranscricao : { ...semTranscricao, transcript: texto }) as ConteudoItem);
+    } catch (err) {
+      // Transcrição é opcional: o áudio já está enviado e o fluxo funciona sem ela.
+      if (err instanceof ApiError && err.code === "transcription_unavailable") {
+        if (avisarSeFaltarChave) toast.info(t("Para transcrever, cadastre uma chave da OpenAI em IA › Credenciais."));
+        return;
+      }
+      toast.error(t("Não foi possível transcrever o áudio agora."));
+    }
+  };
+
   const onPick = async (file: File) => {
     try {
       const r = await upload.mutateAsync({ flowId, file });
-      onChange({ ...item, storage_path: r.storage_path, mime: r.media_mime, filename: file.name });
+      // Arquivo novo: a transcrição antiga não vale mais.
+      const { transcript: _antiga, ...semTranscricao } = item;
+      const novo = { ...semTranscricao, storage_path: r.storage_path, mime: r.media_mime, filename: file.name };
+      onChange(novo);
+      // Em silêncio quando falta chave: quem só quer enviar o áudio não precisa de aviso.
+      void transcrever(novo, false);
     } catch {
       // tratado pelo hook
     }
@@ -574,6 +603,51 @@ function AudioCardBody({
           ? t("O áudio chega ao contato como nota de voz (áudio gravado).")
           : t("O áudio chega ao contato como arquivo de áudio, com o nome do arquivo.")}
       </p>
+
+      {/*
+        Transcrição — GRAVADA no item (`transcript`). Preenchida pelo servidor ao
+        enviar o áudio (Whisper, com a chave de IA da organização) e editável. No
+        envio ela acompanha a mensagem: o atendente lê na conversa e o agente de
+        IA sabe o que o áudio disse. Não vai para o contato.
+      */}
+      <div className="space-y-1 pt-1">
+        <div className="flex items-center justify-between">
+          <label
+            htmlFor={`transcricao-${item.storage_path}`}
+            className="block text-[12px] font-semibold text-slate-800 dark:text-zinc-200"
+          >
+            {t("Transcrição")}
+          </label>
+          <button
+            type="button"
+            disabled={disabled || !temArquivo || transcricao.isPending}
+            title={!temArquivo ? t("Envie o áudio primeiro.") : undefined}
+            onClick={() => void transcrever(item, true)}
+            data-testid="conteudo-audio-transcrever"
+            className="text-[11px] font-semibold text-purple-600 dark:text-purple-400 hover:underline cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:no-underline"
+          >
+            {transcricao.isPending ? t("Transcrevendo…") : t("Transcrever")}
+          </button>
+        </div>
+        <textarea
+          id={`transcricao-${item.storage_path}`}
+          rows={2}
+          maxLength={4000}
+          value={item.transcript ?? ""}
+          disabled={disabled}
+          onChange={(e) => {
+            const { transcript: _antes, ...semTranscricao } = item;
+            const texto = e.target.value;
+            onChange((texto === "" ? semTranscricao : { ...semTranscricao, transcript: texto }) as ConteudoItem);
+          }}
+          placeholder={t("A transcrição do áudio aparecerá aqui")}
+          data-testid="conteudo-audio-transcricao"
+          className="w-full rounded-[10px] border border-[#e2e8f0] dark:border-zinc-800 bg-white dark:bg-zinc-950 px-2.5 py-2 text-[12px] text-slate-800 dark:text-zinc-100 placeholder:text-slate-400 focus:outline-hidden focus:border-[#a855f7] transition-colors resize-none leading-relaxed"
+        />
+        <p className="text-[10.5px] text-slate-400 dark:text-zinc-500">
+          {t("O contato não recebe este texto: ele fica na conversa, para a equipe e para o agente de IA.")}
+        </p>
+      </div>
     </div>
   );
 }

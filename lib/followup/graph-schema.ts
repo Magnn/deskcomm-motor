@@ -370,6 +370,12 @@ const conteudoAudioSchema = z.strictObject({
   voice_note: z.boolean().optional(),
   /** Nome original do arquivo — é o que o contato vê quando o áudio vai como arquivo. */
   filename: z.string().min(1).max(240).optional(),
+  /**
+   * O que o áudio diz. Não vai para o contato (áudio não tem legenda): fica na
+   * mensagem, para o atendente ler na conversa e o agente de IA saber o que foi
+   * dito. Vem da transcrição automática e o dono pode ajustar.
+   */
+  transcript: z.string().min(1).max(4000).optional(),
 });
 const conteudoDocumentoSchema = z
   .strictObject({

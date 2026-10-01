@@ -295,3 +295,19 @@ async function credencialOpenAiDaOrganizacao(
     return null;
   }
 }
+
+/**
+ * A chave da OpenAI para TRANSCREVER áudio (Whisper) no painel — hoje, o áudio
+ * que o dono envia num item do nó Conteúdo.
+ *
+ * Mesma escada da transcrição dos áudios recebidos (`workers/media-derive-worker.ts`):
+ * a credencial OpenAI da própria organização e, só então, a chave da instalação.
+ * `null` = não há chave em nenhum degrau; quem chama diz isso na tela em vez de
+ * falhar em silêncio.
+ */
+export async function chaveOpenAiParaTranscricao(organizationId: string): Promise<string | null> {
+  const daOrg = await credencialOpenAiDaOrganizacao(organizationId);
+  if (daOrg) return daOrg.apiKey;
+  const daInstalacao = (process.env.OPENAI_API_KEY ?? "").trim();
+  return daInstalacao !== "" ? daInstalacao : null;
+}
