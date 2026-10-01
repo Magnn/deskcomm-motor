@@ -359,6 +359,8 @@ const conteudoStickerSchema = z.strictObject({
   type: z.literal('sticker'),
   storage_path: z.string().min(1).max(500),
   mime: z.string().min(1).max(120),
+  /** Rótulo para o dono identificar o sticker no card — nunca vai para o contato. */
+  name: z.string().min(1).max(60).optional(),
 });
 const conteudoDelaySchema = z.strictObject({
   type: z.literal('delay'),

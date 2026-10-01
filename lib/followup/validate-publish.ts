@@ -540,7 +540,9 @@ function validarItensDeConteudo(graph: FlowGraph, errors: PublishValidationError
       // Telefone que o canal não disca: o envio recusaria em TODA inscrição (422
       // do handler), e o motor trataria como falha passageira e tentaria de novo.
       // Mesma régua do envio manual (`parseDialablePhone`), cobrada aqui.
-      if (item.type === 'contact' && parseDialablePhone(item.phone_number) === null) {
+      // Telefone com variável (`{{telefone}}`) só existe na hora do envio: não dá
+      // para conferir aqui, e o motor pula o cartão se ela vier vazia.
+      if (item.type === 'contact' && !item.phone_number.includes('{{') && parseDialablePhone(item.phone_number) === null) {
         errors.push({
           node_id: node.id,
           code: 'contato_com_telefone_invalido',
@@ -552,7 +554,7 @@ function validarItensDeConteudo(graph: FlowGraph, errors: PublishValidationError
         errors.push({
           node_id: node.id,
           code: 'figurinha_fora_do_formato',
-          message: `A caixa "${node.label}", item ${i + 1}: a figurinha precisa ser um arquivo .webp — troque o arquivo antes de publicar.`,
+          message: `A caixa "${node.label}", item ${i + 1}: o sticker precisa ser um arquivo .webp — troque o arquivo antes de publicar.`,
         });
       }
       // Mídia é ARQUIVO do Storage, nunca link nem variável: o motor copia o
@@ -583,7 +585,7 @@ function validarItensDeConteudo(graph: FlowGraph, errors: PublishValidationError
       errors.push({
         node_id: node.id,
         code: 'conteudo_so_pausas',
-        message: `A caixa "${node.label}" só tem pausas — acrescente ao menos um item de conteúdo de verdade (texto, mídia, contato ou figurinha).`,
+        message: `A caixa "${node.label}" só tem pausas — acrescente ao menos um item de conteúdo de verdade (texto, mídia, contato ou sticker).`,
       });
     }
   }

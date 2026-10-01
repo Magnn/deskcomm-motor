@@ -1095,7 +1095,13 @@ async function sendConteudoSequence(
 
   // Variáveis do contato trocadas ANTES do portão: ele avalia o texto que sai.
   const textosDoFluxo = itensDoFluxo.flatMap((i) =>
-    i.type === 'text' ? [i.body] : 'caption' in i && i.caption !== undefined ? [i.caption] : [],
+    i.type === 'text'
+      ? [i.body]
+      : i.type === 'contact'
+        ? [i.name, i.phone_number]
+        : 'caption' in i && i.caption !== undefined
+          ? [i.caption]
+          : [],
   );
   const dados = await dadosDoContatoParaVariaveis(pool, tenantId, leadId, context.context.contact, textosDoFluxo);
   const items = itensDoFluxo.flatMap((i): ConteudoItemPayload[] => {
@@ -1106,6 +1112,16 @@ async function sendConteudoSequence(
         return [];
       }
       return [{ ...i, body }];
+    }
+    if (i.type === 'contact') {
+      // O cartão também aceita variáveis (ex.: nome `{{nome}}`, telefone `{{telefone}}`).
+      // Telefone que some depois da troca não vira cartão: o canal recusaria.
+      const phone_number = interpolarVariaveisDoContato(i.phone_number, dados);
+      if (phone_number === '') {
+        runLog.warn('cartão de contato sem telefone depois das variáveis — item pulado');
+        return [];
+      }
+      return [{ ...i, name: interpolarVariaveisDoContato(i.name, dados) || phone_number, phone_number }];
     }
     if ('caption' in i && i.caption !== undefined) {
       return [{ ...i, caption: interpolarVariaveisDoContato(i.caption, dados) }];

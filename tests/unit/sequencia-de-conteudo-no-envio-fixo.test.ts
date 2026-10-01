@@ -233,6 +233,35 @@ describe("sequência de conteúdo — texto, mídia e pausa", () => {
     expect(storageCopy).not.toHaveBeenCalled();
   });
 
+  it("cartão de contato aceita variáveis no nome e no telefone", async () => {
+    const channelSend = fakeChannelSend({ kind: "sent", idempotencyKey: "k", messageId: "m" });
+    await criarHandler(deps(channelSend))(
+      job([{ type: "contact", name: "Contato de {{primeiro_nome}}", phone_number: "{{telefone}}" }]),
+      fakePool(),
+      ctx,
+    );
+    expect(channelSend).toHaveBeenCalledTimes(1);
+    expect(channelSend.mock.calls[0]![0].contact).toEqual({
+      name: "Contato de Maria",
+      phoneNumber: "+5511988887777",
+    });
+  });
+
+  it("cartão cujo telefone some depois das variáveis não é enviado — o canal recusaria", async () => {
+    const channelSend = fakeChannelSend({ kind: "sent", idempotencyKey: "k", messageId: "m" });
+    await criarHandler(deps(channelSend))(
+      job([
+        // `{{email}}` é null neste contato: o telefone fica vazio.
+        { type: "contact", name: "Suporte", phone_number: "{{email}}" },
+        { type: "text", body: "Segue" },
+      ]),
+      fakePool(),
+      ctx,
+    );
+    expect(channelSend).toHaveBeenCalledTimes(1);
+    expect(channelSend.mock.calls[0]![0].contact).toBeUndefined();
+  });
+
   it("figurinha é copiada pra conversa e sai como mídia 'sticker', sem legenda", async () => {
     const channelSend = fakeChannelSend({ kind: "sent", idempotencyKey: "k", messageId: "m" });
     await criarHandler(deps(channelSend))(
