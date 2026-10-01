@@ -444,3 +444,63 @@ it("adapter PG preserva provenance e leitor de inbound filtra a conversa solicit
   expect(sql).toMatch(/conversation_id\s*=\s*\$3/);
   expect(values[2]).toBe("conv-1");
 });
+
+const GENERIC_GRAPH = (config: Record<string, unknown>): FlowGraph =>
+  ({
+    nodes: [
+      {
+        id: "g1",
+        type: "ai_generic",
+        label: "GPT",
+        position: { x: 0, y: 0 },
+        config: { prompt: "resuma", save_to: { kind: "lead_custom", key: "resumo" }, ...config },
+      },
+      { id: "e1", type: "end", label: "Done", position: { x: 0, y: 0 }, config: { outcome: "converted" } },
+    ],
+    edges: [{ id: "g1-e1", source: "g1", target: "e1", priority: 0, condition: { type: "always" } }],
+  }) as FlowGraph;
+
+describe("completeTurnForEnrollment — 'generic_ai_done' (nó GPT)", () => {
+  it("grava o texto no campo por padrão", async () => {
+    const { db } = fakeDb({ enrollment: enrollment({ current_node_id: "g1" }), graph: GENERIC_GRAPH({}) });
+    const persistir = vi.fn(async () => {});
+    db.persistirRespostaFollowup = persistir;
+    await completeTurnForEnrollment(db, "org-1", "enr-1", "g1", { kind: "generic_ai_done", text: "resumo pronto" }, clock);
+    expect(persistir).toHaveBeenCalledWith(expect.objectContaining({ value: "resumo pronto" }));
+  });
+
+  it("salvar_em_campo=false NÃO toca o cadastro, e o registro do passo diz isso", async () => {
+    const { db, insertEnrollmentEvent } = fakeDb({
+      enrollment: enrollment({ current_node_id: "g1" }),
+      graph: GENERIC_GRAPH({ salvar_em_campo: false }),
+    });
+    const persistir = vi.fn(async () => {});
+    db.persistirRespostaFollowup = persistir;
+    await completeTurnForEnrollment(db, "org-1", "enr-1", "g1", { kind: "generic_ai_done", text: "resumo pronto" }, clock);
+    expect(persistir).not.toHaveBeenCalled();
+    expect(insertEnrollmentEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event_type: "ai_generic_done",
+        payload: expect.objectContaining({ salvo_em_campo: false, text: "resumo pronto" }),
+      }),
+    );
+  });
+
+  it("o desfecho do envio ao cliente e o modelo usado ficam no registro do passo", async () => {
+    const { db, insertEnrollmentEvent } = fakeDb({
+      enrollment: enrollment({ current_node_id: "g1" }),
+      graph: GENERIC_GRAPH({ enviar_resultado_texto: true }),
+    });
+    await completeTurnForEnrollment(
+      db,
+      "org-1",
+      "enr-1",
+      "g1",
+      { kind: "generic_ai_done", text: "oi!", envio: "deferred", modelo: "gpt-4o" },
+      clock,
+    );
+    expect(insertEnrollmentEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ payload: expect.objectContaining({ envio: "deferred", modelo: "gpt-4o" }) }),
+    );
+  });
+});
