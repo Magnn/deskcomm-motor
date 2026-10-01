@@ -5,6 +5,8 @@ import type { ServiceBoundary } from "@/lib/atendimento/fronteira";
  * this node + these facts, what happens next" so it's testable without Postgres.
  */
 import {
+  PERGUNTA_SEM_PRAZO_MS,
+  prazoDaPerguntaMs,
   AGENT_SILENCE_BRANCH_ID,
   NO_REPLY_BRANCH_ID,
   REPEAT_BODY_BRANCH_ID,
@@ -138,6 +140,10 @@ export type NodeResult =
   | { kind: "dead"; reason: string }
   // outcome is nullable for the 'custom' end-node case (cancel_reason carries the note instead).
   | { kind: "complete"; outcome: EnrollmentOutcome | null; cancel_reason?: string }
+  // A saída que o fluxo tomaria não está ligada a nada: o lead FICA PARADO neste nó, sem erro e sem
+  // avançar — o funil só anda até onde o dono o montou. Fica no registro (o motivo) e na linha do tempo.
+  // `aguardando_resposta`: parado, mas ainda ATENTO — uma resposta tardia acorda o nó e sai por «Respondeu».
+  | { kind: "park"; reason: string; aguardando_resposta?: boolean }
   | { kind: "fail"; error: string };
 
 /** Backoff ladder indexed by `attempts - 1` (clamped to the last slot) — 30s..1h. */
@@ -314,6 +320,18 @@ export function selectEdge(edges: FlowEdge[], from: string, match: EdgeMatch): F
   return null;
 }
 
+/** A aresta que sai EXATAMENTE por este ramo — sem o escape para `always` que `selectEdge` faz. */
+function arestaDoRamo(edges: FlowEdge[], from: string, branchId: string): FlowEdge | null {
+  return edges.find((e) => e.source === from && e.condition.type === "branch" && e.condition.branch_id === branchId) ?? null;
+}
+
+/** A pergunta como o cliente a lê: a frase sugerida, senão o rótulo; opções de múltipla escolha numeradas. */
+function textoDaPergunta(config: Extract<FlowNode, { type: "collect" }>["config"]): string {
+  const base = (config.question ?? "").trim() || config.label;
+  if (config.type !== "select" || !config.options || config.options.length === 0) return base;
+  return `${base}\n\n${config.options.map((o, i) => `${i + 1}. ${o}`).join("\n")}`;
+}
+
 /**
  * A `wait` node is entered twice: once to start the timer (writes the
  * generic step event), once after `next_eval_at` elapses to advance. Both
@@ -393,18 +411,19 @@ export function resolveWaitPhase(events: EnrollmentEventRef[], nodeId: string, s
  * então park = next_eval_at − grace_timeout_ms.
  */
 export function pisoDoInboundDaEspera(
-  node: Extract<FlowNode, { type: "match_reply" | "menu" }>,
+  node: Extract<FlowNode, { type: "match_reply" | "menu" | "collect" }>,
   events: EnrollmentEventRef[],
   fallback: string,
 ): string {
   for (let i = events.length - 1; i >= 0; i--) {
     const e = events[i]!;
     if (e.node_id !== node.id) continue;
-    const eventoDeEspera = node.type === "menu" ? "menu_sent" : "wait_started";
+    const eventoDeEspera = node.type === "menu" ? "menu_sent" : node.type === "collect" ? "collect_sent" : "wait_started";
     if (e.event_type !== eventoDeEspera) continue;
     const next = e.payload?.next_eval_at;
     if (typeof next !== "string") break;
-    const start = Date.parse(next) - node.config.grace_timeout_ms;
+    const espera = node.type === "collect" ? (prazoDaPerguntaMs(node.config) ?? PERGUNTA_SEM_PRAZO_MS) : node.config.grace_timeout_ms;
+    const start = Date.parse(next) - espera;
     if (Number.isFinite(start)) return new Date(start).toISOString();
     break;
   }
@@ -1008,12 +1027,49 @@ export function processNode(input: {
     }
 
     case "collect": {
-      // Nó de COLETA do fluxo de atendimento (surface=atendimento). Perguntar e
-      // gravar é responsabilidade do executor in-turn; no relógio do follow-up
-      // ele é passagem (segue pela aresta única). Um fluxo de retomada não
-      // deveria usar este nó — o publish é quem recorta isso.
-      const edge = selectEdge(edges, node.id, { type: "always" });
-      if (!edge) return { kind: "fail", error: `collect node "${node.id}" has no outbound edge` };
+      // PERGUNTA no relógio do fluxo: manda a pergunta, espera a resposta até o prazo e sai por
+      // «Respondeu» (a resposta é gravada no campo pelo engine) ou «Sem resposta» (prazo vencido).
+      // O roteiro de ATENDIMENTO (surface=atendimento) segue sendo conduzido pelo turno, não por aqui.
+      //
+      // Saída NÃO ligada = o lead fica parado aqui (`park`). Nunca cai no escape de `selectEdge`:
+      // «Sem resposta» solta não pode virar «Respondeu» — seria o fluxo afirmando uma resposta que não houve.
+      const prazo = prazoDaPerguntaMs(node.config);
+      const esperaMs = prazo ?? PERGUNTA_SEM_PRAZO_MS;
+      if (!actionCompleted) {
+        if (!actionEnqueued) {
+          return {
+            kind: "enqueue_turn",
+            purpose: "send_message",
+            wake_status: "waiting_reply",
+            fixed_body: textoDaPergunta(node.config),
+          };
+        }
+        if ((actionRecheckCount ?? 0) >= MAX_ACTION_RECHECKS) {
+          return { kind: "dead", reason: "collect_send_never_completed" };
+        }
+        return {
+          kind: "recheck",
+          next_eval_at: new Date(clock().getTime() + atrasoDoRecheck(actionRecheckCount ?? 0)),
+        };
+      }
+
+      if (wokeEarly && lastInboundBody?.trim()) {
+        const edge = selectEdge(edges, node.id, { type: "always" });
+        if (!edge) return { kind: "park", reason: "a saída «Respondeu» não está ligada a nada" };
+        return { kind: "advance", next_node_id: edge.target, next_eval_at: clock() };
+      }
+
+      if (!waitElapsed) {
+        return { kind: "wait", next_eval_at: new Date(clock().getTime() + esperaMs), wake_status: "waiting_reply" };
+      }
+      if (prazo === null) {
+        return { kind: "park", reason: "a pergunta esperou 30 dias sem resposta e não tem prazo nem saída configurados", aguardando_resposta: true };
+      }
+      const edge = arestaDoRamo(edges, node.id, NO_REPLY_BRANCH_ID);
+      if (!edge) {
+        // Fica no nó, mas ainda ouvindo: quem responder tarde segue por «Respondeu», se ela estiver ligada.
+        return { kind: "park", reason: "o prazo venceu e a saída «Sem resposta» não está ligada a nada", aguardando_resposta: true };
+      }
       return { kind: "advance", next_node_id: edge.target, next_eval_at: clock() };
     }
 

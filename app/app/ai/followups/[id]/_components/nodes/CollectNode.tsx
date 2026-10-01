@@ -4,6 +4,8 @@ import type { NodeProps } from "@xyflow/react";
 
 import type { RFNode } from "@/lib/followup/graph-mappers";
 import { useT } from "@/hooks/i18n/useT";
+import { nodeBranches } from "@/lib/followup/graph-schema";
+import type { ConfigOf } from "../forms/shared";
 import { Question, Tag, Clock, Check } from "@/lib/ui/icons";
 import { NODE_VISUALS, describeNodeConfig } from "./nodeVisuals";
 import { NodeCard } from "./NodeCard";
@@ -70,6 +72,7 @@ export function CollectNode({ id, data, selected }: NodeProps<RFNode>) {
       errors={data.errors}
       simulating={data.simulating}
       customPreview={customPreview}
+      branches={nodeBranches({ type: "collect", config: data.config as ConfigOf<"collect"> })}
     />
   );
 }

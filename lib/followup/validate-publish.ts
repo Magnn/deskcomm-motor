@@ -1,7 +1,7 @@
 import type { ConteudoItemType, FlowGraph, FlowEdge, FlowNode, NodeType } from './graph-schema';
 import type { FollowupFlowSurface } from './api-schemas';
 import type { AgenteCitado } from './agentes-citados';
-import { AGENT_NODE_UNSET_ID, branchIdForCondition, nodeBranches } from './graph-schema';
+import { AGENT_NODE_UNSET_ID, PERGUNTA_SEM_PRAZO_MS, branchIdForCondition, nodeBranches, prazoDaPerguntaMs } from './graph-schema';
 import { rotuloDoRamo } from './rotulo-do-ramo';
 import { TIPOS_DE_ITEM_DE_CONTEUDO, type NomesDeValor } from './vocabulario';
 import { assertSafeOutboundUrl } from '@/lib/automation/outbound-url';
@@ -128,6 +128,7 @@ export const NOS_DA_SUPERFICIE: Record<FollowupFlowSurface, readonly NodeType[]>
     'repeat',
     'action',
     'end',
+    'collect',
     'ab_split',
     'ai_generic',
     'api_call',
@@ -150,6 +151,7 @@ export const NOS_DA_SUPERFICIE: Record<FollowupFlowSurface, readonly NodeType[]>
     'repeat',
     'action',
     'end',
+    'collect',
     'ab_split',
     'ai_generic',
     'api_call',
@@ -238,6 +240,8 @@ function isSufficientWaitNode(node: FlowNode): boolean {
   // O agente no comando espera a pessoa por `silencio_minutos` (piso 5 min no schema) antes de sair por silêncio.
   if (node.type === 'agent') return true;
   if (node.type === 'match_reply' || node.type === 'menu') return node.config.grace_timeout_ms >= MIN_CYCLE_WAIT_MS;
+  // A Pergunta espera o prazo configurado (ou 30 dias) — sempre acima do piso.
+  if (node.type === 'collect') return (prazoDaPerguntaMs(node.config) ?? PERGUNTA_SEM_PRAZO_MS) >= MIN_CYCLE_WAIT_MS;
   if (node.type === 'attendant_route') return node.config.max_wait_minutes * 60_000 >= MIN_CYCLE_WAIT_MS;
   if (node.type !== 'wait') return false;
   return node.config.mode === 'fixed'
@@ -712,7 +716,10 @@ export function validateFlowForPublish(
     }
 
     const endNodes = nodes.filter((n) => n.type === 'end');
-    const canReachEnd = bfsReachable(endNodes.map((n) => n.id), inEdges);
+    // A Pergunta pode parar o lead de propósito (saída não ligada): ela conta como ponto final válido,
+    // senão o dono seria OBRIGADO a ligar «Sem resposta» a um Fim só para publicar.
+    const pontosFinais = [...endNodes, ...nodes.filter((n) => n.type === 'collect')];
+    const canReachEnd = bfsReachable(pontosFinais.map((n) => n.id), inEdges);
     for (const node of [...nodes].sort(byId)) {
       if (reachable.has(node.id) && !canReachEnd.has(node.id)) {
         errors.push({

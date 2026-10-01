@@ -800,13 +800,13 @@ describe('validateFlowForPublish — a regra precisa poder decidir', () => {
     expect(codigos(g, 'atendimento')).toContain('no_fora_da_superficie');
   });
 
-  it('follow-up com pergunta é recusado (o relógio não pergunta)', () => {
+  it('follow-up com pergunta é aceito (a Pergunta passou a rodar no relógio); a skill segue recusada', () => {
     const g = graph(
       [trigger('t'), pergunta('nome'), end('f')],
       [edge('t', 'nome', always()), edge('nome', 'f', always())],
     );
-    expect(codigos(g)).toContain('no_fora_da_superficie');
-    expect(codigos(g, 'followup')).toContain('no_fora_da_superficie');
+    expect(codigos(g)).not.toContain('no_fora_da_superficie');
+    expect(codigos(g, 'followup')).not.toContain('no_fora_da_superficie');
   });
 
   it('roteiro que ramifica é recusado', () => {

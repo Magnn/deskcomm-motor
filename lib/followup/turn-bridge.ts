@@ -19,7 +19,7 @@ import { requireCurrentServiceBoundary } from "@/lib/atendimento/fronteira-serve
 import type pg from "pg";
 
 import type { AdminClient, EnrollmentPatch } from "./engine";
-import { flowGraphSchema } from "./graph-schema";
+import { PERGUNTA_SEM_PRAZO_MS, flowGraphSchema, prazoDaPerguntaMs } from "./graph-schema";
 import { EVENTO_ACAO_ADIADA, classEdgeMatch, selectEdge, type EnrollmentRow } from "./node-handlers";
 import { coletarEsperasAdaptativas, montarTimingPlan, type PropostaDeEspera } from "./timing-plan";
 import { persistirRespostaFollowupPg } from "./persistir-resposta";
@@ -162,7 +162,12 @@ export async function completeTurnForEnrollment(
     //    nela. No `match_reply` soma-se a carência: a pergunta só sai em
     //    `until`, e o lead precisa da carência INTEIRA depois disso para
     //    responder — acordar em `until` leria silêncio como "não respondeu".
-    const carencia = node.type === "match_reply" || node.type === "menu" ? node.config.grace_timeout_ms : 0;
+    const carencia =
+      node.type === "match_reply" || node.type === "menu"
+        ? node.config.grace_timeout_ms
+        : node.type === "collect"
+          ? (prazoDaPerguntaMs(node.config) ?? PERGUNTA_SEM_PRAZO_MS)
+          : 0;
     const voltaEm = new Date(result.until.getTime() + carencia);
     const patch: EnrollmentPatch = {
       next_eval_at: voltaEm.toISOString(),
@@ -198,6 +203,16 @@ export async function completeTurnForEnrollment(
     // Completar o envio não avança — a resposta do lead é que avança.
     // Lançar aqui devolvia o job pra pending e o pipeline mandava a pergunta de novo.
     if (node.type === "match_reply") return;
+    if (node.type === "collect") {
+      // A pergunta saiu: o lead tem o PRAZO inteiro (ou 30 dias, sem prazo) para responder.
+      const nextEvalAt = new Date(now.getTime() + (prazoDaPerguntaMs(node.config) ?? PERGUNTA_SEM_PRAZO_MS)).toISOString();
+      await applyStep(
+        "collect_sent",
+        { next_eval_at: nextEvalAt },
+        { current_node_id: node.id, status: "waiting_reply", next_eval_at: nextEvalAt },
+      );
+      return;
+    }
     if (node.type === "menu") {
       const nextEvalAt = new Date(now.getTime() + node.config.grace_timeout_ms).toISOString();
       await applyStep(

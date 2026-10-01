@@ -1309,6 +1309,20 @@ export type FlowBranch = {
   condition: FlowEdgeCondition;
 };
 
+/**
+ * O prazo da Pergunta em milissegundos — `expiracao_tempo` × `expiracao_unidade`. `null` quando o
+ * dono não definiu prazo: a Pergunta espera a resposta sem expirar e NÃO ganha a saída «Sem resposta».
+ */
+export function prazoDaPerguntaMs(config: { expiracao_tempo?: number | undefined; expiracao_unidade?: string | undefined }): number | null {
+  if (config.expiracao_tempo === undefined) return null;
+  const unidade = config.expiracao_unidade ?? 'minutos';
+  const fator = unidade === 'segundos' ? 1_000 : unidade === 'horas' ? 3_600_000 : unidade === 'dias' ? 86_400_000 : 60_000;
+  return config.expiracao_tempo * fator;
+}
+
+/** Sem prazo definido a Pergunta ainda não espera para sempre no relógio: 30 dias, e então fica parada. */
+export const PERGUNTA_SEM_PRAZO_MS = 30 * 86_400_000;
+
 /** Nó de saída ÚNICA: a aresta sai por ali sempre, e é isso que o rótulo diz. */
 const FALLBACK_ALWAYS_LABEL = 'Sempre';
 /**
@@ -1322,6 +1336,7 @@ const FALLBACK_OTHERS_LABEL = 'Outros casos';
 /** O mesmo escape num nó cujas saídas são REGRAS: "o resto", dito com a palavra das regras. */
 const FALLBACK_NONE_LABEL = 'Nenhuma delas';
 const NO_REPLY_LABEL = 'Sem resposta';
+const FALLBACK_ANSWERED_LABEL = 'Respondeu';
 
 function fallbackBranch(label: string): FlowBranch {
   return {
@@ -1525,6 +1540,23 @@ export function nodeBranches(node: BranchableNode): FlowBranch[] {
         },
         fallbackBranch(FALLBACK_OTHERS_LABEL),
       ];
+
+    case 'collect': {
+      // Pergunta: «Respondeu» é a saída de sempre. Só com PRAZO ganha a saída «Sem resposta» — e
+      // nenhuma das duas precisa estar ligada: sem ligação o lead fica parado aqui, porque o funil
+      // só avança até onde foi montado (ver `park` em node-handlers.ts).
+      if (prazoDaPerguntaMs(node.config) === null) return [fallbackBranch(FALLBACK_ANSWERED_LABEL)];
+      return [
+        {
+          id: NO_REPLY_BRANCH_ID,
+          label: NO_REPLY_LABEL,
+          check: null,
+          kind: 'match',
+          condition: { type: 'branch', branch_id: NO_REPLY_BRANCH_ID },
+        },
+        fallbackBranch(FALLBACK_ANSWERED_LABEL),
+      ];
+    }
 
     default:
       return [fallbackBranch(FALLBACK_ALWAYS_LABEL)];

@@ -62,6 +62,7 @@ import {
   type AvisoRecuperacaoEsgotada,
 } from "./no-show-recuperacao-esgotada";
 import { interpolarDestino, persistirRespostaFollowupSupabase } from "./persistir-resposta";
+import { PERGUNTA_SEM_PRAZO_MS, prazoDaPerguntaMs } from "./graph-schema";
 
 const MAX_STEPS = 80;
 const CLAIM_LEASE_SECONDS = 120;
@@ -225,6 +226,9 @@ function eventTypeFor(result: NodeResult): string {
       return result.purpose === "classify" ? "classify_enqueued" : "turn_enqueued";
     case "recheck":
       return "action_recheck";
+    // A Pergunta (ou outro nó) cuja saída não está ligada: o lead fica. O evento diz POR QUÊ.
+    case "park":
+      return "node_parked";
     case "complete":
       return "flow_completed";
     // `dead`/`fail` never reach the event-insert (handled at the top of applyResult) — cases
@@ -259,6 +263,8 @@ function eventPayload(result: NodeResult): Record<string, unknown> {
     case "complete":
       return { outcome: result.outcome, cancel_reason: result.cancel_reason ?? null };
     case "dead":
+      return { reason: result.reason };
+    case "park":
       return { reason: result.reason };
     case "fail":
       return { error: result.error };
@@ -497,7 +503,9 @@ async function applyResult(
       const graceMs =
         node.type === "ai_classify" || node.type === "match_reply" || node.type === "menu"
           ? node.config.grace_timeout_ms
-          : ACTION_RECHECK_MS;
+          : node.type === "collect"
+            ? (prazoDaPerguntaMs(node.config) ?? PERGUNTA_SEM_PRAZO_MS)
+            : ACTION_RECHECK_MS;
       patch.next_eval_at = new Date(clock().getTime() + graceMs).toISOString();
       if (!isReplay) {
         await db.assertServiceBoundary?.(enrollment);
@@ -517,6 +525,15 @@ async function applyResult(
       }
       break;
     }
+    case "park":
+      // Parado de propósito: sem relógio, e o fluxo só anda até onde o dono o montou. As inscrições já
+      // feitas seguem na versão em que entraram — ligar a saída depois vale para as próximas.
+      patch.current_node_id = enrollment.current_node_id;
+      // Sem resposta ainda (prazo vencido com a saída solta): segue OUVINDO — a resposta tardia acorda o nó.
+      // Já respondeu (ou nada mais a esperar): quieto, nada o acorda.
+      patch.status = result.aguardando_resposta ? "waiting_reply" : "active";
+      patch.next_eval_at = null;
+      break;
     case "complete":
       patch.current_node_id = enrollment.current_node_id;
       patch.status = "completed";
@@ -608,6 +625,30 @@ async function applyResult(
       });
     } catch (err) {
       logger.warn("followup: gravar resposta falhou; o fluxo já avançou", {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
+  // A resposta da Pergunta vai para o campo do lead — mesmo quando a saída «Respondeu» não está ligada
+  // (o lead fica parado, mas o que ele disse não se perde). `salvar_resposta_campo: false` a deixa só na conversa.
+  if (
+    !isReplay &&
+    respostaParaGravar &&
+    node.type === "collect" &&
+    node.config.salvar_resposta_campo !== false &&
+    (result.kind === "advance" || result.kind === "park")
+  ) {
+    try {
+      await db.assertServiceBoundary?.(enrollment);
+      await db.persistirRespostaFollowup({
+        organization_id: enrollment.organization_id,
+        contact_id: enrollment.contact_id,
+        save_to: { kind: "lead_custom", key: node.config.key },
+        value: respostaParaGravar,
+      });
+    } catch (err) {
+      logger.warn("followup: gravar resposta da pergunta falhou; o fluxo já seguiu", {
         error: err instanceof Error ? err.message : String(err),
       });
     }
@@ -735,6 +776,7 @@ async function processEnrollment(
     node.type === "ai_classify" ||
     node.type === "match_reply" ||
     node.type === "menu" ||
+    node.type === "collect" ||
       node.type === "attendant_route" ||
     node.type === "action" ||
     // ai_generic (lote 1) segue o MESMO contrato de ocupação/recheck/dead-man
@@ -788,6 +830,7 @@ async function processEnrollment(
     node.type === "ai_classify" ||
     node.type === "match_reply" ||
     node.type === "menu" ||
+    node.type === "collect" ||
     node.type === "action" ||
     node.type === "ai_generic"
   ) {
@@ -801,11 +844,11 @@ async function processEnrollment(
     if (node.type === "match_reply") {
       matchReplyOcupado = occupancyEventCount(events, node.id) > 0;
     }
-    if (node.type === "ai_classify" || node.type === "match_reply" || node.type === "wait") {
+    if (node.type === "ai_classify" || node.type === "match_reply" || node.type === "wait" || node.type === "collect") {
       const wakeKey = `${node.id}:${enrollment.steps_taken}:wake`;
       wokeEarly = events.some((e) => e.node_id === node.id && e.idempotency_key === wakeKey);
     }
-    if (node.type === "action" || node.type === "ai_generic" || node.type === "menu") {
+    if (node.type === "action" || node.type === "ai_generic" || node.type === "menu" || node.type === "collect") {
       actionEnqueued = waitElapsed;
       // NÃO é `occupancyEventCount`: o dead-man mede ociosidade DESDE A ÚLTIMA
       // prova de vida do turno, e um adiamento de janela é prova de vida. Ver
@@ -813,12 +856,12 @@ async function processEnrollment(
       actionRecheckCount = rechecksOciososDaAcao(events, node.id);
       // ai_generic fecha com o evento PRÓPRIO `ai_generic_done` (turn-bridge.ts),
       // não `action_sent` — ver o parâmetro novo de `actionTurnCompleted`.
-      const doneEventType = node.type === "ai_generic" ? "ai_generic_done" : node.type === "menu" ? "menu_sent" : "action_sent";
+      const doneEventType = node.type === "ai_generic" ? "ai_generic_done" : node.type === "menu" ? "menu_sent" : node.type === "collect" ? "collect_sent" : "action_sent";
       actionCompleted = actionTurnCompleted(events, node.id, doneEventType);
     }
   }
   const textoInbound = inboundBodyOverride?.trim() ?? "";
-  if (textoInbound && (node.type === "match_reply" || node.type === "menu" || node.type === "wait")) {
+  if (textoInbound && (node.type === "match_reply" || node.type === "menu" || node.type === "collect" || node.type === "wait")) {
     wokeEarly = true;
   }
 
@@ -828,11 +871,11 @@ async function processEnrollment(
   }
 
   let lastInboundBody: string | undefined;
-  if (textoInbound && (node.type === "match_reply" || node.type === "menu")) {
+  if (textoInbound && (node.type === "match_reply" || node.type === "menu" || node.type === "collect")) {
     lastInboundBody = textoInbound;
   } else if (
     (node.type === "match_reply" && (wokeEarly || waitElapsed || matchReplyOcupado)) ||
-    (node.type === "menu" && (wokeEarly || waitElapsed)) ||
+    ((node.type === "menu" || node.type === "collect") && (wokeEarly || waitElapsed)) ||
     (node.type === "repeat" && repeatTotal == null)
   ) {
     // Sempre no contato inteiro: a captação e o WhatsApp podem ser conversas
@@ -842,11 +885,11 @@ async function processEnrollment(
         enrollment.organization_id,
         enrollment.contact_id,
         null,
-        node.type === "match_reply" || node.type === "menu"
+        node.type === "match_reply" || node.type === "menu" || node.type === "collect"
           ? pisoDoInboundDaEspera(node, events, enrollment.updated_at)
           : enrollment.updated_at,
       )) ?? "";
-    if ((node.type === "match_reply" || node.type === "menu") && lastInboundBody.trim()) {
+    if ((node.type === "match_reply" || node.type === "menu" || node.type === "collect") && lastInboundBody.trim()) {
       wokeEarly = true;
     }
   }
@@ -883,7 +926,7 @@ async function processEnrollment(
     summary,
     smartWaits,
     events,
-    node.type === "match_reply" && wokeEarly ? (lastInboundBody ?? "").trim() || null : null,
+    (node.type === "match_reply" || node.type === "collect") && wokeEarly ? (lastInboundBody ?? "").trim() || null : null,
   );
 }
 

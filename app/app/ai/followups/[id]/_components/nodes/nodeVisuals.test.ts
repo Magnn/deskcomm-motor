@@ -225,9 +225,9 @@ describe("descreverItemDeConteudo — a prévia de UM item, pra linha do card", 
 });
 
 describe("paleta do follow-up (roteiro de atendimento, #1130)", () => {
-  it("não oferece Pergunta nem Skill — o relógio não as executa", () => {
+  it("oferece a Pergunta (o relógio a executa: pergunta, espera, saídas Respondeu/Sem resposta) e NÃO a Skill", () => {
     const tipos = NODE_VISUAL_LIST.map((v) => v.type);
-    expect(tipos).not.toContain("collect");
+    expect(tipos).toContain("collect");
     expect(tipos).not.toContain("skill");
     expect(tipos).toContain("action");
     // Sem motor de execução ainda (`NOS_EM_CONSTRUCAO`): a paleta não oferece.
