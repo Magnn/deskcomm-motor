@@ -35,6 +35,13 @@ export function TemplateMenu({
   const listRef = useRef<HTMLDivElement>(null);
   const activeItemRef = useRef<HTMLButtonElement>(null);
 
+  useEffect(() => {
+    if (!open) return;
+    if (activeItemRef.current && typeof activeItemRef.current.scrollIntoView === "function") {
+      activeItemRef.current.scrollIntoView({ block: "nearest", inline: "nearest" });
+    }
+  }, [open, activeIndex]);
+
   if (!open) return null;
   const q = query.toLowerCase();
   const filtered = templates.filter(
@@ -43,12 +50,6 @@ export function TemplateMenu({
       (tpl.shortcut ?? "").toLowerCase().includes(q) ||
       tpl.body.toLowerCase().includes(q),
   );
-
-  useEffect(() => {
-    if (activeItemRef.current && typeof activeItemRef.current.scrollIntoView === "function") {
-      activeItemRef.current.scrollIntoView({ block: "nearest", inline: "nearest" });
-    }
-  }, [activeIndex]);
 
   return (
     <div
