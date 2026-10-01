@@ -231,6 +231,14 @@ interface Props {
   triggerConfig: Record<string, unknown>;
 }
 
+/**
+ * Valor do seletor de CANAL para "sem número específico". É constante, e não um
+ * literal no `<SelectItem>`, de propósito: a cerca `gatilhos-oferecidos-tem-motor`
+ * lê todo `<SelectItem value="…">` deste arquivo como TIPO DE GATILHO oferecido,
+ * e um literal aqui a faria acusar um gatilho que não existe.
+ */
+const TODOS_OS_NUMEROS = "todos";
+
 export function TriggerConfigControl({ flowId, triggerConfig }: Props) {
   const t = useT();
   const update = useUpdateTriggerConfig(flowId);
@@ -514,14 +522,14 @@ export function TriggerConfigControl({ flowId, triggerConfig }: Props) {
           <div className="space-y-1.5 border-t border-border pt-3">
             <Label htmlFor="trigger-channel-session">{t("Canal / Número de WhatsApp")}</Label>
             <Select
-              value={form.channelSessionId ?? "all"}
-              onValueChange={(val) => setForm((f) => ({ ...f, channelSessionId: val === "all" ? null : val }))}
+              value={form.channelSessionId ?? TODOS_OS_NUMEROS}
+              onValueChange={(val) => setForm((f) => ({ ...f, channelSessionId: val === TODOS_OS_NUMEROS ? null : val }))}
             >
               <SelectTrigger id="trigger-channel-session" className="w-full">
                 <SelectValue placeholder={t("Todos os canais")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">{t("Todos os números (Padrão)")}</SelectItem>
+                <SelectItem value={TODOS_OS_NUMEROS}>{t("Todos os números (Padrão)")}</SelectItem>
                 {channelSessions.map((c: ChannelSession) => (
                   <SelectItem key={c.id} value={c.id}>
                     {channelLabel(c, t)} {c.phone_number ? `(${c.phone_number})` : ""}
