@@ -463,6 +463,20 @@ describe('graph-schema', () => {
         expect(result.success).toBe(false);
       });
 
+      it('audio aceita a opção "enviar como áudio gravado?" e o nome do arquivo', () => {
+        const comoArquivo = actionConfigSchema.safeParse({
+          mode: 'content',
+          items: [{ type: 'audio', storage_path: 'a.mp3', mime: 'audio/mpeg', voice_note: false, filename: 'Aula 01.mp3' }],
+        });
+        expect(comoArquivo.success).toBe(true);
+        // Sem a opção continua válido: ausente = nota de voz, o padrão de sempre.
+        const padrao = actionConfigSchema.safeParse({
+          mode: 'content',
+          items: [{ type: 'audio', storage_path: 'a.ogg', mime: 'audio/ogg' }],
+        });
+        expect(padrao.success).toBe(true);
+      });
+
       it('accepts an optional name on a sticker item, and refuses an empty one', () => {
         const comNome = actionConfigSchema.safeParse({
           mode: 'content',

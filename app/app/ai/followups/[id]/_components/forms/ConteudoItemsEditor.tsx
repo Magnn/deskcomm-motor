@@ -489,13 +489,14 @@ function AudioCardBody({
   const onPick = async (file: File) => {
     try {
       const r = await upload.mutateAsync({ flowId, file });
-      onChange({ ...item, storage_path: r.storage_path, mime: r.media_mime });
+      onChange({ ...item, storage_path: r.storage_path, mime: r.media_mime, filename: file.name });
     } catch {
       // tratado pelo hook
     }
   };
 
   const temArquivo = item.storage_path.trim() !== "";
+  const comoNotaDeVoz = item.voice_note !== false;
   const audioSrc = temArquivo ? `/api/v1/messages/media?path=${encodeURIComponent(item.storage_path)}` : undefined;
 
   return (
@@ -535,13 +536,43 @@ function AudioCardBody({
       </div>
 
       {/*
-        Sem chave "enviar como áudio gravado" e sem campo de transcrição: o motor
-        manda TODO áudio do fluxo como nota de voz e não transcreve nada. Os dois
-        controles existiam só na tela (estado local, nunca salvo) — a tela não
-        oferece o que o motor não faz.
+        "Enviar como áudio gravado?" — GRAVADO no item (`voice_note`) e respeitado
+        pelo motor e pelos canais: ligado = nota de voz; desligado = arquivo de
+        áudio com nome. (Antes esta chave era só estado local da tela.)
       */}
+      <div className="flex items-center justify-between pt-1">
+        <span className="text-[12px] font-medium text-slate-700 dark:text-zinc-300">
+          {t("Enviar como áudio gravado?")}
+        </span>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={comoNotaDeVoz}
+          aria-label={t("Enviar como áudio gravado?")}
+          disabled={disabled}
+          data-testid="conteudo-audio-nota-de-voz"
+          onClick={() => {
+            const { voice_note: _antes, ...resto } = item;
+            // Ligado é o padrão: some do config em vez de gravar `voice_note: true`.
+            onChange((comoNotaDeVoz ? { ...resto, voice_note: false } : resto) as ConteudoItem);
+          }}
+          className={cn(
+            "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden",
+            comoNotaDeVoz ? "bg-[#9333ea]" : "bg-slate-300 dark:bg-zinc-700",
+          )}
+        >
+          <span
+            className={cn(
+              "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-xs ring-0 transition duration-200 ease-in-out",
+              comoNotaDeVoz ? "translate-x-4" : "translate-x-0",
+            )}
+          />
+        </button>
+      </div>
       <p className="text-[10.5px] text-slate-400 dark:text-zinc-500">
-        {t("O áudio chega ao contato como nota de voz (áudio gravado).")}
+        {comoNotaDeVoz
+          ? t("O áudio chega ao contato como nota de voz (áudio gravado).")
+          : t("O áudio chega ao contato como arquivo de áudio, com o nome do arquivo.")}
       </p>
     </div>
   );

@@ -73,7 +73,7 @@ export function descreverItemDeConteudo(item: ConteudoItem, t: (texto: string) =
     case "video":
       return item.caption ? item.caption : t(TIPOS_DE_ITEM_DE_CONTEUDO[item.type]);
     case "audio":
-      return t(TIPOS_DE_ITEM_DE_CONTEUDO.audio);
+      return item.voice_note === false ? (item.filename ?? t("Arquivo de áudio")) : t(TIPOS_DE_ITEM_DE_CONTEUDO.audio);
     case "document":
       return item.filename ?? t(TIPOS_DE_ITEM_DE_CONTEUDO.document);
     case "contact":
