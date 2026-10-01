@@ -35,7 +35,7 @@ export function ConditionNode({ id, data, selected }: NodeProps<RFNode>) {
           type="source"
           id="true"
           position={Position.Right}
-          className="!-right-5.5 !flex !h-5 !w-5 !items-center !justify-center !rounded-full !border-2 !border-white !bg-[#4f46e5] !shadow-xs text-white hover:!scale-125 transition-all"
+          className="!-right-[13.5px] !flex !h-5 !w-5 !items-center !justify-center !rounded-full !border-2 !border-white !bg-[#4f46e5] !shadow-xs text-white hover:!scale-125 transition-all"
           data-testid={`node-branch-${id}-true`}
         >
           <Play size={8} weight="fill" className="text-white ml-0.5 pointer-events-none" />
@@ -80,7 +80,7 @@ export function ConditionNode({ id, data, selected }: NodeProps<RFNode>) {
           type="source"
           id="false"
           position={Position.Right}
-          className="!-right-5.5 !flex !h-5 !w-5 !items-center !justify-center !rounded-full !border-2 !border-white !bg-[#ef4444] !shadow-xs text-white hover:!scale-125 transition-all"
+          className="!-right-[13.5px] !flex !h-5 !w-5 !items-center !justify-center !rounded-full !border-2 !border-white !bg-[#ef4444] !shadow-xs text-white hover:!scale-125 transition-all"
           data-testid={`node-branch-${id}-false`}
         >
           <Play size={8} weight="fill" className="text-white ml-0.5 pointer-events-none" />

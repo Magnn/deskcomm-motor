@@ -249,7 +249,7 @@ export function TriggerNode({ id, data, selected }: NodeProps<RFNode>) {
         <Handle
           type="source"
           position={Position.Right}
-          className="!-right-2.5 z-10 !flex !h-5 !w-5 !items-center !justify-center !rounded-full !border-2 !border-white !bg-[#2563eb] text-white !shadow-sm !transition-all hover:!scale-125"
+          className="z-10 !flex !h-5 !w-5 !items-center !justify-center !rounded-full !border-2 !border-white !bg-[#2563eb] text-white !shadow-sm !transition-all hover:!scale-125"
           style={{ top: "68px" }}
         >
           <Play size={8} weight="fill" className="pointer-events-none ml-0.5 text-white" />
