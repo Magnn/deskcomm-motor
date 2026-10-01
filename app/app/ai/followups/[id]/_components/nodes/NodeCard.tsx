@@ -257,7 +257,7 @@ export function NodeCard({
           type="target"
           position={Position.Left}
           className={cn(
-            "!-left-2.5 z-10 !flex !h-5 !w-5 !items-center !justify-center !rounded-full !border-2 !bg-white !shadow-sm !transition-all hover:!scale-125",
+            "z-10 !flex !h-5 !w-5 !items-center !justify-center !rounded-full !border-2 !bg-white !shadow-sm !transition-all hover:!scale-125",
             targetBorderClass,
           )}
           style={handleTopStyle}
@@ -524,7 +524,7 @@ export function NodeCard({
                   id={branch.id}
                   position={Position.Right}
                   className={cn(
-                    "!-right-2.5 !flex !h-5 !w-5 !items-center !justify-center !rounded-full !border-2 !border-white !shadow-sm !transition-all hover:!scale-125",
+                    "!-right-[13.5px] !flex !h-5 !w-5 !items-center !justify-center !rounded-full !border-2 !border-white !shadow-sm !transition-all hover:!scale-125",
                     branch.id === "timeout" || branch.id === "sem_resposta"
                       ? "!bg-[#ef4444] text-white"
                       : "!bg-[#2563eb] text-white",
@@ -544,7 +544,7 @@ export function NodeCard({
         <Handle
           type="source"
           position={Position.Right}
-          className="!-right-2.5 z-10 !flex !h-5 !w-5 !items-center !justify-center !rounded-full !border-2 !border-white !bg-[#2563eb] text-white !shadow-sm !transition-all hover:!scale-125"
+          className="z-10 !flex !h-5 !w-5 !items-center !justify-center !rounded-full !border-2 !border-white !bg-[#2563eb] text-white !shadow-sm !transition-all hover:!scale-125"
           style={handleTopStyle}
         >
           <Play size={8} weight="fill" className="pointer-events-none ml-0.5 text-white" />
