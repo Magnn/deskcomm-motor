@@ -433,7 +433,9 @@ export const NAV_CATALOG = [
     icon: "Microphone",
     group: "ia",
     section: "Montar o agente",
-    minRole: "agent",
+    minRole: "manager",
+    // Fica no sidebar por decisão do dono: o menu rola quando passa da dobra,
+    // então o 16º item não esconde nada (o teto de 15 era só o que cabia sem rolar).
     sidebar: true,
   },
   {
@@ -775,6 +777,16 @@ export const NAV_CATALOG = [
     description:
       "O vocabulário de etiquetas da empresa: onde cada uma é usada e como renomear, juntar ou excluir.",
     icon: "Tag",
+    group: "organizacao",
+    section: "Sua empresa",
+    minRole: "manager",
+  },
+  {
+    href: "/app/settings/custom-fields",
+    label: "Campos personalizados",
+    description:
+      "Defina informações extras para contatos e leads (CPF, segmento, datas, seleções).",
+    icon: "ListChecks",
     group: "organizacao",
     section: "Sua empresa",
     minRole: "manager",

@@ -225,6 +225,8 @@ function resumoDeItemDeConteudo(item: ConteudoItem): string {
       return `[documento]${item.filename ? ` ${item.filename}` : ""}`;
     case "contact":
       return `[contato] ${item.name}`;
+    case "sticker":
+      return "[figurinha]";
     case "delay":
       return `[pausa ${item.seconds}s]`;
   }
@@ -239,6 +241,70 @@ function textoDaAcao(
   if (cfg.mode === "ai_message") return { texto: interpolarVolta(cfg.prompt_hint, volta), origem: "ia" };
   if (cfg.mode === "content") return { texto: cfg.items.map(resumoDeItemDeConteudo).join(" · "), origem: "conteudo" };
   return { texto: cfg.template_id, origem: "modelo_salvo" };
+}
+
+function mensagemSimuladaDePassagem(
+  node: FlowNode,
+  volta: { index: number; total: number } | null
+): { texto: string; origem: "texto_fixo" | "ia" | "modelo_salvo" | "confirmacao" | "conteudo" | "menu" } | null {
+  if (node.type === "whatsapp_template") {
+    const nome = node.config.template_name || "(sem modelo selecionado)";
+    return { texto: `[Template WhatsApp] ${nome}`, origem: "modelo_salvo" };
+  }
+  if (node.type === "pix_payment") {
+    const valor = node.config.amount ? `R$ ${node.config.amount}` : "R$ 0,00";
+    const chave = node.config.pix_key || "(chave pendente)";
+    const texto = node.config.message_text
+      ? interpolarVolta(node.config.message_text, volta)
+      : `[PIX ${node.config.key_type}] Chave: ${chave} · Valor: ${valor}${node.config.beneficiary ? ` · Favorecido: ${node.config.beneficiary}` : ""}`;
+    return { texto, origem: "texto_fixo" };
+  }
+  if (node.type === "payment_gateway") {
+    const valor = node.config.open_amount
+      ? "(Valor aberto)"
+      : `${node.config.currency || "BRL"} ${node.config.amount || "0,00"}`;
+    return {
+      texto: `[Cobrança Gateway] ${valor} · Cliente: ${node.config.customer_name || "{full_name}"}`,
+      origem: "texto_fixo",
+    };
+  }
+  if (node.type === "meta_pixel") {
+    const valor = node.config.item_value
+      ? ` (${node.config.currency || "BRL"} ${node.config.item_value})`
+      : "";
+    return {
+      texto: `[Meta Pixel] Evento "${node.config.event_type}"${valor}`,
+      origem: "conteudo",
+    };
+  }
+  if (node.type === "voice_studio") {
+    const voz = node.config.voice_name || "Julieta";
+    const formato = node.config.send_as_voice_note ? "Áudio gravado (PTT)" : "Arquivo de áudio";
+    const texto = node.config.text ? interpolarVolta(node.config.text, volta) : "(sem texto)";
+    return {
+      texto: `[Voice Studio · ${voz} (${formato})] "${texto}"`,
+      origem: "texto_fixo",
+    };
+  }
+  if (node.type === "api_call") {
+    return {
+      texto: `[Requisição API] ${node.config.method} ${node.config.url || "(sem URL)"}`,
+      origem: "conteudo",
+    };
+  }
+  if (node.type === "notify_agent") {
+    return {
+      texto: `[Notificação Interna] ${node.config.message || "(sem mensagem)"}`,
+      origem: "texto_fixo",
+    };
+  }
+  if (node.type === "add_note") {
+    return {
+      texto: `[Nota Interna CRM] ${node.config.body || "(sem nota)"}`,
+      origem: "texto_fixo",
+    };
+  }
+  return null;
 }
 
 function falha(state: SimState, mensagem: string, nodeId?: string): SimState {
@@ -430,6 +496,16 @@ export async function avancarSimulacao(args: {
 
     switch (result.kind) {
       case "advance": {
+        const previa = mensagemSimuladaDePassagem(node, state.ultimaVolta);
+        if (previa) {
+          state = {
+            ...state,
+            transcript: [
+              ...state.transcript,
+              { kind: "mensagem_simulada", nodeId: node.id, texto: previa.texto, origem: previa.origem },
+            ],
+          };
+        }
         if (result.repeat) {
           state = {
             ...state,

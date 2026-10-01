@@ -197,17 +197,28 @@ export function melhorFluxoPorGatilho(
   if (alvo === "") return null;
   let melhor: FluxoComGatilhos | null = null;
   let melhorHits = 0;
+  let empatou = false;
+  const donosDosGatilhos = new Map<string, string>();
   for (const f of fluxos) {
-    const hits = f.gatilhos.filter((g) => {
+    const gatilhosCasados = new Set(f.gatilhos.filter((g) => {
       const ng = normalizarTexto(g);
       return ng !== "" && alvo.includes(ng);
-    }).length;
+    }).map(normalizarTexto));
+    for (const gatilho of gatilhosCasados) {
+      const dono = donosDosGatilhos.get(gatilho);
+      if (dono !== undefined && dono !== f.id) return null;
+      donosDosGatilhos.set(gatilho, f.id);
+    }
+    const hits = gatilhosCasados.size;
     if (hits > melhorHits) {
       melhor = f;
       melhorHits = hits;
+      empatou = false;
+    } else if (hits > 0 && hits === melhorHits) {
+      empatou = true;
     }
   }
-  return melhor;
+  return empatou ? null : melhor;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

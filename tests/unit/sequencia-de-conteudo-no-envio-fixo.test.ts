@@ -9,10 +9,14 @@
  *      antes do envio — nunca referencia o path do fluxo direto;
  *   3. delay é uma pausa a mais (`sleep`), não um send;
  *   4. mídia cuja cópia falha é PULADA sem derrubar o resto da sequência;
- *   5. item sem motor (vídeo/documento/contato) é pulado, nunca lança —
- *      rede de segurança para um fluxo publicado antes da guarda existir;
+ *   5. vídeo e documento saem como mídia, com legenda; o documento leva o nome
+ *      ORIGINAL do arquivo como último segmento do path (é o que o cliente vê);
+ *   9. variáveis do contato (`{{nome}}`, `{{etapa}}`…) são trocadas antes do
+ *      portão, e a etapa só é consultada quando citada;
  *   6. um `send` que devolve um kind fora de OK_KINDS para a sequência ali
- *      (não manda os itens seguintes).
+ *      (não manda os itens seguintes);
+ *   7. contato vira UM send com `contact` (nome + telefone), sem mídia;
+ *   8. figurinha é copiada pra conversa e sai com `kind: 'sticker'`, sem legenda.
  */
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -37,7 +41,7 @@ vi.mock("@/lib/agent-engine/agent/human-handoff", () => ({
 vi.mock("@/lib/agent-engine/edge/crm/get-lead-context", () => ({
   getLeadContext: vi.fn(async () => ({
     ok: true,
-    context: { contact: { is_blocked: false } },
+    context: { contact: { name: "Maria Silva", phone: "+5511988887777", email: null, tags: [], is_blocked: false } },
     lgpd: { isAnonymized: false, isProspecting: false, legalBasis: {} },
   })),
 }));
@@ -84,11 +88,18 @@ function job(contentItems: unknown[]): JobRow {
   } as JobRow;
 }
 
-function fakePool() {
+/** As consultas à etapa do lead feitas neste teste — para provar que ela só é buscada quando citada. */
+const consultasDeEtapa = vi.fn();
+
+function fakePool(etapa: string | null = null) {
   const query = vi.fn(async (sql: string): Promise<{ rows: Array<Record<string, unknown>> }> => {
     if (sql.includes("d.fechada_em::text")) return { rows: [{ ...boundary, status: "open", demanda_fechada_em: null }] };
     if (/from conversations/.test(sql)) {
       return { rows: [{ id: CONVERSA, channel_session_id: CANAL, archived_at: null }] };
+    }
+    if (sql.includes("crm_stages")) {
+      consultasDeEtapa();
+      return { rows: etapa === null ? [] : [{ name: etapa }] };
     }
     return { rows: [] };
   });
@@ -102,6 +113,7 @@ interface EnvioDeItem {
   seq: number;
   body: string;
   media?: { storagePath: string; mime: string; kind: string };
+  contact?: { name: string; phoneNumber: string };
 }
 function fakeChannelSend(resultado: { kind: string; idempotencyKey: string; messageId: string | null }) {
   return vi.fn(async (_input: EnvioDeItem) => resultado);
@@ -202,20 +214,127 @@ describe("sequência de conteúdo — texto, mídia e pausa", () => {
     expect((channelSend.mock.calls[0]![0] as { body: string }).body).toBe("corpo-do-portao");
   });
 
-  it("item sem motor (vídeo/documento/contato) é pulado, nunca derruba o turno", async () => {
+  it("contato vira UM send com o cartão (nome + telefone), sem mídia, com seq próprio", async () => {
     const channelSend = fakeChannelSend({ kind: "sent", idempotencyKey: "k", messageId: "m" });
     await criarHandler(deps(channelSend))(
       job([
-        { type: "video", storage_path: "p", mime: "video/mp4" },
-        { type: "document", storage_path: "p", mime: "application/pdf" },
+        { type: "text", body: "Fale com o nosso suporte:" },
         { type: "contact", name: "Suporte", phone_number: "+5511999998888" },
-        { type: "text", body: "O que sobrou" },
+      ]),
+      fakePool(),
+      ctx,
+    );
+    expect(channelSend).toHaveBeenCalledTimes(2);
+    const cartao = channelSend.mock.calls[1]![0];
+    expect(cartao.seq).toBe(2);
+    expect(cartao.contact).toEqual({ name: "Suporte", phoneNumber: "+5511999998888" });
+    expect(cartao.media).toBeUndefined();
+    // Cartão não é mídia: nada é copiado no Storage por causa dele.
+    expect(storageCopy).not.toHaveBeenCalled();
+  });
+
+  it("figurinha é copiada pra conversa e sai como mídia 'sticker', sem legenda", async () => {
+    const channelSend = fakeChannelSend({ kind: "sent", idempotencyKey: "k", messageId: "m" });
+    await criarHandler(deps(channelSend))(
+      job([{ type: "sticker", storage_path: `${ORG}/flow-content/fluxo-1/fig.webp`, mime: "image/webp" }]),
+      fakePool(),
+      ctx,
+    );
+    expect(storageCopy).toHaveBeenCalledTimes(1);
+    expect(channelSend).toHaveBeenCalledTimes(1);
+    const envio = channelSend.mock.calls[0]![0];
+    expect(envio.body).toBe("");
+    expect(envio.media).toMatchObject({ mime: "image/webp", kind: "sticker" });
+    expect(envio.media!.storagePath.startsWith(`${ORG}/${CONVERSA}/`)).toBe(true);
+    expect(envio.media!.storagePath.endsWith(".webp")).toBe(true);
+  });
+
+  it("vídeo e documento saem como mídia, com a legenda no body e seq próprio", async () => {
+    const channelSend = fakeChannelSend({ kind: "sent", idempotencyKey: "k", messageId: "m" });
+    await criarHandler(deps(channelSend))(
+      job([
+        { type: "video", storage_path: `${ORG}/flow-content/f/v.mp4`, mime: "video/mp4", caption: "Veja o vídeo" },
+        { type: "document", storage_path: `${ORG}/flow-content/f/x.pdf`, mime: "application/pdf", filename: "Proposta Comercial ção.pdf" },
+      ]),
+      fakePool(),
+      ctx,
+    );
+    expect(storageCopy).toHaveBeenCalledTimes(2);
+    expect(channelSend).toHaveBeenCalledTimes(2);
+    const video = channelSend.mock.calls[0]![0];
+    expect(video.seq).toBe(1);
+    expect(video.body).toBe("Veja o vídeo");
+    expect(video.media).toMatchObject({ mime: "video/mp4", kind: "video" });
+    expect(video.media!.storagePath.endsWith(".mp4")).toBe(true);
+
+    const doc = channelSend.mock.calls[1]![0];
+    expect(doc.seq).toBe(2);
+    expect(doc.body).toBe("");
+    expect(doc.media).toMatchObject({ mime: "application/pdf", kind: "document" });
+    // O ÚLTIMO segmento do path é o nome que o cliente vê: o original, em ASCII,
+    // nunca `conteudo-<job>-<seq>.pdf`.
+    expect(doc.media!.storagePath).toBe(`${ORG}/${CONVERSA}/conteudo-job-1-2/Proposta_Comercial_cao.pdf`);
+  });
+
+  it("documento sem nome utilizável cai no nome genérico, com a extensão do arquivo", async () => {
+    const channelSend = fakeChannelSend({ kind: "sent", idempotencyKey: "k", messageId: "m" });
+    await criarHandler(deps(channelSend))(
+      job([{ type: "document", storage_path: `${ORG}/flow-content/f/x.pdf`, mime: "application/pdf" }]),
+      fakePool(),
+      ctx,
+    );
+    expect(channelSend.mock.calls[0]![0].media!.storagePath).toBe(`${ORG}/${CONVERSA}/conteudo-job-1-1.pdf`);
+  });
+
+  it("variáveis do contato são trocadas em texto e legenda ANTES do portão — nunca saem literais", async () => {
+    consultasDeEtapa.mockClear();
+    const channelSend = fakeChannelSend({ kind: "sent", idempotencyKey: "k", messageId: "m" });
+    await criarHandler(deps(channelSend))(
+      job([
+        { type: "text", body: "Olá {{primeiro_nome}}, tudo bem?" },
+        { type: "text", body: "Seu número é {{telefone}} e o e-mail é {{email}}." },
+        { type: "image", storage_path: `${ORG}/flow-content/f/a.jpg`, mime: "image/jpeg", caption: "Para {{nome}}" },
+      ]),
+      fakePool(),
+      ctx,
+    );
+    // O portão recebeu o texto JÁ trocado (é o que ele avalia e o que de fato sai).
+    expect((runBeforeSend.mock.calls[0]![0] as unknown as { body: string }).body).toBe("Olá Maria, tudo bem?");
+    // e-mail é null neste contato: a variável some e a frase é arrumada.
+    expect(channelSend.mock.calls[1]![0].body).toBe("Seu número é +5511988887777 e o e-mail é.");
+    expect(channelSend.mock.calls[2]![0].body).toBe("Para Maria Silva");
+    // Ninguém citou {{etapa}}: a consulta da etapa não é feita.
+    expect(consultasDeEtapa).not.toHaveBeenCalled();
+  });
+
+  it("{{etapa}} busca a etapa atual do lead — e só quando é citada", async () => {
+    consultasDeEtapa.mockClear();
+    const channelSend = fakeChannelSend({ kind: "sent", idempotencyKey: "k", messageId: "m" });
+    await criarHandler(deps(channelSend))(
+      job([
+        { type: "delay", seconds: 1 },
+        { type: "text", body: "Primeira" },
+        { type: "text", body: "Você está em: {{etapa}}" },
+      ]),
+      fakePool("Proposta enviada"),
+      ctx,
+    );
+    expect(consultasDeEtapa).toHaveBeenCalledTimes(1);
+    expect(channelSend.mock.calls[1]![0].body).toBe("Você está em: Proposta enviada");
+  });
+
+  it("texto que era SÓ uma variável sem valor não vira bolha vazia: o item é pulado", async () => {
+    const channelSend = fakeChannelSend({ kind: "sent", idempotencyKey: "k", messageId: "m" });
+    await criarHandler(deps(channelSend))(
+      job([
+        { type: "text", body: "{{email}}" },
+        { type: "text", body: "Segue o contato" },
       ]),
       fakePool(),
       ctx,
     );
     expect(channelSend).toHaveBeenCalledTimes(1);
-    expect((channelSend.mock.calls[0]![0] as { body: string }).body).toBe("corpo-do-portao");
+    expect(channelSend.mock.calls[0]![0].seq).toBe(1);
   });
 
   it("send que devolve 'blocked' PARA a sequência ali (não manda o resto) e propaga o veto permanente", async () => {

@@ -12,6 +12,7 @@ import { ConnectionsClient } from "./ConnectionsClient";
 import { TemplatesClient } from "./TemplatesClient";
 import { TemplatesParceiroClient } from "./TemplatesParceiroClient";
 import { TelefoniaClient } from "./TelefoniaClient";
+import { WebchatClient } from "./WebchatClient";
 import { useT } from "@/hooks/i18n/useT";
 import { rotaDeTemplates } from "@/lib/channels/templates-fonte";
 
@@ -68,9 +69,11 @@ export function ConexoesShell({
           ? "telefonia"
           : abaParam === "voz"
             ? "voz"
-            : abaParam === "graph" && graphParceiro
-              ? "graph"
-              : "numeros";
+            : abaParam === "webchat"
+              ? "webchat"
+              : abaParam === "graph" && graphParceiro
+                ? "graph"
+                : "numeros";
   const sub = params.get("sub") === "templates" ? "templates" : "conexao";
 
   const irPara = (proximaAba: string, proximaSub?: string): void => {
@@ -105,6 +108,7 @@ export function ConexoesShell({
         <TabsTrigger value="parceiro">{t("Provedor parceiro")}</TabsTrigger>
         <TabsTrigger value="telefonia">{t("Telefone")}</TabsTrigger>
         <TabsTrigger value="sociais">{t("Redes sociais")}</TabsTrigger>
+        <TabsTrigger value="webchat">{t("Webchat (Site)")}</TabsTrigger>
         <TabsTrigger value="voz">{t("Chamada de voz")}</TabsTrigger>
         {graphParceiro && <TabsTrigger value="graph">{graphParceiro.label}</TabsTrigger>}
       </TabsList>
@@ -117,6 +121,7 @@ export function ConexoesShell({
         <TelefoniaClient />
       </TabsContent>
       <TabsContent value="sociais" className="mt-0"><RedesSociaisClient /></TabsContent>
+      <TabsContent value="webchat" className="mt-0"><WebchatClient /></TabsContent>
 
       <TabsContent value="voz" className="mt-0">
         <CanalVozClient wacallsConfigured={wacallsConfigured} />

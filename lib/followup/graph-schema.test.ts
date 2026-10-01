@@ -56,6 +56,14 @@ describe('graph-schema', () => {
         'add_note',
         // O agente de IA no comando (fatia 2 do nó): aditivo.
         'agent',
+        // Lote 2 (paridade AcassIA)
+        'pix_payment',
+        'payment_gateway',
+        'whatsapp_template',
+        'meta_pixel',
+        'voice_studio',
+        'google_sheets',
+        'execute_code',
       ]);
     });
 
@@ -450,9 +458,22 @@ describe('graph-schema', () => {
       it('rejects an unknown item type', () => {
         const result = actionConfigSchema.safeParse({
           mode: 'content',
-          items: [{ type: 'sticker', storage_path: 'p', mime: 'image/webp' }],
+          items: [{ type: 'location', latitude: 0, longitude: 0 }],
         });
         expect(result.success).toBe(false);
+      });
+
+      it('accepts a sticker item, and refuses a caption on it (figurinha não tem legenda)', () => {
+        const ok = actionConfigSchema.safeParse({
+          mode: 'content',
+          items: [{ type: 'sticker', storage_path: 'p.webp', mime: 'image/webp' }],
+        });
+        expect(ok.success).toBe(true);
+        const comLegenda = actionConfigSchema.safeParse({
+          mode: 'content',
+          items: [{ type: 'sticker', storage_path: 'p.webp', mime: 'image/webp', caption: 'oi' }],
+        });
+        expect(comLegenda.success).toBe(false);
       });
 
       it('rejects extra keys on an item (strict per-item, not just per-node)', () => {
@@ -2126,4 +2147,51 @@ describe('graph-schema', () => {
       expect(conditionForBranch(node, 'b')).toEqual({ type: 'branch', branch_id: 'b' });
     });
   });
+
+  describe('voiceStudioConfigSchema (Voice Studio - Paridade AcassIA)', () => {
+    it('parseia com valores padrão', () => {
+      const parsed = flowNodeSchema.parse({
+        id: 'vs-1',
+        type: 'voice_studio',
+        label: 'Voice Studio',
+        position: { x: 0, y: 0 },
+        config: {},
+      });
+      expect(parsed.type).toBe('voice_studio');
+      if (parsed.type === 'voice_studio') {
+        expect(parsed.config.stability).toBe(0.5);
+        expect(parsed.config.similarity).toBe(0.7);
+        expect(parsed.config.style).toBe(0.5);
+        expect(parsed.config.speed).toBe(1.0);
+        expect(parsed.config.send_as_voice_note).toBe(true);
+        expect(parsed.config.voice_id).toBe('julieta');
+      }
+    });
+
+    it('aceita valores customizados de parâmetros', () => {
+      const parsed = flowNodeSchema.parse({
+        id: 'vs-2',
+        type: 'voice_studio',
+        label: 'Voz Marcos',
+        position: { x: 10, y: 10 },
+        config: {
+          text: 'Olá, tudo bem?',
+          stability: 0.8,
+          similarity: 0.9,
+          style: 0.3,
+          speed: 1.2,
+          send_as_voice_note: false,
+          voice_id: 'marcos_vinicius',
+          voice_name: 'Marcos Vinicius',
+        },
+      });
+      if (parsed.type === 'voice_studio') {
+        expect(parsed.config.text).toBe('Olá, tudo bem?');
+        expect(parsed.config.speed).toBe(1.2);
+        expect(parsed.config.send_as_voice_note).toBe(false);
+        expect(parsed.config.voice_name).toBe('Marcos Vinicius');
+      }
+    });
+  });
 });
+

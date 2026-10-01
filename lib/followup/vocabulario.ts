@@ -53,6 +53,7 @@ import {
   type aiClassifyConfigSchema,
   type conditionConfigSchema,
   type ConteudoItemType,
+  type GoogleSheetsOperation,
   type contactFlowFieldTypeSchema,
   type endConfigSchema,
   type HttpMethod,
@@ -524,7 +525,16 @@ export const TIPOS_DE_ITEM_DE_CONTEUDO: Record<ConteudoItemType, string> = {
   audio: "Áudio (nota de voz)",
   document: "Documento",
   contact: "Contato",
+  sticker: "Figurinha",
   delay: "Pausa",
+};
+
+/** O que o nó Google Sheets faz na planilha — rótulos do formulário e do card. */
+export const OPERACOES_DA_PLANILHA: Record<GoogleSheetsOperation, string> = {
+  insert_row: "Inserir nova linha",
+  get_row: "Buscar linha por valor",
+  update_row: "Atualizar linha existente",
+  clear_row: "Limpar linha",
 };
 
 // ─── pergunta do fluxo de atendimento (nó collect) ───────────────────────
@@ -648,5 +658,28 @@ export const UNIDADES_DE_TEMPO: Record<UnidadeDeTempo, string> = {
   horas: "Horas",
   dias: "Dias",
 };
+
+// ─── Pagamento PIX (nó pix_payment) ─────────────────────────────────────
+
+export type TipoDeChavePix = "aleatoria" | "cpf" | "cnpj" | "email" | "telefone";
+
+export const TIPOS_DE_CHAVE_PIX: Record<TipoDeChavePix, string> = {
+  aleatoria: "Chave Aleatória",
+  cpf: "CPF",
+  cnpj: "CNPJ",
+  email: "E-mail",
+  telefone: "Telefone",
+};
+
+// ─── Template WhatsApp (nó whatsapp_template) ───────────────────────────
+
+export type UnidadeDeTimeoutWhatsapp = "Minutos" | "Horas" | "Dias";
+
+export const UNIDADES_DE_TIMEOUT_WHATSAPP: Record<UnidadeDeTimeoutWhatsapp, string> = {
+  Minutos: "Minutos",
+  Horas: "Horas",
+  Dias: "Dias",
+};
+
 
 

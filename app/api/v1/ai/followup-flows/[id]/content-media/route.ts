@@ -17,7 +17,7 @@ import { fail, ok } from "@/lib/api/wrappers";
 import { requireRole } from "@/lib/auth/require-role";
 import { traduzir } from "@/lib/i18n/dicionario";
 import { extFromMime, MAX_MEDIA_BYTES } from "@/lib/messaging/media/types";
-import { validateOutboundMedia } from "@/lib/messaging/media/upload-validation";
+import { validateOutboundMedia, validateStickerUpload } from "@/lib/messaging/media/upload-validation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -67,7 +67,12 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<Response> {
   }
 
   const mime = file.type || "application/octet-stream";
-  const verdict = validateOutboundMedia(mime, file.size);
+  // `as=sticker` é o item "Figurinha" do nó Conteúdo declarando a intenção: só
+  // assim o .webp entra (como IMAGEM ele segue recusado — ver `validateStickerUpload`).
+  const verdict =
+    form?.get("as") === "sticker"
+      ? validateStickerUpload(mime, file.size)
+      : validateOutboundMedia(mime, file.size);
   if (!verdict.ok) {
     const status = verdict.code === "payload_too_large" ? 413 : verdict.code === "unsupported_media_type" ? 415 : 422;
     return fail(verdict.code, verdict.message, status, { requestId });

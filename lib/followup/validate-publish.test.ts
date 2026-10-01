@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { validateFlowForPublish } from './validate-publish';
+import { TIPOS_DE_ITEM_DE_CONTEUDO_EM_CONSTRUCAO, validateFlowForPublish } from './validate-publish';
 import type { ConteudoItem, FlowGraph, FlowNode, FlowEdge } from './graph-schema';
 
 const pos = { x: 0, y: 0 };
@@ -852,22 +852,63 @@ describe('validarItensDeConteudo — motor de envio por tipo de item', () => {
   it.each([
     ['video' as const, { type: 'video' as const, storage_path: 'p', mime: 'video/mp4' }],
     ['document' as const, { type: 'document' as const, storage_path: 'p', mime: 'application/pdf' }],
-    ['contact' as const, { type: 'contact' as const, name: 'Suporte', phone_number: '+5511999998888' }],
-  ])('%s (motor ainda não existe): recusa no publish', (_tipo, item) => {
+  ])('%s já tem motor de envio: publica', (_tipo, item) => {
     const g = graph(
       [trigger('t'), actionContent('a', [item]), end('f')],
       [edge('t', 'a', always()), edge('a', 'f', always())],
     );
-    expect(codigos(g)).toContain('item_de_conteudo_em_construcao');
+    const codes = codigos(g);
+    expect(codes).not.toContain('item_de_conteudo_em_construcao');
+    expect(codes).not.toContain('midia_sem_arquivo');
+    expect(codes).not.toContain('conteudo_so_pausas');
   });
 
-  it('acusa o ÍNDICE do item dentro do nó, não só o nó', () => {
+  it('a lista de tipos em construção está vazia — todo tipo do schema tem motor', () => {
+    expect(TIPOS_DE_ITEM_DE_CONTEUDO_EM_CONSTRUCAO).toEqual([]);
+  });
+
+  it.each([
+    ['link no lugar do arquivo', { type: 'document' as const, storage_path: 'https://…/a.pdf', mime: 'application/pdf' }],
+    ['variável no lugar do arquivo', { type: 'image' as const, storage_path: '{{url_imagem_lead}}', mime: 'image/jpeg' }],
+  ])('mídia com %s: recusa no publish, com o item', (_caso, item) => {
+    const g = graph(
+      [trigger('t'), actionContent('a', [{ type: 'text', body: 'Oi' }, item]), end('f')],
+      [edge('t', 'a', always()), edge('a', 'f', always())],
+    );
+    const r = validateFlowForPublish(g);
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.errors.find((e) => e.code === 'midia_sem_arquivo')?.message).toContain('item 2');
+    }
+  });
+
+  it('contato e figurinha já têm motor: publicam', () => {
+    const g = graph(
+      [
+        trigger('t'),
+        actionContent('a', [
+          { type: 'contact', name: 'Suporte', phone_number: '+5511999998888' },
+          { type: 'sticker', storage_path: 'p.webp', mime: 'image/webp' },
+        ]),
+        end('f'),
+      ],
+      [edge('t', 'a', always()), edge('a', 'f', always())],
+    );
+    const codes = codigos(g);
+    expect(codes).not.toContain('item_de_conteudo_em_construcao');
+    expect(codes).not.toContain('contato_com_telefone_invalido');
+    expect(codes).not.toContain('figurinha_fora_do_formato');
+    // Sozinhos já são "conteúdo de verdade": não é um nó só de pausas.
+    expect(codes).not.toContain('conteudo_so_pausas');
+  });
+
+  it('contato com telefone que o canal não disca: recusa no publish, com o item', () => {
     const g = graph(
       [
         trigger('t'),
         actionContent('a', [
           { type: 'text', body: 'Oi' },
-          { type: 'video', storage_path: 'p', mime: 'video/mp4' },
+          { type: 'contact', name: 'Suporte', phone_number: 'ramal 12 ok' },
         ]),
         end('f'),
       ],
@@ -876,7 +917,102 @@ describe('validarItensDeConteudo — motor de envio por tipo de item', () => {
     const r = validateFlowForPublish(g);
     expect(r.ok).toBe(false);
     if (!r.ok) {
-      expect(r.errors.find((e) => e.code === 'item_de_conteudo_em_construcao')?.message).toContain('item 2');
+      expect(r.errors.find((e) => e.code === 'contato_com_telefone_invalido')?.message).toContain('item 2');
+    }
+  });
+
+  it('figurinha que não é .webp: recusa no publish', () => {
+    const g = graph(
+      [trigger('t'), actionContent('a', [{ type: 'sticker', storage_path: 'p.png', mime: 'image/png' }]), end('f')],
+      [edge('t', 'a', always()), edge('a', 'f', always())],
+    );
+    expect(codigos(g)).toContain('figurinha_fora_do_formato');
+  });
+
+});
+
+describe('validateFlowForPublish — nós de paridade AcassIA', () => {
+  it('publica com sucesso fluxo contendo whatsapp_template, pix_payment, payment_gateway e meta_pixel', () => {
+    const g: FlowGraph = {
+      nodes: [
+        trigger('t'),
+        {
+          id: 'wt',
+          type: 'whatsapp_template',
+          label: 'Template WhatsApp',
+          position: pos,
+          config: { template_name: 'modelo_aprovado', timeout: 60, timeout_unit: 'Minutos' },
+        },
+        {
+          id: 'pix',
+          type: 'pix_payment',
+          label: 'PIX',
+          position: pos,
+          config: { key_type: 'aleatoria', pix_key: 'chave-uuid', beneficiary: 'Loja Teste', amount: '50,00' },
+        },
+        {
+          id: 'gw',
+          type: 'payment_gateway',
+          label: 'Pagamento',
+          position: pos,
+          config: { currency: 'BRL', amount: '100,00', open_amount: false, customer_name: 'Lead', customer_phone: '11999999999' },
+        },
+        {
+          id: 'px',
+          type: 'meta_pixel',
+          label: 'Pixel',
+          position: pos,
+          config: { pixel_id: 'px-1', event_type: 'Lead', page_id: 'page-1', item_value: '100,00', currency: 'BRL' },
+        },
+        {
+          id: 'vs',
+          type: 'voice_studio',
+          label: 'Voice Studio',
+          position: pos,
+          config: {
+            text: 'Olá do Voice Studio',
+            stability: 0.5,
+            similarity: 0.7,
+            style: 0.5,
+            speed: 1.0,
+            send_as_voice_note: true,
+            voice_id: 'julieta',
+            voice_name: 'Julieta',
+          },
+        },
+        end('f'),
+      ],
+      edges: [
+        edge('t', 'wt', always()),
+        edge('wt', 'pix', always()),
+        edge('pix', 'gw', always()),
+        edge('gw', 'px', always()),
+        edge('px', 'vs', always()),
+        edge('vs', 'f', always()),
+      ],
+    };
+
+    const r = validateFlowForPublish(g);
+    expect(r.ok).toBe(true);
+  });
+});
+
+
+describe('validateFlowForPublish — nós sem motor de execução', () => {
+  // Google Sheets e Executar código só "passam adiante" em `node-handlers.ts`:
+  // não existe executor. Enquanto for assim, o publish recusa — senão o fluxo
+  // publica, roda, e o passo que o dono configurou não acontece.
+  it.each([
+    ['google_sheets', { operation: 'insert_row', spreadsheet_id: 'abc', sheet_name: 'P1', mappings: [] }, 'Google Sheets'],
+    ['execute_code', { code: 'return {};', timeout_ms: 3000, output_field: '', mappings: [] }, 'execução de código'],
+  ] as const)('%s: recusa no publish, dizendo qual motor falta', (type, config, nome) => {
+    const no = { id: 'x', type, label: 'Caixa', position: { x: 0, y: 0 }, config } as unknown as FlowNode;
+    const r = validateFlowForPublish(graph([trigger('t'), no, end('f')], [edge('t', 'x', always()), edge('x', 'f', always())]));
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      const erro = r.errors.find((e) => e.code === 'no_em_construcao');
+      expect(erro?.node_id).toBe('x');
+      expect(erro?.message).toContain(nome);
     }
   });
 });

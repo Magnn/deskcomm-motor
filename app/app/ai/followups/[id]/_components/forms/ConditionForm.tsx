@@ -212,7 +212,7 @@ export function ConditionForm({
               )}
             >
               <span className="text-[11px] font-bold">{t("Corresponde a TODAS")}</span>
-              <span className="text-[10px] text-slate-500 dark:text-zinc-400 mt-1">E (AND) — todas válidas</span>
+              <span className="text-[10px] text-slate-500 dark:text-zinc-400 mt-1">{t("E (AND) — todas válidas")}</span>
             </button>
 
             <button
@@ -229,7 +229,7 @@ export function ConditionForm({
               )}
             >
               <span className="text-[11px] font-bold">{t("Corresponde a QUALQUER")}</span>
-              <span className="text-[10px] text-slate-500 dark:text-zinc-400 mt-1">OU (OR) — pelo menos uma</span>
+              <span className="text-[10px] text-slate-500 dark:text-zinc-400 mt-1">{t("OU (OR) — pelo menos uma")}</span>
             </button>
           </div>
 

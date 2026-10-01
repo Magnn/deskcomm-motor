@@ -23,6 +23,11 @@ describe("wahaSendPlanFor", () => {
     expect(plan.payload.convert).toBe(true);
     expect(plan.payload.caption).toBeUndefined(); // voz não tem caption no WhatsApp
   });
+  it("sticker → sendImage SEM caption (este transporte não tem endpoint de figurinha)", () => {
+    const plan = wahaSendPlanFor("sticker", { ...media, mime: "image/webp", filename: "f.webp" });
+    expect(plan.endpoint).toBe("sendImage");
+    expect(plan.payload.caption).toBeUndefined();
+  });
   it("document (e desconhecidos) → sendFile com filename", () => {
     const plan = wahaSendPlanFor("document", { ...media, mime: "application/pdf", filename: "doc.pdf" });
     expect(plan.endpoint).toBe("sendFile");

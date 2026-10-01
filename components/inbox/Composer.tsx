@@ -6,6 +6,7 @@ import {
   useEffect,
   useRef,
   useState,
+  useMemo,
   type ClipboardEvent,
   type KeyboardEvent,
 } from "react";
@@ -98,6 +99,22 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
   const templates = useMessageTemplates();
   const slash = resolveSlash(text);
   const menuOpen = mode === "reply" && slash.open && !menuDismissed;
+  const [activeTemplateIndex, setActiveTemplateIndex] = useState(0);
+
+  const filteredTemplates = useMemo(() => {
+    if (!menuOpen) return [];
+    const q = slash.query.toLowerCase();
+    return (templates.data ?? []).filter(
+      (tpl) =>
+        tpl.title.toLowerCase().includes(q) ||
+        (tpl.shortcut ?? "").toLowerCase().includes(q) ||
+        tpl.body.toLowerCase().includes(q),
+    );
+  }, [menuOpen, slash.query, templates.data]);
+
+  useEffect(() => {
+    setActiveTemplateIndex(0);
+  }, [slash.query]);
 
   useImperativeHandle(ref, () => ({
     focus: () => taRef.current?.focus(),
@@ -189,13 +206,40 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
   }
 
   function onKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
-    if (e.key === "Escape" && menuOpen) {
-      setMenuDismissed(true);
-      return;
+    if (menuOpen) {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setMenuDismissed(true);
+        return;
+      }
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setActiveTemplateIndex((i) =>
+          filteredTemplates.length > 0 ? (i + 1) % filteredTemplates.length : 0
+        );
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setActiveTemplateIndex((i) =>
+          filteredTemplates.length > 0
+            ? (i - 1 + filteredTemplates.length) % filteredTemplates.length
+            : 0
+        );
+        return;
+      }
+      if ((e.key === "Enter" || e.key === "Tab") && !e.shiftKey) {
+        e.preventDefault();
+        const selected = filteredTemplates[activeTemplateIndex];
+        if (selected) {
+          applyTemplate(selected);
+        }
+        return;
+      }
     }
+
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      if (menuOpen) return; // deixa o Enter pro menu; não envia /query como mensagem
       handleSubmit();
     }
   }
@@ -225,6 +269,7 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
           templates={templates.data ?? []}
           onPick={applyTemplate}
           onClose={() => setMenuDismissed(true)}
+          activeIndex={activeTemplateIndex}
         />
         <div className="mb-1.5 flex gap-1">
           <button
