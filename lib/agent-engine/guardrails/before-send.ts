@@ -955,6 +955,19 @@ export interface RunBeforeSendArgs {
    */
   enforceSpinning?: boolean;
   /**
+   * `false` = este corpo é TEXTO FIXO DE FLUXO, escrito pelo dono, e a tabela de
+   * preço do agente não o julga. Ausente = armado (todo texto do modelo).
+   *
+   * Decisão do dono do produto: fluxo estático e agente de IA são coisas
+   * diferentes, e o fluxo roda igual com ou sem agente publicado. A tabela de
+   * promessas nasce do preço configurado NO AGENTE (`lib/preco/sincronizar-piso.ts`)
+   * e existe para o modelo não inventar valor; aplicada ao texto fixo, ela calava
+   * em silêncio uma mensagem que o dono mandou enviar (o passo era pulado e o
+   * fluxo seguia sem ela). Só a camada de PREÇO sai: opt-out, LGPD, janela,
+   * anti-banimento e disclosure continuam valendo para o fluxo.
+   */
+  enforcePromise?: boolean;
+  /**
    * Arma o `agendaStallGate` para ESTA tentativa — ver `GateContext.agenda`. Ausente = gate
    * no-op (retrocompatível com todo caller que não conhece agenda, ex.: `followup-turn.ts`).
    */
@@ -1213,7 +1226,7 @@ export async function runBeforeSend(args: RunBeforeSendArgs): Promise<BeforeSend
       spinning: { knobs: spinningKnobs, window },
       ...(args.enforceSpinning === false ? { spinningEnforced: false as const } : {}),
       promise: {
-        table: tabelaDoTurno(promise?.table ?? null, args.promiseMinPriceCents),
+        table: args.enforcePromise === false ? null : tabelaDoTurno(promise?.table ?? null, args.promiseMinPriceCents),
         ...(promise?.versionId !== undefined ? { versionId: promise.versionId } : {}),
       },
       semanticPromise,

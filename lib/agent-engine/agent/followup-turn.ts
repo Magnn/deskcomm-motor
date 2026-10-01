@@ -1197,6 +1197,8 @@ async function sendConteudoSequence(
     now: clock(),
     sleep: deps.sleep,
     lgpd: context.lgpd,
+    // Conteúdo de caixa é texto do DONO: a tabela de preço do agente não o julga.
+    enforcePromise: false,
     ...(deps.knobs.disclosureMode !== undefined ? { disclosureMode: deps.knobs.disclosureMode } : {}),
     send: async (finalBody) => {
       let seq = 0;

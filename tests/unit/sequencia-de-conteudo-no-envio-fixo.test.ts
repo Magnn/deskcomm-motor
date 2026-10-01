@@ -438,6 +438,16 @@ describe("sequência de conteúdo — texto, mídia e pausa", () => {
     expect(channelSend.mock.calls[0]![0].media!.storagePath).toBe(`${ORG}/${CONVERSA}/conteudo-job-1-1.pdf`);
   });
 
+  it("conteúdo de caixa é texto do DONO: a tabela de preço do agente não o julga (fluxo independe do agente)", async () => {
+    // Medido em produção: a caixa citava "R$ 10", o piso do agente era R$ 50,70, e o
+    // passo era vetado e pulado em silêncio. O resto da cadeia continua valendo — o
+    // conteúdo SEGUE passando pelo portão (opt-out, LGPD, janela, anti-banimento).
+    const channelSend = fakeChannelSend({ kind: "sent", idempotencyKey: "k", messageId: "m" });
+    await criarHandler(deps(channelSend))(job([{ type: "text", body: "Hoje sai por R$ 10" }]), fakePool(), ctx);
+    expect(runBeforeSend).toHaveBeenCalledTimes(1);
+    expect((runBeforeSend.mock.calls[0]![0] as unknown as { enforcePromise?: boolean }).enforcePromise).toBe(false);
+  });
+
   it("variáveis do contato são trocadas em texto e legenda ANTES do portão — nunca saem literais", async () => {
     consultasDeEtapa.mockClear();
     const channelSend = fakeChannelSend({ kind: "sent", idempotencyKey: "k", messageId: "m" });
