@@ -12513,7 +12513,7 @@ export const DICIONARIO: Traducoes = {
   "Clique para enviar um documento": { es: "Haga clic para enviar un documento" },
   "Arquivos de documentos (máx. 25 MB)": { es: "Archivos de documentos (máx. 25 MB)" },
   "Selecionar arquivo": { es: "Seleccionar archivo" },
-  "Clique para enviar um video": { es: "Haga clic para enviar un video" },
+  "Clique para enviar um vídeo": { es: "Haga clic para enviar un video" },
   "Fim do Fluxo": { es: "Fin del flujo" },
   "Encerra a inscrição e define o status final do lead": { es: "Cierra la inscripción y define el estado final del lead" },
   "Selecione o desfecho:": { es: "Seleccione el resultado:" },
@@ -12807,6 +12807,10 @@ export const DICIONARIO: Traducoes = {
   "A figurinha precisa ser um arquivo .webp de até 500 KB.": { es: "El sticker debe ser un archivo .webp de hasta 500 KB." },
   "Clique para enviar uma figurinha": { es: "Haga clic para enviar un sticker" },
   ".webp, 512×512 px (máx. 500 KB)": { es: ".webp, 512×512 px (máx. 500 KB)" },
+  "O áudio chega ao contato como nota de voz (áudio gravado).": { es: "El audio le llega al contacto como nota de voz (audio grabado)." },
+  "PDF, Word, Excel, PowerPoint, TXT, CSV ou ZIP (máx. 50 MB)": { es: "PDF, Word, Excel, PowerPoint, TXT, CSV o ZIP (máx. 50 MB)" },
+  "PNG ou JPG (máx. 5 MB)": { es: "PNG o JPG (máx. 5 MB)" },
+  "MP4 ou 3GP (máx. 16 MB)": { es: "MP4 o 3GP (máx. 16 MB)" },
 };
 
 /**

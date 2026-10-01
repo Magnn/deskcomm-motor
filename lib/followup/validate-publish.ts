@@ -3,7 +3,7 @@ import type { FollowupFlowSurface } from './api-schemas';
 import type { AgenteCitado } from './agentes-citados';
 import { AGENT_NODE_UNSET_ID, branchIdForCondition, nodeBranches } from './graph-schema';
 import { rotuloDoRamo } from './rotulo-do-ramo';
-import type { NomesDeValor } from './vocabulario';
+import { TIPOS_DE_ITEM_DE_CONTEUDO, type NomesDeValor } from './vocabulario';
 import { parseDialablePhone } from '@/lib/messaging/contact-card';
 
 /**
@@ -41,6 +41,7 @@ export const PUBLISH_ERROR_CODES = [
   'conteudo_so_pausas',
   'contato_com_telefone_invalido',
   'figurinha_fora_do_formato',
+  'midia_sem_arquivo',
 ] as const;
 export type PublishErrorCode = (typeof PUBLISH_ERROR_CODES)[number];
 
@@ -81,13 +82,16 @@ export const NOS_EM_CONSTRUCAO: readonly NodeType[] = ['agent'];
  * Mesma doutrina do `NOS_EM_CONSTRUCAO` acima, um degrau mais fundo: o nó
  * "Ação" já roda (`node-handlers.ts` sempre soube enfileirar o turno), mas
  * dentro do modo `content` nem todo TIPO de item tem motor de envio ainda —
- * `lib/agent-engine/agent/followup-turn.ts` sabe mandar texto/imagem/áudio/
- * contato/figurinha/pausa. Vídeo e documento o schema já aceita (a tela deixa
- * configurar), mas publicar um fluxo com um desses itens seria publicar um
- * passo que o motor pula em silêncio na hora de enviar. Quando o motor
- * aprender um tipo novo, ele sai desta lista — no mesmo PR que ensina o envio.
+ * a lista abaixo é a dos tipos que o schema aceita mas o motor
+ * (`lib/agent-engine/agent/followup-turn.ts`) ainda não sabe enviar. Publicar
+ * um fluxo com um deles seria publicar um passo que o motor pula em silêncio.
+ *
+ * Hoje está VAZIA: o motor envia todos os tipos do schema (texto, imagem,
+ * vídeo, áudio, documento, contato, figurinha, pausa). A lista e a guarda ficam
+ * de pé para o próximo tipo novo: ele entra aqui com o schema e sai no PR que
+ * ensinar o envio.
  */
-export const TIPOS_DE_ITEM_DE_CONTEUDO_EM_CONSTRUCAO: readonly ConteudoItemType[] = ["video", "document"];
+export const TIPOS_DE_ITEM_DE_CONTEUDO_EM_CONSTRUCAO: readonly ConteudoItemType[] = [];
 
 /**
  * Os tipos de nó que cada superfície EXECUTA. É a mesma lista que a paleta do
@@ -544,11 +548,24 @@ function validarItensDeConteudo(graph: FlowGraph, errors: PublishValidationError
           message: `A caixa "${node.label}", item ${i + 1}: a figurinha precisa ser um arquivo .webp — troque o arquivo antes de publicar.`,
         });
       }
+      // Mídia é ARQUIVO do Storage, nunca link nem variável: o motor copia o
+      // arquivo para a conversa, e um `https://…` ou `{{campo}}` no lugar do
+      // path não copia — o item sumiria do envio sem ninguém ver.
+      if (
+        'storage_path' in item &&
+        (/^https?:/i.test(item.storage_path.trim()) || item.storage_path.includes('{{'))
+      ) {
+        errors.push({
+          node_id: node.id,
+          code: 'midia_sem_arquivo',
+          message: `A caixa "${node.label}", item ${i + 1}: envie o arquivo pelo botão de upload — link ou variável no lugar do arquivo não são enviados.`,
+        });
+      }
       if (!emConstrucao.has(item.type)) continue;
       errors.push({
         node_id: node.id,
         code: 'item_de_conteudo_em_construcao',
-        message: `A caixa "${node.label}", item ${i + 1}: o envio de ${item.type === 'video' ? 'vídeo' : 'documento'} ainda não roda — remova este item ou troque o tipo antes de publicar.`,
+        message: `A caixa "${node.label}", item ${i + 1}: o envio de ${TIPOS_DE_ITEM_DE_CONTEUDO[item.type].toLowerCase()} ainda não roda — remova este item ou troque o tipo antes de publicar.`,
       });
     }
     // Só pausa(s), nenhum item que de fato envia algo: o motor não teria o que
@@ -559,7 +576,7 @@ function validarItensDeConteudo(graph: FlowGraph, errors: PublishValidationError
       errors.push({
         node_id: node.id,
         code: 'conteudo_so_pausas',
-        message: `A caixa "${node.label}" só tem pausas — acrescente ao menos um item de conteúdo de verdade (texto, imagem, áudio, contato ou figurinha).`,
+        message: `A caixa "${node.label}" só tem pausas — acrescente ao menos um item de conteúdo de verdade (texto, mídia, contato ou figurinha).`,
       });
     }
   }

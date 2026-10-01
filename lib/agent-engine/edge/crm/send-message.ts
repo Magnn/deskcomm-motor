@@ -68,7 +68,7 @@ export interface SendMessageInput {
    * `kind` ausente = imagem; `'audio'` = nota de voz (o `body` é o texto falado);
    * `'sticker'` = figurinha, que não tem legenda.
    */
-  media?: { storagePath: string; mime: string; kind?: 'image' | 'audio' | 'sticker' };
+  media?: { storagePath: string; mime: string; kind?: 'image' | 'video' | 'audio' | 'document' | 'sticker' };
   /**
    * Presente = este envio é um CARTÃO DE CONTATO (nome + telefone). Não é mídia e
    * não tem legenda: o `body` só existe para o hash de idempotência. Quem monta o
@@ -99,7 +99,7 @@ export function corpoDoEnvio(
         ? { type: 'contact' as const }
         : input.media
           ? {
-              type: (input.media.kind ?? 'image') as 'image' | 'audio' | 'sticker',
+              type: (input.media.kind ?? 'image') as 'image' | 'video' | 'audio' | 'document' | 'sticker',
               media_storage_path: input.media.storagePath,
               media_mime: input.media.mime,
             }

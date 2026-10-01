@@ -421,7 +421,7 @@ function ItemCard({
           {item.type === "document" && <FileText size={12} className="text-white" />}
           {item.type === "contact" && <IdentificationCard size={12} className="text-white" />}
           {item.type === "sticker" && <Smiley size={12} className="text-white" />}
-          <span>{item.type === "video" ? "Video" : labelPorTipo(item.type)}</span>
+          <span>{labelPorTipo(item.type)}</span>
         </span>
 
         <div className="flex items-center gap-1.5">
@@ -463,8 +463,6 @@ function AudioCardBody({
   const t = useT();
   const upload = useUploadFlowContentMedia();
   const inputRef = React.useRef<HTMLInputElement>(null);
-  const [enviarComoGravado, setEnviarComoGravado] = React.useState(true);
-  const [transcricao, setTranscricao] = React.useState("");
 
   const onPick = async (file: File) => {
     try {
@@ -514,45 +512,15 @@ function AudioCardBody({
         </button>
       </div>
 
-      {/* Switch: Enviar como áudio gravado? */}
-      <div className="flex items-center justify-between pt-1">
-        <span className="text-[12px] font-medium text-slate-700 dark:text-zinc-300">
-          {t("Enviar como áudio gravado?")}
-        </span>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={enviarComoGravado}
-          disabled={disabled}
-          onClick={() => setEnviarComoGravado(!enviarComoGravado)}
-          className={cn(
-            "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden",
-            enviarComoGravado ? "bg-[#9333ea]" : "bg-slate-300 dark:bg-zinc-700",
-          )}
-        >
-          <span
-            className={cn(
-              "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-xs ring-0 transition duration-200 ease-in-out",
-              enviarComoGravado ? "translate-x-4" : "translate-x-0",
-            )}
-          />
-        </button>
-      </div>
-
-      {/* Seção Transcrição */}
-      <div className="space-y-1 pt-1">
-        <label className="text-[12px] font-semibold text-slate-800 dark:text-zinc-200 block">
-          {t("Transcrição")}
-        </label>
-        <textarea
-          rows={2}
-          value={transcricao}
-          disabled={disabled}
-          onChange={(e) => setTranscricao(e.target.value)}
-          placeholder={t("A transcrição do áudio aparecerá aqui")}
-          className="w-full rounded-[10px] border border-[#e2e8f0] dark:border-zinc-800 bg-white dark:bg-zinc-950 px-2.5 py-2 text-[12px] text-slate-800 dark:text-zinc-100 placeholder:text-slate-400 focus:outline-hidden focus:border-[#a855f7] transition-colors resize-none leading-relaxed"
-        />
-      </div>
+      {/*
+        Sem chave "enviar como áudio gravado" e sem campo de transcrição: o motor
+        manda TODO áudio do fluxo como nota de voz e não transcreve nada. Os dois
+        controles existiam só na tela (estado local, nunca salvo) — a tela não
+        oferece o que o motor não faz.
+      */}
+      <p className="text-[10.5px] text-slate-400 dark:text-zinc-500">
+        {t("O áudio chega ao contato como nota de voz (áudio gravado).")}
+      </p>
     </div>
   );
 }
@@ -572,12 +540,6 @@ function MediaSection({
   const upload = useUploadFlowContentMedia();
   const inputRef = React.useRef<HTMLInputElement>(null);
   const temArquivo = item.storage_path.trim() !== "";
-
-  // Abas para Documento (Anexar | Link) e Imagem (Arquivo anexado | Campo de fluxo)
-  const [docTab, setDocTab] = React.useState<"anexar" | "link">("anexar");
-  const [imgTab, setImgTab] = React.useState<"anexado" | "campo">("anexado");
-  const [linkUrl, setLinkUrl] = React.useState("");
-  const [campoFluxo, setCampoFluxo] = React.useState("");
 
   const onPick = async (file: File) => {
     // Figurinha fora do formato o WhatsApp recusa (ou entrega como imagem comum):
@@ -602,14 +564,17 @@ function MediaSection({
     if (f) void onPick(f);
   };
 
+  // O que o seletor de arquivo oferece é o que a rota de upload ACEITA
+  // (`lib/messaging/media/upload-validation.ts`) — oferecer .mov ou .svg aqui
+  // só adiava a recusa para depois do clique.
   const accept =
     item.type === "sticker"
       ? STICKER_MIME
       : item.type === "image"
-      ? "image/svg+xml,image/png,image/jpeg,image/webp"
-      : item.type === "video"
-        ? "video/mp4,video/mkv,video/avi,video/quicktime,video/3gpp"
-        : ".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,application/pdf";
+        ? "image/png,image/jpeg"
+        : item.type === "video"
+          ? "video/mp4,video/3gpp"
+          : ".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip";
 
   return (
     <div className="space-y-2">
@@ -626,100 +591,13 @@ function MediaSection({
         }}
       />
 
-      {/* Segmented control para Documento (Anexar | Link) */}
-      {item.type === "document" && (
-        <div className="flex rounded-full bg-[#f1f5f9] dark:bg-zinc-800 p-0.5 mb-2.5">
-          <button
-            type="button"
-            onClick={() => setDocTab("anexar")}
-            className={cn(
-              "flex-1 py-1 text-xs font-semibold rounded-full transition-all cursor-pointer",
-              docTab === "anexar"
-                ? "bg-[#2563eb] text-white shadow-xs"
-                : "text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200",
-            )}
-          >
-            {t("Anexar")}
-          </button>
-          <button
-            type="button"
-            onClick={() => setDocTab("link")}
-            className={cn(
-              "flex-1 py-1 text-xs font-semibold rounded-full transition-all cursor-pointer",
-              docTab === "link"
-                ? "bg-[#2563eb] text-white shadow-xs"
-                : "text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200",
-            )}
-          >
-            {t("Link")}
-          </button>
-        </div>
-      )}
-
-      {/* Segmented control para Imagem (Arquivo anexado | Campo de fluxo) */}
-      {item.type === "image" && (
-        <div className="flex rounded-full bg-[#f1f5f9] dark:bg-zinc-800 p-0.5 mb-2.5">
-          <button
-            type="button"
-            onClick={() => setImgTab("anexado")}
-            className={cn(
-              "flex-1 py-1 text-xs font-semibold rounded-full transition-all cursor-pointer",
-              imgTab === "anexado"
-                ? "bg-[#ea580c] text-white shadow-xs"
-                : "text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200",
-            )}
-          >
-            {t("Arquivo anexado")}
-          </button>
-          <button
-            type="button"
-            onClick={() => setImgTab("campo")}
-            className={cn(
-              "flex-1 py-1 text-xs font-semibold rounded-full transition-all cursor-pointer",
-              imgTab === "campo"
-                ? "bg-[#ea580c] text-white shadow-xs"
-                : "text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200",
-            )}
-          >
-            {t("Campo de fluxo")}
-          </button>
-        </div>
-      )}
-
-      {/* Corpo do Documento com aba Link */}
-      {item.type === "document" && docTab === "link" ? (
-        <div className="space-y-1.5 py-1">
-          <Input
-            placeholder="https://…/documento.pdf"
-            value={linkUrl}
-            disabled={disabled}
-            onChange={(e) => {
-              setLinkUrl(e.target.value);
-              onChange({ ...item, storage_path: e.target.value, mime: "application/pdf" });
-            }}
-            className="h-9 text-xs rounded-lg border-[#e2e8f0] dark:border-zinc-800 bg-[#f8fafc] dark:bg-zinc-950"
-          />
-          <p className="text-[10px] text-slate-400">
-            {t("Insira o link público do documento que deseja enviar.")}
-          </p>
-        </div>
-      ) : item.type === "image" && imgTab === "campo" ? (
-        <div className="space-y-1.5 py-1">
-          <Input
-            placeholder="{{url_imagem_lead}}"
-            value={campoFluxo}
-            disabled={disabled}
-            onChange={(e) => {
-              setCampoFluxo(e.target.value);
-              onChange({ ...item, storage_path: e.target.value, mime: "image/jpeg" });
-            }}
-            className="h-9 text-xs rounded-lg border-[#e2e8f0] dark:border-zinc-800 bg-[#f8fafc] dark:bg-zinc-950"
-          />
-          <p className="text-[10px] text-slate-400">
-            {t("Use a variável que contém a URL da imagem.")}
-          </p>
-        </div>
-      ) : !temArquivo ? (
+      {/*
+        Sem as abas "Link" (documento) e "Campo de fluxo" (imagem): elas gravavam
+        uma URL ou uma variável no lugar do arquivo, e o motor só envia ARQUIVO do
+        Storage — o item sumia do envio em silêncio. O publish agora também
+        recusa um fluxo antigo salvo assim (`midia_sem_arquivo`).
+      */}
+      {!temArquivo ? (
         <button
           type="button"
           disabled={disabled || upload.isPending}
@@ -740,7 +618,7 @@ function MediaSection({
                 {upload.isPending ? t("Enviando…") : t("Clique para enviar um documento")}
               </span>
               <span className="text-[11px] text-slate-400 dark:text-zinc-500">
-                {t("Arquivos de documentos (máx. 25 MB)")}
+                {t("PDF, Word, Excel, PowerPoint, TXT, CSV ou ZIP (máx. 50 MB)")}
               </span>
             </>
           )}
@@ -752,7 +630,7 @@ function MediaSection({
                 {upload.isPending ? t("Enviando…") : t("Selecionar arquivo")}
               </span>
               <span className="text-[11px] text-slate-400 dark:text-zinc-500">
-                SVG, PNG, JPG
+                {t("PNG ou JPG (máx. 5 MB)")}
               </span>
             </>
           )}
@@ -773,10 +651,10 @@ function MediaSection({
             <>
               <LucideVideo size={38} className="text-[#94a3b8] mb-1" strokeWidth={1.5} />
               <span className="text-[13px] font-semibold text-slate-700 dark:text-zinc-200">
-                {upload.isPending ? t("Enviando…") : t("Clique para enviar um video")}
+                {upload.isPending ? t("Enviando…") : t("Clique para enviar um vídeo")}
               </span>
               <span className="text-[11px] text-slate-400 dark:text-zinc-500">
-                {t("mp4,mkv,avi,mov,3gp (máx. 50 MB)")}
+                {t("MP4 ou 3GP (máx. 16 MB)")}
               </span>
             </>
           )}
@@ -795,6 +673,24 @@ function MediaSection({
             {t("Trocar arquivo")}
           </button>
         </div>
+      )}
+
+      {/* Legenda: só nos tipos em que o canal tem legenda (figurinha não tem). */}
+      {item.type !== "sticker" && (
+        <Input
+          placeholder={t("Legenda (opcional)")}
+          maxLength={1024}
+          value={item.caption ?? ""}
+          disabled={disabled}
+          onChange={(e) => {
+            const { caption: _antiga, ...semLegenda } = item;
+            const legenda = e.target.value;
+            // Legenda vazia some do config em vez de virar `caption: ""`.
+            onChange((legenda === "" ? semLegenda : { ...semLegenda, caption: legenda }) as ConteudoItem);
+          }}
+          className="h-8 text-xs rounded-md"
+          data-testid="conteudo-legenda"
+        />
       )}
     </div>
   );

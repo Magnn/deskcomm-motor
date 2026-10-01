@@ -67,6 +67,32 @@ describe("corpoDoEnvio — figurinha", () => {
   });
 });
 
+describe("corpoDoEnvio — vídeo e documento", () => {
+  it("vídeo vai como type 'video' com a legenda como body", () => {
+    const corpo = corpoDoEnvio(
+      { ...base, body: "Veja", media: { storagePath: "org-1/conv-1/conteudo-job-1-2.mp4", mime: "video/mp4", kind: "video" } },
+      "chave",
+    );
+    expect(corpo).toMatchObject({ type: "video", media_mime: "video/mp4", body: "Veja" });
+  });
+
+  it("documento sem legenda vai como type 'document', sem body", () => {
+    const corpo = corpoDoEnvio(
+      {
+        ...base,
+        body: "",
+        media: { storagePath: "org-1/conv-1/conteudo-job-1-2/Proposta.pdf", mime: "application/pdf", kind: "document" },
+      },
+      "chave",
+    );
+    expect(corpo).toMatchObject({
+      type: "document",
+      media_storage_path: "org-1/conv-1/conteudo-job-1-2/Proposta.pdf",
+    });
+    expect(corpo).not.toHaveProperty("body");
+  });
+});
+
 describe("figurinha em cada canal", () => {
   const envelope = {
     kind: "sticker",
