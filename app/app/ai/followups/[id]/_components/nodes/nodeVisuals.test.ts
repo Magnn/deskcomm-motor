@@ -230,5 +230,38 @@ describe("paleta do follow-up (roteiro de atendimento, #1130)", () => {
     expect(tipos).not.toContain("collect");
     expect(tipos).not.toContain("skill");
     expect(tipos).toContain("action");
+    expect(tipos).toContain("google_sheets");
+    expect(tipos).toContain("execute_code");
+  });
+
+  it("descreve os nós de google_sheets e execute_code amigavelmente", () => {
+    expect(
+      describeNodeConfig(
+        "google_sheets",
+        {
+          operation: "insert_row",
+          spreadsheet_id: "sheet_123",
+          sheet_name: "Leads",
+          lookup_column: "",
+          lookup_value: "",
+          mappings: [],
+        },
+        pt,
+      ),
+    ).toBe("Inserir linha · Leads");
+
+    expect(
+      describeNodeConfig(
+        "execute_code",
+        {
+          code: "return { ok: true };",
+          timeout_ms: 3000,
+          output_field: "",
+          mappings: [{ json_path: "ok", target_field: "status" }],
+        },
+        pt,
+      ),
+    ).toBe("Script JS · 1 saída");
   });
 });
+

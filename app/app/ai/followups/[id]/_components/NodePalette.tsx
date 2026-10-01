@@ -37,6 +37,8 @@ const ORDEM_PALETA: readonly NodeType[] = [
   "pix_payment", // PIX
   "payment_gateway", // Pagamento
   "meta_pixel", // Pixel Meta
+  "google_sheets", // Google Sheets
+  "execute_code", // Executar Código JS
   "wait", // Delay
   "condition", // Condição
   "notify_agent", // Notificar Atendente
@@ -54,7 +56,7 @@ const ORDEM_PALETA: readonly NodeType[] = [
 ];
 
 /** Tipos com badge "Popular" */
-const POPULARES = new Set<NodeType>(["action", "collect", "api_call", "condition"]);
+const POPULARES = new Set<NodeType>(["action", "collect", "api_call", "condition", "google_sheets"]);
 /** Tipos com badge "Novidade" */
 const NOVIDADES = new Set<NodeType>([
   "attendant_route",
@@ -64,6 +66,8 @@ const NOVIDADES = new Set<NodeType>([
   "whatsapp_template",
   "meta_pixel",
   "voice_studio",
+  "google_sheets",
+  "execute_code",
 ]);
 
 /** Menu de nós: no desktop o nó entra arrastando para o canvas (drop em FlowCanvas); no mobile, tocando. */

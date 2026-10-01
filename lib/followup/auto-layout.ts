@@ -63,6 +63,8 @@ const TYPE_ORDER: Record<NodeType, number> = {
   whatsapp_template: 20,
   meta_pixel: 21,
   voice_studio: 22,
+  google_sheets: 23,
+  execute_code: 24,
 };
 
 export type NodeSize = { width: number; height: number };

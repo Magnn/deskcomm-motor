@@ -1658,6 +1658,8 @@ describe("processNode — nós de paridade AcassIA (pix_payment, payment_gateway
     ["whatsapp_template", { template_name: "tmpl_1" }],
     ["meta_pixel", { pixel_id: "px_1", event_type: "Lead" }],
     ["voice_studio", { text: "Olá", voice_id: "julieta" }],
+    ["google_sheets", { operation: "insert_row" as const, spreadsheet_id: "123", sheet_name: "P1", mappings: [] }],
+    ["execute_code", { code: "return {};", timeout_ms: 3000, output_field: "", mappings: [] }],
   ] as const)("avança pela aresta always no nó %s", (type, config) => {
     // A tabela mistura configs parciais de tipos diferentes: o cast é do nó inteiro (união discriminada).
     const node = {

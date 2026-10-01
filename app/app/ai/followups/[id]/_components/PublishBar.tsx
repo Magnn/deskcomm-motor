@@ -37,7 +37,8 @@ import {
   type FollowupFlowDetailRow,
 } from "@/hooks/followup/useFollowupFlow";
 import Link from "next/link";
-import { ArrowLeft, Play, Power, Trash, TreeStructure, WhatsappLogo, X } from "@/lib/ui/icons";
+import { ArrowLeft, DownloadSimple, Play, Power, Trash, TreeStructure, WhatsappLogo, X } from "@/lib/ui/icons";
+import { exportFlowToTemplate } from "@/lib/followup/export-import";
 import { FlowStatusBadge } from "../../_components/FlowStatusBadge";
 import { DeleteFollowupFlowButton } from "../../_components/DeleteFollowupFlowButton";
 import { RenameFollowupFlowButton } from "../../_components/RenameFollowupFlowButton";
@@ -128,6 +129,26 @@ export function PublishBar({
   const onRollback = () => {
     if (!flow.previous_version_id) return;
     rollback.mutate(flow.previous_version_id);
+  };
+
+  const handleExport = () => {
+    try {
+      const pkg = exportFlowToTemplate({
+        name: flow.name,
+        nodes: graph.nodes,
+        edges: graph.edges,
+      });
+      const blob = new Blob([JSON.stringify(pkg, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `fluxo-${flow.name.toLowerCase().replace(/[^a-z0-9]/g, "-") || "template"}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success(t("Modelo exportado com sucesso!"));
+    } catch {
+      toast.error(t("Erro ao exportar modelo de fluxo."));
+    }
   };
 
   const busy = save.isPending || publish.isPending || disable.isPending || rollback.isPending;
@@ -278,6 +299,17 @@ export function PublishBar({
               {t("Organizar")}
             </Button>
           )}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 text-xs font-semibold"
+            onClick={handleExport}
+            data-testid="export-flow"
+          >
+            <DownloadSimple size={13} aria-hidden className="mr-1" />
+            {t("Exportar")}
+          </Button>
         {selection ? (
           <>
             <Button

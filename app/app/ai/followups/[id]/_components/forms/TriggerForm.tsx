@@ -20,12 +20,27 @@ export function TriggerForm({
   const [keyword, setKeyword] = useState<string>(
     typeof config.keyword === "string" ? config.keyword : ""
   );
+  const [tag, setTag] = useState<string>(
+    typeof config.tag === "string" ? config.tag : ""
+  );
+  const [customField, setCustomField] = useState<string>(
+    typeof config.custom_field === "string" ? config.custom_field : ""
+  );
+  const [inactivityHours, setInactivityHours] = useState<number>(
+    typeof config.inactivity_hours === "number" ? config.inactivity_hours : 24
+  );
 
   const isWhatsApp = integration === "whatsapp";
+  const isCrm = integration === "crm";
+  const isWebhook = integration === "webhook";
 
   const handleIntegrationChange = (val: string) => {
     setIntegration(val);
-    const nextEvent = val === "whatsapp" ? "keyword" : "purchase";
+    let nextEvent = "keyword";
+    if (val === "crm") nextEvent = "tag_added";
+    else if (val === "webhook") nextEvent = "webhook_payload";
+    else if (val !== "whatsapp") nextEvent = "purchase";
+
     setEvent(nextEvent);
     onChange({
       ...config,
@@ -43,13 +58,16 @@ export function TriggerForm({
     });
   };
 
-  const handleKeywordChange = (val: string) => {
-    setKeyword(val);
+  const updateField = (patch: Record<string, unknown>) => {
     onChange({
       ...config,
       integration,
       event,
-      keyword: val,
+      keyword,
+      tag,
+      custom_field: customField,
+      inactivity_hours: inactivityHours,
+      ...patch,
     });
   };
 
@@ -71,16 +89,19 @@ export function TriggerForm({
         <div className="h-px flex-1 bg-slate-200 dark:bg-zinc-800" />
       </div>
 
+      {/* Origem / Integração */}
       <div className="space-y-1.5">
         <label className="block text-[12px] font-semibold text-slate-800 dark:text-zinc-200">
-          {t("Integração")}
+          {t("Origem do Gatilho")}
         </label>
         <select
           value={integration}
           onChange={(e) => handleIntegrationChange(e.target.value)}
           className="w-full rounded-[10px] border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2 text-[13px] text-slate-800 dark:text-zinc-100 outline-hidden focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 shadow-xs"
         >
-          <option value="whatsapp">{t("WhatsApp (Oficial / Não Oficial)")}</option>
+          <option value="whatsapp">{t("WhatsApp (Conversa / Mensagens)")}</option>
+          <option value="crm">{t("Deskcomm CRM (Tags / Etapas / Campos)")}</option>
+          <option value="webhook">{t("Webhook / API Externa")}</option>
           <option value="hotmart">Hotmart</option>
           <option value="kiwify">Kiwify</option>
           <option value="asaas">Asaas</option>
@@ -88,30 +109,52 @@ export function TriggerForm({
         </select>
       </div>
 
+      {/* Evento */}
       <div className="space-y-1.5">
         <label className="block text-[12px] font-semibold text-slate-800 dark:text-zinc-200">
-          {t("Evento")}
+          {t("Evento Disparador")}
         </label>
         <select
           value={event}
           onChange={(e) => handleEventChange(e.target.value)}
           className="w-full rounded-[10px] border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2 text-[13px] text-slate-800 dark:text-zinc-100 outline-hidden focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 shadow-xs"
         >
-          {isWhatsApp ? (
+          {isWhatsApp && (
             <>
-              <option value="keyword">{t("Palavra-chave")}</option>
-              <option value="message_received">{t("Mensagem recebida")}</option>
-              <option value="inicio_conversa">{t("Início de conversa")}</option>
+              <option value="keyword">{t("Palavra-chave recebida")}</option>
+              <option value="message_received">{t("Qualquer mensagem recebida")}</option>
+              <option value="inicio_conversa">{t("Primeiro contato (Início de conversa)")}</option>
             </>
-          ) : (
+          )}
+
+          {isCrm && (
+            <>
+              <option value="tag_added">{t("Tag adicionada ao contato")}</option>
+              <option value="tag_removed">{t("Tag removida do contato")}</option>
+              <option value="contact_created">{t("Novo contato criado / Lead capturado")}</option>
+              <option value="field_changed">{t("Campo personalizado alterado")}</option>
+              <option value="contact_inactivity">{t("Inatividade do contato")}</option>
+              <option value="deal_stage_changed">{t("Mudança de etapa no funil (Pipeline)")}</option>
+            </>
+          )}
+
+          {isWebhook && (
+            <>
+              <option value="webhook_payload">{t("Chamada de Webhook recebida")}</option>
+            </>
+          )}
+
+          {!isWhatsApp && !isCrm && !isWebhook && (
             <>
               <option value="purchase">{t("Compra aprovada")}</option>
               <option value="abandon">{t("Carrinho abandonado")}</option>
+              <option value="pix_generated">{t("PIX ou boleto gerado")}</option>
             </>
           )}
         </select>
       </div>
 
+      {/* Condição adicional conforme o evento */}
       {isWhatsApp && event === "keyword" && (
         <div className="space-y-1.5 animate-in fade-in duration-200">
           <div className="flex items-baseline justify-between">
@@ -125,10 +168,72 @@ export function TriggerForm({
           <input
             type="text"
             value={keyword}
-            onChange={(e) => handleKeywordChange(e.target.value)}
+            onChange={(e) => {
+              setKeyword(e.target.value);
+              updateField({ keyword: e.target.value });
+            }}
             placeholder='Ex.: "QUERO_PROPOSTA" ou "COMPRAR"'
             className="w-full rounded-[10px] border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2 text-[13px] text-slate-800 dark:text-zinc-100 placeholder:text-slate-400 outline-hidden focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 shadow-xs"
           />
+        </div>
+      )}
+
+      {isCrm && (event === "tag_added" || event === "tag_removed") && (
+        <div className="space-y-1.5 animate-in fade-in duration-200">
+          <label className="block text-[12px] font-semibold text-slate-800 dark:text-zinc-200">
+            {t("Nome da Tag")}
+          </label>
+          <input
+            type="text"
+            value={tag}
+            onChange={(e) => {
+              setTag(e.target.value);
+              updateField({ tag: e.target.value });
+            }}
+            placeholder="ex: vip, cliente, lead-frio"
+            className="w-full rounded-[10px] border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2 text-[13px] text-slate-800 dark:text-zinc-100 placeholder:text-slate-400 outline-hidden focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 shadow-xs"
+          />
+        </div>
+      )}
+
+      {isCrm && event === "field_changed" && (
+        <div className="space-y-1.5 animate-in fade-in duration-200">
+          <label className="block text-[12px] font-semibold text-slate-800 dark:text-zinc-200">
+            {t("Chave do Campo Personalizado")}
+          </label>
+          <input
+            type="text"
+            value={customField}
+            onChange={(e) => {
+              setCustomField(e.target.value);
+              updateField({ custom_field: e.target.value });
+            }}
+            placeholder="ex: status_financeiro, plano"
+            className="w-full rounded-[10px] border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2 text-[13px] text-slate-800 dark:text-zinc-100 placeholder:text-slate-400 outline-hidden focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 shadow-xs"
+          />
+        </div>
+      )}
+
+      {isCrm && event === "contact_inactivity" && (
+        <div className="space-y-1.5 animate-in fade-in duration-200">
+          <label className="block text-[12px] font-semibold text-slate-800 dark:text-zinc-200">
+            {t("Tempo de inatividade")}
+          </label>
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              min={1}
+              max={720}
+              value={inactivityHours}
+              onChange={(e) => {
+                const val = Number(e.target.value);
+                setInactivityHours(val);
+                updateField({ inactivity_hours: val });
+              }}
+              className="w-24 rounded-[10px] border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2 text-[13px] text-slate-800 dark:text-zinc-100 outline-hidden focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 shadow-xs"
+            />
+            <span className="text-slate-500">{t("horas sem interação")}</span>
+          </div>
         </div>
       )}
 
@@ -138,7 +243,7 @@ export function TriggerForm({
         </p>
         <p className="text-[11px] text-indigo-600/80 dark:text-indigo-400/80 leading-relaxed">
           {t(
-            "Você pode vincular este funil a múltiplos disparos e canais em Ajustes do Fluxo."
+            "Você pode vincular este funil a múltiplos disparos, tags e canais em Ajustes do Fluxo."
           )}
         </p>
       </div>
