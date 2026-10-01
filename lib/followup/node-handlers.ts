@@ -15,6 +15,7 @@ import {
 } from "./graph-schema";
 import type { FlowEdge, FlowNode, ReplySaveTo } from "./graph-schema";
 import { parseReplyCount } from "./parse-count";
+import { rotuloDoRamo } from "./rotulo-do-ramo";
 import { clampEspera, esperaPlanejadaDe, type EsperaAdaptativa } from "./timing-plan";
 import { fraseDeConfirmacao } from "./vocabulario";
 
@@ -143,7 +144,8 @@ export type NodeResult =
   // A saída que o fluxo tomaria não está ligada a nada: o lead FICA PARADO neste nó, sem erro e sem
   // avançar — o funil só anda até onde o dono o montou. Fica no registro (o motivo) e na linha do tempo.
   // `aguardando_resposta`: parado, mas ainda ATENTO — uma resposta tardia acorda o nó e sai por «Respondeu».
-  | { kind: "park"; reason: string; aguardando_resposta?: boolean }
+  // `concluiu`: o nó JÁ fez o seu trabalho (avisou, anotou, chamou a API…) — só não tem para onde ir.
+  | { kind: "park"; reason: string; aguardando_resposta?: boolean; concluiu?: boolean }
   | { kind: "fail"; error: string };
 
 /** Backoff ladder indexed by `attempts - 1` (clamped to the last slot) — 30s..1h. */
@@ -320,9 +322,70 @@ export function selectEdge(edges: FlowEdge[], from: string, match: EdgeMatch): F
   return null;
 }
 
-/** A aresta que sai EXATAMENTE por este ramo — sem o escape para `always` que `selectEdge` faz. */
+/**
+ * A aresta que sai EXATAMENTE pela condição pedida — sem o escape para `always` que `selectEdge` faz.
+ *
+ * É a regra do funil: o lead só anda por uma saída que alguém LIGOU. Quando a saída que o motor escolheu
+ * não tem aresta, o lead FICA (`park`) — cair na saída de escape («Outros casos») afirmaria um caminho que a
+ * decisão não tomou (o «Sem resposta» solto virando «Respondeu», o «Sim» solto virando «Outros casos»).
+ * `always` só é pedido onde `always` É a saída decidida (nó de saída única, ou «nenhuma regra serviu»).
+ */
+export function selectEdgeExata(edges: FlowEdge[], from: string, match: EdgeMatch): FlowEdge | null {
+  return (
+    edges
+      .filter((e) => e.source === from)
+      .slice()
+      .sort((a, b) => b.priority - a.priority)
+      .find((e) => {
+        switch (match.type) {
+          case "always":
+            return e.condition.type === "always";
+          case "class_match":
+            return e.condition.type === "class_match" && e.condition.value === match.value;
+          case "cond_result":
+            return e.condition.type === "cond_result" && e.condition.value === match.value;
+          case "branch":
+            return e.condition.type === "branch" && e.condition.branch_id === match.branch_id;
+        }
+      }) ?? null
+  );
+}
+
+/**
+ * A saída da CLASSE que o modelo escolheu. Classe DECLARADA leva pela aresta dela (e, sem aresta, o lead
+ * fica). Classe FORA das declaradas é o caso «Outros casos» — a única situação em que a saída de escape é
+ * a decisão certa, e não um atalho para fugir de uma saída solta.
+ */
+export function arestaDaClasse(
+  node: Extract<FlowNode, { type: "ai_classify" | "match_reply" }>,
+  edges: FlowEdge[],
+  classe: string,
+): { edge: FlowEdge | null; declarada: boolean } {
+  const declarada = nodeBranches(node).some((b) => b.kind === "match" && (b.label === classe || b.id === classe));
+  const edge = declarada
+    ? selectEdgeExata(edges, node.id, classEdgeMatch(node, classe))
+    : selectEdgeExata(edges, node.id, { type: "always" });
+  return { edge, declarada };
+}
+
 function arestaDoRamo(edges: FlowEdge[], from: string, branchId: string): FlowEdge | null {
-  return edges.find((e) => e.source === from && e.condition.type === "branch" && e.condition.branch_id === branchId) ?? null;
+  return selectEdgeExata(edges, from, { type: "branch", branch_id: branchId });
+}
+
+/** O nome da saída como o dono a vê no construtor (o rótulo que ele escreveu, ou a frase da regra). */
+function nomeDoRamo(node: FlowNode, branchId: string): string {
+  const ramo = nodeBranches(node).find((b) => b.id === branchId);
+  return ramo ? rotuloDoRamo(ramo) : branchId;
+}
+
+/** O lead fica neste nó. `motivo` diz QUAL saída faltou — é o que a linha do tempo mostra ao dono. */
+function parar(motivo: string, opts: { concluiu?: boolean; aguardandoResposta?: boolean } = {}): NodeResult {
+  return {
+    kind: "park",
+    reason: motivo,
+    ...(opts.concluiu ? { concluiu: true } : {}),
+    ...(opts.aguardandoResposta ? { aguardando_resposta: true } : {}),
+  };
 }
 
 /** A pergunta como o cliente a lê: a frase sugerida, senão o rótulo; opções de múltipla escolha numeradas. */
@@ -559,6 +622,11 @@ export function escolherRamoDoSplit(
   return config.branches[config.branches.length - 1]!.id;
 }
 
+/** O nó fez o que tinha a fazer: seguiu adiante, ou concluiu e parou por falta de saída ligada. */
+export function executou(result: NodeResult): boolean {
+  return result.kind === "advance" || (result.kind === "park" && result.concluiu === true);
+}
+
 /** O que `notify_agent` precisa gravar na Central de avisos — I/O fica com o engine. */
 export interface AvisoDeFluxo {
   organization_id: string;
@@ -581,7 +649,7 @@ export function avisoDeNotificarAtendente(
   result: NodeResult,
 ): AvisoDeFluxo | null {
   if (node.type !== "notify_agent") return null;
-  if (result.kind !== "advance") return null;
+  if (!executou(result)) return null;
   return {
     organization_id: enrollment.organization_id,
     title: "Aviso de um fluxo de follow-up",
@@ -611,7 +679,7 @@ export function notaDeFluxo(
   result: NodeResult,
 ): NotaDeFluxo | null {
   if (node.type !== "add_note") return null;
-  if (result.kind !== "advance") return null;
+  if (!executou(result)) return null;
   if (!enrollment.conversation_id) return null;
   return {
     organization_id: enrollment.organization_id,
@@ -632,7 +700,7 @@ export interface ChamadaDeApiFluxo {
 /** Reaproveita a config do nó tal como o cURL colado a preencheu — nenhuma transformação aqui. */
 export function chamadaDeApiDoFluxo(node: FlowNode, result: NodeResult): ChamadaDeApiFluxo | null {
   if (node.type !== "api_call") return null;
-  if (result.kind !== "advance") return null;
+  if (!executou(result)) return null;
   return {
     method: node.config.method,
     url: node.config.url,
@@ -717,7 +785,7 @@ export function processNode(input: {
   switch (node.type) {
     case "trigger": {
       const edge = selectEdge(edges, node.id, { type: "always" });
-      if (!edge) return { kind: "fail", error: `trigger node "${node.id}" has no outbound edge` };
+      if (!edge) return parar("o início do fluxo não está ligado a nada");
 
       // ACIONAMENTO: é aqui que o plano de tempo do fluxo inteiro é decidido, uma
       // única vez, antes do primeiro passo. Fluxo sem espera adaptativa e
@@ -746,7 +814,7 @@ export function processNode(input: {
       // não um atraso obrigatório depois de cada envio.
       if (wokeEarly) {
         const edge = selectEdge(edges, node.id, { type: "always" });
-        if (!edge) return { kind: "fail", error: `wait node "${node.id}" has no outbound edge after elapsing` };
+        if (!edge) return parar("a espera terminou e a saída do passo não está ligada a nada");
         return { kind: "advance", next_node_id: edge.target, next_eval_at: clock() };
       }
       if (!waitElapsed) {
@@ -779,7 +847,7 @@ export function processNode(input: {
         };
       }
       const edge = selectEdge(edges, node.id, { type: "always" });
-      if (!edge) return { kind: "fail", error: `wait node "${node.id}" has no outbound edge after elapsing` };
+      if (!edge) return parar("a espera terminou e a saída do passo não está ligada a nada");
       return { kind: "advance", next_node_id: edge.target, next_eval_at: clock() };
     }
 
@@ -791,35 +859,30 @@ export function processNode(input: {
         // é consultado aqui, porque nesse modo a regra não vota, ela roteia.
         const hitId = node.config.checks.find((c) => c.id !== undefined && evaluateCheck(c, lead))?.id;
         // Nenhuma regra passou -> o ramo obrigatório 'else', que na aresta é `always`.
-        // `selectEdge` também cai nele quando o usuário deixou um ramo sem ligar:
-        // sair pela saída de escape é ruim, ficar preso no nó é pior.
+        // Regra que serviu com a SAÍDA dela solta NÃO cai aqui: o lead fica no nó (`parar`).
         const edge =
           hitId === undefined
-            ? selectEdge(edges, node.id, { type: "always" })
-            : selectEdge(edges, node.id, { type: "branch", branch_id: hitId });
+            ? selectEdgeExata(edges, node.id, { type: "always" })
+            : selectEdgeExata(edges, node.id, { type: "branch", branch_id: hitId });
         if (!edge) {
-          return {
-            kind: "fail",
-            error: `condition node "${node.id}" has no edge for branch "${hitId ?? "else"}"`,
-          };
+          return parar(
+            hitId === undefined
+              ? "nenhuma regra serviu e a saída «Nenhuma delas» não está ligada a nada"
+              : `a saída «${nomeDoRamo(node, hitId)}» não está ligada a nada`,
+          );
         }
         return { kind: "advance", next_node_id: edge.target, next_eval_at: clock() };
       }
       const result = evaluateCondition(node.config, lead);
-      const edge = selectEdge(edges, node.id, { type: "cond_result", value: result });
-      if (!edge) return { kind: "fail", error: `condition node "${node.id}" has no matching edge for result ${result}` };
+      const edge = selectEdgeExata(edges, node.id, { type: "cond_result", value: result });
+      if (!edge) return parar(`a saída «${result ? "Sim" : "Não"}» não está ligada a nada`);
       return { kind: "advance", next_node_id: edge.target, next_eval_at: clock() };
     }
 
     case "ab_split": {
       const branchId = escolherRamoDoSplit(node.config, `${enrollment.id}:${node.id}`);
-      const edge = selectEdge(edges, node.id, { type: "branch", branch_id: branchId });
-      if (!edge) {
-        return {
-          kind: "fail",
-          error: `ab_split node "${node.id}" has no edge for branch "${branchId}" (fallback also missing)`,
-        };
-      }
+      const edge = selectEdgeExata(edges, node.id, { type: "branch", branch_id: branchId });
+      if (!edge) return parar(`o braço sorteado do teste A/B («${nomeDoRamo(node, branchId)}») não está ligado a nada`);
       return { kind: "advance", next_node_id: edge.target, next_eval_at: clock() };
     }
 
@@ -832,10 +895,10 @@ export function processNode(input: {
         return { kind: "enqueue_turn", purpose: "classify", wake_status: "waiting_reply" };
       }
       // grace_timeout_ms venceu sem turno de classificação concluído — classifica
-      // como 'no_reply' SEM chamar o LLM (onda 5, critério 2); selectEdge já cai
-      // no fallback 'always' se não houver aresta 'no_reply' explícita.
-      const edge = selectEdge(edges, node.id, classEdgeMatch(node, NO_REPLY_BRANCH_ID));
-      if (!edge) return { kind: "fail", error: `ai_classify node "${node.id}" has no edge for class "no_reply" (fallback also missing)` };
+      // como 'no_reply' SEM chamar o LLM (onda 5, critério 2). «Sem resposta» solto NÃO escorrega para o
+      // escape («Outros casos»): o lead fica no nó.
+      const edge = selectEdgeExata(edges, node.id, classEdgeMatch(node, NO_REPLY_BRANCH_ID));
+      if (!edge) return parar("a saída «Sem resposta» não está ligada a nada");
       return { kind: "advance", next_node_id: edge.target, next_eval_at: clock() };
     }
 
@@ -845,9 +908,7 @@ export function processNode(input: {
           const modo = modoSeJaExiste(node);
           if (modo === "skip") {
             const edge = selectEdge(edges, node.id, { type: "always" });
-            if (!edge) {
-              return { kind: "fail", error: `match_reply node "${node.id}" has no fallback edge to skip` };
-            }
+            if (!edge) return parar("o campo já estava preenchido e a saída deste passo não está ligada a nada");
             return { kind: "advance", next_node_id: edge.target, next_eval_at: clock() };
           }
           if (modo === "confirm") {
@@ -894,29 +955,21 @@ export function processNode(input: {
                   if (needle.length === 0) return false;
                   return b.op === "eq" ? body === needle : body.includes(needle);
                 });
+          // A regra que casou leva pela aresta DELA; se ninguém casou, «Outros casos». Sem essa aresta o
+          // lead fica — já foi para a PRIMEIRA regra, que é um caminho que a resposta não escolheu.
           const edge = hit
-            ? selectEdge(edges, node.id, { type: "branch", branch_id: hit.id })
-            : selectEdge(edges, node.id, { type: "always" }) ??
-              (() => {
-                const ramo = node.config.branches.find((b) => b.id !== NO_REPLY_BRANCH_ID);
-                return ramo ? selectEdge(edges, node.id, { type: "branch", branch_id: ramo.id }) : null;
-              })();
+            ? selectEdgeExata(edges, node.id, { type: "branch", branch_id: hit.id })
+            : selectEdgeExata(edges, node.id, { type: "always" });
           if (!edge) {
-            return {
-              kind: "fail",
-              error: `match_reply node "${node.id}" has no edge for branch "${hit?.id ?? "else"}" (fallback also missing)`,
-            };
+            return parar(
+              hit ? `a saída «${nomeDoRamo(node, hit.id)}» não está ligada a nada` : "a resposta não casou com nenhuma regra e «Outros casos» não está ligada a nada",
+            );
           }
           return { kind: "advance", next_node_id: edge.target, next_eval_at: clock() };
         }
       }
-      const edge = selectEdge(edges, node.id, classEdgeMatch(node, NO_REPLY_BRANCH_ID));
-      if (!edge) {
-        return {
-          kind: "fail",
-          error: `match_reply node "${node.id}" has no edge for class "no_reply" (fallback also missing)`,
-        };
-      }
+      const edge = selectEdgeExata(edges, node.id, classEdgeMatch(node, NO_REPLY_BRANCH_ID));
+      if (!edge) return parar("a saída «Sem resposta» não está ligada a nada");
       return { kind: "advance", next_node_id: edge.target, next_eval_at: clock() };
     }
 
@@ -944,13 +997,12 @@ export function processNode(input: {
           (number > 0 ? node.config.options[number - 1] : undefined) ??
           node.config.options.find((option) => option.label.trim().toLocaleLowerCase() === reply);
         const edge = selected
-          ? selectEdge(edges, node.id, { type: "branch", branch_id: selected.id })
-          : selectEdge(edges, node.id, { type: "always" });
+          ? selectEdgeExata(edges, node.id, { type: "branch", branch_id: selected.id })
+          : selectEdgeExata(edges, node.id, { type: "always" });
         if (!edge) {
-          return {
-            kind: "fail",
-            error: `menu node "${node.id}" has no edge for branch "${selected?.id ?? "else"}"`,
-          };
+          return parar(
+            selected ? `a saída da opção «${selected.label}» não está ligada a nada` : "a resposta não é nenhuma das opções e «Outros casos» não está ligada a nada",
+          );
         }
         return { kind: "advance", next_node_id: edge.target, next_eval_at: clock() };
       }
@@ -962,27 +1014,23 @@ export function processNode(input: {
           wake_status: "waiting_reply",
         };
       }
-      const edge = selectEdge(edges, node.id, { type: "branch", branch_id: NO_REPLY_BRANCH_ID });
-      if (!edge) return { kind: "fail", error: `menu node "${node.id}" has no timeout edge (fallback also missing)` };
+      const edge = selectEdgeExata(edges, node.id, { type: "branch", branch_id: NO_REPLY_BRANCH_ID });
+      if (!edge) return parar("a saída «Sem resposta» não está ligada a nada");
       return { kind: "advance", next_node_id: edge.target, next_eval_at: clock() };
     }
 
     case "attendant_route": {
       const branchId = attendantAssigned ? "assigned" : "timeout";
-      const edge = attendantAssigned
-        ? selectEdge(edges, node.id, { type: "branch", branch_id: branchId })
-        : null;
+      const edge = attendantAssigned ? selectEdgeExata(edges, node.id, { type: "branch", branch_id: branchId }) : null;
       if (attendantAssigned && !edge) {
-        return { kind: "fail", error: `attendant_route node "${node.id}" has no assigned edge` };
+        return parar("a saída «Atendido por uma pessoa» não está ligada a nada");
       }
       if (edge) return { kind: "advance", next_node_id: edge.target, next_eval_at: clock() };
 
       const deadline = attendantDeadlineAt ?? new Date(clock().getTime() + node.config.max_wait_minutes * 60_000);
       if (clock().getTime() >= deadline.getTime()) {
-        const timeoutEdge = selectEdge(edges, node.id, { type: "branch", branch_id: branchId });
-        if (!timeoutEdge) {
-          return { kind: "fail", error: `attendant_route node "${node.id}" has no timeout edge` };
-        }
+        const timeoutEdge = selectEdgeExata(edges, node.id, { type: "branch", branch_id: branchId });
+        if (!timeoutEdge) return parar("a saída «Sem atendente no prazo» não está ligada a nada");
         return { kind: "advance", next_node_id: timeoutEdge.target, next_eval_at: clock() };
       }
       return {
@@ -999,25 +1047,19 @@ export function processNode(input: {
       if (total === null) {
         const parsed = parseReplyCount(lastInboundBody, node.config.max_count);
         if (parsed === null) {
-          const edge = selectEdge(edges, node.id, { type: "always" });
-          if (!edge) {
-            return { kind: "fail", error: `repeat node "${node.id}" has no fallback edge for an unreadable count` };
-          }
+          const edge = selectEdgeExata(edges, node.id, { type: "always" });
+          if (!edge) return parar("a resposta não trouxe um número e a saída de escape do passo não está ligada a nada");
           return { kind: "advance", next_node_id: edge.target, next_eval_at: clock() };
         }
         total = parsed;
       }
       if (taken >= total) {
-        const edge = selectEdge(edges, node.id, { type: "branch", branch_id: REPEAT_DONE_BRANCH_ID });
-        if (!edge) {
-          return { kind: "fail", error: `repeat node "${node.id}" has no edge for branch "${REPEAT_DONE_BRANCH_ID}"` };
-        }
+        const edge = selectEdgeExata(edges, node.id, { type: "branch", branch_id: REPEAT_DONE_BRANCH_ID });
+        if (!edge) return parar("as voltas terminaram e a saída «Depois das voltas» não está ligada a nada");
         return { kind: "advance", next_node_id: edge.target, next_eval_at: clock(), repeat: { index: taken, total } };
       }
-      const edge = selectEdge(edges, node.id, { type: "branch", branch_id: REPEAT_BODY_BRANCH_ID });
-      if (!edge) {
-        return { kind: "fail", error: `repeat node "${node.id}" has no edge for branch "${REPEAT_BODY_BRANCH_ID}"` };
-      }
+      const edge = selectEdgeExata(edges, node.id, { type: "branch", branch_id: REPEAT_BODY_BRANCH_ID });
+      if (!edge) return parar("a saída que repete não está ligada a nada");
       return {
         kind: "advance",
         next_node_id: edge.target,
@@ -1077,7 +1119,7 @@ export function processNode(input: {
       // Puxa uma skill instalada em paralelo ao passo; a ativação é do executor
       // in-turn (união com o `matchSkills`). No relógio, é passagem.
       const edge = selectEdge(edges, node.id, { type: "always" });
-      if (!edge) return { kind: "fail", error: `skill node "${node.id}" has no outbound edge` };
+      if (!edge) return parar("a saída do passo não está ligada a nada", { concluiu: true });
       return { kind: "advance", next_node_id: edge.target, next_eval_at: clock() };
     }
 
@@ -1098,7 +1140,7 @@ export function processNode(input: {
           const modo = modoSeJaExiste(proximo);
           if (modo === "skip" || modo === "confirm") {
             const edge = selectEdge(edges, node.id, { type: "always" });
-            if (!edge) return { kind: "fail", error: `action node "${node.id}" has no outbound edge` };
+            if (!edge) return parar("a mensagem foi tratada e a saída do passo não está ligada a nada", { concluiu: true });
             return { kind: "advance", next_node_id: edge.target, next_eval_at: clock() };
           }
         }
@@ -1108,7 +1150,7 @@ export function processNode(input: {
       // típico de corrida: completeTurn avançou e um recheck concorrente reverteu.
       if (actionCompleted) {
         const edge = selectEdge(edges, node.id, { type: "always" });
-        if (!edge) return { kind: "fail", error: `action node "${node.id}" has no outbound edge` };
+        if (!edge) return parar("a mensagem foi tratada e a saída do passo não está ligada a nada", { concluiu: true });
         return { kind: "advance", next_node_id: edge.target, next_eval_at: clock() };
       }
       // Dead-man: the turn never completed. Rechecks count THIS occupancy only
@@ -1136,7 +1178,7 @@ export function processNode(input: {
       }
       if (actionCompleted) {
         const edge = selectEdge(edges, node.id, { type: "always" });
-        if (!edge) return { kind: "fail", error: `ai_generic node "${node.id}" has no outbound edge` };
+        if (!edge) return parar("a IA respondeu e a saída do passo não está ligada a nada", { concluiu: true });
         return { kind: "advance", next_node_id: edge.target, next_eval_at: clock() };
       }
       if ((actionRecheckCount ?? 0) >= MAX_ACTION_RECHECKS) {
@@ -1154,7 +1196,7 @@ export function processNode(input: {
       // engine dispara a chamada olhando `chamadaDeApiDoFluxo(node, result)`
       // sobre ESTE resultado, best-effort: falhar a chamada não trava o fluxo.
       const edge = selectEdge(edges, node.id, { type: "always" });
-      if (!edge) return { kind: "fail", error: `api_call node "${node.id}" has no outbound edge` };
+      if (!edge) return parar("a chamada foi feita e a saída do passo não está ligada a nada", { concluiu: true });
       return { kind: "advance", next_node_id: edge.target, next_eval_at: clock() };
     }
 
@@ -1163,14 +1205,14 @@ export function processNode(input: {
       // `avisoDeNotificarAtendente(enrollment, node, result)` sobre ESTE
       // resultado.
       const edge = selectEdge(edges, node.id, { type: "always" });
-      if (!edge) return { kind: "fail", error: `notify_agent node "${node.id}" has no outbound edge` };
+      if (!edge) return parar("o aviso foi enviado e a saída do passo não está ligada a nada", { concluiu: true });
       return { kind: "advance", next_node_id: edge.target, next_eval_at: clock() };
     }
 
     case "add_note": {
       // Passagem única; o engine grava a nota olhando `notaDeFluxo(enrollment, node, result)`.
       const edge = selectEdge(edges, node.id, { type: "always" });
-      if (!edge) return { kind: "fail", error: `add_note node "${node.id}" has no outbound edge` };
+      if (!edge) return parar("a anotação foi feita e a saída do passo não está ligada a nada", { concluiu: true });
       return { kind: "advance", next_node_id: edge.target, next_eval_at: clock() };
     }
 
@@ -1194,8 +1236,8 @@ export function processNode(input: {
       //   • qualquer outro status → CHEGADA ao nó: a inscrição estaciona em `com_agente`, com o prazo de silêncio como
       //     relógio. O agente NÃO abre a conversa; assume quando a pessoa responde.
       if (enrollment.status === "com_agente") {
-        const edge = selectEdge(edges, node.id, { type: "branch", branch_id: AGENT_SILENCE_BRANCH_ID });
-        if (!edge) return { kind: "fail", error: `agent node "${node.id}" has no outbound edge for the silence exit` };
+        const edge = selectEdgeExata(edges, node.id, { type: "branch", branch_id: AGENT_SILENCE_BRANCH_ID });
+        if (!edge) return parar("o tempo de silêncio passou e a saída «Silêncio» não está ligada a nada");
         return { kind: "advance", next_node_id: edge.target, next_eval_at: clock() };
       }
       return {

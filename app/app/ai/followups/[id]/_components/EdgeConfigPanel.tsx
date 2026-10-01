@@ -47,7 +47,7 @@ export function EdgeConfigPanel({ sourceNode, targetNode, condition, onChange, o
   }));
   // Aresta apontando para um ramo que não existe mais (a regra foi apagada):
   // nenhuma opção casa, o Select fica vazio em vez de mentir que está tudo bem,
-  // e o publish reprova com `missing_branch_edge` dizendo qual ramo ficou só.
+  // e o cartão do nó marca a saída dele como «sem ligação» (o lead que sair por ela fica parado).
   const ramoAtual = branchIdForCondition(sourceNode, condition);
   const currentKey = ramoAtual === null ? "" : conditionKey(condition);
 

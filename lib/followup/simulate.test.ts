@@ -325,7 +325,7 @@ describe("avancarSimulacao — match_reply", () => {
     expect(depois.currentNodeId).toBe("agendou");
   });
 
-  it("'sem resposta' cai no caminho padrão (sem casar regra nenhuma)", async () => {
+  it("'sem resposta' com a saída «Sem resposta» solta: o lead fica PARADO — não escorrega para «Outros casos»", async () => {
     const parado = await iniciar(grafo());
     const depois = await avancarSimulacao({
       graph: grafo(),
@@ -333,7 +333,8 @@ describe("avancarSimulacao — match_reply", () => {
       entrada: { kind: "sem_resposta" },
       classificar: nuncaClassifica,
     });
-    expect(depois.currentNodeId).toBe("outros");
+    expect(depois.currentNodeId).not.toBe("outros");
+    expect(depois.transcript.at(-1)).toMatchObject({ kind: "parado" });
   });
 });
 
@@ -500,7 +501,7 @@ describe("avancarSimulacao — end.ao_finalizar", () => {
 });
 
 describe("avancarSimulacao — grafo mal formado", () => {
-  it("nó sem aresta de saída vira um passo de erro, não uma exceção", async () => {
+  it("nó sem aresta de saída PARA o lead ali (sem erro, sem exceção) e diz o motivo", async () => {
     const graph: FlowGraph = {
       nodes: [
         no({ id: "t1", type: "trigger", label: "Início", config: {} }),
@@ -509,8 +510,9 @@ describe("avancarSimulacao — grafo mal formado", () => {
       edges: [aresta({ source: "t1", target: "solto", condition: { type: "always" } })],
     };
     const state = await iniciar(graph);
-    expect(state.status).toBe("erro");
-    expect(state.transcript.at(-1)).toMatchObject({ kind: "erro" });
+    expect(state.status).toBe("concluido");
+    expect(state.transcript.at(-1)).toMatchObject({ kind: "parado", nodeId: "solto" });
+    expect(state.transcript.some((t) => t.kind === "erro")).toBe(false);
   });
 
   it("ciclo sem saída para no teto de 80 passos em vez de travar", async () => {

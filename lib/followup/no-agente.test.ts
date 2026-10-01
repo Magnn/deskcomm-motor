@@ -197,15 +197,10 @@ describe("publicação — as regras do nó (rodam mesmo com o gate ligado)", ()
     expect(codigos(fluxoCompleto(), {})).not.toContain("agente_indisponivel");
   });
 
-  it("cada saída sem aresta é apontada pelo nome da saída — o editor ancora na bolinha certa", () => {
+  it("saída do agente sem aresta PUBLICA: o lead fica no agente até alguém ligar (o funil só anda até onde foi montado)", () => {
     const g = fluxoCompleto();
     g.edges = g.edges.filter((e) => !(e.source === "ag" && e.condition.type === "branch" && e.condition.branch_id === "limite"));
-    const r = validateFlowForPublish(g, contexto());
-    expect(r.ok).toBe(false);
-    if (r.ok) return;
-    const solta = r.errors.filter((e) => e.code === "missing_branch_edge");
-    expect(solta.map((e) => e.branch_id)).toEqual(["limite"]);
-    expect(solta[0]!.message).toContain("Passou do limite de turnos");
+    expect(codigos(g)).not.toContain("missing_branch_edge");
   });
 
   it("a saída de escape NÃO é cobrada: as três saídas esgotam o que o motor produz", () => {
@@ -321,13 +316,13 @@ describe("simulador — o agente é uma caixa-preta e o operador escolhe a saíd
     expect(depois.transcript).toContainEqual({ kind: "lead", texto: "oi, tudo bem?" });
   });
 
-  it("saída sem aresta é erro legível, e não um passo no escuro", async () => {
+  it("saída sem aresta: o simulador mostra o lead PARADO ali (sem erro) e diz qual saída faltou", async () => {
     const g = fluxoCompleto();
     g.edges = g.edges.filter((e) => !(e.condition.type === "branch" && e.condition.branch_id === "limite"));
     const parado = await ate(g);
     const depois = await avancarSimulacao({ graph: g, state: parado, entrada: { kind: "saida_do_agente", saida: "limite" }, classificar: nuncaClassifica });
-    expect(depois.status).toBe("erro");
-    expect(depois.transcript.at(-1)).toMatchObject({ kind: "erro", nodeId: "ag" });
+    expect(depois.status).toBe("concluido");
+    expect(depois.transcript.at(-1)).toMatchObject({ kind: "parado", nodeId: "ag" });
   });
 });
 

@@ -28,6 +28,7 @@ vi.mock("@xyflow/react", () => ({
     </div>
   ),
   Position: { Top: "top", Right: "right", Bottom: "bottom", Left: "left" },
+  useEdges: () => [],
   NodeToolbar: ({ children, isVisible }: { children?: React.ReactNode; isVisible?: boolean }) =>
     isVisible ? <div data-testid="node-toolbar">{children}</div> : null,
 }));

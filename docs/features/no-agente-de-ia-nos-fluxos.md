@@ -46,7 +46,7 @@ filtrado pela **organização**, porque o `agent_id` vem do grafo e nunca é con
 - `agente_nao_escolhido` — o UUID nulo do canvas;
 - `agente_indisponivel` — o agente não existe nesta organização, foi arquivado, é do tipo antigo
   (`rag_bot`, que não conduz conversa em fluxo) ou não tem versão publicada;
-- `missing_branch_edge` (com o `branch_id`) — cada uma das três saídas precisa levar a algum lugar;
+- saída sem aresta **não reprova mais**: o lead que sai por ela FICA no agente (`node_parked`, com o motivo) até alguém ligar a saída — o funil só avança até onde foi montado;
 - o agente conta como **espera** para o ciclo (`cycle_without_wait`): ele espera a pessoa por
   `silencio_minutos` (piso 5 min).
 
