@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/select";
 import { showApiError } from "@/components/feedback/ApiErrorToast";
 import { ApiError } from "@/lib/api/types";
+import { rascunhoIncompleto, type MotivoDaCaixaIncompleta } from "@/lib/followup/caixas-incompletas";
 import type { FlowGraph } from "@/lib/followup/graph-schema";
 import type { PublishValidationError } from "@/lib/followup/validate-publish";
 import { useT } from "@/hooks/i18n/useT";
@@ -37,7 +38,8 @@ import {
   type FollowupFlowDetailRow,
 } from "@/hooks/followup/useFollowupFlow";
 import Link from "next/link";
-import { ArrowLeft, Play, Power, Trash, TreeStructure, WhatsappLogo, X } from "@/lib/ui/icons";
+import { ArrowLeft, DownloadSimple, Play, Power, Trash, TreeStructure, WhatsappLogo, X } from "@/lib/ui/icons";
+import { exportFlowToTemplate } from "@/lib/followup/export-import";
 import { FlowStatusBadge } from "../../_components/FlowStatusBadge";
 import { DeleteFollowupFlowButton } from "../../_components/DeleteFollowupFlowButton";
 import { RenameFollowupFlowButton } from "../../_components/RenameFollowupFlowButton";
@@ -88,11 +90,53 @@ export function PublishBar({
   const rollback = useRollbackFollowupFlow(flowId);
   const handoffPolicy = useUpdateHandoffPolicy(flowId);
 
+  const fraseDoMotivo = (motivo: MotivoDaCaixaIncompleta): string => {
+    switch (motivo.tipo) {
+      case "conteudo_vazio":
+        return t("Esta caixa está vazia — clique em Editar e adicione ao menos um conteúdo.");
+      case "item_sem_arquivo":
+        return `${t("Item")} ${motivo.item}: ${t("falta enviar o arquivo — envie-o ou remova o item.")}`;
+      case "item_sem_link":
+        return `${t("Item")} ${motivo.item}: ${t("falta o link do arquivo — preencha-o ou troque para arquivo enviado.")}`;
+      case "item_sem_texto":
+        return `${t("Item")} ${motivo.item}: ${t("o texto está em branco — escreva-o ou remova o item.")}`;
+      case "item_contato_incompleto":
+        return `${t("Item")} ${motivo.item}: ${t("o contato precisa de nome e telefone.")}`;
+      case "configuracao_incompleta":
+        return t("Esta caixa ainda não foi configurada por completo — clique em Editar e preencha o que falta.");
+    }
+  };
+
+  /**
+   * Confere o rascunho ANTES de chamar o servidor. Uma caixa incompleta faz o
+   * PATCH recusar o fluxo inteiro com "Campos inválidos.", sem dizer onde — e
+   * como publicar começa por salvar, o "Publicar" parecia não funcionar. Aqui a
+   * caixa é pintada e o motivo fica escrito nela. `false` = não seguir.
+   */
+  const rascunhoPodeSerSalvo = (): boolean => {
+    const { caixas, doFluxo } = rascunhoIncompleto(graph);
+    if (caixas.length === 0 && !doFluxo) {
+      onPublishErrors({}); // limpa marcas de uma tentativa anterior já corrigida
+      return true;
+    }
+    const porCaixa: Record<string, string[]> = {};
+    for (const c of caixas) (porCaixa[c.node_id] ??= []).push(fraseDoMotivo(c.motivo));
+    onPublishErrors(porCaixa);
+    toast.error(
+      caixas.length > 0
+        ? t("Há caixas sem configurar — corrija as destacadas em vermelho para salvar.")
+        : t("O fluxo ainda não pode ser salvo: ele precisa de ao menos duas caixas ligadas."),
+    );
+    return false;
+  };
+
   const onSave = () => {
+    if (!rascunhoPodeSerSalvo()) return;
     save.mutate(graph, { onSuccess: () => onSaved(graph) });
   };
 
   const onPublish = async () => {
+    if (!rascunhoPodeSerSalvo()) return;
     try {
       await save.mutateAsync(graph);
       onSaved(graph);
@@ -128,6 +172,26 @@ export function PublishBar({
   const onRollback = () => {
     if (!flow.previous_version_id) return;
     rollback.mutate(flow.previous_version_id);
+  };
+
+  const handleExport = () => {
+    try {
+      const pkg = exportFlowToTemplate({
+        name: flow.name,
+        nodes: graph.nodes,
+        edges: graph.edges,
+      });
+      const blob = new Blob([JSON.stringify(pkg, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `fluxo-${flow.name.toLowerCase().replace(/[^a-z0-9]/g, "-") || "template"}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success(t("Modelo exportado com sucesso!"));
+    } catch {
+      toast.error(t("Erro ao exportar modelo de fluxo."));
+    }
   };
 
   const busy = save.isPending || publish.isPending || disable.isPending || rollback.isPending;
@@ -198,13 +262,13 @@ export function PublishBar({
               type="button"
               className="cursor-pointer rounded-full bg-[#7c3aed] px-3.5 py-0.5 text-[11px] font-bold text-white shadow-xs"
             >
-              Automação
+              {t("Automação")}
             </button>
             <button
               type="button"
               className="cursor-pointer rounded-full px-3 py-0.5 text-[11px] font-medium text-neutral-500 hover:text-neutral-900 dark:text-neutral-400"
             >
-              Relatórios
+              {t("Relatórios")}
             </button>
           </div>
         </div>
@@ -278,6 +342,17 @@ export function PublishBar({
               {t("Organizar")}
             </Button>
           )}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 text-xs font-semibold"
+            onClick={handleExport}
+            data-testid="export-flow"
+          >
+            <DownloadSimple size={13} aria-hidden className="mr-1" />
+            {t("Exportar")}
+          </Button>
         {selection ? (
           <>
             <Button

@@ -99,3 +99,29 @@ export function validateOutboundMedia(mime: string, sizeBytes: number): Ok | Fai
   }
   return { ok: true, kind: tipo };
 }
+
+/** Teto da figurinha ANIMADA no WhatsApp (a estática é 100 KB). */
+export const STICKER_MAX_BYTES = 500 * 1024;
+
+/**
+ * Figurinha é caso À PARTE, e não mais um mime em `IMAGE_MIMES`: `.webp` como
+ * IMAGEM a Meta recusa (por isso ele fica fora de lá), mas é o ÚNICO formato de
+ * figurinha. Só quem declara a intenção — o item "Figurinha" do nó Conteúdo —
+ * passa por aqui; o upload comum segue recusando webp.
+ */
+export function validateStickerUpload(
+  mime: string,
+  sizeBytes: number,
+): { ok: true; kind: "sticker" } | Fail {
+  if (!sizeBytes || sizeBytes <= 0) {
+    return { ok: false, code: "validation_failed", message: "Arquivo vazio." };
+  }
+  const base = mime.split(";")[0]!.trim().toLowerCase();
+  if (base !== "image/webp") {
+    return { ok: false, code: "unsupported_media_type", message: "O sticker precisa ser um arquivo .webp." };
+  }
+  if (sizeBytes > STICKER_MAX_BYTES) {
+    return { ok: false, code: "payload_too_large", message: "Sticker acima de 500 KB (limite do WhatsApp)." };
+  }
+  return { ok: true, kind: "sticker" };
+}

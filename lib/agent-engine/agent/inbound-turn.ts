@@ -1289,6 +1289,8 @@ export interface InboundTurnDeps {
    * anti-ban observável no artefato de trace de forma determinística.
    */
   sleep?: (ms: number) => Promise<void>;
+  /** testes: download de mídia por link sem rede (`agent/midia-por-link.ts`). */
+  baixarMidiaDoLink?: typeof import('./midia-por-link').baixarMidiaDoLink;
 }
 
 /** Checkpoint mais recente do lead — a memória que atravessa sessões. */

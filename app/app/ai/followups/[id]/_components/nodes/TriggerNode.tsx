@@ -6,6 +6,7 @@ import { Hash, SquarePen } from "lucide-react";
 
 import type { RFNode } from "@/lib/followup/graph-mappers";
 import { useT } from "@/hooks/i18n/useT";
+import { copyToClipboard } from "@/lib/clipboard";
 import { WhatsappLogo, Play, Check } from "@/lib/ui/icons";
 import { cn } from "@/lib/utils";
 
@@ -13,13 +14,11 @@ export function TriggerNode({ id, data, selected }: NodeProps<RFNode>) {
   const t = useT();
   const [copiedId, setCopiedId] = useState(false);
 
-  const handleCopyId = (e: React.MouseEvent) => {
+  const handleCopyId = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (typeof navigator !== "undefined" && navigator.clipboard) {
-      void navigator.clipboard.writeText(id);
-      setCopiedId(true);
-      setTimeout(() => setCopiedId(false), 2000);
-    }
+    if (!(await copyToClipboard(id))) return;
+    setCopiedId(true);
+    setTimeout(() => setCopiedId(false), 2000);
   };
   const cfg = (data.config || {}) as Record<string, unknown>;
   const triggerKind = String(cfg.kind || "keyword");
@@ -250,8 +249,8 @@ export function TriggerNode({ id, data, selected }: NodeProps<RFNode>) {
         <Handle
           type="source"
           position={Position.Right}
-          className="!-right-2.5 z-10 !flex !h-5 !w-5 !items-center !justify-center !rounded-full !border-2 !border-white !bg-[#2563eb] text-white !shadow-sm !transition-all hover:!scale-125"
-          style={{ top: "22px" }}
+          className="z-10 !flex !h-5 !w-5 !items-center !justify-center !rounded-full !border-2 !border-white !bg-[#2563eb] text-white !shadow-sm !transition-all hover:!scale-125"
+          style={{ top: "68px" }}
         >
           <Play size={8} weight="fill" className="pointer-events-none ml-0.5 text-white" />
         </Handle>

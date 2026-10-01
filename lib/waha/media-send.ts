@@ -8,6 +8,11 @@ export interface OutboundMedia {
   mime: string;
   filename?: string | null;
   caption?: string | null;
+  /**
+   * Só para `kind: "audio"`: `true` = mandar como ARQUIVO de áudio, e não como
+   * nota de voz. Ausente = nota de voz, que é o que todo áudio sempre foi.
+   */
+  asFile?: boolean;
 }
 
 export interface WahaSendPlan {
@@ -28,7 +33,14 @@ export function wahaSendPlanFor(kind: string, media: OutboundMedia): WahaSendPla
         payload: { file, convert: true, ...(media.caption ? { caption: media.caption } : {}) },
       };
     case "audio":
+      // Arquivo de áudio: `sendFile`, sem conversão — chega como anexo com nome.
+      if (media.asFile) return { endpoint: "sendFile", payload: { file } };
       return { endpoint: "sendVoice", payload: { file, convert: true } };
+    case "sticker":
+      // Este transporte não tem endpoint de figurinha. O .webp sai por
+      // `sendImage`, SEM legenda: chega como imagem, não como anexo de arquivo
+      // (que é o que o `default` faria). Figurinha de verdade só no canal oficial.
+      return { endpoint: "sendImage", payload: { file } };
     default:
       return { endpoint: "sendFile", payload: { file, ...(media.caption ? { caption: media.caption } : {}) } };
   }

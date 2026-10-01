@@ -214,6 +214,8 @@ export interface RunModelCallInput {
   maxSteps?: number;
   /** Teto por chamada auxiliar; nunca aumenta o limite configurado pela organização. */
   maxOutputTokens?: number;
+  /** Temperatura DESTA chamada (ex.: o nó GPT do construtor); sem ela, vale a da organização. */
+  temperature?: number;
   /** Cancelamento propagado pelo chamador; a falha continua registrada em llm_calls. */
   abortSignal?: AbortSignal;
   /**
@@ -663,7 +665,7 @@ export async function runModelCall(db: pg.Pool, cfg: LlmEdgeConfig, input: RunMo
       abortSignal: input.abortSignal,
       tools: guardServiceTools(prefix.tools),
       stopWhen: input.maxSteps === undefined ? undefined : stepCountIs(input.maxSteps),
-      temperature,
+      temperature: input.temperature ?? temperature,
       topP,
       topK,
       maxOutputTokens: input.maxOutputTokens === undefined

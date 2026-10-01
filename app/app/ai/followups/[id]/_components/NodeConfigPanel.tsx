@@ -27,6 +27,13 @@ import { CollectForm } from "./forms/CollectForm";
 import { AgentForm } from "./forms/AgentForm";
 import { SkillForm } from "./forms/SkillForm";
 import { TriggerForm } from "./forms/TriggerForm";
+import { PaymentGatewayForm } from "./forms/PaymentGatewayForm";
+import { WhatsappTemplateForm } from "./forms/WhatsappTemplateForm";
+import { PixPaymentForm } from "./forms/PixPaymentForm";
+import { MetaPixelForm } from "./forms/MetaPixelForm";
+import { VoiceStudioForm } from "./forms/VoiceStudioForm";
+import { GoogleSheetsForm } from "./forms/GoogleSheetsForm";
+import { ExecuteCodeForm } from "./forms/ExecuteCodeForm";
 import type { ConfigOf } from "./forms/shared";
 import { NODE_VISUALS } from "./nodes/nodeVisuals";
 
@@ -252,6 +259,48 @@ export function NodeConfigPanel({ node, flowId, onChange, onDelete, onClose, ram
         )}
         {type === "skill" && (
           <SkillForm config={node.data.config as ConfigOf<"skill">} onChange={(config) => onChange({ config })} />
+        )}
+        {type === "payment_gateway" && (
+          <PaymentGatewayForm
+            config={node.data.config as ConfigOf<"payment_gateway">}
+            onChange={(config) => onChange({ config })}
+          />
+        )}
+        {type === "whatsapp_template" && (
+          <WhatsappTemplateForm
+            config={node.data.config as ConfigOf<"whatsapp_template">}
+            onChange={(config) => onChange({ config })}
+          />
+        )}
+        {type === "pix_payment" && (
+          <PixPaymentForm
+            config={node.data.config as ConfigOf<"pix_payment">}
+            onChange={(config) => onChange({ config })}
+          />
+        )}
+        {type === "meta_pixel" && (
+          <MetaPixelForm
+            config={node.data.config as ConfigOf<"meta_pixel">}
+            onChange={(config) => onChange({ config })}
+          />
+        )}
+        {type === "voice_studio" && (
+          <VoiceStudioForm
+            config={node.data.config as ConfigOf<"voice_studio">}
+            onChange={(config) => onChange({ config })}
+          />
+        )}
+        {type === "google_sheets" && (
+          <GoogleSheetsForm
+            config={node.data.config as ConfigOf<"google_sheets">}
+            onChange={(config) => onChange({ config })}
+          />
+        )}
+        {type === "execute_code" && (
+          <ExecuteCodeForm
+            config={node.data.config as ConfigOf<"execute_code">}
+            onChange={(config) => onChange({ config })}
+          />
         )}
       </div>
 

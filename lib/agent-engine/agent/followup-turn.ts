@@ -52,8 +52,24 @@ import {
   type EsperaParaPlanejar,
   type PropostaDeEsperaBruta,
 } from './followup-flow-classify';
-import { runGenericAiNode } from './followup-flow-generic-ai';
+import { runGenericAiNode, type BlocosDoGpt } from './followup-flow-generic-ai';
+import {
+  contextoDoNo,
+  interpolarVariaveis,
+  modeloEfetivo,
+  temperaturaValida,
+  variaveisDoPrompt,
+  type OpcoesDoGpt,
+} from './opcoes-do-gpt';
+import { resolveOrgLlmConfig } from '../edge/llm/credentials';
+import { loadPublishedAgentConfigById } from './agent-config';
+import { searchKnowledge } from './search-knowledge';
+import { blocoDeIdentidade } from '@/lib/identidade/bloco-do-prompt';
+import { blocoDeLimites } from '@/lib/limites/bloco-do-prompt';
 import { OK_KINDS } from './split-message';
+import { baixarMidiaDoLink } from './midia-por-link';
+import { citaDadoDoLead, interpolarVariaveisDoContato, type DadosDoContato } from './variaveis-do-contato';
+import { extFromMime } from '@/lib/messaging/media/types';
 import type { ChannelSendResult } from '../channel-adapter';
 import { createAdminClient } from '@/lib/supabase/admin';
 
@@ -74,17 +90,22 @@ const HOUR_MS = 3_600_000;
  */
 const conteudoItemPayloadSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('text'), body: z.string().min(1) }),
-  z.object({ type: z.literal('image'), storage_path: z.string().min(1), mime: z.string().min(1), caption: z.string().optional() }),
-  z.object({ type: z.literal('video'), storage_path: z.string().min(1), mime: z.string().min(1), caption: z.string().optional() }),
-  z.object({ type: z.literal('audio'), storage_path: z.string().min(1), mime: z.string().min(1) }),
+  // Imagem, vídeo e documento têm DUAS origens (arquivo do bucket OU link/variável) —
+  // ver "Mídia tem DUAS origens" em graph-schema.ts. Aqui as duas são opcionais; quem
+  // garante "exatamente uma" é o schema de autoria, no salvar.
+  z.object({ type: z.literal('image'), storage_path: z.string().min(1).optional(), mime: z.string().min(1).optional(), url: z.string().min(1).optional(), caption: z.string().optional() }),
+  z.object({ type: z.literal('video'), storage_path: z.string().min(1).optional(), mime: z.string().min(1).optional(), url: z.string().min(1).optional(), caption: z.string().optional() }),
+  z.object({ type: z.literal('audio'), storage_path: z.string().min(1), mime: z.string().min(1), voice_note: z.boolean().optional(), filename: z.string().optional(), transcript: z.string().optional() }),
   z.object({
     type: z.literal('document'),
-    storage_path: z.string().min(1),
-    mime: z.string().min(1),
+    storage_path: z.string().min(1).optional(),
+    mime: z.string().min(1).optional(),
+    url: z.string().min(1).optional(),
     filename: z.string().optional(),
     caption: z.string().optional(),
   }),
   z.object({ type: z.literal('contact'), name: z.string().min(1), phone_number: z.string().min(1) }),
+  z.object({ type: z.literal('sticker'), storage_path: z.string().min(1), mime: z.string().min(1) }),
   z.object({ type: z.literal('delay'), seconds: z.number().int().min(1).max(120) }),
 ]);
 export type ConteudoItemPayload = z.infer<typeof conteudoItemPayloadSchema>;
@@ -125,6 +146,21 @@ export const followupTurnPayloadSchema = z
     volta_total: z.number().int().optional(),
     classes: z.array(z.string()).optional(),
     hint: z.string().optional(),
+    // purpose 'generic_ai': as opções do nó GPT, campo a campo IDÊNTICAS às de `lib/followup/engine.ts`.
+    generic_ai_opcoes: z
+      .object({
+        modelo_gpt: z.string().optional(),
+        max_tokens: z.number().int().optional(),
+        temperature: z.number().optional(),
+        enviar_resultado_texto: z.boolean().optional(),
+        manter_contexto: z.boolean().optional(),
+        leitura_imagem_pdf: z.boolean().optional(),
+        ativar_personalidade: z.boolean().optional(),
+        ativar_base_informacoes: z.boolean().optional(),
+        ativar_restricoes: z.boolean().optional(),
+        salvar_em_campo: z.boolean().optional(),
+      })
+      .optional(),
     // purpose 'plan_timing': as esperas adaptativas do fluxo inteiro, na ordem.
     waits: z
       .array(
@@ -150,7 +186,7 @@ export type FollowupFlowTurnResult =
   | { kind: 'deferred'; until: Date; reason: string }
   | { kind: 'planned'; propostas: PropostaDeEsperaBruta[]; modelo: string }
   /** nó `ai_generic` (lote 1) — o texto que o prompt livre devolveu. */
-  | { kind: 'generic_ai_done'; text: string };
+  | { kind: 'generic_ai_done'; text: string; envio?: 'sent' | 'skipped' | 'deferred'; modelo?: string };
 
 /**
  * `InboundTurnDeps` + o callback que fecha o turno dirigido por fluxo de volta
@@ -381,6 +417,7 @@ export function createFollowupTurnHandler(deps: FollowupTurnDeps) {
         voltaTotal: payload.volta_total,
         classes: payload.classes,
         hint: payload.hint,
+        genericAiOpcoes: payload.generic_ai_opcoes,
         waits: payload.waits,
       });
       return;
@@ -460,6 +497,7 @@ async function runFlowDrivenTurn(
     voltaTotal: number | undefined;
     classes: string[] | undefined;
     hint: string | undefined;
+    genericAiOpcoes: OpcoesDoGpt | undefined;
     waits: EsperaParaPlanejar[] | undefined;
   },
 ): Promise<void> {
@@ -566,18 +604,110 @@ async function runFlowDrivenTurn(
     if (!context.ok) {
       throw new Error(`turno de IA genérica do fluxo falhou em get_lead_context (${context.error.code})`);
     }
+    const opcoes: OpcoesDoGpt = input.genericAiOpcoes ?? {};
+
+    // Variáveis do prompt ({{primeiro_nome}}, {{etapa_funil}}, campos do lead…): são as que a
+    // tela insere no cursor. Etapa e campos personalizados não vêm no contexto do lead.
+    const { rows: leadRows } = await pool.query<{ stage_name: string | null; custom_fields: Record<string, unknown> | null }>(
+      `select s.name as stage_name, l.custom_fields
+         from crm_leads l left join crm_stages s on s.id = l.stage_id
+        where l.organization_id = $1 and l.contact_id = $2
+        order by l.updated_at desc limit 1`,
+      [target.tenantId, target.leadId],
+    );
+    const contextoDoModelo = contextoDoNo(context.context, opcoes);
+    const promptFinal = interpolarVariaveis(
+      input.promptHint,
+      variaveisDoPrompt(context.context, {
+        etapa_funil: leadRows[0]?.stage_name ?? null,
+        campos: leadRows[0]?.custom_fields ?? null,
+      }),
+    );
+
+    // Modelo: o seletor é da OpenAI; só vale onde o provedor da organização o tem.
+    const orgLlm = await resolveOrgLlmConfig(pool, deps.llmCfg, target.tenantId);
+    const escolha = modeloEfetivo({ provider: orgLlm.provider, enabledModels: orgLlm.enabledModels }, opcoes.modelo_gpt);
+    if (escolha.motivo === 'provedor_sem_openai' || escolha.motivo === 'nao_habilitado') {
+      runLog.warn('nó GPT: modelo escolhido não se aplica a esta organização — usando o padrão', {
+        modelo_gpt: opcoes.modelo_gpt,
+        provedor: orgLlm.provider,
+        motivo: escolha.motivo,
+      });
+    }
+
+    // Personalidade, restrições e base de informações vêm do agente que ARMOU o fluxo.
+    const blocos: BlocosDoGpt = {};
+    if (opcoes.ativar_personalidade || opcoes.ativar_restricoes || opcoes.ativar_base_informacoes) {
+      const { rows: enr } = await pool.query<{ agent_id: string | null }>(
+        'select agent_id from followup_enrollments where organization_id = $1 and id = $2',
+        [target.tenantId, enrollmentId],
+      );
+      const agentId = enr[0]?.agent_id ?? null;
+      const agente = agentId ? await loadPublishedAgentConfigById(pool, target.tenantId, agentId) : null;
+      if (!agente) {
+        runLog.warn('nó GPT: personalidade/restrições/base pedidas, mas o fluxo não tem agente publicado — seguindo sem elas');
+      } else {
+        if (opcoes.ativar_personalidade) blocos.identidade = blocoDeIdentidade(agente.identity ?? null);
+        if (opcoes.ativar_restricoes) blocos.limites = blocoDeLimites(agente.limits ?? null);
+        if (opcoes.ativar_base_informacoes) {
+          const achados = await searchKnowledge(
+            pool,
+            {
+              organizationId: target.tenantId,
+              knowledgeSourceIds: agente.knowledgeSourceIds,
+              kbVersionId: agente.activeKbVersionId ?? null,
+              query: promptFinal.slice(0, 600),
+              topK: agente.ragTopK,
+              threshold: agente.ragSimilarityThreshold,
+              jobId: job.id,
+              agentId: agente.agentId,
+            },
+            { log: runLog },
+          );
+          if (achados.ok) blocos.conhecimento = achados.results.map((h) => h.content);
+          else runLog.warn('nó GPT: busca na base de informações falhou — seguindo sem ela', { erro: achados.error.code });
+        }
+      }
+    }
+
+    const temperature = temperaturaValida(opcoes.temperature);
     const text = await runGenericAiNode(
       pool,
       deps.llmCfg,
       { tenantId: target.tenantId, leadId: target.leadId, jobId: job.id },
       {
-        prompt: input.promptHint,
-        context: context.context,
-        ...(deps.knobs.followupAi?.model !== undefined ? { model: deps.knobs.followupAi.model } : {}),
+        prompt: promptFinal,
+        context: contextoDoModelo,
+        blocos,
+        paraCliente: opcoes.enviar_resultado_texto === true,
+        ...(escolha.model !== undefined
+          ? { model: escolha.model }
+          : deps.knobs.followupAi?.model !== undefined
+            ? { model: deps.knobs.followupAi.model }
+            : {}),
+        ...(temperature !== undefined ? { temperature } : {}),
+        ...(opcoes.max_tokens !== undefined ? { maxOutputTokens: opcoes.max_tokens } : {}),
       },
       { ...(deps.registry !== undefined ? { registry: deps.registry } : {}), log: runLog },
     );
-    await complete(pool, { jobId: job.id, jobClaim: claimOfJob(job), organizationId: target.tenantId, enrollmentId, nodeId, result: { kind: 'generic_ai_done', text } });
+
+    // «Enviar resultado como texto?»: o texto também vai ao cliente, pela cadeia de guardrails COM
+    // a camada semântica (é texto do modelo, não do operador). O desfecho fica no registro do passo:
+    // janela fechada ou recusa não perdem o texto — ele segue gravado e a timeline diz o que houve.
+    let envio: 'sent' | 'skipped' | 'deferred' | undefined;
+    if (opcoes.enviar_resultado_texto === true) {
+      const d = await sendFixedOutbound(deps, job, pool, ctx, clock, target, text, true);
+      envio = d.kind === 'sent' ? 'sent' : d.kind === 'skipped' ? 'skipped' : 'deferred';
+    }
+
+    await complete(pool, {
+      jobId: job.id,
+      jobClaim: claimOfJob(job),
+      organizationId: target.tenantId,
+      enrollmentId,
+      nodeId,
+      result: { kind: 'generic_ai_done', text, ...(envio !== undefined ? { envio } : {}), ...(escolha.model !== undefined ? { modelo: escolha.model } : {}) },
+    });
     return;
   }
 
@@ -713,7 +843,7 @@ async function sendFixedOutbound(
   ctx: { workerId: string },
   clock: () => Date,
   target: ReentrySendTarget,
-  body: string,
+  corpoDoFluxo: string,
   /** `true` só na re-entrada por template — ver o cabeçalho. */
   comCamadaSemantica: boolean,
 ): Promise<EnvioFixoDesfecho> {
@@ -733,6 +863,17 @@ async function sendFixedOutbound(
   );
   if (!context.ok) {
     throw new Error(`envio fixo do follow-up falhou em get_lead_context (${context.error.code})`);
+  }
+  // Variáveis do contato trocadas ANTES do portão — mesma regra da sequência de
+  // conteúdo (`variaveis-do-contato.ts`). Texto que era só uma variável sem valor
+  // não vira mensagem vazia: o passo é pulado.
+  const body = interpolarVariaveisDoContato(
+    corpoDoFluxo,
+    await dadosDoContatoParaVariaveis(pool, tenantId, leadId, context.context.contact, [corpoDoFluxo]),
+  );
+  if (body === '') {
+    runLog.warn('envio fixo pulado — o texto ficou vazio depois das variáveis do contato', { kind: job.kind });
+    return { kind: 'skipped' };
   }
   const optedOutThisTurn = context.context.contact.is_blocked;
 
@@ -841,6 +982,76 @@ async function copiarConteudoParaConversa(
   return false;
 }
 
+/** Guarda na pasta da conversa a mídia que veio de um link. `false` = item pulado, nunca exceção. */
+async function guardarMidiaNaConversa(
+  destino: string,
+  buffer: Buffer,
+  mime: string,
+  log: { warn(msg: string, fields?: Record<string, unknown>): void },
+): Promise<boolean> {
+  // `upsert`: num replay pós-crash o arquivo já está lá, e regravar o mesmo é inofensivo.
+  const { error } = await createAdminClient()
+    .storage.from('whatsapp-media')
+    .upload(destino, buffer, { contentType: mime, upsert: true });
+  if (!error) return true;
+  log.warn('mídia do link não pôde ser guardada na conversa — item pulado', { detalhe: error.message.slice(0, 120) });
+  return false;
+}
+
+/**
+ * O nome original do documento, reduzido ao que uma chave do Storage aceita
+ * (ASCII, sem barra): é o último segmento do path, e é dele que o handler tira
+ * o nome que o cliente vê. `null` = sem nome utilizável, cai no nome genérico.
+ */
+function nomeSeguroParaStorage(filename: string | undefined): string | null {
+  if (filename === undefined) return null;
+  const limpo = filename
+    .normalize('NFD')
+    .split('')
+    .map((c) => {
+      const code = c.charCodeAt(0);
+      if (code >= 0x300 && code <= 0x36f) return ''; // acento separado pelo NFD
+      const ok =
+        (code >= 48 && code <= 57) || (code >= 65 && code <= 90) || (code >= 97 && code <= 122) || c === '.' || c === '-' || c === '_';
+      return ok ? c : '_';
+    })
+    .join('')
+    .slice(-120);
+  // Só pontos/sublinhados não é nome: `..` como segmento seria pior que o genérico.
+  return limpo.split('').some((c) => c !== '.' && c !== '_') ? limpo : null;
+}
+
+/**
+ * Os dados que as variáveis do fluxo usam. Etapa e campos de fluxo custam uma
+ * consulta ao lead, então só são buscados quando algum texto os cita.
+ */
+async function dadosDoContatoParaVariaveis(
+  pool: pg.Pool,
+  tenantId: string,
+  leadId: string,
+  contato: { name: string | null; phone: string | null; email: string | null },
+  textos: readonly string[],
+): Promise<DadosDoContato> {
+  let etapa: string | null = null;
+  const campos: Record<string, string> = {};
+  if (textos.some(citaDadoDoLead)) {
+    const { rows } = await pool.query<{ name: string | null; custom_fields: Record<string, unknown> | null }>(
+      `select s.name, l.custom_fields from crm_leads l left join crm_stages s on s.id = l.stage_id
+        where l.organization_id = $1 and l.contact_id = $2
+        order by l.updated_at desc limit 1`,
+      [tenantId, leadId],
+    );
+    etapa = rows[0]?.name ?? null;
+    for (const [chave, valor] of Object.entries(rows[0]?.custom_fields ?? {})) {
+      // Só o que cabe num texto: objeto/lista (ex.: `_notes`) não é variável.
+      if (typeof valor === 'string' || typeof valor === 'number' || typeof valor === 'boolean') {
+        campos[chave] = String(valor);
+      }
+    }
+  }
+  return { nome: contato.name, telefone: contato.phone, email: contato.email, etapa, campos };
+}
+
 /**
  * Envia a sequência do nó "Conteúdo" (`action.mode = 'content'`), passando pela
  * MESMA cadeia de guardas anti-banimento que o texto de fluxo já usa — UMA
@@ -859,10 +1070,21 @@ async function copiarConteudoParaConversa(
  *    por poucos minutos, bem abaixo do QUEUE_VISIBILITY_TIMEOUT_MS (10min) —
  *    e mesmo se um job estourasse a janela e fosse reclamado por outro worker,
  *    o replay é seguro (idempotência por (jobId,seq) no sink do CRM).
- *  - `video`/`document`/`contact`: SEM motor de envio ainda
- *    (`validarItensDeConteudo` recusa isto no publish); aqui é só a rede de
- *    segurança para um fluxo antigo publicado antes dessa guarda — pula o item
- *    e loga, nunca derruba o turno inteiro por causa de UM item.
+ *  - `contact`: cartão de contato (nome + telefone) pelo MESMO caminho do envio
+ *    manual do atendente — o adapter do canal monta o vCard.
+ *  - `sticker`: figurinha (.webp), copiada pro Storage da conversa como a imagem,
+ *    sem legenda.
+ *  - `video`/`document`: mídia como a imagem, com a legenda no `body`. O
+ *    documento é copiado para uma pasta própria com o NOME ORIGINAL do arquivo
+ *    como último segmento — o handler tira o nome que o cliente vê do fim do
+ *    path, e `conteudo-<job>-<seq>.pdf` não é nome que se entregue a ninguém.
+ *
+ * ─── Variáveis do contato ──────────────────────────────────────────────────
+ * `{{nome}}`, `{{primeiro_nome}}`, `{{telefone}}`, `{{email}}` e `{{etapa}}`
+ * são trocadas em TODO texto e legenda antes de qualquer coisa — inclusive
+ * antes do portão, que precisa avaliar o que de fato vai sair. Ver
+ * `variaveis-do-contato.ts`. Texto que fica VAZIO depois da troca (era só uma
+ * variável sem valor) não vira bolha: o item é pulado.
  *
  * ─── Limitação conhecida, registrada (não escondida) ───────────────────────
  * A "spinning de copy" (variação de texto anti-detecção) só se aplica ao PRIMEIRO
@@ -876,7 +1098,7 @@ async function sendConteudoSequence(
   ctx: { workerId: string },
   clock: () => Date,
   target: ReentrySendTarget,
-  items: readonly ConteudoItemPayload[],
+  itensDoFluxo: readonly ConteudoItemPayload[],
 ): Promise<EnvioFixoDesfecho> {
   const { tenantId, leadId, channelSessionId, conversationId } = target;
   const runLog = withFields(deps.log, { job_id: job.id, tenant_id: tenantId, lead_id: leadId });
@@ -899,6 +1121,51 @@ async function sendConteudoSequence(
   const channel = (deps.channel ?? ((p: pg.Pool) => new WahaChannelAdapter(p, deps.crmCfg)))(pool);
   const sleep = deps.sleep ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
   const jitter = () => 1200 + Math.floor(Math.random() * 800); // mesmo piso anti-ban das bolhas do turno normal
+
+  // Variáveis do contato trocadas ANTES do portão: ele avalia o texto que sai.
+  const textosDoFluxo = itensDoFluxo.flatMap((i) =>
+    i.type === 'text'
+      ? [i.body]
+      : i.type === 'contact'
+        ? [i.name, i.phone_number]
+        : i.type === 'image' || i.type === 'video' || i.type === 'document'
+          ? [i.caption, i.url].filter((x): x is string => x !== undefined)
+          : [],
+  );
+  const dados = await dadosDoContatoParaVariaveis(pool, tenantId, leadId, context.context.contact, textosDoFluxo);
+  const items = itensDoFluxo.flatMap((i): ConteudoItemPayload[] => {
+    if (i.type === 'text') {
+      const body = interpolarVariaveisDoContato(i.body, dados);
+      if (body === '') {
+        runLog.warn('texto do conteúdo ficou vazio depois das variáveis — item pulado');
+        return [];
+      }
+      return [{ ...i, body }];
+    }
+    if (i.type === 'contact') {
+      // O cartão também aceita variáveis (ex.: nome `{{nome}}`, telefone `{{telefone}}`).
+      // Telefone que some depois da troca não vira cartão: o canal recusaria.
+      const phone_number = interpolarVariaveisDoContato(i.phone_number, dados);
+      if (phone_number === '') {
+        runLog.warn('cartão de contato sem telefone depois das variáveis — item pulado');
+        return [];
+      }
+      return [{ ...i, name: interpolarVariaveisDoContato(i.name, dados) || phone_number, phone_number }];
+    }
+    if (i.type === 'image' || i.type === 'video' || i.type === 'document') {
+      const caption = i.caption !== undefined ? interpolarVariaveisDoContato(i.caption, dados) : undefined;
+      // O link pode ser uma variável ("Campo de fluxo"): resolve agora. Link que
+      // some (campo vazio) ou que continua com `{{…}}` (campo que não existe) não
+      // tem o que baixar — o item é pulado.
+      const url = i.url !== undefined ? interpolarVariaveisDoContato(i.url, dados) : undefined;
+      if (i.url !== undefined && (url === undefined || url === '' || url.includes('{{'))) {
+        runLog.warn('mídia por link sem endereço depois das variáveis — item pulado', { tipo: i.type });
+        return [];
+      }
+      return [{ ...i, ...(caption !== undefined ? { caption } : {}), ...(url !== undefined ? { url } : {}) }];
+    }
+    return [i];
+  });
 
   // Representativo pro portão (spinning/classificação) — nunca o que de fato sai
   // pros itens que não são o primeiro texto. Ver "limitação conhecida" acima.
@@ -930,13 +1197,6 @@ async function sendConteudoSequence(
           await sleep(item.seconds * 1000);
           continue;
         }
-        if (item.type === 'video' || item.type === 'document' || item.type === 'contact') {
-          runLog.warn('item de conteúdo sem motor de envio — pulado (o publish deveria ter barrado isto)', {
-            tipo: item.type,
-          });
-          continue;
-        }
-
         if (precisaDeJitter) await sleep(jitter());
         precisaDeJitter = true;
         seq += 1;
@@ -948,18 +1208,67 @@ async function sendConteudoSequence(
             tenantId, leadId, jobId: job.id, jobClaim: claimOfJob(job), seq, conversationId,
             body: usaFinalBody ? finalBody : item.body,
           });
+        } else if (item.type === 'contact') {
+          ultimo = await channel.send({
+            tenantId, leadId, jobId: job.id, jobClaim: claimOfJob(job), seq, conversationId,
+            // Só para o hash de idempotência do ledger — o cartão não tem corpo.
+            body: `[contato] ${item.name} ${item.phone_number}`,
+            contact: { name: item.name, phoneNumber: item.phone_number },
+          });
         } else {
-          // image | audio
-          const destino = `${tenantId}/${conversationId}/conteudo-${job.id}-${seq}.${item.storage_path.split('.').pop() ?? 'bin'}`;
-          const copiou = await copiarConteudoParaConversa(item.storage_path, destino, runLog);
-          if (!copiou) {
-            seq -= 1; // este item não virou send físico — devolve o seq pro próximo item
-            continue;
+          // image | video | audio | document | sticker
+          const base = `${tenantId}/${conversationId}/conteudo-${job.id}-${seq}`;
+          // Documento e áudio-como-arquivo chegam com NOME: o original, quando há.
+          const nomeDoArquivo =
+            item.type === 'document' || (item.type === 'audio' && item.voice_note === false)
+              ? nomeSeguroParaStorage(item.filename)
+              : null;
+          let destino: string;
+          let mime: string;
+          if ('url' in item && item.url !== undefined) {
+            // Origem por LINK: baixa (com as guardas anti-SSRF) e guarda na conversa.
+            const baixada = await (deps.baixarMidiaDoLink ?? baixarMidiaDoLink)(item.url, item.type);
+            if (!baixada.ok) {
+              runLog.warn('mídia do link não pôde ser baixada — item pulado', { tipo: item.type, motivo: baixada.motivo });
+              seq -= 1;
+              continue;
+            }
+            const nome = item.type === 'document' ? nomeSeguroParaStorage(item.filename ?? baixada.nome ?? undefined) : null;
+            destino = nome !== null ? `${base}/${nome}` : `${base}.${extFromMime(baixada.mime)}`;
+            mime = baixada.mime;
+            const guardou = await guardarMidiaNaConversa(destino, baixada.buffer, mime, runLog);
+            if (!guardou) {
+              seq -= 1;
+              continue;
+            }
+          } else {
+            const origem = item.storage_path;
+            if (origem === undefined || item.mime === undefined) {
+              runLog.warn('item de mídia sem arquivo nem link — pulado (o salvar deveria ter barrado isto)', { tipo: item.type });
+              seq -= 1;
+              continue;
+            }
+            destino = nomeDoArquivo !== null ? `${base}/${nomeDoArquivo}` : `${base}.${origem.split('.').pop() ?? 'bin'}`;
+            mime = item.mime;
+            const copiou = await copiarConteudoParaConversa(origem, destino, runLog);
+            if (!copiou) {
+              seq -= 1; // este item não virou send físico — devolve o seq pro próximo item
+              continue;
+            }
           }
           ultimo = await channel.send({
             tenantId, leadId, jobId: job.id, jobClaim: claimOfJob(job), seq, conversationId,
-            body: item.type === 'image' ? (item.caption ?? '') : '',
-            media: { storagePath: destino, mime: item.mime, kind: item.type },
+            // Legenda só onde o canal tem legenda. Áudio não tem: o `body` dele é a
+            // TRANSCRIÇÃO, que fica na mensagem (atendente e agente leem) e nenhum
+            // canal envia — mesma convenção da nota de voz da agente.
+            body: 'caption' in item ? (item.caption ?? '') : item.type === 'audio' ? (item.transcript ?? '') : '',
+            media: {
+              storagePath: destino,
+              mime,
+              kind: item.type,
+              // "Enviar como áudio gravado?" desligado: sai como arquivo de áudio.
+              ...(item.type === 'audio' && item.voice_note === false ? { audioAsFile: true } : {}),
+            },
           });
         }
         if (ultimo && !OK_KINDS.has(ultimo.kind)) return ultimo;

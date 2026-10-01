@@ -26,7 +26,7 @@ import path from "node:path";
 
 import { expect, test, type Page } from "@playwright/test";
 
-import { zoomAte } from "./utils/canvas-do-fluxo";
+import { zoomAte, arrastarDoMenu } from "./utils/canvas-do-fluxo";
 
 const CREDS_PATH = ".e2e-creds.json";
 const ARTIFACTS_DIR = "evidence/followup-vivo";
@@ -142,11 +142,11 @@ test.describe("condição com várias regras — uma bolinha por regra", () => {
     await expect(page.locator(".react-flow")).toBeVisible({ timeout: PRAZO });
 
     // ─── 2. os nós ───────────────────────────────────────────────────────
-    await page.getByTestId("palette-add-trigger").click();
-    await page.getByTestId("palette-add-condition").click();
-    await page.getByTestId("palette-add-end").click();
-    await page.getByTestId("palette-add-end").click();
-    await page.getByTestId("palette-add-end").click();
+    await arrastarDoMenu(page, "trigger");
+    await arrastarDoMenu(page, "condition");
+    await arrastarDoMenu(page, "end");
+    await arrastarDoMenu(page, "end");
+    await arrastarDoMenu(page, "end");
 
     const [gatilhoId] = await idPorPrefixo(page, "trigger");
     const [condicaoId] = await idPorPrefixo(page, "condition");

@@ -1174,6 +1174,18 @@ export function processNode(input: {
       return { kind: "advance", next_node_id: edge.target, next_eval_at: clock() };
     }
 
+    case "pix_payment":
+    case "payment_gateway":
+    case "whatsapp_template":
+    case "meta_pixel":
+    case "voice_studio":
+    case "google_sheets":
+    case "execute_code": {
+      const edge = selectEdge(edges, node.id, { type: "always" });
+      if (!edge) return { kind: "fail", error: `${node.type} node "${node.id}" has no outbound edge` };
+      return { kind: "advance", next_node_id: edge.target, next_eval_at: clock() };
+    }
+
     case "agent": {
       // Duas visitas ao MESMO nó, distinguidas pelo STATUS da inscrição (o motor não precisa ler eventos):
       //   • `com_agente` e o relógio venceu → a pessoa ficou em SILÊNCIO pelo prazo do nó: sai pela saída "silêncio".

@@ -477,7 +477,7 @@ export function AgentForm({
               rows={2}
               value={rota.condicao}
               onChange={(e) => handleUpdateRoute(rota.id, e.target.value)}
-              placeholder="AVANÇAR"
+              placeholder={t("AVANÇAR")}
               className="w-full rounded-md border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-2 text-xs font-medium text-slate-800 dark:text-zinc-100 placeholder:text-slate-400 focus:outline-hidden uppercase tracking-wider resize-y"
             />
             <div className="flex items-center justify-between pt-1">

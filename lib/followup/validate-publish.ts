@@ -3,7 +3,9 @@ import type { FollowupFlowSurface } from './api-schemas';
 import type { AgenteCitado } from './agentes-citados';
 import { AGENT_NODE_UNSET_ID, PERGUNTA_SEM_PRAZO_MS, branchIdForCondition, nodeBranches, prazoDaPerguntaMs } from './graph-schema';
 import { rotuloDoRamo } from './rotulo-do-ramo';
-import type { NomesDeValor } from './vocabulario';
+import { TIPOS_DE_ITEM_DE_CONTEUDO, type NomesDeValor } from './vocabulario';
+import { assertSafeOutboundUrl } from '@/lib/automation/outbound-url';
+import { parseDialablePhone } from '@/lib/messaging/contact-card';
 
 /**
  * Structural publish validator for follow-up flow graphs.
@@ -38,6 +40,10 @@ export const PUBLISH_ERROR_CODES = [
   'agente_indisponivel',
   'item_de_conteudo_em_construcao',
   'conteudo_so_pausas',
+  'contato_com_telefone_invalido',
+  'figurinha_fora_do_formato',
+  'midia_sem_arquivo',
+  'midia_com_link_invalido',
 ] as const;
 export type PublishErrorCode = (typeof PUBLISH_ERROR_CODES)[number];
 
@@ -72,19 +78,29 @@ export interface ContextoDoPublish {
  * `NOS_DA_SUPERFICIE` de propósito: a paleta do editor é derivada dela, e a tela não oferece o que o motor não
  * roda. Quando o motor entra, o tipo sai desta lista e entra lá — nessa ordem, no mesmo PR.
  */
-export const NOS_EM_CONSTRUCAO: readonly NodeType[] = ['agent'];
+export const NOS_EM_CONSTRUCAO: readonly NodeType[] = ['agent', 'google_sheets', 'execute_code'];
+
+/** O nome de cada nó em construção, como aparece na recusa do publish. */
+const NOME_DO_NO_EM_CONSTRUCAO: Partial<Record<NodeType, string>> = {
+  agent: 'do Agente de IA',
+  google_sheets: 'do Google Sheets',
+  execute_code: 'de execução de código',
+};
 
 /**
  * Mesma doutrina do `NOS_EM_CONSTRUCAO` acima, um degrau mais fundo: o nó
  * "Ação" já roda (`node-handlers.ts` sempre soube enfileirar o turno), mas
  * dentro do modo `content` nem todo TIPO de item tem motor de envio ainda —
- * `lib/agent-engine/agent/followup-turn.ts` só sabe mandar texto/imagem/
- * áudio/pausa. Vídeo, documento e contato o schema já aceita (a tela deixa
- * configurar), mas publicar um fluxo com um desses itens seria publicar um
- * passo que o motor pula em silêncio na hora de enviar. Quando o motor
- * aprender um tipo novo, ele sai desta lista — no mesmo PR que ensina o envio.
+ * a lista abaixo é a dos tipos que o schema aceita mas o motor
+ * (`lib/agent-engine/agent/followup-turn.ts`) ainda não sabe enviar. Publicar
+ * um fluxo com um deles seria publicar um passo que o motor pula em silêncio.
+ *
+ * Hoje está VAZIA: o motor envia todos os tipos do schema (texto, imagem,
+ * vídeo, áudio, documento, contato, figurinha, pausa). A lista e a guarda ficam
+ * de pé para o próximo tipo novo: ele entra aqui com o schema e sai no PR que
+ * ensinar o envio.
  */
-export const TIPOS_DE_ITEM_DE_CONTEUDO_EM_CONSTRUCAO: readonly ConteudoItemType[] = ["video", "document", "contact"];
+export const TIPOS_DE_ITEM_DE_CONTEUDO_EM_CONSTRUCAO: readonly ConteudoItemType[] = [];
 
 /**
  * Os tipos de nó que cada superfície EXECUTA. É a mesma lista que a paleta do
@@ -118,6 +134,11 @@ export const NOS_DA_SUPERFICIE: Record<FollowupFlowSurface, readonly NodeType[]>
     'api_call',
     'notify_agent',
     'add_note',
+    'pix_payment',
+    'payment_gateway',
+    'whatsapp_template',
+    'meta_pixel',
+    'voice_studio',
   ],
   crm_automation: [
     'trigger',
@@ -136,6 +157,11 @@ export const NOS_DA_SUPERFICIE: Record<FollowupFlowSurface, readonly NodeType[]>
     'api_call',
     'notify_agent',
     'add_note',
+    'pix_payment',
+    'payment_gateway',
+    'whatsapp_template',
+    'meta_pixel',
+    'voice_studio',
   ],
   atendimento: ['trigger', 'collect', 'skill', 'end'],
 };
@@ -148,7 +174,7 @@ function validarSuperficie(graph: FlowGraph, surface: FollowupFlowSurface, error
       errors.push({
         node_id: n.id,
         code: 'no_em_construcao',
-        message: `A caixa "${n.label}" ainda não roda: o motor do Agente de IA está em construção e ela não pode ser publicada.`,
+        message: `A caixa "${n.label}" ainda não roda: o motor ${NOME_DO_NO_EM_CONSTRUCAO[n.type] ?? 'deste tipo de caixa'} está em construção e ela não pode ser publicada.`,
       });
       continue;
     }
@@ -517,11 +543,63 @@ function validarItensDeConteudo(graph: FlowGraph, errors: PublishValidationError
   for (const node of [...graph.nodes].sort(byId)) {
     if (node.type !== 'action' || node.config.mode !== 'content') continue;
     for (const [i, item] of node.config.items.entries()) {
+      // Telefone que o canal não disca: o envio recusaria em TODA inscrição (422
+      // do handler), e o motor trataria como falha passageira e tentaria de novo.
+      // Mesma régua do envio manual (`parseDialablePhone`), cobrada aqui.
+      // Telefone com variável (`{{telefone}}`) só existe na hora do envio: não dá
+      // para conferir aqui, e o motor pula o cartão se ela vier vazia.
+      if (item.type === 'contact' && !item.phone_number.includes('{{') && parseDialablePhone(item.phone_number) === null) {
+        errors.push({
+          node_id: node.id,
+          code: 'contato_com_telefone_invalido',
+          message: `A caixa "${node.label}", item ${i + 1}: o telefone do contato não é válido — use o número com DDI (ex.: +5511999990000).`,
+        });
+      }
+      // Figurinha só existe em .webp: outro formato o canal oficial recusa.
+      if (item.type === 'sticker' && item.mime !== 'image/webp') {
+        errors.push({
+          node_id: node.id,
+          code: 'figurinha_fora_do_formato',
+          message: `A caixa "${node.label}", item ${i + 1}: o sticker precisa ser um arquivo .webp — troque o arquivo antes de publicar.`,
+        });
+      }
+      // `storage_path` é ARQUIVO do Storage. Link e variável têm campo próprio
+      // (`url`); um `https://…` ou `{{campo}}` DENTRO do path é fluxo antigo, de
+      // antes desse campo existir — a cópia falharia e o item sumiria do envio.
+      if (
+        'storage_path' in item &&
+        item.storage_path !== undefined &&
+        (/^https?:/i.test(item.storage_path.trim()) || item.storage_path.includes('{{'))
+      ) {
+        errors.push({
+          node_id: node.id,
+          code: 'midia_sem_arquivo',
+          message: `A caixa "${node.label}", item ${i + 1}: escolha o arquivo de novo — este item foi salvo num formato antigo e não seria enviado.`,
+        });
+      }
+      // Link fixo que o servidor se recusaria a acessar (endereço interno, esquema
+      // estranho, http em produção): o download falharia em TODA inscrição. Link
+      // com variável só existe no envio — não dá para conferir aqui.
+      if ('url' in item && item.url !== undefined && !item.url.includes('{{')) {
+        let seguro = true;
+        try {
+          assertSafeOutboundUrl(item.url.trim());
+        } catch {
+          seguro = false;
+        }
+        if (!seguro) {
+          errors.push({
+            node_id: node.id,
+            code: 'midia_com_link_invalido',
+            message: `A caixa "${node.label}", item ${i + 1}: o link não é um endereço público válido (use https://…).`,
+          });
+        }
+      }
       if (!emConstrucao.has(item.type)) continue;
       errors.push({
         node_id: node.id,
         code: 'item_de_conteudo_em_construcao',
-        message: `A caixa "${node.label}", item ${i + 1}: o envio de ${item.type === 'video' ? 'vídeo' : item.type === 'document' ? 'documento' : 'contato'} ainda não roda — remova este item ou troque o tipo antes de publicar.`,
+        message: `A caixa "${node.label}", item ${i + 1}: o envio de ${TIPOS_DE_ITEM_DE_CONTEUDO[item.type].toLowerCase()} ainda não roda — remova este item ou troque o tipo antes de publicar.`,
       });
     }
     // Só pausa(s), nenhum item que de fato envia algo: o motor não teria o que
@@ -532,7 +610,7 @@ function validarItensDeConteudo(graph: FlowGraph, errors: PublishValidationError
       errors.push({
         node_id: node.id,
         code: 'conteudo_so_pausas',
-        message: `A caixa "${node.label}" só tem pausas — acrescente ao menos um item de conteúdo de verdade (texto, imagem ou áudio).`,
+        message: `A caixa "${node.label}" só tem pausas — acrescente ao menos um item de conteúdo de verdade (texto, mídia, contato ou sticker).`,
       });
     }
   }
@@ -632,7 +710,7 @@ export function validateFlowForPublish(
         errors.push({
           node_id: node.id,
           code: 'unreachable_node',
-          message: `Nó "${node.id}" não é alcançável a partir do trigger.`,
+          message: `A caixa "${node.label}" está solta: nada chega até ela. Ligue a saída de outra caixa nela, ou apague-a.`,
         });
       }
     }
@@ -647,7 +725,7 @@ export function validateFlowForPublish(
         errors.push({
           node_id: node.id,
           code: 'no_end_path',
-          message: `Nó "${node.id}" não tem caminho até um nó de fim.`,
+          message: `O caminho que passa pela caixa "${node.label}" não termina: ligue a saída dela até uma caixa "Fim do fluxo".`,
         });
       }
     }

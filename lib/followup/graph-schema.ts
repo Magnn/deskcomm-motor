@@ -28,6 +28,15 @@ export const NODE_TYPES = [
   // O agente de IA no comando: um agente JÁ configurado conduz a conversa dentro do fluxo, até cumprir o
   // objetivo, estourar o limite de turnos ou a pessoa sumir. ADITIVO: nada acima mudou de forma nem de sentido.
   'agent',
+  // Novos nós de integração oficial e pagamentos (AcassIA parity)
+  'pix_payment',
+  'payment_gateway',
+  'whatsapp_template',
+  'meta_pixel',
+  'voice_studio',
+  // Automações avançadas (ChatbotX parity)
+  'google_sheets',
+  'execute_code',
 ] as const;
 export type NodeType = (typeof NODE_TYPES)[number];
 
@@ -226,6 +235,8 @@ export const menuConfigSchema = z
 
 export const attendantRouteConfigSchema = z.strictObject({
   max_wait_minutes: z.number().int().min(5).max(1440).default(30),
+  attendant_ids: z.array(z.string()).optional(),
+  auto_follow: z.boolean().optional(),
 });
 
 /**
@@ -287,11 +298,16 @@ export const aiClassifyConfigSchema = z
  * limite de bytes aqui seria uma segunda fonte da mesma verdade, sem poder
  * vigiar o arquivo em si (que já está no Storage quando este schema roda).
  *
- * ─── Mídia é PATH, nunca URL ───────────────────────────────────────────────
- * `storage_path` é o caminho no bucket `whatsapp-media` (mesma convenção de
- * `SendMessageInput.media_storage_path`), não uma URL assinada — que expira
- * em ~10 min (`app/api/v1/messages/_handler.ts`). Quem envia assina de novo
- * na hora, como o composer manual já faz.
+ * ─── Mídia tem DUAS origens, e é exatamente uma ────────────────────────────
+ *  - `storage_path` (+ `mime`): arquivo enviado pela tela, guardado no bucket
+ *    `whatsapp-media`. É PATH, nunca URL assinada — que expira em ~10 min
+ *    (`app/api/v1/messages/_handler.ts`); quem envia assina de novo na hora.
+ *  - `url`: um link público ("Link" do documento) ou uma variável que guarda
+ *    um link ("Campo de fluxo" da imagem, ex.: `{{url_imagem_lead}}`). O motor
+ *    resolve a variável, BAIXA o arquivo com as guardas anti-SSRF e o envia
+ *    (`lib/agent-engine/agent/midia-por-link.ts`). O formato e o tamanho só
+ *    são conhecidos nessa hora, e é lá que são cobrados.
+ * Ter as duas, ou nenhuma, é recusado (`umaOrigemDeMidia`).
  *
  * ─── Áudio é sempre nota de voz ────────────────────────────────────────────
  * Convenção já em vigor neste produto (seção de mídia de mensagem, mapa de
@@ -307,38 +323,83 @@ export const aiClassifyConfigSchema = z
  * Para esperas longas (dias/meses) o nó certo continua sendo `wait` — os dois
  * convivem sem conflito, um de ritmo e outro de cadência.
  */
+/** Origem de uma mídia: arquivo do bucket OU link/variável — nunca os dois, nunca nenhum. */
+const origemDeMidia = {
+  storage_path: z.string().min(1).max(500).optional(),
+  mime: z.string().min(1).max(120).optional(),
+  url: z.string().min(1).max(2000).optional(),
+};
+function umaOrigemDeMidia(item: { storage_path?: string; mime?: string; url?: string }, ctx: z.RefinementCtx): void {
+  const temArquivo = item.storage_path !== undefined;
+  const temLink = item.url !== undefined;
+  if (temArquivo === temLink) {
+    ctx.addIssue({ code: 'custom', path: ['storage_path'], message: 'informe o arquivo OU o link da mídia' });
+    return;
+  }
+  if (temArquivo && item.mime === undefined) {
+    ctx.addIssue({ code: 'custom', path: ['mime'], message: 'arquivo sem tipo (mime)' });
+  }
+}
+
 const conteudoTextoSchema = z.strictObject({
   type: z.literal('text'),
   body: z.string().min(1).max(4000),
 });
-const conteudoImagemSchema = z.strictObject({
-  type: z.literal('image'),
-  storage_path: z.string().min(1).max(500),
-  mime: z.string().min(1).max(120),
-  caption: z.string().max(1024).optional(),
-});
-const conteudoVideoSchema = z.strictObject({
-  type: z.literal('video'),
-  storage_path: z.string().min(1).max(500),
-  mime: z.string().min(1).max(120),
-  caption: z.string().max(1024).optional(),
-});
+const conteudoImagemSchema = z
+  .strictObject({
+    type: z.literal('image'),
+    ...origemDeMidia,
+    caption: z.string().max(1024).optional(),
+  })
+  .superRefine(umaOrigemDeMidia);
+const conteudoVideoSchema = z
+  .strictObject({
+    type: z.literal('video'),
+    ...origemDeMidia,
+    caption: z.string().max(1024).optional(),
+  })
+  .superRefine(umaOrigemDeMidia);
 const conteudoAudioSchema = z.strictObject({
   type: z.literal('audio'),
   storage_path: z.string().min(1).max(500),
   mime: z.string().min(1).max(120),
-});
-const conteudoDocumentoSchema = z.strictObject({
-  type: z.literal('document'),
-  storage_path: z.string().min(1).max(500),
-  mime: z.string().min(1).max(120),
+  /**
+   * "Enviar como áudio gravado?" — ausente/`true` = nota de voz (o padrão de
+   * sempre); `false` = arquivo de áudio, que o contato vê como anexo com nome.
+   */
+  voice_note: z.boolean().optional(),
+  /** Nome original do arquivo — é o que o contato vê quando o áudio vai como arquivo. */
   filename: z.string().min(1).max(240).optional(),
-  caption: z.string().max(1024).optional(),
+  /**
+   * O que o áudio diz. Não vai para o contato (áudio não tem legenda): fica na
+   * mensagem, para o atendente ler na conversa e o agente de IA saber o que foi
+   * dito. Vem da transcrição automática e o dono pode ajustar.
+   */
+  transcript: z.string().min(1).max(4000).optional(),
 });
+const conteudoDocumentoSchema = z
+  .strictObject({
+    type: z.literal('document'),
+    ...origemDeMidia,
+    filename: z.string().min(1).max(240).optional(),
+    caption: z.string().max(1024).optional(),
+  })
+  .superRefine(umaOrigemDeMidia);
 const conteudoContatoSchema = z.strictObject({
   type: z.literal('contact'),
   name: z.string().min(1).max(120),
   phone_number: z.string().min(8).max(40),
+});
+/**
+ * Figurinha. É mídia como a imagem (path no bucket, nunca URL), mas SEM legenda:
+ * nenhum canal aceita legenda em figurinha. O formato (.webp) é cobrado no upload.
+ */
+const conteudoStickerSchema = z.strictObject({
+  type: z.literal('sticker'),
+  storage_path: z.string().min(1).max(500),
+  mime: z.string().min(1).max(120),
+  /** Rótulo para o dono identificar o sticker no card — nunca vai para o contato. */
+  name: z.string().min(1).max(60).optional(),
 });
 const conteudoDelaySchema = z.strictObject({
   type: z.literal('delay'),
@@ -352,6 +413,7 @@ export const conteudoItemSchema = z.discriminatedUnion('type', [
   conteudoAudioSchema,
   conteudoDocumentoSchema,
   conteudoContatoSchema,
+  conteudoStickerSchema,
   conteudoDelaySchema,
 ]);
 export type ConteudoItem = z.infer<typeof conteudoItemSchema>;
@@ -661,6 +723,12 @@ export type HttpMethod = (typeof HTTP_METHODS)[number];
  * chamada de novo no momento da chamada, porque um host que hoje resolve
  * público pode não resolver assim amanhã).
  */
+export const apiCallMappingSchema = z.strictObject({
+  json_path: z.string().max(200),
+  target_field: z.string().max(200),
+});
+export type ApiCallMapping = z.infer<typeof apiCallMappingSchema>;
+
 export const apiCallConfigSchema = z.strictObject({
   method: z.enum(HTTP_METHODS).default('POST'),
   url: z
@@ -672,6 +740,7 @@ export const apiCallConfigSchema = z.strictObject({
     .default('https://example.com/webhook'),
   headers: z.array(apiCallHeaderSchema).max(20).default([]),
   body: z.string().max(10_000).optional(),
+  response_mapping: z.array(apiCallMappingSchema).max(50).optional(),
   actions: z.array(z.record(z.string(), z.any())).optional(),
 });
 
@@ -688,6 +757,97 @@ export const notifyAgentConfigSchema = z.strictObject({
 export const addNoteConfigSchema = z.strictObject({
   body: z.string().min(1).max(2000),
 });
+
+/** Enviar PIX (AcassIA parity) */
+export const PIX_KEY_TYPES = ['aleatoria', 'cpf', 'cnpj', 'email', 'telefone'] as const;
+export type PixKeyType = (typeof PIX_KEY_TYPES)[number];
+
+export const pixPaymentConfigSchema = z.strictObject({
+  key_type: z.enum(PIX_KEY_TYPES).default('aleatoria'),
+  pix_key: z.string().max(200).default(''),
+  beneficiary: z.string().max(200).optional(),
+  amount: z.string().max(50).optional(),
+  message_text: z.string().max(1024).optional(),
+  card_image_url: z.string().max(2000).optional(),
+});
+export type PixPaymentConfig = z.infer<typeof pixPaymentConfigSchema>;
+
+/** Gateway de Pagamento / Cobrança (AcassIA parity) */
+export const paymentGatewayConfigSchema = z.strictObject({
+  currency: z.string().max(10).default('BRL'),
+  amount: z.string().max(50).default('100,00'),
+  open_amount: z.boolean().optional(),
+  customer_name: z.string().max(200).default('{full_name}'),
+  customer_phone: z.string().max(50).default('{phone_number}'),
+});
+export type PaymentGatewayConfig = z.infer<typeof paymentGatewayConfigSchema>;
+
+/** Template WhatsApp (Meta) (AcassIA parity) */
+export const whatsappTemplateConfigSchema = z.strictObject({
+  template_name: z.string().max(200).default(''),
+  timeout: z.number().int().min(1).max(10080).default(60),
+  timeout_unit: z.enum(['Minutos', 'Horas', 'Dias']).default('Minutos'),
+});
+export type WhatsappTemplateConfig = z.infer<typeof whatsappTemplateConfigSchema>;
+
+/** Pixel do Facebook / Meta CAPI (AcassIA parity) */
+export const metaPixelConfigSchema = z.strictObject({
+  pixel_id: z.string().max(100).default(''),
+  event_type: z.string().max(100).default('Compra'),
+  page_id: z.string().max(200).default(''),
+  item_value: z.string().max(50).default(''),
+  currency: z.string().max(10).optional().default('BRL'),
+});
+export type MetaPixelConfig = z.infer<typeof metaPixelConfigSchema>;
+
+/** Voice Studio (AcassIA parity - Síntese e Clonagem de Áudio com IA) */
+export const voiceStudioConfigSchema = z.strictObject({
+  text: z.string().default(''),
+  stability: z.number().min(0).max(1).default(0.5),
+  similarity: z.number().min(0).max(1).default(0.7),
+  style: z.number().min(0).max(1).default(0.5), // Sotaque
+  speed: z.number().min(0.5).max(2.0).default(1.0), // Velocidade
+  send_as_voice_note: z.boolean().default(true), // Enviar como áudio gravado?
+  voice_id: z.string().default('julieta'),
+  voice_name: z.string().default('Julieta'),
+});
+export type VoiceStudioConfig = z.infer<typeof voiceStudioConfigSchema>;
+
+/** Google Sheets (ChatbotX parity - Integração com Planilhas Google) */
+export const GOOGLE_SHEETS_OPERATIONS = ['insert_row', 'get_row', 'update_row', 'clear_row'] as const;
+export type GoogleSheetsOperation = (typeof GOOGLE_SHEETS_OPERATIONS)[number];
+
+export const googleSheetsMappingSchema = z.strictObject({
+  column: z.string().max(100),
+  value: z.string().max(1000),
+  custom_field: z.string().max(100).optional(),
+});
+export type GoogleSheetsMapping = z.infer<typeof googleSheetsMappingSchema>;
+
+export const googleSheetsConfigSchema = z.strictObject({
+  operation: z.enum(GOOGLE_SHEETS_OPERATIONS).default('insert_row'),
+  spreadsheet_id: z.string().max(500).default(''),
+  sheet_name: z.string().max(200).default('Página1'),
+  lookup_column: z.string().max(100).optional().default(''),
+  lookup_value: z.string().max(500).optional().default(''),
+  mappings: z.array(googleSheetsMappingSchema).max(50).default([]),
+});
+export type GoogleSheetsConfig = z.infer<typeof googleSheetsConfigSchema>;
+
+/** Executar Código JavaScript (ChatbotX parity - Sandbox JS no Fluxo) */
+export const executeCodeMappingSchema = z.strictObject({
+  json_path: z.string().max(200),
+  target_field: z.string().max(200),
+});
+export type ExecuteCodeMapping = z.infer<typeof executeCodeMappingSchema>;
+
+export const executeCodeConfigSchema = z.strictObject({
+  code: z.string().max(10_000).default('// Escreva o código JS\nreturn { status: "ok" };'),
+  timeout_ms: z.number().int().min(500).max(10_000).default(3000),
+  output_field: z.string().max(100).optional().default(''),
+  mappings: z.array(executeCodeMappingSchema).max(50).default([]),
+});
+export type ExecuteCodeConfig = z.infer<typeof executeCodeConfigSchema>;
 
 /**
  * Flow node schema — discriminated union based on node type.
@@ -887,6 +1047,83 @@ export const flowNodeSchema = z.discriminatedUnion('type', [
       y: z.number(),
     }),
     config: agentNodeConfigSchema,
+  }),
+  // Enviar PIX
+  z.strictObject({
+    id: z.string().min(1),
+    type: z.literal('pix_payment'),
+    label: z.string().min(1).max(60),
+    position: z.strictObject({
+      x: z.number(),
+      y: z.number(),
+    }),
+    config: pixPaymentConfigSchema,
+  }),
+  // Gateway de Pagamento / Cobrança
+  z.strictObject({
+    id: z.string().min(1),
+    type: z.literal('payment_gateway'),
+    label: z.string().min(1).max(60),
+    position: z.strictObject({
+      x: z.number(),
+      y: z.number(),
+    }),
+    config: paymentGatewayConfigSchema,
+  }),
+  // Template WhatsApp (Meta)
+  z.strictObject({
+    id: z.string().min(1),
+    type: z.literal('whatsapp_template'),
+    label: z.string().min(1).max(60),
+    position: z.strictObject({
+      x: z.number(),
+      y: z.number(),
+    }),
+    config: whatsappTemplateConfigSchema,
+  }),
+  // Pixel do Facebook / Meta CAPI
+  z.strictObject({
+    id: z.string().min(1),
+    type: z.literal('meta_pixel'),
+    label: z.string().min(1).max(60),
+    position: z.strictObject({
+      x: z.number(),
+      y: z.number(),
+    }),
+    config: metaPixelConfigSchema,
+  }),
+  // Voice Studio (Áudio com IA)
+  z.strictObject({
+    id: z.string().min(1),
+    type: z.literal('voice_studio'),
+    label: z.string().min(1).max(60),
+    position: z.strictObject({
+      x: z.number(),
+      y: z.number(),
+    }),
+    config: voiceStudioConfigSchema,
+  }),
+  // Google Sheets (Planilhas Google)
+  z.strictObject({
+    id: z.string().min(1),
+    type: z.literal('google_sheets'),
+    label: z.string().min(1).max(60),
+    position: z.strictObject({
+      x: z.number(),
+      y: z.number(),
+    }),
+    config: googleSheetsConfigSchema,
+  }),
+  // Executar Código JavaScript
+  z.strictObject({
+    id: z.string().min(1),
+    type: z.literal('execute_code'),
+    label: z.string().min(1).max(60),
+    position: z.strictObject({
+      x: z.number(),
+      y: z.number(),
+    }),
+    config: executeCodeConfigSchema,
   }),
 ]);
 

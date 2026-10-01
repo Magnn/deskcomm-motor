@@ -1,7 +1,7 @@
 "use client";
 /**
  * Editor de itens do nó "Conteúdo" com paridade visual 100% fiel ao AcassIA / Lalla.
- * Grade 3x2 de botões com gradientes sutis e inset highlight,
+ * Grade 4x2 de botões com gradientes sutis e inset highlight,
  * divisor "Conteúdos", pill badge azul de estado vazio,
  * cards com faixa colorida lateral, barra de ferramentas superior (Mover/Duplicar/Excluir),
  * upload zone com limites oficiais e controles refinados.
@@ -9,14 +9,20 @@
 import * as React from "react";
 import { CloudUpload, Image as LucideImage, Move, Video as LucideVideo } from "lucide-react";
 
+import { toast } from "sonner";
+
 import { Input } from "@/components/ui/input";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { useTranscribeFlowAudio } from "@/hooks/ai/useTranscribeFlowAudio";
 import { useUploadFlowContentMedia } from "@/hooks/ai/useUploadFlowContentMedia";
+import { ApiError } from "@/lib/api/types";
 import { useT } from "@/hooks/i18n/useT";
+import { prepararSticker, STICKER_FORMATOS_DE_ENTRADA } from "@/lib/media/sticker-no-navegador";
+import { STICKER_MAX_BYTES } from "@/lib/messaging/media/upload-validation";
 import {
   MAX_CONTEUDO_ITEMS,
   type ConteudoItem,
@@ -30,9 +36,11 @@ import {
   Eye,
   FileText,
   Gear,
+  IdentificationCard,
   ImageIcon,
   Microphone,
   Plus,
+  Smiley,
   Trash,
   VideoCamera,
 } from "@/lib/ui/icons";
@@ -60,7 +68,9 @@ const TYPE_COLORS: Record<string, { btnText: string; btnIcon: string; strip: str
   document: { btnText: "text-[#1e3a8a]", btnIcon: "text-[#1e40af]", strip: "bg-[#3b82f6]", border: "border-[#3b82f6] dark:border-blue-700" },
   delay:    { btnText: "text-[#db2777]", btnIcon: "text-[#e11d48]", strip: "bg-[#ec4899]", border: "border-[#f43f5e] dark:border-pink-600" },
   contact:  { btnText: "text-[#db2777]", btnIcon: "text-[#db2777]", strip: "bg-[#ec4899]", border: "border-[#ec4899] dark:border-pink-600" },
+  sticker:  { btnText: "text-[#b45309]", btnIcon: "text-[#d97706]", strip: "bg-[#f59e0b]", border: "border-[#f59e0b] dark:border-amber-600" },
 };
+
 
 function labelPorTipo(t: string): string {
   const m: Record<string, string> = {
@@ -71,6 +81,7 @@ function labelPorTipo(t: string): string {
     document: "Documento",
     delay: "Delay",
     contact: "Contato",
+    sticker: "Sticker",
   };
   return m[t] || t;
 }
@@ -97,6 +108,8 @@ function itemPadrao(type: ConteudoItemType): ConteudoItem {
       return { type: "document", storage_path: "", mime: "" };
     case "contact":
       return { type: "contact", name: "", phone_number: "" };
+    case "sticker":
+      return { type: "sticker", storage_path: "", mime: "" };
     case "delay":
       return { type: "delay", seconds: 3 };
   }
@@ -113,6 +126,8 @@ const ALL_KINDS: Array<{
   { type: "video", label: "Vídeo", Icon: ({ className }) => <VideoCamera size={17} className={className} /> },
   { type: "document", label: "Documento", Icon: ({ className }) => <FileText size={17} className={className} /> },
   { type: "delay", label: "Delay", Icon: ({ className }) => <Clock size={17} className={className} /> },
+  { type: "contact", label: "Contato", Icon: ({ className }) => <IdentificationCard size={17} className={className} /> },
+  { type: "sticker", label: "Sticker", Icon: ({ className }) => <Smiley size={17} className={className} /> },
 ];
 
 export function ConteudoItemsEditor({ flowId, items, onChange, disabled }: Props) {
@@ -155,9 +170,9 @@ export function ConteudoItemsEditor({ flowId, items, onChange, disabled }: Props
 
   return (
     <div className="flow-content-builder font-sans">
-      {/* ── Content Type Buttons — 3×2 grid (AcassIA / Lalla) ── */}
+      {/* ── Botões de tipo de conteúdo — grade 4×2 ── */}
       {!disabled && (
-        <div className="grid grid-cols-3 gap-2 mb-0.5">
+        <div className="grid grid-cols-4 gap-2 mb-0.5">
           {ALL_KINDS.map((k) => {
             const tc = TYPE_COLORS[k.type] ?? DEFAULT_TC;
             return (
@@ -262,8 +277,8 @@ function ItemCard({
       style={{ padding: "12px 14px" }}
       data-testid={`conteudo-item-${index}`}
     >
-      {/* Top Header: apenas para Texto, Delay e Contato */}
-      {(item.type === "text" || item.type === "delay" || item.type === "contact") && (
+      {/* Top Header: Texto, Delay, Contato e Sticker */}
+      {(item.type === "text" || item.type === "delay" || item.type === "contact" || item.type === "sticker") && (
         <div className="flex items-center justify-between gap-2 mb-2.5">
           <span className="text-[12px] font-bold text-slate-800 dark:text-zinc-100">
             {item.type === "text"
@@ -324,7 +339,7 @@ function ItemCard({
           />
           <div className="flex items-center justify-between mt-1">
             <p className="text-[10px] text-[#94a3b8]">
-              Use <code className="bg-[#f1f5f9] dark:bg-zinc-800 px-1 rounded-md text-[9px] font-mono">{"{{variavel}}"}</code> para inserir variáveis.
+              Use <code className="bg-[#f1f5f9] dark:bg-zinc-800 px-1 rounded-md text-[9px] font-mono">{"{{variavel}}"}</code> {t("para inserir variáveis.")}
             </p>
           </div>
         </div>
@@ -354,7 +369,7 @@ function ItemCard({
         />
       )}
 
-      {(item.type === "image" || item.type === "video" || item.type === "document") && (
+      {(item.type === "image" || item.type === "video" || item.type === "document" || item.type === "sticker") && (
         <MediaSection
           flowId={flowId}
           item={item}
@@ -364,23 +379,46 @@ function ItemCard({
       )}
 
       {item.type === "contact" && (
-        <div className="grid gap-2">
-          <Input
-            placeholder={t("Nome do contato")}
-            maxLength={120}
-            value={item.name}
-            disabled={disabled}
-            onChange={(e) => onUpdate({ ...item, name: e.target.value })}
-            className="h-8 text-xs rounded-md"
-          />
-          <Input
-            placeholder={t("Telefone com DDI (+55...)")}
-            maxLength={40}
-            value={item.phone_number}
-            disabled={disabled}
-            onChange={(e) => onUpdate({ ...item, phone_number: e.target.value })}
-            className="h-8 text-xs rounded-md"
-          />
+        <div className="grid gap-2.5">
+          <p className="text-[10.5px] leading-relaxed text-slate-500 dark:text-zinc-400">
+            {t("Você pode usar variáveis no nome e no telefone:")}{" "}
+            <code className="font-mono text-[10px] text-sky-600">{"{{nome}}"}</code>,{" "}
+            <code className="font-mono text-[10px] text-sky-600">{"{{primeiro_nome}}"}</code>,{" "}
+            <code className="font-mono text-[10px] text-sky-600">{"{{telefone}}"}</code>.{" "}
+            {t("São resolvidas no envio do fluxo.")}
+          </p>
+          <label className="block space-y-1">
+            <span className="block text-[12px] font-semibold text-slate-800 dark:text-zinc-200">
+              {t("Nome do Contato")} <span className="text-rose-500">*</span>
+            </span>
+            <Input
+              placeholder={t("Ex: João Silva")}
+              maxLength={120}
+              value={item.name}
+              disabled={disabled}
+              onChange={(e) => onUpdate({ ...item, name: e.target.value })}
+              className="h-9 text-xs rounded-md"
+              data-testid="conteudo-contato-nome"
+            />
+          </label>
+          <label className="block space-y-1">
+            <span className="block text-[12px] font-semibold text-slate-800 dark:text-zinc-200">
+              {t("Telefone")} <span className="text-rose-500">*</span>
+            </span>
+            <Input
+              placeholder={t("Ex: +55 11 99999-9999")}
+              maxLength={40}
+              inputMode="tel"
+              value={item.phone_number}
+              disabled={disabled}
+              onChange={(e) => onUpdate({ ...item, phone_number: e.target.value })}
+              className="h-9 text-xs rounded-md"
+              data-testid="conteudo-contato-telefone"
+            />
+          </label>
+          <p className="text-[10.5px] text-slate-400 dark:text-zinc-500">
+            {t("O contato chega como cartão do WhatsApp. Use o telefone com DDI.")}
+          </p>
         </div>
       )}
 
@@ -396,6 +434,7 @@ function ItemCard({
             item.type === "video" && "bg-[#16a34a]",
             item.type === "document" && "bg-[#1d4ed8]",
             item.type === "contact" && "bg-[#ec4899]",
+            item.type === "sticker" && "bg-[#d97706]",
           )}
         >
           {item.type === "text" && <span className="font-serif font-bold text-xs leading-none">T</span>}
@@ -404,7 +443,9 @@ function ItemCard({
           {item.type === "image" && <ImageIcon size={12} className="text-white" />}
           {item.type === "video" && <VideoCamera size={12} className="text-white" />}
           {item.type === "document" && <FileText size={12} className="text-white" />}
-          <span>{item.type === "video" ? "Video" : labelPorTipo(item.type)}</span>
+          {item.type === "contact" && <IdentificationCard size={12} className="text-white" />}
+          {item.type === "sticker" && <Smiley size={12} className="text-white" />}
+          <span>{labelPorTipo(item.type)}</span>
         </span>
 
         <div className="flex items-center gap-1.5">
@@ -446,19 +487,45 @@ function AudioCardBody({
   const t = useT();
   const upload = useUploadFlowContentMedia();
   const inputRef = React.useRef<HTMLInputElement>(null);
-  const [enviarComoGravado, setEnviarComoGravado] = React.useState(true);
-  const [transcricao, setTranscricao] = React.useState("");
+
+  const transcricao = useTranscribeFlowAudio();
+
+  /**
+   * Pede a transcrição ao servidor e grava no item. `base` é o item como deve
+   * ficar (com o arquivo novo): passar `item` aqui usaria o valor de ANTES do
+   * upload, e a transcrição sobrescreveria o arquivo recém-enviado.
+   */
+  const transcrever = async (base: typeof item, avisarSeFaltarChave: boolean) => {
+    try {
+      const texto = await transcricao.mutateAsync({ flowId, storage_path: base.storage_path, mime: base.mime });
+      const { transcript: _antes, ...semTranscricao } = base;
+      onChange((texto === "" ? semTranscricao : { ...semTranscricao, transcript: texto }) as ConteudoItem);
+    } catch (err) {
+      // Transcrição é opcional: o áudio já está enviado e o fluxo funciona sem ela.
+      if (err instanceof ApiError && err.code === "transcription_unavailable") {
+        if (avisarSeFaltarChave) toast.info(t("Para transcrever, cadastre uma chave da OpenAI em IA › Credenciais."));
+        return;
+      }
+      toast.error(t("Não foi possível transcrever o áudio agora."));
+    }
+  };
 
   const onPick = async (file: File) => {
     try {
       const r = await upload.mutateAsync({ flowId, file });
-      onChange({ ...item, storage_path: r.storage_path, mime: r.media_mime });
+      // Arquivo novo: a transcrição antiga não vale mais.
+      const { transcript: _antiga, ...semTranscricao } = item;
+      const novo = { ...semTranscricao, storage_path: r.storage_path, mime: r.media_mime, filename: file.name };
+      onChange(novo);
+      // Em silêncio quando falta chave: quem só quer enviar o áudio não precisa de aviso.
+      void transcrever(novo, false);
     } catch {
       // tratado pelo hook
     }
   };
 
   const temArquivo = item.storage_path.trim() !== "";
+  const comoNotaDeVoz = item.voice_note !== false;
   const audioSrc = temArquivo ? `/api/v1/messages/media?path=${encodeURIComponent(item.storage_path)}` : undefined;
 
   return (
@@ -497,7 +564,11 @@ function AudioCardBody({
         </button>
       </div>
 
-      {/* Switch: Enviar como áudio gravado? */}
+      {/*
+        "Enviar como áudio gravado?" — GRAVADO no item (`voice_note`) e respeitado
+        pelo motor e pelos canais: ligado = nota de voz; desligado = arquivo de
+        áudio com nome. (Antes esta chave era só estado local da tela.)
+      */}
       <div className="flex items-center justify-between pt-1">
         <span className="text-[12px] font-medium text-slate-700 dark:text-zinc-300">
           {t("Enviar como áudio gravado?")}
@@ -505,36 +576,77 @@ function AudioCardBody({
         <button
           type="button"
           role="switch"
-          aria-checked={enviarComoGravado}
+          aria-checked={comoNotaDeVoz}
+          aria-label={t("Enviar como áudio gravado?")}
           disabled={disabled}
-          onClick={() => setEnviarComoGravado(!enviarComoGravado)}
+          data-testid="conteudo-audio-nota-de-voz"
+          onClick={() => {
+            const { voice_note: _antes, ...resto } = item;
+            // Ligado é o padrão: some do config em vez de gravar `voice_note: true`.
+            onChange((comoNotaDeVoz ? { ...resto, voice_note: false } : resto) as ConteudoItem);
+          }}
           className={cn(
             "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden",
-            enviarComoGravado ? "bg-[#9333ea]" : "bg-slate-300 dark:bg-zinc-700",
+            comoNotaDeVoz ? "bg-[#9333ea]" : "bg-slate-300 dark:bg-zinc-700",
           )}
         >
           <span
             className={cn(
               "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-xs ring-0 transition duration-200 ease-in-out",
-              enviarComoGravado ? "translate-x-4" : "translate-x-0",
+              comoNotaDeVoz ? "translate-x-4" : "translate-x-0",
             )}
           />
         </button>
       </div>
+      <p className="text-[10.5px] text-slate-400 dark:text-zinc-500">
+        {comoNotaDeVoz
+          ? t("O áudio chega ao contato como nota de voz (áudio gravado).")
+          : t("O áudio chega ao contato como arquivo de áudio, com o nome do arquivo.")}
+      </p>
 
-      {/* Seção Transcrição */}
+      {/*
+        Transcrição — GRAVADA no item (`transcript`). Preenchida pelo servidor ao
+        enviar o áudio (Whisper, com a chave de IA da organização) e editável. No
+        envio ela acompanha a mensagem: o atendente lê na conversa e o agente de
+        IA sabe o que o áudio disse. Não vai para o contato.
+      */}
       <div className="space-y-1 pt-1">
-        <label className="text-[12px] font-semibold text-slate-800 dark:text-zinc-200 block">
-          {t("Transcrição")}
-        </label>
+        <div className="flex items-center justify-between">
+          <label
+            htmlFor={`transcricao-${item.storage_path}`}
+            className="block text-[12px] font-semibold text-slate-800 dark:text-zinc-200"
+          >
+            {t("Transcrição")}
+          </label>
+          <button
+            type="button"
+            disabled={disabled || !temArquivo || transcricao.isPending}
+            title={!temArquivo ? t("Envie o áudio primeiro.") : undefined}
+            onClick={() => void transcrever(item, true)}
+            data-testid="conteudo-audio-transcrever"
+            className="text-[11px] font-semibold text-purple-600 dark:text-purple-400 hover:underline cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:no-underline"
+          >
+            {transcricao.isPending ? t("Transcrevendo…") : t("Transcrever")}
+          </button>
+        </div>
         <textarea
+          id={`transcricao-${item.storage_path}`}
           rows={2}
-          value={transcricao}
+          maxLength={4000}
+          value={item.transcript ?? ""}
           disabled={disabled}
-          onChange={(e) => setTranscricao(e.target.value)}
+          onChange={(e) => {
+            const { transcript: _antes, ...semTranscricao } = item;
+            const texto = e.target.value;
+            onChange((texto === "" ? semTranscricao : { ...semTranscricao, transcript: texto }) as ConteudoItem);
+          }}
           placeholder={t("A transcrição do áudio aparecerá aqui")}
+          data-testid="conteudo-audio-transcricao"
           className="w-full rounded-[10px] border border-[#e2e8f0] dark:border-zinc-800 bg-white dark:bg-zinc-950 px-2.5 py-2 text-[12px] text-slate-800 dark:text-zinc-100 placeholder:text-slate-400 focus:outline-hidden focus:border-[#a855f7] transition-colors resize-none leading-relaxed"
         />
+        <p className="text-[10.5px] text-slate-400 dark:text-zinc-500">
+          {t("O contato não recebe este texto: ele fica na conversa, para a equipe e para o agente de IA.")}
+        </p>
       </div>
     </div>
   );
@@ -547,25 +659,58 @@ function MediaSection({
   onChange,
 }: {
   flowId: string;
-  item: Extract<ConteudoItem, { type: "image" | "video" | "document" }>;
+  item: Extract<ConteudoItem, { type: "image" | "video" | "document" | "sticker" }>;
   disabled?: boolean;
   onChange: (c: ConteudoItem) => void;
 }) {
   const t = useT();
   const upload = useUploadFlowContentMedia();
   const inputRef = React.useRef<HTMLInputElement>(null);
-  const temArquivo = item.storage_path.trim() !== "";
+  const temArquivo = (item.storage_path ?? "").trim() !== "";
+  // Origem por LINK (ou variável que guarda um link): gravada em `url`, e o motor
+  // baixa na hora do envio. Figurinha não tem — precisa ser convertida aqui.
+  const porLink = item.type !== "sticker" && item.url !== undefined;
+  const rotulos =
+    item.type === "image"
+      ? { arquivo: t("Arquivo anexado"), link: t("Campo de fluxo") }
+      : item.type === "document"
+        ? { arquivo: t("Anexar"), link: t("Link") }
+        : { arquivo: t("Arquivo"), link: t("Link") };
+  const trocarOrigem = (paraLink: boolean) => {
+    if (item.type === "sticker" || paraLink === porLink) return;
+    const { storage_path: _p, mime: _m, url: _u, ...resto } = item;
+    onChange((paraLink ? { ...resto, url: "" } : { ...resto, storage_path: "", mime: "" }) as ConteudoItem);
+  };
 
-  // Abas para Documento (Anexar | Link) e Imagem (Arquivo anexado | Campo de fluxo)
-  const [docTab, setDocTab] = React.useState<"anexar" | "link">("anexar");
-  const [imgTab, setImgTab] = React.useState<"anexado" | "campo">("anexado");
-  const [linkUrl, setLinkUrl] = React.useState("");
-  const [campoFluxo, setCampoFluxo] = React.useState("");
+  const [convertendo, setConvertendo] = React.useState(false);
 
-  const onPick = async (file: File) => {
+  const onPick = async (escolhido: File) => {
+    let file = escolhido;
+    // Sticker: JPG/PNG (ou WebP grande) é convertido AQUI para .webp 512×512 —
+    // o único formato que o WhatsApp aceita. Ver `sticker-no-navegador.ts`.
+    if (item.type === "sticker") {
+      setConvertendo(true);
+      const pronto = await prepararSticker(escolhido, STICKER_MAX_BYTES).finally(() => setConvertendo(false));
+      if (!pronto.ok) {
+        toast.error(
+          pronto.motivo === "formato"
+            ? t("Formato não aceito para sticker — use JPG, PNG ou WebP.")
+            : pronto.motivo === "grande_demais"
+              ? t("Arquivo acima de 2 MB — escolha uma imagem menor para o sticker.")
+              : pronto.motivo === "navegador_sem_webp"
+                ? t("Este navegador não converte para sticker — envie um arquivo .webp de até 500 KB.")
+                : pronto.motivo === "nao_coube"
+                  ? t("A imagem é detalhada demais para caber num sticker — use uma imagem mais simples.")
+                  : t("Não foi possível ler esta imagem — tente outro arquivo."),
+        );
+        return;
+      }
+      file = pronto.arquivo;
+    }
     try {
-      const r = await upload.mutateAsync({ flowId, file });
-      const base = { ...item, storage_path: r.storage_path, mime: r.media_mime };
+      const r = await upload.mutateAsync({ flowId, file, ...(item.type === "sticker" ? { as: "sticker" as const } : {}) });
+      const { url: _link, ...semLink } = item as typeof item & { url?: string };
+      const base = { ...semLink, storage_path: r.storage_path, mime: r.media_mime };
       onChange(item.type === "document" ? ({ ...base, filename: file.name } as ConteudoItem) : (base as ConteudoItem));
     } catch {
       // tratado pelo hook
@@ -579,12 +724,17 @@ function MediaSection({
     if (f) void onPick(f);
   };
 
+  // O que o seletor de arquivo oferece é o que a rota de upload ACEITA
+  // (`lib/messaging/media/upload-validation.ts`) — oferecer .mov ou .svg aqui
+  // só adiava a recusa para depois do clique.
   const accept =
-    item.type === "image"
-      ? "image/svg+xml,image/png,image/jpeg,image/webp"
-      : item.type === "video"
-        ? "video/mp4,video/mkv,video/avi,video/quicktime,video/3gpp"
-        : ".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,application/pdf";
+    item.type === "sticker"
+      ? STICKER_FORMATOS_DE_ENTRADA.join(",")
+      : item.type === "image"
+        ? "image/png,image/jpeg"
+        : item.type === "video"
+          ? "video/mp4,video/3gpp"
+          : ".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip";
 
   return (
     <div className="space-y-2">
@@ -601,100 +751,82 @@ function MediaSection({
         }}
       />
 
-      {/* Segmented control para Documento (Anexar | Link) */}
-      {item.type === "document" && (
-        <div className="flex rounded-full bg-[#f1f5f9] dark:bg-zinc-800 p-0.5 mb-2.5">
-          <button
-            type="button"
-            onClick={() => setDocTab("anexar")}
-            className={cn(
-              "flex-1 py-1 text-xs font-semibold rounded-full transition-all cursor-pointer",
-              docTab === "anexar"
-                ? "bg-[#2563eb] text-white shadow-xs"
-                : "text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200",
-            )}
-          >
-            {t("Anexar")}
-          </button>
-          <button
-            type="button"
-            onClick={() => setDocTab("link")}
-            className={cn(
-              "flex-1 py-1 text-xs font-semibold rounded-full transition-all cursor-pointer",
-              docTab === "link"
-                ? "bg-[#2563eb] text-white shadow-xs"
-                : "text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200",
-            )}
-          >
-            {t("Link")}
-          </button>
+      {/*
+        Abas de origem: arquivo enviado × link/variável. O link é gravado em `url`
+        (campo próprio do schema) e o motor BAIXA o arquivo na hora do envio —
+        antes estas abas gravavam a URL dentro de `storage_path`, o que o motor
+        não sabia enviar.
+      */}
+      {item.type !== "sticker" && (
+        <div className="flex rounded-full bg-[#f1f5f9] dark:bg-zinc-800 p-0.5 mb-2.5" role="tablist">
+          {([false, true] as const).map((ehLink) => (
+            <button
+              key={String(ehLink)}
+              type="button"
+              role="tab"
+              aria-selected={porLink === ehLink}
+              disabled={disabled}
+              onClick={() => trocarOrigem(ehLink)}
+              data-testid={ehLink ? "conteudo-origem-link" : "conteudo-origem-arquivo"}
+              className={cn(
+                "flex-1 py-1 text-xs font-semibold rounded-full transition-all cursor-pointer",
+                porLink === ehLink
+                  ? "bg-[#2563eb] text-white shadow-xs"
+                  : "text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200",
+              )}
+            >
+              {ehLink ? rotulos.link : rotulos.arquivo}
+            </button>
+          ))}
         </div>
       )}
 
-      {/* Segmented control para Imagem (Arquivo anexado | Campo de fluxo) */}
-      {item.type === "image" && (
-        <div className="flex rounded-full bg-[#f1f5f9] dark:bg-zinc-800 p-0.5 mb-2.5">
-          <button
-            type="button"
-            onClick={() => setImgTab("anexado")}
-            className={cn(
-              "flex-1 py-1 text-xs font-semibold rounded-full transition-all cursor-pointer",
-              imgTab === "anexado"
-                ? "bg-[#ea580c] text-white shadow-xs"
-                : "text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200",
-            )}
-          >
-            {t("Arquivo anexado")}
-          </button>
-          <button
-            type="button"
-            onClick={() => setImgTab("campo")}
-            className={cn(
-              "flex-1 py-1 text-xs font-semibold rounded-full transition-all cursor-pointer",
-              imgTab === "campo"
-                ? "bg-[#ea580c] text-white shadow-xs"
-                : "text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200",
-            )}
-          >
-            {t("Campo de fluxo")}
-          </button>
+      {porLink && (
+        <div className="space-y-1.5 py-1">
+          <Input
+            placeholder={item.type === "image" ? "{{url_imagem_lead}}" : "https://…"}
+            maxLength={2000}
+            value={item.url ?? ""}
+            disabled={disabled}
+            onChange={(e) => onChange({ ...item, url: e.target.value } as ConteudoItem)}
+            className="h-9 text-xs rounded-lg font-mono"
+            data-testid="conteudo-link"
+          />
+          <p className="text-[10px] text-slate-400">
+            {item.type === "image"
+              ? t("Use a variável do campo que guarda o link da imagem, ou cole um link público (https).")
+              : t("Cole o link público (https) do arquivo. Você também pode usar uma variável que guarde o link.")}{" "}
+            {t("O arquivo é baixado na hora do envio.")}
+          </p>
         </div>
       )}
 
-      {/* Corpo do Documento com aba Link */}
-      {item.type === "document" && docTab === "link" ? (
-        <div className="space-y-1.5 py-1">
+      {item.type === "sticker" && (
+        <label className="block space-y-1">
+          <span className="block text-[12px] font-semibold text-slate-800 dark:text-zinc-200">
+            {t("Nome do Sticker")}
+          </span>
           <Input
-            placeholder="https://exemplo.com/documento.pdf"
-            value={linkUrl}
+            placeholder={t("Ex: emoji_feliz")}
+            maxLength={60}
+            value={item.name ?? ""}
             disabled={disabled}
             onChange={(e) => {
-              setLinkUrl(e.target.value);
-              onChange({ ...item, storage_path: e.target.value, mime: "application/pdf" });
+              const { name: _antigo, ...semNome } = item;
+              const nome = e.target.value;
+              // Nome vazio some do config em vez de virar `name: ""`.
+              onChange((nome === "" ? semNome : { ...semNome, name: nome }) as ConteudoItem);
             }}
-            className="h-9 text-xs rounded-lg border-[#e2e8f0] dark:border-zinc-800 bg-[#f8fafc] dark:bg-zinc-950"
+            className="h-9 text-xs rounded-md"
+            data-testid="conteudo-sticker-nome"
           />
-          <p className="text-[10px] text-slate-400">
-            {t("Insira o link público do documento que deseja enviar.")}
-          </p>
-        </div>
-      ) : item.type === "image" && imgTab === "campo" ? (
-        <div className="space-y-1.5 py-1">
-          <Input
-            placeholder="{{url_imagem_lead}}"
-            value={campoFluxo}
-            disabled={disabled}
-            onChange={(e) => {
-              setCampoFluxo(e.target.value);
-              onChange({ ...item, storage_path: e.target.value, mime: "image/jpeg" });
-            }}
-            className="h-9 text-xs rounded-lg border-[#e2e8f0] dark:border-zinc-800 bg-[#f8fafc] dark:bg-zinc-950"
-          />
-          <p className="text-[10px] text-slate-400">
-            {t("Use a variável que contém a URL da imagem.")}
-          </p>
-        </div>
-      ) : !temArquivo ? (
+          <span className="block text-[10.5px] text-slate-400 dark:text-zinc-500">
+            {t("Só para você identificar o sticker no fluxo — o contato não vê este nome.")}
+          </span>
+        </label>
+      )}
+
+      {porLink ? null : !temArquivo ? (
         <button
           type="button"
           disabled={disabled || upload.isPending}
@@ -715,7 +847,7 @@ function MediaSection({
                 {upload.isPending ? t("Enviando…") : t("Clique para enviar um documento")}
               </span>
               <span className="text-[11px] text-slate-400 dark:text-zinc-500">
-                {t("Arquivos de documentos (máx. 25 MB)")}
+                {t("PDF, Word, Excel, PowerPoint, TXT, CSV ou ZIP (máx. 50 MB)")}
               </span>
             </>
           )}
@@ -727,7 +859,22 @@ function MediaSection({
                 {upload.isPending ? t("Enviando…") : t("Selecionar arquivo")}
               </span>
               <span className="text-[11px] text-slate-400 dark:text-zinc-500">
-                SVG, PNG, JPG
+                {t("PNG ou JPG (máx. 5 MB)")}
+              </span>
+            </>
+          )}
+
+          {item.type === "sticker" && (
+            <>
+              <Smiley size={38} className="text-[#a855f7] mb-1" />
+              <span className="text-[12px] text-slate-600 dark:text-zinc-300">
+                {t("Tamanho máximo permitido: 2 MB")}
+              </span>
+              <span className="text-[11px] text-slate-400 dark:text-zinc-500">
+                {t("JPG, PNG ou WebP — convertido para sticker 512×512")}
+              </span>
+              <span className="mt-1.5 rounded-lg bg-[#a855f7] px-3.5 py-1.5 text-[12px] font-bold text-white shadow-xs">
+                {upload.isPending || convertendo ? t("Enviando…") : t("Enviar sticker")}
               </span>
             </>
           )}
@@ -736,10 +883,10 @@ function MediaSection({
             <>
               <LucideVideo size={38} className="text-[#94a3b8] mb-1" strokeWidth={1.5} />
               <span className="text-[13px] font-semibold text-slate-700 dark:text-zinc-200">
-                {upload.isPending ? t("Enviando…") : t("Clique para enviar um video")}
+                {upload.isPending ? t("Enviando…") : t("Clique para enviar um vídeo")}
               </span>
               <span className="text-[11px] text-slate-400 dark:text-zinc-500">
-                mp4,mkv,avi,mov,3gp (máx. 50 MB)
+                {t("MP4 ou 3GP (máx. 16 MB)")}
               </span>
             </>
           )}
@@ -758,6 +905,24 @@ function MediaSection({
             {t("Trocar arquivo")}
           </button>
         </div>
+      )}
+
+      {/* Legenda: só nos tipos em que o canal tem legenda (figurinha não tem). */}
+      {item.type !== "sticker" && (
+        <Input
+          placeholder={t("Legenda (opcional)")}
+          maxLength={1024}
+          value={item.caption ?? ""}
+          disabled={disabled}
+          onChange={(e) => {
+            const { caption: _antiga, ...semLegenda } = item;
+            const legenda = e.target.value;
+            // Legenda vazia some do config em vez de virar `caption: ""`.
+            onChange((legenda === "" ? semLegenda : { ...semLegenda, caption: legenda }) as ConteudoItem);
+          }}
+          className="h-8 text-xs rounded-md"
+          data-testid="conteudo-legenda"
+        />
       )}
     </div>
   );

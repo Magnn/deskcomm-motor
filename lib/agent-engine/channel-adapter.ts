@@ -46,8 +46,15 @@ export interface ChannelSendInput {
    * voz da agente (`agent/nota-de-voz.ts`), onde o `body` é o texto falado e
    * nenhum canal o envia como legenda. Caminho, nunca URL nem bytes: quem assina
    * a URL curta para o canal é o handler de mensagens, como em toda mídia.
+   * `'sticker'` = figurinha (.webp), sem legenda: o `body` é ignorado.
    */
-  media?: { storagePath: string; mime: string; kind?: 'image' | 'audio' };
+  media?: { storagePath: string; mime: string; kind?: 'image' | 'video' | 'audio' | 'document' | 'sticker'; audioAsFile?: boolean };
+  /**
+   * Presente = este envio é um CARTÃO DE CONTATO (nome + telefone). Não é mídia e
+   * não tem legenda: o `body` só existe para o hash de idempotência. Quem monta o
+   * vCard de verdade é o adapter do canal, igual ao envio manual do atendente.
+   */
+  contact?: { name: string; phoneNumber: string };
 }
 
 /**

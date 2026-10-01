@@ -19,6 +19,7 @@ import { insertInboxItem } from '../../db/repository';
 import type { Logger } from '../../obs/logger';
 import { enqueueJob } from '../../queue/queue';
 import { decidirRajada } from './debounce';
+import { debounceDoRoteiroMs } from '@/lib/followup/agrupamento-do-roteiro';
 import { avisoDeEventoMorto, IA_QUE_NAO_RESPONDEU } from '@/lib/event-log/aviso-de-evento-morto';
 import { TIPOS_DERIVAVEIS, DERIVACAO_TERMINADA } from '@/lib/messaging/media/derivable';
 import { decidirElegibilidadeDaConversa } from '@/lib/ai/elegibilidade/consulta-pg';
@@ -449,10 +450,16 @@ async function processEvent(
   //
   // A janela e a exclusão do job em HOLD (`held_run_after` no payload — a lição
   // do #830) moram em ./debounce.ts, com teste próprio.
+  // A Pergunta do roteiro de atendimento pode ter a sua própria janela («agrupar respostas em X
+  // segundos»): enquanto o roteiro espera a resposta dela, vale a dela; sem ela, a da instalação.
+  const janelaDoRoteiro = await debounceDoRoteiroMs(pool, {
+    organizationId: event.organization_id,
+    contactId: p.contact_id,
+  });
   const rajada = await decidirRajada(
     pool,
     { organizationId: event.organization_id, contactId: p.contact_id },
-    knobs.debounceMs,
+    janelaDoRoteiro ?? knobs.debounceMs,
   );
   if (rajada.tipo === 'coalescido') {
     log.info('drain: rajada coalescida em job pendente', {

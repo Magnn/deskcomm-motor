@@ -39,9 +39,10 @@ function adminQueAceita() {
   return { storage: { from: () => ({ upload: uploadMock }) } };
 }
 
-function requestComArquivo(bytes: number, mime: string, filename = "arquivo"): NextRequest {
+function requestComArquivo(bytes: number, mime: string, filename = "arquivo", como?: "sticker"): NextRequest {
   const form = new FormData();
   form.set("file", new File([new Uint8Array(bytes)], filename, { type: mime }));
+  if (como) form.set("as", como);
   return new NextRequest(`http://localhost/api/v1/ai/followup-flows/${FLOW_ID}/content-media`, {
     method: "POST",
     body: form,
@@ -94,6 +95,21 @@ describe("POST /api/v1/ai/followup-flows/[id]/content-media", () => {
   it("formato não suportado (webp) é 415, sem tocar o Storage", async () => {
     const res = await POST(requestComArquivo(1024, "image/webp"), ctx);
     expect(res.status).toBe(415);
+    expect(uploadMock).not.toHaveBeenCalled();
+  });
+
+  it("figurinha: o MESMO .webp passa quando o editor declara `as=sticker`", async () => {
+    const res = await POST(requestComArquivo(1024, "image/webp", "fig.webp", "sticker"), ctx);
+    expect(res.status, await res.clone().text()).toBe(200);
+    const corpo = (await res.json()) as { data: { storage_path: string; kind: string; media_mime: string } };
+    expect(corpo.data.kind).toBe("sticker");
+    expect(corpo.data.media_mime).toBe("image/webp");
+    expect(corpo.data.storage_path.endsWith(".webp")).toBe(true);
+  });
+
+  it("figurinha fora do formato (png com `as=sticker`) é 415; acima de 500 KB é 413", async () => {
+    expect((await POST(requestComArquivo(1024, "image/png", "fig.png", "sticker"), ctx)).status).toBe(415);
+    expect((await POST(requestComArquivo(600 * 1024, "image/webp", "fig.webp", "sticker"), ctx)).status).toBe(413);
     expect(uploadMock).not.toHaveBeenCalled();
   });
 

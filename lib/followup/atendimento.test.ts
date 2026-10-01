@@ -106,6 +106,22 @@ describe("melhorFluxoPorGatilho (entrada pelo motor)", () => {
   it("mais gatilhos na mesma mensagem vencem", () => {
     expect(melhorFluxoPorGatilho(fluxos, "tenho interesse, quero comprar")?.id).toBe("q");
   });
+
+  it("empate entre fluxos não escolhe um deles pela ordem", () => {
+    const conflitos = [
+      { id: "a", nome: "A", gatilhos: ["promoção"] },
+      { id: "b", nome: "B", gatilhos: ["PROMOCAO"] },
+    ];
+    expect(melhorFluxoPorGatilho(conflitos, "Quero saber da promoção")).toBeNull();
+  });
+
+  it("não deixa gatilho compartilhado ser escolhido por outro hit de um fluxo", () => {
+    const conflitos = [
+      { id: "a", nome: "A", gatilhos: ["promoção", "urgente"] },
+      { id: "b", nome: "B", gatilhos: ["promocao"] },
+    ];
+    expect(melhorFluxoPorGatilho(conflitos, "promoção urgente")).toBeNull();
+  });
 });
 
 describe("situacaoDoChecklist", () => {
@@ -489,4 +505,3 @@ describe("pergunta que não foi feita (revisão adversarial do PR 2)", () => {
     expect(sqls.some((q) => /update contacts/.test(q))).toBe(true);
   });
 });
-

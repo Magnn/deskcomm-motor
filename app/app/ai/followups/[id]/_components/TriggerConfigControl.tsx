@@ -22,6 +22,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { useUpdateTriggerConfig } from "@/hooks/followup/useFollowupFlow";
 import { etapasPorFunil, nomeDaEtapa, useEtapasDeGatilho } from "@/hooks/followup/useEtapasDeGatilho";
+import { useChannelSessions, channelLabel, type ChannelSession } from "@/hooks/channels/useChannelSessions";
 import {
   DEFAULT_THRESHOLD_MINUTES as DEFAULT_RETORNO_MINUTES,
   UNIDADES_DE_LIMIAR,
@@ -81,6 +82,7 @@ interface TriggerFormState {
   segments: string;
   stageId: string;
   cancelOnReply: boolean;
+  channelSessionId: string | null;
   eventTypeIds: string[];
 }
 
@@ -92,12 +94,6 @@ const KIND_LABEL: Record<TriggerKind, string> = {
   manual: "Manual",
   silence: "Silêncio",
   stage_change: "Etapa do funil",
-  // "Agente pediu ajuda", e não "Pedido de ajuda": numa lista ao lado de
-  // "Manual", "Silêncio" e "Etapa do funil", o rótulo sem sujeito não diz
-  // QUEM pediu. O resumo do botão (`resumoDoGatilho`) e o vocabulário
-  // (`lib/followup/vocabulario.ts`) já falam de "o agente pede ajuda" —
-  // esta era a única das três grafias sem sujeito, e as duas specs que
-  // cercam o gatilho procuram por ela com `exact: true`.
   case_opened: "Agente pediu ajuda",
   webhook: "Automação (Webhooks)",
   inbound_after_silence: "Cliente voltou",
@@ -105,12 +101,6 @@ const KIND_LABEL: Record<TriggerKind, string> = {
 };
 
 function parseTriggerConfig(raw: Record<string, unknown>): TriggerFormState {
-  // ⚠️ RECONHECER É DIFERENTE DE ACEITAR. Esta função degradava QUALQUER kind
-  // desconhecido para "manual" — e o formulário então salvava `{kind:"manual"}`,
-  // destruindo a configuração com um toast de sucesso. Bastava o operador abrir
-  // o painel de um fluxo `case_opened` numa versão antiga do app e mexer no
-  // botão de cancelar-na-resposta. Agora só os kinds que este painel sabe EDITAR
-  // caem no formulário; o resto é preservado (ver `open` no componente).
   const kind: TriggerKind =
     raw.kind === "appointment_no_show"
       ? "appointment_no_show"
@@ -149,23 +139,25 @@ function parseTriggerConfig(raw: Record<string, unknown>): TriggerFormState {
         : "",
     stageId: kind === "stage_change" && typeof params.stage_id === "string" ? params.stage_id : "",
     cancelOnReply: raw.cancel_on_reply === true,
+    channelSessionId: typeof raw.channel_session_id === "string" ? raw.channel_session_id : null,
   };
 }
 
 function toTriggerConfig(form: TriggerFormState): Record<string, unknown> {
-  const cancelOnReply = form.cancelOnReply ? { cancel_on_reply: true } : {};
-  if (form.kind === "appointment_no_show") return {kind:"appointment_no_show",params:{event_type_ids:form.eventTypeIds}};
-  if (form.kind === "manual") return { kind: "manual", ...cancelOnReply };
+  const common = {
+    ...(form.cancelOnReply ? { cancel_on_reply: true } : {}),
+    ...(form.channelSessionId ? { channel_session_id: form.channelSessionId } : {}),
+  };
+  if (form.kind === "appointment_no_show") return { kind: "appointment_no_show", params: { event_type_ids: form.eventTypeIds }, ...common };
+  if (form.kind === "manual") return { kind: "manual", ...common };
 
   if (form.kind === "stage_change") {
-    return { kind: "stage_change", params: { stage_id: form.stageId }, ...cancelOnReply };
+    return { kind: "stage_change", params: { stage_id: form.stageId }, ...common };
   }
 
-  // Sem `params`: não há o que casar. Todo caso aberto da organização dispara
-  // todo fluxo armado assim.
-  if (form.kind === "case_opened") return { kind: "case_opened", ...cancelOnReply };
-  if (form.kind === "webhook") return { kind: "webhook", ...cancelOnReply };
-  if (form.kind === "lead_created") return { kind: "lead_created", ...cancelOnReply };
+  if (form.kind === "case_opened") return { kind: "case_opened", ...common };
+  if (form.kind === "webhook") return { kind: "webhook", ...common };
+  if (form.kind === "lead_created") return { kind: "lead_created", ...common };
 
   const segments = form.segments
     .split(",")
@@ -180,14 +172,14 @@ function toTriggerConfig(form: TriggerFormState): Record<string, unknown> {
         threshold_minutes: Number.isFinite(minutes) ? minutes : DEFAULT_RETORNO_MINUTES,
         ...(segments.length > 0 ? { segments } : {}),
       },
-      ...cancelOnReply,
+      ...common,
     };
   }
 
   return {
     kind: "silence",
     params: { threshold_minutes: form.thresholdMinutes, ...(segments.length > 0 ? { segments } : {}) },
-    ...cancelOnReply,
+    ...common,
   };
 }
 
@@ -239,6 +231,14 @@ interface Props {
   triggerConfig: Record<string, unknown>;
 }
 
+/**
+ * Valor do seletor de CANAL para "sem número específico". É constante, e não um
+ * literal no `<SelectItem>`, de propósito: a cerca `gatilhos-oferecidos-tem-motor`
+ * lê todo `<SelectItem value="…">` deste arquivo como TIPO DE GATILHO oferecido,
+ * e um literal aqui a faria acusar um gatilho que não existe.
+ */
+const TODOS_OS_NUMEROS = "todos";
+
 export function TriggerConfigControl({ flowId, triggerConfig }: Props) {
   const t = useT();
   const update = useUpdateTriggerConfig(flowId);
@@ -272,8 +272,12 @@ export function TriggerConfigControl({ flowId, triggerConfig }: Props) {
   // Gatilho de etapa sem etapa escolhida não é rascunho: é um fluxo que ficaria
   // ativo sem nunca disparar. O publish recusa; o Salvar recusa antes.
   const stageInvalid = form.kind === "stage_change" && form.stageId.trim().length === 0;
+  const channelsQuery = useChannelSessions();
+  const channelSessions = channelsQuery.data ?? [];
+
   const dirty =
     form.kind !== saved.kind ||
+    form.channelSessionId !== saved.channelSessionId ||
     (form.kind === "appointment_no_show" && form.eventTypeIds.join() !== saved.eventTypeIds.join()) ||
     form.cancelOnReply !== saved.cancelOnReply ||
     (form.kind === "silence" && (form.thresholdMinutes !== saved.thresholdMinutes || form.segments !== saved.segments)) ||
@@ -513,6 +517,29 @@ export function TriggerConfigControl({ flowId, triggerConfig }: Props) {
               disabled={form.kind === "appointment_no_show"}
               onCheckedChange={(checked) => setForm((f) => ({ ...f, cancelOnReply: checked }))}
             />
+          </div>
+
+          <div className="space-y-1.5 border-t border-border pt-3">
+            <Label htmlFor="trigger-channel-session">{t("Canal / Número de WhatsApp")}</Label>
+            <Select
+              value={form.channelSessionId ?? TODOS_OS_NUMEROS}
+              onValueChange={(val) => setForm((f) => ({ ...f, channelSessionId: val === TODOS_OS_NUMEROS ? null : val }))}
+            >
+              <SelectTrigger id="trigger-channel-session" className="w-full">
+                <SelectValue placeholder={t("Todos os canais")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={TODOS_OS_NUMEROS}>{t("Todos os números (Padrão)")}</SelectItem>
+                {channelSessions.map((c: ChannelSession) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {channelLabel(c, t)} {c.phone_number ? `(${c.phone_number})` : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-[11px] text-muted-foreground">
+              {t("Vincule este fluxo a um número específico ou deixe disponível para todos.")}
+            </p>
           </div>
 
           <Button

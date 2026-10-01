@@ -51,7 +51,7 @@ export type TurnResult =
   /** Plano de tempo do fluxo inteiro, proposto no acionamento — cru, antes do clamp. */
   | { kind: "planned"; propostas: PropostaDeEspera[]; modelo: string }
   /** nó `ai_generic` (lote 1) — o texto que o prompt livre devolveu. */
-  | { kind: "generic_ai_done"; text: string };
+  | { kind: "generic_ai_done"; text: string; envio?: "sent" | "skipped" | "deferred"; modelo?: string };
 
 /**
  * Traduz o resultado de um turno concluído em progressão do enrollment —
@@ -257,7 +257,9 @@ export async function completeTurnForEnrollment(
     }
     const edge = selectEdge(graph.edges, node.id, { type: "always" });
     if (!edge) throw new Error(`ai_generic node "${node.id}" sem aresta 'always' de saída`);
-    try {
+    // «Deseja salvar o retorno em um campo?» — desligado, o texto NÃO toca o cadastro (segue no
+    // registro do passo). Ausente = comportamento de sempre (grava).
+    if (node.config.salvar_em_campo !== false) try {
       // Melhor esforço, ANTES do passo — a mesma doutrina do `catch` em
       // engine.ts (persistirRespostaFollowup falhando não pode travar o
       // avanço do fluxo). Chamar antes do `applyStep` é seguro mesmo em
@@ -274,7 +276,12 @@ export async function completeTurnForEnrollment(
     }
     await applyStep(
       "ai_generic_done",
-      { text: result.text },
+      {
+        text: result.text,
+        ...(result.envio !== undefined ? { envio: result.envio } : {}),
+        ...(result.modelo !== undefined ? { modelo: result.modelo } : {}),
+        salvo_em_campo: node.config.salvar_em_campo !== false,
+      },
       { current_node_id: edge.target, status: "active", next_eval_at: now.toISOString() },
     );
     return;

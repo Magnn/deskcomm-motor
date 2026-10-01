@@ -257,6 +257,33 @@ describe("send — mídia", () => {
     expect(corpo()).toMatchObject({ attachmentType: "audio", voiceNote: true });
   });
 
+  it("áudio NUNCA leva o texto junto: o `caption` dele é a fala/transcrição, que fica só no CRM", async () => {
+    respondeOk();
+    await zernioAdapter.send({
+      organizationId: ORG,
+      sessionRef: CREDS.accountId,
+      to: "5959",
+      providerConversationId: THREAD,
+      kind: "audio",
+      media: { ...media, mime: "audio/ogg", filename: "a.ogg", caption: "Oi, aqui é do suporte." },
+    });
+    expect(corpo()).toMatchObject({ attachmentType: "audio", voiceNote: true });
+    expect(corpo()).not.toHaveProperty("message");
+  });
+
+  it("áudio como ARQUIVO sai sem a flag de nota de voz", async () => {
+    respondeOk();
+    await zernioAdapter.send({
+      organizationId: ORG,
+      sessionRef: CREDS.accountId,
+      to: "5959",
+      providerConversationId: THREAD,
+      kind: "audio",
+      media: { ...media, mime: "audio/mpeg", filename: "Aula_01.mp3", caption: null, asFile: true },
+    });
+    expect(corpo()).toMatchObject({ attachmentType: "audio", voiceNote: false });
+  });
+
   it("documento cai em file, não em image", async () => {
     respondeOk();
     await zernioAdapter.send({
