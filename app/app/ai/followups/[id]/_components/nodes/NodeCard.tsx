@@ -149,8 +149,8 @@ export function NodeCard({
   const hasError = (errors?.length ?? 0) > 0;
   const branchRows = branches !== undefined && branches.length > 1 ? branches : null;
   const headerBg = HEADER_BG_BY_TYPE[visual.type] ?? "bg-[#7c3aed]";
-  const hasContentItems = previewRows !== undefined && previewRows.length > 0;
-  const handleTopStyle = hasContentItems ? { top: "54px" } : { top: "50%" };
+  const targetBorderClass = BORDER_COLOR_BY_TYPE[visual.type] ?? "!border-purple-600 text-purple-600";
+  const handleTopStyle = { top: "68px" };
 
   const [copiedId, setCopiedId] = useState(false);
 
@@ -251,23 +251,18 @@ export function NodeCard({
           </span>
         )}
 
-      {/* Entrada (Target) no lado ESQUERDO com círculo branco, borda roxa e seta ▶ */}
+      {/* Entrada (Target) no lado ESQUERDO com círculo branco, borda colorida e seta ▶ */}
       {showTarget && (
         <Handle
           type="target"
           position={Position.Left}
-          className="!w-[16px] !h-[16px] !bg-white !shadow-sm !rounded-full !-left-2 z-10 !border-0"
-          style={{ border: "2px solid #7e22ce", ...handleTopStyle }}
+          className={cn(
+            "!-left-2.5 z-10 !flex !h-5 !w-5 !items-center !justify-center !rounded-full !border-2 !bg-white !shadow-sm !transition-all hover:!scale-125",
+            targetBorderClass,
+          )}
+          style={handleTopStyle}
         >
-          <svg
-            className="absolute left-1/2 top-1/2 -translate-x-[45%] -translate-y-1/2 pointer-events-none"
-            width="6"
-            height="8"
-            viewBox="0 0 8 10"
-            fill="none"
-          >
-            <path d="M8 5L0 10V0L8 5Z" fill="#7e22ce" />
-          </svg>
+          <Play size={8} weight="fill" className="pointer-events-none ml-0.5" />
         </Handle>
       )}
 
