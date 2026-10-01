@@ -18,7 +18,7 @@ export function PixPaymentNode({ id, data, selected }: NodeProps<RFNode>) {
       <div className="flex items-center justify-between font-semibold">
         <span className="flex items-center gap-1.5">
           <CreditCard size={14} className="text-emerald-600 dark:text-emerald-400" />
-          <span>PIX ({config.key_type || "aleatória"})</span>
+          <span>PIX ({config.key_type || t("aleatória")})</span>
         </span>
         {config.amount && (
           <span className="rounded-md bg-emerald-100 px-1.5 py-0.5 font-bold text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300">

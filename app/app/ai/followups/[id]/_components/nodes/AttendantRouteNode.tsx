@@ -27,7 +27,7 @@ export function AttendantRouteNode({ id, data, selected }: NodeProps<RFNode>) {
         </div>
         <span className="flex items-center gap-1 rounded-full bg-amber-100/90 px-1.5 py-0.5 text-[9.5px] font-bold text-amber-800 dark:bg-amber-950/60 dark:text-amber-200 shrink-0">
           <Clock size={10} />
-          <span>{maxWait}m máx</span>
+          <span>{maxWait}{t("m máx")}</span>
         </span>
       </div>
 

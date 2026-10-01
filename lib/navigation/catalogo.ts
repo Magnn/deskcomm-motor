@@ -434,7 +434,10 @@ export const NAV_CATALOG = [
     group: "ia",
     section: "Montar o agente",
     minRole: "manager",
-    sidebar: true,
+    // SEM `sidebar: true`: o menu lateral já está no teto da dobra (15 itens,
+    // `interface-por-empresa.test.ts`) e voz é tela de configuração, não de uso
+    // diário — segue o padrão de Provedores/Execuções, alcançável pelo hub
+    // "Ver tudo em IA".
   },
   {
     href: "/app/ai/credentials",

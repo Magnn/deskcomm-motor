@@ -278,7 +278,7 @@ export function AiGenericForm({
             setPrompt(e.target.value);
             commit({ prompt: e.target.value });
           }}
-          placeholder="Digite aqui o prompt desejado.&#10;&#10;Exemplo: Responda ao cliente de acordo as instruções."
+          placeholder={t("Digite aqui o prompt desejado.\n\nExemplo: Responda ao cliente de acordo as instruções.")}
           maxLength={2000}
           className="w-full rounded-[10px] border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-2.5 text-[13px] text-slate-800 dark:text-zinc-100 placeholder:text-slate-400 focus:outline-hidden focus:border-indigo-500 min-h-[105px] resize-y"
         />

@@ -125,7 +125,7 @@ export function VoiceStudioForm({ config, onChange }: Props) {
       return;
     }
 
-    const phraseToSpeak = text.trim() || `Olá! Este é um teste da voz ${voiceName} do Voice Studio no Deskcomm CRM.`;
+    const phraseToSpeak = text.trim() || `Olá! Este é um teste da voz ${voiceName} do Voice Studio.`;
     const estimatedDuration = Math.max(3, Math.round(phraseToSpeak.length / 15 / (speed || 1)));
     setAudioDuration(estimatedDuration);
     setAudioCurrentTime(0);
@@ -152,9 +152,11 @@ export function VoiceStudioForm({ config, onChange }: Props) {
     }
 
     // Intervalo para animar o progresso
-    const startTime = Date.now();
+    let startTime: number | null = null;
     audioIntervalRef.current = setInterval(() => {
-      const elapsed = (Date.now() - startTime) / 1000;
+      const agora = Date.now();
+      startTime ??= agora;
+      const elapsed = (agora - startTime) / 1000;
       if (elapsed >= estimatedDuration) {
         stopAudio();
         setAudioCurrentTime(0);
@@ -216,7 +218,7 @@ export function VoiceStudioForm({ config, onChange }: Props) {
       {/* 1. Header do Campo Texto */}
       <div className="space-y-1.5">
         <div className="flex items-center justify-between">
-          <label className="text-sm font-semibold text-neutral-800 dark:text-neutral-200">
+          <label className="block text-sm font-semibold text-neutral-800 dark:text-neutral-200">
             {t("Texto")}
           </label>
           <button
@@ -241,7 +243,7 @@ export function VoiceStudioForm({ config, onChange }: Props) {
                   key={cf.id}
                   type="button"
                   onClick={() => insertVariable(cf.id)}
-                  className="px-2 py-1 rounded bg-white hover:bg-blue-100/80 text-blue-800 border border-blue-200 dark:bg-zinc-900 dark:text-blue-300 dark:border-blue-800 text-[11px] font-mono shadow-2xs transition-colors cursor-pointer"
+                  className="px-2 py-1 rounded-md bg-white hover:bg-blue-100/80 text-blue-800 border border-blue-200 dark:bg-zinc-900 dark:text-blue-300 dark:border-blue-800 text-[11px] font-mono shadow-2xs transition-colors cursor-pointer"
                 >
                   {cf.id}
                 </button>
@@ -296,7 +298,7 @@ export function VoiceStudioForm({ config, onChange }: Props) {
             }}
             className="grow h-1.5 bg-neutral-200 rounded-lg appearance-none cursor-pointer accent-[#a855f7] dark:bg-zinc-700"
           />
-          <div className="w-14 shrink-0 text-center py-0.5 px-2 rounded border border-blue-200 bg-blue-50/60 dark:border-blue-900 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 text-xs font-mono">
+          <div className="w-14 shrink-0 text-center py-0.5 px-2 rounded-md border border-blue-200 bg-blue-50/60 dark:border-blue-900 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 text-xs font-mono">
             {formatSliderValue(stability)}
           </div>
         </div>
@@ -319,7 +321,7 @@ export function VoiceStudioForm({ config, onChange }: Props) {
             }}
             className="grow h-1.5 bg-neutral-200 rounded-lg appearance-none cursor-pointer accent-[#a855f7] dark:bg-zinc-700"
           />
-          <div className="w-14 shrink-0 text-center py-0.5 px-2 rounded border border-blue-200 bg-blue-50/60 dark:border-blue-900 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 text-xs font-mono">
+          <div className="w-14 shrink-0 text-center py-0.5 px-2 rounded-md border border-blue-200 bg-blue-50/60 dark:border-blue-900 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 text-xs font-mono">
             {formatSliderValue(similarity)}
           </div>
         </div>
@@ -342,7 +344,7 @@ export function VoiceStudioForm({ config, onChange }: Props) {
             }}
             className="grow h-1.5 bg-neutral-200 rounded-lg appearance-none cursor-pointer accent-[#a855f7] dark:bg-zinc-700"
           />
-          <div className="w-14 shrink-0 text-center py-0.5 px-2 rounded border border-blue-200 bg-blue-50/60 dark:border-blue-900 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 text-xs font-mono">
+          <div className="w-14 shrink-0 text-center py-0.5 px-2 rounded-md border border-blue-200 bg-blue-50/60 dark:border-blue-900 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 text-xs font-mono">
             {formatSliderValue(style)}
           </div>
         </div>
@@ -365,7 +367,7 @@ export function VoiceStudioForm({ config, onChange }: Props) {
             }}
             className="grow h-1.5 bg-neutral-200 rounded-lg appearance-none cursor-pointer accent-[#a855f7] dark:bg-zinc-700"
           />
-          <div className="w-14 shrink-0 text-center py-0.5 px-2 rounded border border-blue-200 bg-blue-50/60 dark:border-blue-900 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 text-xs font-mono">
+          <div className="w-14 shrink-0 text-center py-0.5 px-2 rounded-md border border-blue-200 bg-blue-50/60 dark:border-blue-900 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 text-xs font-mono">
             {formatSliderValue(speed)}x
           </div>
         </div>

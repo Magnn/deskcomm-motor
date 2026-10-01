@@ -98,7 +98,7 @@ export function ConditionNode({ id, data, selected }: NodeProps<RFNode>) {
             checks.slice(0, 3).map((check, i) => (
               <div key={i} className="flex flex-col items-center justify-center gap-1">
                 <div className="rounded-md border border-dashed border-slate-200 bg-white px-2 py-1 text-[10px] leading-snug font-medium text-slate-600 dark:border-border dark:bg-surface dark:text-slate-400">
-                  Validar se o campo <span className="font-bold">{check.field}</span> é igual a
+                  {t("Validar se o campo")} <span className="font-bold">{check.field}</span> {t("é igual a")}
                 </div>
                 <div className="rounded-full bg-[#10b981] px-3 py-0.5 text-[10px] font-bold text-white shadow-2xs">
                   {String(check.value || "vazio")}
@@ -106,7 +106,7 @@ export function ConditionNode({ id, data, selected }: NodeProps<RFNode>) {
               </div>
             ))
           ) : (
-            <div className="rounded-md border border-dotted px-2 py-1 text-[10px] text-slate-400">Sem condições</div>
+            <div className="rounded-md border border-dotted px-2 py-1 text-[10px] text-slate-400">{t("Sem condições")}</div>
           )}
         </div>
       </div>

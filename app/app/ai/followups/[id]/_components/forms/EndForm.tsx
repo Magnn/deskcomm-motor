@@ -137,7 +137,7 @@ export function EndForm({
                       {t(card.label)}
                     </span>
                     {isSelected && (
-                      <span className="text-[10px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-100/70 dark:bg-emerald-950/60 px-1.5 py-0.5 rounded">
+                      <span className="text-[10px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-100/70 dark:bg-emerald-950/60 px-1.5 py-0.5 rounded-md">
                         {t("Ativo")}
                       </span>
                     )}
@@ -197,7 +197,7 @@ export function EndForm({
                 key={v}
                 type="button"
                 onClick={() => insertVariable(v)}
-                className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-white dark:bg-zinc-800 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 hover:bg-blue-100 cursor-pointer"
+                className="px-1.5 py-0.5 rounded-md text-[10px] font-mono bg-white dark:bg-zinc-800 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 hover:bg-blue-100 cursor-pointer"
               >
                 {v}
               </button>

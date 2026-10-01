@@ -11,6 +11,7 @@ import type { NomesDeValor } from "@/lib/followup/vocabulario";
 import { ArrowRight, Warning, WarningOctagon, Play, Copy, PencilSimple, Smiley, Check } from "@/lib/ui/icons";
 import { cn } from "@/lib/utils";
 import { useT } from "@/hooks/i18n/useT";
+import { copyToClipboard } from "@/lib/clipboard";
 import { useEtapasDoFluxo } from "../EtapasDoFluxo";
 import type { NodeVisual } from "./nodeVisuals";
 
@@ -154,13 +155,11 @@ export function NodeCard({
 
   const [copiedId, setCopiedId] = useState(false);
 
-  const handleCopyId = (e: React.MouseEvent) => {
+  const handleCopyId = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (typeof navigator !== "undefined" && navigator.clipboard) {
-      void navigator.clipboard.writeText(id);
-      setCopiedId(true);
-      setTimeout(() => setCopiedId(false), 2000);
-    }
+    if (!(await copyToClipboard(id))) return;
+    setCopiedId(true);
+    setTimeout(() => setCopiedId(false), 2000);
   };
 
   return (
@@ -319,7 +318,7 @@ export function NodeCard({
         visual.type === "action" ? (
           <div className="p-3 flex flex-col items-center justify-center gap-2 py-6 min-h-[110px]">
             <Smiley size={40} className="text-slate-500" weight="regular" aria-hidden />
-            <span className="text-[13px] font-medium text-slate-500">Aguardando Configuração...</span>
+            <span className="text-[13px] font-medium text-slate-500">{t("Aguardando Configuração...")}</span>
           </div>
         ) : (
           <div className="p-3">
@@ -397,8 +396,8 @@ export function NodeCard({
                   <row.Icon size={15} aria-hidden className="shrink-0 text-[#9333ea]" />
                   <span title={row.texto}>
                     {row.texto === "Áudio (nota de voz)"
-                      ? "Enviando áudio gravado"
-                      : row.texto || "Enviando áudio gravado"}
+                      ? t("Enviando áudio gravado")
+                      : row.texto || t("Enviando áudio gravado")}
                   </span>
                 </li>
               );
@@ -421,7 +420,7 @@ export function NodeCard({
                   className="flex items-center gap-2 rounded-[8px] border border-dashed border-[#4ade80]/60 bg-[#f0fdf4] dark:bg-green-950/20 px-2.5 py-2 text-[11px] font-medium text-slate-700 dark:text-zinc-200 leading-[1.4]"
                 >
                   <row.Icon size={15} aria-hidden className="shrink-0 text-[#16a34a]" />
-                  <span title={row.texto}>{row.texto || "Enviando um vídeo"}</span>
+                  <span title={row.texto}>{row.texto || t("Enviando um vídeo")}</span>
                 </li>
               );
             }

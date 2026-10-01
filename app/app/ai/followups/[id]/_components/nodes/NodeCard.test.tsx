@@ -18,7 +18,7 @@ import { NODE_VISUALS } from "./nodeVisuals";
 let etapasDoFluxo: EtapasDoFluxo = { etapas: [], carregando: false, falhou: false, nomes: {} };
 vi.mock("../EtapasDoFluxo", () => ({ useEtapasDoFluxo: () => etapasDoFluxo }));
 vi.mock("@xyflow/react", () => ({
-  Handle: (props: any) => (
+  Handle: (props: { type: string; position: string; style?: unknown; className?: string; children?: React.ReactNode }) => (
     <div
       data-testid={`handle-${props.type}-${props.position}`}
       data-style={JSON.stringify(props.style)}
@@ -28,7 +28,7 @@ vi.mock("@xyflow/react", () => ({
     </div>
   ),
   Position: { Top: "top", Right: "right", Bottom: "bottom", Left: "left" },
-  NodeToolbar: ({ children, isVisible }: any) =>
+  NodeToolbar: ({ children, isVisible }: { children?: React.ReactNode; isVisible?: boolean }) =>
     isVisible ? <div data-testid="node-toolbar">{children}</div> : null,
 }));
 

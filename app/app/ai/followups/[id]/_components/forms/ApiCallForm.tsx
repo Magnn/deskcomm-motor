@@ -95,6 +95,9 @@ const ACTION_OPTIONS: Array<{ type: ActionItemType; label: string }> = [
 
 type ModalTab = "headers" | "body" | "response" | "mapping";
 
+// Exemplo de comando cURL (código, não prosa): fica fora do JSX para não passar por t().
+const CURL_EXEMPLO = 'curl -X POST https://example.com/webhook -d "..."';
+
 export function ApiCallForm({
   config,
   onChange,
@@ -114,7 +117,7 @@ export function ApiCallForm({
   );
 
   // Ações legadas/internas (mantendo compatibilidade total)
-  const [actions, setActions] = useState<ActionItemData[]>(
+  const [actions, setActions] = useState<ActionItemData[]>(() =>
     ((config.actions as ActionItemData[]) || []).map((a, idx) => ({
       ...a,
       id: a.id || `act_${idx}_${Date.now()}`,
@@ -330,7 +333,7 @@ export function ApiCallForm({
       {/* Subtítulo oficial do bloco API Request (AcassIA) */}
       <p className="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed">
         {t(
-          "O bloco API Request permite integrar a Lailla a sistemas e ferramentas externas por meio de requisições via API"
+          "O bloco API Request permite integrar o sistema a ferramentas externas por meio de requisições via API"
         )}
       </p>
 
@@ -433,7 +436,7 @@ export function ApiCallForm({
               rows={2}
               value={curlText}
               onChange={(e) => setCurlText(e.target.value)}
-              placeholder='curl -X POST https://example.com/webhook -d "..."'
+              placeholder={CURL_EXEMPLO}
               className="text-xs font-mono"
             />
             <div className="flex items-center justify-between">

@@ -96,7 +96,7 @@ export function SkillForm({
                     <span className="text-xs font-semibold text-neutral-900 dark:text-neutral-100">
                       {s.label}
                     </span>
-                    <code className="text-[10px] text-orange-700 dark:text-orange-400 bg-orange-100/70 dark:bg-orange-950/60 px-1 py-0.2 rounded font-mono">
+                    <code className="text-[10px] text-orange-700 dark:text-orange-400 bg-orange-100/70 dark:bg-orange-950/60 px-1 py-0.2 rounded-md font-mono">
                       {s.id}
                     </code>
                   </div>

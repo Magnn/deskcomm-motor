@@ -198,13 +198,13 @@ export function PublishBar({
               type="button"
               className="cursor-pointer rounded-full bg-[#7c3aed] px-3.5 py-0.5 text-[11px] font-bold text-white shadow-xs"
             >
-              Automação
+              {t("Automação")}
             </button>
             <button
               type="button"
               className="cursor-pointer rounded-full px-3 py-0.5 text-[11px] font-medium text-neutral-500 hover:text-neutral-900 dark:text-neutral-400"
             >
-              Relatórios
+              {t("Relatórios")}
             </button>
           </div>
         </div>

@@ -62,7 +62,7 @@ export function RepeatForm({
           <Label htmlFor="repeat-max" className="text-[11px] font-semibold text-neutral-700 dark:text-neutral-300">
             {t("No máximo quantas voltas")}
           </Label>
-          <span className="text-xs font-mono font-bold text-teal-700 dark:text-teal-400 bg-teal-100/60 dark:bg-teal-950/60 px-2 py-0.5 rounded">
+          <span className="text-xs font-mono font-bold text-teal-700 dark:text-teal-400 bg-teal-100/60 dark:bg-teal-950/60 px-2 py-0.5 rounded-md">
             {currentVal} {currentVal === 1 ? t("volta") : t("voltas")}
           </span>
         </div>
@@ -97,7 +97,7 @@ export function RepeatForm({
               key={p}
               type="button"
               onClick={() => applyPreset(p)}
-              className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors cursor-pointer ${
+              className={`px-2 py-0.5 rounded-md text-[11px] font-medium transition-colors cursor-pointer ${
                 currentVal === p
                   ? "bg-teal-600 text-white shadow-2xs"
                   : "bg-neutral-100 dark:bg-zinc-800 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200"
@@ -131,7 +131,7 @@ export function RepeatForm({
         <Info size={14} className="text-blue-500 shrink-0 mt-0.5" />
         <span>
           {t("Dica: você pode usar ")}
-          <code className="bg-white/80 dark:bg-zinc-900 px-1 py-0.5 rounded font-mono text-[10px]">
+          <code className="bg-white/80 dark:bg-zinc-900 px-1 py-0.5 rounded-md font-mono text-[10px]">
             {t("{volta}")}
           </code>
           {t(" nos textos de nós seguintes para exibir o número da iteração.")}
