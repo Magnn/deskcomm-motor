@@ -108,6 +108,27 @@ export function PublishBar({
   };
 
   /**
+   * O MOTIVO vai no próprio aviso, com o nome da caixa. Um aviso que diz só
+   * "corrija as caixas destacadas" não serve num funil grande: a caixa vermelha
+   * pode estar fora da tela, e o dono fica sem saber o que fazer.
+   */
+  const avisarComMotivos = (titulo: string, motivos: string[]) => {
+    const MOSTRAR = 3;
+    const resto = motivos.length - MOSTRAR;
+    toast.error(titulo, {
+      description: (
+        <ul className="mt-1 list-disc space-y-1 pl-4" data-testid="publicar-motivos">
+          {motivos.slice(0, MOSTRAR).map((m, i) => (
+            <li key={i}>{m}</li>
+          ))}
+          {resto > 0 && <li>{`${t("e mais")} ${resto} — ${t("veja as caixas destacadas em vermelho.")}`}</li>}
+        </ul>
+      ),
+      duration: 15_000,
+    });
+  };
+
+  /**
    * Confere o rascunho ANTES de chamar o servidor. Uma caixa incompleta faz o
    * PATCH recusar o fluxo inteiro com "Campos inválidos.", sem dizer onde — e
    * como publicar começa por salvar, o "Publicar" parecia não funcionar. Aqui a
@@ -120,13 +141,19 @@ export function PublishBar({
       return true;
     }
     const porCaixa: Record<string, string[]> = {};
-    for (const c of caixas) (porCaixa[c.node_id] ??= []).push(fraseDoMotivo(c.motivo));
+    const motivos: string[] = [];
+    for (const c of caixas) {
+      const frase = fraseDoMotivo(c.motivo);
+      (porCaixa[c.node_id] ??= []).push(frase);
+      const rotulo = graph.nodes.find((n) => n.id === c.node_id)?.label;
+      motivos.push(rotulo ? `${rotulo}: ${frase}` : frase);
+    }
     onPublishErrors(porCaixa);
-    toast.error(
-      caixas.length > 0
-        ? t("Há caixas sem configurar — corrija as destacadas em vermelho para salvar.")
-        : t("O fluxo ainda não pode ser salvo: ele precisa de ao menos duas caixas ligadas."),
-    );
+    if (motivos.length === 0) {
+      toast.error(t("O fluxo ainda não pode ser salvo: ele precisa de ao menos duas caixas ligadas."));
+    } else {
+      avisarComMotivos(t("O fluxo ainda não pode ser salvo."), motivos);
+    }
     return false;
   };
 
@@ -150,15 +177,19 @@ export function PublishBar({
         if (err instanceof ApiError && err.code === "validation_failed") {
           const errors = (err.details?.errors as PublishValidationError[] | undefined) ?? [];
           const byNode: Record<string, string[]> = {};
-          const flowLevel: string[] = [];
+          const motivos: string[] = [];
           for (const e of errors) {
-            if (e.node_id) (byNode[e.node_id] ??= []).push(e.message);
-            else flowLevel.push(e.message);
+            if (!e.node_id) {
+              motivos.push(e.message);
+              continue;
+            }
+            (byNode[e.node_id] ??= []).push(e.message);
+            const rotulo = graph.nodes.find((n) => n.id === e.node_id)?.label;
+            // Mensagem que já cita a caixa pelo nome não ganha o nome de novo.
+            motivos.push(rotulo && !e.message.includes(`"${rotulo}"`) ? `${rotulo}: ${e.message}` : e.message);
           }
           onPublishErrors(byNode);
-          toast.error(t("Fluxo reprovado na validação — corrija os nós destacados."), {
-            description: flowLevel.length > 0 ? flowLevel.join(" ") : undefined,
-          });
+          avisarComMotivos(t("O fluxo não pôde ser publicado."), motivos);
           return;
         }
         showApiError(err);

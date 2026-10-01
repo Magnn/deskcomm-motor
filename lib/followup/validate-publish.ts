@@ -238,7 +238,13 @@ function waitMs(config: Extract<FlowNode, { type: 'wait' }>['config']): number {
 function isSufficientWaitNode(node: FlowNode): boolean {
   // O agente no comando espera a pessoa por `silencio_minutos` (piso 5 min no schema) antes de sair por silêncio.
   if (node.type === 'agent') return true;
-  if (node.type === 'match_reply' || node.type === 'menu') return node.config.grace_timeout_ms >= MIN_CYCLE_WAIT_MS;
+  // "Repetir" tem teto de voltas (1 a 20): o laço dele é FINITO por construção, que é
+  // tudo o que esta regra existe para garantir. Exigir uma espera de 5 min dentro de
+  // cada volta recusava o uso mais comum da caixa.
+  if (node.type === 'repeat') return true;
+  if (node.type === 'match_reply' || node.type === 'menu' || node.type === 'ai_classify') {
+    return node.config.grace_timeout_ms >= MIN_CYCLE_WAIT_MS;
+  }
   // A Pergunta espera o prazo configurado (ou 30 dias) — sempre acima do piso.
   if (node.type === 'collect') return (prazoDaPerguntaMs(node.config) ?? PERGUNTA_SEM_PRAZO_MS) >= MIN_CYCLE_WAIT_MS;
   if (node.type === 'attendant_route') return node.config.max_wait_minutes * 60_000 >= MIN_CYCLE_WAIT_MS;
@@ -256,21 +262,6 @@ function buildOutEdges(edges: FlowEdge[]): Map<string, FlowEdge[]> {
     else map.set(edge.source, [edge]);
   }
   return map;
-}
-
-function bfsReachable(startIds: string[], outEdges: Map<string, FlowEdge[]>): Set<string> {
-  const visited = new Set<string>(startIds);
-  const queue = [...startIds];
-  while (queue.length > 0) {
-    const id = queue.shift()!;
-    for (const edge of outEdges.get(id) ?? []) {
-      if (!visited.has(edge.target)) {
-        visited.add(edge.target);
-        queue.push(edge.target);
-      }
-    }
-  }
-  return visited;
 }
 
 /**
@@ -636,7 +627,7 @@ export function validateFlowForPublish(
     errors.push({
       node_id: null,
       code: 'no_trigger',
-      message: 'O fluxo precisa de exatamente um nó trigger.',
+      message: 'O fluxo não tem a caixa de início (gatilho). Arraste a caixa "Gatilho" para o canvas e ligue-a à primeira caixa.',
     });
   }
   if (triggers.length > 1) {
@@ -644,23 +635,17 @@ export function validateFlowForPublish(
       errors.push({
         node_id: extra.id,
         code: 'multiple_triggers',
-        message: `Nó trigger duplicado: "${extra.id}".`,
+        message: `A caixa "${extra.label}" é um segundo gatilho: o fluxo só pode ter um início. Apague esta caixa.`,
       });
     }
   }
 
   const startTrigger = triggers[0];
   if (startTrigger) {
-    const reachable = bfsReachable([startTrigger.id], outEdges);
-    for (const node of [...nodes].sort(byId)) {
-      if (!reachable.has(node.id)) {
-        errors.push({
-          node_id: node.id,
-          code: 'unreachable_node',
-          message: `A caixa "${node.label}" está solta: nada chega até ela. Ligue a saída de outra caixa nela, ou apague-a.`,
-        });
-      }
-    }
+    // CAIXA SOLTA NÃO É ERRO. Uma caixa que nada alcança simplesmente não roda — é o
+    // mesmo princípio da saída solta logo abaixo: o funil só avança até onde foi
+    // montado. Quem monta deixa caixas no canvas para ligar depois, e recusar a
+    // publicação por isso prendia o dono num aviso que ele não sabia resolver.
 
     // SEM exigir caminho até um Fim: o lead pode parar no meio do funil (saída não ligada), e isso é decisão
     // do dono — antes `no_end_path` o obrigava a ligar cada ponta a um nó de Fim só para publicar.
@@ -675,14 +660,14 @@ export function validateFlowForPublish(
       errors.push({
         node_id: id,
         code: 'long_wait_needs_template',
-        message: `Nó "${id}" acumula ≥24h de espera e precisa de fallback_template_id.`,
+        message: `A caixa "${nodesById.get(id)?.label ?? id}" escreve com IA depois de 24h ou mais de espera: escolha nela um "Modelo reserva", que é o que sai se a IA falhar.`,
       });
     }
     if (maxStepsExceeded) {
       errors.push({
         node_id: null,
         code: 'max_steps_exceeded',
-        message: `O caminho mais longo a partir do trigger excede ${MAX_PATH_STEPS} passos.`,
+        message: `O fluxo tem mais de ${MAX_PATH_STEPS} caixas em sequência no caminho mais longo. Divida-o em dois fluxos.`,
       });
     }
   }
@@ -699,7 +684,7 @@ export function validateFlowForPublish(
       errors.push({
         node_id: node.id,
         code: 'immune_wait_too_short',
-        message: `Nó "${node.id}" é imune à resposta e precisa de pelo menos 24h de espera.`,
+        message: `A caixa "${node.label}" está marcada para não ser interrompida pela resposta do contato, e isso só vale para esperas de 24h ou mais. Aumente a espera ou desmarque a opção.`,
       });
     }
   }
@@ -723,7 +708,7 @@ export function validateFlowForPublish(
       errors.push({
         node_id: node.id,
         code: 'grace_too_short',
-        message: `Nó "${node.id}" tem grace_timeout_ms abaixo do mínimo de 15min.`,
+        message: `A caixa "${node.label}" espera a resposta por menos de 15 minutos. Aumente o tempo de espera para 15 minutos ou mais.`,
       });
     }
   }
@@ -731,9 +716,8 @@ export function validateFlowForPublish(
   // cycle_without_wait — exact, not an approximation: a directed cycle with no
   // sufficient-wait node exists IFF removing every sufficient-wait node still
   // leaves a cycle (SCC with >1 node, or a self-loop) in the remaining
-  // subgraph. Runs independently of trigger reachability — a node can carry
-  // both unreachable_node and cycle_without_wait at once; that's intentional,
-  // each signal is independently actionable for the editor UI.
+  // subgraph. Runs independently of trigger reachability: a loop among boxes
+  // the trigger does not reach yet is still a loop the moment they get connected.
   const sufficientWaitIds = new Set(nodes.filter(isSufficientWaitNode).map((n) => n.id));
   const remainingIds = nodes.map((n) => n.id).filter((id) => !sufficientWaitIds.has(id));
   const remainingEdges = edges.filter(
@@ -747,7 +731,7 @@ export function validateFlowForPublish(
     errors.push({
       node_id: nodeId,
       code: 'cycle_without_wait',
-      message: `Ciclo sem espera mínima de 5min detectado (contém "${nodeId}").`,
+      message: `A caixa "${nodesById.get(nodeId)?.label ?? nodeId}" faz parte de um laço sem pausa: o fluxo voltaria a ela sem parar. Coloque no laço um "Delay" de 5 minutos ou mais, ou uma caixa que espere resposta.`,
     });
   }
 
