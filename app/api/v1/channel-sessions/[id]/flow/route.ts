@@ -57,6 +57,37 @@ export async function PATCH(req: NextRequest, { params }: Context): Promise<Resp
   }
 
   const admin = createAdminClient();
+
+  // O fluxo escolhido tem de RODAR: ser desta organização, estar publicado e ser
+  // um fluxo que aceita inscrição. Sem isso o número ficaria mudo — o agente sai
+  // (modo fluxo) e o fluxo não entra.
+  if (parsed.data.handling_mode === "flow" && parsed.data.default_flow_pointer_id) {
+    const { data: fluxo, error: fluxoErr } = await admin
+      .from("followup_flow_pointers")
+      .select("id, status, active_version_id, surface")
+      .eq("organization_id", auth.org.orgId)
+      .eq("id", parsed.data.default_flow_pointer_id)
+      .maybeSingle();
+    if (fluxoErr) return fail("internal_error", "Erro ao conferir o fluxo.", 500, { requestId });
+    if (!fluxo) return fail("validation_failed", "Fluxo não encontrado.", 422, { requestId });
+    if (fluxo.surface === "atendimento") {
+      return fail(
+        "flow_not_enrollable",
+        "Roteiro de atendimento roda dentro da conversa do agente e não pode ser o dono de um número.",
+        422,
+        { requestId },
+      );
+    }
+    if (fluxo.status !== "active" || !fluxo.active_version_id) {
+      return fail(
+        "flow_not_active",
+        "Publique o fluxo antes de vincular um número a ele — sem isso ninguém responderia neste número.",
+        422,
+        { requestId },
+      );
+    }
+  }
+
   const { data: current, error: loadErr } = await admin
     .from("channel_sessions")
     .select("metadata")
