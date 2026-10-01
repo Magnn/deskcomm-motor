@@ -57,6 +57,7 @@ import {
   type contactFlowFieldTypeSchema,
   type endConfigSchema,
   type HttpMethod,
+  type OrigemDoInicio,
   type waitConfigSchema,
 } from "./graph-schema";
 import type { EnrollmentOutcome, EnrollmentStatus } from "./node-handlers";
@@ -527,6 +528,17 @@ export const TIPOS_DE_ITEM_DE_CONTEUDO: Record<ConteudoItemType, string> = {
   contact: "Contato",
   sticker: "Sticker",
   delay: "Pausa",
+};
+
+/** De onde vem o contato que entra pela caixa "Início" — rótulos do formulário dela. */
+export const ORIGENS_DO_INICIO_ROTULO: Record<OrigemDoInicio, string> = {
+  whatsapp: "WhatsApp (Conversa / Mensagens)",
+  crm: "CRM (Tags / Etapas / Campos)",
+  webhook: "Webhook / API Externa",
+  hotmart: "Hotmart",
+  kiwify: "Kiwify",
+  asaas: "Asaas",
+  stripe: "Stripe",
 };
 
 /** O que o nó Google Sheets faz na planilha — rótulos do formulário e do card. */

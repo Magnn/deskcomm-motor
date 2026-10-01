@@ -850,11 +850,41 @@ export const executeCodeConfigSchema = z.strictObject({
 export type ExecuteCodeConfig = z.infer<typeof executeCodeConfigSchema>;
 
 /**
+ * A caixa "Início": por onde o contato entra no fluxo.
+ *
+ * Todos os campos são opcionais — a caixa vazia (`{}`) é a de todo fluxo que já
+ * existia, e continua valendo: quem inicia esse fluxo é o gatilho do topo.
+ *
+ * O que RODA hoje é a origem WhatsApp, e ela vale para os números vinculados ao
+ * fluxo (`lib/followup/gatilho-do-inicio.ts` decide, na mensagem que chega, se o
+ * contato entra). As outras origens são aceitas no rascunho — para a caixa poder
+ * ser salva enquanto se monta — e recusadas na publicação, com o motivo
+ * (`validate-publish.ts`): caixa que promete um gatilho que nada dispara é pior
+ * que caixa sem gatilho.
+ */
+export const ORIGENS_DO_INICIO = ['whatsapp', 'crm', 'webhook', 'hotmart', 'kiwify', 'asaas', 'stripe'] as const;
+export type OrigemDoInicio = (typeof ORIGENS_DO_INICIO)[number];
+/** Eventos da origem WhatsApp — os únicos com motor. */
+export const EVENTOS_WHATSAPP_DO_INICIO = ['keyword', 'message_received', 'inicio_conversa'] as const;
+export type EventoWhatsappDoInicio = (typeof EVENTOS_WHATSAPP_DO_INICIO)[number];
+
+export const triggerNodeConfigSchema = z.strictObject({
+  integration: z.enum(ORIGENS_DO_INICIO).optional(),
+  event: z.string().max(40).optional(),
+  keyword: z.string().max(200).optional(),
+  tag: z.string().max(100).optional(),
+  custom_field: z.string().max(100).optional(),
+  inactivity_hours: z.number().int().min(1).max(720).optional(),
+});
+export type TriggerNodeConfig = z.infer<typeof triggerNodeConfigSchema>;
+
+/**
  * Flow node schema — discriminated union based on node type.
  * Each node type has its specific config schema.
  */
 export const flowNodeSchema = z.discriminatedUnion('type', [
-  // Trigger node: entry point, no config
+  // Trigger node: entry point. A config é a "porta de entrada" que o dono escolhe na caixa
+  // (ver `triggerNodeConfigSchema`); vazia = fluxo iniciado só pelo gatilho do topo.
   z.strictObject({
     id: z.string().min(1),
     type: z.literal('trigger'),
@@ -863,7 +893,7 @@ export const flowNodeSchema = z.discriminatedUnion('type', [
       x: z.number(),
       y: z.number(),
     }),
-    config: z.strictObject({}),
+    config: triggerNodeConfigSchema,
   }),
   // Wait node: pauses flow for a duration
   z.strictObject({

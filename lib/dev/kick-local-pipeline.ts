@@ -127,6 +127,22 @@ async function acelerarDesteContato(
   }
 }
 
+/**
+ * Dá o primeiro passo do fluxo DESTE contato agora, sem esperar o relógio de um
+ * minuto. Para quem acabou de inscrever o contato dentro do próprio webhook (o
+ * número vinculado a um fluxo): sem isto, a primeira resposta só saía no minuto
+ * seguinte. Fail-soft, como o resto do arquivo — o relógio é a rede de segurança.
+ */
+export async function acelerarFluxoDoContato(admin: SupabaseClient, contato: ContatoDoPipeline): Promise<void> {
+  try {
+    await acelerarDesteContato(admin, contato);
+  } catch (err) {
+    logger.warn("[dev.pipeline] acelerar o fluxo do contato falhou (o relógio assume)", {
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+}
+
 export async function acelerarPipelineDeEventos(
   admin: SupabaseClient,
   inbound?: SinalDeInbound,

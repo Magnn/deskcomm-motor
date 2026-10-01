@@ -51,10 +51,12 @@ import { casarClickRef } from "@/lib/plataformas-de-anuncio/meta/captura-de-cliq
 import type { createAdminClient } from "@/lib/supabase/admin";
 import { ehPedidoDeOptOut } from "@/lib/opt-out/deteccao";
 import { ehContatoDoNumeroInterno } from "@/lib/escalacao/numero-interno-de-aviso";
-import { acelerarPipelineDeEventos } from "@/lib/dev/kick-local-pipeline";
+import { acelerarFluxoDoContato, acelerarPipelineDeEventos } from "@/lib/dev/kick-local-pipeline";
 import { autorizarContatoParaIA } from "@/lib/ai/elegibilidade/autorizacao";
 import { casarCampanha, lerCampanhas } from "@/lib/ai/elegibilidade/campanha";
 import { enrollFollowupFlow } from "@/lib/followup/enroll";
+import { configDoInicio, eventoWhatsappDoInicio, mensagemAbreOFluxo } from "@/lib/followup/gatilho-do-inicio";
+import { flowGraphSchema, type TriggerNodeConfig } from "@/lib/followup/graph-schema";
 import { lerConfigDeFluxoDoCanal, quemAtendeONumero, type QuemAtende } from "@/lib/channels/channel-flow-config";
 
 type Admin = ReturnType<typeof createAdminClient>;
@@ -166,6 +168,34 @@ export async function aplicarEfeitosPosEntrada(
  * Permite ao usuário escolher por canal se o número roda um fluxo direto
  * sem IA, se usa agente de IA ou se vai direto para atendimento humano.
  */
+/**
+ * A configuração da caixa "Início" da versão PUBLICADA do fluxo. `null` quando não
+ * dá para ler (fluxo sem versão ativa, grafo fora do schema): quem chama segue
+ * para a inscrição, que é quem sabe recusar e dizer por quê.
+ */
+async function lerInicioDoFluxoPublicado(
+  admin: Admin,
+  organizationId: string,
+  pointerId: string,
+): Promise<TriggerNodeConfig | null> {
+  const { data: pointer } = await admin
+    .from("followup_flow_pointers")
+    .select("active_version_id")
+    .eq("organization_id", organizationId)
+    .eq("id", pointerId)
+    .maybeSingle();
+  if (!pointer?.active_version_id) return null;
+  const { data: version } = await admin
+    .from("followup_flow_versions")
+    .select("graph")
+    .eq("organization_id", organizationId)
+    .eq("id", pointer.active_version_id)
+    .maybeSingle();
+  const parsed = flowGraphSchema.safeParse(version?.graph);
+  if (!parsed.success) return null;
+  return configDoInicio(parsed.data) ?? null;
+}
+
 async function processarFluxoOuDespachoDoCanal(admin: Admin, entrada: EntradaDeMensagem): Promise<void> {
   let dono: QuemAtende | null = null;
   try {
@@ -199,6 +229,32 @@ async function processarFluxoOuDespachoDoCanal(admin: Admin, entrada: EntradaDeM
         .maybeSingle();
 
       if (!activeEnrollment) {
+        // A caixa "Início" do fluxo publicado diz QUAL mensagem abre o fluxo
+        // (palavra-chave, qualquer mensagem, primeiro contato). Mensagem que não
+        // abre fica no inbox, sem resposta automática — o número é do fluxo, o
+        // agente de IA não é o plano B.
+        const inicio = await lerInicioDoFluxoPublicado(admin, entrada.organizationId, targetFlowId);
+        if (inicio !== null) {
+          const evento = eventoWhatsappDoInicio(inicio);
+          const decisao = mensagemAbreOFluxo(inicio, {
+            texto: entrada.texto,
+            // Só consulta o histórico quando a caixa pede "primeiro contato".
+            primeiraDoContato:
+              evento === "inicio_conversa"
+                ? await ehAPrimeiraMensagemDoContato(admin, entrada.organizationId, entrada.contactId, entrada.messageId)
+                : false,
+          });
+          if (!decisao.entra) {
+            logger.info("[pos-entrada] mensagem não abre o fluxo do número (caixa Início)", {
+              channelId: entrada.channelSessionId,
+              contactId: entrada.contactId,
+              flowId: targetFlowId,
+              motivo: decisao.motivo,
+            });
+            return;
+          }
+        }
+
         const enrollResult = await enrollFollowupFlow(admin, {
           organizationId: entrada.organizationId,
           pointerId: targetFlowId,
@@ -212,6 +268,13 @@ async function processarFluxoOuDespachoDoCanal(admin: Admin, entrada: EntradaDeM
             channelId: entrada.channelSessionId,
             contactId: entrada.contactId,
             flowId: targetFlowId,
+          });
+          // O `acelerarPipelineDeEventos` desta mensagem já rodou ANTES da
+          // inscrição existir. Sem este passo, a primeira resposta do fluxo só
+          // sairia quando o relógio de um minuto passasse.
+          await acelerarFluxoDoContato(admin, {
+            organizationId: entrada.organizationId,
+            contactId: entrada.contactId,
           });
         } else {
           // O número aponta para um fluxo que não roda (desativado, apagado). A
