@@ -105,7 +105,7 @@ export function WebchatClient() {
                     id="webchat-color-picker"
                     value={config.brandColor}
                     onChange={(e) => setConfig({ ...config, brandColor: e.target.value })}
-                    className="h-9 w-10 cursor-pointer rounded border p-0.5"
+                    className="h-9 w-10 cursor-pointer rounded-md border p-0.5"
                   />
                   <Input
                     id="webchat-color"

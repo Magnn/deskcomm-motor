@@ -232,7 +232,7 @@ export function CustomFieldsSettingsClient({
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="font-semibold text-foreground">{campo.label}</h3>
-                    <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs text-muted-foreground">
+                    <code className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-xs text-muted-foreground">
                       {campo.key}
                     </code>
                     <Badge variant="outline" className="text-xs">

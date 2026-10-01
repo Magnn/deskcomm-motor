@@ -27,7 +27,7 @@ export function ExecuteCodeNode({ id, data, selected }: NodeProps<RFNode>) {
         </span>
       </div>
 
-      <div className="rounded border border-amber-200/60 bg-amber-100/40 p-1.5 font-mono text-[10px] text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/40 dark:text-amber-300 truncate">
+      <div className="rounded-md border border-amber-200/60 bg-amber-100/40 p-1.5 font-mono text-[10px] text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/40 dark:text-amber-300 truncate">
         {codeSnippet || "return { status: 'ok' };"}
       </div>
 

@@ -91,11 +91,10 @@ export function ContactsListClient() {
     return Array.from(set).sort();
   }, [allContacts, clientesLigado]);
 
-  const pipelineQuery = useDefaultPipeline(true);
-  const camposPersonalizados = useMemo(
-    () => camposDoFunil(pipelineQuery.data?.pipeline.settings ?? null),
-    [pipelineQuery.data]
-  );
+  const funilPadrao = useDefaultPipeline(true);
+  const camposPersonalizados = useMemo(() => {
+    return camposDoFunil(funilPadrao.data?.pipeline.settings ?? null);
+  }, [funilPadrao.data]);
 
   const [filtrosAvancados, setFiltrosAvancados] = useState<FiltrosAvancadosState>({
     statusCliente: "todos",

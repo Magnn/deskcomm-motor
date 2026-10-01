@@ -124,7 +124,7 @@ export function CarregarPersonaDialog({ onSelectPersona, disabled }: Props) {
             <span>Palavras da casa:</span>
             <div className="flex flex-wrap gap-1">
               {current.sugestao.palavrasDaCasa.slice(0, 3).map((w) => (
-                <span key={w} className="rounded bg-emerald-50 px-1 text-emerald-700 font-mono text-[10px] dark:bg-emerald-950/40 dark:text-emerald-300">
+                <span key={w} className="rounded-md bg-emerald-50 px-1 text-emerald-700 font-mono text-[10px] dark:bg-emerald-950/40 dark:text-emerald-300">
                   +{w}
                 </span>
               ))}

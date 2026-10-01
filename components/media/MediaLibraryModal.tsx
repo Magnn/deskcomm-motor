@@ -171,7 +171,7 @@ export function MediaLibraryModal({
                     }`}
                   >
                     {isSelected && (
-                      <span className="absolute right-2 top-2 rounded-full bg-primary p-1 text-primary-foreground shadow">
+                      <span className="absolute right-2 top-2 rounded-full bg-primary p-1 text-primary-foreground shadow-sm">
                         <Check className="h-3 w-3" />
                       </span>
                     )}
