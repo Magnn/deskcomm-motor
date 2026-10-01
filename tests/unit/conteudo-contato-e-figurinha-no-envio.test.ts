@@ -9,6 +9,9 @@
  *   4. no transporte sem endpoint de figurinha, o .webp sai por `sendImage` sem
  *      legenda (imagem), nunca por `sendFile` (anexo).
  */
+import { readFileSync } from "node:fs";
+import path from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import { corpoDoEnvio } from "@/lib/agent-engine/edge/crm/send-message";
@@ -90,6 +93,46 @@ describe("corpoDoEnvio — vídeo e documento", () => {
       media_storage_path: "org-1/conv-1/conteudo-job-1-2/Proposta.pdf",
     });
     expect(corpo).not.toHaveProperty("body");
+  });
+});
+
+describe("áudio como arquivo × nota de voz — do motor até cada canal", () => {
+  const audio = { storagePath: "org-1/conv-1/conteudo-job-1-2/Aula_01.mp3", mime: "audio/mpeg", kind: "audio" as const };
+
+  it("corpoDoEnvio marca `audio_as_file` no metadata só quando pedido", () => {
+    const comoArquivo = corpoDoEnvio({ ...base, body: "", media: { ...audio, audioAsFile: true } }, "chave");
+    expect(comoArquivo).toMatchObject({ type: "audio", metadata: { audio_as_file: true } });
+    const notaDeVoz = corpoDoEnvio({ ...base, body: "", media: audio }, "chave");
+    expect(notaDeVoz.metadata).not.toHaveProperty("audio_as_file");
+  });
+
+  it("o handler de mensagens repassa a marca ao canal como `asFile` (elo do meio da corrente)", () => {
+    // O handler não tem teste de envio de mídia com adapter de mentira; sem esta
+    // conferência, a marca podia sair do motor e morrer aqui em silêncio.
+    const fonte = readFileSync(path.join(process.cwd(), "app/api/v1/messages/_handler.ts"), "utf8");
+    expect(fonte).toMatch(/input\.type === "audio" && input\.metadata\?\.audio_as_file === true \? \{ asFile: true \}/);
+  });
+
+  const envelopeDe = (asFile: boolean) =>
+    ({
+      kind: "audio",
+      media: { url: "https://signed.example/a.mp3?t=1", mime: "audio/mpeg", filename: "Aula_01.mp3", caption: null, ...(asFile ? { asFile: true } : {}) },
+    }) as unknown as OutboundEnvelope;
+
+  it("canal oficial: sem `voice` quando é arquivo; com `voice: true` quando é nota de voz", () => {
+    expect(mediaPayload(envelopeDe(true))).toEqual({ type: "audio", audio: { link: "https://signed.example/a.mp3?t=1" } });
+    expect(mediaPayload(envelopeDe(false))).toEqual({
+      type: "audio",
+      audio: { link: "https://signed.example/a.mp3?t=1", voice: true },
+    });
+  });
+
+  it("transporte não oficial: sendFile com o nome quando é arquivo; sendVoice quando é nota de voz", () => {
+    const m = { url: "https://signed.example/a.mp3?t=1", mime: "audio/mpeg", filename: "Aula_01.mp3" };
+    const arquivo = wahaSendPlanFor("audio", { ...m, asFile: true });
+    expect(arquivo.endpoint).toBe("sendFile");
+    expect((arquivo.payload.file as { filename: string }).filename).toBe("Aula_01.mp3");
+    expect(wahaSendPlanFor("audio", m).endpoint).toBe("sendVoice");
   });
 });
 

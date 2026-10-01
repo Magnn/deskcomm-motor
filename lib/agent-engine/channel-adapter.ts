@@ -48,7 +48,7 @@ export interface ChannelSendInput {
    * a URL curta para o canal é o handler de mensagens, como em toda mídia.
    * `'sticker'` = figurinha (.webp), sem legenda: o `body` é ignorado.
    */
-  media?: { storagePath: string; mime: string; kind?: 'image' | 'video' | 'audio' | 'document' | 'sticker' };
+  media?: { storagePath: string; mime: string; kind?: 'image' | 'video' | 'audio' | 'document' | 'sticker'; audioAsFile?: boolean };
   /**
    * Presente = este envio é um CARTÃO DE CONTATO (nome + telefone). Não é mídia e
    * não tem legenda: o `body` só existe para o hash de idempotência. Quem monta o

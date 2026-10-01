@@ -851,6 +851,9 @@ export async function sendMessageHandler(
             mime: input.media_mime ?? "application/octet-stream",
             filename,
             caption: input.body ?? null,
+            // Áudio como ARQUIVO, e não nota de voz — pedido por quem envia
+            // (o nó Conteúdo do fluxo, com "enviar como áudio gravado?" desligado).
+            ...(input.type === "audio" && input.metadata?.audio_as_file === true ? { asFile: true } : {}),
           },
           // O id que a PLATAFORMA conhece, lido da linha citada agora — não uma
           // cópia guardada no envio, que poderia divergir da linha.

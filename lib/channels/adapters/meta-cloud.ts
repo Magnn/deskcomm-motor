@@ -75,6 +75,9 @@ export function mediaPayload(env: OutboundEnvelope): Record<string, unknown> | n
     case "audio":
       // `voice: true` é o que faz virar BOLHA DE VOZ. Sem ele, anexo de música.
       // Exige ogg/opus — a Meta não converte, diferente do outro canal.
+      // Sem `voice`, a Cloud API entrega como ARQUIVO de áudio (o "enviar como
+      // áudio gravado?" desligado do construtor de fluxo).
+      if (env.media.asFile) return { type: "audio", audio: { link } };
       return { type: "audio", audio: { link, voice: true } };
     case "sticker":
       // Figurinha de verdade na Cloud API: só `link` (.webp), sem legenda — o

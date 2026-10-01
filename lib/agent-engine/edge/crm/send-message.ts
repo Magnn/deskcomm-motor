@@ -68,7 +68,7 @@ export interface SendMessageInput {
    * `kind` ausente = imagem; `'audio'` = nota de voz (o `body` é o texto falado);
    * `'sticker'` = figurinha, que não tem legenda.
    */
-  media?: { storagePath: string; mime: string; kind?: 'image' | 'video' | 'audio' | 'document' | 'sticker' };
+  media?: { storagePath: string; mime: string; kind?: 'image' | 'video' | 'audio' | 'document' | 'sticker'; audioAsFile?: boolean };
   /**
    * Presente = este envio é um CARTÃO DE CONTATO (nome + telefone). Não é mídia e
    * não tem legenda: o `body` só existe para o hash de idempotência. Quem monta o
@@ -112,6 +112,8 @@ export function corpoDoEnvio(
       : {}),
     metadata: {
       idempotency_key: idempotencyKey,
+      // Áudio como ARQUIVO (não nota de voz): o handler repassa ao canal.
+      ...(input.media?.kind === 'audio' && input.media.audioAsFile ? { audio_as_file: true } : {}),
       // Mesmo formato do envio manual (`sendMessageSchema`): nome + telefone.
       ...(input.contact
         ? { shared_contact: { name: input.contact.name, phone_number: input.contact.phoneNumber } }

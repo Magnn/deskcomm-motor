@@ -72,7 +72,7 @@ function attachmentFields(env: OutboundEnvelope): Record<string, unknown> {
       // mas NÃO converte: exige ogg/opus mono, igual ao canal oficial. Mandar
       // mp3 com a flag entrega anexo de música — por isso a capability declara
       // `opus-only`, e a conversão é de quem prepara a mídia, não daqui.
-      return { ...base, attachmentType: "audio", voiceNote: true };
+      return { ...base, attachmentType: "audio", voiceNote: env.media.asFile !== true };
     default:
       return { ...base, attachmentType: "file" };
   }

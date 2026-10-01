@@ -90,7 +90,7 @@ const conteudoItemPayloadSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('text'), body: z.string().min(1) }),
   z.object({ type: z.literal('image'), storage_path: z.string().min(1), mime: z.string().min(1), caption: z.string().optional() }),
   z.object({ type: z.literal('video'), storage_path: z.string().min(1), mime: z.string().min(1), caption: z.string().optional() }),
-  z.object({ type: z.literal('audio'), storage_path: z.string().min(1), mime: z.string().min(1) }),
+  z.object({ type: z.literal('audio'), storage_path: z.string().min(1), mime: z.string().min(1), voice_note: z.boolean().optional(), filename: z.string().optional() }),
   z.object({
     type: z.literal('document'),
     storage_path: z.string().min(1),
@@ -1180,7 +1180,11 @@ async function sendConteudoSequence(
         } else {
           // image | video | audio | document | sticker
           const base = `${tenantId}/${conversationId}/conteudo-${job.id}-${seq}`;
-          const nomeDoArquivo = item.type === 'document' ? nomeSeguroParaStorage(item.filename) : null;
+          // Documento e áudio-como-arquivo chegam com NOME: o original, quando há.
+          const nomeDoArquivo =
+            item.type === 'document' || (item.type === 'audio' && item.voice_note === false)
+              ? nomeSeguroParaStorage(item.filename)
+              : null;
           const destino =
             nomeDoArquivo !== null
               ? `${base}/${nomeDoArquivo}`
@@ -1194,7 +1198,13 @@ async function sendConteudoSequence(
             tenantId, leadId, jobId: job.id, jobClaim: claimOfJob(job), seq, conversationId,
             // Legenda só onde o canal tem legenda: áudio e figurinha não têm.
             body: 'caption' in item ? (item.caption ?? '') : '',
-            media: { storagePath: destino, mime: item.mime, kind: item.type },
+            media: {
+              storagePath: destino,
+              mime: item.mime,
+              kind: item.type,
+              // "Enviar como áudio gravado?" desligado: sai como arquivo de áudio.
+              ...(item.type === 'audio' && item.voice_note === false ? { audioAsFile: true } : {}),
+            },
           });
         }
         if (ultimo && !OK_KINDS.has(ultimo.kind)) return ultimo;

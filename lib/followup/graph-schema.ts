@@ -338,6 +338,13 @@ const conteudoAudioSchema = z.strictObject({
   type: z.literal('audio'),
   storage_path: z.string().min(1).max(500),
   mime: z.string().min(1).max(120),
+  /**
+   * "Enviar como áudio gravado?" — ausente/`true` = nota de voz (o padrão de
+   * sempre); `false` = arquivo de áudio, que o contato vê como anexo com nome.
+   */
+  voice_note: z.boolean().optional(),
+  /** Nome original do arquivo — é o que o contato vê quando o áudio vai como arquivo. */
+  filename: z.string().min(1).max(240).optional(),
 });
 const conteudoDocumentoSchema = z.strictObject({
   type: z.literal('document'),

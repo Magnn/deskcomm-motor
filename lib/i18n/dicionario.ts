@@ -13042,6 +13042,7 @@ export const DICIONARIO: Traducoes = {
   "Ir para o Canva e publicar um fluxo": { es: "Ir al lienzo y publicar un flujo" },
   "Selecione o fluxo do Canva...": { es: "Seleccione el flujo del lienzo..." },
   "Salvar Configuração": { es: "Guardar configuración" },
+  "O áudio chega ao contato como arquivo de áudio, com o nome do arquivo.": { es: "El audio le llega al contacto como archivo de audio, con el nombre del archivo." },
 };
 
 /**

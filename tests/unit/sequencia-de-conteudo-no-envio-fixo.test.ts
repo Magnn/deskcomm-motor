@@ -262,6 +262,28 @@ describe("sequência de conteúdo — texto, mídia e pausa", () => {
     expect(channelSend.mock.calls[0]![0].contact).toBeUndefined();
   });
 
+  it("áudio com 'enviar como áudio gravado?' DESLIGADO sai como arquivo, com o nome original", async () => {
+    const channelSend = fakeChannelSend({ kind: "sent", idempotencyKey: "k", messageId: "m" });
+    await criarHandler(deps(channelSend))(
+      job([
+        { type: "audio", storage_path: `${ORG}/flow-content/f/a.mp3`, mime: "audio/mpeg", voice_note: false, filename: "Aula 01.mp3" },
+        { type: "audio", storage_path: `${ORG}/flow-content/f/b.ogg`, mime: "audio/ogg" },
+      ]),
+      fakePool(),
+      ctx,
+    );
+    expect(channelSend).toHaveBeenCalledTimes(2);
+    const arquivo = channelSend.mock.calls[0]![0] as unknown as { media: { kind: string; audioAsFile?: boolean; storagePath: string } };
+    expect(arquivo.media.kind).toBe("audio");
+    expect(arquivo.media.audioAsFile).toBe(true);
+    expect(arquivo.media.storagePath).toBe(`${ORG}/${CONVERSA}/conteudo-job-1-1/Aula_01.mp3`);
+    // Controle: sem a opção, continua nota de voz — o comportamento de sempre.
+    const notaDeVoz = channelSend.mock.calls[1]![0] as unknown as { media: { kind: string; audioAsFile?: boolean; storagePath: string } };
+    expect(notaDeVoz.media.kind).toBe("audio");
+    expect(notaDeVoz.media.audioAsFile).toBeUndefined();
+    expect(notaDeVoz.media.storagePath).toBe(`${ORG}/${CONVERSA}/conteudo-job-1-2.ogg`);
+  });
+
   it("figurinha é copiada pra conversa e sai como mídia 'sticker', sem legenda", async () => {
     const channelSend = fakeChannelSend({ kind: "sent", idempotencyKey: "k", messageId: "m" });
     await criarHandler(deps(channelSend))(
