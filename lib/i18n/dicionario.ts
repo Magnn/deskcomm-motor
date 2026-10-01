@@ -13007,7 +13007,7 @@ export const DICIONARIO: Traducoes = {
   "o texto está em branco — escreva-o ou remova o item.": { es: "el texto está en blanco: escríbalo o quite el ítem." },
   "o contato precisa de nome e telefone.": { es: "el contacto necesita nombre y teléfono." },
   "Esta caixa ainda não foi configurada por completo — clique em Editar e preencha o que falta.": { es: "Esta caja aún no está configurada por completo: haga clic en Editar y complete lo que falta." },
-  "Há caixas sem configurar — corrija as destacadas em vermelho para salvar.": { es: "Hay cajas sin configurar: corrija las marcadas en rojo para guardar." },
+  "O fluxo ainda não pode ser salvo.": { es: "El flujo todavía no se puede guardar." },
   "O fluxo ainda não pode ser salvo: ele precisa de ao menos duas caixas ligadas.": { es: "El flujo aún no se puede guardar: necesita al menos dos cajas conectadas." },
   "Sticker": { es: "Sticker" },
   "O sticker precisa ser um arquivo .webp de até 500 KB.": { es: "El sticker debe ser un archivo .webp de hasta 500 KB." },
@@ -13064,6 +13064,9 @@ export const DICIONARIO: Traducoes = {
   "Arquivo não encontrado.": { es: "Archivo no encontrado." },
   "Só áudio pode ser transcrito.": { es: "Solo se puede transcribir audio." },
   "Áudio grande demais para transcrever.": { es: "Audio demasiado grande para transcribir." },
+  "O fluxo não pôde ser publicado.": { es: "No se pudo publicar el flujo." },
+  "e mais": { es: "y otros" },
+  "veja as caixas destacadas em vermelho.": { es: "vea las cajas marcadas en rojo." },
 };
 
 /**

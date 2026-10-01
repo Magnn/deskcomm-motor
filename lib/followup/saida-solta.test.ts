@@ -530,8 +530,8 @@ describe("publicação — saída solta não reprova (o lead fica parado)", () =
     });
   }
 
-  it("nó que NINGUÉM alcança continua sendo erro (isso é código morto, não saída solta)", () => {
+  it("nó que NINGUÉM alcança também não é erro: ele só não roda (mesmo princípio da saída solta)", () => {
     const g = grafo([trigger, no("a", "action", { mode: "text", body: "oi" }), no("orfao", "action", { mode: "text", body: "x" })], [edge("t", "a", always())]);
-    expect(codigos(g)).toContain("unreachable_node");
+    expect(codigos(g)).not.toContain("unreachable_node");
   });
 });

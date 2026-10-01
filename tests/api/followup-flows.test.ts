@@ -49,7 +49,9 @@ const VALID_GRAPH: FlowGraph = {
 
 /** trigger + orphan end (unreachable from nothing traversing to it) -> no_end_path. */
 const INVALID_GRAPH: FlowGraph = {
-  nodes: [trigger("t1"), end("e1"), end("orphan")],
+  // Dois gatilhos: caixa SOLTA deixou de ser erro (não roda, e só), então o grafo
+  // inválido de referência passou a ser o de dois inícios.
+  nodes: [trigger("t1"), end("e1"), trigger("t2")],
   edges: [edge("edge1", "t1", "e1")],
 };
 
@@ -511,7 +513,7 @@ describe("POST /api/v1/ai/followup-flows/:id/publish", () => {
     expect(body.error.details.errors.length).toBeGreaterThan(0);
   });
 
-  it("draft_graph inválido (nó órfão) → 422 com erro por node", async () => {
+  it("draft_graph inválido (dois gatilhos) → 422 com erro por node", async () => {
     const db = makeDb(
       [{ id: "33333333-3333-4333-8333-333333333333", organization_id: ORG_ID, status: "draft", draft_graph: INVALID_GRAPH }],
       [],
@@ -524,7 +526,7 @@ describe("POST /api/v1/ai/followup-flows/:id/publish", () => {
       error: { details: { errors: Array<{ code: string; node_id: string | null }> } };
     };
     expect(body.error.details.errors).toEqual([
-      { node_id: "orphan", code: "unreachable_node", message: expect.any(String) },
+      { node_id: "t2", code: "multiple_triggers", message: expect.any(String) },
     ]);
   });
 

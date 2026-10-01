@@ -88,13 +88,35 @@ describe('validateFlowForPublish', () => {
     }
   });
 
-  it('flags unreachable_node for nodes not reachable from the trigger', () => {
+  it('caixa SOLTA (que nada alcança) não impede publicar: ela só não roda', () => {
+    // Quem monta deixa caixas no canvas para ligar depois. Recusar a publicação por
+    // isso prendia o dono num aviso que ele não sabia resolver.
     const g = graph([trigger('t1'), end('e1'), end('orphan')], [edge('t1', 'e1', always())]);
-    const result = validateFlowForPublish(g);
-    expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.errors.map((e) => e.code)).toEqual(['unreachable_node']);
-      expect(result.errors[0]!.node_id).toBe('orphan');
+    expect(validateFlowForPublish(g)).toEqual({ ok: true });
+  });
+
+  it('laço da caixa Repetir não é acusado como ciclo sem pausa — ele tem teto de voltas', () => {
+    const repetir = { id: 'r', type: 'repeat', label: 'Repetir', position: { x: 0, y: 0 }, config: { max_count: 3 } } as unknown as FlowNode;
+    const g = graph(
+      [trigger('t1'), repetir, actionTemplate('a')],
+      [edge('t1', 'r', always()), edge('r', 'a', always()), edge('a', 'r', always())],
+    );
+    const r = validateFlowForPublish(g);
+    expect(r.ok ? [] : r.errors.map((e) => e.code)).not.toContain('cycle_without_wait');
+  });
+
+  it('as recusas falam com o NOME da caixa, não com o id técnico', () => {
+    const g = graph(
+      [trigger('t1'), { ...actionTemplate('action-1'), label: 'Boas-vindas' }, { ...actionTemplate('action-2'), label: 'Oferta' }],
+      [edge('t1', 'action-1', always()), edge('action-1', 'action-2', always()), edge('action-2', 'action-1', always())],
+    );
+    const r = validateFlowForPublish(g);
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      const ciclo = r.errors.find((e) => e.code === 'cycle_without_wait');
+      expect(ciclo?.message).toContain('laço sem pausa');
+      expect(ciclo?.message).toContain('"Boas-vindas"');
+      expect(ciclo?.message).not.toContain('action-1');
     }
   });
 
