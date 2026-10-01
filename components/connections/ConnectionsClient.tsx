@@ -22,6 +22,7 @@ import { usePacingKnobs } from "@/hooks/channels/usePacingKnobs";
 import { AntiBanSheet } from "./AntiBanSheet";
 import { PairingOptions } from "./PairingOptions";
 import { ChannelAiAccess } from "./ChannelAiAccess";
+import { ChannelFlowConfigDialog } from "./ChannelFlowConfigDialog";
 import { ParaIntegrar } from "./ParaIntegrar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -435,6 +436,7 @@ export function ConnectionsClient({ wahaConfigured }: { wahaConfigured: boolean 
                     <ShieldCheck size={14} aria-hidden />
                     {t("Proteção de envio")}
                   </Button>
+                  <ChannelFlowConfigDialog channelId={c.id} channelName={channelLabel(c, t)} />
                   <Button
                     variant="outline"
                     size="sm"
