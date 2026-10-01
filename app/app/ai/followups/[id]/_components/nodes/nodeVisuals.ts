@@ -71,11 +71,11 @@ export function descreverItemDeConteudo(item: ConteudoItem, t: (texto: string) =
       return item.body;
     case "image":
     case "video":
-      return item.caption ? item.caption : t(TIPOS_DE_ITEM_DE_CONTEUDO[item.type]);
+      return item.caption ? item.caption : (item.url ?? t(TIPOS_DE_ITEM_DE_CONTEUDO[item.type]));
     case "audio":
       return item.voice_note === false ? (item.filename ?? t("Arquivo de áudio")) : t(TIPOS_DE_ITEM_DE_CONTEUDO.audio);
     case "document":
-      return item.filename ?? t(TIPOS_DE_ITEM_DE_CONTEUDO.document);
+      return item.filename ?? item.url ?? t(TIPOS_DE_ITEM_DE_CONTEUDO.document);
     case "contact":
       return item.name;
     case "sticker":

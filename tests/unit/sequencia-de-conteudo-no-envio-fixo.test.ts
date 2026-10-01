@@ -51,8 +51,9 @@ vi.mock("@/lib/agent-engine/edge/crm/send-message", () => ({
 }));
 
 const storageCopy = vi.fn(async (_origem: string, _destino: string) => ({ error: null as { message: string; statusCode?: string } | null }));
+const storageUpload = vi.fn(async (_destino: string, _bytes: Buffer, _opts: { contentType: string }) => ({ error: null as { message: string } | null }));
 vi.mock("@/lib/supabase/admin", () => ({
-  createAdminClient: () => ({ storage: { from: () => ({ copy: storageCopy }) } }),
+  createAdminClient: () => ({ storage: { from: () => ({ copy: storageCopy, upload: storageUpload }) } }),
 }));
 
 const ORG = "org-1";
@@ -91,7 +92,7 @@ function job(contentItems: unknown[]): JobRow {
 /** As consultas à etapa do lead feitas neste teste — para provar que ela só é buscada quando citada. */
 const consultasDeEtapa = vi.fn();
 
-function fakePool(etapa: string | null = null) {
+function fakePool(etapa: string | null = null, campos: Record<string, unknown> | null = null) {
   const query = vi.fn(async (sql: string): Promise<{ rows: Array<Record<string, unknown>> }> => {
     if (sql.includes("d.fechada_em::text")) return { rows: [{ ...boundary, status: "open", demanda_fechada_em: null }] };
     if (/from conversations/.test(sql)) {
@@ -99,7 +100,7 @@ function fakePool(etapa: string | null = null) {
     }
     if (sql.includes("crm_stages")) {
       consultasDeEtapa();
-      return { rows: etapa === null ? [] : [{ name: etapa }] };
+      return { rows: etapa === null && campos === null ? [] : [{ name: etapa, custom_fields: campos }] };
     }
     return { rows: [] };
   });
@@ -119,7 +120,7 @@ function fakeChannelSend(resultado: { kind: string; idempotencyKey: string; mess
   return vi.fn(async (_input: EnvioDeItem) => resultado);
 }
 
-function deps(channelSend: ReturnType<typeof vi.fn>) {
+function deps(channelSend: ReturnType<typeof vi.fn>, baixarMidiaDoLink?: ReturnType<typeof vi.fn>) {
   return {
     log: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
     crmCfg: {},
@@ -128,6 +129,7 @@ function deps(channelSend: ReturnType<typeof vi.fn>) {
     sleep: vi.fn(async () => undefined),
     channel: () => ({ send: channelSend }),
     completeFollowupTurn: vi.fn(async () => undefined),
+    ...(baixarMidiaDoLink ? { baixarMidiaDoLink } : {}),
   } as never;
 }
 
@@ -140,6 +142,7 @@ beforeAll(async () => {
 beforeEach(() => {
   runBeforeSend.mockClear();
   storageCopy.mockClear();
+  storageUpload.mockClear();
   storageCopy.mockResolvedValue({ error: null });
 });
 
@@ -260,6 +263,89 @@ describe("sequência de conteúdo — texto, mídia e pausa", () => {
     );
     expect(channelSend).toHaveBeenCalledTimes(1);
     expect(channelSend.mock.calls[0]![0].contact).toBeUndefined();
+  });
+
+  it("imagem por CAMPO DE FLUXO: a variável vira o link, o arquivo é baixado, guardado na conversa e enviado", async () => {
+    const channelSend = fakeChannelSend({ kind: "sent", idempotencyKey: "k", messageId: "m" });
+    const baixar = vi.fn(async (_url: string, _tipo: string) => ({
+      ok: true as const,
+      buffer: Buffer.from("bytes-da-imagem"),
+      mime: "image/jpeg",
+      nome: "foto.jpg",
+    }));
+    await criarHandler(deps(channelSend, baixar))(
+      job([{ type: "image", url: "{{url_imagem_lead}}", caption: "Para {{primeiro_nome}}" }]),
+      fakePool(null, { url_imagem_lead: "https://cdn.publico.teste/lead-7.jpg", _notes: [{ id: 1 }] }),
+      ctx,
+    );
+    // A variável foi resolvida pelos campos do lead ANTES do download.
+    expect(baixar).toHaveBeenCalledWith("https://cdn.publico.teste/lead-7.jpg", "image");
+    // Guardada na pasta da CONVERSA — nunca enviada como link cru ao canal.
+    expect(storageUpload).toHaveBeenCalledTimes(1);
+    expect(storageUpload.mock.calls[0]![0]).toBe(`${ORG}/${CONVERSA}/conteudo-job-1-1.jpg`);
+    expect(storageCopy).not.toHaveBeenCalled();
+    const envio = channelSend.mock.calls[0]![0];
+    expect(envio.body).toBe("Para Maria");
+    expect(envio.media).toMatchObject({ storagePath: `${ORG}/${CONVERSA}/conteudo-job-1-1.jpg`, mime: "image/jpeg", kind: "image" });
+  });
+
+  it("documento por LINK chega com o nome do arquivo do link", async () => {
+    const channelSend = fakeChannelSend({ kind: "sent", idempotencyKey: "k", messageId: "m" });
+    const baixar = vi.fn(async () => ({ ok: true as const, buffer: Buffer.from("pdf"), mime: "application/pdf", nome: "Tabela de Preços.pdf" }));
+    await criarHandler(deps(channelSend, baixar))(
+      job([{ type: "document", url: "https://arquivos.publico.teste/Tabela%20de%20Pre%C3%A7os.pdf" }]),
+      fakePool(),
+      ctx,
+    );
+    expect(channelSend.mock.calls[0]![0].media).toMatchObject({
+      storagePath: `${ORG}/${CONVERSA}/conteudo-job-1-1/Tabela_de_Precos.pdf`,
+      kind: "document",
+    });
+  });
+
+  it("link que não baixa PULA o item e a sequência segue — nunca derruba o turno", async () => {
+    const channelSend = fakeChannelSend({ kind: "sent", idempotencyKey: "k", messageId: "m" });
+    const baixar = vi.fn(async () => ({ ok: false as const, motivo: "unsafe_url:private_ip" }));
+    await criarHandler(deps(channelSend, baixar))(
+      job([
+        { type: "image", url: "https://interno.teste/a.jpg" },
+        { type: "text", body: "Segue o texto" },
+      ]),
+      fakePool(),
+      ctx,
+    );
+    expect(storageUpload).not.toHaveBeenCalled();
+    expect(channelSend).toHaveBeenCalledTimes(1);
+    expect(channelSend.mock.calls[0]![0].seq).toBe(1);
+  });
+
+  it("campo de fluxo vazio ou inexistente: nem tenta baixar", async () => {
+    const channelSend = fakeChannelSend({ kind: "sent", idempotencyKey: "k", messageId: "m" });
+    const baixar = vi.fn(async () => ({ ok: true as const, buffer: Buffer.from("x"), mime: "image/jpeg", nome: null }));
+    await criarHandler(deps(channelSend, baixar))(
+      job([
+        { type: "image", url: "{{campo_que_nao_existe}}" },
+        { type: "image", url: "{{campo_vazio}}" },
+        { type: "text", body: "Só o texto sai" },
+      ]),
+      fakePool(null, { campo_vazio: "" }),
+      ctx,
+    );
+    expect(baixar).not.toHaveBeenCalled();
+    expect(channelSend).toHaveBeenCalledTimes(1);
+  });
+
+  it("campo de fluxo também vale em TEXTO", async () => {
+    const channelSend = fakeChannelSend({ kind: "sent", idempotencyKey: "k", messageId: "m" });
+    await criarHandler(deps(channelSend))(
+      job([
+        { type: "text", body: "Primeira" },
+        { type: "text", body: "Você escolheu o plano {{plano}}." },
+      ]),
+      fakePool(null, { plano: "Ouro" }),
+      ctx,
+    );
+    expect(channelSend.mock.calls[1]![0].body).toBe("Você escolheu o plano Ouro.");
   });
 
   it("áudio com 'enviar como áudio gravado?' DESLIGADO sai como arquivo, com o nome original", async () => {

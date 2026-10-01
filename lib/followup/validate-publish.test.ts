@@ -1028,3 +1028,33 @@ describe('validateFlowForPublish — nós sem motor de execução', () => {
     }
   });
 });
+
+describe('validateFlowForPublish — mídia por link', () => {
+  const codigos = (g: FlowGraph) => {
+    const r = validateFlowForPublish(g);
+    return r.ok ? [] : r.errors.map((e) => e.code);
+  };
+  const comItem = (item: ConteudoItem) =>
+    graph([trigger('t'), actionContent('a', [{ type: 'text', body: 'Oi' }, item]), end('f')], [
+      edge('t', 'a', always()),
+      edge('a', 'f', always()),
+    ]);
+
+  it('link público e link por variável publicam', () => {
+    expect(codigos(comItem({ type: 'document', url: 'https://arquivos.publico.teste/a.pdf' }))).not.toContain('midia_com_link_invalido');
+    expect(codigos(comItem({ type: 'image', url: '{{url_imagem_lead}}' }))).not.toContain('midia_com_link_invalido');
+  });
+
+  it.each([
+    ['endereço interno', 'http://127.0.0.1/a.jpg'],
+    ['metadata da nuvem', 'http://169.254.169.254/latest'],
+    ['esquema estranho', 'ftp://arquivos.teste/a.pdf'],
+    ['texto que não é link', 'meu arquivo'],
+  ])('link fixo com %s: recusa no publish, com o item', (_caso, url) => {
+    const r = validateFlowForPublish(comItem({ type: 'image', url }));
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.errors.find((e) => e.code === 'midia_com_link_invalido')?.message).toContain('item 2');
+    }
+  });
+});

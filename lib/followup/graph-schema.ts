@@ -298,11 +298,16 @@ export const aiClassifyConfigSchema = z
  * limite de bytes aqui seria uma segunda fonte da mesma verdade, sem poder
  * vigiar o arquivo em si (que já está no Storage quando este schema roda).
  *
- * ─── Mídia é PATH, nunca URL ───────────────────────────────────────────────
- * `storage_path` é o caminho no bucket `whatsapp-media` (mesma convenção de
- * `SendMessageInput.media_storage_path`), não uma URL assinada — que expira
- * em ~10 min (`app/api/v1/messages/_handler.ts`). Quem envia assina de novo
- * na hora, como o composer manual já faz.
+ * ─── Mídia tem DUAS origens, e é exatamente uma ────────────────────────────
+ *  - `storage_path` (+ `mime`): arquivo enviado pela tela, guardado no bucket
+ *    `whatsapp-media`. É PATH, nunca URL assinada — que expira em ~10 min
+ *    (`app/api/v1/messages/_handler.ts`); quem envia assina de novo na hora.
+ *  - `url`: um link público ("Link" do documento) ou uma variável que guarda
+ *    um link ("Campo de fluxo" da imagem, ex.: `{{url_imagem_lead}}`). O motor
+ *    resolve a variável, BAIXA o arquivo com as guardas anti-SSRF e o envia
+ *    (`lib/agent-engine/agent/midia-por-link.ts`). O formato e o tamanho só
+ *    são conhecidos nessa hora, e é lá que são cobrados.
+ * Ter as duas, ou nenhuma, é recusado (`umaOrigemDeMidia`).
  *
  * ─── Áudio é sempre nota de voz ────────────────────────────────────────────
  * Convenção já em vigor neste produto (seção de mídia de mensagem, mapa de
@@ -318,22 +323,42 @@ export const aiClassifyConfigSchema = z
  * Para esperas longas (dias/meses) o nó certo continua sendo `wait` — os dois
  * convivem sem conflito, um de ritmo e outro de cadência.
  */
+/** Origem de uma mídia: arquivo do bucket OU link/variável — nunca os dois, nunca nenhum. */
+const origemDeMidia = {
+  storage_path: z.string().min(1).max(500).optional(),
+  mime: z.string().min(1).max(120).optional(),
+  url: z.string().min(1).max(2000).optional(),
+};
+function umaOrigemDeMidia(item: { storage_path?: string; mime?: string; url?: string }, ctx: z.RefinementCtx): void {
+  const temArquivo = item.storage_path !== undefined;
+  const temLink = item.url !== undefined;
+  if (temArquivo === temLink) {
+    ctx.addIssue({ code: 'custom', path: ['storage_path'], message: 'informe o arquivo OU o link da mídia' });
+    return;
+  }
+  if (temArquivo && item.mime === undefined) {
+    ctx.addIssue({ code: 'custom', path: ['mime'], message: 'arquivo sem tipo (mime)' });
+  }
+}
+
 const conteudoTextoSchema = z.strictObject({
   type: z.literal('text'),
   body: z.string().min(1).max(4000),
 });
-const conteudoImagemSchema = z.strictObject({
-  type: z.literal('image'),
-  storage_path: z.string().min(1).max(500),
-  mime: z.string().min(1).max(120),
-  caption: z.string().max(1024).optional(),
-});
-const conteudoVideoSchema = z.strictObject({
-  type: z.literal('video'),
-  storage_path: z.string().min(1).max(500),
-  mime: z.string().min(1).max(120),
-  caption: z.string().max(1024).optional(),
-});
+const conteudoImagemSchema = z
+  .strictObject({
+    type: z.literal('image'),
+    ...origemDeMidia,
+    caption: z.string().max(1024).optional(),
+  })
+  .superRefine(umaOrigemDeMidia);
+const conteudoVideoSchema = z
+  .strictObject({
+    type: z.literal('video'),
+    ...origemDeMidia,
+    caption: z.string().max(1024).optional(),
+  })
+  .superRefine(umaOrigemDeMidia);
 const conteudoAudioSchema = z.strictObject({
   type: z.literal('audio'),
   storage_path: z.string().min(1).max(500),
@@ -346,13 +371,14 @@ const conteudoAudioSchema = z.strictObject({
   /** Nome original do arquivo — é o que o contato vê quando o áudio vai como arquivo. */
   filename: z.string().min(1).max(240).optional(),
 });
-const conteudoDocumentoSchema = z.strictObject({
-  type: z.literal('document'),
-  storage_path: z.string().min(1).max(500),
-  mime: z.string().min(1).max(120),
-  filename: z.string().min(1).max(240).optional(),
-  caption: z.string().max(1024).optional(),
-});
+const conteudoDocumentoSchema = z
+  .strictObject({
+    type: z.literal('document'),
+    ...origemDeMidia,
+    filename: z.string().min(1).max(240).optional(),
+    caption: z.string().max(1024).optional(),
+  })
+  .superRefine(umaOrigemDeMidia);
 const conteudoContatoSchema = z.strictObject({
   type: z.literal('contact'),
   name: z.string().min(1).max(120),

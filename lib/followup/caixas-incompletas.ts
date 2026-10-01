@@ -21,6 +21,8 @@ export type MotivoDaCaixaIncompleta =
   | { tipo: "conteudo_vazio" }
   /** Item de mídia (imagem, vídeo, áudio, documento, figurinha) sem arquivo enviado. */
   | { tipo: "item_sem_arquivo"; item: number }
+  /** Item de mídia na origem "link" sem o link preenchido. */
+  | { tipo: "item_sem_link"; item: number }
   /** Item de texto em branco. */
   | { tipo: "item_sem_texto"; item: number }
   /** Cartão de contato sem nome ou sem telefone. */
@@ -46,6 +48,7 @@ function motivoDoCaminho(caminho: readonly PropertyKey[]): MotivoDaCaixaIncomple
     if (typeof item !== "number") return { tipo: "conteudo_vazio" };
     const campo = caminho[5];
     if (campo === "storage_path" || campo === "mime") return { tipo: "item_sem_arquivo", item: item + 1 };
+    if (campo === "url") return { tipo: "item_sem_link", item: item + 1 };
     if (campo === "body") return { tipo: "item_sem_texto", item: item + 1 };
     if (campo === "name" || campo === "phone_number") return { tipo: "item_contato_incompleto", item: item + 1 };
   }

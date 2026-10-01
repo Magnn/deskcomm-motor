@@ -96,6 +96,8 @@ export function PublishBar({
         return t("Esta caixa está vazia — clique em Editar e adicione ao menos um conteúdo.");
       case "item_sem_arquivo":
         return `${t("Item")} ${motivo.item}: ${t("falta enviar o arquivo — envie-o ou remova o item.")}`;
+      case "item_sem_link":
+        return `${t("Item")} ${motivo.item}: ${t("falta o link do arquivo — preencha-o ou troque para arquivo enviado.")}`;
       case "item_sem_texto":
         return `${t("Item")} ${motivo.item}: ${t("o texto está em branco — escreva-o ou remova o item.")}`;
       case "item_contato_incompleto":

@@ -463,6 +463,25 @@ describe('graph-schema', () => {
         expect(result.success).toBe(false);
       });
 
+      it('mídia tem DUAS origens e é exatamente uma: arquivo OU link', () => {
+        const parse = (item: Record<string, unknown>) =>
+          actionConfigSchema.safeParse({ mode: 'content', items: [item] }).success;
+        // arquivo do bucket
+        expect(parse({ type: 'image', storage_path: 'p.jpg', mime: 'image/jpeg' })).toBe(true);
+        // link fixo e link por variável
+        expect(parse({ type: 'document', url: 'https://arquivos.teste/a.pdf' })).toBe(true);
+        expect(parse({ type: 'image', url: '{{url_imagem_lead}}' })).toBe(true);
+        expect(parse({ type: 'video', url: 'https://cdn.teste/v.mp4', caption: 'veja' })).toBe(true);
+        // as duas juntas, nenhuma, arquivo sem mime, link vazio
+        expect(parse({ type: 'image', storage_path: 'p.jpg', mime: 'image/jpeg', url: 'https://x.teste/a.jpg' })).toBe(false);
+        expect(parse({ type: 'image' })).toBe(false);
+        expect(parse({ type: 'image', storage_path: 'p.jpg' })).toBe(false);
+        expect(parse({ type: 'image', url: '' })).toBe(false);
+        // áudio e figurinha não têm origem por link
+        expect(parse({ type: 'audio', url: 'https://x.teste/a.mp3' })).toBe(false);
+        expect(parse({ type: 'sticker', url: 'https://x.teste/a.webp' })).toBe(false);
+      });
+
       it('audio aceita a opção "enviar como áudio gravado?" e o nome do arquivo', () => {
         const comoArquivo = actionConfigSchema.safeParse({
           mode: 'content',

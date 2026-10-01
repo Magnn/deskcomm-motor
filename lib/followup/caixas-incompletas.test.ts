@@ -78,3 +78,22 @@ describe("rascunhoIncompleto — aponta a caixa que impede salvar", () => {
     expect(rascunhoIncompleto(grafo([gatilho]))).toEqual({ caixas: [], doFluxo: true });
   });
 });
+
+describe("rascunhoIncompleto — mídia por link", () => {
+  it("origem 'link' ainda sem link é acusada como falta de LINK, não de arquivo", () => {
+    const g = grafo([gatilho, conteudo("action-1", [{ type: "image", url: "" }]), fim]);
+    expect(rascunhoIncompleto(g).caixas).toEqual([{ node_id: "action-1", motivo: { tipo: "item_sem_link", item: 1 } }]);
+  });
+
+  it("link preenchido (ou variável) não é acusado", () => {
+    const g = grafo([
+      gatilho,
+      conteudo("action-1", [
+        { type: "document", url: "https://arquivos.publico.teste/a.pdf" },
+        { type: "image", url: "{{url_imagem_lead}}" },
+      ]),
+      fim,
+    ]);
+    expect(rascunhoIncompleto(g).caixas).toEqual([]);
+  });
+});
