@@ -53,6 +53,7 @@ import {
   type aiClassifyConfigSchema,
   type conditionConfigSchema,
   type ConteudoItemType,
+  type GoogleSheetsOperation,
   type contactFlowFieldTypeSchema,
   type endConfigSchema,
   type HttpMethod,
@@ -525,6 +526,14 @@ export const TIPOS_DE_ITEM_DE_CONTEUDO: Record<ConteudoItemType, string> = {
   document: "Documento",
   contact: "Contato",
   delay: "Pausa",
+};
+
+/** O que o nó Google Sheets faz na planilha — rótulos do formulário e do card. */
+export const OPERACOES_DA_PLANILHA: Record<GoogleSheetsOperation, string> = {
+  insert_row: "Inserir nova linha",
+  get_row: "Buscar linha por valor",
+  update_row: "Atualizar linha existente",
+  clear_row: "Limpar linha",
 };
 
 // ─── pergunta do fluxo de atendimento (nó collect) ───────────────────────

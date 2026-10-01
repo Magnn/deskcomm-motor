@@ -947,3 +947,22 @@ describe('validateFlowForPublish — nós de paridade AcassIA', () => {
   });
 });
 
+
+describe('validateFlowForPublish — nós sem motor de execução', () => {
+  // Google Sheets e Executar código só "passam adiante" em `node-handlers.ts`:
+  // não existe executor. Enquanto for assim, o publish recusa — senão o fluxo
+  // publica, roda, e o passo que o dono configurou não acontece.
+  it.each([
+    ['google_sheets', { operation: 'insert_row', spreadsheet_id: 'abc', sheet_name: 'P1', mappings: [] }, 'Google Sheets'],
+    ['execute_code', { code: 'return {};', timeout_ms: 3000, output_field: '', mappings: [] }, 'execução de código'],
+  ] as const)('%s: recusa no publish, dizendo qual motor falta', (type, config, nome) => {
+    const no = { id: 'x', type, label: 'Caixa', position: { x: 0, y: 0 }, config } as unknown as FlowNode;
+    const r = validateFlowForPublish(graph([trigger('t'), no, end('f')], [edge('t', 'x', always()), edge('x', 'f', always())]));
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      const erro = r.errors.find((e) => e.code === 'no_em_construcao');
+      expect(erro?.node_id).toBe('x');
+      expect(erro?.message).toContain(nome);
+    }
+  });
+});

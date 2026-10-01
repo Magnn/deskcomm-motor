@@ -368,7 +368,7 @@ export function CustomFieldsSettingsClient({
                 </Label>
                 <Input
                   id="field-options"
-                  placeholder="Opção 1, Opção 2, Opção 3"
+                  placeholder={t("Opção 1, Opção 2, Opção 3")}
                   value={formOptionsText}
                   onChange={(e) => setFormOptionsText(e.target.value)}
                 />

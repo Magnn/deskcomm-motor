@@ -72,7 +72,14 @@ export interface ContextoDoPublish {
  * `NOS_DA_SUPERFICIE` de propósito: a paleta do editor é derivada dela, e a tela não oferece o que o motor não
  * roda. Quando o motor entra, o tipo sai desta lista e entra lá — nessa ordem, no mesmo PR.
  */
-export const NOS_EM_CONSTRUCAO: readonly NodeType[] = ['agent'];
+export const NOS_EM_CONSTRUCAO: readonly NodeType[] = ['agent', 'google_sheets', 'execute_code'];
+
+/** O nome de cada nó em construção, como aparece na recusa do publish. */
+const NOME_DO_NO_EM_CONSTRUCAO: Partial<Record<NodeType, string>> = {
+  agent: 'do Agente de IA',
+  google_sheets: 'do Google Sheets',
+  execute_code: 'de execução de código',
+};
 
 /**
  * Mesma doutrina do `NOS_EM_CONSTRUCAO` acima, um degrau mais fundo: o nó
@@ -122,8 +129,6 @@ export const NOS_DA_SUPERFICIE: Record<FollowupFlowSurface, readonly NodeType[]>
     'whatsapp_template',
     'meta_pixel',
     'voice_studio',
-    'google_sheets',
-    'execute_code',
   ],
   crm_automation: [
     'trigger',
@@ -146,8 +151,6 @@ export const NOS_DA_SUPERFICIE: Record<FollowupFlowSurface, readonly NodeType[]>
     'whatsapp_template',
     'meta_pixel',
     'voice_studio',
-    'google_sheets',
-    'execute_code',
   ],
   atendimento: ['trigger', 'collect', 'skill', 'end'],
 };
@@ -160,7 +163,7 @@ function validarSuperficie(graph: FlowGraph, surface: FollowupFlowSurface, error
       errors.push({
         node_id: n.id,
         code: 'no_em_construcao',
-        message: `A caixa "${n.label}" ainda não roda: o motor do Agente de IA está em construção e ela não pode ser publicada.`,
+        message: `A caixa "${n.label}" ainda não roda: o motor ${NOME_DO_NO_EM_CONSTRUCAO[n.type] ?? 'deste tipo de caixa'} está em construção e ela não pode ser publicada.`,
       });
       continue;
     }

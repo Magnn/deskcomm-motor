@@ -4,6 +4,7 @@ import { useState } from "react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { useT } from "@/hooks/i18n/useT";
+import { randomId } from "@/lib/random-id";
 import { useLocaleDeData } from "@/hooks/i18n/useLocaleDeData";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -49,7 +50,7 @@ export function ContactNotesSection({ contact, canEdit = true }: Props) {
 
     setSalvando(true);
     const item: ContactNoteItem = {
-      id: crypto.randomUUID(),
+      id: randomId(),
       body: texto,
       author_id: user?.id ?? "unknown",
       author_name: user?.full_name || user?.email || t("Atendente"),

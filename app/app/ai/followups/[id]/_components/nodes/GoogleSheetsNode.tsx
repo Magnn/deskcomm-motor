@@ -28,7 +28,7 @@ export function GoogleSheetsNode({ id, data, selected }: NodeProps<RFNode>) {
           <span>{opLabels[config.operation] || t("Planilha")}</span>
         </span>
         <span className="rounded-md bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300">
-          {config.sheet_name || "Página1"}
+          {config.sheet_name || t("Página1")}
         </span>
       </div>
 
