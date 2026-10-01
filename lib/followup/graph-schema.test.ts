@@ -62,6 +62,8 @@ describe('graph-schema', () => {
         'whatsapp_template',
         'meta_pixel',
         'voice_studio',
+        'google_sheets',
+        'execute_code',
       ]);
     });
 

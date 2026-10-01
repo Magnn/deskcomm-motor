@@ -1,5 +1,5 @@
 /**
- * DeskcommCRM - Webchat Embed Widget Script
+ * Webchat Embed Widget Script
  * Injeta o botão flutuante e o iframe de atendimento no site do cliente.
  */
 (function () {
@@ -16,11 +16,11 @@
   var position = currentScript ? (currentScript.getAttribute("data-position") || "bottom_right") : "bottom_right";
 
   if (!webchatId) {
-    console.warn("[Deskcomm Webchat] data-webchat-id não fornecido no script.");
+    console.warn("[Webchat] data-webchat-id não fornecido no script.");
     return;
   }
 
-  // Descobre a URL base do servidor Deskcomm
+  // Descobre a URL base do servidor
   var scriptUrl = new URL(currentScript.src);
   var baseUrl = scriptUrl.origin;
   var chatPageUrl = baseUrl + "/webchat/" + encodeURIComponent(webchatId);
@@ -111,7 +111,7 @@
   iframe.className = "deskcomm-chat-iframe";
   iframe.src = chatPageUrl;
   iframe.allow = "microphone; camera";
-  iframe.title = "Atendimento Deskcomm";
+  iframe.title = "Atendimento";
   container.appendChild(iframe);
   document.body.appendChild(container);
 

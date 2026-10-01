@@ -94,7 +94,7 @@ export function ImportFlowDialog({ open, onOpenChange }: ImportFlowDialogProps) 
             Importar Modelo de Fluxo
           </DialogTitle>
           <DialogDescription>
-            Importe um pacote de fluxo em formato JSON gerado pelo Deskcomm ou pelo ChatbotX.
+            {t("Importe um pacote de fluxo em formato JSON exportado por este sistema ou pelo ChatbotX.")}
           </DialogDescription>
         </DialogHeader>
 
@@ -118,10 +118,10 @@ export function ImportFlowDialog({ open, onOpenChange }: ImportFlowDialogProps) 
               </div>
               <div>
                 <p className="text-sm font-semibold text-foreground">
-                  Clique para selecionar o arquivo .json
+                  {t("Clique para selecionar o arquivo .json")}
                 </p>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Formatos aceitos: modelos de exportação Deskcomm e ChatbotX
+                  {t("Formatos aceitos: exportação deste sistema e do ChatbotX")}
                 </p>
               </div>
             </button>
@@ -130,7 +130,7 @@ export function ImportFlowDialog({ open, onOpenChange }: ImportFlowDialogProps) 
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400">
                   <Check className="h-4 w-4" />
-                  <span className="text-xs font-semibold">Modelo Validado com Sucesso</span>
+                  <span className="text-xs font-semibold">{t("Modelo Validado com Sucesso")}</span>
                 </div>
                 <Button
                   size="sm"
@@ -156,8 +156,8 @@ export function ImportFlowDialog({ open, onOpenChange }: ImportFlowDialogProps) 
               </div>
 
               <div className="text-[11px] text-muted-foreground flex gap-4 pt-1">
-                <span>Nós: <strong>{templateData.nodes.length}</strong></span>
-                <span>Conexões: <strong>{templateData.edges.length}</strong></span>
+                <span>{t("Nós:")} <strong>{templateData.nodes.length}</strong></span>
+                <span>{t("Conexões:")} <strong>{templateData.edges.length}</strong></span>
               </div>
             </div>
           )}

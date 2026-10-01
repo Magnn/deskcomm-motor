@@ -100,7 +100,7 @@ export function CarregarPersonaDialog({ onSelectPersona, disabled }: Props) {
                     Tom: {p.sugestao.tom}
                   </Badge>
                   <Badge variant="secondary" className="text-[10px] py-0 px-1.5 font-normal">
-                    Tratamento: {p.sugestao.tratamento === "voce" ? "Você" : "Senhor(a)"}
+                    {t("Tratamento:")} {p.sugestao.tratamento === "voce" ? t("Você") : t("Senhor(a)")}
                   </Badge>
                   <Badge variant="secondary" className="text-[10px] py-0 px-1.5 font-normal">
                     Mensagens: {p.sugestao.mensagens}
@@ -115,7 +115,7 @@ export function CarregarPersonaDialog({ onSelectPersona, disabled }: Props) {
         <div className="rounded-xl border border-neutral-200 bg-neutral-50/70 p-3 text-xs dark:border-neutral-800 dark:bg-neutral-900/50 space-y-1.5">
           <div className="font-semibold text-neutral-800 dark:text-neutral-200 flex items-center gap-1.5">
             <span>{current.icone}</span>
-            <span>Apresentação Sugerida:</span>
+            <span>{t("Apresentação Sugerida:")}</span>
           </div>
           <p className="text-[11px] italic text-neutral-600 dark:text-neutral-300 bg-white dark:bg-neutral-800 p-2 rounded-lg border border-neutral-200/80 dark:border-neutral-700/60">
             &ldquo;{current.sugestao.apresentacao}&rdquo;

@@ -230,8 +230,9 @@ describe("paleta do follow-up (roteiro de atendimento, #1130)", () => {
     expect(tipos).not.toContain("collect");
     expect(tipos).not.toContain("skill");
     expect(tipos).toContain("action");
-    expect(tipos).toContain("google_sheets");
-    expect(tipos).toContain("execute_code");
+    // Sem motor de execução ainda (`NOS_EM_CONSTRUCAO`): a paleta não oferece.
+    expect(tipos).not.toContain("google_sheets");
+    expect(tipos).not.toContain("execute_code");
   });
 
   it("descreve os nós de google_sheets e execute_code amigavelmente", () => {

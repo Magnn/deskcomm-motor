@@ -100,7 +100,7 @@ export function TriggerForm({
           className="w-full rounded-[10px] border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2 text-[13px] text-slate-800 dark:text-zinc-100 outline-hidden focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 shadow-xs"
         >
           <option value="whatsapp">{t("WhatsApp (Conversa / Mensagens)")}</option>
-          <option value="crm">{t("Deskcomm CRM (Tags / Etapas / Campos)")}</option>
+          <option value="crm">{t("CRM (Tags / Etapas / Campos)")}</option>
           <option value="webhook">{t("Webhook / API Externa")}</option>
           <option value="hotmart">Hotmart</option>
           <option value="kiwify">Kiwify</option>
