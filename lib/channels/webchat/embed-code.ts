@@ -2,7 +2,12 @@ import type { WebchatConfig } from "./schema";
 
 export interface EmbedCodeOptions {
   webchat: WebchatConfig;
-  baseUrl?: string;
+  /**
+   * A URL desta instalação. OBRIGATÓRIA, sem padrão: o código gerado é colado no
+   * site de um cliente, e um domínio fixo aqui faria todo cliente apontar o
+   * widget para a instalação de outra pessoa.
+   */
+  baseUrl: string;
   theme?: "light" | "dark" | "auto";
 }
 
@@ -11,12 +16,12 @@ export interface EmbedCodeOptions {
  */
 export function generateScriptEmbedCode({
   webchat,
-  baseUrl = "https://desk.atendimento.sbs",
+  baseUrl,
   theme = "auto",
 }: EmbedCodeOptions): string {
   const cleanBase = baseUrl.replace(/\/+$/, "");
   
-  return `<!-- Deskcomm Webchat Widget -->
+  return `<!-- Webchat Widget -->
 <script
   src="${cleanBase}/widget/webchat.js"
   data-webchat-id="${webchat.id}"
@@ -32,12 +37,12 @@ export function generateScriptEmbedCode({
  */
 export function generateIframeEmbedCode({
   webchat,
-  baseUrl = "https://desk.atendimento.sbs",
+  baseUrl,
 }: EmbedCodeOptions): string {
   const cleanBase = baseUrl.replace(/\/+$/, "");
   const chatUrl = `${cleanBase}/webchat/${webchat.id}`;
 
-  return `<!-- Deskcomm Webchat Iframe -->
+  return `<!-- Webchat Iframe -->
 <iframe
   src="${chatUrl}"
   width="100%"
@@ -53,7 +58,7 @@ export function generateIframeEmbedCode({
  */
 export function generateDirectChatUrl(
   webchatId: string,
-  baseUrl = "https://desk.atendimento.sbs"
+  baseUrl: string,
 ): string {
   const cleanBase = baseUrl.replace(/\/+$/, "");
   return `${cleanBase}/webchat/${webchatId}`;

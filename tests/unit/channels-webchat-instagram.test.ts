@@ -53,7 +53,7 @@ describe("Canais - Webchat Widget", () => {
 
     const script = generateScriptEmbedCode({
       webchat: config,
-      baseUrl: "https://desk.atendimento.sbs",
+      baseUrl: "https://crm.invalid",
     });
     expect(script).toContain('data-webchat-id="wc-test-01"');
     expect(script).toContain('data-color="#6366f1"');
@@ -62,13 +62,13 @@ describe("Canais - Webchat Widget", () => {
 
     const iframe = generateIframeEmbedCode({
       webchat: config,
-      baseUrl: "https://desk.atendimento.sbs",
+      baseUrl: "https://crm.invalid",
     });
-    expect(iframe).toContain('src="https://desk.atendimento.sbs/webchat/wc-test-01"');
+    expect(iframe).toContain('src="https://crm.invalid/webchat/wc-test-01"');
     expect(iframe).toContain('title="Suporte 24h"');
 
-    const directUrl = generateDirectChatUrl("wc-test-01", "https://desk.atendimento.sbs");
-    expect(directUrl).toBe("https://desk.atendimento.sbs/webchat/wc-test-01");
+    const directUrl = generateDirectChatUrl("wc-test-01", "https://crm.invalid");
+    expect(directUrl).toBe("https://crm.invalid/webchat/wc-test-01");
   });
 });
 

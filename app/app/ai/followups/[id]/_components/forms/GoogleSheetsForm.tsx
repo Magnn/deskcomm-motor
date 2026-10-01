@@ -150,7 +150,7 @@ export function GoogleSheetsForm({ config, onChange }: Props) {
         <input
           type="text"
           value={sheetName}
-          placeholder="ex: Página1 ou Leads"
+          placeholder={t("ex: Página1 ou Leads")}
           onChange={(e) => {
             setSheetName(e.target.value);
             update({ sheet_name: e.target.value });

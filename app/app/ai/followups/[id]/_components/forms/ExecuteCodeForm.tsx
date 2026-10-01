@@ -114,7 +114,7 @@ export function ExecuteCodeForm({ config, onChange }: Props) {
             }}
             className="w-32 rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-xs text-neutral-900 shadow-2xs outline-hidden focus:border-amber-600 focus:ring-1 focus:ring-amber-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100"
           />
-          <span className="text-[11px] text-neutral-500">ms (máx. 10.000 ms)</span>
+          <span className="text-[11px] text-neutral-500">{t("ms (máx. 10.000 ms)")}</span>
         </div>
       </div>
 
