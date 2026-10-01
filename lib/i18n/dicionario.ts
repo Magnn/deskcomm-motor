@@ -12994,6 +12994,14 @@ export const DICIONARIO: Traducoes = {
   "Aplicar": { es: "Aplicar" },
   "Nenhum template encontrado. Crie em Respostas Rápidas.": { es: "No se encontró ningún template. Créelo en Respuestas rápidas." },
   "Defina informações extras para contatos e leads (CPF, segmento, datas, seleções).": { es: "Defina información adicional para contactos y leads (CPF, segmento, fechas, selecciones)." },
+  "Esta caixa está vazia — clique em Editar e adicione ao menos um conteúdo.": { es: "Esta caja está vacía: haga clic en Editar y agregue al menos un contenido." },
+  "Item": { es: "Ítem" },
+  "falta enviar o arquivo — envie-o ou remova o item.": { es: "falta enviar el archivo: envíelo o quite el ítem." },
+  "o texto está em branco — escreva-o ou remova o item.": { es: "el texto está en blanco: escríbalo o quite el ítem." },
+  "o contato precisa de nome e telefone.": { es: "el contacto necesita nombre y teléfono." },
+  "Esta caixa ainda não foi configurada por completo — clique em Editar e preencha o que falta.": { es: "Esta caja aún no está configurada por completo: haga clic en Editar y complete lo que falta." },
+  "Há caixas sem configurar — corrija as destacadas em vermelho para salvar.": { es: "Hay cajas sin configurar: corrija las marcadas en rojo para guardar." },
+  "O fluxo ainda não pode ser salvo: ele precisa de ao menos duas caixas ligadas.": { es: "El flujo aún no se puede guardar: necesita al menos dos cajas conectadas." },
 };
 
 /**

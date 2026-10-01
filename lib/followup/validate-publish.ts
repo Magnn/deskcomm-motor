@@ -683,7 +683,7 @@ export function validateFlowForPublish(
         errors.push({
           node_id: node.id,
           code: 'unreachable_node',
-          message: `Nó "${node.id}" não é alcançável a partir do trigger.`,
+          message: `A caixa "${node.label}" está solta: nada chega até ela. Ligue a saída de outra caixa nela, ou apague-a.`,
         });
       }
     }
@@ -695,7 +695,7 @@ export function validateFlowForPublish(
         errors.push({
           node_id: node.id,
           code: 'no_end_path',
-          message: `Nó "${node.id}" não tem caminho até um nó de fim.`,
+          message: `O caminho que passa pela caixa "${node.label}" não termina: ligue a saída dela até uma caixa "Fim do fluxo".`,
         });
       }
     }
