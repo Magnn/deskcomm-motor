@@ -67,7 +67,9 @@ import { searchKnowledge } from './search-knowledge';
 import { blocoDeIdentidade } from '@/lib/identidade/bloco-do-prompt';
 import { blocoDeLimites } from '@/lib/limites/bloco-do-prompt';
 import { OK_KINDS } from './split-message';
-import { citaEtapa, interpolarVariaveisDoContato, type DadosDoContato } from './variaveis-do-contato';
+import { baixarMidiaDoLink } from './midia-por-link';
+import { citaDadoDoLead, interpolarVariaveisDoContato, type DadosDoContato } from './variaveis-do-contato';
+import { extFromMime } from '@/lib/messaging/media/types';
 import type { ChannelSendResult } from '../channel-adapter';
 import { createAdminClient } from '@/lib/supabase/admin';
 
@@ -88,13 +90,17 @@ const HOUR_MS = 3_600_000;
  */
 const conteudoItemPayloadSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('text'), body: z.string().min(1) }),
-  z.object({ type: z.literal('image'), storage_path: z.string().min(1), mime: z.string().min(1), caption: z.string().optional() }),
-  z.object({ type: z.literal('video'), storage_path: z.string().min(1), mime: z.string().min(1), caption: z.string().optional() }),
+  // Imagem, vídeo e documento têm DUAS origens (arquivo do bucket OU link/variável) —
+  // ver "Mídia tem DUAS origens" em graph-schema.ts. Aqui as duas são opcionais; quem
+  // garante "exatamente uma" é o schema de autoria, no salvar.
+  z.object({ type: z.literal('image'), storage_path: z.string().min(1).optional(), mime: z.string().min(1).optional(), url: z.string().min(1).optional(), caption: z.string().optional() }),
+  z.object({ type: z.literal('video'), storage_path: z.string().min(1).optional(), mime: z.string().min(1).optional(), url: z.string().min(1).optional(), caption: z.string().optional() }),
   z.object({ type: z.literal('audio'), storage_path: z.string().min(1), mime: z.string().min(1), voice_note: z.boolean().optional(), filename: z.string().optional() }),
   z.object({
     type: z.literal('document'),
-    storage_path: z.string().min(1),
-    mime: z.string().min(1),
+    storage_path: z.string().min(1).optional(),
+    mime: z.string().min(1).optional(),
+    url: z.string().min(1).optional(),
     filename: z.string().optional(),
     caption: z.string().optional(),
   }),
@@ -976,6 +982,22 @@ async function copiarConteudoParaConversa(
   return false;
 }
 
+/** Guarda na pasta da conversa a mídia que veio de um link. `false` = item pulado, nunca exceção. */
+async function guardarMidiaNaConversa(
+  destino: string,
+  buffer: Buffer,
+  mime: string,
+  log: { warn(msg: string, fields?: Record<string, unknown>): void },
+): Promise<boolean> {
+  // `upsert`: num replay pós-crash o arquivo já está lá, e regravar o mesmo é inofensivo.
+  const { error } = await createAdminClient()
+    .storage.from('whatsapp-media')
+    .upload(destino, buffer, { contentType: mime, upsert: true });
+  if (!error) return true;
+  log.warn('mídia do link não pôde ser guardada na conversa — item pulado', { detalhe: error.message.slice(0, 120) });
+  return false;
+}
+
 /**
  * O nome original do documento, reduzido ao que uma chave do Storage aceita
  * (ASCII, sem barra): é o último segmento do path, e é dele que o handler tira
@@ -1000,8 +1022,8 @@ function nomeSeguroParaStorage(filename: string | undefined): string | null {
 }
 
 /**
- * Os dados que as variáveis do fluxo usam. A etapa custa uma consulta, então só
- * é buscada quando algum texto a cita — a maioria dos fluxos nunca cita.
+ * Os dados que as variáveis do fluxo usam. Etapa e campos de fluxo custam uma
+ * consulta ao lead, então só são buscados quando algum texto os cita.
  */
 async function dadosDoContatoParaVariaveis(
   pool: pg.Pool,
@@ -1011,16 +1033,23 @@ async function dadosDoContatoParaVariaveis(
   textos: readonly string[],
 ): Promise<DadosDoContato> {
   let etapa: string | null = null;
-  if (textos.some(citaEtapa)) {
-    const { rows } = await pool.query<{ name: string | null }>(
-      `select s.name from crm_leads l join crm_stages s on s.id = l.stage_id
+  const campos: Record<string, string> = {};
+  if (textos.some(citaDadoDoLead)) {
+    const { rows } = await pool.query<{ name: string | null; custom_fields: Record<string, unknown> | null }>(
+      `select s.name, l.custom_fields from crm_leads l left join crm_stages s on s.id = l.stage_id
         where l.organization_id = $1 and l.contact_id = $2
         order by l.updated_at desc limit 1`,
       [tenantId, leadId],
     );
     etapa = rows[0]?.name ?? null;
+    for (const [chave, valor] of Object.entries(rows[0]?.custom_fields ?? {})) {
+      // Só o que cabe num texto: objeto/lista (ex.: `_notes`) não é variável.
+      if (typeof valor === 'string' || typeof valor === 'number' || typeof valor === 'boolean') {
+        campos[chave] = String(valor);
+      }
+    }
   }
-  return { nome: contato.name, telefone: contato.phone, email: contato.email, etapa };
+  return { nome: contato.name, telefone: contato.phone, email: contato.email, etapa, campos };
 }
 
 /**
@@ -1099,8 +1128,8 @@ async function sendConteudoSequence(
       ? [i.body]
       : i.type === 'contact'
         ? [i.name, i.phone_number]
-        : 'caption' in i && i.caption !== undefined
-          ? [i.caption]
+        : i.type === 'image' || i.type === 'video' || i.type === 'document'
+          ? [i.caption, i.url].filter((x): x is string => x !== undefined)
           : [],
   );
   const dados = await dadosDoContatoParaVariaveis(pool, tenantId, leadId, context.context.contact, textosDoFluxo);
@@ -1123,8 +1152,17 @@ async function sendConteudoSequence(
       }
       return [{ ...i, name: interpolarVariaveisDoContato(i.name, dados) || phone_number, phone_number }];
     }
-    if ('caption' in i && i.caption !== undefined) {
-      return [{ ...i, caption: interpolarVariaveisDoContato(i.caption, dados) }];
+    if (i.type === 'image' || i.type === 'video' || i.type === 'document') {
+      const caption = i.caption !== undefined ? interpolarVariaveisDoContato(i.caption, dados) : undefined;
+      // O link pode ser uma variável ("Campo de fluxo"): resolve agora. Link que
+      // some (campo vazio) ou que continua com `{{…}}` (campo que não existe) não
+      // tem o que baixar — o item é pulado.
+      const url = i.url !== undefined ? interpolarVariaveisDoContato(i.url, dados) : undefined;
+      if (i.url !== undefined && (url === undefined || url === '' || url.includes('{{'))) {
+        runLog.warn('mídia por link sem endereço depois das variáveis — item pulado', { tipo: i.type });
+        return [];
+      }
+      return [{ ...i, ...(caption !== undefined ? { caption } : {}), ...(url !== undefined ? { url } : {}) }];
     }
     return [i];
   });
@@ -1185,14 +1223,38 @@ async function sendConteudoSequence(
             item.type === 'document' || (item.type === 'audio' && item.voice_note === false)
               ? nomeSeguroParaStorage(item.filename)
               : null;
-          const destino =
-            nomeDoArquivo !== null
-              ? `${base}/${nomeDoArquivo}`
-              : `${base}.${item.storage_path.split('.').pop() ?? 'bin'}`;
-          const copiou = await copiarConteudoParaConversa(item.storage_path, destino, runLog);
-          if (!copiou) {
-            seq -= 1; // este item não virou send físico — devolve o seq pro próximo item
-            continue;
+          let destino: string;
+          let mime: string;
+          if ('url' in item && item.url !== undefined) {
+            // Origem por LINK: baixa (com as guardas anti-SSRF) e guarda na conversa.
+            const baixada = await (deps.baixarMidiaDoLink ?? baixarMidiaDoLink)(item.url, item.type);
+            if (!baixada.ok) {
+              runLog.warn('mídia do link não pôde ser baixada — item pulado', { tipo: item.type, motivo: baixada.motivo });
+              seq -= 1;
+              continue;
+            }
+            const nome = item.type === 'document' ? nomeSeguroParaStorage(item.filename ?? baixada.nome ?? undefined) : null;
+            destino = nome !== null ? `${base}/${nome}` : `${base}.${extFromMime(baixada.mime)}`;
+            mime = baixada.mime;
+            const guardou = await guardarMidiaNaConversa(destino, baixada.buffer, mime, runLog);
+            if (!guardou) {
+              seq -= 1;
+              continue;
+            }
+          } else {
+            const origem = item.storage_path;
+            if (origem === undefined || item.mime === undefined) {
+              runLog.warn('item de mídia sem arquivo nem link — pulado (o salvar deveria ter barrado isto)', { tipo: item.type });
+              seq -= 1;
+              continue;
+            }
+            destino = nomeDoArquivo !== null ? `${base}/${nomeDoArquivo}` : `${base}.${origem.split('.').pop() ?? 'bin'}`;
+            mime = item.mime;
+            const copiou = await copiarConteudoParaConversa(origem, destino, runLog);
+            if (!copiou) {
+              seq -= 1; // este item não virou send físico — devolve o seq pro próximo item
+              continue;
+            }
           }
           ultimo = await channel.send({
             tenantId, leadId, jobId: job.id, jobClaim: claimOfJob(job), seq, conversationId,
@@ -1200,7 +1262,7 @@ async function sendConteudoSequence(
             body: 'caption' in item ? (item.caption ?? '') : '',
             media: {
               storagePath: destino,
-              mime: item.mime,
+              mime,
               kind: item.type,
               // "Enviar como áudio gravado?" desligado: sai como arquivo de áudio.
               ...(item.type === 'audio' && item.voice_note === false ? { audioAsFile: true } : {}),

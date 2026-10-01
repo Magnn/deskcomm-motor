@@ -16,9 +16,15 @@
  * mexe no entorno de uma variável que sumiu; texto sem variável sai intacto,
  * byte a byte.
  *
+ * ─── Campos de fluxo ───────────────────────────────────────────────────────
+ * `{{qualquer_chave}}` que não é das cinco acima é procurada nos CAMPOS do lead
+ * (`crm_leads.custom_fields` — é onde a Pergunta e o nó GPT gravam o que
+ * coletam). Achou, troca; o campo existe mas está vazio, some como as outras.
+ *
  * ─── Variável DESCONHECIDA fica como está ──────────────────────────────────
- * `{{volta}}`, `{{voltas}}` e os campos de fluxo têm dono próprio; apagar o que
- * este módulo não conhece esconderia o erro de digitação de quem escreveu.
+ * `{{volta}}` e `{{voltas}}` têm dono próprio (o laço do fluxo), e uma chave que
+ * nem é campo do lead fica literal: apagar o que este módulo não conhece
+ * esconderia o erro de digitação de quem escreveu.
  */
 export interface DadosDoContato {
   nome: string | null;
@@ -26,6 +32,8 @@ export interface DadosDoContato {
   email: string | null;
   /** Nome da etapa do funil em que o lead está agora; `null` se não há lead ou etapa. */
   etapa: string | null;
+  /** Campos de fluxo do lead (`custom_fields`), por chave. Ausente = nenhum conhecido. */
+  campos?: Readonly<Record<string, string>>;
 }
 
 const VARIAVEL = /\{\{\s*([a-zA-Z_]+)\s*\}\}/g;
@@ -38,10 +46,19 @@ function ehVariavelDoContato(chave: string): chave is VariavelDoContato {
   return (VARIAVEIS_DO_CONTATO as readonly string[]).includes(chave);
 }
 
-/** O texto cita `{{etapa}}`? Quem chama usa isto para só buscar a etapa quando ela é usada. */
-export function citaEtapa(texto: string): boolean {
+/** Do laço do fluxo (`interpolarVolta`) — nunca são campo do lead. */
+const DO_LACO = new Set(['volta', 'voltas']);
+
+/**
+ * O texto cita algo que só o LEAD sabe — `{{etapa}}` ou um campo de fluxo?
+ * Quem chama usa isto para só consultar o lead quando ele é usado: a maioria
+ * dos textos só cita nome/telefone, que já vêm no contexto do turno.
+ */
+export function citaDadoDoLead(texto: string): boolean {
   for (const m of texto.matchAll(VARIAVEL)) {
-    if ((m[1] ?? '').toLowerCase() === 'etapa') return true;
+    const chave = (m[1] ?? '').toLowerCase();
+    if (chave === 'etapa') return true;
+    if (!ehVariavelDoContato(chave) && !DO_LACO.has(chave)) return true;
   }
   return false;
 }
@@ -69,8 +86,15 @@ export function interpolarVariaveisDoContato(texto: string, dados: DadosDoContat
   let sumiuAlguma = false;
   const trocado = texto.replace(VARIAVEL, (literal, bruta: string) => {
     const chave = bruta.toLowerCase();
-    if (!ehVariavelDoContato(chave)) return literal;
-    const valor = valorDe(chave, dados);
+    let valor: string;
+    if (ehVariavelDoContato(chave)) {
+      valor = valorDe(chave, dados);
+    } else {
+      // Campo de fluxo: a chave como foi escrita e, de reserva, em minúsculas.
+      const campo = DO_LACO.has(chave) ? undefined : (dados.campos?.[bruta] ?? dados.campos?.[chave]);
+      if (campo === undefined) return literal; // nem é campo do lead: fica como está
+      valor = campo.trim();
+    }
     if (valor !== '') return valor;
     sumiuAlguma = true;
     return BURACO;

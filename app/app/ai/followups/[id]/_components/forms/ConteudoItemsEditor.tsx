@@ -592,7 +592,21 @@ function MediaSection({
   const t = useT();
   const upload = useUploadFlowContentMedia();
   const inputRef = React.useRef<HTMLInputElement>(null);
-  const temArquivo = item.storage_path.trim() !== "";
+  const temArquivo = (item.storage_path ?? "").trim() !== "";
+  // Origem por LINK (ou variável que guarda um link): gravada em `url`, e o motor
+  // baixa na hora do envio. Figurinha não tem — precisa ser convertida aqui.
+  const porLink = item.type !== "sticker" && item.url !== undefined;
+  const rotulos =
+    item.type === "image"
+      ? { arquivo: t("Arquivo anexado"), link: t("Campo de fluxo") }
+      : item.type === "document"
+        ? { arquivo: t("Anexar"), link: t("Link") }
+        : { arquivo: t("Arquivo"), link: t("Link") };
+  const trocarOrigem = (paraLink: boolean) => {
+    if (item.type === "sticker" || paraLink === porLink) return;
+    const { storage_path: _p, mime: _m, url: _u, ...resto } = item;
+    onChange((paraLink ? { ...resto, url: "" } : { ...resto, storage_path: "", mime: "" }) as ConteudoItem);
+  };
 
   const [convertendo, setConvertendo] = React.useState(false);
 
@@ -621,7 +635,8 @@ function MediaSection({
     }
     try {
       const r = await upload.mutateAsync({ flowId, file, ...(item.type === "sticker" ? { as: "sticker" as const } : {}) });
-      const base = { ...item, storage_path: r.storage_path, mime: r.media_mime };
+      const { url: _link, ...semLink } = item as typeof item & { url?: string };
+      const base = { ...semLink, storage_path: r.storage_path, mime: r.media_mime };
       onChange(item.type === "document" ? ({ ...base, filename: file.name } as ConteudoItem) : (base as ConteudoItem));
     } catch {
       // tratado pelo hook
@@ -663,11 +678,55 @@ function MediaSection({
       />
 
       {/*
-        Sem as abas "Link" (documento) e "Campo de fluxo" (imagem): elas gravavam
-        uma URL ou uma variável no lugar do arquivo, e o motor só envia ARQUIVO do
-        Storage — o item sumia do envio em silêncio. O publish agora também
-        recusa um fluxo antigo salvo assim (`midia_sem_arquivo`).
+        Abas de origem: arquivo enviado × link/variável. O link é gravado em `url`
+        (campo próprio do schema) e o motor BAIXA o arquivo na hora do envio —
+        antes estas abas gravavam a URL dentro de `storage_path`, o que o motor
+        não sabia enviar.
       */}
+      {item.type !== "sticker" && (
+        <div className="flex rounded-full bg-[#f1f5f9] dark:bg-zinc-800 p-0.5 mb-2.5" role="tablist">
+          {([false, true] as const).map((ehLink) => (
+            <button
+              key={String(ehLink)}
+              type="button"
+              role="tab"
+              aria-selected={porLink === ehLink}
+              disabled={disabled}
+              onClick={() => trocarOrigem(ehLink)}
+              data-testid={ehLink ? "conteudo-origem-link" : "conteudo-origem-arquivo"}
+              className={cn(
+                "flex-1 py-1 text-xs font-semibold rounded-full transition-all cursor-pointer",
+                porLink === ehLink
+                  ? "bg-[#2563eb] text-white shadow-xs"
+                  : "text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200",
+              )}
+            >
+              {ehLink ? rotulos.link : rotulos.arquivo}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {porLink && (
+        <div className="space-y-1.5 py-1">
+          <Input
+            placeholder={item.type === "image" ? "{{url_imagem_lead}}" : "https://…"}
+            maxLength={2000}
+            value={item.url ?? ""}
+            disabled={disabled}
+            onChange={(e) => onChange({ ...item, url: e.target.value } as ConteudoItem)}
+            className="h-9 text-xs rounded-lg font-mono"
+            data-testid="conteudo-link"
+          />
+          <p className="text-[10px] text-slate-400">
+            {item.type === "image"
+              ? t("Use a variável do campo que guarda o link da imagem, ou cole um link público (https).")
+              : t("Cole o link público (https) do arquivo. Você também pode usar uma variável que guarde o link.")}{" "}
+            {t("O arquivo é baixado na hora do envio.")}
+          </p>
+        </div>
+      )}
+
       {item.type === "sticker" && (
         <label className="block space-y-1">
           <span className="block text-[12px] font-semibold text-slate-800 dark:text-zinc-200">
@@ -693,7 +752,7 @@ function MediaSection({
         </label>
       )}
 
-      {!temArquivo ? (
+      {porLink ? null : !temArquivo ? (
         <button
           type="button"
           disabled={disabled || upload.isPending}

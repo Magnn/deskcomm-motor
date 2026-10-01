@@ -4,6 +4,7 @@ import type { AgenteCitado } from './agentes-citados';
 import { AGENT_NODE_UNSET_ID, branchIdForCondition, nodeBranches } from './graph-schema';
 import { rotuloDoRamo } from './rotulo-do-ramo';
 import { TIPOS_DE_ITEM_DE_CONTEUDO, type NomesDeValor } from './vocabulario';
+import { assertSafeOutboundUrl } from '@/lib/automation/outbound-url';
 import { parseDialablePhone } from '@/lib/messaging/contact-card';
 
 /**
@@ -42,6 +43,7 @@ export const PUBLISH_ERROR_CODES = [
   'contato_com_telefone_invalido',
   'figurinha_fora_do_formato',
   'midia_sem_arquivo',
+  'midia_com_link_invalido',
 ] as const;
 export type PublishErrorCode = (typeof PUBLISH_ERROR_CODES)[number];
 
@@ -557,18 +559,37 @@ function validarItensDeConteudo(graph: FlowGraph, errors: PublishValidationError
           message: `A caixa "${node.label}", item ${i + 1}: o sticker precisa ser um arquivo .webp — troque o arquivo antes de publicar.`,
         });
       }
-      // Mídia é ARQUIVO do Storage, nunca link nem variável: o motor copia o
-      // arquivo para a conversa, e um `https://…` ou `{{campo}}` no lugar do
-      // path não copia — o item sumiria do envio sem ninguém ver.
+      // `storage_path` é ARQUIVO do Storage. Link e variável têm campo próprio
+      // (`url`); um `https://…` ou `{{campo}}` DENTRO do path é fluxo antigo, de
+      // antes desse campo existir — a cópia falharia e o item sumiria do envio.
       if (
         'storage_path' in item &&
+        item.storage_path !== undefined &&
         (/^https?:/i.test(item.storage_path.trim()) || item.storage_path.includes('{{'))
       ) {
         errors.push({
           node_id: node.id,
           code: 'midia_sem_arquivo',
-          message: `A caixa "${node.label}", item ${i + 1}: envie o arquivo pelo botão de upload — link ou variável no lugar do arquivo não são enviados.`,
+          message: `A caixa "${node.label}", item ${i + 1}: escolha o arquivo de novo — este item foi salvo num formato antigo e não seria enviado.`,
         });
+      }
+      // Link fixo que o servidor se recusaria a acessar (endereço interno, esquema
+      // estranho, http em produção): o download falharia em TODA inscrição. Link
+      // com variável só existe no envio — não dá para conferir aqui.
+      if ('url' in item && item.url !== undefined && !item.url.includes('{{')) {
+        let seguro = true;
+        try {
+          assertSafeOutboundUrl(item.url.trim());
+        } catch {
+          seguro = false;
+        }
+        if (!seguro) {
+          errors.push({
+            node_id: node.id,
+            code: 'midia_com_link_invalido',
+            message: `A caixa "${node.label}", item ${i + 1}: o link não é um endereço público válido (use https://…).`,
+          });
+        }
       }
       if (!emConstrucao.has(item.type)) continue;
       errors.push({

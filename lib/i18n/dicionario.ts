@@ -13043,6 +13043,11 @@ export const DICIONARIO: Traducoes = {
   "Selecione o fluxo do Canva...": { es: "Seleccione el flujo del lienzo..." },
   "Salvar Configuração": { es: "Guardar configuración" },
   "O áudio chega ao contato como arquivo de áudio, com o nome do arquivo.": { es: "El audio le llega al contacto como archivo de audio, con el nombre del archivo." },
+  "Arquivo": { es: "Archivo" },
+  "Use a variável do campo que guarda o link da imagem, ou cole um link público (https).": { es: "Use la variable del campo que guarda el enlace de la imagen, o pegue un enlace público (https)." },
+  "Cole o link público (https) do arquivo. Você também pode usar uma variável que guarde o link.": { es: "Pegue el enlace público (https) del archivo. También puede usar una variable que guarde el enlace." },
+  "O arquivo é baixado na hora do envio.": { es: "El archivo se descarga al momento del envío." },
+  "falta o link do arquivo — preencha-o ou troque para arquivo enviado.": { es: "falta el enlace del archivo: complételo o cambie a archivo enviado." },
 };
 
 /**
