@@ -13008,6 +13008,8 @@ export const DICIONARIO: Traducoes = {
   "o contato precisa de nome e telefone.": { es: "el contacto necesita nombre y teléfono." },
   "Esta caixa ainda não foi configurada por completo — clique em Editar e preencha o que falta.": { es: "Esta caja aún no está configurada por completo: haga clic en Editar y complete lo que falta." },
   "O fluxo ainda não pode ser salvo.": { es: "El flujo todavía no se puede guardar." },
+  "Uma caixa não pode ser ligada a ela mesma.": { es: "Una caja no puede conectarse a sí misma." },
+  "Esta saída já tinha uma linha — ela foi trocada pela nova. Cada saída segue um caminho só.": { es: "Esta salida ya tenía una línea: fue reemplazada por la nueva. Cada salida sigue un solo camino." },
   "O fluxo ainda não pode ser salvo: ele precisa de ao menos duas caixas ligadas.": { es: "El flujo aún no se puede guardar: necesita al menos dos cajas conectadas." },
   "Sticker": { es: "Sticker" },
   "O sticker precisa ser um arquivo .webp de até 500 KB.": { es: "El sticker debe ser un archivo .webp de hasta 500 KB." },

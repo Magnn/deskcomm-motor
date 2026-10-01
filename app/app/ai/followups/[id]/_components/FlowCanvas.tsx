@@ -40,6 +40,8 @@ import {
   type NodeType,
 } from "@/lib/followup/graph-schema";
 import { rotuloDoRamo } from "@/lib/followup/rotulo-do-ramo";
+import { linhasDaMesmaSaida } from "@/lib/followup/uma-linha-por-saida";
+import { toast } from "sonner";
 import { useFollowupFlow, type FollowupFlowDetailRow } from "@/hooks/followup/useFollowupFlow";
 import { useT } from "@/hooks/i18n/useT";
 import { Button } from "@/components/ui/button";
@@ -81,6 +83,13 @@ import { ExecuteCodeNode } from "./nodes/ExecuteCodeNode";
 
 const EMPTY_GRAPH: FlowGraph = { nodes: [], edges: [] };
 const DND_MIME = "application/x-followup-node-type";
+
+/** A linha do canvas no formato que a regra "uma saída, uma linha" lê. */
+const linhaDoCanvas = (e: RFEdge) => ({
+  id: e.id,
+  source: e.source,
+  condition: e.data?.condition ?? ({ type: "always" } as const),
+});
 
 // Defined outside the component — React Flow warns (and re-mounts nodes) if
 // nodeTypes is a fresh object every render.
@@ -222,13 +231,29 @@ function FlowCanvasInner({ flowId, initialData }: Props) {
   );
   const updateEdgeCondition = useCallback(
     (id: string, condition: FlowEdge["condition"]) => {
-      setEdges((eds) =>
-        eds.map((e) =>
-          e.id === id ? { ...e, data: { priority: e.data?.priority ?? 0, condition } } : e,
-        ),
+      // Mudar a linha para uma saída que já tem linha: a que estava lá sai
+      // (uma saída, uma linha — ver `onConnect`).
+      const atual = edges.find((e) => e.id === id);
+      const origemRF = atual ? nodes.find((n) => n.id === atual.source) : undefined;
+      const trocadas = new Set(
+        atual
+          ? linhasDaMesmaSaida(edges.map(linhaDoCanvas), origemRF ? toFlowNode(origemRF) : undefined, {
+              id,
+              source: atual.source,
+              condition,
+            }).map((l) => l.id)
+          : [],
       );
+      setEdges((eds) =>
+        eds
+          .filter((e) => !trocadas.has(e.id))
+          .map((e) => (e.id === id ? { ...e, data: { priority: e.data?.priority ?? 0, condition } } : e)),
+      );
+      if (trocadas.size > 0) {
+        toast.info(t("Esta saída já tinha uma linha — ela foi trocada pela nova. Cada saída segue um caminho só."));
+      }
     },
-    [setEdges],
+    [setEdges, edges, nodes, t],
   );
 
   const selectedNode = nodes.find((n) => n.id === selectedNodeId) ?? null;
@@ -314,21 +339,36 @@ function FlowCanvasInner({ flowId, initialData }: Props) {
       // `always` e o usuário tinha que ir ao painel dizer de novo, de qual regra
       // ela saía — o que, com uma bolinha só, era impossível de expressar.
       const source = nodes.find((n) => n.id === connection.source);
+      // Caixa ligada nela mesma é um laço sem saída: nunca é o que se quis desenhar.
+      if (connection.source === connection.target) {
+        toast.error(t("Uma caixa não pode ser ligada a ela mesma."));
+        return;
+      }
+      const origem = source ? toFlowNode(source) : undefined;
       const fromBranch =
-        source && connection.sourceHandle
-          ? conditionForBranch(toFlowNode(source), connection.sourceHandle)
-          : null;
+        origem && connection.sourceHandle ? conditionForBranch(origem, connection.sourceHandle) : null;
+      const condition: FlowEdge["condition"] = fromBranch ?? { type: "always" };
       const newEdge: RFEdge = {
         id: `edge-${nextEdgeId.current++}`,
         source: connection.source,
         target: connection.target,
         sourceHandle: connection.sourceHandle,
         targetHandle: connection.targetHandle,
-        data: { priority: 0, condition: fromBranch ?? { type: "always" } },
+        data: { priority: 0, condition },
       };
-      setEdges((eds) => addEdge(newEdge, eds));
+      // UMA SAÍDA, UMA LINHA. O motor segue uma só; a segunda seria um caminho
+      // desenhado que nunca roda. Puxar de novo da mesma bolinha TROCA o destino.
+      const trocadas = new Set(
+        linhasDaMesmaSaida(edges.map(linhaDoCanvas), origem, { id: newEdge.id, source: newEdge.source, condition }).map(
+          (l) => l.id,
+        ),
+      );
+      setEdges((eds) => addEdge(newEdge, eds.filter((e) => !trocadas.has(e.id))));
+      if (trocadas.size > 0) {
+        toast.info(t("Esta saída já tinha uma linha — ela foi trocada pela nova. Cada saída segue um caminho só."));
+      }
     },
-    [setEdges, nodes],
+    [setEdges, nodes, edges, t],
   );
 
   // O nó de ação nasce com o padrão do gatilho do fluxo. O callback depende só

@@ -302,8 +302,12 @@ describe('validateFlowForPublish', () => {
     expect(elapsedMs).toBeLessThan(1000); // polynomial, not exponential
     expect(result.ok).toBe(false);
     if (!result.ok) {
-      expect(result.errors.map((e) => e.code)).toEqual(['long_wait_needs_template']);
-      expect(result.errors[0]!.node_id).toBe('act_bad');
+      // O losango largo é montado com duas linhas `always` por caixa — de propósito, para
+      // medir o custo da análise de caminhos. Essas saídas duplicadas têm recusa própria
+      // (testada mais abaixo); aqui interessa só o que a análise de caminhos acusa.
+      const semDuplicadas = result.errors.filter((e) => e.code !== 'saida_com_mais_de_uma_linha');
+      expect(semDuplicadas.map((e) => e.code)).toEqual(['long_wait_needs_template']);
+      expect(semDuplicadas[0]!.node_id).toBe('act_bad');
     }
   });
 
