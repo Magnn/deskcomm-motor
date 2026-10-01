@@ -434,10 +434,9 @@ export const NAV_CATALOG = [
     group: "ia",
     section: "Montar o agente",
     minRole: "manager",
-    // SEM `sidebar: true`: o menu lateral já está no teto da dobra (15 itens,
-    // `interface-por-empresa.test.ts`) e voz é tela de configuração, não de uso
-    // diário — segue o padrão de Provedores/Execuções, alcançável pelo hub
-    // "Ver tudo em IA".
+    // Fica no sidebar por decisão do dono: o menu rola quando passa da dobra,
+    // então o 16º item não esconde nada (o teto de 15 era só o que cabia sem rolar).
+    sidebar: true,
   },
   {
     href: "/app/ai/credentials",
