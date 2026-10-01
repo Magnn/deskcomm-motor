@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { FlowArrow, Plus, Sparkle } from "@/lib/ui/icons";
+import { FlowArrow, Plus, Sparkle, UploadSimple } from "@/lib/ui/icons";
 import { useFollowupFlows, type FollowupFlowPointerRow } from "@/hooks/followup/useFollowupFlows";
 import { cn } from "@/lib/utils";
 import { DeleteFollowupFlowButton } from "./DeleteFollowupFlowButton";
@@ -23,6 +23,7 @@ import { DuplicateFollowupFlowButton } from "./DuplicateFollowupFlowButton";
 import { FlowStatusBadge } from "./FlowStatusBadge";
 import { ModelosDialog } from "./ModelosDialog";
 import { NewFlowDialog } from "./NewFlowDialog";
+import { ImportFlowDialog } from "./ImportFlowDialog";
 import { RenameFollowupFlowButton } from "./RenameFollowupFlowButton";
 
 interface Props {
@@ -44,6 +45,7 @@ export function FlowsList({ initialData, canWrite }: Props) {
   const { data } = useFollowupFlows({ initialData });
   const [dialogOpen, setDialogOpen] = useState(false);
   const [modelosOpen, setModelosOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [channelFilter, setChannelFilter] = useState<"todos" | "oficial" | "business">("todos");
   const [triggerFilter, setTriggerFilter] = useState<string>("todos");
 
@@ -74,6 +76,12 @@ export function FlowsList({ initialData, canWrite }: Props) {
     </Button>
   );
 
+  const importButton = (
+    <Button onClick={() => setImportOpen(true)} variant="outline" className="w-full sm:w-auto">
+      <UploadSimple size={14} aria-hidden className="mr-2" /> {t("Importar modelo")}
+    </Button>
+  );
+
   const newFlowButton = (
     <Button
       onClick={() => setDialogOpen(true)}
@@ -91,6 +99,7 @@ export function FlowsList({ initialData, canWrite }: Props) {
         onOpenChange={setModelosOpen}
         nomesExistentes={flows.map((f) => f.name)}
       />
+      <ImportFlowDialog open={importOpen} onOpenChange={setImportOpen} />
     </>
   );
 
@@ -108,6 +117,7 @@ export function FlowsList({ initialData, canWrite }: Props) {
           {canWrite && (
             <div className="mt-1 flex flex-col items-center gap-2 sm:flex-row">
               {modelosButton}
+              {importButton}
               {newFlowButton}
             </div>
           )}
@@ -187,6 +197,7 @@ export function FlowsList({ initialData, canWrite }: Props) {
         {canWrite && (
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             {modelosButton}
+            {importButton}
             {newFlowButton}
           </div>
         )}

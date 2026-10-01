@@ -21,6 +21,8 @@ import { showApiError } from "@/components/feedback/ApiErrorToast";
 import { ListaDeChips } from "@/components/ai/ListaDeChips";
 import { PreviaDoBloco } from "@/components/ai/PreviaDoBloco";
 import { RascunhoComIA } from "@/components/ai/RascunhoComIA";
+import { CarregarPersonaDialog } from "@/components/ai/CarregarPersonaDialog";
+import type { PersonaPreset } from "@/lib/identidade/personas";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -234,6 +236,23 @@ export function IdentidadeDoAgente({ agentId, config, readOnly }: Props) {
     });
   };
 
+  const aoAplicarPersona = (persona: PersonaPreset) => {
+    patch({
+      enabled: true,
+      nome: form.nome || persona.sugestao.nome,
+      oQueFaz: form.oQueFaz || persona.sugestao.oQueFaz,
+      publico: form.publico || persona.sugestao.publico,
+      apresentacao: persona.sugestao.apresentacao,
+      tom: persona.sugestao.tom,
+      tratamento: persona.sugestao.tratamento,
+      emojis: persona.sugestao.emojis,
+      mensagens: persona.sugestao.mensagens,
+      palavrasDaCasa: Array.from(new Set([...form.palavrasDaCasa, ...persona.sugestao.palavrasDaCasa])).slice(0, MAX_PALAVRAS),
+      palavrasAEvitar: Array.from(new Set([...form.palavrasAEvitar, ...persona.sugestao.palavrasAEvitar])).slice(0, MAX_PALAVRAS),
+    });
+    toast.success(t(`Persona "${persona.nome}" aplicada com sucesso!`));
+  };
+
   // A prévia é o bloco REAL: a mesma função que o turno usa, sobre os mesmos campos, com o interruptor
   // ligado (desligada, a pessoa ainda vê o que passaria a valer).
   const previa = React.useMemo(() => {
@@ -289,7 +308,10 @@ export function IdentidadeDoAgente({ agentId, config, readOnly }: Props) {
           <div className="flex items-center justify-between gap-4">
             <h3 className="text-sm font-medium">{t("Quem é o agente")}</h3>
             {!readOnly ? (
-              <RascunhoComIA agentId={agentId} campo="identidade" onRascunho={aoRascunho} />
+              <div className="flex items-center gap-2">
+                <CarregarPersonaDialog onSelectPersona={aoAplicarPersona} disabled={readOnly} />
+                <RascunhoComIA agentId={agentId} campo="identidade" onRascunho={aoRascunho} />
+              </div>
             ) : null}
           </div>
           <div className="grid gap-4 md:grid-cols-2">

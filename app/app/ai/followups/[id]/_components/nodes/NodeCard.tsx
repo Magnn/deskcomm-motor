@@ -103,6 +103,8 @@ const HEADER_BG_BY_TYPE: Record<string, string> = {
   whatsapp_template: "bg-[#2563eb]",
   meta_pixel: "bg-[#d97706]",
   voice_studio: "bg-[#8b5cf6]",
+  google_sheets: "bg-[#15803d]",
+  execute_code: "bg-[#d97706]",
   end: "bg-[#52525b]",
 };
 
@@ -127,6 +129,8 @@ const BORDER_COLOR_BY_TYPE: Record<string, string> = {
   whatsapp_template: "!border-blue-600 text-blue-600",
   meta_pixel: "!border-amber-600 text-amber-600",
   voice_studio: "!border-purple-600 text-purple-600",
+  google_sheets: "!border-emerald-600 text-emerald-600",
+  execute_code: "!border-amber-600 text-amber-600",
   end: "!border-zinc-500 text-zinc-500",
 };
 

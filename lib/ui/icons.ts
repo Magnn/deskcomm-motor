@@ -157,4 +157,11 @@ export {
   CreditCard,
   Target,
   SpeakerHigh,
+  Code,
+  FileCode,
+  ArrowUp,
+  ArrowDown,
+  SlidersHorizontal,
+  Gift,
+  Trophy,
 } from "@phosphor-icons/react/dist/ssr";

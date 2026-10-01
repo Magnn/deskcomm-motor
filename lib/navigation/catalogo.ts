@@ -782,6 +782,16 @@ export const NAV_CATALOG = [
     minRole: "manager",
   },
   {
+    href: "/app/settings/custom-fields",
+    label: "Campos personalizados",
+    description:
+      "Defina informações extras para contatos e leads (CPF, segmento, datas, seleções).",
+    icon: "ListChecks",
+    group: "organizacao",
+    section: "Sua empresa",
+    minRole: "manager",
+  },
+  {
     href: "/app/settings/tenant",
     label: "Organização",
     description: "Dados da empresa, retenção de dados e encarregado de LGPD.",

@@ -32,6 +32,8 @@ import { WhatsappTemplateForm } from "./forms/WhatsappTemplateForm";
 import { PixPaymentForm } from "./forms/PixPaymentForm";
 import { MetaPixelForm } from "./forms/MetaPixelForm";
 import { VoiceStudioForm } from "./forms/VoiceStudioForm";
+import { GoogleSheetsForm } from "./forms/GoogleSheetsForm";
+import { ExecuteCodeForm } from "./forms/ExecuteCodeForm";
 import type { ConfigOf } from "./forms/shared";
 import { NODE_VISUALS } from "./nodes/nodeVisuals";
 
@@ -285,6 +287,18 @@ export function NodeConfigPanel({ node, flowId, onChange, onDelete, onClose, ram
         {type === "voice_studio" && (
           <VoiceStudioForm
             config={node.data.config as ConfigOf<"voice_studio">}
+            onChange={(config) => onChange({ config })}
+          />
+        )}
+        {type === "google_sheets" && (
+          <GoogleSheetsForm
+            config={node.data.config as ConfigOf<"google_sheets">}
+            onChange={(config) => onChange({ config })}
+          />
+        )}
+        {type === "execute_code" && (
+          <ExecuteCodeForm
+            config={node.data.config as ConfigOf<"execute_code">}
             onChange={(config) => onChange({ config })}
           />
         )}

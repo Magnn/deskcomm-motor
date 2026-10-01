@@ -129,6 +129,8 @@ export const NOS_DA_SUPERFICIE: Record<FollowupFlowSurface, readonly NodeType[]>
     'whatsapp_template',
     'meta_pixel',
     'voice_studio',
+    'google_sheets',
+    'execute_code',
   ],
   crm_automation: [
     'trigger',
@@ -151,6 +153,8 @@ export const NOS_DA_SUPERFICIE: Record<FollowupFlowSurface, readonly NodeType[]>
     'whatsapp_template',
     'meta_pixel',
     'voice_studio',
+    'google_sheets',
+    'execute_code',
   ],
   atendimento: ['trigger', 'collect', 'skill', 'end'],
 };
