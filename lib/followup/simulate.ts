@@ -1,6 +1,8 @@
 import {
   processNode,
   selectEdge,
+  selectEdgeExata,
+  arestaDaClasse,
   classEdgeMatch,
   type EnrollmentRow,
   type LeadFacts,
@@ -349,6 +351,17 @@ function avancarPara(
  * `entrada`) corre o trecho síncrono a partir do Gatilho (ex.: mensagem de
  * abertura antes do primeiro `wait`).
  */
+/** O lead FICARIA parado neste nó (saída não ligada): a simulação termina sem erro e diz o motivo. */
+function estadoParado(state: SimState, nodeId: string, motivo: string): SimState {
+  return {
+    ...state,
+    status: "concluido",
+    aguardando: null,
+    outcome: { outcome: null, nota: motivo },
+    transcript: [...state.transcript, { kind: "parado", nodeId, motivo }],
+  };
+}
+
 export async function avancarSimulacao(args: {
   graph: FlowGraph;
   state: SimState;
@@ -414,10 +427,8 @@ export async function avancarSimulacao(args: {
             : [...state.transcript, { kind: "aguardando", nodeId: node.id, motivo: "agent" }],
         };
       }
-      const edge = selectEdge(edges, node.id, { type: "branch", branch_id: saida });
-      if (!edge) {
-        return falha(state, `O nó "${node.label}" não tem aresta para a saída "${saida}" (nem saída padrão).`, node.id);
-      }
+      const edge = selectEdgeExata(edges, node.id, { type: "branch", branch_id: saida });
+      if (!edge) return estadoParado(state, node.id, `a saída «${saida}» do agente não está ligada a nada`);
       state = avancarPara({ ...state, aguardando: null }, edge.target, porId, null);
       continue;
     }
@@ -448,12 +459,12 @@ export async function avancarSimulacao(args: {
         lead: { ...state.lead, last_outcome: classe },
         transcript: [...state.transcript, { kind: "classificado", nodeId: node.id, classe }],
       };
-      const edge = selectEdge(edges, node.id, classEdgeMatch(node, classe));
+      const { edge, declarada } = arestaDaClasse(node, edges, classe);
       if (!edge) {
-        return falha(
+        return estadoParado(
           state,
-          `O nó "${node.label}" não tem aresta para a classe "${classe}" (nem saída padrão).`,
           node.id,
+          declarada ? `a saída da classe «${classe}» não está ligada a nada` : "a resposta não é nenhuma das classes e «Outros casos» não está ligada a nada",
         );
       }
       state = avancarPara(state, edge.target, porId, null);
@@ -602,7 +613,7 @@ export async function avancarSimulacao(args: {
             transcript: [...state.transcript, { kind: "mensagem_simulada", nodeId: node.id, texto, origem }],
           };
           const edge = selectEdge(edges, node.id, { type: "always" });
-          if (!edge) return falha(state, `O nó "${node.label}" não tem aresta de saída.`, node.id);
+          if (!edge) return estadoParado(state, node.id, "a saída do passo não está ligada a nada");
           state = avancarPara(state, edge.target, porId, null);
           continue;
         }
@@ -653,13 +664,7 @@ export async function avancarSimulacao(args: {
 
       case "park":
         // O lead fica aqui: o simulador para, sem erro, e diz o motivo — é o que o motor real faz.
-        return {
-          ...state,
-          status: "concluido",
-          aguardando: null,
-          outcome: { outcome: null, nota: result.reason },
-          transcript: [...state.transcript, { kind: "parado", nodeId: node.id, motivo: result.reason }],
-        };
+        return estadoParado(state, node.id, result.reason);
 
       case "fail":
         return falha(state, result.error, node.id);

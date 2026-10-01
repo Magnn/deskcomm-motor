@@ -98,61 +98,6 @@ describe('validateFlowForPublish', () => {
     }
   });
 
-  it('flags no_end_path for reachable nodes that cannot reach an end', () => {
-    const g = graph(
-      [trigger('t1'), end('e1'), actionTemplate('deadend')],
-      [edge('t1', 'e1', always()), edge('t1', 'deadend', always())]
-    );
-    const result = validateFlowForPublish(g);
-    expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.errors.map((e) => e.code)).toEqual(['no_end_path']);
-      expect(result.errors[0]!.node_id).toBe('deadend');
-    }
-  });
-
-  it('flags missing_class_edge when a declared class has no outgoing edge', () => {
-    const g = graph(
-      [trigger('t1'), classify('c1', ['hot', 'cold']), end('e1')],
-      [
-        edge('t1', 'c1', always()),
-        edge('c1', 'e1', classMatch('hot')),
-        edge('c1', 'e1', classMatch('no_reply')),
-        edge('c1', 'e1', always()),
-      ]
-    );
-    const result = validateFlowForPublish(g);
-    expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.errors.map((e) => e.code)).toEqual(['missing_class_edge']);
-      expect(result.errors[0]!.node_id).toBe('c1');
-    }
-  });
-
-  it('flags missing_no_reply_edge when there is no class_match "no_reply" edge', () => {
-    const g = graph(
-      [trigger('t1'), classify('c1', ['hot']), end('e1')],
-      [edge('t1', 'c1', always()), edge('c1', 'e1', classMatch('hot')), edge('c1', 'e1', always())]
-    );
-    const result = validateFlowForPublish(g);
-    expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.errors.map((e) => e.code)).toEqual(['missing_no_reply_edge']);
-    }
-  });
-
-  it('flags missing_always_fallback when there is no always edge', () => {
-    const g = graph(
-      [trigger('t1'), classify('c1', ['hot']), end('e1')],
-      [edge('t1', 'c1', always()), edge('c1', 'e1', classMatch('hot')), edge('c1', 'e1', classMatch('no_reply'))]
-    );
-    const result = validateFlowForPublish(g);
-    expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.errors.map((e) => e.code)).toEqual(['missing_always_fallback']);
-    }
-  });
-
   it('flags grace_too_short when grace_timeout_ms is below the 15min floor', () => {
     const g = graph(
       [trigger('t1'), classify('c1', ['hot'], 500_000), end('e1')],
@@ -409,50 +354,6 @@ describe('validateFlowForPublish — cobertura por ramo (per_check)', () => {
     expect(result).toEqual({ ok: true });
   });
 
-  it('reprova nomeando a REGRA que ficou sem saída, não "o nó está incompleto"', () => {
-    const result = validateFlowForPublish(
-      comRamos([edge('c1', 'fim', branch('chk_vip')), edge('c1', 'fim', always())])
-    );
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    const semSaida = result.errors.filter((e) => e.code === 'missing_branch_edge');
-    expect(semSaida).toHaveLength(1);
-    expect(semSaida[0]!.branch_id).toBe('chk_frio');
-    expect(semSaida[0]!.node_id).toBe('c1');
-  });
-
-  it('usa o rótulo que o usuário escreveu na mensagem', () => {
-    const result = validateFlowForPublish(
-      comRamos([edge('c1', 'fim', branch('chk_frio')), edge('c1', 'fim', always())])
-    );
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.errors.find((e) => e.branch_id === 'chk_vip')!.message).toContain('Cliente VIP');
-  });
-
-  it('sem rótulo, quem descreve a regra é o vocabulário — nunca o id cru', () => {
-    const result = validateFlowForPublish(
-      comRamos([edge('c1', 'fim', branch('chk_vip')), edge('c1', 'fim', always())])
-    );
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    const msg = result.errors.find((e) => e.branch_id === 'chk_frio')!.message;
-    expect(msg).not.toContain('chk_frio');
-    expect(msg).not.toContain('steps_taken');
-    expect(msg).toMatch(/passos/i);
-  });
-
-  it('reprova quando falta a saída "nenhuma delas" — é ela que impede lead parado', () => {
-    const result = validateFlowForPublish(
-      comRamos([edge('c1', 'fim', branch('chk_vip')), edge('c1', 'fim', branch('chk_frio'))])
-    );
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    const semEscape = result.errors.filter((e) => e.code === 'missing_always_fallback');
-    expect(semEscape).toHaveLength(1);
-    expect(semEscape[0]!.branch_id).toBe('else');
-  });
-
   it('NÃO aplica a regra nova a um nó combinado — fluxo v1 publica como sempre publicou', () => {
     // Mesmas duas regras, modo de hoje, e só a saída do "sim" ligada: sob a regra
     // do per_check isto teria 2 erros. Em combinado tem que continuar passando.
@@ -514,34 +415,6 @@ describe('validateFlowForPublish — cobertura por ramo num ai_classify migrado'
     expect(result).toEqual({ ok: true });
   });
 
-  it('reprova nomeando a CLASSE que ficou sem saída', () => {
-    const result = validateFlowForPublish(
-      grafo([
-        edge('ac1', 'fim', branch('br_quente')),
-        edge('ac1', 'fim', branch('no_reply')),
-        edge('ac1', 'fim', always()),
-      ])
-    );
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    const semSaida = result.errors.filter((e) => e.code === 'missing_branch_edge');
-    expect(semSaida).toHaveLength(1);
-    expect(semSaida[0]!.branch_id).toBe('br_frio');
-    expect(semSaida[0]!.message).toContain('frio');
-  });
-
-  it('reprova quando falta a saída de quem não respondeu', () => {
-    const result = validateFlowForPublish(
-      grafo([
-        edge('ac1', 'fim', branch('br_quente')),
-        edge('ac1', 'fim', branch('br_frio')),
-        edge('ac1', 'fim', always()),
-      ])
-    );
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.errors.some((e) => e.branch_id === 'no_reply')).toBe(true);
-  });
 });
 
 describe('validateFlowForPublish — cobertura por ramo num match_reply', () => {
@@ -580,20 +453,6 @@ describe('validateFlowForPublish — cobertura por ramo num match_reply', () => 
     expect(result).toEqual({ ok: true });
   });
 
-  it('reprova ramo declarado sem saída', () => {
-    const result = validateFlowForPublish(
-      grafo([
-        edge('mr1', 'fim', branch('br_sim')),
-        edge('mr1', 'fim', branch('no_reply')),
-        edge('mr1', 'fim', always()),
-      ])
-    );
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    const semSaida = result.errors.filter((e) => e.code === 'missing_branch_edge');
-    expect(semSaida).toHaveLength(1);
-    expect(semSaida[0]!.branch_id).toBe('br_nao');
-  });
 });
 
 describe('validateFlowForPublish — cobertura por ramo num repeat', () => {
@@ -624,21 +483,6 @@ describe('validateFlowForPublish — cobertura por ramo num repeat', () => {
     expect(result).toEqual({ ok: true });
   });
 
-  it('reprova sem a saída de próxima volta', () => {
-    const result = validateFlowForPublish(
-      graph(
-        [trigger('t1'), repeatNode('rp1'), end('fim')],
-        [
-          edge('t1', 'rp1', always()),
-          edge('rp1', 'fim', branch('done')),
-          edge('rp1', 'fim', always()),
-        ]
-      )
-    );
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.errors.some((e) => e.branch_id === 'body')).toBe(true);
-  });
 });
 
 /**
@@ -724,16 +568,13 @@ describe('validateFlowForPublish — a regra precisa poder decidir', () => {
     expect(r.errors[0]!.message).toContain('Antiga · Vendas');
   });
 
-  it('etapa ativa publica, e outra falha no mesmo nó fala o NOME da etapa, nunca o id', () => {
+  it('etapa ativa publica, inclusive com a saída da regra solta', () => {
     expect(validateFlowForPublish(comRegras([{ field: 'lead_stage', op: 'eq', value: ETAPA_PAGO }]), { etapas })).toEqual({ ok: true });
 
+    // Saída da regra sem aresta não reprova mais: o lead fica parado ali (ver validate-publish.ts).
     const semSaida = comRegras([{ field: 'lead_stage', op: 'eq', value: ETAPA_PAGO }], 'per_check');
     semSaida.edges = semSaida.edges.filter((e) => e.condition.type !== 'branch');
-    const r = validateFlowForPublish(semSaida, { etapas });
-    expect(codigos(r)).toEqual(['missing_branch_edge']);
-    if (r.ok) return;
-    expect(r.errors[0]!.message).toContain('Pago · Vendas');
-    expect(r.errors[0]!.message).not.toContain(ETAPA_PAGO);
+    expect(codigos(validateFlowForPublish(semSaida, { etapas }))).toEqual([]);
   });
 
   it('sem a lista de etapas a etapa não é conferida — só quem lê o banco pode dizer se ela existe', () => {
@@ -761,12 +602,6 @@ describe('validateFlowForPublish — a regra precisa poder decidir', () => {
       expect(validateFlowForPublish(graph(nodes, edges))).toEqual({ ok: true });
     });
 
-    it('reprova quando o ramo de prazo esgotado fica sem destino', () => {
-      const result = validateFlowForPublish(graph(nodes, edges.filter((e) => e.condition.type !== 'branch' || e.condition.branch_id !== 'timeout')));
-      expect(result.ok).toBe(false);
-      if (result.ok) return;
-      expect(result.errors.some((error) => error.code === 'missing_branch_edge' && error.branch_id === 'timeout')).toBe(true);
-    });
   });
 
   describe('publish por superfície (roteiro de atendimento, #1130)', () => {

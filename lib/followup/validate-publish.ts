@@ -1,8 +1,7 @@
 import type { ConteudoItemType, FlowGraph, FlowEdge, FlowNode, NodeType } from './graph-schema';
 import type { FollowupFlowSurface } from './api-schemas';
 import type { AgenteCitado } from './agentes-citados';
-import { AGENT_NODE_UNSET_ID, PERGUNTA_SEM_PRAZO_MS, branchIdForCondition, nodeBranches, prazoDaPerguntaMs } from './graph-schema';
-import { rotuloDoRamo } from './rotulo-do-ramo';
+import { AGENT_NODE_UNSET_ID, PERGUNTA_SEM_PRAZO_MS, prazoDaPerguntaMs } from './graph-schema';
 import { TIPOS_DE_ITEM_DE_CONTEUDO, type NomesDeValor } from './vocabulario';
 import { assertSafeOutboundUrl } from '@/lib/automation/outbound-url';
 import { parseDialablePhone } from '@/lib/messaging/contact-card';
@@ -434,39 +433,6 @@ function byId(a: { id: string }, b: { id: string }): number {
 
 
 /**
- * Toda saída declarada do nó precisa levar a algum lugar, e a mensagem nomeia
- * QUAL ficou solta. Serve tanto ao `condition` por regra quanto ao
- * `ai_classify` migrado: a pergunta é a mesma — "existe aresta para este
- * ramo?" — e escrevê-la duas vezes é como a cobertura de classes ficou para
- * trás quando os ramos nasceram.
- */
-function cobrirRamos(
-  node: FlowNode,
-  outgoing: FlowEdge[],
-  errors: PublishValidationError[],
-  nomes: NomesDeValor
-): void {
-  for (const branch of nodeBranches(node)) {
-    if (outgoing.some((e) => branchIdForCondition(node, e.condition) === branch.id)) continue;
-    if (branch.kind === 'fallback') {
-      errors.push({
-        node_id: node.id,
-        code: 'missing_always_fallback',
-        branch_id: branch.id,
-        message: `Nó "${node.id}" não tem a saída de escape: um lead que não se encaixar em nenhuma saída fica parado aqui.`,
-      });
-      continue;
-    }
-    errors.push({
-      node_id: node.id,
-      code: 'missing_branch_edge',
-      branch_id: branch.id,
-      message: `Nó "${node.id}": a saída "${rotuloDoRamo(branch, nomes)}" não está ligada a nada.`,
-    });
-  }
-}
-
-/**
  * Uma regra de condição que não pode decidir nada. O rascunho aceita todas estas
  * formas — trabalho pela metade precisa salvar —, mas publicada cada uma é uma
  * saída que nunca é tomada ou que é tomada sempre, com cara de regra pronta:
@@ -621,13 +587,7 @@ function validarItensDeConteudo(graph: FlowGraph, errors: PublishValidationError
  * saídas (cumpriu / passou do limite / silêncio) levam a algum lugar. A saída de escape (`else`) NÃO é cobrada: as
  * três saídas esgotam o que o motor produz, e exigir uma quarta ligação seria exigir um caminho que nunca corre.
  */
-function validarAgentes(
-  graph: FlowGraph,
-  contexto: ContextoDoPublish,
-  outEdges: Map<string, FlowEdge[]>,
-  errors: PublishValidationError[],
-  nomes: NomesDeValor
-): void {
+function validarAgentes(graph: FlowGraph, contexto: ContextoDoPublish, errors: PublishValidationError[]): void {
   for (const node of [...graph.nodes].sort(byId)) {
     if (node.type !== 'agent') continue;
     const id = node.config.agent_id;
@@ -654,18 +614,6 @@ function validarAgentes(
       }
     }
 
-    // Cobertura das três saídas — as de tipo 'match'; o escape fica de fora (ver o cabeçalho).
-    const saidas = outEdges.get(node.id) ?? [];
-    for (const branch of nodeBranches(node)) {
-      if (branch.kind !== 'match') continue;
-      if (saidas.some((e) => branchIdForCondition(node, e.condition) === branch.id)) continue;
-      errors.push({
-        node_id: node.id,
-        code: 'missing_branch_edge',
-        branch_id: branch.id,
-        message: `Nó "${node.id}": a saída "${rotuloDoRamo(branch, nomes)}" não está ligada a nada.`,
-      });
-    }
   }
 }
 
@@ -682,7 +630,6 @@ export function validateFlowForPublish(
   const nomes: NomesDeValor = etapas ? { etapa: (id) => etapas.get(id)?.nome ?? null } : {};
   const nodesById = new Map(nodes.map((n) => [n.id, n]));
   const outEdges = buildOutEdges(edges);
-  const inEdges = buildOutEdges(edges.map((e) => ({ ...e, source: e.target, target: e.source })));
 
   const triggers = nodes.filter((n) => n.type === 'trigger');
   if (triggers.length === 0) {
@@ -715,20 +662,8 @@ export function validateFlowForPublish(
       }
     }
 
-    const endNodes = nodes.filter((n) => n.type === 'end');
-    // A Pergunta pode parar o lead de propósito (saída não ligada): ela conta como ponto final válido,
-    // senão o dono seria OBRIGADO a ligar «Sem resposta» a um Fim só para publicar.
-    const pontosFinais = [...endNodes, ...nodes.filter((n) => n.type === 'collect')];
-    const canReachEnd = bfsReachable(pontosFinais.map((n) => n.id), inEdges);
-    for (const node of [...nodes].sort(byId)) {
-      if (reachable.has(node.id) && !canReachEnd.has(node.id)) {
-        errors.push({
-          node_id: node.id,
-          code: 'no_end_path',
-          message: `O caminho que passa pela caixa "${node.label}" não termina: ligue a saída dela até uma caixa "Fim do fluxo".`,
-        });
-      }
-    }
+    // SEM exigir caminho até um Fim: o lead pode parar no meio do funil (saída não ligada), e isso é decisão
+    // do dono — antes `no_end_path` o obrigava a ligar cada ponta a um nó de Fim só para publicar.
 
     const { longWaitNodeIds, maxStepsExceeded } = analyzeCondensedPaths(
       startTrigger.id,
@@ -769,82 +704,21 @@ export function validateFlowForPublish(
     }
   }
 
-  // Cobertura por ramo — SÓ no modo 'per_check'. É deliberado que o modo
-  // combinado fique de fora: hoje nenhuma regra exige aresta por resultado num
-  // nó de condição, e passar a exigir reprovaria no publish fluxos v1 que estão
-  // rodando. Regra nova só vale para a forma nova.
-  for (const node of [...nodes].sort(byId)) {
-    if (node.type !== 'condition' || node.config.branching !== 'per_check') continue;
-    const outgoing = outEdges.get(node.id) ?? [];
-
-    cobrirRamos(node, outgoing, errors, nomes);
-  }
-
-  // ab_split (lote 1): cada braço precisa de aresta — sem cobrança aqui, um
-  // braço órfão perde a fatia de tráfego dele em silêncio (o motor cai no
-  // fallback 'always', mudando quem recebe o quê sem ninguém decidir isso).
-  for (const node of [...nodes].sort(byId)) {
-    if (node.type !== 'ab_split') continue;
-    cobrirRamos(node, outEdges.get(node.id) ?? [], errors, nomes);
-  }
+  // SAÍDA NÃO LIGADA NÃO É ERRO. O funil só avança até onde foi montado: o lead que sai por uma saída sem
+  // aresta FICA no nó (`park`, node-handlers.ts), e a linha do tempo diz qual saída faltou. Antes o publish
+  // recusava (missing_branch_edge & cia) e o motor, nos legados, escapava para «Outros casos» — que manda o
+  // lead por um caminho que a decisão não tomou.
 
   for (const node of [...nodes].sort(byId)) {
     if (node.type === 'condition') conferirRegras(node, contexto, errors);
   }
 
-  validarAgentes(graph, contexto, outEdges, errors, nomes);
+  validarAgentes(graph, contexto, errors);
   validarItensDeConteudo(graph, errors);
 
+  // A carência mínima de quem espera resposta. (A cobertura das saídas saiu: ver o aviso acima.)
   for (const node of [...nodes].sort(byId)) {
-    if (node.type !== 'ai_classify' && node.type !== 'match_reply' && node.type !== 'menu' && node.type !== 'attendant_route' && node.type !== 'repeat') continue;
-    const outgoing = outEdges.get(node.id) ?? [];
-
-    if (node.type === 'match_reply' || node.type === 'menu' || node.type === 'attendant_route' || node.type === 'repeat' || node.config.branches !== undefined) {
-      cobrirRamos(node, outgoing, errors, nomes);
-      if (node.type === 'repeat' || node.type === 'attendant_route') continue;
-      if (node.config.grace_timeout_ms < 900_000) {
-        errors.push({
-          node_id: node.id,
-          code: 'grace_too_short',
-          message: `Nó "${node.id}" tem grace_timeout_ms abaixo do mínimo de 15min.`,
-        });
-      }
-      continue;
-    }
-
-    for (const cls of node.config.classes) {
-      const hasEdge = outgoing.some(
-        (e) => e.condition.type === 'class_match' && e.condition.value === cls
-      );
-      if (!hasEdge) {
-        errors.push({
-          node_id: node.id,
-          code: 'missing_class_edge',
-          message: `Nó "${node.id}" não tem edge class_match para a classe "${cls}".`,
-        });
-      }
-    }
-
-    const hasNoReply = outgoing.some(
-      (e) => e.condition.type === 'class_match' && e.condition.value === 'no_reply'
-    );
-    if (!hasNoReply) {
-      errors.push({
-        node_id: node.id,
-        code: 'missing_no_reply_edge',
-        message: `Nó "${node.id}" não tem edge class_match para "no_reply".`,
-      });
-    }
-
-    const hasAlways = outgoing.some((e) => e.condition.type === 'always');
-    if (!hasAlways) {
-      errors.push({
-        node_id: node.id,
-        code: 'missing_always_fallback',
-        message: `Nó "${node.id}" não tem edge "always" de fallback.`,
-      });
-    }
-
+    if (node.type !== 'ai_classify' && node.type !== 'match_reply' && node.type !== 'menu') continue;
     if (node.config.grace_timeout_ms < 900_000) {
       errors.push({
         node_id: node.id,

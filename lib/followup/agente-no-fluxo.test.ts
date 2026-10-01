@@ -321,10 +321,11 @@ describe("o motor — processNode no nó agent", () => {
     expect(r).toMatchObject({ kind: "advance", next_node_id: "f-silencio" });
   });
 
-  it("silêncio sem aresta é falha com o motivo, não um avanço no escuro", () => {
+  it("silêncio sem aresta: o lead FICA no agente (park) — não é falha nem avanço no escuro", () => {
     const g = grafo();
     g.edges = g.edges.filter((e) => !(e.condition.type === "branch" && e.condition.branch_id === "silencio"));
     const r = rodar("com_agente", g);
-    expect(r.kind).toBe("fail");
+    expect(r).toMatchObject({ kind: "park" });
+    expect((r as { reason: string }).reason).toContain("Silêncio");
   });
 });

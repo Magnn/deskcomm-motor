@@ -20,7 +20,7 @@ import type pg from "pg";
 
 import type { AdminClient, EnrollmentPatch } from "./engine";
 import { PERGUNTA_SEM_PRAZO_MS, flowGraphSchema, prazoDaPerguntaMs } from "./graph-schema";
-import { EVENTO_ACAO_ADIADA, classEdgeMatch, selectEdge, type EnrollmentRow } from "./node-handlers";
+import { EVENTO_ACAO_ADIADA, arestaDaClasse, selectEdge, type EnrollmentRow } from "./node-handlers";
 import { coletarEsperasAdaptativas, montarTimingPlan, type PropostaDeEspera } from "./timing-plan";
 import { persistirRespostaFollowupPg } from "./persistir-resposta";
 
@@ -137,6 +137,11 @@ export async function completeTurnForEnrollment(
     });
   };
 
+  // O resultado chegou, mas a saída do passo não está ligada a nada: o lead FICA neste nó (sem erro e sem
+  // lançar — lançar devolvia o job à fila, que reenviava a mensagem). O trabalho do passo JÁ foi feito.
+  const parar = (motivo: string, extra: Partial<EnrollmentPatch> = {}): Promise<void> =>
+    applyStep("node_parked", { reason: motivo }, { current_node_id: node.id, status: "active", next_eval_at: null, ...extra });
+
   if(result.kind === "skipped"){
     await applyStep("turn_skipped",{reason:result.reason},{status:"cancelled",cancel_reason:result.reason,completed_at:now.toISOString(),next_eval_at:null});
     return;
@@ -226,7 +231,7 @@ export async function completeTurnForEnrollment(
       throw new Error(`completeTurnForEnrollment: resultado 'sent' mas o nó "${node.id}" não é 'action'`);
     }
     const edge = selectEdge(graph.edges, node.id, { type: "always" });
-    if (!edge) throw new Error(`action node "${node.id}" sem aresta 'always' de saída`);
+    if (!edge) return parar("a mensagem saiu e a saída do passo não está ligada a nada");
     await applyStep(
       "action_sent",
       {},
@@ -239,9 +244,15 @@ export async function completeTurnForEnrollment(
     if (node.type !== "ai_classify") {
       throw new Error(`completeTurnForEnrollment: resultado 'classified' mas o nó "${node.id}" não é 'ai_classify'`);
     }
-    const edge = selectEdge(graph.edges, node.id, classEdgeMatch(node, result.class));
+    // A classe DECLARADA leva pela aresta DELA — sem ela o lead fica (cair em «Outros casos» seria um caminho
+    // que a classificação não tomou). Classe fora das declaradas É «Outros casos».
+    const { edge, declarada } = arestaDaClasse(node, graph.edges, result.class);
     if (!edge) {
-      throw new Error(`ai_classify node "${node.id}" sem aresta pra classe "${result.class}" (fallback 'always' também ausente)`);
+      return parar(
+        declarada
+          ? `a saída da classe «${result.class}» não está ligada a nada`
+          : "a resposta não é nenhuma das classes e «Outros casos» não está ligada a nada",
+      );
     }
     await applyStep(
       "ai_classified",
@@ -256,7 +267,6 @@ export async function completeTurnForEnrollment(
       throw new Error(`completeTurnForEnrollment: resultado 'generic_ai_done' mas o nó "${node.id}" não é 'ai_generic'`);
     }
     const edge = selectEdge(graph.edges, node.id, { type: "always" });
-    if (!edge) throw new Error(`ai_generic node "${node.id}" sem aresta 'always' de saída`);
     // «Deseja salvar o retorno em um campo?» — desligado, o texto NÃO toca o cadastro (segue no
     // registro do passo). Ausente = comportamento de sempre (grava).
     if (node.config.salvar_em_campo !== false) try {
@@ -274,6 +284,8 @@ export async function completeTurnForEnrollment(
     } catch {
       // segue mesmo assim — o próximo passo importa mais que o registro do dado.
     }
+    // O texto já foi gerado, enviado e (se pedido) gravado: só falta a saída. Sem ela, o lead fica aqui.
+    if (!edge) return parar("a IA respondeu e a saída do passo não está ligada a nada");
     await applyStep(
       "ai_generic_done",
       {
@@ -300,7 +312,8 @@ export async function completeTurnForEnrollment(
     agora: now,
   });
   const edge = selectEdge(graph.edges, node.id, { type: "always" });
-  if (!edge) throw new Error(`trigger node "${node.id}" sem aresta 'always' de saída`);
+  // O plano de tempo fica salvo mesmo sem saída: é decisão já tomada (e paga).
+  if (!edge) return parar("o início do fluxo não está ligado a nada", { timing_plan: plano });
   await applyStep(
     "timing_plan_decidido",
     // O plano inteiro no evento (não só um ponteiro pra coluna): a timeline do

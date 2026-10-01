@@ -607,7 +607,7 @@ async function applyResult(
   }
 
   if (
-    result.kind === "advance" &&
+    (result.kind === "advance" || result.kind === "park") &&
     !isReplay &&
     respostaParaGravar &&
     node.type === "match_reply" &&
