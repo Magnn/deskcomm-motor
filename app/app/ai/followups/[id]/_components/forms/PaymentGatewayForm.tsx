@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { CreditCard, Copy, Check } from "@/lib/ui/icons";
 import { useT } from "@/hooks/i18n/useT";
+import { copyToClipboard } from "@/lib/clipboard";
 import { paymentGatewayConfigSchema } from "@/lib/followup/graph-schema";
 import type { ConfigOf } from "./shared";
 
@@ -51,8 +52,8 @@ export function PaymentGatewayForm({ config, onChange }: Props) {
     }
   };
 
-  const handleCopyVar = (key: string) => {
-    navigator.clipboard.writeText(key);
+  const handleCopyVar = async (key: string) => {
+    if (!(await copyToClipboard(key))) return;
     setCopiedKey(key);
     setTimeout(() => setCopiedKey(null), 1500);
   };

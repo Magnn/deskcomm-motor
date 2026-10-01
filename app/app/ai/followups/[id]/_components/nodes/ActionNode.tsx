@@ -22,11 +22,13 @@ export function ActionNode({ id, data, selected }: NodeProps<RFNode>) {
       : undefined;
 
   let customPreview: React.ReactNode = undefined;
-  const rawMode = (config as { mode?: string }).mode;
+  // Campos que só alguns modos têm: leitura tipada em vez de `any`.
+  const campos = config as { mode?: string; tag?: string; op?: string; body?: string; prompt_hint?: string };
+  const rawMode = campos.mode;
 
   if (rawMode === "tag") {
-    const tagName = (config as any).tag || "Entrou no funil";
-    const isRemove = (config as any).op === "remove";
+    const tagName = campos.tag || "Entrou no funil";
+    const isRemove = campos.op === "remove";
     const op = isRemove ? t("Remover etiqueta") : t("Adicionar etiqueta");
     customPreview = (
       <div className="flex items-center gap-2 rounded-xl border border-blue-200/80 bg-blue-50/50 p-2 text-xs dark:border-blue-900/40 dark:bg-blue-950/20">
@@ -43,7 +45,7 @@ export function ActionNode({ id, data, selected }: NodeProps<RFNode>) {
       </div>
     );
   } else if (rawMode === "text") {
-    const bodyText = (config as any).body || "";
+    const bodyText = campos.body || "";
     customPreview = (
       <div className="flex w-full flex-col gap-1.5 rounded-xl border border-blue-200/80 bg-gradient-to-b from-blue-50/50 to-white p-2.5 text-xs shadow-2xs dark:border-blue-900/40 dark:from-blue-950/20 dark:to-neutral-900">
         <div className="flex items-center gap-1.5 font-bold text-blue-800 dark:text-blue-300 text-[11px]">
@@ -56,7 +58,7 @@ export function ActionNode({ id, data, selected }: NodeProps<RFNode>) {
       </div>
     );
   } else if (rawMode === "ai_message") {
-    const promptHint = (config as any).prompt_hint || "";
+    const promptHint = campos.prompt_hint || "";
     customPreview = (
       <div className="flex w-full flex-col gap-1.5 rounded-xl border border-violet-200/80 bg-gradient-to-b from-violet-50/50 to-white p-2.5 text-xs shadow-2xs dark:border-violet-900/40 dark:from-violet-950/20 dark:to-neutral-900">
         <div className="flex items-center justify-between text-[11px]">

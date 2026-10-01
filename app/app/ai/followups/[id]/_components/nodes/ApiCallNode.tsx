@@ -29,7 +29,7 @@ export function ApiCallNode({ id, data, selected }: NodeProps<RFNode>) {
         <span className="flex h-4 w-4 items-center justify-center rounded-full border border-slate-400 text-[10px] leading-none text-slate-500 font-bold">
           +
         </span>
-        Executar ação
+        {t("Executar ação")}
       </span>
       <span className="max-w-[150px] truncate rounded-full bg-[#9333ea] px-2.5 py-0.5 text-[10px] font-bold text-white shadow-xs">
         {actionText}

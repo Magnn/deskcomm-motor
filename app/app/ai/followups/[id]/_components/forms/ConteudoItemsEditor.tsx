@@ -324,7 +324,7 @@ function ItemCard({
           />
           <div className="flex items-center justify-between mt-1">
             <p className="text-[10px] text-[#94a3b8]">
-              Use <code className="bg-[#f1f5f9] dark:bg-zinc-800 px-1 rounded-md text-[9px] font-mono">{"{{variavel}}"}</code> para inserir variáveis.
+              Use <code className="bg-[#f1f5f9] dark:bg-zinc-800 px-1 rounded-md text-[9px] font-mono">{"{{variavel}}"}</code> {t("para inserir variáveis.")}
             </p>
           </div>
         </div>
@@ -665,7 +665,7 @@ function MediaSection({
       {item.type === "document" && docTab === "link" ? (
         <div className="space-y-1.5 py-1">
           <Input
-            placeholder="https://exemplo.com/documento.pdf"
+            placeholder="https://…/documento.pdf"
             value={linkUrl}
             disabled={disabled}
             onChange={(e) => {
@@ -739,7 +739,7 @@ function MediaSection({
                 {upload.isPending ? t("Enviando…") : t("Clique para enviar um video")}
               </span>
               <span className="text-[11px] text-slate-400 dark:text-zinc-500">
-                mp4,mkv,avi,mov,3gp (máx. 50 MB)
+                {t("mp4,mkv,avi,mov,3gp (máx. 50 MB)")}
               </span>
             </>
           )}

@@ -219,23 +219,26 @@ test.describe("navegação agrupada", () => {
    *
    * Medido por ferramenta, nunca a olho.
    */
-  test("nenhum grupo fica fora da dobra, e em 900px o menu não rola", async ({ page }) => {
+  test("o menu rola e todo grupo é alcançável, com Configurações fixo fora da rolagem", async ({ page }) => {
+    // Decisão do dono: o menu pode passar da dobra (16 itens com o Voice Studio);
+    // o que não pode é um grupo inalcançável. O rodapé fixo tem teste próprio abaixo.
     await page.setViewportSize({ width: 1280, height: 900 });
     await loginAdmin(page);
 
     const m = await page.evaluate(() => {
       const nav = document.querySelector('nav[aria-label="Navegação principal"]')!;
+      const overflowY = getComputedStyle(nav).overflowY;
+      const titulos = [...nav.querySelectorAll("h2")];
+      titulos[titulos.length - 1]?.scrollIntoView({ block: "end" });
       const r = nav.getBoundingClientRect();
       return {
-        rola: nav.scrollHeight > Math.round(r.height) + 1,
-        titulosFora: [...nav.querySelectorAll("h2")].filter(
-          (h) => h.getBoundingClientRect().bottom > r.bottom,
-        ).length,
+        overflowY,
+        titulosFora: titulos.filter((h) => h.getBoundingClientRect().bottom > r.bottom + 1).length,
       };
     });
 
-    expect(m.titulosFora, "grupo inteiro invisível é o problema que viemos resolver").toBe(0);
-    expect(m.rola, "em 900px o menu inteiro tem de caber sem scroll").toBe(false);
+    expect(["auto", "scroll"], "o menu precisa rolar quando passa da dobra").toContain(m.overflowY);
+    expect(m.titulosFora, "depois de rolar até o fim, nenhum grupo pode seguir invisível").toBe(0);
   });
 
   test.describe("mobile", () => {

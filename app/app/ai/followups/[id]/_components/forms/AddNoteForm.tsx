@@ -88,7 +88,7 @@ export function AddNoteForm({
                   key={v}
                   type="button"
                   onClick={() => insertVariable(v)}
-                  className="px-2 py-0.5 rounded bg-white dark:bg-zinc-800 text-amber-900 dark:text-amber-300 border border-amber-300 dark:border-amber-700 text-[11px] font-mono hover:bg-amber-100 cursor-pointer shadow-2xs"
+                  className="px-2 py-0.5 rounded-md bg-white dark:bg-zinc-800 text-amber-900 dark:text-amber-300 border border-amber-300 dark:border-amber-700 text-[11px] font-mono hover:bg-amber-100 cursor-pointer shadow-2xs"
                 >
                   {v}
                 </button>

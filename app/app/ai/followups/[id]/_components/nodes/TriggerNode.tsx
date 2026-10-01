@@ -6,6 +6,7 @@ import { Hash, SquarePen } from "lucide-react";
 
 import type { RFNode } from "@/lib/followup/graph-mappers";
 import { useT } from "@/hooks/i18n/useT";
+import { copyToClipboard } from "@/lib/clipboard";
 import { WhatsappLogo, Play, Check } from "@/lib/ui/icons";
 import { cn } from "@/lib/utils";
 
@@ -13,13 +14,11 @@ export function TriggerNode({ id, data, selected }: NodeProps<RFNode>) {
   const t = useT();
   const [copiedId, setCopiedId] = useState(false);
 
-  const handleCopyId = (e: React.MouseEvent) => {
+  const handleCopyId = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (typeof navigator !== "undefined" && navigator.clipboard) {
-      void navigator.clipboard.writeText(id);
-      setCopiedId(true);
-      setTimeout(() => setCopiedId(false), 2000);
-    }
+    if (!(await copyToClipboard(id))) return;
+    setCopiedId(true);
+    setTimeout(() => setCopiedId(false), 2000);
   };
   const cfg = (data.config || {}) as Record<string, unknown>;
   const triggerKind = String(cfg.kind || "keyword");

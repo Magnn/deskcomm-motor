@@ -80,7 +80,7 @@ export function TriggerForm({
           onChange={(e) => handleIntegrationChange(e.target.value)}
           className="w-full rounded-[10px] border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2 text-[13px] text-slate-800 dark:text-zinc-100 outline-hidden focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 shadow-xs"
         >
-          <option value="whatsapp">WhatsApp (Oficial / Não Oficial)</option>
+          <option value="whatsapp">{t("WhatsApp (Oficial / Não Oficial)")}</option>
           <option value="hotmart">Hotmart</option>
           <option value="kiwify">Kiwify</option>
           <option value="asaas">Asaas</option>

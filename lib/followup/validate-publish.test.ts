@@ -898,7 +898,7 @@ describe('validateFlowForPublish — nós de paridade AcassIA', () => {
           type: 'pix_payment',
           label: 'PIX',
           position: pos,
-          config: { key_type: 'aleatoria', pix_key: 'chave-uuid', beneficiary: 'Deskcomm', amount: '50,00' },
+          config: { key_type: 'aleatoria', pix_key: 'chave-uuid', beneficiary: 'Loja Teste', amount: '50,00' },
         },
         {
           id: 'gw',
