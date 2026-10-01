@@ -34,6 +34,9 @@ export const NODE_TYPES = [
   'whatsapp_template',
   'meta_pixel',
   'voice_studio',
+  // Automações avançadas (ChatbotX parity)
+  'google_sheets',
+  'execute_code',
 ] as const;
 export type NodeType = (typeof NODE_TYPES)[number];
 
@@ -759,6 +762,41 @@ export const voiceStudioConfigSchema = z.strictObject({
 });
 export type VoiceStudioConfig = z.infer<typeof voiceStudioConfigSchema>;
 
+/** Google Sheets (ChatbotX parity - Integração com Planilhas Google) */
+export const GOOGLE_SHEETS_OPERATIONS = ['insert_row', 'get_row', 'update_row', 'clear_row'] as const;
+export type GoogleSheetsOperation = (typeof GOOGLE_SHEETS_OPERATIONS)[number];
+
+export const googleSheetsMappingSchema = z.strictObject({
+  column: z.string().max(100),
+  value: z.string().max(1000),
+  custom_field: z.string().max(100).optional(),
+});
+export type GoogleSheetsMapping = z.infer<typeof googleSheetsMappingSchema>;
+
+export const googleSheetsConfigSchema = z.strictObject({
+  operation: z.enum(GOOGLE_SHEETS_OPERATIONS).default('insert_row'),
+  spreadsheet_id: z.string().max(500).default(''),
+  sheet_name: z.string().max(200).default('Página1'),
+  lookup_column: z.string().max(100).optional().default(''),
+  lookup_value: z.string().max(500).optional().default(''),
+  mappings: z.array(googleSheetsMappingSchema).max(50).default([]),
+});
+export type GoogleSheetsConfig = z.infer<typeof googleSheetsConfigSchema>;
+
+/** Executar Código JavaScript (ChatbotX parity - Sandbox JS no Fluxo) */
+export const executeCodeMappingSchema = z.strictObject({
+  json_path: z.string().max(200),
+  target_field: z.string().max(200),
+});
+export type ExecuteCodeMapping = z.infer<typeof executeCodeMappingSchema>;
+
+export const executeCodeConfigSchema = z.strictObject({
+  code: z.string().max(10_000).default('// Escreva o código JS\nreturn { status: "ok" };'),
+  timeout_ms: z.number().int().min(500).max(10_000).default(3000),
+  output_field: z.string().max(100).optional().default(''),
+  mappings: z.array(executeCodeMappingSchema).max(50).default([]),
+});
+export type ExecuteCodeConfig = z.infer<typeof executeCodeConfigSchema>;
 
 /**
  * Flow node schema — discriminated union based on node type.
@@ -1013,6 +1051,28 @@ export const flowNodeSchema = z.discriminatedUnion('type', [
       y: z.number(),
     }),
     config: voiceStudioConfigSchema,
+  }),
+  // Google Sheets (Planilhas Google)
+  z.strictObject({
+    id: z.string().min(1),
+    type: z.literal('google_sheets'),
+    label: z.string().min(1).max(60),
+    position: z.strictObject({
+      x: z.number(),
+      y: z.number(),
+    }),
+    config: googleSheetsConfigSchema,
+  }),
+  // Executar Código JavaScript
+  z.strictObject({
+    id: z.string().min(1),
+    type: z.literal('execute_code'),
+    label: z.string().min(1).max(60),
+    position: z.strictObject({
+      x: z.number(),
+      y: z.number(),
+    }),
+    config: executeCodeConfigSchema,
   }),
 ]);
 

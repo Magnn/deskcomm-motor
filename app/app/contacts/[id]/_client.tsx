@@ -27,6 +27,8 @@ import { rotuloDoContato } from "@/lib/contacts/rotulo-do-contato";
 import { origemDoContato } from "@/lib/leads/origem-do-contato";
 import { phoneForDisplay } from "@/lib/channels/phone-variants";
 import { DialButton } from "@/components/voice/DialButton";
+import { ContactCustomFieldsView } from "@/components/contacts/ContactCustomFieldsView";
+import { ContactNotesSection } from "@/components/contacts/ContactNotesSection";
 
 interface Props {
   contactId: string;
@@ -183,6 +185,7 @@ export function ContactDetailClient({ contactId }: Props) {
       <Tabs defaultValue="overview">
         <TabsList>
           <TabsTrigger value="overview">{t("Visão geral")}</TabsTrigger>
+          <TabsTrigger value="notes">{t("Notas internas")}</TabsTrigger>
           <TabsTrigger value="timeline">Timeline</TabsTrigger>
           {isAdmin && <TabsTrigger value="lgpd">LGPD</TabsTrigger>}
         </TabsList>
@@ -279,6 +282,20 @@ export function ContactDetailClient({ contactId }: Props) {
               </div>
             </dl>
           </Card>
+
+          <ContactCustomFieldsView
+            customFields={contact.custom_fields}
+            customFieldDefs={camposDoFunil(pipelineQuery.data?.pipeline.settings ?? null)}
+            onEdit={() => setEditOpen(true)}
+            canEdit={!contact.is_anonymized && user.support?.access_mode !== "support_readonly"}
+          />
+        </TabsContent>
+
+        <TabsContent value="notes" className="mt-4">
+          <ContactNotesSection
+            contact={contact}
+            canEdit={!contact.is_anonymized && user.support?.access_mode !== "support_readonly"}
+          />
         </TabsContent>
 
         <TabsContent value="timeline" className="mt-4">

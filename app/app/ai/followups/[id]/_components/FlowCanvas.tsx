@@ -76,6 +76,8 @@ import { PaymentGatewayNode } from "./nodes/PaymentGatewayNode";
 import { WhatsappTemplateNode } from "./nodes/WhatsappTemplateNode";
 import { MetaPixelNode } from "./nodes/MetaPixelNode";
 import { VoiceStudioNode } from "./nodes/VoiceStudioNode";
+import { GoogleSheetsNode } from "./nodes/GoogleSheetsNode";
+import { ExecuteCodeNode } from "./nodes/ExecuteCodeNode";
 
 const EMPTY_GRAPH: FlowGraph = { nodes: [], edges: [] };
 const DND_MIME = "application/x-followup-node-type";
@@ -106,6 +108,8 @@ const nodeTypes: NodeTypes = {
   whatsapp_template: WhatsappTemplateNode,
   meta_pixel: MetaPixelNode,
   voice_studio: VoiceStudioNode,
+  google_sheets: GoogleSheetsNode,
+  execute_code: ExecuteCodeNode,
 };
 
 interface Props {

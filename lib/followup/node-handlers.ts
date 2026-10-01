@@ -1122,7 +1122,9 @@ export function processNode(input: {
     case "payment_gateway":
     case "whatsapp_template":
     case "meta_pixel":
-    case "voice_studio": {
+    case "voice_studio":
+    case "google_sheets":
+    case "execute_code": {
       const edge = selectEdge(edges, node.id, { type: "always" });
       if (!edge) return { kind: "fail", error: `${node.type} node "${node.id}" has no outbound edge` };
       return { kind: "advance", next_node_id: edge.target, next_eval_at: clock() };

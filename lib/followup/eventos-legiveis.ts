@@ -148,6 +148,8 @@ const TIPO_DO_NO: Record<FlowNode["type"], string> = {
   whatsapp_template: "Template WhatsApp",
   meta_pixel: "Pixel Facebook",
   voice_studio: "Voice Studio",
+  google_sheets: "Google Sheets",
+  execute_code: "Executar Código JS",
 };
 
 const DESFECHO: Record<string, string> = {
@@ -252,6 +254,10 @@ export function resumoDoNo(node: FlowNode): NoDoDossie {
       return { ...base, resumo: `dispara evento do Pixel Meta (${node.config.event_type})` };
     case "voice_studio":
       return { ...base, resumo: `gera e envia áudio com IA (${node.config.voice_name || "Voz"})` };
+    case "google_sheets":
+      return { ...base, resumo: `integração com planilha Google Sheets (${node.config.operation})` };
+    case "execute_code":
+      return { ...base, resumo: "executa script JavaScript no contexto do fluxo" };
   }
 }
 

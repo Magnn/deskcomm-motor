@@ -29,6 +29,8 @@ import {
   CheckCircle,
   CreditCard,
   Target,
+  GoogleLogo,
+  Code,
 } from "@/lib/ui/icons";
 import {
   AGENT_NODE_DEFAULT_MAX_TURNS,
@@ -591,6 +593,36 @@ export const NODE_VISUALS: Record<NodeType, NodeVisual> = {
       voice_name: "Julieta",
     }),
   },
+  google_sheets: {
+    type: "google_sheets",
+    paletteLabel: "Google Sheets",
+    paletteDesc: "Ler ou gravar em planilhas",
+    icon: GoogleLogo,
+    ...visualDoMatiz("emerald"),
+    defaultLabel: "Google Sheets",
+    defaultConfig: () => ({
+      operation: "insert_row",
+      spreadsheet_id: "",
+      sheet_name: "Página1",
+      lookup_column: "",
+      lookup_value: "",
+      mappings: [],
+    }),
+  },
+  execute_code: {
+    type: "execute_code",
+    paletteLabel: "Código JS",
+    paletteDesc: "Executar script JavaScript",
+    icon: Code,
+    ...visualDoMatiz("amber"),
+    defaultLabel: "Executar Código",
+    defaultConfig: () => ({
+      code: '// Escreva o código JS\nreturn { status: "ok" };',
+      timeout_ms: 3000,
+      output_field: "",
+      mappings: [],
+    }),
+  },
   // Fora da paleta (`NODE_VISUAL_LIST` vem de `NOS_DA_SUPERFICIE`) até o motor existir: a tabela é exaustiva por
   // `NodeType`, mas só entra na paleta o que a superfície executa.
   agent: {
@@ -749,6 +781,20 @@ export function describeNodeConfig(
       const c = config as ConfigOf<"voice_studio">;
       const snippet = c.text ? (c.text.length > 25 ? `${c.text.slice(0, 25)}...` : c.text) : t("Sem texto");
       return `${c.voice_name || "Julieta"}: "${snippet}"`;
+    }
+    case "google_sheets": {
+      const c = config as ConfigOf<"google_sheets">;
+      const opLabels: Record<string, string> = {
+        insert_row: t("Inserir linha"),
+        get_row: t("Buscar linha"),
+        update_row: t("Atualizar linha"),
+        clear_row: t("Limpar linha"),
+      };
+      return `${opLabels[c.operation] || t("Planilha")} · ${c.sheet_name || t("Página1")}`;
+    }
+    case "execute_code": {
+      const c = config as ConfigOf<"execute_code">;
+      return `${t("Script JS")} · ${c.mappings.length} ${c.mappings.length === 1 ? t("saída") : t("saídas")}`;
     }
     default: {
       const exhaustive: never = type;
