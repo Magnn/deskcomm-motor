@@ -306,7 +306,7 @@ export function PublishBar({
 
         {/* Lado Direito: Ações rápidas */}
         <div className="flex flex-wrap items-center gap-2">
-          <TriggerConfigControl flowId={flowId} triggerConfig={flow.trigger_config} />
+          <TriggerConfigControl flowId={flowId} flowStatus={flow.status} triggerConfig={flow.trigger_config} />
 
           <Select value={flow.handoff_policy} onValueChange={(v) => handoffPolicy.mutate(v as FollowupFlowDetailRow["handoff_policy"])}>
             <SelectTrigger className="h-8 w-44 text-xs" aria-label={t("Política de handoff")}>

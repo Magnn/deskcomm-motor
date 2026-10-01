@@ -55,7 +55,7 @@ import { acelerarPipelineDeEventos } from "@/lib/dev/kick-local-pipeline";
 import { autorizarContatoParaIA } from "@/lib/ai/elegibilidade/autorizacao";
 import { casarCampanha, lerCampanhas } from "@/lib/ai/elegibilidade/campanha";
 import { enrollFollowupFlow } from "@/lib/followup/enroll";
-import { lerConfigDeFluxoDoCanal } from "@/lib/channels/channel-flow-config";
+import { lerConfigDeFluxoDoCanal, quemAtendeONumero, type QuemAtende } from "@/lib/channels/channel-flow-config";
 
 type Admin = ReturnType<typeof createAdminClient>;
 
@@ -167,6 +167,7 @@ export async function aplicarEfeitosPosEntrada(
  * sem IA, se usa agente de IA ou se vai direto para atendimento humano.
  */
 async function processarFluxoOuDespachoDoCanal(admin: Admin, entrada: EntradaDeMensagem): Promise<void> {
+  let dono: QuemAtende | null = null;
   try {
     const { data: channelSession } = await admin
       .from("channel_sessions")
@@ -175,36 +176,19 @@ async function processarFluxoOuDespachoDoCanal(admin: Admin, entrada: EntradaDeM
       .eq("id", entrada.channelSessionId)
       .maybeSingle();
 
-    const config = lerConfigDeFluxoDoCanal(channelSession?.metadata);
+    // Um número, um dono: a regra está em `quemAtendeONumero`.
+    dono = quemAtendeONumero(lerConfigDeFluxoDoCanal(channelSession?.metadata));
 
-    // Se o canal estiver configurado explicitamente para atendimento humano, não chama robô
-    if (config.handling_mode === "human") {
-      logger.info("[pos-entrada] canal em modo 'human': fluxo e IA desativados para este número", {
+    if (dono.quem === "humano") {
+      logger.info("[pos-entrada] número sem automação: nem fluxo nem IA respondem", {
         channelId: entrada.channelSessionId,
         contactId: entrada.contactId,
       });
       return;
     }
 
-    let targetFlowId = config.default_flow_pointer_id;
-
-    // Se não tiver fluxo explícito no canal, verifica se há fluxo ativo cujo gatilho aponta para este canal
-    if (!targetFlowId && config.handling_mode !== "ai") {
-      const { data: matchingFlows } = await admin
-        .from("followup_flow_pointers")
-        .select("id, trigger_config")
-        .eq("organization_id", entrada.organizationId)
-        .eq("status", "active")
-        .limit(20);
-
-      const found = (matchingFlows ?? []).find((f) => {
-        const trig = f.trigger_config as Record<string, unknown> | null;
-        return trig?.channel_session_id === entrada.channelSessionId;
-      });
-      if (found) targetFlowId = found.id;
-    }
-
-    if (config.handling_mode === "flow" && targetFlowId) {
+    if (dono.quem === "fluxo") {
+      const targetFlowId = dono.flowId;
       const { data: activeEnrollment } = await admin
         .from("followup_enrollments")
         .select("id")
@@ -223,12 +207,23 @@ async function processarFluxoOuDespachoDoCanal(admin: Admin, entrada: EntradaDeM
           requestId: entrada.requestId ?? entrada.conversationId,
         });
 
-        logger.info("[pos-entrada] contato inscrito no fluxo do canal (sem IA)", {
-          channelId: entrada.channelSessionId,
-          contactId: entrada.contactId,
-          flowId: targetFlowId,
-          ok: enrollResult.ok,
-        });
+        if (enrollResult.ok) {
+          logger.info("[pos-entrada] contato inscrito no fluxo do canal (sem IA)", {
+            channelId: entrada.channelSessionId,
+            contactId: entrada.contactId,
+            flowId: targetFlowId,
+          });
+        } else {
+          // O número aponta para um fluxo que não roda (desativado, apagado). A
+          // mensagem entra no inbox e NINGUÉM automático responde — é `error`
+          // porque é um número mudo que alguém precisa ver.
+          logger.error("[pos-entrada] número vinculado a um fluxo que não roda — ninguém responde", {
+            channelId: entrada.channelSessionId,
+            contactId: entrada.contactId,
+            flowId: targetFlowId,
+            code: enrollResult.code,
+          });
+        }
       }
 
       // Em modo fluxo direto, encerra aqui sem acordar o LLM/Agente de IA
@@ -238,6 +233,17 @@ async function processarFluxoOuDespachoDoCanal(admin: Admin, entrada: EntradaDeM
     // Modo padrão / 'ai': pede o despacho do agente de IA
     await pedirDespachoDoAgente(admin, entrada);
   } catch (err) {
+    // Número de FLUXO não cai no agente por causa de uma falha: o dono tirou o
+    // agente dali de propósito. Só quem é do agente (ou cuja configuração nem
+    // chegou a ser lida) segue para o despacho.
+    if (dono?.quem === "fluxo") {
+      logger.error("[pos-entrada] falha ao inscrever no fluxo do número — agente NÃO acionado (número isolado)", {
+        channelId: entrada.channelSessionId,
+        flowId: dono.flowId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return;
+    }
     logger.warn("[pos-entrada] falha ao avaliar fluxo do canal, fallback para despacho", {
       error: err instanceof Error ? err.message : String(err),
     });

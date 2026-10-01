@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ArrowsSplit, Robot, Sparkle, User, CheckCircle } from "@phosphor-icons/react";
 import Link from "next/link";
 
+import { showApiError } from "@/components/feedback/ApiErrorToast";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
@@ -64,13 +65,23 @@ export function ChannelFlowConfigDialog({ channelId, channelName }: Props) {
   const [selectedFlowId, setSelectedFlowId] = useState<string>("");
   const [saving, setSaving] = useState(false);
 
-  // Sincroniza estado quando o modal abre
+  // O formulário espelha o que está SALVO, uma vez por abertura — inclusive na
+  // primeira, quando a resposta chega depois do modal abrir. Antes ele só copiava
+  // se o dado já estivesse em cache: na primeira abertura mostrava "Agente de IA"
+  // num número que estava em fluxo, e um "Salvar" sem mexer em nada tirava o
+  // número do fluxo. Uma vez só, para um refetch não desfazer a escolha em curso.
+  const espelhado = useRef(false);
+  const salvo = query.data?.data;
+  useEffect(() => {
+    if (!open || !salvo || espelhado.current) return;
+    espelhado.current = true;
+    setMode(salvo.handling_mode ?? "ai");
+    setSelectedFlowId(salvo.default_flow_pointer_id ?? "");
+  }, [open, salvo]);
+
   const handleOpenChange = (isOpen: boolean) => {
+    if (isOpen) espelhado.current = false;
     setOpen(isOpen);
-    if (isOpen && query.data?.data) {
-      setMode(query.data.data.handling_mode ?? "ai");
-      setSelectedFlowId(query.data.data.default_flow_pointer_id ?? "");
-    }
   };
 
   const handleSave = async () => {
@@ -82,10 +93,12 @@ export function ChannelFlowConfigDialog({ channelId, channelName }: Props) {
       });
       await qc.invalidateQueries({ queryKey: ["channel-flow-config", channelId] });
       await qc.invalidateQueries({ queryKey: ["channel-sessions"] });
+      await qc.invalidateQueries({ queryKey: ["followup", "flow-numeros"] });
       toast.success(t("Configuração de fluxo do número salva com sucesso!"));
       setOpen(false);
-    } catch {
-      toast.error(t("Erro ao salvar configuração do número."));
+    } catch (err) {
+      // O servidor diz POR QUE recusou (fluxo não publicado, por exemplo).
+      showApiError(err);
     } finally {
       setSaving(false);
     }
