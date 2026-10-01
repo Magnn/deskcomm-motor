@@ -13,6 +13,7 @@ import type { EntradaDeMensagem } from "@/lib/channels/pos-entrada";
 
 const enrollFollowupFlow = vi.fn();
 const loggerError = vi.fn();
+const acelerarFluxoDoContato = vi.fn(async (..._a: unknown[]) => {});
 
 vi.mock("@/lib/followup/enroll", () => ({ enrollFollowupFlow: (...a: unknown[]) => enrollFollowupFlow(...a) }));
 vi.mock("@/lib/audit", () => ({ audit: vi.fn(async () => {}) }));
@@ -24,6 +25,7 @@ vi.mock("@/lib/logger", () => ({
 }));
 vi.mock("@/lib/dev/kick-local-pipeline", () => ({
   acelerarPipelineDeEventos: vi.fn(async () => {}),
+  acelerarFluxoDoContato: (...a: unknown[]) => acelerarFluxoDoContato(...a),
   kickLocalPipeline: vi.fn(async () => {}),
 }));
 vi.mock("@/lib/escalacao/numero-interno-de-aviso", () => ({ ehContatoDoNumeroInterno: vi.fn(async () => false) }));
@@ -33,15 +35,29 @@ const FLUXO = "22222222-2222-4222-8222-222222222222";
 let metadataDoNumero: Record<string, unknown> | null = null;
 let inscricaoViva: { id: string } | null = null;
 let eventos: string[] = [];
+/** A caixa "Início" da versão publicada. `undefined` = fluxo sem versão ativa. */
+let inicioPublicado: Record<string, unknown> | undefined;
 
-/** Builder encadeável: só `channel_sessions` e `followup_enrollments` respondem. */
+const grafoPublicado = () => ({
+  nodes: [
+    { id: "t", type: "trigger", label: "Início", position: { x: 0, y: 0 }, config: inicioPublicado },
+    { id: "a", type: "action", label: "A", position: { x: 0, y: 0 }, config: { mode: "content", items: [{ type: "text", body: "oi" }] } },
+  ],
+  edges: [{ id: "e", source: "t", target: "a", priority: 0, condition: { type: "always" } }],
+});
+
+/** Builder encadeável: só as tabelas do roteamento respondem. */
 function consulta(tabela: string): unknown {
   const resposta = () =>
     tabela === "channel_sessions"
       ? { data: metadataDoNumero === null ? null : { metadata: metadataDoNumero }, error: null }
       : tabela === "followup_enrollments"
         ? { data: inscricaoViva, error: null }
-        : { data: null, count: 0, error: null };
+        : tabela === "followup_flow_pointers"
+          ? { data: inicioPublicado === undefined ? null : { active_version_id: "v1" }, error: null }
+          : tabela === "followup_flow_versions"
+            ? { data: inicioPublicado === undefined ? null : { graph: grafoPublicado() }, error: null }
+            : { data: null, count: 0, error: null };
   const alvo: Record<string, unknown> = {};
   return new Proxy(alvo, {
     get(_t, prop) {
@@ -86,6 +102,57 @@ beforeEach(() => {
   enrollFollowupFlow.mockReset();
   enrollFollowupFlow.mockResolvedValue({ ok: true, enrollment: {} });
   loggerError.mockClear();
+  acelerarFluxoDoContato.mockClear();
+  inicioPublicado = undefined;
+});
+
+describe("a caixa Início decide qual mensagem abre o fluxo do número", () => {
+  const texto = async (t: string) => {
+    const { aplicarEfeitosPosEntrada } = await import("@/lib/channels/pos-entrada");
+    await aplicarEfeitosPosEntrada(admin, { ...ENTRADA, texto: t });
+  };
+
+  beforeEach(() => {
+    metadataDoNumero = { handling_mode: "flow", default_flow_pointer_id: FLUXO };
+  });
+
+  it("palavra-chave que CASA: inscreve — e dá o primeiro passo na hora, sem esperar o relógio", async () => {
+    inicioPublicado = { integration: "whatsapp", event: "keyword", keyword: "quero comprar" };
+    await texto("Oi, QUERO comprar!");
+    expect(enrollFollowupFlow).toHaveBeenCalledTimes(1);
+    expect(acelerarFluxoDoContato).toHaveBeenCalledWith(expect.anything(), {
+      organizationId: "org-1",
+      contactId: "contato-1",
+    });
+    expect(agenteFoiChamado()).toBe(false);
+  });
+
+  it("palavra-chave que NÃO casa: não inscreve — e o agente continua fora (o número é do fluxo)", async () => {
+    inicioPublicado = { integration: "whatsapp", event: "keyword", keyword: "quero comprar" };
+    await texto("bom dia");
+    expect(enrollFollowupFlow).not.toHaveBeenCalled();
+    expect(acelerarFluxoDoContato).not.toHaveBeenCalled();
+    expect(agenteFoiChamado()).toBe(false);
+  });
+
+  it("qualquer mensagem: inscreve", async () => {
+    inicioPublicado = { integration: "whatsapp", event: "message_received" };
+    await texto("bom dia");
+    expect(enrollFollowupFlow).toHaveBeenCalledTimes(1);
+  });
+
+  it("caixa Início vazia (fluxo antigo): qualquer mensagem inscreve, como antes", async () => {
+    inicioPublicado = {};
+    await texto("bom dia");
+    expect(enrollFollowupFlow).toHaveBeenCalledTimes(1);
+  });
+
+  it("inscrição que falhou NÃO tenta dar o primeiro passo", async () => {
+    inicioPublicado = {};
+    enrollFollowupFlow.mockResolvedValue({ ok: false, code: "flow_not_active", message: "x", status: 422 });
+    await texto("bom dia");
+    expect(acelerarFluxoDoContato).not.toHaveBeenCalled();
+  });
 });
 
 describe("um número, um dono", () => {

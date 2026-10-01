@@ -2,6 +2,7 @@ import type { ConteudoItemType, FlowGraph, FlowEdge, FlowNode, NodeType } from '
 import type { FollowupFlowSurface } from './api-schemas';
 import type { AgenteCitado } from './agentes-citados';
 import { AGENT_NODE_UNSET_ID, PERGUNTA_SEM_PRAZO_MS, nodeBranches, prazoDaPerguntaMs } from './graph-schema';
+import { eventoWhatsappDoInicio, normalizarParaGatilho } from './gatilho-do-inicio';
 import { rotuloDoRamo } from './rotulo-do-ramo';
 import { saidasComMaisDeUmaLinha } from './uma-linha-por-saida';
 import { TIPOS_DE_ITEM_DE_CONTEUDO, type NomesDeValor } from './vocabulario';
@@ -46,6 +47,8 @@ export const PUBLISH_ERROR_CODES = [
   'midia_sem_arquivo',
   'midia_com_link_invalido',
   'saida_com_mais_de_uma_linha',
+  'inicio_com_origem_em_construcao',
+  'inicio_sem_palavra_chave',
 ] as const;
 export type PublishErrorCode = (typeof PUBLISH_ERROR_CODES)[number];
 
@@ -635,6 +638,26 @@ export function validateFlowForPublish(
   }
 
   const startTrigger = triggers[0];
+  // A caixa "Início" só promete o que roda. Origem WhatsApp tem motor (a mensagem
+  // que chega no número vinculado); as outras ainda não disparam nada, e publicar
+  // com elas seria um fluxo no ar esperando um evento que nunca vem.
+  if (startTrigger?.type === 'trigger') {
+    const cfg = startTrigger.config;
+    const origem = cfg.integration ?? 'whatsapp';
+    if (origem !== 'whatsapp') {
+      errors.push({
+        node_id: startTrigger.id,
+        code: 'inicio_com_origem_em_construcao',
+        message: `A caixa "${startTrigger.label}" está com uma origem que ainda não dispara o fluxo. Edite a caixa e escolha "WhatsApp" — as outras origens (CRM, webhook, plataformas de pagamento) iniciam o fluxo pelo botão do gatilho, no topo.`,
+      });
+    } else if (eventoWhatsappDoInicio(cfg) === 'keyword' && normalizarParaGatilho(cfg.keyword ?? '') === '') {
+      errors.push({
+        node_id: startTrigger.id,
+        code: 'inicio_sem_palavra_chave',
+        message: `A caixa "${startTrigger.label}" está em "Palavra-chave recebida", mas a palavra-chave está em branco. Escreva a palavra, ou troque o evento para "Qualquer mensagem recebida".`,
+      });
+    }
+  }
   if (startTrigger) {
     // CAIXA SOLTA NÃO É ERRO. Uma caixa que nada alcança simplesmente não roda — é o
     // mesmo princípio da saída solta logo abaixo: o funil só avança até onde foi

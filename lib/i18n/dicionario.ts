@@ -13022,6 +13022,13 @@ export const DICIONARIO: Traducoes = {
   "Publique o fluxo para poder vincular um número.": { es: "Publique el flujo para poder vincular un número." },
   "Este fluxo não está publicado e ainda tem número vinculado: ninguém responde automaticamente nele. Publique o fluxo ou desligue o vínculo.": { es: "Este flujo no está publicado y todavía tiene un número vinculado: nadie responde automáticamente en él. Publique el flujo o desactive el vínculo." },
   "Este fluxo responde o número": { es: "Este flujo responde el número" },
+  "Este evento vale para os números vinculados a este fluxo. Vincule o número no botão do gatilho, no topo da tela, em \"Números que este fluxo responde\". A mudança só passa a valer depois de publicar.": { es: "Este evento vale para los números vinculados a este flujo. Vincule el número en el botón del disparador, en la parte superior de la pantalla, en \"Números que este flujo responde\". El cambio solo vale después de publicar." },
+  // Nomes de plataforma: iguais nos dois idiomas, declarados para a cerca saber que foi decisão.
+  Hotmart: { es: "Hotmart" },
+  Kiwify: { es: "Kiwify" },
+  Stripe: { es: "Stripe" },
+  "Esta origem ainda não dispara o fluxo": { es: "Este origen todavía no dispara el flujo" },
+  "Por enquanto só a origem WhatsApp inicia o fluxo por esta caixa. Com outra origem aqui o fluxo não publica. Para iniciar por etapa do funil, lead criado ou webhook, use o botão do gatilho, no topo da tela.": { es: "Por ahora solo el origen WhatsApp inicia el flujo por esta caja. Con otro origen aquí el flujo no se publica. Para iniciar por etapa del embudo, lead creado o webhook, use el botón del disparador, en la parte superior de la pantalla." },
   "Uma caixa não pode ser ligada a ela mesma.": { es: "Una caja no puede conectarse a sí misma." },
   "Esta saída já tinha uma linha — ela foi trocada pela nova. Cada saída segue um caminho só.": { es: "Esta salida ya tenía una línea: fue reemplazada por la nueva. Cada salida sigue un solo camino." },
   "O fluxo ainda não pode ser salvo: ele precisa de ao menos duas caixas ligadas.": { es: "El flujo aún no se puede guardar: necesita al menos dos cajas conectadas." },

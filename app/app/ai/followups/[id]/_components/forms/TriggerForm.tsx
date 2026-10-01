@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useT } from "@/hooks/i18n/useT";
+import { ORIGENS_DO_INICIO } from "@/lib/followup/graph-schema";
+import { ORIGENS_DO_INICIO_ROTULO } from "@/lib/followup/vocabulario";
 
 export function TriggerForm({
   config = {},
@@ -99,13 +101,11 @@ export function TriggerForm({
           onChange={(e) => handleIntegrationChange(e.target.value)}
           className="w-full rounded-[10px] border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2 text-[13px] text-slate-800 dark:text-zinc-100 outline-hidden focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 shadow-xs"
         >
-          <option value="whatsapp">{t("WhatsApp (Conversa / Mensagens)")}</option>
-          <option value="crm">{t("CRM (Tags / Etapas / Campos)")}</option>
-          <option value="webhook">{t("Webhook / API Externa")}</option>
-          <option value="hotmart">Hotmart</option>
-          <option value="kiwify">Kiwify</option>
-          <option value="asaas">Asaas</option>
-          <option value="stripe">Stripe</option>
+          {ORIGENS_DO_INICIO.map((origem) => (
+            <option key={origem} value={origem}>
+              {t(ORIGENS_DO_INICIO_ROTULO[origem])}
+            </option>
+          ))}
         </select>
       </div>
 
@@ -237,16 +237,31 @@ export function TriggerForm({
         </div>
       )}
 
-      <div className="p-3 bg-indigo-50/60 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/40 rounded-xl space-y-1">
-        <p className="text-[11px] text-indigo-700 dark:text-indigo-400 font-medium">
-          💡 {t("Dica de Automação")}
-        </p>
-        <p className="text-[11px] text-indigo-600/80 dark:text-indigo-400/80 leading-relaxed">
-          {t(
-            "Você pode vincular este funil a múltiplos disparos, tags e canais em Ajustes do Fluxo."
-          )}
-        </p>
-      </div>
+      {isWhatsApp ? (
+        <div
+          className="p-3 bg-indigo-50/60 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/40 rounded-xl space-y-1"
+          data-testid="inicio-como-funciona"
+        >
+          <p className="text-[11px] text-indigo-700 dark:text-indigo-400 font-medium">{t("Como funciona")}</p>
+          <p className="text-[11px] text-indigo-600/80 dark:text-indigo-400/80 leading-relaxed">
+            {t(
+              "Este evento vale para os números vinculados a este fluxo. Vincule o número no botão do gatilho, no topo da tela, em \"Números que este fluxo responde\". A mudança só passa a valer depois de publicar."
+            )}
+          </p>
+        </div>
+      ) : (
+        <div
+          className="p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40 rounded-xl space-y-1"
+          data-testid="inicio-origem-em-construcao"
+        >
+          <p className="text-[11px] text-amber-800 dark:text-amber-400 font-medium">{t("Esta origem ainda não dispara o fluxo")}</p>
+          <p className="text-[11px] text-amber-700/90 dark:text-amber-400/80 leading-relaxed">
+            {t(
+              "Por enquanto só a origem WhatsApp inicia o fluxo por esta caixa. Com outra origem aqui o fluxo não publica. Para iniciar por etapa do funil, lead criado ou webhook, use o botão do gatilho, no topo da tela."
+            )}
+          </p>
+        </div>
+      )}
     </div>
   );
 }
