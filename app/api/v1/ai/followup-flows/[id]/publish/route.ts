@@ -19,6 +19,7 @@ import { audit } from "@/lib/audit";
 import { requireRole } from "@/lib/auth/require-role";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { carregaAgentesCitados } from "@/lib/followup/agentes-citados";
+import { lerEstadoDaCobranca } from "@/lib/pagamentos/estado-da-conexao";
 import { carregaEtapasCitadas } from "@/lib/followup/etapas-citadas";
 import type { FollowupFlowSurface } from "@/lib/followup/api-schemas";
 import { moduloLigado } from "@/lib/instalacao/modulos";
@@ -173,7 +174,11 @@ export async function POST(_req: NextRequest, ctx: RouteCtx): Promise<Response> 
   // coisa que só o banco sabe.
   const agentesCitados = await carregaAgentesCitados(admin, activeOrg.orgId, graph.nodes);
   if (!agentesCitados.ok) return fail("internal_error", agentesCitados.mensagem, 500, { requestId });
-  const validation = validateFlowForPublish(graph, { etapas: citadas.etapas, agentes: agentesCitados.agentes, surface });
+  // A caixa "Cobrança" precisa de uma conta de cobrança conectada E ligada; só o banco sabe. Lida só quando o fluxo a usa.
+  const cobranca = graph.nodes.some((n) => n.type === "payment_gateway")
+    ? await lerEstadoDaCobranca(admin, activeOrg.orgId).then((e) => ({ pronta: e.conectada && e.temChave && e.habilitada }))
+    : undefined;
+  const validation = validateFlowForPublish(graph, { etapas: citadas.etapas, agentes: agentesCitados.agentes, surface, cobranca });
   if (!validation.ok) {
     return fail("validation_failed", t("Fluxo reprovado na validação de publish."), 422, {
       requestId,

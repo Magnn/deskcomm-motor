@@ -26,7 +26,8 @@ vi.mock("@/lib/plataformas-de-anuncio/credenciais", () => ({ lerCredencial: asyn
 vi.mock("@/lib/plataformas-de-anuncio/registry", () => ({ transporteDe: () => ({ plataforma: "meta_ads", enviar }) }));
 vi.mock("@/lib/logger", () => ({ logger: { warn: vi.fn(), info: vi.fn(), error: vi.fn() } }));
 
-import { reportarEventoDoPixel, valorEmCentavos } from "./evento-do-pixel";
+import { valorEmCentavos } from "@/lib/moeda/valor-em-centavos";
+import { reportarEventoDoPixel } from "./evento-do-pixel";
 
 const admin = {
   from: () => ({

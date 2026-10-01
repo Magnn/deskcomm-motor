@@ -945,6 +945,42 @@ export type Database = {
           },
         ]
       }
+      payment_gateway_connections: {
+        Row: {
+          api_key_encrypted: string | null
+          created_at: string
+          enabled: boolean
+          environment: string
+          id: string
+          organization_id: string
+          provider: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          api_key_encrypted?: string | null
+          created_at?: string
+          enabled?: boolean
+          environment?: string
+          id?: string
+          organization_id: string
+          provider: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          api_key_encrypted?: string | null
+          created_at?: string
+          enabled?: boolean
+          environment?: string
+          id?: string
+          organization_id?: string
+          provider?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       ad_platform_connections: {
         Row: {
           access_token_encrypted: string | null

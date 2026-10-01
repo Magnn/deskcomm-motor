@@ -169,7 +169,7 @@ export function PixPaymentForm({ config, onChange }: Props) {
               setMessageText(e.target.value);
               update({ message_text: e.target.value });
             }}
-            placeholder={t("Ex.: Pode fazer o PIX no valor de R$ {valor} conforme combinamos 👇")}
+            placeholder={t("Ex.: Oi {primeiro_nome}, segue o PIX combinado 👇")}
             className="w-full rounded-lg border border-neutral-300 bg-white p-2.5 text-xs text-neutral-900 shadow-2xs outline-hidden focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100 resize-none"
           />
           <div className="flex items-center justify-between pt-0.5 text-[10px] text-neutral-400">

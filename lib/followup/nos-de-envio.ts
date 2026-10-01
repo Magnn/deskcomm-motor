@@ -12,6 +12,7 @@
  * Baixar é puro e determinístico: o grafo salvo no banco NÃO muda (o editor segue
  * mostrando o nó de PIX), só a cópia que o motor executa.
  */
+import { valorEmCentavos } from "@/lib/moeda/valor-em-centavos";
 import { MODELO_PADRAO_DA_OPENAI } from "@/lib/voz/catalogo-openai";
 import type { IdDeProvedorDeVoz, VoiceReplyConfig } from "@/lib/voz/tipos";
 import type { FlowGraph, FlowNode } from "./graph-schema";
@@ -133,7 +134,54 @@ function comoAcao(node: FlowNode, items: unknown[]): FlowNode {
   } as FlowNode;
 }
 
+export type ItemDeCobranca = {
+  type: "charge";
+  amount_cents: number;
+  description: string;
+  customer_name: string;
+  customer_phone: string;
+};
+
+type CobrancaConfig = Extract<FlowNode, { type: "payment_gateway" }>["config"];
+
+/** `null` = valor aberto ou valor que não é número: não há cobrança que se possa criar (o publish já barra). */
+export function itemDeCobranca(config: CobrancaConfig, rotulo: string): ItemDeCobranca | null {
+  if (config.open_amount) return null;
+  const amount_cents = valorEmCentavos(config.amount);
+  if (amount_cents === null) return null;
+  return {
+    type: "charge",
+    amount_cents,
+    description: rotulo,
+    customer_name: config.customer_name,
+    customer_phone: config.customer_phone,
+  };
+}
+
+export type ItemDeTemplate = {
+  type: "template";
+  name: string;
+  language: string;
+  values: Record<string, string>;
+};
+
+type TemplateConfig = Extract<FlowNode, { type: "whatsapp_template" }>["config"];
+
+export function itemDeTemplate(config: TemplateConfig): ItemDeTemplate | null {
+  const name = config.template_name.trim();
+  if (name === "") return null;
+  return { type: "template", name, language: config.language?.trim() || "pt_BR", values: config.values ?? {} };
+}
+
 function baixarNo(node: FlowNode): FlowNode {
+  if (node.type === "payment_gateway") {
+    const item = itemDeCobranca(node.config, node.label);
+    return item ? comoAcao(node, [item]) : node;
+  }
+  if (node.type === "whatsapp_template") {
+    const item = itemDeTemplate(node.config);
+    return item ? comoAcao(node, [item]) : node;
+  }
   if (node.type === "voice_studio") {
     const item = itemDeVoz(node.config);
     return item ? comoAcao(node, [item]) : node;
@@ -147,6 +195,6 @@ function baixarNo(node: FlowNode): FlowNode {
 }
 
 export function baixarNosDeEnvio(graph: FlowGraph): FlowGraph {
-  if (!graph.nodes.some((n) => n.type === "pix_payment" || n.type === "voice_studio")) return graph;
+  if (!graph.nodes.some((n) => n.type === "pix_payment" || n.type === "voice_studio" || n.type === "whatsapp_template" || n.type === "payment_gateway")) return graph;
   return { ...graph, nodes: graph.nodes.map(baixarNo) };
 }

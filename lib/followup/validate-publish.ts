@@ -1,3 +1,4 @@
+import { valorEmCentavos } from '@/lib/moeda/valor-em-centavos';
 import { eventoDoNo } from '@/lib/plataformas-de-anuncio/evento-do-no';
 import type { ConteudoItemType, FlowGraph, FlowEdge, FlowNode, NodeType } from './graph-schema';
 import type { FollowupFlowSurface } from './api-schemas';
@@ -66,6 +67,8 @@ export interface ContextoDoPublish {
   surface?: FollowupFlowSurface;
   /** Os agentes citados pelos nós "Agente de IA", por `agent_id` (`carregaAgentesCitados`). Ausente, a conferência de existência não roda. */
   agentes?: ReadonlyMap<string, AgenteCitado>;
+  /** A conta de cobrança da organização está conectada e ligada? Ausente, a conferência não roda — nunca adivinha. */
+  cobranca?: { pronta: boolean };
 }
 
 /**
@@ -74,15 +77,11 @@ export interface ContextoDoPublish {
  * `NOS_DA_SUPERFICIE` de propósito: a paleta do editor é derivada dela, e a tela não oferece o que o motor não
  * roda. Quando o motor entra, o tipo sai desta lista e entra lá — nessa ordem, no mesmo PR.
  */
-export const NOS_EM_CONSTRUCAO: readonly NodeType[] = ['agent', 'payment_gateway', 'whatsapp_template'];
+export const NOS_EM_CONSTRUCAO: readonly NodeType[] = ['agent'];
 
 /** Por que cada caixa em construção não roda — o erro que a pessoa lê no editor, com o caminho que funciona. */
 const MOTIVO_EM_CONSTRUCAO: Partial<Record<NodeType, string>> = {
   agent: 'o motor do Agente de IA está em construção',
-  payment_gateway:
-    'a cobrança por gateway ainda não roda — não há provedor de pagamento conectado. Para cobrar, use "Enviar PIX" ou receba pelo gatilho de pagamento',
-  whatsapp_template:
-    'o envio de template oficial da Meta ainda não roda dentro do fluxo. Use "Enviar mensagem" (modo Modelo) para uma mensagem fora da janela de 24h',
 };
 
 /**
@@ -129,6 +128,8 @@ export const NOS_DA_SUPERFICIE: Record<FollowupFlowSurface, readonly NodeType[]>
     'notify_agent',
     'add_note',
     'pix_payment',
+    'payment_gateway',
+    'whatsapp_template',
     'meta_pixel',
     'voice_studio',
   ],
@@ -149,6 +150,8 @@ export const NOS_DA_SUPERFICIE: Record<FollowupFlowSurface, readonly NodeType[]>
     'notify_agent',
     'add_note',
     'pix_payment',
+    'payment_gateway',
+    'whatsapp_template',
     'meta_pixel',
     'voice_studio',
   ],
@@ -555,7 +558,7 @@ function validarItensDeConteudo(graph: FlowGraph, errors: PublishValidationError
  * Os nós que ENVIAM algo (PIX, Voice Studio) ou REPORTAM algo (Pixel) precisam do mínimo para fazê-lo.
  * Sem isto o passo publica "configurado" e o motor passa por ele sem efeito nenhum.
  */
-function validarNosDeEnvio(graph: FlowGraph, errors: PublishValidationError[]): void {
+function validarNosDeEnvio(graph: FlowGraph, errors: PublishValidationError[], contexto: ContextoDoPublish = {}): void {
   for (const node of [...graph.nodes].sort(byId)) {
     const incompleto = (message: string) =>
       errors.push({ node_id: node.id, code: 'no_incompleto', message: `A caixa "${node.label}": ${message}` });
@@ -564,6 +567,18 @@ function validarNosDeEnvio(graph: FlowGraph, errors: PublishValidationError[]): 
       if (node.config.card_image_url?.trim()) {
         incompleto('a imagem do cartão ainda não é enviada — apague o campo, o PIX sai como texto (mensagem, valor e chave).');
       }
+    } else if (node.type === 'payment_gateway') {
+      if (contexto.cobranca?.pronta === false) {
+        incompleto('conecte e ligue a conta de cobrança (Asaas) em Configurações › Pagamentos antes de publicar.');
+      }
+      if (node.config.currency.trim().toUpperCase() !== 'BRL') incompleto('o provedor de cobrança só cobra em reais (BRL).');
+      if (node.config.open_amount) {
+        incompleto('valor aberto ainda não é suportado — informe o valor da cobrança.');
+      } else if (valorEmCentavos(node.config.amount) === null) {
+        incompleto('informe um valor maior que zero (ex.: 197,00) — variáveis não são aceitas no valor.');
+      }
+    } else if (node.type === 'whatsapp_template') {
+      if (node.config.template_name.trim() === '') incompleto('escolha o modelo aprovado que será enviado.');
     } else if (node.type === 'voice_studio') {
       if (node.config.text.trim() === '') incompleto('escreva o texto que a voz vai falar.');
     } else if (node.type === 'meta_pixel') {
@@ -749,7 +764,7 @@ export function validateFlowForPublish(
 
   validarAgentes(graph, contexto, outEdges, errors, nomes);
   validarItensDeConteudo(graph, errors);
-  validarNosDeEnvio(graph, errors);
+  validarNosDeEnvio(graph, errors, contexto);
 
   for (const node of [...nodes].sort(byId)) {
     if (node.type !== 'ai_classify' && node.type !== 'match_reply' && node.type !== 'menu' && node.type !== 'attendant_route' && node.type !== 'repeat') continue;

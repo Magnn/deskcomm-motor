@@ -38328,3 +38328,30 @@ comment on table public.revenue_ledger is
   'Ledger financeiro imutável (equivalente ao RevenueEvent do NEXUS Revenue Graph, sem nenhuma peça de decisão). Fato de receita bruto por evento de gateway externo (charge/refund/chargeback/adjustment), dedupe por (organization_id, provider, event_type, external_event_id). Append-only: anon/authenticated/service_role sem UPDATE/DELETE/TRUNCATE (migration 0416, mesmo padrão de api_audit_log/0258) — só o dono do banco pode. Escrito hoje só pelo webhook da Cakto (lib/pagamentos/ledger-de-receita.ts); NÃO tem regra de decisão nenhuma, só reconciliação e relatório.';
 
 notify pgrst, 'reload schema';
+
+-- ---- conexão com o provedor de cobrança (migration 0905) ----
+create table if not exists public.payment_gateway_connections (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references public.organizations(id) on delete cascade,
+  provider text not null,
+  api_key_encrypted text,
+  environment text not null default 'production',
+  enabled boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  updated_by uuid,
+  constraint payment_gateway_connections_provider_conhecido check (provider in ('asaas')),
+  constraint payment_gateway_connections_environment_conhecido check (environment in ('production', 'sandbox'))
+);
+
+create unique index if not exists payment_gateway_connections_org_provider_uk
+  on public.payment_gateway_connections (organization_id, provider);
+
+alter table public.payment_gateway_connections enable row level security;
+revoke all on public.payment_gateway_connections from anon, authenticated;
+grant select, insert, update, delete on public.payment_gateway_connections to service_role;
+
+drop trigger if exists trg_payment_gateway_connections_updated_at on public.payment_gateway_connections;
+create trigger trg_payment_gateway_connections_updated_at
+  before update on public.payment_gateway_connections
+  for each row execute function public.fn_set_updated_at();

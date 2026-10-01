@@ -57,6 +57,13 @@ import { OK_KINDS } from './split-message';
 import type { ChannelSendResult } from '../channel-adapter';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { preencherVariaveisDoContato } from '@/lib/followup/variaveis-do-contato';
+import { definicaoNaConexao } from '@/lib/channels/linha-do-espelho';
+import { criarClienteAsaas } from '@/lib/pagamentos/asaas';
+import { lerCredencialDeCobranca, MOTIVO_DA_COBRANCA } from '@/lib/pagamentos/credencial-de-cobranca';
+import { missingSlots } from '@/lib/channels/meta/build-components';
+import { renderTemplateBody } from '@/lib/channels/meta/render-template';
+import { deriveTemplateContract } from '@/lib/channels/meta/template-contract';
+import { isStatusSendable } from '@/lib/channels/meta/template-binding';
 import { configDeVozDoItem } from '@/lib/followup/nos-de-envio';
 import { IDS_DE_PROVEDOR_DE_VOZ } from '@/lib/voz/tipos';
 import { dependenciasReaisDeNota, enviarNotasDeVoz, prepararNotasDeVoz } from './nota-de-voz';
@@ -90,6 +97,21 @@ const conteudoItemPayloadSchema = z.discriminatedUnion('type', [
   }),
   z.object({ type: z.literal('contact'), name: z.string().min(1), phone_number: z.string().min(1) }),
   z.object({ type: z.literal('delay'), seconds: z.number().int().min(1).max(120) }),
+  // Nó Cobrança: a cobrança é criada na HORA do envio (depois do gate), com referência por inscrição+caixa.
+  z.object({
+    type: z.literal('charge'),
+    amount_cents: z.number().int().positive(),
+    description: z.string(),
+    customer_name: z.string(),
+    customer_phone: z.string(),
+  }),
+  // Nó Template WhatsApp: a definição (texto, campos, aprovação) é lida da conexão na hora do envio.
+  z.object({
+    type: z.literal('template'),
+    name: z.string().min(1),
+    language: z.string().min(1),
+    values: z.record(z.string(), z.string()),
+  }),
   // Nó Voice Studio: o TEXTO vai no job e a voz é sintetizada na hora do envio, com a chave da
   // organização — não há arquivo antes disso, então não há storage_path.
   z.object({
@@ -104,6 +126,50 @@ const conteudoItemPayloadSchema = z.discriminatedUnion('type', [
   }),
 ]);
 export type ConteudoItemPayload = z.infer<typeof conteudoItemPayloadSchema>;
+type ItemDeTemplateDoPayload = Extract<ConteudoItemPayload, { type: 'template' }>;
+
+/** A mensagem da cobrança. Sem link (o gate avalia antes de a cobrança existir): só o valor. */
+function textoDaCobranca(centavos: number, link: string | null): string {
+  const valor = (centavos / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  return link ? `Segue a cobrança de ${valor}. Para pagar: ${link}` : `Segue a cobrança de ${valor}.`;
+}
+
+/**
+ * Lê o modelo DESTA conexão, exige que possa ser disparado e que todo campo tenha valor, e devolve o texto
+ * que a pessoa vai ler. Lança com a causa — o passo falha visível (aviso na Central), nunca em silêncio.
+ */
+async function renderizarModeloDoFluxo(
+  pool: pg.Pool,
+  input: { tenantId: string; channelSessionId: string; item: ItemDeTemplateDoPayload },
+): Promise<string> {
+  const { item } = input;
+  const linha = await definicaoNaConexao<{ components: unknown; parameter_format: string; status: string }>(
+    pool,
+    ['components', 'parameter_format', 'status'],
+    { organizationId: input.tenantId, name: item.name, language: item.language, channelSessionId: input.channelSessionId },
+  );
+  if (!linha) {
+    throw new Error(`template_desconhecido: o modelo "${item.name}" (${item.language}) não existe nesta conexão — sincronize os modelos ou troque a caixa.`);
+  }
+  if (!isStatusSendable(linha.status)) {
+    throw new Error(`template_nao_aprovado: o modelo "${item.name}" está ${linha.status} na Meta — só um modelo APPROVED pode ser enviado.`);
+  }
+  const contrato = deriveTemplateContract({
+    name: item.name,
+    language: item.language,
+    parameter_format: linha.parameter_format,
+    components: linha.components as never,
+  });
+  const faltam = missingSlots(contrato, item.values);
+  if (faltam.length > 0) {
+    throw new Error(`template_sem_valor: preencha na caixa o campo ${faltam.map((s) => s.key).join(', ')} do modelo "${item.name}".`);
+  }
+  return renderTemplateBody(linha.components, item.values, {
+    name: item.name,
+    language: item.language,
+    parameterFormat: linha.parameter_format,
+  });
+}
 
 /**
  * Payload que o cron enfileira no disparo (F3-02 grava reason/promise/promised_at/
@@ -918,8 +984,30 @@ async function sendConteudoSequence(
       ? { ...i, body: preencherVariaveisDoContato(i.body, context.context.contact) }
       : i.type === 'voice'
         ? { ...i, text: preencherVariaveisDoContato(i.text, context.context.contact) }
-        : i,
+        : i.type === 'charge'
+          ? {
+              ...i,
+              customer_name: preencherVariaveisDoContato(i.customer_name, context.context.contact),
+              customer_phone: preencherVariaveisDoContato(i.customer_phone, context.context.contact),
+            }
+          : i.type === 'template'
+          ? {
+              ...i,
+              values: Object.fromEntries(
+                Object.entries(i.values).map(([k, v]) => [k, preencherVariaveisDoContato(v, context.context.contact)]),
+              ),
+            }
+          : i,
   );
+
+  // Template: a definição é da CONEXÃO desta conversa. Tudo o que pode estar errado (não existe, não está
+  // aprovado, campo sem valor) é recusado ANTES de qualquer envio, com a causa — nunca a Graph API devolvendo
+  // "number of parameters does not match" depois de a janela anti-ban já ter sido gasta.
+  const modelos = new Map<ItemDeTemplateDoPayload, string>();
+  for (const item of items) {
+    if (item.type !== 'template') continue;
+    modelos.set(item, await renderizarModeloDoFluxo(pool, { tenantId, channelSessionId, item }));
+  }
   const channel = (deps.channel ?? ((p: pg.Pool) => new WahaChannelAdapter(p, deps.crmCfg)))(pool);
   const sleep = deps.sleep ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
   const jitter = () => 1200 + Math.floor(Math.random() * 800); // mesmo piso anti-ban das bolhas do turno normal
@@ -928,7 +1016,12 @@ async function sendConteudoSequence(
   // pros itens que não são o primeiro texto. Ver "limitação conhecida" acima.
   const primeiroTexto = items.find((i): i is Extract<ConteudoItemPayload, { type: 'text' }> => i.type === 'text');
   const primeiraVoz = items.find((i): i is Extract<ConteudoItemPayload, { type: 'voice' }> => i.type === 'voice');
-  const corpoParaOPortao = primeiroTexto?.body ?? primeiraVoz?.text ?? '[conteúdo]';
+  const primeiraCobranca = items.find((i): i is Extract<ConteudoItemPayload, { type: 'charge' }> => i.type === 'charge');
+  const primeiroModelo = items.find((i) => i.type === 'template');
+  const corpoParaOPortao = primeiroTexto?.body ?? primeiraVoz?.text ?? (primeiroModelo ? modelos.get(primeiroModelo as ItemDeTemplateDoPayload) : undefined) ?? (primeiraCobranca ? textoDaCobranca(primeiraCobranca.amount_cents, null) : undefined) ?? '[conteúdo]';
+  // Só modelo (e pausas): é o único jeito de falar fora da janela de 24 h, e o gate a libera. Modelo misturado
+  // com texto livre NÃO é liberado — o texto seria recusado depois da janela, e o gate precisa ver isso.
+  const soModelo = items.some((i) => i.type === 'template') && items.every((i) => i.type === 'template' || i.type === 'delay');
 
   const chain = await runBeforeSend({
     pool,
@@ -943,6 +1036,7 @@ async function sendConteudoSequence(
     now: clock(),
     sleep: deps.sleep,
     lgpd: context.lgpd,
+    ...(soModelo ? { isTemplate: true } : {}),
     ...(deps.knobs.disclosureMode !== undefined ? { disclosureMode: deps.knobs.disclosureMode } : {}),
     send: async (finalBody) => {
       let seq = 0;
@@ -965,6 +1059,52 @@ async function sendConteudoSequence(
         if (precisaDeJitter) await sleep(jitter());
         precisaDeJitter = true;
         seq += 1;
+
+        if (item.type === 'charge') {
+          const admin = createAdminClient();
+          const leitura = await lerCredencialDeCobranca(admin, tenantId);
+          if (!leitura.ok) throw new Error(`cobranca_sem_conexao: ${MOTIVO_DA_COBRANCA[leitura.motivo]}`);
+          const p = job.payload as { followup_enrollment_id?: string; node_id?: string };
+          const cobranca = await criarClienteAsaas(leitura.credencial).cobrar({
+            // Determinístico: o replay do job reencontra a cobrança em vez de criar outra.
+            referencia: `${p.followup_enrollment_id ?? job.id}:${p.node_id ?? 'cobranca'}`,
+            cliente: {
+              referencia: leadId ?? tenantId,
+              nome: item.customer_name,
+              telefone: item.customer_phone || context.context.contact.phone,
+              email: context.context.contact.email,
+            },
+            valorCentavos: item.amount_cents,
+            descricao: item.description,
+          });
+          ultimo = await channel.send({
+            tenantId, leadId, jobId: job.id, jobClaim: claimOfJob(job), seq, conversationId,
+            body: textoDaCobranca(item.amount_cents, cobranca.link),
+          });
+          if (ultimo && !OK_KINDS.has(ultimo.kind)) return ultimo;
+          if (cobranca.pixCopiaECola) {
+            // A chave "copia e cola" SOZINHA na bolha: é o que a pessoa toca e segura para copiar.
+            await sleep(jitter());
+            seq += 1;
+            ultimo = await channel.send({
+              tenantId, leadId, jobId: job.id, jobClaim: claimOfJob(job), seq, conversationId,
+              body: cobranca.pixCopiaECola,
+            });
+            if (ultimo && !OK_KINDS.has(ultimo.kind)) return ultimo;
+          }
+          continue;
+        }
+
+        if (item.type === 'template') {
+          ultimo = await channel.send({
+            tenantId, leadId, jobId: job.id, jobClaim: claimOfJob(job), seq, conversationId,
+            // O texto RENDERIZADO: é o que os gates avaliaram e o que um canal sem template enviaria.
+            body: modelos.get(item as ItemDeTemplateDoPayload) ?? item.name,
+            template: { name: item.name, language: item.language, values: item.values },
+          });
+          if (ultimo && !OK_KINDS.has(ultimo.kind)) return ultimo;
+          continue;
+        }
 
         if (item.type === 'voice') {
           const enviarTexto = (corpo: string) =>

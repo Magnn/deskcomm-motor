@@ -731,6 +731,10 @@ export type PaymentGatewayConfig = z.infer<typeof paymentGatewayConfigSchema>;
 /** Template WhatsApp (Meta) (AcassIA parity) */
 export const whatsappTemplateConfigSchema = z.strictObject({
   template_name: z.string().max(200).default(''),
+  /** Idioma do modelo escolhido (o nome se repete por idioma). Ausente = pt_BR. */
+  language: z.string().max(20).optional(),
+  /** Valor de cada campo variável, pela chave do slot (`slotKey`). Aceita {primeiro_nome} etc. */
+  values: z.record(z.string(), z.string().max(1000)).optional(),
   timeout: z.number().int().min(1).max(10080).default(60),
   timeout_unit: z.enum(['Minutos', 'Horas', 'Dias']).default('Minutos'),
 });
