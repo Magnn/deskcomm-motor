@@ -463,6 +463,19 @@ describe('graph-schema', () => {
         expect(result.success).toBe(false);
       });
 
+      it('accepts an optional name on a sticker item, and refuses an empty one', () => {
+        const comNome = actionConfigSchema.safeParse({
+          mode: 'content',
+          items: [{ type: 'sticker', storage_path: 'p.webp', mime: 'image/webp', name: 'emoji_feliz' }],
+        });
+        expect(comNome.success).toBe(true);
+        const nomeVazio = actionConfigSchema.safeParse({
+          mode: 'content',
+          items: [{ type: 'sticker', storage_path: 'p.webp', mime: 'image/webp', name: '' }],
+        });
+        expect(nomeVazio.success).toBe(false);
+      });
+
       it('accepts a sticker item, and refuses a caption on it (figurinha não tem legenda)', () => {
         const ok = actionConfigSchema.safeParse({
           mode: 'content',

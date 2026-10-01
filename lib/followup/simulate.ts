@@ -226,7 +226,7 @@ function resumoDeItemDeConteudo(item: ConteudoItem): string {
     case "contact":
       return `[contato] ${item.name}`;
     case "sticker":
-      return "[figurinha]";
+      return `[sticker]${item.name ? ` ${item.name}` : ""}`;
     case "delay":
       return `[pausa ${item.seconds}s]`;
   }

@@ -79,7 +79,7 @@ export function descreverItemDeConteudo(item: ConteudoItem, t: (texto: string) =
     case "contact":
       return item.name;
     case "sticker":
-      return t(TIPOS_DE_ITEM_DE_CONTEUDO.sticker);
+      return item.name ?? t(TIPOS_DE_ITEM_DE_CONTEUDO.sticker);
     case "delay":
       return `Delay de ${item.seconds} Segundos`;
   }

@@ -921,6 +921,18 @@ describe('validarItensDeConteudo — motor de envio por tipo de item', () => {
     }
   });
 
+  it('contato com VARIÁVEL no telefone publica — só dá para conferir no envio', () => {
+    const g = graph(
+      [
+        trigger('t'),
+        actionContent('a', [{ type: 'contact', name: '{{nome}}', phone_number: '{{telefone}}' }]),
+        end('f'),
+      ],
+      [edge('t', 'a', always()), edge('a', 'f', always())],
+    );
+    expect(codigos(g)).not.toContain('contato_com_telefone_invalido');
+  });
+
   it('figurinha que não é .webp: recusa no publish', () => {
     const g = graph(
       [trigger('t'), actionContent('a', [{ type: 'sticker', storage_path: 'p.png', mime: 'image/png' }]), end('f')],

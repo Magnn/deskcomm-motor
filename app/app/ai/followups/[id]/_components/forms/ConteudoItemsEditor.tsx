@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/popover";
 import { useUploadFlowContentMedia } from "@/hooks/ai/useUploadFlowContentMedia";
 import { useT } from "@/hooks/i18n/useT";
+import { prepararSticker, STICKER_FORMATOS_DE_ENTRADA } from "@/lib/media/sticker-no-navegador";
 import { STICKER_MAX_BYTES } from "@/lib/messaging/media/upload-validation";
 import {
   MAX_CONTEUDO_ITEMS,
@@ -68,8 +69,6 @@ const TYPE_COLORS: Record<string, { btnText: string; btnIcon: string; strip: str
   sticker:  { btnText: "text-[#b45309]", btnIcon: "text-[#d97706]", strip: "bg-[#f59e0b]", border: "border-[#f59e0b] dark:border-amber-600" },
 };
 
-/** Figurinha do WhatsApp: só .webp; o teto de bytes vem da mesma régua que a rota de upload cobra. */
-const STICKER_MIME = "image/webp";
 
 function labelPorTipo(t: string): string {
   const m: Record<string, string> = {
@@ -80,7 +79,7 @@ function labelPorTipo(t: string): string {
     document: "Documento",
     delay: "Delay",
     contact: "Contato",
-    sticker: "Figurinha",
+    sticker: "Sticker",
   };
   return m[t] || t;
 }
@@ -126,7 +125,7 @@ const ALL_KINDS: Array<{
   { type: "document", label: "Documento", Icon: ({ className }) => <FileText size={17} className={className} /> },
   { type: "delay", label: "Delay", Icon: ({ className }) => <Clock size={17} className={className} /> },
   { type: "contact", label: "Contato", Icon: ({ className }) => <IdentificationCard size={17} className={className} /> },
-  { type: "sticker", label: "Figurinha", Icon: ({ className }) => <Smiley size={17} className={className} /> },
+  { type: "sticker", label: "Sticker", Icon: ({ className }) => <Smiley size={17} className={className} /> },
 ];
 
 export function ConteudoItemsEditor({ flowId, items, onChange, disabled }: Props) {
@@ -276,8 +275,8 @@ function ItemCard({
       style={{ padding: "12px 14px" }}
       data-testid={`conteudo-item-${index}`}
     >
-      {/* Top Header: apenas para Texto, Delay e Contato */}
-      {(item.type === "text" || item.type === "delay" || item.type === "contact") && (
+      {/* Top Header: Texto, Delay, Contato e Sticker */}
+      {(item.type === "text" || item.type === "delay" || item.type === "contact" || item.type === "sticker") && (
         <div className="flex items-center justify-between gap-2 mb-2.5">
           <span className="text-[12px] font-bold text-slate-800 dark:text-zinc-100">
             {item.type === "text"
@@ -378,23 +377,46 @@ function ItemCard({
       )}
 
       {item.type === "contact" && (
-        <div className="grid gap-2">
-          <Input
-            placeholder={t("Nome do contato")}
-            maxLength={120}
-            value={item.name}
-            disabled={disabled}
-            onChange={(e) => onUpdate({ ...item, name: e.target.value })}
-            className="h-8 text-xs rounded-md"
-          />
-          <Input
-            placeholder={t("Telefone com DDI (+55...)")}
-            maxLength={40}
-            value={item.phone_number}
-            disabled={disabled}
-            onChange={(e) => onUpdate({ ...item, phone_number: e.target.value })}
-            className="h-8 text-xs rounded-md"
-          />
+        <div className="grid gap-2.5">
+          <p className="text-[10.5px] leading-relaxed text-slate-500 dark:text-zinc-400">
+            {t("Você pode usar variáveis no nome e no telefone:")}{" "}
+            <code className="font-mono text-[10px] text-sky-600">{"{{nome}}"}</code>,{" "}
+            <code className="font-mono text-[10px] text-sky-600">{"{{primeiro_nome}}"}</code>,{" "}
+            <code className="font-mono text-[10px] text-sky-600">{"{{telefone}}"}</code>.{" "}
+            {t("São resolvidas no envio do fluxo.")}
+          </p>
+          <label className="block space-y-1">
+            <span className="block text-[12px] font-semibold text-slate-800 dark:text-zinc-200">
+              {t("Nome do Contato")} <span className="text-rose-500">*</span>
+            </span>
+            <Input
+              placeholder={t("Ex: João Silva")}
+              maxLength={120}
+              value={item.name}
+              disabled={disabled}
+              onChange={(e) => onUpdate({ ...item, name: e.target.value })}
+              className="h-9 text-xs rounded-md"
+              data-testid="conteudo-contato-nome"
+            />
+          </label>
+          <label className="block space-y-1">
+            <span className="block text-[12px] font-semibold text-slate-800 dark:text-zinc-200">
+              {t("Telefone")} <span className="text-rose-500">*</span>
+            </span>
+            <Input
+              placeholder={t("Ex: +55 11 99999-9999")}
+              maxLength={40}
+              inputMode="tel"
+              value={item.phone_number}
+              disabled={disabled}
+              onChange={(e) => onUpdate({ ...item, phone_number: e.target.value })}
+              className="h-9 text-xs rounded-md"
+              data-testid="conteudo-contato-telefone"
+            />
+          </label>
+          <p className="text-[10.5px] text-slate-400 dark:text-zinc-500">
+            {t("O contato chega como cartão do WhatsApp. Use o telefone com DDI.")}
+          </p>
         </div>
       )}
 
@@ -541,12 +563,30 @@ function MediaSection({
   const inputRef = React.useRef<HTMLInputElement>(null);
   const temArquivo = item.storage_path.trim() !== "";
 
-  const onPick = async (file: File) => {
-    // Figurinha fora do formato o WhatsApp recusa (ou entrega como imagem comum):
-    // barra aqui, antes de subir o arquivo, com o motivo dito.
-    if (item.type === "sticker" && (file.type !== STICKER_MIME || file.size > STICKER_MAX_BYTES)) {
-      toast.error(t("A figurinha precisa ser um arquivo .webp de até 500 KB."));
-      return;
+  const [convertendo, setConvertendo] = React.useState(false);
+
+  const onPick = async (escolhido: File) => {
+    let file = escolhido;
+    // Sticker: JPG/PNG (ou WebP grande) é convertido AQUI para .webp 512×512 —
+    // o único formato que o WhatsApp aceita. Ver `sticker-no-navegador.ts`.
+    if (item.type === "sticker") {
+      setConvertendo(true);
+      const pronto = await prepararSticker(escolhido, STICKER_MAX_BYTES).finally(() => setConvertendo(false));
+      if (!pronto.ok) {
+        toast.error(
+          pronto.motivo === "formato"
+            ? t("Formato não aceito para sticker — use JPG, PNG ou WebP.")
+            : pronto.motivo === "grande_demais"
+              ? t("Arquivo acima de 2 MB — escolha uma imagem menor para o sticker.")
+              : pronto.motivo === "navegador_sem_webp"
+                ? t("Este navegador não converte para sticker — envie um arquivo .webp de até 500 KB.")
+                : pronto.motivo === "nao_coube"
+                  ? t("A imagem é detalhada demais para caber num sticker — use uma imagem mais simples.")
+                  : t("Não foi possível ler esta imagem — tente outro arquivo."),
+        );
+        return;
+      }
+      file = pronto.arquivo;
     }
     try {
       const r = await upload.mutateAsync({ flowId, file, ...(item.type === "sticker" ? { as: "sticker" as const } : {}) });
@@ -569,7 +609,7 @@ function MediaSection({
   // só adiava a recusa para depois do clique.
   const accept =
     item.type === "sticker"
-      ? STICKER_MIME
+      ? STICKER_FORMATOS_DE_ENTRADA.join(",")
       : item.type === "image"
         ? "image/png,image/jpeg"
         : item.type === "video"
@@ -597,6 +637,31 @@ function MediaSection({
         Storage — o item sumia do envio em silêncio. O publish agora também
         recusa um fluxo antigo salvo assim (`midia_sem_arquivo`).
       */}
+      {item.type === "sticker" && (
+        <label className="block space-y-1">
+          <span className="block text-[12px] font-semibold text-slate-800 dark:text-zinc-200">
+            {t("Nome do Sticker")}
+          </span>
+          <Input
+            placeholder={t("Ex: emoji_feliz")}
+            maxLength={60}
+            value={item.name ?? ""}
+            disabled={disabled}
+            onChange={(e) => {
+              const { name: _antigo, ...semNome } = item;
+              const nome = e.target.value;
+              // Nome vazio some do config em vez de virar `name: ""`.
+              onChange((nome === "" ? semNome : { ...semNome, name: nome }) as ConteudoItem);
+            }}
+            className="h-9 text-xs rounded-md"
+            data-testid="conteudo-sticker-nome"
+          />
+          <span className="block text-[10.5px] text-slate-400 dark:text-zinc-500">
+            {t("Só para você identificar o sticker no fluxo — o contato não vê este nome.")}
+          </span>
+        </label>
+      )}
+
       {!temArquivo ? (
         <button
           type="button"
@@ -637,12 +702,15 @@ function MediaSection({
 
           {item.type === "sticker" && (
             <>
-              <Smiley size={38} className="text-[#94a3b8] mb-1" />
-              <span className="text-[13px] font-semibold text-slate-700 dark:text-zinc-200">
-                {upload.isPending ? t("Enviando…") : t("Clique para enviar uma figurinha")}
+              <Smiley size={38} className="text-[#a855f7] mb-1" />
+              <span className="text-[12px] text-slate-600 dark:text-zinc-300">
+                {t("Tamanho máximo permitido: 2 MB")}
               </span>
               <span className="text-[11px] text-slate-400 dark:text-zinc-500">
-                {t(".webp, 512×512 px (máx. 500 KB)")}
+                {t("JPG, PNG ou WebP — convertido para sticker 512×512")}
+              </span>
+              <span className="mt-1.5 rounded-lg bg-[#a855f7] px-3.5 py-1.5 text-[12px] font-bold text-white shadow-xs">
+                {upload.isPending || convertendo ? t("Enviando…") : t("Enviar sticker")}
               </span>
             </>
           )}
