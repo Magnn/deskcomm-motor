@@ -12804,6 +12804,9 @@ export const DICIONARIO: Traducoes = {
   "Relatórios": { es: "Informes" },
   "MP3, WAV, OGG ou OPUS · máx. 10MB por arquivo · até 5 arquivos": { es: "MP3, WAV, OGG u OPUS · máx. 10 MB por archivo · hasta 5 archivos" },
   "Arraste para o canvas": { es: "Arrastre al lienzo" },
+  "A figurinha precisa ser um arquivo .webp de até 500 KB.": { es: "El sticker debe ser un archivo .webp de hasta 500 KB." },
+  "Clique para enviar uma figurinha": { es: "Haga clic para enviar un sticker" },
+  ".webp, 512×512 px (máx. 500 KB)": { es: ".webp, 512×512 px (máx. 500 KB)" },
 };
 
 /**

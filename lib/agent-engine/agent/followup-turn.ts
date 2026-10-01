@@ -85,6 +85,7 @@ const conteudoItemPayloadSchema = z.discriminatedUnion('type', [
     caption: z.string().optional(),
   }),
   z.object({ type: z.literal('contact'), name: z.string().min(1), phone_number: z.string().min(1) }),
+  z.object({ type: z.literal('sticker'), storage_path: z.string().min(1), mime: z.string().min(1) }),
   z.object({ type: z.literal('delay'), seconds: z.number().int().min(1).max(120) }),
 ]);
 export type ConteudoItemPayload = z.infer<typeof conteudoItemPayloadSchema>;
@@ -859,7 +860,11 @@ async function copiarConteudoParaConversa(
  *    por poucos minutos, bem abaixo do QUEUE_VISIBILITY_TIMEOUT_MS (10min) —
  *    e mesmo se um job estourasse a janela e fosse reclamado por outro worker,
  *    o replay é seguro (idempotência por (jobId,seq) no sink do CRM).
- *  - `video`/`document`/`contact`: SEM motor de envio ainda
+ *  - `contact`: cartão de contato (nome + telefone) pelo MESMO caminho do envio
+ *    manual do atendente — o adapter do canal monta o vCard.
+ *  - `sticker`: figurinha (.webp), copiada pro Storage da conversa como a imagem,
+ *    sem legenda.
+ *  - `video`/`document`: SEM motor de envio ainda
  *    (`validarItensDeConteudo` recusa isto no publish); aqui é só a rede de
  *    segurança para um fluxo antigo publicado antes dessa guarda — pula o item
  *    e loga, nunca derruba o turno inteiro por causa de UM item.
@@ -930,7 +935,7 @@ async function sendConteudoSequence(
           await sleep(item.seconds * 1000);
           continue;
         }
-        if (item.type === 'video' || item.type === 'document' || item.type === 'contact') {
+        if (item.type === 'video' || item.type === 'document') {
           runLog.warn('item de conteúdo sem motor de envio — pulado (o publish deveria ter barrado isto)', {
             tipo: item.type,
           });
@@ -948,8 +953,15 @@ async function sendConteudoSequence(
             tenantId, leadId, jobId: job.id, jobClaim: claimOfJob(job), seq, conversationId,
             body: usaFinalBody ? finalBody : item.body,
           });
+        } else if (item.type === 'contact') {
+          ultimo = await channel.send({
+            tenantId, leadId, jobId: job.id, jobClaim: claimOfJob(job), seq, conversationId,
+            // Só para o hash de idempotência do ledger — o cartão não tem corpo.
+            body: `[contato] ${item.name} ${item.phone_number}`,
+            contact: { name: item.name, phoneNumber: item.phone_number },
+          });
         } else {
-          // image | audio
+          // image | audio | sticker
           const destino = `${tenantId}/${conversationId}/conteudo-${job.id}-${seq}.${item.storage_path.split('.').pop() ?? 'bin'}`;
           const copiou = await copiarConteudoParaConversa(item.storage_path, destino, runLog);
           if (!copiou) {

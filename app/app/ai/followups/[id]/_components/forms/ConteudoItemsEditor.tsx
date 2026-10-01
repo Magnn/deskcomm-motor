@@ -1,13 +1,15 @@
 "use client";
 /**
  * Editor de itens do nó "Conteúdo" com paridade visual 100% fiel ao AcassIA / Lalla.
- * Grade 3x2 de botões com gradientes sutis e inset highlight,
+ * Grade 4x2 de botões com gradientes sutis e inset highlight,
  * divisor "Conteúdos", pill badge azul de estado vazio,
  * cards com faixa colorida lateral, barra de ferramentas superior (Mover/Duplicar/Excluir),
  * upload zone com limites oficiais e controles refinados.
  */
 import * as React from "react";
 import { CloudUpload, Image as LucideImage, Move, Video as LucideVideo } from "lucide-react";
+
+import { toast } from "sonner";
 
 import { Input } from "@/components/ui/input";
 import {
@@ -17,6 +19,7 @@ import {
 } from "@/components/ui/popover";
 import { useUploadFlowContentMedia } from "@/hooks/ai/useUploadFlowContentMedia";
 import { useT } from "@/hooks/i18n/useT";
+import { STICKER_MAX_BYTES } from "@/lib/messaging/media/upload-validation";
 import {
   MAX_CONTEUDO_ITEMS,
   type ConteudoItem,
@@ -30,9 +33,11 @@ import {
   Eye,
   FileText,
   Gear,
+  IdentificationCard,
   ImageIcon,
   Microphone,
   Plus,
+  Smiley,
   Trash,
   VideoCamera,
 } from "@/lib/ui/icons";
@@ -60,7 +65,11 @@ const TYPE_COLORS: Record<string, { btnText: string; btnIcon: string; strip: str
   document: { btnText: "text-[#1e3a8a]", btnIcon: "text-[#1e40af]", strip: "bg-[#3b82f6]", border: "border-[#3b82f6] dark:border-blue-700" },
   delay:    { btnText: "text-[#db2777]", btnIcon: "text-[#e11d48]", strip: "bg-[#ec4899]", border: "border-[#f43f5e] dark:border-pink-600" },
   contact:  { btnText: "text-[#db2777]", btnIcon: "text-[#db2777]", strip: "bg-[#ec4899]", border: "border-[#ec4899] dark:border-pink-600" },
+  sticker:  { btnText: "text-[#b45309]", btnIcon: "text-[#d97706]", strip: "bg-[#f59e0b]", border: "border-[#f59e0b] dark:border-amber-600" },
 };
+
+/** Figurinha do WhatsApp: só .webp; o teto de bytes vem da mesma régua que a rota de upload cobra. */
+const STICKER_MIME = "image/webp";
 
 function labelPorTipo(t: string): string {
   const m: Record<string, string> = {
@@ -71,6 +80,7 @@ function labelPorTipo(t: string): string {
     document: "Documento",
     delay: "Delay",
     contact: "Contato",
+    sticker: "Figurinha",
   };
   return m[t] || t;
 }
@@ -97,6 +107,8 @@ function itemPadrao(type: ConteudoItemType): ConteudoItem {
       return { type: "document", storage_path: "", mime: "" };
     case "contact":
       return { type: "contact", name: "", phone_number: "" };
+    case "sticker":
+      return { type: "sticker", storage_path: "", mime: "" };
     case "delay":
       return { type: "delay", seconds: 3 };
   }
@@ -113,6 +125,8 @@ const ALL_KINDS: Array<{
   { type: "video", label: "Vídeo", Icon: ({ className }) => <VideoCamera size={17} className={className} /> },
   { type: "document", label: "Documento", Icon: ({ className }) => <FileText size={17} className={className} /> },
   { type: "delay", label: "Delay", Icon: ({ className }) => <Clock size={17} className={className} /> },
+  { type: "contact", label: "Contato", Icon: ({ className }) => <IdentificationCard size={17} className={className} /> },
+  { type: "sticker", label: "Figurinha", Icon: ({ className }) => <Smiley size={17} className={className} /> },
 ];
 
 export function ConteudoItemsEditor({ flowId, items, onChange, disabled }: Props) {
@@ -155,9 +169,9 @@ export function ConteudoItemsEditor({ flowId, items, onChange, disabled }: Props
 
   return (
     <div className="flow-content-builder font-sans">
-      {/* ── Content Type Buttons — 3×2 grid (AcassIA / Lalla) ── */}
+      {/* ── Botões de tipo de conteúdo — grade 4×2 ── */}
       {!disabled && (
-        <div className="grid grid-cols-3 gap-2 mb-0.5">
+        <div className="grid grid-cols-4 gap-2 mb-0.5">
           {ALL_KINDS.map((k) => {
             const tc = TYPE_COLORS[k.type] ?? DEFAULT_TC;
             return (
@@ -354,7 +368,7 @@ function ItemCard({
         />
       )}
 
-      {(item.type === "image" || item.type === "video" || item.type === "document") && (
+      {(item.type === "image" || item.type === "video" || item.type === "document" || item.type === "sticker") && (
         <MediaSection
           flowId={flowId}
           item={item}
@@ -396,6 +410,7 @@ function ItemCard({
             item.type === "video" && "bg-[#16a34a]",
             item.type === "document" && "bg-[#1d4ed8]",
             item.type === "contact" && "bg-[#ec4899]",
+            item.type === "sticker" && "bg-[#d97706]",
           )}
         >
           {item.type === "text" && <span className="font-serif font-bold text-xs leading-none">T</span>}
@@ -404,6 +419,8 @@ function ItemCard({
           {item.type === "image" && <ImageIcon size={12} className="text-white" />}
           {item.type === "video" && <VideoCamera size={12} className="text-white" />}
           {item.type === "document" && <FileText size={12} className="text-white" />}
+          {item.type === "contact" && <IdentificationCard size={12} className="text-white" />}
+          {item.type === "sticker" && <Smiley size={12} className="text-white" />}
           <span>{item.type === "video" ? "Video" : labelPorTipo(item.type)}</span>
         </span>
 
@@ -547,7 +564,7 @@ function MediaSection({
   onChange,
 }: {
   flowId: string;
-  item: Extract<ConteudoItem, { type: "image" | "video" | "document" }>;
+  item: Extract<ConteudoItem, { type: "image" | "video" | "document" | "sticker" }>;
   disabled?: boolean;
   onChange: (c: ConteudoItem) => void;
 }) {
@@ -563,8 +580,14 @@ function MediaSection({
   const [campoFluxo, setCampoFluxo] = React.useState("");
 
   const onPick = async (file: File) => {
+    // Figurinha fora do formato o WhatsApp recusa (ou entrega como imagem comum):
+    // barra aqui, antes de subir o arquivo, com o motivo dito.
+    if (item.type === "sticker" && (file.type !== STICKER_MIME || file.size > STICKER_MAX_BYTES)) {
+      toast.error(t("A figurinha precisa ser um arquivo .webp de até 500 KB."));
+      return;
+    }
     try {
-      const r = await upload.mutateAsync({ flowId, file });
+      const r = await upload.mutateAsync({ flowId, file, ...(item.type === "sticker" ? { as: "sticker" as const } : {}) });
       const base = { ...item, storage_path: r.storage_path, mime: r.media_mime };
       onChange(item.type === "document" ? ({ ...base, filename: file.name } as ConteudoItem) : (base as ConteudoItem));
     } catch {
@@ -580,7 +603,9 @@ function MediaSection({
   };
 
   const accept =
-    item.type === "image"
+    item.type === "sticker"
+      ? STICKER_MIME
+      : item.type === "image"
       ? "image/svg+xml,image/png,image/jpeg,image/webp"
       : item.type === "video"
         ? "video/mp4,video/mkv,video/avi,video/quicktime,video/3gpp"
@@ -728,6 +753,18 @@ function MediaSection({
               </span>
               <span className="text-[11px] text-slate-400 dark:text-zinc-500">
                 SVG, PNG, JPG
+              </span>
+            </>
+          )}
+
+          {item.type === "sticker" && (
+            <>
+              <Smiley size={38} className="text-[#94a3b8] mb-1" />
+              <span className="text-[13px] font-semibold text-slate-700 dark:text-zinc-200">
+                {upload.isPending ? t("Enviando…") : t("Clique para enviar uma figurinha")}
+              </span>
+              <span className="text-[11px] text-slate-400 dark:text-zinc-500">
+                {t(".webp, 512×512 px (máx. 500 KB)")}
               </span>
             </>
           )}

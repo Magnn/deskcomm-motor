@@ -12,14 +12,16 @@ export interface UploadedFlowMedia {
   storage_path: string;
   media_mime: string;
   media_size_bytes: number;
-  kind: "image" | "video" | "audio" | "document";
+  kind: "image" | "video" | "audio" | "document" | "sticker";
 }
 
 export function useUploadFlowContentMedia() {
   return useMutation({
-    mutationFn: async (args: { flowId: string; file: File }) => {
+    mutationFn: async (args: { flowId: string; file: File; as?: "sticker" }) => {
       const form = new FormData();
       form.append("file", args.file, args.file.name);
+      // Figurinha declara a intenção: é o que deixa o .webp passar na rota.
+      if (args.as) form.append("as", args.as);
       const res = await fetch(`/api/v1/ai/followup-flows/${args.flowId}/content-media`, {
         method: "POST",
         body: form,

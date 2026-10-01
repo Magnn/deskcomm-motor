@@ -29,6 +29,7 @@ import {
   CheckCircle,
   CreditCard,
   Target,
+  Smiley,
 } from "@/lib/ui/icons";
 import {
   AGENT_NODE_DEFAULT_MAX_TURNS,
@@ -52,6 +53,7 @@ export const ICONES_DE_ITEM_DE_CONTEUDO: Record<ConteudoItemType, IconeDeItem> =
   audio: Microphone,
   document: FileText,
   contact: IdentificationCard,
+  sticker: Smiley,
   delay: Clock,
 };
 
@@ -74,6 +76,8 @@ export function descreverItemDeConteudo(item: ConteudoItem, t: (texto: string) =
       return item.filename ?? t(TIPOS_DE_ITEM_DE_CONTEUDO.document);
     case "contact":
       return item.name;
+    case "sticker":
+      return t(TIPOS_DE_ITEM_DE_CONTEUDO.sticker);
     case "delay":
       return `Delay de ${item.seconds} Segundos`;
   }

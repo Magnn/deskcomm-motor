@@ -225,6 +225,8 @@ function resumoDeItemDeConteudo(item: ConteudoItem): string {
       return `[documento]${item.filename ? ` ${item.filename}` : ""}`;
     case "contact":
       return `[contato] ${item.name}`;
+    case "sticker":
+      return "[figurinha]";
     case "delay":
       return `[pausa ${item.seconds}s]`;
   }

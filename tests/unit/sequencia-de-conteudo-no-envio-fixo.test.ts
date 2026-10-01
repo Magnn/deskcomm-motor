@@ -9,10 +9,12 @@
  *      antes do envio — nunca referencia o path do fluxo direto;
  *   3. delay é uma pausa a mais (`sleep`), não um send;
  *   4. mídia cuja cópia falha é PULADA sem derrubar o resto da sequência;
- *   5. item sem motor (vídeo/documento/contato) é pulado, nunca lança —
+ *   5. item sem motor (vídeo/documento) é pulado, nunca lança —
  *      rede de segurança para um fluxo publicado antes da guarda existir;
  *   6. um `send` que devolve um kind fora de OK_KINDS para a sequência ali
- *      (não manda os itens seguintes).
+ *      (não manda os itens seguintes);
+ *   7. contato vira UM send com `contact` (nome + telefone), sem mídia;
+ *   8. figurinha é copiada pra conversa e sai com `kind: 'sticker'`, sem legenda.
  */
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -102,6 +104,7 @@ interface EnvioDeItem {
   seq: number;
   body: string;
   media?: { storagePath: string; mime: string; kind: string };
+  contact?: { name: string; phoneNumber: string };
 }
 function fakeChannelSend(resultado: { kind: string; idempotencyKey: string; messageId: string | null }) {
   return vi.fn(async (_input: EnvioDeItem) => resultado);
@@ -202,13 +205,47 @@ describe("sequência de conteúdo — texto, mídia e pausa", () => {
     expect((channelSend.mock.calls[0]![0] as { body: string }).body).toBe("corpo-do-portao");
   });
 
-  it("item sem motor (vídeo/documento/contato) é pulado, nunca derruba o turno", async () => {
+  it("contato vira UM send com o cartão (nome + telefone), sem mídia, com seq próprio", async () => {
+    const channelSend = fakeChannelSend({ kind: "sent", idempotencyKey: "k", messageId: "m" });
+    await criarHandler(deps(channelSend))(
+      job([
+        { type: "text", body: "Fale com o nosso suporte:" },
+        { type: "contact", name: "Suporte", phone_number: "+5511999998888" },
+      ]),
+      fakePool(),
+      ctx,
+    );
+    expect(channelSend).toHaveBeenCalledTimes(2);
+    const cartao = channelSend.mock.calls[1]![0];
+    expect(cartao.seq).toBe(2);
+    expect(cartao.contact).toEqual({ name: "Suporte", phoneNumber: "+5511999998888" });
+    expect(cartao.media).toBeUndefined();
+    // Cartão não é mídia: nada é copiado no Storage por causa dele.
+    expect(storageCopy).not.toHaveBeenCalled();
+  });
+
+  it("figurinha é copiada pra conversa e sai como mídia 'sticker', sem legenda", async () => {
+    const channelSend = fakeChannelSend({ kind: "sent", idempotencyKey: "k", messageId: "m" });
+    await criarHandler(deps(channelSend))(
+      job([{ type: "sticker", storage_path: `${ORG}/flow-content/fluxo-1/fig.webp`, mime: "image/webp" }]),
+      fakePool(),
+      ctx,
+    );
+    expect(storageCopy).toHaveBeenCalledTimes(1);
+    expect(channelSend).toHaveBeenCalledTimes(1);
+    const envio = channelSend.mock.calls[0]![0];
+    expect(envio.body).toBe("");
+    expect(envio.media).toMatchObject({ mime: "image/webp", kind: "sticker" });
+    expect(envio.media!.storagePath.startsWith(`${ORG}/${CONVERSA}/`)).toBe(true);
+    expect(envio.media!.storagePath.endsWith(".webp")).toBe(true);
+  });
+
+  it("item sem motor (vídeo/documento) é pulado, nunca derruba o turno", async () => {
     const channelSend = fakeChannelSend({ kind: "sent", idempotencyKey: "k", messageId: "m" });
     await criarHandler(deps(channelSend))(
       job([
         { type: "video", storage_path: "p", mime: "video/mp4" },
         { type: "document", storage_path: "p", mime: "application/pdf" },
-        { type: "contact", name: "Suporte", phone_number: "+5511999998888" },
         { type: "text", body: "O que sobrou" },
       ]),
       fakePool(),

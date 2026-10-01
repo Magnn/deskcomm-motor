@@ -4,6 +4,7 @@ import type { AgenteCitado } from './agentes-citados';
 import { AGENT_NODE_UNSET_ID, branchIdForCondition, nodeBranches } from './graph-schema';
 import { rotuloDoRamo } from './rotulo-do-ramo';
 import type { NomesDeValor } from './vocabulario';
+import { parseDialablePhone } from '@/lib/messaging/contact-card';
 
 /**
  * Structural publish validator for follow-up flow graphs.
@@ -38,6 +39,8 @@ export const PUBLISH_ERROR_CODES = [
   'agente_indisponivel',
   'item_de_conteudo_em_construcao',
   'conteudo_so_pausas',
+  'contato_com_telefone_invalido',
+  'figurinha_fora_do_formato',
 ] as const;
 export type PublishErrorCode = (typeof PUBLISH_ERROR_CODES)[number];
 
@@ -78,13 +81,13 @@ export const NOS_EM_CONSTRUCAO: readonly NodeType[] = ['agent'];
  * Mesma doutrina do `NOS_EM_CONSTRUCAO` acima, um degrau mais fundo: o nó
  * "Ação" já roda (`node-handlers.ts` sempre soube enfileirar o turno), mas
  * dentro do modo `content` nem todo TIPO de item tem motor de envio ainda —
- * `lib/agent-engine/agent/followup-turn.ts` só sabe mandar texto/imagem/
- * áudio/pausa. Vídeo, documento e contato o schema já aceita (a tela deixa
+ * `lib/agent-engine/agent/followup-turn.ts` sabe mandar texto/imagem/áudio/
+ * contato/figurinha/pausa. Vídeo e documento o schema já aceita (a tela deixa
  * configurar), mas publicar um fluxo com um desses itens seria publicar um
  * passo que o motor pula em silêncio na hora de enviar. Quando o motor
  * aprender um tipo novo, ele sai desta lista — no mesmo PR que ensina o envio.
  */
-export const TIPOS_DE_ITEM_DE_CONTEUDO_EM_CONSTRUCAO: readonly ConteudoItemType[] = ["video", "document", "contact"];
+export const TIPOS_DE_ITEM_DE_CONTEUDO_EM_CONSTRUCAO: readonly ConteudoItemType[] = ["video", "document"];
 
 /**
  * Os tipos de nó que cada superfície EXECUTA. É a mesma lista que a paleta do
@@ -523,11 +526,29 @@ function validarItensDeConteudo(graph: FlowGraph, errors: PublishValidationError
   for (const node of [...graph.nodes].sort(byId)) {
     if (node.type !== 'action' || node.config.mode !== 'content') continue;
     for (const [i, item] of node.config.items.entries()) {
+      // Telefone que o canal não disca: o envio recusaria em TODA inscrição (422
+      // do handler), e o motor trataria como falha passageira e tentaria de novo.
+      // Mesma régua do envio manual (`parseDialablePhone`), cobrada aqui.
+      if (item.type === 'contact' && parseDialablePhone(item.phone_number) === null) {
+        errors.push({
+          node_id: node.id,
+          code: 'contato_com_telefone_invalido',
+          message: `A caixa "${node.label}", item ${i + 1}: o telefone do contato não é válido — use o número com DDI (ex.: +5511999990000).`,
+        });
+      }
+      // Figurinha só existe em .webp: outro formato o canal oficial recusa.
+      if (item.type === 'sticker' && item.mime !== 'image/webp') {
+        errors.push({
+          node_id: node.id,
+          code: 'figurinha_fora_do_formato',
+          message: `A caixa "${node.label}", item ${i + 1}: a figurinha precisa ser um arquivo .webp — troque o arquivo antes de publicar.`,
+        });
+      }
       if (!emConstrucao.has(item.type)) continue;
       errors.push({
         node_id: node.id,
         code: 'item_de_conteudo_em_construcao',
-        message: `A caixa "${node.label}", item ${i + 1}: o envio de ${item.type === 'video' ? 'vídeo' : item.type === 'document' ? 'documento' : 'contato'} ainda não roda — remova este item ou troque o tipo antes de publicar.`,
+        message: `A caixa "${node.label}", item ${i + 1}: o envio de ${item.type === 'video' ? 'vídeo' : 'documento'} ainda não roda — remova este item ou troque o tipo antes de publicar.`,
       });
     }
     // Só pausa(s), nenhum item que de fato envia algo: o motor não teria o que
@@ -538,7 +559,7 @@ function validarItensDeConteudo(graph: FlowGraph, errors: PublishValidationError
       errors.push({
         node_id: node.id,
         code: 'conteudo_so_pausas',
-        message: `A caixa "${node.label}" só tem pausas — acrescente ao menos um item de conteúdo de verdade (texto, imagem ou áudio).`,
+        message: `A caixa "${node.label}" só tem pausas — acrescente ao menos um item de conteúdo de verdade (texto, imagem, áudio, contato ou figurinha).`,
       });
     }
   }

@@ -852,13 +852,59 @@ describe('validarItensDeConteudo — motor de envio por tipo de item', () => {
   it.each([
     ['video' as const, { type: 'video' as const, storage_path: 'p', mime: 'video/mp4' }],
     ['document' as const, { type: 'document' as const, storage_path: 'p', mime: 'application/pdf' }],
-    ['contact' as const, { type: 'contact' as const, name: 'Suporte', phone_number: '+5511999998888' }],
   ])('%s (motor ainda não existe): recusa no publish', (_tipo, item) => {
     const g = graph(
       [trigger('t'), actionContent('a', [item]), end('f')],
       [edge('t', 'a', always()), edge('a', 'f', always())],
     );
     expect(codigos(g)).toContain('item_de_conteudo_em_construcao');
+  });
+
+  it('contato e figurinha já têm motor: publicam', () => {
+    const g = graph(
+      [
+        trigger('t'),
+        actionContent('a', [
+          { type: 'contact', name: 'Suporte', phone_number: '+5511999998888' },
+          { type: 'sticker', storage_path: 'p.webp', mime: 'image/webp' },
+        ]),
+        end('f'),
+      ],
+      [edge('t', 'a', always()), edge('a', 'f', always())],
+    );
+    const codes = codigos(g);
+    expect(codes).not.toContain('item_de_conteudo_em_construcao');
+    expect(codes).not.toContain('contato_com_telefone_invalido');
+    expect(codes).not.toContain('figurinha_fora_do_formato');
+    // Sozinhos já são "conteúdo de verdade": não é um nó só de pausas.
+    expect(codes).not.toContain('conteudo_so_pausas');
+  });
+
+  it('contato com telefone que o canal não disca: recusa no publish, com o item', () => {
+    const g = graph(
+      [
+        trigger('t'),
+        actionContent('a', [
+          { type: 'text', body: 'Oi' },
+          { type: 'contact', name: 'Suporte', phone_number: 'ramal 12 ok' },
+        ]),
+        end('f'),
+      ],
+      [edge('t', 'a', always()), edge('a', 'f', always())],
+    );
+    const r = validateFlowForPublish(g);
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.errors.find((e) => e.code === 'contato_com_telefone_invalido')?.message).toContain('item 2');
+    }
+  });
+
+  it('figurinha que não é .webp: recusa no publish', () => {
+    const g = graph(
+      [trigger('t'), actionContent('a', [{ type: 'sticker', storage_path: 'p.png', mime: 'image/png' }]), end('f')],
+      [edge('t', 'a', always()), edge('a', 'f', always())],
+    );
+    expect(codigos(g)).toContain('figurinha_fora_do_formato');
   });
 
   it('acusa o ÍNDICE do item dentro do nó, não só o nó', () => {
