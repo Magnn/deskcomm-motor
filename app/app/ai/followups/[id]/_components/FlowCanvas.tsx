@@ -353,8 +353,10 @@ function FlowCanvasInner({ flowId, initialData }: Props) {
         selected: true,
         data: { label: t(visual.defaultLabel), config },
       };
+      // O card nasce SELECIONADO (a barra Editar/Duplicar aparece em cima dele),
+      // mas a configuração NÃO abre sozinha: quem decide abrir é o "Editar".
       setNodes((nds) => [...nds.map((n): RFNode => ({ ...n, selected: false })), newNode]);
-      setSelectedNodeId(id);
+      setSelectedNodeId(null);
       setSelectedEdgeId(null);
     },
     [setNodes, setSelectedNodeId, setSelectedEdgeId, t, triggerKind],
@@ -378,8 +380,9 @@ function FlowCanvasInner({ flowId, initialData }: Props) {
           config: JSON.parse(JSON.stringify(original.data.config)),
         },
       };
+      // Igual ao adicionar: o clone aparece selecionado, sem abrir a configuração.
       setNodes((nds) => [...nds.map((n): RFNode => ({ ...n, selected: false })), clone]);
-      setSelectedNodeId(newId);
+      setSelectedNodeId(null);
     };
 
     const handleSelect = (e: Event) => {
@@ -495,7 +498,7 @@ function FlowCanvasInner({ flowId, initialData }: Props) {
         />
       )}
       <div className="relative flex flex-1 min-h-0 overflow-hidden">
-        {paletteOpen && <NodePalette onAdd={onPaletteAdd} onClose={() => setPaletteOpen(false)} />}
+        {paletteOpen && <NodePalette onClose={() => setPaletteOpen(false)} />}
         {/* Abaixo de `lg` a paleta fixa não cabe do lado do canvas —
             vira um drawer (Sheet). */}
         <Sheet open={mobilePaletteOpen} onOpenChange={setMobilePaletteOpen}>
@@ -543,7 +546,7 @@ function FlowCanvasInner({ flowId, initialData }: Props) {
             fitView={initial.nodes.length > 0}
           >
             <Background />
-            <Controls />
+            <Controls position="bottom-right" />
           </ReactFlow>
 
           {/* Botão flutuante circular '+' no canto inferior esquerdo (Lalla / AcassIA parity) */}
@@ -558,13 +561,14 @@ function FlowCanvasInner({ flowId, initialData }: Props) {
             }}
             aria-label={paletteOpen ? t("Fechar menu de opções") : t("Abrir menu de opções")}
             title={paletteOpen ? t("Fechar menu de opções") : t("Abrir menu de opções")}
-            className="absolute bottom-6 left-6 z-20 flex h-12 w-12 cursor-pointer items-center justify-center rounded-full bg-[#9333ea] hover:bg-[#7e22ce] text-white shadow-xl shadow-purple-500/35 transition-all hover:scale-105 active:scale-95"
+            className={cn(
+              "absolute bottom-6 left-6 z-20 flex h-12 w-12 cursor-pointer items-center justify-center rounded-full bg-[#9333ea] hover:bg-[#7e22ce] text-white shadow-xl shadow-purple-500/35 transition-all hover:scale-105 active:scale-95",
+              // Com o menu aberto no desktop o botão sai: o menu já tem o próprio X,
+              // e um segundo X ao lado (o + girado) só duplicava o fechar.
+              paletteOpen && "lg:hidden",
+            )}
           >
-            <Plus
-              size={24}
-              weight="bold"
-              className={cn("transition-transform duration-200", paletteOpen && "lg:rotate-45")}
-            />
+            <Plus size={24} weight="bold" />
           </button>
         </div>
 

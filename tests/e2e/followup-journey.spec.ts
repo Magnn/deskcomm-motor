@@ -39,7 +39,7 @@ import * as path from "node:path";
 
 import { test, expect, type Page } from "@playwright/test";
 
-import { zoomAte } from "./utils/canvas-do-fluxo";
+import { zoomAte, arrastarDoMenu } from "./utils/canvas-do-fluxo";
 
 import { afirmarAdminDeTenantPuro } from "./utils/precondicao";
 import { generateTotp, msUntilNextTotpWindow } from "./utils/totp";
@@ -254,13 +254,13 @@ test.describe("followup — jornada completa (Task 8.3)", () => {
     const flowId = page.url().match(/\/app\/ai\/followups\/([0-9a-f-]+)$/)![1]!;
     await expect(page.locator(".react-flow")).toBeVisible();
 
-    await page.getByTestId("palette-add-trigger").click();
-    await page.getByTestId("palette-add-wait").click();
-    await page.getByTestId("palette-add-action").click();
-    await page.getByTestId("palette-add-ai_classify").click();
-    await page.getByTestId("palette-add-end").click();
-    await page.getByTestId("palette-add-end").click();
-    await page.getByTestId("palette-add-end").click();
+    await arrastarDoMenu(page, "trigger");
+    await arrastarDoMenu(page, "wait");
+    await arrastarDoMenu(page, "action");
+    await arrastarDoMenu(page, "ai_classify");
+    await arrastarDoMenu(page, "end");
+    await arrastarDoMenu(page, "end");
+    await arrastarDoMenu(page, "end");
 
     const triggerId = await page.locator('.react-flow__node[data-id^="trigger-"]').getAttribute("data-id");
     const waitId = await page.locator('.react-flow__node[data-id^="wait-"]').getAttribute("data-id");

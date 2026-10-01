@@ -19,6 +19,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 
 import { test, expect, type Locator, type Page } from "@playwright/test";
+import { arrastarDoMenu } from "./utils/canvas-do-fluxo";
 
 import { VALORES_DE_WIRE_NA_TELA_PROIBIDOS } from "../support/enums-do-grafo";
 
@@ -130,7 +131,7 @@ test.describe("construtor de follow-up — a tela não fala em código (W2-LINGU
 
     try {
       const tipos = ["trigger", "wait", "condition", "ai_classify", "action", "end"] as const;
-      for (const tipo of tipos) await page.getByTestId(`palette-add-${tipo}`).click();
+      for (const tipo of tipos) await arrastarDoMenu(page, tipo);
 
       const vazamentos: string[] = [];
       for (const tipo of tipos) {

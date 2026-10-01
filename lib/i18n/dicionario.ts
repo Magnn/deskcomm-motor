@@ -12803,6 +12803,7 @@ export const DICIONARIO: Traducoes = {
   "Após esse tempo o fluxo prosseguirá.": { es: "Pasado ese tiempo el flujo continuará." },
   "Relatórios": { es: "Informes" },
   "MP3, WAV, OGG ou OPUS · máx. 10MB por arquivo · até 5 arquivos": { es: "MP3, WAV, OGG u OPUS · máx. 10 MB por archivo · hasta 5 archivos" },
+  "Arraste para o canvas": { es: "Arrastre al lienzo" },
 };
 
 /**

@@ -28,7 +28,7 @@ import path from "node:path";
 
 import { expect, test, type Page } from "@playwright/test";
 
-import { zoomAte } from "./utils/canvas-do-fluxo";
+import { zoomAte, arrastarDoMenu } from "./utils/canvas-do-fluxo";
 
 const CREDS_PATH = ".e2e-creds.json";
 const ARTIFACTS_DIR = "evidence/followup-cartoes";
@@ -235,10 +235,10 @@ test.describe("o cartão do nó diz o que o motor faz", () => {
     const nomeDaEtapa = `E2E Cartões ${carimbo} · ${funilNome}`;
 
     await novoFluxo(page, `E2E Cartões ${carimbo}`);
-    await page.getByTestId("palette-add-trigger").click();
-    await page.getByTestId("palette-add-condition").click();
-    await page.getByTestId("palette-add-ai_classify").click();
-    await page.getByTestId("palette-add-repeat").click();
+    await arrastarDoMenu(page, "trigger");
+    await arrastarDoMenu(page, "condition");
+    await arrastarDoMenu(page, "ai_classify");
+    await arrastarDoMenu(page, "repeat");
 
     const [condicaoId] = await idPorPrefixo(page, "condition");
     const [classifyId] = await idPorPrefixo(page, "ai_classify");
@@ -348,10 +348,10 @@ test.describe("o cartão do nó diz o que o motor faz", () => {
     const nomeDaEtapa = `E2E Etapa ${carimbo} · ${funilNome}`;
     const flowId = await novoFluxo(page, `E2E Etapa ${carimbo}`);
 
-    await page.getByTestId("palette-add-trigger").click();
-    await page.getByTestId("palette-add-condition").click();
-    await page.getByTestId("palette-add-end").click();
-    await page.getByTestId("palette-add-end").click();
+    await arrastarDoMenu(page, "trigger");
+    await arrastarDoMenu(page, "condition");
+    await arrastarDoMenu(page, "end");
+    await arrastarDoMenu(page, "end");
     const [gatilhoId] = await idPorPrefixo(page, "trigger");
     const [condicaoId] = await idPorPrefixo(page, "condition");
     const [fimDaEtapa, fimDoResto] = await idPorPrefixo(page, "end");
