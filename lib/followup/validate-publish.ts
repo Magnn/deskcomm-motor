@@ -1,7 +1,9 @@
 import type { ConteudoItemType, FlowGraph, FlowEdge, FlowNode, NodeType } from './graph-schema';
 import type { FollowupFlowSurface } from './api-schemas';
 import type { AgenteCitado } from './agentes-citados';
-import { AGENT_NODE_UNSET_ID, PERGUNTA_SEM_PRAZO_MS, prazoDaPerguntaMs } from './graph-schema';
+import { AGENT_NODE_UNSET_ID, PERGUNTA_SEM_PRAZO_MS, nodeBranches, prazoDaPerguntaMs } from './graph-schema';
+import { rotuloDoRamo } from './rotulo-do-ramo';
+import { saidasComMaisDeUmaLinha } from './uma-linha-por-saida';
 import { TIPOS_DE_ITEM_DE_CONTEUDO, type NomesDeValor } from './vocabulario';
 import { assertSafeOutboundUrl } from '@/lib/automation/outbound-url';
 import { parseDialablePhone } from '@/lib/messaging/contact-card';
@@ -43,6 +45,7 @@ export const PUBLISH_ERROR_CODES = [
   'figurinha_fora_do_formato',
   'midia_sem_arquivo',
   'midia_com_link_invalido',
+  'saida_com_mais_de_uma_linha',
 ] as const;
 export type PublishErrorCode = (typeof PUBLISH_ERROR_CODES)[number];
 
@@ -684,6 +687,23 @@ export function validateFlowForPublish(
   // aresta FICA no nó (`park`, node-handlers.ts), e a linha do tempo diz qual saída faltou. Antes o publish
   // recusava (missing_branch_edge & cia) e o motor, nos legados, escapava para «Outros casos» — que manda o
   // lead por um caminho que a decisão não tomou.
+
+  // …mas DUAS linhas na mesma saída é: o motor segue uma só, e a outra seria um caminho
+  // desenhado que nunca roda. O canvas já troca a antiga pela nova; isto pega o fluxo
+  // antigo ou importado. (Várias linhas ENTRANDO na mesma caixa são caminhos que se
+  // juntam — não há conflito.)
+  for (const conflito of saidasComMaisDeUmaLinha(graph)) {
+    const origem = nodesById.get(conflito.node_id);
+    if (!origem) continue;
+    const ramos = nodeBranches(origem);
+    const ramo = ramos.find((b) => b.id === conflito.saida);
+    const qual = ramos.length > 1 && ramo ? ` pela saída "${rotuloDoRamo(ramo, nomes)}"` : '';
+    errors.push({
+      node_id: origem.id,
+      code: 'saida_com_mais_de_uma_linha',
+      message: `A caixa "${origem.label}" tem ${conflito.edge_ids.length} linhas saindo${qual}, e o fluxo só segue uma. Apague as que sobram e deixe uma linha só.`,
+    });
+  }
 
   for (const node of [...nodes].sort(byId)) {
     if (node.type === 'condition') conferirRegras(node, contexto, errors);
