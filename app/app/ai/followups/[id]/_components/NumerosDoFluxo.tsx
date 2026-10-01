@@ -3,11 +3,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
-import type { NumeroDoFluxo } from "@/app/api/v1/ai/followup-flows/[id]/numeros/route";
+import type { NumeroDoFluxo } from "@/lib/channels/numeros-do-fluxo";
 import { showApiError } from "@/components/feedback/ApiErrorToast";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { channelLabel } from "@/hooks/channels/useChannelSessions";
 import type { FollowupFlowStatus } from "@/hooks/followup/useFollowupFlows";
 import { useT } from "@/hooks/i18n/useT";
 import { apiClient } from "@/lib/api/client";
@@ -66,6 +65,8 @@ export function NumerosDoFluxo({ flowId, flowStatus }: Props) {
   const lista = numeros.data ?? [];
   const presoAFluxoParado = !publicado && lista.some((n) => n.dono === "este_fluxo");
 
+  const rotulo = (n: NumeroDoFluxo): string => n.nome || n.phone_number || t("Número sem nome");
+
   const donoAtual = (n: NumeroDoFluxo): string => {
     if (n.dono === "este_fluxo") return t("Este fluxo responde este número.");
     if (n.dono === "outro_fluxo") return `${t("Hoje responde o fluxo")} "${n.outro_fluxo ?? t("(apagado)")}".`;
@@ -106,13 +107,13 @@ export function NumerosDoFluxo({ flowId, flowStatus }: Props) {
             <li key={n.id} className="flex items-start justify-between gap-3" data-testid={`numero-${n.id}`}>
               <div className="min-w-0">
                 <p className="truncate text-sm text-text">
-                  {channelLabel(n, t)}
-                  {n.phone_number && n.display_name ? ` (${n.phone_number})` : ""}
+                  {rotulo(n)}
+                  {n.nome && n.phone_number ? ` (${n.phone_number})` : ""}
                 </p>
                 <p className="text-[11px] text-muted-foreground">{donoAtual(n)}</p>
               </div>
               <Switch
-                aria-label={`${t("Este fluxo responde o número")} ${channelLabel(n, t)}`}
+                aria-label={`${t("Este fluxo responde o número")} ${rotulo(n)}`}
                 checked={ligado}
                 // Ligar exige fluxo publicado (o servidor também recusa). Desligar
                 // é sempre permitido: é como se tira um número de um fluxo parado.
