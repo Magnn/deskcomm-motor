@@ -86,7 +86,7 @@ export class ExternalMcpClient {
   /**
    * Envia uma requisição JSON-RPC 2.0 ao endpoint do servidor MCP.
    */
-  private async postJsonRpc(method: string, params: Record<string, unknown> = {}): Promise<any> {
+  private async postJsonRpc(method: string, params: Record<string, unknown> = {}): Promise<unknown> {
     const payload = {
       jsonrpc: "2.0",
       id: this.getNextId(),
@@ -109,7 +109,7 @@ export class ExternalMcpClient {
         throw new Error(`Servidor MCP retornou HTTP ${response.status}: ${response.statusText}`);
       }
 
-      const json = await response.json();
+      const json = (await response.json()) as { error?: { code?: number; message?: string }; result?: unknown };
 
       if (json.error) {
         throw new Error(`Erro MCP [${json.error.code}]: ${json.error.message}`);
@@ -130,7 +130,7 @@ export class ExternalMcpClient {
    * Descobre a lista de ferramentas disponíveis no servidor MCP via `tools/list`.
    */
   async listTools(): Promise<McpDiscoveredTool[]> {
-    const result = await this.postJsonRpc("tools/list", {});
+    const result = (await this.postJsonRpc("tools/list", {})) as { tools?: unknown[] } | null | undefined;
     const tools = Array.isArray(result?.tools) ? result.tools : [];
 
     const discovered: McpDiscoveredTool[] = [];
@@ -152,19 +152,21 @@ export class ExternalMcpClient {
     }
 
     try {
-      const result = await this.postJsonRpc("tools/call", {
+      const result = (await this.postJsonRpc("tools/call", {
         name,
         arguments: args,
-      });
+      })) as { isError?: boolean; content?: unknown } | null | undefined;
 
       const isError = Boolean(result?.isError);
       let contentText = "";
 
       if (Array.isArray(result?.content)) {
         contentText = result.content
-          .map((item: any) => {
+          .map((item: unknown) => {
             if (typeof item === "string") return item;
-            if (item && typeof item === "object" && "text" in item) return String(item.text);
+            if (item && typeof item === "object" && "text" in item) {
+              return String((item as { text: unknown }).text);
+            }
             return JSON.stringify(item);
           })
           .join("\n");
