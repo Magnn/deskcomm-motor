@@ -458,9 +458,22 @@ describe('graph-schema', () => {
       it('rejects an unknown item type', () => {
         const result = actionConfigSchema.safeParse({
           mode: 'content',
-          items: [{ type: 'sticker', storage_path: 'p', mime: 'image/webp' }],
+          items: [{ type: 'location', latitude: 0, longitude: 0 }],
         });
         expect(result.success).toBe(false);
+      });
+
+      it('accepts a sticker item, and refuses a caption on it (figurinha não tem legenda)', () => {
+        const ok = actionConfigSchema.safeParse({
+          mode: 'content',
+          items: [{ type: 'sticker', storage_path: 'p.webp', mime: 'image/webp' }],
+        });
+        expect(ok.success).toBe(true);
+        const comLegenda = actionConfigSchema.safeParse({
+          mode: 'content',
+          items: [{ type: 'sticker', storage_path: 'p.webp', mime: 'image/webp', caption: 'oi' }],
+        });
+        expect(comLegenda.success).toBe(false);
       });
 
       it('rejects extra keys on an item (strict per-item, not just per-node)', () => {

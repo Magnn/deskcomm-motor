@@ -525,6 +525,7 @@ export const TIPOS_DE_ITEM_DE_CONTEUDO: Record<ConteudoItemType, string> = {
   audio: "Áudio (nota de voz)",
   document: "Documento",
   contact: "Contato",
+  sticker: "Figurinha",
   delay: "Pausa",
 };
 

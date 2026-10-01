@@ -29,6 +29,11 @@ export function wahaSendPlanFor(kind: string, media: OutboundMedia): WahaSendPla
       };
     case "audio":
       return { endpoint: "sendVoice", payload: { file, convert: true } };
+    case "sticker":
+      // Este transporte não tem endpoint de figurinha. O .webp sai por
+      // `sendImage`, SEM legenda: chega como imagem, não como anexo de arquivo
+      // (que é o que o `default` faria). Figurinha de verdade só no canal oficial.
+      return { endpoint: "sendImage", payload: { file } };
     default:
       return { endpoint: "sendFile", payload: { file, ...(media.caption ? { caption: media.caption } : {}) } };
   }

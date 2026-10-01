@@ -65,9 +65,16 @@ export interface SendMessageInput {
   template?: { name: string; language: string; values: Record<string, string> };
   /**
    * Presente = mídia da pasta da conversa em `whatsapp-media`; `body` é a legenda.
-   * `kind` ausente = imagem; `'audio'` = nota de voz (o `body` é o texto falado).
+   * `kind` ausente = imagem; `'audio'` = nota de voz (o `body` é o texto falado);
+   * `'sticker'` = figurinha, que não tem legenda.
    */
-  media?: { storagePath: string; mime: string; kind?: 'image' | 'audio' };
+  media?: { storagePath: string; mime: string; kind?: 'image' | 'video' | 'audio' | 'document' | 'sticker' };
+  /**
+   * Presente = este envio é um CARTÃO DE CONTATO (nome + telefone). Não é mídia e
+   * não tem legenda: o `body` só existe para o hash de idempotência. Quem monta o
+   * vCard de verdade é o adapter do canal, igual ao envio manual do atendente.
+   */
+  contact?: { name: string; phoneNumber: string };
 }
 
 /**
@@ -88,16 +95,28 @@ export function corpoDoEnvio(
           template_language: input.template.language,
           template_values: input.template.values,
         }
-      : input.media
-        ? {
-            type: (input.media.kind ?? 'image') as 'image' | 'audio',
-            media_storage_path: input.media.storagePath,
-            media_mime: input.media.mime,
-          }
-        : { type: 'text' as const }),
+      : input.contact
+        ? { type: 'contact' as const }
+        : input.media
+          ? {
+              type: (input.media.kind ?? 'image') as 'image' | 'video' | 'audio' | 'document' | 'sticker',
+              media_storage_path: input.media.storagePath,
+              media_mime: input.media.mime,
+            }
+          : { type: 'text' as const }),
     // Foto sem legenda vai sem `body`: o schema do envio pede corpo não vazio.
-    ...(input.body !== '' || !input.media ? { body: input.body } : {}),
-    metadata: { idempotency_key: idempotencyKey },
+    // Cartão de contato e figurinha nunca levam `body`: o do contato é o handler
+    // que escreve (o nome), e figurinha não tem legenda em canal nenhum.
+    ...(!input.contact && input.media?.kind !== 'sticker' && (input.body !== '' || !input.media)
+      ? { body: input.body }
+      : {}),
+    metadata: {
+      idempotency_key: idempotencyKey,
+      // Mesmo formato do envio manual (`sendMessageSchema`): nome + telefone.
+      ...(input.contact
+        ? { shared_contact: { name: input.contact.name, phone_number: input.contact.phoneNumber } }
+        : {}),
+    },
   };
 }
 

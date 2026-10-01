@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { MAX_MEDIA_BYTES } from "@/lib/messaging/media/types";
-import { validateOutboundMedia } from "./upload-validation";
+import { validateOutboundMedia, validateStickerUpload } from "./upload-validation";
 
 /**
  * A validação de upload outbound — o teto REAL que a Meta aceita por tipo,
@@ -33,6 +33,21 @@ describe("validateOutboundMedia", () => {
   it("formato de imagem fora do vocabulário fechado (webp) é recusado mesmo pequeno", () => {
     const r = validateOutboundMedia("image/webp", 1024);
     expect(r).toEqual({ ok: false, code: "unsupported_media_type", message: "Tipo de arquivo não suportado." });
+  });
+
+  it("figurinha: .webp até 500 KB passa pelo caminho PRÓPRIO, e só por ele", () => {
+    expect(validateStickerUpload("image/webp", 200 * 1024)).toEqual({ ok: true, kind: "sticker" });
+    // o caminho comum segue recusando o mesmo arquivo — webp como imagem a Meta recusa
+    expect(validateOutboundMedia("image/webp", 200 * 1024).ok).toBe(false);
+  });
+
+  it("figurinha: outro formato, acima de 500 KB e arquivo vazio são recusados com o motivo", () => {
+    const png = validateStickerUpload("image/png", 1024);
+    expect(!png.ok && png.code).toBe("unsupported_media_type");
+    const grande = validateStickerUpload("image/webp", 600 * 1024);
+    expect(!grande.ok && grande.code).toBe("payload_too_large");
+    const vazio = validateStickerUpload("image/webp", 0);
+    expect(!vazio.ok && vazio.code).toBe("validation_failed");
   });
 
   it("vídeo mp4 dentro do teto de 16MB: aceita", () => {

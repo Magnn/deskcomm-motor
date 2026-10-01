@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { validateFlowForPublish } from './validate-publish';
+import { TIPOS_DE_ITEM_DE_CONTEUDO_EM_CONSTRUCAO, validateFlowForPublish } from './validate-publish';
 import type { ConteudoItem, FlowGraph, FlowNode, FlowEdge } from './graph-schema';
 
 const pos = { x: 0, y: 0 };
@@ -852,22 +852,63 @@ describe('validarItensDeConteudo — motor de envio por tipo de item', () => {
   it.each([
     ['video' as const, { type: 'video' as const, storage_path: 'p', mime: 'video/mp4' }],
     ['document' as const, { type: 'document' as const, storage_path: 'p', mime: 'application/pdf' }],
-    ['contact' as const, { type: 'contact' as const, name: 'Suporte', phone_number: '+5511999998888' }],
-  ])('%s (motor ainda não existe): recusa no publish', (_tipo, item) => {
+  ])('%s já tem motor de envio: publica', (_tipo, item) => {
     const g = graph(
       [trigger('t'), actionContent('a', [item]), end('f')],
       [edge('t', 'a', always()), edge('a', 'f', always())],
     );
-    expect(codigos(g)).toContain('item_de_conteudo_em_construcao');
+    const codes = codigos(g);
+    expect(codes).not.toContain('item_de_conteudo_em_construcao');
+    expect(codes).not.toContain('midia_sem_arquivo');
+    expect(codes).not.toContain('conteudo_so_pausas');
   });
 
-  it('acusa o ÍNDICE do item dentro do nó, não só o nó', () => {
+  it('a lista de tipos em construção está vazia — todo tipo do schema tem motor', () => {
+    expect(TIPOS_DE_ITEM_DE_CONTEUDO_EM_CONSTRUCAO).toEqual([]);
+  });
+
+  it.each([
+    ['link no lugar do arquivo', { type: 'document' as const, storage_path: 'https://…/a.pdf', mime: 'application/pdf' }],
+    ['variável no lugar do arquivo', { type: 'image' as const, storage_path: '{{url_imagem_lead}}', mime: 'image/jpeg' }],
+  ])('mídia com %s: recusa no publish, com o item', (_caso, item) => {
+    const g = graph(
+      [trigger('t'), actionContent('a', [{ type: 'text', body: 'Oi' }, item]), end('f')],
+      [edge('t', 'a', always()), edge('a', 'f', always())],
+    );
+    const r = validateFlowForPublish(g);
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.errors.find((e) => e.code === 'midia_sem_arquivo')?.message).toContain('item 2');
+    }
+  });
+
+  it('contato e figurinha já têm motor: publicam', () => {
+    const g = graph(
+      [
+        trigger('t'),
+        actionContent('a', [
+          { type: 'contact', name: 'Suporte', phone_number: '+5511999998888' },
+          { type: 'sticker', storage_path: 'p.webp', mime: 'image/webp' },
+        ]),
+        end('f'),
+      ],
+      [edge('t', 'a', always()), edge('a', 'f', always())],
+    );
+    const codes = codigos(g);
+    expect(codes).not.toContain('item_de_conteudo_em_construcao');
+    expect(codes).not.toContain('contato_com_telefone_invalido');
+    expect(codes).not.toContain('figurinha_fora_do_formato');
+    // Sozinhos já são "conteúdo de verdade": não é um nó só de pausas.
+    expect(codes).not.toContain('conteudo_so_pausas');
+  });
+
+  it('contato com telefone que o canal não disca: recusa no publish, com o item', () => {
     const g = graph(
       [
         trigger('t'),
         actionContent('a', [
           { type: 'text', body: 'Oi' },
-          { type: 'video', storage_path: 'p', mime: 'video/mp4' },
+          { type: 'contact', name: 'Suporte', phone_number: 'ramal 12 ok' },
         ]),
         end('f'),
       ],
@@ -876,9 +917,18 @@ describe('validarItensDeConteudo — motor de envio por tipo de item', () => {
     const r = validateFlowForPublish(g);
     expect(r.ok).toBe(false);
     if (!r.ok) {
-      expect(r.errors.find((e) => e.code === 'item_de_conteudo_em_construcao')?.message).toContain('item 2');
+      expect(r.errors.find((e) => e.code === 'contato_com_telefone_invalido')?.message).toContain('item 2');
     }
   });
+
+  it('figurinha que não é .webp: recusa no publish', () => {
+    const g = graph(
+      [trigger('t'), actionContent('a', [{ type: 'sticker', storage_path: 'p.png', mime: 'image/png' }]), end('f')],
+      [edge('t', 'a', always()), edge('a', 'f', always())],
+    );
+    expect(codigos(g)).toContain('figurinha_fora_do_formato');
+  });
+
 });
 
 describe('validateFlowForPublish — nós de paridade AcassIA', () => {

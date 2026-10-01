@@ -351,6 +351,15 @@ const conteudoContatoSchema = z.strictObject({
   name: z.string().min(1).max(120),
   phone_number: z.string().min(8).max(40),
 });
+/**
+ * Figurinha. É mídia como a imagem (path no bucket, nunca URL), mas SEM legenda:
+ * nenhum canal aceita legenda em figurinha. O formato (.webp) é cobrado no upload.
+ */
+const conteudoStickerSchema = z.strictObject({
+  type: z.literal('sticker'),
+  storage_path: z.string().min(1).max(500),
+  mime: z.string().min(1).max(120),
+});
 const conteudoDelaySchema = z.strictObject({
   type: z.literal('delay'),
   seconds: z.number().int().min(1).max(120),
@@ -363,6 +372,7 @@ export const conteudoItemSchema = z.discriminatedUnion('type', [
   conteudoAudioSchema,
   conteudoDocumentoSchema,
   conteudoContatoSchema,
+  conteudoStickerSchema,
   conteudoDelaySchema,
 ]);
 export type ConteudoItem = z.infer<typeof conteudoItemSchema>;

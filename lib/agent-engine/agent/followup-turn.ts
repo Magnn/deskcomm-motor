@@ -54,6 +54,7 @@ import {
 } from './followup-flow-classify';
 import { runGenericAiNode } from './followup-flow-generic-ai';
 import { OK_KINDS } from './split-message';
+import { citaEtapa, interpolarVariaveisDoContato, type DadosDoContato } from './variaveis-do-contato';
 import type { ChannelSendResult } from '../channel-adapter';
 import { createAdminClient } from '@/lib/supabase/admin';
 
@@ -85,6 +86,7 @@ const conteudoItemPayloadSchema = z.discriminatedUnion('type', [
     caption: z.string().optional(),
   }),
   z.object({ type: z.literal('contact'), name: z.string().min(1), phone_number: z.string().min(1) }),
+  z.object({ type: z.literal('sticker'), storage_path: z.string().min(1), mime: z.string().min(1) }),
   z.object({ type: z.literal('delay'), seconds: z.number().int().min(1).max(120) }),
 ]);
 export type ConteudoItemPayload = z.infer<typeof conteudoItemPayloadSchema>;
@@ -713,7 +715,7 @@ async function sendFixedOutbound(
   ctx: { workerId: string },
   clock: () => Date,
   target: ReentrySendTarget,
-  body: string,
+  corpoDoFluxo: string,
   /** `true` só na re-entrada por template — ver o cabeçalho. */
   comCamadaSemantica: boolean,
 ): Promise<EnvioFixoDesfecho> {
@@ -733,6 +735,17 @@ async function sendFixedOutbound(
   );
   if (!context.ok) {
     throw new Error(`envio fixo do follow-up falhou em get_lead_context (${context.error.code})`);
+  }
+  // Variáveis do contato trocadas ANTES do portão — mesma regra da sequência de
+  // conteúdo (`variaveis-do-contato.ts`). Texto que era só uma variável sem valor
+  // não vira mensagem vazia: o passo é pulado.
+  const body = interpolarVariaveisDoContato(
+    corpoDoFluxo,
+    await dadosDoContatoParaVariaveis(pool, tenantId, leadId, context.context.contact, [corpoDoFluxo]),
+  );
+  if (body === '') {
+    runLog.warn('envio fixo pulado — o texto ficou vazio depois das variáveis do contato', { kind: job.kind });
+    return { kind: 'skipped' };
   }
   const optedOutThisTurn = context.context.contact.is_blocked;
 
@@ -842,6 +855,53 @@ async function copiarConteudoParaConversa(
 }
 
 /**
+ * O nome original do documento, reduzido ao que uma chave do Storage aceita
+ * (ASCII, sem barra): é o último segmento do path, e é dele que o handler tira
+ * o nome que o cliente vê. `null` = sem nome utilizável, cai no nome genérico.
+ */
+function nomeSeguroParaStorage(filename: string | undefined): string | null {
+  if (filename === undefined) return null;
+  const limpo = filename
+    .normalize('NFD')
+    .split('')
+    .map((c) => {
+      const code = c.charCodeAt(0);
+      if (code >= 0x300 && code <= 0x36f) return ''; // acento separado pelo NFD
+      const ok =
+        (code >= 48 && code <= 57) || (code >= 65 && code <= 90) || (code >= 97 && code <= 122) || c === '.' || c === '-' || c === '_';
+      return ok ? c : '_';
+    })
+    .join('')
+    .slice(-120);
+  // Só pontos/sublinhados não é nome: `..` como segmento seria pior que o genérico.
+  return limpo.split('').some((c) => c !== '.' && c !== '_') ? limpo : null;
+}
+
+/**
+ * Os dados que as variáveis do fluxo usam. A etapa custa uma consulta, então só
+ * é buscada quando algum texto a cita — a maioria dos fluxos nunca cita.
+ */
+async function dadosDoContatoParaVariaveis(
+  pool: pg.Pool,
+  tenantId: string,
+  leadId: string,
+  contato: { name: string | null; phone: string | null; email: string | null },
+  textos: readonly string[],
+): Promise<DadosDoContato> {
+  let etapa: string | null = null;
+  if (textos.some(citaEtapa)) {
+    const { rows } = await pool.query<{ name: string | null }>(
+      `select s.name from crm_leads l join crm_stages s on s.id = l.stage_id
+        where l.organization_id = $1 and l.contact_id = $2
+        order by l.updated_at desc limit 1`,
+      [tenantId, leadId],
+    );
+    etapa = rows[0]?.name ?? null;
+  }
+  return { nome: contato.name, telefone: contato.phone, email: contato.email, etapa };
+}
+
+/**
  * Envia a sequência do nó "Conteúdo" (`action.mode = 'content'`), passando pela
  * MESMA cadeia de guardas anti-banimento que o texto de fluxo já usa — UMA
  * chamada a `runBeforeSend` para a sequência inteira, não uma por item (mesmo
@@ -859,10 +919,21 @@ async function copiarConteudoParaConversa(
  *    por poucos minutos, bem abaixo do QUEUE_VISIBILITY_TIMEOUT_MS (10min) —
  *    e mesmo se um job estourasse a janela e fosse reclamado por outro worker,
  *    o replay é seguro (idempotência por (jobId,seq) no sink do CRM).
- *  - `video`/`document`/`contact`: SEM motor de envio ainda
- *    (`validarItensDeConteudo` recusa isto no publish); aqui é só a rede de
- *    segurança para um fluxo antigo publicado antes dessa guarda — pula o item
- *    e loga, nunca derruba o turno inteiro por causa de UM item.
+ *  - `contact`: cartão de contato (nome + telefone) pelo MESMO caminho do envio
+ *    manual do atendente — o adapter do canal monta o vCard.
+ *  - `sticker`: figurinha (.webp), copiada pro Storage da conversa como a imagem,
+ *    sem legenda.
+ *  - `video`/`document`: mídia como a imagem, com a legenda no `body`. O
+ *    documento é copiado para uma pasta própria com o NOME ORIGINAL do arquivo
+ *    como último segmento — o handler tira o nome que o cliente vê do fim do
+ *    path, e `conteudo-<job>-<seq>.pdf` não é nome que se entregue a ninguém.
+ *
+ * ─── Variáveis do contato ──────────────────────────────────────────────────
+ * `{{nome}}`, `{{primeiro_nome}}`, `{{telefone}}`, `{{email}}` e `{{etapa}}`
+ * são trocadas em TODO texto e legenda antes de qualquer coisa — inclusive
+ * antes do portão, que precisa avaliar o que de fato vai sair. Ver
+ * `variaveis-do-contato.ts`. Texto que fica VAZIO depois da troca (era só uma
+ * variável sem valor) não vira bolha: o item é pulado.
  *
  * ─── Limitação conhecida, registrada (não escondida) ───────────────────────
  * A "spinning de copy" (variação de texto anti-detecção) só se aplica ao PRIMEIRO
@@ -876,7 +947,7 @@ async function sendConteudoSequence(
   ctx: { workerId: string },
   clock: () => Date,
   target: ReentrySendTarget,
-  items: readonly ConteudoItemPayload[],
+  itensDoFluxo: readonly ConteudoItemPayload[],
 ): Promise<EnvioFixoDesfecho> {
   const { tenantId, leadId, channelSessionId, conversationId } = target;
   const runLog = withFields(deps.log, { job_id: job.id, tenant_id: tenantId, lead_id: leadId });
@@ -899,6 +970,26 @@ async function sendConteudoSequence(
   const channel = (deps.channel ?? ((p: pg.Pool) => new WahaChannelAdapter(p, deps.crmCfg)))(pool);
   const sleep = deps.sleep ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
   const jitter = () => 1200 + Math.floor(Math.random() * 800); // mesmo piso anti-ban das bolhas do turno normal
+
+  // Variáveis do contato trocadas ANTES do portão: ele avalia o texto que sai.
+  const textosDoFluxo = itensDoFluxo.flatMap((i) =>
+    i.type === 'text' ? [i.body] : 'caption' in i && i.caption !== undefined ? [i.caption] : [],
+  );
+  const dados = await dadosDoContatoParaVariaveis(pool, tenantId, leadId, context.context.contact, textosDoFluxo);
+  const items = itensDoFluxo.flatMap((i): ConteudoItemPayload[] => {
+    if (i.type === 'text') {
+      const body = interpolarVariaveisDoContato(i.body, dados);
+      if (body === '') {
+        runLog.warn('texto do conteúdo ficou vazio depois das variáveis — item pulado');
+        return [];
+      }
+      return [{ ...i, body }];
+    }
+    if ('caption' in i && i.caption !== undefined) {
+      return [{ ...i, caption: interpolarVariaveisDoContato(i.caption, dados) }];
+    }
+    return [i];
+  });
 
   // Representativo pro portão (spinning/classificação) — nunca o que de fato sai
   // pros itens que não são o primeiro texto. Ver "limitação conhecida" acima.
@@ -930,13 +1021,6 @@ async function sendConteudoSequence(
           await sleep(item.seconds * 1000);
           continue;
         }
-        if (item.type === 'video' || item.type === 'document' || item.type === 'contact') {
-          runLog.warn('item de conteúdo sem motor de envio — pulado (o publish deveria ter barrado isto)', {
-            tipo: item.type,
-          });
-          continue;
-        }
-
         if (precisaDeJitter) await sleep(jitter());
         precisaDeJitter = true;
         seq += 1;
@@ -948,9 +1032,21 @@ async function sendConteudoSequence(
             tenantId, leadId, jobId: job.id, jobClaim: claimOfJob(job), seq, conversationId,
             body: usaFinalBody ? finalBody : item.body,
           });
+        } else if (item.type === 'contact') {
+          ultimo = await channel.send({
+            tenantId, leadId, jobId: job.id, jobClaim: claimOfJob(job), seq, conversationId,
+            // Só para o hash de idempotência do ledger — o cartão não tem corpo.
+            body: `[contato] ${item.name} ${item.phone_number}`,
+            contact: { name: item.name, phoneNumber: item.phone_number },
+          });
         } else {
-          // image | audio
-          const destino = `${tenantId}/${conversationId}/conteudo-${job.id}-${seq}.${item.storage_path.split('.').pop() ?? 'bin'}`;
+          // image | video | audio | document | sticker
+          const base = `${tenantId}/${conversationId}/conteudo-${job.id}-${seq}`;
+          const nomeDoArquivo = item.type === 'document' ? nomeSeguroParaStorage(item.filename) : null;
+          const destino =
+            nomeDoArquivo !== null
+              ? `${base}/${nomeDoArquivo}`
+              : `${base}.${item.storage_path.split('.').pop() ?? 'bin'}`;
           const copiou = await copiarConteudoParaConversa(item.storage_path, destino, runLog);
           if (!copiou) {
             seq -= 1; // este item não virou send físico — devolve o seq pro próximo item
@@ -958,7 +1054,8 @@ async function sendConteudoSequence(
           }
           ultimo = await channel.send({
             tenantId, leadId, jobId: job.id, jobClaim: claimOfJob(job), seq, conversationId,
-            body: item.type === 'image' ? (item.caption ?? '') : '',
+            // Legenda só onde o canal tem legenda: áudio e figurinha não têm.
+            body: 'caption' in item ? (item.caption ?? '') : '',
             media: { storagePath: destino, mime: item.mime, kind: item.type },
           });
         }
