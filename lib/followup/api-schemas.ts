@@ -28,8 +28,10 @@ export const createFollowupFlowSchema = z.strictObject({
 // acordar o classify. Sibling de `kind` (não dentro de `params`) porque é uma
 // política de REAÇÃO À RESPOSTA, ortogonal a como o fluxo foi disparado — vale
 // pros kinds igualmente. Default false quando ausente (fluxos existentes
-// continuam acordando o classify, comportamento inalterado).
-const CANCEL_ON_REPLY = { cancel_on_reply: z.boolean().optional() };
+const CANCEL_ON_REPLY = {
+  cancel_on_reply: z.boolean().optional(),
+  channel_session_id: z.string().uuid().nullable().optional(),
+};
 
 export const triggerConfigSchema = z.discriminatedUnion("kind", [
   z.strictObject({kind:z.literal("appointment_no_show"),params:z.strictObject({event_type_ids:z.array(z.string().uuid()).optional()}).optional(),...CANCEL_ON_REPLY}),

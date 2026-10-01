@@ -54,6 +54,8 @@ import { ehContatoDoNumeroInterno } from "@/lib/escalacao/numero-interno-de-avis
 import { acelerarPipelineDeEventos } from "@/lib/dev/kick-local-pipeline";
 import { autorizarContatoParaIA } from "@/lib/ai/elegibilidade/autorizacao";
 import { casarCampanha, lerCampanhas } from "@/lib/ai/elegibilidade/campanha";
+import { enrollFollowupFlow } from "@/lib/followup/enroll";
+import { lerConfigDeFluxoDoCanal } from "@/lib/channels/channel-flow-config";
 
 type Admin = ReturnType<typeof createAdminClient>;
 
@@ -155,7 +157,92 @@ export async function aplicarEfeitosPosEntrada(
     messageId: entrada.messageId,
     texto: entrada.texto,
   });
-  await pedirDespachoDoAgente(admin, entrada);
+  await processarFluxoOuDespachoDoCanal(admin, entrada);
+}
+
+/**
+ * 3 · Executa o Fluxo Direto (sem IA) ou despacha o Agente de IA.
+ *
+ * Permite ao usuário escolher por canal se o número roda um fluxo direto
+ * sem IA, se usa agente de IA ou se vai direto para atendimento humano.
+ */
+async function processarFluxoOuDespachoDoCanal(admin: Admin, entrada: EntradaDeMensagem): Promise<void> {
+  try {
+    const { data: channelSession } = await admin
+      .from("channel_sessions")
+      .select("metadata")
+      .eq("organization_id", entrada.organizationId)
+      .eq("id", entrada.channelSessionId)
+      .maybeSingle();
+
+    const config = lerConfigDeFluxoDoCanal(channelSession?.metadata);
+
+    // Se o canal estiver configurado explicitamente para atendimento humano, não chama robô
+    if (config.handling_mode === "human") {
+      logger.info("[pos-entrada] canal em modo 'human': fluxo e IA desativados para este número", {
+        channelId: entrada.channelSessionId,
+        contactId: entrada.contactId,
+      });
+      return;
+    }
+
+    let targetFlowId = config.default_flow_pointer_id;
+
+    // Se não tiver fluxo explícito no canal, verifica se há fluxo ativo cujo gatilho aponta para este canal
+    if (!targetFlowId && config.handling_mode !== "ai") {
+      const { data: matchingFlows } = await admin
+        .from("followup_flow_pointers")
+        .select("id, trigger_config")
+        .eq("organization_id", entrada.organizationId)
+        .eq("status", "active")
+        .limit(20);
+
+      const found = (matchingFlows ?? []).find((f) => {
+        const trig = f.trigger_config as Record<string, unknown> | null;
+        return trig?.channel_session_id === entrada.channelSessionId;
+      });
+      if (found) targetFlowId = found.id;
+    }
+
+    if (config.handling_mode === "flow" && targetFlowId) {
+      const { data: activeEnrollment } = await admin
+        .from("followup_enrollments")
+        .select("id")
+        .eq("organization_id", entrada.organizationId)
+        .eq("contact_id", entrada.contactId)
+        .eq("pointer_id", targetFlowId)
+        .in("status", ["active", "waiting_reply", "coletando"])
+        .maybeSingle();
+
+      if (!activeEnrollment) {
+        const enrollResult = await enrollFollowupFlow(admin, {
+          organizationId: entrada.organizationId,
+          pointerId: targetFlowId,
+          contactId: entrada.contactId,
+          actorUserId: null,
+          requestId: entrada.requestId ?? entrada.conversationId,
+        });
+
+        logger.info("[pos-entrada] contato inscrito no fluxo do canal (sem IA)", {
+          channelId: entrada.channelSessionId,
+          contactId: entrada.contactId,
+          flowId: targetFlowId,
+          ok: enrollResult.ok,
+        });
+      }
+
+      // Em modo fluxo direto, encerra aqui sem acordar o LLM/Agente de IA
+      return;
+    }
+
+    // Modo padrão / 'ai': pede o despacho do agente de IA
+    await pedirDespachoDoAgente(admin, entrada);
+  } catch (err) {
+    logger.warn("[pos-entrada] falha ao avaliar fluxo do canal, fallback para despacho", {
+      error: err instanceof Error ? err.message : String(err),
+    });
+    await pedirDespachoDoAgente(admin, entrada);
+  }
 }
 
 /**
