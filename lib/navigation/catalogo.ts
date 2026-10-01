@@ -434,6 +434,8 @@ export const NAV_CATALOG = [
     group: "ia",
     section: "Montar o agente",
     minRole: "manager",
+    // Fica no sidebar por decisão do dono: o menu rola quando passa da dobra,
+    // então o 16º item não esconde nada (o teto de 15 era só o que cabia sem rolar).
     sidebar: true,
   },
   {

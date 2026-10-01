@@ -86,7 +86,7 @@ export function MetaPixelForm({ config, onChange }: Props) {
         >
           <option value="">{t("Selecione um pixel configurado")}</option>
           <option value="pixel_principal">Pixel Principal (Meta Ads)</option>
-          <option value="pixel_conversoes">Pixel Conversões WhatsApp</option>
+          <option value="pixel_conversoes">{t("Pixel Conversões WhatsApp")}</option>
           {pixelId && pixelId !== "pixel_principal" && pixelId !== "pixel_conversoes" && (
             <option value={pixelId}>{pixelId}</option>
           )}

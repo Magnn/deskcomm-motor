@@ -194,7 +194,7 @@ export function PixPaymentForm({ config, onChange }: Props) {
               setCardImageUrl(e.target.value);
               update({ card_image_url: e.target.value });
             }}
-            placeholder="https://cdn.exemplo.com/banner.jpg ou {product_image}"
+            placeholder="https://…/banner.jpg ou {product_image}"
             className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-xs text-neutral-900 shadow-2xs outline-hidden focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100"
           />
         </div>
@@ -251,8 +251,8 @@ export function PixPaymentForm({ config, onChange }: Props) {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={cardImageUrl}
-              alt="Prévia do card PIX"
-              className="max-h-24 w-auto rounded object-contain mx-auto"
+              alt={t("Prévia do card PIX")}
+              className="max-h-24 w-auto rounded-md object-contain mx-auto"
             />
           </div>
         )}

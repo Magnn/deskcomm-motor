@@ -136,7 +136,7 @@ export function WhatsappTemplateForm({ config, onChange }: Props) {
           <div className="mt-2.5 rounded-xl border border-emerald-200 bg-[#e5ddd5]/30 dark:bg-neutral-950/60 p-3 shadow-inner">
             <div className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider mb-1.5 flex items-center justify-between">
               <span>{t("Pré-visualização do Balão")}</span>
-              <span className="rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 px-1 py-0.2">
+              <span className="rounded-md bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 px-1 py-0.2">
                 {selectedTemplate.category}
               </span>
             </div>

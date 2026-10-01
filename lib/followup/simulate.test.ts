@@ -643,7 +643,7 @@ describe("avancarSimulacao — nós paridade AcassIA (whatsapp_template, pix_pay
           id: "pix1",
           type: "pix_payment",
           label: "PIX",
-          config: { key_type: "cpf", pix_key: "123.456.789-00", amount: "99,90", beneficiary: "Deskcomm" },
+          config: { key_type: "cpf", pix_key: "123.456.789-00", amount: "99,90", beneficiary: "Loja Teste" },
         }),
         no({
           id: "gw1",

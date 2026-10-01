@@ -804,7 +804,7 @@ function AdicionarNovaVozModal({
                   {t("Arraste arquivos ou clique para enviar")}
                 </span>
                 <span className="text-[9.5px] text-slate-400 leading-tight">
-                  MP3, WAV, OGG ou OPUS · máx. 10MB por arquivo · até 5 arquivos
+                  {t("MP3, WAV, OGG ou OPUS · máx. 10MB por arquivo · até 5 arquivos")}
                 </span>
                 <input
                   type="file"

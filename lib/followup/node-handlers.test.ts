@@ -1659,13 +1659,14 @@ describe("processNode — nós de paridade AcassIA (pix_payment, payment_gateway
     ["meta_pixel", { pixel_id: "px_1", event_type: "Lead" }],
     ["voice_studio", { text: "Olá", voice_id: "julieta" }],
   ] as const)("avança pela aresta always no nó %s", (type, config) => {
-    const node: FlowNode = {
+    // A tabela mistura configs parciais de tipos diferentes: o cast é do nó inteiro (união discriminada).
+    const node = {
       id: "src",
-      type: type as any,
+      type,
       label: type,
       position: { x: 0, y: 0 },
-      config: config as any,
-    };
+      config,
+    } as unknown as FlowNode;
     const result = processNode({
       node,
       edges,
