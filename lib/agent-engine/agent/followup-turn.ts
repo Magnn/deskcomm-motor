@@ -95,7 +95,7 @@ const conteudoItemPayloadSchema = z.discriminatedUnion('type', [
   // garante "exatamente uma" é o schema de autoria, no salvar.
   z.object({ type: z.literal('image'), storage_path: z.string().min(1).optional(), mime: z.string().min(1).optional(), url: z.string().min(1).optional(), caption: z.string().optional() }),
   z.object({ type: z.literal('video'), storage_path: z.string().min(1).optional(), mime: z.string().min(1).optional(), url: z.string().min(1).optional(), caption: z.string().optional() }),
-  z.object({ type: z.literal('audio'), storage_path: z.string().min(1), mime: z.string().min(1), voice_note: z.boolean().optional(), filename: z.string().optional() }),
+  z.object({ type: z.literal('audio'), storage_path: z.string().min(1), mime: z.string().min(1), voice_note: z.boolean().optional(), filename: z.string().optional(), transcript: z.string().optional() }),
   z.object({
     type: z.literal('document'),
     storage_path: z.string().min(1).optional(),
@@ -1258,8 +1258,10 @@ async function sendConteudoSequence(
           }
           ultimo = await channel.send({
             tenantId, leadId, jobId: job.id, jobClaim: claimOfJob(job), seq, conversationId,
-            // Legenda só onde o canal tem legenda: áudio e figurinha não têm.
-            body: 'caption' in item ? (item.caption ?? '') : '',
+            // Legenda só onde o canal tem legenda. Áudio não tem: o `body` dele é a
+            // TRANSCRIÇÃO, que fica na mensagem (atendente e agente leem) e nenhum
+            // canal envia — mesma convenção da nota de voz da agente.
+            body: 'caption' in item ? (item.caption ?? '') : item.type === 'audio' ? (item.transcript ?? '') : '',
             media: {
               storagePath: destino,
               mime,

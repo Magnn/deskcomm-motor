@@ -348,6 +348,21 @@ describe("sequência de conteúdo — texto, mídia e pausa", () => {
     expect(channelSend.mock.calls[1]![0].body).toBe("Você escolheu o plano Ouro.");
   });
 
+  it("a TRANSCRIÇÃO do áudio vai no body da mensagem (fica na conversa; nenhum canal a envia como legenda)", async () => {
+    const channelSend = fakeChannelSend({ kind: "sent", idempotencyKey: "k", messageId: "m" });
+    await criarHandler(deps(channelSend))(
+      job([
+        { type: "audio", storage_path: `${ORG}/flow-content/f/a.ogg`, mime: "audio/ogg", transcript: "Oi, aqui é do suporte." },
+        { type: "audio", storage_path: `${ORG}/flow-content/f/b.ogg`, mime: "audio/ogg" },
+      ]),
+      fakePool(),
+      ctx,
+    );
+    expect(channelSend.mock.calls[0]![0].body).toBe("Oi, aqui é do suporte.");
+    // Sem transcrição o body segue vazio, como sempre foi.
+    expect(channelSend.mock.calls[1]![0].body).toBe("");
+  });
+
   it("áudio com 'enviar como áudio gravado?' DESLIGADO sai como arquivo, com o nome original", async () => {
     const channelSend = fakeChannelSend({ kind: "sent", idempotencyKey: "k", messageId: "m" });
     await criarHandler(deps(channelSend))(

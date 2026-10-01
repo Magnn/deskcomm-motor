@@ -482,6 +482,13 @@ describe('graph-schema', () => {
         expect(parse({ type: 'sticker', url: 'https://x.teste/a.webp' })).toBe(false);
       });
 
+      it('audio aceita transcrição, e recusa transcrição vazia (vazia some do item)', () => {
+        const parse = (item: Record<string, unknown>) =>
+          actionConfigSchema.safeParse({ mode: 'content', items: [item] }).success;
+        expect(parse({ type: 'audio', storage_path: 'a.ogg', mime: 'audio/ogg', transcript: 'Oi, tudo bem?' })).toBe(true);
+        expect(parse({ type: 'audio', storage_path: 'a.ogg', mime: 'audio/ogg', transcript: '' })).toBe(false);
+      });
+
       it('audio aceita a opção "enviar como áudio gravado?" e o nome do arquivo', () => {
         const comoArquivo = actionConfigSchema.safeParse({
           mode: 'content',
