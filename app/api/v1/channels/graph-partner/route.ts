@@ -28,6 +28,7 @@ import type { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
 import { fail, ok } from "@/lib/api/wrappers";
+import { travaDeNovoNumero } from "@/lib/planos/trava-de-numero";
 import { audit } from "@/lib/audit";
 import { requireRole } from "@/lib/auth/require-role";
 import { canalGraphParceiroLigado, GRAPH_PARTNER_LABEL } from "@/lib/channels/graph-parceiro/credentials";
@@ -128,6 +129,11 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   }
 
   const existente = await findGraphPartnerSession(admin, orgId);
+  // PLANO: número novo (ou um excluído que volta) conta no limite.
+  if (!existente || existente.archivedAt) {
+    const semPlano = await travaDeNovoNumero(admin, orgId, t, requestId);
+    if (semPlano) return semPlano;
+  }
   const phoneNumber = validacao.displayPhoneNumber
     ? `+${validacao.displayPhoneNumber.replace(/\D/g, "")}`
     : null;

@@ -250,6 +250,15 @@ const PROVA_PROPRIA: readonly Excecao[] = [
       "linha guarda a chave que EMITE COBRANÇA na conta de pagamento do cliente.",
   },
   {
+    tabela: "organization_subscriptions",
+    razao:
+      "tests/invariants/credencial-de-anuncios-e-server-side.test.ts — mesmo " +
+      "`describe.each` das de anúncio (0908): privilégio NENHUM para anon e " +
+      "authenticated, `permission denied` medido sob `set role`, RLS ligada, zero " +
+      "policies, organization_id NOT NULL com FK em cascata. Deny-all porque a " +
+      "linha é o PLANO da empresa: com policy de tenant o cliente se daria um plano.",
+  },
+  {
     tabela: "group_launches",
     razao:
       "tests/invariants/credencial-de-anuncios-e-server-side.test.ts — mesmo " +

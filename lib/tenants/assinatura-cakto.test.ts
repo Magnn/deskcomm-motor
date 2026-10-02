@@ -10,7 +10,8 @@ import {
   decisaoDoEvento,
   lerAvisoDeAssinatura,
   motivoDaSuspensao,
-  produtoEhDaAssinatura,
+  linkDoCheckoutDoPlano,
+  produtoDoAviso,
   produtosDaAssinatura,
 } from "./assinatura-cakto";
 
@@ -77,19 +78,39 @@ describe("o produto da assinatura", () => {
   const aviso = lerAvisoDeAssinatura(AVISO)!;
 
   it("a lista do .env aceita espaços, vírgulas sobrando e caixa diferente", () => {
-    expect(produtosDaAssinatura(" A8BcHrY , ,42bruPi,")).toEqual(["a8bchry", "42brupi"]);
+    expect(produtosDaAssinatura(" A8BcHrY , ,42bruPi,").map((p) => p.codigo)).toEqual(["a8bchry", "42brupi"]);
+    expect(produtosDaAssinatura(" A8BcHrY ")[0]).toEqual({ codigo: "a8bchry", codigoOriginal: "A8BcHrY", plano: null });
     expect(produtosDaAssinatura("")).toEqual([]);
   });
 
+  it("cada oferta pode dizer o plano que vende: código=plano", () => {
+    expect(produtosDaAssinatura("a8BcHrY=Start, b9CdIsZ = pro ,solta")).toEqual([
+      { codigo: "a8bchry", codigoOriginal: "a8BcHrY", plano: "start" },
+      { codigo: "b9cdisz", codigoOriginal: "b9CdIsZ", plano: "pro" },
+      { codigo: "solta", codigoOriginal: "solta", plano: null },
+    ]);
+  });
+
   it("casa pelo id do produto, pelo código curto ou pelo código da oferta", () => {
-    expect(produtoEhDaAssinatura(aviso, ["cd287b31-d4b7-4e94-858a-96e05ce2f4a2"])).toBe(true);
-    expect(produtoEhDaAssinatura(aviso, ["42brupi"])).toBe(true);
-    expect(produtoEhDaAssinatura(aviso, ["a8bchry"])).toBe(true);
+    for (const codigo of ["cd287b31-d4b7-4e94-858a-96e05ce2f4a2", "42bruPi", "a8BcHrY"]) {
+      expect(produtoDoAviso(aviso, produtosDaAssinatura(codigo))?.codigoOriginal).toBe(codigo);
+    }
+  });
+
+  it("dois planos do MESMO produto: quem decide é o código da oferta", () => {
+    const produtos = produtosDaAssinatura("42bruPi=start,a8BcHrY=pro");
+    expect(produtoDoAviso(aviso, produtos)?.plano).toBe("pro");
   });
 
   it("outro produto da mesma conta NÃO é a assinatura; lista vazia não casa com nada", () => {
-    expect(produtoEhDaAssinatura(aviso, ["outro-produto"])).toBe(false);
-    expect(produtoEhDaAssinatura(aviso, [])).toBe(false);
+    expect(produtoDoAviso(aviso, produtosDaAssinatura("outro-produto"))).toBeNull();
+    expect(produtoDoAviso(aviso, [])).toBeNull();
+  });
+
+  it("o link do checkout do plano preserva a caixa do código", () => {
+    const produtos = produtosDaAssinatura("a8BcHrY=start,solta");
+    expect(linkDoCheckoutDoPlano(produtos, "start")).toBe("https://pay.cakto.com.br/a8BcHrY");
+    expect(linkDoCheckoutDoPlano(produtos, "pro")).toBeNull();
   });
 });
 

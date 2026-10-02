@@ -88,6 +88,13 @@ const schema = z.object({
    */
   CAKTO_SUBSCRIPTION_SECRET: z.string().optional().default(""),
   CAKTO_SUBSCRIPTION_PRODUCTS: z.string().optional().default(""),
+  /**
+   * PLANOS. `PLANS_ENFORCED=true` liga a cobrança: a empresa só conecta número
+   * com plano em dia, até o limite dele. `PLANS_CATALOG` troca o catálogo padrão
+   * (`id:Nome:centavos:números`, separados por vírgula). Ver `lib/planos/`.
+   */
+  PLANS_ENFORCED: z.string().optional().default(""),
+  PLANS_CATALOG: z.string().optional().default(""),
 
   // Laboratório local de extensões: origem HTTP exata em 127.0.0.1. O cliente
   // recusa a exceção se a URL do app não for loopback. Vazio mantém HTTPS público.

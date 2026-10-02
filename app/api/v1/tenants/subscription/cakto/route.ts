@@ -2,15 +2,24 @@
  * POST /api/v1/tenants/subscription/cakto — o aviso de pagamento da Cakto, direto.
  *
  * É o endereço que o DONO DA INSTALAÇÃO cola no webhook da Cakto do produto da
- * assinatura. Faz o mesmo que `POST /api/v1/tenants/subscription`, sem orquestrador
- * no meio: a rota lê o aviso do jeito que a Cakto manda e chama a mesma regra.
+ * assinatura. Sem orquestrador no meio: a rota lê o aviso do jeito que a Cakto
+ * manda e aplica a regra.
  *
- *   pagou / renovou / voltou a pagar → a empresa do cliente existe e está liberada.
- *     No primeiro pagamento ela é criada e o cliente recebe, por E-MAIL, o link
- *     para definir a senha (ninguém lê a resposta desta rota).
- *   cancelou / atrasou / pausou / reembolso / chargeback → a empresa é suspensa e
- *     os fluxos em andamento param.
- *   demais avisos (Pix gerado, carrinho abandonado, tentativa recusada…) → 200, sem efeito.
+ * Há dois jeitos de vender, e a oferta declarada no `.env` diz qual vale:
+ *
+ * ── Oferta que vende um PLANO (`código=plano`) ─────────────────────────────────────
+ *   O cliente já pode ter conta (cadastro grátis). Pagou → o plano dele fica em
+ *   dia e ele passa a poder conectar número; se ainda não tinha conta, a empresa
+ *   é criada. Deixou de pagar → o plano cai e os números param de automatizar,
+ *   mas a conta continua aberta. Regra em `lib/planos/pagamento-do-plano.ts`.
+ *
+ * ── Oferta sem plano (só o código) ─────────────────────────────────────────────────
+ *   A assinatura libera a empresa inteira: pagou → empresa criada/reativada;
+ *   deixou de pagar → empresa SUSPENSA. Regra em `lib/tenants/assinatura.ts`.
+ *
+ * Nos dois, o cliente novo recebe por E-MAIL o link para definir a senha (ninguém
+ * lê a resposta desta rota), e os avisos que não mudam nada (Pix gerado, carrinho
+ * abandonado, tentativa recusada…) respondem 200 sem efeito.
  *
  * ─── As guardas ─────────────────────────────────────────────────────────────────────
  * A porta nasce FECHADA: só existe com `CAKTO_SUBSCRIPTION_SECRET` (o segredo que a
@@ -32,6 +41,9 @@ import { EmailJaTemContaError, ProvisionConflictError } from "@/lib/auth/provisi
 import { env } from "@/lib/env";
 import { ipDoCliente } from "@/lib/http/ip-do-cliente";
 import { logger } from "@/lib/logger";
+import { planoPorId } from "@/lib/planos/catalogo";
+import { planosDaInstalacao } from "@/lib/planos/assinatura-da-organizacao";
+import { aplicarPagamentoDoPlano, aplicarQuedaDoPlano } from "@/lib/planos/pagamento-do-plano";
 import { ativarAssinatura, suspenderAssinatura } from "@/lib/tenants/assinatura";
 import {
   avisoVeioDaCakto,
@@ -39,8 +51,9 @@ import {
   eventoDoAviso,
   lerAvisoDeAssinatura,
   motivoDaSuspensao,
-  produtoEhDaAssinatura,
+  produtoDoAviso,
   produtosDaAssinatura,
+  type ProdutoDaAssinatura,
 } from "@/lib/tenants/assinatura-cakto";
 import { enviarBoasVindasDaAssinatura } from "@/lib/tenants/boas-vindas-da-assinatura";
 
@@ -52,10 +65,45 @@ const FALHAS_POR_MINUTO = 10;
 /** Um aviso da Cakto tem poucos KB; acima disto não é ela. */
 const TAMANHO_MAXIMO_DO_CORPO = 256 * 1024;
 
-function configuracao(): { segredo: string; produtos: string[] } | null {
+function configuracao(): { segredo: string; produtos: ProdutoDaAssinatura[] } | null {
   const segredo = env.CAKTO_SUBSCRIPTION_SECRET.trim();
   const produtos = produtosDaAssinatura(env.CAKTO_SUBSCRIPTION_PRODUCTS);
   return segredo !== "" && produtos.length > 0 ? { segredo, produtos } : null;
+}
+
+/**
+ * Manda o link de acesso a quem acabou de ter a empresa criada. Devolve se o
+ * e-mail saiu — e registra alto quando não saiu, SEM o link (é credencial de uso único).
+ */
+async function entregarAcesso(p: {
+  requestId: string;
+  organizationId: string;
+  nome: string;
+  email: string;
+  linkDeAcesso: string | null;
+}): Promise<boolean> {
+  if (p.linkDeAcesso === null) {
+    logger.error("[tenants.subscription.cakto] empresa criada SEM link de acesso — o cliente entra por 'Esqueci minha senha'", {
+      requestId: p.requestId,
+      organizationId: p.organizationId,
+    });
+    return false;
+  }
+  const envio = await enviarBoasVindasDaAssinatura({
+    organizationId: p.organizationId,
+    nome: p.nome,
+    email: p.email,
+    linkDeAcesso: p.linkDeAcesso,
+  });
+  if (!envio.enviado) {
+    logger.error("[tenants.subscription.cakto] empresa criada, mas o e-mail de acesso NÃO saiu", {
+      requestId: p.requestId,
+      organizationId: p.organizationId,
+      motivo: envio.motivo,
+      detalhe: envio.detalhe,
+    });
+  }
+  return envio.enviado;
 }
 
 export async function POST(req: NextRequest): Promise<Response> {
@@ -109,22 +157,68 @@ export async function POST(req: NextRequest): Promise<Response> {
     logger.warn("[tenants.subscription.cakto] aviso sem e-mail do cliente", { requestId, evento });
     return desfecho("ignorado", { motivo: "aviso_sem_email_do_cliente", evento });
   }
-  if (!produtoEhDaAssinatura(aviso, config.produtos)) {
-    return desfecho("ignorado", { motivo: "outro_produto", evento });
-  }
+  const oferta = produtoDoAviso(aviso, config.produtos);
+  if (oferta === null) return desfecho("ignorado", { motivo: "outro_produto", evento });
 
-  const nome = aviso.cliente.nome ?? aviso.cliente.email.split("@")[0] ?? aviso.cliente.email;
-  const dados = {
-    integration: INTEGRACAO,
-    externalId: aviso.cliente.email,
-    organizationName: nome,
-    ownerEmail: aviso.cliente.email,
-    ownerName: nome,
-    reason: motivoDaSuspensao(evento),
-    requestId,
-  };
+  const email = aviso.cliente.email;
+  const nome = aviso.cliente.nome ?? email.split("@")[0] ?? email;
+  const motivo = motivoDaSuspensao(evento);
 
   try {
+    // ── Oferta que vende um PLANO ──────────────────────────────────────────────
+    if (oferta.plano !== null) {
+      if (planoPorId(planosDaInstalacao(), oferta.plano) === null) {
+        // Erro de configuração do dono, não do comprador: a oferta aponta para um
+        // plano que o catálogo não tem. Aceitar daria um plano sem limite nenhum.
+        logger.error("[tenants.subscription.cakto] a oferta aponta para um plano que não existe no catálogo", {
+          requestId,
+          plano: oferta.plano,
+          oferta: oferta.codigoOriginal,
+        });
+        return desfecho("ignorado", { motivo: "plano_desconhecido", evento });
+      }
+
+      if (decisao === "suspender") {
+        const r = await aplicarQuedaDoPlano({ integration: INTEGRACAO, email, motivo: motivo ?? "Assinatura inativa.", requestId });
+        if (!r.ok) return desfecho("ignorado", { motivo: r.motivo, evento });
+        logger.info("[tenants.subscription.cakto] plano inativado", { requestId, evento, pedido: aviso.pedidoId, organizationId: r.organizationId });
+        return desfecho("plano_inativo", { organization_id: r.organizationId, flows_stopped: r.fluxosEncerrados });
+      }
+
+      const r = await aplicarPagamentoDoPlano({ integration: INTEGRACAO, email, nome, planoId: oferta.plano, requestId });
+      if (!r.ok) {
+        logger.warn("[tenants.subscription.cakto] pagamento de plano sem empresa para receber", { requestId, evento, pedido: aviso.pedidoId, motivo: r.motivo });
+        return desfecho("ignorado", { motivo: r.motivo, evento });
+      }
+      const emailEnviado = r.criada
+        ? await entregarAcesso({ requestId, organizationId: r.organizationId, nome, email, linkDeAcesso: r.linkDeAcesso })
+        : null;
+      logger.info("[tenants.subscription.cakto] plano em dia", {
+        requestId,
+        evento,
+        pedido: aviso.pedidoId,
+        organizationId: r.organizationId,
+        plano: oferta.plano,
+        criada: r.criada,
+      });
+      return desfecho("plano_ativo", {
+        organization_id: r.organizationId,
+        plano: oferta.plano,
+        ...(emailEnviado === null ? {} : { email_enviado: emailEnviado }),
+      });
+    }
+
+    // ── Oferta sem plano: a assinatura libera/suspende a empresa inteira ───────
+    const dados = {
+      integration: INTEGRACAO,
+      externalId: email,
+      organizationName: nome,
+      ownerEmail: email,
+      ownerName: nome,
+      reason: motivo,
+      requestId,
+    };
+
     if (decisao === "suspender") {
       const r = await suspenderAssinatura(dados);
       // Reembolso/cancelamento de quem nunca virou empresa aqui: nada a suspender.
@@ -141,35 +235,9 @@ export async function POST(req: NextRequest): Promise<Response> {
 
     const r = await ativarAssinatura(dados);
     if (!r.ok) return desfecho("ignorado", { motivo: r.motivo, evento });
-
-    let emailEnviado: boolean | null = null;
-    if (r.criada) {
-      if (r.linkDeAcesso === null) {
-        emailEnviado = false;
-        logger.error("[tenants.subscription.cakto] empresa criada SEM link de acesso — o cliente entra por 'Esqueci minha senha'", {
-          requestId,
-          organizationId: r.organizationId,
-        });
-      } else {
-        const envio = await enviarBoasVindasDaAssinatura({
-          organizationId: r.organizationId,
-          nome,
-          email: aviso.cliente.email,
-          linkDeAcesso: r.linkDeAcesso,
-        });
-        emailEnviado = envio.enviado;
-        if (!envio.enviado) {
-          // O link NUNCA vai para o log: é credencial de uso único.
-          logger.error("[tenants.subscription.cakto] empresa criada, mas o e-mail de acesso NÃO saiu", {
-            requestId,
-            organizationId: r.organizationId,
-            motivo: envio.motivo,
-            detalhe: envio.detalhe,
-          });
-        }
-      }
-    }
-
+    const emailEnviado = r.criada
+      ? await entregarAcesso({ requestId, organizationId: r.organizationId, nome, email, linkDeAcesso: r.linkDeAcesso })
+      : null;
     logger.info("[tenants.subscription.cakto] empresa liberada", {
       requestId,
       evento,

@@ -55,7 +55,7 @@ type Admin = SupabaseClient;
 
 const MOTIVO_PADRAO_DA_SUSPENSAO = "Assinatura inativa (informado pela plataforma de pagamento).";
 
-async function acharEmpresa(
+export async function acharEmpresa(
   admin: Admin,
   integration: string,
   externalId: string,

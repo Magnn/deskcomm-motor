@@ -819,6 +819,11 @@ const HOSTS_DECLARADOS: Record<string, EntradaDeHost> = {
       "sufixo do JID do WhatsApp. Aparece em `lib/waha/resolve-contact-whatsapp-id.ts` desde antes desta régua existir, num `endsWith` que distingue `@lid`, `@c.us` e `@s.whatsapp.net` — é o protocolo do WhatsApp falando, não endereço que o produto chama nem palavra de interface. Trocar pela marca do revendedor faz o CRM deixar de reconhecer o identificador que o próprio WhatsApp manda.",
   },
   // ── cobrança do nó "Pagamento"/"PIX" do fluxo: destino de chamada ─────────
+  "pay.cakto.com.br": {
+    categoria: "PLATAFORMA",
+    motivo:
+      "endereço do checkout da Cakto (`lib/tenants/assinatura-cakto.ts`, `linkDoCheckoutDoPlano`): é o link de pagamento que a tela de planos monta com o código da oferta que o DONO DA INSTALAÇÃO declarou no `.env`. O código não chama o host — o navegador do cliente abre o checkout da própria Cakto. Trocar pelo domínio do revendedor levaria a um checkout que não existe.",
+  },
   "chat.whatsapp.com": {
     categoria: "PLATAFORMA",
     motivo:
@@ -1148,6 +1153,10 @@ describe("catraca de host de terceiro no código que embarca", () => {
       "meusistema.com",
       "mi-gateway.ejemplo.com",
       "partners.tiendanube.com",
+      // Decisão escrita: o checkout da Cakto que a tela de planos abre
+      // (`linkDoCheckoutDoPlano`). O produto não fala com esse host — quem abre é
+      // o navegador do cliente que vai pagar, como o `wa.me` abaixo.
+      "pay.cakto.com.br",
       "platform.deepseek.com",
       "platform.openai.com",
       // Decisão escrita, que é o que esta lista cobra: `s.whatsapp.net` é o
