@@ -760,6 +760,14 @@ const spinningGate: Gate = {
     // entre "não vetou" e "nem chegou a olhar" é esta linha no trace (a mesma
     // disciplina do `messagingWindowGate` com canal sem janela).
     if (ctx.spinningEnforced === false) return { pass: true, skipped: 'not_applicable' };
+    // Este gate é ANTI-BANIMENTO: persegue o texto repetido em massa, que é o que
+    // derruba um número em canal não oficial. Em canal sem risco de banimento
+    // (`banRisk: false` — o oficial) ele não se aplica, pela MESMA capacidade que já
+    // desarma a parte anti-ban do `pacingGate` logo acima. Aplicado ali, ele vetava o
+    // fluxo estático por construção: a mesma mensagem para todo lead é o que um
+    // roteiro fixo É, e a terceira pessoa a entrar no funil dentro da janela era
+    // vetada — com o fluxo inteiro cancelado (medido em produção, `mass_identical`).
+    if (!capabilitiesOf(ctx.provider).banRisk) return { pass: true, skipped: 'not_applicable' };
     const decision = decideSpinning({
       candidate: ctx.body,
       window: ctx.spinning.window,
