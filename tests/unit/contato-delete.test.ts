@@ -9,6 +9,33 @@ vi.mock("@/lib/audit", () => ({
   hashEmail: (e: string) => e,
 }));
 
+/**
+ * O cliente de SERVIÇO que apaga os rastros de fluxo antes de tudo. Registra na
+ * mesma lista de chamadas (com o prefixo "servico:") para o teste ver a ORDEM, e
+ * guarda os filtros: sem o de organização, apagaria fluxo de outra empresa.
+ */
+const filtrosDoServico: Record<string, Array<[string, unknown]>> = {};
+let erroDoServico: { tabela: string; code: string; message: string } | null = null;
+vi.mock("@/lib/supabase/admin", () => ({
+  createAdminClient: () => ({
+    from: (tabela: string) => ({
+      delete: () => {
+        chamadas.push({ tabela: `servico:${tabela}`, op: "delete" });
+        const filtros: Array<[string, unknown]> = (filtrosDoServico[tabela] = []);
+        const cadeia = {
+          eq: (coluna: string, valor: unknown) => {
+            filtros.push([coluna, valor]);
+            return cadeia;
+          },
+          then: (r: (v: unknown) => unknown) =>
+            r({ error: erroDoServico?.tabela === tabela ? { code: erroDoServico.code, message: erroDoServico.message } : null }),
+        };
+        return cadeia;
+      },
+    }),
+  }),
+}));
+
 const ORG = "c05e7a00-0000-4000-8000-000000000001";
 const CONTATO = "c05e7a00-0000-4000-8000-0000000000c1";
 const USUARIO = "c05e7a00-0000-4000-8000-0000000000a1";
@@ -108,6 +135,44 @@ describe("deleteContactHandler", () => {
   beforeEach(() => {
     auditSpy.mockClear();
     chamadas.length = 0;
+    contagens.length = 0;
+    erroDoServico = null;
+    for (const k of Object.keys(filtrosDoServico)) delete filtrosDoServico[k];
+  });
+
+  it("os rastros de fluxo saem PRIMEIRO, pelo cliente de serviço, filtrados por organização e contato", async () => {
+    // Medido em produção: o trigger que protege os registros internos do fluxo
+    // recusava a cascata feita com sessão de usuário, a ficha não saía, e as
+    // mensagens e a conversa já tinham sido apagadas.
+    const { deleteContactHandler } = await import("@/app/api/v1/contacts/_handler");
+    await deleteContactHandler(clienteFalso() as never, ctxFalso(), CONTATO);
+    expect(chamadas.map((c) => c.tabela)).toEqual([
+      "servico:job_queue",
+      "servico:followup_enrollments",
+      "messages",
+      "conversations",
+      "contacts",
+    ]);
+    expect(filtrosDoServico.job_queue).toEqual([
+      ["organization_id", ORG],
+      ["contact_id", CONTATO],
+      ["kind", "followup_turn"],
+    ]);
+    expect(filtrosDoServico.followup_enrollments).toEqual([
+      ["organization_id", ORG],
+      ["contact_id", CONTATO],
+    ]);
+  });
+
+  it("se os rastros de fluxo não saem, NADA do histórico é tocado", async () => {
+    erroDoServico = { tabela: "job_queue", code: "42501", message: "followup_job_internal" };
+    const { deleteContactHandler } = await import("@/app/api/v1/contacts/_handler");
+    await expect(deleteContactHandler(clienteFalso() as never, ctxFalso(), CONTATO)).rejects.toMatchObject({ status: 500 });
+    expect(chamadas.map((c) => c.tabela)).toEqual(["servico:job_queue"]);
+    expect(ultimaAuditoria()).toMatchObject({
+      action: "contact.delete_blocked",
+      metadata: { motivo: "falha_ao_apagar", apagados: [] },
+    });
   });
 
   it("apaga mensagens e conversas antes do contato e audita", async () => {
@@ -118,7 +183,7 @@ describe("deleteContactHandler", () => {
       CONTATO,
     );
     expect(out).toEqual({ id: CONTATO });
-    expect(chamadas.map((c) => c.tabela)).toEqual(["messages", "conversations", "contacts"]);
+    expect(chamadas.map((c) => c.tabela).filter((t) => !t.startsWith("servico:"))).toEqual(["messages", "conversations", "contacts"]);
     // A pré-checagem da #752 conta o vínculo com os DOIS filtros (contato +
     // organização): sem o de organização, contato de outra org bloquearia.
     expect(contagens).toEqual([
@@ -153,13 +218,17 @@ describe("deleteContactHandler", () => {
     await expect(
       deleteContactHandler(clienteFalso({ fkNaFicha: true }) as never, ctxFalso(), CONTATO),
     ).rejects.toMatchObject({ status: 409, code: "state_conflict" });
-    expect(chamadas.map((c) => c.tabela)).toEqual(["messages", "conversations", "contacts"]);
+    expect(chamadas.map((c) => c.tabela).filter((t) => !t.startsWith("servico:"))).toEqual(["messages", "conversations", "contacts"]);
     // Se o RESTRICT escapar da pré-checagem (corrida, RLS, tabela nova), o
     // estrago fica registrado em vez de sumir.
     expect(ultimaAuditoria()).toMatchObject({
       action: "contact.delete_blocked",
       resourceId: CONTATO,
-      metadata: { motivo: "falha_ao_apagar", vinculos: [], apagados: ["messages", "conversations"] },
+      metadata: {
+        motivo: "falha_ao_apagar",
+        vinculos: [],
+        apagados: ["job_queue", "followup_enrollments", "messages", "conversations"],
+      },
     });
   });
 

@@ -58,6 +58,7 @@ import type { EnrollmentPatch } from "./engine";
 import { triggerConfigSchema } from "./api-schemas";
 import type { EnrollmentOutcome, EnrollmentStatus } from "./node-handlers";
 import { idsDoContatoEGemeos } from "@/lib/channels/contato-por-telefone";
+import { lerConfigDeFluxoDoCanal, quemAtendeONumero } from "@/lib/channels/channel-flow-config";
 
 /** Grace pós-resume (spec §4: "grace configurável, default 30min, knob"). */
 export const RESUME_GRACE_MS = 30 * 60_000;
@@ -96,6 +97,11 @@ export interface LiveEnrollmentRef {
   /** Instante em que o nó estacionou. Sem isto o inbound de uma pergunta
    *  anterior acorda a espera seguinte (ALWAYS → menu de novo). */
   updated_at?: string;
+  /**
+   * O fluxo desta inscrição é o DONO de um número (`lib/channels/channel-flow-config.ts`):
+   * é um roteiro estático, que segue como foi configurado. Ver o uso em `reactToInbound`.
+   */
+  fluxo_de_numero?: boolean;
 }
 
 /** Interface estreita de DB (mesma doutrina de `AdminClient`/`TurnBridgeAdminClient`
@@ -286,6 +292,17 @@ async function reactToInbound(
       if (applied) reacted++;
       continue;
     }
+
+    // FLUXO ESTÁTICO SEGUE COMO FOI CONFIGURADO. No fluxo que é dono de um número,
+    // o Delay é tempo — não "teto até alguém responder". Uma resposta no meio do
+    // Delay acordava a inscrição, e o nó de espera, ao ver o marcador, cortava o
+    // timer: as mensagens seguintes saíam todas de uma vez, fora do ritmo que o
+    // dono desenhou. Quem espera RESPOSTA para avançar (pergunta, menu, coleta)
+    // está em `waiting_reply` e continua reagindo, no laço de cima.
+    //
+    // Fluxo de acompanhamento (sem número próprio) mantém a regra antiga: ali a
+    // espera É um teto, e o lead que responde não deve ficar esperando o prazo.
+    if (e.fluxo_de_numero) continue;
 
     if (await acordarPorInbound(db, clock, row, e)) reacted++;
   }
@@ -485,6 +502,20 @@ export function createSupabaseReactivityClient(admin: SupabaseClient): Reactivit
       if (pErr) throw new Error(pErr.message);
       const byPointer = new Map((pointers ?? []).map((p) => [p.id, p]));
 
+      // Quais destes fluxos são donos de um número. Só consulta quando há inscrição
+      // viva (já saímos acima quando não há) — não é uma ida ao banco por mensagem.
+      const { data: canais, error: cErr } = await admin
+        .from("channel_sessions")
+        .select("metadata")
+        .eq("organization_id", orgId);
+      if (cErr) throw new Error(cErr.message);
+      const donosDeNumero = new Set(
+        (canais ?? []).flatMap((c) => {
+          const dono = quemAtendeONumero(lerConfigDeFluxoDoCanal(c.metadata));
+          return dono.quem === "fluxo" ? [dono.flowId] : [];
+        }),
+      );
+
       return enrollments.map((e) => {
         const p = byPointer.get(e.pointer_id);
         return {
@@ -496,6 +527,7 @@ export function createSupabaseReactivityClient(admin: SupabaseClient): Reactivit
           handoff_policy: (p?.handoff_policy as LiveEnrollmentRef["handoff_policy"]) ?? "pause",
           trigger_config: p?.trigger_config ?? null,
           updated_at: typeof e.updated_at === "string" ? e.updated_at : undefined,
+          fluxo_de_numero: donosDeNumero.has(e.pointer_id),
         };
       });
     },
