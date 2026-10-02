@@ -170,6 +170,11 @@ export const AUDIT_ACTIONS = [
   "platform_admin.impersonate_misconfigured",
   "tenant.suspended",
   "tenant.reactivated",
+  // Planos (`lib/planos/`): o pagamento pôs o plano em dia, a falta dele o
+  // derrubou, ou o dono da instalação definiu o plano à mão.
+  "tenant.plano_ativado",
+  "tenant.plano_inativado",
+  "tenant.plano_definido",
   "platform_admin.audit_listed",
   "platform_admin.audit_entry_viewed",
   "platform_admin.lgpd_listed",

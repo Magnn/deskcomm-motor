@@ -22,6 +22,7 @@ import type { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
 import { fail, ok } from "@/lib/api/wrappers";
+import { travaDeNovoNumero } from "@/lib/planos/trava-de-numero";
 import { requireRole } from "@/lib/auth/require-role";
 import {
   PARTNER_CHANNEL_LABEL,
@@ -130,6 +131,11 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   }
 
   const existente = await findPartnerSession(admin, orgId);
+  // PLANO: número novo (ou um excluído que volta) conta no limite.
+  if (!existente || existente.archivedAt) {
+    const semPlano = await travaDeNovoNumero(admin, orgId, t, requestId);
+    if (semPlano) return semPlano;
+  }
   // Reconectar por cima de um canal excluído RESSUSCITA a linha, e o token de
   // webhook é preservado para não invalidar o que já está colado do outro lado.
   const token = existente?.webhookPathToken ?? randomBytes(16).toString("hex");

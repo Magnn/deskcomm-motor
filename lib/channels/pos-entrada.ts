@@ -38,6 +38,7 @@
  * um efeito faltando por uma tempestade de reentregas. Cada passo falha para
  * dentro, com log, e o seguinte roda mesmo assim.
  */
+import { assinaturaCaiu } from "@/lib/planos/assinatura-da-organizacao";
 import { audit } from "@/lib/audit";
 import { garantirLeadDaConversa } from "@/lib/leads/nascimento-do-lead";
 import {
@@ -157,6 +158,13 @@ export async function aplicarEfeitosPosEntrada(
   // "suspender" fechava a tela e deixava o número continuar respondendo.
   if (await empresaSuspensa(admin, entrada.organizationId)) {
     logger.info("[pos-entrada] automações puladas: empresa suspensa", { organizationId: entrada.organizationId });
+    return;
+  }
+  // ASSINATURA QUE CAIU TAMBÉM NÃO AUTOMATIZA. Diferente da suspensão, a conta
+  // continua aberta (a pessoa entra, vê as conversas e regulariza) — o que para
+  // é o número respondendo sozinho. Só vale com a cobrança de plano ligada.
+  if (await assinaturaCaiu(admin, entrada.organizationId)) {
+    logger.info("[pos-entrada] automações puladas: assinatura inativa", { organizationId: entrada.organizationId });
     return;
   }
 

@@ -66,6 +66,11 @@ const TABELAS = [
   // lê é o servidor, com o admin client filtrando organization_id à mão
   // (`lib/pagamentos/credencial-de-cobranca.ts`).
   "payment_gateway_connections",
+  // 0908. Não guarda segredo: guarda o PLANO da empresa e se ele está em dia — o
+  // que decide se ela conecta número. Uma policy de tenant deixaria o próprio
+  // cliente se dar um plano pelo PostgREST. Deny-all, e quem lê e escreve é o
+  // servidor (`lib/planos/assinatura-da-organizacao.ts`).
+  "organization_subscriptions",
 ] as const;
 
 function erroSob(papel: string, comando: string): string | null {
