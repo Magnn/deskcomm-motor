@@ -1000,7 +1000,7 @@ async function sendFixedOutbound(
   });
 
   if (chain.status === 'vetoed') {
-    if (chain.code === 'outside_window' && chain.nextAllowedAt !== undefined) {
+    if (vetoQueEspera(chain.code) && chain.nextAllowedAt !== undefined) {
       await rescheduleReentry(pool, {
         tenantId,
         leadId,
@@ -1008,7 +1008,7 @@ async function sendFixedOutbound(
         at: chain.nextAllowedAt,
         payload: job.payload,
       });
-      runLog.info('envio fixo re-agendado por janela anti-ban', {
+      runLog.info('envio fixo re-agendado pelo ritmo do número', {
         code: chain.code,
         next_run_at: chain.nextAllowedAt.toISOString(),
       });
@@ -1533,9 +1533,9 @@ async function sendConteudoSequence(
     });
 
     if (chain.status === 'vetoed') {
-      if (chain.code === 'outside_window' && chain.nextAllowedAt !== undefined) {
+      if (vetoQueEspera(chain.code) && chain.nextAllowedAt !== undefined) {
         await rescheduleReentry(pool, { tenantId, leadId, jobId: job.id, at: chain.nextAllowedAt, payload: job.payload });
-        runLog.info('sequência de conteúdo re-agendada por janela anti-ban', {
+        runLog.info('sequência de conteúdo re-agendada pelo ritmo do número', {
           code: chain.code,
           next_run_at: chain.nextAllowedAt.toISOString(),
         });
@@ -1565,6 +1565,20 @@ async function sendConteudoSequence(
 
   runLog.info('sequência de conteúdo concluída', { trechos: trechos.length });
   return { kind: 'sent' };
+}
+
+/**
+ * Os vetos do RITMO do número que dizem QUANDO tentar de novo: janela fechada,
+ * teto de aquecimento e teto diário. Nenhum deles é sobre o conteúdo — a mensagem
+ * está certa, só não cabe AGORA. Por isso o passo ESPERA (`nextAllowedAt`) em vez
+ * de ser recusado: recusar encerrava o fluxo do lead, e o primeiro contato de um
+ * anúncio que chegasse com o teto do dia já gasto ficava sem resposta para sempre.
+ * O teto continua valendo — nada é enviado além dele; o que muda é o lead não se perder.
+ */
+const VETOS_QUE_ESPERAM: ReadonlySet<string> = new Set(['outside_window', 'warmup_cap', 'daily_cap']);
+
+export function vetoQueEspera(code: string): boolean {
+  return VETOS_QUE_ESPERAM.has(code);
 }
 
 /**
