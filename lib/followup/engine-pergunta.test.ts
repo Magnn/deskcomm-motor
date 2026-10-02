@@ -91,14 +91,18 @@ describe("engine — Pergunta", () => {
     expect(passos.some((p) => p.current_node_id === "fim")).toBe(true);
   });
 
-  it("«Respondeu» solta: o lead PARA (sem erro, sem relógio, ativo) e o que ele disse não se perde", async () => {
+  // ⚠️ Estes dois casos cobravam `status active/waiting_reply` com `next_eval_at: null` — um estado que o
+  // banco RECUSA (CHECK `followup_enrollments_relogio_coerente`). O dublê daqui aceitava; a produção não:
+  // a inscrição ficava presa em erro. O que se cobra agora cabe no banco.
+  it("«Respondeu» solta: o fluxo TERMINA nesta caixa (sem erro), com o motivo, e o que ele disse não se perde", async () => {
     const g = grafo({}, []);
     const { deps, passos, eventos, persistidos } = montar(g, "São Paulo");
     await avancarEnrollmentAtivo(deps, enrollment());
     expect(eventos.map((e) => e.event_type)).toContain("node_parked");
     expect(eventos.find((e) => e.event_type === "node_parked")!.payload.reason).toContain("Respondeu");
     const parou = passos.find((p) => p.next_eval_at === null);
-    expect(parou).toMatchObject({ current_node_id: "p1", status: "active", next_eval_at: null });
+    expect(parou).toMatchObject({ current_node_id: "p1", status: "completed", outcome: "exhausted", next_eval_at: null });
+    expect(String(parou!.cancel_reason)).toContain("Respondeu");
     expect(persistidos).toHaveLength(1);
   });
 
@@ -107,8 +111,11 @@ describe("engine — Pergunta", () => {
     // Sem resposta (null) e o prazo já passou (next_eval_at vencido + wait elapsed pelo evento da etapa anterior).
     const { deps, passos, eventos } = montar(g, null);
     await avancarEnrollmentAtivo(deps, { ...enrollment(), status: "waiting_reply" });
-    const parou = passos.find((p) => p.next_eval_at === null);
     expect(eventos.map((e) => e.event_type)).toContain("node_parked");
-    expect(parou).toMatchObject({ current_node_id: "p1", status: "waiting_reply", next_eval_at: null });
+    const ouvindo = passos.find((p) => p.status === "waiting_reply");
+    expect(ouvindo).toMatchObject({ current_node_id: "p1", status: "waiting_reply" });
+    // Ouvindo COM relógio — sem ele o banco recusa a linha.
+    expect(typeof ouvindo!.next_eval_at).toBe("string");
+    expect(Date.parse(String(ouvindo!.next_eval_at))).toBeGreaterThan(Date.now());
   });
 });

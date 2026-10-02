@@ -961,9 +961,23 @@ export function processNode(input: {
             ? selectEdgeExata(edges, node.id, { type: "branch", branch_id: hit.id })
             : selectEdgeExata(edges, node.id, { type: "always" });
           if (!edge) {
-            return parar(
-              hit ? `a saída «${nomeDoRamo(node, hit.id)}» não está ligada a nada` : "a resposta não casou com nenhuma regra e «Outros casos» não está ligada a nada",
-            );
+            if (hit) return parar(`a saída «${nomeDoRamo(node, hit.id)}» não está ligada a nada`);
+            // Guardando a resposta (`save_to`) ou sem regra nenhuma, não há o que casar: qualquer
+            // resposta É a resposta, e ela já foi dada. A saída solta encerra o fluxo aqui.
+            if (node.config.save_to !== undefined || node.config.branches.length === 0) {
+              return parar("a resposta chegou e «Outros casos» não está ligada a nada");
+            }
+            // A resposta não casou com nenhuma regra e «Outros casos» não leva a lugar nenhum: a
+            // pergunta CONTINUA ABERTA. O lead escreveu "ok" onde a regra pedia "sim" — encerrar ali
+            // o deixaria falando sozinho; a próxima mensagem dele é avaliada de novo. A espera recomeça
+            // do zero de propósito: é o que move o piso do inbound para agora, e sem isso esta mesma
+            // mensagem seria relida a cada tick. Vencido o prazo sem resposta que case, sai por
+            // «Sem resposta» (ou o fluxo termina aqui, se ela também estiver solta).
+            return {
+              kind: "wait",
+              next_eval_at: new Date(clock().getTime() + node.config.grace_timeout_ms),
+              wake_status: "waiting_reply",
+            };
           }
           return { kind: "advance", next_node_id: edge.target, next_eval_at: clock() };
         }

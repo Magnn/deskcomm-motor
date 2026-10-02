@@ -299,9 +299,17 @@ describe("resposta (texto)", () => {
     expect(rodar(regras, edges, respondeu("acho que nao quero"))).toMatchObject({ next_node_id: "nao" });
   });
 
-  it("resposta que ninguém casou e «Outros casos» solta: PARADO — não vai para a PRIMEIRA regra (defeito antigo)", () => {
+  it("resposta que ninguém casou e «Outros casos» solta: a pergunta CONTINUA ABERTA — não vai para a PRIMEIRA regra, nem encerra", () => {
+    // Medido em produção: a regra pedia "sim", o lead escreveu "ok". Ir para a primeira regra era o
+    // defeito antigo; encerrar o deixaria falando sozinho. A próxima mensagem dele é avaliada de novo.
     const r = rodar(regras, [edge("n", "sim", ramo("br_sim"))], respondeu("talvez"));
-    expect(r.kind).toBe("park");
+    expect(r).toMatchObject({ kind: "wait", wake_status: "waiting_reply" });
+    // A espera recomeça do zero (a graça inteira): é o que tira ESTA mensagem do alcance da próxima leitura.
+    expect((r as { next_eval_at: Date }).next_eval_at).toBeInstanceOf(Date);
+  });
+
+  it("…e a resposta certa, depois, segue pela regra dela", () => {
+    expect(rodar(regras, [edge("n", "sim", ramo("br_sim"))], respondeu("sim"))).toMatchObject({ next_node_id: "sim" });
   });
 
   it("regra que casou com a saída solta: parado", () => {
@@ -456,7 +464,9 @@ describe("ponte — resultado chega e a saída não está ligada: o lead fica, s
     const { db, updateEnrollment, insertEnrollmentEvent } = ponte(g, enrollment({ current_node_id: "a" }));
     await expect(completeTurnForEnrollment(db, "org-1", "enr-1", "a", { kind: "sent" }, clock)).resolves.toBeUndefined();
     expect(insertEnrollmentEvent).toHaveBeenCalledWith(expect.objectContaining({ event_type: "node_parked" }));
-    expect(updateEnrollment).toHaveBeenCalledWith("enr-1", "org-1", expect.objectContaining({ current_node_id: "a", status: "active", next_eval_at: null }));
+    expect(updateEnrollment).toHaveBeenCalledWith("enr-1", "org-1", expect.objectContaining({ current_node_id: "a", status: "completed", outcome: "exhausted", next_eval_at: null }));
+    // O estado que se gravava antes (`active` sem relógio) o banco recusa — ver `park` em engine.ts.
+    expect(updateEnrollment).not.toHaveBeenCalledWith("enr-1", "org-1", expect.objectContaining({ status: "active", next_eval_at: null }));
   });
 
   it("classe DECLARADA sem aresta: parado; classe fora das declaradas: «Outros casos»", async () => {
@@ -496,7 +506,7 @@ describe("ponte — resultado chega e a saída não está ligada: o lead fica, s
       { kind: "planned", propostas: [{ node_id: "w", escolhido_ms: 900_000, motivo: "x" }], modelo: "m" } as never,
       clock,
     );
-    expect(updateEnrollment).toHaveBeenCalledWith("enr-1", "org-1", expect.objectContaining({ status: "active", next_eval_at: null, timing_plan: expect.anything() }));
+    expect(updateEnrollment).toHaveBeenCalledWith("enr-1", "org-1", expect.objectContaining({ status: "completed", next_eval_at: null, timing_plan: expect.anything() }));
   });
 });
 
