@@ -76,3 +76,35 @@ export async function listarNumerosDoFluxo(admin: Admin, orgId: string, flowId: 
     })),
   };
 }
+
+/** Como o número foi conectado, do ponto de vista de quem usa: pela API oficial ou por QR code. */
+export type TipoDeNumero = "oficial" | "qr";
+
+/**
+ * Para cada fluxo que é dono de algum número: os TIPOS desses números.
+ *
+ * É o dado real por trás do filtro "App Oficial / App Business" da lista de
+ * fluxos — que antes lia uma escolha guardada no navegador de quem criou o fluxo.
+ * O tipo sai da capacidade do canal (`banRisk`), nunca do nome do provedor.
+ */
+export async function tiposDeNumeroPorFluxo(
+  db: Pick<Admin, "from">,
+  orgId: string,
+): Promise<Map<string, TipoDeNumero[]>> {
+  const { data: canais, error } = await db
+    .from("channel_sessions")
+    .select("provider, metadata")
+    .eq("organization_id", orgId)
+    .in("provider", [...PROVIDERS_DE_MENSAGEM])
+    .is("archived_at", null);
+  if (error) throw new Error(error.message);
+
+  const porFluxo = new Map<string, Set<TipoDeNumero>>();
+  for (const canal of canais ?? []) {
+    const dono = quemAtendeONumero(lerConfigDeFluxoDoCanal(canal.metadata));
+    if (dono.quem !== "fluxo") continue;
+    const tipo: TipoDeNumero = capabilitiesOf(canal.provider as ChannelProvider).banRisk ? "qr" : "oficial";
+    (porFluxo.get(dono.flowId) ?? porFluxo.set(dono.flowId, new Set()).get(dono.flowId)!).add(tipo);
+  }
+  return new Map([...porFluxo].map(([id, tipos]) => [id, [...tipos].sort()]));
+}

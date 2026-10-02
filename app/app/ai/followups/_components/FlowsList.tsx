@@ -18,6 +18,8 @@ import {
 import { FlowArrow, Plus, Sparkle, UploadSimple } from "@/lib/ui/icons";
 import { useFollowupFlows, type FollowupFlowPointerRow } from "@/hooks/followup/useFollowupFlows";
 import { cn } from "@/lib/utils";
+import { ORIGENS_DO_INICIO } from "@/lib/followup/graph-schema";
+import { ORIGENS_DO_INICIO_ROTULO } from "@/lib/followup/vocabulario";
 import { DeleteFollowupFlowButton } from "./DeleteFollowupFlowButton";
 import { DuplicateFollowupFlowButton } from "./DuplicateFollowupFlowButton";
 import { FlowStatusBadge } from "./FlowStatusBadge";
@@ -39,6 +41,24 @@ function formatUpdatedAt(iso: string, idioma: string): string {
   });
 }
 
+/**
+ * O fluxo passa nos filtros da lista? Pura, para ter teste sem tela.
+ * "oficial" / "business" = o fluxo é dono de algum número daquele tipo; fluxo
+ * sem número vinculado só aparece em "Todos".
+ */
+export function fluxoPassaNosFiltros(
+  flow: Pick<FollowupFlowPointerRow, "inicio_origem" | "numeros">,
+  canal: "todos" | "oficial" | "business",
+  gatilho: string,
+): boolean {
+  if (canal !== "todos") {
+    const tipo = canal === "oficial" ? "oficial" : "qr";
+    if (!(flow.numeros ?? []).includes(tipo)) return false;
+  }
+  if (gatilho !== "todos" && (flow.inicio_origem ?? "whatsapp") !== gatilho) return false;
+  return true;
+}
+
 export function FlowsList({ initialData, canWrite }: Props) {
   const tagDoIdioma = useTagDeIdioma();
   const t = useT();
@@ -51,19 +71,13 @@ export function FlowsList({ initialData, canWrite }: Props) {
 
   const flows = data ?? [];
 
-  const filteredFlows = flows.filter((flow) => {
-    if (typeof window !== "undefined") {
-      const flowChannel =
-        localStorage.getItem(`flow_channel_${flow.id}`) === "oficial"
-          ? "oficial"
-          : "business";
-      if (channelFilter !== "todos" && flowChannel !== channelFilter) return false;
-
-      const flowProvider = localStorage.getItem(`flow_provider_${flow.id}`) || "whatsapp";
-      if (triggerFilter !== "todos" && flowProvider !== triggerFilter) return false;
-    }
-    return true;
-  });
+  // OS FILTROS LEEM O DADO DO FLUXO. Antes liam o localStorage do navegador — a
+  // escolha que o criador do fluxo fez NAQUELE computador —, então em qualquer
+  // outro lugar todo fluxo aparecia como "App Business" e "WhatsApp", e os outros
+  // filtros esvaziavam a lista. Agora:
+  //   - canal:   o tipo dos números que têm o fluxo como dono (oficial ou por QR);
+  //   - gatilho: a origem configurada na caixa "Início".
+  const filteredFlows = flows.filter((flow) => fluxoPassaNosFiltros(flow, channelFilter, triggerFilter));
 
   // ⚠️ "Começar de um modelo" vem ANTES de "Novo fluxo", e na tela vazia é o
   // botão cheio. Quem chega aqui numa instalação nova não sabe o que é nó, ramo
@@ -156,7 +170,7 @@ export function FlowsList({ initialData, canWrite }: Props) {
                   : "text-neutral-500 hover:text-emerald-600 dark:text-neutral-400",
               )}
             >
-              App Oficial
+              {t("Número oficial")}
             </button>
             <button
               type="button"
@@ -168,7 +182,7 @@ export function FlowsList({ initialData, canWrite }: Props) {
                   : "text-neutral-500 hover:text-emerald-600 dark:text-neutral-400",
               )}
             >
-              App Business
+              {t("Número por QR code")}
             </button>
           </div>
 
@@ -178,18 +192,12 @@ export function FlowsList({ initialData, canWrite }: Props) {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="todos">{t("Gatilhos: todos")}</SelectItem>
-              <SelectItem value="whatsapp">WhatsApp</SelectItem>
-              <SelectItem value="webhook">Webhook / Raio</SelectItem>
-              <SelectItem value="kiwify">Kiwify</SelectItem>
-              <SelectItem value="perfectpay">Perfect Pay</SelectItem>
-              <SelectItem value="payt">PayT</SelectItem>
-              <SelectItem value="hotmart">Hotmart</SelectItem>
-              <SelectItem value="braip">Braip</SelectItem>
-              <SelectItem value="yampi">Yampi</SelectItem>
-              <SelectItem value="cakto">Cakto</SelectItem>
-              <SelectItem value="asaas">Asaas</SelectItem>
-              <SelectItem value="bestfy">Bestfy</SelectItem>
-              <SelectItem value="tray">Tray</SelectItem>
+              {/* As origens que a caixa "Início" de fato grava — nem uma a mais. */}
+              {ORIGENS_DO_INICIO.map((origem) => (
+                <SelectItem key={origem} value={origem}>
+                  {t(ORIGENS_DO_INICIO_ROTULO[origem])}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -213,11 +221,18 @@ export function FlowsList({ initialData, canWrite }: Props) {
                     {flow.name}
                   </h3>
                   <div className="flex items-center gap-1.5 shrink-0">
-                    <span className="rounded-full border border-emerald-500/60 bg-emerald-50/60 px-2 py-0.5 text-[10.5px] font-semibold text-emerald-700 dark:border-emerald-600/50 dark:bg-emerald-950/40 dark:text-emerald-400">
-                      {typeof window !== "undefined" && localStorage.getItem(`flow_channel_${flow.id}`) === "oficial"
-                        ? "App Oficial"
-                        : "App Business"}
-                    </span>
+                    {/* O selo diz a qual tipo de número o fluxo está VINCULADO — lido do
+                        vínculo real. Sem número vinculado não há selo: antes todo
+                        fluxo aparecia como "App Business", o que não era verdade. */}
+                    {(flow.numeros ?? []).map((tipo) => (
+                      <span
+                        key={tipo}
+                        data-testid={`fluxo-numero-${tipo}`}
+                        className="rounded-full border border-emerald-500/60 bg-emerald-50/60 px-2 py-0.5 text-[10.5px] font-semibold text-emerald-700 dark:border-emerald-600/50 dark:bg-emerald-950/40 dark:text-emerald-300"
+                      >
+                        {tipo === "oficial" ? t("Número oficial") : t("Número por QR code")}
+                      </span>
+                    ))}
                     <FlowStatusBadge status={flow.status} />
                   </div>
                 </div>
