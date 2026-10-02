@@ -1185,6 +1185,159 @@ export type Database = {
         }
         Relationships: []
       }
+      instagram_comment_events: {
+        Row: {
+          comment_id: string
+          comment_text: string | null
+          connection_id: string
+          created_at: string
+          dm_status: string
+          error: string | null
+          from_id: string | null
+          from_username: string | null
+          id: string
+          media_id: string | null
+          organization_id: string
+          public_reply_status: string
+          rule_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          comment_id: string
+          comment_text?: string | null
+          connection_id: string
+          created_at?: string
+          dm_status?: string
+          error?: string | null
+          from_id?: string | null
+          from_username?: string | null
+          id?: string
+          media_id?: string | null
+          organization_id: string
+          public_reply_status?: string
+          rule_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          comment_id?: string
+          comment_text?: string | null
+          connection_id?: string
+          created_at?: string
+          dm_status?: string
+          error?: string | null
+          from_id?: string | null
+          from_username?: string | null
+          id?: string
+          media_id?: string | null
+          organization_id?: string
+          public_reply_status?: string
+          rule_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      instagram_comment_rules: {
+        Row: {
+          connection_id: string
+          created_at: string
+          created_by: string | null
+          dm_message: string
+          id: string
+          is_active: boolean
+          keywords: string[]
+          match_type: string
+          name: string
+          organization_id: string
+          post_ids: string[]
+          post_scope: string
+          public_replies: string[]
+          updated_at: string
+        }
+        Insert: {
+          connection_id: string
+          created_at?: string
+          created_by?: string | null
+          dm_message: string
+          id?: string
+          is_active?: boolean
+          keywords?: string[]
+          match_type?: string
+          name: string
+          organization_id: string
+          post_ids?: string[]
+          post_scope?: string
+          public_replies?: string[]
+          updated_at?: string
+        }
+        Update: {
+          connection_id?: string
+          created_at?: string
+          created_by?: string | null
+          dm_message?: string
+          id?: string
+          is_active?: boolean
+          keywords?: string[]
+          match_type?: string
+          name?: string
+          organization_id?: string
+          post_ids?: string[]
+          post_scope?: string
+          public_replies?: string[]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      instagram_connections: {
+        Row: {
+          access_token_encrypted: string
+          created_at: string
+          created_by: string | null
+          id: string
+          ig_id: string
+          ig_user_id: string
+          name: string | null
+          organization_id: string
+          profile_picture_url: string | null
+          status: string
+          status_reason: string | null
+          token_expires_at: string | null
+          updated_at: string
+          username: string
+        }
+        Insert: {
+          access_token_encrypted: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          ig_id: string
+          ig_user_id: string
+          name?: string | null
+          organization_id: string
+          profile_picture_url?: string | null
+          status?: string
+          status_reason?: string | null
+          token_expires_at?: string | null
+          updated_at?: string
+          username: string
+        }
+        Update: {
+          access_token_encrypted?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          ig_id?: string
+          ig_user_id?: string
+          name?: string | null
+          organization_id?: string
+          profile_picture_url?: string | null
+          status?: string
+          status_reason?: string | null
+          token_expires_at?: string | null
+          updated_at?: string
+          username?: string
+        }
+        Relationships: []
+      }
       payment_gateway_connections: {
         Row: {
           api_key_encrypted: string | null

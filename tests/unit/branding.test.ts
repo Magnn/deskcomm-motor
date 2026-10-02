@@ -829,6 +829,21 @@ const HOSTS_DECLARADOS: Record<string, EntradaDeHost> = {
     motivo:
       "endereço do convite de grupo do WhatsApp (`lib/lancamentos/regras.ts`, `linkDoConvite`): é para onde o link único de um lançamento manda quem clicou. O código não chama o host — o celular da pessoa abre o WhatsApp no grupo. Trocar pelo domínio do revendedor levaria a um convite que não existe.",
   },
+  "graph.instagram.com": {
+    categoria: "FORNECEDOR",
+    motivo:
+      "endpoint da API do Instagram (`lib/channels/instagram/api.ts`): é para onde vão a leitura da conta, a lista de publicações, a resposta pública ao comentário e o direct. Destino do request — trocar pelo domínio do revendedor faria nada disso acontecer.",
+  },
+  "api.instagram.com": {
+    categoria: "FORNECEDOR",
+    motivo:
+      "endpoint que troca o código do consentimento pelo token da conta do Instagram (`lib/channels/instagram/api.ts`, `trocarCodigoPorToken`). Destino do request.",
+  },
+  "www.instagram.com": {
+    categoria: "PLATAFORMA",
+    motivo:
+      "tela de consentimento do Instagram (`lib/channels/instagram/api.ts`, `urlDeAutorizacao`): é para onde o navegador de quem clica em Conectar Instagram é mandado. O código não chama o host — quem abre é o navegador da pessoa, na tela da própria Meta.",
+  },
   "api.asaas.com": {
     categoria: "FORNECEDOR",
     motivo:
@@ -1171,6 +1186,10 @@ describe("catraca de host de terceiro no código que embarca", () => {
       // aqui, e não em FORNECEDOR, porque o produto NÃO fala com esse host: quem
       // abre o link é o visitante do site. Crescimento escrito, como a regra pede.
       "wa.me",
+      // Decisão escrita: a tela de consentimento do Instagram, para onde o botão
+      // Conectar Instagram manda o navegador (`urlDeAutorizacao`). O produto não
+      // fala com esse host — quem abre é a pessoa, como o `wa.me` acima.
+      "www.instagram.com",
     ]);
   });
 
