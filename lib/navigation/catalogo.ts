@@ -801,6 +801,17 @@ export const NAV_CATALOG = [
     minRole: "admin",
   },
   {
+    // Mora ao lado de Conversões: as duas são CONTAS EXTERNAS da empresa (anúncio e cobrança), dinheiro e
+    // identidade comercial — não canais de conversa. `admin` porque a chave emite cobrança em nome da empresa.
+    href: "/app/settings/pagamentos",
+    label: "Pagamentos",
+    description: "Conectar a conta de cobrança (Asaas) usada pela caixa Cobrança dos fluxos.",
+    icon: "Receipt",
+    group: "organizacao",
+    section: "Sua empresa",
+    minRole: "admin",
+  },
+  {
     // Mora em Organização e não em Canais de propósito: o que se configura aqui
     // é a CONTA DE ANÚNCIOS da empresa — dinheiro e identidade comercial, ao lado
     // de billing e API tokens. Canais é por onde se FALA com o cliente, e os dois

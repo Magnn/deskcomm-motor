@@ -72,6 +72,17 @@ import { citaDadoDoLead, interpolarVariaveisDoContato, type DadosDoContato } fro
 import { extFromMime } from '@/lib/messaging/media/types';
 import type { ChannelSendResult } from '../channel-adapter';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { preencherVariaveisDoContato } from '@/lib/followup/variaveis-do-contato';
+import { definicaoNaConexao } from '@/lib/channels/linha-do-espelho';
+import { criarClienteAsaas } from '@/lib/pagamentos/asaas';
+import { lerCredencialDeCobranca, MOTIVO_DA_COBRANCA } from '@/lib/pagamentos/credencial-de-cobranca';
+import { missingSlots } from '@/lib/channels/meta/build-components';
+import { renderTemplateBody } from '@/lib/channels/meta/render-template';
+import { deriveTemplateContract } from '@/lib/channels/meta/template-contract';
+import { isStatusSendable } from '@/lib/channels/meta/template-binding';
+import { configDeVozDoItem } from '@/lib/followup/nos-de-envio';
+import { IDS_DE_PROVEDOR_DE_VOZ } from '@/lib/voz/tipos';
+import { dependenciasReaisDeNota, enviarNotasDeVoz, prepararNotasDeVoz } from './nota-de-voz';
 
 const DAY_MS = 86_400_000;
 const HOUR_MS = 3_600_000;
@@ -107,8 +118,79 @@ const conteudoItemPayloadSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('contact'), name: z.string().min(1), phone_number: z.string().min(1) }),
   z.object({ type: z.literal('sticker'), storage_path: z.string().min(1), mime: z.string().min(1) }),
   z.object({ type: z.literal('delay'), seconds: z.number().int().min(1).max(120) }),
+  // Nó Cobrança: a cobrança é criada na HORA do envio (depois do gate), com referência por inscrição+caixa.
+  z.object({
+    type: z.literal('charge'),
+    amount_cents: z.number().int().positive(),
+    description: z.string(),
+    customer_name: z.string(),
+    customer_phone: z.string(),
+  }),
+  // Nó Template WhatsApp: a definição (texto, campos, aprovação) é lida da conexão na hora do envio.
+  z.object({
+    type: z.literal('template'),
+    name: z.string().min(1),
+    language: z.string().min(1),
+    values: z.record(z.string(), z.string()),
+  }),
+  // Nó Voice Studio: o TEXTO vai no job e a voz é sintetizada na hora do envio, com a chave da
+  // organização — não há arquivo antes disso, então não há storage_path.
+  z.object({
+    type: z.literal('voice'),
+    text: z.string().min(1),
+    provider: z.enum(IDS_DE_PROVEDOR_DE_VOZ),
+    voice_id: z.string().min(1),
+    speed: z.number().optional(),
+    stability: z.number().optional(),
+    similarity_boost: z.number().optional(),
+    style: z.number().optional(),
+  }),
 ]);
 export type ConteudoItemPayload = z.infer<typeof conteudoItemPayloadSchema>;
+type ItemDeTemplateDoPayload = Extract<ConteudoItemPayload, { type: 'template' }>;
+
+/** A mensagem da cobrança. Sem link (o gate avalia antes de a cobrança existir): só o valor. */
+function textoDaCobranca(centavos: number, link: string | null): string {
+  const valor = (centavos / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  return link ? `Segue a cobrança de ${valor}. Para pagar: ${link}` : `Segue a cobrança de ${valor}.`;
+}
+
+/**
+ * Lê o modelo DESTA conexão, exige que possa ser disparado e que todo campo tenha valor, e devolve o texto
+ * que a pessoa vai ler. Lança com a causa — o passo falha visível (aviso na Central), nunca em silêncio.
+ */
+async function renderizarModeloDoFluxo(
+  pool: pg.Pool,
+  input: { tenantId: string; channelSessionId: string; item: ItemDeTemplateDoPayload },
+): Promise<string> {
+  const { item } = input;
+  const linha = await definicaoNaConexao<{ components: unknown; parameter_format: string; status: string }>(
+    pool,
+    ['components', 'parameter_format', 'status'],
+    { organizationId: input.tenantId, name: item.name, language: item.language, channelSessionId: input.channelSessionId },
+  );
+  if (!linha) {
+    throw new Error(`template_desconhecido: o modelo "${item.name}" (${item.language}) não existe nesta conexão — sincronize os modelos ou troque a caixa.`);
+  }
+  if (!isStatusSendable(linha.status)) {
+    throw new Error(`template_nao_aprovado: o modelo "${item.name}" está ${linha.status} na Meta — só um modelo APPROVED pode ser enviado.`);
+  }
+  const contrato = deriveTemplateContract({
+    name: item.name,
+    language: item.language,
+    parameter_format: linha.parameter_format,
+    components: linha.components as never,
+  });
+  const faltam = missingSlots(contrato, item.values);
+  if (faltam.length > 0) {
+    throw new Error(`template_sem_valor: preencha na caixa o campo ${faltam.map((s) => s.key).join(', ')} do modelo "${item.name}".`);
+  }
+  return renderTemplateBody(linha.components, item.values, {
+    name: item.name,
+    language: item.language,
+    parameterFormat: linha.parameter_format,
+  });
+}
 
 /**
  * Payload que o cron enfileira no disparo (F3-02 grava reason/promise/promised_at/
@@ -1142,12 +1224,32 @@ async function sendConteudoSequence(
         ? [i.name, i.phone_number]
         : i.type === 'image' || i.type === 'video' || i.type === 'document'
           ? [i.caption, i.url].filter((x): x is string => x !== undefined)
-          : [],
+          : i.type === 'voice'
+            ? [i.text]
+            : i.type === 'charge'
+              ? [i.customer_name, i.customer_phone]
+              : i.type === 'template'
+                ? Object.values(i.values)
+                : [],
   );
   const dados = await dadosDoContatoParaVariaveis(pool, tenantId, leadId, context.context.contact, textosDoFluxo);
+  // As caixas de Voz, Cobrança e Modelo nasceram com a grafia de chave simples
+  // (`{first_name}`), as de Conteúdo com a dupla (`{{primeiro_nome}}`). As duas
+  // são resolvidas aqui, com o contato lido NESTE turno — quem montou o fluxo não
+  // tem de saber qual caixa usa qual.
+  // A dupla PRIMEIRO: a simples, rodando antes, comeria o miolo de `{{email}}` e deixaria `{}` no texto.
+  const trocarVariaveis = (texto: string): string =>
+    preencherVariaveisDoContato(interpolarVariaveisDoContato(texto, dados), context.context.contact);
   const items = itensDoFluxo.flatMap((i): ConteudoItemPayload[] => {
+    if (i.type === 'voice') return [{ ...i, text: trocarVariaveis(i.text) }];
+    if (i.type === 'charge') {
+      return [{ ...i, customer_name: trocarVariaveis(i.customer_name), customer_phone: trocarVariaveis(i.customer_phone) }];
+    }
+    if (i.type === 'template') {
+      return [{ ...i, values: Object.fromEntries(Object.entries(i.values).map(([k, v]) => [k, trocarVariaveis(v)])) }];
+    }
     if (i.type === 'text') {
-      const body = interpolarVariaveisDoContato(i.body, dados);
+      const body = trocarVariaveis(i.body);
       if (body === '') {
         runLog.warn('texto do conteúdo ficou vazio depois das variáveis — item pulado');
         return [];
@@ -1178,6 +1280,15 @@ async function sendConteudoSequence(
     }
     return [i];
   });
+
+  // Template: a definição é da CONEXÃO desta conversa. Tudo o que pode estar errado (não existe, não está
+  // aprovado, campo sem valor) é recusado ANTES de qualquer envio, com a causa — nunca a Graph API devolvendo
+  // "number of parameters does not match" depois de a janela anti-ban já ter sido gasta.
+  const modelos = new Map<ItemDeTemplateDoPayload, string>();
+  for (const item of items) {
+    if (item.type !== 'template') continue;
+    modelos.set(item, await renderizarModeloDoFluxo(pool, { tenantId, channelSessionId, item }));
+  }
 
   // ─── O DELAY NÃO SEGURA A VEZ DO NÚMERO ──────────────────────────────────
   // `runBeforeSend` serializa os envios POR NÚMERO (lock da sessão do canal) e
@@ -1218,7 +1329,18 @@ async function sendConteudoSequence(
     // Representativo pro portão (spinning/classificação) — nunca o que de fato sai
     // pros itens que não são o primeiro texto. Ver "limitação conhecida" acima.
     const primeiroTexto = trecho.envios.find((i): i is Extract<ConteudoItemPayload, { type: 'text' }> => i.type === 'text');
-    const corpoParaOPortao = primeiroTexto?.body ?? '[conteúdo]';
+    const primeiraVoz = trecho.envios.find((i): i is Extract<ConteudoItemPayload, { type: 'voice' }> => i.type === 'voice');
+    const primeiraCobranca = trecho.envios.find((i): i is Extract<ConteudoItemPayload, { type: 'charge' }> => i.type === 'charge');
+    const primeiroModelo = trecho.envios.find((i): i is ItemDeTemplateDoPayload => i.type === 'template');
+    const corpoParaOPortao =
+      primeiroTexto?.body ??
+      primeiraVoz?.text ??
+      (primeiroModelo ? modelos.get(primeiroModelo) : undefined) ??
+      (primeiraCobranca ? textoDaCobranca(primeiraCobranca.amount_cents, null) : undefined) ??
+      '[conteúdo]';
+    // Só modelo neste trecho: é o único jeito de falar fora da janela de 24 h, e o gate a libera. Modelo
+    // misturado com texto livre NÃO é liberado — o texto seria recusado depois da janela, e o gate precisa ver isso.
+    const soModelo = trecho.envios.every((i) => i.type === 'template');
 
     const chain = await runBeforeSend({
       pool,
@@ -1235,6 +1357,7 @@ async function sendConteudoSequence(
       lgpd: context.lgpd,
       // Conteúdo de caixa é texto do DONO: a tabela de preço do agente não o julga.
       enforcePromise: false,
+      ...(soModelo ? { isTemplate: true } : {}),
       ...(deps.knobs.disclosureMode !== undefined ? { disclosureMode: deps.knobs.disclosureMode } : {}),
       send: async (finalBody) => {
         let ultimo: ChannelSendResult | undefined;
@@ -1245,6 +1368,90 @@ async function sendConteudoSequence(
           if (precisaDeJitter) await sleep(jitter());
           precisaDeJitter = true;
           seq += 1;
+
+          if (item.type === 'charge') {
+            const admin = createAdminClient();
+            const leitura = await lerCredencialDeCobranca(admin, tenantId);
+            if (!leitura.ok) throw new Error(`cobranca_sem_conexao: ${MOTIVO_DA_COBRANCA[leitura.motivo]}`);
+            const p = job.payload as { followup_enrollment_id?: string; node_id?: string };
+            const cobranca = await criarClienteAsaas(leitura.credencial).cobrar({
+              // Determinístico: o replay do job reencontra a cobrança em vez de criar outra.
+              referencia: `${p.followup_enrollment_id ?? job.id}:${p.node_id ?? 'cobranca'}`,
+              cliente: {
+                referencia: leadId ?? tenantId,
+                nome: item.customer_name,
+                telefone: item.customer_phone || context.context.contact.phone,
+                email: context.context.contact.email,
+              },
+              valorCentavos: item.amount_cents,
+              descricao: item.description,
+            });
+            ultimo = await channel.send({
+              tenantId, leadId, jobId: job.id, jobClaim: claimOfJob(job), seq, conversationId,
+              body: textoDaCobranca(item.amount_cents, cobranca.link),
+            });
+            if (ultimo && !OK_KINDS.has(ultimo.kind)) return ultimo;
+            if (cobranca.pixCopiaECola) {
+              // A chave "copia e cola" SOZINHA na bolha: é o que a pessoa toca e segura para copiar.
+              await sleep(jitter());
+              seq += 1;
+              ultimo = await channel.send({
+                tenantId, leadId, jobId: job.id, jobClaim: claimOfJob(job), seq, conversationId,
+                body: cobranca.pixCopiaECola,
+              });
+              if (ultimo && !OK_KINDS.has(ultimo.kind)) return ultimo;
+            }
+            continue;
+          }
+
+          if (item.type === 'template') {
+            ultimo = await channel.send({
+              tenantId, leadId, jobId: job.id, jobClaim: claimOfJob(job), seq, conversationId,
+              // O texto RENDERIZADO: é o que os gates avaliaram e o que um canal sem template enviaria.
+              body: modelos.get(item) ?? item.name,
+              template: { name: item.name, language: item.language, values: item.values },
+            });
+            if (ultimo && !OK_KINDS.has(ultimo.kind)) return ultimo;
+            continue;
+          }
+
+          if (item.type === 'voice') {
+            const enviarTexto = (corpo: string) =>
+              channel.send({ tenantId, leadId, jobId: job.id, jobClaim: claimOfJob(job), seq, conversationId, body: corpo });
+            const preparadas = await prepararNotasDeVoz(dependenciasReaisDeNota(runLog), {
+              tenantId,
+              conversationId,
+              texto: item.text,
+              config: configDeVozDoItem(item),
+            });
+            if (!preparadas.ok) {
+              // Sem chave, cota, provedor fora ou texto longo demais: a pessoa recebe o TEXTO. Um passo
+              // de voz que some em silêncio é pior que um passo que chega escrito.
+              runLog.warn('Voice Studio caiu para texto', { motivo: preparadas.motivo });
+              ultimo = await enviarTexto(item.text);
+            } else {
+              let primeira = true;
+              ultimo = await enviarNotasDeVoz(preparadas, {
+                sleep,
+                jitter,
+                enviarNota: (nota) => {
+                  if (!primeira) seq += 1;
+                  primeira = false;
+                  return channel.send({
+                    tenantId, leadId, jobId: job.id, jobClaim: claimOfJob(job), seq, conversationId,
+                    body: nota.fala,
+                    media: { storagePath: nota.storagePath, mime: nota.mime, kind: 'audio' },
+                  });
+                },
+                enviarTexto: (link) => {
+                  seq += 1;
+                  return enviarTexto(link);
+                },
+              });
+            }
+            if (ultimo && !OK_KINDS.has(ultimo.kind)) return ultimo;
+            continue;
+          }
 
           if (item.type === 'text') {
             const usaFinalBody = !jaUsouOPrimeiroTexto && item === primeiroTexto;
