@@ -80,6 +80,12 @@ const TABELAS = [
   "group_launch_broadcasts",
   "group_launch_deliveries",
   "group_launch_clicks",
+  // 0910. Instagram: comentou, recebe direct. A conexão guarda o token que posta e
+  // manda direct em nome da conta, e o aviso de comentário chega da Meta SEM
+  // sessão: quem acha a conexão é o servidor, pelo id da conta. Deny-all nas três.
+  "instagram_connections",
+  "instagram_comment_rules",
+  "instagram_comment_events",
 ] as const;
 
 function erroSob(papel: string, comando: string): string | null {

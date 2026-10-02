@@ -632,6 +632,21 @@ export const NAV_CATALOG = [
     // navegável. Para voltar a mostrá-la, basta devolver `sidebar: true`.
   },
   {
+    // "Comentou, recebe direct". Mora em Canais porque começa por CONECTAR uma
+    // conta — a mesma primeira pergunta de Conexões — e as regras só existem
+    // depois dela.
+    href: "/app/instagram",
+    label: "Instagram",
+    description: "Quem comenta numa publicação recebe uma mensagem no direct.",
+    icon: "InstagramLogo",
+    group: "canais",
+    // Como o resto de Canais: quem só atende não monta regra nem conecta conta.
+    minRole: "manager",
+    // SEM `sidebar`: o menu lateral já está no limite da dobra (16 itens, medido em
+    // `tests/unit/interface-por-empresa.test.ts`). A porta é o atalho no topo de
+    // Conexões — que é onde quem quer conectar uma conta já vai procurar — e o ⌘K.
+  },
+  {
     href: "/app/webhooks",
     label: "Webhooks",
     description: "Avise outros sistemas quando algo acontecer aqui dentro.",

@@ -304,6 +304,33 @@ const PROVA_PROPRIA: readonly Excecao[] = [
       "link público do lançamento resolve pelo slug no servidor, sem sessão.",
   },
   {
+    tabela: "instagram_connections",
+    razao:
+      "tests/invariants/credencial-de-anuncios-e-server-side.test.ts — mesmo " +
+      "`describe.each` das de anúncio (0910): privilégio NENHUM para anon e " +
+      "authenticated, `permission denied` medido sob `set role`, RLS ligada, zero " +
+      "policies, organization_id NOT NULL com FK em cascata. Deny-all porque a " +
+      "conexão guarda o token da conta do Instagram e o aviso chega sem sessão.",
+  },
+  {
+    tabela: "instagram_comment_rules",
+    razao:
+      "tests/invariants/credencial-de-anuncios-e-server-side.test.ts — mesmo " +
+      "`describe.each` das de anúncio (0910): privilégio NENHUM para anon e " +
+      "authenticated, `permission denied` medido sob `set role`, RLS ligada, zero " +
+      "policies, organization_id NOT NULL com FK em cascata. Deny-all porque a " +
+      "conexão guarda o token da conta do Instagram e o aviso chega sem sessão.",
+  },
+  {
+    tabela: "instagram_comment_events",
+    razao:
+      "tests/invariants/credencial-de-anuncios-e-server-side.test.ts — mesmo " +
+      "`describe.each` das de anúncio (0910): privilégio NENHUM para anon e " +
+      "authenticated, `permission denied` medido sob `set role`, RLS ligada, zero " +
+      "policies, organization_id NOT NULL com FK em cascata. Deny-all porque a " +
+      "conexão guarda o token da conta do Instagram e o aviso chega sem sessão.",
+  },
+  {
     tabela: "google_ads_landing_pages",
     razao:
       "tests/invariants/captura-de-clique-e-server-side.test.ts — mesmo desenho " +

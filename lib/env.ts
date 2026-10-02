@@ -94,6 +94,14 @@ const schema = z.object({
    * (`id:Nome:centavos:números`, separados por vírgula). Ver `lib/planos/`.
    */
   PLANS_ENFORCED: z.string().optional().default(""),
+  /**
+   * INSTAGRAM (comentou, recebe direct). O id e o segredo são os do produto
+   * "Instagram" dentro do app da Meta; o token de verificação é o que se digita ao
+   * cadastrar o webhook. Faltando qualquer um dos três o recurso fica desligado.
+   */
+  INSTAGRAM_APP_ID: z.string().optional().default(""),
+  INSTAGRAM_APP_SECRET: z.string().optional().default(""),
+  INSTAGRAM_WEBHOOK_VERIFY_TOKEN: z.string().optional().default(""),
   PLANS_CATALOG: z.string().optional().default(""),
 
   // Laboratório local de extensões: origem HTTP exata em 127.0.0.1. O cliente

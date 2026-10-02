@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -91,7 +92,12 @@ export function ConexoesShell({
     <div className="flex flex-col gap-4">
       {/* A escolha vem ANTES das abas: quem chega para conectar não sabe em qual
           delas entrar, e a diferença entre as duas decide o que o número aguenta. */}
-      <div className="flex justify-end">
+      <div className="flex flex-wrap items-center justify-end gap-3">
+        {/* A porta do "comentou, recebe direct": a tela não está no menu lateral
+            (ele está no limite da dobra), então é daqui que se chega a ela. */}
+        <Link href="/app/instagram" className="text-sm underline underline-offset-4 hover:text-text" data-testid="porta-do-instagram">
+          {t("Instagram: comentou, recebe direct")}
+        </Link>
         <EscolherConexao onEscolher={(tipo) => irPara(tipo === "oficial" ? "oficial" : "numeros")} />
       </div>
     <Tabs value={aba} onValueChange={(v) => irPara(v, sub)} className="flex flex-col gap-4">
