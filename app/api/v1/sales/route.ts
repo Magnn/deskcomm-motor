@@ -1,6 +1,7 @@
 import { type NextRequest } from "next/server";
 import { z } from "zod";
 import { requireAuth, resolveActiveOrg } from "@/lib/auth/server";
+import { requireSupportWrite } from "@/lib/impersonate/support";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ok, fail } from "@/lib/api/wrappers";
 
@@ -12,6 +13,9 @@ const novaVendaSchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
+  const supportDenied = await requireSupportWrite();
+  if (supportDenied) return supportDenied;
+
   try {
     const user = await requireAuth();
     const org = await resolveActiveOrg(user);

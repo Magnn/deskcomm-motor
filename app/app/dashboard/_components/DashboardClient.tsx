@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { useT } from "@/hooks/i18n/useT";
 import {
   Users,
   CurrencyDollar,
@@ -118,6 +119,7 @@ interface DashboardData {
 }
 
 export function DashboardClient({ orgName }: { orgName: string }) {
+  const t = useT();
   const [activeTab, setActiveTab] = useState<"vendas" | "atendimento">("vendas");
   const [period, setPeriod] = useState<string>("today");
   const [selectedChannel, setSelectedChannel] = useState<string>("all");
@@ -240,16 +242,16 @@ export function DashboardClient({ orgName }: { orgName: string }) {
             {saudacao.texto}, {orgName}! {saudacao.emoji}
           </h1>
           <p className="text-sm text-slate-500 dark:text-zinc-400 mt-1">
-            Operação <strong className="text-slate-800 dark:text-zinc-200">{orgName}</strong> •{" "}
+            {t("Operação")} <strong className="text-slate-800 dark:text-zinc-200">{orgName}</strong> •{" "}
             <span className="text-indigo-600 dark:text-indigo-400 font-medium">
-              {data?.totalLeadsAcumulados ?? 0} leads acumulados
+              {data?.totalLeadsAcumulados ?? 0} {t("leads acumulados")}
             </span>
           </p>
         </div>
         <div className="flex items-center gap-2">
           <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            Operação Ativa
+            {t("Operação Ativa")}
           </span>
         </div>
       </div>
@@ -260,11 +262,11 @@ export function DashboardClient({ orgName }: { orgName: string }) {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10">
             <div className="space-y-1">
               <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-500/20 text-purple-300 border border-purple-400/30">
-                🚀 Conversão no X1
+                {t("🚀 Conversão no X1")}
               </div>
-              <h2 className="text-lg font-bold">Automatize suas Vendas e Acompanhe o ROI em Tempo Real</h2>
+              <h2 className="text-lg font-bold">{t("Automatize suas Vendas e Acompanhe o ROI em Tempo Real")}</h2>
               <p className="text-xs text-purple-200/80 max-w-xl">
-                Seus fluxos agora disparam sem travas de volume para todos os leads dos seus anúncios. Conecte mais instâncias para escalar suas conversões.
+                {t("Seus fluxos agora disparam sem travas de volume para todos os leads dos seus anúncios. Conecte mais instâncias para escalar suas conversões.")}
               </p>
             </div>
             <button
@@ -312,12 +314,12 @@ export function DashboardClient({ orgName }: { orgName: string }) {
             onChange={(e) => setPeriod(e.target.value)}
             className="text-xs font-medium bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl px-3 py-2 text-slate-800 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-purple-500"
           >
-            <option value="today">Hoje</option>
-            <option value="yesterday">Ontem</option>
-            <option value="7d">Últimos 7 dias</option>
-            <option value="30d">Últimos 30 dias</option>
-            <option value="this_month">Este mês</option>
-            <option value="last_month">Mês passado</option>
+            <option value="today">{t("Hoje")}</option>
+            <option value="yesterday">{t("Ontem")}</option>
+            <option value="7d">{t("Últimos 7 dias")}</option>
+            <option value="30d">{t("Últimos 30 dias")}</option>
+            <option value="this_month">{t("Este mês")}</option>
+            <option value="last_month">{t("Mês passado")}</option>
           </select>
 
           {/* Seletor de Conexão */}
@@ -326,7 +328,7 @@ export function DashboardClient({ orgName }: { orgName: string }) {
             onChange={(e) => setSelectedChannel(e.target.value)}
             className="text-xs font-medium bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl px-3 py-2 text-slate-800 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-purple-500"
           >
-            <option value="all">Todas as conexões</option>
+            <option value="all">{t("Todas as conexões")}</option>
             {data?.conexoes?.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name} {c.phone_number ? `(${c.phone_number})` : ""}
@@ -460,7 +462,7 @@ export function DashboardClient({ orgName }: { orgName: string }) {
                   {(data?.kpis.taxaConversao?.valor ?? 0).toFixed(2)}%
                 </div>
                 <div className="text-xs text-slate-500 dark:text-zinc-400 flex items-center justify-between mt-1">
-                  <span>Taxa de Conversão</span>
+                  <span>{t("Taxa de Conversão")}</span>
                   <Info size={14} className="text-slate-400" />
                 </div>
               </div>
@@ -481,7 +483,7 @@ export function DashboardClient({ orgName }: { orgName: string }) {
                   {formatBRL(data?.kpis.ticketMedio?.valor)}
                 </div>
                 <div className="text-xs text-slate-500 dark:text-zinc-400 flex items-center justify-between mt-1">
-                  <span>Ticket médio</span>
+                  <span>{t("Ticket médio")}</span>
                   <Info size={14} className="text-slate-400" />
                 </div>
               </div>
@@ -536,8 +538,8 @@ export function DashboardClient({ orgName }: { orgName: string }) {
             <div className="lg:col-span-2 bg-white dark:bg-zinc-900 p-5 rounded-2xl border border-slate-200/80 dark:border-zinc-800 shadow-sm space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div>
-                  <h3 className="text-base font-bold text-slate-900 dark:text-white">Vendas por período</h3>
-                  <p className="text-xs text-slate-500 dark:text-zinc-400">Histórico temporal das conversões e faturamento</p>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white">{t("Vendas por período")}</h3>
+                  <p className="text-xs text-slate-500 dark:text-zinc-400">{t("Histórico temporal das conversões e faturamento")}</p>
                 </div>
                 <div className="flex items-center bg-slate-100 dark:bg-zinc-800 p-1 rounded-lg text-xs font-semibold">
                   <button
@@ -563,7 +565,7 @@ export function DashboardClient({ orgName }: { orgName: string }) {
               <div className="relative h-64 w-full pt-4">
                 {(!data?.vendasPorPeriodo || data.vendasPorPeriodo.length === 0) ? (
                   <div className="h-full flex items-center justify-center text-slate-400 text-xs">
-                    Nenhum dado no período selecionado.
+                    {t("Nenhum dado no período selecionado.")}
                   </div>
                 ) : (
                   <div className="h-full w-full flex flex-col justify-between">
@@ -643,7 +645,7 @@ export function DashboardClient({ orgName }: { orgName: string }) {
             {/* Gráfico 2: Vendas por horário (1/3 da largura) */}
             <div className="bg-white dark:bg-zinc-900 p-5 rounded-2xl border border-slate-200/80 dark:border-zinc-800 shadow-sm space-y-4">
               <div>
-                <h3 className="text-base font-bold text-slate-900 dark:text-white">Vendas por horário</h3>
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">{t("Vendas por horário")}</h3>
                 <p className="text-xs text-slate-500 dark:text-zinc-400">Total de vendas por hora do dia</p>
               </div>
 
@@ -684,12 +686,12 @@ export function DashboardClient({ orgName }: { orgName: string }) {
             {/* Vendas por instância */}
             <div className="bg-white dark:bg-zinc-900 p-5 rounded-2xl border border-slate-200/80 dark:border-zinc-800 shadow-sm space-y-3">
               <div>
-                <h3 className="text-sm font-bold text-slate-900 dark:text-white">Vendas por instância</h3>
-                <p className="text-xs text-slate-500 dark:text-zinc-400">Operações por conexão ativa</p>
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white">{t("Vendas por instância")}</h3>
+                <p className="text-xs text-slate-500 dark:text-zinc-400">{t("Operações por conexão ativa")}</p>
               </div>
               {(!data?.vendasPorInstancia || data.vendasPorInstancia.length === 0) ? (
                 <div className="h-32 flex items-center justify-center text-slate-400 text-xs">
-                  Nenhum dado no período selecionado.
+                  {t("Nenhum dado no período selecionado.")}
                 </div>
               ) : (
                 <div className="space-y-2 mt-2">
@@ -715,12 +717,12 @@ export function DashboardClient({ orgName }: { orgName: string }) {
             {/* Faturamento por instância */}
             <div className="bg-white dark:bg-zinc-900 p-5 rounded-2xl border border-slate-200/80 dark:border-zinc-800 shadow-sm space-y-3">
               <div>
-                <h3 className="text-sm font-bold text-slate-900 dark:text-white">Faturamento por instância</h3>
-                <p className="text-xs text-slate-500 dark:text-zinc-400">Receita por conexão ativa</p>
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white">{t("Faturamento por instância")}</h3>
+                <p className="text-xs text-slate-500 dark:text-zinc-400">{t("Receita por conexão ativa")}</p>
               </div>
               {(!data?.vendasPorInstancia || data.vendasPorInstancia.length === 0) ? (
                 <div className="h-32 flex items-center justify-center text-slate-400 text-xs">
-                  Nenhum dado no período selecionado.
+                  {t("Nenhum dado no período selecionado.")}
                 </div>
               ) : (
                 <div className="space-y-2 mt-2">
@@ -738,11 +740,11 @@ export function DashboardClient({ orgName }: { orgName: string }) {
             <div className="bg-white dark:bg-zinc-900 p-5 rounded-2xl border border-slate-200/80 dark:border-zinc-800 shadow-sm space-y-3">
               <div>
                 <h3 className="text-sm font-bold text-slate-900 dark:text-white">Vendas por estado</h3>
-                <p className="text-xs text-slate-500 dark:text-zinc-400">Distribuição geográfica das vendas</p>
+                <p className="text-xs text-slate-500 dark:text-zinc-400">{t("Distribuição geográfica das vendas")}</p>
               </div>
               {(!data?.vendasPorEstado || data.vendasPorEstado.length === 0) ? (
                 <div className="h-32 flex items-center justify-center text-slate-400 text-xs">
-                  Nenhum dado no período selecionado.
+                  {t("Nenhum dado no período selecionado.")}
                 </div>
               ) : (
                 <div className="grid grid-cols-2 gap-2 mt-2 max-h-36 overflow-y-auto">
@@ -765,8 +767,8 @@ export function DashboardClient({ orgName }: { orgName: string }) {
             <div className="lg:col-span-2 bg-white dark:bg-zinc-900 p-5 rounded-2xl border border-slate-200/80 dark:border-zinc-800 shadow-sm space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
-                  <h3 className="text-base font-bold text-slate-900 dark:text-white">Histórico de vendas</h3>
-                  <p className="text-xs text-slate-500 dark:text-zinc-400">Auditoria e emissão de conversões</p>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white">{t("Histórico de vendas")}</h3>
+                  <p className="text-xs text-slate-500 dark:text-zinc-400">{t("Auditoria e emissão de conversões")}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
@@ -791,7 +793,7 @@ export function DashboardClient({ orgName }: { orgName: string }) {
                 <table className="w-full text-left text-xs">
                   <thead className="bg-slate-50 dark:bg-zinc-800/80 text-slate-500 dark:text-zinc-400 uppercase text-[10px] tracking-wider">
                     <tr>
-                      <th className="py-2.5 px-3">Instância</th>
+                      <th className="py-2.5 px-3">{t("Instância")}</th>
                       <th className="py-2.5 px-3">Nº Lead</th>
                       <th className="py-2.5 px-3">Cliente</th>
                       <th className="py-2.5 px-3">Produto</th>
@@ -803,7 +805,7 @@ export function DashboardClient({ orgName }: { orgName: string }) {
                     {(!data?.historicoVendas || data.historicoVendas.length === 0) ? (
                       <tr>
                         <td colSpan={6} className="py-8 text-center text-slate-400 text-xs">
-                          Nenhuma venda registrada no histórico do período.
+                          {t("Nenhuma venda registrada no histórico do período.")}
                         </td>
                       </tr>
                     ) : (
@@ -839,7 +841,7 @@ export function DashboardClient({ orgName }: { orgName: string }) {
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-base font-bold text-slate-900 dark:text-white">Performance dos produtos</h3>
-                  <p className="text-xs text-slate-500 dark:text-zinc-400">Participação no total</p>
+                  <p className="text-xs text-slate-500 dark:text-zinc-400">{t("Participação no total")}</p>
                 </div>
                 <div className="flex items-center bg-slate-100 dark:bg-zinc-800 p-1 rounded-lg text-xs font-semibold">
                   <button
@@ -863,7 +865,7 @@ export function DashboardClient({ orgName }: { orgName: string }) {
 
               {(!data?.performanceProdutos || data.performanceProdutos.length === 0) ? (
                 <div className="h-48 flex items-center justify-center text-slate-400 text-xs">
-                  Nenhum dado no período selecionado.
+                  {t("Nenhum dado no período selecionado.")}
                 </div>
               ) : (
                 <div className="space-y-3 mt-3">
@@ -977,7 +979,7 @@ export function DashboardClient({ orgName }: { orgName: string }) {
             {/* Atendimentos por hora */}
             <div className="bg-white dark:bg-zinc-900 p-5 rounded-2xl border border-slate-200/80 dark:border-zinc-800 shadow-sm space-y-3">
               <h3 className="text-base font-bold text-slate-900 dark:text-white">Atendimentos por hora</h3>
-              <p className="text-xs text-slate-500 dark:text-zinc-400">Distribuição horária das conversas iniciadas</p>
+              <p className="text-xs text-slate-500 dark:text-zinc-400">{t("Distribuição horária das conversas iniciadas")}</p>
 
               <div className="h-44 flex items-end justify-between gap-1 border-b border-slate-200 dark:border-zinc-700 pb-1 pt-4">
                 {(data?.atendimentosPorHora || []).map((h, i) => {
@@ -1007,11 +1009,11 @@ export function DashboardClient({ orgName }: { orgName: string }) {
             {/* Leads por Status */}
             <div className="bg-white dark:bg-zinc-900 p-5 rounded-2xl border border-slate-200/80 dark:border-zinc-800 shadow-sm space-y-3">
               <h3 className="text-base font-bold text-slate-900 dark:text-white">Leads por status</h3>
-              <p className="text-xs text-slate-500 dark:text-zinc-400">Distribuição dos atendimentos</p>
+              <p className="text-xs text-slate-500 dark:text-zinc-400">{t("Distribuição dos atendimentos")}</p>
 
               {(!data?.leadsPorStatus || data.leadsPorStatus.length === 0) ? (
                 <div className="h-44 flex items-center justify-center text-slate-400 text-xs">
-                  Nenhum atendimento registrado no período.
+                  {t("Nenhum atendimento registrado no período.")}
                 </div>
               ) : (
                 <div className="space-y-3 pt-2">
@@ -1032,12 +1034,12 @@ export function DashboardClient({ orgName }: { orgName: string }) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Conversões por coluna */}
             <div className="bg-white dark:bg-zinc-900 p-5 rounded-2xl border border-slate-200/80 dark:border-zinc-800 shadow-sm space-y-3">
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">Conversões por coluna (Kanban)</h3>
-              <p className="text-xs text-slate-500 dark:text-zinc-400">Leads ativos por estágio do funil</p>
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">{t("Conversões por coluna (Kanban)")}</h3>
+              <p className="text-xs text-slate-500 dark:text-zinc-400">{t("Leads ativos por estágio do funil")}</p>
 
               {(!data?.conversoesPorColuna || data.conversoesPorColuna.length === 0) ? (
                 <div className="h-32 flex items-center justify-center text-slate-400 text-xs">
-                  Nenhum dado de funil encontrado.
+                  {t("Nenhum dado de funil encontrado.")}
                 </div>
               ) : (
                 <div className="space-y-2 mt-2">
@@ -1057,11 +1059,11 @@ export function DashboardClient({ orgName }: { orgName: string }) {
             {/* Valor por coluna */}
             <div className="bg-white dark:bg-zinc-900 p-5 rounded-2xl border border-slate-200/80 dark:border-zinc-800 shadow-sm space-y-3">
               <h3 className="text-base font-bold text-slate-900 dark:text-white">Valor estimado por coluna</h3>
-              <p className="text-xs text-slate-500 dark:text-zinc-400">Potencial financeiro em cada etapa</p>
+              <p className="text-xs text-slate-500 dark:text-zinc-400">{t("Potencial financeiro em cada etapa")}</p>
 
               {(!data?.conversoesPorColuna || data.conversoesPorColuna.length === 0) ? (
                 <div className="h-32 flex items-center justify-center text-slate-400 text-xs">
-                  Nenhum valor estimado encontrado.
+                  {t("Nenhum valor estimado encontrado.")}
                 </div>
               ) : (
                 <div className="space-y-2 mt-2">
@@ -1126,7 +1128,7 @@ export function DashboardClient({ orgName }: { orgName: string }) {
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-1">
-                  Observações adicionais (opcional)
+                  {t("Observações adicionais (opcional)")}
                 </label>
                 <textarea
                   placeholder="Ex: Pagamento confirmado via PIX"
