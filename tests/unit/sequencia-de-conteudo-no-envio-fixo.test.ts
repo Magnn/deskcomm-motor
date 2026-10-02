@@ -140,7 +140,12 @@ beforeAll(async () => {
 }, 60_000);
 
 beforeEach(() => {
-  runBeforeSend.mockClear();
+  runBeforeSend.mockReset();
+  runBeforeSend.mockImplementation(async (args: { send: (body: string) => Promise<{ kind: string }> }) => ({
+    status: "sent",
+    outcome: await args.send("corpo-do-portao"),
+    trace: [],
+  }));
   storageCopy.mockClear();
   storageUpload.mockClear();
   storageCopy.mockResolvedValue({ error: null });
@@ -436,6 +441,103 @@ describe("sequência de conteúdo — texto, mídia e pausa", () => {
       ctx,
     );
     expect(channelSend.mock.calls[0]![0].media!.storagePath).toBe(`${ORG}/${CONVERSA}/conteudo-job-1-1.pdf`);
+  });
+
+  describe("o Delay não segura a vez do número (muitos leads no mesmo número)", () => {
+    // `runBeforeSend` chama o `send` com o lock do NÚMERO na mão. Se o Delay dormisse
+    // dentro dele, um lead esperando 30 s travaria os envios de todos os outros leads
+    // do mesmo número. O que se mede aqui é ONDE o Delay é dormido: fora do portão.
+    function comOrdem(channelSend: ReturnType<typeof fakeChannelSend>) {
+      const ordem: string[] = [];
+      const d = deps(channelSend);
+      (d as unknown as { sleep: unknown }).sleep = vi.fn(async (ms: number) => {
+        ordem.push(`dorme:${ms}`);
+      });
+      runBeforeSend.mockImplementation(async (args: { send: (body: string) => Promise<{ kind: string }> }) => {
+        ordem.push("portão:abre");
+        const outcome = await args.send("corpo-do-portao");
+        ordem.push("portão:fecha");
+        return { status: "sent", outcome, trace: [] };
+      });
+      channelSend.mockImplementation(async (input: EnvioDeItem) => {
+        ordem.push(`envia:${input.seq}`);
+        return { kind: "sent", idempotencyKey: "k", messageId: "m" };
+      });
+      return { d, ordem };
+    }
+    /** Só o que importa para a pergunta: portão, envios e os Delays da caixa (não o jitter entre bolhas). */
+    const semJitter = (ordem: string[]) => ordem.filter((o) => !/^dorme:1d{3}$/.test(o));
+
+    it("texto → Delay 30s → texto: o Delay é dormido ENTRE dois portões, nunca dentro de um", async () => {
+      const channelSend = fakeChannelSend({ kind: "sent", idempotencyKey: "k", messageId: "m" });
+      const { d, ordem } = comOrdem(channelSend);
+      await criarHandler(d)(
+        job([{ type: "text", body: "Primeiro" }, { type: "delay", seconds: 30 }, { type: "text", body: "Segundo" }]),
+        fakePool(),
+        ctx,
+      );
+      expect(semJitter(ordem)).toEqual([
+        "portão:abre",
+        "envia:1",
+        "portão:fecha",
+        "dorme:30000",
+        "portão:abre",
+        "envia:2",
+        "portão:fecha",
+      ]);
+    });
+
+    it("a numeração atravessa os trechos (idempotência por job+seq num replay)", async () => {
+      const channelSend = fakeChannelSend({ kind: "sent", idempotencyKey: "k", messageId: "m" });
+      const { d } = comOrdem(channelSend);
+      await criarHandler(d)(
+        job([
+          { type: "text", body: "A" },
+          { type: "text", body: "B" },
+          { type: "delay", seconds: 5 },
+          { type: "text", body: "C" },
+          { type: "delay", seconds: 5 },
+          { type: "text", body: "D" },
+        ]),
+        fakePool(),
+        ctx,
+      );
+      expect(channelSend.mock.calls.map((c) => c[0].seq)).toEqual([1, 2, 3, 4]);
+      expect(runBeforeSend).toHaveBeenCalledTimes(3);
+    });
+
+    it("Delay no começo e no fim da caixa: dormidos fora do portão, sem portão vazio", async () => {
+      const channelSend = fakeChannelSend({ kind: "sent", idempotencyKey: "k", messageId: "m" });
+      const { d, ordem } = comOrdem(channelSend);
+      await criarHandler(d)(
+        job([{ type: "delay", seconds: 10 }, { type: "text", body: "Oi" }, { type: "delay", seconds: 20 }]),
+        fakePool(),
+        ctx,
+      );
+      expect(semJitter(ordem)).toEqual(["dorme:10000", "portão:abre", "envia:1", "portão:fecha", "dorme:20000"]);
+    });
+
+    it("o segundo trecho é barrado: o primeiro já saiu, e o passo NÃO é dado como enviado", async () => {
+      const channelSend = fakeChannelSend({ kind: "sent", idempotencyKey: "k", messageId: "m" });
+      const d = deps(channelSend);
+      runBeforeSend
+        .mockImplementationOnce(async (args: { send: (body: string) => Promise<{ kind: string }> }) => ({
+          status: "sent",
+          outcome: await args.send("corpo-do-portao"),
+          trace: [],
+        }))
+        .mockImplementationOnce(async () => ({ status: "vetoed", gate: "stop", code: "opted_out", message: "", trace: [] }) as never);
+      await criarHandler(d)(
+        job([{ type: "text", body: "Primeiro" }, { type: "delay", seconds: 5 }, { type: "text", body: "Segundo" }]),
+        fakePool(),
+        ctx,
+      );
+      expect(channelSend).toHaveBeenCalledTimes(1);
+      expect((d as unknown as { completeFollowupTurn: ReturnType<typeof vi.fn> }).completeFollowupTurn).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ result: expect.objectContaining({ kind: "skipped" }) }),
+      );
+    });
   });
 
   it("conteúdo de caixa é texto do DONO: a tabela de preço do agente não o julga (fluxo independe do agente)", async () => {
