@@ -1,50 +1,35 @@
 "use client";
 
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useTransition, useState } from "react";
+import { useActionState } from "react";
 
 import { useT } from "@/hooks/i18n/useT";
-import { forgotPasswordSchema, type ForgotPasswordInput } from "@/lib/auth/schemas";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { requestPasswordReset } from "@/app/actions/auth/requestPasswordReset";
+import {
+  pedirRedefinicaoPeloFormulario,
+  type EstadoDoPedidoDeRedefinicao,
+} from "@/app/actions/auth/requestPasswordReset";
 
+/**
+ * A ação do servidor vai DIRETO no `action` do formulário — sem embrulho no
+ * cliente. É o que faz o envio funcionar antes de o bundle carregar: o React
+ * renderiza o `<form>` como POST para a ação, o Next a executa nesse POST nativo
+ * e devolve a tela com o resultado. Com o `onSubmit` de antes, o clique dado
+ * nesse intervalo recarregava a página em branco e o e-mail nunca era pedido.
+ *
+ * Por isso não há `method="post"` aqui: com função no `action`, quem garante o
+ * POST é o React (e ele recusa um `method` escrito à mão). A cerca de
+ * `tests/unit/credencial-nunca-na-url.test.ts` aceita esta forma.
+ */
 export function ForgotPasswordForm() {
   const t = useT();
-  const [isPending, startTransition] = useTransition();
-  const [serverError, setServerError] = useState<string | null>(null);
-  const [sent, setSent] = useState(false);
+  const [estado, enviar, isPending] = useActionState<EstadoDoPedidoDeRedefinicao, FormData>(
+    pedirRedefinicaoPeloFormulario,
+    null,
+  );
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<ForgotPasswordInput>({
-    resolver: zodResolver(forgotPasswordSchema),
-    defaultValues: { email: "" },
-  });
-
-  const onSubmit = (values: ForgotPasswordInput) => {
-    setServerError(null);
-    startTransition(async () => {
-      const res = await requestPasswordReset(values);
-      if (res.ok) {
-        setSent(true);
-        return;
-      }
-      if (res.error === "rate_limited") {
-        setServerError(t("Muitas tentativas. Aguarde alguns minutos."));
-      } else if (res.error === "validation_error") {
-        setServerError(t("Email inválido. Confira o campo."));
-      } else {
-        setServerError(t("Não foi possível enviar o e-mail. Tente novamente."));
-      }
-    });
-  };
-
-  if (sent) {
+  if (estado?.ok) {
     return (
       <div
         className="space-y-2 rounded-md border bg-muted/40 px-4 py-6 text-center"
@@ -58,28 +43,36 @@ export function ForgotPasswordForm() {
     );
   }
 
+  const falha = estado?.ok === false ? estado : null;
+  const mensagem =
+    falha?.error === "rate_limited"
+      ? t("Muitas tentativas. Aguarde alguns minutos.")
+      : falha?.error === "validation_error"
+        ? t("Email inválido. Confira o campo.")
+        : falha
+          ? t("Não foi possível enviar o e-mail. Tente novamente.")
+          : null;
+
   return (
-    <form method="post" onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
+    <form action={enviar} className="space-y-4" noValidate>
       <div className="space-y-1.5">
         <Label htmlFor="email">Email</Label>
         <Input
           id="email"
+          name="email"
           type="email"
           autoComplete="email"
           autoFocus
-          aria-invalid={errors.email ? true : undefined}
-          {...register("email")}
+          defaultValue={falha?.email ?? ""}
+          aria-invalid={falha?.error === "validation_error" ? true : undefined}
         />
-        {errors.email && (
-          <p className="text-xs text-destructive">{t(errors.email.message ?? "")}</p>
-        )}
       </div>
-      {serverError && (
+      {mensagem && (
         <div
           className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
           role="alert"
         >
-          {serverError}
+          {mensagem}
         </div>
       )}
       <Button type="submit" className="w-full" disabled={isPending}>
