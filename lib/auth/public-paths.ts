@@ -49,6 +49,9 @@ export const PUBLIC_PATHS: RegExp[] = [
   // Assinatura (pagou → libera; deixou de pagar → suspende): mesma guarda e
   // mesmo segredo do provisionamento, checados dentro da rota.
   /^\/api\/v1\/tenants\/subscription$/,
+  // O mesmo, vindo direto da Cakto: quem prova a origem é a assinatura do aviso
+  // (segredo do webhook), conferida dentro da rota — 404 enquanto não configurada.
+  /^\/api\/v1\/tenants\/subscription\/cakto$/,
   // Relógio Hobby (GitHub Actions / cron-job.org). Auth é Bearer na própria
   // rota — sem isto o proxy devolve 401 e o follow-up waiting_reply nunca anda.
   /^\/api\/v1\/system\/relogio\/tick$/,
