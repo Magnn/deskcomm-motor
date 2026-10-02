@@ -35,10 +35,10 @@ export default async function FollowupFlowsPage({ searchParams }: Props) {
   // member — o gate por tela fica dentro das abas (canWrite), não na rota.
 
   const supabase = await createClient();
+  // O rascunho vem só para a origem da caixa "Início" (filtro de gatilho) — o que
+  // segue para a tela é o resumo, não o grafo.
   const { data } = await supabase
     .from("followup_flow_pointers")
-    // O rascunho vem só para a origem da caixa "Início" (filtro de gatilho); o que
-    // segue para a tela é o resumo, não o grafo.
     .select(`${FLOW_COLUMNS}, draft_graph`)
     .eq("organization_id", activeOrg.orgId)
     // Roteiro de atendimento não é follow-up (prova do #1130): tem tela própria.
