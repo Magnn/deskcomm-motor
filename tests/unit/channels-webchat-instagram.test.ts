@@ -8,11 +8,6 @@ import {
   generateIframeEmbedCode,
   generateDirectChatUrl,
 } from "@/lib/channels/webchat/embed-code";
-import {
-  instagramCommentAutomationSchema,
-  matchesCommentRule,
-  pickPublicReply,
-} from "@/lib/channels/instagram/comments-schema";
 
 describe("Canais - Webchat Widget", () => {
   it("valida e aplica defaults para configuração de webchat", () => {
@@ -72,60 +67,6 @@ describe("Canais - Webchat Widget", () => {
   });
 });
 
-describe("Canais - Automações de Comentários do Instagram", () => {
-  it("valida regra de comentário com valores padrão", () => {
-    const rule = instagramCommentAutomationSchema.parse({
-      id: "ig-01",
-      name: "Lead Magnet E-book",
-      keywords: ["eu quero", "ebook", "link"],
-    });
-
-    expect(rule.isActive).toBe(true);
-    expect(rule.postScope).toBe("all_posts");
-    expect(rule.autoLikeComment).toBe(true);
-    expect(rule.sendPublicReply).toBe(true);
-    expect(rule.sendPrivateDm).toBe(true);
-    expect(rule.publicReplyVariations.length).toBeGreaterThan(0);
-  });
-
-  it("testa correspondência por contains_any", () => {
-    const rule = {
-      matchType: "contains_any" as const,
-      keywords: ["quero", "preco", "preço"],
-    };
-
-    expect(matchesCommentRule("Olá, eu quero saber mais!", rule)).toBe(true);
-    expect(matchesCommentRule("Qual o preço?", rule)).toBe(true);
-    expect(matchesCommentRule("Adorei a foto!", rule)).toBe(false);
-  });
-
-  it("testa correspondência exata", () => {
-    const rule = {
-      matchType: "exact_match" as const,
-      keywords: ["promo", "vip"],
-    };
-
-    expect(matchesCommentRule("PROMO", rule)).toBe(true);
-    expect(matchesCommentRule("vip", rule)).toBe(true);
-    expect(matchesCommentRule("promo por favor", rule)).toBe(false);
-  });
-
-  it("testa correspondência regex", () => {
-    const rule = {
-      matchType: "regex" as const,
-      keywords: ["^quer[oa]$", "\\bcupom\\d+\\b"],
-    };
-
-    expect(matchesCommentRule("quero", rule)).toBe(true);
-    expect(matchesCommentRule("quera", rule)).toBe(true);
-    expect(matchesCommentRule("cupom10", rule)).toBe(true);
-    expect(matchesCommentRule("tenho interesse", rule)).toBe(false);
-  });
-
-  it("seleciona variação de resposta pública de forma segura", () => {
-    const variations = ["Mensagem 1", "Mensagem 2", "Mensagem 3"];
-    const picked = pickPublicReply(variations);
-    expect(variations).toContain(picked);
-    expect(pickPublicReply([])).toBe("");
-  });
-});
+// As regras de comentário do Instagram saíram daqui: o esquema solto deu lugar ao
+// módulo de verdade, testado em `lib/channels/instagram/regras.test.ts` e
+// `comentarios.test.ts`.

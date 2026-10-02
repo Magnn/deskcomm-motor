@@ -71,6 +71,12 @@ const TABELAS = [
   // cliente se dar um plano pelo PostgREST. Deny-all, e quem lê e escreve é o
   // servidor (`lib/planos/assinatura-da-organizacao.ts`).
   "organization_subscriptions",
+  // 0910. Instagram: comentou, recebe direct. A conexão guarda o token que posta e
+  // manda direct em nome da conta, e o aviso de comentário chega da Meta SEM
+  // sessão: quem acha a conexão é o servidor, pelo id da conta. Deny-all nas três.
+  "instagram_connections",
+  "instagram_comment_rules",
+  "instagram_comment_events",
 ] as const;
 
 function erroSob(papel: string, comando: string): string | null {

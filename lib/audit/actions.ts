@@ -170,6 +170,14 @@ export const AUDIT_ACTIONS = [
   "platform_admin.impersonate_misconfigured",
   "tenant.suspended",
   "tenant.reactivated",
+  // Instagram: comentou, recebe direct (`lib/channels/instagram/`).
+  "instagram.conta_conectada",
+  "instagram.conta_desconectada",
+  "instagram.regra_criada",
+  "instagram.regra_atualizada",
+  "instagram.regra_removida",
+  // A rodada que renovou (ou não conseguiu renovar) o token de alguma conta.
+  "cron.instagram_tokens",
   // Planos (`lib/planos/`): o pagamento pôs o plano em dia, a falta dele o
   // derrubou, ou o dono da instalação definiu o plano à mão.
   "tenant.plano_ativado",

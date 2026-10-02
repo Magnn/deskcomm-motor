@@ -108,6 +108,10 @@ CRONS="
 # DIAS. Diária e de madrugada porque o estado que ela lê muda em dias — de 5 em
 # 5 minutos seriam 288 varreduras para nada, e o aviso chegaria na mesma hora.
 50 5 * * *|60|api/v1/cron/canal-mudo-watcher
+# O TOKEN DO INSTAGRAM vale 60 dias. Diária, de madrugada: renova quem vence nos
+# próximos 15 dias — sem isto a regra de "comentou, recebe direct" para de
+# responder dois meses depois de a conta ser conectada, sem ninguém ter mexido.
+13 4 * * *|60|api/v1/cron/instagram-tokens
 0 12 * * *|60|api/v1/cron/lgpd-sla-watcher
 30 3 * * *|120|api/v1/cron/kb-conversations-batch
 15 4 * * *|60|api/v1/cron/sync-model-catalog

@@ -824,6 +824,21 @@ const HOSTS_DECLARADOS: Record<string, EntradaDeHost> = {
     motivo:
       "endereço do checkout da Cakto (`lib/tenants/assinatura-cakto.ts`, `linkDoCheckoutDoPlano`): é o link de pagamento que a tela de planos monta com o código da oferta que o DONO DA INSTALAÇÃO declarou no `.env`. O código não chama o host — o navegador do cliente abre o checkout da própria Cakto. Trocar pelo domínio do revendedor levaria a um checkout que não existe.",
   },
+  "graph.instagram.com": {
+    categoria: "FORNECEDOR",
+    motivo:
+      "endpoint da API do Instagram (`lib/channels/instagram/api.ts`): é para onde vão a leitura da conta, a lista de publicações, a resposta pública ao comentário e o direct. Destino do request — trocar pelo domínio do revendedor faria nada disso acontecer.",
+  },
+  "api.instagram.com": {
+    categoria: "FORNECEDOR",
+    motivo:
+      "endpoint que troca o código do consentimento pelo token da conta do Instagram (`lib/channels/instagram/api.ts`, `trocarCodigoPorToken`). Destino do request.",
+  },
+  "www.instagram.com": {
+    categoria: "PLATAFORMA",
+    motivo:
+      "tela de consentimento do Instagram (`lib/channels/instagram/api.ts`, `urlDeAutorizacao`): é para onde o navegador de quem clica em Conectar Instagram é mandado. O código não chama o host — quem abre é o navegador da pessoa, na tela da própria Meta.",
+  },
   "api.asaas.com": {
     categoria: "FORNECEDOR",
     motivo:
@@ -1162,6 +1177,10 @@ describe("catraca de host de terceiro no código que embarca", () => {
       // aqui, e não em FORNECEDOR, porque o produto NÃO fala com esse host: quem
       // abre o link é o visitante do site. Crescimento escrito, como a regra pede.
       "wa.me",
+      // Decisão escrita: a tela de consentimento do Instagram, para onde o botão
+      // Conectar Instagram manda o navegador (`urlDeAutorizacao`). O produto não
+      // fala com esse host — quem abre é a pessoa, como o `wa.me` acima.
+      "www.instagram.com",
     ]);
   });
 
