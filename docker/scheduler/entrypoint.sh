@@ -70,6 +70,11 @@ CRONS="
 # número: é o cron que dá a cadência base, e o ritmo da campanha e do canal
 # (channel_knobs + pacing_ledger) só sabem torná-la mais lenta.
 * * * * *|45|api/v1/cron/campaign-worker
+# OS LANÇAMENTOS EM GRUPOS. Minuto a minuto: é a rodada que manda os disparos
+# vencidos aos grupos (com pausa entre um grupo e outro, dentro do orçamento de
+# tempo) e a que abre o próximo grupo quando as vagas estão no fim. Barato quando
+# não há lançamento ativo: duas consultas vazias.
+* * * * *|45|api/v1/cron/lancamentos
 */5 * * * *|60|api/v1/cron/webhook-log-retention
 */5 * * * *|45|api/v1/cron/channel-health
 */10 * * * *|60|api/v1/cron/contact-avatars

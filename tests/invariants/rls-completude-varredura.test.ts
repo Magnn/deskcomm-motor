@@ -259,6 +259,51 @@ const PROVA_PROPRIA: readonly Excecao[] = [
       "linha é o PLANO da empresa: com policy de tenant o cliente se daria um plano.",
   },
   {
+    tabela: "group_launches",
+    razao:
+      "tests/invariants/credencial-de-anuncios-e-server-side.test.ts — mesmo " +
+      "`describe.each` das de anúncio (0909): privilégio NENHUM para anon e " +
+      "authenticated, `permission denied` medido sob `set role`, RLS ligada, zero " +
+      "policies, organization_id NOT NULL com FK em cascata. Deny-all porque o " +
+      "link público do lançamento resolve pelo slug no servidor, sem sessão.",
+  },
+  {
+    tabela: "group_launch_groups",
+    razao:
+      "tests/invariants/credencial-de-anuncios-e-server-side.test.ts — mesmo " +
+      "`describe.each` das de anúncio (0909): privilégio NENHUM para anon e " +
+      "authenticated, `permission denied` medido sob `set role`, RLS ligada, zero " +
+      "policies, organization_id NOT NULL com FK em cascata. Deny-all porque o " +
+      "link público do lançamento resolve pelo slug no servidor, sem sessão.",
+  },
+  {
+    tabela: "group_launch_broadcasts",
+    razao:
+      "tests/invariants/credencial-de-anuncios-e-server-side.test.ts — mesmo " +
+      "`describe.each` das de anúncio (0909): privilégio NENHUM para anon e " +
+      "authenticated, `permission denied` medido sob `set role`, RLS ligada, zero " +
+      "policies, organization_id NOT NULL com FK em cascata. Deny-all porque o " +
+      "link público do lançamento resolve pelo slug no servidor, sem sessão.",
+  },
+  {
+    tabela: "group_launch_deliveries",
+    razao:
+      "tests/invariants/credencial-de-anuncios-e-server-side.test.ts — mesmo " +
+      "`describe.each` das de anúncio (0909): privilégio NENHUM para anon e " +
+      "authenticated, `permission denied` medido sob `set role`, RLS ligada, zero " +
+      "policies, organization_id NOT NULL com FK em cascata. Deny-all porque o " +
+      "link público do lançamento resolve pelo slug no servidor, sem sessão.",
+  },
+  {
+    tabela: "group_launch_clicks",
+    razao:
+      "tests/invariants/credencial-de-anuncios-e-server-side.test.ts — mesmo " +
+      "`describe.each` das de anúncio (0909): privilégio NENHUM para anon e " +
+      "authenticated, `permission denied` medido sob `set role`, RLS ligada, zero " +
+      "policies, organization_id NOT NULL com FK em cascata. Deny-all porque o " +
+      "link público do lançamento resolve pelo slug no servidor, sem sessão.",
+  },
+  {
     tabela: "instagram_connections",
     razao:
       "tests/invariants/credencial-de-anuncios-e-server-side.test.ts — mesmo " +

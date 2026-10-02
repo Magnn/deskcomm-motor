@@ -71,6 +71,15 @@ const TABELAS = [
   // cliente se dar um plano pelo PostgREST. Deny-all, e quem lê e escreve é o
   // servidor (`lib/planos/assinatura-da-organizacao.ts`).
   "organization_subscriptions",
+  // 0909. Lançamentos em grupos de WhatsApp. O link público do lançamento resolve
+  // pelo slug SEM sessão — com policy de tenant ele não funcionaria, e com policy
+  // aberta vazaria o convite dos grupos de todo mundo. Deny-all nas cinco; quem lê
+  // e escreve é o servidor (`lib/lancamentos/`), filtrando organization_id à mão.
+  "group_launches",
+  "group_launch_groups",
+  "group_launch_broadcasts",
+  "group_launch_deliveries",
+  "group_launch_clicks",
   // 0910. Instagram: comentou, recebe direct. A conexão guarda o token que posta e
   // manda direct em nome da conta, e o aviso de comentário chega da Meta SEM
   // sessão: quem acha a conexão é o servidor, pelo id da conta. Deny-all nas três.

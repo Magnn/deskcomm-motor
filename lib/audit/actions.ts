@@ -178,6 +178,15 @@ export const AUDIT_ACTIONS = [
   "instagram.regra_removida",
   // A rodada que renovou (ou não conseguiu renovar) o token de alguma conta.
   "cron.instagram_tokens",
+  // Lançamentos em grupos de WhatsApp (`lib/lancamentos/`).
+  "lancamento.criado",
+  "lancamento.atualizado",
+  "lancamento.grupo_aberto",
+  "lancamento.grupo_alterado",
+  "lancamento.disparo_agendado",
+  "lancamento.disparo_cancelado",
+  // A rodada do relógio que MANDOU disparo a algum grupo ou abriu grupo novo.
+  "cron.lancamentos",
   // Planos (`lib/planos/`): o pagamento pôs o plano em dia, a falta dele o
   // derrubou, ou o dono da instalação definiu o plano à mão.
   "tenant.plano_ativado",
