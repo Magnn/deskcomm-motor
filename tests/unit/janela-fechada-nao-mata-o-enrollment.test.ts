@@ -179,6 +179,51 @@ describe("o turno de envio devolve o ADIAMENTO ao enrollment", () => {
     expect(entrada.result.until?.toISOString()).toBe(SEGUNDA_09H.toISOString());
   });
 
+  // O teto do dia (aquecimento do número, ou limite diário) é a MESMA espera: a
+  // mensagem está certa, só não cabe hoje. Recusar encerrava o fluxo — e o primeiro
+  // contato de um anúncio que chegasse com o teto já gasto ficava sem resposta.
+  const CONTEUDO = { ...PAYLOAD_DE_FLUXO, fixed_body: undefined, content_items: [{ type: "text", body: "oi, tudo bem?" }] };
+  it.each([
+    ["warmup_cap", "texto fixo", PAYLOAD_DE_FLUXO],
+    ["daily_cap", "texto fixo", PAYLOAD_DE_FLUXO],
+    ["warmup_cap", "caixa de Conteúdo", CONTEUDO],
+    ["daily_cap", "caixa de Conteúdo", CONTEUDO],
+  ])("⭐ teto do dia (%s, %s): o lead ESPERA a próxima abertura — não é descartado", async (code, _onde, payload) => {
+    chain.mockImplementation(async () => ({
+      status: "vetoed",
+      code,
+      nextAllowedAt: SEGUNDA_09H,
+      trace: [],
+    }) as unknown as Record<string, unknown>);
+    const { deps, completeFollowupTurn } = depsComCallback();
+
+    await criarHandler(deps)(job(payload), fakePool(), { workerId: "w1" });
+
+    expect(completeFollowupTurn).toHaveBeenCalledTimes(1);
+    const entrada = (completeFollowupTurn.mock.calls[0] as unknown[])[1] as {
+      result: { kind: string; until?: Date; reason?: string };
+    };
+    expect(entrada.result).toMatchObject({ kind: "deferred", reason: code });
+    expect(entrada.result.until?.toISOString()).toBe(SEGUNDA_09H.toISOString());
+    expect(scheduleCronJob, "o envio não foi re-agendado para a abertura").toHaveBeenCalledTimes(1);
+  });
+
+  it("veto de CONTEÚDO (não de ritmo) continua recusando o passo — esperar não o consertaria", async () => {
+    chain.mockImplementation(async () => ({
+      status: "vetoed",
+      code: "mass_identical",
+      nextAllowedAt: SEGUNDA_09H,
+      trace: [],
+    }) as unknown as Record<string, unknown>);
+    const { deps, completeFollowupTurn } = depsComCallback();
+
+    await criarHandler(deps)(job(PAYLOAD_DE_FLUXO), fakePool(), { workerId: "w1" });
+
+    const entrada = (completeFollowupTurn.mock.calls[0] as unknown[])[1] as { result: { kind: string } };
+    expect(entrada.result.kind).toBe("skipped");
+    expect(scheduleCronJob).not.toHaveBeenCalled();
+  });
+
   it("controle positivo: com a janela ABERTA o mesmo caminho reporta 'sent'", async () => {
     // Sem isto, um handler que parasse de chamar o callback deixaria o caso
     // acima vermelho por morte do instrumento, e não por regressão do conserto.
