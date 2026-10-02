@@ -176,6 +176,7 @@ describe("hubSections", () => {
       "/app/prospecting",
       "/app/kanban",
       "/app/campaigns",
+      "/app/lancamentos",
       "/app/contacts",
       "/app/tasks",
       "/app/calls",

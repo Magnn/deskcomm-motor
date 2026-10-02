@@ -229,7 +229,7 @@ async function enviarUmDisparo(
 
   // Uma entrega por grupo. `ignoreDuplicates`: quem já tem desfecho NÃO volta a `pending`.
   const { error: erroDasEntregas } = await admin.from("group_launch_deliveries").upsert(
-    grupos.map((g) => ({ organization_id: org, broadcast_id: disparo.id, group_id: g.id })),
+    grupos.map((g) => ({ organization_id: org, broadcast_id: disparo.id, group_id: g.id, status: "pending" })),
     { onConflict: "broadcast_id,group_id", ignoreDuplicates: true },
   );
   if (erroDasEntregas) throw new Error(`criação das entregas falhou: ${erroDasEntregas.message}`);

@@ -819,6 +819,11 @@ const HOSTS_DECLARADOS: Record<string, EntradaDeHost> = {
       "sufixo do JID do WhatsApp. Aparece em `lib/waha/resolve-contact-whatsapp-id.ts` desde antes desta régua existir, num `endsWith` que distingue `@lid`, `@c.us` e `@s.whatsapp.net` — é o protocolo do WhatsApp falando, não endereço que o produto chama nem palavra de interface. Trocar pela marca do revendedor faz o CRM deixar de reconhecer o identificador que o próprio WhatsApp manda.",
   },
   // ── cobrança do nó "Pagamento"/"PIX" do fluxo: destino de chamada ─────────
+  "chat.whatsapp.com": {
+    categoria: "PLATAFORMA",
+    motivo:
+      "endereço do convite de grupo do WhatsApp (`lib/lancamentos/regras.ts`, `linkDoConvite`): é para onde o link único de um lançamento manda quem clicou. O código não chama o host — o celular da pessoa abre o WhatsApp no grupo. Trocar pelo domínio do revendedor levaria a um convite que não existe.",
+  },
   "api.asaas.com": {
     categoria: "FORNECEDOR",
     motivo:
@@ -1125,6 +1130,10 @@ describe("catraca de host de terceiro no código que embarca", () => {
     ).toEqual([
       "000000000000-xxxxxxxx.apps.googleusercontent.com",
       "aistudio.google.com",
+      // Decisão escrita: o convite de grupo do WhatsApp para onde o link único do
+      // lançamento redireciona (`linkDoConvite`). O produto não fala com esse
+      // host — quem abre é o celular de quem clicou, como o `wa.me` abaixo.
+      "chat.whatsapp.com",
       "console.anthropic.com",
       // Decisão escrita: é o painel de chaves do Jev, o mesmo caso dos outros
       // CONSOLE — o link "Onde pegar a chave" da tela de Credenciais.

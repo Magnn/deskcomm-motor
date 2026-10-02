@@ -77,6 +77,9 @@ const COLUNAS_DO_GRUPO =
 const PREFIXO_DE_RESERVA = "reserva:";
 export const grupoEhReserva = (g: Pick<GrupoDoLancamento, "wa_group_id">) => g.wa_group_id.startsWith(PREFIXO_DE_RESERVA);
 
+/** Depois de quanto tempo uma reserva sem grupo é considerada esquecida. Criar um grupo leva segundos. */
+const RESERVA_ESQUECIDA_MS = 5 * 60_000;
+
 /** De quanto em quanto tempo a contagem de um grupo é relida no caminho do link. */
 export const VALIDADE_DA_CONTAGEM_MS = 45_000;
 
@@ -389,6 +392,20 @@ export async function manterLancamento(
 ): Promise<{ atualizados: number; abriu: boolean }> {
   const sessao = await lerSessaoDeGrupos(admin, lancamento.organization_id, lancamento.channel_session_id);
   if (!sessao?.conectado) return { atualizados: 0, abriu: false };
+
+  // RESERVA ESQUECIDA: uma posição reservada cuja criação morreu no meio (o
+  // processo caiu entre reservar e o WhatsApp responder). Ela não atrapalha o
+  // link, mas ocupa um número na sequência para sempre. Passado o prazo em que
+  // uma criação de verdade já teria terminado, a reserva sai.
+  const { error: erroDaLimpeza } = await admin
+    .from("group_launch_groups")
+    .delete()
+    .eq("organization_id", lancamento.organization_id)
+    .eq("launch_id", lancamento.id)
+    .like("wa_group_id", `${PREFIXO_DE_RESERVA}%`)
+    .lt("created_at", new Date(Date.now() - RESERVA_ESQUECIDA_MS).toISOString());
+  if (erroDaLimpeza) logger.warn("[lançamentos] reservas esquecidas não foram limpas", { lancamento: lancamento.id, erro: erroDaLimpeza.message });
+
   let grupos = await listarGrupos(admin, lancamento.organization_id, lancamento.id);
   let atualizados = 0;
   for (const g of grupos) {
