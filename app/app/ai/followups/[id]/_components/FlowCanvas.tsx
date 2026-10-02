@@ -41,6 +41,7 @@ import {
 } from "@/lib/followup/graph-schema";
 import { rotuloDoRamo } from "@/lib/followup/rotulo-do-ramo";
 import { linhasDaMesmaSaida } from "@/lib/followup/uma-linha-por-saida";
+import { configDoInicioDaUrl } from "@/lib/followup/gatilho-do-inicio";
 import { toast } from "sonner";
 import { useFollowupFlow, type FollowupFlowDetailRow } from "@/hooks/followup/useFollowupFlow";
 import { useT } from "@/hooks/i18n/useT";
@@ -141,7 +142,9 @@ function FlowCanvasInner({ flowId, initialData }: Props) {
         position: { x: 160, y: 120 },
         data: {
           label: "Início do fluxo",
-          config: {},
+          // Fluxo recém-criado: a escolha do diálogo "Novo fluxo" chega pela URL e
+          // nasce AQUI, na config do nó — o dado que o cartão mostra e o motor lê.
+          config: configDoInicioDaUrl(new URLSearchParams(typeof window === "undefined" ? "" : window.location.search)),
         },
       };
       return { nodes: [triggerNode], edges: [] };
