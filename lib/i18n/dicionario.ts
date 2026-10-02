@@ -38,6 +38,9 @@ type Traducoes = Record<string, Partial<Record<Exclude<Idioma, "pt-BR">, string>
 
 export const DICIONARIO: Traducoes = {
 
+  // ── Dashboard de Vendas e Atendimento ─────────────────────────────────────
+  "Visão geral de vendas, atendimento, taxas de conversão e métricas da operação.": { es: "Visión general de ventas, atención, tasas de conversión y métricas de la operação." },
+
   // ── Voice Studio ───────────────────────────────────────────────────────────
   "Voice Studio": { es: "Voice Studio" },
   "Gerencie as vozes disponíveis, sintetize falas com IA e clone novas vozes.": { es: "Gestione las voces disponibles, sintetice voz con IA y clone nuevas voces." },

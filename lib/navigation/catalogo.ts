@@ -133,6 +133,14 @@ export const NAV_CATALOG = [
   },
   // ---- Atendimento — onde o operador passa o dia ----
   {
+    href: "/app/dashboard",
+    label: "Dashboard",
+    description: "Visão geral de vendas, atendimento, taxas de conversão e métricas da operação.",
+    icon: "Gauge",
+    group: "atendimento",
+    sidebar: true,
+  },
+  {
     href: "/app/inbox",
     label: "Inbox",
     description: "As conversas de WhatsApp, com você e a IA atendendo lado a lado.",
