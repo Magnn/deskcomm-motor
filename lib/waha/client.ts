@@ -602,6 +602,93 @@ export class WahaClient {
     return res.json();
   }
 
+  // ── GRUPOS (lançamentos — `lib/lancamentos/`) ───────────────────────────────
+  //
+  // A família de grupos leva a sessão no CAMINHO (`/api/{session}/groups…`), como a
+  // de presença. Os formatos abaixo foram conferidos numa instalação real (motor
+  // NOWEB): o grupo vem com `id` (`…@g.us`), `subject` e `size`. A leitura é
+  // tolerante de propósito — outro motor devolve o id dentro de `gid`/`JID` e a
+  // lista de participantes no lugar do `size`.
+
+  private cabecalhosJson(): Record<string, string> {
+    return { "X-Api-Key": this.apiKey, "Content-Type": "application/json" };
+  }
+
+  /**
+   * Cria um grupo. O WhatsApp NÃO cria grupo de uma pessoa só: `participantes`
+   * precisa de pelo menos um número (só dígitos, com DDI) além do próprio.
+   */
+  async createGroup(session: string, nome: string, participantes: string[]): Promise<{ id: string }> {
+    const res = await this.fetchComTeto(`${this.baseUrl}/api/${encodeURIComponent(session)}/groups`, {
+      method: "POST",
+      headers: this.cabecalhosJson(),
+      body: JSON.stringify({ name: nome, participants: participantes.map((p) => ({ id: `${p}@c.us` })) }),
+    }, TETO_DE_MIDIA_MS);
+    if (!res.ok) throw new Error(`waha_${res.status}`);
+    const id = idDoGrupo(await res.json().catch(() => null));
+    if (id === null) throw new Error("waha_grupo_sem_id");
+    return { id };
+  }
+
+  /** Quantas pessoas há no grupo agora, e o nome dele. */
+  async getGroupInfo(session: string, groupId: string): Promise<{ membros: number; nome: string | null }> {
+    const res = await this.fetchComTeto(
+      `${this.baseUrl}/api/${encodeURIComponent(session)}/groups/${encodeURIComponent(groupId)}`,
+      { method: "GET", headers: { "X-Api-Key": this.apiKey } },
+    );
+    if (!res.ok) throw new Error(`waha_${res.status}`);
+    const corpo = (await res.json().catch(() => null)) as Record<string, unknown> | null;
+    const membros =
+      typeof corpo?.size === "number"
+        ? corpo.size
+        : Array.isArray(corpo?.participants)
+          ? corpo.participants.length
+          : null;
+    if (membros === null) throw new Error("waha_grupo_sem_contagem");
+    const nome = typeof corpo?.subject === "string" ? corpo.subject : typeof corpo?.name === "string" ? corpo.name : null;
+    return { membros, nome };
+  }
+
+  /** O código (ou o link) de convite do grupo, como o WhatsApp o devolve. */
+  async getGroupInviteCode(session: string, groupId: string): Promise<string> {
+    const res = await this.fetchComTeto(
+      `${this.baseUrl}/api/${encodeURIComponent(session)}/groups/${encodeURIComponent(groupId)}/invite-code`,
+      { method: "GET", headers: { "X-Api-Key": this.apiKey } },
+    );
+    if (!res.ok) throw new Error(`waha_${res.status}`);
+    const texto = (await res.text()).trim();
+    try {
+      const corpo: unknown = JSON.parse(texto);
+      if (typeof corpo === "string") return corpo;
+      if (corpo && typeof corpo === "object") {
+        const o = corpo as Record<string, unknown>;
+        for (const chave of ["code", "inviteCode", "invite_code", "url", "link"]) {
+          if (typeof o[chave] === "string") return o[chave] as string;
+        }
+      }
+    } catch {
+      // não era JSON: o próprio texto é o código
+    }
+    return texto;
+  }
+
+  async setGroupDescription(session: string, groupId: string, descricao: string): Promise<void> {
+    const res = await this.fetchComTeto(
+      `${this.baseUrl}/api/${encodeURIComponent(session)}/groups/${encodeURIComponent(groupId)}/description`,
+      { method: "PUT", headers: this.cabecalhosJson(), body: JSON.stringify({ description: descricao }) },
+    );
+    if (!res.ok) throw new Error(`waha_${res.status}`);
+  }
+
+  /** `true` = só administrador manda mensagem no grupo (o "grupo de avisos" do lançamento). */
+  async setGroupAdminsOnly(session: string, groupId: string, somenteAdmins: boolean): Promise<void> {
+    const res = await this.fetchComTeto(
+      `${this.baseUrl}/api/${encodeURIComponent(session)}/groups/${encodeURIComponent(groupId)}/settings/security/messages-admin-only`,
+      { method: "PUT", headers: this.cabecalhosJson(), body: JSON.stringify({ adminsOnly: somenteAdmins }) },
+    );
+    if (!res.ok) throw new Error(`waha_${res.status}`);
+  }
+
   async sendMedia(
     session: string,
     chatId: string,
@@ -621,6 +708,25 @@ export class WahaClient {
     }
     return res.json();
   }
+}
+
+
+const FORMA_DO_ID_DE_GRUPO = /^[0-9-]{5,40}@g\.us$/;
+
+/** O id do grupo (`…@g.us`) na resposta de criação, de onde ele vier. `null` = a resposta não o traz. */
+export function idDoGrupo(corpo: unknown): string | null {
+  if (typeof corpo === "string") return FORMA_DO_ID_DE_GRUPO.test(corpo) ? corpo : null;
+  if (!corpo || typeof corpo !== "object") return null;
+  const o = corpo as Record<string, unknown>;
+  for (const chave of ["id", "JID", "jid", "gid"]) {
+    const v = o[chave];
+    if (typeof v === "string" && FORMA_DO_ID_DE_GRUPO.test(v)) return v;
+    if (v && typeof v === "object") {
+      const serial = (v as Record<string, unknown>)._serialized;
+      if (typeof serial === "string" && FORMA_DO_ID_DE_GRUPO.test(serial)) return serial;
+    }
+  }
+  return null;
 }
 
 /**

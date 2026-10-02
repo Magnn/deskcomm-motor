@@ -984,6 +984,207 @@ export type Database = {
         }
         Relationships: []
       }
+      group_launch_broadcasts: {
+        Row: {
+          claimed_until: string | null
+          created_at: string
+          created_by: string | null
+          finished_at: string | null
+          id: string
+          items: Json
+          launch_id: string
+          organization_id: string
+          scheduled_at: string
+          started_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          claimed_until?: string | null
+          created_at?: string
+          created_by?: string | null
+          finished_at?: string | null
+          id?: string
+          items: Json
+          launch_id: string
+          organization_id: string
+          scheduled_at: string
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          claimed_until?: string | null
+          created_at?: string
+          created_by?: string | null
+          finished_at?: string | null
+          id?: string
+          items?: Json
+          launch_id?: string
+          organization_id?: string
+          scheduled_at?: string
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      group_launch_clicks: {
+        Row: {
+          created_at: string
+          group_id: string | null
+          id: string
+          launch_id: string
+          organization_id: string
+        }
+        Insert: {
+          created_at?: string
+          group_id?: string | null
+          id?: string
+          launch_id: string
+          organization_id: string
+        }
+        Update: {
+          created_at?: string
+          group_id?: string | null
+          id?: string
+          launch_id?: string
+          organization_id?: string
+        }
+        Relationships: []
+      }
+      group_launch_deliveries: {
+        Row: {
+          broadcast_id: string
+          created_at: string
+          error: string | null
+          group_id: string
+          id: string
+          organization_id: string
+          sent_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          broadcast_id: string
+          created_at?: string
+          error?: string | null
+          group_id: string
+          id?: string
+          organization_id: string
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          broadcast_id?: string
+          created_at?: string
+          error?: string | null
+          group_id?: string
+          id?: string
+          organization_id?: string
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      group_launch_groups: {
+        Row: {
+          created_at: string
+          id: string
+          invite_url: string | null
+          launch_id: string
+          members_checked_at: string | null
+          members_count: number
+          name: string
+          organization_id: string
+          position: number
+          status: string
+          updated_at: string
+          wa_group_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          invite_url?: string | null
+          launch_id: string
+          members_checked_at?: string | null
+          members_count?: number
+          name: string
+          organization_id: string
+          position: number
+          status?: string
+          updated_at?: string
+          wa_group_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          invite_url?: string | null
+          launch_id?: string
+          members_checked_at?: string | null
+          members_count?: number
+          name?: string
+          organization_id?: string
+          position?: number
+          status?: string
+          updated_at?: string
+          wa_group_id?: string
+        }
+        Relationships: []
+      }
+      group_launches: {
+        Row: {
+          admins_only: boolean
+          channel_session_id: string
+          created_at: string
+          created_by: string | null
+          group_capacity: number
+          group_description: string | null
+          group_name_template: string
+          id: string
+          name: string
+          organization_id: string
+          seed_participant: string
+          slug: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          admins_only?: boolean
+          channel_session_id: string
+          created_at?: string
+          created_by?: string | null
+          group_capacity?: number
+          group_description?: string | null
+          group_name_template: string
+          id?: string
+          name: string
+          organization_id: string
+          seed_participant: string
+          slug: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          admins_only?: boolean
+          channel_session_id?: string
+          created_at?: string
+          created_by?: string | null
+          group_capacity?: number
+          group_description?: string | null
+          group_name_template?: string
+          id?: string
+          name?: string
+          organization_id?: string
+          seed_participant?: string
+          slug?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       payment_gateway_connections: {
         Row: {
           api_key_encrypted: string | null

@@ -223,6 +223,19 @@ export const NAV_CATALOG = [
     // campanha é montada de vez em quando, não aberta todo dia.
   },
   {
+    // O lançamento mora ao lado da campanha: as duas falam com muita gente de uma
+    // vez. A diferença é o destino — a campanha fala com cada contato, o
+    // lançamento fala com GRUPOS, e dá um link único que distribui quem chega.
+    href: "/app/lancamentos",
+    label: "Lançamentos",
+    description: "Grupos de WhatsApp atrás de um link só, com disparo para todos de uma vez.",
+    icon: "UsersThree",
+    group: "crm",
+    section: "O dia a dia da venda",
+    // SÓ NO HUB, pelo mesmo motivo da campanha: é montado por lançamento, e o
+    // sidebar do CRM já está no limite da dobra.
+  },
+  {
     href: "/app/contacts",
     label: "Contatos",
     description: "As pessoas do outro lado da conversa e seu histórico.",
