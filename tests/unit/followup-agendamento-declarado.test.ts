@@ -138,6 +138,14 @@ const ESCRITORES: Record<string, { agenda: "agora" | "futuro" | "nenhum"; nota: 
     agenda: "nenhum",
     nota: "traduz o campo para a timeline do dossiê; não escreve.",
   },
+  "seguir-apos-o-turno.ts": {
+    agenda: "nenhum",
+    nota:
+      "só LÊ `next_eval_at` para decidir se o passo seguinte já venceu (e então o dá na hora, sem esperar o " +
+      "tick) ou se é uma espera configurada (e então deixa para o relógio). Não escreve a coluna: quem agenda " +
+      "é o `avancarEnrollmentAtivo` de engine.ts, já declarado. Compara com o relógio do PROCESSO de propósito — " +
+      "o instante foi gravado pelo mesmo processo, um instante antes, em turn-bridge.ts.",
+  },
   "simulate.ts": {
     agenda: "nenhum",
     nota:
