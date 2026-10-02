@@ -810,7 +810,7 @@ describe('validarItensDeConteudo — motor de envio por tipo de item', () => {
 });
 
 describe('validateFlowForPublish — nós de paridade AcassIA', () => {
-  it('publica com sucesso fluxo contendo whatsapp_template, pix_payment, payment_gateway e meta_pixel', () => {
+  it('publica com sucesso fluxo contendo whatsapp_template, pix_payment, payment_gateway, meta_pixel e voice_studio', () => {
     const g: FlowGraph = {
       nodes: [
         trigger('t'),
@@ -872,6 +872,75 @@ describe('validateFlowForPublish — nós de paridade AcassIA', () => {
 
     const r = validateFlowForPublish(g);
     expect(r.ok).toBe(true);
+  });
+
+  it('Cobrança: só BRL, sem valor aberto, com valor numérico maior que zero', () => {
+    const gw = (over: Record<string, unknown>): FlowNode =>
+      ({ id: 'x', type: 'payment_gateway', label: 'Cobrança', position: pos, config: { currency: 'BRL', amount: '100,00', customer_name: 'a', customer_phone: 'b', ...over } }) as FlowNode;
+    const so = (n: FlowNode) => {
+      const r = validateFlowForPublish({ nodes: [trigger('t'), n, end('f')], edges: [edge('t', n.id, always()), edge(n.id, 'f', always())] });
+      return r.ok ? [] : r.errors.map((e) => e.code);
+    };
+    expect(so(gw({}))).toEqual([]);
+    expect(so(gw({ currency: 'USD' }))).toEqual(['no_incompleto']);
+    expect(so(gw({ open_amount: true }))).toEqual(['no_incompleto']);
+    expect(so(gw({ amount: '' }))).toEqual(['no_incompleto']);
+    expect(so(gw({ amount: '0,00' }))).toEqual(['no_incompleto']);
+    expect(so(gw({ amount: '{valor_cobranca}' }))).toEqual(['no_incompleto']);
+  });
+
+  it('Cobrança sem conta de cobrança conectada e ligada é recusada; com ela, ou sem a leitura, publica', () => {
+    const n = { id: 'x', type: 'payment_gateway', label: 'Cobrança', position: pos, config: { currency: 'BRL', amount: '100,00', customer_name: 'a', customer_phone: 'b' } } as FlowNode;
+    const g: FlowGraph = { nodes: [trigger('t'), n, end('f')], edges: [edge('t', 'x', always()), edge('x', 'f', always())] };
+    const r = validateFlowForPublish(g, { cobranca: { pronta: false } });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.errors[0]).toMatchObject({ node_id: 'x', code: 'no_incompleto', message: expect.stringContaining('Configurações › Pagamentos') });
+    expect(validateFlowForPublish(g, { cobranca: { pronta: true } }).ok).toBe(true);
+    // Sem a leitura do banco a conferência não roda — nunca adivinha.
+    expect(validateFlowForPublish(g).ok).toBe(true);
+  });
+
+  const so = (n: FlowNode) => {
+    const g: FlowGraph = {
+      nodes: [trigger('t'), n, end('f')],
+      edges: [edge('t', n.id, always()), edge(n.id, 'f', always())],
+    };
+    const r = validateFlowForPublish(g);
+    return r.ok ? [] : r.errors.map((e) => e.code);
+  };
+  const pix = (over: Record<string, unknown> = {}): FlowNode =>
+    ({ id: 'x', type: 'pix_payment', label: 'PIX', position: pos, config: { key_type: 'cpf', pix_key: '123', ...over } }) as FlowNode;
+  const voz = (over: Record<string, unknown> = {}): FlowNode =>
+    ({ id: 'x', type: 'voice_studio', label: 'Voz', position: pos, config: { text: 'Oi', ...over } }) as FlowNode;
+  const pixel = (over: Record<string, unknown> = {}): FlowNode =>
+    ({ id: 'x', type: 'meta_pixel', label: 'Pixel', position: pos, config: { event_type: 'Compra', ...over } }) as FlowNode;
+
+  it('Template sem modelo escolhido é recusado', () => {
+    const tpl = (name: string): FlowNode =>
+      ({ id: 'x', type: 'whatsapp_template', label: 'Modelo', position: pos, config: { template_name: name } }) as FlowNode;
+    expect(so(tpl(''))).toEqual(['no_incompleto']);
+    expect(so(tpl('boas_vindas'))).toEqual([]);
+  });
+
+  it('PIX sem chave é recusado — não publica um passo que não tem o que enviar', () => {
+    expect(so(pix({ pix_key: '  ' }))).toEqual(['no_incompleto']);
+    expect(so(pix())).toEqual([]);
+  });
+
+  it('PIX com imagem do cartão é recusado: o campo não é enviado e não finge ser', () => {
+    expect(so(pix({ card_image_url: 'https://x/y.png' }))).toEqual(['no_incompleto']);
+  });
+
+  it('Voice Studio sem texto é recusado', () => {
+    expect(so(voz({ text: '   ' }))).toEqual(['no_incompleto']);
+    expect(so(voz())).toEqual([]);
+  });
+
+  it('Pixel com evento que a Meta não reconhece é recusado; "Compra" e os nomes da lista passam', () => {
+    expect(so(pixel({ event_type: 'Comprou' }))).toEqual(['no_incompleto']);
+    for (const ok of ['Compra', 'Purchase', 'Lead', 'InitiateCheckout', 'AddToCart', 'ViewContent', 'Contact', 'CustomizeProduct']) {
+      expect(so(pixel({ event_type: ok })), ok).toEqual([]);
+    }
   });
 });
 

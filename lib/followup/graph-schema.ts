@@ -785,6 +785,10 @@ export type PaymentGatewayConfig = z.infer<typeof paymentGatewayConfigSchema>;
 /** Template WhatsApp (Meta) (AcassIA parity) */
 export const whatsappTemplateConfigSchema = z.strictObject({
   template_name: z.string().max(200).default(''),
+  /** Idioma do modelo escolhido (o nome se repete por idioma). Ausente = pt_BR. */
+  language: z.string().max(20).optional(),
+  /** Valor de cada campo variável, pela chave do slot (`slotKey`). Aceita {primeiro_nome} etc. */
+  values: z.record(z.string(), z.string().max(1000)).optional(),
   timeout: z.number().int().min(1).max(10080).default(60),
   timeout_unit: z.enum(['Minutos', 'Horas', 'Dias']).default('Minutos'),
 });
@@ -808,8 +812,10 @@ export const voiceStudioConfigSchema = z.strictObject({
   style: z.number().min(0).max(1).default(0.5), // Sotaque
   speed: z.number().min(0.5).max(2.0).default(1.0), // Velocidade
   send_as_voice_note: z.boolean().default(true), // Enviar como áudio gravado?
-  voice_id: z.string().default('julieta'),
-  voice_name: z.string().default('Julieta'),
+  /** Provedor que sintetiza. Ausente = OpenAI (o que os fluxos salvos antes deste campo sempre usaram). */
+  provider: z.enum(['openai', 'elevenlabs']).optional(),
+  voice_id: z.string().default('coral'),
+  voice_name: z.string().default('Coral'),
 });
 export type VoiceStudioConfig = z.infer<typeof voiceStudioConfigSchema>;
 

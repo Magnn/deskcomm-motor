@@ -1,3 +1,5 @@
+import { valorEmCentavos } from '@/lib/moeda/valor-em-centavos';
+import { eventoDoNo } from '@/lib/plataformas-de-anuncio/evento-do-no';
 import type { ConteudoItemType, FlowGraph, FlowEdge, FlowNode, NodeType } from './graph-schema';
 import type { FollowupFlowSurface } from './api-schemas';
 import type { AgenteCitado } from './agentes-citados';
@@ -49,6 +51,7 @@ export const PUBLISH_ERROR_CODES = [
   'saida_com_mais_de_uma_linha',
   'inicio_com_origem_em_construcao',
   'inicio_sem_palavra_chave',
+  'no_incompleto',
 ] as const;
 export type PublishErrorCode = (typeof PUBLISH_ERROR_CODES)[number];
 
@@ -75,6 +78,8 @@ export interface ContextoDoPublish {
   surface?: FollowupFlowSurface;
   /** Os agentes citados pelos nós "Agente de IA", por `agent_id` (`carregaAgentesCitados`). Ausente, a conferência de existência não roda. */
   agentes?: ReadonlyMap<string, AgenteCitado>;
+  /** A conta de cobrança da organização está conectada e ligada? Ausente, a conferência não roda — nunca adivinha. */
+  cobranca?: { pronta: boolean };
 }
 
 /**
@@ -85,11 +90,11 @@ export interface ContextoDoPublish {
  */
 export const NOS_EM_CONSTRUCAO: readonly NodeType[] = ['agent', 'google_sheets', 'execute_code'];
 
-/** O nome de cada nó em construção, como aparece na recusa do publish. */
-const NOME_DO_NO_EM_CONSTRUCAO: Partial<Record<NodeType, string>> = {
-  agent: 'do Agente de IA',
-  google_sheets: 'do Google Sheets',
-  execute_code: 'de execução de código',
+/** Por que cada caixa em construção não roda — o erro que a pessoa lê no editor, com o caminho que funciona. */
+const MOTIVO_EM_CONSTRUCAO: Partial<Record<NodeType, string>> = {
+  agent: 'o motor do Agente de IA está em construção',
+  google_sheets: 'o motor do Google Sheets está em construção',
+  execute_code: 'o motor de execução de código está em construção',
 };
 
 /**
@@ -179,7 +184,7 @@ function validarSuperficie(graph: FlowGraph, surface: FollowupFlowSurface, error
       errors.push({
         node_id: n.id,
         code: 'no_em_construcao',
-        message: `A caixa "${n.label}" ainda não roda: o motor ${NOME_DO_NO_EM_CONSTRUCAO[n.type] ?? 'deste tipo de caixa'} está em construção e ela não pode ser publicada.`,
+        message: `A caixa "${n.label}" ainda não roda: ${MOTIVO_EM_CONSTRUCAO[n.type] ?? 'o motor desta caixa está em construção'}. Ela não pode ser publicada.`,
       });
       continue;
     }
@@ -571,6 +576,41 @@ function validarItensDeConteudo(graph: FlowGraph, errors: PublishValidationError
 }
 
 /**
+ * Os nós que ENVIAM algo (PIX, Voice Studio) ou REPORTAM algo (Pixel) precisam do mínimo para fazê-lo.
+ * Sem isto o passo publica "configurado" e o motor passa por ele sem efeito nenhum.
+ */
+function validarNosDeEnvio(graph: FlowGraph, errors: PublishValidationError[], contexto: ContextoDoPublish = {}): void {
+  for (const node of [...graph.nodes].sort(byId)) {
+    const incompleto = (message: string) =>
+      errors.push({ node_id: node.id, code: 'no_incompleto', message: `A caixa "${node.label}": ${message}` });
+    if (node.type === 'pix_payment') {
+      if (node.config.pix_key.trim() === '') incompleto('informe a chave PIX que a pessoa vai copiar.');
+      if (node.config.card_image_url?.trim()) {
+        incompleto('a imagem do cartão ainda não é enviada — apague o campo, o PIX sai como texto (mensagem, valor e chave).');
+      }
+    } else if (node.type === 'payment_gateway') {
+      if (contexto.cobranca?.pronta === false) {
+        incompleto('conecte e ligue a conta de cobrança (Asaas) em Configurações › Pagamentos antes de publicar.');
+      }
+      if (node.config.currency.trim().toUpperCase() !== 'BRL') incompleto('o provedor de cobrança só cobra em reais (BRL).');
+      if (node.config.open_amount) {
+        incompleto('valor aberto ainda não é suportado — informe o valor da cobrança.');
+      } else if (valorEmCentavos(node.config.amount) === null) {
+        incompleto('informe um valor maior que zero (ex.: 197,00) — variáveis não são aceitas no valor.');
+      }
+    } else if (node.type === 'whatsapp_template') {
+      if (node.config.template_name.trim() === '') incompleto('escolha o modelo aprovado que será enviado.');
+    } else if (node.type === 'voice_studio') {
+      if (node.config.text.trim() === '') incompleto('escreva o texto que a voz vai falar.');
+    } else if (node.type === 'meta_pixel') {
+      if (eventoDoNo(node.config.event_type) === null) {
+        incompleto(`o evento "${node.config.event_type}" não é um evento que a Meta reconhece — escolha um da lista.`);
+      }
+    }
+  }
+}
+
+/**
  * O nó "Agente de IA": escolheu um agente, o agente existe NESTA organização e conduz uma conversa, e as três
  * saídas (cumpriu / passou do limite / silêncio) levam a algum lugar. A saída de escape (`else`) NÃO é cobrada: as
  * três saídas esgotam o que o motor produz, e exigir uma quarta ligação seria exigir um caminho que nunca corre.
@@ -734,6 +774,7 @@ export function validateFlowForPublish(
 
   validarAgentes(graph, contexto, errors);
   validarItensDeConteudo(graph, errors);
+  validarNosDeEnvio(graph, errors, contexto);
 
   // A carência mínima de quem espera resposta. (A cobertura das saídas saiu: ver o aviso acima.)
   for (const node of [...nodes].sort(byId)) {

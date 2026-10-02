@@ -153,6 +153,11 @@ async function enviar(
     return { tipo: "permanente", detalhe: `renovação de token falhou: ${renovacao.detalhe}` };
   }
 
+  // O Google só recebe venda, e venda tem valor: um evento sem valor é coisa de nó Pixel da Meta.
+  if (conversao.valorCentavos === null) {
+    return { tipo: "permanente", detalhe: "o Google Ads só recebe conversão com valor" };
+  }
+
   const customerId = soDigitos(google.customerId);
   const corpo = {
     conversions: [

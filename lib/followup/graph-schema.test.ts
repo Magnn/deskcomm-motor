@@ -2217,7 +2217,7 @@ describe('graph-schema', () => {
         expect(parsed.config.style).toBe(0.5);
         expect(parsed.config.speed).toBe(1.0);
         expect(parsed.config.send_as_voice_note).toBe(true);
-        expect(parsed.config.voice_id).toBe('julieta');
+        expect(parsed.config.voice_id).toBe('coral');
       }
     });
 

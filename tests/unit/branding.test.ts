@@ -818,6 +818,17 @@ const HOSTS_DECLARADOS: Record<string, EntradaDeHost> = {
     motivo:
       "sufixo do JID do WhatsApp. Aparece em `lib/waha/resolve-contact-whatsapp-id.ts` desde antes desta régua existir, num `endsWith` que distingue `@lid`, `@c.us` e `@s.whatsapp.net` — é o protocolo do WhatsApp falando, não endereço que o produto chama nem palavra de interface. Trocar pela marca do revendedor faz o CRM deixar de reconhecer o identificador que o próprio WhatsApp manda.",
   },
+  // ── cobrança do nó "Pagamento"/"PIX" do fluxo: destino de chamada ─────────
+  "api.asaas.com": {
+    categoria: "FORNECEDOR",
+    motivo:
+      "endpoint de produção da API da Asaas (`lib/pagamentos/asaas.ts`): é para onde vai o pedido de cobrança que a caixa de pagamento do fluxo cria, com a chave da PRÓPRIA organização. É o destino do request — trocar pelo domínio do revendedor faria a cobrança não nascer.",
+  },
+  "api-sandbox.asaas.com": {
+    categoria: "FORNECEDOR",
+    motivo:
+      "endpoint de TESTE da mesma API da Asaas (`lib/pagamentos/asaas.ts`), usado quando a organização conecta uma chave de sandbox em Configurações › Pagamentos. Mesma natureza do host de produção: destino do request, não texto de tela.",
+  },
   // ── destino de chamada: o código fala com eles, sempre foi assim ──────────
   "api.openai.com": {
     categoria: "FORNECEDOR",
