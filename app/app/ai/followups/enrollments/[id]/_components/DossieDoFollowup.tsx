@@ -5,6 +5,7 @@ import { useLocaleDeData, useTagDeIdioma } from "@/hooks/i18n/useLocaleDeData";
 import type { Locale } from "date-fns";
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { format, formatDistanceToNowStrict } from "date-fns";
 
 import { Badge } from "@/components/ui/badge";
@@ -29,7 +30,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { CaretLeft, Clock, Pause, Play, SkipForward, Trash, Warning } from "@/lib/ui/icons";
+import { ArrowsClockwise, CaretLeft, Clock, Pause, Play, SkipForward, Trash, Warning } from "@/lib/ui/icons";
 import { cn } from "@/lib/utils";
 import {
   descreveEvento,
@@ -39,7 +40,12 @@ import {
   type EventoDeEnrollment,
   type NoDoDossie,
 } from "@/lib/followup/eventos-legiveis";
-import { useFollowupEnrollment, useIntervirNoFollowup } from "@/hooks/followup/useFollowupEnrollment";
+import {
+  followupEncerrado,
+  useFollowupEnrollment,
+  useIntervirNoFollowup,
+  useRecomecarFollowup,
+} from "@/hooks/followup/useFollowupEnrollment";
 import { useCancelFollowupEnrollment } from "@/hooks/followup/useFollowupQueue";
 import { useT } from "@/hooks/i18n/useT";
 
@@ -161,6 +167,8 @@ export function DossieDoFollowup({ id, canWrite }: Props) {
   const { data, isLoading, isError } = useFollowupEnrollment(id);
   const intervir = useIntervirNoFollowup();
   const cancelar = useCancelFollowupEnrollment();
+  const recomecar = useRecomecarFollowup();
+  const router = useRouter();
   const [adiando, setAdiando] = useState(false);
   const [quando, setQuando] = useState("");
   const [pulando, setPulando] = useState(false);
@@ -192,6 +200,9 @@ export function DossieDoFollowup({ id, canWrite }: Props) {
   const podeRetomar = canWrite && data.status === "paused_manual";
   const podeMexerNoRelogio = canWrite && PAUSAVEL.has(data.status);
   const podeCancelar = canWrite && CANCELAVEL.has(data.status);
+  // Só para follow-up que ACABOU e cujo fluxo ainda existe: com o follow-up vivo
+  // o banco recusa uma segunda inscrição, e sem fluxo não há onde recomeçar.
+  const podeRecomecar = canWrite && followupEncerrado(data) && data.flow.name !== null;
 
   const pular = (edgeId?: string) => {
     intervir.mutate({ id, acao: "skip", body: edgeId ? { edge_id: edgeId } : {} });
@@ -348,6 +359,23 @@ export function DossieDoFollowup({ id, canWrite }: Props) {
             decidir o que fazer com este follow-up não deve ter de voltar uma tela
             para escolher a única saída definitiva. É a mesma rota que a fila usa.
           */}
+          {podeRecomecar && (
+            <Button
+              variant="outline"
+              size="sm"
+              data-testid="dossie-recomecar"
+              disabled={recomecar.isPending}
+              onClick={() =>
+                recomecar.mutate(
+                  { pointerId: data.flow.pointer_id, contactId: data.contact.id },
+                  { onSuccess: (novo) => router.push(`/app/ai/followups/enrollments/${novo.id}`) },
+                )
+              }
+            >
+              <ArrowsClockwise size={14} aria-hidden className="mr-1" />{" "}
+              {recomecar.isPending ? t("Recomeçando…") : t("Recomeçar o fluxo do início")}
+            </Button>
+          )}
           {podeCancelar && (
             <Button
               variant="ghost"
