@@ -15,11 +15,7 @@ import {
   DownloadSimple,
   Clock,
   ChatCircleText,
-  UserCheck,
-  Funnel,
-  TrendUp,
   X,
-  CreditCard,
   WhatsappLogo,
   Info,
 } from "@phosphor-icons/react";

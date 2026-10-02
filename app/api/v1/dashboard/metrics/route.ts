@@ -51,7 +51,7 @@ function extrairUfDoTelefone(telefone?: string | null): string {
 
 function calcularIntervalo(period: string, now: Date): { start: Date; end: Date; prevStart: Date; prevEnd: Date } {
   const end = new Date(now);
-  let start = new Date(now);
+  const start = new Date(now);
 
   if (period === "today") {
     start.setHours(0, 0, 0, 0);
@@ -100,8 +100,8 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const tab = searchParams.get("tab") || "vendas";
     const period = searchParams.get("period") || "today";
-    const channelSessionId = searchParams.get("channelSessionId") || null;
-    const productId = searchParams.get("productId") || null;
+    const _channelSessionId = searchParams.get("channelSessionId") || null;
+    const _productId = searchParams.get("productId") || null;
 
     const now = new Date();
     const { start, end, prevStart, prevEnd } = calcularIntervalo(period, now);
@@ -137,7 +137,7 @@ export async function GET(req: NextRequest) {
       ]);
 
       // 2. Vendas e Faturamento no período
-      let salesQuery = admin
+      const salesQuery = admin
         .from("sales")
         .select("id, number, contact_id, status, total_cents, created_at, attendant_user_id, notes")
         .eq("organization_id", orgId)
@@ -145,7 +145,7 @@ export async function GET(req: NextRequest) {
         .lte("created_at", end.toISOString())
         .neq("status", "cancelled");
 
-      let prevSalesQuery = admin
+      const prevSalesQuery = admin
         .from("sales")
         .select("id, total_cents")
         .eq("organization_id", orgId)
@@ -215,7 +215,7 @@ export async function GET(req: NextRequest) {
 
       // Carregar dados de contatos das vendas para enriquecer a tabela e o mapa de UF
       const contactIds = Array.from(new Set(sales.map((s) => s.contact_id).filter(Boolean))) as string[];
-      let contactsMap = new Map<string, { name: string | null; phone: string | null; channelSessionId: string | null }>();
+      const contactsMap = new Map<string, { name: string | null; phone: string | null; channelSessionId: string | null }>();
 
       if (contactIds.length > 0) {
         const { data: contactsData } = await admin
