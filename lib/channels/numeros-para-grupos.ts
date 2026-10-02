@@ -9,6 +9,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { CHANNEL_PROVIDER_WAHA } from "./capabilities";
+import { nomeDoCanal } from "./estado";
 
 export interface NumeroParaGrupos {
   id: string;
@@ -49,7 +50,7 @@ export async function listarNumerosParaGrupos(db: SupabaseClient, organizationId
     .filter((l) => l.waha_session_name)
     .map((l) => ({
       id: l.id,
-      nome: l.display_name?.trim() || l.phone_number || "Número sem nome",
+      nome: nomeDoCanal(l),
       telefone: l.phone_number,
       conectado: l.status === "WORKING",
     }));

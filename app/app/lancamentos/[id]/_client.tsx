@@ -22,6 +22,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useTagDeIdioma } from "@/hooks/i18n/useLocaleDeData";
 import { useT } from "@/hooks/i18n/useT";
 import { apiClient } from "@/lib/api/client";
+import { copyToClipboard } from "@/lib/clipboard";
 import type { DetalheDoLancamento as Detalhe, DisparoDoLancamento } from "@/lib/lancamentos/consultas";
 import { MAXIMO_DE_ITENS_DO_DISPARO, type ItemDoDisparo } from "@/lib/lancamentos/schemas";
 import { ArrowLeft, Copy, PaperPlaneTilt, Pause, Play, Plus, Trash, UploadSimple } from "@/lib/ui/icons";
@@ -45,11 +46,9 @@ const ROTULO_DO_ITEM: Record<ItemDoDisparo["type"], string> = {
   delay: "Pausa",
 };
 
+/** Copia e avisa. Se o navegador recusar, mostra o próprio texto para a pessoa copiar à mão. */
 function copiar(texto: string, aviso: string) {
-  void navigator.clipboard.writeText(texto).then(
-    () => toast.success(aviso),
-    () => toast.error(texto),
-  );
+  void copyToClipboard(texto).then((copiou) => (copiou ? toast.success(aviso) : toast.error(texto)));
 }
 
 export function DetalheDoLancamento({ id }: { id: string }) {
