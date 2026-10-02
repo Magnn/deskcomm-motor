@@ -178,18 +178,18 @@ describe("a organização não consegue se trancar do lado de fora", () => {
   });
 });
 
-/** Itens do menu lateral hoje (15 do issue #1341 + Voice Studio). */
-const TETO_DO_MENU = 16;
+/** Itens do menu lateral hoje (15 do issue #1341 + Voice Studio + Dashboard). */
+const TETO_DO_MENU = 17;
 
 describe("medição da folga (pergunta de aceite da issue #1341)", () => {
   /**
    * Baseline: a configuração de HOJE — nenhuma escolha, nem da empresa nem do
    * vínculo. O issue publicou 15 itens (atendimento 4, CRM 3, IA 3, canais 2,
-   * análise 3); o Voice Studio entrou no menu por decisão do dono (o menu rola
-   * quando passa da dobra), então hoje são 16 — IA 4. Medido aqui pelo módulo
-   * que alimenta o menu.
+   * análise 3); o Voice Studio e o Dashboard entraram no menu por decisão do produto
+   * (o menu rola quando passa da dobra), então hoje são 17 — atendimento 5, IA 4.
+   * Medido aqui pelo módulo que alimenta o menu.
    */
-  it("hoje: 16 itens no menu lateral (o menu rola além da dobra)", () => {
+  it("hoje: 17 itens no menu lateral (o menu rola além da dobra)", () => {
     expect(itensNoMenuLateral(INTERFACE_COMPLETA)).toBe(TETO_DO_MENU);
     // `undefined` é o caminho de quem não tem escolha nenhuma gravada
     expect(itensNoMenuLateral(undefined)).toBe(TETO_DO_MENU);
@@ -200,22 +200,22 @@ describe("medição da folga (pergunta de aceite da issue #1341)", () => {
    * A escolha da empresa é interseção, então o menu só ENCOLHE — a mudança não
    * tem como empurrar o instrumento de tela para o vermelho.
    */
-  it("configuração COMPLETA (ninguém escolheu): 16 itens, folga 0 — igual a hoje", () => {
+  it("configuração COMPLETA (ninguém escolheu): 17 itens, folga 0 — igual a hoje", () => {
     expect(itensNoMenuLateral(combinarInterfaces(completa, completa))).toBe(TETO_DO_MENU);
   });
 
-  it("configuração SIMPLIFICADA (empresa escolhe o preset): 6 itens, folga 10", () => {
+  it("configuração SIMPLIFICADA (empresa escolhe o preset): 7 itens, folga 10", () => {
     const itens = itensNoMenuLateral(combinarInterfaces(simplificada, completa));
-    expect(itens).toBe(6);
+    expect(itens).toBe(7);
     expect(TETO_DO_MENU - itens).toBe(10);
   });
 
-  it("configuração MÍNIMA (empresa escolhe 1 porta): 1 item, folga 15", () => {
+  it("configuração MÍNIMA (empresa escolhe 1 porta): 1 item, folga 16", () => {
     const minima = combinarInterfaces({ preset: "completa", destinos: ["/app/inbox"] }, completa);
     expect(interfaceTemDestino(minima, "admin")).toBe(true); // a guarda exige ≥1 porta
     const itens = itensNoMenuLateral(minima);
     expect(itens).toBe(1);
-    expect(TETO_DO_MENU - itens).toBe(15);
+    expect(TETO_DO_MENU - itens).toBe(16);
   });
 
   it("nenhuma escolha da empresa pode AUMENTAR o menu (é interseção, não soma)", () => {

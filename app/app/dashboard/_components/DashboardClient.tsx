@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useT } from "@/hooks/i18n/useT";
+import { useTagDeIdioma } from "@/hooks/i18n/useLocaleDeData";
 import {
   Users,
   CurrencyDollar,
@@ -120,6 +121,7 @@ interface DashboardData {
 
 export function DashboardClient({ orgName }: { orgName: string }) {
   const t = useT();
+  const tagDoIdioma = useTagDeIdioma();
   const [activeTab, setActiveTab] = useState<"vendas" | "atendimento">("vendas");
   const [period, setPeriod] = useState<string>("today");
   const [selectedChannel, setSelectedChannel] = useState<string>("all");
@@ -312,7 +314,7 @@ export function DashboardClient({ orgName }: { orgName: string }) {
           <select
             value={period}
             onChange={(e) => setPeriod(e.target.value)}
-            className="text-xs font-medium bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl px-3 py-2 text-slate-800 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-purple-500"
+            className="text-xs font-medium bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl px-3 py-2 text-slate-800 dark:text-zinc-200 focus:outline-hidden focus:ring-2 focus:ring-purple-500"
           >
             <option value="today">{t("Hoje")}</option>
             <option value="yesterday">{t("Ontem")}</option>
@@ -326,7 +328,7 @@ export function DashboardClient({ orgName }: { orgName: string }) {
           <select
             value={selectedChannel}
             onChange={(e) => setSelectedChannel(e.target.value)}
-            className="text-xs font-medium bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl px-3 py-2 text-slate-800 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-purple-500"
+            className="text-xs font-medium bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl px-3 py-2 text-slate-800 dark:text-zinc-200 focus:outline-hidden focus:ring-2 focus:ring-purple-500"
           >
             <option value="all">{t("Todas as conexões")}</option>
             {data?.conexoes?.map((c) => (
@@ -821,7 +823,7 @@ export function DashboardClient({ orgName }: { orgName: string }) {
                             {formatBRL(v.valor)}
                           </td>
                           <td className="py-2.5 px-3 text-slate-400 text-[11px]">
-                            {new Date(v.data).toLocaleDateString("pt-BR", {
+                            {new Date(v.data).toLocaleDateString(tagDoIdioma, {
                               day: "2-digit",
                               month: "2-digit",
                               hour: "2-digit",
@@ -1108,7 +1110,7 @@ export function DashboardClient({ orgName }: { orgName: string }) {
                   placeholder="Ex: Livro Segredos da Noiva 2.0"
                   value={vendaForm.productName}
                   onChange={(e) => setVendaForm({ ...vendaForm, productName: e.target.value })}
-                  className="w-full text-xs bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  className="w-full text-xs bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-purple-500"
                 />
               </div>
 
@@ -1122,7 +1124,7 @@ export function DashboardClient({ orgName }: { orgName: string }) {
                   placeholder="Ex: 10,00"
                   value={vendaForm.amount}
                   onChange={(e) => setVendaForm({ ...vendaForm, amount: e.target.value })}
-                  className="w-full text-xs bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  className="w-full text-xs bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-purple-500"
                 />
               </div>
 
@@ -1135,7 +1137,7 @@ export function DashboardClient({ orgName }: { orgName: string }) {
                   rows={2}
                   value={vendaForm.notes}
                   onChange={(e) => setVendaForm({ ...vendaForm, notes: e.target.value })}
-                  className="w-full text-xs bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  className="w-full text-xs bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-purple-500"
                 />
               </div>
 
