@@ -102,6 +102,7 @@ export function enrollmentToQueueRow(e: {
   next_eval_at: string | null;
   status: string;
   outcome: string | null;
+  cancel_reason?: string | null;
   contacts: ContactRow | ContactRow[] | null;
   followup_flow_pointers: { name: string } | { name: string }[] | null;
   ai_agents: { name: string } | { name: string }[] | null;
@@ -115,7 +116,9 @@ export function enrollmentToQueueRow(e: {
     contact: { id: e.contact_id, name: resolveContactName(contact) },
     flow_name: pointer?.name ?? null,
     agent_name: agent?.name ?? null,
-    node_or_reason: e.current_node_id,
+    // Inscrição que PAROU mostra o porquê — é a pergunta de quem abre os logs do
+    // fluxo. Enquanto anda, mostra a caixa em que está.
+    node_or_reason: e.cancel_reason?.trim() ? e.cancel_reason.trim() : e.current_node_id,
     next_fire_at: e.next_eval_at,
     status: e.status,
     detail: e.outcome,
@@ -190,7 +193,7 @@ export async function GET(req: NextRequest): Promise<Response> {
   let enrollQuery = supabase
     .from("followup_enrollments")
     .select(
-      `id, pointer_id, contact_id, status, current_node_id, next_eval_at, outcome, updated_at, agent_id,
+      `id, pointer_id, contact_id, status, current_node_id, next_eval_at, outcome, cancel_reason, updated_at, agent_id,
        contacts:contact_id(id, name, display_name, phone_number),
        followup_flow_pointers:pointer_id(name),
        ai_agents:agent_id(name)`,

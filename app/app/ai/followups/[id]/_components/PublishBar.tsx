@@ -283,12 +283,18 @@ export function PublishBar({
           </div>
 
           <div className="inline-flex items-center rounded-full border border-neutral-200 bg-neutral-100/80 p-0.5 text-xs shadow-2xs dark:border-neutral-800 dark:bg-neutral-900">
-            <button
-              type="button"
+            {/* Abre a Fila já filtrada por este fluxo: quem entrou, em que caixa está
+                e, se parou, por quê. Em aba nova — o canvas pode ter alteração não salva. */}
+            <Link
+              href={`/app/ai/followups?aba=fila&fluxo=${flowId}`}
+              target="_blank"
+              rel="noreferrer"
+              data-testid="abrir-logs-do-fluxo"
+              title={t("Ver quem entrou neste fluxo, em que caixa está e por que parou")}
               className="cursor-pointer rounded-full px-3 py-0.5 text-[11px] font-medium text-neutral-500 hover:text-neutral-900 dark:text-neutral-400"
             >
               Logs
-            </button>
+            </Link>
             <button
               type="button"
               className="cursor-pointer rounded-full bg-[#7c3aed] px-3.5 py-0.5 text-[11px] font-bold text-white shadow-xs"

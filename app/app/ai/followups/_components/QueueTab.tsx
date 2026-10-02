@@ -47,6 +47,8 @@ import {
 
 interface Props {
   canWrite: boolean;
+  /** Fluxo já selecionado ao abrir — vem do botão "Logs" do construtor. */
+  fluxoInicial?: string;
 }
 
 /**
@@ -111,10 +113,10 @@ function NextFireCell({ iso }: { iso: string | null }) {
   );
 }
 
-export function QueueTab({ canWrite }: Props) {
+export function QueueTab({ canWrite, fluxoInicial }: Props) {
   const t = useT();
   const [status, setStatus] = useState<FollowupEnrollmentStatus | "all">("all");
-  const [pointerId, setPointerId] = useState<string>("all");
+  const [pointerId, setPointerId] = useState<string>(fluxoInicial ?? "all");
   const [searchInput, setSearchInput] = useState("");
   const [q, setQ] = useState("");
   const [pendingCancel, setPendingCancel] = useState<FollowupQueueRow | null>(null);

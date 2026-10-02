@@ -13027,6 +13027,7 @@ export const DICIONARIO: Traducoes = {
   Hotmart: { es: "Hotmart" },
   Kiwify: { es: "Kiwify" },
   Stripe: { es: "Stripe" },
+  "Ver quem entrou neste fluxo, em que caixa está e por que parou": { es: "Ver quién entró en este flujo, en qué caja está y por qué se detuvo" },
   "Esta origem ainda não dispara o fluxo": { es: "Este origen todavía no dispara el flujo" },
   "Por enquanto só a origem WhatsApp inicia o fluxo por esta caixa. Com outra origem aqui o fluxo não publica. Para iniciar por etapa do funil, lead criado ou webhook, use o botão do gatilho, no topo da tela.": { es: "Por ahora solo el origen WhatsApp inicia el flujo por esta caja. Con otro origen aquí el flujo no se publica. Para iniciar por etapa del embudo, lead creado o webhook, use el botón del disparador, en la parte superior de la pantalla." },
   "Uma caixa não pode ser ligada a ela mesma.": { es: "Una caja no puede conectarse a sí misma." },
