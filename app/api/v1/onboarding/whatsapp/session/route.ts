@@ -8,6 +8,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getWahaClient } from "@/lib/waha/client";
 import { connectWahaChannel, ChannelConnectionError } from "@/lib/channels/connect-waha";
 import { loadOnboardingChannel } from "@/lib/channels/onboarding-session";
+import { planosAtivos } from "@/lib/planos/assinatura-da-organizacao";
 import { travaDeNovoNumero } from "@/lib/planos/trava-de-numero";
 
 export async function GET(): Promise<Response> {
@@ -36,10 +37,13 @@ export async function POST(req: Request): Promise<Response> {
   if (await mfaEmDivida()) return fail("mfa_required", "Confirme a verificação em duas etapas.", 403, { requestId });
   // PLANO: o número do onboarding também é um número. Refazer o QR de um que já
   // existe (`restart`) não é "mais um" — só a primeira criação passa pela trava.
-  const jaTem = await loadOnboardingChannel(await createClient(), auth.org.orgId);
-  if (!jaTem || jaTem.archived_at) {
-    const semPlano = await travaDeNovoNumero(createAdminClient(), auth.org.orgId, (texto) => texto, requestId);
-    if (semPlano) return semPlano;
+  // Com a cobrança de plano DESLIGADA nada aqui roda: a rota segue idêntica.
+  if (planosAtivos()) {
+    const jaTem = await loadOnboardingChannel(await createClient(), auth.org.orgId);
+    if (!jaTem || jaTem.archived_at) {
+      const semPlano = await travaDeNovoNumero(createAdminClient(), auth.org.orgId, (texto) => texto, requestId);
+      if (semPlano) return semPlano;
+    }
   }
   const waha = getWahaClient(); if (!waha) return fail("waha_not_configured", "O serviço de conexão está indisponível. Tente novamente.", 503, { requestId });
   try {
