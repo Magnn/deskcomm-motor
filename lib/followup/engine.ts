@@ -526,13 +526,29 @@ async function applyResult(
       break;
     }
     case "park":
-      // Parado de propósito: sem relógio, e o fluxo só anda até onde o dono o montou. As inscrições já
-      // feitas seguem na versão em que entraram — ligar a saída depois vale para as próximas.
+      // O fluxo só anda até onde o dono o montou: a saída que o lead tomaria não está ligada a nada.
+      //
+      // ⚠️ ISTO GRAVAVA `status='active'` (ou `waiting_reply`) COM `next_eval_at = null`, e o banco
+      // RECUSA: o CHECK `followup_enrollments_relogio_coerente` exige relógio em toda inscrição viva.
+      // Medido em produção — a inscrição ficava presa em erro ("violates check constraint"), tentando
+      // de novo a cada minuto até morrer, e o lead nunca mais conseguia entrar no fluxo.
       patch.current_node_id = enrollment.current_node_id;
-      // Sem resposta ainda (prazo vencido com a saída solta): segue OUVINDO — a resposta tardia acorda o nó.
-      // Já respondeu (ou nada mais a esperar): quieto, nada o acorda.
-      patch.status = result.aguardando_resposta ? "waiting_reply" : "active";
-      patch.next_eval_at = null;
+      if (result.aguardando_resposta) {
+        // Prazo vencido com a saída «Sem resposta» solta: segue OUVINDO, com relógio de verdade —
+        // quem responder tarde ainda sai por «Respondeu». O teto é o da pergunta sem prazo.
+        patch.status = "waiting_reply";
+        patch.next_eval_at = new Date(clock().getTime() + PERGUNTA_SEM_PRAZO_MS).toISOString();
+      } else {
+        // Nada mais a esperar: para ESTA inscrição, o fluxo acabou aqui. Ela está presa à versão
+        // em que entrou — ligar a saída depois só vale para as próximas —, então mantê-la "viva"
+        // só ocuparia a vaga do contato e o impediria de entrar no fluxo de novo. O motivo vai
+        // junto, para a fila dizer por que parou.
+        patch.status = "completed";
+        patch.next_eval_at = null;
+        patch.completed_at = clock().toISOString();
+        patch.outcome = "exhausted";
+        patch.cancel_reason = `O fluxo terminou nesta caixa: ${result.reason}.`;
+      }
       break;
     case "complete":
       patch.current_node_id = enrollment.current_node_id;

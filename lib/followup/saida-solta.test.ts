@@ -299,9 +299,36 @@ describe("resposta (texto)", () => {
     expect(rodar(regras, edges, respondeu("acho que nao quero"))).toMatchObject({ next_node_id: "nao" });
   });
 
-  it("resposta que ninguém casou e «Outros casos» solta: PARADO — não vai para a PRIMEIRA regra (defeito antigo)", () => {
-    const r = rodar(regras, [edge("n", "sim", ramo("br_sim"))], respondeu("talvez"));
-    expect(r.kind).toBe("park");
+  it("UMA saída de resposta ligada: QUALQUER resposta avança por ela — só o silêncio para", () => {
+    // Medido em produção, e decisão do dono: a regra dizia "sim", o lead escreveu "ok", e o funil
+    // tem de seguir. Com uma saída só não há caminho a escolher errado.
+    const soSim = [edge("n", "sim", ramo("br_sim"))];
+    expect(rodar(regras, soSim, respondeu("ok"))).toMatchObject({ kind: "advance", next_node_id: "sim" });
+    expect(rodar(regras, soSim, respondeu("talvez"))).toMatchObject({ kind: "advance", next_node_id: "sim" });
+    // «Sem resposta» ligada NÃO conta como saída de resposta: ela é o caminho do silêncio.
+    const simESilencio = [edge("n", "sim", ramo("br_sim")), edge("n", "sr", ramo(NO_REPLY_BRANCH_ID))];
+    expect(rodar(regras, simESilencio, respondeu("ok"))).toMatchObject({ kind: "advance", next_node_id: "sim" });
+  });
+
+  it("…e o silêncio NÃO avança por ela: sem resposta no prazo sai por «Sem resposta», ou termina ali", () => {
+    const soSim = [edge("n", "sim", ramo("br_sim"))];
+    expect(rodar(regras, soSim, { waitElapsed: true }).kind).toBe("park");
+    const simESilencio = [edge("n", "sim", ramo("br_sim")), edge("n", "sr", ramo(NO_REPLY_BRANCH_ID))];
+    expect(rodar(regras, simESilencio, { waitElapsed: true })).toMatchObject({ next_node_id: "sr" });
+  });
+
+  it("VÁRIAS saídas ligadas e nenhuma casou, «Outros casos» solta: a pergunta CONTINUA ABERTA — não vai para a PRIMEIRA regra (defeito antigo)", () => {
+    const duas = [edge("n", "sim", ramo("br_sim")), edge("n", "nao", ramo("br_nao"))];
+    const r = rodar(regras, duas, respondeu("talvez"));
+    expect(r).toMatchObject({ kind: "wait", wake_status: "waiting_reply" });
+    // A espera recomeça do zero (a graça inteira): é o que tira ESTA mensagem do alcance da próxima leitura.
+    expect((r as { next_eval_at: Date }).next_eval_at).toBeInstanceOf(Date);
+  });
+
+  it("…e a resposta que casa segue pela regra dela", () => {
+    const duas = [edge("n", "sim", ramo("br_sim")), edge("n", "nao", ramo("br_nao"))];
+    expect(rodar(regras, duas, respondeu("sim"))).toMatchObject({ next_node_id: "sim" });
+    expect(rodar(regras, duas, respondeu("acho que nao"))).toMatchObject({ next_node_id: "nao" });
   });
 
   it("regra que casou com a saída solta: parado", () => {
@@ -456,7 +483,9 @@ describe("ponte — resultado chega e a saída não está ligada: o lead fica, s
     const { db, updateEnrollment, insertEnrollmentEvent } = ponte(g, enrollment({ current_node_id: "a" }));
     await expect(completeTurnForEnrollment(db, "org-1", "enr-1", "a", { kind: "sent" }, clock)).resolves.toBeUndefined();
     expect(insertEnrollmentEvent).toHaveBeenCalledWith(expect.objectContaining({ event_type: "node_parked" }));
-    expect(updateEnrollment).toHaveBeenCalledWith("enr-1", "org-1", expect.objectContaining({ current_node_id: "a", status: "active", next_eval_at: null }));
+    expect(updateEnrollment).toHaveBeenCalledWith("enr-1", "org-1", expect.objectContaining({ current_node_id: "a", status: "completed", outcome: "exhausted", next_eval_at: null }));
+    // O estado que se gravava antes (`active` sem relógio) o banco recusa — ver `park` em engine.ts.
+    expect(updateEnrollment).not.toHaveBeenCalledWith("enr-1", "org-1", expect.objectContaining({ status: "active", next_eval_at: null }));
   });
 
   it("classe DECLARADA sem aresta: parado; classe fora das declaradas: «Outros casos»", async () => {
@@ -496,7 +525,7 @@ describe("ponte — resultado chega e a saída não está ligada: o lead fica, s
       { kind: "planned", propostas: [{ node_id: "w", escolhido_ms: 900_000, motivo: "x" }], modelo: "m" } as never,
       clock,
     );
-    expect(updateEnrollment).toHaveBeenCalledWith("enr-1", "org-1", expect.objectContaining({ status: "active", next_eval_at: null, timing_plan: expect.anything() }));
+    expect(updateEnrollment).toHaveBeenCalledWith("enr-1", "org-1", expect.objectContaining({ status: "completed", next_eval_at: null, timing_plan: expect.anything() }));
   });
 });
 

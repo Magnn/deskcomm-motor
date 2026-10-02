@@ -137,10 +137,27 @@ export async function completeTurnForEnrollment(
     });
   };
 
-  // O resultado chegou, mas a saída do passo não está ligada a nada: o lead FICA neste nó (sem erro e sem
-  // lançar — lançar devolvia o job à fila, que reenviava a mensagem). O trabalho do passo JÁ foi feito.
+  // O resultado chegou, mas a saída do passo não está ligada a nada: para ESTA inscrição o fluxo acabou
+  // aqui (sem erro e sem lançar — lançar devolvia o job à fila, que reenviava a mensagem). O trabalho do
+  // passo JÁ foi feito.
+  //
+  // ⚠️ Isto gravava `status='active'` com `next_eval_at = null`, que o CHECK
+  // `followup_enrollments_relogio_coerente` recusa: a ÚLTIMA caixa de todo fluxo sem nó de Fim caía
+  // aqui, o update falhava e a inscrição ficava presa. Ver o caso `park` em engine.ts.
   const parar = (motivo: string, extra: Partial<EnrollmentPatch> = {}): Promise<void> =>
-    applyStep("node_parked", { reason: motivo }, { current_node_id: node.id, status: "active", next_eval_at: null, ...extra });
+    applyStep(
+      "node_parked",
+      { reason: motivo },
+      {
+        current_node_id: node.id,
+        status: "completed",
+        outcome: "exhausted",
+        cancel_reason: `O fluxo terminou nesta caixa: ${motivo}.`,
+        completed_at: now.toISOString(),
+        next_eval_at: null,
+        ...extra,
+      },
+    );
 
   if(result.kind === "skipped"){
     await applyStep("turn_skipped",{reason:result.reason},{status:"cancelled",cancel_reason:result.reason,completed_at:now.toISOString(),next_eval_at:null});
