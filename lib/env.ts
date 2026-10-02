@@ -80,6 +80,14 @@ const schema = z.object({
    * (404); com menos de 32 caracteres também fica desligada.
    */
   TENANT_PROVISIONING_SECRET: z.string().optional().default(""),
+  /**
+   * A assinatura do produto cobrada pela Cakto: `POST /api/v1/tenants/subscription/cakto`.
+   * O segredo é o que a Cakto GERA ao criar o webhook; os produtos são os códigos
+   * (do produto ou da oferta) separados por vírgula. Faltando qualquer um dos
+   * dois a rota não existe (404).
+   */
+  CAKTO_SUBSCRIPTION_SECRET: z.string().optional().default(""),
+  CAKTO_SUBSCRIPTION_PRODUCTS: z.string().optional().default(""),
 
   // Laboratório local de extensões: origem HTTP exata em 127.0.0.1. O cliente
   // recusa a exceção se a URL do app não for loopback. Vazio mantém HTTPS público.
