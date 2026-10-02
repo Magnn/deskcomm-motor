@@ -149,6 +149,17 @@ export async function aplicarEfeitosPosEntrada(
   await aplicarOptOut(admin, entrada);
   await guardarOrigemDaPagina(admin, entrada);
   await abrirDemanda(admin, entrada);
+
+  // EMPRESA SUSPENSA NÃO AUTOMATIZA. A mensagem está gravada, o pedido de saída
+  // foi honrado e o card nasceu (nada disso depende de assinatura, e é o que a
+  // empresa encontra em ordem ao ser reativada). Daqui para baixo é automação —
+  // campanha, fluxo e agente —, que só roda com o acesso em dia. Sem esta guarda,
+  // "suspender" fechava a tela e deixava o número continuar respondendo.
+  if (await empresaSuspensa(admin, entrada.organizationId)) {
+    logger.info("[pos-entrada] automações puladas: empresa suspensa", { organizationId: entrada.organizationId });
+    return;
+  }
+
   await avaliarCampanha(admin, entrada);
   // A resposta do lead avança o follow-up AQUI. O despacho do agente (LLM)
   // vem depois: no Hobby ele estoura o tempo da request e o próximo texto
@@ -160,6 +171,29 @@ export async function aplicarEfeitosPosEntrada(
     texto: entrada.texto,
   });
   await processarFluxoOuDespachoDoCanal(admin, entrada);
+}
+
+/**
+ * A empresa está suspensa? Memo curto por organização: a pergunta é feita a cada
+ * mensagem recebida, e a resposta só muda quando alguém suspende ou reativa.
+ * Falha de leitura NÃO suspende ninguém — calar um cliente em dia por causa de
+ * um soluço do banco é o erro caro aqui.
+ */
+const SUSPENSA_TTL_MS = 30_000;
+const memoDeSuspensa = new Map<string, { em: number; suspensa: boolean }>();
+async function empresaSuspensa(admin: Admin, organizationId: string): Promise<boolean> {
+  const agora = Date.now();
+  const memo = memoDeSuspensa.get(organizationId);
+  if (memo && agora - memo.em < SUSPENSA_TTL_MS) return memo.suspensa;
+  try {
+    const { data, error } = await admin.from("organizations").select("status").eq("id", organizationId).maybeSingle();
+    if (error) return memo?.suspensa ?? false;
+    const suspensa = data?.status === "suspended";
+    memoDeSuspensa.set(organizationId, { em: agora, suspensa });
+    return suspensa;
+  } catch {
+    return memo?.suspensa ?? false;
+  }
 }
 
 /**
