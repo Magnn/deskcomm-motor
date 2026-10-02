@@ -52,6 +52,10 @@ export const PUBLIC_PATHS: RegExp[] = [
   // O mesmo, vindo direto da Cakto: quem prova a origem é a assinatura do aviso
   // (segredo do webhook), conferida dentro da rota — 404 enquanto não configurada.
   /^\/api\/v1\/tenants\/subscription\/cakto$/,
+  // O link único de um lançamento em grupos: quem clica vem do anúncio, sem
+  // conta. A rota só devolve o convite de UM grupo (ou uma página curta) — o slug
+  // não abre nada mais do lançamento. Limite por IP dentro da própria rota.
+  /^\/g\/[a-z0-9-]+$/,
   // Relógio Hobby (GitHub Actions / cron-job.org). Auth é Bearer na própria
   // rota — sem isto o proxy devolve 401 e o follow-up waiting_reply nunca anda.
   /^\/api\/v1\/system\/relogio\/tick$/,

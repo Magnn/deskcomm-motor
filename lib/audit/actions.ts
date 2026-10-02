@@ -170,6 +170,15 @@ export const AUDIT_ACTIONS = [
   "platform_admin.impersonate_misconfigured",
   "tenant.suspended",
   "tenant.reactivated",
+  // Lançamentos em grupos de WhatsApp (`lib/lancamentos/`).
+  "lancamento.criado",
+  "lancamento.atualizado",
+  "lancamento.grupo_aberto",
+  "lancamento.grupo_alterado",
+  "lancamento.disparo_agendado",
+  "lancamento.disparo_cancelado",
+  // A rodada do relógio que MANDOU disparo a algum grupo ou abriu grupo novo.
+  "cron.lancamentos",
   "platform_admin.audit_listed",
   "platform_admin.audit_entry_viewed",
   "platform_admin.lgpd_listed",

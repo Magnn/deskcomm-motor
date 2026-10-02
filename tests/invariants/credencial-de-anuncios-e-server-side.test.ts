@@ -66,6 +66,15 @@ const TABELAS = [
   // lê é o servidor, com o admin client filtrando organization_id à mão
   // (`lib/pagamentos/credencial-de-cobranca.ts`).
   "payment_gateway_connections",
+  // 0909. Lançamentos em grupos de WhatsApp. O link público do lançamento resolve
+  // pelo slug SEM sessão — com policy de tenant ele não funcionaria, e com policy
+  // aberta vazaria o convite dos grupos de todo mundo. Deny-all nas cinco; quem lê
+  // e escreve é o servidor (`lib/lancamentos/`), filtrando organization_id à mão.
+  "group_launches",
+  "group_launch_groups",
+  "group_launch_broadcasts",
+  "group_launch_deliveries",
+  "group_launch_clicks",
 ] as const;
 
 function erroSob(papel: string, comando: string): string | null {
