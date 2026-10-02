@@ -111,6 +111,11 @@ export function NumerosDoFluxo({ flowId, flowStatus }: Props) {
                   {n.nome && n.phone_number ? ` (${n.phone_number})` : ""}
                 </p>
                 <p className="text-[11px] text-muted-foreground">{donoAtual(n)}</p>
+                {n.com_risco_de_banimento && (
+                  <p className="text-[11px] text-warning-fg" data-testid={`numero-por-qr-${n.id}`}>
+                    {t("Número por QR code: mensagem repetida e volume diário são limitados para evitar banimento. Para funil fixo em volume, prefira a API oficial.")}
+                  </p>
+                )}
               </div>
               <Switch
                 aria-label={`${t("Este fluxo responde o número")} ${rotulo(n)}`}

@@ -9,6 +9,7 @@ import { CanalOficialClient } from "./CanalOficialClient";
 import { CanalParceiroClient } from "./CanalParceiroClient";
 import { CanalVozClient } from "./CanalVozClient";
 import { ConnectionsClient } from "./ConnectionsClient";
+import { EscolherConexao } from "./EscolherConexao";
 import { TemplatesClient } from "./TemplatesClient";
 import { TemplatesParceiroClient } from "./TemplatesParceiroClient";
 import { TelefoniaClient } from "./TelefoniaClient";
@@ -87,6 +88,12 @@ export function ConexoesShell({
   };
 
   return (
+    <div className="flex flex-col gap-4">
+      {/* A escolha vem ANTES das abas: quem chega para conectar não sabe em qual
+          delas entrar, e a diferença entre as duas decide o que o número aguenta. */}
+      <div className="flex justify-end">
+        <EscolherConexao onEscolher={(tipo) => irPara(tipo === "oficial" ? "oficial" : "numeros")} />
+      </div>
     <Tabs value={aba} onValueChange={(v) => irPara(v, sub)} className="flex flex-col gap-4">
       <TabsList className="h-auto max-w-full flex-wrap justify-start">
         {/* Rótulos pelo que o usuário RECONHECE, não pelo nome técnico do motor por
@@ -188,5 +195,6 @@ export function ConexoesShell({
         </Tabs>
       </TabsContent>
     </Tabs>
+    </div>
   );
 }

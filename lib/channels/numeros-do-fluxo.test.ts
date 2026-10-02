@@ -15,8 +15,15 @@ let filtrosDosCanais: Record<string, unknown>;
 let idsDosNomes: string[] | null;
 let erroDosCanais: { message: string } | null;
 
-const canal = (id: string, metadata: unknown, apelido: string | null = `Número ${id}`, sessao: string | null = null) => ({
+const canal = (
+  id: string,
+  metadata: unknown,
+  apelido: string | null = `Número ${id}`,
+  sessao: string | null = null,
+  provider = "meta_cloud",
+) => ({
   id,
+  provider,
   display_name: apelido,
   phone_number: "+5511999990000",
   waha_session_name: sessao,
@@ -44,7 +51,7 @@ const admin = {
                 canal("a", { handling_mode: "flow", default_flow_pointer_id: ESTE }),
                 canal("b", { handling_mode: "flow", default_flow_pointer_id: OUTRO }),
                 canal("c", { handling_mode: "flow", default_flow_pointer_id: SUMIDO }),
-                canal("d", null, null, "sessao-d"),
+                canal("d", null, null, "sessao-d", "waha"),
                 canal("e", { handling_mode: "human" }, null, null),
               ],
           error: erroDosCanais,
@@ -89,6 +96,18 @@ describe("listarNumerosDoFluxo", () => {
     expect(r.ok && r.numeros.map((n) => n.nome)).toEqual(["Número a", "Número b", "Número c", "sessao-d", null]);
   });
 
+  it("diz quais números têm risco de banimento (os pareados por QR) — pela capacidade do canal, sem expor o provedor", async () => {
+    const r = await listar();
+    expect(r.ok && r.numeros.map((n) => [n.id, n.com_risco_de_banimento])).toEqual([
+      ["a", false],
+      ["b", false],
+      ["c", false],
+      ["d", true],
+      ["e", false],
+    ]);
+    expect(r.ok && r.numeros.some((n) => "provider" in n)).toBe(false);
+  });
+
   it("só olha números DESTA organização, e não os arquivados", async () => {
     await listar();
     expect(filtrosDosCanais).toMatchObject({ organization_id: "org-1", archived_at: null });
@@ -101,7 +120,7 @@ describe("listarNumerosDoFluxo", () => {
 
   it("não devolve o metadata cru nem coluna de provedor", async () => {
     const r = await listar();
-    expect(r.ok && r.numeros.every((n) => Object.keys(n).sort().join() === "dono,id,nome,outro_fluxo,phone_number")).toBe(true);
+    expect(r.ok && r.numeros.every((n) => Object.keys(n).sort().join() === "com_risco_de_banimento,dono,id,nome,outro_fluxo,phone_number")).toBe(true);
   });
 
   it("falha do banco vira resultado de erro, não lista vazia", async () => {
