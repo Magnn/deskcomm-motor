@@ -82,6 +82,7 @@ import {
 import { createCaseReplyTurnHandler } from "@/lib/agent-engine/agent/case-reply-turn";
 import { createOperatorTurnHandler } from "@/lib/agent-engine/agent/operator-turn";
 import { completeTurnForEnrollment, createPgAdminClient } from "@/lib/followup/turn-bridge";
+import { seguirAposOTurno } from "@/lib/followup/seguir-apos-o-turno";
 import { seedPlatformPlaybook } from "@/lib/agent-engine/agent/playbook-seed";
 import { runCronLoop } from "@/lib/agent-engine/cron/scheduler";
 import { createPool } from "@/lib/agent-engine/db/pool";
@@ -111,6 +112,7 @@ import {
   cancelJob,
   claimJobs,
   completeJob,
+  enqueueJob,
   failJob,
   faltaParaOProximoJob,
   reapExpiredJobs,
@@ -653,12 +655,13 @@ export async function main(): Promise<void> {
     // o worker fala pg puro (nunca Supabase client), então usa o adapter pg de
     // lib/followup/turn-bridge.ts (equivalente ao createSupabaseAdminClient das
     // rotas Next.js, mas pra este processo).
-    completeFollowupTurn: (
+    completeFollowupTurn: async (
       pool,
       { organizationId, enrollmentId, nodeId, jobId, jobClaim, result },
-    ) =>
-      completeTurnForEnrollment(
-        createPgAdminClient(pool),
+    ) => {
+      const db = createPgAdminClient(pool);
+      await completeTurnForEnrollment(
+        db,
         organizationId,
         enrollmentId,
         nodeId,
@@ -666,7 +669,26 @@ export async function main(): Promise<void> {
         undefined,
         jobId,
         jobClaim,
-      ),
+      );
+      // A caixa seguinte começa AGORA, não no próximo minuto do relógio: o ritmo
+      // do fluxo é o delay que o dono configurou (ver `seguir-apos-o-turno.ts`).
+      await seguirAposOTurno(
+        {
+          db,
+          log,
+          enqueueJob: async (job) => {
+            await enqueueJob(pool, job.organization_id, {
+              leadId: job.contact_id,
+              kind: "followup_turn",
+              payload: job.payload,
+            });
+          },
+        },
+        organizationId,
+        enrollmentId,
+        nodeId,
+      );
+    },
   };
   handlers.set("approved_reply", createApprovedReplyHandler(turnDeps));
   handlers.set("transactional_delivery", createMeetDeliveryHandler(turnDeps));
