@@ -4,7 +4,10 @@ import { useState } from "react";
 import { Handle, Position, NodeToolbar, type NodeProps } from "@xyflow/react";
 import { Hash, SquarePen } from "lucide-react";
 
+import { eventoWhatsappDoInicio } from "@/lib/followup/gatilho-do-inicio";
 import type { RFNode } from "@/lib/followup/graph-mappers";
+import type { TriggerNodeConfig } from "@/lib/followup/graph-schema";
+import { ORIGENS_DO_INICIO_ROTULO } from "@/lib/followup/vocabulario";
 import { useT } from "@/hooks/i18n/useT";
 import { copyToClipboard } from "@/lib/clipboard";
 import { WhatsappLogo, Play, Check } from "@/lib/ui/icons";
@@ -20,151 +23,38 @@ export function TriggerNode({ id, data, selected }: NodeProps<RFNode>) {
     setCopiedId(true);
     setTimeout(() => setCopiedId(false), 2000);
   };
-  const cfg = (data.config || {}) as Record<string, unknown>;
-  const triggerKind = String(cfg.kind || "keyword");
+  // O CARTÃO MOSTRA O QUE A CAIXA TEM, e nada além. Antes ele lia origem, evento e
+  // palavra-chave do localStorage do navegador (o que o diálogo de "novo fluxo"
+  // tinha guardado ali), exibia "quero iniciar meu atendimento" quando não havia
+  // palavra nenhuma e um selo "1" que não contava coisa alguma. Quem abria o
+  // fluxo em outro computador via outro cartão; e o cartão nunca refletia o que
+  // o motor de fato faz. A fonte agora é a config do nó — a mesma que
+  // `lib/followup/gatilho-do-inicio.ts` lê para decidir quem entra no fluxo.
+  const cfg = (data.config ?? {}) as TriggerNodeConfig;
+  const origem = cfg.integration ?? "whatsapp";
+  const evento = eventoWhatsappDoInicio(cfg);
+  const palavra = (cfg.keyword ?? "").trim();
 
-  // Recupera dados persistidos do fluxo no localStorage se disponível
-  let storedProvider: string | null = null;
-  let storedEvent: string | null = null;
-  let storedKeyword: string | null = null;
-  if (typeof window !== "undefined") {
-    try {
-      const flowId = window.location.pathname.split("/").filter(Boolean).pop();
-      if (flowId) {
-        storedProvider = localStorage.getItem(`flow_provider_${flowId}`);
-        storedEvent = localStorage.getItem(`flow_event_${flowId}`);
-        storedKeyword = localStorage.getItem(`flow_keyword_${flowId}`);
-      }
-    } catch {
-      // silent
-    }
-  }
-
-  const providerId = String(cfg.provider || storedProvider || "whatsapp");
-  const eventLabel =
-    typeof cfg.event_label === "string" && cfg.event_label
-      ? cfg.event_label
-      : storedEvent
-        ? storedEvent.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())
-        : null;
-
-  const keywordText =
-    typeof cfg.keyword === "string" && cfg.keyword
-      ? cfg.keyword
-      : storedKeyword
-        ? storedKeyword
-        : typeof cfg.label === "string" && cfg.label
-          ? cfg.label
-          : null;
-
-  let providerName = data.label || "WhatsApp";
-  let providerIcon = (
-    <div className="flex h-[27px] w-[27px] items-center justify-center rounded-full bg-[#10b981] shadow-xs">
-      <WhatsappLogo size={16} weight="bold" className="text-white" />
-    </div>
-  );
-
-  if (providerId === "kiwify") {
-    providerName = "Kiwify";
-    providerIcon = (
-      <div className="flex h-[27px] w-[27px] items-center justify-center rounded-full bg-emerald-100 shadow-xs border border-emerald-400">
-        <span className="text-[9px] font-black text-emerald-800">kiwi</span>
-      </div>
-    );
-  } else if (providerId === "perfectpay") {
-    providerName = "Perfect Pay";
-    providerIcon = (
-      <div className="flex h-[27px] w-[27px] items-center justify-center rounded-full bg-[#00897b] shadow-xs text-white font-black text-xs italic">
-        P
-      </div>
-    );
-  } else if (providerId === "payt") {
-    providerName = "PayT";
-    providerIcon = (
-      <div className="flex h-[27px] w-[27px] items-center justify-center rounded-full bg-[#f97316] shadow-xs text-white font-black text-[9px]">
-        payt
-      </div>
-    );
-  } else if (providerId === "hotmart") {
-    providerName = "Hotmart";
-    providerIcon = (
-      <div className="flex h-[27px] w-[27px] items-center justify-center rounded-full bg-[#ea580c] shadow-xs text-white font-black text-[9px]">
-        🔥
-      </div>
-    );
-  } else if (providerId === "braip") {
-    providerName = "Braip";
-    providerIcon = (
-      <div className="flex h-[27px] w-[27px] items-center justify-center rounded-full bg-[#6d28d9] shadow-xs text-white font-black text-[8px]">
-        BRAIP
-      </div>
-    );
-  } else if (providerId === "yampi") {
-    providerName = "Yampi";
-    providerIcon = (
-      <div className="flex h-[27px] w-[27px] items-center justify-center rounded-full bg-gradient-to-tr from-pink-500 to-purple-500 shadow-xs text-white font-black text-xs">
-        ♥
-      </div>
-    );
-  } else if (providerId === "cakto") {
-    providerName = "Cakto";
-    providerIcon = (
-      <div className="flex h-[27px] w-[27px] items-center justify-center rounded-full bg-[#365314] shadow-xs text-white font-black text-xs">
-        🌵
-      </div>
-    );
-  } else if (providerId === "asaas") {
-    providerName = "Asaas";
-    providerIcon = (
-      <div className="flex h-[27px] w-[27px] items-center justify-center rounded-full bg-[#002f6c] shadow-xs text-white font-black text-[8px]">
-        ASAS
-      </div>
-    );
-  } else if (providerId === "bestfy") {
-    providerName = "Bestfy";
-    providerIcon = (
-      <div className="flex h-[27px] w-[27px] items-center justify-center rounded-full bg-[#059669] shadow-xs text-white font-serif font-black text-xs">
-        b
-      </div>
-    );
-  } else if (providerId === "tray") {
-    providerName = "Tray";
-    providerIcon = (
-      <div className="flex h-[27px] w-[27px] items-center justify-center rounded-full bg-[#0284c7] shadow-xs text-white font-black text-[9px]">
-        🛒
-      </div>
-    );
-  } else if (providerId === "webhook") {
-    providerName = "Webhook";
-    providerIcon = (
-      <div className="flex h-[27px] w-[27px] items-center justify-center rounded-full bg-gradient-to-tr from-blue-600 to-purple-600 shadow-xs text-amber-300 font-black text-xs">
-        ⚡
-      </div>
-    );
-  }
-
-  const triggerDescription =
-    eventLabel
-      ? t(eventLabel)
-      : triggerKind === "inbound_after_silence"
-        ? t("Retorno após silêncio")
-        : triggerKind === "manual"
-          ? t("Disparo manual")
-          : triggerKind === "deal_stage_changed"
-            ? t("Mudança de etapa")
-            : triggerKind === "contact_created"
-              ? t("Contato criado")
-              : t("Ao receber uma palavra-chave");
-
-  const bottomBadge =
-    keywordText
-      ? `Palavra-chave: "${keywordText}"`
-      : eventLabel
-        ? eventLabel
-        : t("Qualquer mensagem");
-
-  const keywordPillText =
-    keywordText || eventLabel || "quero iniciar meu atendimento";
+  const titulo = origem === "whatsapp" ? t("Mensagem recebida") : t(ORIGENS_DO_INICIO_ROTULO[origem]);
+  const descricao =
+    evento === "keyword"
+      ? t("Ao receber uma palavra-chave")
+      : evento === "message_received"
+        ? t("Ao receber qualquer mensagem")
+        : evento === "inicio_conversa"
+          ? t("No primeiro contato")
+          : t("Esta origem ainda não dispara o fluxo");
+  const resumo =
+    evento === "keyword"
+      ? palavra || t("Palavra-chave em branco")
+      : evento === "message_received"
+        ? t("Qualquer mensagem")
+        : evento === "inicio_conversa"
+          ? t("Primeira mensagem do contato")
+          : t("Use a origem WhatsApp");
+  // Só a palavra-chave em branco e a origem sem motor pedem atenção: são os dois
+  // casos em que a publicação recusa.
+  const pedeAtencao = evento === null || (evento === "keyword" && palavra === "");
 
   return (
     <>
@@ -215,22 +105,28 @@ export function TriggerNode({ id, data, selected }: NodeProps<RFNode>) {
           window.dispatchEvent(new CustomEvent("flow-select-node", { detail: { id } }));
         }}
       >
-        {/* Header com Ícone e Notificação '1' */}
         <div className="flex w-full items-center gap-2">
-          <div className="relative flex shrink-0 items-center justify-center">
-            {providerIcon}
-            <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-red-500 text-[8.5px] font-bold text-white shadow-2xs">
-              1
-            </span>
+          <div className="flex h-[27px] w-[27px] shrink-0 items-center justify-center rounded-full bg-[#10b981] shadow-xs">
+            {origem === "whatsapp" ? (
+              <WhatsappLogo size={16} weight="bold" className="text-white" />
+            ) : (
+              <Play size={12} weight="fill" className="text-white" />
+            )}
           </div>
-          <div className="min-w-0 flex-1 truncate text-left text-xs font-bold tracking-tight text-slate-800 dark:text-neutral-100">
-            {providerName === "WhatsApp" ? t("Mensagem recebida") : providerName}
+          <div
+            className="min-w-0 flex-1 truncate text-left text-xs font-bold tracking-tight text-slate-800 dark:text-neutral-100"
+            data-testid="inicio-titulo"
+          >
+            {titulo}
           </div>
         </div>
 
         {/* Descrição do gatilho */}
-        <div className="w-full text-center text-[10px] font-medium text-slate-500 dark:text-neutral-400">
-          {triggerDescription}
+        <div
+          className="w-full text-center text-[10px] font-medium text-slate-500 dark:text-neutral-400"
+          data-testid="inicio-descricao"
+        >
+          {descricao}
         </div>
 
         {/* Ícone de seta para baixo */}
@@ -241,8 +137,17 @@ export function TriggerNode({ id, data, selected }: NodeProps<RFNode>) {
         </div>
 
         {/* Badge verde inferior (palavra-chave / evento) */}
-        <div className="w-full truncate rounded-lg border border-emerald-500 bg-emerald-50/60 px-2 py-1 text-center text-[10.5px] font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
-          {keywordPillText}
+        <div
+          className={cn(
+            "w-full truncate rounded-lg border px-2 py-1 text-center text-[10.5px] font-semibold",
+            pedeAtencao
+              ? "border-amber-500 bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300"
+              : "border-emerald-500 bg-emerald-50/60 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300",
+          )}
+          data-testid="inicio-resumo"
+          title={resumo}
+        >
+          {resumo}
         </div>
 
         {/* Handle de saída no lado direito com flecha Play estilizada */}

@@ -15,6 +15,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { moduloLigado } from "@/lib/instalacao/modulos";
 import { createFollowupFlowSchema } from "@/lib/followup/api-schemas";
 import { traduzir } from "@/lib/i18n/dicionario";
+import { tiposDeNumeroPorFluxo } from "@/lib/channels/numeros-do-fluxo";
+import { resumirFluxosDaLista } from "@/lib/followup/resumo-para-lista";
 
 export const dynamic = "force-dynamic";
 
@@ -37,14 +39,25 @@ export async function GET(req?: NextRequest): Promise<Response> {
   const supabase = await createClient();
   const base = supabase
     .from("followup_flow_pointers")
-    .select(LIST_COLUMNS)
+    // O rascunho vem só para tirar dele a origem da caixa "Início"; a resposta
+    // devolve o resumo, não o grafo (ver `resumirFluxosDaLista`).
+    .select(`${LIST_COLUMNS}, draft_graph`)
     .eq("organization_id", activeOrg.orgId);
   const { data, error } = await (querRoteiros
     ? base.eq("surface", "atendimento")
     : base.neq("surface", "atendimento")
   ).order("updated_at", { ascending: false });
   if (error) return fail("internal_error", error.message, 500, { requestId });
-  return ok(data ?? [], { requestId });
+
+  // Os tipos dos números vinculados alimentam o filtro de canal da lista. Se a
+  // leitura falhar, a lista sai sem eles — não é motivo para a tela inteira cair.
+  let tipos: Awaited<ReturnType<typeof tiposDeNumeroPorFluxo>> = new Map();
+  try {
+    tipos = await tiposDeNumeroPorFluxo(supabase, activeOrg.orgId);
+  } catch {
+    tipos = new Map();
+  }
+  return ok(resumirFluxosDaLista((data ?? []) as unknown as Array<{ id: string; draft_graph?: unknown }>, tipos), { requestId });
 }
 
 export async function POST(req: NextRequest): Promise<Response> {

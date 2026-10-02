@@ -21,6 +21,7 @@ import { useCreateFollowupFlow } from "@/hooks/followup/useFollowupFlows";
 import { useT } from "@/hooks/i18n/useT";
 import { Check, ShareNetwork, X } from "@/lib/ui/icons";
 import { cn } from "@/lib/utils";
+import { configDoInicioDoNovoFluxo, paramsDoInicio } from "@/lib/followup/gatilho-do-inicio";
 
 interface Props {
   open: boolean;
@@ -323,24 +324,22 @@ export function NewFlowDialog({ open, onOpenChange }: Props) {
 
     create.mutate(trimmed, {
       onSuccess: (created) => {
-        if (typeof window !== "undefined" && created?.id) {
-          try {
-            localStorage.setItem(`flow_channel_${created.id}`, channel);
-            localStorage.setItem(`flow_provider_${created.id}`, selectedProvider);
-            localStorage.setItem(`flow_event_${created.id}`, selectedEvent || provider.defaultEvent);
-            if (keyword.trim()) {
-              localStorage.setItem(`flow_keyword_${created.id}`, keyword.trim());
-            }
-          } catch {
-            // silent
-          }
-        }
+        // A escolha de gatilho vai para a caixa "Início" do fluxo novo — na URL, uma
+        // vez, e de lá para a config do nó. Antes ficava no localStorage do navegador,
+        // onde só o cartão lia: o motor nunca via, e em outro computador sumia.
+        const inicio = paramsDoInicio(
+          configDoInicioDoNovoFluxo({
+            provedor: selectedProvider,
+            evento: selectedEvent || provider.defaultEvent,
+            palavraChave: keyword,
+          }),
+        );
         setName("");
         setKeyword("");
         setErro(null);
         onOpenChange(false);
         if (created?.id && typeof window !== "undefined") {
-          window.location.assign(`/app/ai/followups/${created.id}`);
+          window.location.assign(`/app/ai/followups/${created.id}${inicio ? `?${inicio}` : ""}`);
         }
       },
       onError: (err: unknown) => {

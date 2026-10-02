@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { UploadSimple, FileCode, Check, Warning } from "@/lib/ui/icons";
 import { importFlowTemplate, type FlowTemplatePackage } from "@/lib/followup/export-import";
+import { flowGraphSchema } from "@/lib/followup/graph-schema";
 import { useCreateFollowupFlow } from "@/hooks/followup/useFollowupFlows";
 import { apiClient } from "@/lib/api/client";
 import { toast } from "sonner";
@@ -16,6 +17,24 @@ import { useT } from "@/hooks/i18n/useT";
 interface ImportFlowDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+}
+
+/**
+ * Quantos itens de mídia o fluxo importado referencia por ARQUIVO. O arquivo
+ * exportado leva só o caminho do arquivo no armazenamento de quem exportou — a
+ * mídia em si não viaja. Sem aviso, o fluxo importado publicava e o item era
+ * pulado em silêncio no envio.
+ */
+export function midiasNoArquivo(nodes: ReadonlyArray<Record<string, unknown>>): number {
+  let total = 0;
+  for (const node of nodes) {
+    const itens = (node.config as { items?: unknown } | undefined)?.items;
+    if (!Array.isArray(itens)) continue;
+    for (const item of itens) {
+      if (typeof (item as { storage_path?: unknown } | null)?.storage_path === "string") total++;
+    }
+  }
+  return total;
 }
 
 export function ImportFlowDialog({ open, onOpenChange }: ImportFlowDialogProps) {
@@ -63,23 +82,33 @@ export function ImportFlowDialog({ open, onOpenChange }: ImportFlowDialogProps) 
     setIsProcessing(true);
     setError(null);
 
+    // O arquivo é conferido pelo MESMO schema que o servidor usa para salvar um
+    // rascunho, e ANTES de criar o fluxo: arquivo incompatível não deixa um fluxo
+    // vazio para trás, e a recusa diz onde está o problema.
+    const conferido = flowGraphSchema.safeParse({ nodes: templateData.nodes, edges: templateData.edges });
+    if (!conferido.success) {
+      const onde = conferido.error.issues[0]?.path.slice(0, 3).join(" › ") ?? "";
+      setError(
+        `${t("Este arquivo não é um fluxo compatível com esta versão do sistema.")}${onde ? ` (${onde})` : ""}`,
+      );
+      setIsProcessing(false);
+      return;
+    }
+
     try {
       // 1. Cria o novo fluxo na organização
       const createdFlow = await create.mutateAsync(flowName.trim());
 
-      // 2. Salva o grafo de nós e arestas importado
-      await apiClient.put(`/api/v1/ai/followup-flows/${createdFlow.id}/draft`, {
-        graph: {
-          nodes: templateData.nodes,
-          edges: templateData.edges,
-        },
-      });
+      // 2. Salva o grafo importado como rascunho — a MESMA rota do botão Salvar do
+      // construtor. (Isto chamava `PUT …/draft`, uma rota que nunca existiu: toda
+      // importação criava o fluxo vazio e terminava em erro.)
+      await apiClient.patch(`/api/v1/ai/followup-flows/${createdFlow.id}`, { draft_graph: conferido.data });
 
       toast.success(t("Modelo importado com sucesso!"));
       onOpenChange(false);
       router.push(`/app/ai/followups/${createdFlow.id}`);
     } catch {
-      setError("Não foi possível salvar o fluxo importado. Tente novamente.");
+      setError(t("Não foi possível salvar o fluxo importado. Tente novamente."));
     } finally {
       setIsProcessing(false);
     }
@@ -94,7 +123,7 @@ export function ImportFlowDialog({ open, onOpenChange }: ImportFlowDialogProps) 
             Importar Modelo de Fluxo
           </DialogTitle>
           <DialogDescription>
-            {t("Importe um pacote de fluxo em formato JSON exportado por este sistema ou pelo ChatbotX.")}
+            {t("Importe um fluxo em formato JSON exportado por este sistema (botão Exportar do construtor).")}
           </DialogDescription>
         </DialogHeader>
 
@@ -121,7 +150,7 @@ export function ImportFlowDialog({ open, onOpenChange }: ImportFlowDialogProps) 
                   {t("Clique para selecionar o arquivo .json")}
                 </p>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  {t("Formatos aceitos: exportação deste sistema e do ChatbotX")}
+                  {t("Formato aceito: arquivo exportado por este sistema")}
                 </p>
               </div>
             </button>
@@ -159,6 +188,11 @@ export function ImportFlowDialog({ open, onOpenChange }: ImportFlowDialogProps) 
                 <span>{t("Nós:")} <strong>{templateData.nodes.length}</strong></span>
                 <span>{t("Conexões:")} <strong>{templateData.edges.length}</strong></span>
               </div>
+              {midiasNoArquivo(templateData.nodes) > 0 && (
+                <p className="text-[11px] text-warning-fg" data-testid="importar-aviso-de-midia">
+                  {t("Este fluxo tem imagens, áudios ou arquivos. Eles não vêm dentro do arquivo exportado: depois de importar, abra as caixas de Conteúdo e envie as mídias de novo.")}
+                </p>
+              )}
             </div>
           )}
 
