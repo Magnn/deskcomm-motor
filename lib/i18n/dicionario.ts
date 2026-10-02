@@ -13344,6 +13344,7 @@ export const DICIONARIO: Traducoes = {
   "Não foi possível salvar a regra.": { es: "No fue posible guardar la regla." },
   "Conta do Instagram não encontrada.": { es: "Cuenta de Instagram no encontrada." },
   "Não foi possível apagar a regra.": { es: "No fue posible eliminar la regla." },
+  "Instagram: comentou, recebe direct": { es: "Instagram: comentó, recibe mensaje directo" },
 };
 
 /**

@@ -15,11 +15,14 @@
  * é o que aparece no registro do comentário, e "falhou" sem motivo não ajuda
  * ninguém a consertar uma permissão que faltou.
  */
+import { graphVersion } from "@/lib/graph-version";
 
 export const INSTAGRAM_API = "https://graph.instagram.com";
 const INSTAGRAM_TROCA_DE_CODIGO = "https://api.instagram.com/oauth/access_token";
 const INSTAGRAM_AUTORIZACAO = "https://www.instagram.com/oauth/authorize";
-const VERSAO = "v22.0";
+
+/** A versão vem do lugar único da instalação — a API do Instagram segue a numeração da Graph. */
+const versao = (): string => graphVersion();
 
 /** O mínimo para comentários e direct. Pedir mais atrasa a aprovação do app sem ganho. */
 export const PERMISSOES_DO_INSTAGRAM = [
@@ -141,7 +144,7 @@ export async function lerConta(token: string, buscar: Buscar = fetch): Promise<C
     name?: string;
     profile_picture_url?: string;
     account_type?: string;
-  }>(buscar, "ler_conta", `${INSTAGRAM_API}/${VERSAO}/me?${q.toString()}`, { headers: comToken(token) });
+  }>(buscar, "ler_conta", `${INSTAGRAM_API}/${versao()}/me?${q.toString()}`, { headers: comToken(token) });
   if (!TIPOS_DE_CONTA_ACEITOS.includes(String(r.account_type ?? "").toUpperCase())) return null;
   return {
     id: String(r.id),
@@ -154,7 +157,7 @@ export async function lerConta(token: string, buscar: Buscar = fetch): Promise<C
 
 /** Liga os avisos de comentário (e de direct) desta conta para o webhook do app. */
 export async function assinarAvisos(token: string, buscar: Buscar = fetch): Promise<void> {
-  const r = await chamar<{ success?: boolean }>(buscar, "assinar_avisos", `${INSTAGRAM_API}/${VERSAO}/me/subscribed_apps`, {
+  const r = await chamar<{ success?: boolean }>(buscar, "assinar_avisos", `${INSTAGRAM_API}/${versao()}/me/subscribed_apps`, {
     method: "POST",
     headers: { ...comToken(token), "Content-Type": "application/json" },
     body: JSON.stringify({ subscribed_fields: AVISOS_ASSINADOS }),
@@ -164,7 +167,7 @@ export async function assinarAvisos(token: string, buscar: Buscar = fetch): Prom
 
 /** Desliga os avisos — ao desconectar a conta. */
 export async function cancelarAvisos(token: string, buscar: Buscar = fetch): Promise<void> {
-  await chamar(buscar, "cancelar_avisos", `${INSTAGRAM_API}/${VERSAO}/me/subscribed_apps`, { method: "DELETE", headers: comToken(token) });
+  await chamar(buscar, "cancelar_avisos", `${INSTAGRAM_API}/${versao()}/me/subscribed_apps`, { method: "DELETE", headers: comToken(token) });
 }
 
 /** As publicações mais recentes da conta, para a regra escolher em quais vale. */
@@ -172,7 +175,7 @@ export async function listarPublicacoes(token: string, buscar: Buscar = fetch): 
   const q = new URLSearchParams({ fields: "id,caption,media_type,media_url,thumbnail_url,timestamp,permalink", limit: "50" });
   const r = await chamar<{
     data?: Array<{ id: string; caption?: string; media_type?: string; media_url?: string; thumbnail_url?: string; timestamp?: string; permalink?: string }>;
-  }>(buscar, "listar_publicacoes", `${INSTAGRAM_API}/${VERSAO}/me/media?${q.toString()}`, { headers: comToken(token) });
+  }>(buscar, "listar_publicacoes", `${INSTAGRAM_API}/${versao()}/me/media?${q.toString()}`, { headers: comToken(token) });
   return (r.data ?? []).map((m) => ({
     id: String(m.id),
     caption: m.caption ?? null,
@@ -186,7 +189,7 @@ export async function listarPublicacoes(token: string, buscar: Buscar = fetch): 
 
 /** A resposta PÚBLICA, embaixo do comentário. Só texto: a Meta não aceita mídia aqui. */
 export async function responderComentario(token: string, commentId: string, texto: string, buscar: Buscar = fetch): Promise<void> {
-  await chamar(buscar, "resposta_publica", `${INSTAGRAM_API}/${VERSAO}/${encodeURIComponent(commentId)}/replies`, {
+  await chamar(buscar, "resposta_publica", `${INSTAGRAM_API}/${versao()}/${encodeURIComponent(commentId)}/replies`, {
     method: "POST",
     headers: { ...comToken(token), "Content-Type": "application/json" },
     body: JSON.stringify({ message: texto }),
@@ -198,7 +201,7 @@ export async function responderComentario(token: string, commentId: string, text
  * que dispensa a pessoa ter escrito antes — e vale uma vez por comentário.
  */
 export async function enviarRespostaPrivada(token: string, commentId: string, texto: string, buscar: Buscar = fetch): Promise<void> {
-  await chamar(buscar, "resposta_privada", `${INSTAGRAM_API}/${VERSAO}/me/messages`, {
+  await chamar(buscar, "resposta_privada", `${INSTAGRAM_API}/${versao()}/me/messages`, {
     method: "POST",
     headers: { ...comToken(token), "Content-Type": "application/json" },
     body: JSON.stringify({ recipient: { comment_id: commentId }, message: { text: texto } }),

@@ -634,7 +634,9 @@ export const NAV_CATALOG = [
     group: "canais",
     // Como o resto de Canais: quem só atende não monta regra nem conecta conta.
     minRole: "manager",
-    sidebar: true,
+    // SEM `sidebar`: o menu lateral já está no limite da dobra (16 itens, medido em
+    // `tests/unit/interface-por-empresa.test.ts`). A porta é o atalho no topo de
+    // Conexões — que é onde quem quer conectar uma conta já vai procurar — e o ⌘K.
   },
   {
     href: "/app/webhooks",
