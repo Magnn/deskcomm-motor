@@ -23,7 +23,7 @@ import { urlAssinadaDaMidia } from "@/lib/lancamentos/midia";
 import { manterLancamento, type Lancamento } from "@/lib/lancamentos/servico";
 import { logger } from "@/lib/logger";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getWahaClient } from "@/lib/waha/client";
+import { transporteDeGrupos } from "@/lib/channels/grupos";
 
 export const dynamic = "force-dynamic";
 
@@ -34,15 +34,15 @@ async function handle(req: NextRequest): Promise<Response> {
   const requestId = randomUUID();
   if (!autorizaCron(req)) return fail("forbidden", "Cron secret missing or invalid.", 403, { requestId });
 
-  const waha = getWahaClient();
-  if (!waha) return ok({ disparos: 0, enviados: 0, falhas: 0, concluidos: 0, grupos_abertos: 0, motivo: "waha_not_configured" }, { requestId });
+  const transporte = transporteDeGrupos();
+  if (!transporte) return ok({ disparos: 0, enviados: 0, falhas: 0, concluidos: 0, grupos_abertos: 0, motivo: "grupos_indisponiveis" }, { requestId });
 
   const admin = createAdminClient();
   const inicio = Date.now();
 
   const r = await rodarDisparosVencidos({
     admin,
-    whatsapp: waha,
+    whatsapp: transporte,
     urlDaMidia: (caminho) => urlAssinadaDaMidia(admin, caminho),
     agora: () => new Date(),
     dormir: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
@@ -59,7 +59,7 @@ async function handle(req: NextRequest): Promise<Response> {
   for (const lancamento of (data ?? []) as Lancamento[]) {
     if (Date.now() - inicio > ORCAMENTO_DA_RODADA_MS) break;
     try {
-      const m = await manterLancamento(admin, waha, lancamento);
+      const m = await manterLancamento(admin, transporte, lancamento);
       if (m.abriu) gruposAbertos++;
     } catch (err) {
       logger.warn("[cron.lancamentos] manutenção de um lançamento falhou", { requestId, lancamento: lancamento.id, erro: String(err) });

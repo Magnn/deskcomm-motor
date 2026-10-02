@@ -18,7 +18,7 @@ import { requireSupportWrite } from "@/lib/impersonate/support";
 import { abrirProximoGrupo, LancamentoError, lerLancamento } from "@/lib/lancamentos/servico";
 import { logger } from "@/lib/logger";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getWahaClient } from "@/lib/waha/client";
+import { transporteDeGrupos } from "@/lib/channels/grupos";
 
 export const dynamic = "force-dynamic";
 type Ctx = { params: Promise<{ id: string }> };
@@ -35,14 +35,14 @@ export async function POST(_req: NextRequest, { params }: Ctx): Promise<Response
   const { id } = await params;
   if (!z.string().uuid().safeParse(id).success) return fail("not_found", t("Lançamento não encontrado."), 404, { requestId });
 
-  const waha = getWahaClient();
-  if (!waha) return fail("waha_not_configured", t("O WhatsApp por QR code não está configurado nesta instalação."), 503, { requestId });
+  const transporte = transporteDeGrupos();
+  if (!transporte) return fail("grupos_indisponiveis", t("O WhatsApp por QR code não está configurado nesta instalação."), 503, { requestId });
 
   const admin = createAdminClient();
   try {
     const lancamento = await lerLancamento(admin, auth.org.orgId, id);
     if (!lancamento || lancamento.status === "archived") return fail("not_found", t("Lançamento não encontrado."), 404, { requestId });
-    const grupo = await abrirProximoGrupo(admin, waha, lancamento);
+    const grupo = await abrirProximoGrupo(admin, transporte, lancamento);
     if (grupo === null) return fail("state_conflict", t("Um grupo já está sendo aberto. Aguarde alguns segundos."), 409, { requestId });
     void audit({
       action: "lancamento.grupo_aberto",

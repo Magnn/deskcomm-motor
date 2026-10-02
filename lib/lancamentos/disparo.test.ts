@@ -29,7 +29,7 @@ function deps(mudancas: Record<string, unknown> = {}) {
     admin: banco.cliente as never,
     whatsapp: {
       sendMessage: vi.fn(async (_s: string, grupo: string, texto: string) => {
-        if (grupo === falharNoGrupo) throw new Error("waha_500");
+        if (grupo === falharNoGrupo) throw new Error("transporte_500");
         enviosDeTexto.push({ grupo, texto });
       }),
       sendMedia: vi.fn(async (_s: string, grupo: string, plan: { endpoint: string; payload: Record<string, unknown> }) => {
@@ -129,13 +129,13 @@ describe("uma rodada", () => {
     falharNoGrupo = "120363000000002@g.us";
     const r = await rodarDisparosVencidos(deps());
     expect(r).toMatchObject({ enviados: 2, falhas: 1, concluidos: 1 });
-    expect(entregas().find((e) => e.group_id === "grupo-2")).toMatchObject({ status: "failed", error: "waha_500" });
+    expect(entregas().find((e) => e.group_id === "grupo-2")).toMatchObject({ status: "failed", error: "transporte_500" });
     // Chegou a algum grupo: o disparo é "enviado"; as falhas aparecem por grupo.
     expect(oDisparo().status).toBe("sent");
   });
 
   it("falhou em TODOS os grupos: o disparo fecha como falho", async () => {
-    const d = deps({ whatsapp: { sendMessage: vi.fn(async () => { throw new Error("waha_500"); }), sendMedia: vi.fn() } });
+    const d = deps({ whatsapp: { sendMessage: vi.fn(async () => { throw new Error("transporte_500"); }), sendMedia: vi.fn() } });
     const r = await rodarDisparosVencidos(d);
     expect(r).toMatchObject({ enviados: 0, falhas: 3 });
     expect(oDisparo().status).toBe("failed");

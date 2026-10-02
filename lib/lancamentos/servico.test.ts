@@ -118,16 +118,16 @@ describe("abrir o próximo grupo", () => {
   });
 
   it("o WhatsApp recusou: a reserva é desfeita e o erro diz o que conferir", async () => {
-    const wa = whatsapp({ createGroup: vi.fn(async () => { throw new Error("waha_400"); }) });
+    const wa = whatsapp({ createGroup: vi.fn(async () => { throw new Error("transporte_400"); }) });
     await expect(abrirProximoGrupo(banco.cliente as never, wa, lancamento())).rejects.toMatchObject({ code: "grupo_nao_criado" });
     expect(banco.tabelas.group_launch_groups).toHaveLength(0);
   });
 
   it("acabamento que falha (descrição, só admin, convite) NÃO perde o grupo criado", async () => {
     const wa = whatsapp({
-      setGroupDescription: vi.fn(async () => { throw new Error("waha_500"); }),
-      setGroupAdminsOnly: vi.fn(async () => { throw new Error("waha_500"); }),
-      getGroupInviteCode: vi.fn(async () => { throw new Error("waha_500"); }),
+      setGroupDescription: vi.fn(async () => { throw new Error("transporte_500"); }),
+      setGroupAdminsOnly: vi.fn(async () => { throw new Error("transporte_500"); }),
+      getGroupInviteCode: vi.fn(async () => { throw new Error("transporte_500"); }),
     });
     const g = await abrirProximoGrupo(banco.cliente as never, wa, lancamento());
     expect(g).toMatchObject({ status: "open", invite_url: null });
@@ -169,7 +169,7 @@ describe("criar o lançamento", () => {
 
   it("⭐ o WhatsApp recusou o primeiro grupo: o lançamento NÃO fica — link sem grupo não leva a lugar nenhum", async () => {
     banco = criarBancoEmMemoria({ group_launches: [], group_launch_groups: [] }, UNICOS);
-    const wa = whatsapp({ createGroup: vi.fn(async () => { throw new Error("waha_400"); }) });
+    const wa = whatsapp({ createGroup: vi.fn(async () => { throw new Error("transporte_400"); }) });
     await expect(criarLancamento(banco.cliente as never, wa, { organizationId: ORG, userId: "u1", input })).rejects.toBeInstanceOf(LancamentoError);
     expect(banco.tabelas.group_launches).toHaveLength(0);
   });
@@ -228,7 +228,7 @@ describe("o link público", () => {
   it("WhatsApp fora do ar na releitura: vale a última contagem, e o link segue funcionando", async () => {
     const velho = new Date(Date.now() - 5 * 60_000).toISOString();
     banco.tabelas.group_launch_groups!.push(grupo(1, 40, { members_checked_at: velho }));
-    const wa = whatsapp({ getGroupInfo: vi.fn(async () => { throw new Error("waha_timeout"); }) });
+    const wa = whatsapp({ getGroupInfo: vi.fn(async () => { throw new Error("transporte_sem_resposta"); }) });
     expect(await resolverLinkPublico(banco.cliente as never, wa, "aulao")).toMatchObject({ tipo: "grupo" });
   });
 

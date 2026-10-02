@@ -20,7 +20,7 @@ import { criarLancamentoSchema } from "@/lib/lancamentos/schemas";
 import { criarLancamento, LancamentoError } from "@/lib/lancamentos/servico";
 import { logger } from "@/lib/logger";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getWahaClient } from "@/lib/waha/client";
+import { transporteDeGrupos } from "@/lib/channels/grupos";
 
 export const dynamic = "force-dynamic";
 
@@ -58,11 +58,11 @@ export async function POST(req: NextRequest): Promise<Response> {
     });
   }
 
-  const waha = getWahaClient();
-  if (!waha) return fail("waha_not_configured", t("O WhatsApp por QR code não está configurado nesta instalação."), 503, { requestId });
+  const transporte = transporteDeGrupos();
+  if (!transporte) return fail("grupos_indisponiveis", t("O WhatsApp por QR code não está configurado nesta instalação."), 503, { requestId });
 
   try {
-    const { lancamento, grupo } = await criarLancamento(createAdminClient(), waha, {
+    const { lancamento, grupo } = await criarLancamento(createAdminClient(), transporte, {
       organizationId: auth.org.orgId,
       userId: auth.user.id,
       input: parsed.data,

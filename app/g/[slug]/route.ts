@@ -19,7 +19,7 @@ import { ipDoCliente } from "@/lib/http/ip-do-cliente";
 import { resolverLinkPublico, type DestinoDoLink } from "@/lib/lancamentos/servico";
 import { logger } from "@/lib/logger";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getWahaClient } from "@/lib/waha/client";
+import { transporteDeGrupos } from "@/lib/channels/grupos";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -66,7 +66,7 @@ export async function GET(req: NextRequest, { params }: Ctx): Promise<Response> 
   }
 
   try {
-    const destino = await resolverLinkPublico(createAdminClient(), getWahaClient(), slug);
+    const destino = await resolverLinkPublico(createAdminClient(), transporteDeGrupos(), slug);
     if (destino.tipo === "grupo") {
       return new Response(null, { status: 302, headers: { Location: destino.url, "Cache-Control": "no-store" } });
     }

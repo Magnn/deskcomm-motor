@@ -22,9 +22,9 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { planoDeMidiaParaGrupo } from "@/lib/channels/grupos";
 import { lerSessaoDeGrupos } from "@/lib/channels/numeros-para-grupos";
 import { logger } from "@/lib/logger";
-import { wahaSendPlanFor } from "@/lib/waha/media-send";
 
 import { itensDoDisparoSchema, type ItemDoDisparo } from "./schemas";
 import { grupoEhReserva, type GrupoDoLancamento } from "./servico";
@@ -67,7 +67,7 @@ const VARIACAO_DA_PAUSA_MS = 2_000;
 /** Pausa entre duas mensagens seguidas no MESMO grupo, quando o disparo não pede uma. */
 const PAUSA_ENTRE_ITENS_MS = 800;
 
-const TIPO_PARA_WHATSAPP: Record<Exclude<ItemDoDisparo["type"], "text" | "delay">, string> = {
+const TIPO_PARA_WHATSAPP: Record<Exclude<ItemDoDisparo["type"], "text" | "delay">, "image" | "video" | "audio" | "document"> = {
   image: "image",
   video: "video",
   audio: "audio",
@@ -98,7 +98,7 @@ export async function enviarItensAoGrupo(
       await deps.whatsapp.sendMedia(
         sessionName,
         waGroupId,
-        wahaSendPlanFor(TIPO_PARA_WHATSAPP[item.type], {
+        planoDeMidiaParaGrupo(TIPO_PARA_WHATSAPP[item.type], {
           url,
           mime: item.mime,
           ...(legenda ? { caption: legenda } : {}),
