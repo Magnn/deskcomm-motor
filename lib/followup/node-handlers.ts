@@ -967,9 +967,32 @@ export function processNode(input: {
             if (node.config.save_to !== undefined || node.config.branches.length === 0) {
               return parar("a resposta chegou e «Outros casos» não está ligada a nada");
             }
-            // A resposta não casou com nenhuma regra e «Outros casos» não leva a lugar nenhum: a
-            // pergunta CONTINUA ABERTA. O lead escreveu "ok" onde a regra pedia "sim" — encerrar ali
-            // o deixaria falando sozinho; a próxima mensagem dele é avaliada de novo. A espera recomeça
+            // QUALQUER RESPOSTA AVANÇA; SÓ O SILÊNCIO PARA (decisão do dono do produto).
+            //
+            // A resposta não casou com nenhuma regra e «Outros casos» não está ligada. Se a caixa tem
+            // UMA única saída de resposta ligada, não há o que escolher: é por ela que o funil segue —
+            // o lead escreveu "ok" onde a regra dizia "sim", e respondeu. (O defeito antigo era outro:
+            // ir para a PRIMEIRA regra mesmo havendo várias saídas ligadas, escolhendo um caminho que
+            // a resposta não escolheu. Com uma saída só, não há escolha a errar.)
+            const saidasDeResposta = edges.filter(
+              (e) =>
+                e.source === node.id &&
+                e.condition.type !== "always" &&
+                node.config.branches.some(
+                  (b) =>
+                    (e.condition.type === "branch" && e.condition.branch_id === b.id) ||
+                    (e.condition.type === "class_match" && (e.condition.value === b.id || e.condition.value === b.label)),
+                ),
+            );
+            if (saidasDeResposta.length === 1) {
+              return {
+                kind: "advance",
+                next_node_id: saidasDeResposta[0]!.target,
+                next_eval_at: clock(),
+              };
+            }
+            // Várias saídas ligadas e nenhuma casou: a pergunta CONTINUA ABERTA — não dá para saber
+            // qual caminho o lead quis, e a próxima mensagem dele é avaliada de novo. A espera recomeça
             // do zero de propósito: é o que move o piso do inbound para agora, e sem isso esta mesma
             // mensagem seria relida a cada tick. Vencido o prazo sem resposta que case, sai por
             // «Sem resposta» (ou o fluxo termina aqui, se ela também estiver solta).

@@ -299,17 +299,36 @@ describe("resposta (texto)", () => {
     expect(rodar(regras, edges, respondeu("acho que nao quero"))).toMatchObject({ next_node_id: "nao" });
   });
 
-  it("resposta que ninguém casou e «Outros casos» solta: a pergunta CONTINUA ABERTA — não vai para a PRIMEIRA regra, nem encerra", () => {
-    // Medido em produção: a regra pedia "sim", o lead escreveu "ok". Ir para a primeira regra era o
-    // defeito antigo; encerrar o deixaria falando sozinho. A próxima mensagem dele é avaliada de novo.
-    const r = rodar(regras, [edge("n", "sim", ramo("br_sim"))], respondeu("talvez"));
+  it("UMA saída de resposta ligada: QUALQUER resposta avança por ela — só o silêncio para", () => {
+    // Medido em produção, e decisão do dono: a regra dizia "sim", o lead escreveu "ok", e o funil
+    // tem de seguir. Com uma saída só não há caminho a escolher errado.
+    const soSim = [edge("n", "sim", ramo("br_sim"))];
+    expect(rodar(regras, soSim, respondeu("ok"))).toMatchObject({ kind: "advance", next_node_id: "sim" });
+    expect(rodar(regras, soSim, respondeu("talvez"))).toMatchObject({ kind: "advance", next_node_id: "sim" });
+    // «Sem resposta» ligada NÃO conta como saída de resposta: ela é o caminho do silêncio.
+    const simESilencio = [edge("n", "sim", ramo("br_sim")), edge("n", "sr", ramo(NO_REPLY_BRANCH_ID))];
+    expect(rodar(regras, simESilencio, respondeu("ok"))).toMatchObject({ kind: "advance", next_node_id: "sim" });
+  });
+
+  it("…e o silêncio NÃO avança por ela: sem resposta no prazo sai por «Sem resposta», ou termina ali", () => {
+    const soSim = [edge("n", "sim", ramo("br_sim"))];
+    expect(rodar(regras, soSim, { waitElapsed: true }).kind).toBe("park");
+    const simESilencio = [edge("n", "sim", ramo("br_sim")), edge("n", "sr", ramo(NO_REPLY_BRANCH_ID))];
+    expect(rodar(regras, simESilencio, { waitElapsed: true })).toMatchObject({ next_node_id: "sr" });
+  });
+
+  it("VÁRIAS saídas ligadas e nenhuma casou, «Outros casos» solta: a pergunta CONTINUA ABERTA — não vai para a PRIMEIRA regra (defeito antigo)", () => {
+    const duas = [edge("n", "sim", ramo("br_sim")), edge("n", "nao", ramo("br_nao"))];
+    const r = rodar(regras, duas, respondeu("talvez"));
     expect(r).toMatchObject({ kind: "wait", wake_status: "waiting_reply" });
     // A espera recomeça do zero (a graça inteira): é o que tira ESTA mensagem do alcance da próxima leitura.
     expect((r as { next_eval_at: Date }).next_eval_at).toBeInstanceOf(Date);
   });
 
-  it("…e a resposta certa, depois, segue pela regra dela", () => {
-    expect(rodar(regras, [edge("n", "sim", ramo("br_sim"))], respondeu("sim"))).toMatchObject({ next_node_id: "sim" });
+  it("…e a resposta que casa segue pela regra dela", () => {
+    const duas = [edge("n", "sim", ramo("br_sim")), edge("n", "nao", ramo("br_nao"))];
+    expect(rodar(regras, duas, respondeu("sim"))).toMatchObject({ next_node_id: "sim" });
+    expect(rodar(regras, duas, respondeu("acho que nao"))).toMatchObject({ next_node_id: "nao" });
   });
 
   it("regra que casou com a saída solta: parado", () => {
