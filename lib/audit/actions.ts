@@ -439,6 +439,10 @@ export const AUDIT_ACTIONS = [
   // O `metadata` carrega o dataset (identificador, não segredo) e um booleano
   // dizendo se o token foi trocado. O token, nem em metadata.
   "ad_platform_connection.updated",
+  // A conta de COBRANÇA da organização (0907). Trilha própria: "quem trocou a chave que emite cobranças em
+  // nome da empresa?" é sobre dinheiro entrando na conta errada. O metadata leva o provedor, o ambiente e se
+  // a chave foi trocada — a chave, nem em metadata.
+  "payment_gateway_connection.updated",
   // A conexão de LEITURA da organização com a conta de anúncios (0214).
   // Ação SEPARADA da de cima, e não um `metadata.purpose` na mesma: a pergunta
   // que cada trilha responde é diferente. "Quem apontou minhas vendas para este

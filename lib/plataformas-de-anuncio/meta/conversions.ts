@@ -108,10 +108,10 @@ async function enviar(
         action_source: "business_messaging",
         messaging_channel: "whatsapp",
         user_data: userData,
-        custom_data: {
-          value: conversao.valorCentavos / 100,
-          currency: conversao.moeda.toUpperCase(),
-        },
+        // Sem valor, sem custom_data: mandar `value: 0` seria ACEITO e ensinaria ao otimizador que o evento não vale nada.
+        ...(conversao.valorCentavos !== null
+          ? { custom_data: { value: conversao.valorCentavos / 100, currency: conversao.moeda.toUpperCase() } }
+          : {}),
       },
     ],
   };

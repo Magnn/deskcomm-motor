@@ -241,6 +241,15 @@ const PROVA_PROPRIA: readonly Excecao[] = [
       "organization_id à mão.",
   },
   {
+    tabela: "payment_gateway_connections",
+    razao:
+      "tests/invariants/credencial-de-anuncios-e-server-side.test.ts — mesmo " +
+      "`describe.each` das de anúncio (0907): privilégio NENHUM para anon e " +
+      "authenticated, `permission denied` medido sob `set role`, RLS ligada, zero " +
+      "policies, organization_id NOT NULL com FK em cascata. Deny-all porque a " +
+      "linha guarda a chave que EMITE COBRANÇA na conta de pagamento do cliente.",
+  },
+  {
     tabela: "google_ads_landing_pages",
     razao:
       "tests/invariants/captura-de-clique-e-server-side.test.ts — mesmo desenho " +

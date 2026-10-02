@@ -693,7 +693,10 @@ describe("avancarSimulacao — nós paridade AcassIA (whatsapp_template, pix_pay
     const msgs = final.transcript.filter((e) => e.kind === "mensagem_simulada");
     expect(msgs).toHaveLength(5);
     expect(msgs[0]?.texto).toContain("[Template WhatsApp] oferta_exclusiva");
-    expect(msgs[1]?.texto).toContain("[PIX cpf] Chave: 123.456.789-00");
+    // As bolhas reais do PIX: detalhes primeiro, a chave SOZINHA na última (para copiar).
+    expect(msgs[1]?.texto).toContain("*Valor:* R$ 99,90");
+    expect(msgs[1]?.texto).toContain("*Favorecido:* Loja Teste");
+    expect(msgs[1]?.texto?.endsWith("— próxima mensagem —\n123.456.789-00")).toBe(true);
     expect(msgs[2]?.texto).toContain("[Cobrança Gateway] BRL 197,00");
     expect(msgs[3]?.texto).toContain('[Meta Pixel] Evento "Compra"');
     expect(msgs[4]?.texto).toContain('[Voice Studio · Julieta (Áudio gravado (PTT))] "Olá! Seja muito bem-vindo!"');

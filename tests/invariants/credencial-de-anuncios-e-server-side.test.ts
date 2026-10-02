@@ -59,6 +59,13 @@ const TABELAS = [
   // concorrente pagaria para ler, e o motivo de a tabela nascer com o mesmo
   // deny-all das irmãs em vez de uma policy de tenant.
   "ad_hierarchy_cache",
+  // 0907. Fora do eixo de anúncios, mas com o MESMO desenho e pela mesma razão:
+  // guarda a chave de API que EMITE COBRANÇA na conta de pagamento do cliente
+  // (a caixa "Cobrança" do fluxo). Vazá-la deixa um terceiro criar cobranças em
+  // nome dele. Deny-all — RLS ligada, zero policies, grants revogados — e quem
+  // lê é o servidor, com o admin client filtrando organization_id à mão
+  // (`lib/pagamentos/credencial-de-cobranca.ts`).
+  "payment_gateway_connections",
 ] as const;
 
 function erroSob(papel: string, comando: string): string | null {
