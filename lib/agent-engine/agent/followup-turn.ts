@@ -1179,152 +1179,185 @@ async function sendConteudoSequence(
     return [i];
   });
 
-  // Representativo pro portão (spinning/classificação) — nunca o que de fato sai
-  // pros itens que não são o primeiro texto. Ver "limitação conhecida" acima.
-  const primeiroTexto = items.find((i): i is Extract<ConteudoItemPayload, { type: 'text' }> => i.type === 'text');
-  const corpoParaOPortao = primeiroTexto?.body ?? '[conteúdo]';
-
-  const chain = await runBeforeSend({
-    pool,
-    log: runLog,
-    tenantId,
-    leadId,
-    jobId: job.id,
-    channelSessionId,
-    body: corpoParaOPortao,
-    optedOutThisTurn,
-    crmDailyLimit: null,
-    now: clock(),
-    sleep: deps.sleep,
-    lgpd: context.lgpd,
-    // Conteúdo de caixa é texto do DONO: a tabela de preço do agente não o julga.
-    enforcePromise: false,
-    ...(deps.knobs.disclosureMode !== undefined ? { disclosureMode: deps.knobs.disclosureMode } : {}),
-    send: async (finalBody) => {
-      let seq = 0;
-      let ultimo: ChannelSendResult | undefined;
-      let precisaDeJitter = false;
-      let jaUsouOPrimeiroTexto = false;
-
-      for (const item of items) {
-        if (item.type === 'delay') {
-          await sleep(item.seconds * 1000);
-          continue;
+  // ─── O DELAY NÃO SEGURA A VEZ DO NÚMERO ──────────────────────────────────
+  // `runBeforeSend` serializa os envios POR NÚMERO (lock da sessão do canal) e
+  // chama o `send` com o lock na mão. Quando a caixa inteira saía numa chamada
+  // só, os Delays de dentro dela dormiam SEGURANDO esse lock: enquanto um lead
+  // esperava os 30 s da caixa dele, nenhum outro lead do mesmo número recebia
+  // nada. Com 100 leads entrando juntos, a primeira caixa do último chegava
+  // mais de uma hora depois.
+  //
+  // A caixa agora sai em TRECHOS, separados pelos Delays: cada trecho passa pelo
+  // portão (todas as guardas valem de novo — é mais rigor, não menos), e o Delay
+  // entre eles é dormido FORA do lock. A numeração (`seq`) atravessa os trechos,
+  // então a idempotência por (job, seq) continua a mesma num replay.
+  type ItemDeEnvio = Exclude<ConteudoItemPayload, { type: 'delay' }>;
+  const trechos: Array<{ pausasAntes: number[]; envios: ItemDeEnvio[] }> = [];
+  {
+    let atual: { pausasAntes: number[]; envios: ItemDeEnvio[] } = { pausasAntes: [], envios: [] };
+    for (const item of items) {
+      if (item.type === 'delay') {
+        if (atual.envios.length > 0) {
+          trechos.push(atual);
+          atual = { pausasAntes: [], envios: [] };
         }
-        if (precisaDeJitter) await sleep(jitter());
-        precisaDeJitter = true;
-        seq += 1;
-
-        if (item.type === 'text') {
-          const usaFinalBody = !jaUsouOPrimeiroTexto && item === primeiroTexto;
-          jaUsouOPrimeiroTexto = jaUsouOPrimeiroTexto || item === primeiroTexto;
-          ultimo = await channel.send({
-            tenantId, leadId, jobId: job.id, jobClaim: claimOfJob(job), seq, conversationId,
-            body: usaFinalBody ? finalBody : item.body,
-          });
-        } else if (item.type === 'contact') {
-          ultimo = await channel.send({
-            tenantId, leadId, jobId: job.id, jobClaim: claimOfJob(job), seq, conversationId,
-            // Só para o hash de idempotência do ledger — o cartão não tem corpo.
-            body: `[contato] ${item.name} ${item.phone_number}`,
-            contact: { name: item.name, phoneNumber: item.phone_number },
-          });
-        } else {
-          // image | video | audio | document | sticker
-          const base = `${tenantId}/${conversationId}/conteudo-${job.id}-${seq}`;
-          // Documento e áudio-como-arquivo chegam com NOME: o original, quando há.
-          const nomeDoArquivo =
-            item.type === 'document' || (item.type === 'audio' && item.voice_note === false)
-              ? nomeSeguroParaStorage(item.filename)
-              : null;
-          let destino: string;
-          let mime: string;
-          if ('url' in item && item.url !== undefined) {
-            // Origem por LINK: baixa (com as guardas anti-SSRF) e guarda na conversa.
-            const baixada = await (deps.baixarMidiaDoLink ?? baixarMidiaDoLink)(item.url, item.type);
-            if (!baixada.ok) {
-              runLog.warn('mídia do link não pôde ser baixada — item pulado', { tipo: item.type, motivo: baixada.motivo });
-              seq -= 1;
-              continue;
-            }
-            const nome = item.type === 'document' ? nomeSeguroParaStorage(item.filename ?? baixada.nome ?? undefined) : null;
-            destino = nome !== null ? `${base}/${nome}` : `${base}.${extFromMime(baixada.mime)}`;
-            mime = baixada.mime;
-            const guardou = await guardarMidiaNaConversa(destino, baixada.buffer, mime, runLog);
-            if (!guardou) {
-              seq -= 1;
-              continue;
-            }
-          } else {
-            const origem = item.storage_path;
-            if (origem === undefined || item.mime === undefined) {
-              runLog.warn('item de mídia sem arquivo nem link — pulado (o salvar deveria ter barrado isto)', { tipo: item.type });
-              seq -= 1;
-              continue;
-            }
-            destino = nomeDoArquivo !== null ? `${base}/${nomeDoArquivo}` : `${base}.${origem.split('.').pop() ?? 'bin'}`;
-            mime = item.mime;
-            const copiou = await copiarConteudoParaConversa(origem, destino, runLog);
-            if (!copiou) {
-              seq -= 1; // este item não virou send físico — devolve o seq pro próximo item
-              continue;
-            }
-          }
-          ultimo = await channel.send({
-            tenantId, leadId, jobId: job.id, jobClaim: claimOfJob(job), seq, conversationId,
-            // Legenda só onde o canal tem legenda. Áudio não tem: o `body` dele é a
-            // TRANSCRIÇÃO, que fica na mensagem (atendente e agente leem) e nenhum
-            // canal envia — mesma convenção da nota de voz da agente.
-            body: 'caption' in item ? (item.caption ?? '') : item.type === 'audio' ? (item.transcript ?? '') : '',
-            media: {
-              storagePath: destino,
-              mime,
-              kind: item.type,
-              // "Enviar como áudio gravado?" desligado: sai como arquivo de áudio.
-              ...(item.type === 'audio' && item.voice_note === false ? { audioAsFile: true } : {}),
-            },
-          });
-        }
-        if (ultimo && !OK_KINDS.has(ultimo.kind)) return ultimo;
+        atual.pausasAntes.push(item.seconds);
+      } else {
+        atual.envios.push(item);
       }
-      // Tudo pulado (mídia que não copiou, texto que ficou vazio depois das
-      // variáveis): nada foi fisicamente enviado. 'already_sent' com id vazio é a
-      // MESMA forma que o replay pós-crash já usa para "nada a fazer, sem erro".
-      return ultimo ?? { kind: 'already_sent', idempotencyKey: `${job.id}:vazio`, messageId: null };
-    },
-  });
-
-  if (chain.status === 'vetoed') {
-    if (chain.code === 'outside_window' && chain.nextAllowedAt !== undefined) {
-      await rescheduleReentry(pool, { tenantId, leadId, jobId: job.id, at: chain.nextAllowedAt, payload: job.payload });
-      runLog.info('sequência de conteúdo re-agendada por janela anti-ban', {
-        code: chain.code,
-        next_run_at: chain.nextAllowedAt.toISOString(),
-      });
-      return { kind: 'deferred', until: chain.nextAllowedAt, reason: chain.code };
     }
-    runLog.info('sequência de conteúdo vetada pela cadeia — não re-agendada', { code: chain.code });
-    return { kind: 'skipped' };
+    trechos.push(atual);
   }
 
-  const outcome = chain.outcome;
-  switch (outcome.kind) {
-    case 'sent':
-    case 'already_sent':
-      runLog.info('sequência de conteúdo concluída', { kind: outcome.kind });
-      return { kind: 'sent' };
-    case 'queued':
-      throw new Error('sequência de conteúdo: mensagem aguardando o canal — não conclui o passo');
-    case 'blocked':
-      await applySendOutcome(pool, outcome, { jobId: job.id, workerId: ctx.workerId, tenantId, leadId, jobClaim: claimOfJob(job) }, {
-        queuedRetryDelayMs: deps.knobs.queuedRetryDelayMs,
-      });
-      throw new JobSettledError('sequência de conteúdo vetada pelo sink (is_blocked) — job cancelado em definitivo');
-    case 'failed':
-      throw new Error('sequência de conteúdo: CRM marcou o envio como failed — run re-tentado pela fila');
-    case 'unavailable':
-      throw new Error(`sequência de conteúdo: canal indisponível (${outcome.reason}) — run re-tentado pela fila`);
+  let seq = 0;
+  for (const trecho of trechos) {
+    for (const segundos of trecho.pausasAntes) await sleep(segundos * 1000);
+    // Delay no fim da caixa (sem envio depois): é só a pausa antes da próxima caixa.
+    if (trecho.envios.length === 0) continue;
+
+    // Representativo pro portão (spinning/classificação) — nunca o que de fato sai
+    // pros itens que não são o primeiro texto. Ver "limitação conhecida" acima.
+    const primeiroTexto = trecho.envios.find((i): i is Extract<ConteudoItemPayload, { type: 'text' }> => i.type === 'text');
+    const corpoParaOPortao = primeiroTexto?.body ?? '[conteúdo]';
+
+    const chain = await runBeforeSend({
+      pool,
+      log: runLog,
+      tenantId,
+      leadId,
+      jobId: job.id,
+      channelSessionId,
+      body: corpoParaOPortao,
+      optedOutThisTurn,
+      crmDailyLimit: null,
+      now: clock(),
+      sleep: deps.sleep,
+      lgpd: context.lgpd,
+      // Conteúdo de caixa é texto do DONO: a tabela de preço do agente não o julga.
+      enforcePromise: false,
+      ...(deps.knobs.disclosureMode !== undefined ? { disclosureMode: deps.knobs.disclosureMode } : {}),
+      send: async (finalBody) => {
+        let ultimo: ChannelSendResult | undefined;
+        let precisaDeJitter = false;
+        let jaUsouOPrimeiroTexto = false;
+
+        for (const item of trecho.envios) {
+          if (precisaDeJitter) await sleep(jitter());
+          precisaDeJitter = true;
+          seq += 1;
+
+          if (item.type === 'text') {
+            const usaFinalBody = !jaUsouOPrimeiroTexto && item === primeiroTexto;
+            jaUsouOPrimeiroTexto = jaUsouOPrimeiroTexto || item === primeiroTexto;
+            ultimo = await channel.send({
+              tenantId, leadId, jobId: job.id, jobClaim: claimOfJob(job), seq, conversationId,
+              body: usaFinalBody ? finalBody : item.body,
+            });
+          } else if (item.type === 'contact') {
+            ultimo = await channel.send({
+              tenantId, leadId, jobId: job.id, jobClaim: claimOfJob(job), seq, conversationId,
+              // Só para o hash de idempotência do ledger — o cartão não tem corpo.
+              body: `[contato] ${item.name} ${item.phone_number}`,
+              contact: { name: item.name, phoneNumber: item.phone_number },
+            });
+          } else {
+            // image | video | audio | document | sticker
+            const base = `${tenantId}/${conversationId}/conteudo-${job.id}-${seq}`;
+            // Documento e áudio-como-arquivo chegam com NOME: o original, quando há.
+            const nomeDoArquivo =
+              item.type === 'document' || (item.type === 'audio' && item.voice_note === false)
+                ? nomeSeguroParaStorage(item.filename)
+                : null;
+            let destino: string;
+            let mime: string;
+            if ('url' in item && item.url !== undefined) {
+              // Origem por LINK: baixa (com as guardas anti-SSRF) e guarda na conversa.
+              const baixada = await (deps.baixarMidiaDoLink ?? baixarMidiaDoLink)(item.url, item.type);
+              if (!baixada.ok) {
+                runLog.warn('mídia do link não pôde ser baixada — item pulado', { tipo: item.type, motivo: baixada.motivo });
+                seq -= 1;
+                continue;
+              }
+              const nome = item.type === 'document' ? nomeSeguroParaStorage(item.filename ?? baixada.nome ?? undefined) : null;
+              destino = nome !== null ? `${base}/${nome}` : `${base}.${extFromMime(baixada.mime)}`;
+              mime = baixada.mime;
+              const guardou = await guardarMidiaNaConversa(destino, baixada.buffer, mime, runLog);
+              if (!guardou) {
+                seq -= 1;
+                continue;
+              }
+            } else {
+              const origem = item.storage_path;
+              if (origem === undefined || item.mime === undefined) {
+                runLog.warn('item de mídia sem arquivo nem link — pulado (o salvar deveria ter barrado isto)', { tipo: item.type });
+                seq -= 1;
+                continue;
+              }
+              destino = nomeDoArquivo !== null ? `${base}/${nomeDoArquivo}` : `${base}.${origem.split('.').pop() ?? 'bin'}`;
+              mime = item.mime;
+              const copiou = await copiarConteudoParaConversa(origem, destino, runLog);
+              if (!copiou) {
+                seq -= 1; // este item não virou send físico — devolve o seq pro próximo item
+                continue;
+              }
+            }
+            ultimo = await channel.send({
+              tenantId, leadId, jobId: job.id, jobClaim: claimOfJob(job), seq, conversationId,
+              // Legenda só onde o canal tem legenda. Áudio não tem: o `body` dele é a
+              // TRANSCRIÇÃO, que fica na mensagem (atendente e agente leem) e nenhum
+              // canal envia — mesma convenção da nota de voz da agente.
+              body: 'caption' in item ? (item.caption ?? '') : item.type === 'audio' ? (item.transcript ?? '') : '',
+              media: {
+                storagePath: destino,
+                mime,
+                kind: item.type,
+                // "Enviar como áudio gravado?" desligado: sai como arquivo de áudio.
+                ...(item.type === 'audio' && item.voice_note === false ? { audioAsFile: true } : {}),
+              },
+            });
+          }
+          if (ultimo && !OK_KINDS.has(ultimo.kind)) return ultimo;
+        }
+        // Tudo pulado (mídia que não copiou, texto que ficou vazio depois das
+        // variáveis): nada foi fisicamente enviado. 'already_sent' com id vazio é a
+        // MESMA forma que o replay pós-crash já usa para "nada a fazer, sem erro".
+        return ultimo ?? { kind: 'already_sent', idempotencyKey: `${job.id}:vazio`, messageId: null };
+      },
+    });
+
+    if (chain.status === 'vetoed') {
+      if (chain.code === 'outside_window' && chain.nextAllowedAt !== undefined) {
+        await rescheduleReentry(pool, { tenantId, leadId, jobId: job.id, at: chain.nextAllowedAt, payload: job.payload });
+        runLog.info('sequência de conteúdo re-agendada por janela anti-ban', {
+          code: chain.code,
+          next_run_at: chain.nextAllowedAt.toISOString(),
+        });
+        return { kind: 'deferred', until: chain.nextAllowedAt, reason: chain.code };
+      }
+      runLog.info('sequência de conteúdo vetada pela cadeia — não re-agendada', { code: chain.code });
+      return { kind: 'skipped' };
+    }
+
+    const outcome = chain.outcome;
+    // Trecho entregue: segue para o próximo (o Delay entre eles é dormido lá em cima, fora do lock).
+    if (outcome.kind === 'sent' || outcome.kind === 'already_sent') continue;
+    switch (outcome.kind) {
+      case 'queued':
+        throw new Error('sequência de conteúdo: mensagem aguardando o canal — não conclui o passo');
+      case 'blocked':
+        await applySendOutcome(pool, outcome, { jobId: job.id, workerId: ctx.workerId, tenantId, leadId, jobClaim: claimOfJob(job) }, {
+          queuedRetryDelayMs: deps.knobs.queuedRetryDelayMs,
+        });
+        throw new JobSettledError('sequência de conteúdo vetada pelo sink (is_blocked) — job cancelado em definitivo');
+      case 'failed':
+        throw new Error('sequência de conteúdo: CRM marcou o envio como failed — run re-tentado pela fila');
+      case 'unavailable':
+        throw new Error(`sequência de conteúdo: canal indisponível (${outcome.reason}) — run re-tentado pela fila`);
+    }
   }
+
+  runLog.info('sequência de conteúdo concluída', { trechos: trechos.length });
+  return { kind: 'sent' };
 }
 
 /**
