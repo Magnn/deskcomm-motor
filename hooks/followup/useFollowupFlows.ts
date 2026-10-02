@@ -14,6 +14,10 @@ export interface FollowupFlowPointerRow {
   active_version_id: string | null;
   handoff_policy: string;
   updated_at: string;
+  /** Origem configurada na caixa "Início" do rascunho. Ausente em resposta antiga: vale WhatsApp. */
+  inicio_origem?: string;
+  /** Tipos dos números vinculados a este fluxo ("oficial" | "qr"). */
+  numeros?: Array<"oficial" | "qr">;
 }
 
 interface ListResponse {
