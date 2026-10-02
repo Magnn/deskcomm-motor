@@ -613,7 +613,7 @@ async function runFlowDrivenTurn(
     const body = await resolveFlowSendBody(pool, target.tenantId, input);
     if (body !== null) {
       // Texto do operador: sem camada semântica (ver o cabeçalho de sendFixedOutbound).
-      const desfecho = await sendFixedOutbound(deps, job, pool, ctx, clock, target, body, false);
+      const desfecho = await sendFixedOutbound(deps, job, pool, ctx, clock, target, body, false, true);
       // TODO OS TRÊS DESFECHOS VOLTAM PARA O ENROLLMENT. O adiado era o que não
       // voltava, e o silêncio dele custava o enrollment inteiro: o motor ficava
       // rechecando um turno que ninguém ia fechar e, esgotado o orçamento do
@@ -928,6 +928,13 @@ async function sendFixedOutbound(
   corpoDoFluxo: string,
   /** `true` só na re-entrada por template — ver o cabeçalho. */
   comCamadaSemantica: boolean,
+  /**
+   * `true` = texto fixo de uma caixa do FLUXO, escrito pelo dono. Um roteiro fixo
+   * manda a MESMA mensagem a todo lead por construção, e o volume é de quem
+   * controla o anúncio: a trava de texto repetido e os tetos do dia não se aplicam
+   * (ver `ENVIO_DE_FLUXO`). Texto do modelo e re-entrada por template seguem armados.
+   */
+  textoDoDono = false,
 ): Promise<EnvioFixoDesfecho> {
   const { tenantId, leadId, channelSessionId, conversationId } = target;
   const runLog = withFields(deps.log, { job_id: job.id, tenant_id: tenantId, lead_id: leadId });
@@ -983,6 +990,7 @@ async function sendFixedOutbound(
     now: clock(),
     sleep: deps.sleep,
     lgpd: context.lgpd,
+    ...(textoDoDono ? ENVIO_DE_FLUXO : {}),
     ...(deps.knobs.disclosureMode !== undefined ? { disclosureMode: deps.knobs.disclosureMode } : {}),
     ...(camadaSemanticaLigada
       ? {
@@ -1357,6 +1365,7 @@ async function sendConteudoSequence(
       lgpd: context.lgpd,
       // Conteúdo de caixa é texto do DONO: a tabela de preço do agente não o julga.
       enforcePromise: false,
+      ...ENVIO_DE_FLUXO,
       ...(soModelo ? { isTemplate: true } : {}),
       ...(deps.knobs.disclosureMode !== undefined ? { disclosureMode: deps.knobs.disclosureMode } : {}),
       send: async (finalBody) => {
@@ -1575,6 +1584,21 @@ async function sendConteudoSequence(
  * anúncio que chegasse com o teto do dia já gasto ficava sem resposta para sempre.
  * O teto continua valendo — nada é enviado além dele; o que muda é o lead não se perder.
  */
+/**
+ * O QUE NÃO SE APLICA AO ENVIO DE FLUXO — decisão do dono do produto.
+ *
+ * Um fluxo estático manda a MESMA mensagem a todo lead: é o que um roteiro fixo
+ * É. A trava de texto repetido (`mass_identical`) vetava a terceira pessoa que
+ * entrasse no funil e encerrava o fluxo dela no meio — medido em produção com
+ * lead de anúncio. E o volume é de quem controla o anúncio, não do sistema: os
+ * tetos do dia (aquecimento e limite diário) seguravam lead que o dono queria
+ * atender.
+ *
+ * Continua valendo para o fluxo: pedido de saída, LGPD, janela de horário,
+ * intervalo entre envios e a janela de 24h do canal oficial.
+ */
+const ENVIO_DE_FLUXO = { enforceSpinning: false, enforceDailyCaps: false } as const;
+
 const VETOS_QUE_ESPERAM: ReadonlySet<string> = new Set(['outside_window', 'warmup_cap', 'daily_cap']);
 
 export function vetoQueEspera(code: string): boolean {

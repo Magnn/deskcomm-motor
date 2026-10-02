@@ -125,6 +125,8 @@ export interface GateContext {
     knobs: PacingKnobs;
     state: PacingState;
     crmDailyLimit: number | null;
+    /** `false` = sem teto de volume do dia nesta tentativa. Ver `RunBeforeSendArgs.enforceDailyCaps`. */
+    dailyCapsEnforced?: boolean;
     rng?: () => number;
   };
   spinning: {
@@ -697,6 +699,7 @@ export const pacingGate: Gate = {
       state: ctx.pacing.state,
       crmDailyLimit: ctx.pacing.crmDailyLimit,
       banRisk,
+      ...(ctx.pacing.dailyCapsEnforced === false ? { enforceDailyCaps: false } : {}),
       rng: ctx.pacing.rng,
     });
     if (!decision.allow) {
@@ -962,6 +965,18 @@ export interface RunBeforeSendArgs {
    * diário (`recordSend`) continua valendo — o aviso é uma mensagem de verdade.
    */
   enforceSpinning?: boolean;
+  /**
+   * `false` = este envio não conta contra os TETOS DE VOLUME do dia (aquecimento
+   * do número e limite diário). Ausente = armado.
+   *
+   * Decisão do dono do produto, para o envio de FLUXO: quem roda anúncio controla
+   * o volume pela verba ("quando der o número que eu considero bom, eu paro os
+   * anúncios"), e um teto do sistema deixava lead de anúncio sem resposta. Sai SÓ
+   * o teto: opt-out, LGPD, janela de horário e o intervalo entre envios continuam
+   * valendo, e o envio segue sendo CONTADO (`recordSend`) para a tela mostrar o
+   * volume real do número.
+   */
+  enforceDailyCaps?: boolean;
   /**
    * `false` = este corpo é TEXTO FIXO DE FLUXO, escrito pelo dono, e a tabela de
    * preço do agente não o julga. Ausente = armado (todo texto do modelo).
@@ -1229,6 +1244,7 @@ export async function runBeforeSend(args: RunBeforeSendArgs): Promise<BeforeSend
         knobs: pacingCfg.knobs,
         state: pacingState,
         crmDailyLimit: args.crmDailyLimit,
+        ...(args.enforceDailyCaps === false ? { dailyCapsEnforced: false as const } : {}),
         rng: args.rng,
       },
       spinning: { knobs: spinningKnobs, window },

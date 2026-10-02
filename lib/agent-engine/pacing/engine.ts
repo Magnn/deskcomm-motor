@@ -41,6 +41,14 @@ export interface PacingInput {
    * Omitir = `true`: nenhum chamador existente muda de comportamento.
    */
   banRisk?: boolean;
+  /**
+   * `false` desarma SÓ os tetos de volume do dia (aquecimento e limite diário).
+   * Janela horária e intervalo entre envios continuam valendo. Quem desarma é o
+   * envio de FLUXO: lá o volume é decisão do dono do número (ele controla quantos
+   * leads entram), e um teto do sistema deixava lead de anúncio sem resposta.
+   * Omitir = `true`: nenhum chamador existente muda de comportamento.
+   */
+  enforceDailyCaps?: boolean;
   /** [0,1) — injetável nos testes; default Math.random. */
   rng?: () => number;
 }
@@ -85,7 +93,7 @@ export function decidePacing(input: PacingInput): PacingDecision {
     : 0;
   const wCap = warmupCapFor(ageDays, knobs.warmupDailyCaps);
   const effectiveCap = Math.min(wCap ?? Infinity, crmDailyLimit ?? Infinity);
-  if (state.sentToday >= effectiveCap) {
+  if (input.enforceDailyCaps !== false && state.sentToday >= effectiveCap) {
     const nextAllowedAt = addMs(nextDayOpen(now, knobs), jitterOf(rng, knobs));
     const isWarmup = wCap !== null && wCap < (crmDailyLimit ?? Infinity);
     return {
