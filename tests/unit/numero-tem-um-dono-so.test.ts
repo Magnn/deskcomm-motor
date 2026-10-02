@@ -35,6 +35,8 @@ const FLUXO = "22222222-2222-4222-8222-222222222222";
 let metadataDoNumero: Record<string, unknown> | null = null;
 let inscricaoViva: { id: string } | null = null;
 let eventos: string[] = [];
+/** Organizações suspensas (por id) — a guarda de assinatura na entrada de mensagens. */
+const suspensas = new Set<string>();
 /** A caixa "Início" da versão publicada. `undefined` = fluxo sem versão ativa. */
 let inicioPublicado: Record<string, unknown> | undefined;
 
@@ -51,7 +53,9 @@ function consulta(tabela: string): unknown {
   const resposta = () =>
     tabela === "channel_sessions"
       ? { data: metadataDoNumero === null ? null : { metadata: metadataDoNumero }, error: null }
-      : tabela === "followup_enrollments"
+      : tabela === "organizations"
+        ? { data: { status: suspensas.size > 0 ? "suspended" : "active" }, error: null }
+        : tabela === "followup_enrollments"
         ? { data: inscricaoViva, error: null }
         : tabela === "followup_flow_pointers"
           ? { data: inicioPublicado === undefined ? null : { active_version_id: "v1" }, error: null }
@@ -152,6 +156,28 @@ describe("a caixa Início decide qual mensagem abre o fluxo do número", () => {
     enrollFollowupFlow.mockResolvedValue({ ok: false, code: "flow_not_active", message: "x", status: 422 });
     await texto("bom dia");
     expect(acelerarFluxoDoContato).not.toHaveBeenCalled();
+  });
+});
+
+describe("empresa suspensa (assinatura inativa) não automatiza", () => {
+  // A leitura do status tem memo de 30 s POR organização: este bloco usa um id
+  // só dele para não herdar a resposta "ativa" dos outros casos do arquivo.
+  const chegaNaSuspensa = async () => {
+    const { aplicarEfeitosPosEntrada } = await import("@/lib/channels/pos-entrada");
+    await aplicarEfeitosPosEntrada(admin, { ...ENTRADA, organizationId: "org-suspensa" });
+  };
+
+  it("número de fluxo de empresa suspensa: ninguém é inscrito e o agente não é chamado", async () => {
+    suspensas.add("org-suspensa");
+    metadataDoNumero = { handling_mode: "flow", default_flow_pointer_id: FLUXO };
+    inicioPublicado = {};
+    try {
+      await chegaNaSuspensa();
+      expect(enrollFollowupFlow).not.toHaveBeenCalled();
+      expect(agenteFoiChamado()).toBe(false);
+    } finally {
+      suspensas.clear();
+    }
   });
 });
 
