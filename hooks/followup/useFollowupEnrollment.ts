@@ -111,3 +111,45 @@ export function useIntervirNoFollowup() {
     },
   });
 }
+
+/**
+ * Os estados em que um follow-up ACABOU — não há mais nada agendado para ele. É
+ * neles que "recomeçar" faz sentido: enquanto o follow-up está vivo, o banco
+ * recusa uma segunda inscrição do mesmo contato (um follow-up vivo por pessoa).
+ */
+export const FOLLOWUP_ENCERRADO: ReadonlySet<string> = new Set(["completed", "cancelled", "dead"]);
+
+export function followupEncerrado(d: Pick<FollowupEnrollmentDossie, "status" | "completed_at">): boolean {
+  return FOLLOWUP_ENCERRADO.has(d.status) || d.completed_at !== null;
+}
+
+/**
+ * RECOMEÇAR o fluxo para o mesmo contato, do início.
+ *
+ * É uma inscrição NOVA (a rota de inscrição que já existia), não um "desfazer":
+ * o follow-up encerrado fica como está, com a história dele, e nasce outro na
+ * primeira caixa da versão publicada AGORA. Serve para o contato que ficou no
+ * meio do caminho — um envio recusado, um fluxo cancelado por engano — sem
+ * depender de ele mandar outra mensagem.
+ */
+export function useRecomecarFollowup() {
+  const t = useT();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationKey: ["followup", "enrollment", "recomecar"],
+    mutationFn: async (p: { pointerId: string; contactId: string }) => {
+      const res = await apiClient.post<{ data: { id: string } }>("/api/v1/ai/followups/enrollments", {
+        pointer_id: p.pointerId,
+        contact_id: p.contactId,
+      });
+      return res.data;
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["followup", "queue"] });
+      toast.success(t("Fluxo recomeçado do início para este contato."));
+    },
+    onError: (err) => {
+      showApiError(err);
+    },
+  });
+}
