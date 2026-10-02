@@ -44,11 +44,13 @@ let sequencia = 0;
 const novoId = () => `00000000-0000-4000-8000-${String(++sequencia).padStart(12, "0")}`;
 
 export function criarBancoEmMemoria(
-  inicial: Record<string, Linha[]> = {},
+  // `object`, e não `Linha`: quem monta o cenário passa os tipos do próprio módulo,
+  // que não têm assinatura de índice.
+  inicial: Record<string, readonly object[]> = {},
   unicos: Record<string, string[][]> = {},
 ): BancoEmMemoria {
   const tabelas: Record<string, Linha[]> = {};
-  for (const [nome, linhas] of Object.entries(inicial)) tabelas[nome] = linhas.map((l) => ({ ...l }));
+  for (const [nome, linhas] of Object.entries(inicial)) tabelas[nome] = linhas.map((l) => ({ ...(l as Linha) }));
   const falhas = new Map<string, string>();
 
   const viola = (tabela: string, nova: Linha, ignorar?: Linha): boolean =>
