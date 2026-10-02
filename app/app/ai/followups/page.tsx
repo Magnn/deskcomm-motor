@@ -13,7 +13,15 @@ export const dynamic = "force-dynamic";
 
 const FLOW_COLUMNS = "id, name, status, active_version_id, handoff_policy, updated_at";
 
-export default async function FollowupFlowsPage() {
+const UUID_RX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** `?aba=fila&fluxo=<id>` — a porta do botão "Logs" do construtor de fluxo. */
+type Props = { searchParams: Promise<{ aba?: string; fluxo?: string }> };
+
+export default async function FollowupFlowsPage({ searchParams }: Props) {
+  const { aba, fluxo } = await searchParams;
+  const abaInicial = aba === "fila" ? "fila" : "fluxos";
+  const fluxoInicial = fluxo && UUID_RX.test(fluxo) ? fluxo : undefined;
   const user = await requireAuth();
   // `t` local em vez do hook: esta página é componente de SERVIDOR, e lá o
   // idioma vem resolvido em `user.idioma` (a cadeia pessoa → organização →
@@ -46,7 +54,7 @@ export default async function FollowupFlowsPage() {
           </p>
         </div>
       </header>
-      <Tabs defaultValue="fluxos" className="flex flex-1 flex-col">
+      <Tabs defaultValue={abaInicial} className="flex flex-1 flex-col">
         <TabsList>
           <TabsTrigger value="fluxos">{t("Fluxos")}</TabsTrigger>
           <TabsTrigger value="fila">Fila</TabsTrigger>
@@ -55,7 +63,7 @@ export default async function FollowupFlowsPage() {
           <FlowsList initialData={flows} canWrite={canWrite} />
         </TabsContent>
         <TabsContent value="fila">
-          <QueueTab canWrite={canWrite} />
+          <QueueTab canWrite={canWrite} fluxoInicial={fluxoInicial} />
         </TabsContent>
       </Tabs>
     </div>

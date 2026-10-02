@@ -42,3 +42,27 @@ describe("enrollmentToQueueRow — agent_name", () => {
     expect(row.agent_name).toBeNull();
   });
 });
+
+describe("enrollmentToQueueRow — o motivo da parada", () => {
+  // Quem abre os logs de um fluxo quer saber POR QUE parou. Antes a coluna
+  // mostrava só o id da caixa, mesmo numa inscrição cancelada.
+  it("inscrição andando mostra a caixa em que está", () => {
+    const row = enrollmentToQueueRow({ ...base, ai_agents: null });
+    expect(row.node_or_reason).toBe("n1");
+  });
+
+  it("inscrição que parou mostra o motivo, não o id da caixa", () => {
+    const row = enrollmentToQueueRow({
+      ...base,
+      status: "cancelled",
+      cancel_reason: "Atendimento encerrado ou substituído",
+      ai_agents: null,
+    });
+    expect(row.node_or_reason).toBe("Atendimento encerrado ou substituído");
+  });
+
+  it("motivo em branco não apaga a caixa", () => {
+    const row = enrollmentToQueueRow({ ...base, cancel_reason: "  ", ai_agents: null });
+    expect(row.node_or_reason).toBe("n1");
+  });
+});
