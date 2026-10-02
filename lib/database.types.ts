@@ -945,6 +945,45 @@ export type Database = {
           },
         ]
       }
+      organization_subscriptions: {
+        Row: {
+          created_at: string
+          id: string
+          organization_id: string
+          plan_id: string
+          reason: string | null
+          reference: string | null
+          source: string
+          status: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          organization_id: string
+          plan_id: string
+          reason?: string | null
+          reference?: string | null
+          source: string
+          status?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          organization_id?: string
+          plan_id?: string
+          reason?: string | null
+          reference?: string | null
+          source?: string
+          status?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       payment_gateway_connections: {
         Row: {
           api_key_encrypted: string | null

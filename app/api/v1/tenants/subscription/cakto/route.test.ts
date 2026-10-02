@@ -12,6 +12,8 @@ const h = vi.hoisted(() => ({
   ativar: vi.fn(),
   suspender: vi.fn(),
   boasVindas: vi.fn(),
+  pagarPlano: vi.fn(),
+  cairPlano: vi.fn(),
   limite: vi.fn(),
   espiar: vi.fn(),
   log: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
@@ -22,6 +24,13 @@ vi.mock("@/lib/logger", () => ({ logger: h.log }));
 vi.mock("@/lib/ai/dispatcher/rate-limit", () => ({ checkRateLimit: h.limite, peekRateLimit: h.espiar }));
 vi.mock("@/lib/tenants/assinatura", () => ({ ativarAssinatura: h.ativar, suspenderAssinatura: h.suspender }));
 vi.mock("@/lib/tenants/boas-vindas-da-assinatura", () => ({ enviarBoasVindasDaAssinatura: h.boasVindas }));
+vi.mock("@/lib/planos/pagamento-do-plano", () => ({ aplicarPagamentoDoPlano: h.pagarPlano, aplicarQuedaDoPlano: h.cairPlano }));
+vi.mock("@/lib/planos/assinatura-da-organizacao", () => ({
+  planosDaInstalacao: () => [
+    { id: "start", nome: "Start", precoMensalCentavos: 9700, numeros: 1 },
+    { id: "pro", nome: "Pro", precoMensalCentavos: 19700, numeros: 3 },
+  ],
+}));
 vi.mock("@/lib/auth/provision", () => ({
   EmailJaTemContaError: class extends Error {},
   ProvisionConflictError: class extends Error {},
@@ -70,6 +79,8 @@ beforeEach(() => {
   h.ativar.mockResolvedValue({ ok: true, organizationId: "org-1", status: "active", criada: true, linkDeAcesso: LINK, fluxosEncerrados: 0 });
   h.suspender.mockResolvedValue({ ok: true, organizationId: "org-1", status: "suspended", criada: false, linkDeAcesso: null, fluxosEncerrados: 2 });
   h.boasVindas.mockResolvedValue({ enviado: true });
+  h.pagarPlano.mockResolvedValue({ ok: true, organizationId: "org-dela", criada: false, linkDeAcesso: null });
+  h.cairPlano.mockResolvedValue({ ok: true, organizationId: "org-dela", fluxosEncerrados: 3 });
 });
 
 describe("as guardas", () => {
@@ -217,5 +228,58 @@ describe("deixou de pagar", () => {
     h.ativar.mockResolvedValue({ ok: true, organizationId: "org-1", status: "active", criada: false, linkDeAcesso: null, fluxosEncerrados: 0 });
     const res = await POST(pedido(aviso("subscription_late_recovered")));
     expect(await corpoDe(res)).toMatchObject({ resultado: "ativa" });
+  });
+});
+
+describe("oferta que vende um PLANO (código=plano)", () => {
+  beforeEach(() => {
+    h.env.CAKTO_SUBSCRIPTION_PRODUCTS = "a8BcHrY=pro";
+  });
+
+  it("⭐ pagou: o plano entra na empresa de quem já tem conta — nenhuma empresa é criada nem suspensa", async () => {
+    const res = await POST(pedido(aviso()));
+    expect(await corpoDe(res)).toEqual({ resultado: "plano_ativo", organization_id: "org-dela", plano: "pro" });
+    expect(h.pagarPlano).toHaveBeenCalledWith(
+      expect.objectContaining({ integration: "cakto", email: "dona@clinica.test", nome: "Dona Maria", planoId: "pro" }),
+    );
+    expect(h.ativar).not.toHaveBeenCalled();
+    expect(h.boasVindas).not.toHaveBeenCalled();
+  });
+
+  it("pagou sem ter conta: a empresa nasce e o acesso vai por e-mail", async () => {
+    h.pagarPlano.mockResolvedValue({ ok: true, organizationId: "org-nova", criada: true, linkDeAcesso: LINK });
+    const res = await POST(pedido(aviso()));
+    expect(await corpoDe(res)).toEqual({ resultado: "plano_ativo", organization_id: "org-nova", plano: "pro", email_enviado: true });
+    expect(h.boasVindas).toHaveBeenCalledWith({ organizationId: "org-nova", nome: "Dona Maria", email: "dona@clinica.test", linkDeAcesso: LINK });
+  });
+
+  it("⭐ deixou de pagar: o plano cai, mas a empresa NÃO é suspensa", async () => {
+    const res = await POST(pedido(aviso("subscription_canceled")));
+    expect(await corpoDe(res)).toEqual({ resultado: "plano_inativo", organization_id: "org-dela", flows_stopped: 3 });
+    expect(h.cairPlano).toHaveBeenCalledWith(
+      expect.objectContaining({ email: "dona@clinica.test", motivo: "Assinatura cancelada na Cakto." }),
+    );
+    expect(h.suspender).not.toHaveBeenCalled();
+  });
+
+  it("comprador sem empresa própria (é atendente na de outro): 200 sem efeito, para uma pessoa resolver", async () => {
+    h.pagarPlano.mockResolvedValue({ ok: false, motivo: "email_sem_empresa_propria" });
+    const res = await POST(pedido(aviso()));
+    expect(res.status).toBe(200);
+    expect(await corpoDe(res)).toMatchObject({ resultado: "ignorado", motivo: "email_sem_empresa_propria" });
+  });
+
+  it("oferta apontando para plano que o catálogo não tem: não dá plano nenhum, e o erro vai para o log", async () => {
+    h.env.CAKTO_SUBSCRIPTION_PRODUCTS = "a8BcHrY=diamante";
+    const res = await POST(pedido(aviso()));
+    expect(await corpoDe(res)).toMatchObject({ resultado: "ignorado", motivo: "plano_desconhecido" });
+    expect(h.pagarPlano).not.toHaveBeenCalled();
+    expect(h.log.error).toHaveBeenCalledTimes(1);
+  });
+
+  it("queda de quem não tem plano pago aqui: 200 sem efeito", async () => {
+    h.cairPlano.mockResolvedValue({ ok: false, motivo: "empresa_nao_encontrada" });
+    const res = await POST(pedido(aviso("refund")));
+    expect(await corpoDe(res)).toMatchObject({ resultado: "ignorado", motivo: "empresa_nao_encontrada" });
   });
 });

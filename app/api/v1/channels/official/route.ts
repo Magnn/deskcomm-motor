@@ -26,6 +26,7 @@ import type { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
 import { fail, ok } from "@/lib/api/wrappers";
+import { travaDeNovoNumero } from "@/lib/planos/trava-de-numero";
 import { requireRole } from "@/lib/auth/require-role";
 import { ARCHIVED_AT, queryTolerantToMissingArchived } from "@/lib/channels/archived";
 import { CHANNEL_PROVIDER_META } from "@/lib/channels/capabilities";
@@ -251,6 +252,13 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     archived_at?: string | null;
     webhook_path_token?: string | null;
   } | null;
+
+  // PLANO: número novo (ou um excluído que volta) conta no limite; regravar a
+  // credencial de um número vivo não.
+  if (!existente || existente.archived_at) {
+    const semPlano = await travaDeNovoNumero(admin, orgId, t, requestId);
+    if (semPlano) return semPlano;
+  }
 
   const linha = {
     organization_id: orgId,

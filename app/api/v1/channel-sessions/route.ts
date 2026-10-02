@@ -14,6 +14,7 @@ import { connectWahaChannel, ChannelConnectionError } from "@/lib/channels/conne
 import { createAdminClient } from "@/lib/supabase/admin";
 import { mfaEmDivida } from "@/lib/auth/server";
 import { ok, fail } from "@/lib/api/wrappers";
+import { travaDeNovoNumero } from "@/lib/planos/trava-de-numero";
 import { loadAuthUser, resolveActiveOrg } from "@/lib/auth/server";
 import { requireRole } from "@/lib/auth/require-role";
 import { ARCHIVED_AT, queryTolerantToMissingArchived } from "@/lib/channels/archived";
@@ -80,6 +81,10 @@ export async function POST(req: NextRequest): Promise<Response> {
   const t = (texto: string) => traduzir(texto, authz.user.idioma);
   const { user, org: activeOrg } = authz;
   if (await mfaEmDivida()) return fail("mfa_required", t("Confirme a verificação em duas etapas."), 403, { requestId });
+
+  // PLANO: conectar número é o que se cobra. Antes de qualquer reserva no WhatsApp.
+  const semPlano = await travaDeNovoNumero(createAdminClient(), activeOrg.orgId, t, requestId);
+  if (semPlano) return semPlano;
 
   const waha = getWahaClient();
   if (!waha) {
