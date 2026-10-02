@@ -17,4 +17,4 @@ simulador mostrava a mensagem como se tivesse saído. Agora todas executam de ve
 
 ## Requer atenção
 
-Para usar a caixa Cobrança, conecte a conta do Asaas em Configurações › Pagamentos (comece pelo ambiente sandbox): a publicação de um fluxo com Cobrança é recusada enquanto a conexão não existir ou estiver desligada. Para Voice Studio, cadastre a chave de voz (OpenAI ou ElevenLabs) na organização; sem ela a pessoa recebe o texto no lugar do áudio. Para Template WhatsApp, sincronize os modelos da Meta em Conexões. Esta versão adiciona a tabela `payment_gateway_connections` (migration 0905), aplicada pelo update.
+Para usar a caixa Cobrança, conecte a conta do Asaas em Configurações › Pagamentos (comece pelo ambiente sandbox): a publicação de um fluxo com Cobrança é recusada enquanto a conexão não existir ou estiver desligada. Para Voice Studio, cadastre a chave de voz (OpenAI ou ElevenLabs) na organização; sem ela a pessoa recebe o texto no lugar do áudio. Para Template WhatsApp, sincronize os modelos da Meta em Conexões. Esta versão adiciona a tabela `payment_gateway_connections` (migration 0907), aplicada pelo update.
