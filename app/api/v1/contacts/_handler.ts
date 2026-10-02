@@ -807,6 +807,39 @@ export async function deleteContactHandler(
   const apagados: string[] = [];
   let deleted: { id: string } | null = null;
   try {
+    // OS RASTROS DE FLUXO SAEM PRIMEIRO, e pelo cliente de serviço.
+    //
+    // Medido em produção: contato que já passou por um fluxo NÃO era excluído.
+    // `job_queue` (jobs `followup_turn`) e `followup_enrollment_events` caem por
+    // cascata junto com a ficha, e o trigger `fn_followup_generation_write`
+    // (migration 0224) recusa qualquer DELETE neles feito com sessão de usuário —
+    // ele existe para ninguém adulterar o motor pela API, e não distingue a
+    // cascata de uma exclusão legítima. O DELETE da ficha falhava com 42501
+    // DEPOIS de mensagens e conversas já terem sido apagadas: o contato ficava
+    // sem histórico, e o fluxo em andamento era cancelado porque a conversa dele
+    // sumiu. Esse passo é o primeiro justamente para que, se algo recusar, nada
+    // do histórico tenha sido tocado.
+    //
+    // Cliente de serviço com os DOIS filtros (organização + contato): a
+    // autorização de excluir já foi decidida pela rota.
+    const servico = createAdminClient();
+    const { error: jobsErr } = await servico
+      .from("job_queue")
+      .delete()
+      .eq("organization_id", ctx.organization_id)
+      .eq("contact_id", contactId)
+      .eq("kind", "followup_turn");
+    throwOnDbError(jobsErr, ctx.requestId, ctx.idioma);
+    apagados.push("job_queue");
+
+    const { error: inscricoesErr } = await servico
+      .from("followup_enrollments")
+      .delete()
+      .eq("organization_id", ctx.organization_id)
+      .eq("contact_id", contactId);
+    throwOnDbError(inscricoesErr, ctx.requestId, ctx.idioma);
+    apagados.push("followup_enrollments");
+
     // Mensagens e conversas RESTRICT no contato: apagar primeiro, senão o
     // DELETE da ficha falha para qualquer lead que já falou no canal.
     const { error: msgErr } = await supabase
