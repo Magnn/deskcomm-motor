@@ -10,8 +10,11 @@
  */
 import {
   EVENTOS_WHATSAPP_DO_INICIO,
+  ORIGENS_DO_INICIO,
+  triggerNodeConfigSchema,
   type EventoWhatsappDoInicio,
   type FlowGraph,
+  type OrigemDoInicio,
   type TriggerNodeConfig,
 } from "./graph-schema";
 
@@ -19,7 +22,9 @@ import {
 export function normalizarParaGatilho(texto: string): string {
   return texto
     .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
+    // Marcas de acento soltas pelo NFD (U+0300 a U+036F), escritas por código para o
+    // editor não as esconder dentro dos colchetes.
+    .replace(/\p{Mn}/gu, "")
     .toLowerCase()
     .replace(/\s+/g, " ")
     .trim();
@@ -68,4 +73,58 @@ export function mensagemAbreOFluxo(
 export function configDoInicio(graph: Pick<FlowGraph, "nodes">): TriggerNodeConfig | undefined {
   const inicio = graph.nodes.find((n) => n.type === "trigger");
   return inicio?.type === "trigger" ? inicio.config : undefined;
+}
+
+/**
+ * A escolha feita no diálogo "Novo fluxo" vira a configuração da caixa "Início".
+ *
+ * Antes a origem, o evento e a palavra-chave escolhidos ali eram guardados no
+ * localStorage do navegador e lidos só pelo CARTÃO: o motor nunca os via, e em
+ * outro computador o cartão mostrava outra coisa. Agora a escolha viaja para o
+ * construtor (na URL, uma vez) e nasce dentro do nó — o mesmo dado que o motor lê.
+ *
+ * Origem que não tem motor próprio entra como está (ou como `webhook`, quando nem
+ * está no vocabulário): a caixa avisa e a publicação recusa, em vez de fingir.
+ */
+export function configDoInicioDoNovoFluxo(escolha: {
+  provedor: string;
+  evento: string;
+  palavraChave: string;
+}): TriggerNodeConfig {
+  const palavra = escolha.palavraChave.trim();
+  if (escolha.provedor === "whatsapp") {
+    if (palavra !== "") return { integration: "whatsapp", event: "keyword", keyword: palavra.slice(0, 200) };
+    if (escolha.evento === "inicio_conversa") return { integration: "whatsapp", event: "inicio_conversa" };
+    return { integration: "whatsapp", event: "message_received" };
+  }
+  const origem = (ORIGENS_DO_INICIO as readonly string[]).includes(escolha.provedor)
+    ? (escolha.provedor as OrigemDoInicio)
+    : "webhook";
+  return { integration: origem, event: escolha.evento.slice(0, 40) };
+}
+
+/** Os parâmetros de URL que levam a escolha do diálogo até o construtor. */
+export function paramsDoInicio(config: TriggerNodeConfig): string {
+  const q = new URLSearchParams();
+  if (config.integration) q.set("origem", config.integration);
+  if (config.event) q.set("evento", config.event);
+  if (config.keyword) q.set("palavra", config.keyword);
+  return q.toString();
+}
+
+/**
+ * Lê de volta, validando pelo schema do nó: URL é entrada de fora, e um valor
+ * estranho ali não pode virar config inválida — que impediria o fluxo de salvar.
+ */
+export function configDoInicioDaUrl(params: { get(nome: string): string | null }): TriggerNodeConfig {
+  const origem = params.get("origem");
+  const evento = params.get("evento");
+  const palavra = params.get("palavra");
+  const candidata = {
+    ...(origem ? { integration: origem } : {}),
+    ...(evento ? { event: evento } : {}),
+    ...(palavra ? { keyword: palavra } : {}),
+  };
+  const lida = triggerNodeConfigSchema.safeParse(candidata);
+  return lida.success ? lida.data : {};
 }

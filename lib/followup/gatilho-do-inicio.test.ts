@@ -1,7 +1,15 @@
 import { describe, expect, it } from "vitest";
 
 import { rascunhoIncompleto } from "./caixas-incompletas";
-import { configDoInicio, eventoWhatsappDoInicio, mensagemAbreOFluxo, normalizarParaGatilho } from "./gatilho-do-inicio";
+import {
+  configDoInicio,
+  configDoInicioDaUrl,
+  configDoInicioDoNovoFluxo,
+  eventoWhatsappDoInicio,
+  mensagemAbreOFluxo,
+  normalizarParaGatilho,
+  paramsDoInicio,
+} from "./gatilho-do-inicio";
 import type { FlowGraph, TriggerNodeConfig } from "./graph-schema";
 import { validateFlowForPublish } from "./validate-publish";
 
@@ -101,5 +109,56 @@ describe("a mensagem que chega abre o fluxo?", () => {
   it("normalização e leitura da caixa no grafo", () => {
     expect(normalizarParaGatilho("  Olá,   MUNDO ")).toBe("ola, mundo");
     expect(configDoInicio(grafo({ keyword: "x" }))).toEqual({ keyword: "x" });
+  });
+});
+
+describe("a escolha do diálogo 'Novo fluxo' vira a config da caixa Início", () => {
+  it("WhatsApp com palavra-chave: evento palavra-chave, com a palavra", () => {
+    expect(configDoInicioDoNovoFluxo({ provedor: "whatsapp", evento: "mensagem_recebida", palavraChave: "  EU QUERO " })).toEqual({
+      integration: "whatsapp",
+      event: "keyword",
+      keyword: "EU QUERO",
+    });
+  });
+
+  it("WhatsApp sem palavra: 'início de conversa' vira primeiro contato; o resto, qualquer mensagem", () => {
+    expect(configDoInicioDoNovoFluxo({ provedor: "whatsapp", evento: "inicio_conversa", palavraChave: "" })).toEqual({
+      integration: "whatsapp",
+      event: "inicio_conversa",
+    });
+    for (const evento of ["mensagem_recebida", "qualquer_mensagem", "palavra_chave"]) {
+      expect(configDoInicioDoNovoFluxo({ provedor: "whatsapp", evento, palavraChave: "" })).toEqual({
+        integration: "whatsapp",
+        event: "message_received",
+      });
+    }
+  });
+
+  it("origem sem motor entra como está (a caixa avisa e o publish recusa) — nunca vira WhatsApp por baixo", () => {
+    expect(configDoInicioDoNovoFluxo({ provedor: "kiwify", evento: "pagamento_aprovado", palavraChave: "" })).toEqual({
+      integration: "kiwify",
+      event: "pagamento_aprovado",
+    });
+    // Plataforma fora do vocabulário da caixa chega por webhook.
+    expect(configDoInicioDoNovoFluxo({ provedor: "cakto", evento: "boleto_gerado", palavraChave: "x" })).toEqual({
+      integration: "webhook",
+      event: "boleto_gerado",
+    });
+  });
+
+  it("vai e volta pela URL sem perder nada — e o resultado SALVA", () => {
+    const config = configDoInicioDoNovoFluxo({ provedor: "whatsapp", evento: "x", palavraChave: "quero saber mais" });
+    const lida = configDoInicioDaUrl(new URLSearchParams(paramsDoInicio(config)));
+    expect(lida).toEqual(config);
+    expect(rascunhoIncompleto(grafo(lida)).caixas).toEqual([]);
+  });
+
+  it("URL sem nada (fluxo aberto direto): caixa vazia, como sempre foi", () => {
+    expect(configDoInicioDaUrl(new URLSearchParams(""))).toEqual({});
+  });
+
+  it("URL adulterada não vira config inválida — que impediria o fluxo de salvar", () => {
+    expect(configDoInicioDaUrl(new URLSearchParams("origem=<script>&evento=x"))).toEqual({});
+    expect(configDoInicioDaUrl(new URLSearchParams(`origem=whatsapp&palavra=${"a".repeat(500)}`))).toEqual({});
   });
 });

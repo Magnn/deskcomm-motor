@@ -1,8 +1,9 @@
 import { z } from "zod";
 
 /**
- * Esquema padronizado de intercâmbio de modelos de fluxos (Flow Templates).
- * Compatível com exportações do DeskcommCRM e portabilidade do ChatbotX.
+ * Esquema de intercâmbio de fluxos: o arquivo que o botão "Exportar" do
+ * construtor gera e que "Importar" lê. NÃO há conversor de outros produtos — o
+ * arquivo precisa ter sido exportado por este sistema.
  */
 export const flowTemplatePackageSchema = z.object({
   schemaVersion: z.literal("1.0").default("1.0"),

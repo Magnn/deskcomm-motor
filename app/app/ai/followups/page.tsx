@@ -6,6 +6,8 @@ import { ROLE_RANK } from "@/lib/auth/types";
 import { createClient } from "@/lib/supabase/server";
 import type { FollowupFlowPointerRow } from "@/hooks/followup/useFollowupFlows";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { tiposDeNumeroPorFluxo } from "@/lib/channels/numeros-do-fluxo";
+import { resumirFluxosDaLista } from "@/lib/followup/resumo-para-lista";
 import { FlowsList } from "./_components/FlowsList";
 import { QueueTab } from "./_components/QueueTab";
 
@@ -33,15 +35,27 @@ export default async function FollowupFlowsPage({ searchParams }: Props) {
   // member — o gate por tela fica dentro das abas (canWrite), não na rota.
 
   const supabase = await createClient();
+  // O rascunho vem só para a origem da caixa "Início" (filtro de gatilho) — o que
+  // segue para a tela é o resumo, não o grafo.
   const { data } = await supabase
     .from("followup_flow_pointers")
-    .select(FLOW_COLUMNS)
+    .select(`${FLOW_COLUMNS}, draft_graph`)
     .eq("organization_id", activeOrg.orgId)
     // Roteiro de atendimento não é follow-up (prova do #1130): tem tela própria.
     .neq("surface", "atendimento")
     .order("updated_at", { ascending: false });
 
-  const flows = (data ?? []) as unknown as FollowupFlowPointerRow[];
+  let tipos: Awaited<ReturnType<typeof tiposDeNumeroPorFluxo>> = new Map();
+  try {
+    tipos = await tiposDeNumeroPorFluxo(supabase, activeOrg.orgId);
+  } catch {
+    // Sem os tipos a lista abre igual; só o filtro de canal fica sem o que mostrar.
+    tipos = new Map();
+  }
+  const flows = resumirFluxosDaLista(
+    (data ?? []) as unknown as Array<{ id: string; draft_graph?: unknown }>,
+    tipos,
+  ) as unknown as FollowupFlowPointerRow[];
   const canWrite = ROLE_RANK[activeOrg.role] >= ROLE_RANK.manager;
 
   return (
