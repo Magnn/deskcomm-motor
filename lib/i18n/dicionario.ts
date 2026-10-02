@@ -13278,6 +13278,10 @@ export const DICIONARIO: Traducoes = {
   "Para conectar um número é preciso assinar um plano. Abra Configurações › Billing para escolher o seu.": { es: "Para conectar un número es necesario suscribirse a un plan. Abra Configuración › Billing para elegir el suyo." },
   "A assinatura desta conta não está em dia. Regularize em Configurações › Billing para conectar um número.": { es: "La suscripción de esta cuenta no está al día. Regularice en Configuración › Billing para conectar un número." },
   "O plano desta conta já está com todos os números em uso. Para conectar mais um, mude de plano em Configurações › Billing.": { es: "El plan de esta cuenta ya tiene todos los números en uso. Para conectar uno más, cambie de plan en Configuración › Billing." },
+  // Dossiê do follow-up: recomeçar o fluxo para o mesmo contato.
+  "Fluxo recomeçado do início para este contato.": { es: "Flujo reiniciado desde el principio para este contacto." },
+  "Recomeçando…": { es: "Reiniciando…" },
+  "Recomeçar o fluxo do início": { es: "Reiniciar el flujo desde el principio" },
 };
 
 /**
