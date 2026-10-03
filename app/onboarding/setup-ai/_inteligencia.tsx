@@ -46,7 +46,16 @@ type Prova =
   | { estado: "problema"; mensagem: string }
   | { estado: "nao_deu" };
 
-export function InteligenciaDele({ inicial }: { inicial: EstadoDaChave }) {
+export function InteligenciaDele({ inicial, incluidaNoPlano = false }: {
+  inicial: EstadoDaChave;
+  /**
+   * A instalação vende por plano e a IA desta empresa roda na chave da
+   * PLATAFORMA: não há chave, crédito nem provedor para o cliente cuidar — isso
+   * é de quem vende. A tela diz isso, em vez de mandar ele "adicionar saldo na
+   * conta da empresa de IA" de uma conta que não é dele.
+   */
+  incluidaNoPlano?: boolean;
+}) {
   const t = useT();
   const [chave, setChave] = useState(inicial);
   const [prova, setProva] = useState<Prova | null>(null);
@@ -55,9 +64,12 @@ export function InteligenciaDele({ inicial }: { inicial: EstadoDaChave }) {
   const [provedor, setProvedor] = useState(inicial.provedor);
 
   const temChave = chave.origem !== "nenhuma";
+  const daPlataforma = incluidaNoPlano && chave.origem === "instalacao";
 
   useEffect(() => {
-    if (!temChave) return;
+    // A chave da plataforma não é do cliente: conferir crédito dela aqui só
+    // produziria um recado que ele não tem como resolver.
+    if (!temChave || daPlataforma) return;
     let vivo = true;
     let tentativas = 0;
 
@@ -97,7 +109,7 @@ export function InteligenciaDele({ inicial }: { inicial: EstadoDaChave }) {
     return () => {
       vivo = false;
     };
-  }, [temChave]);
+  }, [temChave, daPlataforma]);
 
   if (!temChave) {
     return (
@@ -200,6 +212,17 @@ export function InteligenciaDele({ inicial }: { inicial: EstadoDaChave }) {
             {t("Ela é guardada cifrada — nem nós conseguimos lê-la depois.")}
           </span>
         </div>
+      </section>
+    );
+  }
+
+  if (daPlataforma) {
+    return (
+      <section className="space-y-1 rounded-lg border bg-background p-5" data-testid="ia-incluida-no-plano">
+        <h3 className="text-sm font-medium">{t("A inteligência dele já vem incluída no seu plano")}</h3>
+        <p className="text-sm text-muted-foreground">
+          {t("Nada para configurar aqui: ele já pensa. Se um dia você quiser usar a sua própria chave de IA, dá para cadastrar em IA › Credenciais.")}
+        </p>
       </section>
     );
   }

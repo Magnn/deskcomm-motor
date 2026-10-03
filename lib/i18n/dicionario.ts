@@ -13541,6 +13541,15 @@ export const DICIONARIO: Traducoes = {
   "Uma das páginas não pôde ser conectada.": { es: "Una de las páginas no pudo conectarse." },
   "Motivo informado pela Meta:": { es: "Motivo informado por Meta:" },
   "Não foi possível desconectar.": { es: "No fue posible desconectar." },
+  // IA da plataforma por plano (lib/agent-engine/edge/llm/orcamento-da-plataforma.ts).
+  "Inteligência artificial incluída: até": { es: "Inteligencia artificial incluida: hasta" },
+  "de uso por mês. Quem prefere usar a própria chave paga a própria IA.": {
+    es: "de uso por mes. Quien prefiere usar su propia clave paga su propia IA.",
+  },
+  "A inteligência dele já vem incluída no seu plano": { es: "Su inteligencia ya viene incluida en su plan" },
+  "Nada para configurar aqui: ele já pensa. Se um dia você quiser usar a sua própria chave de IA, dá para cadastrar em IA › Credenciais.": {
+    es: "Nada que configurar aquí: ya piensa. Si algún día quiere usar su propia clave de IA, puede registrarla en IA › Credenciales.",
+  },
   // Telegram (lib/channels/telegram/, Conexões › Telegram).
   Telegram: { es: "Telegram" },
   "Bot conectado:": { es: "Bot conectado:" },
