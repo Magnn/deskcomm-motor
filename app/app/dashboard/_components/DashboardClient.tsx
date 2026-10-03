@@ -260,20 +260,20 @@ export function DashboardClient({ orgName }: { orgName: string }) {
 
       {/* ── BANNER DE AVISO / DESTAQUE ────────────────────────────────────── */}
       {showBanner && (
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-purple-900 via-indigo-950 to-slate-950 p-5 text-white border border-purple-800/40 shadow-md">
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-indigo-900 via-indigo-950 to-slate-950 p-5 text-white border border-indigo-800/40 shadow-md">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10">
             <div className="space-y-1">
-              <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-500/20 text-purple-300 border border-purple-400/30">
+              <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-500/20 text-indigo-300 border border-indigo-400/30">
                 {t("🚀 Conversão no X1")}
               </div>
               <h2 className="text-lg font-bold">{t("Automatize suas Vendas e Acompanhe o ROI em Tempo Real")}</h2>
-              <p className="text-xs text-purple-200/80 max-w-xl">
+              <p className="text-xs text-indigo-200/80 max-w-xl">
                 {t("Seus fluxos agora disparam sem travas de volume para todos os leads dos seus anúncios. Conecte mais instâncias para escalar suas conversões.")}
               </p>
             </div>
             <button
               onClick={() => setShowBanner(false)}
-              className="absolute top-2 right-2 p-1.5 text-purple-300 hover:text-white rounded-lg hover:bg-white/10 transition-colors"
+              className="absolute top-2 right-2 p-1.5 text-indigo-300 hover:text-white rounded-lg hover:bg-white/10 transition-colors"
               title="Fechar banner"
             >
               <X size={16} />
@@ -290,7 +290,7 @@ export function DashboardClient({ orgName }: { orgName: string }) {
             onClick={() => setActiveTab("vendas")}
             className={`px-5 py-2 text-sm font-semibold rounded-lg transition-all ${
               activeTab === "vendas"
-                ? "bg-purple-600 text-white shadow-sm"
+                ? "bg-indigo-600 text-white shadow-sm"
                 : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white"
             }`}
           >
@@ -300,7 +300,7 @@ export function DashboardClient({ orgName }: { orgName: string }) {
             onClick={() => setActiveTab("atendimento")}
             className={`px-5 py-2 text-sm font-semibold rounded-lg transition-all ${
               activeTab === "atendimento"
-                ? "bg-purple-600 text-white shadow-sm"
+                ? "bg-indigo-600 text-white shadow-sm"
                 : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white"
             }`}
           >
@@ -314,7 +314,7 @@ export function DashboardClient({ orgName }: { orgName: string }) {
           <select
             value={period}
             onChange={(e) => setPeriod(e.target.value)}
-            className="text-xs font-medium bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl px-3 py-2 text-slate-800 dark:text-zinc-200 focus:outline-hidden focus:ring-2 focus:ring-purple-500"
+            className="text-xs font-medium bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl px-3 py-2 text-slate-800 dark:text-zinc-200 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
           >
             <option value="today">{t("Hoje")}</option>
             <option value="yesterday">{t("Ontem")}</option>
@@ -328,7 +328,7 @@ export function DashboardClient({ orgName }: { orgName: string }) {
           <select
             value={selectedChannel}
             onChange={(e) => setSelectedChannel(e.target.value)}
-            className="text-xs font-medium bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl px-3 py-2 text-slate-800 dark:text-zinc-200 focus:outline-hidden focus:ring-2 focus:ring-purple-500"
+            className="text-xs font-medium bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl px-3 py-2 text-slate-800 dark:text-zinc-200 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
           >
             <option value="all">{t("Todas as conexões")}</option>
             {data?.conexoes?.map((c) => (
@@ -347,7 +347,7 @@ export function DashboardClient({ orgName }: { orgName: string }) {
           <button
             onClick={fetchData}
             disabled={loading}
-            className="p-2 text-slate-600 dark:text-zinc-300 hover:text-purple-600 dark:hover:text-purple-400 bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl transition-colors disabled:opacity-50"
+            className="p-2 text-slate-600 dark:text-zinc-300 hover:text-indigo-600 dark:hover:text-indigo-400 bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl transition-colors disabled:opacity-50"
             title="Atualizar dados"
           >
             <ArrowClockwise size={16} className={loading ? "animate-spin" : ""} />
@@ -407,7 +407,7 @@ export function DashboardClient({ orgName }: { orgName: string }) {
             {/* 3. Vendas */}
             <div className="bg-white dark:bg-zinc-900 p-4 rounded-2xl border border-slate-200/80 dark:border-zinc-800 shadow-sm flex flex-col justify-between">
               <div className="flex items-center justify-between text-slate-500 dark:text-zinc-400">
-                <div className="w-9 h-9 rounded-xl bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 flex items-center justify-center">
+                <div className="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
                   <ShoppingBag size={20} weight="bold" />
                 </div>
                 <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400">
@@ -473,7 +473,7 @@ export function DashboardClient({ orgName }: { orgName: string }) {
             {/* 6. Ticket Médio */}
             <div className="bg-white dark:bg-zinc-900 p-4 rounded-2xl border border-slate-200/80 dark:border-zinc-800 shadow-sm flex flex-col justify-between">
               <div className="flex items-center justify-between text-slate-500 dark:text-zinc-400">
-                <div className="w-9 h-9 rounded-xl bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 flex items-center justify-center">
+                <div className="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
                   <ShoppingCart size={20} weight="bold" />
                 </div>
                 <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400">
@@ -547,7 +547,7 @@ export function DashboardClient({ orgName }: { orgName: string }) {
                   <button
                     onClick={() => setGraphMode("valor")}
                     className={`px-3 py-1 rounded-md transition-all ${
-                      graphMode === "valor" ? "bg-purple-600 text-white shadow-sm" : "text-slate-600 dark:text-zinc-400"
+                      graphMode === "valor" ? "bg-indigo-600 text-white shadow-sm" : "text-slate-600 dark:text-zinc-400"
                     }`}
                   >
                     Valor
@@ -555,7 +555,7 @@ export function DashboardClient({ orgName }: { orgName: string }) {
                   <button
                     onClick={() => setGraphMode("qtd")}
                     className={`px-3 py-1 rounded-md transition-all ${
-                      graphMode === "qtd" ? "bg-purple-600 text-white shadow-sm" : "text-slate-600 dark:text-zinc-400"
+                      graphMode === "qtd" ? "bg-indigo-600 text-white shadow-sm" : "text-slate-600 dark:text-zinc-400"
                     }`}
                   >
                     Qtd
@@ -665,7 +665,7 @@ export function DashboardClient({ orgName }: { orgName: string }) {
                         <div
                           style={{ height: `${heightPercent}%` }}
                           className={`w-full max-w-[12px] rounded-t transition-all ${
-                            h.qtd > 0 ? "bg-purple-600 group-hover:bg-purple-500" : "bg-slate-200 dark:bg-zinc-800"
+                            h.qtd > 0 ? "bg-indigo-600 group-hover:bg-indigo-500" : "bg-slate-200 dark:bg-zinc-800"
                           }`}
                         />
                       </div>
@@ -782,7 +782,7 @@ export function DashboardClient({ orgName }: { orgName: string }) {
                   </button>
                   <button
                     onClick={() => setIsModalOpen(true)}
-                    className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-purple-600 text-white text-xs font-semibold hover:bg-purple-500 transition-colors shadow-sm"
+                    className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-500 transition-colors shadow-sm"
                   >
                     <Plus size={14} weight="bold" />
                     Nova venda
@@ -849,7 +849,7 @@ export function DashboardClient({ orgName }: { orgName: string }) {
                   <button
                     onClick={() => setProdGraphMode("valor")}
                     className={`px-2.5 py-0.5 rounded-md ${
-                      prodGraphMode === "valor" ? "bg-purple-600 text-white" : "text-slate-600 dark:text-zinc-400"
+                      prodGraphMode === "valor" ? "bg-indigo-600 text-white" : "text-slate-600 dark:text-zinc-400"
                     }`}
                   >
                     Valor
@@ -857,7 +857,7 @@ export function DashboardClient({ orgName }: { orgName: string }) {
                   <button
                     onClick={() => setProdGraphMode("qtd")}
                     className={`px-2.5 py-0.5 rounded-md ${
-                      prodGraphMode === "qtd" ? "bg-purple-600 text-white" : "text-slate-600 dark:text-zinc-400"
+                      prodGraphMode === "qtd" ? "bg-indigo-600 text-white" : "text-slate-600 dark:text-zinc-400"
                     }`}
                   >
                     Qtd
@@ -882,7 +882,7 @@ export function DashboardClient({ orgName }: { orgName: string }) {
                       <div className="w-full bg-slate-100 dark:bg-zinc-800 h-2 rounded-full overflow-hidden">
                         <div
                           style={{ width: `${p.percentual}%` }}
-                          className="bg-purple-600 h-full rounded-full transition-all"
+                          className="bg-indigo-600 h-full rounded-full transition-all"
                         />
                       </div>
                     </div>
@@ -922,7 +922,7 @@ export function DashboardClient({ orgName }: { orgName: string }) {
             {/* Leads atendidos */}
             <div className="bg-white dark:bg-zinc-900 p-4 rounded-2xl border border-slate-200/80 dark:border-zinc-800 shadow-sm flex flex-col justify-between">
               <div className="flex items-center justify-between text-slate-500">
-                <div className="w-9 h-9 rounded-xl bg-purple-50 dark:bg-purple-950/40 text-purple-600 flex items-center justify-center">
+                <div className="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 flex items-center justify-center">
                   <ChatCircleText size={20} weight="bold" />
                 </div>
                 <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-zinc-800">
@@ -1088,7 +1088,7 @@ export function DashboardClient({ orgName }: { orgName: string }) {
           <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl shadow-xl w-full max-w-md p-6 space-y-5">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-zinc-800 pb-3">
               <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <Plus size={18} className="text-purple-600" />
+                <Plus size={18} className="text-indigo-600" />
                 Registrar Nova Venda
               </h3>
               <button
@@ -1110,7 +1110,7 @@ export function DashboardClient({ orgName }: { orgName: string }) {
                   placeholder="Ex: Livro Segredos da Noiva 2.0"
                   value={vendaForm.productName}
                   onChange={(e) => setVendaForm({ ...vendaForm, productName: e.target.value })}
-                  className="w-full text-xs bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-purple-500"
+                  className="w-full text-xs bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
 
@@ -1124,7 +1124,7 @@ export function DashboardClient({ orgName }: { orgName: string }) {
                   placeholder="Ex: 10,00"
                   value={vendaForm.amount}
                   onChange={(e) => setVendaForm({ ...vendaForm, amount: e.target.value })}
-                  className="w-full text-xs bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-purple-500"
+                  className="w-full text-xs bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
 
@@ -1137,7 +1137,7 @@ export function DashboardClient({ orgName }: { orgName: string }) {
                   rows={2}
                   value={vendaForm.notes}
                   onChange={(e) => setVendaForm({ ...vendaForm, notes: e.target.value })}
-                  className="w-full text-xs bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-purple-500"
+                  className="w-full text-xs bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
 
@@ -1152,7 +1152,7 @@ export function DashboardClient({ orgName }: { orgName: string }) {
                 <button
                   type="submit"
                   disabled={savingVenda}
-                  className="px-5 py-2 rounded-xl bg-purple-600 text-white text-xs font-semibold hover:bg-purple-500 transition-colors shadow-sm disabled:opacity-50"
+                  className="px-5 py-2 rounded-xl bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-500 transition-colors shadow-sm disabled:opacity-50"
                 >
                   {savingVenda ? "Salvando..." : "Confirmar Venda"}
                 </button>

@@ -208,7 +208,7 @@ export default function VoiceStudioPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2.5">
-            <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-indigo-500/10 via-indigo-600/15 to-purple-500/10 border border-indigo-200/60 dark:border-indigo-800/40 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shadow-2xs">
+            <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-indigo-500/10 via-indigo-600/15 to-indigo-500/10 border border-indigo-200/60 dark:border-indigo-800/40 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shadow-2xs">
               <Headphones size={20} className="stroke-[2.2]" />
             </div>
             <div>
@@ -736,7 +736,7 @@ function AdicionarNovaVozModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[560px] p-0 overflow-hidden border border-slate-200 dark:border-zinc-800 rounded-3xl bg-white dark:bg-zinc-950 shadow-2xl">
         {/* Header Roxo AcassIA */}
-        <div className="bg-purple-600 px-6 py-4 flex items-center justify-between text-white">
+        <div className="bg-indigo-600 px-6 py-4 flex items-center justify-between text-white">
           <DialogTitle className="text-base font-bold text-white tracking-tight">
             {t("Adicionar nova voz")}
           </DialogTitle>
@@ -765,7 +765,7 @@ function AdicionarNovaVozModal({
               value={nome}
               onChange={(e) => setNome(e.target.value)}
               placeholder="Ex.: Atendente Comercial"
-              className="w-full h-10 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3.5 text-xs text-slate-800 dark:text-zinc-100 placeholder:text-slate-400 focus:outline-hidden focus:border-purple-500 transition-colors shadow-2xs"
+              className="w-full h-10 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3.5 text-xs text-slate-800 dark:text-zinc-100 placeholder:text-slate-400 focus:outline-hidden focus:border-indigo-500 transition-colors shadow-2xs"
             />
           </div>
 
@@ -789,11 +789,11 @@ function AdicionarNovaVozModal({
                   className={cn(
                     "h-9 rounded-xl border text-xs font-semibold transition-all cursor-pointer flex items-center justify-center gap-1.5",
                     genero === g.id
-                      ? "border-purple-600 bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 shadow-2xs"
+                      ? "border-indigo-600 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 shadow-2xs"
                       : "border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-600 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-850"
                   )}
                 >
-                  {genero === g.id && <Check size={13} className="text-purple-600 dark:text-purple-400" />}
+                  {genero === g.id && <Check size={13} className="text-indigo-600 dark:text-indigo-400" />}
                   <span>{t(g.label)}</span>
                 </button>
               ))}
@@ -811,9 +811,9 @@ function AdicionarNovaVozModal({
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="h-32 rounded-2xl border-2 border-dashed border-purple-200 dark:border-purple-900/50 bg-purple-50/40 dark:bg-purple-950/20 hover:bg-purple-50/70 p-3 flex flex-col items-center justify-center text-center gap-1.5 transition-all cursor-pointer"
+                className="h-32 rounded-2xl border-2 border-dashed border-indigo-200 dark:border-indigo-900/50 bg-indigo-50/40 dark:bg-indigo-950/20 hover:bg-indigo-50/70 p-3 flex flex-col items-center justify-center text-center gap-1.5 transition-all cursor-pointer"
               >
-                <UploadCloud size={24} className="text-purple-600 dark:text-purple-400" />
+                <UploadCloud size={24} className="text-indigo-600 dark:text-indigo-400" />
                 <span className="font-bold text-[11.5px] text-slate-800 dark:text-zinc-200">
                   {t("Arraste arquivos ou clique para enviar")}
                 </span>
@@ -908,7 +908,7 @@ function AdicionarNovaVozModal({
                 type="checkbox"
                 checked={removerRuido}
                 onChange={(e) => setRemoverRuido(e.target.checked)}
-                className="mt-0.5 accent-purple-600 rounded-md"
+                className="mt-0.5 accent-indigo-600 rounded-md"
               />
               <div className="text-[11px] leading-relaxed">
                 <span className="font-semibold text-slate-800 dark:text-zinc-200 block">
@@ -925,7 +925,7 @@ function AdicionarNovaVozModal({
                 type="checkbox"
                 checked={consentimento}
                 onChange={(e) => setConsentimento(e.target.checked)}
-                className="mt-0.5 accent-purple-600 rounded-md shrink-0"
+                className="mt-0.5 accent-indigo-600 rounded-md shrink-0"
               />
               <span className="text-[10.5px] leading-relaxed text-slate-600 dark:text-zinc-400 font-medium">
                 {t(
@@ -948,7 +948,7 @@ function AdicionarNovaVozModal({
               type="button"
               disabled={salvando || !nome.trim() || arquivos.length === 0 || !consentimento}
               onClick={handleCriarVoz}
-              className="h-10 rounded-xl bg-purple-600 hover:bg-purple-700 active:bg-purple-800 disabled:opacity-50 text-white font-bold text-xs transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed"
+              className="h-10 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 disabled:opacity-50 text-white font-bold text-xs transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed"
             >
               {salvando ? (
                 <>

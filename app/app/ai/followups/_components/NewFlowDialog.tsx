@@ -390,15 +390,15 @@ export function NewFlowDialog({ open, onOpenChange }: Props) {
         <form onSubmit={onSubmit} className="space-y-4 bg-white px-7 py-5 font-sans dark:bg-neutral-900">
           {/* Seletor Pílula: Whatsapp API Oficial | Whatsapp Business */}
           <div className="flex justify-center pt-1 pb-1">
-            <div className="inline-flex items-center rounded-full border border-purple-200/90 bg-neutral-50/70 p-1 shadow-xs dark:border-purple-900/50 dark:bg-neutral-800">
+            <div className="inline-flex items-center rounded-full border border-indigo-200/90 bg-neutral-50/70 p-1 shadow-xs dark:border-indigo-900/50 dark:bg-neutral-800">
               <button
                 type="button"
                 onClick={() => setChannel("oficial")}
                 className={cn(
                   "cursor-pointer rounded-full px-6 py-1.5 text-xs font-semibold transition-all",
                   channel === "oficial"
-                    ? "bg-gradient-to-r from-[#9333ea] to-[#8b5cf6] text-white shadow-md shadow-purple-500/35"
-                    : "text-[#7e22ce] hover:text-purple-900 dark:text-purple-300",
+                    ? "bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow-md shadow-indigo-500/25"
+                    : "text-indigo-700 hover:text-indigo-900 dark:text-indigo-300",
                 )}
               >
                 Whatsapp API Oficial
@@ -409,8 +409,8 @@ export function NewFlowDialog({ open, onOpenChange }: Props) {
                 className={cn(
                   "cursor-pointer rounded-full px-6 py-1.5 text-xs font-semibold transition-all",
                   channel === "business"
-                    ? "bg-gradient-to-r from-[#9333ea] to-[#8b5cf6] text-white shadow-md shadow-purple-500/35"
-                    : "text-[#7e22ce] hover:text-purple-900 dark:text-purple-300",
+                    ? "bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow-md shadow-indigo-500/25"
+                    : "text-indigo-700 hover:text-indigo-900 dark:text-indigo-300",
                 )}
               >
                 Whatsapp Business
@@ -429,7 +429,7 @@ export function NewFlowDialog({ open, onOpenChange }: Props) {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder={t("Ex: Recuperação de carrinho abandonado")}
-              className="h-10 rounded-lg border-neutral-300 text-sm focus:border-purple-500 focus:ring-1 focus:ring-purple-500 dark:border-neutral-700"
+              className="h-10 rounded-lg border-neutral-300 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 dark:border-neutral-700"
               maxLength={80}
               required
               autoFocus
@@ -458,7 +458,7 @@ export function NewFlowDialog({ open, onOpenChange }: Props) {
                     className={cn(
                       "flex h-12 w-full cursor-pointer items-center justify-center rounded-xl border bg-white p-1 transition-all shadow-2xs dark:bg-neutral-800",
                       isSelected
-                        ? "border-2 border-purple-600 ring-2 ring-purple-500/30 shadow-xs"
+                        ? "border-2 border-indigo-600 ring-2 ring-indigo-500/30 shadow-xs"
                         : "border-neutral-200 hover:border-neutral-300 dark:border-neutral-700",
                     )}
                     title={p.name}
@@ -513,7 +513,7 @@ export function NewFlowDialog({ open, onOpenChange }: Props) {
                 value={keyword}
                 onChange={(e) => setKeyword(e.target.value)}
                 placeholder={t("Ex: EU QUERO, QUERO SABER MAIS")}
-                className="h-10 rounded-lg border-neutral-300 text-sm focus:border-purple-500 focus:ring-1 focus:ring-purple-500 dark:border-neutral-700"
+                className="h-10 rounded-lg border-neutral-300 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 dark:border-neutral-700"
                 maxLength={60}
               />
             </div>
@@ -531,7 +531,7 @@ export function NewFlowDialog({ open, onOpenChange }: Props) {
               type="submit"
               aria-label="Criar fluxo"
               disabled={create.isPending || name.trim().length < 4}
-              className="h-11 w-full cursor-pointer rounded-xl bg-gradient-to-r from-[#a855f7] to-[#8b5cf6] hover:from-[#9333ea] hover:to-[#7c3aed] text-white text-sm font-semibold shadow-md shadow-purple-500/25 active:scale-[0.99] transition-all disabled:opacity-50"
+              className="h-11 w-full cursor-pointer rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white text-sm font-semibold shadow-md shadow-indigo-500/25 active:scale-[0.99] transition-all disabled:opacity-50"
             >
               <Check size={16} weight="bold" className="mr-1.5" aria-hidden />
               <span>{create.isPending ? t("Criando…") : t("Salvar Fluxo")}</span>
