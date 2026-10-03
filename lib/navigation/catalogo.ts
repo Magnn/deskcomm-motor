@@ -218,9 +218,7 @@ export const NAV_CATALOG = [
     icon: "Megaphone",
     group: "crm",
     section: "O dia a dia da venda",
-    // SÓ NO HUB, como as demais telas de preparação: o quinto item do sidebar do
-    // CRM já fez o menu rolar 13px em 900px (e2e `navegacao.spec.ts`), e a
-    // campanha é montada de vez em quando, não aberta todo dia.
+    sidebar: true,
   },
   {
     // O lançamento mora ao lado da campanha: as duas falam com muita gente de uma
@@ -232,8 +230,7 @@ export const NAV_CATALOG = [
     icon: "UsersThree",
     group: "crm",
     section: "O dia a dia da venda",
-    // SÓ NO HUB, pelo mesmo motivo da campanha: é montado por lançamento, e o
-    // sidebar do CRM já está no limite da dobra.
+    sidebar: true,
   },
   {
     href: "/app/contacts",
@@ -311,13 +308,7 @@ export const NAV_CATALOG = [
     icon: "Storefront",
     group: "crm",
     section: "Preparar a venda",
-    // SEM `sidebar`: mora atrás de "Ver tudo em CRM".
-    //
-    // O critério é QUEM CONSOME a tela, e a descrição acima já o entrega: o
-    // preço quem responde é o atendente de IA, dentro da conversa. Esta tela é
-    // onde o catálogo se CADASTRA — trabalho de quando entra produto novo ou
-    // muda preço, não de toda manhã. Quem atende não a abre para vender; abre o
-    // Inbox e o funil, que continuam no menu.
+    sidebar: true,
   },
   {
     // A promessa que o comentário da Agenda fazia desde que ela nasceu. Aqui se
@@ -501,6 +492,7 @@ export const NAV_CATALOG = [
     group: "ia",
     section: "Ensinar o agente",
     minRole: "manager",
+    sidebar: true,
   },
   {
     href: "/app/ai/memory",
