@@ -331,6 +331,24 @@ const PROVA_PROPRIA: readonly Excecao[] = [
       "conexão guarda o token da conta do Instagram e o aviso chega sem sessão.",
   },
   {
+    tabela: "conversation_milestones",
+    razao:
+      "tests/invariants/credencial-de-anuncios-e-server-side.test.ts — mesmo " +
+      "`describe.each` das de anúncio (0913): privilégio NENHUM para anon e " +
+      "authenticated, `permission denied` medido sob `set role`, RLS ligada, zero " +
+      "policies, organization_id NOT NULL com FK em cascata. Deny-all porque quem " +
+      "grava é a rotina do servidor e quem lê é a rota da tela (manager+).",
+  },
+  {
+    tabela: "conversation_loss_reasons",
+    razao:
+      "tests/invariants/credencial-de-anuncios-e-server-side.test.ts — mesmo " +
+      "`describe.each` das de anúncio (0914): privilégio NENHUM para anon e " +
+      "authenticated, `permission denied` medido sob `set role`, RLS ligada, zero " +
+      "policies, organization_id NOT NULL com FK em cascata. Deny-all porque grava " +
+      "e lê o servidor (rotas manager+), escopado pela organização.",
+  },
+  {
     tabela: "google_ads_landing_pages",
     razao:
       "tests/invariants/captura-de-clique-e-server-side.test.ts — mesmo desenho " +

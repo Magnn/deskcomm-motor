@@ -38771,3 +38771,68 @@ comment on column public.channel_sessions.telegram_bot_token_encrypted is
   'Token do bot (BotFather), cifrado por fn_encrypt_oauth. Nunca volta à tela.';
 
 notify pgrst, 'reload schema';
+
+-- ---- Marcos da conversa (migration 0913) ----
+create table if not exists public.conversation_milestones (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references public.organizations(id) on delete cascade,
+  conversation_id uuid not null references public.conversations(id) on delete cascade,
+  contact_id uuid references public.contacts(id) on delete set null,
+  message_id uuid not null references public.messages(id) on delete cascade,
+  kind text not null,
+  category text,
+  source text not null default 'regra',
+  occurred_at timestamptz not null,
+  created_at timestamptz not null default now(),
+  constraint conversation_milestones_kind_conhecido check (kind in ('oferta_apresentada', 'objecao')),
+  constraint conversation_milestones_source_conhecida check (source in ('regra')),
+  constraint conversation_milestones_category_curta check (category is null or char_length(category) <= 120)
+);
+
+comment on table public.conversation_milestones is
+  'Marcos da conversa reconhecidos por regra: oferta apresentada (preço dito numa mensagem que saiu) e objeção (reclamação de valor ou frase cadastrada na aba Objeções, numa mensagem que chegou). Um por mensagem e tipo. Server-only.';
+
+create unique index if not exists conversation_milestones_mensagem_tipo_uk
+  on public.conversation_milestones (message_id, kind);
+create index if not exists conversation_milestones_org_tipo_idx
+  on public.conversation_milestones (organization_id, kind, occurred_at desc);
+create index if not exists conversation_milestones_conversa_idx
+  on public.conversation_milestones (conversation_id, occurred_at);
+
+alter table public.conversation_milestones enable row level security;
+revoke all on public.conversation_milestones from anon, authenticated;
+grant select, insert, update, delete on public.conversation_milestones to service_role;
+
+notify pgrst, 'reload schema';
+
+-- ---- Motivo da perda (migration 0914) ----
+create table if not exists public.conversation_loss_reasons (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references public.organizations(id) on delete cascade,
+  conversation_id uuid not null references public.conversations(id) on delete cascade,
+  reason text not null,
+  confidence smallint,
+  source text not null,
+  model text,
+  classified_at timestamptz not null default now(),
+  corrected_by uuid references auth.users(id) on delete set null,
+  constraint conversation_loss_reasons_reason_conhecido check (
+    reason in ('preco', 'confianca', 'sem_urgencia', 'timing', 'concorrente', 'sem_resposta', 'outro')
+  ),
+  constraint conversation_loss_reasons_source_conhecida check (source in ('regra', 'ia', 'humano')),
+  constraint conversation_loss_reasons_confidence_valida check (confidence is null or (confidence between 0 and 100))
+);
+
+comment on table public.conversation_loss_reasons is
+  'Motivo da perda de uma conversa parada: vocabulário fechado, confiança e origem (regra = fato, ia = inferência, humano = correção). Sem texto da conversa. Uma linha por conversa. Server-only.';
+
+create unique index if not exists conversation_loss_reasons_conversa_uk
+  on public.conversation_loss_reasons (conversation_id);
+create index if not exists conversation_loss_reasons_org_idx
+  on public.conversation_loss_reasons (organization_id, classified_at desc);
+
+alter table public.conversation_loss_reasons enable row level security;
+revoke all on public.conversation_loss_reasons from anon, authenticated;
+grant select, insert, update, delete on public.conversation_loss_reasons to service_role;
+
+notify pgrst, 'reload schema';

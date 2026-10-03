@@ -75,6 +75,10 @@ CRONS="
 # tempo) e a que abre o próximo grupo quando as vagas estão no fim. Barato quando
 # não há lançamento ativo: duas consultas vazias.
 * * * * *|45|api/v1/cron/lancamentos
+# OS MARCOS DA CONVERSA. A cada 5 minutos: le as mensagens novas e grava quando
+# uma oferta foi apresentada ou uma objecao apareceu (base do funil da conversa).
+# Barato quando nao ha mensagem nova: duas consultas.
+*/5 * * * *|60|api/v1/cron/marcos-da-conversa
 */5 * * * *|60|api/v1/cron/webhook-log-retention
 */5 * * * *|45|api/v1/cron/channel-health
 */10 * * * *|60|api/v1/cron/contact-avatars

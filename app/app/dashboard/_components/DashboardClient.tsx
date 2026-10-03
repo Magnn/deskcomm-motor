@@ -21,6 +21,9 @@ import {
   WhatsappLogo,
   Info,
 } from "@phosphor-icons/react";
+import { FunilDaConversaPainel } from "./FunilDaConversaPainel";
+import { MotivoDaPerdaPainel } from "./MotivoDaPerdaPainel";
+import { ReceitaAtribuidaPainel } from "./ReceitaAtribuidaPainel";
 
 interface KPI {
   valor: number;
@@ -122,7 +125,7 @@ interface DashboardData {
 export function DashboardClient({ orgName }: { orgName: string }) {
   const t = useT();
   const tagDoIdioma = useTagDeIdioma();
-  const [activeTab, setActiveTab] = useState<"vendas" | "atendimento">("vendas");
+  const [activeTab, setActiveTab] = useState<"vendas" | "atendimento" | "receita">("vendas");
   const [period, setPeriod] = useState<string>("today");
   const [selectedChannel, setSelectedChannel] = useState<string>("all");
   const [loading, setLoading] = useState<boolean>(true);
@@ -151,6 +154,11 @@ export function DashboardClient({ orgName }: { orgName: string }) {
   }, []);
 
   const fetchData = useCallback(async () => {
+    // A aba Receita tem a própria leitura (`ReceitaAtribuidaPainel`).
+    if (activeTab === "receita") {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const url = new URL("/api/v1/dashboard/metrics", window.location.origin);
@@ -305,6 +313,17 @@ export function DashboardClient({ orgName }: { orgName: string }) {
             }`}
           >
             Atendimento
+          </button>
+          <button
+            onClick={() => setActiveTab("receita")}
+            data-testid="aba-receita"
+            className={`px-5 py-2 text-sm font-semibold rounded-lg transition-all ${
+              activeTab === "receita"
+                ? "bg-indigo-600 text-white shadow-sm"
+                : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white"
+            }`}
+          >
+            {t("Receita")}
           </button>
         </div>
 
@@ -1159,6 +1178,13 @@ export function DashboardClient({ orgName }: { orgName: string }) {
               </div>
             </form>
           </div>
+        </div>
+      )}
+      {activeTab === "receita" && (
+        <div className="space-y-6">
+          <ReceitaAtribuidaPainel period={period} tagDoIdioma={tagDoIdioma} />
+          <FunilDaConversaPainel period={period} />
+          <MotivoDaPerdaPainel period={period} />
         </div>
       )}
     </div>
