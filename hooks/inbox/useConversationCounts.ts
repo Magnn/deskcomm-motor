@@ -26,6 +26,7 @@ export interface FiltrosDaContagem {
   unread?: boolean;
   tag?: string;
   channel_session_id?: string;
+  channel?: string;
 }
 
 /**
@@ -40,6 +41,7 @@ export function useConversationCounts(
   if (filtros.unread) qs.set("unread", "true");
   if (filtros.tag) qs.set("tag", filtros.tag);
   if (filtros.channel_session_id) qs.set("channel_session_id", filtros.channel_session_id);
+  if (filtros.channel) qs.set("channel", filtros.channel);
   const sufixo = qs.toString();
 
   return useQuery({

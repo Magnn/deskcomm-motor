@@ -197,6 +197,7 @@ export async function listConversationsHandler(
     query = query.not("status", "in", `(${CONVERSATION_TERMINAL_STATUSES.join(",")})`);
   }
   if (q.channel_session_id) query = query.eq("channel_session_id", q.channel_session_id);
+  if (q.channel) query = query.eq("channel", q.channel);
   // ⚠️ O MARCADOR FILTRADO É O DA CONVERSA **OU** O DO CONTATO.
   //
   // Era só `conversations.tags`, e o relato mede o buraco: *"adicionei a tag nele

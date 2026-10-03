@@ -93,6 +93,8 @@ export interface ConversationsFilters {
    */
   unread?: boolean;
   channel_session_id?: string;
+  /** A rede (`conversations.channel`) — primeiro nível do filtro de canal. */
+  channel?: string;
   tag?: string;
 }
 
@@ -130,6 +132,7 @@ export function useConversationsRealtime(
       if (filters.search) qs.set("search", filters.search);
       if (filters.unread) qs.set("unread", "true");
       if (filters.channel_session_id) qs.set("channel_session_id", filters.channel_session_id);
+      if (filters.channel) qs.set("channel", filters.channel);
       if (filters.tag) qs.set("tag", filters.tag);
       if (pageParam) qs.set("cursor", pageParam);
       qs.set("limit", "50");

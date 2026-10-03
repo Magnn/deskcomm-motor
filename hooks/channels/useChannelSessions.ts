@@ -6,6 +6,8 @@ import { apiClient } from "@/lib/api/client";
 export interface ChannelSession {
   id: string;
   provider?: string;
+  /** A rede, quando o canal é de rede social — é o que distingue Instagram de Messenger no mesmo transporte. */
+  social_platform?: string | null;
   /**
    * Nome da sessão no transporte. NULL no canal oficial, que não tem sessão a
    * iniciar, deslogar ou apagar — é o que distingue, na tela, quem depende do

@@ -15,6 +15,8 @@ import {
 import { ChipDeEtiqueta } from "@/components/tags/ChipDeEtiqueta";
 import { PontoDaEtiqueta } from "@/components/tags/PontoDaEtiqueta";
 import { channelLabel, useChannelSessions } from "@/hooks/channels/useChannelSessions";
+import { ChannelLogo } from "@/components/inbox/ChannelLogo";
+import { redeDoCanal, REDES_DO_INBOX } from "@/lib/channels/presentation";
 import { useAuth } from "@/hooks/auth/AuthProvider";
 import { useContactTagVocabulary } from "@/hooks/contacts/useContactTagVocabulary";
 import { useConversationTagVocabulary } from "@/hooks/inbox/useConversationTags";
@@ -56,6 +58,8 @@ export interface InboxFiltersValue {
   search: string;
   onlyUnread: boolean;
   channel_session_id?: string;
+  /** A rede escolhida (`conversations.channel`). Indefinido = todas. */
+  channel?: string;
   tag?: string;
 }
 
@@ -123,6 +127,7 @@ export function InboxFilters({ value, onChange }: Props) {
     unread: value.onlyUnread,
     tag: value.tag,
     channel_session_id: value.channel_session_id,
+    channel: value.channel,
   });
 
   const tabs = activeOrg
@@ -151,8 +156,33 @@ export function InboxFilters({ value, onChange }: Props) {
     value.channel_session_id != null &&
     channels != null &&
     !channels.some((c) => c.id === value.channel_session_id);
-  // Alternador só aparece com 2+ números — com um só não há o que alternar.
-  const showChannelSwitch = (channels?.length ?? 0) >= 2 || filtroForaDaLista;
+  /**
+   * DOIS NÍVEIS: primeiro a REDE, depois o canal dentro dela.
+   *
+   * O seletor era uma lista corrida de tudo — medido numa instalação real: 2
+   * números de WhatsApp e 28 páginas do Messenger no mesmo menu, sob o rótulo
+   * "Todos os números". Com a rede escolhida antes, o menu mostra só os canais
+   * dela; e quem quer "tudo do Messenger" não precisa escolher página nenhuma.
+   *
+   * As redes oferecidas são as que TÊM canal conectado: aba de rede sem canal
+   * seria um filtro que só devolve vazio.
+   */
+  const redesPresentes = REDES_DO_INBOX.filter((r) => (channels ?? []).some((c) => redeDoCanal(c)?.canal === r.canal));
+  // A linha de redes só existe quando há o que escolher (2+), ou quando há uma
+  // rede aplicada que sumiu (o último canal dela foi excluído) — aí ela precisa
+  // aparecer para o filtro poder ser desfeito.
+  const redeForaDaLista = value.channel != null && !redesPresentes.some((r) => r.canal === value.channel);
+  const mostrarRedes = redesPresentes.length >= 2 || redeForaDaLista;
+  const canaisDaRede = (channels ?? []).filter((c) => value.channel == null || redeDoCanal(c)?.canal === value.channel);
+  // Alternador só aparece com 2+ canais NA REDE escolhida — com um só não há o que alternar.
+  const showChannelSwitch = canaisDaRede.length >= 2 || filtroForaDaLista;
+  const escolherRede = (canal: string | undefined) => {
+    // O canal escolhido antes só continua valendo se for da rede nova: filtrar
+    // "Messenger" com um número de WhatsApp preso devolveria sempre vazio.
+    const canalAtual = (channels ?? []).find((c) => c.id === value.channel_session_id);
+    const mantem = canal == null || (canalAtual != null && redeDoCanal(canalAtual)?.canal === canal);
+    onChange({ ...value, channel: canal, channel_session_id: mantem ? value.channel_session_id : undefined });
+  };
   /**
    * O SELETOR NÃO PODE SUMIR DEBAIXO DO MENU ABERTO.
    *
@@ -280,6 +310,54 @@ export function InboxFilters({ value, onChange }: Props) {
           </button>
         </div>
 
+        {mostrarRedes && (
+          <div className="flex flex-wrap gap-1.5" role="group" aria-label={t("Filtrar por rede")}>
+            <button
+              type="button"
+              aria-pressed={value.channel == null}
+              onClick={() => escolherRede(undefined)}
+              className={cn(
+                "h-7 rounded-full border px-2.5 text-xs font-medium transition-colors",
+                "focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                value.channel == null
+                  ? "border-accent bg-accent-soft text-accent"
+                  : "border-transparent bg-surface-elevated text-text-muted hover:text-text",
+              )}
+            >
+              {t("Todas as redes")}
+            </button>
+            {redesPresentes.map((r) => (
+              <button
+                key={r.canal}
+                type="button"
+                aria-pressed={value.channel === r.canal}
+                onClick={() => escolherRede(r.canal)}
+                data-testid={`rede-${r.canal}`}
+                className={cn(
+                  "inline-flex h-7 items-center gap-1.5 rounded-full border px-2.5 text-xs font-medium transition-colors",
+                  "focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                  value.channel === r.canal
+                    ? "border-accent bg-accent-soft text-accent"
+                    : "border-transparent bg-surface-elevated text-text-muted hover:text-text",
+                )}
+              >
+                <ChannelLogo channel={r.amostra} size={14} />
+                {r.rotulo}
+              </button>
+            ))}
+            {redeForaDaLista && (
+              <button
+                type="button"
+                aria-pressed
+                onClick={() => escolherRede(undefined)}
+                className="h-7 rounded-full border border-accent bg-accent-soft px-2.5 text-xs font-medium text-accent"
+              >
+                {t("Rede sem canal conectado")} ×
+              </button>
+            )}
+          </div>
+        )}
+
         {(showChannelSwitch || mostrarSeletorDeTag) && (
           <div className="flex gap-2">
             {showChannelSwitch && (
@@ -294,16 +372,16 @@ export function InboxFilters({ value, onChange }: Props) {
                     "h-8 min-w-0 flex-1 rounded-full border-transparent bg-surface-elevated px-3 text-xs shadow-none",
                     value.channel_session_id != null && "border-accent bg-accent-soft text-accent",
                   )}
-                  aria-label={t("Filtrar por número de WhatsApp")}
+                  aria-label={t("Filtrar por canal")}
                 >
-                  <SelectValue placeholder={t("Todos os números")} />
+                  <SelectValue placeholder={t("Todos os canais")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">{t("Todos os números")}</SelectItem>
+                  <SelectItem value="all">{t("Todos os canais")}</SelectItem>
                   {filtroForaDaLista && value.channel_session_id != null && (
-                    <SelectItem value={value.channel_session_id}>{t("Número removido")}</SelectItem>
+                    <SelectItem value={value.channel_session_id}>{t("Canal removido")}</SelectItem>
                   )}
-                  {channels?.map((c) => (
+                  {canaisDaRede.map((c) => (
                     <SelectItem key={c.id} value={c.id}>
                       {channelLabel(c)}
                     </SelectItem>
