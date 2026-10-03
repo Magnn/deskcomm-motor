@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
+import { MessengerClient } from "./MessengerClient";
 import { RedesSociaisClient } from "./RedesSociaisClient";
 import { CanalGraphParceiroClient } from "./CanalGraphParceiroClient";
 import { CanalOficialClient } from "./CanalOficialClient";
@@ -63,6 +64,8 @@ export function ConexoesShell({
   const aba =
     abaParam === "sociais"
       ? "sociais"
+      : abaParam === "messenger"
+      ? "messenger"
       : abaParam === "oficial"
       ? "oficial"
       : abaParam === "parceiro"
@@ -120,6 +123,7 @@ export function ConexoesShell({
             Aqui fica o CONCEITO; lá dentro o cartão diz de quem se trata. */}
         <TabsTrigger value="parceiro">{t("Provedor parceiro")}</TabsTrigger>
         <TabsTrigger value="telefonia">{t("Telefone")}</TabsTrigger>
+        <TabsTrigger value="messenger">{t("Messenger")}</TabsTrigger>
         <TabsTrigger value="sociais">{t("Redes sociais")}</TabsTrigger>
         <TabsTrigger value="webchat">{t("Webchat (Site)")}</TabsTrigger>
         <TabsTrigger value="voz">{t("Chamada de voz")}</TabsTrigger>
@@ -133,6 +137,7 @@ export function ConexoesShell({
       <TabsContent value="telefonia" className="mt-0">
         <TelefoniaClient />
       </TabsContent>
+      <TabsContent value="messenger" className="mt-0"><MessengerClient /></TabsContent>
       <TabsContent value="sociais" className="mt-0"><RedesSociaisClient /></TabsContent>
       <TabsContent value="webchat" className="mt-0"><WebchatClient /></TabsContent>
 

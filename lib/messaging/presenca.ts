@@ -43,6 +43,7 @@ const SESSAO_SAUDAVEL = "WORKING";
 
 interface ConversaParaPresenca {
   is_group: boolean;
+  provider_conversation_id: string | null;
   group_chat_id: string | null;
   contacts: {
     phone_number: string | null;
@@ -70,7 +71,7 @@ export async function sinalizarDigitando(
   const { data } = await supabase
     .from("conversations")
     .select(
-      `is_group, group_chat_id, contacts:contact_id(phone_number, wa_identity, wa_lid), ` +
+      `is_group, group_chat_id, provider_conversation_id, contacts:contact_id(phone_number, wa_identity, wa_lid), ` +
         `channel_sessions:channel_session_id(${CHANNEL_SESSION_REF_COLUMNS}, status)`,
     )
     .eq("id", input.conversationId)
@@ -104,6 +105,7 @@ export async function sinalizarDigitando(
     sessionRef: resolveSessionRef(sessao),
     recipient,
     inboundExternalId: await ultimaRecebidaDaPessoa(supabase, input),
+    providerConversationId: conversa.provider_conversation_id,
   });
 }
 

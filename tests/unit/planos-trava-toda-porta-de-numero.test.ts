@@ -25,6 +25,8 @@ const DECLARADAS: Record<string, string> = {
     "É a função; quem a chama são as duas rotas de QR code (Conexões e onboarding), e as duas chamam a trava.",
   "lib/channels/social/store.ts":
     "Conta de rede social (Instagram e afins), não número de WhatsApp: o plano cobra número.",
+  "lib/channels/messenger/paginas.ts":
+    "Página do Facebook (Messenger), não número de WhatsApp: o plano cobra número.",
   "app/api/v1/voice/sessions/pair/route.ts":
     "Linha de VOZ pareada a um número que já existe — não é um número de mensagens a mais.",
 };

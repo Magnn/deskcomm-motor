@@ -844,6 +844,11 @@ const HOSTS_DECLARADOS: Record<string, EntradaDeHost> = {
     motivo:
       "tela de consentimento do Instagram (`lib/channels/instagram/api.ts`, `urlDeAutorizacao`): é para onde o navegador de quem clica em Conectar Instagram é mandado. O código não chama o host — quem abre é o navegador da pessoa, na tela da própria Meta.",
   },
+  "www.facebook.com": {
+    categoria: "PLATAFORMA",
+    motivo:
+      "tela de login do Facebook (`lib/channels/messenger/api.ts`, `urlDeAutorizacao`): é onde a pessoa escolhe as páginas que vão atender pelo Messenger. O código não chama o host — quem abre é o navegador da pessoa, na tela da própria Meta.",
+  },
   "api.asaas.com": {
     categoria: "FORNECEDOR",
     motivo:
@@ -1186,6 +1191,10 @@ describe("catraca de host de terceiro no código que embarca", () => {
       // aqui, e não em FORNECEDOR, porque o produto NÃO fala com esse host: quem
       // abre o link é o visitante do site. Crescimento escrito, como a regra pede.
       "wa.me",
+      // Decisão escrita: a tela de login do Facebook, para onde o botão Conectar
+      // página do Facebook manda o navegador (`urlDeAutorizacao` do Messenger).
+      // O produto não fala com esse host — quem abre é a pessoa.
+      "www.facebook.com",
       // Decisão escrita: a tela de consentimento do Instagram, para onde o botão
       // Conectar Instagram manda o navegador (`urlDeAutorizacao`). O produto não
       // fala com esse host — quem abre é a pessoa, como o `wa.me` acima.

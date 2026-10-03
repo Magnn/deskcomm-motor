@@ -17,7 +17,7 @@ import {
   useChannelSessions,
   type ChannelSession,
 } from "@/hooks/channels/useChannelSessions";
-import { CHANNEL_PROVIDER_SOCIAL } from "@/lib/channels/capabilities";
+import { channelBrand } from "@/lib/channels/presentation";
 import { usePacingKnobs } from "@/hooks/channels/usePacingKnobs";
 import { AntiBanSheet } from "./AntiBanSheet";
 import { PairingOptions } from "./PairingOptions";
@@ -242,7 +242,10 @@ export function ConnectionsClient({ wahaConfigured }: { wahaConfigured: boolean 
     invalidate();
   }, [invalidate, t]);
 
-  const list = (sessions ?? []).filter((session) => session.provider !== CHANNEL_PROVIDER_SOCIAL);
+  // Esta aba é de NÚMEROS de WhatsApp. Rede social e página do Messenger têm aba
+  // própria; perguntar pela MARCA do canal (e não excluir provider por provider)
+  // é o que impede o próximo canal que não é número de aparecer aqui como um.
+  const list = (sessions ?? []).filter((session) => !session.provider || channelBrand(session) === "whatsapp");
 
   return (
     <div className="flex flex-col gap-4">

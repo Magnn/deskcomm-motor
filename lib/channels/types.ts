@@ -9,7 +9,7 @@ import type { OutboundMedia } from "@/lib/waha/media-send";
 
 export type { OutboundMedia };
 
-export type ChannelProvider = "waha" | "meta_cloud" | "zernio" | "zernio_social" | "wacalls" | "datafy";
+export type ChannelProvider = "waha" | "meta_cloud" | "zernio" | "zernio_social" | "wacalls" | "datafy" | "meta_messenger";
 
 /**
  * Os providers que transportam MENSAGEM — o subconjunto sobre o qual a matriz
@@ -292,6 +292,12 @@ export interface ChannelAdapter {
      * que endereça por telefone) ignora o campo.
      */
     inboundExternalId?: string | null;
+    /**
+     * O id da thread no provider (`conversations.provider_conversation_id`), para
+     * o canal que endereça por thread própria e não pelo contato — o mesmo campo
+     * do envelope de envio, pelo mesmo motivo. Quem endereça pelo contato ignora.
+     */
+    providerConversationId?: string | null;
   }): Promise<void>;
 
   /**

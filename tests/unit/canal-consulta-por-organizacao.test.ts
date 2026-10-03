@@ -58,9 +58,32 @@ function arquivosTs(dir: string): string[] {
   });
 }
 
+/**
+ * Consultas que resolvem a sessão SÓ pelo identificador do provider, de
+ * propósito, e por quê. Presas ao NOME DA FUNÇÃO (não à linha): mover código não
+ * desliga a cerca, e uma consulta nova no mesmo arquivo continua sendo cobrada.
+ *
+ * Só entra aqui o roteamento de um webhook que o provider manda numa URL ÚNICA
+ * para o app inteiro — onde não existe token de sessão no caminho para dizer a
+ * organização, e a própria Meta não deixa ter. O risco da issue #236 (duas
+ * linhas → `data: null` → cair no `.env`) fica fechado por outro lado, e as
+ * duas condições são cobradas no último teste deste bloco: recorte de ATIVOS
+ * igual ao do índice único parcial, e o `error` da consulta LANÇADO.
+ */
+const ROTEAMENTO_DECLARADO: Record<string, { funcao: string; motivo: string }> = {
+  "lib/channels/messenger/paginas.ts": {
+    funcao: "sessaoDaPagina",
+    motivo:
+      "Webhook de página da Meta é UM por app, sem token no caminho: a organização sai da página (entry.id). " +
+      "Índice único entre ativos (migration 0911) garante uma linha só.",
+  },
+};
+
 interface Consulta {
   arquivo: string;
   linha: number;
+  /** A função em que a consulta mora — é por ela que a exceção declarada casa. */
+  funcao: string | null;
   /** Filtros da cadeia em si — é onde o escopo de tenant tem de estar. */
   filtros: string[];
   /** Filtros da cadeia MAIS os do terminal. Ver o comentário abaixo. */
@@ -104,9 +127,11 @@ function consultas(fonte: string, arquivo: string): Consulta[] {
     const fim2 = nasceEmClosure && fim !== -1 ? fonte.indexOf(";", fim + 1) : fim;
     const comTerminal = fonte.slice(i, fim2 === -1 ? fonte.length : fim2);
 
+    const declaracoes = [...fonte.slice(0, i).matchAll(/function\s+([A-Za-z0-9_]+)\s*\(/g)];
     out.push({
       arquivo: path.relative(RAIZ, arquivo),
       linha: fonte.slice(0, i).split("\n").length,
+      funcao: declaracoes.at(-1)?.[1] ?? null,
       filtros: colunasFiltradas(cadeia),
       filtrosComTerminal: colunasFiltradas(comTerminal),
     });
@@ -114,6 +139,9 @@ function consultas(fonte: string, arquivo: string): Consulta[] {
   }
   return out;
 }
+
+const normalizar = (arquivo: string) => arquivo.split(path.sep).join("/");
+const declarada = (c: Consulta) => ROTEAMENTO_DECLARADO[normalizar(c.arquivo)]?.funcao === c.funcao;
 
 const TODAS = arquivosTs(DIR).flatMap((a) => consultas(fs.readFileSync(a, "utf8"), a));
 
@@ -132,7 +160,8 @@ describe("lib/channels: consulta a channel_sessions por identificador do provide
     const faltando = TODAS.filter(
       (c) =>
         c.filtros.some((f) => COLUNAS_DE_REF.includes(f)) &&
-        !c.filtros.includes("organization_id"),
+        !c.filtros.includes("organization_id") &&
+        !declarada(c),
     ).map((c) => `${c.arquivo}:${c.linha} (filtros: ${c.filtros.join(", ") || "nenhum"})`);
 
     expect(
@@ -143,6 +172,19 @@ describe("lib/channels: consulta a channel_sessions por identificador do provide
         "de outra instalação (issue #236). Resolva o organization_id de fonte " +
         "confiável (sessão, linha já escopada, token do webhook), NUNCA do corpo.",
     ).toEqual([]);
+  });
+
+  it("o roteamento declarado existe, recorta os ATIVOS e LANÇA o erro em vez de descartá-lo", () => {
+    for (const [arquivo, { funcao }] of Object.entries(ROTEAMENTO_DECLARADO)) {
+      const daFuncao = TODAS.filter((c) => normalizar(c.arquivo) === arquivo && c.funcao === funcao);
+      // Declaração órfã (função renomeada ou removida) não pode ficar liberando nada.
+      expect(daFuncao.length, `${arquivo}#${funcao} não tem mais consulta a channel_sessions`).toBeGreaterThan(0);
+      for (const c of daFuncao) expect(c.filtrosComTerminal, `${arquivo}#${funcao}`).toContain("archived_at");
+      const fonte = fs.readFileSync(path.join(RAIZ, arquivo), "utf8");
+      const corpo = fonte.slice(fonte.indexOf(`function ${funcao}(`));
+      const ate = corpo.indexOf("\nexport ");
+      expect(corpo.slice(0, ate === -1 ? undefined : ate), `${arquivo}#${funcao}`).toMatch(/if \(error\) throw/);
+    }
   });
 
   it("quem filtra por identificador do provider recorta os ATIVOS", () => {
