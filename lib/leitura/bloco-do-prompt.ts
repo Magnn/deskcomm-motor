@@ -40,9 +40,20 @@ function blocoDaCausaRaiz(cartas: readonly [Carta, Carta, Carta]): string {
   ].join("\n");
 }
 
-/** O bloco pra ESTE turno. `""` quando não há passo de leitura ativo. */
+function blocoDaLeituraEncerrada(cartas: readonly [Carta, Carta, Carta]): string {
+  const nomes = cartas.map((c) => c.nome).join(", ");
+  return [
+    "",
+    "",
+    `LEITURA — JÁ TERMINOU (foram 3 cartas: ${nomes}; a causa raiz já foi dita)`,
+    'A leitura tem só 3 cartas. NUNCA revele outra carta, nunca escreva "CARTA 4" nem ofereça "a próxima camada" ou "a próxima carta". Se ela pedir mais cartas, diga que a leitura dela foi dessas 3 e retome o que elas mostraram. Siga o roteiro a partir daqui: o trabalho certo para a dor dela, o valor e o link, conforme estas instruções.',
+  ].join("\n");
+}
+
+/** O bloco pra ESTE turno. `""` quando não há leitura na conversa. */
 export function blocoDaLeitura(passo: PassoDaLeitura | null): string {
   if (passo === null) return "";
   if (passo.passo === "revelar_carta") return blocoDaCartaRevelada(passo.indice, passo.carta);
+  if (passo.passo === "encerrada") return blocoDaLeituraEncerrada(passo.cartas);
   return blocoDaCausaRaiz(passo.cartas);
 }

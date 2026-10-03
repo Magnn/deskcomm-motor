@@ -5,6 +5,7 @@ import { BLOCOS_DO_TURNO } from "@/lib/agent-engine/agent/blocos-do-turno";
 import { BARALHO, CARTA_POR_ID, TAMANHO_DO_BARALHO } from "@/lib/leitura/baralho";
 import { blocoDaLeitura } from "@/lib/leitura/bloco-do-prompt";
 import { passoDaLeitura } from "@/lib/leitura/estado-da-leitura";
+import { caminhoDaCarta, destinoNaConversa, imagemDaLeitura, mesaJaMostrada } from "@/lib/leitura/imagens";
 import { extrairNumerosEscolhidos, sortearCartas } from "@/lib/leitura/sorteio";
 
 const msg = (direction: "inbound" | "outbound", body: string) => ({ direction, body });
@@ -223,15 +224,20 @@ describe("passoDaLeitura — depois que a causa raiz é dita, a leitura acabou",
     expect(p?.passo).toBe("causa_raiz");
   });
 
-  it("a agente já disse a causa raiz e a pessoa respondeu: o bloco some e o fluxo segue", () => {
+  it("a agente já disse a causa raiz e a pessoa respondeu: a leitura está ENCERRADA e o bloco só trava a carta 4", () => {
     const depois = [
       ...tresCartas,
       msg("inbound", "faz sentido"),
       msg("outbound", "O que eu vejo é um peso que você carrega há tempo. Você se reconhece nisso?"),
       msg("inbound", "me reconheço"),
     ];
-    expect(passoDaLeitura("lead-1", depois)).toBeNull();
-    expect(blocoDaLeitura(passoDaLeitura("lead-1", depois))).toBe("");
+    expect(passoDaLeitura("lead-1", depois)?.passo).toBe("encerrada");
+    const bloco = blocoDaLeitura(passoDaLeitura("lead-1", depois));
+    expect(bloco).toContain("JÁ TERMINOU");
+    expect(bloco).toContain('nunca escreva "CARTA 4"');
+    // O bloco de encerramento não reabre a leitura: não manda revelar nem pede a causa raiz de novo.
+    expect(bloco).not.toContain("REVELE");
+    expect(bloco).not.toContain("CAUSA RAIZ");
   });
 });
 
@@ -283,5 +289,87 @@ describe("a fiação no turno", () => {
     expect(BLOCOS_DO_TURNO.indexOf("preco")).toBeLessThan(BLOCOS_DO_TURNO.indexOf("entrega"));
     // A ligação de cada chave ao seu bloco é afirmada por inteiro em `blocos-do-turno.test.ts`.
     expect(turno).toContain("leitura: blocoDaLeituraDoTurno");
+  });
+});
+
+describe("sortearCartas — cada leitura é uma rodada nova", () => {
+  it("a mesma pessoa, com os mesmos números, em outra rodada tira outras cartas", () => {
+    const rodadas = new Set(
+      Array.from({ length: 20 }, (_, i) =>
+        sortearCartas("lead-1", [3, 8, 15], `2026-10-0${(i % 9) + 1}T1${i % 10}:00:00-04:00`).map((c) => c.id).join(","),
+      ),
+    );
+    expect(rodadas.size).toBeGreaterThan(10);
+  });
+
+  it("dentro da mesma rodada, todo turno re-deriva as mesmas 3", () => {
+    const r = "2026-10-03T19:32:43-04:00";
+    expect(sortearCartas("lead-1", [2, 4, 6], r).map((c) => c.id)).toEqual(
+      sortearCartas("lead-1", [6, 2, 4], r).map((c) => c.id),
+    );
+  });
+
+  it("passoDaLeitura usa o instante da mensagem de escolha como rodada", () => {
+    const escolha = (sent_at: string) => [PEDIDO, { ...msg("inbound", "2, 4 e 6"), sent_at }];
+    const a = passoDaLeitura("lead-1", escolha("2026-10-03T19:32:43-04:00"));
+    const b = passoDaLeitura("lead-1", escolha("2026-10-03T19:32:43-04:00"));
+    expect(a?.passo === "revelar_carta" && b?.passo === "revelar_carta" && a.carta.id === b.carta.id).toBe(true);
+    const ids = new Set(
+      Array.from({ length: 12 }, (_, i) => {
+        const p = passoDaLeitura("lead-1", escolha(`2026-10-${String(i + 1).padStart(2, "0")}T10:00:00-04:00`));
+        return p?.passo === "revelar_carta" ? p.cartas.map((c) => c.id).join(",") : "";
+      }),
+    );
+    expect(ids.size).toBeGreaterThan(6);
+  });
+});
+
+describe("imagemDaLeitura — a mesa e a carta sorteada, decididas pelo código", () => {
+  const ORG = "org-1";
+  const escolhido = passoDaLeitura("lead-1", [PEDIDO, msg("inbound", "1, 2 e 3")]);
+
+  it("ofereceu o baralho pela 1ª vez: vai a mesa", () => {
+    expect(imagemDaLeitura(ORG, "Escolhe 3 números, de 1 a 22, que eu abro pra você.", null, false)).toEqual({
+      caminho: "org-1/leitura/mesa.jpg",
+      tipo: "mesa",
+    });
+  });
+
+  it("a mesa não se repete: já mostrada antes na conversa (ou neste turno), nada", () => {
+    expect(imagemDaLeitura(ORG, "Me manda os 3 números, de 1 a 22.", null, true)).toBeNull();
+    expect(mesaJaMostrada([PEDIDO])).toBe(true);
+    expect(mesaJaMostrada([msg("inbound", "quero 3 números")])).toBe(false);
+  });
+
+  it("CARTA N no turno de revelar a carta N: vai a imagem da carta SORTEADA (nunca a que o texto nomeia)", () => {
+    expect(escolhido?.passo).toBe("revelar_carta");
+    if (escolhido?.passo !== "revelar_carta") return;
+    const img = imagemDaLeitura(ORG, "CARTA 1: Qualquer Nome Que o Modelo Inventou\nveja o símbolo…", escolhido, true);
+    expect(img).toEqual({
+      caminho: `org-1/leitura/cartas/${String(escolhido.carta.id).padStart(2, "0")}.jpg`,
+      tipo: "carta",
+    });
+  });
+
+  it("CARTA fora de hora (índice errado, carta 4, leitura sem escolha) não leva imagem", () => {
+    expect(imagemDaLeitura(ORG, "CARTA 2: X", escolhido, true)).toBeNull();
+    expect(imagemDaLeitura(ORG, "CARTA 4: O Eremita", escolhido, true)).toBeNull();
+    expect(imagemDaLeitura(ORG, "CARTA 1: X", null, true)).toBeNull();
+  });
+
+  it("com a leitura em andamento, repetir o pedido do baralho não manda a mesa de novo", () => {
+    expect(imagemDaLeitura(ORG, "você escolheu 3 números de 1 a 22", escolhido, false)).toBeNull();
+  });
+
+  it("o arquivo vai para a pasta da conversa com nome determinístico", () => {
+    expect(destinoNaConversa(ORG, "conv-9", caminhoDaCarta(ORG, 7))).toBe("org-1/conv-9/leitura-cartas-07.jpg");
+    expect(destinoNaConversa(ORG, "conv-9", "org-1/leitura/mesa.jpg")).toBe("org-1/conv-9/leitura-mesa.jpg");
+  });
+
+  it("a fiação: o envio pergunta ao código qual imagem vai, e a mesa é contada uma vez por conversa", async () => {
+    const { readFileSync } = await import("node:fs");
+    const turno = readFileSync("lib/agent-engine/agent/inbound-turn.ts", "utf8");
+    expect(turno).toContain("imagemDaLeitura(tenantId, body, passoDaLeituraNoTurno, mesaDaLeituraJaFoi)");
+    expect(turno).toContain("mesaJaMostrada(openingContext.context.messages)");
   });
 });

@@ -95,6 +95,7 @@ import { blocoDeLimites } from '@/lib/limites/bloco-do-prompt';
 import { blocoDeObjecoes } from '@/lib/objecoes/bloco-do-prompt';
 import { blocoDeOferta } from '@/lib/oferta/bloco-do-prompt';
 import { passoDaLeitura } from '@/lib/leitura/estado-da-leitura';
+import { destinoNaConversa, fotoDaLeitura, imagemDaLeitura, mesaJaMostrada } from '@/lib/leitura/imagens';
 import { precoPermitidoAgora, reclamacoesDeValor } from '@/lib/preco/estado-da-negociacao';
 import { deveResponderEmAudio } from '@/lib/voz/decisao';
 import { enqueueJob, rescheduleJob, type JobRow, type Queryable } from '../queue/queue';
@@ -2322,6 +2323,8 @@ async function executarTurnoDoAgente(
   // devolve null e o bloco some.
   const passoDaLeituraNoTurno = passoDaLeitura(`${tenantId}:${leadId}`, openingContext.context.messages);
   const blocoDaLeituraDoTurno = blocoDaLeitura(passoDaLeituraNoTurno);
+  // A mesa vai uma vez por conversa: já oferecida antes, ou já enviada neste turno.
+  let mesaDaLeituraJaFoi = mesaJaMostrada(openingContext.context.messages);
   // Contexto do anúncio: quem chegou por um anúncio (atribuição de 1º toque em `contacts.source_metadata`)
   // tem o título/texto dele no prompt DO COMEÇO da conversa. Vai ANTES dos blocos diretivos acima, para
   // que leitura, preço e entrega vençam em caso de conflito. No painel de Teste não há contato real.
@@ -3191,6 +3194,19 @@ async function executarTurnoDoAgente(
           }
           fotosDoProduto = preparadas.fotos;
           fotosQueFaltaram = preparadas.tinha - preparadas.fotos.length;
+        }
+        // Leitura de tarot: a mesa fechada quando a agente oferece o baralho, a carta SORTEADA
+        // quando a mensagem abre com "CARTA N:" — decidido pelo código (ver `lib/leitura/imagens.ts`).
+        // Imagem que não está no Storage da organização não derruba nada: a mensagem sai só em texto.
+        if (fotosDoProduto.length === 0 && !preview) {
+          const imagem = imagemDaLeitura(tenantId, body, passoDaLeituraNoTurno, mesaDaLeituraJaFoi);
+          if (imagem) {
+            const destino = destinoNaConversa(tenantId, input.conversationId, imagem.caminho);
+            if (await copiarFotoNoStorage(runLog)(imagem.caminho, destino)) {
+              fotosDoProduto = [fotoDaLeitura(destino)];
+              if (imagem.tipo === 'mesa') mesaDaLeituraJaFoi = true;
+            }
+          }
         }
         // F4-04: sinaliza (independente do gate F4-01/F4-08) se ESTA candidata é uma
         // promessa fora de tabela — usado só para correlacionar com o jailbreak no fim do
