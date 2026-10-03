@@ -11,6 +11,7 @@
 import { describe, expect, it } from "vitest";
 
 import { COLUNAS_DE_CONTEUDO } from "@/lib/campanhas/conteudo";
+import { CHANNEL_SESSION_REF_COLUMNS } from "@/lib/channels/session-ref";
 
 import { sql } from "./gov-helpers";
 
@@ -62,6 +63,8 @@ describe("as leituras de campanha usam colunas que existem", () => {
     "conteúdo (rodada, ações e rota)": `select ${COLUNAS_DE_CONTEUDO}, message_body, content_version from public.campaigns`,
     "fluxo da campanha": "select id, name, status, active_version_id, surface, organization_id from public.followup_flow_pointers",
     "números do pool e o que sabem enviar": "select id, provider, display_name, organization_id from public.channel_sessions",
+    "endereço do canal (telefone ou conversa)": `select ${CHANNEL_SESSION_REF_COLUMNS}, metadata, organization_id from public.channel_sessions`,
+    "público por conversa": "select id, name, display_name, phone_number, social_identity, is_blocked, is_anonymized, consent, is_merged_into, tags, source, last_activity_at, created_at from public.contacts",
     "números extras": "select channel_session_id, organization_id, campaign_id from public.campaign_channel_sessions",
     "desfecho do destinatário": "select status, sent_at, last_error_code, last_error_detail, message_id, conversation_id, channel_session_id from public.campaign_recipients",
   };

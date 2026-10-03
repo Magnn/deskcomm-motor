@@ -44,7 +44,8 @@ import { logger } from "@/lib/logger";
 
 import { COLUNAS_DE_CONTEUDO, lerConteudo } from "./conteudo";
 import { despacharConteudo } from "./despacho";
-import { motivoParaExcluir, recusouMarketing } from "./elegibilidade";
+import { enderecoDoCanal } from "@/lib/channels/endereco-de-campanha";
+import { motivoParaExcluir, POR_TELEFONE, recusouMarketing, type ModoDeEndereco } from "./elegibilidade";
 import { hashDoEndereco } from "./exclusoes";
 import { renderizar } from "./renderizador";
 import { escolherNumero, poolDaCampanha, type NumeroDisponivel } from "./rodizio";
@@ -196,6 +197,7 @@ interface DestinatarioRow {
     name: string | null;
     display_name: string | null;
     phone_number: string | null;
+    social_identity: string | null;
     is_blocked: boolean;
     is_anonymized: boolean;
     consent: unknown;
@@ -211,7 +213,7 @@ async function rodarUmaCampanha(
     .from("campaign_recipients")
     .select(
       "id, contact_id, recipient_address, rendered_body, " +
-        "contacts(id, name, display_name, phone_number, is_blocked, is_anonymized, consent)",
+        "contacts(id, name, display_name, phone_number, social_identity, is_blocked, is_anonymized, consent)",
     )
     .eq("campaign_id", campanha.id)
     .eq("status", "pending")
@@ -250,13 +252,22 @@ async function rodarUmaCampanha(
   // revalidados porque entre a preparação e agora a pessoa pode ter pedido para
   // parar — honrar o pedido com um dia de atraso é o mesmo que não honrar.
   const contato = alvo.contacts;
-  const motivo = motivoParaExcluir({
-    contactId: alvo.contact_id,
-    telefone: contato?.phone_number ?? alvo.recipient_address,
-    bloqueado: !!contato?.is_blocked,
-    anonimizado: !!contato?.is_anonymized,
-    recusouMarketing: recusouMarketing(contato?.consent),
-  });
+  // Como o número principal acha a pessoa: telefone, ou a conversa que ela
+  // começou com a conta (canal por conversa). Canal que sumiu ou não transporta
+  // mensagem cai no telefone — o veto de "sem telefone" cuida do resto.
+  const endereco = await enderecoDoCanal(admin, campanha.organization_id, campanha.channel_session_id);
+  const modo: ModoDeEndereco = endereco?.tipo === "conversa" ? { tipo: "conversa", prefixo: endereco.prefixo } : POR_TELEFONE;
+  const motivo = motivoParaExcluir(
+    {
+      contactId: alvo.contact_id,
+      telefone: contato?.phone_number ?? (modo.tipo === "telefone" ? alvo.recipient_address : null),
+      identidadeSocial: contato?.social_identity ?? (modo.tipo === "conversa" ? alvo.recipient_address : null),
+      bloqueado: !!contato?.is_blocked,
+      anonimizado: !!contato?.is_anonymized,
+      recusouMarketing: recusouMarketing(contato?.consent),
+    },
+    modo,
+  );
   if (motivo) {
     await admin
       .from("campaign_recipients")
@@ -273,7 +284,11 @@ async function rodarUmaCampanha(
 
   // A lista de exclusão da operação, revalidada AQUI e não só na preparação:
   // ela pode ter crescido depois do snapshot, e o ponto dela é impedir o envio.
-  const enderecoAtual = (contato?.phone_number ?? alvo.recipient_address ?? "").trim();
+  const enderecoAtual = (
+    (modo.tipo === "conversa" ? contato?.social_identity : contato?.phone_number) ??
+    alvo.recipient_address ??
+    ""
+  ).trim();
   if (enderecoAtual !== "") {
     const { data: suprimido } = await admin
       .from("campaign_suppressions")
@@ -309,7 +324,9 @@ async function rodarUmaCampanha(
     tetoDiario: campanha.teto_diario,
     tetoHorario: campanha.teto_horario,
   };
-  const numeros = await numerosDaCampanha(admin, campanha);
+  // No canal por conversa a pessoa só existe na conta com que ELA falou: o
+  // rodízio entre números não se aplica, e só o principal envia.
+  const numeros = modo.tipo === "conversa" ? [campanha.channel_session_id] : await numerosDaCampanha(admin, campanha);
   // O fuso da janela da campanha é o do número PRINCIPAL: ela é uma decisão da
   // campanha, e precisa de um relógio só — três números em fusos diferentes
   // fariam a mesma campanha abrir e fechar a janela três vezes.

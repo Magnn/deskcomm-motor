@@ -13456,6 +13456,14 @@ export const DICIONARIO: Traducoes = {
   "Este é um roteiro de atendimento: ele começa na conversa, não por campanha. Escolha um fluxo.": {
     es: "Este es un guion de atención: comienza en la conversación, no por campaña. Elija un flujo.",
   },
+  // Campanha em canal por conversa (lib/channels/endereco-de-campanha.ts).
+  "Nunca conversou por este canal": { es: "Nunca conversó por este canal" },
+  "Neste canal a campanha alcança só quem já conversou com esta conta — ele não começa conversa com quem nunca escreveu. O rodízio entre números não se aplica.": {
+    es: "En este canal la campaña alcanza solo a quien ya conversó con esta cuenta: no inicia conversación con quien nunca escribió. La rotación entre números no se aplica.",
+  },
+  "Este canal só deixa responder até 24 horas depois da última mensagem da pessoa, então não serve para campanha. Escolha um número de WhatsApp ou um bot do Telegram.": {
+    es: "Este canal solo permite responder hasta 24 horas después del último mensaje de la persona, por lo que no sirve para campaña. Elija un número de WhatsApp o un bot de Telegram.",
+  },
   // Motivo da perda (lib/resultado/motivo-da-perda.ts, dashboard › Receita).
   "A IA parou no meio da análise (limite de gasto, chave ou provedor). O que já foi analisado ficou gravado.": {
     es: "La IA se detuvo en medio del análisis (límite de gasto, clave o proveedor). Lo que ya se analizó quedó guardado.",

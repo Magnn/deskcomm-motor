@@ -14,7 +14,9 @@ import type { NextRequest } from "next/server";
 import { fail, ok } from "@/lib/api/wrappers";
 import { requireRole } from "@/lib/auth/require-role";
 import { requireSupportWrite } from "@/lib/impersonate/support";
+import { POR_TELEFONE, type ModoDeEndereco } from "@/lib/campanhas/elegibilidade";
 import { preverAudiencia } from "@/lib/campanhas/preparacao";
+import { enderecoDoCanal } from "@/lib/channels/endereco-de-campanha";
 import { previaSchema } from "@/lib/campanhas/schemas";
 import { TEXTO_DA_EXCLUSAO } from "@/lib/campanhas/tipos";
 import { traduzir } from "@/lib/i18n/dicionario";
@@ -49,12 +51,19 @@ export async function POST(req: NextRequest): Promise<Response> {
   // o usuário não veria por outro caminho — e é isso que ela precisa contar.
   const admin = createAdminClient();
   try {
+    // O canal vem escopado pela organização do papel: um id de outra empresa não
+    // é encontrado e a prévia segue por telefone.
+    const endereco = parsed.data.channel_session_id
+      ? await enderecoDoCanal(admin, authz.org.orgId, parsed.data.channel_session_id)
+      : null;
+    const modo: ModoDeEndereco = endereco?.tipo === "conversa" ? { tipo: "conversa", prefixo: endereco.prefixo } : POR_TELEFONE;
     const resumo = await preverAudiencia(admin, {
       organizationId: authz.org.orgId,
       filtro: parsed.data.audience_filter,
       corpo: parsed.data.message_body,
       agora: new Date(),
       campanhaId: parsed.data.campaign_id,
+      modo,
     });
     return ok(
       {

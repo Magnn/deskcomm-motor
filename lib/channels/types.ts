@@ -54,6 +54,14 @@ export interface ChannelCapabilities {
   groups: "full" | "limited" | "none";
   /** Mensagem entregue gera custo → decisões de envio precisam considerar orçamento. */
   costPerMessage: boolean;
+  /**
+   * Como o canal acha a pessoa: pelo `telefone` do contato, ou pela `conversa`
+   * que ELA começou (a thread do provedor — o canal não tem como puxar assunto
+   * com quem nunca falou). Quem monta público para envio em massa precisa saber
+   * isto sem perguntar QUAL canal é: "todo mundo com telefone" não faz sentido
+   * num canal por conversa.
+   */
+  enderecamento: "telefone" | "conversa";
 }
 
 /**

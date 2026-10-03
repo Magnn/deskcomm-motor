@@ -64,6 +64,7 @@ export const TERMINAIS_DE_DESPACHO: ReadonlySet<StatusDoDestinatario> = new Set(
  */
 export const MOTIVOS_DE_EXCLUSAO = [
   "sem_telefone",
+  "sem_conversa_no_canal",
   "telefone_invalido",
   "opt_out",
   "anonimizado",
@@ -80,6 +81,7 @@ export type MotivoDeExclusao = (typeof MOTIVOS_DE_EXCLUSAO)[number];
 /** O que o operador lê na tela. Espanhol entra pelo `traduzir()` da borda. */
 export const TEXTO_DA_EXCLUSAO: Record<MotivoDeExclusao, string> = {
   sem_telefone: "Sem telefone no cadastro",
+  sem_conversa_no_canal: "Nunca conversou por este canal",
   telefone_invalido: "Telefone fora do formato de envio",
   opt_out: "Pediu para não receber mensagens",
   anonimizado: "Contato anonimizado (LGPD)",

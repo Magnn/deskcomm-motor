@@ -31,6 +31,7 @@ import {
   useEspacosDoModelo,
   type ConteudoEscolhido,
 } from "../_components/ConteudoDaCampanha";
+import { AvisoDoCanal } from "../_components/AvisoDoCanal";
 import { useCriarCampanha, usePreviaDaAudiencia } from "@/hooks/campanhas/useCampanhas";
 import { channelLabel, useChannelSessions } from "@/hooks/channels/useChannelSessions";
 import { useT } from "@/hooks/i18n/useT";
@@ -160,6 +161,7 @@ export function NovaCampanha() {
               </option>
             ))}
           </select>
+          <AvisoDoCanal provider={providerDoCanal} />
           {canais.data?.length === 0 && (
             <p className="text-sm text-warning-fg">
               {t("Nenhum número conectado. Conecte um em Conexões antes de criar a campanha.")}
@@ -329,7 +331,7 @@ export function NovaCampanha() {
             variant="outline"
             disabled={!temCriterio || previa.isPending}
             onClick={() =>
-              previa.mutate({ audience_filter: filtro, message_body: texto })
+              previa.mutate({ audience_filter: filtro, message_body: conteudo.kind === "text" ? texto : "", ...(canal ? { channel_session_id: canal } : {}) })
             }
           >
             {previa.isPending ? t("Contando…") : t("Ver quantas pessoas")}
