@@ -92,25 +92,20 @@ interface MensagemLida {
 
 /** As frases de objeção dos agentes PUBLICADOS da organização. */
 async function frasesDaOrganizacao(db: SupabaseClient, organizationId: string): Promise<string[]> {
-  const { data: agentes, error } = await db
+  // A configuração do agente (onde mora a aba Objeções) fica em `ai_agents.config`
+  // — a MESMA coluna que o motor lê no turno (`agent-config.ts`, `a.config`). A
+  // versão publicada não tem coluna de configuração.
+  const { data, error } = await db
     .from("ai_agents")
-    .select("published_version_id")
+    .select("config, published_version_id")
     .eq("organization_id", organizationId)
     .is("archived_at", null);
   if (error) throw new Error(`marcos: leitura dos agentes falhou: ${error.message}`);
-  const versoes = ((agentes ?? []) as { published_version_id: string | null }[])
-    .map((a) => a.published_version_id)
-    .filter((v): v is string => !!v);
-  if (versoes.length === 0) return [];
-  const { data, error: e } = await db
-    .from("ai_agent_versions")
-    .select("config")
-    .eq("organization_id", organizationId)
-    .in("id", versoes);
-  if (e) throw new Error(`marcos: leitura das versões falhou: ${e.message}`);
   const frases = new Set<string>();
-  for (const v of (data ?? []) as { config: unknown }[]) {
-    for (const o of lerObjecoes(v.config)?.objecoes ?? []) frases.add(o.quando);
+  for (const a of (data ?? []) as { config: unknown; published_version_id: string | null }[]) {
+    // Só agente PUBLICADO: rascunho não atende ninguém.
+    if (!a.published_version_id) continue;
+    for (const o of lerObjecoes(a.config)?.objecoes ?? []) frases.add(o.quando);
   }
   return [...frases];
 }
