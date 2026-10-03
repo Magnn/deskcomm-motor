@@ -82,3 +82,59 @@ describe("signInWithPassword — teto de tentativas", () => {
     expect(signIn).toHaveBeenCalledTimes(10);
   });
 });
+
+/**
+ * A ação que vai DIRETO no `action` do formulário de login — o que faz o login
+ * funcionar antes de o JavaScript carregar. O desvio para a verificação em duas
+ * etapas saiu do `router` da tela e mora nela (`redirect` serve aos dois
+ * caminhos); e a senha nunca pode voltar no estado, porque sem JavaScript o
+ * estado vai para o HTML da resposta.
+ */
+describe("entrarPeloFormulario", () => {
+  function formulario(email: string, password: string) {
+    const dados = new FormData();
+    dados.set("email", email);
+    dados.set("password", password);
+    return dados;
+  }
+
+  beforeEach(async () => {
+    vi.resetModules();
+    signIn.mockReset();
+    const { redirect } = await import("next/navigation");
+    vi.mocked(redirect).mockReset();
+    vi.mocked(headers).mockResolvedValue({
+      get: (k: string) => (k === "x-forwarded-for" ? "198.51.100.91" : null),
+    } as never);
+  });
+
+  it("conta com verificação em duas etapas: vai para /login/mfa levando o `next` e o fator", async () => {
+    signIn.mockResolvedValue({ data: { user: { id: "u1" }, session: {} }, error: null } as never);
+    vi.mocked(createClient).mockResolvedValue({
+      auth: {
+        signInWithPassword: signIn,
+        mfa: { listFactors: vi.fn(async () => ({ data: { totp: [{ id: "f-9", status: "verified" }] } })) },
+      },
+    } as never);
+    const { redirect } = await import("next/navigation");
+    const { entrarPeloFormulario } = await import("./signInWithPassword");
+
+    await entrarPeloFormulario("/app/inbox", null, formulario("mfa@example.com", "senha-certa-123"));
+
+    expect(redirect).toHaveBeenCalledWith("/login/mfa?next=%2Fapp%2Finbox&factor=f-9");
+  });
+
+  it("senha errada: o estado traz o e-mail e NUNCA a senha", async () => {
+    signIn.mockResolvedValue({
+      data: { user: null, session: null },
+      error: { message: "Invalid login credentials", status: 400 },
+    } as never);
+    vi.mocked(createClient).mockResolvedValue({ auth: { signInWithPassword: signIn } } as never);
+    const { entrarPeloFormulario } = await import("./signInWithPassword");
+
+    const estado = await entrarPeloFormulario(null, null, formulario("errou@example.com", "senha-errada-xyz"));
+
+    expect(estado).toMatchObject({ ok: false, error: "invalid_credentials", email: "errou@example.com" });
+    expect(JSON.stringify(estado)).not.toContain("senha-errada-xyz");
+  });
+});

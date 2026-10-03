@@ -137,3 +137,27 @@ export async function useRecoveryCode(
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
+
+/** O que a tela do código de recuperação guarda. O código nunca volta; o e-mail sim. */
+export type EstadoDaRecuperacaoPorCodigo = (UseRecoveryCodeResult & { email: string }) | null;
+
+/**
+ * A mesma ação, no formato do `<form action>` (com o `next` preso por `bind`):
+ * funciona antes de o JavaScript carregar, como os demais formulários de acesso.
+ * A conferência de formato do código que a tela fazia já é feita aqui dentro
+ * (`inputSchema`, com o mesmo atraso anti-timing de um código errado).
+ */
+export async function recuperarComCodigoPeloFormulario(
+  next: string | null,
+  _anterior: EstadoDaRecuperacaoPorCodigo,
+  dados: FormData,
+): Promise<EstadoDaRecuperacaoPorCodigo> {
+  const email = String(dados.get("email") ?? "").trim();
+  // `useRecoveryCode` NÃO é hook do React — só o nome começa com "use" (é o
+  // verbo "usar o código"). O apelido evita o falso positivo do
+  // `rules-of-hooks`, como o formulário já fazia ao importá-la.
+  const queimarCodigo = useRecoveryCode;
+  const res = await queimarCodigo({ email, code: String(dados.get("code") ?? "") }, next ?? undefined);
+  return res ? { ...res, email } : null;
+}
+
