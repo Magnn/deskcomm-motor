@@ -26,6 +26,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  CONTEUDO_VAZIO,
+  ConteudoDaCampanha,
+  conteudoParaApi,
+  conteudoPreenchido,
+  useEspacosDoModelo,
+  type ConteudoEscolhido,
+} from "../../_components/ConteudoDaCampanha";
 import { useCampanha, useEditarCampanha, usePreviaDaAudiencia } from "@/hooks/campanhas/useCampanhas";
 import { channelLabel, useChannelSessions } from "@/hooks/channels/useChannelSessions";
 import { useT } from "@/hooks/i18n/useT";
@@ -49,6 +57,10 @@ export function EditarCampanha({ id }: { id: string }) {
   const [semInteracao, setSemInteracao] = useState("");
   const [limite, setLimite] = useState("100");
   const [texto, setTexto] = useState("");
+  const [conteudo, setConteudo] = useState<ConteudoEscolhido>(CONTEUDO_VAZIO);
+  // Junto dos outros hooks, ANTES de qualquer retorno antecipado da tela.
+  const providerDoCanal = (canais.data ?? []).find((s) => s.id === canal)?.provider ?? null;
+  const espacosDoModelo = useEspacosDoModelo(conteudo, providerDoCanal);
   const [funil, setFunil] = useState("");
   const [etapa, setEtapa] = useState("");
   const [agente, setAgente] = useState("");
@@ -72,7 +84,17 @@ export function EditarCampanha({ id }: { id: string }) {
     setSemTags(juntar(f.sem_tags));
     setSemInteracao(f.sem_interacao_ha_dias == null ? "" : String(f.sem_interacao_ha_dias));
     setLimite(f.limite == null ? "100" : String(f.limite));
-    setTexto(c.message_body ?? "");
+    const kind = c.content_kind === "template" || c.content_kind === "flow" ? c.content_kind : "text";
+    // No modelo, `message_body` é a PRÉVIA do modelo, não um texto digitado.
+    setTexto(kind === "text" ? (c.message_body ?? "") : "");
+    setConteudo({
+      kind,
+      templateName: c.template_name ?? "",
+      templateLanguage: c.template_language ?? "",
+      templateValues: c.template_values ?? {},
+      templatePreview: kind === "template" ? (c.message_body ?? "") : "",
+      flowPointerId: c.flow_pointer_id ?? "",
+    });
     setFunil(c.pipeline_id ?? "");
     setEtapa(c.stage_id ?? "");
     setAgente(c.agent_id ?? "");
@@ -138,7 +160,7 @@ export function EditarCampanha({ id }: { id: string }) {
   const podeSalvar =
     nome.trim() !== "" &&
     canal !== "" &&
-    texto.trim() !== "" &&
+    (conteudo.kind === "text" ? texto.trim() !== "" : conteudoPreenchido(conteudo, espacosDoModelo)) &&
     temCriterio &&
     (baseLegal !== "legitimate_interest" || liaRef.trim() !== "");
 
@@ -326,6 +348,7 @@ export function EditarCampanha({ id }: { id: string }) {
 
       <Card className="space-y-4 p-4">
         <h2 className="font-medium">{t("Mensagem")}</h2>
+        <ConteudoDaCampanha valor={conteudo} onChange={setConteudo} provider={providerDoCanal}>
         <Textarea
           rows={6}
           value={texto}
@@ -346,6 +369,7 @@ export function EditarCampanha({ id }: { id: string }) {
             </li>
           ))}
         </ul>
+        </ConteudoDaCampanha>
       </Card>
 
       <div className="flex items-center justify-end gap-2">
@@ -358,7 +382,7 @@ export function EditarCampanha({ id }: { id: string }) {
             await salvar.mutateAsync({
               name: nome.trim(),
               channel_session_id: canal,
-              message_body: texto.trim(),
+              ...conteudoParaApi(conteudo, texto),
               base_legal: baseLegal,
               lia_ref: liaRef.trim() || null,
               audience_filter: filtro,

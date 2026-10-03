@@ -36,13 +36,14 @@ import { randomUUID } from "node:crypto";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { sendMessageHandler } from "@/app/api/v1/messages/_handler";
 import { getRequestPool } from "@/lib/agent-engine/db/request-pool";
 import { decidePacing, dayStartInTz } from "@/lib/agent-engine/pacing/engine";
 import { loadChannelKnobs, loadPacingState, recordSend } from "@/lib/agent-engine/pacing/store";
 import { beginServiceAtOrigin } from "@/lib/atendimento/origem";
 import { logger } from "@/lib/logger";
 
+import { COLUNAS_DE_CONTEUDO, lerConteudo } from "./conteudo";
+import { despacharConteudo } from "./despacho";
 import { motivoParaExcluir, recusouMarketing } from "./elegibilidade";
 import { hashDoEndereco } from "./exclusoes";
 import { renderizar } from "./renderizador";
@@ -81,6 +82,11 @@ interface CampanhaRow {
   channel_session_id: string;
   name: string;
   message_body: string | null;
+  content_kind: string | null;
+  template_name: string | null;
+  template_language: string | null;
+  template_values: unknown;
+  flow_pointer_id: string | null;
   content_version: number;
   intervalo_segundos: number | null;
   janela_inicio_hora: number | null;
@@ -91,6 +97,7 @@ interface CampanhaRow {
 
 const COLUNAS_DA_CAMPANHA =
   "id, organization_id, channel_session_id, name, message_body, content_version, " +
+  `${COLUNAS_DE_CONTEUDO}, ` +
   "intervalo_segundos, janela_inicio_hora, janela_fim_hora, teto_diario, teto_horario";
 
 export async function rodarUmaRodadaDeCampanha(
@@ -395,16 +402,28 @@ async function rodarUmaCampanha(
     };
   }
 
-  // O corpo é montado DEPOIS do ritmo: a saudação ("bom dia" × "boa tarde") tem
-  // de ser a do instante em que a mensagem SAI, no fuso do canal. Montá-la na
-  // preparação produziria "bom dia" numa mensagem enviada à tarde — foi o
-  // defeito do primeiro piloto.
-  const congelado = alvo.rendered_body ?? campanha.message_body ?? "";
-  const corpo = renderizar(
-    congelado,
-    { nome: nomeDoContato(contato) },
-    { agora, fuso: knobs.timezone },
-  ).texto;
+  // O conteúdo é lido AQUI, da campanha em vigor: texto, modelo aprovado ou fluxo.
+  // Conteúdo incompleto (o fluxo foi apagado, o modelo ficou sem nome) não vira
+  // envio — o destinatário falha com o motivo, em vez de receber metade.
+  const lido = lerConteudo(campanha);
+  if (!lido.ok) {
+    await admin
+      .from("campaign_recipients")
+      .update({ status: "failed", last_error_code: "conteudo_incompleto", last_error_detail: lido.falta.slice(0, 300) })
+      .eq("id", alvo.id)
+      .eq("status", "sending");
+    return { enviadas: 0, pulados: 0, concluidas: 0, detalhe: "falhou:conteudo_incompleto" };
+  }
+  // No texto, vale o corpo CONGELADO na preparação (o que a pessoa viu na prévia).
+  const conteudo =
+    lido.conteudo.kind === "text" ? { ...lido.conteudo, corpo: alvo.rendered_body ?? lido.conteudo.corpo } : lido.conteudo;
+
+  // As variáveis são resolvidas DEPOIS do ritmo: a saudação ("bom dia" × "boa
+  // tarde") tem de ser a do instante em que a mensagem SAI, no fuso do canal.
+  // Resolvê-las na preparação produziria "bom dia" numa mensagem enviada à tarde
+  // — foi o defeito do primeiro piloto.
+  const renderizarAgora = (texto: string): string =>
+    renderizar(texto, { nome: nomeDoContato(contato) }, { agora, fuso: knobs.timezone }).texto;
 
   try {
     const boundary = await beginServiceAtOrigin(
@@ -418,35 +437,31 @@ async function rodarUmaCampanha(
       .update({ conversation_id: boundary.conversation_id, channel_session_id: sessionEscolhida })
       .eq("id", alvo.id);
 
-    const mensagem = await sendMessageHandler(
-      admin,
-      {
-        organization_id: campanha.organization_id,
-        serviceBoundary: boundary,
-        proactiveContext: { organizationId: campanha.organization_id, contactId: alvo.contact_id },
-        actor: { type: "webhook_source", id: `campaign:${campanha.id}` },
-        requestId: `campaign:${campanha.id}:${alvo.id}`,
-        internalMessageId: messageId,
-      } as Parameters<typeof sendMessageHandler>[1],
-      {
-        conversation_id: boundary.conversation_id,
-        type: "text",
-        body: corpo,
-        metadata: {
-          source: "campaign",
-          campaign_id: campanha.id,
-          campaign_recipient_id: alvo.id,
-          campaign_content_version: campanha.content_version,
-          idempotency_key: `campaign:${alvo.id}`,
-        },
-      } as Parameters<typeof sendMessageHandler>[2],
-    );
-    await recordSend(pool, campanha.organization_id, sessionEscolhida, agora);
+    const desfecho = await despacharConteudo(admin, {
+      organizationId: campanha.organization_id,
+      contactId: alvo.contact_id,
+      boundary,
+      conteudo,
+      renderizar: renderizarAgora,
+      previaDoModelo: campanha.message_body,
+      ator: `campaign:${campanha.id}`,
+      requestId: `campaign:${campanha.id}:${alvo.id}`,
+      internalMessageId: messageId,
+      metadata: {
+        source: "campaign",
+        campaign_id: campanha.id,
+        campaign_recipient_id: alvo.id,
+        campaign_content_version: campanha.content_version,
+        idempotency_key: `campaign:${alvo.id}`,
+      },
+    });
+    // O ritmo do NÚMERO só conta mensagem que a campanha mandou. No fluxo quem
+    // manda é o fluxo, com o ritmo dele — contar aqui cobraria duas vezes.
+    if (desfecho.via === "mensagem") await recordSend(pool, campanha.organization_id, sessionEscolhida, agora);
 
-    // O desfecho vem do ESTADO da mensagem, nunca da ausência de exceção — o
-    // handler marca `failed` e devolve normalmente.
-    const status = (mensagem as { status?: string }).status;
-    const falhou = status === "failed";
+    // O desfecho vem do ESTADO (da mensagem, ou da inscrição no fluxo), nunca da
+    // ausência de exceção — o handler marca `failed` e devolve normalmente.
+    const falhou = desfecho.falhou;
     // `.eq("status","sending")` porque o ack pode ter chegado ANTES desta linha:
     // o trigger já teria avançado o destinatário para `sent`/`delivered`, e
     // escrever por cima o rebaixaria.
@@ -455,12 +470,12 @@ async function rodarUmaCampanha(
       .update({
         status: falhou ? "failed" : "sent",
         sent_at: falhou ? null : agora.toISOString(),
-        last_error_code: falhou ? "send_failed" : null,
+        last_error_code: falhou ? (desfecho.via === "fluxo" ? "flow_enroll_failed" : "send_failed") : null,
+        ...(desfecho.via === "fluxo" && desfecho.motivo ? { last_error_detail: desfecho.motivo } : {}),
         // O `message_id` só pode ser gravado AQUI: a coluna tem FK para
-        // `messages`, e a linha da mensagem só existe depois do envio. Gravá-lo
-        // antes — que era o desenho original, para o trigger de ack sempre achar
-        // o destinatário — viola a FK e a reserva falha inteira.
-        message_id: (mensagem as { id?: string }).id ?? messageId,
+        // `messages`, e a linha da mensagem só existe depois do envio. No
+        // fluxo não há mensagem da campanha: a coluna fica vazia.
+        ...(desfecho.via === "mensagem" ? { message_id: desfecho.messageId ?? messageId } : {}),
       })
       .eq("id", alvo.id)
       .eq("status", "sending");
@@ -469,7 +484,7 @@ async function rodarUmaCampanha(
       enviadas: falhou ? 0 : 1,
       pulados: 0,
       concluidas: 0,
-      detalhe: `enviado:${status ?? "?"}:${escolha.motivo}`,
+      detalhe: `enviado:${desfecho.via === "mensagem" ? desfecho.status : falhou ? "fluxo_recusou" : "fluxo"}:${escolha.motivo}`,
     };
   } catch (err) {
     const motivoErro = err instanceof Error ? err.message : String(err);

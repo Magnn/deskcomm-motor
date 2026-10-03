@@ -18,6 +18,7 @@ import { audit } from "@/lib/audit";
 import { requireRole } from "@/lib/auth/require-role";
 import { FILTRO_VAZIO } from "@/lib/campanhas/audiencia";
 import { gravarPool } from "@/lib/campanhas/pool-de-numeros";
+import { FRASE_DO_FLUXO, fluxoParaCampanha } from "@/lib/campanhas/fluxo-da-campanha";
 import {
   codificarCursor,
   criarCampanhaSchema,
@@ -128,6 +129,13 @@ export async function POST(req: NextRequest): Promise<Response> {
     );
   }
 
+  if (entrada.flow_pointer_id) {
+    const fluxo = await fluxoParaCampanha(supabase, org.orgId, entrada.flow_pointer_id);
+    if (!fluxo.ok) {
+      return fail("campanha_conteudo_invalido", t(FRASE_DO_FLUXO[fluxo.motivo]), 422, { requestId });
+    }
+  }
+
   const { data, error } = await supabase
     .from("campaigns")
     .insert({
@@ -136,6 +144,11 @@ export async function POST(req: NextRequest): Promise<Response> {
       description: entrada.description ?? null,
       channel_session_id: entrada.channel_session_id,
       message_body: entrada.message_body ?? null,
+      content_kind: entrada.content_kind ?? "text",
+      template_name: entrada.template_name ?? null,
+      template_language: entrada.template_language ?? null,
+      template_values: entrada.template_values ?? {},
+      flow_pointer_id: entrada.flow_pointer_id ?? null,
       base_legal: entrada.base_legal,
       lia_ref: entrada.lia_ref ?? null,
       audience_filter: entrada.audience_filter ?? FILTRO_VAZIO,

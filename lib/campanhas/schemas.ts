@@ -6,6 +6,7 @@
 import { z } from "zod";
 
 import { filtroDeAudienciaSchema } from "./audiencia";
+import { TIPOS_DE_CONTEUDO } from "./conteudo";
 
 /**
  * O ritmo próprio. Todos opcionais e anuláveis: `null` devolve a decisão ao
@@ -28,6 +29,16 @@ const baseDaCampanha = {
   description: z.string().trim().max(4000).nullable().optional(),
   channel_session_id: z.string().uuid(),
   message_body: z.string().trim().max(4096).nullable().optional(),
+  /**
+   * O que a campanha manda (migration 0915). Ausente = texto, como sempre foi.
+   * No modelo, `message_body` guarda o TEXTO do modelo escolhido — é o que a
+   * conversa mostra depois do envio.
+   */
+  content_kind: z.enum(TIPOS_DE_CONTEUDO).optional(),
+  template_name: z.string().trim().min(1).max(512).nullable().optional(),
+  template_language: z.string().trim().min(2).max(16).nullable().optional(),
+  template_values: z.record(z.string().max(64), z.string().max(1024)).optional(),
+  flow_pointer_id: z.string().uuid().nullable().optional(),
   base_legal: z.enum(["consent", "legitimate_interest"]),
   lia_ref: z.string().trim().max(120).nullable().optional(),
   audience_filter: filtroDeAudienciaSchema.optional(),
@@ -77,6 +88,11 @@ export const editarCampanhaSchema = z
     description: baseDaCampanha.description,
     channel_session_id: baseDaCampanha.channel_session_id.optional(),
     message_body: baseDaCampanha.message_body,
+    content_kind: baseDaCampanha.content_kind,
+    template_name: baseDaCampanha.template_name,
+    template_language: baseDaCampanha.template_language,
+    template_values: baseDaCampanha.template_values,
+    flow_pointer_id: baseDaCampanha.flow_pointer_id,
     base_legal: baseDaCampanha.base_legal.optional(),
     lia_ref: baseDaCampanha.lia_ref,
     audience_filter: filtroDeAudienciaSchema.optional(),

@@ -16,6 +16,8 @@ import { requireRole } from "@/lib/auth/require-role";
 import { carregarCampanha } from "@/lib/campanhas/acoes";
 import { ehEditavel, ehTerminal } from "@/lib/campanhas/maquina-de-estados";
 import { gravarPool, lerPoolExtra } from "@/lib/campanhas/pool-de-numeros";
+import { COLUNAS_DE_CONTEUDO, conteudoMudou } from "@/lib/campanhas/conteudo";
+import { FRASE_DO_FLUXO, fluxoParaCampanha } from "@/lib/campanhas/fluxo-da-campanha";
 import { editarCampanhaSchema } from "@/lib/campanhas/schemas";
 import { traduzir } from "@/lib/i18n/dicionario";
 import { requireSupportWrite } from "@/lib/impersonate/support";
@@ -26,6 +28,7 @@ export const dynamic = "force-dynamic";
 
 const COLUNAS =
   "id, name, description, status, channel_session_id, message_body, base_legal, lia_ref, " +
+  `${COLUNAS_DE_CONTEUDO}, ` +
   "audience_filter, audience_version, content_version, snapshot_total, snapshot_eligible, " +
   "snapshot_excluded, scheduled_at, prepared_at, started_at, paused_at, completed_at, " +
   "cancelled_at, failure_code, intervalo_segundos, janela_inicio_hora, janela_fim_hora, " +
@@ -144,6 +147,11 @@ export async function PATCH(
     "name",
     "description",
     "message_body",
+    "content_kind",
+    "template_name",
+    "template_language",
+    "template_values",
+    "flow_pointer_id",
     "audience_filter",
     "intervalo_segundos",
     "janela_inicio_hora",
@@ -161,8 +169,16 @@ export async function PATCH(
   if (entrada.lia_ref !== undefined) mudanca.lia_ref = entrada.lia_ref;
   // Mexer no TEXTO sobe a versão do conteúdo: é ela que o destinatário carrega,
   // e é por ela que se sabe se a mensagem preparada é a mensagem de hoje.
-  if (entrada.message_body !== undefined && entrada.message_body !== campanha.message_body) {
+  // Vale para o TIPO de conteúdo também: trocar o modelo ou o fluxo é mandar outra coisa.
+  if (conteudoMudou(campanha, { ...campanha, ...mudanca })) {
     mudanca.content_version = campanha.content_version + 1;
+  }
+
+  if (entrada.flow_pointer_id) {
+    const fluxo = await fluxoParaCampanha(supabase, authz.org.orgId, entrada.flow_pointer_id);
+    if (!fluxo.ok) {
+      return fail("campanha_conteudo_invalido", t(FRASE_DO_FLUXO[fluxo.motivo]), 422, { requestId });
+    }
   }
 
   if (entrada.channel_session_id !== undefined) {
