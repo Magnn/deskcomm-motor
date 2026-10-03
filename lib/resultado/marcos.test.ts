@@ -57,9 +57,12 @@ describe("classificarNovasMensagens", () => {
           msg("m3", "2026-10-01T10:02:00.000Z", "inbound", "tá caro"),
           msg("m4", "2026-10-01T10:03:00.000Z", "inbound", "vou pensar com calma", "org-2"),
         ],
-        ai_agents: [{ id: "a2", organization_id: "org-2", published_version_id: "v2", archived_at: null }],
-        ai_agent_versions: [
-          { id: "v2", organization_id: "org-2", config: { objections: { enabled: true, objecoes: [{ quando: "vou pensar", resposta: "Claro, sem pressa." }] } } },
+        // A configuração mora no AGENTE (`ai_agents.config`), como o motor lê. A
+        // versão existe sem coluna `config` — é o schema real, e foi por supor o
+        // contrário que a rotina falhou em produção na primeira execução.
+        ai_agents: [
+          { id: "a2", organization_id: "org-2", published_version_id: "v2", archived_at: null, config: { objections: { enabled: true, objecoes: [{ quando: "vou pensar", resposta: "Claro, sem pressa." }] } } },
+          { id: "rascunho", organization_id: "org-2", published_version_id: null, archived_at: null, config: { objections: { enabled: true, objecoes: [{ quando: "calma", resposta: "Ok." }] } } },
         ],
         watchdog_cursors: [],
         conversation_milestones: [],
