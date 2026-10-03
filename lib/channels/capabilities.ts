@@ -235,6 +235,32 @@ type ProviderNaoClassificado = Exclude<
 const _todoProviderFoiClassificado: ProviderNaoClassificado extends never ? true : never = true;
 void _todoProviderFoiClassificado;
 
+/**
+ * Os providers cuja sessão É UM NÚMERO DE WHATSAPP — a unidade que o plano
+ * cobra (`lib/planos/`). Página do Facebook, conta de rede social e bot não são
+ * número; a linha de voz é pareada a um número que já existe.
+ *
+ * A contagem do plano olhava TODA sessão de canal: conectar 28 páginas do
+ * Messenger marcou "30 de 10 números" e travaria o próximo número de verdade.
+ * A lista mora aqui porque nomeia provider (o `lint:channels` não deixa fora), e
+ * a classificação abaixo é erro de COMPILAÇÃO enquanto um provider novo não
+ * disser se é número ou não.
+ */
+export const PROVIDERS_DE_NUMERO = ["waha", "meta_cloud", "zernio", "datafy"] as const satisfies readonly ChannelProvider[];
+export const PROVIDERS_QUE_NAO_SAO_NUMERO = [
+  "zernio_social",
+  "meta_messenger",
+  "telegram_bot",
+  "wacalls",
+] as const satisfies readonly ChannelProvider[];
+
+type ProviderSemClasseDeNumero = Exclude<
+  ChannelProvider,
+  (typeof PROVIDERS_DE_NUMERO)[number] | (typeof PROVIDERS_QUE_NAO_SAO_NUMERO)[number]
+>;
+const _todoProviderDizSeENumero: ProviderSemClasseDeNumero extends never ? true : never = true;
+void _todoProviderDizSeENumero;
+
 /** `true` só para provider conhecido cuja natureza não é mensagem. */
 export function canalConhecidoSemMensagem(provider: string | null | undefined): boolean {
   return (PROVIDERS_SEM_MENSAGEM as readonly string[]).includes(provider ?? "");

@@ -5,6 +5,8 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { PROVIDERS_DE_NUMERO, PROVIDERS_QUE_NAO_SAO_NUMERO } from "@/lib/channels/capabilities";
+
 const h = vi.hoisted(() => ({ env: { PLANS_ENFORCED: "", PLANS_CATALOG: "" }, log: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
 vi.mock("@/lib/env", () => ({ env: h.env }));
 vi.mock("@/lib/logger", () => ({ logger: h.log }));
@@ -25,6 +27,8 @@ type Linha = { plan_id: string; status: string; source: string; reference: strin
 
 let assinatura: Linha | null;
 let numeros: number;
+/** Quando preenchido, a contagem sai destas sessões e respeita o filtro de provider da consulta. */
+let sessoes: Array<{ provider: string; archived_at: string | null }> | null = null;
 let erroDeLeitura: string | null;
 let gravacoes: Array<{ op: string; valor: unknown; filtros: Array<[string, unknown]> }>;
 
@@ -32,7 +36,21 @@ function adminFake() {
   return {
     from(tabela: string) {
       if (tabela === "channel_sessions") {
-        const q = { select: () => q, eq: () => q, is: async () => ({ count: numeros, error: null }) };
+        let provedores: readonly string[] | null = null;
+        const q = {
+          select: () => q,
+          eq: () => q,
+          in: (_coluna: string, valores: readonly string[]) => {
+            provedores = valores;
+            return q;
+          },
+          is: async () => ({
+            count: sessoes
+              ? sessoes.filter((x) => x.archived_at === null && (provedores === null || provedores.includes(x.provider))).length
+              : numeros,
+            error: null,
+          }),
+        };
         return q;
       }
       // organization_subscriptions
@@ -123,6 +141,27 @@ describe("conectar mais um número", () => {
     assinatura = linha({ plan_id: "pro" });
     numeros = 3;
     expect(await recusaParaNovoNumero(adminFake(), "org-1")).toEqual({ motivo: "limite_do_plano", limite: 3, plano: "Pro" });
+  });
+
+  it("⭐ página do Messenger, bot do Telegram, rede social e linha de voz NÃO gastam o plano", async () => {
+    // O caso real: 28 páginas conectadas marcaram "30 de 10" no plano Scale e
+    // travariam o próximo número de WhatsApp.
+    assinatura = linha({ plan_id: "scale" });
+    const [umQueNaoENumero] = PROVIDERS_QUE_NAO_SAO_NUMERO;
+    sessoes = [
+      // Um número ativo de cada tipo que É número…
+      ...PROVIDERS_DE_NUMERO.map((provider) => ({ provider, archived_at: null })),
+      // …um número excluído, que não conta…
+      { provider: PROVIDERS_DE_NUMERO[0], archived_at: "2026-09-01T00:00:00Z" },
+      // …e tudo que NÃO é número: 28 de um tipo, mais um de cada.
+      ...Array.from({ length: 28 }, () => ({ provider: umQueNaoENumero, archived_at: null })),
+      ...PROVIDERS_QUE_NAO_SAO_NUMERO.map((provider) => ({ provider, archived_at: null })),
+    ];
+    const s = await situacaoDosNumeros(adminFake(), "org-1");
+    expect(s.usados).toBe(PROVIDERS_DE_NUMERO.length);
+    expect(s.limite).toBe(10);
+    expect(await recusaParaNovoNumero(adminFake(), "org-1")).toBeNull();
+    sessoes = null;
   });
 
   it("assinatura que caiu não conecta — mesmo com número sobrando no plano", async () => {
