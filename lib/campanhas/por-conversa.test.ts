@@ -85,6 +85,7 @@ describe("buscarCandidatos — canal por conversa", () => {
       consent: null,
       is_merged_into: null,
       tags: ["lead"],
+      source: "site",
       created_at: `2026-10-0${id.slice(-1)}T00:00:00Z`,
     });
     const b = criarBancoEmMemoria({
@@ -92,7 +93,8 @@ describe("buscarCandidatos — canal por conversa", () => {
     });
     const candidatos = await buscarCandidatos(b.cliente as unknown as SupabaseClient, {
       organizationId: "org-1",
-      filtro: { ...FILTRO_VAZIO, limite: 2 },
+      // Um recorte de verdade: público sem critério nenhum não traz ninguém.
+      filtro: { ...FILTRO_VAZIO, origens: ["site"], limite: 2 },
       agora: new Date("2026-10-10T00:00:00Z"),
       modo: TELEGRAM,
     });

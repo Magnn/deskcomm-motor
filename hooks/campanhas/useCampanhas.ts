@@ -162,6 +162,7 @@ export type AcaoDeCampanha =
   | "retomar"
   | "cancelar"
   | "duplicar"
+  | "reenviar-falhas"
   | "testar";
 
 export function useAcaoDeCampanha(id: string) {

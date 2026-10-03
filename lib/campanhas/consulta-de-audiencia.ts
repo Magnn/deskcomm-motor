@@ -13,7 +13,7 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { CAMPANHAS_VIVAS, limiteDeSilencio, usaNegocio, type FiltroDeAudiencia } from "./audiencia";
+import { CAMPANHAS_VIVAS, limiteDeSilencio, temRecorte, usaNegocio, type FiltroDeAudiencia } from "./audiencia";
 import { nomeDoContato } from "@/lib/contacts/rotulo-do-contato";
 import { POR_TELEFONE, recusouMarketing, type CandidatoDaAudiencia, type ModoDeEndereco } from "./elegibilidade";
 
@@ -107,9 +107,14 @@ export async function buscarCandidatos(
     consulta = consulta.not("id", "in", `(${filtro.excluir_contatos.join(",")})`);
   }
 
-  const { data, error } = await consulta;
-  if (error) throw new Error(`audiência: contatos — ${error.message}`);
-  const linhas = (data ?? []) as LinhaDeContato[];
+  // Sem recorte (só a lista de incluídos à mão) a consulta acima não tem
+  // critério nenhum: rodá-la traria os primeiros contatos da organização inteira.
+  let linhas: LinhaDeContato[] = [];
+  if (temRecorte(filtro)) {
+    const { data, error } = await consulta;
+    if (error) throw new Error(`audiência: contatos — ${error.message}`);
+    linhas = (data ?? []) as LinhaDeContato[];
+  }
 
   // ─── Os incluídos à mão ───
   // Entram mesmo fora do recorte, e por isso vêm em consulta própria; os vetos

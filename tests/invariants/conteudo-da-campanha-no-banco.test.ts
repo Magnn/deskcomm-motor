@@ -66,7 +66,9 @@ describe("as leituras de campanha usam colunas que existem", () => {
     "endereço do canal (telefone ou conversa)": `select ${CHANNEL_SESSION_REF_COLUMNS}, metadata, organization_id from public.channel_sessions`,
     "público por conversa": "select id, name, display_name, phone_number, social_identity, is_blocked, is_anonymized, consent, is_merged_into, tags, source, last_activity_at, created_at from public.contacts",
     "números extras": "select channel_session_id, organization_id, campaign_id from public.campaign_channel_sessions",
-    "desfecho do destinatário": "select status, sent_at, last_error_code, last_error_detail, message_id, conversation_id, channel_session_id from public.campaign_recipients",
+    "quem falhou, para o reenvio": "select contact_id, organization_id, campaign_id, status from public.campaign_recipients",
+    "o dia da campanha no calendário": "select id, name, status, scheduled_at, started_at, completed_at, created_at from public.campaigns",
+    "desfecho do destinatário":"select status, sent_at, last_error_code, last_error_detail, message_id, conversation_id, channel_session_id from public.campaign_recipients",
   };
 
   it.each(Object.entries(LEITURAS))("%s", (_nome, consulta) => {

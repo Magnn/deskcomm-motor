@@ -22,6 +22,7 @@ import { capabilitiesOf, transportaMensagem, type ChannelProvider } from "@/lib/
 
 import { enderecoDoCanal } from "@/lib/channels/endereco-de-campanha";
 import { baseLegalValida, motivoParaExcluir, POR_TELEFONE, recusouMarketing, type ModoDeEndereco } from "./elegibilidade";
+import { FILTRO_VAZIO } from "./audiencia";
 import { ehStatusDaCampanha, podeTransitar } from "./maquina-de-estados";
 import { prepararCampanha } from "./preparacao";
 import { nomeDoContato } from "@/lib/contacts/rotulo-do-contato";
@@ -410,11 +411,62 @@ export async function duplicarAcao(
   c: CampanhaCarregada,
   autorId: string,
 ): Promise<Desfecho<{ id: string }>> {
+  return copiarCampanha(admin, c, autorId, { nome: `${c.name} (cópia)`, filtro: c.audience_filter });
+}
+
+/** Quantas pessoas um reenvio leva de uma vez — o teto de "incluir à mão" do filtro. */
+export const TETO_DO_REENVIO = 5000;
+
+/**
+ * REENVIAR PARA QUEM FALHOU: um RASCUNHO novo, com o mesmo conteúdo, só para as
+ * pessoas em que o envio desta campanha falhou.
+ *
+ * Rascunho, e não disparo imediato: a pessoa confere a lista, prepara e inicia
+ * como em qualquer campanha — e os vetos (opt-out, recusa de marketing, lista de
+ * exclusão) são revalidados na preparação. Quem falhou porque pediu para parar
+ * nesse meio-tempo não recebe.
+ *
+ * Só `failed`: "pulado" e "pediu para parar" não são falha de envio, e mandar
+ * de novo para eles seria furar justamente o que os tirou da lista.
+ */
+export async function reenviarFalhasAcao(
+  admin: SupabaseClient,
+  c: CampanhaCarregada,
+  autorId: string,
+): Promise<Desfecho<{ id: string; pessoas: number }>> {
+  const { data, error } = await admin
+    .from("campaign_recipients")
+    .select("contact_id")
+    .eq("organization_id", c.organization_id)
+    .eq("campaign_id", c.id)
+    .eq("status", "failed")
+    .limit(TETO_DO_REENVIO);
+  if (error) {
+    return { ok: false, codigo: "campanha_estado_invalido", mensagem: "Não foi possível ler quem falhou nesta campanha.", status: 500 };
+  }
+  const contatos = [...new Set(((data ?? []) as { contact_id: string | null }[]).map((l) => l.contact_id).filter((id): id is string => !!id))];
+  if (contatos.length === 0) {
+    return { ok: false, codigo: "campanha_sem_audiencia", mensagem: "Nenhum envio desta campanha falhou — não há a quem reenviar.", status: 422 };
+  }
+  const copia = await copiarCampanha(admin, c, autorId, {
+    nome: `${c.name} (reenvio)`,
+    // Só a lista: sem recorte, a consulta de público não traz mais ninguém.
+    filtro: { ...FILTRO_VAZIO, incluir_contatos: contatos, limite: Math.max(1, contatos.length) },
+  });
+  return copia.ok ? { ok: true, id: copia.id, pessoas: contatos.length } : copia;
+}
+
+async function copiarCampanha(
+  admin: SupabaseClient,
+  c: CampanhaCarregada,
+  autorId: string,
+  nova: { nome: string; filtro: unknown },
+): Promise<Desfecho<{ id: string }>> {
   const { data, error } = await admin
     .from("campaigns")
     .insert({
       organization_id: c.organization_id,
-      name: `${c.name} (cópia)`.slice(0, 160),
+      name: nova.nome.slice(0, 160),
       description: c.description,
       channel_session_id: c.channel_session_id,
       message_body: c.message_body,
@@ -425,7 +477,7 @@ export async function duplicarAcao(
       flow_pointer_id: c.flow_pointer_id,
       base_legal: c.base_legal,
       lia_ref: c.lia_ref,
-      audience_filter: c.audience_filter,
+      audience_filter: nova.filtro,
       intervalo_segundos: c.intervalo_segundos,
       janela_inicio_hora: c.janela_inicio_hora,
       janela_fim_hora: c.janela_fim_hora,
