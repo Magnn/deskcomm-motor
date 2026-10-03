@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { MessengerClient } from "./MessengerClient";
+import { TelegramClient } from "./TelegramClient";
 import { RedesSociaisClient } from "./RedesSociaisClient";
 import { CanalGraphParceiroClient } from "./CanalGraphParceiroClient";
 import { CanalOficialClient } from "./CanalOficialClient";
@@ -66,6 +67,8 @@ export function ConexoesShell({
       ? "sociais"
       : abaParam === "messenger"
       ? "messenger"
+      : abaParam === "telegram"
+      ? "telegram"
       : abaParam === "oficial"
       ? "oficial"
       : abaParam === "parceiro"
@@ -124,6 +127,7 @@ export function ConexoesShell({
         <TabsTrigger value="parceiro">{t("Provedor parceiro")}</TabsTrigger>
         <TabsTrigger value="telefonia">{t("Telefone")}</TabsTrigger>
         <TabsTrigger value="messenger">{t("Messenger")}</TabsTrigger>
+        <TabsTrigger value="telegram">{t("Telegram")}</TabsTrigger>
         <TabsTrigger value="sociais">{t("Redes sociais")}</TabsTrigger>
         <TabsTrigger value="webchat">{t("Webchat (Site)")}</TabsTrigger>
         <TabsTrigger value="voz">{t("Chamada de voz")}</TabsTrigger>
@@ -138,6 +142,7 @@ export function ConexoesShell({
         <TelefoniaClient />
       </TabsContent>
       <TabsContent value="messenger" className="mt-0"><MessengerClient /></TabsContent>
+      <TabsContent value="telegram" className="mt-0"><TelegramClient /></TabsContent>
       <TabsContent value="sociais" className="mt-0"><RedesSociaisClient /></TabsContent>
       <TabsContent value="webchat" className="mt-0"><WebchatClient /></TabsContent>
 

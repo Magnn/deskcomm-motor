@@ -26,10 +26,11 @@ import { audit } from "@/lib/audit";
 import { ok, fail } from "@/lib/api/wrappers";
 import { loadAuthUser, mfaEmDivida, resolveActiveOrg } from "@/lib/auth/server";
 import { requireRole } from "@/lib/auth/require-role";
-import { CHANNEL_PROVIDER_MESSENGER, CHANNEL_PROVIDER_WAHA } from "@/lib/channels/capabilities";
+import { CHANNEL_PROVIDER_MESSENGER, CHANNEL_PROVIDER_TELEGRAM, CHANNEL_PROVIDER_WAHA } from "@/lib/channels/capabilities";
 import { resolverSaudeDaConexaoRemovida } from "@/lib/channels/health";
 import { desfazerWebhookDoNumero } from "@/lib/channels/meta/webhook-override";
 import { desligarAvisosDaPagina } from "@/lib/channels/messenger/paginas";
+import { desligarWebhookDoBot } from "@/lib/channels/telegram/bots";
 import { numeroObservadoDaSessao } from "@/lib/channels/numero-observado";
 import { isChannelStatus } from "@/lib/schemas/channels";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -326,7 +327,7 @@ export async function DELETE(
   const { data: session } = await supabase
     .from("channel_sessions")
     .select(
-      "id, provider, waha_session_name, display_name, phone_number, meta_phone_number_id, meta_token_encrypted, messenger_page_id, messenger_page_token_encrypted",
+      "id, provider, waha_session_name, display_name, phone_number, meta_phone_number_id, meta_token_encrypted, messenger_page_id, messenger_page_token_encrypted, telegram_bot_token_encrypted",
     )
     .eq("organization_id", activeOrg.orgId)
     .eq("id", id)
@@ -349,7 +350,7 @@ export async function DELETE(
    * — inclusive quando não havia credencial a usar.
    */
   let webhookOverride: "desfeito" | "sem_credencial" | "falhou" = "sem_credencial";
-  /** Idem, para os avisos da página do Messenger. `null` = o canal não é página. */
+  /** Idem, para os avisos da página do Messenger ou o webhook do bot do Telegram. `null` = nenhum dos dois. */
   let avisosDaPagina: "desfeito" | "sem_credencial" | "falhou" | null = null;
 
   if (session.provider === CHANNEL_PROVIDER_WAHA) {
@@ -470,6 +471,25 @@ export async function DELETE(
       }
       patch.messenger_page_token_encrypted = null;
     }
+
+    // Bot do Telegram: o webhook dele aponta para esta instalação. Desligar
+    // antes de apagar o token (é ele que autoriza) — senão o Telegram segue
+    // entregando numa URL que passa a responder 404 e o dono não sabe por que
+    // o bot "morreu" ao ligá-lo em outro lugar.
+    if (session.provider === CHANNEL_PROVIDER_TELEGRAM) {
+      avisosDaPagina = await desligarWebhookDoBot(createAdminClient(), {
+        tokenCifrado: session.telegram_bot_token_encrypted,
+      });
+      if (avisosDaPagina !== "desfeito") {
+        logger.warn("O webhook do bot do Telegram não foi desligado", {
+          requestId,
+          channel_session_id: id,
+          organization_id: activeOrg.orgId,
+          desfecho: avisosDaPagina,
+        });
+      }
+      patch.telegram_bot_token_encrypted = null;
+    }
   }
 
   if (arquivar) {
@@ -530,7 +550,7 @@ export async function DELETE(
       provider: session.provider,
       avisos_fechados: avisosFechados,
       webhook_override: webhookOverride,
-      ...(avisosDaPagina ? { avisos_da_pagina: avisosDaPagina } : {}),
+      ...(avisosDaPagina ? { avisos_do_canal: avisosDaPagina } : {}),
       ...impact.history,
       ...impact.configuration,
     },

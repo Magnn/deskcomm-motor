@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 
-import { CANAIS_DE_CONVERSA, ehCanalDeConversa } from "@/lib/channels/canais-de-conversa";
+import { CANAIS_DE_CONVERSA, CANAIS_NATIVOS, ehCanalDeConversa } from "@/lib/channels/canais-de-conversa";
+import { parseSocialMessage } from "@/lib/channels/social/parser";
 import { SOCIAL_NETWORKS } from "@/lib/channels/social/catalog";
 
 /**
@@ -62,12 +63,26 @@ describe("o vocabulário do canal é derivado, não copiado", () => {
     }
   });
 
-  it("nenhuma rede SEM inbox entrou na lista", () => {
-    for (const rede of SOCIAL_NETWORKS.filter((r) => !r.inbox)) {
+  it("nenhuma rede SEM inbox entrou na lista — salvo canal NATIVO, que chega por outro transporte", () => {
+    // `CANAIS_NATIVOS` é declarado à parte: o CRM fala com a plataforma direto,
+    // e o intermediário continua sem entregar DM dela. A recusa do intermediário
+    // segue de pé no parser dele (`inboxSupported`) — a prova está logo abaixo.
+    for (const rede of SOCIAL_NETWORKS.filter((r) => !r.inbox && !(CANAIS_NATIVOS as readonly string[]).includes(r.id))) {
       expect(
         (CANAIS_DE_CONVERSA as readonly string[]).includes(rede.id),
         `${rede.id} não tem inbox e mesmo assim é canal de conversa`,
       ).toBe(false);
+    }
+  });
+
+  it("canal nativo NÃO abre a porta do intermediário: o parser dele segue recusando a rede", () => {
+    for (const rede of CANAIS_NATIVOS) {
+      const evento = {
+        event: "message.received",
+        account: { id: "conta", platform: rede },
+        message: { id: "m", conversationId: "c", platform: rede, direction: "incoming", text: "oi", sender: { id: "p" } },
+      };
+      expect(parseSocialMessage(evento, "conta", rede), `${rede} entraria pelo intermediário`).toBeNull();
     }
   });
 

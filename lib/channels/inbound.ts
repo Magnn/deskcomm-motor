@@ -20,7 +20,8 @@ import { CHANNEL_PROVIDER_SOCIAL } from "./capabilities";
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { CHANNEL_PROVIDER_DATAFY, CHANNEL_PROVIDER_ZERNIO } from "./capabilities";
+import { CHANNEL_PROVIDER_DATAFY, CHANNEL_PROVIDER_TELEGRAM, CHANNEL_PROVIDER_ZERNIO } from "./capabilities";
+import { CABECALHO_DO_SEGREDO, ingerirAtualizacao, segredoDoTelegramConfere } from "./telegram/ingest";
 import { canalGraphParceiroLigado } from "./graph-parceiro/credentials";
 import { graphPartnerRefsDaSessao } from "./graph-parceiro/session";
 import {
@@ -85,13 +86,16 @@ export function acceptsInboundWebhook(provider: string): boolean {
   // O canal Datafy é opcional da instalação: desligado, a entrada dele não
   // existe — nem para quem tem o token de uma sessão gravada antes.
   if (provider === CHANNEL_PROVIDER_DATAFY) return canalGraphParceiroLigado();
-  return provider === CHANNEL_PROVIDER_ZERNIO || provider === CHANNEL_PROVIDER_SOCIAL;
+  return provider === CHANNEL_PROVIDER_ZERNIO || provider === CHANNEL_PROVIDER_SOCIAL || provider === CHANNEL_PROVIDER_TELEGRAM;
 }
 
 /** Authenticate before archiving raw payloads. The handler repeats this guard for non-HTTP callers. */
 export function verifyInboundWebhookSignature(provider: string, raw: string, headers: Headers, secret: string | null): boolean {
   if (!acceptsInboundWebhook(provider) || !secret || secret.length < MIN_SECRET_LEN) return false;
   // Cada canal assina do seu jeito; o esquema do Datafy está em `graph-parceiro/webhook`.
+  // O Telegram não assina o corpo: ele devolve, num cabeçalho, o segredo que
+  // recebeu no `setWebhook`. Conferir em tempo constante é a autenticação inteira.
+  if (provider === CHANNEL_PROVIDER_TELEGRAM) return segredoDoTelegramConfere(headers.get(CABECALHO_DO_SEGREDO), secret);
   if (provider === CHANNEL_PROVIDER_DATAFY) {
     return verifyGraphPartnerSignature(raw, headers.get(HEADER_ASSINATURA), headers.get(HEADER_TIMESTAMP), secret);
   }
@@ -116,6 +120,8 @@ export async function handleInboundWebhook(
       return zernioInbound(admin, input);
     case CHANNEL_PROVIDER_DATAFY:
       return datafyInbound(admin, input);
+    case CHANNEL_PROVIDER_TELEGRAM:
+      return telegramInbound(admin, input);
     default:
       // Token de um canal que não entra por aqui. É configuração trocada, não
       // ataque — mas processar seria ler o payload com o parser errado.
@@ -324,4 +330,20 @@ async function datafyInbound(
   }
 
   return { ok: true, body: { received: eventos.length, outcomes: desfechos } };
+}
+
+/**
+ * Telegram: a rota já resolveu a sessão pelo token do caminho e arquivou o corpo.
+ * Aqui a segunda conferência do segredo (a rota confere antes, mas o despachante
+ * não confia em quem o chamou) e a gravação pelo ramo social compartilhado.
+ */
+async function telegramInbound(
+  admin: SupabaseClient,
+  input: InboundWebhookInput,
+): Promise<InboundWebhookOutcome> {
+  if (!verifyInboundWebhookSignature(input.session.provider, input.rawBody, input.headers, input.secret)) {
+    return { ok: false, code: "unauthorized", message: "bad_signature" };
+  }
+  const body = await ingerirAtualizacao(admin, input.session, input.rawBody);
+  return { ok: true, body };
 }

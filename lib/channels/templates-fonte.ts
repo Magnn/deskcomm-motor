@@ -50,6 +50,8 @@ const FONTE: Record<ProviderDeMensagem, FonteDeTemplates | null> = {
   // O Messenger não tem definição aprovada: fora da janela não há modelo a
   // escolher, só a espera pela próxima mensagem da pessoa.
   meta_messenger: null,
+  // O bot fala a qualquer hora: não existe modelo a aprovar.
+  telegram_bot: null,
 };
 
 /** `null` quando este canal não trabalha com definições aprovadas. */

@@ -15,6 +15,8 @@ export function channelBrand(
       return "unknown";
     case "meta_messenger":
       return "messenger";
+    case "telegram_bot":
+      return "telegram";
     default:
       return "unknown";
   }

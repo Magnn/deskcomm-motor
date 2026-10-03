@@ -16,7 +16,8 @@ export type ChannelSessionRef =
   | { provider: "meta_cloud"; meta_phone_number_id: string }
   | { provider: "zernio" | "zernio_social"; zernio_account_id: string }
   | { provider: "datafy"; datafy_phone_number_id: string }
-  | { provider: "meta_messenger"; messenger_page_id: string };
+  | { provider: "meta_messenger"; messenger_page_id: string }
+  | { provider: "telegram_bot"; telegram_bot_id: string };
 
 /**
  * Colunas que um `select` do PostgREST precisa trazer para `resolveSessionRef`
@@ -24,7 +25,7 @@ export type ChannelSessionRef =
  * nomeia coluna de provider, e ela some da feature junto com a decisão.
  */
 export const CHANNEL_SESSION_REF_COLUMNS =
-  "provider, waha_session_name, meta_phone_number_id, zernio_account_id, datafy_phone_number_id, messenger_page_id";
+  "provider, waha_session_name, meta_phone_number_id, zernio_account_id, datafy_phone_number_id, messenger_page_id, telegram_bot_id";
 
 export function resolveSessionRef(session: ChannelSessionRef): string {
   switch (session.provider) {
@@ -46,5 +47,9 @@ export function resolveSessionRef(session: ChannelSessionRef): string {
     // e por ela que o webhook único do app acha a sessão (`entry.id`).
     case "meta_messenger":
       return session.messenger_page_id;
+    // O id numérico do bot (getMe). Quem endereça o envio é o `chat.id` da
+    // conversa; o bot só diz por qual token falar.
+    case "telegram_bot":
+      return session.telegram_bot_id;
   }
 }

@@ -844,6 +844,11 @@ const HOSTS_DECLARADOS: Record<string, EntradaDeHost> = {
     motivo:
       "tela de consentimento do Instagram (`lib/channels/instagram/api.ts`, `urlDeAutorizacao`): é para onde o navegador de quem clica em Conectar Instagram é mandado. O código não chama o host — quem abre é o navegador da pessoa, na tela da própria Meta.",
   },
+  "api.telegram.org": {
+    categoria: "FORNECEDOR",
+    motivo:
+      "endpoint da Bot API do Telegram (`lib/channels/telegram/api.ts`): é para onde vão a validação do token, o webhook do bot, o envio e o download dos arquivos que a pessoa manda. Destino do request — trocar pelo domínio do revendedor faria o bot parar.",
+  },
   "www.facebook.com": {
     categoria: "PLATAFORMA",
     motivo:

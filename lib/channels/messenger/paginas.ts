@@ -145,10 +145,10 @@ export async function gravarPagina(
     archived_at: string | null;
     metadata: Record<string, unknown> | null;
   }[]).filter((l) => l.messenger_page_id === pagina.id);
-  const linhaAtiva = desta.find((l) => l.archived_at === null) ?? null;
+  const linhaAtiva = desta.find((l) => !l.archived_at) ?? null;
   // A excluída mais recente, se houver: é a que tem as conversas mais novas.
   const linhaArquivada =
-    desta.filter((l) => l.archived_at !== null).sort((a, b) => String(b.archived_at).localeCompare(String(a.archived_at)))[0] ?? null;
+    desta.filter((l) => !!l.archived_at).sort((a, b) => String(b.archived_at).localeCompare(String(a.archived_at)))[0] ?? null;
 
   const nome = `Messenger · ${pagina.name}`;
   const metadataDaVolta = (atual: Record<string, unknown> | null) => ({

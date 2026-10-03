@@ -8,12 +8,12 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useT } from "@/hooks/i18n/useT";
 import { apiClient } from "@/lib/api/client";
-import { CircleNotch, Trash } from "@/lib/ui/icons";
+import { Trash } from "@/lib/ui/icons";
 
 import { ChannelAiAccess } from "./ChannelAiAccess";
+import { DesconectarCanalDialog } from "./DesconectarCanalDialog";
 
 interface Pagina {
   id: string;
@@ -162,8 +162,11 @@ export function MessengerClient() {
       )}
 
       {excluir && (
-        <DesconectarDialog
-          pagina={excluir}
+        <DesconectarCanalDialog
+          canalId={excluir.id}
+          nome={excluir.nome ?? excluir.pageId}
+          descricao={t("As mensagens desta página deixam de chegar ao CRM. O histórico de conversas continua guardado, e conectar a página de novo retoma as mesmas conversas.")}
+          sucesso={t("Página desconectada. As conversas continuam no inbox.")}
           onCancel={() => setExcluir(null)}
           onDone={() => {
             setExcluir(null);
@@ -172,46 +175,5 @@ export function MessengerClient() {
         />
       )}
     </div>
-  );
-}
-
-/** Desconectar usa a rota padrão de excluir canal: ela arquiva quando há histórico e desliga os avisos na Meta. */
-function DesconectarDialog({ pagina, onCancel, onDone }: { pagina: Pagina; onCancel: () => void; onDone: () => void }) {
-  const t = useT();
-  const [enviando, setEnviando] = useState(false);
-  const desconectar = async () => {
-    setEnviando(true);
-    try {
-      await apiClient.delete(`/api/v1/channel-sessions/${pagina.id}`);
-      toast.success(t("Página desconectada. As conversas continuam no inbox."));
-      onDone();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("Não foi possível desconectar a página."));
-    } finally {
-      setEnviando(false);
-    }
-  };
-  return (
-    <Dialog open onOpenChange={(o) => !o && !enviando && onCancel()}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>
-            {t("Desconectar")} {pagina.nome ?? pagina.pageId}?
-          </DialogTitle>
-          <DialogDescription>
-            {t("As mensagens desta página deixam de chegar ao CRM. O histórico de conversas continua guardado, e conectar a página de novo retoma as mesmas conversas.")}
-          </DialogDescription>
-        </DialogHeader>
-        <div className="flex justify-end gap-2 pt-2">
-          <Button variant="outline" disabled={enviando} onClick={onCancel}>
-            {t("Cancelar")}
-          </Button>
-          <Button variant="destructive" disabled={enviando} onClick={desconectar}>
-            {enviando ? <CircleNotch size={14} className="animate-spin" aria-hidden /> : <Trash size={14} aria-hidden />}
-            {t("Desconectar")}
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
   );
 }
