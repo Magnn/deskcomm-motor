@@ -34,6 +34,7 @@ interface Consulta extends PromiseLike<{ data: unknown; error: Erro | null; coun
   /** Só as formas que o PostgREST aceita aqui: `is` null e `in` com lista `(a,b)`. */
   not(coluna: string, operador: "is" | "in", valor: unknown): Consulta;
   lte(coluna: string, valor: string): Consulta;
+  gte(coluna: string, valor: string): Consulta;
   lt(coluna: string, valor: string): Consulta;
   like(coluna: string, padrao: string): Consulta;
   order(coluna: string, opts?: { ascending?: boolean }): Consulta;
@@ -177,6 +178,10 @@ export function criarBancoEmMemoria(
           const lista = String(valor).replace(/^\(|\)$/g, "").split(",").map((v) => v.trim());
           filtros.push((l) => !lista.includes(String(l[coluna])));
         }
+        return q;
+      },
+      gte(coluna, valor) {
+        filtros.push((l) => String(l[coluna]) >= valor);
         return q;
       },
       lte(coluna, valor) {
