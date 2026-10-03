@@ -7,7 +7,14 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { FlowEdge, FlowGraph, FlowNode } from "./graph-schema";
 import { NO_REPLY_BRANCH_ID, nodeBranches, prazoDaPerguntaMs } from "./graph-schema";
-import { MAX_ACTION_RECHECKS, processNode, type EnrollmentRow, type LeadFacts } from "./node-handlers";
+import {
+  MAX_ACTION_RECHECKS,
+  pisoDoInboundDaEspera,
+  processNode,
+  textoDaPergunta,
+  type EnrollmentRow,
+  type LeadFacts,
+} from "./node-handlers";
 import { avancarSimulacao, iniciarSimulacao } from "./simulate";
 import { completeTurnForEnrollment, type TurnBridgeAdminClient } from "./turn-bridge";
 import { validateFlowForPublish } from "./validate-publish";
@@ -164,6 +171,63 @@ describe("processNode — Pergunta", () => {
   it("nenhuma saída ligada e ainda esperando: espera normalmente (só para quando a saída é tomada)", () => {
     const r = rodar(pergunta({ expiracao_tempo: 1 }), [], { actionEnqueued: true, actionCompleted: true, waitElapsed: false, wokeEarly: false });
     expect(r.kind).toBe("wait");
+  });
+});
+
+// A tela promete: "apenas um espaço no campo «Faça uma pergunta» … nenhum texto será enviado".
+// Em produção (03/out) o rótulo interno «Nova pergunta» saía para cada lead do funil.
+describe("processNode — Pergunta em branco é PAUSA (nada sai para o lead)", () => {
+  const edges = [edge("p1", "ok", always()), edge("p1", "nada", semResposta())];
+  const pausa = (extra: Record<string, unknown> = {}) =>
+    pergunta({ label: "Nova pergunta", question: " ", expiracao_tempo: 9, ...extra });
+
+  it("o rótulo não é texto da pergunta: com «question» só de espaço, nada é enfileirado", () => {
+    // 1ª entrada como o engine a monta: sem evento anterior no nó (waitElapsed=false ⇒ actionEnqueued=false).
+    const r = rodar(pausa(), edges, { actionEnqueued: false, actionCompleted: false, waitElapsed: false, wokeEarly: false });
+    expect(r).toMatchObject({ kind: "wait", wake_status: "waiting_reply" });
+    expect((r as { next_eval_at: Date }).next_eval_at.getTime()).toBe(NOW.getTime() + 9 * 60_000);
+    expect(JSON.stringify(r)).not.toContain("Nova pergunta");
+  });
+
+  it("vazio também é pausa", () => {
+    expect(rodar(pausa({ question: "" }), edges, { actionEnqueued: false, actionCompleted: false }).kind).toBe("wait");
+  });
+
+  it("respondeu durante a pausa: sai por «Respondeu» (sem esperar um envio que nunca vai existir)", () => {
+    const r = rodar(pausa(), edges, { actionEnqueued: true, actionCompleted: false, wokeEarly: true, lastInboundBody: "combinado" });
+    expect(r).toMatchObject({ kind: "advance", next_node_id: "ok" });
+  });
+
+  it("prazo da pausa venceu: sai por «Sem resposta» — nunca recheck nem dead-man de envio", () => {
+    const r = rodar(pausa(), edges, {
+      actionEnqueued: true,
+      actionCompleted: false,
+      actionRecheckCount: MAX_ACTION_RECHECKS,
+      waitElapsed: true,
+      wokeEarly: false,
+    });
+    expect(r).toMatchObject({ kind: "advance", next_node_id: "nada" });
+  });
+
+  it("múltipla escolha em branco ainda manda as opções (sem elas não há o que escolher)", () => {
+    const r = rodar(pausa({ type: "select", options: ["Sim", "Não"] }), edges, { actionEnqueued: false, actionCompleted: false });
+    expect(r).toMatchObject({ kind: "enqueue_turn", fixed_body: "Nova pergunta\n\n1. Sim\n2. Não" });
+  });
+
+  it("caixa antiga sem «question» continua perguntando pelo rótulo", () => {
+    expect(textoDaPergunta(pergunta().config as never)).toBe("Em que cidade você mora?");
+    expect(textoDaPergunta(pausa().config as never)).toBeNull();
+  });
+
+  it("o piso da resposta da pausa é o início da espera (wait_started), não o updated_at da inscrição", () => {
+    const inicio = new Date(NOW.getTime() - 60_000);
+    const fim = new Date(inicio.getTime() + 9 * 60_000).toISOString();
+    const piso = pisoDoInboundDaEspera(
+      pausa() as Extract<FlowNode, { type: "collect" }>,
+      [{ node_id: "p1", idempotency_key: "p1:3", event_type: "wait_started", payload: { next_eval_at: fim } }],
+      NOW.toISOString(),
+    );
+    expect(piso).toBe(inicio.toISOString());
   });
 });
 
