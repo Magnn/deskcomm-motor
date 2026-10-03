@@ -190,7 +190,7 @@ describe("conectar mais um número", () => {
 describe("o catálogo em vigor", () => {
   it("o do .env quando bem formado; malformado cai no padrão e avisa uma vez", () => {
     h.env.PLANS_CATALOG = "unico:Único:5000:2";
-    expect(planosDaInstalacao()).toEqual([{ id: "unico", nome: "Único", precoMensalCentavos: 5000, numeros: 2 }]);
+    expect(planosDaInstalacao()).toEqual([{ id: "unico", nome: "Único", precoMensalCentavos: 5000, numeros: 2, iaMensalCentavosUsd: 0 }]);
     h.env.PLANS_CATALOG = "quebrado";
     expect(planosDaInstalacao().map((p) => p.id)).toEqual(["start", "pro", "scale"]);
     planosDaInstalacao();

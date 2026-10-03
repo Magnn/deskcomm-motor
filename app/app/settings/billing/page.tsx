@@ -9,7 +9,8 @@ import { env } from "@/lib/env";
 import { traduzir } from "@/lib/i18n/dicionario";
 import { logger } from "@/lib/logger";
 import { planosDaInstalacao, situacaoDosNumeros, type SituacaoDosNumeros } from "@/lib/planos/assinatura-da-organizacao";
-import { precoLegivel } from "@/lib/planos/catalogo";
+import { iaLegivel, precoLegivel } from "@/lib/planos/catalogo";
+import { lerAmbiente } from "@/lib/instalacao/ambiente";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { linkDoCheckoutDoPlano, produtosDaAssinatura } from "@/lib/tenants/assinatura-cakto";
 
@@ -36,6 +37,11 @@ export default async function BillingPage() {
   }
   const t = (texto: string) => traduzir(texto, user.idioma);
   const suporte = await emailDeSuporte();
+  // "IA incluída" só aparece quando é verdade: a instalação tem chave da
+  // plataforma para servir quem não traz a própria. Sem ela, a frase prometeria
+  // algo que o motor não entrega.
+  const ambiente = lerAmbiente();
+  const plataformaTemIa = ambiente.gateway || Object.values(ambiente.chavesDeProvedor).some(Boolean);
 
   let situacao: SituacaoDosNumeros | null = null;
   try {
@@ -75,7 +81,7 @@ export default async function BillingPage() {
           <p className="mt-2 text-sm text-muted-foreground">{falarComQuem}</p>
         </Card>
       ) : (
-        <PlanosDaConta situacao={situacao} t={t} emailDoComprador={user.email ?? null} falarComQuem={falarComQuem} />
+        <PlanosDaConta situacao={situacao} t={t} emailDoComprador={user.email ?? null} falarComQuem={falarComQuem} plataformaTemIa={plataformaTemIa} />
       )}
     </div>
   );
@@ -86,11 +92,14 @@ function PlanosDaConta({
   t,
   emailDoComprador,
   falarComQuem,
+  plataformaTemIa,
 }: {
   situacao: SituacaoDosNumeros;
   t: (texto: string) => string;
   emailDoComprador: string | null;
   falarComQuem: React.ReactNode;
+  /** A instalação tem chave da plataforma — só então "IA incluída" é verdade. */
+  plataformaTemIa: boolean;
 }) {
   const planos = planosDaInstalacao();
   const ofertas = produtosDaAssinatura(env.CAKTO_SUBSCRIPTION_PRODUCTS ?? "");
@@ -142,6 +151,11 @@ function PlanosDaConta({
                   ? t("1 número de WhatsApp conectado (QR code ou API oficial).")
                   : `${p.numeros} ${t("números de WhatsApp conectados (QR code ou API oficial).")}`}
               </p>
+              {plataformaTemIa && p.iaMensalCentavosUsd > 0 && (
+                <p className="text-sm text-muted-foreground" data-testid={`plano-${p.id}-ia`}>
+                  {t("Inteligência artificial incluída: até")} {iaLegivel(p.iaMensalCentavosUsd)} {t("de uso por mês. Quem prefere usar a própria chave paga a própria IA.")}
+                </p>
+              )}
               {atual ? null : href ? (
                 <a
                   href={href}
