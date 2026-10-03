@@ -175,14 +175,20 @@ async function canalNaoServeAoConteudo(admin: SupabaseClient, c: CampanhaCarrega
     (n) => !transportaMensagem(n.provider) || !capabilitiesOf(n.provider as ChannelProvider).requiresTemplates,
   );
   if (semModelo.length === 0) return null;
+  // O apelido é o da CONEXÃO (`channel_sessions`), não o de um contato.
+  const apelidos = semModelo.map((n) => apelidoDoNumero(n.display_name));
   return {
     ok: false,
     codigo: "campanha_conteudo_invalido",
     mensagem:
       "Modelo aprovado só é enviado por número da API oficial do WhatsApp. " +
-      `Tire da campanha: ${semModelo.map((n) => n.display_name ?? "número sem nome").join(", ")} — ou troque o conteúdo para texto ou fluxo.`,
+      `Tire da campanha: ${apelidos.join(", ")} — ou troque o conteúdo para texto ou fluxo.`,
     status: 422,
   };
+}
+
+function apelidoDoNumero(apelido: string | null): string {
+  return apelido?.trim() ? apelido.trim() : "número sem nome";
 }
 
 /** Já saiu alguma mensagem desta campanha? Reconstruir snapshot depois disso é proibido. */
