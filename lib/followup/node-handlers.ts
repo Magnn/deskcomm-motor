@@ -388,12 +388,25 @@ function parar(motivo: string, opts: { concluiu?: boolean; aguardandoResposta?: 
   };
 }
 
-/** A pergunta como o cliente a lê: a frase sugerida, senão o rótulo; opções de múltipla escolha numeradas. */
-function textoDaPergunta(config: Extract<FlowNode, { type: "collect" }>["config"]): string {
-  const base = (config.question ?? "").trim() || config.label;
-  if (config.type !== "select" || !config.options || config.options.length === 0) return base;
-  return `${base}\n\n${config.options.map((o, i) => `${i + 1}. ${o}`).join("\n")}`;
+/**
+ * A pergunta como o cliente a lê: a frase escrita na caixa; opções de múltipla escolha numeradas.
+ * `question` ausente (caixa antiga, nunca editada) cai no rótulo, como sempre foi. `question`
+ * presente e em branco é a PAUSA que a tela promete ("apenas um espaço… nenhum texto será
+ * enviado"): devolve `null` e a caixa só espera a resposta. Antes o rótulo interno ("Nova
+ * pergunta") saía para o lead — medido em produção, 03/out.
+ */
+export function textoDaPergunta(config: Extract<FlowNode, { type: "collect" }>["config"]): string | null {
+  const escrita = config.question?.trim();
+  const temOpcoes = config.type === "select" && !!config.options && config.options.length > 0;
+  if (escrita === "" && !temOpcoes) return null;
+  const base = escrita || config.label;
+  if (!temOpcoes) return base;
+  return `${base}\n\n${config.options!.map((o, i) => `${i + 1}. ${o}`).join("\n")}`;
 }
+
+/** O evento que marca o início da espera da Pergunta: `collect_sent` (pergunta saiu) ou `wait_started` (pausa sem texto). */
+const ehInicioDaEsperaDaPergunta = (tipo: string | null | undefined): boolean =>
+  tipo === "collect_sent" || tipo === "wait_started";
 
 /**
  * A `wait` node is entered twice: once to start the timer (writes the
@@ -481,8 +494,11 @@ export function pisoDoInboundDaEspera(
   for (let i = events.length - 1; i >= 0; i--) {
     const e = events[i]!;
     if (e.node_id !== node.id) continue;
-    const eventoDeEspera = node.type === "menu" ? "menu_sent" : node.type === "collect" ? "collect_sent" : "wait_started";
-    if (e.event_type !== eventoDeEspera) continue;
+    if (node.type === "collect") {
+      if (!ehInicioDaEsperaDaPergunta(e.event_type)) continue;
+    } else if (e.event_type !== (node.type === "menu" ? "menu_sent" : "wait_started")) {
+      continue;
+    }
     const next = e.payload?.next_eval_at;
     if (typeof next !== "string") break;
     const espera = node.type === "collect" ? (prazoDaPerguntaMs(node.config) ?? PERGUNTA_SEM_PRAZO_MS) : node.config.grace_timeout_ms;
@@ -1114,13 +1130,16 @@ export function processNode(input: {
       // «Sem resposta» solta não pode virar «Respondeu» — seria o fluxo afirmando uma resposta que não houve.
       const prazo = prazoDaPerguntaMs(node.config);
       const esperaMs = prazo ?? PERGUNTA_SEM_PRAZO_MS;
-      if (!actionCompleted) {
+      const texto = textoDaPergunta(node.config);
+      // Pausa (pergunta em branco): nada a enviar — a 1ª entrada grava `wait_started` com o prazo
+      // (cai no `!waitElapsed` abaixo) e daí em diante vale o mesmo relógio da pergunta enviada.
+      if (texto !== null && !actionCompleted) {
         if (!actionEnqueued) {
           return {
             kind: "enqueue_turn",
             purpose: "send_message",
             wake_status: "waiting_reply",
-            fixed_body: textoDaPergunta(node.config),
+            fixed_body: texto,
           };
         }
         if ((actionRecheckCount ?? 0) >= MAX_ACTION_RECHECKS) {
