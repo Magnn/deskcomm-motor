@@ -316,6 +316,18 @@ export const PONTOS_DE_IA: readonly PontoDeIa[] = [
     },
   },
   {
+    id: "loss_reason_classify",
+    rotulo: "Entender por que a venda não aconteceu",
+    oQueFaz:
+      "Lê a conversa que recebeu a oferta e não virou venda, e aponta o motivo mais provável (preço, confiança, momento, concorrente) com o quanto está segura disso.",
+    papel: "entender",
+    exige: {},
+    emissor: "lib/resultado/motivo-da-perda-ia.ts",
+    sintomaDeFalha:
+      "O painel de Receita deixa de dizer por que as conversas param: os motivos ficam pendentes e a análise avisa que a IA não respondeu.",
+    registraEm: "llm_calls",
+  },
+  {
     id: "followup_classify",
     rotulo: "Ler a resposta ao follow-up",
     oQueFaz:

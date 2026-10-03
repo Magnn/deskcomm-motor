@@ -22,6 +22,7 @@ import {
   Info,
 } from "@phosphor-icons/react";
 import { FunilDaConversaPainel } from "./FunilDaConversaPainel";
+import { MotivoDaPerdaPainel } from "./MotivoDaPerdaPainel";
 import { ReceitaAtribuidaPainel } from "./ReceitaAtribuidaPainel";
 
 interface KPI {
@@ -1183,6 +1184,7 @@ export function DashboardClient({ orgName }: { orgName: string }) {
         <div className="space-y-6">
           <ReceitaAtribuidaPainel period={period} tagDoIdioma={tagDoIdioma} />
           <FunilDaConversaPainel period={period} />
+          <MotivoDaPerdaPainel period={period} />
         </div>
       )}
     </div>

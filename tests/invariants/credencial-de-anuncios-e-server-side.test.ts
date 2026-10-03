@@ -89,6 +89,8 @@ const TABELAS = [
   // 0913. Marcos da conversa: grava a rotina do servidor, lê a rota da tela
   // (manager+), sempre escopada pela organização. Deny-all.
   "conversation_milestones",
+  // 0914. Motivo da perda: grava e lê o servidor (rotas manager+). Deny-all.
+  "conversation_loss_reasons",
 ] as const;
 
 function erroSob(papel: string, comando: string): string | null {
