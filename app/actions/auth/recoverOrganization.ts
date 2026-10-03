@@ -177,3 +177,24 @@ export async function recoverOrganization(name: string): Promise<RecoverOrganiza
   revalidatePath("/app");
   redirect("/onboarding/welcome");
 }
+
+/** O que a tela de recuperar a organização guarda: o erro e o nome digitado. */
+export type EstadoDaRecuperacaoDeOrganizacao =
+  | (Extract<RecoverOrganizationResult, { ok: false }> & { name: string })
+  | null;
+
+/**
+ * A mesma ação, no formato do `<form action>`: funciona antes de o JavaScript
+ * carregar, como os demais formulários de acesso. O sucesso não volta — a ação
+ * redireciona.
+ */
+export async function recuperarOrganizacaoPeloFormulario(
+  _anterior: EstadoDaRecuperacaoDeOrganizacao,
+  dados: FormData,
+): Promise<EstadoDaRecuperacaoDeOrganizacao> {
+  const valor = dados.get("name");
+  const name = typeof valor === "string" ? valor : "";
+  const res = await recoverOrganization(name);
+  return res.ok ? null : { ...res, name };
+}
+

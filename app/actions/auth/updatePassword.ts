@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 import { resetPasswordSchema, type ResetPasswordInput } from "@/lib/auth/schemas";
+import { campoDeTexto, errosDeCampo, type ErrosDeCampo } from "@/lib/auth/formulario-de-acesso";
 import { audit } from "@/lib/audit";
 
 export type UpdatePasswordResult = {
@@ -97,3 +98,37 @@ export async function updatePassword(
   await supabase.auth.signOut();
   redirect("/login?reset=success");
 }
+
+/**
+ * O que a tela da nova senha guarda entre um envio e outro. As senhas nunca
+ * voltam (iriam para o HTML no envio sem JavaScript); na tela elas são campos
+ * controlados, e por isso sobrevivem quando o servidor pede o código de 2 etapas.
+ */
+export type EstadoDaNovaSenha = {
+  ok: false;
+  error: UpdatePasswordResult["error"];
+  campos?: ErrosDeCampo;
+  tentativa: number;
+} | null;
+
+/**
+ * A mesma ação, no formato do `<form action>`: funciona antes de o JavaScript
+ * carregar, como os demais formulários de acesso.
+ */
+export async function redefinirSenhaPeloFormulario(
+  anterior: EstadoDaNovaSenha,
+  dados: FormData,
+): Promise<EstadoDaNovaSenha> {
+  const res = await updatePassword({
+    password: campoDeTexto(dados, "password"),
+    password_confirm: campoDeTexto(dados, "password_confirm"),
+    mfa_code: campoDeTexto(dados, "mfa_code"),
+  });
+  return {
+    ok: false,
+    error: res.error,
+    campos: errosDeCampo(res.details),
+    tentativa: (anterior?.tentativa ?? 0) + 1,
+  };
+}
+
