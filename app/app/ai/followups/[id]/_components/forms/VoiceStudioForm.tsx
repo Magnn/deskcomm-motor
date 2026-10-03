@@ -466,7 +466,7 @@ export function VoiceStudioForm({ config, onChange }: Props) {
                 title={isPlayingThis ? t("Pausar prévia") : t("Ouvir prévia")}
                 className={`w-7 h-7 rounded-full border flex items-center justify-center shrink-0 transition-transform active:scale-95 cursor-pointer ${
                   isPlayingThis
-                    ? "border-purple-600 bg-purple-600 text-white animate-pulse"
+                    ? "border-indigo-600 bg-indigo-600 text-white animate-pulse"
                     : "border-neutral-300 bg-neutral-100 text-neutral-700 hover:bg-neutral-200 dark:border-zinc-700 dark:bg-zinc-800 dark:text-neutral-300"
                 }`}
               >

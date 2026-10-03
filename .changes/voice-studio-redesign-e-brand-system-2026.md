@@ -1,10 +1,9 @@
 ---
 impacto: nada_mudou
 secao: alterado
-titulo: Redesign visual de alto nível do Voice Studio e documentação do Brand System 2026
+titulo: Harmonização visual completa do menu e telas (Dashboard, Fluxos, Voice Studio) na paleta oficial Índigo
 ---
 
-Alinhamento da interface do Voice Studio (`/app/ai/voice`) à paleta oficial Índigo da AcassIA,
-eliminando contrastes inadequados (roxos desbotados e fundos pretos não padronizados) e introduzindo
-gradientes de alta precisão, sliders estilizados e acabamento refinado de componentes. Inclui a
-documentação e especificação do Brand System 2026 para o ecossistema de dados e receita.
+Harmonização visual em todas as telas acessíveis pelo menu, substituindo classes roxas/lilás desbotadas
+pelo Índigo oficial da AcassIA: banner e métricas do Dashboard (/app/dashboard), diálogo de novo fluxo
+(/app/ai/followups), formulário do nó de voz e modal de clonagem de voz (/app/ai/voice).
