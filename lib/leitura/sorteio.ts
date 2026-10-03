@@ -17,10 +17,13 @@
  * determinístico dado a semente: ninguém prevê antes, mas todo mundo confere
  * depois.
  *
- * A semente mistura o id do CONTATO com os 3 números escolhidos: duas pessoas
+ * A semente mistura o id do CONTATO com os 3 números escolhidos (e, quando a conversa
+ * a tem, a RODADA — o instante da mensagem em que a pessoa escolheu): duas pessoas
  * que escolherem "3, 7, 15" recebem cartas diferentes entre si (a leitura não
- * vira uma tabela pública de "número → carta"), mas a MESMA pessoa, pedindo de
- * novo, sempre cai nas mesmas 3.
+ * vira uma tabela pública de "número → carta"), e a mesma pessoa que volta outro
+ * dia e escolhe os mesmos números ganha outra leitura (pedido do dono do produto:
+ * "cada leitura diferente da outra"). DENTRO de uma leitura, porém, a semente não
+ * muda — todo turno re-deriva as mesmas 3 a partir da mesma mensagem de escolha.
  */
 import { BARALHO, CARTA_POR_ID, TAMANHO_DO_BARALHO, type Carta } from "./baralho";
 
@@ -46,11 +49,16 @@ function pseudoAleatorioDaSemente(semente: string): () => number {
  * As 3 cartas, na ordem de revelação, a partir dos 3 números que a pessoa
  * escolheu no baralho fechado. Determinístico: mesma entrada, mesma saída.
  */
-export function sortearCartas(contatoId: string, numerosEscolhidos: readonly number[]): readonly [Carta, Carta, Carta] {
+export function sortearCartas(
+  contatoId: string,
+  numerosEscolhidos: readonly number[],
+  rodada?: string,
+): readonly [Carta, Carta, Carta] {
   if (numerosEscolhidos.length !== 3) {
     throw new Error(`sortearCartas espera exatamente 3 números escolhidos, recebeu ${numerosEscolhidos.length}`);
   }
-  const semente = `${contatoId}:${[...numerosEscolhidos].sort((a, b) => a - b).join(",")}`;
+  const numeros = [...numerosEscolhidos].sort((a, b) => a - b).join(",");
+  const semente = rodada ? `${contatoId}:${numeros}:${rodada}` : `${contatoId}:${numeros}`;
   const rng = pseudoAleatorioDaSemente(semente);
   // Fisher-Yates com o rng determinístico — embaralha o baralho inteiro e
   // pega as 3 primeiras, então duas pessoas com a mesma semente nunca tiram
