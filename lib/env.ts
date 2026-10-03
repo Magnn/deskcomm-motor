@@ -102,6 +102,15 @@ const schema = z.object({
   INSTAGRAM_APP_ID: z.string().optional().default(""),
   INSTAGRAM_APP_SECRET: z.string().optional().default(""),
   INSTAGRAM_WEBHOOK_VERIFY_TOKEN: z.string().optional().default(""),
+  /**
+   * MESSENGER DIRETO. O id do app da Meta (o mesmo do WhatsApp oficial); o
+   * segredo e o token de verificação NÃO moram aqui — vêm de `appDaMeta()`
+   * (Admin › API Oficial, com o `.env` como piso). `META_MESSENGER_CONFIG_ID` é
+   * opcional: a configuração do "Login do Facebook para Empresas", quando o app
+   * é do tipo Empresa e recusa a lista de permissões avulsa.
+   */
+  META_APP_ID: z.string().optional().default(""),
+  META_MESSENGER_CONFIG_ID: z.string().optional().default(""),
   PLANS_CATALOG: z.string().optional().default(""),
 
   // Laboratório local de extensões: origem HTTP exata em 127.0.0.1. O cliente

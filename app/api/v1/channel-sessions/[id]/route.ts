@@ -26,9 +26,10 @@ import { audit } from "@/lib/audit";
 import { ok, fail } from "@/lib/api/wrappers";
 import { loadAuthUser, mfaEmDivida, resolveActiveOrg } from "@/lib/auth/server";
 import { requireRole } from "@/lib/auth/require-role";
-import { CHANNEL_PROVIDER_WAHA } from "@/lib/channels/capabilities";
+import { CHANNEL_PROVIDER_MESSENGER, CHANNEL_PROVIDER_WAHA } from "@/lib/channels/capabilities";
 import { resolverSaudeDaConexaoRemovida } from "@/lib/channels/health";
 import { desfazerWebhookDoNumero } from "@/lib/channels/meta/webhook-override";
+import { desligarAvisosDaPagina } from "@/lib/channels/messenger/paginas";
 import { numeroObservadoDaSessao } from "@/lib/channels/numero-observado";
 import { isChannelStatus } from "@/lib/schemas/channels";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -325,7 +326,7 @@ export async function DELETE(
   const { data: session } = await supabase
     .from("channel_sessions")
     .select(
-      "id, provider, waha_session_name, display_name, phone_number, meta_phone_number_id, meta_token_encrypted",
+      "id, provider, waha_session_name, display_name, phone_number, meta_phone_number_id, meta_token_encrypted, messenger_page_id, messenger_page_token_encrypted",
     )
     .eq("organization_id", activeOrg.orgId)
     .eq("id", id)
@@ -348,6 +349,8 @@ export async function DELETE(
    * — inclusive quando não havia credencial a usar.
    */
   let webhookOverride: "desfeito" | "sem_credencial" | "falhou" = "sem_credencial";
+  /** Idem, para os avisos da página do Messenger. `null` = o canal não é página. */
+  let avisosDaPagina: "desfeito" | "sem_credencial" | "falhou" | null = null;
 
   if (session.provider === CHANNEL_PROVIDER_WAHA) {
     const waha = getWahaClient();
@@ -447,6 +450,26 @@ export async function DELETE(
     // sentido no ramo que PRESERVA a linha — no hard delete ela some inteira.
     patch.meta_token_encrypted = null;
     patch.webhook_path_token = randomUUID().replace(/-/g, "");
+
+    // Página do Messenger: os avisos dela estão ligados no app da instalação, e
+    // sem desligá-los a Meta segue entregando para uma página que não é mais
+    // canal de ninguém aqui. Mesmo par do override acima: ANTES de zerar o token
+    // (é ele que autoriza), best-effort, e o desfecho vai para a auditoria.
+    if (session.provider === CHANNEL_PROVIDER_MESSENGER && session.messenger_page_id) {
+      avisosDaPagina = await desligarAvisosDaPagina(createAdminClient(), {
+        pageId: session.messenger_page_id,
+        tokenCifrado: session.messenger_page_token_encrypted,
+      });
+      if (avisosDaPagina !== "desfeito") {
+        logger.warn("Os avisos da página do Messenger não foram desligados na Meta", {
+          requestId,
+          channel_session_id: id,
+          organization_id: activeOrg.orgId,
+          desfecho: avisosDaPagina,
+        });
+      }
+      patch.messenger_page_token_encrypted = null;
+    }
   }
 
   if (arquivar) {
@@ -507,6 +530,7 @@ export async function DELETE(
       provider: session.provider,
       avisos_fechados: avisosFechados,
       webhook_override: webhookOverride,
+      ...(avisosDaPagina ? { avisos_da_pagina: avisosDaPagina } : {}),
       ...impact.history,
       ...impact.configuration,
     },

@@ -13382,6 +13382,55 @@ export const DICIONARIO: Traducoes = {
   "Conta do Instagram não encontrada.": { es: "Cuenta de Instagram no encontrada." },
   "Não foi possível apagar a regra.": { es: "No fue posible eliminar la regla." },
   "Instagram: comentou, recebe direct": { es: "Instagram: comentó, recibe mensaje directo" },
+  // Messenger direto (lib/channels/messenger/, Conexões › Messenger).
+  Messenger: { es: "Messenger" },
+  "Messenger (página do Facebook)": { es: "Messenger (página de Facebook)" },
+  "As mensagens da sua página chegam na caixa de entrada, e o agente e os fluxos respondem como no WhatsApp. Responder é possível até 24h depois da última mensagem da pessoa.": {
+    es: "Los mensajes de su página llegan a la bandeja de entrada, y el agente y los flujos responden como en WhatsApp. Se puede responder hasta 24 h después del último mensaje de la persona.",
+  },
+  "Página conectada.": { es: "Página conectada." },
+  "Páginas conectadas.": { es: "Páginas conectadas." },
+  "Não foi possível carregar o Messenger.": { es: "No fue posible cargar Messenger." },
+  "O Messenger ainda não está configurado nesta instalação: falta o ID do app da Meta (META_APP_ID) ou o segredo do app em Admin › API Oficial (Meta).": {
+    es: "Messenger aún no está configurado en esta instalación: falta el ID de la app de Meta (META_APP_ID) o el secreto de la app en Admin › API Oficial (Meta).",
+  },
+  "Conectar página do Facebook": { es: "Conectar página de Facebook" },
+  "Conectar outra página": { es: "Conectar otra página" },
+  "Nenhuma página conectada ainda.": { es: "Aún no hay ninguna página conectada." },
+  "Precisa de atenção": { es: "Requiere atención" },
+  "O recebimento desta página não ligou. Conecte a página de novo; se continuar, confira as permissões do app na Meta.": {
+    es: "La recepción de esta página no se activó. Conecte la página de nuevo; si continúa, revise los permisos de la app en Meta.",
+  },
+  "Página desconectada. As conversas continuam no inbox.": { es: "Página desconectada. Las conversaciones siguen en la bandeja de entrada." },
+  "Não foi possível desconectar a página.": { es: "No fue posible desconectar la página." },
+  "As mensagens desta página deixam de chegar ao CRM. O histórico de conversas continua guardado, e conectar a página de novo retoma as mesmas conversas.": {
+    es: "Los mensajes de esta página dejan de llegar al CRM. El historial de conversaciones sigue guardado, y conectar la página de nuevo retoma las mismas conversaciones.",
+  },
+  "O Messenger não está configurado nesta instalação.": { es: "Messenger no está configurado en esta instalación." },
+  "A conexão demorou demais e expirou. Tente de novo.": { es: "La conexión tardó demasiado y expiró. Inténtelo de nuevo." },
+  "A permissão foi recusada na tela do Facebook. Para conectar, aceite as permissões pedidas.": {
+    es: "El permiso fue rechazado en la pantalla de Facebook. Para conectar, acepte los permisos solicitados.",
+  },
+  "O Facebook não devolveu a autorização. Tente de novo.": { es: "Facebook no devolvió la autorización. Inténtelo de nuevo." },
+  "Nenhuma página foi liberada no Facebook. Ao conectar, marque as páginas que vão atender.": {
+    es: "No se liberó ninguna página en Facebook. Al conectar, marque las páginas que van a atender.",
+  },
+  "A chave de cifra da instalação não está disponível: a página não pôde ser guardada com segurança.": {
+    es: "La clave de cifrado de la instalación no está disponible: la página no pudo guardarse de forma segura.",
+  },
+  "O Facebook recusou a conexão. Tente de novo em instantes.": { es: "Facebook rechazó la conexión. Inténtelo de nuevo en unos instantes." },
+  "Não foi possível conectar a página.": { es: "No fue posible conectar la página." },
+  "Uma das páginas já atende por outra empresa nesta instalação e ficou de fora.": {
+    es: "Una de las páginas ya atiende para otra empresa en esta instalación y quedó fuera.",
+  },
+  "Uma das páginas não deu permissão de mensagens a quem conectou e ficou de fora.": {
+    es: "Una de las páginas no dio permiso de mensajes a quien la conectó y quedó fuera.",
+  },
+  "Uma das páginas foi gravada, mas o recebimento não ligou. Veja o motivo no cartão dela e conecte de novo.": {
+    es: "Una de las páginas se guardó, pero la recepción no se activó. Vea el motivo en su tarjeta y conecte de nuevo.",
+  },
+  "Uma das páginas não pôde ser conectada.": { es: "Una de las páginas no pudo conectarse." },
+  "Motivo informado pela Meta:": { es: "Motivo informado por Meta:" },
 };
 
 /**

@@ -171,6 +171,9 @@ export const AUDIT_ACTIONS = [
   "tenant.suspended",
   "tenant.reactivated",
   // Instagram: comentou, recebe direct (`lib/channels/instagram/`).
+  // Messenger direto (`lib/channels/messenger/`). A desconexão é a do canal
+  // (`channel.archived`/`channel.deleted`), pela rota padrão de excluir canal.
+  "messenger.paginas_conectadas",
   "instagram.conta_conectada",
   "instagram.conta_desconectada",
   "instagram.regra_criada",

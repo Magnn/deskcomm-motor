@@ -105,6 +105,20 @@ export const CHANNEL_CAPABILITIES: Record<ProviderDeMensagem, ChannelCapabilitie
     groups: "limited",
     costPerMessage: true,
   },
+  // Messenger direto: mesma forma do Messenger pelo intermediário (janela de 24h
+  // da plataforma, sem modelo aprovado, sem grupo), mas a mensagem NÃO é cobrada
+  // — a página fala pela Graph API de graça — e não há risco de banimento por
+  // volume (a trava da Meta é a janela, não a contagem).
+  meta_messenger: {
+    freeformOutsideWindow: false,
+    requiresTemplates: false,
+    canManageTemplates: false,
+    banRisk: false,
+    minIntervalMs: 1000,
+    voiceNote: "server-convert",
+    groups: "none",
+    costPerMessage: false,
+  },
 };
 
 /**
@@ -129,6 +143,8 @@ export const CHANNEL_PROVIDER_SOCIAL: ChannelProvider = "zernio_social";
 export const CHANNEL_PROVIDER_ZERNIO: ChannelProvider = "zernio";
 /** Parceiro que espelha a Cloud API — canal opcional da instalação, desligado por padrão. */
 export const CHANNEL_PROVIDER_DATAFY: ChannelProvider = "datafy";
+/** Messenger direto: a página do Facebook pela Graph API, sem intermediário. */
+export const CHANNEL_PROVIDER_MESSENGER: ChannelProvider = "meta_messenger";
 /** Chamada de voz WhatsApp (spec 18). Não transporta mensagem — ver abaixo. */
 export const CHANNEL_PROVIDER_WACALLS: ChannelProvider = "wacalls";
 
@@ -153,6 +169,7 @@ export const PROVIDERS_DE_MENSAGEM = [
   "zernio",
   "zernio_social",
   "datafy",
+  "meta_messenger",
 ] as const satisfies readonly ProviderDeMensagem[];
 
 /**

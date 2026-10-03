@@ -77,6 +77,9 @@ export const PUBLIC_PATHS: RegExp[] = [
   // Volta do consentimento do Instagram. Mesma natureza: a organização vem do
   // `state` assinado (`lib/channels/instagram/estado.ts`), não da sessão.
   /^\/api\/v1\/instagram\/oauth\/callback$/,
+  // Volta do login do Facebook que conecta a página do Messenger. Mesma natureza:
+  // a organização vem do `state` assinado (`lib/channels/messenger/estado.ts`).
+  /^\/api\/v1\/messenger\/oauth\/callback$/,
   // Volta do consentimento do Google Ads. Mesma natureza das duas linhas
   // acima: a identidade vem do `state` assinado
   // (`lib/plataformas-de-anuncio/google/estado.ts`), não da sessão — quem

@@ -31,6 +31,8 @@ interface Consulta extends PromiseLike<{ data: unknown; error: Erro | null; coun
   neq(coluna: string, valor: unknown): Consulta;
   is(coluna: string, valor: unknown): Consulta;
   in(coluna: string, valores: unknown[]): Consulta;
+  /** Só as formas que o PostgREST aceita aqui: `is` null e `in` com lista `(a,b)`. */
+  not(coluna: string, operador: "is" | "in", valor: unknown): Consulta;
   lte(coluna: string, valor: string): Consulta;
   lt(coluna: string, valor: string): Consulta;
   like(coluna: string, padrao: string): Consulta;
@@ -55,7 +57,8 @@ export function criarBancoEmMemoria(
 
   const viola = (tabela: string, nova: Linha, ignorar?: Linha): boolean =>
     (unicos[tabela] ?? []).some((colunas) =>
-      (tabelas[tabela] ?? []).some((l) => l !== ignorar && colunas.every((c) => l[c] === nova[c])),
+      // Coluna ausente na linha = NULL, como o default do Postgres faz no insert.
+      (tabelas[tabela] ?? []).some((l) => l !== ignorar && colunas.every((c) => (l[c] ?? null) === (nova[c] ?? null))),
     );
 
   function from(tabela: string): Consulta {
@@ -165,6 +168,15 @@ export function criarBancoEmMemoria(
       },
       in(coluna, valores) {
         filtros.push((l) => valores.includes(l[coluna]));
+        return q;
+      },
+      not(coluna, operador, valor) {
+        if (operador === "is") {
+          filtros.push((l) => (l[coluna] ?? null) !== valor);
+        } else {
+          const lista = String(valor).replace(/^\(|\)$/g, "").split(",").map((v) => v.trim());
+          filtros.push((l) => !lista.includes(String(l[coluna])));
+        }
         return q;
       },
       lte(coluna, valor) {
