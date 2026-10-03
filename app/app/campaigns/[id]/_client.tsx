@@ -16,6 +16,9 @@
  */
 import Link from "next/link";
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+
+import { apiClient } from "@/lib/api/client";
 
 import { EstadoDaCampanha } from "@/components/campanhas/EstadoDaCampanha";
 import { Button } from "@/components/ui/button";
@@ -216,7 +219,7 @@ export function DetalheDaCampanha({ id }: { id: string }) {
 
       <Card className="space-y-2 p-4">
         <h2 className="font-medium">{t("Mensagem")}</h2>
-        <p className="whitespace-pre-wrap text-sm">{c.message_body}</p>
+        <ConteudoEmVigor campanha={c} />
         <p className="text-xs text-muted-foreground">
           {t("Base legal")}: {c.base_legal === "consent" ? t("consentimento") : t("interesse legítimo")}
           {c.lia_ref ? ` (${c.lia_ref})` : ""}
@@ -533,4 +536,40 @@ const ROTULO_DO_DESTINATARIO: Record<string, string> = {
 function rotuloDoMotivo(motivo: string | null): string {
   if (!motivo) return "Fora da lista";
   return (TEXTO_DA_EXCLUSAO as Record<string, string>)[motivo] ?? motivo;
+}
+
+/** O que esta campanha manda — texto, modelo aprovado ou fluxo — como a pessoa escolheu. */
+function ConteudoEmVigor({ campanha }: { campanha: CampanhaDetalhada }) {
+  const t = useT();
+  const fluxos = useQuery({
+    queryKey: ["fluxos-para-campanha"],
+    enabled: campanha.content_kind === "flow",
+    queryFn: async () => apiClient.get<{ data: { id: string; name: string; status: string }[] }>("/api/v1/ai/followup-flows"),
+    staleTime: 30_000,
+  });
+
+  if (campanha.content_kind === "flow") {
+    const fluxo = (fluxos.data?.data ?? []).find((f) => f.id === campanha.flow_pointer_id);
+    return (
+      <div className="space-y-1 text-sm">
+        <p>
+          {t("Inicia o fluxo:")} <span className="font-medium">{fluxo?.name ?? (campanha.flow_pointer_id ? "…" : t("fluxo removido"))}</span>
+        </p>
+        {fluxo && fluxo.status !== "active" && (
+          <p className="text-amber-700 dark:text-amber-500">{t("Este fluxo ainda não está publicado. Publique-o antes de iniciar a campanha, senão ninguém entra nele.")}</p>
+        )}
+      </div>
+    );
+  }
+  if (campanha.content_kind === "template") {
+    return (
+      <div className="space-y-1 text-sm">
+        <p>
+          {t("Modelo aprovado:")} <span className="font-medium">{campanha.template_name}</span> · {campanha.template_language}
+        </p>
+        <p className="whitespace-pre-wrap rounded-md border bg-muted/40 p-3">{campanha.message_body}</p>
+      </div>
+    );
+  }
+  return <p className="whitespace-pre-wrap text-sm">{campanha.message_body}</p>;
 }

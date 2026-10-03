@@ -23,6 +23,14 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  CONTEUDO_VAZIO,
+  ConteudoDaCampanha,
+  conteudoParaApi,
+  conteudoPreenchido,
+  useEspacosDoModelo,
+  type ConteudoEscolhido,
+} from "../_components/ConteudoDaCampanha";
 import { useCriarCampanha, usePreviaDaAudiencia } from "@/hooks/campanhas/useCampanhas";
 import { channelLabel, useChannelSessions } from "@/hooks/channels/useChannelSessions";
 import { useT } from "@/hooks/i18n/useT";
@@ -49,6 +57,7 @@ export function NovaCampanha() {
   const [semInteracao, setSemInteracao] = useState("");
   const [limite, setLimite] = useState("100");
   const [texto, setTexto] = useState("");
+  const [conteudo, setConteudo] = useState<ConteudoEscolhido>(CONTEUDO_VAZIO);
   const [intervalo, setIntervalo] = useState("");
   const [janelaInicio, setJanelaInicio] = useState("");
   const [janelaFim, setJanelaFim] = useState("");
@@ -78,6 +87,9 @@ export function NovaCampanha() {
     [comAlgumaTag, semTags, semInteracao, funilDoPublico, etapaDoPublico, limite],
   );
 
+  const providerDoCanal = (canais.data ?? []).find((c) => c.id === canal)?.provider ?? null;
+  const espacosDoModelo = useEspacosDoModelo(conteudo, providerDoCanal);
+
   const temCriterio =
     filtro.com_alguma_tag.length > 0 ||
     filtro.sem_tags.length > 0 ||
@@ -88,7 +100,7 @@ export function NovaCampanha() {
   const podeSalvar =
     nome.trim() !== "" &&
     canal !== "" &&
-    texto.trim() !== "" &&
+    (conteudo.kind === "text" ? texto.trim() !== "" : conteudoPreenchido(conteudo, espacosDoModelo)) &&
     temCriterio &&
     (baseLegal !== "legitimate_interest" || liaRef.trim() !== "");
 
@@ -96,7 +108,7 @@ export function NovaCampanha() {
     const criada = await criar.mutateAsync({
       name: nome.trim(),
       channel_session_id: canal,
-      message_body: texto.trim(),
+      ...conteudoParaApi(conteudo, texto),
       base_legal: baseLegal,
       lia_ref: liaRef.trim() || null,
       audience_filter: filtro,
@@ -344,6 +356,7 @@ export function NovaCampanha() {
 
       <Card className="space-y-4 p-4">
         <h2 className="font-medium">{t("Mensagem")}</h2>
+        <ConteudoDaCampanha valor={conteudo} onChange={setConteudo} provider={providerDoCanal}>
         <Textarea
           rows={6}
           value={texto}
@@ -373,6 +386,7 @@ export function NovaCampanha() {
             )}
           </p>
         </div>
+        </ConteudoDaCampanha>
       </Card>
 
       <Card className="space-y-4 p-4">

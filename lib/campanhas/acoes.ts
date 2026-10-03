@@ -17,14 +17,18 @@ import { randomUUID } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { ApiErrorCode } from "@/lib/api/errors";
-import { sendMessageHandler } from "@/app/api/v1/messages/_handler";
 import { beginServiceAtOrigin } from "@/lib/atendimento/origem";
+import { capabilitiesOf, transportaMensagem, type ChannelProvider } from "@/lib/channels/capabilities";
 
 import { baseLegalValida, motivoParaExcluir, recusouMarketing } from "./elegibilidade";
 import { ehStatusDaCampanha, podeTransitar } from "./maquina-de-estados";
 import { prepararCampanha } from "./preparacao";
 import { nomeDoContato } from "@/lib/contacts/rotulo-do-contato";
 import { renderizar } from "./renderizador";
+import { COLUNAS_DE_CONTEUDO, lerConteudo, textoComVariaveis, tipoDoConteudo } from "./conteudo";
+import { despacharConteudo } from "./despacho";
+import { lerPoolExtra } from "./pool-de-numeros";
+import { poolDaCampanha } from "./rodizio";
 import type { StatusDaCampanha } from "./tipos";
 
 export interface CampanhaCarregada {
@@ -34,6 +38,11 @@ export interface CampanhaCarregada {
   status: StatusDaCampanha;
   channel_session_id: string;
   message_body: string | null;
+  content_kind: string | null;
+  template_name: string | null;
+  template_language: string | null;
+  template_values: unknown;
+  flow_pointer_id: string | null;
   base_legal: string;
   lia_ref: string | null;
   audience_filter: unknown;
@@ -54,6 +63,7 @@ export type Desfecho<T = unknown> = ({ ok: true } & T) | Recusa;
 const COLUNAS =
   "id, organization_id, name, status, channel_session_id, message_body, base_legal, lia_ref, " +
   "audience_filter, audience_version, content_version, scheduled_at, description, " +
+  `${COLUNAS_DE_CONTEUDO}, ` +
   "intervalo_segundos, janela_inicio_hora, janela_fim_hora, teto_diario, teto_horario";
 
 export async function carregarCampanha(
@@ -94,13 +104,9 @@ function recusaDeTransicao(de: StatusDaCampanha, para: StatusDaCampanha): Recusa
 
 /** O que toda campanha precisa ter antes de qualquer envio — inclusive o de teste. */
 function faltaParaEnviar(c: CampanhaCarregada): Recusa | null {
-  if ((c.message_body ?? "").trim() === "") {
-    return {
-      ok: false,
-      codigo: "campanha_conteudo_invalido",
-      mensagem: "Escreva a mensagem antes de preparar a campanha.",
-      status: 422,
-    };
+  const conteudo = lerConteudo(c);
+  if (!conteudo.ok) {
+    return { ok: false, codigo: "campanha_conteudo_invalido", mensagem: conteudo.falta, status: 422 };
   }
   if (!baseLegalValida({ baseLegal: c.base_legal, liaRef: c.lia_ref })) {
     return {
@@ -113,6 +119,42 @@ function faltaParaEnviar(c: CampanhaCarregada): Recusa | null {
     };
   }
   return null;
+}
+
+function textoDoConteudo(c: CampanhaCarregada): string {
+  const lido = lerConteudo(c);
+  return lido.ok ? textoComVariaveis(lido.conteudo) : "";
+}
+
+/**
+ * O número escolhido sabe mandar ESTE conteúdo? Modelo aprovado só existe em
+ * canal que trabalha com modelo (o oficial); mandá-lo por um número de QR code
+ * falharia destinatário por destinatário, depois de a campanha já ter começado.
+ * A pergunta é feita à CAPACIDADE do canal, nunca ao nome do provedor.
+ */
+async function canalNaoServeAoConteudo(admin: SupabaseClient, c: CampanhaCarregada): Promise<Recusa | null> {
+  if (tipoDoConteudo(c) !== "template") return null;
+  const numeros = poolDaCampanha(c.channel_session_id, await lerPoolExtra(admin, c.organization_id, c.id));
+  const { data, error } = await admin
+    .from("channel_sessions")
+    .select("id, provider, display_name")
+    .eq("organization_id", c.organization_id)
+    .in("id", numeros);
+  if (error) {
+    return { ok: false, codigo: "campanha_canal_indisponivel", mensagem: "Não foi possível conferir os números desta campanha.", status: 500 };
+  }
+  const semModelo = ((data ?? []) as { id: string; provider: string | null; display_name: string | null }[]).filter(
+    (n) => !transportaMensagem(n.provider) || !capabilitiesOf(n.provider as ChannelProvider).requiresTemplates,
+  );
+  if (semModelo.length === 0) return null;
+  return {
+    ok: false,
+    codigo: "campanha_conteudo_invalido",
+    mensagem:
+      "Modelo aprovado só é enviado por número da API oficial do WhatsApp. " +
+      `Tire da campanha: ${semModelo.map((n) => n.display_name ?? "número sem nome").join(", ")} — ou troque o conteúdo para texto ou fluxo.`,
+    status: 422,
+  };
 }
 
 /** Já saiu alguma mensagem desta campanha? Reconstruir snapshot depois disso é proibido. */
@@ -130,7 +172,7 @@ export async function prepararAcao(
   c: CampanhaCarregada,
   agora: Date,
 ): Promise<Desfecho<{ resumo: { total: number; elegiveis: number; excluidos: number } }>> {
-  const recusa = recusaDeTransicao(c.status, "preparing") ?? faltaParaEnviar(c);
+  const recusa = recusaDeTransicao(c.status, "preparing") ?? faltaParaEnviar(c) ?? (await canalNaoServeAoConteudo(admin, c));
   if (recusa) return recusa;
   if (await jaEnviou(admin, c.id)) {
     return {
@@ -162,7 +204,9 @@ export async function prepararAcao(
       campanhaId: c.id,
       organizationId: c.organization_id,
       filtro: c.audience_filter,
-      corpo: c.message_body ?? "",
+      // O texto em que as variáveis aparecem: o corpo, ou os valores do modelo.
+      // No fluxo não há variável da campanha — ninguém é excluído por "falta o nome".
+      corpo: textoDoConteudo(c),
       contentVersion: c.content_version,
       agora,
     });
@@ -343,6 +387,11 @@ export async function duplicarAcao(
       description: c.description,
       channel_session_id: c.channel_session_id,
       message_body: c.message_body,
+      content_kind: tipoDoConteudo(c),
+      template_name: c.template_name,
+      template_language: c.template_language,
+      template_values: c.template_values ?? {},
+      flow_pointer_id: c.flow_pointer_id,
       base_legal: c.base_legal,
       lia_ref: c.lia_ref,
       audience_filter: c.audience_filter,
@@ -384,7 +433,7 @@ export async function testarAcao(
   agora: Date,
   fuso: string,
 ): Promise<Desfecho<{ status: string }>> {
-  const recusa = faltaParaEnviar(c);
+  const recusa = faltaParaEnviar(c) ?? (await canalNaoServeAoConteudo(admin, c));
   if (recusa) return recusa;
 
   const { data: contato } = await admin
@@ -430,7 +479,7 @@ export async function testarAcao(
   }
 
   const render = renderizar(
-    c.message_body ?? "",
+    textoDoConteudo(c),
     { nome: nomeDoContato(linha) },
     { agora, fuso },
   );
@@ -444,25 +493,36 @@ export async function testarAcao(
   }
 
   const boundary = await beginServiceAtOrigin(admin, c.organization_id, linha.id, c.channel_session_id);
-  const mensagem = await sendMessageHandler(
-    admin,
-    {
-      organization_id: c.organization_id,
-      serviceBoundary: boundary,
-      proactiveContext: { organizationId: c.organization_id, contactId: linha.id },
-      actor: { type: "webhook_source", id: `campaign-test:${c.id}` },
-      requestId: `campaign-test:${c.id}:${randomUUID()}`,
-    } as Parameters<typeof sendMessageHandler>[1],
-    {
-      conversation_id: boundary.conversation_id,
-      type: "text",
-      body: render.texto,
-      metadata: { source: "campaign_test", campaign_id: c.id },
-    } as Parameters<typeof sendMessageHandler>[2],
-  );
+  const lido = lerConteudo(c);
+  if (!lido.ok) return { ok: false, codigo: "campanha_conteudo_invalido", mensagem: lido.falta, status: 422 };
+  // O MESMO despacho da rodada: o teste que sai por outro caminho é o que passa
+  // e deixa o disparo falhar.
+  const desfecho = await despacharConteudo(admin, {
+    organizationId: c.organization_id,
+    contactId: linha.id,
+    boundary,
+    conteudo: lido.conteudo,
+    renderizar: (texto) => renderizar(texto, { nome: nomeDoContato(linha) }, { agora, fuso }).texto,
+    previaDoModelo: c.message_body,
+    ator: `campaign-test:${c.id}`,
+    requestId: `campaign-test:${c.id}:${randomUUID()}`,
+    metadata: { source: "campaign_test", campaign_id: c.id },
+  });
 
-  const status = (mensagem as { status?: string }).status ?? "desconhecido";
-  if (status === "failed") {
+  if (desfecho.via === "fluxo") {
+    if (desfecho.falhou) {
+      return {
+        ok: false,
+        codigo: "campanha_conteudo_invalido",
+        mensagem: `O fluxo não aceitou este contato: ${desfecho.motivo ?? "motivo não informado"}.`,
+        status: 422,
+      };
+    }
+    return { ok: true, status: "fluxo_iniciado" };
+  }
+
+  const status = desfecho.status;
+  if (desfecho.falhou) {
     return {
       ok: false,
       codigo: "campanha_canal_indisponivel",

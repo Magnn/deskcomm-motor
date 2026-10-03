@@ -38,6 +38,12 @@ export interface CampanhaDetalhada extends CampanhaDaLista {
   agent_id?: string | null;
   description: string | null;
   message_body: string | null;
+  /** O que a campanha manda (migration 0915). */
+  content_kind?: "text" | "template" | "flow" | null;
+  template_name?: string | null;
+  template_language?: string | null;
+  template_values?: Record<string, string> | null;
+  flow_pointer_id?: string | null;
   base_legal: string;
   lia_ref: string | null;
   audience_filter: Record<string, unknown>;

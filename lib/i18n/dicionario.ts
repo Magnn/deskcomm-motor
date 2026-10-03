@@ -13418,6 +13418,44 @@ export const DICIONARIO: Traducoes = {
   "Sem agente de IA antes da compra": { es: "Sin agente de IA antes de la compra" },
   "Sem fluxo antes da compra": { es: "Sin flujo antes de la compra" },
   "Agente removido": { es: "Agente eliminado" },
+  // Conteúdo da campanha: texto, modelo aprovado ou fluxo (lib/campanhas/conteudo.ts).
+  "O que esta campanha manda": { es: "Qué envía esta campaña" },
+  "Um texto com o nome da pessoa. Bom para números conectados por QR code.": {
+    es: "Un texto con el nombre de la persona. Bueno para números conectados por código QR.",
+  },
+  "Modelo aprovado (API oficial)": { es: "Plantilla aprobada (API oficial)" },
+  "O único jeito de a API oficial falar com quem não escreveu nas últimas 24 horas.": {
+    es: "La única forma de que la API oficial hable con quien no escribió en las últimas 24 horas.",
+  },
+  "Iniciar um fluxo": { es: "Iniciar un flujo" },
+  "A pessoa entra num fluxo publicado: imagens, botões, perguntas e sequência ficam por conta dele.": {
+    es: "La persona entra en un flujo publicado: imágenes, botones, preguntas y secuencia quedan a cargo de él.",
+  },
+  "O número escolhido não trabalha com modelo aprovado. Escolha um número da API oficial, ou mude o conteúdo para texto ou fluxo.": {
+    es: "El número elegido no trabaja con plantilla aprobada. Elija un número de la API oficial, o cambie el contenido a texto o flujo.",
+  },
+  "Carregando os modelos…": { es: "Cargando las plantillas…" },
+  "Nenhum modelo aprovado nesta conta. Crie e aprove um modelo em Conexões antes de montar a campanha.": {
+    es: "Ninguna plantilla aprobada en esta cuenta. Cree y apruebe una plantilla en Conexiones antes de armar la campaña.",
+  },
+  "Nos espaços do modelo você pode usar {{nome}} para o nome de cada pessoa.": {
+    es: "En los espacios de la plantilla puede usar {{nome}} para el nombre de cada persona.",
+  },
+  "Carregando os fluxos…": { es: "Cargando los flujos…" },
+  "Escolha um fluxo": { es: "Elija un flujo" },
+  "Este fluxo ainda não está publicado. Publique-o antes de iniciar a campanha, senão ninguém entra nele.": {
+    es: "Este flujo aún no está publicado. Publíquelo antes de iniciar la campaña; si no, nadie entra en él.",
+  },
+  "Cada pessoa do público entra no fluxo pelo número que a campanha escolher. Quem já está em outro fluxo ativo não entra neste.": {
+    es: "Cada persona del público entra en el flujo por el número que la campaña elija. Quien ya está en otro flujo activo no entra en este.",
+  },
+  "Inicia o fluxo:": { es: "Inicia el flujo:" },
+  "fluxo removido": { es: "flujo eliminado" },
+  "Modelo aprovado:": { es: "Plantilla aprobada:" },
+  "Escolha um fluxo desta organização.": { es: "Elija un flujo de esta organización." },
+  "Este é um roteiro de atendimento: ele começa na conversa, não por campanha. Escolha um fluxo.": {
+    es: "Este es un guion de atención: comienza en la conversación, no por campaña. Elija un flujo.",
+  },
   // Motivo da perda (lib/resultado/motivo-da-perda.ts, dashboard › Receita).
   "A IA parou no meio da análise (limite de gasto, chave ou provedor). O que já foi analisado ficou gravado.": {
     es: "La IA se detuvo en medio del análisis (límite de gasto, clave o proveedor). Lo que ya se analizó quedó guardado.",
