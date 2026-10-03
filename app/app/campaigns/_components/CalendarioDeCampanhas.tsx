@@ -54,14 +54,14 @@ export function CalendarioDeCampanhas({ campanhas, idioma }: { campanhas: Campan
           const ehHoje = d.chave === chaveDoDia(hoje);
           return (
             <div key={d.chave} className={`min-h-20 space-y-1 bg-surface p-1 ${d.doMes ? "" : "opacity-40"}`}>
-              <span className={`inline-block rounded px-1 text-xs ${ehHoje ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>
+              <span className={`inline-block rounded-md px-1 text-xs ${ehHoje ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>
                 {d.data.getDate()}
               </span>
               {doDia.map((c) => (
                 <Link
                   key={c.id}
                   href={`/app/campaigns/${c.id}`}
-                  className="block space-y-0.5 rounded border border-border p-1 text-xs hover:bg-surface-elevated"
+                  className="block space-y-0.5 rounded-md border border-border p-1 text-xs hover:bg-surface-elevated"
                   title={c.name}
                 >
                   <span className="block truncate font-medium">{c.name}</span>
