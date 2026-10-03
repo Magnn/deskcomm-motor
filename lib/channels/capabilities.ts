@@ -29,6 +29,7 @@ export const CHANNEL_CAPABILITIES: Record<ProviderDeMensagem, ChannelCapabilitie
     voiceNote: "server-convert",
     groups: "full",
     costPerMessage: false,
+    enderecamento: "telefone",
   },
   // Hetero-restrição: não me banem, mas a Meta me proíbe e me cobra.
   meta_cloud: {
@@ -42,6 +43,7 @@ export const CHANNEL_CAPABILITIES: Record<ProviderDeMensagem, ChannelCapabilitie
     voiceNote: "opus-only",
     groups: "limited",
     costPerMessage: true,
+    enderecamento: "telefone",
   },
   // Mesma hetero-restrição do canal oficial, por baixo: é um BSP: a WABA é da
   // Meta, os templates são aprovados pela Meta e a janela de 24h é da Meta. O
@@ -75,6 +77,7 @@ export const CHANNEL_CAPABILITIES: Record<ProviderDeMensagem, ChannelCapabilitie
     voiceNote: "server-convert",
     groups: "none",
     costPerMessage: true,
+    enderecamento: "conversa",
   },
   zernio: {
     freeformOutsideWindow: false,
@@ -85,6 +88,7 @@ export const CHANNEL_CAPABILITIES: Record<ProviderDeMensagem, ChannelCapabilitie
     voiceNote: "opus-only",
     groups: "limited",
     costPerMessage: true,
+    enderecamento: "telefone",
   },
   // Parceiro homologado pela Meta que espelha a Cloud API (recorte do #1130):
   // a WABA, a janela de 24h e o custo são da Meta. O parceiro muda o TRANSPORTE
@@ -104,6 +108,7 @@ export const CHANNEL_CAPABILITIES: Record<ProviderDeMensagem, ChannelCapabilitie
     voiceNote: "opus-only",
     groups: "limited",
     costPerMessage: true,
+    enderecamento: "telefone",
   },
   // Messenger direto: mesma forma do Messenger pelo intermediário (janela de 24h
   // da plataforma, sem modelo aprovado, sem grupo), mas a mensagem NÃO é cobrada
@@ -118,6 +123,7 @@ export const CHANNEL_CAPABILITIES: Record<ProviderDeMensagem, ChannelCapabilitie
     voiceNote: "server-convert",
     groups: "none",
     costPerMessage: false,
+    enderecamento: "conversa",
   },
   // Telegram: o bot fala quando quiser (não há janela de 24h nem modelo
   // aprovado), não é cobrado e não é banido por volume como um número de
@@ -133,6 +139,7 @@ export const CHANNEL_CAPABILITIES: Record<ProviderDeMensagem, ChannelCapabilitie
     voiceNote: "opus-only",
     groups: "none",
     costPerMessage: false,
+    enderecamento: "conversa",
   },
 };
 

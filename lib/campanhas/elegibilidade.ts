@@ -26,10 +26,21 @@
  */
 import type { MotivoDeExclusao } from "./tipos";
 
+/**
+ * Como a campanha acha a pessoa: pelo telefone (o de sempre), ou pela conversa
+ * que ela começou com a conta conectada (canal por conversa — `prefixo` é o
+ * começo da identidade de quem falou com ESTA conta). Ausente = telefone.
+ */
+export type ModoDeEndereco = { tipo: "telefone" } | { tipo: "conversa"; prefixo: string };
+
+export const POR_TELEFONE: ModoDeEndereco = { tipo: "telefone" };
+
 /** O que se sabe do destinatário na hora de decidir. Nada além disto importa. */
 export interface ContatoParaDecidir {
   contactId: string;
   telefone: string | null;
+  /** `contacts.social_identity` — só importa no canal por conversa. */
+  identidadeSocial?: string | null;
   bloqueado: boolean;
   anonimizado: boolean;
   /** `consent.marketing.declined_at` — recusa REGISTRADA, diferente de ausência. */
@@ -47,14 +58,31 @@ const E164 = /^\+\d{8,15}$/;
  * alguém que pediu para parar, e trocar isso na tela seria mentir sobre o
  * motivo de não ter recebido.
  */
-export function motivoParaExcluir(c: ContatoParaDecidir): MotivoDeExclusao | null {
+export function motivoParaExcluir(c: ContatoParaDecidir, modo: ModoDeEndereco = POR_TELEFONE): MotivoDeExclusao | null {
   if (c.bloqueado) return "opt_out";
   if (c.anonimizado) return "anonimizado";
   if (c.recusouMarketing) return "recusou_marketing";
-  const telefone = c.telefone?.trim() ?? "";
-  if (telefone === "") return "sem_telefone";
-  if (!E164.test(telefone)) return "telefone_invalido";
+  const endereco = enderecoDoContato(c, modo);
+  if (modo.tipo === "conversa") {
+    // O canal não puxa assunto: quem nunca falou com esta conta não tem como receber.
+    return endereco === null ? "sem_conversa_no_canal" : null;
+  }
+  if (endereco === null) return "sem_telefone";
+  if (!E164.test(endereco)) return "telefone_invalido";
   return null;
+}
+
+/** O endereço da pessoa NESTE modo, ou `null` quando ela não tem um. */
+export function enderecoDoContato(
+  c: Pick<ContatoParaDecidir, "telefone" | "identidadeSocial">,
+  modo: ModoDeEndereco,
+): string | null {
+  if (modo.tipo === "conversa") {
+    const identidade = c.identidadeSocial?.trim() ?? "";
+    return identidade.startsWith(modo.prefixo) && identidade.length > modo.prefixo.length ? identidade : null;
+  }
+  const telefone = c.telefone?.trim() ?? "";
+  return telefone !== "" ? telefone : null;
 }
 
 /** Um candidato do recorte, já lido do banco. */
@@ -64,6 +92,8 @@ export interface CandidatoDaAudiencia extends ContatoParaDecidir {
 
 export interface LinhaClassificada {
   candidato: CandidatoDaAudiencia;
+  /** O endereço por onde a pessoa recebe (telefone ou identidade na conta); `null` em quem foi excluído. */
+  endereco: string | null;
   elegivel: boolean;
   motivo: MotivoDeExclusao | null;
   /** O texto final — só existe para quem é elegível. */
@@ -80,6 +110,8 @@ export interface ContextoDaClassificacao {
    * opera, diferente do opt-out: aqui não se silencia o atendimento.
    */
   suprimidos: ReadonlySet<string>;
+  /** Como o canal acha a pessoa. Ausente = telefone, como sempre foi. */
+  modo?: ModoDeEndereco;
   /** O hash de um endereço — injetado para esta função continuar pura. */
   hashDoEndereco: (endereco: string) => string;
   /** Renderiza o texto e diz o que faltou. Injetado para esta função ficar pura. */
@@ -112,17 +144,18 @@ export function classificarAudiencia(
 ): LinhaClassificada[] {
   const enderecosVistos = new Set<string>();
   const saida: LinhaClassificada[] = [];
+  const modo = ctx.modo ?? POR_TELEFONE;
 
   for (const candidato of candidatos) {
     const excluir = (motivo: MotivoDeExclusao): void => {
-      saida.push({ candidato, elegivel: false, motivo, corpo: null });
+      saida.push({ candidato, endereco: null, elegivel: false, motivo, corpo: null });
     };
 
     if (ctx.excluidosAMao.has(candidato.contactId)) {
       excluir("excluido_manualmente");
       continue;
     }
-    const pessoal = motivoParaExcluir(candidato);
+    const pessoal = motivoParaExcluir(candidato, modo);
     if (pessoal) {
       excluir(pessoal);
       continue;
@@ -131,7 +164,8 @@ export function classificarAudiencia(
       excluir("ja_em_campanha");
       continue;
     }
-    const endereco = candidato.telefone!.trim();
+    // `motivoParaExcluir` acabou de garantir que o endereço existe neste modo.
+    const endereco = enderecoDoContato(candidato, modo)!;
     if (ctx.suprimidos.has(ctx.hashDoEndereco(endereco))) {
       excluir("suprimido");
       continue;
@@ -147,7 +181,7 @@ export function classificarAudiencia(
     }
 
     enderecosVistos.add(endereco);
-    saida.push({ candidato, elegivel: true, motivo: null, corpo: texto });
+    saida.push({ candidato, endereco, elegivel: true, motivo: null, corpo: texto });
   }
 
   return saida;

@@ -34,6 +34,7 @@ import {
   useEspacosDoModelo,
   type ConteudoEscolhido,
 } from "../../_components/ConteudoDaCampanha";
+import { AvisoDoCanal } from "../../_components/AvisoDoCanal";
 import { useCampanha, useEditarCampanha, usePreviaDaAudiencia } from "@/hooks/campanhas/useCampanhas";
 import { channelLabel, useChannelSessions } from "@/hooks/channels/useChannelSessions";
 import { useT } from "@/hooks/i18n/useT";
@@ -193,6 +194,7 @@ export function EditarCampanha({ id }: { id: string }) {
               </option>
             ))}
           </select>
+          <AvisoDoCanal provider={providerDoCanal} />
         </div>
         <fieldset className="space-y-2">
           <legend className="text-sm font-medium">{t("Base legal do envio")}</legend>
@@ -270,7 +272,7 @@ export function EditarCampanha({ id }: { id: string }) {
             type="button"
             variant="outline"
             disabled={!temCriterio || previa.isPending}
-            onClick={() => previa.mutate({ audience_filter: filtro, message_body: texto, campaign_id: id })}
+            onClick={() => previa.mutate({ audience_filter: filtro, message_body: conteudo.kind === "text" ? texto : "", campaign_id: id, ...(canal ? { channel_session_id: canal } : {}) })}
           >
             {previa.isPending ? t("Contando…") : t("Ver quantas pessoas")}
           </Button>

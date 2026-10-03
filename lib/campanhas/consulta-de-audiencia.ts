@@ -13,18 +13,22 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { CAMPANHAS_VIVAS, limiteDeSilencio, usaNegocio, type FiltroDeAudiencia } from "./audiencia";
+import { CAMPANHAS_VIVAS, limiteDeSilencio, temRecorte, usaNegocio, type FiltroDeAudiencia } from "./audiencia";
 import { nomeDoContato } from "@/lib/contacts/rotulo-do-contato";
-import { recusouMarketing, type CandidatoDaAudiencia } from "./elegibilidade";
+import { POR_TELEFONE, recusouMarketing, type CandidatoDaAudiencia, type ModoDeEndereco } from "./elegibilidade";
 
 /** Teto de ids que um filtro de negócio devolve antes de virar `in (...)`. */
 const TETO_DE_IDS_DE_NEGOCIO = 20_000;
+
+const COLUNAS_DO_CONTATO =
+  "id, name, display_name, phone_number, social_identity, is_blocked, is_anonymized, consent";
 
 interface LinhaDeContato {
   id: string;
   name: string | null;
   display_name: string | null;
   phone_number: string | null;
+  social_identity: string | null;
   is_blocked: boolean;
   is_anonymized: boolean;
   consent: unknown;
@@ -32,9 +36,10 @@ interface LinhaDeContato {
 
 export async function buscarCandidatos(
   admin: SupabaseClient,
-  entrada: { organizationId: string; filtro: FiltroDeAudiencia; agora: Date },
+  entrada: { organizationId: string; filtro: FiltroDeAudiencia; agora: Date; modo?: ModoDeEndereco },
 ): Promise<CandidatoDaAudiencia[]> {
   const { organizationId, filtro, agora } = entrada;
+  const modo = entrada.modo ?? POR_TELEFONE;
 
   // ─── Os contatos que têm negócio no recorte ───
   // Consulta separada, e não `join` embutido do PostgREST: o mesmo contato tem N
@@ -64,7 +69,7 @@ export async function buscarCandidatos(
 
   let consulta = admin
     .from("contacts")
-    .select("id, name, display_name, phone_number, is_blocked, is_anonymized, consent")
+    .select(COLUNAS_DO_CONTATO)
     .eq("organization_id", organizationId)
     // Cadastro mesclado é fantasma: quem responde é o sobrevivente.
     .is("is_merged_into", null)
@@ -72,6 +77,10 @@ export async function buscarCandidatos(
     .order("id", { ascending: true })
     .limit(filtro.limite);
 
+  // Canal por conversa: o público é quem JÁ falou com esta conta. Filtrar aqui, e
+  // não depois, é o que faz o `limite` contar gente que pode receber — sem isto
+  // um limite de 100 traria 100 contatos de WhatsApp e zero deste canal.
+  if (modo.tipo === "conversa") consulta = consulta.like("social_identity", `${modo.prefixo}%`);
   if (idsPorNegocio) consulta = consulta.in("id", idsPorNegocio);
   if (filtro.com_todas_tags.length > 0) consulta = consulta.contains("tags", filtro.com_todas_tags);
   if (filtro.com_alguma_tag.length > 0) consulta = consulta.overlaps("tags", filtro.com_alguma_tag);
@@ -98,9 +107,14 @@ export async function buscarCandidatos(
     consulta = consulta.not("id", "in", `(${filtro.excluir_contatos.join(",")})`);
   }
 
-  const { data, error } = await consulta;
-  if (error) throw new Error(`audiência: contatos — ${error.message}`);
-  const linhas = (data ?? []) as LinhaDeContato[];
+  // Sem recorte (só a lista de incluídos à mão) a consulta acima não tem
+  // critério nenhum: rodá-la traria os primeiros contatos da organização inteira.
+  let linhas: LinhaDeContato[] = [];
+  if (temRecorte(filtro)) {
+    const { data, error } = await consulta;
+    if (error) throw new Error(`audiência: contatos — ${error.message}`);
+    linhas = (data ?? []) as LinhaDeContato[];
+  }
 
   // ─── Os incluídos à mão ───
   // Entram mesmo fora do recorte, e por isso vêm em consulta própria; os vetos
@@ -110,7 +124,7 @@ export async function buscarCandidatos(
   if (faltam.length > 0) {
     const { data: extras, error: erroExtras } = await admin
       .from("contacts")
-      .select("id, name, display_name, phone_number, is_blocked, is_anonymized, consent")
+      .select(COLUNAS_DO_CONTATO)
       .eq("organization_id", organizationId)
       .in("id", faltam);
     if (erroExtras) throw new Error(`audiência: incluídos — ${erroExtras.message}`);
@@ -121,6 +135,7 @@ export async function buscarCandidatos(
     contactId: l.id,
     nome: nomeDoContato(l),
     telefone: l.phone_number,
+    identidadeSocial: l.social_identity,
     bloqueado: l.is_blocked,
     anonimizado: l.is_anonymized,
     recusouMarketing: recusouMarketing(l.consent),

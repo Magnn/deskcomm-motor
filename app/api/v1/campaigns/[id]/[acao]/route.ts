@@ -27,6 +27,7 @@ import {
   cancelarAcao,
   carregarCampanha,
   duplicarAcao,
+  reenviarFalhasAcao,
   iniciarAcao,
   pausarAcao,
   prepararAcao,
@@ -49,6 +50,7 @@ const ACOES = [
   "retomar",
   "cancelar",
   "duplicar",
+  "reenviar-falhas",
   "testar",
 ] as const;
 
@@ -121,6 +123,12 @@ export async function POST(
     case "cancelar": {
       desfecho = await cancelarAcao(admin, campanha, agora);
       acaoAuditada = "campaign.cancelled";
+      break;
+    }
+    case "reenviar-falhas": {
+      desfecho = await reenviarFalhasAcao(admin, campanha, authz.user.id);
+      // É uma cópia, com público próprio: a mesma trilha do duplicar.
+      acaoAuditada = "campaign.duplicated";
       break;
     }
     case "duplicar": {

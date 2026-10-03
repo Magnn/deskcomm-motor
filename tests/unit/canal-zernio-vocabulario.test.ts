@@ -34,6 +34,8 @@ describe("capabilities do canal intermediado", () => {
       voiceNote: "opus-only",
       groups: "limited",
       costPerMessage: true,
+      // WhatsApp: a pessoa é achada pelo telefone, não por uma conversa que ela começou.
+      enderecamento: "telefone",
     });
   });
 

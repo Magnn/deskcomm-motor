@@ -20,7 +20,9 @@ import type { ApiErrorCode } from "@/lib/api/errors";
 import { beginServiceAtOrigin } from "@/lib/atendimento/origem";
 import { capabilitiesOf, transportaMensagem, type ChannelProvider } from "@/lib/channels/capabilities";
 
-import { baseLegalValida, motivoParaExcluir, recusouMarketing } from "./elegibilidade";
+import { enderecoDoCanal } from "@/lib/channels/endereco-de-campanha";
+import { baseLegalValida, motivoParaExcluir, POR_TELEFONE, recusouMarketing, type ModoDeEndereco } from "./elegibilidade";
+import { FILTRO_VAZIO } from "./audiencia";
 import { ehStatusDaCampanha, podeTransitar } from "./maquina-de-estados";
 import { prepararCampanha } from "./preparacao";
 import { nomeDoContato } from "@/lib/contacts/rotulo-do-contato";
@@ -127,6 +129,33 @@ function textoDoConteudo(c: CampanhaCarregada): string {
 }
 
 /**
+ * Como o número principal desta campanha acha as pessoas — pelo telefone, ou
+ * pela conversa que cada uma começou (canal por conversa).
+ *
+ * Canal por conversa que só deixa responder dentro da janela de 24h da
+ * plataforma é RECUSADO: uma campanha ali alcançaria só quem escreveu no último
+ * dia e falharia em todo o resto, pessoa por pessoa, depois de já ter começado.
+ */
+async function modoDaCampanha(admin: SupabaseClient, c: CampanhaCarregada): Promise<{ ok: true; modo: ModoDeEndereco } | Recusa> {
+  const endereco = await enderecoDoCanal(admin, c.organization_id, c.channel_session_id);
+  if (!endereco) {
+    return { ok: false, codigo: "campanha_canal_indisponivel", mensagem: "O canal escolhido para esta campanha não está disponível.", status: 409 };
+  }
+  if (endereco.tipo === "telefone") return { ok: true, modo: POR_TELEFONE };
+  if (!endereco.semJanela) {
+    return {
+      ok: false,
+      codigo: "campanha_canal_indisponivel",
+      mensagem:
+        "Este canal só deixa responder até 24 horas depois da última mensagem da pessoa, então não serve para campanha. " +
+        "Use um número de WhatsApp ou um bot do Telegram.",
+      status: 422,
+    };
+  }
+  return { ok: true, modo: { tipo: "conversa", prefixo: endereco.prefixo } };
+}
+
+/**
  * O número escolhido sabe mandar ESTE conteúdo? Modelo aprovado só existe em
  * canal que trabalha com modelo (o oficial); mandá-lo por um número de QR code
  * falharia destinatário por destinatário, depois de a campanha já ter começado.
@@ -180,6 +209,8 @@ export async function prepararAcao(
 ): Promise<Desfecho<{ resumo: { total: number; elegiveis: number; excluidos: number } }>> {
   const recusa = recusaDeTransicao(c.status, "preparing") ?? faltaParaEnviar(c) ?? (await canalNaoServeAoConteudo(admin, c));
   if (recusa) return recusa;
+  const endereco = await modoDaCampanha(admin, c);
+  if (!endereco.ok) return endereco;
   if (await jaEnviou(admin, c.id)) {
     return {
       ok: false,
@@ -215,6 +246,7 @@ export async function prepararAcao(
       corpo: textoDoConteudo(c),
       contentVersion: c.content_version,
       agora,
+      modo: endereco.modo,
     });
     if (resumo.total === 0) {
       await voltarAoRascunho(admin, c.id, "audiencia_vazia");
@@ -385,11 +417,62 @@ export async function duplicarAcao(
   c: CampanhaCarregada,
   autorId: string,
 ): Promise<Desfecho<{ id: string }>> {
+  return copiarCampanha(admin, c, autorId, { nome: `${c.name} (cópia)`, filtro: c.audience_filter });
+}
+
+/** Quantas pessoas um reenvio leva de uma vez — o teto de "incluir à mão" do filtro. */
+export const TETO_DO_REENVIO = 5000;
+
+/**
+ * REENVIAR PARA QUEM FALHOU: um RASCUNHO novo, com o mesmo conteúdo, só para as
+ * pessoas em que o envio desta campanha falhou.
+ *
+ * Rascunho, e não disparo imediato: a pessoa confere a lista, prepara e inicia
+ * como em qualquer campanha — e os vetos (opt-out, recusa de marketing, lista de
+ * exclusão) são revalidados na preparação. Quem falhou porque pediu para parar
+ * nesse meio-tempo não recebe.
+ *
+ * Só `failed`: "pulado" e "pediu para parar" não são falha de envio, e mandar
+ * de novo para eles seria furar justamente o que os tirou da lista.
+ */
+export async function reenviarFalhasAcao(
+  admin: SupabaseClient,
+  c: CampanhaCarregada,
+  autorId: string,
+): Promise<Desfecho<{ id: string; pessoas: number }>> {
+  const { data, error } = await admin
+    .from("campaign_recipients")
+    .select("contact_id")
+    .eq("organization_id", c.organization_id)
+    .eq("campaign_id", c.id)
+    .eq("status", "failed")
+    .limit(TETO_DO_REENVIO);
+  if (error) {
+    return { ok: false, codigo: "campanha_estado_invalido", mensagem: "Não foi possível ler quem falhou nesta campanha.", status: 500 };
+  }
+  const contatos = [...new Set(((data ?? []) as { contact_id: string | null }[]).map((l) => l.contact_id).filter((id): id is string => !!id))];
+  if (contatos.length === 0) {
+    return { ok: false, codigo: "campanha_sem_audiencia", mensagem: "Nenhum envio desta campanha falhou — não há a quem reenviar.", status: 422 };
+  }
+  const copia = await copiarCampanha(admin, c, autorId, {
+    nome: `${c.name} (reenvio)`,
+    // Só a lista: sem recorte, a consulta de público não traz mais ninguém.
+    filtro: { ...FILTRO_VAZIO, incluir_contatos: contatos, limite: Math.max(1, contatos.length) },
+  });
+  return copia.ok ? { ok: true, id: copia.id, pessoas: contatos.length } : copia;
+}
+
+async function copiarCampanha(
+  admin: SupabaseClient,
+  c: CampanhaCarregada,
+  autorId: string,
+  nova: { nome: string; filtro: unknown },
+): Promise<Desfecho<{ id: string }>> {
   const { data, error } = await admin
     .from("campaigns")
     .insert({
       organization_id: c.organization_id,
-      name: `${c.name} (cópia)`.slice(0, 160),
+      name: nova.nome.slice(0, 160),
       description: c.description,
       channel_session_id: c.channel_session_id,
       message_body: c.message_body,
@@ -400,7 +483,7 @@ export async function duplicarAcao(
       flow_pointer_id: c.flow_pointer_id,
       base_legal: c.base_legal,
       lia_ref: c.lia_ref,
-      audience_filter: c.audience_filter,
+      audience_filter: nova.filtro,
       intervalo_segundos: c.intervalo_segundos,
       janela_inicio_hora: c.janela_inicio_hora,
       janela_fim_hora: c.janela_fim_hora,
@@ -441,10 +524,12 @@ export async function testarAcao(
 ): Promise<Desfecho<{ status: string }>> {
   const recusa = faltaParaEnviar(c) ?? (await canalNaoServeAoConteudo(admin, c));
   if (recusa) return recusa;
+  const endereco = await modoDaCampanha(admin, c);
+  if (!endereco.ok) return endereco;
 
   const { data: contato } = await admin
     .from("contacts")
-    .select("id, name, display_name, phone_number, is_blocked, is_anonymized, consent")
+    .select("id, name, display_name, phone_number, social_identity, is_blocked, is_anonymized, consent")
     .eq("organization_id", c.organization_id)
     .eq("id", contactId)
     .maybeSingle();
@@ -461,6 +546,7 @@ export async function testarAcao(
     name: string | null;
     display_name: string | null;
     phone_number: string | null;
+    social_identity: string | null;
     is_blocked: boolean;
     is_anonymized: boolean;
     consent: unknown;
@@ -471,10 +557,11 @@ export async function testarAcao(
   const motivo = motivoParaExcluir({
     contactId: linha.id,
     telefone: linha.phone_number,
+    identidadeSocial: linha.social_identity,
     bloqueado: linha.is_blocked,
     anonimizado: linha.is_anonymized,
     recusouMarketing: recusouMarketing(linha.consent),
-  });
+  }, endereco.modo);
   if (motivo) {
     return {
       ok: false,

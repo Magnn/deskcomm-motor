@@ -39,6 +39,7 @@ const CAPABILITIES = [
   "voiceNote",
   "groups",
   "costPerMessage",
+  "enderecamento",
 ] as const;
 
 describe("matriz capability × provider é exaustiva", () => {

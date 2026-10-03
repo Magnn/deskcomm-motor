@@ -40,6 +40,7 @@ import {
   classificarAudiencia,
   contarExclusoes,
   type CandidatoDaAudiencia,
+  type ModoDeEndereco,
 } from "./elegibilidade";
 import { renderizar } from "./renderizador";
 import type { MotivoDeExclusao } from "./tipos";
@@ -69,6 +70,8 @@ export async function preverAudiencia(
     agora: Date;
     /** Campanha a ignorar na conta de "já em campanha" (a que está sendo editada). */
     campanhaId?: string;
+    /** Como o canal acha a pessoa. Ausente = telefone. */
+    modo?: ModoDeEndereco;
   },
 ): Promise<ResumoDoSnapshot & { amostra: Array<{ nome: string | null; motivo: MotivoDeExclusao | null }> }> {
   const linhas = await classificar(admin, entrada);
@@ -92,12 +95,14 @@ async function classificar(
     corpo: string;
     agora: Date;
     campanhaId?: string;
+    modo?: ModoDeEndereco;
   },
 ) {
   const candidatos = await buscarCandidatos(admin, {
     organizationId: entrada.organizationId,
     filtro: entrada.filtro,
     agora: entrada.agora,
+    modo: entrada.modo,
   });
   const jaEmCampanha = await contatosJaEmCampanha(
     admin,
@@ -109,6 +114,7 @@ async function classificar(
     excluidosAMao: new Set(entrada.filtro.excluir_contatos),
     jaEmCampanha,
     suprimidos,
+    modo: entrada.modo,
     hashDoEndereco,
     // A saudação NÃO é resolvida aqui: ela é da hora do envio. O token fica no
     // corpo congelado e o despacho o troca — ver `rodada.ts`.
@@ -132,6 +138,8 @@ export async function prepararCampanha(
     corpo: string;
     contentVersion: number;
     agora: Date;
+    /** Como o canal acha a pessoa. Ausente = telefone. */
+    modo?: ModoDeEndereco;
   },
 ): Promise<ResumoDoSnapshot> {
   const filtro = filtroDeAudienciaSchema.safeParse(entrada.filtro);
@@ -145,6 +153,7 @@ export async function prepararCampanha(
     corpo: entrada.corpo,
     agora: entrada.agora,
     campanhaId: entrada.campanhaId,
+    modo: entrada.modo,
   });
 
   // Reconstrução limpa: a rota só chega aqui quando nada saiu, então apagar a
@@ -162,8 +171,9 @@ export async function prepararCampanha(
     campaign_id: entrada.campanhaId,
     contact_id: l.candidato.contactId,
     // Endereço só de quem vai receber: o excluído não precisa dele, e guardar
-    // telefone que ninguém vai usar é PII sem finalidade.
-    recipient_address: l.elegivel ? l.candidato.telefone : null,
+    // endereço que ninguém vai usar é PII sem finalidade. É o telefone, ou, no
+    // canal por conversa, a identidade da pessoa na conta conectada.
+    recipient_address: l.endereco,
     status: l.elegivel ? "pending" : "skipped",
     eligibility_status: l.elegivel ? "eligible" : "excluded",
     exclusion_reason: l.motivo,

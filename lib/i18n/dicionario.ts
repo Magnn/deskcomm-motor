@@ -13456,6 +13456,30 @@ export const DICIONARIO: Traducoes = {
   "Este é um roteiro de atendimento: ele começa na conversa, não por campanha. Escolha um fluxo.": {
     es: "Este es un guion de atención: comienza en la conversación, no por campaña. Elija un flujo.",
   },
+  // Campanha em canal por conversa (lib/channels/endereco-de-campanha.ts).
+  "Nunca conversou por este canal": { es: "Nunca conversó por este canal" },
+  "Neste canal a campanha alcança só quem já conversou com esta conta — ele não começa conversa com quem nunca escreveu. O rodízio entre números não se aplica.": {
+    es: "En este canal la campaña alcanza solo a quien ya conversó con esta cuenta: no inicia conversación con quien nunca escribió. La rotación entre números no se aplica.",
+  },
+  "Este canal só deixa responder até 24 horas depois da última mensagem da pessoa, então não serve para campanha. Escolha um número de WhatsApp ou um bot do Telegram.": {
+    es: "Este canal solo permite responder hasta 24 horas después del último mensaje de la persona, por lo que no sirve para campaña. Elija un número de WhatsApp o un bot de Telegram.",
+  },
+  // Campanha: reenviar para quem falhou e a visão de calendário (lib/campanhas/calendario.ts).
+  "Reenviar para quem falhou": { es: "Reenviar a quienes fallaron" },
+  "Rascunho de reenvio criado. Confira a lista, prepare e inicie.": {
+    es: "Borrador de reenvío creado. Revise la lista, prepare e inicie.",
+  },
+  "Cria um rascunho novo só com essas pessoas. Nada é enviado antes de você preparar e iniciar.": {
+    es: "Crea un borrador nuevo solo con esas personas. No se envía nada antes de que usted prepare e inicie.",
+  },
+  "Como ver as campanhas": { es: "Cómo ver las campañas" },
+  "Carregar campanhas mais antigas": { es: "Cargar campañas más antiguas" },
+  "1 campanha sem data (rascunho ou ainda não iniciada) não aparece no calendário. Ela está na lista.": {
+    es: "1 campaña sin fecha (borrador o aún no iniciada) no aparece en el calendario. Está en la lista.",
+  },
+  "campanhas sem data (rascunho ou ainda não iniciadas) não aparecem no calendário. Elas estão na lista.": {
+    es: "campañas sin fecha (borrador o aún no iniciadas) no aparecen en el calendario. Están en la lista.",
+  },
   // Motivo da perda (lib/resultado/motivo-da-perda.ts, dashboard › Receita).
   "A IA parou no meio da análise (limite de gasto, chave ou provedor). O que já foi analisado ficou gravado.": {
     es: "La IA se detuvo en medio del análisis (límite de gasto, clave o proveedor). Lo que ya se analizó quedó guardado.",

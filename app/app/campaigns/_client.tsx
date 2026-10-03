@@ -20,12 +20,16 @@ import { useT } from "@/hooks/i18n/useT";
 import { Megaphone, Plus } from "@/lib/ui/icons";
 import { STATUS_DA_CAMPANHA } from "@/lib/campanhas/tipos";
 
+import { CalendarioDeCampanhas } from "./_components/CalendarioDeCampanhas";
+
 export function ListaDeCampanhas() {
   const t = useT();
   // A data segue quem está lendo, não o idioma de quem escreveu a tela.
   const idioma = useTagDeIdioma();
   const [status, setStatus] = useState<string>("");
-  const filtros = useMemo(() => ({ status: status || undefined, limit: 30 }), [status]);
+  const [visao, setVisao] = useState<"lista" | "calendario">("lista");
+  // O calendário precisa do mês inteiro de uma vez: busca a página maior que a API aceita.
+  const filtros = useMemo(() => ({ status: status || undefined, limit: visao === "calendario" ? 100 : 30 }), [status, visao]);
   const q = useCampanhas(filtros);
   const campanhas = useMemo(() => q.data?.pages.flatMap((p) => p.data) ?? [], [q.data]);
 
@@ -68,6 +72,14 @@ export function ListaDeCampanhas() {
             </option>
           ))}
         </select>
+        <div className="ml-auto flex items-center gap-1" role="group" aria-label={t("Como ver as campanhas")}>
+          <Button size="sm" variant={visao === "lista" ? "default" : "outline"} onClick={() => setVisao("lista")} data-testid="visao-lista">
+            {t("Lista")}
+          </Button>
+          <Button size="sm" variant={visao === "calendario" ? "default" : "outline"} onClick={() => setVisao("calendario")} data-testid="visao-calendario">
+            {t("Calendário")}
+          </Button>
+        </div>
       </div>
 
       {q.isLoading ? (
@@ -94,6 +106,17 @@ export function ListaDeCampanhas() {
             primary={{ label: t("Nova campanha"), href: "/app/campaigns/new" }}
           />
         </Card>
+      ) : visao === "calendario" ? (
+        <>
+          <CalendarioDeCampanhas campanhas={campanhas} idioma={idioma} />
+          {q.hasNextPage && (
+            <div className="flex justify-center">
+              <Button variant="outline" size="sm" onClick={() => q.fetchNextPage()} disabled={q.isFetchingNextPage}>
+                {q.isFetchingNextPage ? t("Carregando…") : t("Carregar campanhas mais antigas")}
+              </Button>
+            </div>
+          )}
+        </>
       ) : (
         <>
           <Card className="divide-y divide-border">

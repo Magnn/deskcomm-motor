@@ -107,6 +107,8 @@ export const previaSchema = z.object({
   audience_filter: filtroDeAudienciaSchema,
   message_body: z.string().max(4096).default(""),
   campaign_id: z.string().uuid().optional(),
+  /** O número da campanha: decide se o público é por telefone ou por conversa. Ausente = telefone. */
+  channel_session_id: z.string().uuid().optional(),
 });
 
 export const criarTemplateSchema = z.object({

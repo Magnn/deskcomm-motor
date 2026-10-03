@@ -15,7 +15,9 @@
  * lado do número, ele conclui que o sistema comeu a lista.
  */
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 
 import { apiClient } from "@/lib/api/client";
@@ -45,6 +47,7 @@ import { TEXTO_DA_EXCLUSAO } from "@/lib/campanhas/tipos";
 
 export function DetalheDaCampanha({ id }: { id: string }) {
   const t = useT();
+  const router = useRouter();
   const campanha = useCampanha(id);
   const metricas = useMetricasDaCampanha(id, campanha.data?.status);
   const [filtroDeStatus, setFiltroDeStatus] = useState("");
@@ -208,6 +211,33 @@ export function DetalheDaCampanha({ id }: { id: string }) {
             {m.contagem.pendentes} {t("ainda não enviadas")} · {m.contagem.falharam} {t("falharam")} ·{" "}
             {m.contagem.optOut} {t("pediram para parar")}
           </p>
+          {m.contagem.falharam > 0 && (
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={acao.isPending}
+                data-testid="reenviar-falhas"
+                onClick={() =>
+                  acao.mutate(
+                    { acao: "reenviar-falhas" },
+                    {
+                      onSuccess: (r) => {
+                        const nova = r.data as { id?: string; pessoas?: number };
+                        toast.success(t("Rascunho de reenvio criado. Confira a lista, prepare e inicie."));
+                        if (nova.id) router.push(`/app/campaigns/${nova.id}`);
+                      },
+                    },
+                  )
+                }
+              >
+                {t("Reenviar para quem falhou")}
+              </Button>
+              <span className="text-xs text-muted-foreground">
+                {t("Cria um rascunho novo só com essas pessoas. Nada é enviado antes de você preparar e iniciar.")}
+              </span>
+            </div>
+          )}
         </Card>
       )}
 
@@ -516,6 +546,7 @@ const ROTULO_DA_ACAO: Record<AcaoDeCampanha, string> = {
   retomar: "Retomar",
   cancelar: "Cancelar campanha",
   duplicar: "Duplicar",
+  "reenviar-falhas": "Reenviar para quem falhou",
   testar: "Enviar teste",
 };
 

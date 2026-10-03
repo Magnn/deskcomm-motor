@@ -112,6 +112,31 @@ export const FILTRO_VAZIO = {
   limite: 500,
 } satisfies FiltroDeAudiencia;
 
+/**
+ * O filtro tem algum RECORTE — um critério que seleciona gente pelo que ela é?
+ *
+ * "Incluir à mão" não é recorte: é uma lista. Um filtro que só tem a lista não
+ * pode rodar a consulta do recorte, porque ela, sem critério nenhum, devolve os
+ * primeiros contatos da organização inteira — e a campanha "só para estas 12
+ * pessoas" sairia para 500.
+ */
+export function temRecorte(f: FiltroDeAudiencia): boolean {
+  return (
+    f.com_todas_tags.length > 0 ||
+    f.com_alguma_tag.length > 0 ||
+    f.sem_tags.length > 0 ||
+    f.funis.length > 0 ||
+    f.etapas.length > 0 ||
+    f.responsaveis.length > 0 ||
+    f.situacoes_do_negocio.length > 0 ||
+    f.origens.length > 0 ||
+    f.sem_interacao_ha_dias !== null ||
+    f.com_interacao_ha_dias !== null ||
+    f.cadastrado_de !== null ||
+    f.cadastrado_ate !== null
+  );
+}
+
 /** Precisa olhar `crm_leads`? Só então o join entra — join à toa custa em toda prévia. */
 export function usaNegocio(filtro: FiltroDeAudiencia): boolean {
   return (
