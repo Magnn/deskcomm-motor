@@ -32,11 +32,13 @@
  * do que estava.
  */
 import type { Idioma } from "./idiomas";
+import { TRADUCOES_PAGINA_INICIAL } from "./pagina-inicial";
 
 /** `pt-BR` não aparece: é a chave. Só o que DIFERE precisa de linha. */
 type Traducoes = Record<string, Partial<Record<Exclude<Idioma, "pt-BR">, string>>>;
 
 export const DICIONARIO: Traducoes = {
+  ...TRADUCOES_PAGINA_INICIAL,
 
   // ── Dashboard de Vendas e Atendimento ─────────────────────────────────────
   "Visão geral de vendas, atendimento, taxas de conversão e métricas da operação.": { es: "Visión general de ventas, atención, tasas de conversión y métricas de la operação." },
