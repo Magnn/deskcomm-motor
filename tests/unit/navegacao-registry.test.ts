@@ -83,8 +83,8 @@ describe("sidebarGroups", () => {
 
   it("só inclui destino marcado como sidebar", () => {
     const hrefs = sidebarGroups(true, null).flatMap((g) => g.items.map((i) => i.href));
-    // Conhecimento existe no registro, mas é do hub — não do sidebar.
-    expect(hrefs).not.toContain("/app/ai/knowledge/sources");
+    // Memória existe no registro, mas é do hub — não do sidebar.
+    expect(hrefs).not.toContain("/app/ai/memory");
     expect(hrefs).toContain("/app/ai/agents");
   });
 
@@ -104,37 +104,14 @@ describe("sidebarGroups", () => {
   });
 
   it("o CRM tem hub, e o sidebar dele fica só com o uso diário", () => {
-    // A decisão que devolveu a dobra em 900px (e2e `navegacao.spec.ts`): quando
-    // Tarefas virou o quinto destino de CRM, o menu passou a rolar por 13px.
-    // O conserto foi o hub — o desenho que o grupo IA já usava —, não mais
-    // densidade raspada do `Sidebar.tsx`.
-    //
-    // A lista é EXATA de propósito. `toContain` deixaria um sexto item entrar
-    // calado no sidebar e reabrir a mesma corrida por pixel.
-    //
-    // Comandas NÃO entra: ela chegou pedindo a quarta linha, e o e2e mediu o
-    // menu rolando em 1280×900 — a mesma corrida por pixel que o hub existe
-    // para encerrar. Ela mora dentro do hub, em "O dia a dia da venda", que é
-    // onde o grupo com hub recebe tela nova (ver o comentário no destino, em
-    // lib/navigation/catalogo.ts).
-
-    // `/app/prospecting` NÃO está aqui, e a ausência é decisão, não esquecimento:
-    // a tela existe e é alcançável pelo hub e pelo ⌘K, mas o menu já está no
-    // limite — com ela seriam 20 portas e o e2e reprova por scroll em 900px. A
-    // razão e a condição que encerram a exceção estão ao lado do item, em
-    // `lib/navigation/catalogo.ts`.
     const crm = sidebarGroups(true, null).find((g) => g.group.id === "crm");
     expect(crm?.items.map((i) => i.href)).toEqual([
       "/app/kanban",
+      "/app/campaigns",
+      "/app/lancamentos",
       "/app/contacts",
       "/app/tasks",
-      // "/app/calls" (telefonia por SIP) NÃO entra aqui, e a ausência é a
-      // decisão: o módulo é OPCIONAL e nasce desligado (doc 27), então a porta
-      // no sidebar custaria um item a TODA instalação — e o vigésimo item é o
-      // que faz o menu rolar em 900px, que é a corrida por pixel que este
-      // teste existe para vigiar. A tela vive no hub do grupo e no ⌘K. Volta
-      // para cá no dia em que o app souber que o módulo está ligado (hoje isso
-      // é profile do compose, não estado que o aplicativo conheça).
+      "/app/products",
     ]);
     // E continua alcançável: o hub é a porta dela.
     expect(
@@ -151,16 +128,13 @@ describe("sidebarGroups", () => {
   });
 
   it("a ordem dentro do grupo de IA é a do uso real: agentes, fluxos, roteadores, voz", () => {
-    // Voice Studio está no menu por decisão do dono (o menu rola). Provedores e Execuções NÃO entram aqui, e a razão é medida: pô-las na
-    // sidebar estourou a dobra em 900px (e2e `navegacao.spec.ts`). Elas seguem
-    // o padrão das outras nove telas do grupo — alcançáveis pelo hub "Ver tudo
-    // em IA", que é o desenho existente para tela de configuração.
     const ia = sidebarGroups(true, null).find((g) => g.group.id === "ia");
     expect(ia?.items.map((i) => i.href)).toEqual([
       "/app/ai/agents",
       "/app/ai/followups",
       "/app/ai/routers",
       "/app/ai/voice",
+      "/app/ai/knowledge/sources",
     ]);
   });
 });
