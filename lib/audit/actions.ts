@@ -174,6 +174,8 @@ export const AUDIT_ACTIONS = [
   // Messenger direto (`lib/channels/messenger/`). A desconexão é a do canal
   // (`channel.archived`/`channel.deleted`), pela rota padrão de excluir canal.
   "messenger.paginas_conectadas",
+  // Telegram (`lib/channels/telegram/`). Desconexão = a do canal, como o Messenger.
+  "telegram.bot_conectado",
   "instagram.conta_conectada",
   "instagram.conta_desconectada",
   "instagram.regra_criada",

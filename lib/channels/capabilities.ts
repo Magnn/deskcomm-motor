@@ -119,6 +119,21 @@ export const CHANNEL_CAPABILITIES: Record<ProviderDeMensagem, ChannelCapabilitie
     groups: "none",
     costPerMessage: false,
   },
+  // Telegram: o bot fala quando quiser (não há janela de 24h nem modelo
+  // aprovado), não é cobrado e não é banido por volume como um número de
+  // WhatsApp. O limite da plataforma é de ritmo: cerca de 1 mensagem por
+  // segundo por conversa. Nota de voz precisa chegar em OGG/Opus para tocar
+  // como voz — quem envia converte.
+  telegram_bot: {
+    freeformOutsideWindow: true,
+    requiresTemplates: false,
+    canManageTemplates: false,
+    banRisk: false,
+    minIntervalMs: 1000,
+    voiceNote: "opus-only",
+    groups: "none",
+    costPerMessage: false,
+  },
 };
 
 /**
@@ -145,6 +160,8 @@ export const CHANNEL_PROVIDER_ZERNIO: ChannelProvider = "zernio";
 export const CHANNEL_PROVIDER_DATAFY: ChannelProvider = "datafy";
 /** Messenger direto: a página do Facebook pela Graph API, sem intermediário. */
 export const CHANNEL_PROVIDER_MESSENGER: ChannelProvider = "meta_messenger";
+/** Telegram: o bot da empresa, pela Bot API. */
+export const CHANNEL_PROVIDER_TELEGRAM: ChannelProvider = "telegram_bot";
 /** Chamada de voz WhatsApp (spec 18). Não transporta mensagem — ver abaixo. */
 export const CHANNEL_PROVIDER_WACALLS: ChannelProvider = "wacalls";
 
@@ -170,6 +187,7 @@ export const PROVIDERS_DE_MENSAGEM = [
   "zernio_social",
   "datafy",
   "meta_messenger",
+  "telegram_bot",
 ] as const satisfies readonly ProviderDeMensagem[];
 
 /**

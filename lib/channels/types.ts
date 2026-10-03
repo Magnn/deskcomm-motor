@@ -9,7 +9,7 @@ import type { OutboundMedia } from "@/lib/waha/media-send";
 
 export type { OutboundMedia };
 
-export type ChannelProvider = "waha" | "meta_cloud" | "zernio" | "zernio_social" | "wacalls" | "datafy" | "meta_messenger";
+export type ChannelProvider = "waha" | "meta_cloud" | "zernio" | "zernio_social" | "wacalls" | "datafy" | "meta_messenger" | "telegram_bot";
 
 /**
  * Os providers que transportam MENSAGEM — o subconjunto sobre o qual a matriz

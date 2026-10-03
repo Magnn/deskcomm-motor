@@ -39,9 +39,18 @@ import { SOCIAL_NETWORKS } from "./social/catalog";
  * dele é o WAHA/Meta, não o intermediário social. Fica explícito aqui, e é a
  * única parte escrita à mão.
  */
+/**
+ * Canais de conversa que NÃO vêm do catálogo do intermediário: o CRM fala com a
+ * plataforma direto. Ficam declarados aqui, e não com `inbox: true` no catálogo
+ * do intermediário, porque lá a marca diria "o intermediário entrega DM desta
+ * rede" — e ele não entrega.
+ */
+export const CANAIS_NATIVOS = ["telegram"] as const;
+
 export const CANAIS_DE_CONVERSA = [
   "whatsapp",
   ...SOCIAL_NETWORKS.filter((rede) => rede.inbox).map((rede) => rede.id),
+  ...CANAIS_NATIVOS,
 ] as const satisfies readonly string[];
 
 export type CanalDeConversa = (typeof CANAIS_DE_CONVERSA)[number];

@@ -13431,6 +13431,59 @@ export const DICIONARIO: Traducoes = {
   },
   "Uma das páginas não pôde ser conectada.": { es: "Una de las páginas no pudo conectarse." },
   "Motivo informado pela Meta:": { es: "Motivo informado por Meta:" },
+  "Não foi possível desconectar.": { es: "No fue posible desconectar." },
+  // Telegram (lib/channels/telegram/, Conexões › Telegram).
+  Telegram: { es: "Telegram" },
+  "Bot conectado:": { es: "Bot conectado:" },
+  "O bot foi gravado, mas o recebimento não ligou. Veja o motivo no cartão.": {
+    es: "El bot se guardó, pero la recepción no se activó. Vea el motivo en la tarjeta.",
+  },
+  "Não foi possível conectar o bot.": { es: "No fue posible conectar el bot." },
+  "As conversas com o seu bot chegam na caixa de entrada, e o agente e os fluxos respondem. No Telegram não há janela de 24h: o bot responde a qualquer hora quem já falou com ele.": {
+    es: "Las conversaciones con su bot llegan a la bandeja de entrada, y el agente y los flujos responden. En Telegram no hay ventana de 24 h: el bot responde en cualquier momento a quien ya le habló.",
+  },
+  "No Telegram, abra o @BotFather e envie /newbot (ou /token para um bot que já existe).": {
+    es: "En Telegram, abra @BotFather y envíe /newbot (o /token para un bot que ya existe).",
+  },
+  "Copie o token que ele devolve e cole abaixo.": { es: "Copie el token que devuelve y péguelo abajo." },
+  "Token do bot": { es: "Token del bot" },
+  "Conectar bot": { es: "Conectar bot" },
+  "Se o bot estava ligado em outra plataforma, ele passa a responder só por aqui.": {
+    es: "Si el bot estaba conectado en otra plataforma, pasa a responder solo por aquí.",
+  },
+  "Não foi possível carregar o Telegram.": { es: "No fue posible cargar Telegram." },
+  "Nenhum bot conectado ainda.": { es: "Aún no hay ningún bot conectado." },
+  "O recebimento deste bot não ligou. Cole o token de novo para tentar outra vez.": {
+    es: "La recepción de este bot no se activó. Pegue el token de nuevo para intentarlo otra vez.",
+  },
+  "Motivo informado pelo Telegram:": { es: "Motivo informado por Telegram:" },
+  "As mensagens deste bot deixam de chegar ao CRM e o webhook dele é desligado. O histórico de conversas continua guardado, e conectar o bot de novo retoma as mesmas conversas.": {
+    es: "Los mensajes de este bot dejan de llegar al CRM y su webhook se desactiva. El historial de conversaciones sigue guardado, y conectar el bot de nuevo retoma las mismas conversaciones.",
+  },
+  "Bot desconectado. As conversas continuam no inbox.": { es: "Bot desconectado. Las conversaciones siguen en la bandeja de entrada." },
+  "Cole o token do bot.": { es: "Pegue el token del bot." },
+  "Configure o endereço público da instalação (https) antes de conectar o Telegram.": {
+    es: "Configure la dirección pública de la instalación (https) antes de conectar Telegram.",
+  },
+  "Não foi possível falar com o Telegram. Tente de novo em instantes.": {
+    es: "No fue posible comunicarse con Telegram. Inténtelo de nuevo en unos instantes.",
+  },
+  "Este não parece um token do BotFather. Ele tem a forma 123456789:AA…": {
+    es: "Esto no parece un token de BotFather. Tiene la forma 123456789:AA…",
+  },
+  "O Telegram recusou este token. Confira no BotFather (/token) e cole de novo.": {
+    es: "Telegram rechazó este token. Revíselo en BotFather (/token) y péguelo de nuevo.",
+  },
+  "A chave de cifra da instalação não está disponível: o token não foi gravado.": {
+    es: "La clave de cifrado de la instalación no está disponible: el token no se guardó.",
+  },
+  "Não foi possível recuperar o segredo do webhook deste bot.": { es: "No fue posible recuperar el secreto del webhook de este bot." },
+  "Não foi possível atualizar o bot.": { es: "No fue posible actualizar el bot." },
+  "Não foi possível reativar o bot.": { es: "No fue posible reactivar el bot." },
+  "Não foi possível gravar o bot.": { es: "No fue posible guardar el bot." },
+  "Este bot já atende outra empresa nesta instalação. Um bot só pode estar em um lugar.": {
+    es: "Este bot ya atiende a otra empresa en esta instalación. Un bot solo puede estar en un lugar.",
+  },
 };
 
 /**
