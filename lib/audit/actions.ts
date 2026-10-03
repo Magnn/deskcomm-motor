@@ -192,6 +192,8 @@ export const AUDIT_ACTIONS = [
   "lancamento.disparo_cancelado",
   // A rodada do relógio que MANDOU disparo a algum grupo ou abriu grupo novo.
   "cron.lancamentos",
+  // A rodada que reconheceu marco novo de conversa (oferta apresentada, objeção).
+  "cron.marcos_da_conversa",
   // Planos (`lib/planos/`): o pagamento pôs o plano em dia, a falta dele o
   // derrubou, ou o dono da instalação definiu o plano à mão.
   "tenant.plano_ativado",

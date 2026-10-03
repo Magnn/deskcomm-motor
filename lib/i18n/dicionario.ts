@@ -13418,6 +13418,39 @@ export const DICIONARIO: Traducoes = {
   "Sem agente de IA antes da compra": { es: "Sin agente de IA antes de la compra" },
   "Sem fluxo antes da compra": { es: "Sin flujo antes de la compra" },
   "Agente removido": { es: "Agente eliminado" },
+  // Funil da conversa (lib/resultado/funil-da-conversa.ts, dashboard › Receita).
+  "Montando o funil da conversa…": { es: "Armando el embudo de la conversación…" },
+  "Não foi possível montar o funil da conversa.": { es: "No fue posible armar el embudo de la conversación." },
+  "Funil da conversa": { es: "Embudo de la conversación" },
+  "Das conversas que começaram no período, até onde cada uma chegou.": { es: "De las conversaciones que comenzaron en el período, hasta dónde llegó cada una." },
+  "Onde a conversa para": { es: "Dónde se detiene la conversación" },
+  "Cada conversa que não comprou, na casa mais avançada a que chegou. Clique para ver as conversas.": {
+    es: "Cada conversación que no compró, en la etapa más avanzada a la que llegó. Haga clic para ver las conversaciones.",
+  },
+  "não listadas": { es: "no listadas" },
+  "O período tem mais conversas do que a tela soma de uma vez: escolha um período menor para ver tudo.": {
+    es: "El período tiene más conversaciones de las que la pantalla suma de una vez: elija un período menor para ver todo.",
+  },
+  "A oferta e a objeção são reconhecidas por regra (preço ou link de pagamento enviado; reclamação de valor ou frase da aba Objeções) e entram alguns minutos depois da mensagem.": {
+    es: "La oferta y la objeción se reconocen por regla (precio o enlace de pago enviado; queja de valor o frase de la pestaña Objeciones) y entran unos minutos después del mensaje.",
+  },
+  "Foram atendidas": { es: "Fueron atendidas" },
+  "Receberam a oferta": { es: "Recibieron la oferta" },
+  Compraram: { es: "Compraron" },
+  "Ficaram sem resposta": { es: "Quedaron sin respuesta" },
+  "A pessoa escreveu e ninguém respondeu.": { es: "La persona escribió y nadie respondió." },
+  "Atendidas, sem oferta": { es: "Atendidas, sin oferta" },
+  "Houve conversa, mas o preço ou o link de pagamento nunca foi enviado.": { es: "Hubo conversación, pero el precio o el enlace de pago nunca se envió." },
+  "Oferta → silêncio": { es: "Oferta → silencio" },
+  "Receberam a oferta e não escreveram mais nada.": { es: "Recibieron la oferta y no escribieron nada más." },
+  "Objeção → não compraram": { es: "Objeción → no compraron" },
+  "Reclamaram do valor ou levantaram uma objeção cadastrada, e não compraram.": {
+    es: "Se quejaron del valor o plantearon una objeción registrada, y no compraron.",
+  },
+  "Conversaram depois da oferta e não compraram": { es: "Conversaron después de la oferta y no compraron" },
+  "Seguiram falando depois da oferta, sem objeção reconhecida e sem compra.": {
+    es: "Siguieron hablando después de la oferta, sin objeción reconocida y sin compra.",
+  },
   // Messenger direto (lib/channels/messenger/, Conexões › Messenger).
   Messenger: { es: "Messenger" },
   "Messenger (página do Facebook)": { es: "Messenger (página de Facebook)" },

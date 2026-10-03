@@ -21,6 +21,7 @@ import {
   WhatsappLogo,
   Info,
 } from "@phosphor-icons/react";
+import { FunilDaConversaPainel } from "./FunilDaConversaPainel";
 import { ReceitaAtribuidaPainel } from "./ReceitaAtribuidaPainel";
 
 interface KPI {
@@ -1178,7 +1179,12 @@ export function DashboardClient({ orgName }: { orgName: string }) {
           </div>
         </div>
       )}
-      {activeTab === "receita" && <ReceitaAtribuidaPainel period={period} tagDoIdioma={tagDoIdioma} />}
+      {activeTab === "receita" && (
+        <div className="space-y-6">
+          <ReceitaAtribuidaPainel period={period} tagDoIdioma={tagDoIdioma} />
+          <FunilDaConversaPainel period={period} />
+        </div>
+      )}
     </div>
   );
 }

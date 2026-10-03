@@ -86,6 +86,9 @@ const TABELAS = [
   "instagram_connections",
   "instagram_comment_rules",
   "instagram_comment_events",
+  // 0913. Marcos da conversa: grava a rotina do servidor, lê a rota da tela
+  // (manager+), sempre escopada pela organização. Deny-all.
+  "conversation_milestones",
 ] as const;
 
 function erroSob(papel: string, comando: string): string | null {

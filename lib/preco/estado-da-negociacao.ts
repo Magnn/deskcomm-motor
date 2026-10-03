@@ -28,9 +28,9 @@ export interface MensagemParaContar {
   body: string | null | undefined;
 }
 
-const PRECO_DITO = /R\$\s?\d|\b\d+(?:[.,]\d+)?\s*reais?\b/i;
+export const PRECO_DITO = /R\$\s?\d|\b\d+(?:[.,]\d+)?\s*reais?\b/i;
 
-const RECLAMACAO_DE_VALOR = new RegExp(
+export const RECLAMACAO_DE_VALOR = new RegExp(
   [
     "(?:t[áa]|est[áa]|ficou|muito|bem|meio|bastante|demais)\\s+car[oa]s?\\b",
     "\\bcar[oa]s?\\s+demais\\b",
