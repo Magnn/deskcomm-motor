@@ -26,6 +26,7 @@ import {
   type ChaveDeOrcamento,
   type ModoDeOrcamento,
 } from './orcamento';
+import { tetoDaPlataforma, type AssinaturaParaIa, type PlanosDaCamada } from './orcamento-da-plataforma';
 import type { RaciocinioDeepseek } from './providers';
 import type { CacheTtl } from './stable-prefix';
 
@@ -74,6 +75,15 @@ export interface LlmEdgeConfig {
    * exatamente onde a IA gasta.
    */
   budgetEnforcement?: ChaveDeOrcamento;
+  /**
+   * Os planos de quem vende a instalação como serviço (`PLANS_ENFORCED`,
+   * `PLANS_CATALOG`). Decidem o teto de quem usa a CHAVE DA PLATAFORMA — ver
+   * `orcamento-da-plataforma.ts`. Ausente = planos desligados: nada muda.
+   *
+   * Mesmo motivo do campo acima para viver aqui: o worker monta esta config do
+   * env DELE, e é no worker que a IA gasta.
+   */
+  planos?: PlanosDaCamada;
 }
 
 /**
@@ -93,6 +103,8 @@ export function llmEdgeConfigFromEnv(env: {
   LLM_CACHE_TTL?: string;
   AI_BUDGET_ENFORCEMENT?: string;
   DEEPSEEK_THINKING?: string;
+  PLANS_ENFORCED?: string;
+  PLANS_CATALOG?: string;
 }): LlmEdgeConfig {
   const ttl = env.LLM_CACHE_TTL ?? '1h';
   if (ttl !== '5m' && ttl !== '1h') {
@@ -113,6 +125,10 @@ export function llmEdgeConfigFromEnv(env: {
     // opcional que some faria o seam ter de repetir o default, e dois defaults
     // é como um dos dois fica para trás.
     budgetEnforcement: normalizarChaveDeOrcamento(env.AI_BUDGET_ENFORCEMENT),
+    planos: {
+      ativos: (env.PLANS_ENFORCED ?? '').trim().toLowerCase() === 'true',
+      catalogoDeclarado: env.PLANS_CATALOG ?? '',
+    },
   };
 }
 
@@ -377,6 +393,13 @@ export async function resolveOrgLlmConfig(
     throw new LlmNotConfiguredError();
   }
 
+  // A chave é da PLATAFORMA e a instalação vende por plano: o teto que vale é o
+  // do plano, não o da tela (ver `orcamento-da-plataforma.ts`).
+  const orcamentoEmVigor =
+    origemDaChave === 'chave_da_instalacao' && cfg.planos?.ativos
+      ? await orcamentoDoPlano(db, cfg.planos, organizationId)
+      : orcamento;
+
   return {
     provider,
     apiKey,
@@ -384,7 +407,28 @@ export async function resolveOrgLlmConfig(
     defaultModel: settings.default_model ?? null,
     params: settings.params,
     enabledModels: settings.enabled_models,
-    orcamento,
+    orcamento: orcamentoEmVigor,
     orcamentoIndisponivelPorque,
   };
+}
+
+/**
+ * O teto do plano da organização. Falha ao ler a assinatura (clone sem a 0908,
+ * banco instável) cai no PISO: na dúvida, a plataforma não paga IA sem limite —
+ * o decisor avisa e depois passa a conversa para uma pessoa.
+ */
+async function orcamentoDoPlano(db: pg.Pool, planos: PlanosDaCamada, organizationId: string): Promise<OrcamentoDaOrg> {
+  let assinatura: AssinaturaParaIa | null = null;
+  try {
+    const { rows } = await db.query<{ plan_id: string; status: string }>(
+      'select plan_id, status from organization_subscriptions where organization_id = $1 limit 1',
+      [organizationId],
+    );
+    const linha = rows[0];
+    assinatura = linha ? { planoId: linha.plan_id, status: linha.status } : null;
+  } catch {
+    assinatura = null;
+  }
+  const t = tetoDaPlataforma(planos, assinatura);
+  return { modo: t.modo, tetoCents: t.tetoCents, efetivoEm: t.efetivoEm, limiarPct: t.limiarPct };
 }
