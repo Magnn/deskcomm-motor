@@ -15,7 +15,8 @@ const brands = {
 };
 
 export function ChannelLogo({ channel, size = 18, className }: {
-  channel?: ChannelSummary | null;
+  /** Só o que decide a marca: o filtro por rede desenha o logotipo sem ter uma conversa em mãos. */
+  channel?: Pick<ChannelSummary, "provider" | "social_platform"> | null;
   size?: number;
   className?: string;
 }) {

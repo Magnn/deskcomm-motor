@@ -5,6 +5,7 @@
  * /api/v1/messages. Validações compartilhadas entre rota REST e webhooks
  * (quando o payload entra na pipeline pós-verificação HMAC).
  */
+import { CANAIS_DE_CONVERSA } from "@/lib/channels/canais-de-conversa";
 import { z } from "zod";
 import { COMANDOS_DO_BANCO, type ComandoDoBanco } from "@/lib/inbox/comando-da-conversa";
 import { PISO_DA_BUSCA, buscaValeConsulta } from "@/lib/inbox/termo-de-busca";
@@ -314,6 +315,13 @@ export const listConversationsQuerySchema = z.object({
   exclude_finished: z.boolean().optional(),
   assigned_to: z.union([z.string().uuid(), z.literal("me"), z.literal("unassigned")]).optional(),
   channel_session_id: z.string().uuid().optional(),
+  /**
+   * A REDE por onde a conversa entrou (`conversations.channel`): WhatsApp,
+   * Messenger, Instagram, Telegram. É o primeiro nível do filtro do inbox — com
+   * dezenas de páginas e números numa caixa só, escolher primeiro a rede é o que
+   * torna a lista navegável. O vocabulário é o mesmo do CHECK do banco.
+   */
+  channel: z.enum(CANAIS_DE_CONVERSA).optional(),
   tag: conversationTagSchema.optional(),
   /**
    * Só as que têm mensagem não lida para o dono.

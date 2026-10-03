@@ -13129,6 +13129,12 @@ export const DICIONARIO: Traducoes = {
   "São resolvidas no envio do fluxo.": { es: "Se resuelven al enviar el flujo." },
   "Canal / Número de WhatsApp": { es: "Canal / Número de WhatsApp" },
   "Todos os canais": { es: "Todos los canales" },
+  // Filtro do inbox em dois níveis: rede, depois canal.
+  "Filtrar por rede": { es: "Filtrar por red" },
+  "Todas as redes": { es: "Todas las redes" },
+  "Rede sem canal conectado": { es: "Red sin canal conectado" },
+  "Filtrar por canal": { es: "Filtrar por canal" },
+  "Canal removido": { es: "Canal eliminado" },
   "Todos os números (Padrão)": { es: "Todos los números (predeterminado)" },
   "Vincule este fluxo a um número específico ou deixe disponível para todos.": { es: "Vincule este flujo a un número específico o déjelo disponible para todos." },
   "Configuração de fluxo do número salva com sucesso!": { es: "¡Configuración de flujo del número guardada con éxito!" },

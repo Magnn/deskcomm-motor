@@ -71,7 +71,7 @@ function canal(over: Partial<ChannelSession> = {}): ChannelSession {
   };
 }
 
-const SELETOR = "Filtrar por número de WhatsApp";
+const SELETOR = "Filtrar por canal";
 
 beforeEach(() => {
   setOrg("agent", "own_and_unassigned");
@@ -159,7 +159,7 @@ describe("InboxFilters — seletor de número e o filtro órfão", () => {
     );
     const seletor = screen.getByLabelText(SELETOR);
     expect(seletor).toBeInTheDocument();
-    expect(seletor).toHaveTextContent("Número removido");
+    expect(seletor).toHaveTextContent("Canal removido");
   });
 
   /**
@@ -210,13 +210,13 @@ describe("InboxFilters — seletor de número e o filtro órfão", () => {
     expect(screen.queryByLabelText("Filtrar por tag")).not.toBeInTheDocument();
   });
 
-  it("filtro que casa com a lista: nada de 'Número removido'", () => {
+  it("filtro que casa com a lista: nada de 'Canal removido'", () => {
     setOrg("manager", "all");
     canaisRef.current = [canal(), canal({ id: "canal-2", display_name: "Suporte" })];
     render(<InboxFilters value={{ ...VALUE, channel_session_id: "canal-2" }} onChange={() => {}} />);
     const seletor = screen.getByLabelText(SELETOR);
     expect(seletor).toHaveTextContent("Suporte");
-    expect(seletor).not.toHaveTextContent("Número removido");
+    expect(seletor).not.toHaveTextContent("Canal removido");
   });
 
   /**
@@ -231,6 +231,6 @@ describe("InboxFilters — seletor de número e o filtro órfão", () => {
     render(
       <InboxFilters value={{ ...VALUE, channel_session_id: "canal-1" }} onChange={() => {}} />,
     );
-    expect(screen.queryByText("Número removido")).not.toBeInTheDocument();
+    expect(screen.queryByText("Canal removido")).not.toBeInTheDocument();
   });
 });

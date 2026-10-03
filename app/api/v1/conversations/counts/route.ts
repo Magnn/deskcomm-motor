@@ -6,6 +6,7 @@
  * em modo own* recebe a contagem do SEU escopo, NUNCA o total da org — a mesma
  * garantia do listing. Head count (count:'exact', head:true) não devolve linhas.
  */
+import { ehCanalDeConversa } from "@/lib/channels/canais-de-conversa";
 import { randomUUID } from "node:crypto";
 
 import type { NextRequest } from "next/server";
@@ -51,6 +52,11 @@ export function filtrosAuxiliaresDaContagem(
   const filtros: FiltroDeContagem[] = [];
   const canal = sp.get("channel_session_id");
   if (canal) filtros.push(["channel_session_id", canal]);
+  // A rede. Valor fora do vocabulário é ignorado (não vira 500 nem lista vazia
+  // disfarçada): o banco recusaria a comparação com um texto que o CHECK não
+  // conhece só devolvendo zero, e o badge diria "0" sem a lista ter filtrado.
+  const rede = sp.get("channel");
+  if (rede && ehCanalDeConversa(rede)) filtros.push(["channel", rede]);
   // O MARCADOR não entra nesta lista, e não é esquecimento: ele não é
   // IGUALDADE numa coluna, é um `or=` sobre DUAS caixas — `conversations.tags`
   // e o campo calculado do contato. `conversations` não tem coluna `tag` (`tag`
