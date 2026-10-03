@@ -79,3 +79,31 @@ export async function requestPasswordReset(
 
   return { ok: true };
 }
+
+/**
+ * O que a tela de "esqueci a senha" guarda entre um envio e outro. O e-mail volta
+ * junto para o campo não esvaziar quando o envio falha.
+ */
+export type EstadoDoPedidoDeRedefinicao =
+  | { ok: true }
+  | { ok: false; error: "validation_error" | "rate_limited" | "request_failed"; email: string }
+  | null;
+
+/**
+ * A mesma ação, no formato que o `<form action>` entrega (estado anterior + FormData).
+ *
+ * É o que faz o formulário funcionar ANTES de o JavaScript carregar. Com só um
+ * `onSubmit`, o clique dado nesse intervalo virava o POST nativo do HTML para a
+ * própria página: o servidor devolvia a tela em branco, o e-mail digitado sumia
+ * e nenhum pedido chegava ao GoTrue — medido em produção em 2026-10-02. Sendo a
+ * ação do formulário, o Next a executa nesse POST e devolve a tela já com o
+ * resultado.
+ */
+export async function pedirRedefinicaoPeloFormulario(
+  _anterior: EstadoDoPedidoDeRedefinicao,
+  dados: FormData,
+): Promise<EstadoDoPedidoDeRedefinicao> {
+  const email = String(dados.get("email") ?? "").trim();
+  const resultado = await requestPasswordReset({ email });
+  return resultado.ok ? { ok: true } : { ok: false, error: resultado.error, email };
+}
