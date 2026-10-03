@@ -17,6 +17,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { env } from "@/lib/env";
+import { PROVIDERS_DE_NUMERO } from "@/lib/channels/capabilities";
 import { logger } from "@/lib/logger";
 
 import { lerCatalogoDeclarado, planoPorId, PLANOS_PADRAO, type Plano } from "./catalogo";
@@ -155,6 +156,9 @@ export async function situacaoDosNumeros(admin: Admin, organizationId: string): 
     .from("channel_sessions")
     .select("id", { count: "exact", head: true })
     .eq("organization_id", organizationId)
+    // Só o que É número de WhatsApp: página, rede social, bot e linha de voz não
+    // gastam o plano (a lista e o porquê estão em `lib/channels/capabilities`).
+    .in("provider", [...PROVIDERS_DE_NUMERO])
     .is("archived_at", null);
   if (error) throw new Error(`planos: contagem dos números falhou: ${error.message}`);
   const limite = assinatura?.status === "ativa" && plano ? plano.numeros : 0;
