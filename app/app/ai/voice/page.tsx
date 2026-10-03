@@ -312,13 +312,13 @@ export default function VoiceStudioPage() {
               <div className="pt-2.5 border-t border-slate-100 dark:border-zinc-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="text-[11px] text-slate-400 flex items-center gap-3">
                   <span className="px-2 py-0.5 rounded-md bg-slate-50 dark:bg-zinc-800/60 border border-slate-200/60 dark:border-zinc-700/60">
-                    {t("Custo:")}{" "}
+                    {t("Essa geração de áudio irá custar:")}{" "}
                     <strong className="text-slate-800 dark:text-zinc-200 font-semibold">
                       {texto.length} tokens
                     </strong>
                   </span>
                   <span>
-                    {t("Disponível:")}{" "}
+                    {t("Total de tokens disponíveis:")}{" "}
                     <strong className="text-slate-700 dark:text-zinc-300 font-semibold">1.000</strong>
                   </span>
                 </div>
@@ -432,7 +432,7 @@ export default function VoiceStudioPage() {
               {gerando ? (
                 <>
                   <RotateCw size={16} className="animate-spin text-indigo-200" />
-                  <span>{t("Sintetizando áudio de alta fidelidade...")}</span>
+                  <span>{t("Sintetizando áudio...")}</span>
                 </>
               ) : (
                 <>
