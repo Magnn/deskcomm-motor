@@ -328,14 +328,26 @@ export function montarUrl(caminho: string, parametros: Record<string, string>): 
   return url.toString();
 }
 
-/** As contas de anúncio que o token alcança. */
+/**
+ * As contas de anúncio que o token alcança.
+ *
+ * Duas arestas, porque há dois tipos de token nesta tabela. O de PESSOA (colado,
+ * ou do login comum) lista por `me/adaccounts`. O de USUÁRIO DO SISTEMA — o que
+ * o "Login do Facebook para Empresas" emite e que não expira — recebe 403 de
+ * permissão nessa aresta (medido em produção, código 200): as contas dele são as
+ * que a pessoa atribuiu no consentimento, em `me/assigned_ad_accounts`.
+ *
+ * A segunda só é tentada quando a primeira recusa por PERMISSÃO. Token vencido,
+ * cota e instabilidade voltam como vieram: repetir noutra aresta gastaria cota
+ * para ouvir a mesma resposta.
+ */
 export async function listarContas(
   token: string,
 ): Promise<ResultadoDeLeitura<ContaDeAnuncio[]>> {
-  const url = montarUrl("me/adaccounts", {
+  const parametros = {
     fields: "account_id,name,currency,account_status",
     limit: "200",
-  });
+  };
 
   interface ContaCrua {
     account_id?: string;
@@ -344,7 +356,17 @@ export async function listarContas(
     account_status?: number;
   }
 
-  const resultado = await buscarPaginado<ContaCrua>(url, token, "adaccounts");
+  let resultado = await buscarPaginado<ContaCrua>(montarUrl("me/adaccounts", parametros), token, "adaccounts");
+  if (!resultado.ok && resultado.falha === "permissao_insuficiente") {
+    const atribuidas = await buscarPaginado<ContaCrua>(
+      montarUrl("me/assigned_ad_accounts", parametros),
+      token,
+      "assigned_ad_accounts",
+    );
+    // Se a segunda também recusar, fica a recusa da PRIMEIRA: é ela que descreve
+    // o caso comum (token de pessoa sem `ads_read`).
+    if (atribuidas.ok) resultado = atribuidas;
+  }
   if (!resultado.ok) return resultado;
 
   const contas = resultado.dados
