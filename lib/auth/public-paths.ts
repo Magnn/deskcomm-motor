@@ -85,6 +85,9 @@ export const PUBLIC_PATHS: RegExp[] = [
   // (`lib/plataformas-de-anuncio/google/estado.ts`), não da sessão — quem
   // volta do Google não tem, e não pode ter, o cookie.
   /^\/api\/v1\/plataformas-de-anuncio\/google\/callback$/,
+  // Volta do login do Facebook que conecta o Meta Ads. Mesma natureza: a
+  // organização vem do `state` assinado (`lib/plataformas-de-anuncio/meta/login.ts`).
+  /^\/api\/v1\/plataformas-de-anuncio\/meta\/callback$/,
   /^\/api\/v1\/integrations\/nuvemshop\/callback$/,
   /^\/api\/internal\//,
   /^\/api\/mcp(\/.*)?$/,

@@ -111,6 +111,12 @@ const schema = z.object({
    */
   META_APP_ID: z.string().optional().default(""),
   META_MESSENGER_CONFIG_ID: z.string().optional().default(""),
+  /**
+   * META ADS PELO LOGIN DO FACEBOOK. Opcional: a configuração do "Login do
+   * Facebook para Empresas" com `ads_read`. Sem ela, o login pede a permissão
+   * pela lista avulsa. O app é o mesmo (`META_APP_ID` + `appDaMeta()`).
+   */
+  META_ADS_CONFIG_ID: z.string().optional().default(""),
   PLANS_CATALOG: z.string().optional().default(""),
 
   // Laboratório local de extensões: origem HTTP exata em 127.0.0.1. O cliente
