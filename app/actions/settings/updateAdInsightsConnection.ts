@@ -150,15 +150,32 @@ export async function updateAdInsightsConnection(
     valores.access_token_encrypted = cifrado;
   }
 
-  // `upsert` e não `update`: a linha não existe em quem nunca conectou, e um
-  // `update` casaria zero linhas devolvendo SUCESSO — a tela diria "salvo" e
-  // nada seria gravado. Mesmo modo de falha que a #144 mediu em `organizations`.
-  // O `onConflict` é o índice único `(organization_id, platform)` da 0214.
-  const { error } = await admin
-    .from("ad_insights_connections")
-    .upsert(valores, { onConflict: "organization_id,platform" });
+  if (existente && !parsed.data.access_token) {
+    // Só a conta padrão muda. Aqui o `upsert` NÃO serve: o Postgres valida o
+    // NOT NULL de `access_token_encrypted` (0214) na linha a INSERIR antes de
+    // olhar o conflito, e recusa — medido em produção, a escolha da conta dava
+    // "Não consegui gravar agora". O `update` devolve a linha tocada, e zero
+    // linhas é falha: a tela não pode dizer "salvo" sem ter gravado.
+    const { data: tocadas, error } = await admin
+      .from("ad_insights_connections")
+      .update(valores)
+      .eq("organization_id", activeOrg.orgId)
+      .eq("platform", parsed.data.platform)
+      .select("id");
 
-  if (error) return { ok: false, error: "erro_ao_gravar", details: error.message };
+    if (error) return { ok: false, error: "erro_ao_gravar", details: error.message };
+    if ((tocadas ?? []).length === 0) return { ok: false, error: "erro_ao_gravar", details: "nenhuma linha" };
+  } else {
+    // `upsert` e não `update`: a linha não existe em quem nunca conectou, e um
+    // `update` casaria zero linhas devolvendo SUCESSO — a tela diria "salvo" e
+    // nada seria gravado. Mesmo modo de falha que a #144 mediu em `organizations`.
+    // O `onConflict` é o índice único `(organization_id, platform)` da 0214.
+    const { error } = await admin
+      .from("ad_insights_connections")
+      .upsert(valores, { onConflict: "organization_id,platform" });
+
+    if (error) return { ok: false, error: "erro_ao_gravar", details: error.message };
+  }
 
   const hdrs = await headers();
   await audit({
