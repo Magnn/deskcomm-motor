@@ -55,6 +55,8 @@ const MESES: Record<string, number> = {
 
 const DATA_NUMERICA = /\b(\d{1,2})[/.-](\d{1,2})[/.-](\d{2,4})\b/;
 const DATA_POR_EXTENSO = /\b(\d{1,2})\s+de\s+([a-zç]+)\s+de\s+(\d{4})\b/;
+/** A mesma data por extenso, sobre o texto ORIGINAL (com maiúsculas e acentos), para tirá-la de um texto. */
+const DATA_POR_EXTENSO_BRUTA = /\b\d{1,2}\s+de\s+\p{L}+\s+de\s+\d{4}\b/iu;
 
 const semAcento = (s: string) => s.normalize("NFD").replace(/\p{M}/gu, "");
 
@@ -112,7 +114,9 @@ function preencher(
         parciais[c.chave] = ja;
       }
     } else if (agenteJaFalou && corpo.trim() !== "") {
-      valores[c.chave] = corpo.trim().slice(0, 200);
+      // "Ana, 12/03/1990" responde nome E nascimento: a data é do campo de data, não do nome.
+      const semData = corpo.replace(DATA_NUMERICA, " ").replace(DATA_POR_EXTENSO_BRUTA, " ").replace(/^[\s,;.-]+|[\s,;.-]+$/g, "");
+      valores[c.chave] = (semData !== "" ? semData : corpo.trim()).slice(0, 200);
     }
   }
 }

@@ -113,6 +113,17 @@ describe("estadoDaJornada", () => {
     expect(e.faltam.map((c) => c.chave)).toEqual(["nome"]);
   });
 
+  it("nome e data na mesma mensagem: o texto fica sem a data", () => {
+    const e = estadoDaJornada(JORNADA, [
+      lead("oi"), agente("Vamos?"), lead("sim"), agente("Nome e nascimento?"), lead("Ana, 12/03/1990"),
+    ]);
+    expect(e.valores).toMatchObject({ nome: "Ana", nascimento: "12/03/1990" });
+    const extenso = estadoDaJornada(JORNADA, [
+      lead("oi"), agente("Vamos?"), lead("sim"), agente("Nome e nascimento?"), lead("Sou a Ana, 12 de Março de 1990."),
+    ]);
+    expect(extenso.valores).toMatchObject({ nome: "Sou a Ana", nascimento: "12/03/1990" });
+  });
+
   it("a última etapa não termina, e liberar é cumulativo", () => {
     const final = estadoDaJornada(JORNADA, [
       lead("oi"), agente("Vamos?"), lead("sim"), agente("Nome e nascimento?"), lead("Ana 12/03/1990"),
