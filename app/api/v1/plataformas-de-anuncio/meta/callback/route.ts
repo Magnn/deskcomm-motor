@@ -32,15 +32,33 @@ import { encryptWebhookSecret } from "@/lib/webhooks/secrets";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
+/**
+ * A volta é uma PONTE (200 com HTML), não um 302 — a mesma de
+ * `app/api/v1/agenda/google/callback/route.ts`, onde o porquê está medido em
+ * navegador: num redirect vindo do Facebook o cookie `SameSite=Strict` não
+ * viaja, e a pessoa caía na tela de login logo depois de conectar. Com a
+ * navegação disparada por um documento nosso, o cookie viaja.
+ */
 function voltar(parametros: Record<string, string>): Response {
   const base = (env.NEXT_PUBLIC_APP_URL ?? "").replace(/\/+$/, "");
-  return new Response(null, {
-    status: 302,
-    headers: {
-      Location: `${base}/app/settings/meta-ads?${new URLSearchParams(parametros).toString()}`,
-      "Cache-Control": "no-store",
-    },
-  });
+  const destino = `${base}/app/settings/meta-ads?${new URLSearchParams(parametros).toString()}`;
+  const seguro = destino
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+  return new Response(
+    `<!doctype html><html lang="pt-br"><head><meta charset="utf-8">` +
+      `<meta name="robots" content="noindex">` +
+      `<noscript><meta http-equiv="refresh" content="0;url=${seguro}"></noscript>` +
+      `<title>Voltando…</title></head><body>` +
+      `<p>Voltando para as configurações…</p>` +
+      // `<` escapado: o destino entra num <script>, e `</script>` num parâmetro o fecharia.
+      `<script>location.replace(${JSON.stringify(destino).replace(/</g, "\\u003c")})</script>` +
+      `<noscript><p><a href="${seguro}">Continuar</a></p></noscript>` +
+      `</body></html>`,
+    { status: 200, headers: { "content-type": "text/html; charset=utf-8", "Cache-Control": "no-store" } },
+  );
 }
 
 export async function GET(req: NextRequest): Promise<Response> {
