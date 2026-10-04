@@ -50,17 +50,12 @@ export function sortearCartas(contatoId: string, numerosEscolhidos: readonly num
   if (numerosEscolhidos.length !== 3) {
     throw new Error(`sortearCartas espera exatamente 3 números escolhidos, recebeu ${numerosEscolhidos.length}`);
   }
-  const semente = `${contatoId}:${[...numerosEscolhidos].sort((a, b) => a - b).join(",")}`;
-  const rng = pseudoAleatorioDaSemente(semente);
-  // Fisher-Yates com o rng determinístico — embaralha o baralho inteiro e
-  // pega as 3 primeiras, então duas pessoas com a mesma semente nunca tiram
-  // carta repetida entre si na mesma leitura.
-  const baralho = [...BARALHO];
-  for (let i = baralho.length - 1; i > 0; i--) {
-    const j = Math.floor(rng() * (i + 1));
-    [baralho[i], baralho[j]] = [baralho[j]!, baralho[i]!];
-  }
-  return [baralho[0]!, baralho[1]!, baralho[2]!];
+  // Mapeamento direto: o número que o lead escolheu na mesa numerada de 1 a 22
+  // é exatamente a carta que ele destrava, garantindo 100% de coerência visual e textual.
+  const c1 = CARTA_POR_ID.get(numerosEscolhidos[0]!) ?? BARALHO[0]!;
+  const c2 = CARTA_POR_ID.get(numerosEscolhidos[1]!) ?? BARALHO[1]!;
+  const c3 = CARTA_POR_ID.get(numerosEscolhidos[2]!) ?? BARALHO[2]!;
+  return [c1, c2, c3];
 }
 
 /** "3, 7 e 15" ou "a 3, a 8, a 22" → [3, 7, 15]. `null` se não achar exatamente 3 distintos no baralho. */

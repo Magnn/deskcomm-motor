@@ -70,3 +70,13 @@ it('janelaDeRajada: sem debounce não há janela; com debounce a janela é agora
   expect(janelaDeRajada(0, AGORA)).toBeUndefined();
   expect(janelaDeRajada(750, AGORA)?.getTime()).toBe(AGORA + 750);
 });
+
+it('job em retry (attempts > 0) não recebe carona — a consulta exige attempts = 0', async () => {
+  const chamadas: string[] = [];
+  const pool = poolFalso((sql) => (sql.includes('attempts = 0') ? [] : [{ id: 'job-em-retry' }]), chamadas);
+
+  const decisao = await decidirRajada(pool, alvo, 500, AGORA);
+
+  expect(chamadas[0]).toContain('attempts = 0');
+  expect(decisao).toEqual({ tipo: 'enfileirar', runAfter: new Date(AGORA + 500) });
+});

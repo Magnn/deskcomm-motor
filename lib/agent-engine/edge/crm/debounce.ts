@@ -38,6 +38,7 @@ import type pg from 'pg';
 const SQL_JOB_PARA_COALESCER = `select id from job_queue
  where organization_id = $1 and contact_id = $2
    and kind = 'inbound_turn' and status = 'pending' and run_after > now()
+   and attempts = 0
    and not (payload ? 'held_run_after')
  limit 1`;
 
