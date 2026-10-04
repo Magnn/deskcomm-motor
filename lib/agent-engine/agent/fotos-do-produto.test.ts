@@ -163,6 +163,19 @@ describe("enviarComFotos — o texto é a legenda da primeira foto", () => {
     expect(r.kind).toBe("blocked");
     expect(c.enviados).toHaveLength(1);
   });
+
+  it("com splitOpts ativo: a capa leva a 1ª bolha como legenda, e as demais vão como texto em micro-balões", async () => {
+    const c = canal();
+    const texto = "CARTA 1: A Justiça\n\nOlha a balança sagrada.\n\nO que você sentiu?";
+    await enviarComFotos(texto, [FOTO_1], {
+      ...c.opts,
+      splitOpts: { enabled: true, maxChars: 100 },
+    });
+    expect(c.enviados).toEqual([
+      { tipo: "foto", corpo: "CARTA 1: A Justiça", foto: FOTO_1.storagePath },
+      { tipo: "texto", corpo: "Olha a balança sagrada.\n\nO que você sentiu?" },
+    ]);
+  });
 });
 
 describe("corpoDoEnvio — a foto chega ao handler como imagem da conversa", () => {

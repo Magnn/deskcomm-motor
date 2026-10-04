@@ -18,7 +18,7 @@ import { BUCKET_DAS_FOTOS, fotoPertenceAoProduto, mimeDaFoto } from '@/lib/catal
 import { createAdminClient } from '@/lib/supabase/admin';
 
 import type { Queryable } from '../queue/queue';
-import { OK_KINDS, type BubbleOutcome } from './split-message';
+import { OK_KINDS, splitForSend, type BubbleOutcome } from './split-message';
 
 /** Teto de legenda de imagem do WhatsApp. Texto maior sai como texto, antes das fotos. */
 export const LIMITE_DA_LEGENDA = 1024;
@@ -119,11 +119,35 @@ export async function enviarComFotos<T extends BubbleOutcome>(
     sleep: (ms: number) => Promise<void>;
     jitter: () => number;
     restantes?: () => number;
+    splitOpts?: { enabled: boolean; maxChars: number };
   },
 ): Promise<T> {
   const cabeMaisUma = () => (opts.restantes?.() ?? Number.POSITIVE_INFINITY) > 0;
   const [capa, ...demais] = fotos;
   if (!capa || !cabeMaisUma()) return opts.enviarTexto(body);
+
+  // Quando splitMessages está ativo e o corpo se divide em mais de um balão:
+  // a 1ª bolha vai como legenda da capa, e as demais bolhas seguem via enviarTexto
+  // com o pacing humano anti-ban, garantindo micro-balões mesmo no envio de fotos/cartas.
+  if (opts.splitOpts?.enabled) {
+    const bubbles = splitForSend(body, true, opts.splitOpts.maxChars);
+    if (bubbles.length > 1) {
+      const [primeira, ...resto] = bubbles;
+      let ultimo = await opts.enviarFoto(capa, primeira);
+      for (const foto of demais) {
+        if (!OK_KINDS.has(ultimo.kind)) return ultimo;
+        if (!cabeMaisUma()) return ultimo;
+        await opts.sleep(opts.jitter());
+        ultimo = await opts.enviarFoto(foto, '');
+      }
+      if (resto.length > 0 && OK_KINDS.has(ultimo.kind) && cabeMaisUma()) {
+        await opts.sleep(opts.jitter());
+        ultimo = await opts.enviarTexto(resto.join('\n\n'));
+      }
+      return ultimo;
+    }
+  }
+
   const legendaCabe = body.length <= LIMITE_DA_LEGENDA;
   let ultimo = legendaCabe ? await opts.enviarFoto(capa, body) : await opts.enviarTexto(body);
   for (const foto of legendaCabe ? demais : fotos) {

@@ -3404,6 +3404,10 @@ async function executarTurnoDoAgente(
                 restantes: () => maxSendsPerTurn - seq,
                 enviarFoto: (foto, legenda) => enviar(legenda, foto),
                 enviarTexto: comoVoz,
+                splitOpts: {
+                  enabled: agentConfig?.splitMessages ?? false,
+                  maxChars: agentConfig?.splitMaxChars ?? 600,
+                },
               });
             },
           };
