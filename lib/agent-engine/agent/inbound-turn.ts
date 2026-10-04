@@ -92,6 +92,8 @@ import { blocoDeIdentidade } from '@/lib/identidade/bloco-do-prompt';
 import { blocoDeConsciencia } from '@/lib/consciencia/bloco-do-prompt';
 import { resolverConscienciaDoAnuncio } from '@/lib/consciencia/ad-briefs';
 import { blocoDeLimites } from '@/lib/limites/bloco-do-prompt';
+import { blocoDaJornada } from '@/lib/jornada/bloco-do-prompt';
+import { estadoDaJornada, vetoDaJornada } from '@/lib/jornada/estado';
 import { blocoDeObjecoes } from '@/lib/objecoes/bloco-do-prompt';
 import { blocoDeOferta } from '@/lib/oferta/bloco-do-prompt';
 import { passoDaLeitura } from '@/lib/leitura/estado-da-leitura';
@@ -2273,9 +2275,28 @@ async function executarTurnoDoAgente(
   // mensagens do contexto (o painel de Teste incluso). Vai no FIM do system: o prefixo estável e
   // cacheável não muda. Sem `pricing` ligado, `blocoDePreco` devolve "" e o system segue idêntico.
   const reclamacoesDeValorNoTurno = reclamacoesDeValor(openingContext.context.messages);
-  const blocoDePrecoDoTurno = blocoDePreco(agentConfig?.pricing, {
-    reclamacoes: reclamacoesDeValorNoTurno,
-  });
+  // Jornada (`config.journey`): a etapa é contada AQUI, em código, sobre as mesmas mensagens. Enquanto a
+  // etapa não libera o preço, o bloco de preço nem entra no prompt — o molde de cobrança não pode
+  // aparecer antes da hora — e o envio veta valor em dinheiro (ver `send_message`).
+  const jornadaDoAgente = agentConfig?.journey ?? null;
+  const estadoDaJornadaNoTurno =
+    jornadaDoAgente !== null ? estadoDaJornada(jornadaDoAgente, openingContext.context.messages) : null;
+  const blocoDaJornadaDoTurno = blocoDaJornada(jornadaDoAgente, estadoDaJornadaNoTurno);
+  if (estadoDaJornadaNoTurno !== null) {
+    // Só a posição e os nomes das chaves, nunca os valores (são texto de quem conversa).
+    runLog.info('etapa da jornada no turno', {
+      etapa: estadoDaJornadaNoTurno.etapa.id,
+      indice: estadoDaJornadaNoTurno.indice,
+      faltam: estadoDaJornadaNoTurno.faltam.map((c) => c.chave),
+    });
+  }
+  const precoBloqueadoPelaJornada =
+    estadoDaJornadaNoTurno !== null && !estadoDaJornadaNoTurno.liberado.has('preco');
+  const blocoDePrecoDoTurno = precoBloqueadoPelaJornada
+    ? ''
+    : blocoDePreco(agentConfig?.pricing, {
+        reclamacoes: reclamacoesDeValorNoTurno,
+      });
   // A REDE: o mesmo passo vira o piso de preço da trava de promessas deste turno. Se o modelo
   // oferecer o desconto antes da hora, a mensagem é vetada antes de sair (`before-send`).
   const promiseMinPriceCents =
@@ -2406,6 +2427,7 @@ async function executarTurnoDoAgente(
     anuncio: blocoDoAnuncioDoTurno,
     estilo: blocoDeVariacaoDoTurno,
     fluxo: blocoDoFluxoDoTurno,
+    jornada: blocoDaJornadaDoTurno,
     leitura: blocoDaLeituraDoTurno,
     preco: blocoDePrecoDoTurno,
     entrega: blocoDaEntrega,
@@ -3143,6 +3165,14 @@ async function executarTurnoDoAgente(
                 'O texto da mensagem ficou vazio. Escreva a resposta de verdade e chame send_message de novo.',
             },
           };
+        }
+        // A CATRACA da jornada: valor em dinheiro ou link antes da etapa que os libera volta ao modelo
+        // para reescrever — nunca sai. Sem fail-safe de propósito: soltar depois de N vetos seria
+        // justamente adiantar o preço, que é o que a etapa existe para impedir.
+        const vetoDaEtapa = estadoDaJornadaNoTurno !== null ? vetoDaJornada(estadoDaJornadaNoTurno, body) : null;
+        if (vetoDaEtapa !== null) {
+          runLog.info('envio vetado pela etapa da jornada', { etapa: estadoDaJornadaNoTurno?.etapa.id });
+          return { ok: false, error: { code: 'etapa_da_jornada', message: vetoDaEtapa } };
         }
         if (claimsCurrentInboundIsEmpty(body, mensagemDoJob)) {
           falseEmptyInboundVetoCount += 1;

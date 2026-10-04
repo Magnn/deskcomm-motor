@@ -34,6 +34,9 @@
  *   7. `fluxo`    — DIRETIVO: o objetivo da etapa de um fluxo que pôs este agente no comando (nó
  *                   "Agente de IA") e quantas respostas restam. Geral: vem ANTES dos diretivos
  *                   específicos do funil, que vencem se houver conflito.
+ *   7b. `jornada` — DIRETIVO: a etapa da jornada em que a conversa está (aba Jornada), contada pelo código, e
+ *                   o que ela ainda não libera. Depois do fluxo (geral) e ANTES de leitura, preço e entrega, que
+ *                   são diretivos mais específicos do funil e vencem num conflito.
  *   8. `leitura`  — DIRETIVO: qual carta revelar agora (ou a causa raiz).
  *   9. `preco`    — DIRETIVO: o degrau de preço e o que dizer.
  *  10. `entrega`  — DIRETIVO: o guia do trabalho que a pessoa já pagou.
@@ -59,7 +62,7 @@
  * Sem nenhum bloco (todos ''), o system sai idêntico ao de entrada — o prefixo
  * estável e cacheável não muda.
  */
-export const BLOCOS_DO_TURNO = ['identidade', 'oferta', 'consciencia', 'objecoes', 'anuncio', 'estilo', 'fluxo', 'leitura', 'preco', 'entrega', 'limites'] as const;
+export const BLOCOS_DO_TURNO = ['identidade', 'oferta', 'consciencia', 'objecoes', 'anuncio', 'estilo', 'fluxo', 'jornada', 'leitura', 'preco', 'entrega', 'limites'] as const;
 
 export type NomeDoBlocoDoTurno = (typeof BLOCOS_DO_TURNO)[number];
 

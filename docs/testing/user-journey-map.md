@@ -457,6 +457,33 @@ diálogo e é asserida na spec.
 
 ---
 
+## J38 — Dizer ao agente em que ordem o atendimento anda, e quando o preço pode aparecer `[P1]` (2026-10-04)
+
+Contexto do código: as outras abas dizem QUEM o agente é e O QUE ele sabe; a ordem da conversa ficava em
+prosa, e o modelo pequeno pula etapa, volta e adianta o preço (medido com a escada de preço e com a
+leitura). A aba **Jornada** (`JornadaDoAgente.tsx`) pede as etapas na ordem — objetivo, o que coletar
+(resposta livre, data, números), quando termina e a partir de onde pode falar da oferta, do preço e do
+link. O código conta a etapa sobre o histórico (`lib/jornada/estado.ts`), o prompt recebe só a etapa
+atual (`lib/jornada/bloco-do-prompt.ts`, fila `jornada` entre `fluxo` e `leitura`), o bloco de preço
+some enquanto a etapa não libera o preço, e o envio veta valor em dinheiro ou link antes da hora
+(`vetoDaJornada` no `send_message`). Grava em `ai_agents.config.journey` por
+`PUT /api/v1/ai/agents/:id/jornada` (só admin), por merge.
+
+Spec: `tests/e2e/jornada-do-agente.spec.ts` — cria um agente NOVO pela API, dirige a tela logada como
+admin num Supabase pg15 real e confere o que o servidor guardou pela própria API.
+
+| # | Caso | Expectativa | Resultado |
+|---|------|-------------|-----------|
+| J38.1 | Abrir a aba "Jornada" num agente recém-criado | abre desligada e vazia, com os modelos à vista | ver PR |
+| J38.2 | Escolher o modelo "Leitura de cartas" | cinco etapas aparecem; a primeira não libera nada | ver PR |
+| J38.3 | Simular uma conversa com os 3 números mandados picados | "Etapa 3 de 5" com "já disse: 3, 6"; ao chegar o 3º, "Etapa 4 de 5" | ver PR |
+| J38.4 | "Salvar jornada" e recarregar | `GET …/jornada` devolve as cinco etapas; interruptor e etapas voltam | ver PR |
+| J38.5 | Preço ou link antes da etapa que os libera | a mensagem volta ao modelo e não sai | **PASS (unitário)** — `lib/jornada/jornada.test.ts`; não dirigido em e2e (depende do modelo) |
+| J38.6 | Manager tenta salvar | 403 e nada gravado | **NÃO COBERTO em tela** — guardado por `route.test.ts` |
+| J38.7 | O agente de verdade segue a etapa | a resposta do modelo segue o bloco | **NÃO COBERTO** — depende do painel de Teste com o modelo |
+
+---
+
 ## J37 — Dizer ao agente o que ele nunca diz nem promete, sem escrever prosa `[P1]` (2026-09-26)
 
 Contexto do código: as abas Identidade, Oferta e Objeções dizem ao agente o que FAZER; o que o dono

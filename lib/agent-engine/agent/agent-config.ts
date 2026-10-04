@@ -17,6 +17,7 @@ import type pg from 'pg';
 
 import { lerConsciencia, type ConscienciaConfig } from '@/lib/consciencia/tipos';
 import { lerIdentidade, type IdentidadeConfig } from '@/lib/identidade/tipos';
+import { lerJornada, type JornadaConfig } from '@/lib/jornada/tipos';
 import { lerLimites, type LimitesConfig } from '@/lib/limites/tipos';
 import { lerObjecoes, type ObjecoesConfig } from '@/lib/objecoes/tipos';
 import { lerOferta, type OfertaConfig } from '@/lib/oferta/tipos';
@@ -134,6 +135,11 @@ export interface PublishedAgentConfig {
    * significam a mesma coisa.
    */
   limits?: LimitesConfig | null;
+  /**
+   * Jornada (`ai_agents.config.journey`, aba "Jornada"): as etapas da conversa, contadas pelo código sobre o
+   * histórico. `null` = desligada: o turno segue como sempre. Ausente e `null` significam a mesma coisa.
+   */
+  journey?: JornadaConfig | null;
   /** criadores (p/ mint do token efêmero de audit — padrão do runtime nativo). */
   versionCreatedBy: string | null;
   agentCreatedBy: string | null;
@@ -273,6 +279,7 @@ function mapAgentConfigRow(r: Row): PublishedAgentConfig {
     consciencia: lerConsciencia(r.config),
     objections: lerObjecoes(r.config),
     limits: lerLimites(r.config),
+    journey: lerJornada(r.config),
     versionCreatedBy: r.version_created_by,
     agentCreatedBy: r.agent_created_by,
   };

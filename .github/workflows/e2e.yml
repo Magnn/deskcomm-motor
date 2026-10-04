@@ -1093,6 +1093,7 @@ jobs:
         oferta-do-agente.spec.ts
         objecoes-do-agente.spec.ts
         limites-do-agente.spec.ts
+        jornada-do-agente.spec.ts
 
       # ─── FORA_DO_CI — as que ficaram fora, e o motivo de cada uma ───
       #
