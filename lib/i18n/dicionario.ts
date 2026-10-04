@@ -9464,6 +9464,10 @@ export const DICIONARIO: Traducoes = {
     { es: "Al desconectar, se borra el token guardado. La pantalla de Meta Ads volverá a pedir una conexión. No se pierde ningún dato histórico, porque aquí no se almacena nada." },
   "Não consegui desconectar agora.": { es: "No pude desconectar ahora." },
 
+  // ─── Transcrição do áudio no chat (inbox) ───
+  "Ver transcrição": { es: "Ver transcripción" },
+  "Ocultar transcrição": { es: "Ocultar transcripción" },
+
   // ─── Meta Ads pelo login do Facebook (settings/meta-ads) ───
   "Conecte a sua conta de anúncios para o sistema ler o desempenho das suas campanhas e mostrá-lo em Análise › Meta Ads. É uma conexão só de leitura: nada é criado, pausado ou alterado na sua conta de anúncios.":
     { es: "Conecta tu cuenta publicitaria para que el sistema lea el rendimiento de tus campañas y lo muestre en Análisis › Meta Ads. Es una conexión de solo lectura: no se crea, pausa ni modifica nada en tu cuenta publicitaria." },
