@@ -87,6 +87,13 @@ export interface Message {
   media_mime: string | null;
   media_size_bytes: number | null;
   media_storage_path: string | null;
+  /**
+   * O conteúdo da mídia em TEXTO (áudio → transcrição), gravado pelo
+   * `media-derive-worker`. Opcionais: a mensagem otimista do envio e as linhas
+   * que chegam por outros caminhos não trazem as colunas.
+   */
+  media_derived_text?: string | null;
+  media_derived_status?: string | null;
   // Espelha o CHECK do banco (messages_sent_via_check): 'crm', 'external_device',
   // 'automation', 'ai', 'user', 'system'. O tipo listava só três e o TypeScript
   // aceitava os demais só porque o dado vem do Supabase sem cast — a tela então
