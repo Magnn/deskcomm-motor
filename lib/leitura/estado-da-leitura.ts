@@ -60,7 +60,10 @@ export function passoDaLeitura(contatoId: string, mensagens: readonly MensagemPa
   // várias, como já vale para a escada de preço. Na produção nenhuma mensagem tem esse formato.
   const conversa = expandirHistoricoColado(mensagens);
 
-  const pedido = conversa.findIndex((m) => m.direction === "outbound" && PEDIDO_DO_BARALHO.test(m.body ?? ""));
+  let pedido = conversa.findIndex((m) => m.direction === "outbound" && PEDIDO_DO_BARALHO.test(m.body ?? ""));
+  if (pedido < 0 && conversa.some(ehCartaRevelada)) {
+    pedido = 0;
+  }
   if (pedido < 0) return null;
 
   let escolha = -1;
