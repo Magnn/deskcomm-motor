@@ -28,6 +28,9 @@ import { lerOferta } from "@/lib/oferta/tipos";
 import { lerConsciencia } from "@/lib/consciencia/tipos";
 import { lerObjecoes } from "@/lib/objecoes/tipos";
 import { lerLimites } from "@/lib/limites/tipos";
+import { lerJornada } from "@/lib/jornada/tipos";
+import { estadoDaJornada } from "@/lib/jornada/estado";
+import { blocoDaJornada } from "@/lib/jornada/bloco-do-prompt";
 import { blocoDeIdentidade } from "@/lib/identidade/bloco-do-prompt";
 import { blocoDeOferta } from "@/lib/oferta/bloco-do-prompt";
 import { blocoDeConsciencia } from "@/lib/consciencia/bloco-do-prompt";
@@ -75,6 +78,10 @@ export function PreviaCompletaDoAgente({ systemPrompt, config, toolIds, contextW
     const consciencia = blocoDeConsciencia(lerConsciencia(config ?? null));
     const objecoes = blocoDeObjecoes(lerObjecoes(config ?? null));
     const limites = blocoDeLimites(lerLimites(config ?? null));
+    // A jornada depende da conversa, mas o COMEÇO dela não: sem mensagem nenhuma, é a etapa 1 — o que o
+    // agente lê no primeiro atendimento.
+    const jornadaSalva = lerJornada(config ?? null);
+    const jornada = blocoDaJornada(jornadaSalva, jornadaSalva ? estadoDaJornada(jornadaSalva, []) : null);
     return comporSystemDoTurno(systemPrompt, {
       identidade,
       oferta,
@@ -84,6 +91,7 @@ export function PreviaCompletaDoAgente({ systemPrompt, config, toolIds, contextW
       anuncio: "",
       estilo: "",
       fluxo: "",
+      jornada,
       leitura: "",
       preco: "",
       entrega: "",

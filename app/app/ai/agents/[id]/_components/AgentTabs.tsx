@@ -19,6 +19,7 @@ import { OfertaDoAgente } from "./OfertaDoAgente";
 import { ConscienciaDoAgente } from "./ConscienciaDoAgente";
 import { ObjecoesDoAgente } from "./ObjecoesDoAgente";
 import { LimitesDoAgente } from "./LimitesDoAgente";
+import { JornadaDoAgente } from "./JornadaDoAgente";
 import { VozDoAgente } from "./VozDoAgente";
 import { ProposalsPanel } from "./ProposalsPanel";
 import type { AgentRow } from "@/hooks/ai/useAgent";
@@ -56,6 +57,7 @@ export function AgentTabs(props: Props) {
     | "consciencia"
     | "objections"
     | "limits"
+    | "journey"
     | "test"
     | "capacidades"
     | "voice"
@@ -79,6 +81,7 @@ export function AgentTabs(props: Props) {
         <TabsTrigger value="consciencia">{t("Consciência")}</TabsTrigger>
         <TabsTrigger value="objections">{t("Objeções")}</TabsTrigger>
         <TabsTrigger value="limits">{t("Limites")}</TabsTrigger>
+        <TabsTrigger value="journey">{t("Jornada")}</TabsTrigger>
         <TabsTrigger value="test" disabled={!hasVersion}>
           {t("Teste")}
         </TabsTrigger>
@@ -127,6 +130,10 @@ export function AgentTabs(props: Props) {
 
       <TabsContent value="limits" className="m-0">
         <LimitesDoAgente agentId={props.agent.id} config={props.agent.config} readOnly={props.readOnly} />
+      </TabsContent>
+
+      <TabsContent value="journey" className="m-0">
+        <JornadaDoAgente agentId={props.agent.id} config={props.agent.config} readOnly={props.readOnly} />
       </TabsContent>
 
       <TabsContent value="test" className="m-0">

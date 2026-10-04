@@ -842,6 +842,10 @@ export const AUDIT_ACTIONS = [
   // não discute. Vale no PRÓXIMO turno, sem publicar versão — "quem mudou o que o agente está proibido de
   // dizer, e quando" é a pergunta que só esta linha responde. O texto digitado não vai na auditoria.
   "ai.limits_updated",
+  // A jornada de um agente (PUT /ai/agents/:id/jornada): as etapas da conversa e o que cada uma libera
+  // (oferta, preço, link). Vale no PRÓXIMO turno, sem publicar versão — "quem mudou a ordem do atendimento,
+  // e quando" é a pergunta que só esta linha responde. Só o formato vai na auditoria, nunca o texto.
+  "ai.journey_updated",
   // A consciência do lead de um agente (PUT /ai/agents/:id/consciencia): nível de consciência
   // (Schwartz), desejo/dor, medo oculto e a promessa central da oferta. Vale no PRÓXIMO turno, sem
   // publicar versão — "quem mudou como o agente calibra a conversa para quem chega, e quando" é a
