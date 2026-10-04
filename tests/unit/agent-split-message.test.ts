@@ -61,4 +61,15 @@ describe("splitIntoBubbles", () => {
     expect(out.join(" ")).not.toContain("7. 990");
     expect(out.join(" ")).toContain("7.990");
   });
+
+  it("nunca engole balões separados por parágrafo (\\n\\n) mesmo que a soma caiba em maxChars", () => {
+    const text =
+      "Pra garantir essa última vaga, acesse o link seguro abaixo:\n\nhttps://pay.cakto.com.br/3c7jv4s_1132662\n\nVamos garantir essa última vaga agora?";
+    const out = splitIntoBubbles(text, 250);
+    expect(out).toEqual([
+      "Pra garantir essa última vaga, acesse o link seguro abaixo:",
+      "https://pay.cakto.com.br/3c7jv4s_1132662",
+      "Vamos garantir essa última vaga agora?",
+    ]);
+  });
 });

@@ -7,37 +7,46 @@
 export function splitIntoBubbles(text: string, maxChars: number): string[] {
   const trimmed = (text ?? "").trim();
   if (trimmed === "") return [];
-  if (trimmed.length <= maxChars) return [trimmed];
 
-  // Unidades atômicas: parágrafos → sentenças. Cada unidade que ainda estoura é
-  // quebrada por palavra.
-  const units: string[] = [];
-  for (const para of trimmed.split(/\n{2,}/)) {
+  // Parágrafos explícitos (\n\n) são fronteiras naturais e intencionais de balões.
+  // Nunca fundimos parágrafos distintos em uma mesma bolha.
+  const paragraphs = trimmed.split(/\r?\n\s*\r?\n/);
+  const bubbles: string[] = [];
+
+  for (const para of paragraphs) {
     const p = para.trim();
     if (p === "") continue;
+
     if (p.length <= maxChars) {
-      units.push(p);
+      bubbles.push(p);
       continue;
     }
-    for (const sentence of splitSentences(p)) {
-      if (sentence.length <= maxChars) units.push(sentence);
-      else units.push(...splitWords(sentence, maxChars));
+
+    // O parágrafo excede maxChars: quebra em sentenças
+    const sentences = splitSentences(p);
+    const units: string[] = [];
+    for (const sentence of sentences) {
+      if (sentence.length <= maxChars) {
+        units.push(sentence);
+      } else {
+        units.push(...splitWords(sentence, maxChars));
+      }
     }
+
+    // Junta sentenças DO MESMO parágrafo enquanto couberem
+    let cur = "";
+    for (const u of units) {
+      const joined = cur === "" ? u : `${cur} ${u}`;
+      if (joined.length <= maxChars) {
+        cur = joined;
+      } else {
+        if (cur !== "") bubbles.push(cur);
+        cur = u;
+      }
+    }
+    if (cur !== "") bubbles.push(cur);
   }
 
-  // Junta unidades adjacentes enquanto couberem (com espaço).
-  const bubbles: string[] = [];
-  let cur = "";
-  for (const u of units) {
-    const joined = cur === "" ? u : `${cur} ${u}`;
-    if (joined.length <= maxChars) {
-      cur = joined;
-    } else {
-      if (cur !== "") bubbles.push(cur);
-      cur = u;
-    }
-  }
-  if (cur !== "") bubbles.push(cur);
   return bubbles;
 }
 
