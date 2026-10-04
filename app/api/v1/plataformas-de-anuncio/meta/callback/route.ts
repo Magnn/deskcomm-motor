@@ -86,7 +86,12 @@ export async function GET(req: NextRequest): Promise<Response> {
   // substituir uma conexão que funcionava por uma que abre uma tela vazia.
   const contas = await listarContas(token);
   if (!contas.ok) {
-    logger.error("[meta-ads.oauth] o token novo não leu as contas", { requestId, falha: contas.falha });
+    // `detalhe` é a mensagem da plataforma — nunca o token nem a URL.
+    logger.error("[meta-ads.oauth] o token novo não leu as contas", {
+      requestId,
+      falha: contas.falha,
+      detalhe: contas.detalhe,
+    });
     return voltar({ erro: "sem_permissao" });
   }
   if (contas.dados.length === 0) return voltar({ erro: "nenhuma_conta" });
