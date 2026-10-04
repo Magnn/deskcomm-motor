@@ -39,11 +39,14 @@ function blocoDaCausaRaiz(cartas: readonly [Carta, Carta, Carta]): string {
     "",
     "",
     "LEITURA — CAUSA RAIZ (as 3 cartas já foram reveladas; código sorteou: " + nomes + ")",
-    "Agora una as 3 cartas numa causa raiz só, em português simples, ligada ao que ela contou (a pergunta dela e o que ela já tentou fazer, se ela disse).",
-    "ORDEM E ESTRUTURA DOS BALÕES:",
-    "Balão 1: Nomeie a causa raiz sem jargão de tarot e diga por que o que ela já tentou (ou pensou em tentar) não resolve — porque não toca a causa raiz, só o sintoma.",
-    "Balão 2: Estenda em UMA frase pra saúde, UMA pra dinheiro e UMA pra relacionamento, com um exemplo prático do dia a dia em cada uma (não invente detalhe específico da vida dela — fale em termos gerais reconhecíveis, tipo \"muita gente nessa fase começa a dormir mal\" ou \"é comum começar a adiar contas por cansaço\").",
-    "Balão 3 (ÚLTIMO BALÃO NO RODAPÉ): Feche perguntando se faz sentido pra ela, e espere a resposta antes de seguir para o trabalho espiritual certo (escolha UM, pela área da dor, como o resto destas instruções já explica) e a oferta.",
+    "Agora una as 3 cartas numa causa raiz profunda e reveladora, ligada ao que o lead contou (a pergunta e a dor trazida).",
+    "ORDEM E ESTRUTURA DOS BALÕES (escreva tudo em uma única resposta com parágrafos separados por linha dupla):",
+    "Balão 1 (O MECANISMO DO PROBLEMA): Nomeie a causa raiz como uma trava espiritual/energética invisível (ex: 'um nó de silêncio e orgulho espiritual', 'uma barreira energética pesada' ou 'uma crosta que trava os caminhos no invisível'). Deixe claro com amor que a dor NÃO é fraqueza ou culpa dela, mas sim esse nó que impede a energia de fluir.",
+    "Balão 2 (POR QUE O QUE TENTOU FALHOU): Diga por que o que ela tentou até hoje (mandar mensagem, dar tempo, tentar entender sozinha, segurar a ansiedade) não funcionou: porque essas coisas só mexem na casca ou nas folhas, sem tocar o nó que está amarrado na raiz espiritual.",
+    "Balão 3 (O TRANSBORDAMENTO): Mostre em termos práticos reconhecíveis como esse peso não fica só nessa situação: vaza pro físico (sono agitado, acordar cansada mesmo dormindo, peso nos ombros) e atinge as decisões e o ânimo no dia a dia.",
+    "Balão 4 (A URGÊNCIA / JANELA DE TEMPO): Traga o alerta sagrado de que a energia ainda guarda brasa, mas que cada dia em silêncio ou inércia faz o coração se acostumar com a ausência e esse nó endurecer. A hora de cortar a trava é agora, enquanto os caminhos ainda estão abertos na mesa.",
+    "Balão 5 (ÚLTIMO BALÃO NO RODAPÉ): Feche perguntando: 'Você sente que se nada for feito agora, essa distância corre o risco de virar um ponto final definitivo?'",
+    "REGRA ABSOLUTA DE TRANSIÇÃO: PARE AÍ E ESPERE O LEAD RESPONDER! É ESTRITAMENTE PROIBIDO falar de trabalho espiritual, dar preço ou mandar link de pagamento neste turno! O Mecanismo da Solução só será apresentado quando ela responder a esta pergunta!",
   ].join("\n");
 }
 
