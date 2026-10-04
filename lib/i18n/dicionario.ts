@@ -9464,6 +9464,46 @@ export const DICIONARIO: Traducoes = {
     { es: "Al desconectar, se borra el token guardado. La pantalla de Meta Ads volverá a pedir una conexión. No se pierde ningún dato histórico, porque aquí no se almacena nada." },
   "Não consegui desconectar agora.": { es: "No pude desconectar ahora." },
 
+  // ─── Meta Ads pelo login do Facebook (settings/meta-ads) ───
+  "Conecte a sua conta de anúncios para o sistema ler o desempenho das suas campanhas e mostrá-lo em Análise › Meta Ads. É uma conexão só de leitura: nada é criado, pausado ou alterado na sua conta de anúncios.":
+    { es: "Conecta tu cuenta publicitaria para que el sistema lea el rendimiento de tus campañas y lo muestre en Análisis › Meta Ads. Es una conexión de solo lectura: no se crea, pausa ni modifica nada en tu cuenta publicitaria." },
+  "Conectar com Facebook":
+    { es: "Conectar con Facebook" },
+  "Reconectar com Facebook":
+    { es: "Reconectar con Facebook" },
+  "Você entra no Facebook, autoriza a leitura e volta para cá com a conta já conectada.":
+    { es: "Entras en Facebook, autorizas la lectura y vuelves aquí con la cuenta ya conectada." },
+  "Conta escolhida.":
+    { es: "Cuenta elegida." },
+  "A conexão não está mais valendo — ela expirou ou foi revogada. Reconecte com o Facebook.":
+    { es: "La conexión ya no es válida: venció o fue revocada. Vuelve a conectar con Facebook." },
+  "A conexão não está mais valendo — ela expirou ou foi revogada. Cole um token novo abaixo.":
+    { es: "La conexión ya no es válida: venció o fue revocada. Pega un token nuevo abajo." },
+  "A conta que a tela de Meta Ads abre por padrão. A escolha vale assim que você seleciona.":
+    { es: "La cuenta que se abre de forma predeterminada en la pantalla de Meta Ads. La elección se aplica en cuanto la seleccionas." },
+  "Conectar colando um token (avançado)":
+    { es: "Conectar pegando un token (avanzado)" },
+  "O login do Facebook não está configurado nesta instalação. Quem instalou o sistema precisa cadastrar o app da Meta.":
+    { es: "El inicio de sesión con Facebook no está configurado en esta instalación. Quien instaló el sistema debe registrar la app de Meta." },
+  "Não consegui iniciar a conexão. Tente de novo em instantes.":
+    { es: "No pude iniciar la conexión. Inténtalo de nuevo en unos instantes." },
+  "A conexão demorou demais e expirou. Clique em Conectar com Facebook de novo.":
+    { es: "La conexión tardó demasiado y venció. Haz clic en Conectar con Facebook otra vez." },
+  "A autorização foi cancelada no Facebook. Nada foi alterado.":
+    { es: "La autorización se canceló en Facebook. No se cambió nada." },
+  "O Facebook não concluiu a autorização. Tente de novo.":
+    { es: "Facebook no completó la autorización. Inténtalo de nuevo." },
+  "A permissão de leitura dos anúncios não foi concedida. Conecte de novo e mantenha a permissão marcada.":
+    { es: "No se concedió el permiso de lectura de los anuncios. Conecta de nuevo y deja el permiso marcado." },
+  "Este login do Facebook não tem acesso a nenhuma conta de anúncios. Entre com quem administra a conta.":
+    { es: "Este inicio de sesión de Facebook no tiene acceso a ninguna cuenta publicitaria. Entra con quien administra la cuenta." },
+  "Não consegui conectar agora. Tente de novo.":
+    { es: "No pude conectar ahora. Inténtalo de nuevo." },
+  "Conta conectada. Escolha abaixo qual conta de anúncios a tela de Meta Ads abre.":
+    { es: "Cuenta conectada. Elige abajo qué cuenta publicitaria abre la pantalla de Meta Ads." },
+  "Conta conectada. O desempenho das campanhas já está em Análise › Meta Ads.":
+    { es: "Cuenta conectada. El rendimiento de las campañas ya está en Análisis › Meta Ads." },
+
   // ─── ERRO_EM_PORTUGUES compartida por meta-ads/_form.tsx e conversoes/_form.tsx ───
   "Você não está em nenhuma organização ativa.": {
     es: "No estás en ninguna organización activa.",
