@@ -16,8 +16,6 @@ import { randomUUID } from "node:crypto";
 import type { NextRequest } from "next/server";
 
 import { audit } from "@/lib/audit";
-// A troca do código é a do login do Facebook, igual para qualquer produto do app.
-import { MessengerApiError, trocarCodigoPorTokenLongo } from "@/lib/channels/messenger/api";
 import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
 import { listarContas } from "@/lib/plataformas-de-anuncio/meta/insights";
@@ -27,6 +25,7 @@ import {
   redirectDoMetaAds,
   verificarEstado,
 } from "@/lib/plataformas-de-anuncio/meta/login";
+import { TokenDoMetaAdsError, tokenDaVolta } from "@/lib/plataformas-de-anuncio/meta/token";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { encryptWebhookSecret } from "@/lib/webhooks/secrets";
 
@@ -65,17 +64,26 @@ export async function GET(req: NextRequest): Promise<Response> {
 
   let token: string;
   try {
-    token = await trocarCodigoPorTokenLongo({
+    const volta = await tokenDaVolta({
       appId: app.appId,
       appSecret: app.appSecret,
       redirectUri: redirectDoMetaAds(),
       // A Meta acrescenta `#_` ao fim do código em algumas voltas.
       code: code.replace(/#_$/, ""),
     });
+    token = volta.token;
+    // O que a Meta declarou do token — é o que explica uma recusa logo abaixo.
+    // Tipo, permissões e uma contagem: nenhum segredo.
+    logger.info("[meta-ads.oauth] token recebido", {
+      requestId,
+      tipo: volta.inspecao?.tipo ?? null,
+      escopos: volta.inspecao?.escopos ?? null,
+      contas_concedidas: volta.inspecao?.contasConcedidas.length ?? null,
+    });
   } catch (err) {
     logger.error("[meta-ads.oauth] a troca do código falhou", {
       requestId,
-      onde: err instanceof MessengerApiError ? err.onde : null,
+      onde: err instanceof TokenDoMetaAdsError ? err.onde : null,
       erro: err instanceof Error ? err.message : String(err),
     });
     return voltar({ erro: "falha_na_meta" });

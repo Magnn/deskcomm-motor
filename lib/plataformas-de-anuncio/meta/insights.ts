@@ -47,6 +47,9 @@
  */
 import { VERSAO_PADRAO_DA_GRAPH } from "@/lib/graph-version";
 import { logger } from "@/lib/logger";
+
+import { appDoMetaAds } from "./login";
+import { inspecionarToken } from "./token";
 import type {
   ContaDeAnuncio,
   FalhaDeLeitura,
@@ -250,6 +253,8 @@ async function buscarPaginado<T>(
   urlInicial: string,
   token: string,
   contexto: string,
+  /** Como tirar os itens do corpo. Padrão: a lista em `data`. */
+  itensDoCorpo: (corpo: RespostaPaginada<T>) => T[] = (corpo) => corpo.data ?? [],
 ): Promise<ResultadoDeLeitura<T[]>> {
   const acumulado: T[] = [];
   let url: string | null = urlInicial;
@@ -307,7 +312,7 @@ async function buscarPaginado<T>(
       return { ok: false, falha: "transitorio", detalhe: "resposta ilegível da plataforma" };
     }
 
-    acumulado.push(...(json.data ?? []));
+    acumulado.push(...itensDoCorpo(json));
     url = json.paging?.next ?? null;
   }
 
@@ -328,44 +333,79 @@ export function montarUrl(caminho: string, parametros: Record<string, string>): 
   return url.toString();
 }
 
+interface ContaCrua {
+  account_id?: string;
+  name?: string;
+  currency?: string;
+  account_status?: number;
+}
+
+const CAMPOS_DA_CONTA = "account_id,name,currency,account_status";
+
+/**
+ * As contas que o CONSENTIMENTO concedeu, lidas uma a uma pelo id.
+ *
+ * É o caminho do token de usuário do sistema (o que o "Login do Facebook para
+ * Empresas" emite e que não expira): para ele `me/adaccounts` responde
+ * `(#200) Missing Permissions` e `me/assigned_ad_accounts` responde 400 — os
+ * dois medidos em produção. A lista do que foi concedido só existe em
+ * `debug_token`, que exige a credencial do app.
+ *
+ * `null` = não há como perguntar (instalação sem o app, inspeção recusada ou
+ * nenhuma conta concedida); quem chama fica com a recusa que já tinha.
+ */
+async function contasConcedidasAoToken(token: string): Promise<ResultadoDeLeitura<ContaCrua[]> | null> {
+  const app = await appDoMetaAds();
+  if (!app) return null;
+
+  let ids: string[];
+  try {
+    ids = (await inspecionarToken({ appId: app.appId, appSecret: app.appSecret, token })).contasConcedidas;
+  } catch (erro) {
+    logger.warn("[ads.meta.insights] inspeção do token recusada", {
+      detalhe: erro instanceof Error ? erro.message : String(erro),
+    });
+    return null;
+  }
+  if (ids.length === 0) return null;
+
+  const contas: ContaCrua[] = [];
+  for (const id of ids) {
+    const no = await buscarPaginado<ContaCrua>(
+      // Nó único: a resposta não tem `data`, então o campo pedido é a própria conta.
+      montarUrl(`act_${id}`, { fields: CAMPOS_DA_CONTA }),
+      token,
+      "conta_concedida",
+      (corpo) => [corpo as ContaCrua],
+    );
+    if (!no.ok) return no;
+    contas.push(...no.dados);
+  }
+  return { ok: true, dados: contas };
+}
+
 /**
  * As contas de anúncio que o token alcança.
  *
- * Duas arestas, porque há dois tipos de token nesta tabela. O de PESSOA (colado,
- * ou do login comum) lista por `me/adaccounts`. O de USUÁRIO DO SISTEMA — o que
- * o "Login do Facebook para Empresas" emite e que não expira — recebe 403 de
- * permissão nessa aresta (medido em produção, código 200): as contas dele são as
- * que a pessoa atribuiu no consentimento, em `me/assigned_ad_accounts`.
- *
- * A segunda só é tentada quando a primeira recusa por PERMISSÃO. Token vencido,
- * cota e instabilidade voltam como vieram: repetir noutra aresta gastaria cota
- * para ouvir a mesma resposta.
+ * Token de PESSOA (colado, ou do login comum) lista por `me/adaccounts`. Quando
+ * essa aresta recusa por PERMISSÃO, o token pode ser de usuário do sistema, e a
+ * lista passa a ser a do consentimento (`contasConcedidasAoToken`). Token
+ * vencido, cota e instabilidade voltam como vieram: perguntar de outro jeito
+ * gastaria cota para ouvir a mesma resposta.
  */
 export async function listarContas(
   token: string,
 ): Promise<ResultadoDeLeitura<ContaDeAnuncio[]>> {
-  const parametros = {
-    fields: "account_id,name,currency,account_status",
-    limit: "200",
-  };
-
-  interface ContaCrua {
-    account_id?: string;
-    name?: string;
-    currency?: string;
-    account_status?: number;
-  }
-
-  let resultado = await buscarPaginado<ContaCrua>(montarUrl("me/adaccounts", parametros), token, "adaccounts");
+  let resultado = await buscarPaginado<ContaCrua>(
+    montarUrl("me/adaccounts", { fields: CAMPOS_DA_CONTA, limit: "200" }),
+    token,
+    "adaccounts",
+  );
   if (!resultado.ok && resultado.falha === "permissao_insuficiente") {
-    const atribuidas = await buscarPaginado<ContaCrua>(
-      montarUrl("me/assigned_ad_accounts", parametros),
-      token,
-      "assigned_ad_accounts",
-    );
-    // Se a segunda também recusar, fica a recusa da PRIMEIRA: é ela que descreve
-    // o caso comum (token de pessoa sem `ads_read`).
-    if (atribuidas.ok) resultado = atribuidas;
+    // Se não houver lista do consentimento, fica a recusa da PRIMEIRA: é ela que
+    // descreve o caso comum (token de pessoa sem `ads_read`).
+    const concedidas = await contasConcedidasAoToken(token);
+    if (concedidas !== null) resultado = concedidas;
   }
   if (!resultado.ok) return resultado;
 
