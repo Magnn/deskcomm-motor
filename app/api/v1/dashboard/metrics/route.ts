@@ -3,7 +3,7 @@ import { requireAuth, resolveActiveOrg } from "@/lib/auth/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ok, fail } from "@/lib/api/wrappers";
 import { lerGastoDeAnuncios } from "@/lib/plataformas-de-anuncio/meta/gasto-do-periodo";
-import { ROLE_RANK } from "@/lib/auth/types";
+import { roleAtLeast } from "@/lib/auth/types";
 import { contasDoAnuncio, type GastoDoPeriodo } from "@/lib/resultado/contas-do-anuncio";
 import { calcularDelta, calcularIntervalo } from "@/lib/resultado/periodo";
 import { lerVendasDoPagamento, type VendaDoPainel } from "@/lib/resultado/vendas-do-pagamento";
@@ -127,7 +127,7 @@ export async function GET(req: NextRequest) {
       // A comanda interna (`sales`) e o gateway de pagamento (`revenue_ledger`) são os dois caminhos de
       // venda: quem vende pelo link nunca passa pela comanda. As vendas do gateway entram na MESMA lista,
       // já sem as estornadas, e todo o resto do painel (gráficos, estado, histórico) as soma junto.
-      const podeVerGasto = user.is_platform_admin || ROLE_RANK[org.role] >= ROLE_RANK.manager;
+      const podeVerGasto = user.is_platform_admin || roleAtLeast(org.role, "manager");
       const [vendasDoGateway, vendasDoGatewayAntes, gastoDoPeriodo, gastoAnterior] = await Promise.all([
         lerVendasDoPagamento(admin, orgId, start, end),
         lerVendasDoPagamento(admin, orgId, prevStart, prevEnd),
