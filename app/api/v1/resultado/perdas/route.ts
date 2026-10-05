@@ -22,7 +22,7 @@ import { requireSupportWrite } from "@/lib/impersonate/support";
 import { logger } from "@/lib/logger";
 import { analisarPendentes, lerPainelDePerdas } from "@/lib/resultado/motivo-da-perda";
 import { depsReaisDaAnalise } from "@/lib/resultado/motivo-da-perda-ia";
-import { calcularIntervalo } from "@/lib/resultado/periodo";
+import { calcularIntervalo, lerFusoDaOrganizacao } from "@/lib/resultado/periodo";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
@@ -35,9 +35,10 @@ export async function GET(req: NextRequest): Promise<Response> {
   const t = (texto: string) => traduzir(texto, auth.user.idioma);
 
   const period = new URL(req.url).searchParams.get("period") ?? "7d";
-  const { start, end } = calcularIntervalo(period, new Date());
   try {
-    return ok(await lerPainelDePerdas(createAdminClient(), auth.org.orgId, { inicio: start, fim: end }, new Date()), { requestId });
+    const admin = createAdminClient();
+    const { start, end } = calcularIntervalo(period, new Date(), await lerFusoDaOrganizacao(admin, auth.org.orgId));
+    return ok(await lerPainelDePerdas(admin, auth.org.orgId, { inicio: start, fim: end }, new Date()), { requestId });
   } catch (err) {
     logger.error("[resultado.perdas] leitura falhou", { requestId, erro: err instanceof Error ? err.message : String(err) });
     return fail("internal_error", t("Não foi possível ler os motivos de perda."), 500, { requestId });

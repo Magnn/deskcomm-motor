@@ -19,8 +19,9 @@
  *
  * ─── Datas ────────────────────────────────────────────────────────────────────────────────────────
  * A plataforma recorta por DIA, no fuso da conta; o dashboard recorta por instante. O intervalo vira
- * `AAAA-MM-DD` do início ao fim: nas bordas do dia o gasto pode incluir horas que o resto do painel não
- * conta. É a mesma granularidade da tela de anúncios.
+ * `AAAA-MM-DD` do início ao fim NO FUSO DA ORGANIZAÇÃO — em UTC, às 21h de São Paulo o "hoje" pedido
+ * era o dia seguinte, que na conta ainda não tinha começado, e o gasto voltava zero (medido em produção).
+ * Se a conta de anúncios estiver em fuso diferente do da organização, sobra a diferença entre os dois.
  *
  * ─── Cota ─────────────────────────────────────────────────────────────────────────────────────────
  * O dashboard é aberto e atualizado muito mais vezes que a tela de anúncios. Cada resposta fica 5 minutos
@@ -28,6 +29,8 @@
  * chamada por clique.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
+
+import { diaNoFuso } from "@/lib/resultado/periodo";
 
 import { lerCredencialDeLeitura } from "../credenciais-de-leitura";
 import type { ContaDeAnuncio, ResultadoDeLeitura } from "../types";
@@ -47,10 +50,6 @@ export function somarGastoEmCentavos(linhas: readonly LinhaDeInsightCrua[]): num
   return centavos;
 }
 
-/** `AAAA-MM-DD` (UTC), o formato do `time_range`. */
-export function diaDoRecorte(d: Date): string {
-  return d.toISOString().slice(0, 10);
-}
 
 export interface DepsDoGasto {
   lerCredencial: typeof lerCredencialDeLeitura;
@@ -74,6 +73,8 @@ export async function lerGastoDeAnuncios(
   organizationId: string,
   de: Date,
   ate: Date,
+  /** O fuso da organização: é nele que o instante vira o DIA pedido à plataforma. */
+  fuso: string,
   deps: DepsDoGasto = DEPS_REAIS,
 ): Promise<GastoDeAnuncios> {
   const credencial = await deps.lerCredencial(admin, organizationId, "meta_ads");
@@ -81,8 +82,8 @@ export async function lerGastoDeAnuncios(
   const conta = credencial.credencial.contaPadrao;
   if (!conta) return { estado: "sem_conta" };
 
-  const inicio = diaDoRecorte(de);
-  const fim = diaDoRecorte(ate);
+  const inicio = diaNoFuso(de, fuso);
+  const fim = diaNoFuso(ate, fuso);
   const chave = `${organizationId}|${conta}|${inicio}|${fim}`;
   const guardado = cache.get(chave);
   if (guardado && guardado.ate > deps.agora()) return guardado.valor;

@@ -12,7 +12,7 @@ import { fail, ok } from "@/lib/api/wrappers";
 import { requireRole } from "@/lib/auth/require-role";
 import { traduzir } from "@/lib/i18n/dicionario";
 import { logger } from "@/lib/logger";
-import { calcularDelta, calcularIntervalo } from "@/lib/resultado/periodo";
+import { calcularDelta, calcularIntervalo, lerFusoDaOrganizacao } from "@/lib/resultado/periodo";
 import { atribuirReceita, lerDadosParaAtribuir } from "@/lib/resultado/receita-atribuida";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -25,9 +25,9 @@ export async function GET(req: NextRequest): Promise<Response> {
   const t = (texto: string) => traduzir(texto, auth.user.idioma);
 
   const period = new URL(req.url).searchParams.get("period") ?? "7d";
-  const { start, end, prevStart, prevEnd } = calcularIntervalo(period, new Date());
   try {
     const admin = createAdminClient();
+    const { start, end, prevStart, prevEnd } = calcularIntervalo(period, new Date(), await lerFusoDaOrganizacao(admin, auth.org.orgId));
     const [atual, anterior] = await Promise.all([
       lerDadosParaAtribuir(admin, auth.org.orgId, { inicio: start, fim: end }),
       lerDadosParaAtribuir(admin, auth.org.orgId, { inicio: prevStart, fim: prevEnd }),

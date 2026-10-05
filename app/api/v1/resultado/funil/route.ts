@@ -11,7 +11,7 @@ import { requireRole } from "@/lib/auth/require-role";
 import { traduzir } from "@/lib/i18n/dicionario";
 import { logger } from "@/lib/logger";
 import { lerConversasParaFunil, montarFunil } from "@/lib/resultado/funil-da-conversa";
-import { calcularIntervalo } from "@/lib/resultado/periodo";
+import { calcularIntervalo, lerFusoDaOrganizacao } from "@/lib/resultado/periodo";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
@@ -23,9 +23,10 @@ export async function GET(req: NextRequest): Promise<Response> {
   const t = (texto: string) => traduzir(texto, auth.user.idioma);
 
   const period = new URL(req.url).searchParams.get("period") ?? "7d";
-  const { start, end } = calcularIntervalo(period, new Date());
   try {
-    const { conversas, cortado } = await lerConversasParaFunil(createAdminClient(), auth.org.orgId, { inicio: start, fim: end });
+    const admin = createAdminClient();
+    const { start, end } = calcularIntervalo(period, new Date(), await lerFusoDaOrganizacao(admin, auth.org.orgId));
+    const { conversas, cortado } = await lerConversasParaFunil(admin, auth.org.orgId, { inicio: start, fim: end });
     return ok({ funil: montarFunil(conversas), cortado }, { requestId });
   } catch (err) {
     logger.error("[resultado.funil] leitura falhou", { requestId, erro: err instanceof Error ? err.message : String(err) });
