@@ -13524,6 +13524,13 @@ export const DICIONARIO: Traducoes = {
   "campanhas sem data (rascunho ou ainda não iniciadas) não aparecem no calendário. Elas estão na lista.": {
     es: "campañas sin fecha (borrador o aún no iniciadas) no aparecen en el calendario. Están en la lista.",
   },
+  // Dashboard: gasto de anúncio lido da conta, ROAS e lucro (lib/resultado/contas-do-anuncio.ts).
+  "Sem gasto de anúncio conhecido no período, não há ROAS.": { es: "Sin gasto de anuncios conocido en el período, no hay ROAS." },
+  "Lucro (sem descontar anúncio)": { es: "Ganancia (sin descontar anuncios)" },
+  "Conecte o Meta Ads para ver o gasto": { es: "Conecte Meta Ads para ver el gasto" },
+  "Escolha a conta de anúncios": { es: "Elija la cuenta de anuncios" },
+  "A Meta não respondeu agora": { es: "Meta no respondió ahora" },
+  "Visível para gestores": { es: "Visible para gestores" },
   // Motivo da perda (lib/resultado/motivo-da-perda.ts, dashboard › Receita).
   "A IA parou no meio da análise (limite de gasto, chave ou provedor). O que já foi analisado ficou gravado.": {
     es: "La IA se detuvo en medio del análisis (límite de gasto, clave o proveedor). Lo que ya se analizó quedó guardado.",

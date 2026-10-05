@@ -30,6 +30,27 @@ interface KPI {
   delta: number;
 }
 
+/** `valor: null` = desconhecido. Nunca vira zero na tela: "não sei" e "zero" são respostas diferentes. */
+interface KPIOpcional {
+  valor: number | null;
+  delta: number;
+}
+
+type EstadoDoGasto = "ok" | "sem_conexao" | "sem_conta" | "indisponivel" | "restrito";
+
+interface KPIDeGasto extends KPIOpcional {
+  estado: EstadoDoGasto;
+  moeda: string | null;
+}
+
+/** O que o cartão diz quando o gasto não é conhecido, e para onde leva. */
+const AVISO_DO_GASTO: Record<Exclude<EstadoDoGasto, "ok">, { texto: string; href: string | null }> = {
+  sem_conexao: { texto: "Conecte o Meta Ads para ver o gasto", href: "/app/settings/meta-ads" },
+  sem_conta: { texto: "Escolha a conta de anúncios", href: "/app/settings/meta-ads" },
+  indisponivel: { texto: "A Meta não respondeu agora", href: "/app/ads/meta" },
+  restrito: { texto: "Visível para gestores", href: null },
+};
+
 interface ChannelSession {
   id: string;
   name: string;
@@ -101,11 +122,11 @@ interface DashboardData {
     leadsNovos: KPI;
     faturamento?: KPI;
     vendas?: KPI;
-    roas?: KPI;
+    roas?: KPIOpcional;
     taxaConversao?: KPI;
     ticketMedio?: KPI;
-    lucro?: KPI;
-    gastoMeta?: KPI;
+    lucro?: KPI & { descontaAnuncio?: boolean };
+    gastoMeta?: KPIDeGasto;
     leadsAtendidos?: KPI;
     leadsFinalizados?: KPI;
     tempoRespostaMinutos?: KPI;
@@ -183,6 +204,11 @@ export function DashboardClient({ orgName }: { orgName: string }) {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // O gasto e o ROAS podem ser DESCONHECIDOS (sem conexão, sem conta, plataforma fora): o cartão diz isso.
+  const gasto = data?.kpis.gastoMeta;
+  const roasDoPeriodo = data?.kpis.roas?.valor ?? null;
+  const avisoDoGasto = gasto && gasto.estado !== "ok" ? AVISO_DO_GASTO[gasto.estado] : null;
 
   // Formatação BRL
   const formatBRL = (val?: number) => {
@@ -451,12 +477,16 @@ export function DashboardClient({ orgName }: { orgName: string }) {
                   <Trophy size={20} weight="bold" />
                 </div>
                 <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400">
-                  ~0.0%
+                  ~{data?.kpis.roas?.delta ?? 0}%
                 </span>
               </div>
               <div className="mt-3">
-                <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">
-                  {(data?.kpis.roas?.valor ?? 0).toFixed(2)}
+                <div
+                  className="text-2xl font-bold text-amber-600 dark:text-amber-400"
+                  data-testid="kpi-roas"
+                  title={roasDoPeriodo === null ? t("Sem gasto de anúncio conhecido no período, não há ROAS.") : undefined}
+                >
+                  {roasDoPeriodo === null ? "—" : roasDoPeriodo.toFixed(2)}
                 </div>
                 <div className="text-xs text-slate-500 dark:text-zinc-400 flex items-center justify-between mt-1">
                   <span>ROAS</span>
@@ -525,7 +555,7 @@ export function DashboardClient({ orgName }: { orgName: string }) {
                   {formatBRL(data?.kpis.lucro?.valor)}
                 </div>
                 <div className="text-xs text-slate-500 dark:text-zinc-400 flex items-center justify-between mt-1">
-                  <span>Lucro</span>
+                  <span>{data?.kpis.lucro?.descontaAnuncio === false ? t("Lucro (sem descontar anúncio)") : "Lucro"}</span>
                   <Info size={14} className="text-slate-400" />
                 </div>
               </div>
@@ -538,13 +568,26 @@ export function DashboardClient({ orgName }: { orgName: string }) {
                   <Megaphone size={20} weight="bold" />
                 </div>
                 <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400">
-                  ~0.0%
+                  ~{gasto?.delta ?? 0}%
                 </span>
               </div>
               <div className="mt-3">
-                <div className="text-2xl font-bold text-rose-600 dark:text-rose-400">
-                  {formatBRL(data?.kpis.gastoMeta?.valor)}
+                <div className="text-2xl font-bold text-rose-600 dark:text-rose-400" data-testid="kpi-gasto">
+                  {gasto?.estado === "ok" && gasto.valor !== null
+                    ? gasto.valor.toLocaleString("pt-BR", { style: "currency", currency: gasto.moeda && gasto.moeda !== "?" ? gasto.moeda : "BRL" })
+                    : "—"}
                 </div>
+                {avisoDoGasto ? (
+                  <div className="text-xs text-slate-500 dark:text-zinc-400" data-testid="kpi-gasto-aviso">
+                    {avisoDoGasto.href ? (
+                      <a href={avisoDoGasto.href} className="underline">
+                        {t(avisoDoGasto.texto)}
+                      </a>
+                    ) : (
+                      t(avisoDoGasto.texto)
+                    )}
+                  </div>
+                ) : null}
                 <div className="text-xs text-slate-500 dark:text-zinc-400 flex items-center justify-between mt-1">
                   <span>Gasto Meta (Ad)</span>
                   <Info size={14} className="text-slate-400" />
