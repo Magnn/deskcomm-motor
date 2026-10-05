@@ -23,6 +23,9 @@ const LEITURAS: Record<string, string> = {
   "marcos · gravação": "select organization_id, conversation_id, contact_id, message_id, kind, category, source, occurred_at from public.conversation_milestones",
   // receita-atribuida.ts
   "receita · ledger": "select id, organization_id, event_type, amount_cents, occurred_at, contact_id from public.revenue_ledger",
+  // vendas-do-pagamento.ts (o faturamento do dashboard)
+  "dashboard · vendas do gateway e estornos": "select id, event_type, amount_cents, occurred_at, contact_id, external_event_id, organization_id from public.revenue_ledger",
+  "dashboard · comanda": "select id, number, contact_id, status, total_cents, created_at, attendant_user_id, notes, organization_id from public.sales",
   "receita · origem do contato": "select id, organization_id, source_metadata from public.contacts",
   "receita · conversas do contato": "select id, organization_id, contact_id from public.conversations",
   "receita · execuções do agente": "select conversation_id, agent_id, started_at, organization_id, is_dry_run, status from public.ai_agent_runs",

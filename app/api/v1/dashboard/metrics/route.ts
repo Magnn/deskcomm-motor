@@ -2,9 +2,15 @@ import { type NextRequest } from "next/server";
 import { requireAuth, resolveActiveOrg } from "@/lib/auth/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ok, fail } from "@/lib/api/wrappers";
+import { lerGastoDeAnuncios } from "@/lib/plataformas-de-anuncio/meta/gasto-do-periodo";
+import { roleAtLeast } from "@/lib/auth/types";
+import { contasDoAnuncio, type GastoDoPeriodo } from "@/lib/resultado/contas-do-anuncio";
 import { calcularDelta, calcularIntervalo } from "@/lib/resultado/periodo";
+import { lerVendasDoPagamento, type VendaDoPainel } from "@/lib/resultado/vendas-do-pagamento";
 
 export const dynamic = "force-dynamic";
+
+const RESTRITO: GastoDoPeriodo = { estado: "restrito" };
 
 // Mapeamento de DDDs para Estados Brasileiros (UFs)
 const DDD_TO_UF: Record<string, string> = {
@@ -118,8 +124,21 @@ export async function GET(req: NextRequest) {
         prevSalesQuery,
       ]);
 
-      const sales = salesData ?? [];
-      const prevSales = prevSalesData ?? [];
+      // A comanda interna (`sales`) e o gateway de pagamento (`revenue_ledger`) são os dois caminhos de
+      // venda: quem vende pelo link nunca passa pela comanda. As vendas do gateway entram na MESMA lista,
+      // já sem as estornadas, e todo o resto do painel (gráficos, estado, histórico) as soma junto.
+      const podeVerGasto = user.is_platform_admin || roleAtLeast(org.role, "manager");
+      const [vendasDoGateway, vendasDoGatewayAntes, gastoDoPeriodo, gastoAnterior] = await Promise.all([
+        lerVendasDoPagamento(admin, orgId, start, end),
+        lerVendasDoPagamento(admin, orgId, prevStart, prevEnd),
+        // Gasto de anúncio é dado de gerente para cima, como a tela de anúncios (`requireRole("manager")`).
+        podeVerGasto ? lerGastoDeAnuncios(admin, orgId, start, end) : RESTRITO,
+        podeVerGasto ? lerGastoDeAnuncios(admin, orgId, prevStart, prevEnd) : RESTRITO,
+      ]);
+      const sales: VendaDoPainel[] = [...((salesData ?? []) as VendaDoPainel[]), ...vendasDoGateway].sort((a, b) =>
+        a.created_at < b.created_at ? 1 : -1,
+      );
+      const prevSales = [...(prevSalesData ?? []), ...vendasDoGatewayAntes];
 
       const vendasCount = sales.length;
       const prevVendasCount = prevSales.length;
@@ -137,10 +156,10 @@ export async function GET(req: NextRequest) {
       const taxaConversao = leadsCount > 0 ? Number(((vendasCount / leadsCount) * 100).toFixed(2)) : 0;
       const prevTaxaConversao = (prevLeadsNovosCount ?? 0) > 0 ? Number(((prevVendasCount / (prevLeadsNovosCount ?? 1)) * 100).toFixed(2)) : 0;
 
-      // Meta Ads Spend estimado ou lido da organização
-      const gastoMeta = 0.00;
-      const roas = gastoMeta > 0 ? Number((faturamentoReais / gastoMeta).toFixed(2)) : 0.00;
-      const lucro = faturamentoReais - gastoMeta;
+      // O gasto LIDO da conta de anúncios (era um zero fixo). Desconhecido não vira zero: ROAS fica nulo e
+      // o lucro não desconta anúncio — ver `contasDoAnuncio`.
+      const contas = contasDoAnuncio(faturamentoReais, gastoDoPeriodo);
+      const contasAntes = contasDoAnuncio(prevFaturamentoReais, gastoAnterior);
 
       // 3. Vendas por período (série temporal para o gráfico)
       const vendasPorPeriodoMap = new Map<string, { label: string; valor: number; qtd: number }>();
@@ -313,11 +332,19 @@ export async function GET(req: NextRequest) {
           leadsNovos: { valor: leadsCount, delta: calcularDelta(leadsCount, prevLeadsNovosCount ?? 0) },
           faturamento: { valor: faturamentoReais, delta: calcularDelta(faturamentoReais, prevFaturamentoReais) },
           vendas: { valor: vendasCount, delta: calcularDelta(vendasCount, prevVendasCount) },
-          roas: { valor: roas, delta: 0 },
+          roas: {
+            valor: contas.roas,
+            delta: contas.roas !== null && contasAntes.roas !== null ? calcularDelta(contas.roas, contasAntes.roas) : 0,
+          },
           taxaConversao: { valor: taxaConversao, delta: calcularDelta(taxaConversao, prevTaxaConversao) },
           ticketMedio: { valor: ticketMedio, delta: calcularDelta(ticketMedio, prevTicketMedio) },
-          lucro: { valor: lucro, delta: calcularDelta(faturamentoReais, prevFaturamentoReais) },
-          gastoMeta: { valor: gastoMeta, delta: 0 },
+          lucro: { valor: contas.lucro, delta: calcularDelta(contas.lucro, contasAntes.lucro), descontaAnuncio: contas.gastoNaConta },
+          gastoMeta: {
+            valor: contas.gasto,
+            delta: contas.gasto !== null && contasAntes.gasto !== null ? calcularDelta(contas.gasto, contasAntes.gasto) : 0,
+            estado: contas.estado,
+            moeda: contas.moeda,
+          },
         },
         vendasPorPeriodo: Array.from(vendasPorPeriodoMap.values()),
         vendasPorHorario,
