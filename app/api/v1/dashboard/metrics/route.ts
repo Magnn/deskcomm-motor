@@ -5,7 +5,7 @@ import { ok, fail } from "@/lib/api/wrappers";
 import { lerGastoDeAnuncios } from "@/lib/plataformas-de-anuncio/meta/gasto-do-periodo";
 import { roleAtLeast } from "@/lib/auth/types";
 import { contasDoAnuncio, type GastoDoPeriodo } from "@/lib/resultado/contas-do-anuncio";
-import { calcularDelta, calcularIntervalo } from "@/lib/resultado/periodo";
+import { calcularDelta, calcularIntervalo, lerFusoDaOrganizacao } from "@/lib/resultado/periodo";
 import { lerVendasDoPagamento, type VendaDoPainel } from "@/lib/resultado/vendas-do-pagamento";
 
 export const dynamic = "force-dynamic";
@@ -70,8 +70,9 @@ export async function GET(req: NextRequest) {
     const _productId = searchParams.get("productId") || null;
 
     const now = new Date();
-    const { start, end, prevStart, prevEnd } = calcularIntervalo(period, now);
     const admin = createAdminClient();
+    const fuso = await lerFusoDaOrganizacao(admin, orgId);
+    const { start, end, prevStart, prevEnd } = calcularIntervalo(period, now, fuso);
 
     // Buscar conexões e canais da organização
     const { data: canais } = await admin
@@ -132,8 +133,8 @@ export async function GET(req: NextRequest) {
         lerVendasDoPagamento(admin, orgId, start, end),
         lerVendasDoPagamento(admin, orgId, prevStart, prevEnd),
         // Gasto de anúncio é dado de gerente para cima, como a tela de anúncios (`requireRole("manager")`).
-        podeVerGasto ? lerGastoDeAnuncios(admin, orgId, start, end) : RESTRITO,
-        podeVerGasto ? lerGastoDeAnuncios(admin, orgId, prevStart, prevEnd) : RESTRITO,
+        podeVerGasto ? lerGastoDeAnuncios(admin, orgId, start, end, fuso) : RESTRITO,
+        podeVerGasto ? lerGastoDeAnuncios(admin, orgId, prevStart, prevEnd, fuso) : RESTRITO,
       ]);
       const sales: VendaDoPainel[] = [...((salesData ?? []) as VendaDoPainel[]), ...vendasDoGateway].sort((a, b) =>
         a.created_at < b.created_at ? 1 : -1,

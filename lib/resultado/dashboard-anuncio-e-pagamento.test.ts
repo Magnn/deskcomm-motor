@@ -6,10 +6,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { diaDoRecorte, lerGastoDeAnuncios, limparCacheDoGasto, somarGastoEmCentavos, type DepsDoGasto } from "@/lib/plataformas-de-anuncio/meta/gasto-do-periodo";
+import { lerGastoDeAnuncios, limparCacheDoGasto, somarGastoEmCentavos, type DepsDoGasto } from "@/lib/plataformas-de-anuncio/meta/gasto-do-periodo";
 import { criarBancoEmMemoria } from "@/tests/helpers/banco-em-memoria";
 
 import { contasDoAnuncio } from "./contas-do-anuncio";
+import { calcularIntervalo, diaNoFuso } from "./periodo";
 import { lerVendasDoPagamento, vendasDoLedger } from "./vendas-do-pagamento";
 
 const linha = (id: string, tipo: string, pedido: string, quando: string, over: object = {}) => ({
@@ -71,11 +72,10 @@ describe("gasto de anúncios", () => {
     agora: () => 1_000,
     ...over,
   });
-  const ler = (d: DepsDoGasto) => lerGastoDeAnuncios({} as SupabaseClient, "org-1", new Date("2026-10-01T03:00:00Z"), new Date("2026-10-04T12:00:00Z"), d);
+  const ler = (d: DepsDoGasto) => lerGastoDeAnuncios({} as SupabaseClient, "org-1", new Date("2026-10-01T03:00:00Z"), new Date("2026-10-04T12:00:00Z"), "America/Sao_Paulo", d);
 
   it("soma o gasto das campanhas em centavos; linha sem número conta zero", () => {
     expect(somarGastoEmCentavos([{ spend: "120.50" }, { spend: "9.5" }, {}, { spend: "x" }])).toBe(13000);
-    expect(diaDoRecorte(new Date("2026-10-01T03:00:00Z"))).toBe("2026-10-01");
   });
 
   it("lê a conta padrão no recorte de dias e devolve o gasto com a moeda da conta", async () => {
@@ -128,5 +128,48 @@ describe("contasDoAnuncio", () => {
   it("gasto zero não divide; gasto em outra moeda aparece mas não entra na conta", () => {
     expect(contasDoAnuncio(650, { estado: "ok", centavos: 0, moeda: "BRL" }).roas).toBeNull();
     expect(contasDoAnuncio(650, { estado: "ok", centavos: 5000, moeda: "USD" })).toMatchObject({ gasto: 50, roas: null, lucro: 650, gastoNaConta: false });
+  });
+});
+
+describe("o período no fuso da organização", () => {
+  const SP = "America/Sao_Paulo";
+  // O caso medido em produção: 21h56 de 04/10 em São Paulo, com o servidor (UTC) já em 05/10.
+  const agora = new Date("2026-10-05T00:56:53Z");
+
+  it("'hoje' às 21h56 de São Paulo é o dia 4 inteiro, e não o dia 5 de Londres", () => {
+    const { start, end } = calcularIntervalo("today", agora, SP);
+    expect(start.toISOString()).toBe("2026-10-04T03:00:00.000Z");
+    expect(end.toISOString()).toBe("2026-10-05T00:56:53.000Z");
+    expect(diaNoFuso(start, SP)).toBe("2026-10-04");
+    expect(diaNoFuso(end, SP)).toBe("2026-10-04");
+  });
+
+  it("o gasto de 'hoje' é pedido para o dia da organização", async () => {
+    limparCacheDoGasto();
+    const lerInsights = vi.fn(async () => ({ ok: true as const, dados: [{ spend: "50" }] }));
+    const { start, end } = calcularIntervalo("today", agora, SP);
+    await lerGastoDeAnuncios({} as SupabaseClient, "org-1", start, end, SP, {
+      lerCredencial: vi.fn(async () => ({ ok: true as const, credencial: { accessToken: "t", contaPadrao: "act_1" } })),
+      lerInsights,
+      listarContas: vi.fn(async () => ({ ok: true as const, dados: [] })),
+      agora: () => 1,
+    });
+    expect(lerInsights).toHaveBeenCalledWith("t", "act_1", "2026-10-04", "2026-10-04");
+  });
+
+  it("'ontem', 'este mês' e 'mês passado' viram dias inteiros no fuso; o anterior tem a mesma duração", () => {
+    const ontem = calcularIntervalo("yesterday", agora, SP);
+    expect([ontem.start.toISOString(), ontem.end.toISOString()]).toEqual(["2026-10-03T03:00:00.000Z", "2026-10-04T02:59:59.999Z"]);
+    expect(calcularIntervalo("this_month", agora, SP).start.toISOString()).toBe("2026-10-01T03:00:00.000Z");
+    const passado = calcularIntervalo("last_month", agora, SP);
+    expect([passado.start.toISOString(), passado.end.toISOString()]).toEqual(["2026-09-01T03:00:00.000Z", "2026-10-01T02:59:59.999Z"]);
+    expect(ontem.prevEnd.getTime() - ontem.prevStart.getTime()).toBe(ontem.end.getTime() - ontem.start.getTime());
+  });
+
+  it("dia 31 não estoura o 'mês passado' (março → fevereiro), e outro fuso dá outro dia", () => {
+    const marco = calcularIntervalo("last_month", new Date("2026-03-31T15:00:00Z"), SP);
+    expect(diaNoFuso(marco.start, SP)).toBe("2026-02-01");
+    expect(diaNoFuso(marco.end, SP)).toBe("2026-02-28");
+    expect(diaNoFuso(agora, "Europe/Lisbon")).toBe("2026-10-05");
   });
 });
