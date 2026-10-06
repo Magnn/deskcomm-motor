@@ -89,6 +89,11 @@ describe("transcrição do áudio no chat", () => {
     await waitFor(() => expect(apiClient.post).toHaveBeenCalledWith("/api/v1/messages/m1/retranscrever", {}));
   });
 
+  it("sem provedor de consultas, o que não falhou desenha normalmente (o balão de outras mensagens não depende dele)", () => {
+    render(<TranscricaoDoAudio message={audio()} isOutbound={false} />);
+    expect(screen.getByText("quero saber o preço")).toBeTruthy();
+  });
+
   it("o que não tem nada a dizer não desenha nada", () => {
     const { container } = tela(audio({ direction: "outbound", media_derived_status: null, media_derived_text: null }));
     expect(container.innerHTML).toBe("");

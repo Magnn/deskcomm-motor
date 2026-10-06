@@ -61,48 +61,66 @@ export function transcricaoDoAudio(message: CamposDaMensagem): string | null {
 
 const TEXTO_LONGO = 280;
 
-export function TranscricaoDoAudio({ message, isOutbound }: { message: Message; isOutbound: boolean }) {
+const classeDaEspera = "mt-1 text-xs italic opacity-70";
+
+/**
+ * A falha e o "Tentar de novo". Peça separada de propósito: os hooks de consulta só existem aqui, então
+ * o balão de qualquer outra mensagem (imagem, texto, áudio já transcrito) não depende do provedor de
+ * consultas para ser desenhado.
+ */
+function FalhaDaTranscricao({ message, cor, aoPedir }: { message: Message; cor: string; aoPedir: () => void }) {
   const t = useT();
   const qc = useQueryClient();
-  const [tudo, setTudo] = useState(false);
-  const e = estadoDaTranscricao(message);
-
   const tentarDeNovo = useMutation({
     mutationFn: () => apiClient.post(`/api/v1/messages/${message.id}/retranscrever`, {}),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["messages", message.conversation_id] }),
+    onSuccess: () => {
+      aoPedir();
+      return qc.invalidateQueries({ queryKey: ["messages", message.conversation_id] });
+    },
     onError: (err) => showApiError(err),
   });
 
-  // Depois do "tentar de novo", o balão espera enquanto o estado não volta — pronto ou falha de novo.
-  const aguardando =
-    tentarDeNovo.isPending || (tentarDeNovo.isSuccess && (message.media_derived_status ?? null) === null);
-  if (e.estado === "nada" && !aguardando) return null;
-  const cor = isOutbound ? "text-primary-foreground" : "text-foreground";
-
-  if (e.estado === "em_andamento" || e.estado === "nada" || aguardando) {
+  if (tentarDeNovo.isPending || tentarDeNovo.isSuccess) {
     return (
-      <p className={cn("mt-1 text-xs italic opacity-70", cor)} data-testid="transcricao-em-andamento">
+      <p className={cn(classeDaEspera, cor)} data-testid="transcricao-em-andamento">
         {t("Transcrevendo o áudio…")}
       </p>
     );
   }
+  return (
+    <div className={cn("mt-1 text-xs", cor)} data-testid="transcricao-falhou">
+      <span className="opacity-80">{t("Não foi possível transcrever este áudio.")}</span>{" "}
+      <button
+        type="button"
+        onClick={() => tentarDeNovo.mutate()}
+        className="underline underline-offset-2 opacity-90 hover:opacity-100 focus-visible:opacity-100"
+      >
+        {t("Tentar de novo")}
+      </button>
+    </div>
+  );
+}
 
-  if (e.estado === "falhou") {
+export function TranscricaoDoAudio({ message, isOutbound }: { message: Message; isOutbound: boolean }) {
+  const t = useT();
+  const [tudo, setTudo] = useState(false);
+  // Alguém pediu de novo nesta tela: enquanto o estado não volta (pronto, ou falha outra vez), o balão espera
+  // — mesmo num áudio antigo, que sem isso não mostraria nada entre o pedido e o resultado.
+  const [pedido, setPedido] = useState(false);
+  const e = estadoDaTranscricao(message);
+  const cor = isOutbound ? "text-primary-foreground" : "text-foreground";
+
+  if (e.estado === "falhou") return <FalhaDaTranscricao message={message} cor={cor} aoPedir={() => setPedido(true)} />;
+
+  if (e.estado === "em_andamento" || (e.estado === "nada" && pedido && (message.media_derived_status ?? null) === null)) {
     return (
-      <div className={cn("mt-1 text-xs", cor)} data-testid="transcricao-falhou">
-        <span className="opacity-80">{t("Não foi possível transcrever este áudio.")}</span>{" "}
-        <button
-          type="button"
-          onClick={() => tentarDeNovo.mutate()}
-          className="underline underline-offset-2 opacity-90 hover:opacity-100 focus-visible:opacity-100"
-        >
-          {t("Tentar de novo")}
-        </button>
-      </div>
+      <p className={cn(classeDaEspera, cor)} data-testid="transcricao-em-andamento">
+        {t("Transcrevendo o áudio…")}
+      </p>
     );
   }
-
   if (e.estado !== "pronta") return null;
+
   const longo = e.texto.length > TEXTO_LONGO;
   const idDoTexto = `transcricao-${message.id}`;
   return (
