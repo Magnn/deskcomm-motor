@@ -577,3 +577,42 @@ export async function markConversationReadHandler(
   }
   return data as unknown as Conversation;
 }
+
+// ---------------------------------------------------------------------------
+// mark unread
+// ---------------------------------------------------------------------------
+
+/**
+ * Marca como NÃO lida: o contador volta a 1 quando estava em zero. Quando já há não-lidas de verdade, a
+ * contagem fica como está — a marca chama atenção, não reescreve quantas mensagens chegaram.
+ */
+export async function markConversationUnreadHandler(
+  supabase: SB,
+  ctx: HandlerCtx,
+  conversationId: string,
+): Promise<Conversation> {
+  const naoEncontrada = () =>
+    new ApiError(404, "not_found", undefined, ctx.requestId, traduzir("Conversa não encontrada.", ctx.idioma ?? "pt-BR"));
+
+  const { data, error } = await supabase
+    .from("conversations")
+    .update({ unread_count_for_assignee: 1 })
+    .eq("id", conversationId)
+    .eq("organization_id", ctx.organization_id)
+    .eq("unread_count_for_assignee", 0)
+    .select(SELECT_COLS)
+    .maybeSingle();
+  if (error) throw new ApiError(500, "internal_error", undefined, ctx.requestId, error.message);
+  if (data) return data as unknown as Conversation;
+
+  // Nada mudou: ou a conversa já tinha não-lidas (fica como está), ou não existe para este ator.
+  const { data: atual, error: erroDaLeitura } = await supabase
+    .from("conversations")
+    .select(SELECT_COLS)
+    .eq("id", conversationId)
+    .eq("organization_id", ctx.organization_id)
+    .maybeSingle();
+  if (erroDaLeitura) throw new ApiError(500, "internal_error", undefined, ctx.requestId, erroDaLeitura.message);
+  if (!atual) throw naoEncontrada();
+  return atual as unknown as Conversation;
+}

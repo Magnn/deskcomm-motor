@@ -13540,6 +13540,16 @@ export const DICIONARIO: Traducoes = {
   "Escolha a conta de anúncios": { es: "Elija la cuenta de anuncios" },
   "A Meta não respondeu agora": { es: "Meta no respondió ahora" },
   "Visível para gestores": { es: "Visible para gestores" },
+  // Chat: estado da transcrição do áudio, não lida e rolar para o fim (components/inbox).
+  "Transcrevendo o áudio…": { es: "Transcribiendo el audio…" },
+  "Não foi possível transcrever este áudio.": { es: "No fue posible transcribir este audio." },
+  "Ver tudo": { es: "Ver todo" },
+  "Ver menos": { es: "Ver menos" },
+  "Marcar como não lida": { es: "Marcar como no leída" },
+  "Ir para a última mensagem": { es: "Ir al último mensaje" },
+  "Mensagem não encontrada.": { es: "Mensaje no encontrado." },
+  "Esta mensagem não é um áudio guardado.": { es: "Este mensaje no es un audio guardado." },
+  "Este áudio não está com a transcrição em falha.": { es: "Este audio no tiene la transcripción en fallo." },
   // Motivo da perda (lib/resultado/motivo-da-perda.ts, dashboard › Receita).
   "A IA parou no meio da análise (limite de gasto, chave ou provedor). O que já foi analisado ficou gravado.": {
     es: "La IA se detuvo en medio del análisis (límite de gasto, clave o proveedor). Lo que ya se analizó quedó guardado.",

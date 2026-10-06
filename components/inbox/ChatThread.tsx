@@ -3,10 +3,11 @@
 import { useLocaleDeData } from "@/hooks/i18n/useLocaleDeData";
 
 import type { Locale } from "date-fns";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useT } from "@/hooks/i18n/useT";
 import { format, isToday, isYesterday } from "date-fns";
 import { Button } from "@/components/ui/button";
+import { ArrowDown } from "@/lib/ui/icons";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MessageBubble } from "./MessageBubble";
 import { NoteCard } from "./NoteCard";
@@ -84,6 +85,7 @@ export function ChatThread({ conversationId, onResponder, dono, contatoId }: Pro
   const notes = useConversationNotes(conversationId);
   const passagens = usePassagensDaConversa(conversationId);
   const claim = useClaimConversation();
+  const [longeDoFim, setLongeDoFim] = useState(false);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const paginasVistas = useRef(0);
@@ -276,8 +278,16 @@ export function ChatThread({ conversationId, onResponder, dono, contatoId }: Pro
   }
 
   return (
-    <div {...sinalDoCanal} className="flex h-full min-w-0 flex-col">
-      <div ref={scrollerRef} className="min-w-0 flex-1 overflow-y-auto py-2">
+    <div {...sinalDoCanal} className="relative flex h-full min-w-0 flex-col">
+      <div
+        ref={scrollerRef}
+        className="min-w-0 flex-1 overflow-y-auto py-2"
+        // Longe do fim (mais de uma tela de mensagens acima), aparece o atalho para voltar à última.
+        onScroll={(e) => {
+          const sc = e.currentTarget;
+          setLongeDoFim(sc.scrollHeight - sc.scrollTop - sc.clientHeight > 400);
+        }}
+      >
         {q.hasNextPage && (
           <div className="flex justify-center py-2">
             <Button
@@ -351,6 +361,20 @@ export function ChatThread({ conversationId, onResponder, dono, contatoId }: Pro
 
         <div ref={bottomRef} />
       </div>
+      {longeDoFim && (
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="absolute bottom-3 right-4 z-10 rounded-full shadow-md"
+          aria-label={t("Ir para a última mensagem")}
+          title={t("Ir para a última mensagem")}
+          data-testid="rolar-para-o-fim"
+          onClick={() => bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" })}
+        >
+          <ArrowDown size={16} />
+        </Button>
+      )}
     </div>
   );
 }

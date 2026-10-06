@@ -15,6 +15,7 @@ import type { ConversationWithContact } from "@/hooks/inbox/useConversationsReal
 
 const closeMutate = vi.hoisted(() => vi.fn());
 const arquivarMutate = vi.hoisted(() => vi.fn());
+const marcadas = vi.hoisted(() => [] as string[]);
 
 vi.mock("@/hooks/auth/AuthProvider", () => ({
   useAuth: () => ({ user: { id: "u1", support: null } }),
@@ -29,6 +30,16 @@ vi.mock("@/hooks/inbox/useCloseConversation", () => ({
   useCloseConversation: () => ({ mutate: closeMutate, isPending: false }),
   useReopenConversation: () => ({ mutate: vi.fn(), isPending: false }),
   useArchiveConversation: () => ({ mutate: arquivarMutate, isPending: false }),
+}));
+vi.mock("@/hooks/inbox/useMarkAsUnread", () => ({
+  useMarkAsUnread: () => ({
+    // Sucesso imediato: o que interessa aqui é o que o cabeçalho faz DEPOIS de marcar.
+    mutate: (id: string, opts?: { onSuccess?: () => void }) => {
+      marcadas.push(id);
+      opts?.onSuccess?.();
+    },
+    isPending: false,
+  }),
 }));
 vi.mock("@/hooks/inbox/useResumeAiAttendance", () => ({
   useResumeAiAttendance: () => ({ mutate: vi.fn(), isPending: false }),
@@ -141,5 +152,22 @@ describe("ConversationHeader — Fechar e Arquivar por AlertDialog", () => {
         "Arquivar encerra este atendimento e guarda a conversa no histórico. Se o cliente escrever de novo, ela volta.",
       ),
     ).toBeNull();
+  });
+
+  it("Marcar como não lida marca e SAI da conversa (aberta, a leitura automática desfaria a marca)", async () => {
+    const user = userEvent.setup();
+    const sair = vi.fn();
+    marcadas.length = 0;
+    render(<ConversationHeader conversation={conversa("open")} onSair={sair} />);
+
+    await user.click(screen.getByRole("button", { name: "Marcar como não lida" }));
+
+    expect(marcadas).toEqual(["conv-1"]);
+    expect(sair).toHaveBeenCalledTimes(1);
+  });
+
+  it("sem ter para onde sair, o botão de não lida não aparece", () => {
+    render(<ConversationHeader conversation={conversa("open")} />);
+    expect(screen.queryByRole("button", { name: "Marcar como não lida" })).toBeNull();
   });
 });
