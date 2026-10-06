@@ -832,7 +832,15 @@ export function normalizarErro(err: unknown): {
     codigo = 'credencial_recusada';
   } else if (status === 404 || /model.*not.*found|does not exist/i.test(bruto)) {
     codigo = 'modelo_inexistente';
-  } else if (status === 429 || /rate.?limit|quota|insufficient.*credit/i.test(bruto)) {
+  } else if (
+    // 402 é "pague para continuar": a DeepSeek responde assim, com "Insufficient Balance", quando o
+    // saldo acaba — medido em produção em 05/10/2026, 62 turnos falharam em 17 minutos classificados como
+    // `erro_desconhecido`, e a tela de Execuções dizia "não conseguimos classificar" para o erro mais
+    // acionável que existe.
+    status === 402 ||
+    status === 429 ||
+    /rate.?limit|quota|insufficient.*(credit|balance|funds)|payment required|billing/i.test(bruto)
+  ) {
     codigo = 'limite_ou_saldo';
   } else if ((status !== null && status >= 500) || /timeout|ECONNREFUSED|fetch failed|network/i.test(bruto)) {
     codigo = 'provedor_indisponivel';

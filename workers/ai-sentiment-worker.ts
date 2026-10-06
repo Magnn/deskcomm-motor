@@ -34,6 +34,7 @@ import { DEFAULT_CLASSIFIER_MODEL } from "@/lib/ai/gateway";
 import { resolverModeloDoPonto } from "@/lib/ai/gateway-binding";
 import { logInvocation, type LogInvocationInput } from "@/lib/ai/log-invocation";
 import { DEFAULT_SENTIMENT_THRESHOLD, SENTIMENT_SYSTEM_PROMPT } from "@/lib/ai/prompts/sentiment";
+import { classificarPorTexto } from "@/lib/ai/sentimento/nota-por-texto";
 import type { EventRow } from "@/lib/event-log/dispatcher";
 import { traduzir } from "@/lib/i18n/dicionario";
 import { IDIOMAS, normalizarIdioma, type Idioma } from "@/lib/i18n/idiomas";
@@ -498,7 +499,42 @@ export async function processSentiment(event: EventRow): Promise<SentimentResult
   }
 }
 
+/**
+ * Modelos que ESTE processo já viu não devolver objeto. Para eles a pergunta vai direto como texto: sem
+ * esta memória, cada mensagem pagaria uma chamada estruturada que se sabe que falha antes da reserva.
+ * Memória por processo, como o disjuntor do Jev: reiniciar confere uma vez de novo.
+ */
+const semSaidaEstruturada = new Set<string>();
+
+function chaveDoModelo(model: LanguageModel): string {
+  if (typeof model === "string") return model;
+  return `${model.provider}:${model.modelId}`;
+}
+
+/**
+ * A nota do clima pela IA de linguagem. Tenta a saída estruturada; se o modelo não devolve objeto
+ * (provedor sem suporte, ou raciocínio que consome o teto), pergunta como texto e o código acha o número
+ * (`lib/ai/sentimento/nota-por-texto.ts`). Outros erros — rede, chave, cota — sobem como vieram: perguntar
+ * de novo de outro jeito gastaria para ouvir a mesma resposta.
+ */
 async function classificarComLlm(
+  model: LanguageModel,
+  body: string,
+): Promise<{ score: number; promptTokens: number; completionTokens: number }> {
+  const porTexto = () =>
+    classificarPorTexto(model, SENTIMENT_SYSTEM_PROMPT, body, { timeoutMs: CLASSIFY_TIMEOUT_MS * 3 });
+  const chave = chaveDoModelo(model);
+  if (semSaidaEstruturada.has(chave)) return porTexto();
+  try {
+    return await classificarEstruturado(model, body);
+  } catch (err) {
+    if (!/No object generated/i.test(err instanceof Error ? err.message : String(err))) throw err;
+    semSaidaEstruturada.add(chave);
+    return porTexto();
+  }
+}
+
+async function classificarEstruturado(
   model: LanguageModel,
   body: string,
 ): Promise<{ score: number; promptTokens: number; completionTokens: number }> {
