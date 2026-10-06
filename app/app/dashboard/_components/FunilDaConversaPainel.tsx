@@ -45,6 +45,8 @@ export function FunilDaConversaPainel({ period }: { period: string }) {
       return (corpo?.data ?? corpo) as Resposta;
     },
     retry: false,
+    // Relê sozinho a cada minuto com a aba visível (o react-query pausa em segundo plano).
+    refetchInterval: 60_000,
   });
 
   if (consulta.isPending) return <p className="text-sm text-muted-foreground">{t("Montando o funil da conversa…")}</p>;

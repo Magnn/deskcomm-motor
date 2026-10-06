@@ -25,6 +25,9 @@ import { FunilDaConversaPainel } from "./FunilDaConversaPainel";
 import { MotivoDaPerdaPainel } from "./MotivoDaPerdaPainel";
 import { ReceitaAtribuidaPainel } from "./ReceitaAtribuidaPainel";
 
+/** De quanto em quanto tempo o painel se relê sozinho, com a aba visível. */
+const INTERVALO_DE_ATUALIZACAO_MS = 60_000;
+
 interface KPI {
   valor: number;
   delta: number;
@@ -151,6 +154,7 @@ export function DashboardClient({ orgName }: { orgName: string }) {
   const [selectedChannel, setSelectedChannel] = useState<string>("all");
   const [loading, setLoading] = useState<boolean>(true);
   const [data, setData] = useState<DashboardData | null>(null);
+  const [atualizadoEm, setAtualizadoEm] = useState<Date | null>(null);
   const [showBanner, setShowBanner] = useState<boolean>(true);
   const [graphMode, setGraphMode] = useState<"valor" | "qtd">("valor");
   const [prodGraphMode, setProdGraphMode] = useState<"valor" | "qtd">("valor");
@@ -174,13 +178,14 @@ export function DashboardClient({ orgName }: { orgName: string }) {
     return { texto: "Boa noite", emoji: "🌙" };
   }, []);
 
-  const fetchData = useCallback(async () => {
+  // `silencioso` = atualização automática: troca os números sem piscar a tela nem girar o botão.
+  const fetchData = useCallback(async (silencioso = false) => {
     // A aba Receita tem a própria leitura (`ReceitaAtribuidaPainel`).
     if (activeTab === "receita") {
       setLoading(false);
       return;
     }
-    setLoading(true);
+    if (!silencioso) setLoading(true);
     try {
       const url = new URL("/api/v1/dashboard/metrics", window.location.origin);
       url.searchParams.set("tab", activeTab);
@@ -193,6 +198,7 @@ export function DashboardClient({ orgName }: { orgName: string }) {
       if (res.ok) {
         const json = await res.json();
         setData(json.data || json);
+        setAtualizadoEm(new Date());
       }
     } catch (e) {
       console.error("Erro ao buscar dados do dashboard:", e);
@@ -204,6 +210,22 @@ export function DashboardClient({ orgName }: { orgName: string }) {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // ATUALIZAÇÃO AUTOMÁTICA. O painel buscava uma vez ao abrir e depois só pelo botão: quem deixa a tela
+  // aberta acompanhando o dia via números parados. Agora relê a cada minuto enquanto a aba está visível, e
+  // na hora em que a pessoa volta para ela. Aba escondida não consulta (nem banco, nem a cota da Meta); com
+  // o formulário de venda aberto também não, para os números não mudarem embaixo de quem está digitando.
+  useEffect(() => {
+    const reler = () => {
+      if (document.visibilityState === "visible" && !isModalOpen) void fetchData(true);
+    };
+    const relogio = window.setInterval(reler, INTERVALO_DE_ATUALIZACAO_MS);
+    document.addEventListener("visibilitychange", reler);
+    return () => {
+      window.clearInterval(relogio);
+      document.removeEventListener("visibilitychange", reler);
+    };
+  }, [fetchData, isModalOpen]);
 
   // O gasto e o ROAS podem ser DESCONHECIDOS (sem conexão, sem conta, plataforma fora): o cartão diz isso.
   const gasto = data?.kpis.gastoMeta;
@@ -388,9 +410,15 @@ export function DashboardClient({ orgName }: { orgName: string }) {
             <span>🇧🇷</span> BRL
           </div>
 
+          {atualizadoEm ? (
+            <span className="text-xs text-slate-500 dark:text-zinc-400" data-testid="dashboard-atualizado-em">
+              {t("Atualizado às")} {atualizadoEm.toLocaleTimeString(tagDoIdioma, { hour: "2-digit", minute: "2-digit" })}
+            </span>
+          ) : null}
+
           {/* Botão de Reload */}
           <button
-            onClick={fetchData}
+            onClick={() => void fetchData()}
             disabled={loading}
             className="p-2 text-slate-600 dark:text-zinc-300 hover:text-indigo-600 dark:hover:text-indigo-400 bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl transition-colors disabled:opacity-50"
             title="Atualizar dados"
