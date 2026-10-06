@@ -4407,6 +4407,27 @@ async function executarTurnoDoAgente(
       throw new Error('envio marcado como failed pelo CRM — run re-tentado pela fila');
     }
 
+    // Se o modelo respondeu com texto direto em vez de chamar a tool send_message,
+    // despacha esse texto via send_message para que o lead NUNCA fique no vácuo.
+    if (
+      !preview &&
+      outcomes.length === 0 &&
+      typeof turn.result.text === 'string' &&
+      turn.result.text.trim().length > 0 &&
+      rawTools.send_message &&
+      typeof rawTools.send_message.execute === 'function' &&
+      turnoVaiFalarComOLead(liveJob())
+    ) {
+      runLog.warn('modelo respondeu com texto direto sem tool call — aplicando fallback de envio', {
+        text_length: turn.result.text.length,
+        model: turn.model,
+      });
+      await (rawTools.send_message.execute as any)(
+        { body: turn.result.text.trim() },
+        { toolCallId: 'fallback_direct_text', messages: [] },
+      );
+    }
+
     // AGENTE NO COMANDO DE UM FLUXO: este turno conta como UMA resposta do agente nesta etapa (idempotente pela
     // mensagem que o motivou — um retry da fila não conta duas vezes) e renova o relógio de silêncio; ao atingir o
     // limite de respostas do nó, a inscrição sai pela saída de limite. Só depois de o envio ter dado certo (acima),
@@ -4852,6 +4873,21 @@ async function executarTurnoDoAgente(
       }
       throw new JobSettledError(
         'cap de envio atingido — job reagendado para a próxima abertura, sem mensagem enviada',
+      );
+    }
+
+    // Invariante sagrada: um turno conversacional que deveria falar com o lead
+    // NÃO PODE terminar em silêncio (messages_sent === 0) sem handoff explícito.
+    if (
+      !preview &&
+      outcomes.length === 0 &&
+      turnoVaiFalarComOLead(liveJob()) &&
+      !isLeadInHandoff(leadState) &&
+      !openedCaseThisTurn &&
+      pacingCapVeto === null
+    ) {
+      throw new Error(
+        'turno conversacional encerrou sem envio de mensagens nem handoff — falha forçada para retry na fila',
       );
     }
 
