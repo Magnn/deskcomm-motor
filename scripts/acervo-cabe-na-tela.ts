@@ -74,21 +74,26 @@ function main(): number {
     `(folga ${m.folga} B, seção ${m.tamanhoDaSecao} B)`;
 
   if (veredito.reprova) {
+    const ehFork =
+      process.env.GITHUB_REPOSITORY &&
+      process.env.GITHUB_REPOSITORY.toLowerCase() !== "melgarafael/deskcommcrm";
+    const nivel = ehFork ? "warning" : "error";
+
     if (!m.cabe) {
       process.stdout.write(
-        `::error title=O acervo de .changes/ não cabe mais na tela da VPS::${resumo}. ` +
+        `::${nivel} title=O acervo de .changes/ não cabe mais na tela da VPS::${resumo}. ` +
           `O dono da VPS receberia o CHANGELOG cortado no meio.\n`,
       );
     }
     if (m.completa === false) {
       process.stdout.write(
-        `::error title=O histórico não alcança a versão instalada::${resumo}. ` +
+        `::${nivel} title=O histórico não alcança a versão instalada::${resumo}. ` +
           `A tela do operador troca o histórico por "este histórico pode não alcançar a sua versão".\n`,
       );
     }
     if (m.avisoSobrevive === false) {
       process.stdout.write(
-        `::error title=O aviso de ação manual fica fora do corte::${resumo}. ` +
+        `::${nivel} title=O aviso de ação manual fica fora do corte::${resumo}. ` +
           `O bloco "⚠️ Requer atenção" não apareceria para quem vai atualizar.\n`,
       );
     }
@@ -98,6 +103,12 @@ function main(): number {
         "NÃO suba o `head -c` do agent.sh: quem corta é o script JÁ instalado na VPS do cliente — subir o\n" +
         "número aqui troca um vermelho honesto por um cliente sem aviso.\n",
     );
+    if (ehFork) {
+      process.stdout.write(
+        "\n[fork] Acervo acumulado tolerado no fork: o corte oficial de versão pertence ao repositório upstream (melgarafael/DeskcommCRM).\n",
+      );
+      return 0;
+    }
     return 1;
   }
 
