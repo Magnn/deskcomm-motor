@@ -418,7 +418,11 @@ export function createFollowupTurnHandler(deps: FollowupTurnDeps) {
        where c.organization_id=$1 and c.id=$2 and c.contact_id=$3`,
       [tenantId, boundary!.conversation_id, leadId]);
     if (!targetRows[0]) throw new Error('conversa de origem indisponível');
-    if (targetRows[0].archived_at) throw new Error('canal arquivado');
+    // Canal arquivado é decisão de quem opera, não incidente: nenhuma tentativa seguinte muda o desfecho.
+    // `terminal` manda o job para `cancelJob` (workers/agent-worker/main.ts) em vez de re-tentar até
+    // morrer — medido em produção: cada retorno agendado num canal arquivado falhava 5 vezes e virava
+    // alerta crítico de job morto.
+    if (targetRows[0].archived_at) throw Object.assign(new Error('canal arquivado'), { terminal: true });
     const target: ReentrySendTarget = { tenantId, leadId, conversationId: boundary!.conversation_id, channelSessionId: targetRows[0]!.channel_session_id };
 
     const clock = deps.clock ?? ((): Date => new Date());
