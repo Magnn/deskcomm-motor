@@ -17,7 +17,7 @@ import type { EventRow, HandlerResult } from "@/lib/event-log/dispatcher";
 import { deriveMediaText, type DeriveDeps } from "@/lib/messaging/media/derive";
 import { TIPOS_DERIVAVEIS } from "@/lib/messaging/media/derivable";
 import { deriveVideoText } from "@/lib/messaging/media/video-derive";
-import { apiTranscriptionProvider } from "@/lib/messaging/media/transcription";
+import { apiTranscriptionProvider, motivoDaFalhaDeTranscricao } from "@/lib/messaging/media/transcription";
 import { logger } from "@/lib/logger";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { motivoDaRecusaDeDestino } from "@/lib/automation/destinos-internos-autorizados";
@@ -266,7 +266,10 @@ export async function deriveMessageMedia(row: EventRow): Promise<HandlerResult> 
       await avisarMidiaNaoLida(
         msg.organization_id,
         rotuloDoTipo,
-        "a leitura deu erro em todas as tentativas, ao abrir o arquivo ou ao chamar o provedor de IA",
+        // Recusa de transcrição com ação conhecida (sem saldo, limite, chave)
+        // ganha a frase que diz o que fazer; o resto segue no texto genérico.
+        motivoDaFalhaDeTranscricao(detail) ??
+          "a leitura deu erro em todas as tentativas, ao abrir o arquivo ou ao chamar o provedor de IA",
         "O conteúdo do arquivo não chegou ao agente. Da próxima mensagem em diante ele sabe que houve um arquivo que não deu para ler, e responde avisando em vez de supor o que estava nele.",
         detail.slice(0, 200),
       );
