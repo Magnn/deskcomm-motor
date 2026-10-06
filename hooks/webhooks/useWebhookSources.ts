@@ -64,8 +64,10 @@ export function useCreateWebhookSource() {
 export function useUpdateWebhookSource() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, is_active }: { id: string; is_active: boolean }) =>
-      apiClient.patch<{ data: WebhookSourceRow }>(`/api/v1/webhook-sources/${id}`, { is_active }),
+    // `secret` é write-only: o servidor cifra e nunca devolve — a tela só
+    // enxerga `has_secret`.
+    mutationFn: async ({ id, ...patch }: { id: string; is_active?: boolean; secret?: string }) =>
+      apiClient.patch<{ data: WebhookSourceRow }>(`/api/v1/webhook-sources/${id}`, patch),
     onError: showApiError,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: SOURCES_KEY });

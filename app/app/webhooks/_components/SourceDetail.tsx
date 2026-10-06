@@ -10,6 +10,7 @@ import { formatDistanceToNowStrict } from "date-fns";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -91,6 +92,7 @@ export function SourceDetail({ source, open, onOpenChange }: Props) {
   );
   const [testing, setTesting] = React.useState(false);
   const [testOk, setTestOk] = React.useState(false);
+  const [segredo, setSegredo] = React.useState("");
 
   const url = publicUrl(source.path_token);
   const events = eventsRes?.data ?? [];
@@ -245,6 +247,55 @@ export function SourceDetail({ source, open, onOpenChange }: Props) {
                 ))}
               </ul>
             )}
+          </section>
+
+          <section className="space-y-2 rounded-sm border border-border p-3">
+            <div className="flex items-center gap-2">
+              <p className="text-sm font-medium text-text">{t("Segredo da fonte")}</p>
+              <Badge variant={source.has_secret ? "success" : "neutral"}>
+                {source.has_secret ? t("Definido") : t("Sem segredo")}
+              </Badge>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {t(
+                "Quem envia precisa usar o mesmo segredo. Plataformas de pagamento pedem que você digite um ao criar o webhook: cole aqui o mesmo valor. Sem segredo, aviso de pagamento é recusado.",
+              )}
+            </p>
+            <form
+              className="flex items-center gap-2"
+              onSubmit={(e) => {
+                e.preventDefault();
+                update.mutate(
+                  { id: source.id, secret: segredo },
+                  {
+                    onSuccess: () => {
+                      setSegredo("");
+                      toast.success(t("Segredo gravado."));
+                    },
+                  },
+                );
+              }}
+            >
+              <Input
+                type="password"
+                autoComplete="new-password"
+                aria-label={t("Segredo da fonte")}
+                value={segredo}
+                onChange={(e) => setSegredo(e.target.value)}
+                placeholder={
+                  source.has_secret
+                    ? t("•••••••• (definido — digite para trocar)")
+                    : t("Mínimo de 16 caracteres")
+                }
+              />
+              <Button
+                type="submit"
+                variant="secondary"
+                disabled={update.isPending || segredo.length < 16}
+              >
+                {t("Gravar segredo")}
+              </Button>
+            </form>
           </section>
 
           <section className="flex items-center justify-between rounded-sm border border-border p-3">
