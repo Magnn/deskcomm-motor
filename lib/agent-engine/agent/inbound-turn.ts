@@ -141,6 +141,7 @@ import {
   promessasEmAberto,
   type DeclaracaoDoTurno,
 } from './declaracao';
+import { lerJsonTolerante } from './json-quase-valido';
 import {
   projetarContexto,
   projetarRetornoDeTool,
@@ -632,6 +633,12 @@ export interface LeadCheckpointRow extends Omit<CheckpointContent, 'declaracao'>
  * argumento que este arquivo já usa para o checkpoint — e sai de graça, porque
  * é a mesma chamada de modelo.
  */
+/** O pedido de conserto quando o fechamento veio ilegível (ver a segunda tentativa, no fim do turno). */
+export const CHECKPOINT_REPAIR_INSTRUCTION =
+  'Sua resposta anterior não é um JSON válido no formato pedido. Responda de novo SOMENTE com o JSON ' +
+  'do checkpoint, sem texto antes nem depois, sem cerca de código, com aspas retas e sem quebra de ' +
+  'linha dentro dos textos.';
+
 export const CHECKPOINT_INSTRUCTION =
   'Feche o turno AGORA. Responda SOMENTE com um JSON válido no formato ' +
   '{"commitments": string[], "objections": string[], "next_action": string|null, "rolling_summary": string} ' +
@@ -1422,10 +1429,10 @@ export function parseCheckpointText(text: string): CheckpointContent {
   if (start === -1 || end <= start) {
     throw new Error('fechamento do turno sem JSON de checkpoint — run re-tentado pela fila');
   }
-  let raw: unknown;
-  try {
-    raw = JSON.parse(text.slice(start, end + 1));
-  } catch {
+  // Tolerante aos três defeitos de JSON que o modelo comete em resumo longo (quebra de linha crua
+  // dentro de string, vírgula sobrando, aspas tipográficas) — ver `json-quase-valido.ts`.
+  const raw = lerJsonTolerante(text.slice(start, end + 1));
+  if (raw === undefined) {
     throw new Error(
       'JSON de checkpoint inválido no fechamento do turno — run re-tentado pela fila',
     );
@@ -4500,40 +4507,63 @@ async function executarTurnoDoAgente(
     // turno. Aqui o lead já recebeu resposta, mas a conversa ficaria sem
     // checkpoint e sem dono, e o próximo inbound cairia no mesmo bloqueio, agora
     // sem nada tendo mudado no meio.
-    const closing = await runModelCall(
-      pool,
-      deps.llmCfg,
-      {
-        tenantId,
-        leadId: leadId || null,
-        jobId: job?.id,
-        purpose: 'checkpoint',
-        ...(agentConfig !== null
-          ? {
-              model: agentConfig.model,
-              llmOverride: {
-                provider: agentConfig.provider,
-                credentialId: agentConfig.credentialId,
-              },
-            }
-          : {}),
-        system: systemDoTurno,
-        messages: [
-          // prune: o checkpoint reusa a abertura só como texto — a mídia nativa (cara) já
-          // fez seu trabalho na 1ª chamada e não precisa ir de novo.
-          ...openingTextOnly,
-          ...responseMessages,
-          { role: 'user', content: CHECKPOINT_INSTRUCTION },
-        ],
-      },
-      { registry: deps.registry, log: runLog },
-    );
-    const content = parseCheckpointText(
-      closing.result.text.replace(
-        /https:\/\/meet\.google\.com\/[a-zA-Z0-9-]+/g,
-        '[link da reunião disponível na Agenda]',
-      ),
-    );
+    //
+    // `respostaRecusada` = a SEGUNDA tentativa do fechamento: a resposta anterior volta como fala do
+    // assistente, seguida do pedido de conserto. Só o fechamento é repetido — nunca o turno.
+    const pedirFechamento = (respostaRecusada: string | null) =>
+      runModelCall(
+        pool,
+        deps.llmCfg,
+        {
+          tenantId,
+          leadId: leadId || null,
+          jobId: job?.id,
+          purpose: 'checkpoint',
+          ...(agentConfig !== null
+            ? {
+                model: agentConfig.model,
+                llmOverride: {
+                  provider: agentConfig.provider,
+                  credentialId: agentConfig.credentialId,
+                },
+              }
+            : {}),
+          system: systemDoTurno,
+          messages: [
+            // prune: o checkpoint reusa a abertura só como texto — a mídia nativa (cara) já
+            // fez seu trabalho na 1ª chamada e não precisa ir de novo.
+            ...openingTextOnly,
+            ...responseMessages,
+            { role: 'user', content: CHECKPOINT_INSTRUCTION },
+            ...(respostaRecusada === null
+              ? []
+              : ([
+                  { role: 'assistant', content: respostaRecusada },
+                  { role: 'user', content: CHECKPOINT_REPAIR_INSTRUCTION },
+                ] as const)),
+          ],
+        },
+        { registry: deps.registry, log: runLog },
+      );
+    const lerFechamento = (texto: string): CheckpointContent =>
+      parseCheckpointText(
+        texto.replace(/https:\/\/meet\.google\.com\/[a-zA-Z0-9-]+/g, '[link da reunião disponível na Agenda]'),
+      );
+    const closing = await pedirFechamento(null);
+    let content: CheckpointContent;
+    try {
+      content = lerFechamento(closing.result.text);
+    } catch (primeiroErro) {
+      // O fechamento veio ilegível. Antes, o erro subia e a fila refazia o TURNO INTEIRO — com a
+      // resposta ao cliente já enviada e ~88 mil tokens de entrada por tentativa (medido em produção).
+      // Uma segunda pergunta, só do fechamento, custa uma fração; se ela também falhar, o erro DELA sobe
+      // e o job re-tenta como sempre.
+      runLog.warn('fechamento ilegível — pedindo o checkpoint de novo, sem refazer o turno', {
+        // Só o motivo (texto fixo do parser), nunca a resposta do modelo: ela pode carregar a conversa.
+        motivo: primeiroErro instanceof Error ? primeiroErro.message.slice(0, 120) : 'desconhecido',
+      });
+      content = lerFechamento((await pedirFechamento(closing.result.text)).result.text);
+    }
 
     if (preview) {
       preview.result.checkpoint = content;
