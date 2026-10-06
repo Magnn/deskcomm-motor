@@ -77,7 +77,10 @@ export async function classificarPorTexto(
     const nota = notaDoTexto(r.text);
     if (nota === null) throw new Error("a resposta em texto não trouxe uma nota de 0 a 1");
     const uso = r.usage as { inputTokens?: number; outputTokens?: number } | undefined;
-    return { score: nota, promptTokens: uso?.inputTokens ?? 0, completionTokens: uso?.outputTokens ?? 0 };
+    // Contadores de uso ausentes viram zero (é contagem, não medição); a NOTA nunca: sem ela, o erro acima.
+    const promptTokens = uso?.inputTokens ?? 0;
+    const completionTokens = uso?.outputTokens ?? 0;
+    return { score: nota, promptTokens, completionTokens };
   } finally {
     clearTimeout(relogio);
   }
