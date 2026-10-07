@@ -1,3 +1,4 @@
+import { MAX_CARACTERES_DO_ROTEIRO } from "@/lib/ai/agents/limite-do-roteiro";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
@@ -83,25 +84,25 @@ describe("editor de instruções do agente", () => {
 
   it("guarda o texto inteiro quando ele passa do limite, em vez de comer o fim", () => {
     const prompt = montar();
-    const gigante = "a".repeat(20_500);
+    const gigante = "a".repeat(MAX_CARACTERES_DO_ROTEIRO + 500);
     fireEvent.change(prompt, { target: { value: gigante } });
     expect(
       prompt.value.length,
       "o campo comeu o fim do texto — é exatamente assim que um prompt vira 19.999 caracteres",
-    ).toBe(20_500);
+    ).toBe(MAX_CARACTERES_DO_ROTEIRO + 500);
   });
 
   it("mostra o tamanho contra o limite enquanto o autor escreve", () => {
     // O aviso que chega ANTES do erro: quem cola um texto grande vê na hora que
     // ele não cabe, em vez de descobrir no salvamento — ou nunca.
     const prompt = montar();
-    fireEvent.change(prompt, { target: { value: "a".repeat(20_500) } });
-    expect(screen.getByTestId("contador-do-prompt")).toHaveTextContent("20.500/20.000");
+    fireEvent.change(prompt, { target: { value: "a".repeat(MAX_CARACTERES_DO_ROTEIRO + 500) } });
+    expect(screen.getByTestId("contador-do-prompt")).toHaveTextContent("60.500/60.000");
   });
 
   it("recusa o salvamento dizendo quanto passou", () => {
     const prompt = montar();
-    fireEvent.change(prompt, { target: { value: "a".repeat(20_500) } });
+    fireEvent.change(prompt, { target: { value: "a".repeat(MAX_CARACTERES_DO_ROTEIRO + 500) } });
     fireEvent.click(screen.getByRole("button", { name: /salvar|criar/i }));
     expect(
       screen.getByText(/corte 500 para conseguir salvar/i),
@@ -114,9 +115,21 @@ describe("editor de instruções do agente", () => {
     // max. Se a tela contasse os brancos, ela barraria texto que o servidor
     // aceita, e o autor ficaria preso sem entender o motivo.
     const prompt = montar();
-    fireEvent.change(prompt, { target: { value: "a".repeat(20_000) + "\n\n   " } });
-    expect(screen.getByTestId("contador-do-prompt")).toHaveTextContent("20.000/20.000");
+    fireEvent.change(prompt, { target: { value: "a".repeat(MAX_CARACTERES_DO_ROTEIRO) + "\n\n   " } });
+    expect(screen.getByTestId("contador-do-prompt")).toHaveTextContent("60.000/60.000");
     fireEvent.click(screen.getByRole("button", { name: /salvar|criar/i }));
     expect(screen.queryByText(/conseguir salvar/i)).not.toBeInTheDocument();
+  });
+});
+
+describe("o limite do roteiro é um número só", () => {
+  it("o servidor aceita o que a tela aceita, e recusa o que ela recusa", async () => {
+    // Produção, 07/10/2026: um roteiro de 32.399 caracteres estava publicado e a tela não
+    // deixava salvar edição nenhuma, porque o teto era 20.000 escrito em cinco lugares.
+    const { MAX_CARACTERES_DO_ROTEIRO: max } = await import("@/lib/ai/agents/limite-do-roteiro");
+    const fonte = (await import("node:fs")).readFileSync("lib/ai/agents/validation.ts", "utf8");
+    expect(max).toBe(60_000);
+    expect(fonte).toContain(".max(MAX_CARACTERES_DO_ROTEIRO)");
+    expect(fonte).not.toMatch(/system_prompt: z\.string\(\)\.trim\(\)\.min\(10\)\.max\(\d/);
   });
 });

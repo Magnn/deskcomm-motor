@@ -7,6 +7,7 @@
  * in `validateVersionReferences` and run BEFORE save AND inside the publish
  * Postgres function (defense in depth).
  */
+import { MAX_CARACTERES_DO_ROTEIRO } from "./limite-do-roteiro";
 import { z } from "zod";
 import { VALID_TOOL_IDS } from "@/lib/mcp/tools/catalog";
 import { TETO_TOOLS_POR_AGENTE } from "@/lib/mcp/tools/selecao-por-pacote";
@@ -107,7 +108,7 @@ export type FollowupConfig = z.infer<typeof followupConfigSchema>;
 
 const versionShapeSchema = z
   .object({
-    system_prompt: z.string().trim().min(10).max(20000),
+    system_prompt: z.string().trim().min(10).max(MAX_CARACTERES_DO_ROTEIRO),
     provider: z.enum(PROVIDERS),
     model: z.string().trim().min(1).max(120),
     /**
