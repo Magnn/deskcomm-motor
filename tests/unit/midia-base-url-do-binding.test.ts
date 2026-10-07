@@ -151,7 +151,9 @@ vi.mock("ai", () => ({
   generateText: vi.fn(async () => ({ text: "descrição de mentira" })),
 }));
 
-vi.mock("@/lib/messaging/media/transcription", () => ({
+vi.mock("@/lib/messaging/media/transcription", async (original) => ({
+  // O resto do módulo (a reserva, a leitura do motivo) é o REAL: só o provedor principal é trocado.
+  ...(await original<typeof import("@/lib/messaging/media/transcription")>()),
   // A referência é resolvida na CHAMADA, não na fábrica: `vi.mock` é içado para
   // o topo do arquivo e um `const` de módulo ainda não existe nesse momento.
   apiTranscriptionProvider: (cfg: unknown) => provedorDeTranscricaoMock(cfg),

@@ -17,7 +17,13 @@ import type { EventRow, HandlerResult } from "@/lib/event-log/dispatcher";
 import { deriveMediaText, type DeriveDeps } from "@/lib/messaging/media/derive";
 import { TIPOS_DERIVAVEIS } from "@/lib/messaging/media/derivable";
 import { deriveVideoText } from "@/lib/messaging/media/video-derive";
-import { apiTranscriptionProvider, motivoDaFalhaDeTranscricao } from "@/lib/messaging/media/transcription";
+import {
+  apiTranscriptionProvider,
+  comReserva,
+  elevenlabsTranscriptionProvider,
+  motivoDaFalhaDeTranscricao,
+} from "@/lib/messaging/media/transcription";
+import { resolverChaveDeVoz } from "@/lib/voz/chaves";
 import { logger } from "@/lib/logger";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { motivoDaRecusaDeDestino } from "@/lib/automation/destinos-internos-autorizados";
@@ -456,9 +462,27 @@ function buildDeriveDeps(
   // `model`, e o worker nunca os passava: quem tinha Groq/Whisper próprio
   // continuava batendo em api.openai.com com `whisper-1`. Sem
   // `TRANSCRIPTION_API_KEY` o comportamento é exatamente o de antes.
+  // A RESERVA: a chave do provedor de voz da organização, que também transcreve. Resolvida só quando
+  // precisa (uma leitura de credencial por áudio que caiu na reserva, não por áudio).
+  const reservaDeTranscricao = async () => {
+    const chave = await resolverChaveDeVoz(orgId, "elevenlabs");
+    return chave ? elevenlabsTranscriptionProvider({ apiKey: chave }) : null;
+  };
   const transcricaoPadrao: DeriveDeps["transcriber"] = openaiKey
-    ? apiTranscriptionProvider({ apiKey: openaiKey })
-    : semTranscricao;
+    ? comReserva(apiTranscriptionProvider({ apiKey: openaiKey }), reservaDeTranscricao, (motivo) =>
+        logger.warn("[media-derive] transcrição pela reserva — o serviço principal recusou pela conta", {
+          organization_id: orgId,
+          // Só o código da recusa (status + identificador do provedor), nunca o áudio nem a chave.
+          motivo,
+        }),
+      )
+    : {
+        // Sem chave do serviço principal, a reserva é o caminho; sem nenhuma das duas, o aviso de sempre.
+        transcribe: async (audio, mime) => {
+          const reserva = await reservaDeTranscricao();
+          return reserva ? reserva.transcribe(audio, mime) : semTranscricao!.transcribe(audio, mime);
+        },
+      };
   // O endereço do serviço de transcrição vem do .env da instalação e a chamada
   // leva a chave no cabeçalho: mesma recusa do endereço da visão, e antes de a
   // chave sair daqui.
