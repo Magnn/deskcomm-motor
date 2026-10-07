@@ -83,6 +83,11 @@ import {
   prepararNotasDeVoz,
 } from './nota-de-voz';
 import { blocoDePreco, semObjecaoDePrecoQuandoHaBloco } from '@/lib/preco/bloco-do-prompt';
+import {
+  cobradoPorMensagem,
+  INSTRUCAO_DE_MENSAGEM_UNICA,
+  ultimoTipoDeCobrancaDoContato,
+} from './economia-de-mensagem-cobrada';
 import { carregarGuiaDeEntrega, trabalhoPagoDasTags } from '@/lib/entrega/guia-de-entrega';
 import { blocoDaLeitura } from '@/lib/leitura/bloco-do-prompt';
 import { blocoDoAnuncio, carregarAnuncioDoContato } from '@/lib/anuncio/contexto-do-anuncio';
@@ -2306,6 +2311,23 @@ async function executarTurnoDoAgente(
       posVendaDoTurno = null;
     }
   }
+  // Economia de mensagem cobrada (`economia-de-mensagem-cobrada.ts`): só é consultada quando o agente
+  // divide a resposta em bolhas — sem bolhas não há o que economizar. Falha na leitura = segue como
+  // estava configurado: a economia nunca pode custar a resposta.
+  let contatoCobradoPorMensagem = false;
+  if (!preview && (agentConfig?.splitMessages ?? false)) {
+    try {
+      contatoCobradoPorMensagem = cobradoPorMensagem(
+        await ultimoTipoDeCobrancaDoContato(pool, tenantId, leadId),
+      );
+    } catch {
+      contatoCobradoPorMensagem = false;
+    }
+  }
+  const dividirEmBolhas = (agentConfig?.splitMessages ?? false) && !contatoCobradoPorMensagem;
+  if (contatoCobradoPorMensagem) {
+    runLog.info('economia de mensagem cobrada — resposta em mensagem única neste turno', {});
+  }
   const blocoDePrecoDoTurno = blocoDePreco(agentConfig?.pricing, {
     reclamacoes: reclamacoesDeValorNoTurno,
     posVenda: posVendaDoTurno,
@@ -3350,7 +3372,7 @@ async function executarTurnoDoAgente(
                 texto:
                   splitForSend(
                     body,
-                    agentConfig?.splitMessages ?? false,
+                    dividirEmBolhas,
                     agentConfig?.splitMaxChars ?? 600,
                   )[0] ?? body,
                 // `processamentoMs` é a contribuição do #849 (@Teowfb): a pausa humana desconta o
@@ -3396,7 +3418,7 @@ async function executarTurnoDoAgente(
               };
               const comoTexto = (texto: string) =>
                 sendInBubbles(texto, {
-                  enabled: agentConfig?.splitMessages ?? false,
+                  enabled: dividirEmBolhas,
                   maxChars: agentConfig?.splitMaxChars ?? 600,
                   sleep,
                   jitter,
@@ -4291,10 +4313,11 @@ async function executarTurnoDoAgente(
     // Sufixos por-lead (situacionais, voláteis — depois do prefixo cacheável F2-17): corpos de
     // skill casadas (F3-09) + hint do classificador (F3-11) + instrução de split (F4-xx, quando
     // split_messages está on — Onda 4). Vazios são omitidos.
-    const splitHint =
-      (agentConfig?.splitMessages ?? false)
-        ? 'Responda em mensagens curtas e naturais, uma ideia por mensagem — como uma pessoa digitando no WhatsApp. Prefira várias mensagens curtas a um texto único e longo.'
-        : '';
+    const splitHint = contatoCobradoPorMensagem
+      ? INSTRUCAO_DE_MENSAGEM_UNICA
+      : dividirEmBolhas
+          ? 'Responda em mensagens curtas e naturais, uma ideia por mensagem — como uma pessoa digitando no WhatsApp. Prefira várias mensagens curtas a um texto único e longo.'
+          : '';
     // Spec 15: o `case_id` real do caso 'awaiting_lead' desta conversa, se houver — sem
     // isso o modelo nunca consegue chamar provide_case_update quando o lead simplesmente
     // responde (o caminho comum; case_reply_turn só cobre a AÇÃO do humano). Sufixo

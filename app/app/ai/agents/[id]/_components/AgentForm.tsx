@@ -1097,6 +1097,11 @@ export function AgentForm(props: Props) {
                 "Em vez de um bloco único, a resposta sai em bolhas separadas, espaçadas pelo mesmo ritmo anti-banimento do envio. O agente também é instruído a escrever em parágrafos curtos.",
               )}
             </p>
+            <p className="text-xs text-muted-foreground">
+              {t(
+                "No WhatsApp oficial, quando a conversa é cobrada por mensagem, a resposta sai em uma mensagem só, para não multiplicar o custo. Conversas gratuitas (quem chegou por anúncio, por exemplo) seguem em bolhas.",
+              )}
+            </p>
             {form.split_messages ? (
               <div className="space-y-1">
                 <Label htmlFor="split_max_chars">{t("Tamanho máximo por bolha (80–4000)")}</Label>
