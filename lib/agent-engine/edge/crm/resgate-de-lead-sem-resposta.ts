@@ -75,7 +75,9 @@ export const CONSULTA_DE_CANDIDATAS = `
   where u.direction = 'inbound'
     and u.type not in ('reaction', 'sticker')
     and u.created_at < now() - ($1 * interval '1 millisecond')
-    and v.status = 'open'
+    -- 'ai_handling' é a conversa que está COM a IA (é o estado em que a devolução ao agente a deixa):
+    -- deixá-la de fora tirava do resgate justamente quem só a IA pode responder.
+    and v.status in ('open', 'ai_handling')
     and v.assigned_to_user_id is null
     and coalesce(c.force_human, false) = false
     and coalesce(c.is_blocked, false) = false
