@@ -19,7 +19,7 @@ function tela(value: Recuperacao | null) {
 }
 
 describe("RecuperacaoEditor", () => {
-  it("desligada mostra só o interruptor; ligar propõe 3 min, 15 min, 3 h e a última janela 3 h antes", () => {
+  it("desligada mostra só o interruptor; ligar propõe 1 h, 20 h e a última janela 3 h antes", () => {
     const onChange = tela(null);
     expect(screen.queryByText("Adicionar chamada")).toBeNull();
 
@@ -39,23 +39,25 @@ describe("RecuperacaoEditor", () => {
     expect(unidadeDoPasso(15)).toBe("min");
     expect(unidadeDoPasso(90)).toBe("min");
 
-    const onChange = tela(RECUPERACAO_PADRAO);
+    const tresPassos: Recuperacao = { ...RECUPERACAO_PADRAO, steps_minutes: [3, 15, 180] };
+    const onChange = tela(tresPassos);
     const terceira = screen.getByLabelText("3ª chamada após") as HTMLInputElement;
     expect(terceira.value).toBe("3");
 
     fireEvent.change(terceira, { target: { value: "5" } });
-    expect(onChange).toHaveBeenLastCalledWith({ ...RECUPERACAO_PADRAO, steps_minutes: [3, 15, 300] });
+    expect(onChange).toHaveBeenLastCalledWith({ ...tresPassos, steps_minutes: [3, 15, 300] });
   });
 
   it("adicionar e remover chamadas devolve sempre uma régua válida", () => {
-    const onChange = tela(RECUPERACAO_PADRAO);
+    const tresPassos: Recuperacao = { ...RECUPERACAO_PADRAO, steps_minutes: [3, 15, 180] };
+    const onChange = tela(tresPassos);
     fireEvent.click(screen.getByRole("button", { name: "Adicionar chamada" }));
     const comQuatro = onChange.mock.lastCall?.[0] as Recuperacao;
     expect(comQuatro.steps_minutes).toEqual([3, 15, 180, 360]);
     expect(recuperacaoSchema.safeParse(comQuatro).success).toBe(true);
 
     fireEvent.click(screen.getAllByRole("button", { name: "Remover" })[0]!);
-    expect(onChange).toHaveBeenLastCalledWith({ ...RECUPERACAO_PADRAO, steps_minutes: [15, 180] });
+    expect(onChange).toHaveBeenLastCalledWith({ ...tresPassos, steps_minutes: [15, 180] });
   });
 
   it("régua fora de ordem avisa na tela", () => {

@@ -3,11 +3,13 @@
  *
  * O cliente para de responder no meio da conversa. Quem atende bem volta a chamar: logo em seguida,
  * um pouco depois, e mais uma vez antes de o dia acabar. Aqui isso é DADO do agente (`followup.recovery`
- * na versão publicada), não fluxo desenhado caixa a caixa: três números e dois interruptores.
+ * na versão publicada), não fluxo desenhado caixa a caixa: alguns números e dois interruptores.
  *
  * ─── As duas partes ───────────────────────────────────────────────────────────────────────────────
  *   `steps_minutes` — quanto tempo de silêncio, contado da última fala do agente, dispara cada chamada.
- *                     Padrão 3 min, 15 min e 3 h.
+ *                     Padrão 1 h e 20 h: uma chamada depois de uma hora e uma última antes de as 24 h
+ *                     do canal acabarem. A régua de 3 min, 15 min e 3 h, com volume de anúncio, é
+ *                     insistência — quem só clicou por curiosidade bloqueia o número.
  *   `keep_window`   — para quem COMBINOU voltar numa data além das 24 horas que o canal oficial dá de
  *                     conversa livre: nas últimas horas antes de esse prazo acabar, o agente manda uma
  *                     mensagem que pede resposta. Se a pessoa responde, o prazo recomeça.
@@ -40,10 +42,10 @@ export const recuperacaoSchema = z
 
 export type Recuperacao = z.infer<typeof recuperacaoSchema>;
 
-/** O que a tela propõe ao ligar: 3 min, 15 min, 3 h, e a última janela 3 h antes de fechar. */
+/** O que a tela propõe ao ligar: 1 h, 20 h, e a última janela 3 h antes de fechar. */
 export const RECUPERACAO_PADRAO: Recuperacao = {
   enabled: true,
-  steps_minutes: [3, 15, 180],
+  steps_minutes: [60, 1200],
   keep_window: { enabled: true, hours_before_close: 3 },
 };
 

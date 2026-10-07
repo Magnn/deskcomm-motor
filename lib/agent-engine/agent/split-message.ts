@@ -163,7 +163,33 @@ export const OK_KINDS = new Set(["sent", "already_sent", "queued"]);
  * chama decide — o `sendInBubbles` passa o corpo original ao `send`).
  */
 export function splitForSend(body: string, enabled: boolean, maxChars: number): string[] {
-  return enabled ? splitIntoBubbles(body, maxChars) : [body];
+  return enabled ? limitarBolhas(body, maxChars) : [body];
+}
+
+/**
+ * Quantas bolhas uma resposta pode virar. Cada bolha é uma notificação no aparelho de quem recebe: uma
+ * resposta longa picotada em cinco ou seis chega como rajada, e rajada é o que faz a pessoa bloquear o
+ * número — bloqueio e denúncia são o que restringe a conta no canal (medido em produção em 07/10/2026:
+ * conta oficial restrita por 30 dias por "spam").
+ */
+export const MAXIMO_DE_BOLHAS = 3;
+
+/** O maior corpo que o canal aceita numa mensagem de texto. */
+const TETO_DA_BOLHA = 4000;
+
+/**
+ * As bolhas da resposta, no máximo `MAXIMO_DE_BOLHAS`. Quando o corte por `maxChars` passa do teto, o
+ * tamanho da bolha cresce até caber — os cortes continuam em parágrafo e frase, e nenhum texto se perde.
+ * Só um corpo maior que `MAXIMO_DE_BOLHAS × TETO_DA_BOLHA` ainda passa do teto. Pura.
+ */
+function limitarBolhas(body: string, maxChars: number): string[] {
+  let tamanho = maxChars;
+  let bolhas = splitIntoBubbles(body, tamanho);
+  while (bolhas.length > MAXIMO_DE_BOLHAS && tamanho < TETO_DA_BOLHA) {
+    tamanho = Math.min(TETO_DA_BOLHA, Math.ceil(tamanho * 1.25));
+    bolhas = splitIntoBubbles(body, tamanho);
+  }
+  return bolhas;
 }
 
 export async function sendInBubbles<T extends BubbleOutcome>(

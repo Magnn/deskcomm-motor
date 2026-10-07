@@ -89,7 +89,9 @@ export function motivoDoPasso(passo: number, total: number, silencioMs: number):
     `recuperação de silêncio, chamada ${passo} de ${total}: o cliente não respondeu à sua última mensagem há ` +
     `${duracao(silencioMs)}. Retome de onde a conversa parou com UMA mensagem curta e natural, ligada ao último ` +
     "assunto, que seja fácil de responder. Não repita o que já disse, não pressione e não invente urgência nem " +
-    "novidade. Se a conversa já tinha terminado, ou se o cliente pediu para não ser procurado, não envie nada"
+    "novidade. Termine com uma linha curta avisando que, se a pessoa não quiser mais receber mensagens, basta " +
+    "responder SAIR (SALIR se a conversa for em espanhol). Se a conversa já tinha terminado, ou se o cliente " +
+    "pediu para não ser procurado, não envie nada"
   );
 }
 
