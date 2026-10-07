@@ -5949,6 +5949,10 @@ export const DICIONARIO: Traducoes = {
   "Esta mensagem foi apagada": { es: "Este mensaje fue eliminado" },
   editada: { es: "editado" },
   "O autor editou esta mensagem": { es: "El autor editó este mensaje" },
+  "No WhatsApp oficial, quando a conversa é cobrada por mensagem, a resposta sai em uma mensagem só, para não multiplicar o custo. Conversas gratuitas (quem chegou por anúncio, por exemplo) seguem em bolhas.":
+    {
+      es: "En WhatsApp oficial, cuando la conversación se cobra por mensaje, la respuesta sale en un solo mensaje, para no multiplicar el costo. Las conversaciones gratuitas (quien llegó por un anuncio, por ejemplo) siguen en burbujas.",
+    },
   "O WhatsApp cobrou o envio desta mensagem": { es: "WhatsApp cobró el envío de este mensaje" },
   Cobrada: { es: "Cobrado" },
   "Cobrada · marketing": { es: "Cobrado · marketing" },
