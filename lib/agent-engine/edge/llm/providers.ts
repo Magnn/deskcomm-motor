@@ -1,7 +1,9 @@
 /**
  * Registro de providers da camada agnóstica. ÚNICO lugar (junto do resto de
  * edge/llm/) onde SDK de vendor é importado. Instância POR CHAMADA com a chave
- * BYOK da org: sem pool global de chave, sem fallback silencioso.
+ * BYOK da org: sem pool global de chave, sem fallback silencioso. A troca para
+ * outra chave DA MESMA ORG quando a principal falha por conta ou recusa existe,
+ * mora em `chave-reserva.ts` e é anunciada (llm_calls, log e aviso na Central).
  */
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
