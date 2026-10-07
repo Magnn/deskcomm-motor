@@ -25,6 +25,7 @@ import {
   type CredentialRow,
 } from "@/hooks/ai/useCredentials";
 import { ehProvedorDeDecisao, PROVEDORES_COM_CHAVE } from "@/lib/ai/pontos/provedores";
+import { PROVEDORES_SO_DE_VOZ } from "@/lib/voz/tipos";
 import { descreverErroDeValidacao } from "@/lib/ai/credenciais/erro-de-validacao";
 import { useT } from "@/hooks/i18n/useT";
 
@@ -56,7 +57,8 @@ export function RotateCredentialDialog({ open, onOpenChange, credential }: Props
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<Partial<Record<keyof FormValues, string>>>({});
   const provedor =
-    PROVEDORES_COM_CHAVE.find((p) => p.id === credential.provider) ?? PROVEDORES_COM_CHAVE[0];
+    [...PROVEDORES_COM_CHAVE, ...PROVEDORES_SO_DE_VOZ].find((p) => p.id === credential.provider) ??
+    PROVEDORES_COM_CHAVE[0];
 
   const chaveMudou = apiKey.trim() !== "";
   const rotuloMudou = label.trim() !== credential.label;
