@@ -92,11 +92,39 @@ export function calcularIntervalo(period: string, now: Date, fuso: string = FUSO
 
   const start = paraInstante(inicio, fuso);
   const end = paraInstante(fim, fuso);
+
+  // Período que ainda está correndo ("hoje", "este mês") compara com o MESMO trecho do período anterior:
+  // hoje até 12h49 contra ontem até 12h49. Recuar a duração a partir da meia-noite comparava a manhã de
+  // hoje com a tarde e a noite de ontem (medido em produção em 07/10/2026).
+  if (period === "today" || period === "this_month") {
+    const inicioAntes = new Date(inicio);
+    const fimAntes = new Date(fim);
+    if (period === "today") {
+      inicioAntes.setUTCDate(inicioAntes.getUTCDate() - 1);
+      fimAntes.setUTCDate(fimAntes.getUTCDate() - 1);
+    } else {
+      inicioAntes.setUTCMonth(inicioAntes.getUTCMonth() - 1);
+      fimAntes.setUTCMonth(fimAntes.getUTCMonth() - 1);
+      // Dia 31 num mês anterior de 30 transborda para o mês corrente: o teto é o fim do mês anterior.
+      if (fimAntes.getTime() >= inicio.getTime()) fimAntes.setTime(inicio.getTime() - 1);
+    }
+    return { start, end, prevStart: paraInstante(inicioAntes, fuso), prevEnd: paraInstante(fimAntes, fuso) };
+  }
+
   const duracaoMs = end.getTime() - start.getTime();
   const prevEnd = new Date(start.getTime() - 1);
   const prevStart = new Date(prevEnd.getTime() - duracaoMs);
 
   return { start, end, prevStart, prevEnd };
+}
+
+/**
+ * O gasto de anúncio vem da plataforma por DIA INTEIRO. Com "hoje" pela metade, o gasto de ontem que a
+ * plataforma devolve é o do dia todo: a variação sairia de meio dia contra um dia cheio. Onde o recorte
+ * não é o mesmo dos dois lados, não há variação a mostrar.
+ */
+export function gastoTemComparacao(period: string): boolean {
+  return period !== "today";
 }
 
 /**
@@ -113,6 +141,7 @@ export async function lerFusoDaOrganizacao(db: SupabaseClient, organizationId: s
 }
 
 export function calcularDelta(atual: number, anterior: number): number {
-  if (anterior === 0) return atual > 0 ? 100 : 0;
-  return Number((((atual - anterior) / anterior) * 100).toFixed(1));
+  if (anterior === 0) return atual > 0 ? 100 : atual < 0 ? -100 : 0;
+  // Divide pelo MÓDULO: o lucro pode ser negativo, e sair de −112 para +199 é alta, não queda.
+  return Number((((atual - anterior) / Math.abs(anterior)) * 100).toFixed(1));
 }

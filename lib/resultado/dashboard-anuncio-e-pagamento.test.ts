@@ -10,7 +10,7 @@ import { lerGastoDeAnuncios, limparCacheDoGasto, somarGastoEmCentavos, type Deps
 import { criarBancoEmMemoria } from "@/tests/helpers/banco-em-memoria";
 
 import { contasDoAnuncio } from "./contas-do-anuncio";
-import { calcularIntervalo, diaNoFuso } from "./periodo";
+import { calcularDelta, calcularIntervalo, diaNoFuso, gastoTemComparacao } from "./periodo";
 import { lerVendasDoPagamento, vendasDoLedger } from "./vendas-do-pagamento";
 
 const linha = (id: string, tipo: string, pedido: string, quando: string, over: object = {}) => ({
@@ -164,6 +164,30 @@ describe("o período no fuso da organização", () => {
     const passado = calcularIntervalo("last_month", agora, SP);
     expect([passado.start.toISOString(), passado.end.toISOString()]).toEqual(["2026-09-01T03:00:00.000Z", "2026-10-01T02:59:59.999Z"]);
     expect(ontem.prevEnd.getTime() - ontem.prevStart.getTime()).toBe(ontem.end.getTime() - ontem.start.getTime());
+  });
+
+  it("'hoje' compara com ontem até a mesma hora, e não com a tarde e a noite de ontem", () => {
+    // O caso medido em produção em 07/10/2026: 12h49 de São Paulo.
+    const meioDia = calcularIntervalo("today", new Date("2026-10-07T15:49:00Z"), SP);
+    expect([meioDia.prevStart.toISOString(), meioDia.prevEnd.toISOString()]).toEqual(["2026-10-06T03:00:00.000Z", "2026-10-06T15:49:00.000Z"]);
+    expect(gastoTemComparacao("today")).toBe(false);
+    expect(gastoTemComparacao("7d")).toBe(true);
+  });
+
+  it("'este mês' compara com o mesmo trecho do mês anterior; dia 31 para no fim do mês anterior", () => {
+    const outubro = calcularIntervalo("this_month", new Date("2026-10-07T15:49:00Z"), SP);
+    expect([outubro.prevStart.toISOString(), outubro.prevEnd.toISOString()]).toEqual(["2026-09-01T03:00:00.000Z", "2026-09-07T15:49:00.000Z"]);
+    const marco = calcularIntervalo("this_month", new Date("2026-03-31T15:00:00Z"), SP);
+    expect([diaNoFuso(marco.prevStart, SP), diaNoFuso(marco.prevEnd, SP)]).toEqual(["2026-02-01", "2026-02-28"]);
+    expect(marco.prevEnd.getTime()).toBeLessThan(marco.start.getTime());
+  });
+
+  it("a variação divide pelo módulo: lucro que sai do negativo para o positivo é alta", () => {
+    expect(calcularDelta(199.28, -112.2)).toBe(277.6);
+    expect(calcularDelta(-50, -100)).toBe(50);
+    expect(calcularDelta(50, 100)).toBe(-50);
+    expect(calcularDelta(-10, 0)).toBe(-100);
+    expect(calcularDelta(0, 0)).toBe(0);
   });
 
   it("dia 31 não estoura o 'mês passado' (março → fevereiro), e outro fuso dá outro dia", () => {

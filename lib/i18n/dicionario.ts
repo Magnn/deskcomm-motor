@@ -13575,6 +13575,7 @@ export const DICIONARIO: Traducoes = {
   "Escolha a conta de anúncios": { es: "Elija la cuenta de anuncios" },
   "A Meta não respondeu agora": { es: "Meta no respondió ahora" },
   "Visível para gestores": { es: "Visible para gestores" },
+  "Sem comparação neste período": { es: "Sin comparación en este período" },
   // Chat: estado da transcrição do áudio, não lida e rolar para o fim (components/inbox).
   "Transcrevendo o áudio…": { es: "Transcribiendo el audio…" },
   "Não foi possível transcrever este áudio.": { es: "No fue posible transcribir este audio." },
