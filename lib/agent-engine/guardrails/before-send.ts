@@ -70,6 +70,7 @@ import { escalateLgpdVeto, isLegalBasisValid } from './lgpd/legal-basis';
 import type { LgpdInput } from './lgpd/legal-basis';
 import { detectHumanPromise } from './human-promise';
 import { detectarVazamentoInterno, renderVetoDeVazamento } from './vazamento-interno';
+import { comVagaDeEnvio } from './vagas-do-envio';
 // Módulo PURO de propósito (`capabilities`, não `index`): o seam não arrasta o
 // adapter — e com ele o cliente HTTP do canal — para dentro do worker.
 import { capabilitiesOf, DEFAULT_CHANNEL_PROVIDER } from '@/lib/channels/capabilities';
@@ -1123,6 +1124,14 @@ export async function runBeforeSend(args: RunBeforeSendArgs): Promise<BeforeSend
   const gates = args.gates ?? BEFORE_SEND_GATES;
   // Fora do lock (nem conexão tomada): aqui não existe transação aberta para segurar.
   if (args.esperaForaDoLock) await args.esperaForaDoLock();
+  // A vaga vem ANTES da conexão: quem espera a vez não segura conexão (ver `vagas-do-envio.ts`).
+  return comVagaDeEnvio(args.pool, () => enviarSobOLock(args, gates));
+}
+
+async function enviarSobOLock(
+  args: RunBeforeSendArgs,
+  gates: NonNullable<RunBeforeSendArgs['gates']>,
+): Promise<BeforeSendResult> {
   const client = await args.pool.connect();
   try {
     // ANTES do `begin`, de propósito: preferência de estilo não precisa do lock,
