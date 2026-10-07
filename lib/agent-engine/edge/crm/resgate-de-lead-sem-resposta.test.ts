@@ -98,7 +98,7 @@ describe("resgatarLeadsSemResposta", () => {
     for (const trecho of [
       "u.direction = 'inbound'",
       "u.type not in ('reaction', 'sticker')",
-      "v.status = 'open'",
+      "v.status in ('open', 'ai_handling')",
       "v.assigned_to_user_id is null",
       "coalesce(c.force_human, false) = false",
       "coalesce(c.is_blocked, false) = false",
