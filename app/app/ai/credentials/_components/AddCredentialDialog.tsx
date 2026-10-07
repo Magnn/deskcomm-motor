@@ -29,12 +29,18 @@ import { apiClient } from "@/lib/api/client";
 import { showApiError } from "@/components/feedback/ApiErrorToast";
 import { credentialsListQueryKey, type CredentialRow } from "@/hooks/ai/useCredentials";
 import { IDS_COM_CHAVE, PROVEDORES_COM_CHAVE, type ProvedorComChave } from "@/lib/ai/pontos/provedores";
+import { IDS_DE_PROVEDOR_DE_VOZ, PROVEDORES_SO_DE_VOZ } from "@/lib/voz/tipos";
 import { descreverErroDeValidacao } from "@/lib/ai/credenciais/erro-de-validacao";
 import { useT } from "@/hooks/i18n/useT";
 
+// O que o seletor oferece: quem conversa, quem decide e quem só fala. A rota já aceitava a chave de
+// voz (`z.enum([...IDS_COM_CHAVE, ...IDS_DE_PROVEDOR_DE_VOZ])`); o seletor é que não a mostrava.
+const OPCOES_DE_PROVEDOR = [...PROVEDORES_COM_CHAVE, ...PROVEDORES_SO_DE_VOZ];
+type IdDaOpcao = (typeof OPCOES_DE_PROVEDOR)[number]["id"];
+
 const formSchema = z.object({
-  // Derivado das listas (`lib/ai/pontos/provedores.ts`), como a rota.
-  provider: z.enum(IDS_COM_CHAVE),
+  // Derivado das listas, a MESMA união da rota (`app/api/v1/ai/credentials/route.ts`).
+  provider: z.enum([...IDS_COM_CHAVE, ...IDS_DE_PROVEDOR_DE_VOZ]),
   // Opcional: o leigo cola só a chave. Em branco, o nome vira o do provedor
   // (ver `onSubmit`) — o banco exige um, e a pessoa não precisa inventá-lo.
   label: z.string().trim().max(80),
@@ -60,12 +66,12 @@ export function AddCredentialDialog({ open, onOpenChange, providerInicial = "ant
   const t = useT();
   const router = useRouter();
   const qc = useQueryClient();
-  const [provider, setProvider] = useState<ProvedorComChave>(providerInicial);
+  const [provider, setProvider] = useState<IdDaOpcao>(providerInicial);
   const [label, setLabel] = useState("");
   const [apiKey, setApiKey] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<Partial<Record<keyof FormValues, string>>>({});
-  const provedor = PROVEDORES_COM_CHAVE.find((p) => p.id === provider) ?? PROVEDORES_COM_CHAVE[0];
+  const provedor = OPCOES_DE_PROVEDOR.find((p) => p.id === provider) ?? PROVEDORES_COM_CHAVE[0];
 
   const reset = () => {
     setProvider(providerInicial);
@@ -149,12 +155,12 @@ export function AddCredentialDialog({ open, onOpenChange, providerInicial = "ant
         <form onSubmit={onSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="cred-provider">{t("Provedor")}</Label>
-            <Select value={provider} onValueChange={(v) => setProvider(v as ProvedorComChave)}>
+            <Select value={provider} onValueChange={(v) => setProvider(v as IdDaOpcao)}>
               <SelectTrigger id="cred-provider">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {PROVEDORES_COM_CHAVE.map((p) => (
+                {OPCOES_DE_PROVEDOR.map((p) => (
                   <SelectItem key={p.id} value={p.id}>
                     {p.rotulo}
                   </SelectItem>
