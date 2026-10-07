@@ -95,6 +95,11 @@ services:
       context: .
       dockerfile: Dockerfile.worker
     restart: unless-stopped
+    # O worker encerra com calma: para de pegar trabalho e espera os atendimentos em curso por até
+    # SHUTDOWN_GRACE_MS (30 s por padrão). O padrão do Docker é matar em 10 s — metade de um atendimento
+    # comum —, e cada deploy cortava no meio quem estava sendo respondido. 45 s dá o prazo do worker e
+    # folga para ele devolver à fila o que não terminou.
+    stop_grace_period: 45s
     env_file: .env
     environment:
       # dentro da rede do compose, o WAHA é o serviço 'waha' na porta interna 3000

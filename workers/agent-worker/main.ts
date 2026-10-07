@@ -91,6 +91,7 @@ import {
   pisoDoComportamentoDoMotor,
 } from "@/lib/instalacao/comportamento-sql";
 import { runDrainLoop } from "@/lib/agent-engine/edge/crm/drain";
+import { resgatarLeadsSemResposta } from "@/lib/agent-engine/edge/crm/resgate-de-lead-sem-resposta";
 import { runEventLogDrainLoop, prontidaoDoLacoDeEventLog } from "@/lib/event-log/drain-loop";
 import { crmEdgeConfigFromEnv } from "@/lib/agent-engine/edge/crm/mcp-client";
 import { enforceHolds, sessionHealthMetrics } from "@/lib/agent-engine/edge/crm/session-watchdog";
@@ -116,6 +117,7 @@ import {
   failJob,
   faltaParaOProximoJob,
   reapExpiredJobs,
+  releaseJobsOfWorker,
   type JobKind,
   type JobRow,
 } from "@/lib/agent-engine/queue/queue";
@@ -315,6 +317,13 @@ export async function startWorker(
         if (reaped.revived + reaped.dead > 0) log.warn("reaper devolveu jobs órfãos", reaped);
       })
       .catch((err: unknown) => log.error("reaper falhou", { error: errMsg(err) }));
+    // A rede embaixo de todas as outras: cliente que escreveu e ficou sem resposta, qualquer que seja a
+    // causa, tem o atendimento pedido de novo uma vez — e vira aviso para uma pessoa se continuar mudo.
+    resgatarLeadsSemResposta(pool, log)
+      .then((r) => {
+        if (r.resgatadas + r.avisadas > 0) log.warn("resgate de leads sem resposta", { ...r });
+      })
+      .catch((err: unknown) => log.error("resgate de leads sem resposta falhou", { error: errMsg(err) }));
   }, env.QUEUE_REAPER_INTERVAL_MS);
 
   // Holds de sessão/saúde: retém jobs de envio de número fora do ar (WORKING é a
@@ -601,6 +610,15 @@ export async function startWorker(
         grace_ms: env.SHUTDOWN_GRACE_MS,
         in_flight: inFlight.size,
       });
+      // O que ficou pela metade volta para a fila AGORA, e não daqui a 10 minutos pelo reaper: o worker
+      // que sobe em seguida pega de imediato, e as mensagens seguintes do mesmo cliente não ficam presas
+      // atrás de um job de um processo que já morreu.
+      try {
+        const devolvidos = await releaseJobsOfWorker(pool, workerId);
+        log.warn("shutdown: jobs em curso devolvidos à fila", { devolvidos });
+      } catch (err) {
+        log.error("shutdown: não consegui devolver os jobs em curso — o reaper os devolve", { error: errMsg(err) });
+      }
       process.exit(1);
     }
     await pool.end();

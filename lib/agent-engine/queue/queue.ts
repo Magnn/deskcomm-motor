@@ -474,3 +474,29 @@ function isUniqueViolation(err: unknown): boolean {
     (err as { code?: unknown }).code === '23505'
   );
 }
+
+/**
+ * Devolve à fila, AGORA, os jobs que ESTE worker estava executando — chamado no encerramento, quando o
+ * prazo de espera acabou e ainda havia turno em curso.
+ *
+ * Sem isto o job de um worker que está saindo (deploy, restart) ficava `running` em nome de um processo
+ * que não existe mais, até o reaper devolvê-lo pelo visibility timeout: 10 minutos de cliente sem
+ * resposta — e, como o atendimento é em ordem por contato, as mensagens seguintes da mesma pessoa
+ * ficavam presas atrás dele. Medido em produção em 06/10/2026: turno preso às 22:38 por um deploy, três
+ * mensagens do cliente esperando.
+ *
+ * Não consome tentativa: o job não falhou, foi interrompido. O que ele já enviou está no ledger de envio,
+ * que é quem segura a duplicata quando o turno roda de novo (o mesmo contrato do reaper).
+ */
+export async function releaseJobsOfWorker(db: Queryable, workerId: string): Promise<number> {
+  const { rows } = await db.query<{ id: string }>(
+    `update job_queue
+     set status = 'pending', locked_by = null, locked_at = null,
+         attempts = greatest(attempts - 1, 0), run_after = now(),
+         last_error = coalesce(last_error, 'worker encerrado no meio do turno — job devolvido à fila')
+     where status = 'running' and locked_by = $1
+     returning id`,
+    [workerId],
+  );
+  return rows.length;
+}
