@@ -30,6 +30,7 @@ const silenciosa = (over: object = {}) => ({
   provider: null as string | null,
   timezone: "America/Sao_Paulo",
   followup: { recovery: RECUPERACAO_PADRAO } as unknown,
+  published_at: ha(24 * 60) as string | null,
   anchor_message_id: "11111111-1111-4111-8111-111111111111",
   last_inbound_at: ha(10),
   last_outbound_at: ha(4),
@@ -85,6 +86,13 @@ describe("decidirChamada", () => {
     expect(decidirChamada(silenciosa({ followup: { enabled: true } }), AGORA, true)).toBeNull();
     const desligada = { recovery: { ...RECUPERACAO_PADRAO, enabled: false } };
     expect(decidirChamada(silenciosa({ followup: desligada }), AGORA, true)).toBeNull();
+  });
+
+  it("silêncio que começou antes de o agente ser publicado não inicia a régua; régua já iniciada continua", () => {
+    const publicadoAgora = { published_at: ha(1), last_outbound_at: ha(4) };
+    expect(decidirChamada(silenciosa(publicadoAgora), AGORA, true)).toBeNull();
+    const jaIniciada = { published_at: ha(1), feitas: 1, ultima_em: ha(13), last_outbound_at: ha(13), silence_since: ha(16), last_inbound_at: ha(20) };
+    expect(decidirChamada(silenciosa(jaIniciada), AGORA, true)).toMatchObject({ kind: "step", step: 2 });
   });
 
   it("quem combinou retorno não é cobrado pela régua", () => {

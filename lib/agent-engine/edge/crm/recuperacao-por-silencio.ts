@@ -19,7 +19,8 @@
  * ─── O que ela NÃO toca ───────────────────────────────────────────────────────────────────────────
  * Conversa fechada ou com dono humano, contato em atendimento humano ou bloqueado, canal arquivado ou
  * fora do ar, passagem para humano recente, contato dentro de um fluxo de follow-up (uma voz por vez),
- * turno em andamento, cliente calado há mais de 24 horas, e — para a régua — quem já tem retorno
+ * turno em andamento, cliente calado há mais de 24 horas, silêncio que começou antes de o agente ser
+ * publicado com a recuperação, e — para a régua — quem já tem retorno
  * combinado (essa pessoa disse quando quer ser procurada; cobrar antes é desrespeitar o combinado).
  */
 import type pg from 'pg';
@@ -50,6 +51,8 @@ interface Candidata {
   provider: string | null;
   timezone: string | null;
   followup: unknown;
+  /** Quando a versão em vigor do agente foi publicada. */
+  published_at: string | null;
   anchor_message_id: string;
   last_inbound_at: string;
   last_outbound_at: string;
@@ -66,7 +69,7 @@ interface Candidata {
  */
 export const CONSULTA_DE_SILENCIOSAS = `
   select v.id as conversation_id, v.organization_id, v.contact_id,
-         cs.provider, o.timezone, ag.followup,
+         cs.provider, o.timezone, ag.followup, ag.published_at,
          ui.id as anchor_message_id, ui.created_at as last_inbound_at, uo.created_at as last_outbound_at,
          t.feitas, t.ultima_em, t.silence_since, t.janela_enviada,
          r.retorno_em
@@ -75,7 +78,7 @@ export const CONSULTA_DE_SILENCIOSAS = `
   join contacts c on c.id = v.contact_id and c.organization_id = v.organization_id
   join channel_sessions cs on cs.id = v.channel_session_id and cs.organization_id = v.organization_id
   join lateral (
-    select pv.followup
+    select pv.followup, pv.published_at
     from ai_agents a
     join ai_agent_versions pv on pv.id = a.published_version_id
     where a.organization_id = v.organization_id and a.archived_at is null
@@ -171,6 +174,12 @@ export function decidirChamada(c: Candidata, agora: Date, temPrazo: boolean): Ch
   if (temPrazo && agora.getTime() >= fechaEm.getTime() - FOLGA_DO_FECHAMENTO_MS) return null;
   if (proximaAbertura(agora) !== null) return null;
   const silencioDesde = new Date(c.silence_since ?? c.last_outbound_at);
+  // A régua só começa em silêncio que nasceu DEPOIS de o agente ser publicado com ela. Sem isto, ligar a
+  // recuperação chamaria de uma vez todo mundo que já estava calado — medido em produção antes de ligar:
+  // 122 conversas. Régua já iniciada segue até o fim, mesmo que o agente seja republicado no meio.
+  if ((c.feitas ?? 0) === 0 && c.published_at !== null && silencioDesde.getTime() < new Date(c.published_at).getTime()) {
+    return null;
+  }
   const passo = decidirPasso(
     r,
     { silencioDesde, feitas: c.feitas ?? 0, ultimaEm: c.ultima_em === null ? null : new Date(c.ultima_em) },
