@@ -25,7 +25,14 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useT } from "@/hooks/i18n/useT";
 import { apiClient } from "@/lib/api/client";
-import { MAX_DEGRAUS, pisoEmCentavos, pricingSchema, reais, type PricingConfig } from "@/lib/preco/tipos";
+import {
+  ESPERA_PADRAO_DO_POS_VENDA_H,
+  MAX_DEGRAUS,
+  pisoEmCentavos,
+  pricingSchema,
+  reais,
+  type PricingConfig,
+} from "@/lib/preco/tipos";
 
 interface Props {
   agentId: string;
@@ -48,7 +55,18 @@ interface Formulario {
   referencia: string;
   referenciaReal: boolean;
   degraus: DegrauNaTela[];
+  posVenda: PosVendaNaTela;
 }
+
+interface PosVendaNaTela {
+  ligado: boolean;
+  preco: string;
+  horas: string;
+  /** Um link por produto, uma linha cada: "Nome | https://…". */
+  links: string;
+}
+
+const POS_VENDA_VAZIO: PosVendaNaTela = { ligado: false, preco: "", horas: String(ESPERA_PADRAO_DO_POS_VENDA_H), links: "" };
 
 const emCentavos = (texto: string): number | null => {
   const limpo = texto.trim().replace(/^R\$\s*/i, "").replace(/\./g, "").replace(",", ".");
@@ -63,7 +81,9 @@ const emTexto = (centavos: number | undefined): string =>
 function formularioInicial(config: Props["config"]): Formulario {
   const bruto = (config as { pricing?: unknown } | null | undefined)?.pricing;
   const r = pricingSchema.safeParse(bruto);
-  if (!r.success) return { enabled: false, venda: "", referencia: "", referenciaReal: false, degraus: [] };
+  if (!r.success) {
+    return { enabled: false, venda: "", referencia: "", referenciaReal: false, degraus: [], posVenda: POS_VENDA_VAZIO };
+  }
   const c = r.data;
   return {
     enabled: c.enabled,
@@ -76,6 +96,14 @@ function formularioInicial(config: Props["config"]): Formulario {
       link: s.payment_url ?? "",
       links: (s.product_links ?? []).map((l) => `${l.name} | ${l.url}`).join("\n"),
     })),
+    posVenda: c.post_sale
+      ? {
+          ligado: c.post_sale.enabled,
+          preco: emTexto(c.post_sale.price_cents),
+          horas: String(c.post_sale.wait_hours),
+          links: c.post_sale.product_links.map((l) => `${l.name} | ${l.url}`).join("\n"),
+        }
+      : POS_VENDA_VAZIO,
   };
 }
 
@@ -109,11 +137,26 @@ function paraCorpo(f: Formulario): { corpo: PricingConfig } | { erro: string } {
       ...(porProduto.links.length > 0 ? { product_links: porProduto.links } : {}),
     });
   }
+  // Pós-venda: seção vazia e desligada não vai ao servidor; preenchida, vai mesmo desligada,
+  // para a pessoa não perder o que digitou ao desligar.
+  let posVenda: PricingConfig["post_sale"];
+  const pv = f.posVenda;
+  if (pv.ligado || pv.preco.trim() !== "" || pv.links.trim() !== "") {
+    const preco = emCentavos(pv.preco);
+    if (preco === null) return { erro: "Informe o valor da oferta de pós-venda." };
+    const horas = Number(pv.horas.trim() === "" ? ESPERA_PADRAO_DO_POS_VENDA_H : pv.horas);
+    if (!Number.isInteger(horas) || horas < 0) return { erro: "A espera do pós-venda é um número inteiro de horas." };
+    const porProduto = lerLinksPorProduto(pv.links);
+    if ("erro" in porProduto) return { erro: porProduto.erro };
+    if (porProduto.links.length === 0) return { erro: "Informe ao menos um link para a oferta de pós-venda." };
+    posVenda = { enabled: pv.ligado, price_cents: preco, wait_hours: horas, product_links: porProduto.links };
+  }
   const candidato = {
     enabled: f.enabled,
     list_price_cents: venda,
     ...(referencia !== null ? { anchor_price_cents: referencia, anchor_is_real: f.referenciaReal } : {}),
     steps,
+    ...(posVenda !== undefined ? { post_sale: posVenda } : {}),
   };
   const r = pricingSchema.safeParse(candidato);
   if (!r.success) return { erro: r.error.issues[0]?.message ?? "Confira os valores." };
@@ -315,6 +358,64 @@ export function PrecoDoAgente({ agentId, config, readOnly }: Props) {
           {piso !== null
             ? `${t("Mínimo que a agente aceita:")} ${reais(piso)}.`
             : t("Preencha os valores para ver o mínimo que a agente aceita.")}
+        </p>
+      </Card>
+
+      <Card className="flex flex-col gap-4 p-4" data-testid="pos-venda">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-base font-medium">{t("Oferta para quem já comprou")}</h2>
+            <p className="text-sm text-muted-foreground">
+              {t(
+                "Um segundo produto, por outro valor, oferecido uma vez a quem já pagou. Só vale depois da espera abaixo, e nunca para o produto que a pessoa acabou de comprar.",
+              )}
+            </p>
+          </div>
+          <Switch
+            aria-label={t("Oferta para quem já comprou")}
+            checked={form.posVenda.ligado}
+            onCheckedChange={(ligado) => patch({ posVenda: { ...form.posVenda, ligado } })}
+            disabled={readOnly}
+          />
+        </div>
+        <div className="grid gap-3 md:grid-cols-2">
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="pos-venda-preco">{t("Valor da segunda oferta (R$)")}</Label>
+            <Input
+              id="pos-venda-preco"
+              inputMode="decimal"
+              placeholder="70,00"
+              value={form.posVenda.preco}
+              onChange={(e) => patch({ posVenda: { ...form.posVenda, preco: e.target.value } })}
+              disabled={readOnly}
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="pos-venda-horas">{t("Esperar quantas horas depois do pagamento")}</Label>
+            <Input
+              id="pos-venda-horas"
+              inputMode="numeric"
+              value={form.posVenda.horas}
+              onChange={(e) => patch({ posVenda: { ...form.posVenda, horas: e.target.value } })}
+              disabled={readOnly}
+            />
+          </div>
+          <div className="flex flex-col gap-1 md:col-span-2">
+            <Label htmlFor="pos-venda-links">{t("Um link por produto (uma linha cada: Nome | https://…)")}</Label>
+            <Textarea
+              id="pos-venda-links"
+              rows={4}
+              placeholder={t("Nome do trabalho | https://…")}
+              value={form.posVenda.links}
+              onChange={(e) => patch({ posVenda: { ...form.posVenda, links: e.target.value } })}
+              disabled={readOnly}
+            />
+          </div>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          {t(
+            "A agente oferece uma vez, sem prazo e sem pressão, e só manda o link se a pessoa quiser. O pagamento precisa chegar pelo aviso de compra do checkout para a oferta liberar.",
+          )}
         </p>
       </Card>
 

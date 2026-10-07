@@ -76,6 +76,23 @@ export type DegrauDeNegociacao = z.infer<typeof degrauDeNegociacaoSchema>;
  */
 export const MAX_DEGRAUS = 6;
 
+/** Espera padrão entre o pagamento e a segunda oferta: "no dia seguinte". */
+export const ESPERA_PADRAO_DO_POS_VENDA_H = 20;
+
+/**
+ * Oferta de PÓS-VENDA: um segundo produto, por outro valor, para quem já pagou. Só vale depois
+ * de `wait_hours` do pagamento, e nunca para o produto que a pessoa já comprou — a regra mora
+ * em `pos-venda.ts`. Exige link porque é a mesma lei dos degraus: valor que a agente pode
+ * dizer só existe com a forma de pagá-lo.
+ */
+export const ofertaPosVendaSchema = z.object({
+  enabled: z.boolean().default(false),
+  price_cents: centavos,
+  wait_hours: z.number().int().min(0).max(720).default(ESPERA_PADRAO_DO_POS_VENDA_H),
+  product_links: z.array(linkPorProdutoSchema).min(1).max(MAX_LINKS_POR_PRODUTO),
+});
+export type OfertaPosVenda = z.infer<typeof ofertaPosVendaSchema>;
+
 export const pricingSchema = z
   .object({
     enabled: z.boolean().default(false),
@@ -92,6 +109,8 @@ export const pricingSchema = z
     anchor_is_real: z.boolean().optional(),
     /** Do maior para o menor; o último é o mínimo. */
     steps: z.array(degrauDeNegociacaoSchema).max(MAX_DEGRAUS).default([]),
+    /** O que oferecer a quem já comprou. Ausente = a agente não faz segunda oferta. */
+    post_sale: ofertaPosVendaSchema.optional(),
   })
   .superRefine((c, ctx) => {
     if (c.anchor_price_cents !== undefined) {
@@ -127,10 +146,16 @@ export const pricingSchema = z
   });
 export type PricingConfig = z.infer<typeof pricingSchema>;
 
-/** O mínimo que a agente pode chegar: o último degrau, ou o próprio valor de venda. */
-export function pisoEmCentavos(c: Pick<PricingConfig, "list_price_cents" | "steps">): number {
+/**
+ * O mínimo que a agente pode chegar: o último degrau, ou o próprio valor de venda — e, com a
+ * oferta de pós-venda ligada, o valor dela quando for menor. É este número que vira o piso da
+ * trava de promessas da organização: se o pós-venda ficasse de fora, a oferta mais barata que
+ * a escada seria vetada por uma trava que a própria tela ligou.
+ */
+export function pisoEmCentavos(c: Pick<PricingConfig, "list_price_cents" | "steps"> & Pick<Partial<PricingConfig>, "post_sale">): number {
   const ultimo = c.steps[c.steps.length - 1];
-  return ultimo ? ultimo.price_cents : c.list_price_cents;
+  const daEscada = ultimo ? ultimo.price_cents : c.list_price_cents;
+  return c.post_sale?.enabled ? Math.min(daEscada, c.post_sale.price_cents) : daEscada;
 }
 
 /** "R$ 130" quando redondo, "R$ 129,90" quando não. */
