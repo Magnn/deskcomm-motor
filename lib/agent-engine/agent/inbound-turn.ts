@@ -141,6 +141,7 @@ import {
   promessasEmAberto,
   type DeclaracaoDoTurno,
 } from './declaracao';
+import { falaEmTextoSolto } from './fala-em-texto-solto';
 import { lerJsonTolerante } from './json-quase-valido';
 import {
   projetarContexto,
@@ -4401,6 +4402,32 @@ async function executarTurnoDoAgente(
     if (runError !== null) {
       throw runError; // job falha → retry da fila; o ledger segura duplicata de envio
     }
+
+    // A FALA EM TEXTO SOLTO: o modelo escreveu a resposta e não acionou ferramenta nenhuma. Sem isto o
+    // turno terminava `ok` com `messages_sent: 0` e a pessoa ficava no vácuo (medido em produção em
+    // 06/10/2026). O texto sai pelo MESMO `send_message` do turno — a cadeia de travas inteira — e nunca
+    // por um atalho. Ver `fala-em-texto-solto.ts` para a regra de quando o silêncio é respeitado.
+    if (!preview) {
+      const textoSolto = falaEmTextoSolto(turn.result, outcomes.length);
+      const enviar = (tools as Record<string, { execute?: (args: { body: string }, opcoes: unknown) => unknown }>)
+        .send_message?.execute;
+      if (textoSolto !== null && typeof enviar === 'function') {
+        runLog.warn('o modelo respondeu em texto sem acionar o envio — enviando pela cadeia normal', {
+          // Só o tamanho: o texto é a conversa.
+          caracteres: textoSolto.length,
+        });
+        const desfecho = (await enviar(
+          { body: textoSolto },
+          { toolCallId: 'fala-em-texto-solto', messages: [] },
+        )) as { ok?: boolean; error?: { code?: string } } | undefined;
+        if (desfecho?.ok === false) {
+          // Uma trava vetou (opt-out, janela, preço antes da hora…): o veto vale também aqui, e fica dito.
+          runLog.warn('a fala em texto solto foi vetada pela cadeia de envio', { code: desfecho.error?.code });
+        }
+        if (runError !== null) throw runError;
+      }
+    }
+
     if (outcomes.some((o) => o.kind === 'failed')) {
       // ponytail: retry re-roda o run inteiro (LLM incluso); seq N re-encontra a
       // linha do ledger — 'accepted' pula, 'failed' rotaciona a key (F2-06).
