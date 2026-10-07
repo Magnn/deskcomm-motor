@@ -91,6 +91,8 @@ const TABELAS = [
   "conversation_milestones",
   // 0914. Motivo da perda: grava e lê o servidor (rotas manager+). Deny-all.
   "conversation_loss_reasons",
+  // 0916. Recuperação de silêncio: só o worker grava e lê. Deny-all.
+  "silence_recovery_attempts",
 ] as const;
 
 function erroSob(papel: string, comando: string): string | null {

@@ -349,6 +349,15 @@ const PROVA_PROPRIA: readonly Excecao[] = [
       "e lê o servidor (rotas manager+), escopado pela organização.",
   },
   {
+    tabela: "silence_recovery_attempts",
+    razao:
+      "tests/invariants/credencial-de-anuncios-e-server-side.test.ts — mesmo " +
+      "`describe.each` das de anúncio (0916): privilégio NENHUM para anon e " +
+      "authenticated, `permission denied` medido sob `set role`, RLS ligada, zero " +
+      "policies, organization_id NOT NULL com FK em cascata. Deny-all porque só o " +
+      "worker grava e lê o registro das chamadas de recuperação.",
+  },
+  {
     tabela: "google_ads_landing_pages",
     razao:
       "tests/invariants/captura-de-clique-e-server-side.test.ts — mesmo desenho " +

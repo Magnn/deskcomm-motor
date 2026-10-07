@@ -52,6 +52,8 @@ import {
   FollowupWindowEditor,
   type FollowupWindowValue,
 } from "./FollowupWindowEditor";
+import { RecuperacaoEditor } from "./RecuperacaoEditor";
+import type { Recuperacao } from "@/lib/recuperacao/config";
 import { PainelDoOperador } from "./PainelDoOperador";
 import { PainelDeSeguranca } from "./PainelDeSeguranca";
 import { BasesDoAgente, type MaterialDoAcervo } from "./BasesDoAgente";
@@ -186,6 +188,8 @@ interface FollowupValue {
   flow_pointer_ids: string[];
   /** Ausente em versões antigas; null = sem janela própria. */
   send_window?: FollowupWindowValue | null;
+  /** Ausente em versões antigas; null ou `enabled: false` = desligada. */
+  recovery?: Recuperacao | null;
 }
 
 const DEFAULT_FOLLOWUP: FollowupValue = {
@@ -1215,12 +1219,17 @@ export function AgentForm(props: Props) {
                 "Os fluxos abaixo só entram em ação para um cliente se este agente estiver publicado com follow-up habilitado.",
               )}
             </p>
+            <RecuperacaoEditor
+              value={form.followup.recovery ?? null}
+              onChange={(recovery) => patch({ followup: { ...form.followup, recovery } })}
+              disabled={disabled}
+            />
             <FollowupWindowEditor
               value={form.followup.send_window ?? null}
               onChange={(send_window) =>
                 patch({ followup: { ...form.followup, send_window } })
               }
-              disabled={disabled || !form.followup.enabled}
+              disabled={disabled || !(form.followup.enabled || form.followup.recovery?.enabled === true)}
             />
             <FollowupFlowPicker
               value={form.followup.flow_pointer_ids}

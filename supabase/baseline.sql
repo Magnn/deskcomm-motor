@@ -38859,3 +38859,32 @@ comment on column public.campaigns.content_kind is
   'O que a campanha manda: text (message_body), template (modelo aprovado do canal oficial) ou flow (inscreve no fluxo de flow_pointer_id). Espelhado em lib/campanhas/conteudo.ts.';
 
 notify pgrst, 'reload schema';
+
+-- ---- Recuperação de silêncio: o registro de cada chamada (migration 0916) ----
+create table if not exists public.silence_recovery_attempts (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references public.organizations(id) on delete cascade,
+  conversation_id uuid not null references public.conversations(id) on delete cascade,
+  contact_id uuid not null,
+  anchor_message_id uuid not null,
+  kind text not null,
+  step smallint not null default 0,
+  silence_since timestamptz not null,
+  created_at timestamptz not null default now(),
+  constraint silence_recovery_attempts_kind_conhecido check (kind in ('step', 'keep_window')),
+  constraint silence_recovery_attempts_step_valido check (step between 0 and 20)
+);
+
+comment on table public.silence_recovery_attempts is
+  'Chamadas de recuperação feitas pelo agente a quem parou de responder: uma linha por (conversa, mensagem-âncora, tipo, passo). Sem texto. Server-only. Espelhado em lib/agent-engine/edge/crm/recuperacao-por-silencio.ts.';
+
+create unique index if not exists silence_recovery_attempts_uma_por_passo
+  on public.silence_recovery_attempts (conversation_id, anchor_message_id, kind, step);
+create index if not exists silence_recovery_attempts_org_idx
+  on public.silence_recovery_attempts (organization_id, created_at desc);
+
+alter table public.silence_recovery_attempts enable row level security;
+revoke all on public.silence_recovery_attempts from anon, authenticated;
+grant select, insert, update, delete on public.silence_recovery_attempts to service_role;
+
+notify pgrst, 'reload schema';
