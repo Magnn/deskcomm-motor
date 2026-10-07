@@ -33,4 +33,9 @@ ENV APP_VERSION=$APP_VERSION
 # Healthz do worker (bind 0.0.0.0 dentro do container).
 EXPOSE 8787
 
-CMD ["pnpm", "exec", "tsx", "workers/agent-worker/main.ts"]
+# O worker é o PID 1, sem `pnpm exec tsx` na frente. Com o pnpm de PID 1 o SIGTERM do
+# `docker stop` parava nele: o worker (neto) nunca ouvia, morria no SIGKILL com os jobs
+# em `running` no nome dele, e o worker seguinte passava o visibility timeout inteiro
+# com as vagas ocupadas por um processo que não existia mais. Medido em 07/10/2026:
+# 15 de 16 vagas presas por 10 minutos depois de um deploy.
+CMD ["node", "--import", "tsx", "workers/agent-worker/main.ts"]
