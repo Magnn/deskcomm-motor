@@ -1,7 +1,7 @@
 // tests/unit/agent-split-message.test.ts
 import { describe, expect, it } from "vitest";
 
-import { splitIntoBubbles } from "@/lib/agent-engine/agent/split-message";
+import { MAXIMO_DE_BOLHAS, splitForSend, splitIntoBubbles } from "@/lib/agent-engine/agent/split-message";
 
 describe("splitIntoBubbles", () => {
   it("texto curto vira uma bolha só (trim)", () => {
@@ -60,5 +60,28 @@ describe("splitIntoBubbles", () => {
     const out = splitIntoBubbles("O valor é R$ 7.990 à vista no Pix.", 30);
     expect(out.join(" ")).not.toContain("7. 990");
     expect(out.join(" ")).toContain("7.990");
+  });
+});
+
+describe("teto de bolhas por resposta", () => {
+  const frases = Array.from({ length: 12 }, (_, i) => `Esta é a frase número ${i + 1} da resposta longa.`);
+  const longa = frases.join(" ");
+
+  it("resposta longa nunca passa de três bolhas, e nenhum texto se perde", () => {
+    // Sem o teto, o mesmo corpo com bolha de 80 vira rajada.
+    expect(splitIntoBubbles(longa, 80).length).toBeGreaterThan(MAXIMO_DE_BOLHAS);
+
+    const bolhas = splitForSend(longa, true, 80);
+    expect(bolhas.length).toBeLessThanOrEqual(MAXIMO_DE_BOLHAS);
+    expect(bolhas.join(" ")).toBe(longa);
+  });
+
+  it("resposta que já cabe no teto sai com o corte de sempre", () => {
+    const curta = ["Oi! Tudo bem?", "Posso te ajudar com isso agora."].join(String.fromCharCode(10, 10));
+    expect(splitForSend(curta, true, 20)).toEqual(splitIntoBubbles(curta, 20));
+  });
+
+  it("com as bolhas desligadas, continua uma mensagem só", () => {
+    expect(splitForSend(longa, false, 80)).toEqual([longa]);
   });
 });

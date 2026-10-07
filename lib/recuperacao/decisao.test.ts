@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import { RECUPERACAO_PADRAO, lerRecuperacao, recuperacaoSchema } from "./config";
-import { decidirManterJanela, decidirPasso } from "./decisao";
+import { decidirManterJanela, decidirPasso, motivoDoPasso } from "./decisao";
 
 const T0 = new Date("2026-10-06T12:00:00Z");
 const em = (min: number) => new Date(T0.getTime() + min * 60_000);
-const r = RECUPERACAO_PADRAO;
+// Três passos de propósito: as regras de ordem e de atraso só aparecem com mais de dois.
+const r = { ...RECUPERACAO_PADRAO, steps_minutes: [3, 15, 180] };
 const sempreAberta = () => null;
 
 describe("lerRecuperacao", () => {
@@ -70,5 +71,19 @@ describe("decidirManterJanela", () => {
     // Aberta agora e reabre a tempo: espera as últimas horas.
     const reabreATempo = (i: Date) => (i.getTime() > em(18 * 60).getTime() ? em(22 * 60) : null);
     expect(decidirManterJanela(r, base, em(18 * 60), reabreATempo)).toBe(false);
+  });
+});
+
+describe("o que o agente lê ao ser acordado", () => {
+  it("a régua padrão é espaçada: uma hora e vinte horas", () => {
+    expect(RECUPERACAO_PADRAO.steps_minutes).toEqual([60, 1200]);
+    expect(recuperacaoSchema.safeParse(RECUPERACAO_PADRAO).success).toBe(true);
+  });
+
+  it("toda chamada de recuperação manda avisar como sair, com a palavra que o descadastro reconhece", () => {
+    const motivo = motivoDoPasso(1, 2, 60 * 60_000);
+    expect(motivo).toContain("responder SAIR");
+    expect(motivo).toContain("SALIR");
+    expect(motivo).toContain("1 hora");
   });
 });

@@ -5,7 +5,10 @@
  */
 import { describe, expect, it, vi } from "vitest";
 
-import { RECUPERACAO_PADRAO } from "@/lib/recuperacao/config";
+import { RECUPERACAO_PADRAO as PADRAO_DO_PRODUTO } from "@/lib/recuperacao/config";
+
+// A régua de três passos curtos é o cenário destes testes (silêncio de minutos); o padrão do produto é outro.
+const RECUPERACAO_PADRAO = { ...PADRAO_DO_PRODUTO, steps_minutes: [3, 15, 180] };
 
 import {
   CONSULTA_DE_SILENCIOSAS,
