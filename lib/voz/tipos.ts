@@ -21,6 +21,8 @@
  */
 import { z } from "zod";
 
+import { ehProvedorSuportado } from "@/lib/ai/pontos/provedores";
+
 export interface ProvedorDeVoz {
   id: "openai" | "elevenlabs";
   rotulo: string;
@@ -56,6 +58,14 @@ export const PROVEDORES_DE_VOZ = [
 ] as const satisfies readonly ProvedorDeVoz[];
 
 export type IdDeProvedorDeVoz = (typeof PROVEDORES_DE_VOZ)[number]["id"];
+
+/**
+ * Os provedores de voz cuja chave NÃO é também chave de conversa (hoje, a ElevenLabs). É o que a
+ * tela de Credenciais precisa SOMAR à lista dela: a OpenAI já está lá como provedor de conversa, e
+ * somar a lista de voz inteira a mostraria duas vezes. Enquanto a tela não somava nada, a rota
+ * aceitava a chave da ElevenLabs e a tela não a oferecia nem a listava depois de cadastrada.
+ */
+export const PROVEDORES_SO_DE_VOZ = PROVEDORES_DE_VOZ.filter((p) => !ehProvedorSuportado(p.id));
 
 export const IDS_DE_PROVEDOR_DE_VOZ = PROVEDORES_DE_VOZ.map((p) => p.id) as unknown as readonly [
   IdDeProvedorDeVoz,

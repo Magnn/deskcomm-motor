@@ -8,9 +8,9 @@ import {
   ehProvedorDeDecisao,
   ehProvedorSuportado,
   PROVEDORES_COM_CHAVE,
-  type ProvedorComChave,
 } from "@/lib/ai/pontos/provedores";
 import { credentialStatus, useCredentialsList, type CredentialRow } from "@/hooks/ai/useCredentials";
+import { PROVEDORES_SO_DE_VOZ } from "@/lib/voz/tipos";
 import { credencialEmUsoPeloJev } from "@/lib/ai/decisao/credencial";
 import { AO_EXCLUIR_A_CHAVE_DO_JEV } from "@/lib/ai/decisao/textos";
 import { useT } from "@/hooks/i18n/useT";
@@ -36,11 +36,12 @@ interface Props {
 // Rótulo e ordem saem das listas — provedor novo aparece na tela sem que
 // alguém precise lembrar de acrescentá-lo em três lugares. A UNIÃO, porque a
 // chave do Jev (que só decide) também mora aqui.
+// E quem só FALA (a ElevenLabs): a chave dela mora na mesma tabela.
 const PROVIDER_LABELS: Record<string, string> = Object.fromEntries(
-  PROVEDORES_COM_CHAVE.map((p) => [p.id, p.rotulo]),
+  [...PROVEDORES_COM_CHAVE, ...PROVEDORES_SO_DE_VOZ].map((p) => [p.id, p.rotulo]),
 );
 
-const PROVIDER_ORDER: ProvedorComChave[] = PROVEDORES_COM_CHAVE.map((p) => p.id);
+const PROVIDER_ORDER: string[] = [...PROVEDORES_COM_CHAVE, ...PROVEDORES_SO_DE_VOZ].map((p) => p.id);
 
 export function CredentialsList({
   initialData,
@@ -58,12 +59,22 @@ export function CredentialsList({
   // Construído a partir da lista única: escrito à mão, o dia em que um
   // provedor novo entra é o dia em que as credenciais dele somem da tela sem
   // ninguém ver (aconteceu com a OpenRouter).
-  const grouped: Partial<Record<ProvedorComChave, CredentialRow[]>> = Object.fromEntries(
-    PROVEDORES_COM_CHAVE.map((p) => [p.id, [] as CredentialRow[]]),
-  );
+  //
+  // Agrupa pelo que VEIO do banco, não pelo que a lista conhece. O `?.push` de antes descartava
+  // em silêncio toda chave de provedor fora da lista — a da ElevenLabs e a de qualquer provedor
+  // gravado por outro caminho existiam, eram usadas, e não apareciam aqui para ninguém conferir,
+  // revalidar ou excluir. Chave cadastrada que a tela esconde é pior que provedor sem rótulo.
+  const grouped: Record<string, CredentialRow[]> = {};
   for (const c of credentials) {
-    grouped[c.provider]?.push(c);
+    (grouped[c.provider] ??= []).push(c);
   }
+  // Os conhecidos na ordem da lista; os demais depois, pelo próprio id.
+  const ordemNaTela = [
+    ...PROVIDER_ORDER,
+    ...Object.keys(grouped)
+      .filter((id) => !PROVIDER_ORDER.includes(id))
+      .sort(),
+  ];
 
   // A chave que o Jev usa, pela mesma regra que a escolhe para a rede, sobre a
   // lista que a tela relê: trocar a chave tira a linha "Usada em" enquanto a
@@ -127,7 +138,7 @@ export function CredentialsList({
           </Button>
         )}
       </div>
-      {PROVIDER_ORDER.map((p) => {
+      {ordemNaTela.map((p) => {
         // `?? []` porque a lista de provedores pode crescer sem que exista
         // credencial daquele provedor — o agrupamento só tem chave para quem
         // tem linha.
@@ -136,7 +147,7 @@ export function CredentialsList({
         return (
           <section key={p} className="space-y-2">
             <h2 className="text-sm font-medium text-muted-foreground">
-              {PROVIDER_LABELS[p]}
+              {PROVIDER_LABELS[p] ?? p}
             </h2>
             <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
               {rows.map((row) => (
