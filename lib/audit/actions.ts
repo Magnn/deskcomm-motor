@@ -135,6 +135,9 @@ export const AUDIT_ACTIONS = [
   // Uma rodada do cron `recover-stuck-messages` que de fato marcou mensagem
   // como falha (rodada vazia não vira linha — varredura não é mutação).
   "message.recover_stuck_run",
+  // Alguém pediu de novo a transcrição de um áudio que tinha falhado (POST /messages/:id/retranscrever).
+  // Reabre trabalho pago do serviço de transcrição: "quem pediu, e de qual mensagem" fica registrado.
+  "message.transcription_retried",
   "contact.blocked",
   "phone_number.created",
   "phone_number.updated",

@@ -496,6 +496,7 @@ export function InboxLayout({ initialSelectedId = null }: InboxLayoutProps = {})
               key={selectedConversation.id}
               conversation={selectedConversation}
               onAbrirConversa={handleSelect}
+              onSair={() => handleSelect(null)}
             />
             <div className="min-h-0 flex-1 overflow-hidden">
               <ChatThread

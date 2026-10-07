@@ -32,6 +32,8 @@ import { OwnerBadge } from "@/components/kanban/OwnerBadge";
 import { comandoDaConversa, ROTULO_DO_MOTIVO } from "@/lib/inbox/comando-da-conversa";
 import { ReassignDialog } from "@/components/inbox/ReassignDialog";
 import { SnoozeButton } from "@/components/inbox/SnoozeButton";
+import { useMarkAsUnread } from "@/hooks/inbox/useMarkAsUnread";
+import { showApiError } from "@/components/feedback/ApiErrorToast";
 import type { ConversationWithContact } from "@/hooks/inbox/useConversationsRealtime";
 import { rotuloDoContato } from "@/lib/contacts/rotulo-do-contato";
 import { phoneForDisplay } from "@/lib/channels/phone-variants";
@@ -40,6 +42,8 @@ interface Props {
   conversation: ConversationWithContact;
   /** Seleciona outra conversa no Inbox — a aba Número do Transferir abre a do outro número. */
   onAbrirConversa?: (id: string) => void;
+  /** Sai da conversa (volta para a lista). Usado ao marcar como não lida. */
+  onSair?: () => void;
 }
 
 /**
@@ -68,7 +72,7 @@ const STATUS_LABEL: Record<string, string> = {
   archived: "Arquivada",
 };
 
-export function ConversationHeader({ conversation, onAbrirConversa }: Props) {
+export function ConversationHeader({ conversation, onAbrirConversa, onSair }: Props) {
   const t = useT();
   const { user } = useAuth();
   const claim = useClaimConversation();
@@ -76,6 +80,7 @@ export function ConversationHeader({ conversation, onAbrirConversa }: Props) {
   const close = useCloseConversation();
   const reopen = useReopenConversation();
   const arquivar = useArchiveConversation();
+  const marcarNaoLida = useMarkAsUnread();
   const retomar = useResumeAiAttendance();
   const pausar = usePauseAiAttendance();
   // "Existe automático nesta org?" — sem isto o selo afirmava que o robô estava
@@ -333,6 +338,21 @@ export function ConversationHeader({ conversation, onAbrirConversa }: Props) {
             faz a aba "Arquivadas" deixar de ser uma pasta morta.
             A permissão é a mesma de fechar (a rota `/conversations/[id]` é
             `requireSupportWrite`): quem pode encerrar, pode arquivar. */}
+        {/* NÃO LIDA: quem abriu e não pode resolver agora devolve a conversa para a lista ainda chamando
+            atenção. A tela SAI da conversa — aberta, a leitura automática zeraria a marca em 1,5 s. */}
+        {onSair && status !== "archived" && (
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={marcarNaoLida.isPending}
+            data-testid="marcar-nao-lida"
+            onClick={() =>
+              marcarNaoLida.mutate(conversation.id, { onSuccess: () => onSair(), onError: (err) => showApiError(err) })
+            }
+          >
+            {t("Marcar como não lida")}
+          </Button>
+        )}
         {status !== "archived" && (
           <Button
             size="sm"

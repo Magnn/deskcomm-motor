@@ -66,6 +66,9 @@ interface Props {
   currentContactId?: string | null;
 }
 
+/** Quantas respostas rápidas ficam à vista acima do campo; as demais continuam no "/". */
+const MAX_RESPOSTAS_A_VISTA = 6;
+
 export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
   {
     conversationId,
@@ -111,6 +114,9 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
         tpl.body.toLowerCase().includes(q),
     );
   }, [menuOpen, slash.query, templates.data]);
+
+  /** As respostas rápidas que ficam à vista acima do campo (as demais seguem no "/"). */
+  const respostasAVista = useMemo(() => (templates.data ?? []).slice(0, MAX_RESPOSTAS_A_VISTA), [templates.data]);
 
   useEffect(() => {
     setActiveTemplateIndex(0);
@@ -296,6 +302,29 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
           >
             {t("Nota interna")}
           </button>
+          {/* RESPOSTAS RÁPIDAS À VISTA. Elas já existiam atrás do "/" no campo de texto — atalho que quem
+              não conhece não descobre. As primeiras ficam aqui, a um clique; o "/" continua buscando em
+              todas. */}
+          {mode === "reply" && !respostaBarrada && respostasAVista.length > 0 && (
+            <div
+              className="ml-2 flex min-w-0 flex-1 items-center gap-1 overflow-x-auto"
+              role="group"
+              aria-label={t("Respostas rápidas")}
+              data-testid="barra-de-respostas-rapidas"
+            >
+              {respostasAVista.map((tpl) => (
+                <button
+                  key={tpl.id}
+                  type="button"
+                  title={tpl.body}
+                  onClick={() => applyTemplate(tpl)}
+                  className="shrink-0 rounded-full border border-border px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                >
+                  {tpl.title}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
         {/*
           A FAIXA DA CITAÇÃO — o que o atendente escolheu responder.
