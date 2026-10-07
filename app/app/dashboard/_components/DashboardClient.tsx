@@ -30,13 +30,13 @@ const INTERVALO_DE_ATUALIZACAO_MS = 60_000;
 
 interface KPI {
   valor: number;
-  delta: number;
+  delta: number | null;
 }
 
 /** `valor: null` = desconhecido. Nunca vira zero na tela: "não sei" e "zero" são respostas diferentes. */
 interface KPIOpcional {
   valor: number | null;
-  delta: number;
+  delta: number | null;
 }
 
 type EstadoDoGasto = "ok" | "sem_conexao" | "sem_conta" | "indisponivel" | "restrito";
@@ -53,6 +53,24 @@ const AVISO_DO_GASTO: Record<Exclude<EstadoDoGasto, "ok">, { texto: string; href
   indisponivel: { texto: "A Meta não respondeu agora", href: "/app/ads/meta" },
   restrito: { texto: "Visível para gestores", href: null },
 };
+
+/**
+ * A variação contra o período anterior, com sinal. `null` = não há comparação (o gasto de anúncio vem por
+ * dia inteiro e "hoje" está pela metade, ou um dos lados é desconhecido): aparece "—", nunca "0%".
+ */
+function Variacao({ delta }: { delta: number | null | undefined }) {
+  const t = useT();
+  const tagDoIdioma = useTagDeIdioma();
+  if (delta === null || delta === undefined) {
+    return <span title={t("Sem comparação neste período")}>—</span>;
+  }
+  return (
+    <span title={t("vs. período anterior")} data-testid="kpi-variacao">
+      {delta > 0 ? "+" : ""}
+      {delta.toLocaleString(tagDoIdioma, { maximumFractionDigits: 1 })}%
+    </span>
+  );
+}
 
 interface ChannelSession {
   id: string;
@@ -442,7 +460,7 @@ export function DashboardClient({ orgName }: { orgName: string }) {
                   <Users size={20} weight="bold" />
                 </div>
                 <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400">
-                  ~{data?.kpis.leadsNovos.delta ?? 0}%
+                  <Variacao delta={data?.kpis.leadsNovos.delta} />
                 </span>
               </div>
               <div className="mt-3">
@@ -463,7 +481,7 @@ export function DashboardClient({ orgName }: { orgName: string }) {
                   <CurrencyDollar size={20} weight="bold" />
                 </div>
                 <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400">
-                  ~{data?.kpis.faturamento?.delta ?? 0}%
+                  <Variacao delta={data?.kpis.faturamento?.delta} />
                 </span>
               </div>
               <div className="mt-3">
@@ -484,7 +502,7 @@ export function DashboardClient({ orgName }: { orgName: string }) {
                   <ShoppingBag size={20} weight="bold" />
                 </div>
                 <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400">
-                  ~{data?.kpis.vendas?.delta ?? 0}%
+                  <Variacao delta={data?.kpis.vendas?.delta} />
                 </span>
               </div>
               <div className="mt-3">
@@ -505,7 +523,7 @@ export function DashboardClient({ orgName }: { orgName: string }) {
                   <Trophy size={20} weight="bold" />
                 </div>
                 <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400">
-                  ~{data?.kpis.roas?.delta ?? 0}%
+                  <Variacao delta={data?.kpis.roas?.delta} />
                 </span>
               </div>
               <div className="mt-3">
@@ -533,7 +551,7 @@ export function DashboardClient({ orgName }: { orgName: string }) {
                   <CheckCircle size={20} weight="bold" />
                 </div>
                 <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400">
-                  ~{data?.kpis.taxaConversao?.delta ?? 0}%
+                  <Variacao delta={data?.kpis.taxaConversao?.delta} />
                 </span>
               </div>
               <div className="mt-3">
@@ -554,7 +572,7 @@ export function DashboardClient({ orgName }: { orgName: string }) {
                   <ShoppingCart size={20} weight="bold" />
                 </div>
                 <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400">
-                  ~{data?.kpis.ticketMedio?.delta ?? 0}%
+                  <Variacao delta={data?.kpis.ticketMedio?.delta} />
                 </span>
               </div>
               <div className="mt-3">
@@ -575,7 +593,7 @@ export function DashboardClient({ orgName }: { orgName: string }) {
                   <Diamond size={20} weight="bold" />
                 </div>
                 <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400">
-                  ~{data?.kpis.lucro?.delta ?? 0}%
+                  <Variacao delta={data?.kpis.lucro?.delta} />
                 </span>
               </div>
               <div className="mt-3">
@@ -596,7 +614,7 @@ export function DashboardClient({ orgName }: { orgName: string }) {
                   <Megaphone size={20} weight="bold" />
                 </div>
                 <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400">
-                  ~{gasto?.delta ?? 0}%
+                  <Variacao delta={gasto?.delta} />
                 </span>
               </div>
               <div className="mt-3">
@@ -998,7 +1016,7 @@ export function DashboardClient({ orgName }: { orgName: string }) {
                   <Users size={20} weight="bold" />
                 </div>
                 <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-zinc-800">
-                  ~{data?.kpis.leadsNovos.delta ?? 0}%
+                  <Variacao delta={data?.kpis.leadsNovos.delta} />
                 </span>
               </div>
               <div className="mt-3">

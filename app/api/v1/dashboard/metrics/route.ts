@@ -5,7 +5,7 @@ import { ok, fail } from "@/lib/api/wrappers";
 import { lerGastoDeAnuncios } from "@/lib/plataformas-de-anuncio/meta/gasto-do-periodo";
 import { roleAtLeast } from "@/lib/auth/types";
 import { contasDoAnuncio, type GastoDoPeriodo } from "@/lib/resultado/contas-do-anuncio";
-import { calcularDelta, calcularIntervalo, lerFusoDaOrganizacao } from "@/lib/resultado/periodo";
+import { calcularDelta, calcularIntervalo, gastoTemComparacao, lerFusoDaOrganizacao } from "@/lib/resultado/periodo";
 import { lerVendasDoPagamento, type VendaDoPainel } from "@/lib/resultado/vendas-do-pagamento";
 
 export const dynamic = "force-dynamic";
@@ -161,6 +161,11 @@ export async function GET(req: NextRequest) {
       // o lucro não desconta anúncio — ver `contasDoAnuncio`.
       const contas = contasDoAnuncio(faturamentoReais, gastoDoPeriodo);
       const contasAntes = contasDoAnuncio(prevFaturamentoReais, gastoAnterior);
+      // Variação desconhecida é `null`, nunca zero: "não mudou" e "não dá para comparar" são respostas
+      // diferentes. O lucro só compara quando os dois lados descontam (ou não) o anúncio do mesmo jeito.
+      const gastoComparavel = gastoTemComparacao(period);
+      const lucroComparavel =
+        contas.gastoNaConta === contasAntes.gastoNaConta && (gastoComparavel || !contas.gastoNaConta);
 
       // 3. Vendas por período (série temporal para o gráfico)
       const vendasPorPeriodoMap = new Map<string, { label: string; valor: number; qtd: number }>();
@@ -335,14 +340,14 @@ export async function GET(req: NextRequest) {
           vendas: { valor: vendasCount, delta: calcularDelta(vendasCount, prevVendasCount) },
           roas: {
             valor: contas.roas,
-            delta: contas.roas !== null && contasAntes.roas !== null ? calcularDelta(contas.roas, contasAntes.roas) : 0,
+            delta: gastoComparavel && contas.roas !== null && contasAntes.roas !== null ? calcularDelta(contas.roas, contasAntes.roas) : null,
           },
           taxaConversao: { valor: taxaConversao, delta: calcularDelta(taxaConversao, prevTaxaConversao) },
           ticketMedio: { valor: ticketMedio, delta: calcularDelta(ticketMedio, prevTicketMedio) },
-          lucro: { valor: contas.lucro, delta: calcularDelta(contas.lucro, contasAntes.lucro), descontaAnuncio: contas.gastoNaConta },
+          lucro: { valor: contas.lucro, delta: lucroComparavel ? calcularDelta(contas.lucro, contasAntes.lucro) : null, descontaAnuncio: contas.gastoNaConta },
           gastoMeta: {
             valor: contas.gasto,
-            delta: contas.gasto !== null && contasAntes.gasto !== null ? calcularDelta(contas.gasto, contasAntes.gasto) : 0,
+            delta: gastoComparavel && contas.gasto !== null && contasAntes.gasto !== null ? calcularDelta(contas.gasto, contasAntes.gasto) : null,
             estado: contas.estado,
             moeda: contas.moeda,
           },
