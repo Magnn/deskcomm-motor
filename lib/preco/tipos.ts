@@ -69,7 +69,12 @@ export const degrauDeNegociacaoSchema = z
   );
 export type DegrauDeNegociacao = z.infer<typeof degrauDeNegociacaoSchema>;
 
-export const MAX_DEGRAUS = 3;
+/**
+ * Seis: o dono do produto pediu uma escada de R$ 100 a R$ 50, de dez em dez (07/10/2026). Com
+ * três, a agente que tinha mais valores combinados chamava uma pessoa para mandar o link à mão.
+ * Cada degrau custa UMA reclamação de valor, então a escada maior não acelera a descida.
+ */
+export const MAX_DEGRAUS = 6;
 
 export const pricingSchema = z
   .object({

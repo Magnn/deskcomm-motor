@@ -73,9 +73,11 @@ describe("pricingSchema", () => {
     ).toBe(false);
   });
 
-  it("no máximo 3 degraus", () => {
-    const steps = [11_000, 10_000, 9_000, 8_000].map((p, i) => ({ price_cents: p, coupon_code: `C${i}x` }));
-    expect(pricingSchema.safeParse({ ...BASE, steps }).success).toBe(false);
+  it("no máximo 6 degraus", () => {
+    const degraus = (valores: number[]) => valores.map((p, i) => ({ price_cents: p, coupon_code: `C${i}x` }));
+    const seis = degraus([10_000, 9_000, 8_000, 7_000, 6_000, 5_000]);
+    expect(pricingSchema.safeParse({ ...BASE, steps: seis }).success).toBe(true);
+    expect(pricingSchema.safeParse({ ...BASE, steps: [...seis, ...degraus([4_000])] }).success).toBe(false);
   });
 });
 
