@@ -97,6 +97,7 @@ import { blocoDeOferta } from '@/lib/oferta/bloco-do-prompt';
 import { passoDaLeitura } from '@/lib/leitura/estado-da-leitura';
 import { destinoNaConversa, fotoDaLeitura, imagemDaLeitura, mesaJaMostrada } from '@/lib/leitura/imagens';
 import { precoPermitidoAgora, reclamacoesDeValor } from '@/lib/preco/estado-da-negociacao';
+import { estadoDoPosVenda, horaDoPagamento } from '@/lib/preco/pos-venda';
 import { deveResponderEmAudio } from '@/lib/voz/decisao';
 import { enqueueJob, rescheduleJob, type JobRow, type Queryable } from '../queue/queue';
 import {
@@ -2281,14 +2282,42 @@ async function executarTurnoDoAgente(
   // mensagens do contexto (o painel de Teste incluso). Vai no FIM do system: o prefixo estável e
   // cacheável não muda. Sem `pricing` ligado, `blocoDePreco` devolve "" e o system segue idêntico.
   const reclamacoesDeValorNoTurno = reclamacoesDeValor(openingContext.context.messages);
+  // Pós-venda: quem já pagou sai da escada da primeira venda. A hora do pagamento só é buscada
+  // quando há oferta ligada E a pessoa tem a marca de pago — o turno comum não paga a consulta.
+  let posVendaDoTurno: ReturnType<typeof estadoDoPosVenda> = null;
+  const tagsDoContato = openingContext.context.contact.tags ?? [];
+  if (!preview && agentConfig?.pricing?.post_sale?.enabled && tagsDoContato.includes('pago')) {
+    try {
+      const { rows } = await pool.query<{ ultima_compra: unknown }>(
+        `select source_metadata->'ultima_compra' as ultima_compra
+           from contacts
+          where organization_id = $1 and id = $2
+          limit 1`,
+        [tenantId, leadId],
+      );
+      posVendaDoTurno = estadoDoPosVenda(
+        agentConfig.pricing,
+        { tags: tagsDoContato, pagoEm: horaDoPagamento(rows[0]?.ultima_compra) },
+        openingContext.context.messages,
+        new Date(),
+      );
+    } catch {
+      // Sem a hora do pagamento não há segunda oferta: o turno segue pela escada comum.
+      posVendaDoTurno = null;
+    }
+  }
   const blocoDePrecoDoTurno = blocoDePreco(agentConfig?.pricing, {
     reclamacoes: reclamacoesDeValorNoTurno,
+    posVenda: posVendaDoTurno,
   });
   // A REDE: o mesmo passo vira o piso de preço da trava de promessas deste turno. Se o modelo
-  // oferecer o desconto antes da hora, a mensagem é vetada antes de sair (`before-send`).
+  // oferecer o desconto antes da hora, a mensagem é vetada antes de sair (`before-send`). No
+  // pós-venda liberado o piso é o valor da segunda oferta — sem isso ela seria vetada.
   const promiseMinPriceCents =
     agentConfig?.pricing != null
-      ? precoPermitidoAgora(agentConfig.pricing, reclamacoesDeValorNoTurno)
+      ? posVendaDoTurno !== null
+        ? posVendaDoTurno.priceCents
+        : precoPermitidoAgora(agentConfig.pricing, reclamacoesDeValorNoTurno)
       : undefined;
   // Entrega personalizada: quem PAGOU (tags `pago` + `produto:<trabalho>`, postas pela compra
   // aprovada na Cakto) recebe, neste turno, o guia do trabalho certo e as regras gerais — buscados

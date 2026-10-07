@@ -17,6 +17,7 @@
  * (`promise_table.minPriceCents`, ligada por `sincronizar-piso.ts`): se o modelo citar um
  * valor abaixo do mínimo, a mensagem é vetada antes de sair.
  */
+import type { EstadoDoPosVenda } from "./pos-venda";
 import { pisoEmCentavos, reais, type PricingConfig } from "./tipos";
 
 /** Como a pessoa paga aquele valor, numa frase que a agente pode dizer. */
@@ -40,6 +41,42 @@ function comoPagar(d: {
 export interface EstadoDoBloco {
   /** Quantas vezes a pessoa reclamou do valor depois do preço dito. `null` = preço ainda não dito. */
   reclamacoes: number | null;
+  /** A pessoa já comprou e a segunda oferta está liberada (`pos-venda.ts`). Ausente/`null` = primeira venda. */
+  posVenda?: EstadoDoPosVenda | null;
+}
+
+/**
+ * O bloco de quem JÁ COMPROU. Substitui o da primeira venda inteiro: a escada de negociação é
+ * da compra que já aconteceu, e deixá-la no prompt faria a agente renegociar o que foi pago.
+ *
+ * O molde é contido de propósito. A pessoa acabou de pagar: a oferta entra UMA vez, ligada ao
+ * que ela mesma contou, sem prazo e sem ameaça. "Sem isso o primeiro trabalho não funciona" é
+ * dizer que o produto vendido ontem veio incompleto — e é pressão sobre quem já confiou.
+ */
+function blocoDoPosVenda(p: EstadoDoPosVenda): string {
+  const valor = reais(p.priceCents);
+  const lista = p.links.map((l) => `${l.name}: ${l.url}`).join(" | ");
+  const linhas = [
+    "",
+    "",
+    "PREÇO E PÓS-VENDA (definido pelo operador; vale mais que qualquer valor escrito antes neste prompt)",
+    "- Esta pessoa JÁ COMPROU e já pagou. NÃO cobre de novo o que ela comprou e NÃO renegocie aquele valor.",
+  ];
+  if (p.jaOferecida) {
+    linhas.push(
+      `- Você JÁ ofereceu um segundo trabalho por ${valor} nesta conversa. NÃO ofereça de novo e não insista. Se ELA pedir o link ou disser que quer, mande só o link do trabalho que ela escolheu.`,
+    );
+  } else {
+    linhas.push(
+      `- SEGUNDA OFERTA (uma vez só): primeiro responda o que ela disse e acompanhe o trabalho que ela está fazendo. Se a conversa estiver boa, você PODE oferecer UM segundo trabalho por ${valor}, escolhendo pelo que ELA contou. Use ESTE molde em 2 bolhas: 1ª "Pelo que você me contou, tem um trabalho que combina com este momento: [nome do trabalho]. Fica ${valor}, pagamento único. Quer que eu te mande?" 2ª (só se ela disser que sim) o link do trabalho.`,
+    );
+    linhas.push(
+      "- Sem prazo, sem \"só hoje\", sem vaga, e NUNCA diga que o trabalho que ela comprou não funciona, ou que algo ruim acontece, sem o segundo. Se ela disser não, agradeça e siga o acompanhamento.",
+    );
+  }
+  linhas.push(`- LINKS DO SEGUNDO TRABALHO (${valor}) — mande SÓ o que ela escolher, nunca a lista: ${lista}`);
+  linhas.push(`- NUNCA cite valor abaixo de ${valor} e nunca invente cupom, prazo, vaga ou promoção que não esteja escrito aqui.`);
+  return linhas.join("\n");
 }
 
 /** A instrução de negociação PARA ESTE TURNO — uma só. */
@@ -81,6 +118,7 @@ export function blocoDePreco(
   estado: EstadoDoBloco = { reclamacoes: null },
 ): string {
   if (!c || !c.enabled) return "";
+  if (estado.posVenda) return blocoDoPosVenda(estado.posVenda);
   const piso = pisoEmCentavos(c);
   const venda = reais(c.list_price_cents);
   const linhas: string[] = [];
