@@ -38,6 +38,12 @@ import { assertMeetingDeliveryPg, type MeetingDeliveryContext } from '@/lib/agen
  * ponytail: o lock fica retido durante o POST ao CRM (bounded por CRM_MCP_TIMEOUT_MS)
  * — aceitável no volume do MVP (throttle já espaça o número); se um número virar
  * gargalo, o upgrade é reservar o slot antes do POST e reconciliar no watchdog.
+ *
+ * A fila é do NÚMERO só onde há o que proteger (`chaveDaVezDoEnvio`): pacing e copies são
+ * as únicas leituras racy por número, e as duas só armam em canal com `banRisk`. Sem risco
+ * de banimento (o oficial) a vez é do CONTATO — medido em 07/10/2026: um número oficial
+ * com ~12 conversas/min concluía 5–7 turnos/min, porque a pausa entre bolhas e a síntese
+ * de voz de UM cliente seguravam a vez de todos os outros.
  */
 import type pg from 'pg';
 import type { ChannelSendResult } from '../channel-adapter';
@@ -1104,6 +1110,20 @@ function rastroDoEstilo(
 const realSleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
+ * De quem é a vez no envio. Canal com risco de banimento: do número — os contadores de
+ * pacing e a janela de copies são lidos e gravados por número, e dois envios simultâneos
+ * estourariam o cap. Canal sem risco: do contato — esses dois gates não armam, nada mais
+ * é lido por número, e o que resta proteger é a ordem das mensagens de UMA conversa.
+ */
+export function chaveDaVezDoEnvio(
+  provider: ChannelProvider,
+  channelSessionId: string,
+  leadId: string,
+): string {
+  return capabilitiesOf(provider).banRisk ? channelSessionId : `${channelSessionId}:${leadId}`;
+}
+
+/**
  * Roda a cadeia before_send para UMA tentativa de envio. Curto-circuita no 1º veto
  * (o resto da cadeia é registrado como 'skipped'); só chama `send()` se todos passam.
  * Serializa o read-then-act por número via advisory xact lock (ver cabeçalho).
@@ -1144,12 +1164,16 @@ async function enviarSobOLock(
         : null;
 
     await client.query('begin');
-    // Serialização por número: dois workers no MESMO channel_session esperam a vez.
-    await client.query('select pg_advisory_xact_lock(hashtext($1))', [args.channelSessionId]);
+    // O provider vem ANTES do lock porque é ele que diz de quem é a vez; não é racy
+    // (o canal não troca de provider entre dois envios).
+    const provider = await loadChannelProvider(client, args.tenantId, args.channelSessionId);
+    // Serialização: dois workers na MESMA vez (número, ou contato no canal sem risco) esperam.
+    await client.query('select pg_advisory_xact_lock(hashtext($1))', [
+      chaveDaVezDoEnvio(provider, args.channelSessionId, args.leadId),
+    ]);
 
     // Estado confiável carregado SOB o lock (os contadores de cap/janela de copies
     // são racy — precisam ver o que o worker anterior já efetivou).
-    const provider = await loadChannelProvider(client, args.tenantId, args.channelSessionId);
     if (
       args.meetingDelivery &&
       (args.meetingDelivery.organizationId !== args.tenantId ||
