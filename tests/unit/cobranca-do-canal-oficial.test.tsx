@@ -106,6 +106,13 @@ describe("MessageBubble — marca de cobrança", () => {
     expect(screen.getByText("Cobrada")).toBeInTheDocument();
   });
 
+  it("resposta comum na janela de atendimento (`service`) não ganha marca, mesmo vindo como cobrável", () => {
+    render(
+      <MessageBubble message={msg({ billing_billable: true, billing_category: "service" })} />,
+    );
+    expect(screen.queryByText(/Cobrada/)).toBeNull();
+  });
+
   it("gratuita e não informada não ganham marca", () => {
     const { rerender } = render(
       <MessageBubble message={msg({ billing_billable: false, billing_category: "service" })} />,

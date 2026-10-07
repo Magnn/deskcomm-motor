@@ -273,9 +273,15 @@ export function MessageBubble({
             // divergência só aparece quando alguém cobra o que não foi.
             <span title={t("O autor editou esta mensagem")}>{t("editada")}</span>
           )}
-          {isOutbound && message.billing_billable === true && (
+          {isOutbound && message.billing_billable === true && message.billing_category !== "service" && (
             // Só a COBRADA aparece: a gratuita é a regra, e marcar todas tiraria o
             // sinal de quem procura o que gerou a fatura.
+            //
+            // `service` fica de fora mesmo vindo `billable: true`: é como o provedor
+            // devolve a resposta comum dentro da janela de atendimento ("tarifa de
+            // serviço aplicada"), e a tabela pública dele diz que mensagem sem modelo é
+            // gratuita. Medido em 07/10/2026: 62 de 103 mensagens em 2,5 min vieram
+            // assim — a marca viraria ruído em quase toda bolha. O dado segue guardado.
             <span className="font-semibold" title={t("O WhatsApp cobrou o envio desta mensagem")}>
               {t(ROTULO_DA_COBRANCA[message.billing_category ?? ""] ?? "Cobrada")}
             </span>
