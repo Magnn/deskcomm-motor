@@ -7040,6 +7040,9 @@ export type Database = {
         Row: {
           ack: number | null
           activity_id: string | null
+          billing_billable: boolean | null
+          billing_category: string | null
+          billing_type: string | null
           body: string | null
           channel_session_id: string
           contact_id: string
@@ -7078,6 +7081,9 @@ export type Database = {
         Insert: {
           ack?: number | null
           activity_id?: string | null
+          billing_billable?: boolean | null
+          billing_category?: string | null
+          billing_type?: string | null
           body?: string | null
           channel_session_id: string
           contact_id: string
@@ -7116,6 +7122,9 @@ export type Database = {
         Update: {
           ack?: number | null
           activity_id?: string | null
+          billing_billable?: boolean | null
+          billing_category?: string | null
+          billing_type?: string | null
           body?: string | null
           channel_session_id?: string
           contact_id?: string

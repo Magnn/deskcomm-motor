@@ -38,6 +38,16 @@ interface Props {
   viewerUserId?: string | null;
 }
 
+/**
+ * Categoria de cobrança do canal oficial → rótulo ao lado da hora. O vocabulário é
+ * do provedor e aberto: categoria que não está aqui cai em "Cobrada", sem inventar nome.
+ */
+const ROTULO_DA_COBRANCA: Record<string, string> = {
+  marketing: "Cobrada · marketing",
+  utility: "Cobrada · utilidade",
+  authentication: "Cobrada · autenticação",
+};
+
 function AckIndicator({ status, t }: { status: string; t: (texto: string) => string }) {
   if (status === "read") {
     return <Checks size={12} weight="bold" className="text-blue-400" aria-label={t("Lida")} />;
@@ -262,6 +272,13 @@ export function MessageBubble({
             // ou endereço é lido como se sempre tivesse dito aquilo — e a
             // divergência só aparece quando alguém cobra o que não foi.
             <span title={t("O autor editou esta mensagem")}>{t("editada")}</span>
+          )}
+          {isOutbound && message.billing_billable === true && (
+            // Só a COBRADA aparece: a gratuita é a regra, e marcar todas tiraria o
+            // sinal de quem procura o que gerou a fatura.
+            <span className="font-semibold" title={t("O WhatsApp cobrou o envio desta mensagem")}>
+              {t(ROTULO_DA_COBRANCA[message.billing_category ?? ""] ?? "Cobrada")}
+            </span>
           )}
           <span>{time}</span>
           {showCitationButton && (

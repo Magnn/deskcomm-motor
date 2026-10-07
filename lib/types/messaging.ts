@@ -103,6 +103,13 @@ export interface Message {
   sent_at: string;
   delivered_at: string | null;
   read_at: string | null;
+  /**
+   * Canal oficial: o que o provedor informou sobre a cobrança desta mensagem
+   * (migration 0917). Opcionais pelo mesmo motivo de `media_derived_*`.
+   */
+  billing_billable?: boolean | null;
+  billing_category?: string | null;
+  billing_type?: string | null;
   metadata: Record<string, unknown>;
   /**
    * Quando o AUTOR editou no aplicativo (migration 0143). `body` já é a versão

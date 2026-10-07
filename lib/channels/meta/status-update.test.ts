@@ -44,4 +44,26 @@ describe("statusUpdate", () => {
     const u = statusUpdate(evento({ status: "sent" }), AGORA);
     expect(u).toEqual({ status: "sent", updated_at: AGORA });
   });
+
+  it("guarda o que a Meta informou sobre a cobrança da mensagem", () => {
+    const u = statusUpdate(
+      evento({
+        status: "delivered",
+        cobranca: { cobrada: true, categoria: "marketing", tipo: "regular" },
+      }),
+      AGORA,
+    );
+    expect(u).toMatchObject({
+      billing_billable: true,
+      billing_category: "marketing",
+      billing_type: "regular",
+    });
+  });
+
+  it("status sem o bloco de cobrança não apaga o que já foi gravado", () => {
+    const u = statusUpdate(evento({ status: "read", cobranca: null }), AGORA);
+    expect(u).not.toHaveProperty("billing_billable");
+    expect(u).not.toHaveProperty("billing_category");
+    expect(u).not.toHaveProperty("billing_type");
+  });
 });

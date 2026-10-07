@@ -5949,6 +5949,11 @@ export const DICIONARIO: Traducoes = {
   "Esta mensagem foi apagada": { es: "Este mensaje fue eliminado" },
   editada: { es: "editado" },
   "O autor editou esta mensagem": { es: "El autor editó este mensaje" },
+  "O WhatsApp cobrou o envio desta mensagem": { es: "WhatsApp cobró el envío de este mensaje" },
+  Cobrada: { es: "Cobrado" },
+  "Cobrada · marketing": { es: "Cobrado · marketing" },
+  "Cobrada · utilidade": { es: "Cobrado · utilidad" },
+  "Cobrada · autenticação": { es: "Cobrado · autenticación" },
   "Erro desconhecido": { es: "Error desconocido" },
   "Você passa a responder esta conversa e o atendimento automático para aqui.": {
     es: "Desde ahora tú respondes esta conversación y la atención automática se detiene aquí.",

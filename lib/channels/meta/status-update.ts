@@ -36,5 +36,13 @@ export function statusUpdate(e: MessageStatusEvent, now: string): Record<string,
     update.error_message = e.errorTitle;
   }
 
+  // Só quando a Meta informa: o `read` vem sem o bloco, e gravar nulo ali apagaria
+  // o que o `sent`/`delivered` da mesma mensagem já tinha dito.
+  if (e.cobranca) {
+    update.billing_billable = e.cobranca.cobrada;
+    update.billing_category = e.cobranca.categoria;
+    update.billing_type = e.cobranca.tipo;
+  }
+
   return update;
 }

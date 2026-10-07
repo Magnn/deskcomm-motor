@@ -140,6 +140,20 @@ export interface MessageStatusEvent {
   recipient: string | null;
   errorCode: number | null;
   errorTitle: string | null;
+  /**
+   * O que a Meta diz sobre a cobrança DESTA mensagem (`statuses[].pricing`), sem
+   * interpretar. `null` quando o status não traz o bloco — ele vem em `sent` e
+   * `delivered`, não em `read`. Opcional só para os chamadores que montam o
+   * evento à mão; o parser sempre preenche.
+   */
+  cobranca?: CobrancaDaMensagem | null;
+}
+
+/** `statuses[].pricing` da Cloud API: cobrada ou não, categoria e regra aplicada. */
+export interface CobrancaDaMensagem {
+  cobrada: boolean;
+  categoria: string | null;
+  tipo: string | null;
 }
 
 export type MetaWebhookEvent = TemplateStatusEvent | MessageStatusEvent | InboundMessageEvent;
@@ -163,6 +177,14 @@ export type { MetaWebhookEnvelope } from "./envelope";
 export function normalizeRejectedReason(v: unknown): string | null {
   const s = typeof v === "string" && v.length > 0 ? v : null;
   return s === null || s.toUpperCase() === "NONE" ? null : s;
+}
+
+/** Só vale com `billable` booleano: sem ele não há o que afirmar sobre a cobrança. */
+function lerCobranca(v: unknown): CobrancaDaMensagem | null {
+  if (typeof v !== "object" || v === null) return null;
+  const p = v as Record<string, unknown>;
+  if (typeof p.billable !== "boolean") return null;
+  return { cobrada: p.billable, categoria: str(p.category), tipo: str(p.type) };
 }
 
 function str(v: unknown): string | null {
@@ -261,6 +283,7 @@ export function parseMetaWebhook(envelope: MetaWebhookEnvelope): MetaWebhookEven
             recipient: str(raw.recipient_id),
             errorCode: typeof first.code === "number" ? first.code : null,
             errorTitle: str(first.title),
+            cobranca: lerCobranca(raw.pricing),
           });
         }
       }
