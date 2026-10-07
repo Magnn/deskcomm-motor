@@ -25,6 +25,13 @@ import { scrubMessage } from '@/lib/sentry/scrub';
 
 import type { Logger } from '../../obs/logger';
 import { decidirParaOSeam } from './binding-do-ponto';
+import {
+  corpoDoAvisoDeReserva,
+  FALHAS_QUE_PEDEM_OUTRA_CHAVE,
+  listarChavesDeReserva,
+  MAXIMO_DE_RESERVAS_POR_CHAMADA,
+  TITULO_DA_RESERVA_EM_USO,
+} from './chave-reserva';
 import { resolveOrgLlmConfig, type LlmEdgeConfig, type OrcamentoDaOrg } from './credentials';
 import {
   AVISO_CORPO,
@@ -650,16 +657,16 @@ export async function runModelCall(db: pg.Pool, cfg: LlmEdgeConfig, input: RunMo
   });
 
   const startedAt = Date.now();
-  let result: Awaited<ReturnType<typeof generateText>>;
-  try {
-    input.abortSignal?.throwIfAborted();
-    // `system` aceita SystemModelMessage (com providerOptions de cache) — igual
-    // em v6 e v7 (smoke prova que o cacheControl continua virando cache_control).
-    result = await generateText({
-      // `decisao.baseUrl` só é preenchido quando o painel apontou um endpoint
-      // (gateway OpenAI-compatível, ou modelo local). Providers canônicos
-      // ignoram o terceiro argumento e vão ao endpoint intrínseco.
-      model: factory(config.apiKey, model, decisao.baseUrl ?? undefined),
+  // Quem de fato respondeu. Começa na escolha do turno e só muda se a chave reserva assumir —
+  // é o que vai para `llm_calls`, para o custo e para quem chamou.
+  let provedorEmUso = config.provider;
+  let modeloEmUso = model;
+  // Passos de ferramenta já concluídos NESTA chamada: com um só, a mensagem pode já ter saído, e
+  // refazer a chamada com outra chave a mandaria de novo. A reserva só entra com zero.
+  let passosConcluidos = 0;
+  const chamar = (modelo: Parameters<typeof generateText>[0]['model']) =>
+    generateText({
+      model: modelo,
       system: prefix.system,
       messages: input.messages,
       abortSignal: input.abortSignal,
@@ -671,7 +678,19 @@ export async function runModelCall(db: pg.Pool, cfg: LlmEdgeConfig, input: RunMo
       maxOutputTokens: input.maxOutputTokens === undefined
         ? maxOutputTokens
         : Math.min(maxOutputTokens ?? Infinity, input.maxOutputTokens),
+      onStepFinish: () => {
+        passosConcluidos += 1;
+      },
     });
+  let result: Awaited<ReturnType<typeof generateText>>;
+  try {
+    input.abortSignal?.throwIfAborted();
+    // `system` aceita SystemModelMessage (com providerOptions de cache) — igual
+    // em v6 e v7 (smoke prova que o cacheControl continua virando cache_control).
+    // `decisao.baseUrl` só é preenchido quando o painel apontou um endpoint
+    // (gateway OpenAI-compatível, ou modelo local). Providers canônicos
+    // ignoram o terceiro argumento e vão ao endpoint intrínseco.
+    result = await chamar(factory(config.apiKey, model, decisao.baseUrl ?? undefined));
   } catch (err) {
     // ─── A LINHA QUE FALTAVA ────────────────────────────────────────────────
     //
@@ -705,7 +724,98 @@ export async function runModelCall(db: pg.Pool, cfg: LlmEdgeConfig, input: RunMo
       origem_da_escolha: decisao.origem,
       ...normalizarErro(err),
     });
-    throw err;
+
+    // ─── A CHAVE RESERVA ────────────────────────────────────────────────────
+    // A falha da principal já está gravada acima. Aqui a pergunta é só: outra
+    // chave resolveria, e ainda dá para refazer a chamada sem repetir efeito?
+    // Regra, ordem e limites em `./chave-reserva.ts`. Sem reserva que funcione,
+    // o erro que sobe é o ORIGINAL — quem chama continua vendo a causa de verdade.
+    const motivo = normalizarErro(err).error_code;
+    const podeTrocarDeChave =
+      FALHAS_QUE_PEDEM_OUTRA_CHAVE.has(motivo) &&
+      passosConcluidos === 0 &&
+      !decisao.baseUrl &&
+      input.abortSignal?.aborted !== true;
+    let assumiu: Awaited<ReturnType<typeof generateText>> | null = null;
+    if (podeTrocarDeChave) {
+      const reservas = await listarChavesDeReserva(db, {
+        organizationId: input.tenantId,
+        provider: config.provider,
+        model,
+        credencialQueFalhou: config.credentialId,
+      }).catch(() => []);
+      let tentadas = 0;
+      for (const reserva of reservas) {
+        if (tentadas >= MAXIMO_DE_RESERVAS_POR_CHAMADA || passosConcluidos > 0) break;
+        const fabricaDaReserva = registry[reserva.provider];
+        // Provedor que o motor não chama (voz) ou chave sem modelo que sirva: não é reserva.
+        if (fabricaDaReserva === undefined || reserva.model === null) continue;
+        if (config.enabledModels.length > 0 && !config.enabledModels.includes(reserva.model)) continue;
+        tentadas += 1;
+        const inicioDaReserva = Date.now();
+        try {
+          assumiu = await chamar(fabricaDaReserva(reserva.apiKey, reserva.model, undefined));
+          provedorEmUso = reserva.provider;
+          modeloEmUso = reserva.model;
+          deps.log?.warn('llm: chave reserva assumiu a chamada', {
+            organization_id: input.tenantId,
+            purpose,
+            provider_principal: config.provider,
+            motivo,
+            provider_reserva: reserva.provider,
+            model_reserva: reserva.model,
+            credential_reserva: reserva.credentialId,
+          });
+          // Uma vez por organização enquanto o aviso estiver aberto: a troca se repete a cada
+          // chamada até alguém recarregar a principal, e cem avisos iguais são nenhum.
+          await db
+            .query(
+              `insert into agent_inbox_items (organization_id, kind, severity, title, body, ref_kind, ref_id)
+               select $1, 'other', 'warn', $2, $3, 'ai_credential', $4
+               where not exists (
+                 select 1 from agent_inbox_items
+                 where organization_id = $1 and status = 'open' and title = $2
+               )`,
+              [
+                input.tenantId,
+                TITULO_DA_RESERVA_EM_USO,
+                corpoDoAvisoDeReserva({
+                  provedorPrincipal: config.provider,
+                  motivo,
+                  provedorReserva: reserva.provider,
+                  rotuloReserva: reserva.rotulo,
+                  modeloReserva: reserva.model,
+                  mesmoProvedor: reserva.provider === config.provider,
+                }),
+                config.credentialId ?? input.tenantId,
+              ],
+            )
+            .catch(() => {
+              // O aviso não pode custar a resposta que a reserva acabou de salvar.
+            });
+          break;
+        } catch (erroDaReserva) {
+          await registrarFalha(db, {
+            input,
+            purpose,
+            provider: reserva.provider,
+            model: reserva.model,
+            origem: decisao.origem,
+            latencyMs: Date.now() - inicioDaReserva,
+            erro: erroDaReserva,
+          }).catch(() => {});
+          deps.log?.error('llm: chave reserva também falhou', {
+            organization_id: input.tenantId,
+            purpose,
+            provider: reserva.provider,
+            model: reserva.model,
+            ...normalizarErro(erroDaReserva),
+          });
+        }
+      }
+    }
+    if (assumiu === null) throw err;
+    result = assumiu;
   }
   const latencyMs = Date.now() - startedAt;
 
@@ -718,7 +828,7 @@ export async function runModelCall(db: pg.Pool, cfg: LlmEdgeConfig, input: RunMo
   // O TTL é o MESMO que gravou o prefixo estável acima: a gravação de cache custa
   // 1.25× a entrada em 5m e 2× em 1h, e supor a doutrina superfaturaria 60% da
   // parcela de cache write em quem usa o knob.
-  const cost = costCents(model, usage, cfg.cacheTtl ?? '1h');
+  const cost = costCents(modeloEmUso, usage, cfg.cacheTtl ?? '1h');
 
   const { rows } = await db.query<{ id: string }>(
     `insert into llm_calls
@@ -733,8 +843,8 @@ export async function runModelCall(db: pg.Pool, cfg: LlmEdgeConfig, input: RunMo
       input.jobId ?? null,
       input.variantId ?? null,
       purpose,
-      config.provider,
-      model,
+      provedorEmUso,
+      modeloEmUso,
       usage.inputTokens,
       usage.outputTokens,
       usage.cacheReadTokens,
@@ -749,8 +859,8 @@ export async function runModelCall(db: pg.Pool, cfg: LlmEdgeConfig, input: RunMo
   // Só métricas — nunca conteúdo de mensagem (PII) nem chave.
   deps.log?.info('llm: chamada concluída', {
     organization_id: input.tenantId,
-    provider: config.provider,
-    model,
+    provider: provedorEmUso,
+    model: modeloEmUso,
     purpose,
     // POR QUE este modelo, e não só QUAL: é a diferença entre um log que
     // confirma o que aconteceu e um que explica uma configuração que não
@@ -771,8 +881,8 @@ export async function runModelCall(db: pg.Pool, cfg: LlmEdgeConfig, input: RunMo
   return {
     result,
     callId: rows[0]?.id ?? null,
-    provider: config.provider,
-    model,
+    provider: provedorEmUso,
+    model: modeloEmUso,
     usage,
     costCents: cost,
     latencyMs,

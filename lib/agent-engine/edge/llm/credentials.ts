@@ -171,6 +171,8 @@ export interface OrgLlmConfig {
   provider: string;
   /** plaintext decifrado — existe só em memória, jamais logado/persistido */
   apiKey: string;
+  /** Linha de `ai_provider_credentials` que forneceu a chave; `null` = chave da instalação. */
+  credentialId: string | null;
   /**
    * `chave_da_instalacao` = a organização não tinha credencial ativa e validada
    * para o provedor (ou a escolhida foi revogada) e a escada caiu no `.env` —
@@ -343,11 +345,12 @@ export async function resolveOrgLlmConfig(
   // senão a mais recente ativa/validada do provider. Sempre escopada pela org.
   const { rows: credRows } = override?.credentialId
     ? await db.query<{
+        id: string;
         api_key_encrypted: unknown;
         api_key_iv: unknown;
         api_key_tag: unknown;
       }>(
-        `select api_key_encrypted, api_key_iv, api_key_tag
+        `select id, api_key_encrypted, api_key_iv, api_key_tag
          from ai_provider_credentials
          where organization_id = $1 and id = $2
            and is_active and validated_at is not null
@@ -355,11 +358,12 @@ export async function resolveOrgLlmConfig(
         [organizationId, override.credentialId],
       )
     : await db.query<{
+        id: string;
         api_key_encrypted: unknown;
         api_key_iv: unknown;
         api_key_tag: unknown;
       }>(
-        `select api_key_encrypted, api_key_iv, api_key_tag
+        `select id, api_key_encrypted, api_key_iv, api_key_tag
          from ai_provider_credentials
          where organization_id = $1 and provider = $2
            and is_active and validated_at is not null
@@ -403,6 +407,9 @@ export async function resolveOrgLlmConfig(
   return {
     provider,
     apiKey,
+    // Qual linha de `ai_provider_credentials` forneceu a chave (`null` = veio da instalação).
+    // É por ela que a reserva sabe qual chave NÃO tentar de novo — ver `chave-reserva.ts`.
+    credentialId: cred?.id ?? null,
     origemDaChave,
     defaultModel: settings.default_model ?? null,
     params: settings.params,
