@@ -38888,3 +38888,21 @@ revoke all on public.silence_recovery_attempts from anon, authenticated;
 grant select, insert, update, delete on public.silence_recovery_attempts to service_role;
 
 notify pgrst, 'reload schema';
+
+-- ---- Cobrança do canal oficial por mensagem (migration 0917) ----
+alter table public.messages add column if not exists billing_billable boolean;
+alter table public.messages add column if not exists billing_category text;
+alter table public.messages add column if not exists billing_type text;
+
+comment on column public.messages.billing_billable is
+  'Canal oficial: o provedor informou que ESTA mensagem foi cobrada (true) ou saiu gratuita (false). Nulo = o provedor não informou.';
+comment on column public.messages.billing_category is
+  'Canal oficial: categoria de cobrança informada pelo provedor (marketing, utility, authentication, service…). Vocabulário aberto, sem CHECK.';
+comment on column public.messages.billing_type is
+  'Canal oficial: por que a mensagem foi cobrada ou gratuita, como o provedor informa (regular, free_customer_service, free_entry_point…). Vocabulário aberto, sem CHECK.';
+
+create index if not exists messages_cobradas_por_org_idx
+  on public.messages (organization_id, sent_at desc)
+  where billing_billable is true;
+
+notify pgrst, 'reload schema';
