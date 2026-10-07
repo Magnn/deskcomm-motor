@@ -1604,6 +1604,36 @@ export const DICIONARIO: Traducoes = {
   "Retomar sozinho quem parou de responder, para o interessado não sumir sem ninguém perceber.": {
     es: "Retomar automáticamente el contacto con quien dejó de responder, para que ningún interesado desaparezca sin que nadie lo note.",
   },
+  "Chamar de novo quem parou de responder": {
+    es: "Volver a llamar a quien dejó de responder",
+  },
+  "Quando o cliente fica em silêncio depois de uma mensagem do agente, o agente retoma a conversa sozinho nos tempos abaixo. Ele para assim que o cliente responde, e não chama quem já combinou uma data de retorno.": {
+    es: "Cuando el cliente queda en silencio después de un mensaje del agente, el agente retoma la conversación solo en los tiempos de abajo. Se detiene en cuanto el cliente responde, y no llama a quien ya acordó una fecha de regreso.",
+  },
+  "{n}ª chamada após": {
+    es: "{n}ª llamada tras",
+  },
+  "Adicionar chamada": {
+    es: "Agregar llamada",
+  },
+  "Cada chamada precisa vir depois da anterior, e todas dentro de 23 horas.": {
+    es: "Cada llamada debe venir después de la anterior, y todas dentro de 23 horas.",
+  },
+  "Manter a conversa aberta até a data que o cliente combinou": {
+    es: "Mantener la conversación abierta hasta la fecha que acordó el cliente",
+  },
+  "No WhatsApp oficial, o agente só pode escrever livremente por 24 horas depois da última mensagem do cliente. Quando o retorno combinado fica para depois disso, o agente manda uma mensagem pedindo uma resposta pouco antes de o prazo acabar. Se o cliente responder, ganha mais 24 horas.": {
+    es: "En el WhatsApp oficial, el agente solo puede escribir libremente durante 24 horas después del último mensaje del cliente. Cuando el regreso acordado queda para después, el agente envía un mensaje pidiendo una respuesta poco antes de que termine el plazo. Si el cliente responde, gana 24 horas más.",
+  },
+  "Enviar quando faltarem": {
+    es: "Enviar cuando falten",
+  },
+  "horas para o prazo acabar": {
+    es: "horas para que termine el plazo",
+  },
+  "As chamadas respeitam os horários de envio abaixo, quando estiverem definidos.": {
+    es: "Las llamadas respetan los horarios de envío de abajo, cuando están definidos.",
+  },
   "Habilitar gatilhos automáticos de follow-up": {
     es: "Habilitar disparadores automáticos de seguimiento",
   },

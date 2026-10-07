@@ -11,6 +11,7 @@ import { z } from "zod";
 import { VALID_TOOL_IDS } from "@/lib/mcp/tools/catalog";
 import { TETO_TOOLS_POR_AGENTE } from "@/lib/mcp/tools/selecao-por-pacote";
 import { IDS_DE_PROVEDOR } from "@/lib/ai/pontos/provedores";
+import { recuperacaoSchema } from "@/lib/recuperacao/config";
 
 /**
  * Derivado de `lib/ai/pontos/provedores.ts` (a lista única desde a 0127). Como
@@ -82,6 +83,9 @@ const followupConfigObjectSchema = z
     enabled: z.boolean().default(false),
     flow_pointer_ids: z.array(UUID).max(20).default([]),
     send_window: followupSendWindowSchema.nullable().optional().default(null),
+    // Recuperação de silêncio (lib/recuperacao/config.ts). Sem default de propósito: versão antiga
+    // continua sem a chave, e ausente = desligada.
+    recovery: recuperacaoSchema.nullable().optional(),
   })
   .strict();
 

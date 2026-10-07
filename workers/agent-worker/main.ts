@@ -92,6 +92,7 @@ import {
 } from "@/lib/instalacao/comportamento-sql";
 import { runDrainLoop } from "@/lib/agent-engine/edge/crm/drain";
 import { resgatarLeadsSemResposta } from "@/lib/agent-engine/edge/crm/resgate-de-lead-sem-resposta";
+import { recuperarSilenciosos } from "@/lib/agent-engine/edge/crm/recuperacao-por-silencio";
 import { runEventLogDrainLoop, prontidaoDoLacoDeEventLog } from "@/lib/event-log/drain-loop";
 import { crmEdgeConfigFromEnv } from "@/lib/agent-engine/edge/crm/mcp-client";
 import { enforceHolds, sessionHealthMetrics } from "@/lib/agent-engine/edge/crm/session-watchdog";
@@ -324,6 +325,13 @@ export async function startWorker(
         if (r.resgatadas + r.avisadas > 0) log.warn("resgate de leads sem resposta", { ...r });
       })
       .catch((err: unknown) => log.error("resgate de leads sem resposta falhou", { error: errMsg(err) }));
+    // O sinal trocado do resgate: o agente falou por último e o cliente sumiu. Com a recuperação ligada
+    // no agente, cada passo de silêncio vencido acorda o agente uma vez (lib/recuperacao).
+    recuperarSilenciosos(pool, log)
+      .then((r) => {
+        if (r.chamadas + r.janelas > 0) log.info("recuperação de silêncio", { ...r });
+      })
+      .catch((err: unknown) => log.error("recuperação de silêncio falhou", { error: errMsg(err) }));
   }, env.QUEUE_REAPER_INTERVAL_MS);
 
   // Holds de sessão/saúde: retém jobs de envio de número fora do ar (WORKING é a
