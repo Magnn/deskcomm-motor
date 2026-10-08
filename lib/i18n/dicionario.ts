@@ -4894,6 +4894,12 @@ export const DICIONARIO: Traducoes = {
   },
   "Validando com a Meta…": { es: "Validando con Meta…" },
   "Validar e conectar": { es: "Validar y conectar" },
+  "Nuvemshop: conectar a loja": { es: "Tiendanube: conectar la tienda" },
+  "Apagar voz": { es: "Eliminar voz" },
+  "Apagar a voz": { es: "¿Eliminar la voz" },
+  "Voz apagada.": { es: "Voz eliminada." },
+  "A voz clonada é removida da sua conta no provedor de voz e não pode ser recuperada. Se algum agente estiver usando esta voz, ela não é apagada e o aviso diz qual.":
+    { es: "La voz clonada se elimina de tu cuenta en el proveedor de voz y no se puede recuperar. Si algún agente está usando esta voz, no se elimina y el aviso dice cuál." },
   // ── Ritmo de resposta do agente ────────────────────────────────────────
   "Ritmo de resposta": { es: "Ritmo de respuesta" },
   "Quanto o agente leva para “digitar”. Resposta longa que chega inteira em dois segundos parece automática; mais devagar parece gente, e cada atendimento demora um pouco mais.":
