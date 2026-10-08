@@ -30,7 +30,7 @@ describe("comporSystemDoTurno", () => {
 
   it("produz EXATAMENTE o que a linha antiga de inbound-turn.ts produzia (refactor sem efeito)", () => {
     // Caracterização: a expressão que este módulo substituiu, escrita por extenso, contra a função — em
-    // todas as combinações de bloco presente/ausente (2^11), com textos que têm quebra de linha, `${}` e
+    // todas as combinações de bloco presente/ausente (2^12), com textos que têm quebra de linha, `${}` e
     // acento, que é o que um bloco real carrega. Se este teste um dia divergir, o system dos agentes em
     // produção mudou de texto sem ninguém ter decidido. (Estilo, identidade, oferta, objeções, fluxo,
     // limites e consciência entraram depois: a expressão "antiga" aqui é a fila decidida, escrita por extenso.)
@@ -44,10 +44,11 @@ describe("comporSystemDoTurno", () => {
       fluxo: "\n\nFLUXO — objetivo da etapa ${f}\n",
       leitura: "\n\nLEITURA — REVELE A CARTA 2 DE 3\n",
       preco: "\n\nPREÇO: R$ 130\n",
+      combinado: "\n\nRETORNO COMBINADO ${r}\n",
       entrega: "\n\nGUIA DA ENTREGA ${y}\n",
       limites: "\n\nLIMITES — nunca diga ${k}\n",
     };
-    for (let mascara = 0; mascara < 2048; mascara++) {
+    for (let mascara = 0; mascara < 4096; mascara++) {
       const b = {
         identidade: mascara & 1 ? textos.identidade : "",
         oferta: mascara & 2 ? textos.oferta : "",
@@ -60,8 +61,9 @@ describe("comporSystemDoTurno", () => {
         preco: mascara & 256 ? textos.preco : "",
         entrega: mascara & 512 ? textos.entrega : "",
         limites: mascara & 1024 ? textos.limites : "",
+        combinado: mascara & 2048 ? textos.combinado : "",
       };
-      const antiga = `BASE${b.identidade}${b.oferta}${b.consciencia}${b.objecoes}${b.anuncio}${b.estilo}${b.fluxo}${b.leitura}${b.preco}${b.entrega}${b.limites}`;
+      const antiga = `BASE${b.identidade}${b.oferta}${b.consciencia}${b.objecoes}${b.anuncio}${b.estilo}${b.fluxo}${b.leitura}${b.preco}${b.combinado}${b.entrega}${b.limites}`;
       expect(comporSystemDoTurno("BASE", b), `combinação ${mascara}`).toBe(antiga);
     }
   });
@@ -84,7 +86,7 @@ describe("a fila BLOCOS_DO_TURNO", () => {
   it("é a ordem decidida: identidade, anúncio e estilo abrem; leitura, preço e entrega seguem o funil", () => {
     // Trocar a ordem muda quem vence num conflito — o modelo pesa mais o que vem por último. É decisão
     // de produto: se este teste precisar mudar, mude junto o comentário de `blocos-do-turno.ts`.
-    expect([...BLOCOS_DO_TURNO]).toEqual(["identidade", "oferta", "consciencia", "objecoes", "anuncio", "estilo", "fluxo", "leitura", "preco", "entrega", "limites"]);
+    expect([...BLOCOS_DO_TURNO]).toEqual(["identidade", "oferta", "consciencia", "objecoes", "anuncio", "estilo", "fluxo", "leitura", "preco", "combinado", "entrega", "limites"]);
   });
 
   it("os limites do dono fecham a fila: a proibição vence o funil (leitura, preço e entrega), e não o contrário", () => {
@@ -130,6 +132,7 @@ describe("a fiação no turno", () => {
       fluxo: "blocoDoFluxoDoTurno",
       leitura: "blocoDaLeituraDoTurno",
       preco: "blocoDePrecoDoTurno",
+      combinado: "blocoDoCombinadoDoTurno",
       entrega: "blocoDaEntrega",
       limites: "blocoDeLimitesDoTurno",
     });

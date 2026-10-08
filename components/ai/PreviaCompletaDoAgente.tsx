@@ -86,6 +86,7 @@ export function PreviaCompletaDoAgente({ systemPrompt, config, toolIds, contextW
       fluxo: "",
       leitura: "",
       preco: "",
+      combinado: "",
       entrega: "",
       limites,
     });
