@@ -53,6 +53,28 @@ export interface EstadoDoBloco {
    * valor de venda. Pula a escada para o degrau que cabe. Ausente/`null` = ela não disse.
    */
   valorQueTemCents?: number | null;
+  /**
+   * A pessoa acabou de dar uma data para pagar (`deuDataParaPagar`) e a agente JÁ ofereceu este
+   * degrau: o turno fecha o combinado — data + este valor + retorno agendado — em vez de descer
+   * mais um degrau ou de mandar a pessoa "chamar quando receber". Ausente/`null` = não é o caso.
+   */
+  dataParaOValorCents?: number | null;
+}
+
+/**
+ * O turno de FECHAR O COMBINADO: ela deu a data, o valor já foi oferecido. Quem tem nada hoje não
+ * ganha mais um degrau por adiar — o valor é o que já foi dito, e é ele que o retorno guarda
+ * (`valorCombinadoNaConversa`). O defeito que isto corta é a despedida sem compromisso.
+ */
+function instrucaoDeFecharADataCombinada(valorCents: number): string {
+  const valor = reais(valorCents);
+  return [
+    `- NEGOCIAÇÃO: ela disse que só consegue pagar em outra data, e você já ofereceu ${valor}. NÃO ofereça outro valor e NÃO diga "me chama quando receber" nem "quando o dinheiro entrar": quem volta é VOCÊ, na data. Faça as DUAS coisas neste turno:`,
+    "  1) chame a ferramenta de agendar retorno (schedule_followup) com a data que ela disse;",
+    `  2) responda com ESTE molde e nenhum outro: "Combinado, então: no dia [a data que ela disse] eu te chamo aqui com o link, e o seu valor fica em ${valor}. Se conseguir antes, é só me avisar."`,
+    `- Se ela não disse um dia que dê para marcar ("quando eu receber", sem dia), NÃO agende ainda: pergunte só "Qual dia cai o seu pagamento? Eu já deixo combinado por ${valor}."`,
+    "- Se ela disser que falta para o essencial (comida, remédio, aluguel, conta atrasada), NÃO insista em valor nenhum nem use o molde: acolha, e diga que a porta fica aberta quando ela puder.",
+  ].join("\n");
 }
 
 /**
@@ -196,10 +218,16 @@ export function blocoDePreco(
     // O combinado só manda enquanto é MENOR que o que a escada libera agora: se a pessoa seguiu
     // reclamando e a escada desceu além dele, vale a escada.
     const combinado = combinadoEmVigor(c, estado.combinadoCents);
+    // Fechar a data: só com um degrau JÁ oferecido (e ainda em vigor), sem combinado anterior e sem
+    // ela ter dito quanto tem — quem diz um valor ainda está negociando o de hoje.
+    const dataPara = combinadoEmVigor(c, estado.dataParaOValorCents);
+    const fechaAData = combinado === null && dataPara !== null && (estado.valorQueTemCents ?? null) === null;
     linhas.push(
       combinado !== null && combinado < precoPermitidoAgora(c, estado.reclamacoes, estado.valorQueTemCents ?? null)
         ? instrucaoDoCombinado(c, combinado)
-        : instrucaoDeNegociacao(c, estado.reclamacoes, estado.valorQueTemCents ?? null),
+        : fechaAData
+          ? instrucaoDeFecharADataCombinada(dataPara)
+          : instrucaoDeNegociacao(c, estado.reclamacoes, estado.valorQueTemCents ?? null),
     );
     // Medido em produção: o prompt escrito pelo operador mandava chamar a equipe para enviar
     // o link do valor negociado, e a agente obedecia — a negociação morria numa fila de

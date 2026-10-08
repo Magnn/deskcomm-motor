@@ -16,6 +16,7 @@ import { describe, expect, it } from "vitest";
 import { decidePromise } from "@/lib/agent-engine/guardrails/promise/engine";
 import { blocoDePreco, semObjecaoDePrecoQuandoHaBloco } from "@/lib/preco/bloco-do-prompt";
 import {
+  deuDataParaPagar,
   estadoDaNegociacao,
   expandirHistoricoColado,
   precoPermitidoAgora,
@@ -328,6 +329,60 @@ describe("o que a pessoa disse que tem — e o aviso de antes do preço", () => 
       expect(reclamacoesDeValor([preco, dela(frase)])).toBe(1);
     },
   );
+});
+
+describe("ela deu a data para pagar: o turno fecha o combinado com o valor já oferecido", () => {
+  const dela = (body: string) => ({ direction: "inbound", body });
+  const nossa = (body: string) => ({ direction: "outbound", body });
+  const oferta = [nossa("O trabalho custa R$ 130."), dela("não tenho esse valor"), nossa("Consigo fazer por R$ 110 pra você. Cabe hoje?")];
+  const cfg = pricingSchema.parse(COM_DEGRAUS);
+
+  it.each([
+    "Eu não tenho nada agora só dia 27 ou 28 deste mês",
+    "só recebo no final do mês",
+    "dia 10",
+    "consigo pagar na sexta",
+    "quando eu receber eu faço",
+    "semana que vem cai meu salário",
+    "pode ser 05/11?",
+  ])("é data para pagar: %s", (frase) => {
+    expect(deuDataParaPagar([...oferta, dela(frase)])).toBe(true);
+  });
+
+  it.each(["domingo fui na igreja", "amanhã te conto o resto", "ok, obrigada", "ele sumiu faz 10 dias"])(
+    "não é data para pagar: %s",
+    (frase) => {
+      expect(deuDataParaPagar([...oferta, dela(frase)])).toBe(false);
+    },
+  );
+
+  it("só vale para as mensagens que este turno responde, e só com o preço já dito", () => {
+    expect(deuDataParaPagar([...oferta, dela("só dia 27"), nossa("Combinado."), dela("obrigada")])).toBe(false);
+    expect(deuDataParaPagar([...oferta, dela("só dia 27"), dela("pode ser?")])).toBe(true);
+    expect(deuDataParaPagar([dela("só recebo dia 10")])).toBe(false);
+  });
+
+  it("⭐ o molde fecha data + valor JÁ oferecido + retorno agendado, e proíbe a despedida sem compromisso", () => {
+    const b = blocoDePreco(cfg, { reclamacoes: 2, dataParaOValorCents: 11_000 });
+    expect(b).toContain("schedule_followup");
+    expect(b).toContain("o seu valor fica em R$ 110");
+    expect(b).toContain('NÃO diga "me chama quando receber"');
+    // Quem adia não ganha mais um degrau: a 2ª reclamação liberaria R$ 100, e o link dele não aparece.
+    expect(b).not.toContain("pay.cakto.com.br/abc_100");
+    expect(b).not.toContain("ofereça AGORA");
+  });
+
+  it("sem degrau já oferecido, com valor que não é da escada, ou com ela dizendo quanto tem: segue a negociação comum", () => {
+    expect(blocoDePreco(cfg, { reclamacoes: 1, dataParaOValorCents: null })).toContain("ofereça AGORA R$ 110");
+    expect(blocoDePreco(cfg, { reclamacoes: 1, dataParaOValorCents: 6_700 })).toContain("ofereça AGORA R$ 110");
+    expect(blocoDePreco(cfg, { reclamacoes: 2, dataParaOValorCents: 11_000, valorQueTemCents: 10_000 })).toContain("ofereça AGORA R$ 100");
+  });
+
+  it("a fiação: o turno só fecha a data com o último degrau que a agente DISSE", () => {
+    const turno = readFileSync("lib/agent-engine/agent/inbound-turn.ts", "utf8");
+    expect(turno).toContain("deuDataParaPagar(openingContext.context.messages)");
+    expect(turno).toContain("? valorCombinadoNaConversa(agentConfig.pricing, openingContext.context.messages)");
+  });
 });
 
 describe("a trava de promessas", () => {

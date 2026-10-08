@@ -101,7 +101,7 @@ import { blocoDeObjecoes } from '@/lib/objecoes/bloco-do-prompt';
 import { blocoDeOferta } from '@/lib/oferta/bloco-do-prompt';
 import { passoDaLeitura } from '@/lib/leitura/estado-da-leitura';
 import { destinoNaConversa, fotoDaLeitura, imagemDaLeitura, mesaJaMostrada } from '@/lib/leitura/imagens';
-import { combinadoEmVigor, estadoDaNegociacao, precoPermitidoAgora, reclamacoesDeValor, valorCombinadoNaConversa } from '@/lib/preco/estado-da-negociacao';
+import { combinadoEmVigor, deuDataParaPagar, estadoDaNegociacao, precoPermitidoAgora, reclamacoesDeValor, valorCombinadoNaConversa } from '@/lib/preco/estado-da-negociacao';
 import { blocoDoCombinado } from '@/lib/followup/bloco-do-combinado';
 import { PAUSA_ANTES_DA_PRIMEIRA, RITMO_PADRAO, pausaEntreBolhas, sinalizaDigitandoEntreBolhas, type Ritmo } from '@/lib/ritmo/tipos';
 import { buscaValorCombinado, criaRetornoDbPg } from '@/lib/followup/retorno-pg';
@@ -2351,6 +2351,11 @@ async function executarTurnoDoAgente(
   const blocoDePrecoDoTurno = blocoDePreco(agentConfig?.pricing, {
     reclamacoes: reclamacoesDeValorNoTurno,
     valorQueTemCents: valorQueTemNoTurno,
+    // Ela deu a data e o degrau já foi oferecido: o turno fecha o combinado (data + valor + retorno).
+    dataParaOValorCents:
+      agentConfig?.pricing && deuDataParaPagar(openingContext.context.messages)
+        ? valorCombinadoNaConversa(agentConfig.pricing, openingContext.context.messages)
+        : null,
     posVenda: posVendaDoTurno,
     combinadoCents: combinadoDoTurno,
   });
