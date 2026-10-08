@@ -21,7 +21,7 @@
 
 import type { PromiseTable } from "@/lib/agent-engine/guardrails/promise/table";
 
-import { pisoEmCentavos, type PricingConfig } from "./tipos";
+import type { PricingConfig } from "./tipos";
 
 export interface MensagemParaContar {
   direction: string;
@@ -55,6 +55,13 @@ export const RECLAMACAO_DE_VALOR = new RegExp(
     // Quem só pode pagar depois também não pode pagar o valor de hoje.
     "s[óo]\\s+(?:recebo|consigo\\s+pagar|posso\\s+pagar|vou\\s+ter)\\b",
     "quando\\s+(?:eu\\s+)?receber\\b",
+    // "só tenho 60", "tenho só isso", "tô apertada", "vai ficar pra depois": medido em produção em
+    // 08/10/2026 — quem tem MENOS que o valor diz assim, e nenhuma dessas contava.
+    "\\bs[óo]\\s+tenho\\b",
+    "\\btenho\\s+s[óo](?:\\s|$)",
+    "\\bapertad",
+    "n[ãa]o\\s+(?:vou\\s+)?(?:poder|posso)\\s+(?:pagar|fazer)\\b",
+    "(?:vai\\s+)?ficar\\s+pr[ao]\\s+depois\\b",
 
     "\\bsem\\s+(?:dinheiro|condi[çc][ãa]o|condi[çc][õo]es|grana)\\b",
     "\\b(?:pre[çc]o|valor)\\s+(?:t[áa]\\s+)?alto\\b",
@@ -105,18 +112,49 @@ export function expandirHistoricoColado(msgs: readonly MensagemParaContar[]): Me
 }
 
 /**
+ * EM QUE DEGRAU A CONVERSA ESTÁ — o índice em `steps`, ou `-1` para o valor de venda.
+ *
+ * Duas coisas descem a escada, e vale a que desce MAIS:
+ *  - cada reclamação de valor libera um degrau, A PARTIR DA PRIMEIRA;
+ *  - a pessoa dizer quanto tem pula direto para o maior degrau que cabe nesse valor (ou para o
+ *    último, se nem ele couber).
+ *
+ * Até 08/10/2026 a 1ª reclamação só repetia o valor de venda e cada uma seguinte liberava um
+ * degrau. Medido nas conversas daquele dia: 42 pessoas reclamaram do valor depois do preço, a
+ * agente citou um valor menor para 1, e 1 comprou — quem não tem o valor cheio desiste na 2ª
+ * resposta, e com seis degraus seriam sete reclamações até o mínimo.
+ */
+export function degrauDoTurno(
+  c: Pick<PricingConfig, "list_price_cents" | "steps">,
+  reclamacoes: number | null,
+  valorQueTemCents: number | null = null,
+): number {
+  if (reclamacoes === null || reclamacoes <= 0 || c.steps.length === 0) return -1;
+  const ultimo = c.steps.length - 1;
+  const porReclamacao = Math.min(reclamacoes - 1, ultimo);
+  let porValor = -1;
+  if (valorQueTemCents !== null && valorQueTemCents < c.list_price_cents) {
+    const cabe = c.steps.findIndex((d) => d.price_cents <= valorQueTemCents);
+    porValor = cabe === -1 ? ultimo : cabe;
+  }
+  return Math.max(porReclamacao, porValor);
+}
+
+/**
  * O MENOR valor que a agente pode citar NESTE turno — a escada em números.
  *
- * Antes da 2ª reclamação só o valor de venda; a 2ª libera o degrau 1; a 3ª, o degrau 2… e do
- * último em diante, o mínimo. É o que a trava de promessas do turno usa: se o modelo ignorar o
- * molde e oferecer o desconto CEDO demais (o defeito que custa dinheiro), a mensagem é vetada
- * antes de sair. O defeito contrário — não oferecer o degrau quando podia — só deixa de
- * conceder, e o bloco de preço cuida dele.
+ * É o que a trava de promessas do turno usa: se o modelo ignorar o molde e oferecer um valor
+ * abaixo do degrau liberado (o defeito que custa dinheiro), a mensagem é vetada antes de sair.
+ * O defeito contrário — não oferecer o degrau quando podia — só deixa de conceder, e o bloco de
+ * preço cuida dele.
  */
-export function precoPermitidoAgora(c: Pick<PricingConfig, "list_price_cents" | "steps">, reclamacoes: number | null): number {
-  if (reclamacoes === null || reclamacoes <= 1) return c.list_price_cents;
-  const degrau = c.steps[reclamacoes - 2];
-  return degrau !== undefined ? degrau.price_cents : pisoEmCentavos(c);
+export function precoPermitidoAgora(
+  c: Pick<PricingConfig, "list_price_cents" | "steps">,
+  reclamacoes: number | null,
+  valorQueTemCents: number | null = null,
+): number {
+  const i = degrauDoTurno(c, reclamacoes, valorQueTemCents);
+  return i === -1 ? c.list_price_cents : c.steps[i]!.price_cents;
 }
 
 /**
@@ -129,14 +167,82 @@ export function tabelaDoTurno(base: PromiseTable | null, pisoDoTurno: number | u
   return { ...(base ?? {}), minPriceCents: Math.max(base?.minPriceCents ?? 0, pisoDoTurno) };
 }
 
-/** Quantas vezes a pessoa reclamou do valor desde que a agente disse o preço. `null` = preço ainda não dito. */
+/**
+ * Quantas vezes a pessoa reclamou do valor. `null` = preço ainda não dito.
+ *
+ * Conta o que veio DEPOIS do preço — e, havendo ao menos uma, soma UMA pelo que ela avisou
+ * antes ("já vou dizendo que estou sem dinheiro"). Medido em 08/10/2026: 35 de 94 pessoas com
+ * dinheiro curto avisaram antes de ouvir o valor, e o aviso era jogado fora. Sozinho ele não
+ * abre a negociação: enquanto ela não reagir ao preço, não há o que negociar.
+ */
 export function reclamacoesDeValor(mensagens: readonly MensagemParaContar[]): number | null {
   const msgs = expandirHistoricoColado(mensagens);
   const primeiroPreco = msgs.findIndex((m) => m.direction === "outbound" && PRECO_DITO.test(m.body ?? ""));
   if (primeiroPreco === -1) return null;
-  return msgs
-    .slice(primeiroPreco + 1)
-    .filter((m) => m.direction === "inbound" && RECLAMACAO_DE_VALOR.test(m.body ?? "")).length;
+  const reclama = (m: MensagemParaContar) => m.direction === "inbound" && RECLAMACAO_DE_VALOR.test(m.body ?? "");
+  const depois = msgs.slice(primeiroPreco + 1).filter(reclama).length;
+  if (depois === 0) return 0;
+  return depois + (msgs.slice(0, primeiroPreco).some(reclama) ? 1 : 0);
+}
+
+/**
+ * Um valor dito pela pessoa como o que ELA tem ou consegue pagar: "só tenho 60", "consigo 70",
+ * "faz por 80", "R$ 50", "50 reais". O que vem depois do número exclui o que não é dinheiro
+ * ("35 anos", "12x"); "dia 10" nem casa, porque falta o verbo.
+ */
+const VALOR_QUE_TEM = new RegExp(
+  [
+    "(?:s[óo]\\s+tenho|tenho\\s+s[óo]|tenho|s[óo]\\s+consigo|consigo|posso|d[áa]\\s+pra|faz|fecha|pago|dou|mando|arrumo|arranjo)" +
+      "(?:\\s+(?:pagar|fazer|dar|mandar|por|s[óo]|apenas|at[ée]|uns|no\\s+m[áa]ximo|agora|hoje))*\\s+(?:R\\$\\s?)?(\\d{2,3})(?:[.,]\\d{2})?(?!\\d)",
+    "R\\$\\s?(\\d{2,3})(?:[.,]\\d{2})?(?!\\d)",
+    "(?<!\\d)(\\d{2,3})(?:[.,]\\d{2})?\\s*(?:reais|real|contos?|pilas?)\\b",
+  ].join("|"),
+  "gi",
+);
+const NAO_E_DINHEIRO = /^\s*(?:x\b|vezes|anos?\b|dias?\b|meses|m[êe]s\b|horas?\b|h\b|%|kg|km)/i;
+const NEGADO = /(?:n[ãa]o|nem|sem)\s+(?:\S+\s+){0,2}$/i;
+
+/**
+ * QUANTO A PESSOA DISSE QUE TEM, em centavos — a última vez que ela disse, depois do preço.
+ * `null` = não disse (ou disse só o que NÃO tem: "não tenho 100" é reclamação, não proposta).
+ *
+ * Serve para pular a escada: quem diz "só tenho 60" não precisa reclamar quatro vezes para
+ * chegar ao degrau de R$ 60. A agente nunca repete o número dela — oferece o degrau que cabe.
+ */
+export function valorQueAPessoaTem(mensagens: readonly MensagemParaContar[]): number | null {
+  const msgs = expandirHistoricoColado(mensagens);
+  const primeiroPreco = msgs.findIndex((m) => m.direction === "outbound" && PRECO_DITO.test(m.body ?? ""));
+  if (primeiroPreco === -1) return null;
+  for (let i = msgs.length - 1; i > primeiroPreco; i -= 1) {
+    const m = msgs[i]!;
+    if (m.direction !== "inbound") continue;
+    const corpo = m.body ?? "";
+    let achado: number | null = null;
+    for (const a of corpo.matchAll(VALOR_QUE_TEM)) {
+      const numero = a[1] ?? a[2] ?? a[3];
+      if (numero === undefined) continue;
+      const inicio = a.index ?? 0;
+      if (NAO_E_DINHEIRO.test(corpo.slice(inicio + a[0].length))) continue;
+      if (NEGADO.test(corpo.slice(0, inicio))) continue;
+      achado = Number(numero) * 100;
+    }
+    if (achado !== null) return achado;
+  }
+  return null;
+}
+
+/** O estado que o turno usa: a contagem e o valor que a pessoa disse ter. Dizer o valor já é uma reclamação. */
+export function estadoDaNegociacao(
+  c: Pick<PricingConfig, "list_price_cents">,
+  mensagens: readonly MensagemParaContar[],
+): { reclamacoes: number | null; valorQueTemCents: number | null } {
+  const reclamacoes = reclamacoesDeValor(mensagens);
+  const dito = valorQueAPessoaTem(mensagens);
+  const valorQueTemCents = dito !== null && dito < c.list_price_cents ? dito : null;
+  return {
+    reclamacoes: reclamacoes !== null && valorQueTemCents !== null ? Math.max(reclamacoes, 1) : reclamacoes,
+    valorQueTemCents,
+  };
 }
 
 const VALORES_EM_REAIS = /R\$\s?(\d{1,3}(?:\.\d{3})+|\d+)(?:,(\d{2}))?/g;
