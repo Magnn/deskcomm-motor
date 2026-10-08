@@ -138,3 +138,48 @@ export function reclamacoesDeValor(mensagens: readonly MensagemParaContar[]): nu
     .slice(primeiroPreco + 1)
     .filter((m) => m.direction === "inbound" && RECLAMACAO_DE_VALOR.test(m.body ?? "")).length;
 }
+
+const VALORES_EM_REAIS = /R\$\s?(\d{1,3}(?:\.\d{3})+|\d+)(?:,(\d{2}))?/g;
+
+/**
+ * O VALOR COMBINADO — o último valor da escada que a agente disse, quando ele é um DEGRAU
+ * (abaixo do valor de venda). `null` = ela ainda está no valor de venda, ou não disse preço.
+ *
+ * Existe para o retorno agendado: quem fecha por um degrau e só pode pagar em outra data tem
+ * de reencontrar ESSE valor semanas depois, quando as reclamações que liberaram o degrau já
+ * saíram da janela de histórico e a contagem voltou a zero.
+ *
+ * Só conta valor que É da escada: a mesma mensagem costuma citar a referência de mercado
+ * ("R$ 380 a R$ 600") e a parcela ("12x de menos de R$ 15"), e nenhuma das duas é o preço.
+ */
+export function valorCombinadoNaConversa(
+  c: Pick<PricingConfig, "list_price_cents" | "steps">,
+  mensagens: readonly MensagemParaContar[],
+): number | null {
+  const daEscada = new Set<number>([c.list_price_cents, ...c.steps.map((s) => s.price_cents)]);
+  const msgs = expandirHistoricoColado(mensagens);
+  for (let i = msgs.length - 1; i >= 0; i -= 1) {
+    const m = msgs[i]!;
+    if (m.direction !== "outbound") continue;
+    let ultimo: number | null = null;
+    for (const achado of (m.body ?? "").matchAll(VALORES_EM_REAIS)) {
+      const cents = Number(achado[1]!.replace(/\./g, "")) * 100 + Number(achado[2] ?? "0");
+      if (daEscada.has(cents)) ultimo = cents;
+    }
+    if (ultimo !== null) return ultimo < c.list_price_cents ? ultimo : null;
+  }
+  return null;
+}
+
+/**
+ * O valor combinado que VALE neste turno: o que foi guardado com o retorno, desde que ainda
+ * seja um degrau da escada em vigor. Se o dono mudou os valores depois, o combinado antigo
+ * não fura o piso novo — a escada atual manda.
+ */
+export function combinadoEmVigor(
+  c: Pick<PricingConfig, "list_price_cents" | "steps">,
+  guardado: number | null | undefined,
+): number | null {
+  if (guardado === null || guardado === undefined) return null;
+  return c.steps.some((s) => s.price_cents === guardado) ? guardado : null;
+}
