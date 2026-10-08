@@ -67,7 +67,14 @@ services:
     # O teto não impede o pico legítimo; impede que UM serviço leve a máquina
     # inteira. Estourá-lo mata só quem estourou, e o `restart: unless-stopped`
     # o traz de volta — falha isolada em vez de queda geral.
-    mem_limit: 512m
+    #
+    # CONFIGURÁVEL (WORKER_MEM_LIMIT no .env), e o motivo foi medido: o Node dimensiona o heap pela
+    # metade do teto do contêiner — 259 MiB com 512m, 792 MiB com 1536m (medido na imagem do worker,
+    # Node 22). Com QUEUE_MAX_CONCURRENCY acima do padrão, os atendimentos simultâneos passam desse
+    # heap e o worker morre com "JavaScript heap out of memory" — visto em produção com 16
+    # simultâneos: o Docker o traz de volta, mas quem estava sendo atendido espera a recuperação.
+    # Quem sobe a concorrência sobe este teto junto. O padrão não muda: 512m.
+    mem_limit: ${WORKER_MEM_LIMIT:-512m}
     # Imagem publicada — e não mais `build:` sozinho. O motivo é o modo de falha
     # que isso escondia: serviço build-only é PULADO por `docker compose pull`
     # ("Skipped - No image to be pulled") e imune a `up -d` sem `--build`. Ele era
