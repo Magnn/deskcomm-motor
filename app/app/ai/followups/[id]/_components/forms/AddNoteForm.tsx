@@ -47,7 +47,7 @@ export function AddNoteForm({
     <div className="space-y-4 font-sans text-xs">
       {/* Header banner sofisticado */}
       <div className="flex items-center gap-2.5 rounded-lg border border-cat-amber/30 bg-cat-amber-bg p-3 text-cat-amber-fg">
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-cat-amber text-white shadow-2xs">
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-cat-amber text-cat-on shadow-2xs">
           <Note size={18} />
         </div>
         <div>
