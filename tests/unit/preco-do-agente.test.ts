@@ -19,6 +19,7 @@ import {
   degrauQueFaltaOferecerAntesDeAgendar,
   deuDataParaPagar,
   estadoDaNegociacao,
+  faltaParaOEssencial,
   expandirHistoricoColado,
   precoPermitidoAgora,
   reclamacoesDeValor,
@@ -417,6 +418,60 @@ describe("retorno de pagamento só é agendado depois de o degrau ser oferecido"
     const guarda = turno.indexOf("degrauQueFaltaOferecerAntesDeAgendar(\n");
     expect(guarda).toBeGreaterThan(-1);
     expect(guarda).toBeLessThan(turno.indexOf("const res = await applyScheduleFollowup("));
+  });
+});
+
+describe("adiar o pagamento é reclamação de valor; faltar para o essencial encerra a cobrança", () => {
+  const dela = (body: string) => ({ direction: "inbound", body });
+  const nossa = (body: string) => ({ direction: "outbound", body });
+  const preco = nossa("O seu rito completo fica em R$ 130, pagamento único.");
+  const cfg = pricingSchema.parse(COM_DEGRAUS);
+
+  it.each(["Vou ter o dinheiro só semana que vem 😞", "só consigo pagar na sexta", "dia 20 cai meu salário", "quando eu tiver a grana, mês que vem"])(
+    "⭐ conta como reclamação (a frase real de 08/10 não contava): %s",
+    (frase) => {
+      expect(reclamacoesDeValor([preco, dela(frase)])).toBe(1);
+    },
+  );
+
+  it.each(["Quarta feira", "dia 12 faz um ano que ele saiu de casa", "amanhã te conto"])("data sem fala de pagar não conta: %s", (frase) => {
+    expect(reclamacoesDeValor([preco, dela(frase)])).toBe(0);
+  });
+
+  it.each([
+    "Muito pouco e deixar de comprar remédio pressão.",
+    "não tenho nem pros remédios",
+    "tá faltando comida em casa",
+    "vou ter que tirar do aluguel",
+    "sem dinheiro pra comida",
+  ])("falta para o essencial: %s", (frase) => {
+    expect(faltaParaOEssencial([dela(frase), preco])).toBe(true);
+  });
+
+  it.each(["não tenho dinheiro agora", "ele toma remédio controlado", "pago aluguel todo mês em dia", "só recebo dia 10"])(
+    "não é falta do essencial: %s",
+    (frase) => {
+      expect(faltaParaOEssencial([preco, dela(frase)])).toBe(false);
+    },
+  );
+
+  it("⭐ com falta do essencial o bloco não traz degrau, link nem molde de cobrança — qualquer que seja a contagem", () => {
+    for (const reclamacoes of [0, 1, 2, 3]) {
+      const b = blocoDePreco(cfg, { reclamacoes, faltaParaOEssencial: true, dataParaOValorCents: 11_000 });
+      expect(b).toContain("ELA DISSE QUE FALTA PARA O ESSENCIAL");
+      expect(b).not.toContain("ofereça AGORA");
+      expect(b).not.toContain("CUPOM110");
+      expect(b).not.toContain("schedule_followup");
+    }
+    expect(blocoDePreco(pricingSchema.parse(BASE), { reclamacoes: 1, faltaParaOEssencial: true })).toContain("FALTA PARA O ESSENCIAL");
+    expect(blocoDePreco(cfg, { reclamacoes: 1 })).not.toContain("ELA DISSE QUE FALTA PARA O ESSENCIAL");
+  });
+
+  it("a fiação: o turno lê a conversa e a ferramenta de agendar recusa pagamento de quem falta o essencial", () => {
+    const turno = readFileSync("lib/agent-engine/agent/inbound-turn.ts", "utf8");
+    expect(turno).toContain("faltaParaOEssencial(openingContext.context.messages)");
+    expect(turno).toContain("faltaParaOEssencial: faltaParaOEssencialNoTurno");
+    expect(turno).toContain("NÃO agende pagamento: ela disse que falta para o essencial");
   });
 });
 
