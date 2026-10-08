@@ -245,6 +245,32 @@ export function estadoDaNegociacao(
   };
 }
 
+const RETORNO_DE_PAGAMENTO = /R\$|\blink\b|\bpag|\breceb|\bpix\b|\bvalor\b/i;
+
+/**
+ * O DEGRAU QUE FALTA OFERECER ANTES DE AGENDAR O PAGAMENTO, em centavos — ou `null` quando o
+ * agendamento pode seguir.
+ *
+ * Medido em 08/10/2026, com a escada já descendo na 1ª reclamação: três retornos de pagamento
+ * foram agendados em meia hora "para enviar o link de R$ 130", sem a agente ter oferecido o
+ * degrau liberado. Quem diz "só recebo dia 20" ouviria na data o valor cheio que já recusou.
+ * Aqui o agendamento de PAGAMENTO é recusado até a agente dizer um valor da escada; retorno que
+ * não fala de pagamento ("volto amanhã para saber como você passou") segue livre.
+ */
+export function degrauQueFaltaOferecerAntesDeAgendar(
+  c: Pick<PricingConfig, "list_price_cents" | "steps">,
+  estado: { reclamacoes: number | null; valorQueTemCents: number | null; combinadoCents: number | null },
+  mensagens: readonly MensagemParaContar[],
+  textoDoRetorno: string,
+): number | null {
+  if (!RETORNO_DE_PAGAMENTO.test(textoDoRetorno)) return null;
+  if (estado.combinadoCents !== null) return null;
+  const i = degrauDoTurno(c, estado.reclamacoes, estado.valorQueTemCents);
+  if (i === -1) return null;
+  if (valorCombinadoNaConversa(c, mensagens) !== null) return null;
+  return c.steps[i]!.price_cents;
+}
+
 /** Uma data dita sem rodeio: "dia 27", "27/10", "fim do mês", "só recebo…", "quando cair". */
 const DATA_CERTA =
   /\bdia\s+\d{1,2}\b|\b\d{1,2}\/\d{1,2}\b|(?:fim|final|come[çc]o|in[ií]cio|meio)\s+d[oe]\s+m[êe]s|m[êe]s\s+que\s+vem|pr[óo]ximo\s+m[êe]s|semana\s+que\s+vem|pr[óo]xima\s+semana|quinto\s+dia\s+[úu]til|quando\s+(?:eu\s+)?(?:receber|cair|sair)|s[óo]\s+recebo|dia\s+d[oe]\s+(?:meu\s+)?pagamento/i;

@@ -16,6 +16,7 @@ import { describe, expect, it } from "vitest";
 import { decidePromise } from "@/lib/agent-engine/guardrails/promise/engine";
 import { blocoDePreco, semObjecaoDePrecoQuandoHaBloco } from "@/lib/preco/bloco-do-prompt";
 import {
+  degrauQueFaltaOferecerAntesDeAgendar,
   deuDataParaPagar,
   estadoDaNegociacao,
   expandirHistoricoColado,
@@ -382,6 +383,40 @@ describe("ela deu a data para pagar: o turno fecha o combinado com o valor já o
     const turno = readFileSync("lib/agent-engine/agent/inbound-turn.ts", "utf8");
     expect(turno).toContain("deuDataParaPagar(openingContext.context.messages)");
     expect(turno).toContain("? valorCombinadoNaConversa(agentConfig.pricing, openingContext.context.messages)");
+  });
+});
+
+describe("retorno de pagamento só é agendado depois de o degrau ser oferecido", () => {
+  const dela = (body: string) => ({ direction: "inbound", body });
+  const nossa = (body: string) => ({ direction: "outbound", body });
+  const cfg = pricingSchema.parse(COM_DEGRAUS);
+  const semOferta = [nossa("O trabalho custa R$ 130."), dela("só recebo dia 20")];
+  const comOferta = [...semOferta, nossa("Consigo fazer por R$ 110 pra você."), dela("só dia 20 mesmo")];
+  const estado = { reclamacoes: 1, valorQueTemCents: null, combinadoCents: null };
+  const promessa = "Voltar no dia 20 para enviar o link de R$ 130 do trabalho";
+
+  it("⭐ ela reclamou do valor e a agente ainda não ofereceu o degrau: falta oferecer R$ 110", () => {
+    expect(degrauQueFaltaOferecerAntesDeAgendar(cfg, estado, semOferta, promessa)).toBe(11_000);
+  });
+
+  it("degrau já oferecido, combinado anterior, ou sem reclamação: o agendamento segue", () => {
+    expect(degrauQueFaltaOferecerAntesDeAgendar(cfg, { ...estado, reclamacoes: 2 }, comOferta, promessa)).toBeNull();
+    expect(degrauQueFaltaOferecerAntesDeAgendar(cfg, { ...estado, combinadoCents: 10_000 }, semOferta, promessa)).toBeNull();
+    expect(degrauQueFaltaOferecerAntesDeAgendar(cfg, { ...estado, reclamacoes: 0 }, semOferta, promessa)).toBeNull();
+    expect(degrauQueFaltaOferecerAntesDeAgendar(pricingSchema.parse(BASE), estado, semOferta, promessa)).toBeNull();
+  });
+
+  it("retorno que não é de pagamento não é barrado", () => {
+    expect(
+      degrauQueFaltaOferecerAntesDeAgendar(cfg, estado, semOferta, "Voltar amanhã cedo para saber como ela passou a noite"),
+    ).toBeNull();
+  });
+
+  it("a fiação: a ferramenta de agendar consulta a regra antes de criar o retorno", () => {
+    const turno = readFileSync("lib/agent-engine/agent/inbound-turn.ts", "utf8");
+    const guarda = turno.indexOf("degrauQueFaltaOferecerAntesDeAgendar(\n");
+    expect(guarda).toBeGreaterThan(-1);
+    expect(guarda).toBeLessThan(turno.indexOf("const res = await applyScheduleFollowup("));
   });
 });
 
