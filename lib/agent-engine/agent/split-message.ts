@@ -109,8 +109,13 @@ export interface SendInBubblesOpts<T extends BubbleOutcome = BubbleOutcome> {
   maxChars: number;
   send: (body: string) => Promise<T>;
   sleep: (ms: number) => Promise<void>;
-  /** ms de jitter humano entre bolhas (só entre, não antes da 1ª). */
-  jitter: () => number;
+  /**
+   * ms de pausa entre bolhas (só entre, não antes da 1ª). Recebe a bolha que VAI sair: com um
+   * ritmo escolhido (`lib/ritmo/tipos.ts`) a pausa é o tempo de digitá-la.
+   */
+  jitter: (proximaBolha: string) => number;
+  /** Chamado antes de cada pausa entre bolhas — o gancho do "digitando…". Não é aguardado. */
+  aoEsperarEntre?: () => void;
   /**
    * Roda UMA vez, antes do 1º envio, recebendo a 1ª bolha — é o gancho do
    * atraso humano do turno ("digitando…" + espera proporcional; ver
@@ -203,7 +208,10 @@ export async function sendInBubbles<T extends BubbleOutcome>(
     // Antes da 1ª: o atraso humano do turno. Entre as demais: o jitter anti-ban
     // que já existia. Nunca os dois na mesma pausa.
     if (i === 0) await opts.antesDaPrimeira?.(bubbles[0]!);
-    else await opts.sleep(opts.jitter());
+    else {
+      opts.aoEsperarEntre?.();
+      await opts.sleep(opts.jitter(bubbles[i]!));
+    }
     last = await opts.send(bubbles[i]!);
     if (!OK_KINDS.has(last.kind)) return last; // veto/bloqueio/falha: para aqui
   }

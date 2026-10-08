@@ -103,6 +103,7 @@ import { passoDaLeitura } from '@/lib/leitura/estado-da-leitura';
 import { destinoNaConversa, fotoDaLeitura, imagemDaLeitura, mesaJaMostrada } from '@/lib/leitura/imagens';
 import { combinadoEmVigor, precoPermitidoAgora, reclamacoesDeValor, valorCombinadoNaConversa } from '@/lib/preco/estado-da-negociacao';
 import { blocoDoCombinado } from '@/lib/followup/bloco-do-combinado';
+import { PAUSA_ANTES_DA_PRIMEIRA, RITMO_PADRAO, pausaEntreBolhas, sinalizaDigitandoEntreBolhas, type Ritmo } from '@/lib/ritmo/tipos';
 import { buscaValorCombinado, criaRetornoDbPg } from '@/lib/followup/retorno-pg';
 import { estadoDoPosVenda, horaDoPagamento } from '@/lib/preco/pos-venda';
 import { deveResponderEmAudio } from '@/lib/voz/decisao';
@@ -2883,6 +2884,9 @@ async function executarTurnoDoAgente(
   // turno com dois vetos ficaria mudo por mais de 20 segundos: o conserto do
   // "rápido demais" viraria o defeito simétrico, mais caro que o original.
   let jaEsperouComoHumano = false;
+  // O ritmo que vale ENTRE as bolhas deste turno. Nasce `rapido` e só muda em `esperaForaDoLock`,
+  // depois de conferir o canal — ver o comentário lá.
+  let ritmoEntreBolhasDoTurno: Ritmo = 'rapido';
   // Cap de envio (warm-up/diário) vetado neste turno — capturado aqui porque o veto
   // não empurra outcome nenhum a `outcomes` (ver comentário no ponto de captura, mais
   // abaixo). Diferente da janela horária (checada ANTES do modelo rodar, linha ~1233):
@@ -3401,6 +3405,20 @@ async function executarTurnoDoAgente(
               // antes da espera mantém o desfecho de preview idêntico ao de antes —
               // `preview_transport_forbidden` na hora, e não depois da pausa.
               const canal = liveChannel();
+              // A pausa ENTRE bolhas é paga dentro do `send`, isto é, com a vez do envio na mão. Onde a
+              // vez é por CONTATO (canal sem risco de banimento — `chaveDaVezDoEnvio`), esperar mais só
+              // segura a própria conversa. Onde ela é do NÚMERO inteiro, uma pausa de 9 s por bolha
+              // pararia todos os outros contatos daquele número: ali o ritmo entre bolhas fica no piso.
+              // Lido aqui, fora da vez e uma vez por turno — e só quando há ritmo escolhido.
+              const ritmoEscolhido = agentConfig?.ritmo ?? RITMO_PADRAO;
+              if (ritmoEscolhido !== 'rapido') {
+                try {
+                  const provider = await loadChannelProvider(pool, tenantId, input.channelSessionId);
+                  ritmoEntreBolhasDoTurno = capabilitiesOf(provider).banRisk ? 'rapido' : ritmoEscolhido;
+                } catch {
+                  ritmoEntreBolhasDoTurno = 'rapido';
+                }
+              }
               const ms = await esperarComoHumano({
                 texto:
                   splitForSend(
@@ -3414,6 +3432,9 @@ async function executarTurnoDoAgente(
                 // o cliente espera duas vezes. O ponto de chamada mudou de lugar com a #654 (a pausa
                 // saiu de `antesDaPrimeira`, dentro do lock, para cá), e o desconto veio junto.
                 processamentoMs: performance.now() - inicioDoProcessamento,
+                // O ritmo escolhido na tela do agente (`lib/ritmo/tipos.ts`). No `rapido` os números
+                // são os de sempre deste módulo.
+                ritmo: PAUSA_ANTES_DA_PRIMEIRA[agentConfig?.ritmo ?? RITMO_PADRAO],
                 sleep: deps.sleep ?? ((s) => new Promise((resolve) => setTimeout(resolve, s))),
                 log: runLog,
                 ...(canal.signalTyping
@@ -3431,7 +3452,22 @@ async function executarTurnoDoAgente(
               corposEnviados.push(finalBody);
               const sleep =
                 deps.sleep ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
-              const jitter = () => 1200 + Math.floor(Math.random() * 800); // piso no throttle anti-ban (1.2s) — bolhas são mensagens físicas
+              // ENTRE bolhas: no ritmo `rapido` é o piso do throttle anti-ban de sempre (1,2 s + até 0,8 s —
+              // bolhas são mensagens físicas). Com um ritmo escolhido, é o tempo de "digitar" a próxima
+              // bolha, com o "digitando…" aceso — medido em produção, 500 caracteres chegavam em 2 s.
+              const ritmoDoAgente = ritmoEntreBolhasDoTurno;
+              const jitter = (proximaBolha: string) => pausaEntreBolhas(ritmoDoAgente, proximaBolha);
+              // Nota de voz e foto não são texto digitado: seguem só com o piso anti-ban.
+              const jitterAntiBan = () => pausaEntreBolhas('rapido', '');
+              const canalDoEnvio = liveChannel();
+              const aoEsperarEntre =
+                sinalizaDigitandoEntreBolhas(ritmoDoAgente) && canalDoEnvio.signalTyping
+                  ? (): void =>
+                      acenderDigitando(
+                        () => canalDoEnvio.signalTyping!({ tenantId, conversationId: input.conversationId }),
+                        runLog,
+                      )
+                  : undefined;
               const enviar = (
                 corpo: string,
                 media?: FotoParaEnvio & { kind?: 'image' | 'audio' },
@@ -3455,6 +3491,7 @@ async function executarTurnoDoAgente(
                   maxChars: agentConfig?.splitMaxChars ?? 600,
                   sleep,
                   jitter,
+                  ...(aoEsperarEntre ? { aoEsperarEntre } : {}),
                   // A pausa humana do turno NÃO mora mais aqui: ela subiu para
                   // `esperaForaDoLock` (paga antes de o guardrail tomar o lock do número) —
                   // issue #654. Neste ponto fica só o jitter anti-ban entre bolhas.
@@ -3477,7 +3514,7 @@ async function executarTurnoDoAgente(
                 if (!preparadas.ok) return comoTexto(texto);
                 return enviarNotasDeVoz(preparadas, {
                   sleep,
-                  jitter,
+                  jitter: jitterAntiBan,
                   enviarNota: (nota) =>
                     enviar(nota.fala, { storagePath: nota.storagePath, mime: nota.mime, kind: 'audio' }),
                   enviarTexto: (link) => enviar(link),
@@ -3489,7 +3526,7 @@ async function executarTurnoDoAgente(
               // teto de legenda sai à parte e também gasta o teto.
               return enviarComFotos(finalBody, fotosDoProduto, {
                 sleep,
-                jitter,
+                jitter: jitterAntiBan,
                 restantes: () => maxSendsPerTurn - seq,
                 enviarFoto: (foto, legenda) => enviar(legenda, foto),
                 enviarTexto: comoVoz,
