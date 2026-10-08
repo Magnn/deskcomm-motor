@@ -70,18 +70,18 @@ export function AttendantRouteForm({
   return (
     <div className="space-y-4 font-sans text-xs">
       {/* Subtítulo AcassIA */}
-      <p className="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed">
+      <p className="text-xs text-text-muted leading-relaxed">
         {t("Selecione quais atendentes do workspace participarão da distribuição. Em tempo de execução, apenas atendentes com presença ")}
-        <strong className="font-bold text-slate-800 dark:text-zinc-200">
+        <strong className="font-bold text-text">
           {t("disponível")}
         </strong>{" "}
         {t("entram na disputa.")}
       </p>
 
       {/* Lista de Atendentes ou Empty State */}
-      <div className="rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-4 shadow-2xs">
+      <div className="rounded-xl border border-border bg-surface p-4 shadow-2xs">
         {agentes.length === 0 ? (
-          <p className="text-xs text-slate-500 dark:text-zinc-400 text-center py-2">
+          <p className="text-xs text-text-muted text-center py-2">
             {t("Nenhum atendente encontrado neste workspace.")}
           </p>
         ) : (
@@ -95,7 +95,7 @@ export function AttendantRouteForm({
                     "flex items-center justify-between p-2 rounded-lg border transition-all cursor-pointer",
                     isSelected
                       ? "border-purple-300 bg-purple-50/60 dark:border-purple-800 dark:bg-purple-950/30"
-                      : "border-slate-100 hover:border-slate-200 dark:border-zinc-800/80 dark:hover:border-zinc-700"
+                      : "border-border hover:border-border"
                   )}
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
@@ -103,11 +103,11 @@ export function AttendantRouteForm({
                       {agente.name.slice(0, 2).toUpperCase()}
                     </div>
                     <div className="min-w-0">
-                      <p className="text-xs font-semibold text-slate-800 dark:text-zinc-200 truncate">
+                      <p className="text-xs font-semibold text-text truncate">
                         {agente.name}
                       </p>
                       {agente.email && (
-                        <p className="text-[10px] text-slate-400 truncate">
+                        <p className="text-[10px] text-text-subtle truncate">
                           {agente.email}
                         </p>
                       )}
@@ -118,7 +118,7 @@ export function AttendantRouteForm({
                     type="checkbox"
                     checked={isSelected}
                     onChange={() => toggleAttendant(agente.id)}
-                    className="w-4 h-4 rounded-sm text-[#9333ea] focus:ring-purple-500 border-slate-300 cursor-pointer"
+                    className="w-4 h-4 rounded-sm text-[#9333ea] focus:ring-purple-500 border-border-strong cursor-pointer"
                   />
                 </label>
               );
@@ -128,8 +128,8 @@ export function AttendantRouteForm({
       </div>
 
       {/* Card: Tornar automaticamente seguidor do contato */}
-      <div className="rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-3.5 shadow-2xs flex items-center justify-between gap-3">
-        <span className="text-xs font-semibold text-slate-800 dark:text-zinc-200">
+      <div className="rounded-xl border border-border bg-surface p-3.5 shadow-2xs flex items-center justify-between gap-3">
+        <span className="text-xs font-semibold text-text">
           {t("Tornar automaticamente seguidor do contato")}
         </span>
 
@@ -140,12 +140,12 @@ export function AttendantRouteForm({
           onClick={() => handleToggleAutoFollow(!autoFollow)}
           className={cn(
             "w-11 h-6 rounded-full transition-colors relative cursor-pointer shrink-0",
-            autoFollow ? "bg-[#9333ea]" : "bg-slate-300 dark:bg-zinc-700"
+            autoFollow ? "bg-[#9333ea]" : "bg-border-strong"
           )}
         >
           <span
             className={cn(
-              "w-4 h-4 rounded-full bg-white transition-transform absolute top-1 left-1 shadow-xs",
+              "w-4 h-4 rounded-full bg-surface transition-transform absolute top-1 left-1 shadow-xs",
               autoFollow && "translate-x-5"
             )}
           />
@@ -157,14 +157,14 @@ export function AttendantRouteForm({
         <button
           type="button"
           onClick={() => setShowAdvanced(!showAdvanced)}
-          className="text-[11px] font-semibold text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300 flex items-center gap-1 transition-colors cursor-pointer"
+          className="text-[11px] font-semibold text-text-subtle hover:text-text-muted flex items-center gap-1 transition-colors cursor-pointer"
         >
           <Clock size={12} />
           <span>{t("Configurações avançadas")}</span>
         </button>
 
         {showAdvanced && (
-          <div className="mt-2.5 space-y-2 p-3 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50/60 dark:bg-zinc-900/50">
+          <div className="mt-2.5 space-y-2 p-3 rounded-xl border border-border bg-surface-elevated">
             <Label htmlFor="attendant-route-wait" className="text-xs font-semibold">
               {t("Prazo máximo de espera (minutos)")}
             </Label>
@@ -179,9 +179,9 @@ export function AttendantRouteForm({
                 setMaxWait(next);
                 commit({ max_wait_minutes: next });
               }}
-              className="h-9 rounded-lg border-slate-200 dark:border-zinc-800 text-xs"
+              className="h-9 rounded-lg border-border text-xs"
             />
-            <p className="text-[11px] text-slate-400">
+            <p className="text-[11px] text-text-subtle">
               {t("Usa o rodízio configurado no canal e só continua após a atribuição ser confirmada.")}
             </p>
           </div>

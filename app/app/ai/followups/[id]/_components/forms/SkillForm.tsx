@@ -46,10 +46,10 @@ export function SkillForm({
           <PuzzlePiece size={18} />
         </div>
         <div>
-          <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+          <h3 className="text-sm font-semibold text-text">
             {t("Habilidade (Skill)")}
           </h3>
-          <p className="text-[11px] text-neutral-500 dark:text-neutral-400">
+          <p className="text-[11px] text-text-muted">
             {t("Executa uma ferramenta registrada no sistema paralelamente")}
           </p>
         </div>
@@ -57,7 +57,7 @@ export function SkillForm({
 
       {/* Input com campo de texto */}
       <div className="space-y-1.5">
-        <Label htmlFor="skill-name" className="text-[11px] font-semibold text-neutral-700 dark:text-neutral-300">
+        <Label htmlFor="skill-name" className="text-[11px] font-semibold text-text-muted">
           {t("Identificador da Skill")}
         </Label>
         <Input
@@ -68,14 +68,14 @@ export function SkillForm({
           onChange={(e) => commit(e.target.value)}
           className="h-9 font-mono text-xs"
         />
-        <p className="text-[11px] text-neutral-500 dark:text-neutral-400">
+        <p className="text-[11px] text-text-muted">
           {t("Identificador único da skill correspondente à rotina configurada no CRM.")}
         </p>
       </div>
 
       {/* Sugestões rápidas de Skills */}
       <div className="space-y-2 pt-1">
-        <label className="text-[11px] font-semibold text-neutral-700 dark:text-neutral-300 block">
+        <label className="text-[11px] font-semibold text-text-muted block">
           {t("Skills sugeridas do sistema:")}
         </label>
         <div className="space-y-1.5">
@@ -88,19 +88,19 @@ export function SkillForm({
                 className={`p-2 rounded-lg border transition-all cursor-pointer flex items-center justify-between ${
                   isSelected
                     ? "border-orange-500 bg-orange-50/60 dark:bg-orange-950/30 dark:border-orange-700 shadow-2xs"
-                    : "border-neutral-200 bg-white hover:border-neutral-300 dark:border-zinc-800 dark:bg-zinc-900"
+                    : "border-border bg-surface hover:border-border-strong"
                 }`}
               >
                 <div>
                   <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-semibold text-neutral-900 dark:text-neutral-100">
+                    <span className="text-xs font-semibold text-text">
                       {s.label}
                     </span>
                     <code className="text-[10px] text-orange-700 dark:text-orange-400 bg-orange-100/70 dark:bg-orange-950/60 px-1 py-0.2 rounded-md font-mono">
                       {s.id}
                     </code>
                   </div>
-                  <p className="text-[10px] text-neutral-400 dark:text-neutral-500 mt-0.5">
+                  <p className="text-[10px] text-text-subtle mt-0.5">
                     {s.desc}
                   </p>
                 </div>

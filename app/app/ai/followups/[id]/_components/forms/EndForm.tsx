@@ -95,15 +95,15 @@ export function EndForm({
   return (
     <div className="space-y-4 font-sans text-xs">
       {/* Banner de cabeçalho sofisticado */}
-      <div className="flex items-center gap-2.5 rounded-lg border border-zinc-200 bg-zinc-50/70 p-3 text-zinc-950 dark:border-zinc-800 dark:bg-zinc-900/40 dark:text-zinc-200">
+      <div className="flex items-center gap-2.5 rounded-lg border border-border bg-surface-elevated p-3 text-text">
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-zinc-700 text-white shadow-2xs">
           <Flag size={18} />
         </div>
         <div>
-          <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+          <h3 className="text-sm font-semibold text-text">
             {t("Fim do Fluxo")}
           </h3>
-          <p className="text-[11px] text-neutral-500 dark:text-neutral-400">
+          <p className="text-[11px] text-text-muted">
             {t("Encerra a inscrição e define o status final do lead")}
           </p>
         </div>
@@ -111,7 +111,7 @@ export function EndForm({
 
       {/* Cards visuais de resultado */}
       <div className="space-y-2">
-        <label className="text-[11px] font-semibold text-neutral-700 dark:text-neutral-300 block">
+        <label className="text-[11px] font-semibold text-text-muted block">
           {t("Selecione o desfecho:")}
         </label>
         <div className="grid grid-cols-1 gap-2">
@@ -125,7 +125,7 @@ export function EndForm({
                 className={`p-2.5 rounded-xl border transition-all cursor-pointer flex items-start gap-2.5 ${
                   isSelected
                     ? `${card.activeBorder} ${card.activeBg} shadow-xs`
-                    : "border-neutral-200 bg-white hover:border-neutral-300 dark:border-zinc-800 dark:bg-zinc-900"
+                    : "border-border bg-surface hover:border-border-strong"
                 }`}
               >
                 <div className={`mt-0.5 shrink-0 ${card.color}`}>
@@ -133,7 +133,7 @@ export function EndForm({
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-neutral-900 dark:text-neutral-100">
+                    <span className="text-xs font-semibold text-text">
                       {t(card.label)}
                     </span>
                     {isSelected && (
@@ -142,7 +142,7 @@ export function EndForm({
                       </span>
                     )}
                   </div>
-                  <p className="text-[11px] text-neutral-500 dark:text-neutral-400 mt-0.5 leading-snug">
+                  <p className="text-[11px] text-text-muted mt-0.5 leading-snug">
                     {t(card.desc)}
                   </p>
                 </div>
@@ -154,7 +154,7 @@ export function EndForm({
 
       {/* Select padrão sincronizado para compatibilidade 100% com testes e acessibilidade */}
       <div className="space-y-1.5 pt-1">
-        <Label htmlFor="end-outcome" className="text-[11px] font-semibold text-neutral-700 dark:text-neutral-300">
+        <Label htmlFor="end-outcome" className="text-[11px] font-semibold text-text-muted">
           {t("Resultado")}
         </Label>
         <Select
@@ -177,7 +177,7 @@ export function EndForm({
       {/* Nota com suporte a variáveis */}
       <div className="space-y-1.5 pt-1">
         <div className="flex items-center justify-between">
-          <Label htmlFor="end-note" className="text-[11px] font-semibold text-neutral-700 dark:text-neutral-300">
+          <Label htmlFor="end-note" className="text-[11px] font-semibold text-text-muted">
             {t("Nota de encerramento (opcional)")}
           </Label>
           <button
@@ -197,7 +197,7 @@ export function EndForm({
                 key={v}
                 type="button"
                 onClick={() => insertVariable(v)}
-                className="px-1.5 py-0.5 rounded-md text-[10px] font-mono bg-white dark:bg-zinc-800 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 hover:bg-blue-100 cursor-pointer"
+                className="px-1.5 py-0.5 rounded-md text-[10px] font-mono bg-surface text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 hover:bg-blue-100 cursor-pointer"
               >
                 {v}
               </button>
@@ -217,7 +217,7 @@ export function EndForm({
           placeholder={t("Ex: Cliente concluiu o funil de boas-vindas com sucesso.")}
           className="text-xs resize-none"
         />
-        <div className="flex justify-between text-[10px] text-neutral-400">
+        <div className="flex justify-between text-[10px] text-text-subtle">
           <span>{t("Fica gravado no histórico da inscrição")}</span>
           <span>{note.length}/200</span>
         </div>

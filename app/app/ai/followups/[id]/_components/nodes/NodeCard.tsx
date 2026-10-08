@@ -111,7 +111,7 @@ const HEADER_BG_BY_TYPE: Record<string, string> = {
 const BORDER_COLOR_BY_TYPE: Record<string, string> = {
   action: "!border-purple-600 text-purple-600",
   trigger: "!border-emerald-600 text-emerald-600",
-  wait: "!border-slate-600 text-slate-600",
+  wait: "!border-slate-600 text-text-muted",
   condition: "!border-red-600 text-red-600",
   ai_classify: "!border-purple-700 text-purple-700",
   match_reply: "!border-red-600 text-red-600",
@@ -131,7 +131,7 @@ const BORDER_COLOR_BY_TYPE: Record<string, string> = {
   voice_studio: "!border-purple-600 text-purple-600",
   google_sheets: "!border-emerald-600 text-emerald-600",
   execute_code: "!border-amber-600 text-amber-600",
-  end: "!border-zinc-500 text-zinc-500",
+  end: "!border-zinc-500 text-text-muted",
 };
 
 export function NodeCard({
@@ -198,22 +198,22 @@ export function NodeCard({
             e.stopPropagation();
             window.dispatchEvent(new CustomEvent("flow-duplicate-node", { detail: { id } }));
           }}
-          className="rounded-lg p-1.5 text-zinc-300 transition-colors hover:bg-zinc-800 hover:text-white cursor-pointer"
+          className="rounded-lg p-1.5 text-text-subtle transition-colors hover:bg-zinc-800 hover:text-white cursor-pointer"
           title={t("Duplicar nó")}
         >
-          <Copy size={14} className="text-zinc-300" />
+          <Copy size={14} className="text-text-subtle" />
         </button>
 
         <button
           type="button"
           onClick={handleCopyId}
-          className="rounded-lg p-1.5 text-zinc-300 transition-colors hover:bg-zinc-800 hover:text-white cursor-pointer"
+          className="rounded-lg p-1.5 text-text-subtle transition-colors hover:bg-zinc-800 hover:text-white cursor-pointer"
           title={t("Copiar ID do nó")}
         >
           {copiedId ? (
             <Check size={14} className="text-emerald-400" />
           ) : (
-            <Hash className="h-3.5 w-3.5 text-zinc-300" />
+            <Hash className="h-3.5 w-3.5 text-text-subtle" />
           )}
         </button>
 
@@ -224,7 +224,7 @@ export function NodeCard({
               e.stopPropagation();
               window.dispatchEvent(new CustomEvent("flow-delete-node", { detail: { id } }));
             }}
-            className="rounded-lg p-1.5 text-zinc-300 transition-colors hover:bg-red-500/20 hover:text-red-400 cursor-pointer"
+            className="rounded-lg p-1.5 text-text-subtle transition-colors hover:bg-red-500/20 hover:text-red-400 cursor-pointer"
             title={t("Excluir nó")}
           >
             <Trash2 className="h-3.5 w-3.5" />
@@ -234,7 +234,7 @@ export function NodeCard({
 
       <div
         className={cn(
-          "group relative min-w-[280px] max-w-[320px] w-[280px] overflow-visible rounded-[10px] border-[1.5px] font-sans shadow-sm transition-all duration-300 select-none bg-white",
+          "group relative min-w-[280px] max-w-[320px] w-[280px] overflow-visible rounded-[10px] border-[1.5px] font-sans shadow-sm transition-all duration-300 select-none bg-surface",
           selected
             ? "border-purple-600 ring-1 ring-purple-600 shadow-md"
             : "border-slate-500 hover:border-slate-600 hover:shadow-md",
@@ -264,7 +264,7 @@ export function NodeCard({
           type="target"
           position={Position.Left}
           className={cn(
-            "z-10 !flex !h-5 !w-5 !items-center !justify-center !rounded-full !border-2 !bg-white !shadow-sm !transition-all hover:!scale-125",
+            "z-10 !flex !h-5 !w-5 !items-center !justify-center !rounded-full !border-2 !bg-surface !shadow-sm !transition-all hover:!scale-125",
             targetBorderClass,
           )}
           style={handleTopStyle}
@@ -325,8 +325,8 @@ export function NodeCard({
       ) : !previewRows || previewRows.length === 0 ? (
         visual.type === "action" ? (
           <div className="p-3 flex flex-col items-center justify-center gap-2 py-6 min-h-[110px]">
-            <Smiley size={40} className="text-slate-500" weight="regular" aria-hidden />
-            <span className="text-[13px] font-medium text-slate-500">{t("Aguardando Configuração...")}</span>
+            <Smiley size={40} className="text-text-muted" weight="regular" aria-hidden />
+            <span className="text-[13px] font-medium text-text-muted">{t("Aguardando Configuração...")}</span>
           </div>
         ) : (
           <div className="p-3">
@@ -357,7 +357,7 @@ export function NodeCard({
               return (
                 <li
                   key={i}
-                  className="flex items-center gap-2 rounded-[8px] border border-dashed border-[#f472b6]/60 bg-[#fdf2f8] dark:bg-pink-950/20 px-2.5 py-2 text-[11px] font-medium text-slate-700 dark:text-zinc-200 leading-[1.4]"
+                  className="flex items-center gap-2 rounded-[8px] border border-dashed border-[#f472b6]/60 bg-[#fdf2f8] dark:bg-pink-950/20 px-2.5 py-2 text-[11px] font-medium text-text-muted leading-[1.4]"
                 >
                   <row.Icon size={15} aria-hidden className="shrink-0 text-[#f43f5e]" />
                   <span title={row.texto}>{row.texto}</span>
@@ -369,7 +369,7 @@ export function NodeCard({
               return (
                 <li
                   key={i}
-                  className="flex items-start gap-2 rounded-[8px] border border-dashed border-[#60a5fa]/60 bg-[#eff6ff] dark:bg-blue-950/20 px-2.5 py-2 text-[11px] font-normal text-slate-700 dark:text-zinc-200 leading-relaxed"
+                  className="flex items-start gap-2 rounded-[8px] border border-dashed border-[#60a5fa]/60 bg-[#eff6ff] dark:bg-blue-950/20 px-2.5 py-2 text-[11px] font-normal text-text-muted leading-relaxed"
                 >
                   <span className="shrink-0 font-serif text-sm font-bold leading-none select-none text-[#2563eb] mt-0.5">
                     T
@@ -399,7 +399,7 @@ export function NodeCard({
               return (
                 <li
                   key={i}
-                  className="flex items-center gap-2 rounded-[8px] border border-dashed border-[#c084fc]/60 bg-[#faf5ff] dark:bg-purple-950/20 px-2.5 py-2 text-[11px] font-medium text-slate-700 dark:text-zinc-200 leading-[1.4]"
+                  className="flex items-center gap-2 rounded-[8px] border border-dashed border-[#c084fc]/60 bg-[#faf5ff] dark:bg-purple-950/20 px-2.5 py-2 text-[11px] font-medium text-text-muted leading-[1.4]"
                 >
                   <row.Icon size={15} aria-hidden className="shrink-0 text-[#9333ea]" />
                   <span title={row.texto}>
@@ -414,7 +414,7 @@ export function NodeCard({
               return (
                 <li
                   key={i}
-                  className="flex items-center gap-2 rounded-[8px] border border-dashed border-[#fb923c]/60 bg-[#fff7ed] dark:bg-orange-950/20 px-2.5 py-2 text-[11px] font-medium text-slate-700 dark:text-zinc-200 leading-[1.4]"
+                  className="flex items-center gap-2 rounded-[8px] border border-dashed border-[#fb923c]/60 bg-[#fff7ed] dark:bg-orange-950/20 px-2.5 py-2 text-[11px] font-medium text-text-muted leading-[1.4]"
                 >
                   <row.Icon size={15} aria-hidden className="shrink-0 text-[#ea580c]" />
                   <span title={row.texto}>{row.texto || "Enviando uma imagem"}</span>
@@ -425,7 +425,7 @@ export function NodeCard({
               return (
                 <li
                   key={i}
-                  className="flex items-center gap-2 rounded-[8px] border border-dashed border-[#4ade80]/60 bg-[#f0fdf4] dark:bg-green-950/20 px-2.5 py-2 text-[11px] font-medium text-slate-700 dark:text-zinc-200 leading-[1.4]"
+                  className="flex items-center gap-2 rounded-[8px] border border-dashed border-[#4ade80]/60 bg-[#f0fdf4] dark:bg-green-950/20 px-2.5 py-2 text-[11px] font-medium text-text-muted leading-[1.4]"
                 >
                   <row.Icon size={15} aria-hidden className="shrink-0 text-[#16a34a]" />
                   <span title={row.texto}>{row.texto || t("Enviando um vídeo")}</span>
@@ -436,7 +436,7 @@ export function NodeCard({
               return (
                 <li
                   key={i}
-                  className="flex items-center gap-2 rounded-[8px] border border-dashed border-[#60a5fa]/60 bg-[#eff6ff] dark:bg-blue-950/20 px-2.5 py-2 text-[11px] font-medium text-slate-700 dark:text-zinc-200 leading-[1.4]"
+                  className="flex items-center gap-2 rounded-[8px] border border-dashed border-[#60a5fa]/60 bg-[#eff6ff] dark:bg-blue-950/20 px-2.5 py-2 text-[11px] font-medium text-text-muted leading-[1.4]"
                 >
                   <row.Icon size={15} aria-hidden className="shrink-0 text-[#2563eb]" />
                   <span title={row.texto}>{row.texto || "Enviando um documento"}</span>
@@ -492,8 +492,8 @@ export function NodeCard({
                       const pct = match[2];
                       return (
                         <div className="flex w-full min-w-0 items-center justify-between pr-2">
-                          <span className="text-xs font-semibold text-slate-800 dark:text-slate-100">{match[1]}</span>
-                          <span className="text-[11px] font-medium text-slate-500">{pct.endsWith("%") ? pct : pct + "%"}</span>
+                          <span className="text-xs font-semibold text-text">{match[1]}</span>
+                          <span className="text-[11px] font-medium text-text-muted">{pct.endsWith("%") ? pct : pct + "%"}</span>
                         </div>
                       );
                     }

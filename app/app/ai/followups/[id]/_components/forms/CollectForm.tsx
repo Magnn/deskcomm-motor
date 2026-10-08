@@ -209,14 +209,14 @@ export function CollectForm({
   return (
     <div className="space-y-4 font-sans text-xs">
       {/* Texto introdutório e dica importante (estilo AcassIA) */}
-      <div className="space-y-2 text-slate-500 dark:text-zinc-400 text-[11.5px] leading-relaxed">
+      <div className="space-y-2 text-text-muted text-[11.5px] leading-relaxed">
         <p>
           {t(
             "Esse bloco possibilita uma conversa humanizada com perguntas e respostas. A pergunta será enviada ao contato e o fluxo ficará pausado até que o contato responda ou até que o bloco expire."
           )}
         </p>
         <p>
-          <strong className="font-semibold text-slate-700 dark:text-zinc-300">
+          <strong className="font-semibold text-text-muted">
             {t("Dica importante:")}
           </strong>{" "}
           {t(
@@ -227,11 +227,11 @@ export function CollectForm({
 
       {/* Divisor: Configurar */}
       <div className="flex items-center gap-3 my-2">
-        <div className="h-px flex-1 bg-slate-200 dark:bg-zinc-800" />
-        <span className="text-[11px] font-medium text-slate-400 dark:text-zinc-500">
+        <div className="h-px flex-1 bg-surface-elevated" />
+        <span className="text-[11px] font-medium text-text-subtle">
           {t("Configurar")}
         </span>
-        <div className="h-px flex-1 bg-slate-200 dark:bg-zinc-800" />
+        <div className="h-px flex-1 bg-surface-elevated" />
       </div>
 
       {/* 1. Faça uma pergunta: */}
@@ -239,7 +239,7 @@ export function CollectForm({
         <div className="flex justify-between items-center">
           <label
             htmlFor="collect-question"
-            className="block text-[12px] font-bold text-slate-800 dark:text-zinc-200"
+            className="block text-[12px] font-bold text-text"
           >
             {t("Faça uma pergunta:")}
           </label>
@@ -255,7 +255,7 @@ export function CollectForm({
               </button>
             </PopoverTrigger>
             <PopoverContent align="end" className="w-64 p-2 space-y-1">
-              <span className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider block px-2 py-1">
+              <span className="text-[10px] font-bold text-text-subtle uppercase tracking-wider block px-2 py-1">
                 {t("Inserir variável no cursor")}
               </span>
               <div className="space-y-0.5 max-h-56 overflow-y-auto">
@@ -264,7 +264,7 @@ export function CollectForm({
                     key={v.tag}
                     type="button"
                     onClick={() => insertVariable(v.tag)}
-                    className="w-full flex items-center justify-between px-2 py-1.5 text-xs text-slate-700 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-md transition-colors text-left cursor-pointer"
+                    className="w-full flex items-center justify-between px-2 py-1.5 text-xs text-text-muted hover:bg-surface-elevated rounded-md transition-colors text-left cursor-pointer"
                   >
                     <span>{v.label}</span>
                     <code className="text-[10px] text-blue-600 bg-blue-50 dark:bg-blue-950/60 px-1 py-0.5 rounded-md font-mono">
@@ -277,7 +277,7 @@ export function CollectForm({
                     key={f.key}
                     type="button"
                     onClick={() => insertVariable(`{{${f.label}}}`)}
-                    className="w-full flex items-center justify-between px-2 py-1.5 text-xs text-slate-700 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-md transition-colors text-left cursor-pointer"
+                    className="w-full flex items-center justify-between px-2 py-1.5 text-xs text-text-muted hover:bg-surface-elevated rounded-md transition-colors text-left cursor-pointer"
                   >
                     <span>{f.label}</span>
                     <code className="text-[10px] text-indigo-600 bg-indigo-50 dark:bg-indigo-950/60 px-1 py-0.5 rounded-md font-mono">
@@ -301,13 +301,13 @@ export function CollectForm({
           }}
           placeholder={t("Faça uma pergunta...")}
           maxLength={400}
-          className="w-full rounded-[10px] border border-[#2563eb] bg-white dark:bg-zinc-950 p-2.5 text-[13px] text-slate-800 dark:text-zinc-100 placeholder:text-slate-400 focus:outline-hidden focus:ring-1 focus:ring-[#2563eb] min-h-[105px] resize-y"
+          className="w-full rounded-[10px] border border-[#2563eb] bg-surface p-2.5 text-[13px] text-text placeholder:text-text-subtle focus:outline-hidden focus:ring-1 focus:ring-[#2563eb] min-h-[105px] resize-y"
         />
       </div>
 
       {/* 2. Salvar resposta em um campo de fluxo (opcional) */}
       <div className="space-y-1.5">
-        <label className="block text-[12px] font-bold text-slate-800 dark:text-zinc-200">
+        <label className="block text-[12px] font-bold text-text">
           {t("Salvar resposta em um campo de fluxo (opcional)")}
         </label>
 
@@ -317,16 +317,16 @@ export function CollectForm({
             <PopoverTrigger asChild>
               <button
                 type="button"
-                className="flex-1 flex items-center justify-between rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-2.5 py-1.5 h-10 text-xs transition-colors hover:border-slate-300 dark:hover:border-zinc-700 cursor-pointer text-left"
+                className="flex-1 flex items-center justify-between rounded-lg border border-border bg-surface px-2.5 py-1.5 h-10 text-xs transition-colors hover:border-border-strong cursor-pointer text-left"
               >
                 {salvarEmCampo ? (
                   <div className="flex items-center gap-2 overflow-hidden">
-                    <span className="rounded-md bg-slate-100 dark:bg-zinc-800 px-2 py-0.5 text-[11px] font-mono text-slate-700 dark:text-zinc-300 border border-slate-200 dark:border-zinc-700 truncate">
+                    <span className="rounded-md bg-surface-elevated px-2 py-0.5 text-[11px] font-mono text-text-muted border border-border truncate">
                       {`{{${currentFieldLabel}}}`}
                     </span>
                   </div>
                 ) : (
-                  <span className="text-slate-400 text-xs">
+                  <span className="text-text-subtle text-xs">
                     {t("Nenhum campo selecionado")}
                   </span>
                 )}
@@ -334,7 +334,7 @@ export function CollectForm({
                 <div className="flex items-center gap-1.5 shrink-0">
                   {salvarEmCampo && (
                     <>
-                      <span className="text-[11px] text-slate-500 dark:text-zinc-400">
+                      <span className="text-[11px] text-text-muted">
                         {currentFieldTypeLabel}
                       </span>
                       <span
@@ -346,19 +346,19 @@ export function CollectForm({
                             handleClearField(e as unknown as React.MouseEvent);
                           }
                         }}
-                        className="p-0.5 rounded-md hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 cursor-pointer"
+                        className="p-0.5 rounded-md hover:bg-surface-elevated text-text-subtle hover:text-text-muted cursor-pointer"
                         title={t("Remover campo")}
                       >
                         <X size={13} />
                       </span>
                     </>
                   )}
-                  <ChevronDown size={14} className="text-slate-400" />
+                  <ChevronDown size={14} className="text-text-subtle" />
                 </div>
               </button>
             </PopoverTrigger>
             <PopoverContent align="start" className="w-72 p-2 space-y-1">
-              <span className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider block px-2 py-1">
+              <span className="text-[10px] font-bold text-text-subtle uppercase tracking-wider block px-2 py-1">
                 {t("Selecionar campo de fluxo")}
               </span>
               <div className="space-y-0.5 max-h-56 overflow-y-auto">
@@ -371,11 +371,11 @@ export function CollectForm({
                       "w-full flex items-center justify-between px-2.5 py-2 text-xs rounded-md transition-colors text-left cursor-pointer",
                       selectedKey === f.key && salvarEmCampo
                         ? "bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 font-semibold"
-                        : "hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-700 dark:text-zinc-200"
+                        : "hover:bg-surface-elevated text-text-muted"
                     )}
                   >
                     <span className="font-mono text-[11px]">{`{{${f.label}}}`}</span>
-                    <span className="text-[10px] text-slate-400">
+                    <span className="text-[10px] text-text-subtle">
                       {TIPOS_DE_DADO.find((td) => td.value === f.type)?.label || f.type}
                     </span>
                   </button>
@@ -388,7 +388,7 @@ export function CollectForm({
           <button
             type="button"
             onClick={() => setIsNewFieldOpen(true)}
-            className="w-10 h-10 rounded-lg border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 flex items-center justify-center text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors cursor-pointer shrink-0"
+            className="w-10 h-10 rounded-lg border border-border-strong bg-surface flex items-center justify-center text-text-muted hover:bg-surface-elevated transition-colors cursor-pointer shrink-0"
             title={t("Criar novo campo de fluxo")}
           >
             <Plus size={16} />
@@ -398,18 +398,18 @@ export function CollectForm({
 
       {/* Divisor: Tempos e limites */}
       <div className="flex items-center gap-3 my-2">
-        <div className="h-px flex-1 bg-slate-200 dark:bg-zinc-800" />
-        <span className="text-[11px] font-medium text-slate-400 dark:text-zinc-500">
+        <div className="h-px flex-1 bg-surface-elevated" />
+        <span className="text-[11px] font-medium text-text-subtle">
           {t("Tempos e limites")}
         </span>
-        <div className="h-px flex-1 bg-slate-200 dark:bg-zinc-800" />
+        <div className="h-px flex-1 bg-surface-elevated" />
       </div>
 
       {/* Card 1: Agrupar respostas */}
-      <div className="rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-3.5 space-y-2 shadow-2xs">
+      <div className="rounded-xl border border-border bg-surface p-3.5 space-y-2 shadow-2xs">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="text-[12.5px] font-bold text-slate-800 dark:text-zinc-100">
+            <span className="text-[12.5px] font-bold text-text">
               {t("Agrupar respostas")}
             </span>
             <span className="rounded-full bg-[#f0fdf4] text-[#16a34a] border border-[#bbf7d0] px-2 py-0.5 text-[10px] font-medium dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800">
@@ -417,14 +417,14 @@ export function CollectForm({
             </span>
             <span
               title={t("Reinicia a cada nova mensagem recebida.")}
-              className="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300 cursor-help"
+              className="text-text-subtle hover:text-text-muted cursor-help"
             >
               <HelpCircle size={13} />
             </span>
           </div>
         </div>
 
-        <p className="text-[11px] text-slate-400 dark:text-zinc-500">
+        <p className="text-[11px] text-text-subtle">
           {t("Reinicia a cada nova mensagem recebida.")}
         </p>
 
@@ -435,7 +435,7 @@ export function CollectForm({
             setAgruparSegundos(val);
             commit({ agrupar_respostas_segundos: val });
           }}
-          className="w-full h-10 rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-3 text-xs text-slate-700 dark:text-zinc-200 focus:outline-hidden"
+          className="w-full h-10 rounded-lg border border-border bg-surface px-3 text-xs text-text-muted focus:outline-hidden"
         >
           <option value={15}>{t("15 segundos (padrão)")}</option>
           <option value={30}>{t("30 segundos")}</option>
@@ -448,10 +448,10 @@ export function CollectForm({
       </div>
 
       {/* Card 2: Expiração do bloco */}
-      <div className="rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-3.5 space-y-2 shadow-2xs">
+      <div className="rounded-xl border border-border bg-surface p-3.5 space-y-2 shadow-2xs">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="text-[12.5px] font-bold text-slate-800 dark:text-zinc-100">
+            <span className="text-[12.5px] font-bold text-text">
               {t("Expiração do bloco")}
             </span>
             <span className="rounded-full bg-[#fff1f2] text-[#e11d48] border border-[#fecdd3] px-2 py-0.5 text-[10px] font-medium dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-800">
@@ -459,14 +459,14 @@ export function CollectForm({
             </span>
             <span
               title={t("Tempo máximo aguardando a interação do contato.")}
-              className="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300 cursor-help"
+              className="text-text-subtle hover:text-text-muted cursor-help"
             >
               <HelpCircle size={13} />
             </span>
           </div>
         </div>
 
-        <p className="text-[11px] text-slate-400 dark:text-zinc-500">
+        <p className="text-[11px] text-text-subtle">
           {t("Tempo máximo aguardando a interação do contato.")}
         </p>
 
@@ -481,7 +481,7 @@ export function CollectForm({
               setExpiracaoTempo(val);
               commit({ expiracao_tempo: val });
             }}
-            className="h-10 rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-3 text-xs text-slate-700 dark:text-zinc-200 focus:outline-hidden"
+            className="h-10 rounded-lg border border-border bg-surface px-3 text-xs text-text-muted focus:outline-hidden"
           />
 
           <select
@@ -491,7 +491,7 @@ export function CollectForm({
               setExpiracaoUnidade(val);
               commit({ expiracao_unidade: val });
             }}
-            className="h-10 rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-3 text-xs text-slate-700 dark:text-zinc-200 focus:outline-hidden"
+            className="h-10 rounded-lg border border-border bg-surface px-3 text-xs text-text-muted focus:outline-hidden"
           >
             <option value="minutos">{t("Minutos")}</option>
             <option value="horas">{t("Horas")}</option>
@@ -539,7 +539,7 @@ export function CollectForm({
                   )
                 }
               />
-              <p className="text-[10px] text-slate-400">
+              <p className="text-[10px] text-text-subtle">
                 {t("Use letras minúsculas e sublinhados.")}
               </p>
             </div>
@@ -552,7 +552,7 @@ export function CollectForm({
                 onChange={(e) =>
                   setNewFieldType(e.target.value as ContactFlowFieldType)
                 }
-                className="w-full h-10 rounded-md border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-3 text-xs text-slate-700 dark:text-zinc-200 focus:outline-hidden"
+                className="w-full h-10 rounded-md border border-border bg-surface px-3 text-xs text-text-muted focus:outline-hidden"
               >
                 {TIPOS_DE_DADO.map((td) => (
                   <option key={td.value} value={td.value}>

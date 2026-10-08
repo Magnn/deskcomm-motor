@@ -196,7 +196,7 @@ export function AgentForm({
       <div className="space-y-1.5">
         <label
           htmlFor="select-agent-id"
-          className="block text-[12px] font-bold text-slate-800 dark:text-zinc-200"
+          className="block text-[12px] font-bold text-text"
         >
           {t("Agente")}
         </label>
@@ -208,7 +208,7 @@ export function AgentForm({
               setAgentId(e.target.value);
               commit({ agent_id: e.target.value });
             }}
-            className="w-full h-10 rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-3 pr-8 text-xs text-slate-700 dark:text-zinc-200 focus:outline-hidden appearance-none cursor-pointer"
+            className="w-full h-10 rounded-lg border border-border bg-surface px-3 pr-8 text-xs text-text-muted focus:outline-hidden appearance-none cursor-pointer"
           >
             <option value={AGENT_NODE_UNSET_ID}>
               {t("Selecione um agente")}
@@ -221,14 +221,14 @@ export function AgentForm({
           </select>
           <ChevronDown
             size={15}
-            className="absolute right-3 top-3 text-slate-400 pointer-events-none"
+            className="absolute right-3 top-3 text-text-subtle pointer-events-none"
           />
         </div>
       </div>
 
       {/* 2. Modelo GPT com badges de status (AcassIA) */}
       <div className="space-y-1.5">
-        <label className="block text-[12px] font-bold text-slate-800 dark:text-zinc-200">
+        <label className="block text-[12px] font-bold text-text">
           {t("Modelo GPT")}
         </label>
 
@@ -236,9 +236,9 @@ export function AgentForm({
           <PopoverTrigger asChild>
             <button
               type="button"
-              className="w-full h-10 rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-3 flex items-center justify-between text-xs text-slate-800 dark:text-zinc-200 hover:border-slate-300 dark:hover:border-zinc-700 transition-colors cursor-pointer"
+              className="w-full h-10 rounded-lg border border-border bg-surface px-3 flex items-center justify-between text-xs text-text hover:border-border-strong transition-colors cursor-pointer"
             >
-              <span className="font-semibold text-slate-800 dark:text-zinc-100">
+              <span className="font-semibold text-text">
                 {currentModel.name}
               </span>
               <div className="flex items-center gap-2">
@@ -257,7 +257,7 @@ export function AgentForm({
                 >
                   {currentModel.badge}
                 </span>
-                <ChevronDown size={15} className="text-slate-400" />
+                <ChevronDown size={15} className="text-text-subtle" />
               </div>
             </button>
           </PopoverTrigger>
@@ -276,11 +276,11 @@ export function AgentForm({
                   "w-full text-left p-2.5 rounded-lg transition-colors cursor-pointer border",
                   modeloGpt === m.id
                     ? "bg-purple-50/60 dark:bg-purple-950/30 border-purple-200 dark:border-purple-800"
-                    : "hover:bg-slate-50 dark:hover:bg-zinc-800/60 border-transparent"
+                    : "hover:bg-surface-elevated border-transparent"
                 )}
               >
                 <div className="flex items-center justify-between mb-1">
-                  <span className="font-bold text-xs text-slate-800 dark:text-zinc-100">
+                  <span className="font-bold text-xs text-text">
                     {m.name}
                   </span>
                   <span
@@ -299,7 +299,7 @@ export function AgentForm({
                     {m.badge}
                   </span>
                 </div>
-                <p className="text-[11px] text-slate-400 dark:text-zinc-500 leading-tight">
+                <p className="text-[11px] text-text-subtle leading-tight">
                   {m.subtitle}
                 </p>
               </button>
@@ -311,8 +311,8 @@ export function AgentForm({
       {/* 3. Toggles de recursos (AcassIA) */}
       <div className="space-y-2">
         {/* Pesquisar na internet */}
-        <div className="flex items-center justify-between p-3 rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950">
-          <span className="text-[12px] font-semibold text-slate-800 dark:text-zinc-200">
+        <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-surface">
+          <span className="text-[12px] font-semibold text-text">
             {t("Pesquisar na internet")}
           </span>
           <button
@@ -326,12 +326,12 @@ export function AgentForm({
             }}
             className={cn(
               "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden",
-              pesquisarInternet ? "bg-[#9333ea]" : "bg-slate-300 dark:bg-zinc-700"
+              pesquisarInternet ? "bg-[#9333ea]" : "bg-border-strong"
             )}
           >
             <span
               className={cn(
-                "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-xs ring-0 transition duration-200 ease-in-out",
+                "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-surface shadow-xs ring-0 transition duration-200 ease-in-out",
                 pesquisarInternet ? "translate-x-4" : "translate-x-0"
               )}
             />
@@ -339,8 +339,8 @@ export function AgentForm({
         </div>
 
         {/* Pesquisar em arquivos */}
-        <div className="flex items-center justify-between p-3 rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950">
-          <span className="text-[12px] font-semibold text-slate-800 dark:text-zinc-200">
+        <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-surface">
+          <span className="text-[12px] font-semibold text-text">
             {t("Pesquisar em arquivos")}
           </span>
           <button
@@ -354,12 +354,12 @@ export function AgentForm({
             }}
             className={cn(
               "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden",
-              pesquisarArquivos ? "bg-[#9333ea]" : "bg-slate-300 dark:bg-zinc-700"
+              pesquisarArquivos ? "bg-[#9333ea]" : "bg-border-strong"
             )}
           >
             <span
               className={cn(
-                "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-xs ring-0 transition duration-200 ease-in-out",
+                "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-surface shadow-xs ring-0 transition duration-200 ease-in-out",
                 pesquisarArquivos ? "translate-x-4" : "translate-x-0"
               )}
             />
@@ -367,8 +367,8 @@ export function AgentForm({
         </div>
 
         {/* Leitura de imagem e PDF */}
-        <div className="flex items-center justify-between p-3 rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950">
-          <span className="text-[12px] font-semibold text-slate-800 dark:text-zinc-200">
+        <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-surface">
+          <span className="text-[12px] font-semibold text-text">
             {t("Leitura de imagem e PDF")}
           </span>
           <button
@@ -382,12 +382,12 @@ export function AgentForm({
             }}
             className={cn(
               "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden",
-              leituraImagemPdf ? "bg-[#9333ea]" : "bg-slate-300 dark:bg-zinc-700"
+              leituraImagemPdf ? "bg-[#9333ea]" : "bg-border-strong"
             )}
           >
             <span
               className={cn(
-                "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-xs ring-0 transition duration-200 ease-in-out",
+                "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-surface shadow-xs ring-0 transition duration-200 ease-in-out",
                 leituraImagemPdf ? "translate-x-4" : "translate-x-0"
               )}
             />
@@ -395,8 +395,8 @@ export function AgentForm({
         </div>
 
         {/* Responder com áudio */}
-        <div className="flex items-center justify-between p-3 rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950">
-          <span className="text-[12px] font-semibold text-slate-800 dark:text-zinc-200">
+        <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-surface">
+          <span className="text-[12px] font-semibold text-text">
             {t("Responder com áudio")}
           </span>
           <button
@@ -410,12 +410,12 @@ export function AgentForm({
             }}
             className={cn(
               "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden",
-              responderComAudio ? "bg-[#9333ea]" : "bg-slate-300 dark:bg-zinc-700"
+              responderComAudio ? "bg-[#9333ea]" : "bg-border-strong"
             )}
           >
             <span
               className={cn(
-                "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-xs ring-0 transition duration-200 ease-in-out",
+                "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-surface shadow-xs ring-0 transition duration-200 ease-in-out",
                 responderComAudio ? "translate-x-4" : "translate-x-0"
               )}
             />
@@ -423,8 +423,8 @@ export function AgentForm({
         </div>
 
         {/* Desativar quebra de mensagens */}
-        <div className="flex items-center justify-between p-3 rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950">
-          <span className="text-[12px] font-semibold text-slate-800 dark:text-zinc-200">
+        <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-surface">
+          <span className="text-[12px] font-semibold text-text">
             {t("Desativar quebra de mensagens")}
           </span>
           <button
@@ -438,12 +438,12 @@ export function AgentForm({
             }}
             className={cn(
               "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden",
-              desativarQuebra ? "bg-[#9333ea]" : "bg-slate-300 dark:bg-zinc-700"
+              desativarQuebra ? "bg-[#9333ea]" : "bg-border-strong"
             )}
           >
             <span
               className={cn(
-                "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-xs ring-0 transition duration-200 ease-in-out",
+                "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-surface shadow-xs ring-0 transition duration-200 ease-in-out",
                 desativarQuebra ? "translate-x-4" : "translate-x-0"
               )}
             />
@@ -454,14 +454,14 @@ export function AgentForm({
       {/* 4. Divisor com Botão Adicionar rota */}
       <div className="relative flex items-center justify-center my-4">
         <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-slate-200 dark:border-zinc-800" />
+          <div className="w-full border-t border-border" />
         </div>
         <button
           type="button"
           onClick={handleAddRoute}
-          className="relative z-10 inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-xs font-semibold text-slate-700 dark:text-zinc-200 shadow-2xs hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+          className="relative z-10 inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full border border-border bg-surface text-xs font-semibold text-text-muted shadow-2xs hover:bg-surface-elevated transition-colors cursor-pointer"
         >
-          <Plus size={13} className="text-slate-500" />
+          <Plus size={13} className="text-text-muted" />
           <span>{t("Adicionar rota")}</span>
         </button>
       </div>
@@ -471,14 +471,14 @@ export function AgentForm({
         {rotas.map((rota, idx) => (
           <div
             key={rota.id}
-            className="rounded-xl border border-slate-200 dark:border-zinc-800 p-2.5 bg-white dark:bg-zinc-900 space-y-2 shadow-2xs"
+            className="rounded-xl border border-border p-2.5 bg-surface space-y-2 shadow-2xs"
           >
             <textarea
               rows={2}
               value={rota.condicao}
               onChange={(e) => handleUpdateRoute(rota.id, e.target.value)}
               placeholder={t("AVANÇAR")}
-              className="w-full rounded-md border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-2 text-xs font-medium text-slate-800 dark:text-zinc-100 placeholder:text-slate-400 focus:outline-hidden uppercase tracking-wider resize-y"
+              className="w-full rounded-md border border-border bg-surface p-2 text-xs font-medium text-text placeholder:text-text-subtle focus:outline-hidden uppercase tracking-wider resize-y"
             />
             <div className="flex items-center justify-between pt-1">
               <span className="text-xs font-bold text-blue-500">
@@ -501,18 +501,18 @@ export function AgentForm({
 
       {/* 5. Divisor: Tempos e limites */}
       <div className="flex items-center gap-3 my-3">
-        <div className="h-px flex-1 bg-slate-200 dark:bg-zinc-800" />
-        <span className="text-[11px] font-medium text-slate-400 dark:text-zinc-500">
+        <div className="h-px flex-1 bg-surface-elevated" />
+        <span className="text-[11px] font-medium text-text-subtle">
           {t("Tempos e limites")}
         </span>
-        <div className="h-px flex-1 bg-slate-200 dark:bg-zinc-800" />
+        <div className="h-px flex-1 bg-surface-elevated" />
       </div>
 
       {/* Card 1: Agrupar respostas */}
-      <div className="rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-3.5 space-y-2 shadow-2xs">
+      <div className="rounded-xl border border-border bg-surface p-3.5 space-y-2 shadow-2xs">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="text-[12.5px] font-bold text-slate-800 dark:text-zinc-100">
+            <span className="text-[12.5px] font-bold text-text">
               {t("Agrupar respostas")}
             </span>
             <span className="rounded-full bg-[#f0fdf4] text-[#16a34a] border border-[#bbf7d0] px-2 py-0.5 text-[10px] font-medium dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800">
@@ -520,14 +520,14 @@ export function AgentForm({
             </span>
             <span
               title={t("Reinicia a cada nova mensagem recebida.")}
-              className="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300 cursor-help"
+              className="text-text-subtle hover:text-text-muted cursor-help"
             >
               <HelpCircle size={13} />
             </span>
           </div>
         </div>
 
-        <p className="text-[11px] text-slate-400 dark:text-zinc-500">
+        <p className="text-[11px] text-text-subtle">
           {t("Reinicia a cada nova mensagem recebida.")}
         </p>
 
@@ -538,7 +538,7 @@ export function AgentForm({
             setAgruparSegundos(val);
             commit({ agrupar_respostas_segundos: val });
           }}
-          className="w-full h-10 rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-3 text-xs text-slate-700 dark:text-zinc-200 focus:outline-hidden"
+          className="w-full h-10 rounded-lg border border-border bg-surface px-3 text-xs text-text-muted focus:outline-hidden"
         >
           <option value={15}>{t("15 segundos (padrão)")}</option>
           <option value={30}>{t("30 segundos")}</option>
@@ -551,10 +551,10 @@ export function AgentForm({
       </div>
 
       {/* Card 2: Expiração do bloco */}
-      <div className="rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-3.5 space-y-2 shadow-2xs">
+      <div className="rounded-xl border border-border bg-surface p-3.5 space-y-2 shadow-2xs">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="text-[12.5px] font-bold text-slate-800 dark:text-zinc-100">
+            <span className="text-[12.5px] font-bold text-text">
               {t("Expiração do bloco")}
             </span>
             <span className="rounded-full bg-[#fff1f2] text-[#e11d48] border border-[#fecdd3] px-2 py-0.5 text-[10px] font-medium dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-800">
@@ -562,14 +562,14 @@ export function AgentForm({
             </span>
             <span
               title={t("Tempo máximo aguardando a interação do contato.")}
-              className="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300 cursor-help"
+              className="text-text-subtle hover:text-text-muted cursor-help"
             >
               <HelpCircle size={13} />
             </span>
           </div>
         </div>
 
-        <p className="text-[11px] text-slate-400 dark:text-zinc-500">
+        <p className="text-[11px] text-text-subtle">
           {t("Tempo máximo aguardando a interação do contato.")}
         </p>
 
@@ -584,7 +584,7 @@ export function AgentForm({
               setExpiracaoTempo(val);
               commit({ expiracao_tempo: val });
             }}
-            className="h-10 rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-3 text-xs text-slate-700 dark:text-zinc-200 focus:outline-hidden"
+            className="h-10 rounded-lg border border-border bg-surface px-3 text-xs text-text-muted focus:outline-hidden"
           />
 
           <select
@@ -594,7 +594,7 @@ export function AgentForm({
               setExpiracaoUnidade(val);
               commit({ expiracao_unidade: val });
             }}
-            className="h-10 rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-3 text-xs text-slate-700 dark:text-zinc-200 focus:outline-hidden"
+            className="h-10 rounded-lg border border-border bg-surface px-3 text-xs text-text-muted focus:outline-hidden"
           >
             <option value="horas">{t("Horas")}</option>
             <option value="minutos">{t("Minutos")}</option>

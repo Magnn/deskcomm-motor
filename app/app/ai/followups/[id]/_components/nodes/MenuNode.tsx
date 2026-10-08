@@ -34,8 +34,8 @@ export function MenuNode({ id, data, selected }: NodeProps<RFNode>) {
       </div>
 
       {/* Mensagem prompt do Menu */}
-      <div className="rounded-lg border border-sky-200/60 bg-white p-2 text-[11px] text-neutral-800 shadow-2xs dark:border-sky-800/40 dark:bg-neutral-950 dark:text-neutral-200">
-        <p className="line-clamp-2 italic text-neutral-600 dark:text-neutral-300">
+      <div className="rounded-lg border border-sky-200/60 bg-surface p-2 text-[11px] text-text shadow-2xs dark:border-sky-800/40">
+        <p className="line-clamp-2 italic text-text-muted">
           "{promptText}"
         </p>
       </div>
@@ -45,7 +45,7 @@ export function MenuNode({ id, data, selected }: NodeProps<RFNode>) {
         {options.slice(0, 3).map((option, idx) => (
           <div
             key={option.id}
-            className="flex items-center gap-2 rounded-lg border border-neutral-200 bg-white px-2 py-1 text-[10.5px] font-semibold text-sky-900 shadow-2xs dark:border-neutral-800 dark:bg-neutral-950 dark:text-sky-200"
+            className="flex items-center gap-2 rounded-lg border border-border bg-surface px-2 py-1 text-[10.5px] font-semibold text-sky-900 shadow-2xs dark:text-sky-200"
           >
             <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-sky-100 text-[9.5px] font-bold text-sky-700 dark:bg-sky-900 dark:text-sky-300">
               {idx + 1}

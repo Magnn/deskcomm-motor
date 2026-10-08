@@ -32,9 +32,9 @@ export function AttendantRouteNode({ id, data, selected }: NodeProps<RFNode>) {
       </div>
 
       {/* Caixa de Atendentes Selecionados */}
-      <div className="rounded-lg border border-amber-200/60 bg-white p-2 text-[10.5px] text-neutral-800 shadow-2xs dark:border-amber-800/40 dark:bg-neutral-950 dark:text-neutral-200">
+      <div className="rounded-lg border border-amber-200/60 bg-surface p-2 text-[10.5px] text-text shadow-2xs dark:border-amber-800/40">
         <div className="flex items-center justify-between">
-          <span className="text-neutral-500 dark:text-neutral-400">
+          <span className="text-text-muted">
             {attendantCount > 0
               ? `${attendantCount} ${attendantCount === 1 ? t("atendente selecionado") : t("atendentes selecionados")}`
               : t("Todos os atendentes elegíveis")}
@@ -49,7 +49,7 @@ export function AttendantRouteNode({ id, data, selected }: NodeProps<RFNode>) {
       </div>
 
       {/* Rodapé com política Round-Robin */}
-      <div className="flex items-center justify-between text-[9.5px] text-neutral-400 px-0.5">
+      <div className="flex items-center justify-between text-[9.5px] text-text-subtle px-0.5">
         <span>🔄 {t("Distribuição alternada")}</span>
         <span className="font-semibold text-amber-700 dark:text-amber-300">Round-Robin</span>
       </div>

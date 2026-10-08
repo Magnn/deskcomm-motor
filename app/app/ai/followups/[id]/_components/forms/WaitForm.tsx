@@ -126,7 +126,7 @@ export function WaitForm({
   return (
     <div className="space-y-4 font-sans text-xs">
       {/* Descrição textual idêntica ao AcassIA */}
-      <p className="text-[11.5px] text-slate-500 leading-relaxed dark:text-zinc-400">
+      <p className="text-[11.5px] text-text-muted leading-relaxed">
         {t(
           "O bloco de delay irá fazer com que o fluxo fique em espera pela quantidade de segundos definido acima antes de continuar para o próximo bloco."
         )}
@@ -134,16 +134,16 @@ export function WaitForm({
 
       {/* Divisor Configurar */}
       <div className="flex items-center gap-3">
-        <div className="h-px flex-1 bg-slate-200 dark:bg-zinc-800" />
-        <span className="text-[11px] font-semibold text-slate-400 capitalize dark:text-zinc-500">
+        <div className="h-px flex-1 bg-surface-elevated" />
+        <span className="text-[11px] font-semibold text-text-subtle capitalize">
           {t("Configurar")}
         </span>
-        <div className="h-px flex-1 bg-slate-200 dark:bg-zinc-800" />
+        <div className="h-px flex-1 bg-surface-elevated" />
       </div>
 
       {/* Toggle Pill: Fixo vs Inteligente em Roxo AcassIA */}
       <div className="flex justify-center">
-        <div className="flex w-full bg-slate-100 p-1 rounded-full border border-slate-200 dark:border-zinc-700 dark:bg-zinc-800/80 shadow-xs">
+        <div className="flex w-full bg-surface-elevated p-1 rounded-full border border-border shadow-xs">
           <button
             type="button"
             onClick={() => handleModeChange("fixed")}
@@ -151,7 +151,7 @@ export function WaitForm({
               "flex-1 py-1.5 text-xs font-semibold rounded-full transition-all cursor-pointer",
               mode === "fixed"
                 ? "bg-[#7c3aed] text-white shadow-xs"
-                : "text-slate-600 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-zinc-200"
+                : "text-text-muted hover:text-text"
             )}
           >
             {t("Fixo")}
@@ -163,7 +163,7 @@ export function WaitForm({
               "flex-1 py-1.5 text-xs font-semibold rounded-full transition-all cursor-pointer",
               mode === "smart"
                 ? "bg-[#7c3aed] text-white shadow-xs"
-                : "text-slate-600 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-zinc-200"
+                : "text-text-muted hover:text-text"
             )}
           >
             {t("Inteligente")}
@@ -173,7 +173,7 @@ export function WaitForm({
 
       {/* Título dinâmico reativo */}
       <div className="space-y-2 pt-1">
-        <label className="block text-[12.5px] font-semibold text-slate-800 dark:text-zinc-100">
+        <label className="block text-[12.5px] font-semibold text-text">
           {mode === "fixed"
             ? `${t("Delay de")} ${fixedVal} ${unitPlural}`
             : `${t("Delay inteligente de")} ${minVal} ${t("a")} ${maxVal} ${unitPlural}`}
@@ -182,7 +182,7 @@ export function WaitForm({
         {mode === "fixed" ? (
           <div className="flex items-center gap-3">
             {/* Input com stepper roxo integrado */}
-            <div className="flex h-9 rounded-md border border-slate-200 bg-white overflow-hidden shadow-xs dark:border-zinc-800 dark:bg-zinc-900">
+            <div className="flex h-9 rounded-md border border-border bg-surface overflow-hidden shadow-xs">
               <input
                 id="wait-duration"
                 type="number"
@@ -193,7 +193,7 @@ export function WaitForm({
                   setFixedVal(v);
                   commit(mode, unit, v, minVal, maxVal);
                 }}
-                className="w-16 px-2 text-center text-sm font-semibold text-slate-800 outline-hidden bg-transparent dark:text-zinc-100"
+                className="w-16 px-2 text-center text-sm font-semibold text-text outline-hidden bg-transparent"
               />
               <div className="flex flex-col bg-[#8b5cf6] text-white w-7 shrink-0">
                 <button
@@ -220,21 +220,21 @@ export function WaitForm({
               <select
                 value={unit}
                 onChange={(e) => handleUnitChange(e.target.value as UnitType)}
-                className="w-full appearance-none rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-xs outline-hidden pr-8 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200 cursor-pointer"
+                className="w-full appearance-none rounded-md border border-border bg-surface px-3 py-2 text-sm text-text-muted shadow-xs outline-hidden pr-8 cursor-pointer"
               >
                 <option value="horas">Hora</option>
                 <option value="minutos">Minuto</option>
                 <option value="segundos">Segundo</option>
                 <option value="dias">Dia</option>
               </select>
-              <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+              <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-text-subtle pointer-events-none" />
             </div>
           </div>
         ) : (
           <div className="flex items-start gap-2">
             {/* Box Mínimo */}
             <div className="flex flex-col gap-1 flex-1">
-              <div className="flex h-9 rounded-md border border-slate-200 bg-white overflow-hidden shadow-xs dark:border-zinc-800 dark:bg-zinc-900">
+              <div className="flex h-9 rounded-md border border-border bg-surface overflow-hidden shadow-xs">
                 <input
                   id="wait-min"
                   type="number"
@@ -245,7 +245,7 @@ export function WaitForm({
                     setMinVal(v);
                     commit(mode, unit, fixedVal, v, maxVal);
                   }}
-                  className="w-full px-2 text-center text-sm font-semibold text-slate-800 outline-hidden bg-transparent dark:text-zinc-100"
+                  className="w-full px-2 text-center text-sm font-semibold text-text outline-hidden bg-transparent"
                 />
                 <div className="flex flex-col bg-[#8b5cf6] text-white w-6 shrink-0">
                   <button
@@ -264,14 +264,14 @@ export function WaitForm({
                   </button>
                 </div>
               </div>
-              <span className="text-[10px] text-slate-400 text-center dark:text-zinc-500">
+              <span className="text-[10px] text-text-subtle text-center">
                 {t("Mínimo")}
               </span>
             </div>
 
             {/* Box Máximo */}
             <div className="flex flex-col gap-1 flex-1">
-              <div className="flex h-9 rounded-md border border-slate-200 bg-white overflow-hidden shadow-xs dark:border-zinc-800 dark:bg-zinc-900">
+              <div className="flex h-9 rounded-md border border-border bg-surface overflow-hidden shadow-xs">
                 <input
                   id="wait-max"
                   type="number"
@@ -282,7 +282,7 @@ export function WaitForm({
                     setMaxVal(v);
                     commit(mode, unit, fixedVal, minVal, v);
                   }}
-                  className="w-full px-2 text-center text-sm font-semibold text-slate-800 outline-hidden bg-transparent dark:text-zinc-100"
+                  className="w-full px-2 text-center text-sm font-semibold text-text outline-hidden bg-transparent"
                 />
                 <div className="flex flex-col bg-[#8b5cf6] text-white w-6 shrink-0">
                   <button
@@ -301,7 +301,7 @@ export function WaitForm({
                   </button>
                 </div>
               </div>
-              <span className="text-[10px] text-slate-400 text-center dark:text-zinc-500">
+              <span className="text-[10px] text-text-subtle text-center">
                 {t("Máximo")}
               </span>
             </div>
@@ -311,14 +311,14 @@ export function WaitForm({
               <select
                 value={unit}
                 onChange={(e) => handleUnitChange(e.target.value as UnitType)}
-                className="w-full appearance-none rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-xs outline-hidden pr-8 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200 cursor-pointer"
+                className="w-full appearance-none rounded-md border border-border bg-surface px-3 py-2 text-sm text-text-muted shadow-xs outline-hidden pr-8 cursor-pointer"
               >
                 <option value="horas">Hora</option>
                 <option value="minutos">Minuto</option>
                 <option value="segundos">Segundo</option>
                 <option value="dias">Dia</option>
               </select>
-              <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+              <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-text-subtle pointer-events-none" />
             </div>
           </div>
         )}
@@ -327,7 +327,7 @@ export function WaitForm({
       {/* Toggles de status digitando/gravando */}
       <div className="space-y-3 pt-2">
         <div className="flex flex-col gap-1.5">
-          <label className="block text-xs font-semibold text-slate-800 dark:text-zinc-200">
+          <label className="block text-xs font-semibold text-text">
             {t("Envia status (Digitando...)")}
           </label>
           <button
@@ -335,12 +335,12 @@ export function WaitForm({
             onClick={() => setTyping(!typing)}
             className={cn(
               "relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out outline-hidden",
-              typing ? "bg-[#8b5cf6]" : "bg-slate-200 dark:bg-zinc-700"
+              typing ? "bg-[#8b5cf6]" : "bg-surface-elevated"
             )}
           >
             <span
               className={cn(
-                "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-xs ring-0 transition duration-200 ease-in-out",
+                "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-surface shadow-xs ring-0 transition duration-200 ease-in-out",
                 typing ? "translate-x-5" : "translate-x-0"
               )}
             />
@@ -348,7 +348,7 @@ export function WaitForm({
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <label className="block text-xs font-semibold text-slate-800 dark:text-zinc-200">
+          <label className="block text-xs font-semibold text-text">
             {t("Envia status (Gravando...)")}
           </label>
           <button
@@ -356,12 +356,12 @@ export function WaitForm({
             onClick={() => setRecording(!recording)}
             className={cn(
               "relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out outline-hidden",
-              recording ? "bg-[#8b5cf6]" : "bg-slate-200 dark:bg-zinc-700"
+              recording ? "bg-[#8b5cf6]" : "bg-surface-elevated"
             )}
           >
             <span
               className={cn(
-                "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-xs ring-0 transition duration-200 ease-in-out",
+                "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-surface shadow-xs ring-0 transition duration-200 ease-in-out",
                 recording ? "translate-x-5" : "translate-x-0"
               )}
             />

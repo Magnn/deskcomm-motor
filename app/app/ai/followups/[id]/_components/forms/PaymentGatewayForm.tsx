@@ -66,10 +66,10 @@ export function PaymentGatewayForm({ config, onChange }: Props) {
           <CreditCard size={18} />
         </div>
         <div>
-          <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+          <h3 className="text-sm font-semibold text-text">
             {t("Editar Pagamento")}
           </h3>
-          <p className="text-[11px] text-neutral-500 dark:text-neutral-400">
+          <p className="text-[11px] text-text-muted">
             {t("Configuração do gateway de pagamento")}
           </p>
         </div>
@@ -77,7 +77,7 @@ export function PaymentGatewayForm({ config, onChange }: Props) {
 
       {/* Moeda e Valor */}
       <div className="space-y-1.5">
-        <label className="block text-[11px] font-semibold tracking-wide text-neutral-600 uppercase dark:text-neutral-400">
+        <label className="block text-[11px] font-semibold tracking-wide text-text-muted uppercase">
           {t("Moeda e Valor")}
         </label>
         <div className="flex items-center gap-2">
@@ -87,7 +87,7 @@ export function PaymentGatewayForm({ config, onChange }: Props) {
               setCurrency(e.target.value);
               update({ currency: e.target.value });
             }}
-            className="w-[120px] shrink-0 rounded-lg border border-neutral-300 bg-white px-3 py-2 text-xs font-medium text-neutral-800 shadow-2xs outline-hidden focus:border-purple-600 focus:ring-1 focus:ring-purple-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200"
+            className="w-[120px] shrink-0 rounded-lg border border-border-strong bg-surface px-3 py-2 text-xs font-medium text-text shadow-2xs outline-hidden focus:border-purple-600 focus:ring-1 focus:ring-purple-600"
           >
             {CURRENCIES.map((c) => (
               <option key={c.code} value={c.code}>
@@ -104,18 +104,18 @@ export function PaymentGatewayForm({ config, onChange }: Props) {
               update({ amount: e.target.value });
             }}
             placeholder="100,00"
-            className="flex-1 rounded-lg border border-neutral-300 bg-white px-3 py-2 text-xs text-neutral-900 shadow-2xs outline-hidden focus:border-purple-600 focus:ring-1 focus:ring-purple-600 disabled:bg-neutral-100 disabled:text-neutral-400 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100 dark:disabled:bg-neutral-900 dark:disabled:text-neutral-500"
+            className="flex-1 rounded-lg border border-border-strong bg-surface px-3 py-2 text-xs text-text shadow-2xs outline-hidden focus:border-purple-600 focus:ring-1 focus:ring-purple-600 disabled:bg-surface-elevated disabled:text-text-subtle"
           />
         </div>
       </div>
 
       {/* Chave sem valor (Toggle Switch) */}
-      <div className="flex items-center justify-between rounded-xl border border-neutral-200 bg-neutral-50/50 p-3 dark:border-neutral-800 dark:bg-neutral-900/50">
+      <div className="flex items-center justify-between rounded-xl border border-border bg-surface-elevated p-3">
         <div className="space-y-0.5 pr-3">
-          <div className="text-xs font-semibold text-neutral-900 dark:text-neutral-100">
+          <div className="text-xs font-semibold text-text">
             {t("Chave sem valor")}
           </div>
-          <p className="text-[11px] leading-relaxed text-neutral-500 dark:text-neutral-400">
+          <p className="text-[11px] leading-relaxed text-text-muted">
             {t("Lead paga o valor que quiser. Depois do pagamento, use {gateway.value}.")}
           </p>
         </div>
@@ -129,11 +129,11 @@ export function PaymentGatewayForm({ config, onChange }: Props) {
             update({ open_amount: next });
           }}
           className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out outline-hidden ${
-            openAmount ? "bg-[#7c3aed]" : "bg-neutral-300 dark:bg-neutral-700"
+            openAmount ? "bg-[#7c3aed]" : "bg-border-strong"
           }`}
         >
           <span
-            className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+            className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-surface shadow-md ring-0 transition duration-200 ease-in-out ${
               openAmount ? "translate-x-5" : "translate-x-0"
             }`}
           />
@@ -143,7 +143,7 @@ export function PaymentGatewayForm({ config, onChange }: Props) {
       {/* Nome */}
       <div className="space-y-1.5">
         <div className="flex items-center justify-between">
-          <label className="block text-[11px] font-semibold tracking-wide text-neutral-600 uppercase dark:text-neutral-400">
+          <label className="block text-[11px] font-semibold tracking-wide text-text-muted uppercase">
             {t("Nome")}
           </label>
           <button
@@ -152,7 +152,7 @@ export function PaymentGatewayForm({ config, onChange }: Props) {
               setCustomerName("{full_name}");
               update({ customer_name: "{full_name}" });
             }}
-            className="flex items-center gap-1 text-[11px] text-neutral-500 transition-colors hover:text-purple-600 dark:text-neutral-400"
+            className="flex items-center gap-1 text-[11px] text-text-muted transition-colors hover:text-purple-600"
           >
             <span>&lt;&gt;</span>
             <span>{t("Inserir variável")}</span>
@@ -166,14 +166,14 @@ export function PaymentGatewayForm({ config, onChange }: Props) {
             update({ customer_name: e.target.value });
           }}
           placeholder="{full_name}"
-          className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-xs text-neutral-900 shadow-2xs outline-hidden focus:border-purple-600 focus:ring-1 focus:ring-purple-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100"
+          className="w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-xs text-text shadow-2xs outline-hidden focus:border-purple-600 focus:ring-1 focus:ring-purple-600"
         />
       </div>
 
       {/* Telefone */}
       <div className="space-y-1.5">
         <div className="flex items-center justify-between">
-          <label className="block text-[11px] font-semibold tracking-wide text-neutral-600 uppercase dark:text-neutral-400">
+          <label className="block text-[11px] font-semibold tracking-wide text-text-muted uppercase">
             {t("Telefone")}
           </label>
           <button
@@ -182,7 +182,7 @@ export function PaymentGatewayForm({ config, onChange }: Props) {
               setCustomerPhone("{phone_number}");
               update({ customer_phone: "{phone_number}" });
             }}
-            className="flex items-center gap-1 text-[11px] text-neutral-500 transition-colors hover:text-purple-600 dark:text-neutral-400"
+            className="flex items-center gap-1 text-[11px] text-text-muted transition-colors hover:text-purple-600"
           >
             <span>&lt;&gt;</span>
             <span>{t("Inserir variável")}</span>
@@ -196,17 +196,17 @@ export function PaymentGatewayForm({ config, onChange }: Props) {
             update({ customer_phone: e.target.value });
           }}
           placeholder="{phone_number}"
-          className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-xs text-neutral-900 shadow-2xs outline-hidden focus:border-purple-600 focus:ring-1 focus:ring-purple-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100"
+          className="w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-xs text-text shadow-2xs outline-hidden focus:border-purple-600 focus:ring-1 focus:ring-purple-600"
         />
       </div>
 
       {/* Variáveis após a cobrança */}
-      <div className="space-y-2 rounded-xl border border-neutral-200 bg-neutral-50/40 p-3.5 dark:border-neutral-800 dark:bg-neutral-900/40">
+      <div className="space-y-2 rounded-xl border border-border bg-surface-elevated p-3.5">
         <div className="space-y-0.5">
-          <div className="text-[11px] font-bold tracking-wide text-neutral-700 uppercase dark:text-neutral-300">
+          <div className="text-[11px] font-bold tracking-wide text-text-muted uppercase">
             {t("Variáveis após a cobrança")}
           </div>
-          <p className="text-[11px] leading-relaxed text-neutral-500 dark:text-neutral-400">
+          <p className="text-[11px] leading-relaxed text-text-muted">
             {t("Disponíveis no fluxo após gerar a cobrança. Não vão para os campos do Lead.")}
           </p>
         </div>
@@ -217,15 +217,15 @@ export function PaymentGatewayForm({ config, onChange }: Props) {
               key={v.key}
               onClick={() => handleCopyVar(v.key)}
               title={t("Clique para copiar")}
-              className="group flex cursor-pointer items-start justify-between gap-2 rounded-md p-1.5 transition-colors hover:bg-white dark:hover:bg-neutral-800"
+              className="group flex cursor-pointer items-start justify-between gap-2 rounded-md p-1.5 transition-colors hover:bg-surface"
             >
               <div className="min-w-0 flex-1">
                 <span className="font-mono text-xs font-semibold text-[#7c3aed] dark:text-purple-400">
                   {v.key}
                 </span>{" "}
-                <span className="text-[11px] text-neutral-600 dark:text-neutral-400">{v.desc}</span>
+                <span className="text-[11px] text-text-muted">{v.desc}</span>
               </div>
-              <div className="shrink-0 text-neutral-400 opacity-0 transition-opacity group-hover:opacity-100">
+              <div className="shrink-0 text-text-subtle opacity-0 transition-opacity group-hover:opacity-100">
                 {copiedKey === v.key ? (
                   <Check size={14} className="text-emerald-600" />
                 ) : (

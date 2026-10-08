@@ -37,14 +37,14 @@ export function ClassifyNode({ id, data, selected }: NodeProps<RFNode>) {
       {/* Lista de classes / intenções em badges */}
       <div className="flex flex-wrap gap-1">
         {classes.length === 0 ? (
-          <span className="text-[11px] text-neutral-400 italic">
+          <span className="text-[11px] text-text-subtle italic">
             {t("Nenhuma classe configurada")}
           </span>
         ) : (
           classes.slice(0, 4).map((cls, idx) => (
             <span
               key={idx}
-              className="inline-flex items-center gap-1 rounded-md border border-violet-200 bg-white px-2 py-0.5 text-[10px] font-bold text-violet-900 shadow-2xs dark:border-violet-800/60 dark:bg-neutral-950 dark:text-violet-200"
+              className="inline-flex items-center gap-1 rounded-md border border-violet-200 bg-surface px-2 py-0.5 text-[10px] font-bold text-violet-900 shadow-2xs dark:border-violet-800/60 dark:text-violet-200"
             >
               <span className="h-1.5 w-1.5 rounded-full bg-violet-500" />
               <span className="truncate max-w-[110px]">{cls}</span>
@@ -60,7 +60,7 @@ export function ClassifyNode({ id, data, selected }: NodeProps<RFNode>) {
 
       {/* Dica da instrução (se houver) */}
       {config.hint && (
-        <div className="flex items-center gap-1.5 rounded-lg border border-neutral-100 bg-neutral-50/80 px-2 py-1 text-[10px] text-neutral-600 dark:border-neutral-800 dark:bg-neutral-950/50 dark:text-neutral-400">
+        <div className="flex items-center gap-1.5 rounded-lg border border-border bg-surface-elevated px-2 py-1 text-[10px] text-text-muted">
           <Lightbulb size={11} className="text-amber-500 shrink-0" />
           <span className="truncate italic">{config.hint}</span>
         </div>
