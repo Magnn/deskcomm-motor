@@ -75,6 +75,10 @@ export function ConectarComFacebook({ login, conectado }: { login: LoginDoCanalO
   const [naJanela, setNaJanela] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
   const escolha = useRef<{ phone_number_id?: string; waba_id?: string }>({});
+  // COEXISTÊNCIA: o número fica no aplicativo do celular E na API. É outra
+  // experiência dentro da mesma janela (código QR lido pelo aplicativo, em vez
+  // de código por SMS), e quem a escolhe é a pessoa, antes de abrir.
+  const [noCelular, setNoCelular] = useState(false);
 
   useEffect(() => {
     let vivo = true;
@@ -133,7 +137,11 @@ export function ConectarComFacebook({ login, conectado }: { login: LoginDoCanalO
         config_id: login.configId,
         response_type: "code",
         override_default_response_type: true,
-        extras: { setup: {}, featureType: "", sessionInfoVersion: "3" },
+        extras: {
+          setup: {},
+          featureType: noCelular ? "whatsapp_business_app_onboarding" : "",
+          sessionInfoVersion: "3",
+        },
       },
     );
   }
@@ -151,6 +159,22 @@ export function ConectarComFacebook({ login, conectado }: { login: LoginDoCanalO
               ? t("Reconectar com Facebook")
               : t("Conectar com Facebook")}
       </Button>
+      <label className="flex items-start gap-2 text-sm">
+        <input
+          type="checkbox"
+          className="mt-0.5"
+          checked={noCelular}
+          disabled={ocupado}
+          onChange={(e) => setNoCelular(e.target.checked)}
+          data-testid="manter-no-celular"
+        />
+        <span>
+          {t("Manter o número também no aplicativo WhatsApp Business do celular")}
+          <span className="block text-xs text-muted-foreground">
+            {t("Para quem já atende por esse número no aplicativo e não quer deixá-lo. O que for respondido pelo celular aparece aqui e pausa o agente naquela conversa.")}
+          </span>
+        </span>
+      </label>
       {bloqueado ? (
         <p role="alert" className="text-sm text-destructive" data-testid="sdk-bloqueado">
           {t("O navegador bloqueou a janela do Facebook — costuma ser um bloqueador de anúncios. Desative-o nesta página e recarregue.")}

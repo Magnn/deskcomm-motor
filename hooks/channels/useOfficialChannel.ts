@@ -27,6 +27,8 @@ export interface OfficialChannelState {
   status: string | null;
   webhook: {
     callbackUrl: string;
+    /** A URL do app (uma só para a instalação) — modelos e mensagens enviadas pelo celular. */
+    appCallbackUrl?: string | null;
     verifyToken: string | null;
     /**
      * De onde vem o token que vale. `instalacao` = cadastrado na tela de

@@ -4916,6 +4916,13 @@ export const DICIONARIO: Traducoes = {
   "O Facebook liberou mais de um número e não informou qual foi escolhido. Tente conectar de novo e conclua a janela até o fim.":
     { es: "Facebook autorizó más de un número y no informó cuál se eligió. Intenta conectar de nuevo y completa la ventana hasta el final." },
   "A Meta não ativou este número para envio:": { es: "Meta no activó este número para enviar:" },
+  "Manter o número também no aplicativo WhatsApp Business do celular":
+    { es: "Mantener el número también en la aplicación WhatsApp Business del celular" },
+  "Para quem já atende por esse número no aplicativo e não quer deixá-lo. O que for respondido pelo celular aparece aqui e pausa o agente naquela conversa.":
+    { es: "Para quien ya atiende por ese número en la aplicación y no quiere dejarla. Lo que se responda desde el celular aparece aquí y pausa al agente en esa conversación." },
+  "URL do app (uma só para a instalação)": { es: "URL de la app (una sola para la instalación)" },
+  "Quem administra a instalação cadastra esta URL uma vez, no app da Meta, em Webhooks › WhatsApp Business Account. É por ela que chegam o estado dos modelos e as mensagens enviadas pelo aplicativo do celular.":
+    { es: "Quien administra la instalación registra esta URL una vez, en la app de Meta, en Webhooks › WhatsApp Business Account. Por ella llegan el estado de las plantillas y los mensajes enviados desde la aplicación del celular." },
   "Canal conectado.": { es: "Canal conectado." },
   "Não foi possível conectar.": { es: "No se pudo conectar." },
   "provedor parceiro": { es: "proveedor asociado" },

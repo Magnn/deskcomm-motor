@@ -156,7 +156,21 @@ export interface CobrancaDaMensagem {
   tipo: string | null;
 }
 
-export type MetaWebhookEvent = TemplateStatusEvent | MessageStatusEvent | InboundMessageEvent;
+/**
+ * Mensagem que o NEGÓCIO mandou pelo aplicativo WhatsApp Business do celular —
+ * só existe em número em COEXISTÊNCIA (o mesmo número no aplicativo e na API).
+ *
+ * Chega num campo próprio (`smb_message_echoes`), não em `messages`. Sem ela o
+ * histórico fica pela metade e, pior, o agente segue respondendo por cima de
+ * quem está atendendo à mão pelo celular.
+ */
+export interface OutboundEchoEvent extends Omit<InboundMessageEvent, "kind" | "from" | "profileName" | "referral"> {
+  kind: "outbound_echo";
+  /** `wa_id` do CONTATO — quem recebeu. Mesma ressalva do nono dígito de `from`. */
+  to: string;
+}
+
+export type MetaWebhookEvent = TemplateStatusEvent | MessageStatusEvent | InboundMessageEvent | OutboundEchoEvent;
 
 /**
  * O formato do fio mora em `./envelope.ts`, onde é um schema Zod — e o tipo
@@ -262,6 +276,47 @@ export function parseMetaWebhook(envelope: MetaWebhookEnvelope): MetaWebhookEven
                   }
                 : null,
             referral: raw.referral ?? null,
+          });
+        }
+        continue;
+      }
+
+      // O que o negócio mandou pelo APLICATIVO do celular (coexistência). O
+      // formato de cada item é o de `messages[]`, com `to` no lugar de quem recebe.
+      if (change.field === "smb_message_echoes" && Array.isArray(v.message_echoes)) {
+        const meta = (v.metadata ?? {}) as Record<string, unknown>;
+        for (const raw of v.message_echoes as Record<string, unknown>[]) {
+          const id = str(raw.id);
+          const to = str(raw.to);
+          if (!id || !to) continue;
+
+          const tipo = str(raw.type) ?? "unknown";
+          const corpoMidia = tipo !== "contacts" ? (raw[tipo] as Record<string, unknown> | undefined) : undefined;
+          const sharedContact = tipo === "contacts" ? parseMetaInboundContact(raw) : null;
+          const tipoCrm = tipo === "contacts" ? "contact" : tipo;
+
+          out.push({
+            kind: "outbound_echo",
+            wabaId,
+            phoneNumberId: str(meta.phone_number_id) ?? "",
+            externalId: id,
+            to,
+            sentAt: new Date(Number(str(raw.timestamp) ?? "0") * 1000),
+            type: tipoCrm,
+            text:
+              tipoCrm === "text"
+                ? str((raw.text as Record<string, unknown>)?.body)
+                : sharedContact?.name ?? null,
+            ...(sharedContact ? { sharedContact } : {}),
+            media:
+              corpoMidia && str(corpoMidia.id)
+                ? {
+                    id: str(corpoMidia.id)!,
+                    url: str(corpoMidia.url),
+                    mime: str(corpoMidia.mime_type),
+                    voice: corpoMidia.voice === true,
+                  }
+                : null,
           });
         }
         continue;

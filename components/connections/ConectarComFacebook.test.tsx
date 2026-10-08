@@ -114,6 +114,20 @@ it("SDK barrado pelo navegador: o botão fica desabilitado e a tela diz por quê
   expect(screen.getByTestId("btn-conectar-com-facebook")).toBeDisabled();
 });
 
+it("⭐ marcado para manter no celular, a janela abre no modo de coexistência; desmarcado, no modo padrão", async () => {
+  mount();
+  const b = await botao();
+  await waitFor(() => expect(b).toBeEnabled());
+
+  fireEvent.click(b);
+  expect((opcoesDoLogin as { extras: { featureType: string } }).extras.featureType).toBe("");
+  act(() => aoVoltar?.({ authResponse: null }));
+
+  fireEvent.click(screen.getByTestId("manter-no-celular"));
+  fireEvent.click(b);
+  expect((opcoesDoLogin as { extras: { featureType: string } }).extras.featureType).toBe("whatsapp_business_app_onboarding");
+});
+
 it("com canal já conectado, o botão diz reconectar", async () => {
   mount(true);
   await screen.findByRole("button", { name: "Reconectar com Facebook" });

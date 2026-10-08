@@ -117,3 +117,42 @@ export async function metaSessionForOrg(
     phoneNumberId: data.meta_phone_number_id ?? null,
   };
 }
+
+/**
+ * As sessões oficiais ATIVAS de um aviso que chegou pela URL DO APP — a que não
+ * tem token no path.
+ *
+ * Aqui a organização não vem de um token, e por isso a resolução é mais estreita
+ * que a da rota com token: a origem é provada pela assinatura do App Secret
+ * (ninguém além da Meta monta um corpo válido), e o destino sai de um
+ * identificador que o banco garante ser de UM canal só — o índice único de
+ * `meta_phone_number_id` entre os ativos (migration 0165). Aviso que não traz
+ * número (estado de modelo, entrega de mensagem) é da CONTA, e vale para todo
+ * canal ativo dela.
+ */
+export async function metaSessionsDoAviso(alvo: {
+  phoneNumberId?: string | null;
+  wabaId?: string | null;
+}): Promise<MetaWebhookSession[]> {
+  const numero = (alvo.phoneNumberId ?? "").trim();
+  const conta = (alvo.wabaId ?? "").trim();
+  if (numero === "" && conta === "") return [];
+
+  const admin = createAdminClient();
+  const base = () => {
+    const q = admin
+      .from("channel_sessions")
+      .select("id, organization_id, meta_waba_id")
+      .eq("provider", CHANNEL_PROVIDER_META);
+    return numero !== "" ? q.eq("meta_phone_number_id", numero) : q.eq("meta_waba_id", conta);
+  };
+  const { data } = await queryTolerantToMissingArchived(
+    () => base().is(ARCHIVED_AT, null),
+    () => base(),
+  );
+  return ((data ?? []) as { id: string; organization_id: string; meta_waba_id: string | null }[]).map((l) => ({
+    id: l.id,
+    organizationId: l.organization_id,
+    wabaId: l.meta_waba_id ?? null,
+  }));
+}

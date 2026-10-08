@@ -141,19 +141,37 @@ describe("o registro do número na Cloud API", () => {
   it("número que já está na Cloud API fica como está — não troca o PIN de quem já tem", async () => {
     const { buscar, chamadas } = graph([resposta(200, { platform_type: "CLOUD_API" })]);
 
-    expect(await garantirNumeroRegistrado(p, buscar)).toEqual({ ok: true, registrou: false });
+    expect(await garantirNumeroRegistrado(p, buscar)).toEqual({ ok: true, registrou: false, noAplicativo: false });
     expect(chamadas).toHaveLength(1);
   });
 
   it("número novo é registrado com o PIN derivado", async () => {
     const { buscar, chamadas } = graph([resposta(200, { platform_type: "NOT_APPLICABLE" }), resposta(200, { success: true })]);
 
-    expect(await garantirNumeroRegistrado(p, buscar)).toEqual({ ok: true, registrou: true });
+    expect(await garantirNumeroRegistrado(p, buscar)).toEqual({ ok: true, registrou: true, noAplicativo: false });
     expect(chamadas[1]?.aresta).toBe("num1/register");
     expect(chamadas[1]?.corpo.get("messaging_product")).toBe("whatsapp");
     expect(chamadas[1]?.corpo.get("pin")).toBe(pinDoNumero("num1", p.segredoDoPin));
     // Registro é escrita: não pode sair como leitura disfarçada.
     expect(chamadas[1]?.corpo.has("method")).toBe(false);
+  });
+
+  it("⭐ coexistência: número que continua no aplicativo do celular NÃO é registrado", async () => {
+    const { buscar, chamadas } = graph([resposta(200, { platform_type: "NOT_APPLICABLE", is_on_biz_app: true })]);
+
+    expect(await garantirNumeroRegistrado(p, buscar)).toEqual({ ok: true, registrou: false, noAplicativo: true });
+    expect(chamadas).toHaveLength(1);
+    expect(chamadas[0]?.corpo.get("fields")).toContain("is_on_biz_app");
+  });
+
+  it("versão da Graph que não conhece o campo do aplicativo: lê de novo sem ele e segue", async () => {
+    const { buscar, chamadas } = graph([
+      resposta(400, { error: { message: "(#100) Tried accessing nonexisting field (is_on_biz_app)" } }),
+      resposta(200, { platform_type: "CLOUD_API" }),
+    ]);
+
+    expect(await garantirNumeroRegistrado(p, buscar)).toEqual({ ok: true, registrou: false, noAplicativo: false });
+    expect(chamadas[1]?.corpo.get("fields")).toBe("platform_type");
   });
 
   it("registro recusado devolve o detalhe da Meta", async () => {
