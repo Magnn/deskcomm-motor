@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { useT } from "@/hooks/i18n/useT";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { CampoDeChave } from "@/components/ui/campo-de-chave";
 import { Label } from "@/components/ui/label";
 import { salvarChaveDaIa } from "@/app/actions/onboarding/chaveDaIa";
 import { PROVEDORES } from "@/lib/ai/pontos/provedores";
@@ -141,13 +141,11 @@ export function InteligenciaDele({ inicial, incluidaNoPlano = false }: {
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="api_key_da_ia">{t("A chave")}</Label>
-            <Input
+            <CampoDeChave
               id="api_key_da_ia"
-              type="password"
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
               placeholder={t("Cole aqui a chave que a empresa de IA te deu")}
-              autoComplete="off"
             />
           </div>
         </div>

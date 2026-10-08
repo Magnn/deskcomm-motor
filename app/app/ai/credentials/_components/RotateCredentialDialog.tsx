@@ -17,6 +17,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { CampoDeChave } from "@/components/ui/campo-de-chave";
 import { Label } from "@/components/ui/label";
 import { apiClient } from "@/lib/api/client";
 import { showApiError } from "@/components/feedback/ApiErrorToast";
@@ -205,13 +206,11 @@ export function RotateCredentialDialog({ open, onOpenChange, credential }: Props
                 {t("Onde pegar a chave")}
               </a>
             </div>
-            <Input
+            <CampoDeChave
               id="cred-edit-key"
-              type="password"
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
               placeholder={provedor.prefixoDaChave}
-              autoComplete="off"
             />
             <p className="text-xs text-muted-foreground">
               {t("Em branco mantém a chave atual")} (…{credential.api_key_last4 ?? "????"}).

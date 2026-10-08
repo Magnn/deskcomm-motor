@@ -22,6 +22,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { CampoDeChave } from "@/components/ui/campo-de-chave";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
@@ -659,10 +660,8 @@ function ChaveDaElevenLabs(props: {
     <div className="flex flex-col gap-2 rounded-md border p-3">
       <Label htmlFor="chave-elevenlabs">{t("Chave da ElevenLabs")}</Label>
       <div className="flex flex-col gap-2 sm:flex-row">
-        <Input
+        <CampoDeChave
           id="chave-elevenlabs"
-          type="password"
-          autoComplete="off"
           placeholder={props.prefixo}
           value={chave}
           onChange={(e) => setChave(e.target.value)}
