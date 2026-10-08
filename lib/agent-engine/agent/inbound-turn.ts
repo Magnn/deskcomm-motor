@@ -101,7 +101,16 @@ import { blocoDeObjecoes } from '@/lib/objecoes/bloco-do-prompt';
 import { blocoDeOferta } from '@/lib/oferta/bloco-do-prompt';
 import { passoDaLeitura } from '@/lib/leitura/estado-da-leitura';
 import { destinoNaConversa, fotoDaLeitura, imagemDaLeitura, mesaJaMostrada } from '@/lib/leitura/imagens';
-import { combinadoEmVigor, deuDataParaPagar, estadoDaNegociacao, precoPermitidoAgora, reclamacoesDeValor, valorCombinadoNaConversa } from '@/lib/preco/estado-da-negociacao';
+import {
+  combinadoEmVigor,
+  degrauQueFaltaOferecerAntesDeAgendar,
+  deuDataParaPagar,
+  estadoDaNegociacao,
+  precoPermitidoAgora,
+  reclamacoesDeValor,
+  valorCombinadoNaConversa,
+} from '@/lib/preco/estado-da-negociacao';
+import { reais } from '@/lib/preco/tipos';
 import { blocoDoCombinado } from '@/lib/followup/bloco-do-combinado';
 import { PAUSA_ANTES_DA_PRIMEIRA, RITMO_PADRAO, pausaEntreBolhas, sinalizaDigitandoEntreBolhas, type Ritmo } from '@/lib/ritmo/tipos';
 import { buscaValorCombinado, criaRetornoDbPg } from '@/lib/followup/retorno-pg';
@@ -3936,6 +3945,26 @@ async function executarTurnoDoAgente(
           // agentId vai junto para a atividade da timeline nascer com AUTORIA: sem
           // ele a linha entra como "Sistema" e o humano não sabe qual agente
           // prometeu voltar — numa org com três agentes isso não responde nada.
+          // Retorno de PAGAMENTO só depois de a agente oferecer o degrau liberado: senão a pessoa
+          // volta na data para o valor cheio que já recusou (`degrauQueFaltaOferecerAntesDeAgendar`).
+          if (agentConfig?.pricing?.enabled === true) {
+            const bruto = (raw ?? {}) as { promise?: unknown; reason?: unknown };
+            const falta = degrauQueFaltaOferecerAntesDeAgendar(
+              agentConfig.pricing,
+              { reclamacoes: reclamacoesDeValorNoTurno, valorQueTemCents: valorQueTemNoTurno, combinadoCents: combinadoDoTurno },
+              openingContext.context.messages,
+              `${typeof bruto.promise === 'string' ? bruto.promise : ''} ${typeof bruto.reason === 'string' ? bruto.reason : ''}`,
+            );
+            if (falta !== null) {
+              return {
+                ok: false,
+                error: {
+                  code: 'invalid_payload',
+                  message: `Ainda NÃO agende: você ainda não ofereceu a ela o valor de ${reais(falta)}. Responda AGORA com o molde da instrução de NEGOCIAÇÃO (${reais(falta)}, com o link desse valor). Só agende o retorno depois de ela responder que nem esse valor consegue hoje.`,
+                },
+              };
+            }
+          }
           const res = await applyScheduleFollowup(
             pool,
             { clock, knobs: followupKnobs },
