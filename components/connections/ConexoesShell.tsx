@@ -104,6 +104,11 @@ export function ConexoesShell({
         <Link href="/app/instagram" className="text-sm underline underline-offset-4 hover:text-text" data-testid="porta-do-instagram">
           {t("Instagram: comentou, recebe direct")}
         </Link>
+        {/* A porta da loja: o grupo de canais não tem hub, e fora daqui a tela da Nuvemshop só
+            era alcançada pela busca (⌘K) — quem não sabia que ela existia não a achava. */}
+        <Link href="/app/integrations/nuvemshop" className="text-sm underline underline-offset-4 hover:text-text" data-testid="porta-da-nuvemshop">
+          {t("Nuvemshop: conectar a loja")}
+        </Link>
         <EscolherConexao onEscolher={(tipo) => irPara(tipo === "oficial" ? "oficial" : "numeros")} />
       </div>
     <Tabs value={aba} onValueChange={(v) => irPara(v, sub)} className="flex flex-col gap-4">
