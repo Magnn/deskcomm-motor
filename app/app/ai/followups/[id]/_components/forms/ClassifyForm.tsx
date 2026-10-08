@@ -186,7 +186,7 @@ export function ClassifyForm({
             type="button"
             onClick={() => adicionarClasse(novaClasse)}
             disabled={!novaClasse.trim()}
-            className="inline-flex h-8 items-center gap-1 rounded-lg bg-cat-violet px-2.5 text-xs font-semibold text-white shadow-2xs hover:bg-cat-violet disabled:opacity-40 transition-colors cursor-pointer shrink-0"
+            className="inline-flex h-8 items-center gap-1 rounded-lg bg-cat-violet px-2.5 text-xs font-semibold text-cat-on shadow-2xs hover:bg-cat-violet disabled:opacity-40 transition-colors cursor-pointer shrink-0"
           >
             <Plus size={14} />
             <span>{t("Adicionar")}</span>
@@ -339,7 +339,7 @@ export function ClassifyForm({
                 className={cn(
                   "rounded-md px-1.5 py-1 text-[10.5px] font-medium transition-colors cursor-pointer",
                   graceMin === p.minutos
-                    ? "bg-cat-violet text-white"
+                    ? "bg-cat-violet text-cat-on"
                     : "bg-surface-elevated text-text-muted hover:bg-surface-elevated"
                 )}
               >

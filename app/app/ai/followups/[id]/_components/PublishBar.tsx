@@ -276,7 +276,7 @@ export function PublishBar({
                 {t("Alterações não salvas")}
               </span>
             ) : (
-              <span className="rounded-md bg-cat-green px-2.5 py-0.5 text-[10px] font-bold text-white shadow-2xs tracking-wide">
+              <span className="rounded-md bg-cat-green px-2.5 py-0.5 text-[10px] font-bold text-cat-on shadow-2xs tracking-wide">
                 SALVO
               </span>
             )}

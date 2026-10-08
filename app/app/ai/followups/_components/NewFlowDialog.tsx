@@ -62,7 +62,7 @@ const PROVIDERS: Provider[] = [
             fill="#22c55e"
           />
         </svg>
-        <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-cat-red text-[9px] font-bold text-white shadow-xs">
+        <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-cat-red text-[9px] font-bold text-cat-on shadow-xs">
           1
         </span>
       </div>

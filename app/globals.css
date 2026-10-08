@@ -120,6 +120,8 @@
   --color-cat-blue: #2563eb;
   --color-cat-blue-bg: rgba(37, 99, 235, 0.1);
   --color-cat-blue-fg: #1d4ed8;
+  /* Texto sobre a cor CHEIA de qualquer matiz (cabeçalho de caixa, selo, contador). */
+  --color-cat-on: #ffffff;
 
   /* Spacing (4-base) */
   --space-0: 0px;
@@ -343,6 +345,8 @@
   --color-cat-blue: #2563eb;
   --color-cat-blue-bg: rgba(37, 99, 235, 0.1);
   --color-cat-blue-fg: #1d4ed8;
+  /* Texto sobre a cor CHEIA de qualquer matiz (cabeçalho de caixa, selo, contador). */
+  --color-cat-on: #ffffff;
   --shadow-xs: 0 1px 2px 0 rgba(20, 18, 14, 0.04);
   --shadow-sm: 0 1px 2px 0 rgba(20, 18, 14, 0.05), 0 1px 1px 0 rgba(20, 18, 14, 0.03);
   --shadow-md: 0 4px 12px -2px rgba(20, 18, 14, 0.06), 0 2px 4px -1px rgba(20, 18, 14, 0.04);
@@ -465,6 +469,8 @@
   --color-cat-blue: #60a5fa;
   --color-cat-blue-bg: rgba(96, 165, 250, 0.16);
   --color-cat-blue-fg: #93c5fd;
+  /* No escuro a cor cheia é um tom claro: o texto sobre ela escurece, como `--color-accent-fg`. */
+  --color-cat-on: #161510;
 
   /* Shadows — heavier in dark */
   --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
@@ -608,6 +614,7 @@
   --color-cat-blue: var(--color-cat-blue);
   --color-cat-blue-bg: var(--color-cat-blue-bg);
   --color-cat-blue-fg: var(--color-cat-blue-fg);
+  --color-cat-on: var(--color-cat-on);
 
   /* Aliases shadcn (consumers ainda não migrados). Espelham 1:1 o que o
      `tailwind.config.ts` mapeava — inclusive `ring`, que apontava para a

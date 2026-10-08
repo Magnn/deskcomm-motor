@@ -33,12 +33,12 @@ export function ActionNode({ id, data, selected }: NodeProps<RFNode>) {
     customPreview = (
       <div className="flex items-center gap-2 rounded-xl border border-cat-blue/30 bg-cat-blue-bg p-2 text-xs">
         <span className="flex items-center gap-1.5 text-xs font-semibold text-text-muted">
-          <span className="flex h-4 w-4 items-center justify-center rounded-full bg-cat-blue text-[10px] leading-none text-white font-bold">
+          <span className="flex h-4 w-4 items-center justify-center rounded-full bg-cat-blue text-[10px] leading-none text-cat-on font-bold">
             {isRemove ? <Trash size={10} /> : <Plus size={10} />}
           </span>
           <span className="text-[11px]">{op}</span>
         </span>
-        <span className="inline-flex items-center gap-1 rounded-full bg-cat-blue px-2.5 py-0.5 text-[10px] font-bold text-white shadow-2xs">
+        <span className="inline-flex items-center gap-1 rounded-full bg-cat-blue px-2.5 py-0.5 text-[10px] font-bold text-cat-on shadow-2xs">
           <Tag size={10} weight="fill" />
           <span className="truncate max-w-[110px]">{tagName}</span>
         </span>

@@ -43,7 +43,7 @@ export function RepeatForm({
     <div className="space-y-4 font-sans text-xs">
       {/* Header banner sofisticado */}
       <div className="flex items-center gap-2.5 rounded-lg border border-cat-teal/30 bg-cat-teal-bg p-3 text-cat-teal-fg">
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-cat-teal text-white shadow-2xs">
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-cat-teal text-cat-on shadow-2xs">
           <ArrowsClockwise size={18} />
         </div>
         <div>
@@ -99,7 +99,7 @@ export function RepeatForm({
               onClick={() => applyPreset(p)}
               className={`px-2 py-0.5 rounded-md text-[11px] font-medium transition-colors cursor-pointer ${
                 currentVal === p
-                  ? "bg-cat-teal text-white shadow-2xs"
+                  ? "bg-cat-teal text-cat-on shadow-2xs"
                   : "bg-surface-elevated text-text-muted hover:bg-surface-elevated"
               }`}
             >

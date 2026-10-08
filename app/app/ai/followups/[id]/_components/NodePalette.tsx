@@ -193,7 +193,7 @@ function PaletteItem({
             </span>
           )}
           {isNovidade && (
-            <span className="shrink-0 rounded-full bg-cat-blue px-2 py-0.5 text-[10px] font-medium text-white shadow-xs">
+            <span className="shrink-0 rounded-full bg-cat-blue px-2 py-0.5 text-[10px] font-medium text-cat-on shadow-xs">
               {t("Novidade")}
             </span>
           )}
