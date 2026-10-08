@@ -45,7 +45,17 @@ export const RECLAMACAO_DE_VALOR = new RegExp(
     "\\bfaz\\s+por\\b",
     "\\bfecha\\s+por\\b",
     "\\bd[áa]\\s+pra\\s+fazer\\s+(?:por|mais)\\b",
-    "n[ãa]o\\s+(?:tenho|consigo|d[áa])\\s+(?:dinheiro|como\\s+pagar|condi[çc][õo]es|pagar)",
+    // "não tenho O dinheiro", "não tenho ESSE valor", "não tenho tudo isso": medido em
+    // produção — sem o artigo no meio a frase mais comum de quem não pode pagar não contava,
+    // a escada não andava e a agente, sem valor menor para oferecer, chamava a equipe.
+    "n[ãa]o\\s+(?:tenho|consigo|d[áa]|tem\\s+como)\\s+(?:(?:o|esse|este|todo\\s+(?:o|esse)|tudo)\\s+)?(?:dinheiro|valor|grana|isso|como\\s+pagar|condi[çc][õo]es|pagar)",
+    "n[ãa]o\\s+tenho\\s+(?:os\\s+|esses\\s+)?(?:R\\$\\s?)?\\d",
+    "n[ãa]o\\s+tenho\\s+(?:agora|hoje|no\\s+momento)\\b",
+    "\\bdesempregad",
+    // Quem só pode pagar depois também não pode pagar o valor de hoje.
+    "s[óo]\\s+(?:recebo|consigo\\s+pagar|posso\\s+pagar|vou\\s+ter)\\b",
+    "quando\\s+(?:eu\\s+)?receber\\b",
+
     "\\bsem\\s+(?:dinheiro|condi[çc][ãa]o|condi[çc][õo]es|grana)\\b",
     "\\b(?:pre[çc]o|valor)\\s+(?:t[áa]\\s+)?alto\\b",
     "fora\\s+do\\s+(?:meu\\s+)?or[çc]amento",

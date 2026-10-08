@@ -154,6 +154,14 @@ describe("blocoDePreco", () => {
     expect(b4).not.toContain("CUPOM110");
   });
 
+  it("⭐ com degraus, a negociação é da agente em TODO passo: não chama humano por valor nem para mandar link", () => {
+    for (const r of [null, 0, 1, 2, 3, 4]) {
+      expect(blocoDePreco(cfg, { reclamacoes: r })).toContain("NÃO chame atendimento humano por causa de valor");
+    }
+    // Sem degraus não há o que negociar, e a regra não aparece.
+    expect(blocoDePreco(pricingSchema.parse(BASE), { reclamacoes: 2 })).not.toContain("NÃO chame atendimento humano");
+  });
+
   it("sem degraus: o valor é único e a agente não inventa cupom, qualquer que seja a contagem", () => {
     const b = blocoDePreco(pricingSchema.parse(BASE), { reclamacoes: 3 });
     expect(b).toContain("não tem desconto");
@@ -192,11 +200,22 @@ describe("reclamacoesDeValor", () => {
     "tem algo mais barato?",
     "o valor tá alto",
     "fora do meu orçamento",
+    // Medidas em produção: a pessoa disse isto e a escada não andou.
+    "Porque eu não tenho o dinheiro",
+    "não tenho esse valor",
+    "eu não tenho tudo isso",
+    "não tenho os 130",
+    "não tenho R$ 130 à vista",
+    "não tenho agora",
+    "tô desempregada",
+    "só recebo dia 10",
+    "só consigo pagar depois do dia 20",
+    "quando eu receber eu faço",
   ])("reconhece a reclamação: %s", (frase) => {
     expect(reclamacoesDeValor([nossa("Custa R$ 130."), dela(frase)])).toBe(1);
   });
 
-  it.each(["adorei a leitura", "meu caro amigo me indicou", "posso pagar amanhã?", "manda o link"])(
+  it.each(["adorei a leitura", "meu caro amigo me indicou", "posso pagar amanhã?", "manda o link", "não tenho dúvida", "não tenho cartão", "não uso pix", "já recebo o passo a passo?"])(
     "não confunde com reclamação: %s",
     (frase) => {
       expect(reclamacoesDeValor([nossa("Custa R$ 130."), dela(frase)])).toBe(0);

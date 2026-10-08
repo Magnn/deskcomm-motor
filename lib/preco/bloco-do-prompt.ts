@@ -146,6 +146,12 @@ export function blocoDePreco(
     );
   } else {
     linhas.push(instrucaoDeNegociacao(c, estado.reclamacoes));
+    // Medido em produção: o prompt escrito pelo operador mandava chamar a equipe para enviar
+    // o link do valor negociado, e a agente obedecia — a negociação morria numa fila de
+    // atendimento. Com degraus configurados, o valor e o link de cada um estão AQUI.
+    linhas.push(
+      "- A negociação de valor é SUA: NÃO chame atendimento humano por causa de valor, desconto, falta de dinheiro ou para enviar link ou Pix. Quem diz o valor e manda o link é você, seguindo a instrução acima.",
+    );
   }
 
   linhas.push(
