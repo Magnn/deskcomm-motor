@@ -16,6 +16,7 @@ import {
 import { copyToClipboard } from "@/lib/clipboard";
 import { useT } from "@/hooks/i18n/useT";
 import { ChannelAiAccess } from "./ChannelAiAccess";
+import { ConectarComFacebook } from "./ConectarComFacebook";
 import { ParaIntegrar } from "./ParaIntegrar";
 
 /** Campo somente-leitura com botão de copiar — o que o operador cola na Meta. */
@@ -59,6 +60,41 @@ function ParaColar({
         </Button>
       </div>
     </div>
+  );
+}
+
+/**
+ * O formulário dos três valores colados. Onde o login do Facebook existe, ele
+ * fica recolhido: continua sendo o caminho de quem já tem um token de usuário
+ * do sistema em mãos, mas deixa de ser o que a tela pede primeiro.
+ */
+function FormularioColado({
+  recolhido,
+  conectado,
+  children,
+}: {
+  recolhido: boolean;
+  conectado: boolean;
+  children: React.ReactNode;
+}) {
+  const t = useT();
+  if (!recolhido) {
+    return (
+      <Card className="p-4">
+        <h2 className="font-medium">{conectado ? t("Trocar credencial") : t("Conectar canal oficial")}</h2>
+        {children}
+      </Card>
+    );
+  }
+  return (
+    <Card className="p-4">
+      <details data-testid="formulario-colado">
+        <summary className="cursor-pointer text-sm font-medium">
+          {t("Conectar colando o ID do número, o ID da conta e o token")}
+        </summary>
+        {children}
+      </details>
+    </Card>
   );
 }
 
@@ -236,10 +272,21 @@ export function CanalOficialClient() {
         />
       ) : null}
 
-      <Card className="p-4">
-        <h2 className="font-medium">
-          {estado?.connected ? t("Trocar credencial") : t("Conectar canal oficial")}
-        </h2>
+      {estado?.login ? (
+        <Card className="flex flex-col gap-3 p-4">
+          <div>
+            <h2 className="font-medium">
+              {estado.connected ? t("Trocar o número conectado") : t("Conectar canal oficial")}
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {t("A janela do Facebook abre, você escolhe a conta do WhatsApp Business e o número, e o canal fica pronto para enviar e receber. Nada para copiar ou colar.")}
+            </p>
+          </div>
+          <ConectarComFacebook login={estado.login} conectado={estado.connected} />
+        </Card>
+      ) : null}
+
+      <FormularioColado recolhido={Boolean(estado?.login)} conectado={Boolean(estado?.connected)}>
         <p className="mt-1 text-sm text-muted-foreground">
           {t("Os três valores vêm do seu app na Meta (")}
           <strong>WhatsApp → {t("Configuração da API")}</strong>
@@ -288,7 +335,7 @@ export function CanalOficialClient() {
             {conectar.isPending ? t("Validando com a Meta…") : t("Validar e conectar")}
           </Button>
         </form>
-      </Card>
+      </FormularioColado>
     </div>
   );
 }

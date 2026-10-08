@@ -4894,6 +4894,28 @@ export const DICIONARIO: Traducoes = {
   },
   "Validando com a Meta…": { es: "Validando con Meta…" },
   "Validar e conectar": { es: "Validar y conectar" },
+  // ── WhatsApp oficial pelo login do Facebook ────────────────────────────
+  "Trocar o número conectado": { es: "Cambiar el número conectado" },
+  "A janela do Facebook abre, você escolhe a conta do WhatsApp Business e o número, e o canal fica pronto para enviar e receber. Nada para copiar ou colar.":
+    { es: "Se abre la ventana de Facebook, eliges la cuenta de WhatsApp Business y el número, y el canal queda listo para enviar y recibir. Nada que copiar ni pegar." },
+  "Conectar colando o ID do número, o ID da conta e o token":
+    { es: "Conectar pegando el ID del número, el ID de la cuenta y el token" },
+  "Conclua na janela do Facebook…": { es: "Termina en la ventana de Facebook…" },
+  "A janela do Facebook foi fechada antes do fim. Nada foi conectado.":
+    { es: "La ventana de Facebook se cerró antes de terminar. No se conectó nada." },
+  "O navegador bloqueou a janela do Facebook — costuma ser um bloqueador de anúncios. Desative-o nesta página e recarregue.":
+    { es: "El navegador bloqueó la ventana de Facebook; suele ser un bloqueador de anuncios. Desactívalo en esta página y recarga." },
+  "O login do Facebook não está configurado nesta instalação.":
+    { es: "El inicio de sesión de Facebook no está configurado en esta instalación." },
+  "O Facebook não confirmou a autorização. Tente conectar de novo.":
+    { es: "Facebook no confirmó la autorización. Intenta conectar de nuevo." },
+  "A configuração do login do Facebook desta instalação emite um acesso que vence. Quem administra a instalação precisa trocá-la, no app da Meta, por uma que não expira.":
+    { es: "La configuración del inicio de sesión de Facebook de esta instalación emite un acceso que caduca. Quien administra la instalación debe cambiarla, en la app de Meta, por una que no caduque." },
+  "Nenhum número de WhatsApp foi liberado no Facebook. Ao conectar, conclua a escolha do número.":
+    { es: "No se autorizó ningún número de WhatsApp en Facebook. Al conectar, completa la elección del número." },
+  "O Facebook liberou mais de um número e não informou qual foi escolhido. Tente conectar de novo e conclua a janela até o fim.":
+    { es: "Facebook autorizó más de un número y no informó cuál se eligió. Intenta conectar de nuevo y completa la ventana hasta el final." },
+  "A Meta não ativou este número para envio:": { es: "Meta no activó este número para enviar:" },
   "Canal conectado.": { es: "Canal conectado." },
   "Não foi possível conectar.": { es: "No se pudo conectar." },
   "provedor parceiro": { es: "proveedor asociado" },

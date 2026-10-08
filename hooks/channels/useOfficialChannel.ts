@@ -4,9 +4,18 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { showApiError } from "@/components/feedback/ApiErrorToast";
 import { apiClient } from "@/lib/api/client";
 
+/** O que o botão "Conectar com Facebook" precisa para abrir a janela da Meta. */
+export interface LoginDoCanalOficial {
+  appId: string;
+  configId: string;
+  versao: string;
+}
+
 export interface OfficialChannelState {
   channel_session_id?: string | null;
   connected: boolean;
+  /** `null`/ausente = a instalação não configurou o login; a tela fica com o formulário. */
+  login?: LoginDoCanalOficial | null;
   /** Existe token gravado? O token em si NUNCA volta — ver a rota. */
   hasToken: boolean;
   phoneNumberId: string | null;
@@ -45,11 +54,10 @@ export interface OfficialChannelState {
   } | null;
 }
 
-export interface ConnectInput {
-  phone_number_id: string;
-  waba_id: string;
-  token: string;
-}
+/** Colando os três valores, ou com o código que a janela do Facebook devolveu. */
+export type ConnectInput =
+  | { phone_number_id: string; waba_id: string; token: string }
+  | { code: string; phone_number_id?: string; waba_id?: string };
 
 export interface RegistroDoWebhook {
   registrado: boolean;

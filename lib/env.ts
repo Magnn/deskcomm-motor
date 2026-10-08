@@ -117,6 +117,13 @@ const schema = z.object({
    * pela lista avulsa. O app é o mesmo (`META_APP_ID` + `appDaMeta()`).
    */
   META_ADS_CONFIG_ID: z.string().optional().default(""),
+  /**
+   * WHATSAPP OFICIAL PELO LOGIN DO FACEBOOK. A configuração do "Login do
+   * Facebook para Empresas" com o Cadastro Incorporado do WhatsApp. Vazia, o
+   * botão "Conectar com Facebook" não aparece e a tela fica com o formulário.
+   * O app é o mesmo (`META_APP_ID` + `appDaMeta()`).
+   */
+  META_WHATSAPP_CONFIG_ID: z.string().optional().default(""),
   PLANS_CATALOG: z.string().optional().default(""),
 
   // Laboratório local de extensões: origem HTTP exata em 127.0.0.1. O cliente
