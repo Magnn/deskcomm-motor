@@ -63,10 +63,10 @@ export function ExecuteCodeForm({ config, onChange }: Props) {
           <Code size={18} />
         </div>
         <div>
-          <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+          <h3 className="text-sm font-semibold text-text">
             {t("Executar JavaScript")}
           </h3>
-          <p className="text-[11px] text-neutral-500 dark:text-neutral-400">
+          <p className="text-[11px] text-text-muted">
             {t("Lógica personalizada, transformações e cálculos")}
           </p>
         </div>
@@ -75,10 +75,10 @@ export function ExecuteCodeForm({ config, onChange }: Props) {
       {/* Editor de Código */}
       <div className="space-y-1.5">
         <div className="flex items-center justify-between">
-          <label className="block text-[11px] font-semibold text-neutral-700 dark:text-neutral-300">
+          <label className="block text-[11px] font-semibold text-text-muted">
             {t("Código JS")} *
           </label>
-          <span className="text-[10px] font-mono text-neutral-400">ES2022</span>
+          <span className="text-[10px] font-mono text-text-subtle">ES2022</span>
         </div>
         <div className="relative">
           <textarea
@@ -97,7 +97,7 @@ export function ExecuteCodeForm({ config, onChange }: Props) {
 
       {/* Timeout */}
       <div className="space-y-1.5">
-        <label className="block text-[11px] font-semibold text-neutral-700 dark:text-neutral-300">
+        <label className="block text-[11px] font-semibold text-text-muted">
           {t("Limite de Execução (Timeout)")}
         </label>
         <div className="flex items-center gap-2">
@@ -112,16 +112,16 @@ export function ExecuteCodeForm({ config, onChange }: Props) {
               setTimeoutMs(val);
               update({ timeout_ms: val });
             }}
-            className="w-32 rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-xs text-neutral-900 shadow-2xs outline-hidden focus:border-amber-600 focus:ring-1 focus:ring-amber-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100"
+            className="w-32 rounded-lg border border-border-strong bg-surface px-3 py-1.5 text-xs text-text shadow-2xs outline-hidden focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
           />
-          <span className="text-[11px] text-neutral-500">{t("ms (máx. 10.000 ms)")}</span>
+          <span className="text-[11px] text-text-muted">{t("ms (máx. 10.000 ms)")}</span>
         </div>
       </div>
 
       {/* Mapeamento de Retorno */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <label className="block text-[11px] font-semibold text-neutral-700 dark:text-neutral-300">
+          <label className="block text-[11px] font-semibold text-text-muted">
             {t("Mapeamento do Retorno JSON")}
           </label>
           <button
@@ -137,7 +137,7 @@ export function ExecuteCodeForm({ config, onChange }: Props) {
         {mappings.length === 0 ? (
           <div className="space-y-2">
             <div className="space-y-1">
-              <label className="block text-[10px] text-neutral-500">
+              <label className="block text-[10px] text-text-muted">
                 {t("Ou salvar todo o objeto retornado em um campo")}
               </label>
               <input
@@ -148,7 +148,7 @@ export function ExecuteCodeForm({ config, onChange }: Props) {
                   setOutputField(e.target.value);
                   update({ output_field: e.target.value });
                 }}
-                className="w-full rounded-lg border border-neutral-300 bg-white px-2.5 py-1.5 text-xs text-neutral-900 shadow-2xs outline-hidden focus:border-amber-600 focus:ring-1 focus:ring-amber-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100"
+                className="w-full rounded-lg border border-border-strong bg-surface px-2.5 py-1.5 text-xs text-text shadow-2xs outline-hidden focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
               />
             </div>
           </div>
@@ -161,19 +161,19 @@ export function ExecuteCodeForm({ config, onChange }: Props) {
                   placeholder={t("Caminho JSON (ex: dados.total)")}
                   value={m.json_path}
                   onChange={(e) => handleUpdateMapping(idx, { json_path: e.target.value })}
-                  className="w-1/2 font-mono rounded-lg border border-neutral-300 bg-white px-2.5 py-1.5 text-xs text-neutral-900 shadow-2xs outline-hidden focus:border-amber-600 focus:ring-1 focus:ring-amber-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100"
+                  className="w-1/2 font-mono rounded-lg border border-border-strong bg-surface px-2.5 py-1.5 text-xs text-text shadow-2xs outline-hidden focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
                 />
                 <input
                   type="text"
                   placeholder={t("Campo de destino")}
                   value={m.target_field}
                   onChange={(e) => handleUpdateMapping(idx, { target_field: e.target.value })}
-                  className="flex-1 rounded-lg border border-neutral-300 bg-white px-2.5 py-1.5 text-xs text-neutral-900 shadow-2xs outline-hidden focus:border-amber-600 focus:ring-1 focus:ring-amber-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100"
+                  className="flex-1 rounded-lg border border-border-strong bg-surface px-2.5 py-1.5 text-xs text-text shadow-2xs outline-hidden focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
                 />
                 <button
                   type="button"
                   onClick={() => handleRemoveMapping(idx)}
-                  className="rounded-lg p-1.5 text-neutral-400 hover:bg-neutral-100 hover:text-rose-600 dark:hover:bg-neutral-800"
+                  className="rounded-lg p-1.5 text-text-subtle hover:bg-surface-elevated hover:text-rose-600"
                 >
                   <Trash size={14} />
                 </button>

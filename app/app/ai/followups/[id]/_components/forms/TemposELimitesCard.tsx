@@ -28,17 +28,17 @@ export function TemposELimitesCard({
     <div className="space-y-3 font-sans text-xs">
       {/* Divisor: Tempos e limites */}
       <div className="relative flex items-center justify-center my-3">
-        <div className="w-full border-t border-slate-200 dark:border-zinc-800" />
-        <span className="absolute bg-white dark:bg-zinc-950 px-3 text-[11px] text-slate-400 dark:text-zinc-500 font-medium">
+        <div className="w-full border-t border-border" />
+        <span className="absolute bg-surface px-3 text-[11px] text-text-subtle font-medium">
           {t("Tempos e limites")}
         </span>
       </div>
 
       {/* Card 1: Agrupar respostas */}
-      <div className="rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-3 space-y-2 shadow-2xs">
+      <div className="rounded-xl border border-border bg-surface p-3 space-y-2 shadow-2xs">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="text-[12.5px] font-bold text-slate-800 dark:text-zinc-100">
+            <span className="text-[12.5px] font-bold text-text">
               {t("Agrupar respostas")}
             </span>
             <span className="rounded-full bg-[#f0fdf4] text-[#16a34a] border border-[#bbf7d0] px-2 py-0.5 text-[10px] font-medium dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800">
@@ -46,21 +46,21 @@ export function TemposELimitesCard({
             </span>
             <span
               title={t("Reinicia a cada nova mensagem recebida.")}
-              className="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300 cursor-help"
+              className="text-text-subtle hover:text-text-muted cursor-help"
             >
               <HelpCircle size={13} />
             </span>
           </div>
         </div>
 
-        <p className="text-[11px] text-slate-400 dark:text-zinc-500">
+        <p className="text-[11px] text-text-subtle">
           {t("Reinicia a cada nova mensagem recebida.")}
         </p>
 
         <select
           value={agruparSegundos}
           onChange={(e) => onAgruparChange(Number(e.target.value))}
-          className="w-full h-10 rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-3 text-xs text-slate-700 dark:text-zinc-200 focus:outline-hidden cursor-pointer"
+          className="w-full h-10 rounded-lg border border-border bg-surface px-3 text-xs text-text-muted focus:outline-hidden cursor-pointer"
         >
           <option value={15}>{t("15 segundos (padrão)")}</option>
           <option value={30}>{t("30 segundos")}</option>
@@ -73,10 +73,10 @@ export function TemposELimitesCard({
       </div>
 
       {/* Card 2: Expiração do bloco */}
-      <div className="rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-3 space-y-2 shadow-2xs">
+      <div className="rounded-xl border border-border bg-surface p-3 space-y-2 shadow-2xs">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="text-[12.5px] font-bold text-slate-800 dark:text-zinc-100">
+            <span className="text-[12.5px] font-bold text-text">
               {t("Expiração do bloco")}
             </span>
             <span className="rounded-full bg-[#fff1f2] text-[#e11d48] border border-[#fecdd3] px-2 py-0.5 text-[10px] font-medium dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-800">
@@ -84,14 +84,14 @@ export function TemposELimitesCard({
             </span>
             <span
               title={t("Tempo máximo aguardando a interação do contato.")}
-              className="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300 cursor-help"
+              className="text-text-subtle hover:text-text-muted cursor-help"
             >
               <HelpCircle size={13} />
             </span>
           </div>
         </div>
 
-        <p className="text-[11px] text-slate-400 dark:text-zinc-500">
+        <p className="text-[11px] text-text-subtle">
           {t("Tempo máximo aguardando a interação do contato.")}
         </p>
 
@@ -103,7 +103,7 @@ export function TemposELimitesCard({
             onChange={(e) =>
               onExpiracaoTempoChange(Math.max(1, Number(e.target.value) || 1))
             }
-            className="w-full h-10 rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-3 text-xs text-slate-800 dark:text-zinc-100 focus:outline-hidden"
+            className="w-full h-10 rounded-lg border border-border bg-surface px-3 text-xs text-text focus:outline-hidden"
           />
           <select
             value={expiracaoUnidade}
@@ -112,7 +112,7 @@ export function TemposELimitesCard({
                 e.target.value as "segundos" | "minutos" | "horas" | "dias"
               )
             }
-            className="w-full h-10 rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-3 text-xs text-slate-700 dark:text-zinc-200 focus:outline-hidden cursor-pointer"
+            className="w-full h-10 rounded-lg border border-border bg-surface px-3 text-xs text-text-muted focus:outline-hidden cursor-pointer"
           >
             <option value="horas">{t("Horas")}</option>
             <option value="minutos">{t("Minutos")}</option>

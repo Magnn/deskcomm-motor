@@ -25,8 +25,8 @@ export function ApiCallNode({ id, data, selected }: NodeProps<RFNode>) {
 
   const customPreview = hasActions ? (
     <div className="flex items-center gap-2 p-1">
-      <span className="flex items-center gap-1.5 text-xs font-medium text-slate-700 dark:text-slate-300">
-        <span className="flex h-4 w-4 items-center justify-center rounded-full border border-slate-400 text-[10px] leading-none text-slate-500 font-bold">
+      <span className="flex items-center gap-1.5 text-xs font-medium text-text-muted">
+        <span className="flex h-4 w-4 items-center justify-center rounded-full border border-border-strong text-[10px] leading-none text-text-muted font-bold">
           +
         </span>
         {t("Executar ação")}
@@ -40,7 +40,7 @@ export function ApiCallNode({ id, data, selected }: NodeProps<RFNode>) {
       <span className="inline-flex items-center rounded-md bg-purple-100 dark:bg-purple-950/80 px-2 py-0.5 text-[10px] font-bold text-purple-700 dark:text-purple-300 uppercase tracking-wider border border-purple-200 dark:border-purple-800">
         {config.method || "GET"}
       </span>
-      <span className="max-w-[170px] truncate font-mono text-[11px] text-slate-600 dark:text-zinc-300">
+      <span className="max-w-[170px] truncate font-mono text-[11px] text-text-muted">
         {isCustomUrl ? config.url : t("Adicionar requisição")}
       </span>
     </div>

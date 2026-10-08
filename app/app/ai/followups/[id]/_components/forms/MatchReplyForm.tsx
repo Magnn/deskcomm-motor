@@ -126,14 +126,14 @@ export function MatchReplyForm({
   return (
     <div className="space-y-4 font-sans text-xs">
       {/* Texto de Ajuda AcassIA */}
-      <div className="space-y-2 text-[11.5px] text-slate-500 dark:text-zinc-400 leading-relaxed text-justify">
+      <div className="space-y-2 text-[11.5px] text-text-muted leading-relaxed text-justify">
         <p>
           {t(
             "Esse bloco possibilita uma conversa humanizada com perguntas e respostas. A pergunta será enviada ao contato e o fluxo ficará pausado até que o contato responda ou até que o bloco expire."
           )}
         </p>
         <p>
-          <strong className="font-semibold text-slate-700 dark:text-zinc-300">
+          <strong className="font-semibold text-text-muted">
             {t("Dica importante:")}
           </strong>{" "}
           {t(
@@ -144,8 +144,8 @@ export function MatchReplyForm({
 
       {/* Divisor Configurar */}
       <div className="relative flex items-center justify-center my-3">
-        <div className="w-full border-t border-slate-200 dark:border-zinc-800" />
-        <span className="absolute bg-white dark:bg-zinc-950 px-3 text-[11px] text-slate-400 dark:text-zinc-500 font-medium">
+        <div className="w-full border-t border-border" />
+        <span className="absolute bg-surface px-3 text-[11px] text-text-subtle font-medium">
           {t("Configurar")}
         </span>
       </div>
@@ -155,7 +155,7 @@ export function MatchReplyForm({
         <div className="flex items-center justify-between">
           <label
             htmlFor="match-reply-question"
-            className="text-[12px] font-semibold text-slate-800 dark:text-zinc-200"
+            className="text-[12px] font-semibold text-text"
           >
             {t("Faça uma pergunta:")}
           </label>
@@ -171,9 +171,9 @@ export function MatchReplyForm({
             </PopoverTrigger>
             <PopoverContent
               align="end"
-              className="w-56 p-2 space-y-1 text-xs bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 shadow-md rounded-xl"
+              className="w-56 p-2 space-y-1 text-xs bg-surface border border-border shadow-md rounded-xl"
             >
-              <p className="px-2 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+              <p className="px-2 py-1 text-[10px] font-bold text-text-subtle uppercase tracking-wider">
                 {t("Inserir variável")}
               </p>
               {CAMPOS_RAPIDOS.map((campo) => (
@@ -181,10 +181,10 @@ export function MatchReplyForm({
                   key={campo.tag}
                   type="button"
                   onClick={() => insertTag(campo.tag)}
-                  className="w-full text-left px-2 py-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-zinc-800 font-mono text-[11px] text-slate-700 dark:text-zinc-200 flex items-center justify-between cursor-pointer"
+                  className="w-full text-left px-2 py-1.5 rounded-md hover:bg-surface-elevated font-mono text-[11px] text-text-muted flex items-center justify-between cursor-pointer"
                 >
                   <span>{campo.tag}</span>
-                  <span className="text-[10px] font-sans text-slate-400">
+                  <span className="text-[10px] font-sans text-text-subtle">
                     {campo.label}
                   </span>
                 </button>
@@ -203,19 +203,19 @@ export function MatchReplyForm({
             commit({ question: e.target.value });
           }}
           placeholder={t("Ex: Qual o seu nome?")}
-          className="w-full rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-2.5 text-[12px] text-slate-700 dark:text-zinc-100 placeholder:text-slate-400 focus:outline-hidden focus:border-purple-500 focus:ring-1 focus:ring-purple-500/20 shadow-2xs resize-none"
+          className="w-full rounded-xl border border-border bg-surface p-2.5 text-[12px] text-text-muted placeholder:text-text-subtle focus:outline-hidden focus:border-purple-500 focus:ring-1 focus:ring-purple-500/20 shadow-2xs resize-none"
         />
       </div>
 
       {/* Salvar resposta em um campo de fluxo (opcional) */}
       <div className="space-y-1.5 pt-1">
-        <label className="block text-[12px] font-semibold text-slate-800 dark:text-zinc-200">
+        <label className="block text-[12px] font-semibold text-text">
           {t("Salvar resposta em um campo de fluxo (opcional)")}
         </label>
         <div className="flex items-center gap-2">
           {saveTo ? (
-            <div className="flex-1 h-10 rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 flex items-center justify-between shadow-2xs">
-              <span className="inline-flex items-center gap-1.5 text-xs font-mono text-slate-700 dark:text-zinc-200 bg-slate-100 dark:bg-zinc-800 px-2 py-1 rounded-md">
+            <div className="flex-1 h-10 rounded-lg border border-border bg-surface px-3 flex items-center justify-between shadow-2xs">
+              <span className="inline-flex items-center gap-1.5 text-xs font-mono text-text-muted bg-surface-elevated px-2 py-1 rounded-md">
                 &#123;&#123;
                 {saveTo.kind === "lead_custom"
                   ? saveTo.key
@@ -223,14 +223,14 @@ export function MatchReplyForm({
                 &#125;&#125;
               </span>
               <div className="flex items-center gap-2">
-                <span className="text-xs text-slate-400">Texto</span>
+                <span className="text-xs text-text-subtle">Texto</span>
                 <button
                   type="button"
                   onClick={() => {
                     setSaveTo(undefined);
                     commit({ saveTo: undefined });
                   }}
-                  className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 cursor-pointer"
+                  className="p-1 text-text-subtle hover:text-text-muted cursor-pointer"
                 >
                   <X size={14} />
                 </button>
@@ -250,7 +250,7 @@ export function MatchReplyForm({
                   setSaveTo(novo);
                   commit({ saveTo: novo });
                 }}
-                className="w-full h-10 rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 pr-8 text-xs text-slate-700 dark:text-zinc-200 focus:outline-hidden appearance-none cursor-pointer"
+                className="w-full h-10 rounded-lg border border-border bg-surface px-3 pr-8 text-xs text-text-muted focus:outline-hidden appearance-none cursor-pointer"
               >
                 <option value="">{t("Selecione um campo")}</option>
                 <optgroup label={t("Padrão")}>
@@ -275,7 +275,7 @@ export function MatchReplyForm({
               </select>
               <ChevronDown
                 size={15}
-                className="absolute right-3 top-3 text-slate-400 pointer-events-none"
+                className="absolute right-3 top-3 text-text-subtle pointer-events-none"
               />
             </div>
           )}
@@ -283,7 +283,7 @@ export function MatchReplyForm({
           <button
             type="button"
             onClick={() => setIsNovoCampoOpen(true)}
-            className="h-10 w-10 shrink-0 rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 flex items-center justify-center text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 shadow-2xs cursor-pointer"
+            className="h-10 w-10 shrink-0 rounded-lg border border-border bg-surface flex items-center justify-center text-text-muted hover:bg-surface-elevated shadow-2xs cursor-pointer"
             title={t("Criar novo campo de fluxo")}
           >
             <Plus size={16} />
@@ -295,12 +295,12 @@ export function MatchReplyForm({
       <Dialog open={isNovoCampoOpen} onOpenChange={setIsNovoCampoOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-sm font-bold text-slate-800 dark:text-zinc-100">
+            <DialogTitle className="text-sm font-bold text-text">
               {t("Criar novo campo de fluxo")}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-2 text-xs">
-            <p className="text-slate-500">
+            <p className="text-text-muted">
               {t("Digite o identificador do campo para salvar a resposta:")}
             </p>
             <input
@@ -308,14 +308,14 @@ export function MatchReplyForm({
               placeholder="ex: cidade_lead"
               value={novoCampoNome}
               onChange={(e) => setNovoCampoNome(e.target.value)}
-              className="w-full h-10 rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 text-xs text-slate-800 dark:text-zinc-100 focus:outline-hidden"
+              className="w-full h-10 rounded-lg border border-border bg-surface px-3 text-xs text-text focus:outline-hidden"
             />
           </div>
           <DialogFooter>
             <button
               type="button"
               onClick={() => setIsNovoCampoOpen(false)}
-              className="px-3 py-1.5 rounded-lg text-xs text-slate-600 hover:bg-slate-100 cursor-pointer"
+              className="px-3 py-1.5 rounded-lg text-xs text-text-muted hover:bg-surface-elevated cursor-pointer"
             >
               {t("Cancelar")}
             </button>

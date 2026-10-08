@@ -25,12 +25,12 @@ export function MatchReplyNode({ id, data, selected }: NodeProps<RFNode>) {
   const customPreview = (
     <div className="flex w-full flex-col gap-2 rounded-xl border border-purple-200/80 bg-gradient-to-b from-purple-50/50 to-white p-2.5 text-xs shadow-2xs dark:border-purple-900/40 dark:from-purple-950/20 dark:to-neutral-900">
       {/* Balão da Pergunta */}
-      <div className="relative rounded-lg border border-purple-200/70 bg-white p-2 text-[11px] leading-relaxed text-neutral-800 shadow-2xs dark:border-purple-800/40 dark:bg-neutral-950 dark:text-neutral-200">
+      <div className="relative rounded-lg border border-purple-200/70 bg-surface p-2 text-[11px] leading-relaxed text-text shadow-2xs dark:border-purple-800/40">
         <div className="flex items-center gap-1.5 font-bold text-purple-700 dark:text-purple-300 mb-0.5">
           <ChatCircle size={13} weight="fill" className="shrink-0" />
           <span>{t("Pergunta ao contato")}</span>
         </div>
-        <p className="line-clamp-2 italic text-neutral-600 dark:text-neutral-300 font-sans">
+        <p className="line-clamp-2 italic text-text-muted font-sans">
           "{questionText}"
         </p>
       </div>
@@ -43,11 +43,11 @@ export function MatchReplyNode({ id, data, selected }: NodeProps<RFNode>) {
             <span>&#123;&#123;{saveKey}&#125;&#125;</span>
           </span>
         ) : (
-          <span className="text-neutral-400 italic text-[10px]">{t("Sem salvar")}</span>
+          <span className="text-text-subtle italic text-[10px]">{t("Sem salvar")}</span>
         )}
 
         {config.expiracao_tempo && (
-          <span className="inline-flex items-center gap-1 text-neutral-500 dark:text-neutral-400 shrink-0">
+          <span className="inline-flex items-center gap-1 text-text-muted shrink-0">
             <Clock size={11} className="shrink-0 text-purple-600" />
             <span>{config.expiracao_tempo} {config.expiracao_unidade || "h"}</span>
           </span>
@@ -60,7 +60,7 @@ export function MatchReplyNode({ id, data, selected }: NodeProps<RFNode>) {
           {branches.slice(0, 3).map((branch) => (
             <span
               key={branch.id}
-              className="inline-flex items-center gap-1 rounded-md border border-neutral-200 bg-neutral-50 px-1.5 py-0.5 text-[9.5px] font-semibold text-neutral-700 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300"
+              className="inline-flex items-center gap-1 rounded-md border border-border bg-surface-elevated px-1.5 py-0.5 text-[9.5px] font-semibold text-text-muted"
             >
               <span className="h-1.5 w-1.5 rounded-full bg-purple-500" />
               <span className="truncate max-w-[90px]">{branch.label}</span>

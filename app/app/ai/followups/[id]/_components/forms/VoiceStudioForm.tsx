@@ -205,7 +205,7 @@ export function VoiceStudioForm({ config, onChange }: Props) {
       {/* 1. Header do Campo Texto */}
       <div className="space-y-1.5">
         <div className="flex items-center justify-between">
-          <label className="block text-sm font-semibold text-neutral-800 dark:text-neutral-200">
+          <label className="block text-sm font-semibold text-text">
             {t("Texto")}
           </label>
           <button
@@ -230,7 +230,7 @@ export function VoiceStudioForm({ config, onChange }: Props) {
                   key={cf.id}
                   type="button"
                   onClick={() => insertVariable(cf.id)}
-                  className="px-2 py-1 rounded-md bg-white hover:bg-blue-100/80 text-blue-800 border border-blue-200 dark:bg-zinc-900 dark:text-blue-300 dark:border-blue-800 text-[11px] font-mono shadow-2xs transition-colors cursor-pointer"
+                  className="px-2 py-1 rounded-md bg-surface hover:bg-blue-100/80 text-blue-800 border border-blue-200 dark:text-blue-300 dark:border-blue-800 text-[11px] font-mono shadow-2xs transition-colors cursor-pointer"
                 >
                   {cf.id}
                 </button>
@@ -249,27 +249,27 @@ export function VoiceStudioForm({ config, onChange }: Props) {
           }}
           rows={4}
           placeholder={t("Digite aqui o texto desejado para virar um áudio.")}
-          className="w-full rounded-lg border border-neutral-300 bg-white p-3 text-xs text-neutral-900 placeholder-neutral-400 focus:border-purple-600 focus:outline-hidden focus:ring-1 focus:ring-purple-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-neutral-100 dark:placeholder-zinc-500 resize-y"
+          className="w-full rounded-lg border border-border-strong bg-surface p-3 text-xs text-text placeholder-neutral-400 focus:border-purple-600 focus:outline-hidden focus:ring-1 focus:ring-purple-600 resize-y"
         />
       </div>
 
       {/* 2. Divisor de Seção: Configurações de voz */}
       <div className="relative flex items-center justify-center py-1">
-        <div className="grow border-t border-neutral-200 dark:border-zinc-800" />
-        <div className="mx-3 flex items-center gap-1.5 text-xs text-neutral-500 dark:text-neutral-400 font-normal">
+        <div className="grow border-t border-border" />
+        <div className="mx-3 flex items-center gap-1.5 text-xs text-text-muted font-normal">
           <span>{t("Configurações de voz")}</span>
           <span title={t("Ajuste a estabilidade, similaridade, estilo e velocidade da voz")} className="cursor-help">
             <Info size={14} className="text-blue-500" />
           </span>
         </div>
-        <div className="grow border-t border-neutral-200 dark:border-zinc-800" />
+        <div className="grow border-t border-border" />
       </div>
 
       {/* 3. Os 4 Sliders */}
       <div className="space-y-3.5">
         {/* Estabilidade */}
         <div className="flex items-center justify-between gap-3">
-          <span className="w-24 text-xs font-normal text-neutral-700 dark:text-neutral-300 shrink-0">
+          <span className="w-24 text-xs font-normal text-text-muted shrink-0">
             {t("Estabilidade")}
           </span>
           <input
@@ -283,7 +283,7 @@ export function VoiceStudioForm({ config, onChange }: Props) {
               setStability(val);
               update({ stability: val });
             }}
-            className="grow h-1.5 bg-neutral-200 rounded-lg appearance-none cursor-pointer accent-[#a855f7] dark:bg-zinc-700"
+            className="grow h-1.5 bg-surface-elevated rounded-lg appearance-none cursor-pointer accent-[#a855f7]"
           />
           <div className="w-14 shrink-0 text-center py-0.5 px-2 rounded-md border border-blue-200 bg-blue-50/60 dark:border-blue-900 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 text-xs font-mono">
             {formatSliderValue(stability)}
@@ -292,7 +292,7 @@ export function VoiceStudioForm({ config, onChange }: Props) {
 
         {/* Similaridade */}
         <div className="flex items-center justify-between gap-3">
-          <span className="w-24 text-xs font-normal text-neutral-700 dark:text-neutral-300 shrink-0">
+          <span className="w-24 text-xs font-normal text-text-muted shrink-0">
             {t("Similaridade")}
           </span>
           <input
@@ -306,7 +306,7 @@ export function VoiceStudioForm({ config, onChange }: Props) {
               setSimilarity(val);
               update({ similarity: val });
             }}
-            className="grow h-1.5 bg-neutral-200 rounded-lg appearance-none cursor-pointer accent-[#a855f7] dark:bg-zinc-700"
+            className="grow h-1.5 bg-surface-elevated rounded-lg appearance-none cursor-pointer accent-[#a855f7]"
           />
           <div className="w-14 shrink-0 text-center py-0.5 px-2 rounded-md border border-blue-200 bg-blue-50/60 dark:border-blue-900 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 text-xs font-mono">
             {formatSliderValue(similarity)}
@@ -315,7 +315,7 @@ export function VoiceStudioForm({ config, onChange }: Props) {
 
         {/* Sotaque */}
         <div className="flex items-center justify-between gap-3">
-          <span className="w-24 text-xs font-normal text-neutral-700 dark:text-neutral-300 shrink-0">
+          <span className="w-24 text-xs font-normal text-text-muted shrink-0">
             {t("Sotaque")}
           </span>
           <input
@@ -329,7 +329,7 @@ export function VoiceStudioForm({ config, onChange }: Props) {
               setStyle(val);
               update({ style: val });
             }}
-            className="grow h-1.5 bg-neutral-200 rounded-lg appearance-none cursor-pointer accent-[#a855f7] dark:bg-zinc-700"
+            className="grow h-1.5 bg-surface-elevated rounded-lg appearance-none cursor-pointer accent-[#a855f7]"
           />
           <div className="w-14 shrink-0 text-center py-0.5 px-2 rounded-md border border-blue-200 bg-blue-50/60 dark:border-blue-900 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 text-xs font-mono">
             {formatSliderValue(style)}
@@ -338,7 +338,7 @@ export function VoiceStudioForm({ config, onChange }: Props) {
 
         {/* Velocidade */}
         <div className="flex items-center justify-between gap-3">
-          <span className="w-24 text-xs font-normal text-neutral-700 dark:text-neutral-300 shrink-0">
+          <span className="w-24 text-xs font-normal text-text-muted shrink-0">
             {t("Velocidade")}
           </span>
           <input
@@ -352,7 +352,7 @@ export function VoiceStudioForm({ config, onChange }: Props) {
               setSpeed(val);
               update({ speed: val });
             }}
-            className="grow h-1.5 bg-neutral-200 rounded-lg appearance-none cursor-pointer accent-[#a855f7] dark:bg-zinc-700"
+            className="grow h-1.5 bg-surface-elevated rounded-lg appearance-none cursor-pointer accent-[#a855f7]"
           />
           <div className="w-14 shrink-0 text-center py-0.5 px-2 rounded-md border border-blue-200 bg-blue-50/60 dark:border-blue-900 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 text-xs font-mono">
             {formatSliderValue(speed)}x
@@ -367,17 +367,17 @@ export function VoiceStudioForm({ config, onChange }: Props) {
       </div>
 
       {/* 4. Player de Teste de Áudio no estilo exato do screenshot */}
-      <div className="flex items-center gap-2 p-1.5 rounded-lg border border-neutral-200 bg-neutral-50/80 dark:border-zinc-800 dark:bg-zinc-900/60">
+      <div className="flex items-center gap-2 p-1.5 rounded-lg border border-border bg-surface-elevated">
         <button
           type="button"
           onClick={handleTestAudio}
-          className="flex flex-col items-center justify-center w-14 h-12 rounded-md bg-neutral-200/70 hover:bg-neutral-300/80 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-neutral-700 dark:text-neutral-200 transition-colors shrink-0 cursor-pointer"
+          className="flex flex-col items-center justify-center w-14 h-12 rounded-md bg-surface-elevated hover:bg-border-strong/80 text-text-muted transition-colors shrink-0 cursor-pointer"
         >
           <ArrowsClockwise size={16} className={isPlayingAudio ? "animate-spin text-purple-600" : ""} />
           <span className="text-[10px] font-medium pt-0.5">{t("Testar")}</span>
         </button>
 
-        <div className="grow flex items-center gap-2 bg-neutral-200/50 dark:bg-zinc-800/60 rounded-full px-3 py-1.5 text-neutral-600 dark:text-neutral-300">
+        <div className="grow flex items-center gap-2 bg-surface-elevated rounded-full px-3 py-1.5 text-text-muted">
           <button
             type="button"
             onClick={handleTestAudio}
@@ -391,17 +391,17 @@ export function VoiceStudioForm({ config, onChange }: Props) {
           </span>
 
           {/* Barra de progresso */}
-          <div className="grow h-1 bg-neutral-300 dark:bg-zinc-700 rounded-full overflow-hidden mx-1">
+          <div className="grow h-1 bg-border-strong rounded-full overflow-hidden mx-1">
             <div
-              className="h-full bg-neutral-500 dark:bg-zinc-400 transition-all duration-100"
+              className="h-full bg-neutral-500 transition-all duration-100"
               style={{
                 width: audioDuration > 0 ? `${(audioCurrentTime / audioDuration) * 100}%` : "0%",
               }}
             />
           </div>
 
-          <SpeakerHigh size={14} className="shrink-0 text-neutral-500" />
-          <DotsThree size={16} weight="bold" className="shrink-0 text-neutral-500" />
+          <SpeakerHigh size={14} className="shrink-0 text-text-muted" />
+          <DotsThree size={16} weight="bold" className="shrink-0 text-text-muted" />
         </div>
       </div>
 
@@ -412,17 +412,17 @@ export function VoiceStudioForm({ config, onChange }: Props) {
       )}
 
       {/* O áudio sai sempre como nota de voz (o balão gravado do WhatsApp) — não há a opção de arquivo. */}
-      <p className="text-[11px] text-neutral-500 dark:text-neutral-400">
+      <p className="text-[11px] text-text-muted">
         {t("Sai como nota de voz no WhatsApp. Se a voz não puder ser gerada, a pessoa recebe o texto.")}
       </p>
 
       {/* 6. Divisor de Seção: Modelo de áudio */}
       <div className="relative flex items-center justify-center py-1">
-        <div className="grow border-t border-neutral-200 dark:border-zinc-800" />
-        <span className="mx-3 text-xs text-neutral-500 dark:text-neutral-400 font-normal">
+        <div className="grow border-t border-border" />
+        <span className="mx-3 text-xs text-text-muted font-normal">
           {t("Modelo de áudio")}
         </span>
-        <div className="grow border-t border-neutral-200 dark:border-zinc-800" />
+        <div className="grow border-t border-border" />
       </div>
 
       {/* 7. Grid de 6 Modelos de Voz (2 colunas) */}
@@ -442,19 +442,19 @@ export function VoiceStudioForm({ config, onChange }: Props) {
               className={`p-2.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-1.5 ${
                 isSelected
                   ? "border-[#9333ea] bg-purple-50/50 dark:border-purple-600 dark:bg-purple-950/30 shadow-xs"
-                  : "border-neutral-200 bg-white hover:border-neutral-300 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-700"
+                  : "border-border bg-surface hover:border-border-strong"
               }`}
             >
               <div className="min-w-0 pr-1">
                 <div className="flex items-center gap-1">
-                  <h4 className="text-xs font-semibold text-neutral-900 dark:text-neutral-100 truncate">
+                  <h4 className="text-xs font-semibold text-text truncate">
                     {v.name}
                   </h4>
                   {isSelected && (
                     <Check size={12} weight="bold" className="text-purple-600 shrink-0" />
                   )}
                 </div>
-                <p className="text-[10px] text-neutral-400 dark:text-neutral-500 truncate">
+                <p className="text-[10px] text-text-subtle truncate">
                   {v.subtitle}
                 </p>
               </div>
@@ -467,7 +467,7 @@ export function VoiceStudioForm({ config, onChange }: Props) {
                 className={`w-7 h-7 rounded-full border flex items-center justify-center shrink-0 transition-transform active:scale-95 cursor-pointer ${
                   isPlayingThis
                     ? "border-indigo-600 bg-indigo-600 text-white animate-pulse"
-                    : "border-neutral-300 bg-neutral-100 text-neutral-700 hover:bg-neutral-200 dark:border-zinc-700 dark:bg-zinc-800 dark:text-neutral-300"
+                    : "border-border-strong bg-surface-elevated text-text-muted hover:bg-surface-elevated"
                 }`}
               >
                 {isPlayingThis ? (

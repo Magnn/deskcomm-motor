@@ -147,15 +147,15 @@ export function FlowsList({ initialData, canWrite }: Props) {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         {/* Filtros: Pílulas de Canal e Dropdown de Gatilhos */}
         <div className="flex flex-wrap items-center gap-2.5">
-          <div className="inline-flex items-center rounded-full border border-neutral-200 bg-neutral-50/80 p-0.5 shadow-2xs dark:border-neutral-800 dark:bg-neutral-900">
+          <div className="inline-flex items-center rounded-full border border-border bg-surface-elevated p-0.5 shadow-2xs">
             <button
               type="button"
               onClick={() => setChannelFilter("todos")}
               className={cn(
                 "cursor-pointer rounded-full px-3 py-1 text-xs font-semibold transition-all",
                 channelFilter === "todos"
-                  ? "bg-white text-neutral-900 shadow-xs dark:bg-neutral-800 dark:text-neutral-100"
-                  : "text-neutral-500 hover:text-neutral-900 dark:text-neutral-400",
+                  ? "bg-surface text-text shadow-xs"
+                  : "text-text-muted hover:text-text",
               )}
             >
               {t("Todos")}
@@ -167,7 +167,7 @@ export function FlowsList({ initialData, canWrite }: Props) {
                 "cursor-pointer rounded-full px-3 py-1 text-xs font-semibold transition-all",
                 channelFilter === "oficial"
                   ? "border border-emerald-500 bg-emerald-50 text-emerald-700 shadow-xs dark:bg-emerald-950/50 dark:text-emerald-300"
-                  : "text-neutral-500 hover:text-emerald-600 dark:text-neutral-400",
+                  : "text-text-muted hover:text-emerald-600",
               )}
             >
               {t("Número oficial")}
@@ -179,7 +179,7 @@ export function FlowsList({ initialData, canWrite }: Props) {
                 "cursor-pointer rounded-full px-3 py-1 text-xs font-semibold transition-all",
                 channelFilter === "business"
                   ? "border border-emerald-500 bg-emerald-50 text-emerald-700 shadow-xs dark:bg-emerald-950/50 dark:text-emerald-300"
-                  : "text-neutral-500 hover:text-emerald-600 dark:text-neutral-400",
+                  : "text-text-muted hover:text-emerald-600",
               )}
             >
               {t("Número por QR code")}
@@ -187,7 +187,7 @@ export function FlowsList({ initialData, canWrite }: Props) {
           </div>
 
           <Select value={triggerFilter} onValueChange={setTriggerFilter}>
-            <SelectTrigger className="h-8 w-auto min-w-[145px] rounded-full border-neutral-200 bg-white text-xs font-medium dark:border-neutral-800 dark:bg-neutral-900">
+            <SelectTrigger className="h-8 w-auto min-w-[145px] rounded-full border-border bg-surface text-xs font-medium">
               <SelectValue placeholder={t("Gatilhos: todos")} />
             </SelectTrigger>
             <SelectContent>

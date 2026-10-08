@@ -202,16 +202,16 @@ export function ConteudoItemsEditor({ flowId, items, onChange, disabled }: Props
 
       {/* ── Divider "Conteúdos" ── */}
       <div className="flex items-center gap-3 mt-4 mb-2.5">
-        <div className="flex-1 h-px bg-[#e2e8f0] dark:bg-zinc-800" />
+        <div className="flex-1 h-px bg-[#e2e8f0]" />
         <span className="text-[11px] font-semibold text-[#94a3b8] tracking-wide">{t("Conteúdos")}</span>
-        <div className="flex-1 h-px bg-[#e2e8f0] dark:bg-zinc-800" />
+        <div className="flex-1 h-px bg-[#e2e8f0]" />
       </div>
 
       {/* ── Empty state or card list ── */}
       <div className="min-h-0">
         {items.length === 0 ? (
-          <div className="flex flex-col items-center justify-center p-6 border border-dashed border-zinc-200 dark:border-zinc-700 rounded-xl text-center bg-zinc-50/50 dark:bg-zinc-800/30 my-1">
-            <p className="text-xs text-zinc-400 font-normal leading-relaxed">
+          <div className="flex flex-col items-center justify-center p-6 border border-dashed border-border rounded-xl text-center bg-surface-elevated my-1">
+            <p className="text-xs text-text-subtle font-normal leading-relaxed">
               {t("Nenhum conteúdo adicionado. Clique nos botões acima para começar.")}
             </p>
           </div>
@@ -271,7 +271,7 @@ function ItemCard({
   return (
     <div
       className={cn(
-        "relative rounded-xl border bg-white dark:bg-zinc-900 overflow-hidden shadow-xs transition-all duration-200",
+        "relative rounded-xl border bg-surface overflow-hidden shadow-xs transition-all duration-200",
         tc.border,
       )}
       style={{ padding: "12px 14px" }}
@@ -280,7 +280,7 @@ function ItemCard({
       {/* Top Header: Texto, Delay, Contato e Sticker */}
       {(item.type === "text" || item.type === "delay" || item.type === "contact" || item.type === "sticker") && (
         <div className="flex items-center justify-between gap-2 mb-2.5">
-          <span className="text-[12px] font-bold text-slate-800 dark:text-zinc-100">
+          <span className="text-[12px] font-bold text-text">
             {item.type === "text"
               ? t("Texto a ser enviado")
               : item.type === "delay"
@@ -300,7 +300,7 @@ function ItemCard({
                 </button>
               </PopoverTrigger>
               <PopoverContent align="end" className="w-56 p-2 space-y-1">
-                <p className="text-[10px] font-bold text-neutral-400 uppercase px-2 py-1">
+                <p className="text-[10px] font-bold text-text-subtle uppercase px-2 py-1">
                   {t("Inserir variável")}
                 </p>
                 {CAMPOS_PERSONALIZADOS.map((c) => (
@@ -312,7 +312,7 @@ function ItemCard({
                       const next = current ? `${current} ${c.tag}` : c.tag;
                       onUpdate({ ...item, body: next });
                     }}
-                    className="w-full flex items-center justify-between px-2 py-1.5 text-xs text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-md transition-colors text-left cursor-pointer"
+                    className="w-full flex items-center justify-between px-2 py-1.5 text-xs text-text-muted hover:bg-surface-elevated rounded-md transition-colors text-left cursor-pointer"
                   >
                     <span>{c.label}</span>
                     <code className="text-[10px] text-sky-600 bg-sky-50 dark:bg-sky-950/60 px-1 py-0.5 rounded-md">
@@ -335,11 +335,11 @@ function ItemCard({
             onChange={(e) => onUpdate({ ...item, body: e.target.value })}
             rows={4}
             placeholder={t("Digite seu texto aqui")}
-            className="w-full rounded-[10px] border border-[#e2e8f0] dark:border-zinc-800 bg-[#f8fafc] dark:bg-zinc-950 px-2.5 py-2 text-[13px] text-slate-800 dark:text-zinc-100 placeholder:text-slate-400 focus:outline-hidden focus:border-[#2563eb] focus:bg-white dark:focus:bg-zinc-900 transition-colors resize-y min-h-[88px] max-h-[260px] leading-[1.45]"
+            className="w-full rounded-[10px] border border-[#e2e8f0] bg-[#f8fafc] px-2.5 py-2 text-[13px] text-text placeholder:text-text-subtle focus:outline-hidden focus:border-[#2563eb] focus:bg-surface transition-colors resize-y min-h-[88px] max-h-[260px] leading-[1.45]"
           />
           <div className="flex items-center justify-between mt-1">
             <p className="text-[10px] text-[#94a3b8]">
-              Use <code className="bg-[#f1f5f9] dark:bg-zinc-800 px-1 rounded-md text-[9px] font-mono">{"{{variavel}}"}</code> {t("para inserir variáveis.")}
+              Use <code className="bg-[#f1f5f9] px-1 rounded-md text-[9px] font-mono">{"{{variavel}}"}</code> {t("para inserir variáveis.")}
             </p>
           </div>
         </div>
@@ -380,7 +380,7 @@ function ItemCard({
 
       {item.type === "contact" && (
         <div className="grid gap-2.5">
-          <p className="text-[10.5px] leading-relaxed text-slate-500 dark:text-zinc-400">
+          <p className="text-[10.5px] leading-relaxed text-text-muted">
             {t("Você pode usar variáveis no nome e no telefone:")}{" "}
             <code className="font-mono text-[10px] text-sky-600">{"{{nome}}"}</code>,{" "}
             <code className="font-mono text-[10px] text-sky-600">{"{{primeiro_nome}}"}</code>,{" "}
@@ -388,7 +388,7 @@ function ItemCard({
             {t("São resolvidas no envio do fluxo.")}
           </p>
           <label className="block space-y-1">
-            <span className="block text-[12px] font-semibold text-slate-800 dark:text-zinc-200">
+            <span className="block text-[12px] font-semibold text-text">
               {t("Nome do Contato")} <span className="text-rose-500">*</span>
             </span>
             <Input
@@ -402,7 +402,7 @@ function ItemCard({
             />
           </label>
           <label className="block space-y-1">
-            <span className="block text-[12px] font-semibold text-slate-800 dark:text-zinc-200">
+            <span className="block text-[12px] font-semibold text-text">
               {t("Telefone")} <span className="text-rose-500">*</span>
             </span>
             <Input
@@ -416,14 +416,14 @@ function ItemCard({
               data-testid="conteudo-contato-telefone"
             />
           </label>
-          <p className="text-[10.5px] text-slate-400 dark:text-zinc-500">
+          <p className="text-[10.5px] text-text-subtle">
             {t("O contato chega como cartão do WhatsApp. Use o telefone com DDI.")}
           </p>
         </div>
       )}
 
       {/* Bottom Footer: Pill + Action buttons */}
-      <div className="flex items-center justify-between pt-2.5 mt-2.5 border-t border-slate-100 dark:border-zinc-800/80">
+      <div className="flex items-center justify-between pt-2.5 mt-2.5 border-t border-border">
         <span
           className={cn(
             "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10.5px] font-bold text-white shadow-2xs",
@@ -453,7 +453,7 @@ function ItemCard({
             type="button"
             onClick={onDuplicate}
             disabled={disabled}
-            className="w-6 h-6 rounded-md border border-[#e2e8f0] dark:border-zinc-800 bg-white dark:bg-zinc-900 flex items-center justify-center text-[#6366f1] hover:bg-[#f1f5f9] dark:hover:bg-zinc-800 disabled:opacity-30 transition-colors cursor-pointer"
+            className="w-6 h-6 rounded-md border border-[#e2e8f0] bg-surface flex items-center justify-center text-[#6366f1] hover:bg-[#f1f5f9] disabled:opacity-30 transition-colors cursor-pointer"
             title={t("Duplicar / Mover")}
           >
             <Move size={13} />
@@ -462,7 +462,7 @@ function ItemCard({
             type="button"
             onClick={onRemove}
             disabled={disabled}
-            className="w-6 h-6 rounded-md border border-[#e2e8f0] dark:border-zinc-800 bg-white dark:bg-zinc-900 flex items-center justify-center text-rose-500 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 dark:hover:bg-rose-950/40 disabled:opacity-30 transition-colors cursor-pointer"
+            className="w-6 h-6 rounded-md border border-[#e2e8f0] bg-surface flex items-center justify-center text-rose-500 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 dark:hover:bg-rose-950/40 disabled:opacity-30 transition-colors cursor-pointer"
             title={t("Remover")}
           >
             <Trash size={13} />
@@ -544,14 +544,14 @@ function AudioCardBody({
       />
 
       {/* Player de áudio estilo AcassIA */}
-      <div className="flex items-center gap-2 p-1.5 rounded-lg border border-[#e2e8f0] dark:border-zinc-800 bg-[#f8fafc] dark:bg-zinc-950">
+      <div className="flex items-center gap-2 p-1.5 rounded-lg border border-[#e2e8f0] bg-[#f8fafc]">
         <audio controls className="w-full h-8 accent-[#9333ea]" src={audioSrc} preload="none">
           <track kind="captions" />
         </audio>
       </div>
 
       <div className="flex items-center justify-between text-[11px]">
-        <span className="text-slate-400 dark:text-zinc-500">
+        <span className="text-text-subtle">
           {temArquivo ? t("Áudio pronto") : t("Nenhum arquivo enviado")}
         </span>
         <button
@@ -570,7 +570,7 @@ function AudioCardBody({
         áudio com nome. (Antes esta chave era só estado local da tela.)
       */}
       <div className="flex items-center justify-between pt-1">
-        <span className="text-[12px] font-medium text-slate-700 dark:text-zinc-300">
+        <span className="text-[12px] font-medium text-text-muted">
           {t("Enviar como áudio gravado?")}
         </span>
         <button
@@ -587,18 +587,18 @@ function AudioCardBody({
           }}
           className={cn(
             "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden",
-            comoNotaDeVoz ? "bg-[#9333ea]" : "bg-slate-300 dark:bg-zinc-700",
+            comoNotaDeVoz ? "bg-[#9333ea]" : "bg-border-strong",
           )}
         >
           <span
             className={cn(
-              "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-xs ring-0 transition duration-200 ease-in-out",
+              "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-surface shadow-xs ring-0 transition duration-200 ease-in-out",
               comoNotaDeVoz ? "translate-x-4" : "translate-x-0",
             )}
           />
         </button>
       </div>
-      <p className="text-[10.5px] text-slate-400 dark:text-zinc-500">
+      <p className="text-[10.5px] text-text-subtle">
         {comoNotaDeVoz
           ? t("O áudio chega ao contato como nota de voz (áudio gravado).")
           : t("O áudio chega ao contato como arquivo de áudio, com o nome do arquivo.")}
@@ -614,7 +614,7 @@ function AudioCardBody({
         <div className="flex items-center justify-between">
           <label
             htmlFor={`transcricao-${item.storage_path}`}
-            className="block text-[12px] font-semibold text-slate-800 dark:text-zinc-200"
+            className="block text-[12px] font-semibold text-text"
           >
             {t("Transcrição")}
           </label>
@@ -642,9 +642,9 @@ function AudioCardBody({
           }}
           placeholder={t("A transcrição do áudio aparecerá aqui")}
           data-testid="conteudo-audio-transcricao"
-          className="w-full rounded-[10px] border border-[#e2e8f0] dark:border-zinc-800 bg-white dark:bg-zinc-950 px-2.5 py-2 text-[12px] text-slate-800 dark:text-zinc-100 placeholder:text-slate-400 focus:outline-hidden focus:border-[#a855f7] transition-colors resize-none leading-relaxed"
+          className="w-full rounded-[10px] border border-[#e2e8f0] bg-surface px-2.5 py-2 text-[12px] text-text placeholder:text-text-subtle focus:outline-hidden focus:border-[#a855f7] transition-colors resize-none leading-relaxed"
         />
-        <p className="text-[10.5px] text-slate-400 dark:text-zinc-500">
+        <p className="text-[10.5px] text-text-subtle">
           {t("O contato não recebe este texto: ele fica na conversa, para a equipe e para o agente de IA.")}
         </p>
       </div>
@@ -758,7 +758,7 @@ function MediaSection({
         não sabia enviar.
       */}
       {item.type !== "sticker" && (
-        <div className="flex rounded-full bg-[#f1f5f9] dark:bg-zinc-800 p-0.5 mb-2.5" role="tablist">
+        <div className="flex rounded-full bg-[#f1f5f9] p-0.5 mb-2.5" role="tablist">
           {([false, true] as const).map((ehLink) => (
             <button
               key={String(ehLink)}
@@ -772,7 +772,7 @@ function MediaSection({
                 "flex-1 py-1 text-xs font-semibold rounded-full transition-all cursor-pointer",
                 porLink === ehLink
                   ? "bg-[#2563eb] text-white shadow-xs"
-                  : "text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200",
+                  : "text-text-muted hover:text-text-muted",
               )}
             >
               {ehLink ? rotulos.link : rotulos.arquivo}
@@ -792,7 +792,7 @@ function MediaSection({
             className="h-9 text-xs rounded-lg font-mono"
             data-testid="conteudo-link"
           />
-          <p className="text-[10px] text-slate-400">
+          <p className="text-[10px] text-text-subtle">
             {item.type === "image"
               ? t("Use a variável do campo que guarda o link da imagem, ou cole um link público (https).")
               : t("Cole o link público (https) do arquivo. Você também pode usar uma variável que guarde o link.")}{" "}
@@ -803,7 +803,7 @@ function MediaSection({
 
       {item.type === "sticker" && (
         <label className="block space-y-1">
-          <span className="block text-[12px] font-semibold text-slate-800 dark:text-zinc-200">
+          <span className="block text-[12px] font-semibold text-text">
             {t("Nome do Sticker")}
           </span>
           <Input
@@ -820,7 +820,7 @@ function MediaSection({
             className="h-9 text-xs rounded-md"
             data-testid="conteudo-sticker-nome"
           />
-          <span className="block text-[10.5px] text-slate-400 dark:text-zinc-500">
+          <span className="block text-[10.5px] text-text-subtle">
             {t("Só para você identificar o sticker no fluxo — o contato não vê este nome.")}
           </span>
         </label>
@@ -836,17 +836,17 @@ function MediaSection({
           className={cn(
             "flex flex-col items-center justify-center gap-1 w-full py-6 px-4",
             "border border-dashed rounded-lg bg-transparent text-[#64748b] cursor-pointer text-center",
-            "transition-all hover:border-slate-400 hover:bg-slate-50/70 dark:hover:bg-zinc-900/50 border-[#cbd5e1] dark:border-zinc-700",
+            "transition-all hover:border-border-strong hover:bg-surface-elevated border-[#cbd5e1]",
             upload.isPending && "opacity-50 pointer-events-none",
           )}
         >
           {item.type === "document" && (
             <>
               <CloudUpload size={38} className="text-[#94a3b8] mb-1" strokeWidth={1.5} />
-              <span className="text-[13px] font-semibold text-slate-700 dark:text-zinc-200">
+              <span className="text-[13px] font-semibold text-text-muted">
                 {upload.isPending ? t("Enviando…") : t("Clique para enviar um documento")}
               </span>
-              <span className="text-[11px] text-slate-400 dark:text-zinc-500">
+              <span className="text-[11px] text-text-subtle">
                 {t("PDF, Word, Excel, PowerPoint, TXT, CSV ou ZIP (máx. 50 MB)")}
               </span>
             </>
@@ -855,10 +855,10 @@ function MediaSection({
           {item.type === "image" && (
             <>
               <LucideImage size={38} className="text-[#94a3b8] mb-1" strokeWidth={1.5} />
-              <span className="text-[13px] font-semibold text-slate-700 dark:text-zinc-200">
+              <span className="text-[13px] font-semibold text-text-muted">
                 {upload.isPending ? t("Enviando…") : t("Selecionar arquivo")}
               </span>
-              <span className="text-[11px] text-slate-400 dark:text-zinc-500">
+              <span className="text-[11px] text-text-subtle">
                 {t("PNG ou JPG (máx. 5 MB)")}
               </span>
             </>
@@ -867,10 +867,10 @@ function MediaSection({
           {item.type === "sticker" && (
             <>
               <Smiley size={38} className="text-[#a855f7] mb-1" />
-              <span className="text-[12px] text-slate-600 dark:text-zinc-300">
+              <span className="text-[12px] text-text-muted">
                 {t("Tamanho máximo permitido: 2 MB")}
               </span>
-              <span className="text-[11px] text-slate-400 dark:text-zinc-500">
+              <span className="text-[11px] text-text-subtle">
                 {t("JPG, PNG ou WebP — convertido para sticker 512×512")}
               </span>
               <span className="mt-1.5 rounded-lg bg-[#a855f7] px-3.5 py-1.5 text-[12px] font-bold text-white shadow-xs">
@@ -882,18 +882,18 @@ function MediaSection({
           {item.type === "video" && (
             <>
               <LucideVideo size={38} className="text-[#94a3b8] mb-1" strokeWidth={1.5} />
-              <span className="text-[13px] font-semibold text-slate-700 dark:text-zinc-200">
+              <span className="text-[13px] font-semibold text-text-muted">
                 {upload.isPending ? t("Enviando…") : t("Clique para enviar um vídeo")}
               </span>
-              <span className="text-[11px] text-slate-400 dark:text-zinc-500">
+              <span className="text-[11px] text-text-subtle">
                 {t("MP4 ou 3GP (máx. 16 MB)")}
               </span>
             </>
           )}
         </button>
       ) : (
-        <div className="flex items-center justify-between p-2.5 rounded-lg border border-[#e2e8f0] dark:border-zinc-800 bg-[#f8fafc] dark:bg-zinc-950">
-          <span className="truncate text-xs font-medium text-neutral-800 dark:text-neutral-200 max-w-[200px]">
+        <div className="flex items-center justify-between p-2.5 rounded-lg border border-[#e2e8f0] bg-[#f8fafc]">
+          <span className="truncate text-xs font-medium text-text max-w-[200px]">
             {item.type === "document" ? item.filename || item.mime : item.mime || "Arquivo enviado"}
           </span>
           <button

@@ -39,8 +39,8 @@ export function CollectNode({ id, data, selected }: NodeProps<RFNode>) {
       </div>
 
       {/* Balão com a pergunta */}
-      <div className="rounded-lg border border-orange-200/60 bg-white p-2 text-[10.5px] leading-relaxed text-neutral-800 shadow-2xs dark:border-orange-800/40 dark:bg-neutral-950 dark:text-neutral-200">
-        <p className="line-clamp-2 italic text-neutral-600 dark:text-neutral-300">
+      <div className="rounded-lg border border-orange-200/60 bg-surface p-2 text-[10.5px] leading-relaxed text-text shadow-2xs dark:border-orange-800/40">
+        <p className="line-clamp-2 italic text-text-muted">
           "{questionText}"
         </p>
       </div>
@@ -53,7 +53,7 @@ export function CollectNode({ id, data, selected }: NodeProps<RFNode>) {
         </span>
 
         {config.permite_correcao && (
-          <span className="inline-flex items-center gap-1 text-neutral-500 dark:text-neutral-400 text-[9.5px]">
+          <span className="inline-flex items-center gap-1 text-text-muted text-[9.5px]">
             <Check size={10} className="text-emerald-600" />
             <span>{t("Permite correção")}</span>
           </span>

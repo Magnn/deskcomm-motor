@@ -26,23 +26,23 @@ export function AgentNode({ id, data, selected }: NodeProps<RFNode>) {
   const customPreview = (
     <div className="flex w-full flex-col gap-2">
       {/* Caixa de objetivo do agente */}
-      <div className="rounded-lg border border-purple-200/80 bg-purple-50/50 p-2.5 text-xs font-medium text-slate-800 dark:border-purple-900/40 dark:bg-purple-950/20 dark:text-slate-200">
+      <div className="rounded-lg border border-purple-200/80 bg-purple-50/50 p-2.5 text-xs font-medium text-text dark:border-purple-900/40 dark:bg-purple-950/20">
         <div className="flex items-center gap-1.5 mb-1 text-[10px] font-bold text-purple-700 dark:text-purple-300 uppercase tracking-wider">
           <Sparkle size={12} weight="fill" className="text-purple-600" />
           <span>Objetivo do Agente</span>
         </div>
-        <p className="line-clamp-3 text-[11px] leading-relaxed text-slate-700 dark:text-slate-300">
+        <p className="line-clamp-3 text-[11px] leading-relaxed text-text-muted">
           {objetivo}
         </p>
       </div>
 
       {/* Parâmetros do agente */}
       <div className="grid grid-cols-2 gap-1.5 text-[10.5px]">
-        <div className="flex items-center gap-1.5 rounded-lg border border-slate-200/70 bg-slate-50 px-2 py-1 text-slate-600 dark:border-border dark:bg-surface dark:text-slate-400">
+        <div className="flex items-center gap-1.5 rounded-lg border border-border bg-surface-elevated px-2 py-1 text-text-muted">
           <ChatCircle size={12} className="text-purple-600 shrink-0" />
           <span>{t("Máx.")} {turnos} turnos</span>
         </div>
-        <div className="flex items-center gap-1.5 rounded-lg border border-slate-200/70 bg-slate-50 px-2 py-1 text-slate-600 dark:border-border dark:bg-surface dark:text-slate-400">
+        <div className="flex items-center gap-1.5 rounded-lg border border-border bg-surface-elevated px-2 py-1 text-text-muted">
           <Clock size={12} className="text-amber-600 shrink-0" />
           <span>{t("Silêncio:")} {silencio} min</span>
         </div>

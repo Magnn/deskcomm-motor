@@ -28,16 +28,16 @@ export function WhatsappTemplateNode({ id, data, selected }: NodeProps<RFNode>) 
       </div>
 
       {/* Nome do Template Aprovado */}
-      <div className="rounded-lg border border-emerald-200/60 bg-white px-2.5 py-1.5 font-mono text-[11px] font-semibold text-emerald-900 shadow-2xs dark:border-emerald-800/40 dark:bg-neutral-950 dark:text-emerald-200 truncate">
+      <div className="rounded-lg border border-emerald-200/60 bg-surface px-2.5 py-1.5 font-mono text-[11px] font-semibold text-emerald-900 shadow-2xs dark:border-emerald-800/40 dark:text-emerald-200 truncate">
         {config.template_name || t("Nenhum template selecionado")}
       </div>
 
       {/* Rodapé com Timeout */}
-      <div className="flex items-center justify-between text-[10.5px] text-neutral-500 dark:text-neutral-400 px-0.5">
+      <div className="flex items-center justify-between text-[10.5px] text-text-muted px-0.5">
         <span className="flex items-center gap-1">
           <Clock size={12} className="shrink-0 text-emerald-600" />
           <span>
-            {t("Expira em")}: <strong className="text-neutral-700 dark:text-neutral-200">{config.timeout} {t(config.timeout_unit || "Minutos")}</strong>
+            {t("Expira em")}: <strong className="text-text-muted">{config.timeout} {t(config.timeout_unit || "Minutos")}</strong>
           </span>
         </span>
       </div>

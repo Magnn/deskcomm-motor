@@ -380,17 +380,17 @@ export function NewFlowDialog({ open, onOpenChange }: Props) {
             type="button"
             onClick={() => onOpenChange(false)}
             aria-label={t("Fechar")}
-            className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-full bg-white text-[#7e22ce] shadow-xs transition-transform hover:scale-105 active:scale-95"
+            className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-full bg-surface text-[#7e22ce] shadow-xs transition-transform hover:scale-105 active:scale-95"
           >
             <X size={14} weight="bold" aria-hidden />
           </button>
         </div>
 
         {/* ═══ FORMULÁRIO ═══ */}
-        <form onSubmit={onSubmit} className="space-y-4 bg-white px-7 py-5 font-sans dark:bg-neutral-900">
+        <form onSubmit={onSubmit} className="space-y-4 bg-surface px-7 py-5 font-sans">
           {/* Seletor Pílula: Whatsapp API Oficial | Whatsapp Business */}
           <div className="flex justify-center pt-1 pb-1">
-            <div className="inline-flex items-center rounded-full border border-indigo-200/90 bg-neutral-50/70 p-1 shadow-xs dark:border-indigo-900/50 dark:bg-neutral-800">
+            <div className="inline-flex items-center rounded-full border border-indigo-200/90 bg-surface-elevated p-1 shadow-xs dark:border-indigo-900/50">
               <button
                 type="button"
                 onClick={() => setChannel("oficial")}
@@ -420,7 +420,7 @@ export function NewFlowDialog({ open, onOpenChange }: Props) {
 
           {/* Campo: Título do fluxo * */}
           <div className="space-y-1">
-            <Label htmlFor="flow-name" className="text-xs font-bold text-neutral-800 dark:text-neutral-200">
+            <Label htmlFor="flow-name" className="text-xs font-bold text-text">
               {t("Título do fluxo")} <span className="sr-only">Nome</span><span className="text-rose-500">*</span>
             </Label>
             <Input
@@ -429,19 +429,19 @@ export function NewFlowDialog({ open, onOpenChange }: Props) {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder={t("Ex: Recuperação de carrinho abandonado")}
-              className="h-10 rounded-lg border-neutral-300 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 dark:border-neutral-700"
+              className="h-10 rounded-lg border-border-strong text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
               maxLength={80}
               required
               autoFocus
             />
-            <p className="text-[11px] text-neutral-400">
+            <p className="text-[11px] text-text-subtle">
               {t("O nome deve conter no mínimo 4 caracteres")}
             </p>
           </div>
 
           {/* Campo: Gatilho * com Grade 2x6 */}
           <div className="space-y-2">
-            <Label className="text-xs font-bold text-neutral-800 dark:text-neutral-200">
+            <Label className="text-xs font-bold text-text">
               {t("Gatilho")} <span className="text-rose-500">*</span>
             </Label>
             <div className="grid grid-cols-6 gap-2">
@@ -456,10 +456,10 @@ export function NewFlowDialog({ open, onOpenChange }: Props) {
                       setSelectedEvent("");
                     }}
                     className={cn(
-                      "flex h-12 w-full cursor-pointer items-center justify-center rounded-xl border bg-white p-1 transition-all shadow-2xs dark:bg-neutral-800",
+                      "flex h-12 w-full cursor-pointer items-center justify-center rounded-xl border bg-surface p-1 transition-all shadow-2xs",
                       isSelected
                         ? "border-2 border-indigo-600 ring-2 ring-indigo-500/30 shadow-xs"
-                        : "border-neutral-200 hover:border-neutral-300 dark:border-neutral-700",
+                        : "border-border hover:border-border-strong",
                     )}
                     title={p.name}
                   >
@@ -473,11 +473,11 @@ export function NewFlowDialog({ open, onOpenChange }: Props) {
           {/* Divisor com Evento de gatilho */}
           <div className="relative flex items-center justify-center pt-2 pb-1">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-neutral-200 dark:border-neutral-800" />
+              <div className="w-full border-t border-border" />
             </div>
-            <div className="relative flex items-center gap-1.5 bg-white px-3 text-xs text-neutral-500 dark:bg-neutral-900">
+            <div className="relative flex items-center gap-1.5 bg-surface px-3 text-xs text-text-muted">
               <span>{t("Evento de gatilho")}</span>
-              <span className="rounded-md bg-neutral-100 px-2 py-0.5 font-semibold text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
+              <span className="rounded-md bg-surface-elevated px-2 py-0.5 font-semibold text-text-muted">
                 {t(dividerBadgeLabel)}
               </span>
             </div>
@@ -485,11 +485,11 @@ export function NewFlowDialog({ open, onOpenChange }: Props) {
 
           {/* Campo: Evento * */}
           <div className="space-y-1">
-            <Label htmlFor="event-select" className="text-xs font-bold text-neutral-800 dark:text-neutral-200">
+            <Label htmlFor="event-select" className="text-xs font-bold text-text">
               {t("Evento")} <span className="text-rose-500">*</span>
             </Label>
             <Select value={selectedEvent} onValueChange={setSelectedEvent}>
-              <SelectTrigger id="event-select" className="h-10 rounded-lg border-neutral-300 text-sm">
+              <SelectTrigger id="event-select" className="h-10 rounded-lg border-border-strong text-sm">
                 <SelectValue placeholder={t("Selecione um evento")} />
               </SelectTrigger>
               <SelectContent className="max-h-56 overflow-y-auto">
@@ -505,15 +505,15 @@ export function NewFlowDialog({ open, onOpenChange }: Props) {
           {/* Campo: Palavra-chave (quando o gatilho é WhatsApp) */}
           {selectedProvider === "whatsapp" && (
             <div className="space-y-1">
-              <Label htmlFor="flow-keyword" className="text-xs font-bold text-neutral-800 dark:text-neutral-200">
-                {t("Palavra-chave")} <span className="text-[11px] font-normal text-neutral-400">({t("Opcional")})</span>
+              <Label htmlFor="flow-keyword" className="text-xs font-bold text-text">
+                {t("Palavra-chave")} <span className="text-[11px] font-normal text-text-subtle">({t("Opcional")})</span>
               </Label>
               <Input
                 id="flow-keyword"
                 value={keyword}
                 onChange={(e) => setKeyword(e.target.value)}
                 placeholder={t("Ex: EU QUERO, QUERO SABER MAIS")}
-                className="h-10 rounded-lg border-neutral-300 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 dark:border-neutral-700"
+                className="h-10 rounded-lg border-border-strong text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                 maxLength={60}
               />
             </div>
@@ -539,7 +539,7 @@ export function NewFlowDialog({ open, onOpenChange }: Props) {
           </div>
 
           {/* Dica de rodapé */}
-          <p className="text-[10.5px] leading-relaxed text-neutral-400 text-center px-1">
+          <p className="text-[10.5px] leading-relaxed text-text-subtle text-center px-1">
             {t(
               "Você pode utilizar palavras ou frases como palavra-chave. O fluxo será acionado quando o cliente enviar uma mensagem exatamente igual à palavra-chave. Uma dica é copiar o texto pronto que está configurado na sua campanha de mensagem.",
             )}

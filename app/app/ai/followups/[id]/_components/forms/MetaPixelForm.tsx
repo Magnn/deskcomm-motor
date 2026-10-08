@@ -62,10 +62,10 @@ export function MetaPixelForm({ config, onChange }: Props) {
           <Target size={18} />
         </div>
         <div>
-          <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+          <h3 className="text-sm font-semibold text-text">
             {t("Editar Pixel")}
           </h3>
-          <p className="text-[11px] text-neutral-500 dark:text-neutral-400">
+          <p className="text-[11px] text-text-muted">
             {t("Disparo de eventos no Meta Pixel / CAPI")}
           </p>
         </div>
@@ -73,7 +73,7 @@ export function MetaPixelForm({ config, onChange }: Props) {
 
       {/* Pixel Configurado */}
       <div className="space-y-1">
-        <label className="block text-[11px] font-semibold text-neutral-700 dark:text-neutral-300">
+        <label className="block text-[11px] font-semibold text-text-muted">
           {t("Pixel Configurado")} *
         </label>
         <select
@@ -82,7 +82,7 @@ export function MetaPixelForm({ config, onChange }: Props) {
             setPixelId(e.target.value);
             update({ pixel_id: e.target.value });
           }}
-          className="w-full rounded-lg border-2 border-amber-400/80 bg-white px-3 py-2 text-xs text-neutral-900 shadow-2xs outline-hidden focus:border-amber-500 focus:ring-1 focus:ring-amber-500 dark:border-amber-600/80 dark:bg-neutral-800 dark:text-neutral-100"
+          className="w-full rounded-lg border-2 border-amber-400/80 bg-surface px-3 py-2 text-xs text-text shadow-2xs outline-hidden focus:border-amber-500 focus:ring-1 focus:ring-amber-500 dark:border-amber-600/80"
         >
           <option value="">{t("Selecione um pixel configurado")}</option>
           <option value="pixel_principal">Pixel Principal (Meta Ads)</option>
@@ -91,14 +91,14 @@ export function MetaPixelForm({ config, onChange }: Props) {
             <option value={pixelId}>{pixelId}</option>
           )}
         </select>
-        <p className="text-[11px] text-neutral-500 dark:text-neutral-400">
+        <p className="text-[11px] text-text-muted">
           {t("Configure seus pixels em Configurações → Pixels do Facebook")}
         </p>
       </div>
 
       {/* Tipo do evento */}
       <div className="space-y-1">
-        <label className="block text-[11px] font-semibold text-neutral-700 dark:text-neutral-300">
+        <label className="block text-[11px] font-semibold text-text-muted">
           {t("Tipo do evento")} *
         </label>
         <select
@@ -107,7 +107,7 @@ export function MetaPixelForm({ config, onChange }: Props) {
             setEventType(e.target.value);
             update({ event_type: e.target.value });
           }}
-          className="w-full rounded-lg border-2 border-amber-400/80 bg-white px-3 py-2 text-xs text-neutral-900 shadow-2xs outline-hidden focus:border-amber-500 focus:ring-1 focus:ring-amber-500 dark:border-amber-600/80 dark:bg-neutral-800 dark:text-neutral-100"
+          className="w-full rounded-lg border-2 border-amber-400/80 bg-surface px-3 py-2 text-xs text-text shadow-2xs outline-hidden focus:border-amber-500 focus:ring-1 focus:ring-amber-500 dark:border-amber-600/80"
         >
           {PIXEL_EVENTS.map((ev) => (
             <option key={ev.id} value={ev.id}>
@@ -119,7 +119,7 @@ export function MetaPixelForm({ config, onChange }: Props) {
 
       {/* Page ID (Obrigatório para WhatsApp) */}
       <div className="space-y-1">
-        <label className="block text-[11px] font-semibold text-neutral-700 dark:text-neutral-300">
+        <label className="block text-[11px] font-semibold text-text-muted">
           {t("Page ID (Obrigatório para WhatsApp)")} *
         </label>
         <div className="relative">
@@ -131,13 +131,13 @@ export function MetaPixelForm({ config, onChange }: Props) {
               update({ page_id: e.target.value });
             }}
             placeholder="Ex: 123456789012345 ou {pagina_id}"
-            className="w-full rounded-lg border border-neutral-300 bg-white p-2.5 text-xs text-neutral-900 shadow-2xs outline-hidden focus:border-amber-500 focus:ring-1 focus:ring-amber-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100 resize-none font-mono"
+            className="w-full rounded-lg border border-border-strong bg-surface p-2.5 text-xs text-text shadow-2xs outline-hidden focus:border-amber-500 focus:ring-1 focus:ring-amber-500 resize-none font-mono"
           />
-          <div className="flex items-center gap-1 p-1 text-[11px] text-neutral-400">
+          <div className="flex items-center gap-1 p-1 text-[11px] text-text-subtle">
             <span className="font-mono">&lt;&gt;</span>
           </div>
         </div>
-        <p className="text-[11px] leading-relaxed text-neutral-500 dark:text-neutral-400">
+        <p className="text-[11px] leading-relaxed text-text-muted">
           {t(
             "ID da página do Facebook vinculada ao WhatsApp Business. Obrigatório para eventos via WhatsApp. Use o botão de variáveis na barra de ferramentas para inserir campos dinâmicos."
           )}
@@ -146,10 +146,10 @@ export function MetaPixelForm({ config, onChange }: Props) {
 
       {/* Valor do item */}
       <div className="space-y-1">
-        <label className="block text-[11px] font-semibold text-neutral-700 dark:text-neutral-300">
+        <label className="block text-[11px] font-semibold text-text-muted">
           {t("Valor do item")} *
         </label>
-        <div className="relative rounded-lg border border-neutral-300 bg-white p-2.5 shadow-2xs focus-within:border-amber-500 focus-within:ring-1 focus-within:ring-amber-500 dark:border-neutral-700 dark:bg-neutral-800">
+        <div className="relative rounded-lg border border-border-strong bg-surface p-2.5 shadow-2xs focus-within:border-amber-500 focus-within:ring-1 focus-within:ring-amber-500">
           <textarea
             rows={4}
             value={itemValue}
@@ -158,9 +158,9 @@ export function MetaPixelForm({ config, onChange }: Props) {
               update({ item_value: e.target.value });
             }}
             placeholder="Ex: 197,00 ou {preco}"
-            className="w-full bg-transparent text-xs text-neutral-900 outline-hidden resize-none dark:text-neutral-100 placeholder:text-neutral-400"
+            className="w-full bg-transparent text-xs text-text outline-hidden resize-none placeholder:text-text-subtle"
           />
-          <div className="flex items-center pt-1 text-neutral-400 font-mono text-[11px]">
+          <div className="flex items-center pt-1 text-text-subtle font-mono text-[11px]">
             <span
               onClick={() => {
                 setItemValue((prev) => (prev ? `${prev} {preco}` : "{preco}"));
@@ -173,7 +173,7 @@ export function MetaPixelForm({ config, onChange }: Props) {
             </span>
           </div>
         </div>
-        <p className="text-[11px] leading-relaxed text-neutral-500 dark:text-neutral-400">
+        <p className="text-[11px] leading-relaxed text-text-muted">
           {t(
             "Usado apenas para eventos de compra. Use o botão de variáveis na barra de ferramentas para inserir campos dinâmicos."
           )}
@@ -183,7 +183,7 @@ export function MetaPixelForm({ config, onChange }: Props) {
       {/* Moeda */}
       <div className="space-y-1.5">
         <div className="flex items-center justify-between">
-          <label className="block text-[11px] font-semibold text-neutral-700 dark:text-neutral-300">
+          <label className="block text-[11px] font-semibold text-text-muted">
             {t("Moeda")}
           </label>
           <button
@@ -199,9 +199,9 @@ export function MetaPixelForm({ config, onChange }: Props) {
           </button>
         </div>
 
-        <div className="flex items-center rounded-lg border-2 border-emerald-500/80 bg-white px-2.5 py-1.5 shadow-2xs dark:border-emerald-600/80 dark:bg-neutral-800">
-          <div className="flex items-center gap-1 pr-2 text-neutral-400 border-r border-neutral-200 dark:border-neutral-700 mr-2">
-            <span className="flex h-5 w-5 items-center justify-center rounded-full border border-neutral-300 text-[10px] font-bold text-neutral-500 dark:border-neutral-600 dark:text-neutral-400">
+        <div className="flex items-center rounded-lg border-2 border-emerald-500/80 bg-surface px-2.5 py-1.5 shadow-2xs dark:border-emerald-600/80">
+          <div className="flex items-center gap-1 pr-2 text-text-subtle border-r border-border mr-2">
+            <span className="flex h-5 w-5 items-center justify-center rounded-full border border-border-strong text-[10px] font-bold text-text-muted">
               $
             </span>
             <CaretDown size={12} />
@@ -214,7 +214,7 @@ export function MetaPixelForm({ config, onChange }: Props) {
               update({ currency: e.target.value });
             }}
             placeholder="BRL"
-            className="w-full bg-transparent text-xs font-medium text-neutral-900 outline-hidden dark:text-neutral-100"
+            className="w-full bg-transparent text-xs font-medium text-text outline-hidden"
           />
         </div>
         <p className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
@@ -223,12 +223,12 @@ export function MetaPixelForm({ config, onChange }: Props) {
       </div>
 
       {/* Card Como funciona */}
-      <div className="space-y-1.5 rounded-xl border border-neutral-200 bg-neutral-50/60 p-3.5 dark:border-neutral-800 dark:bg-neutral-900/60">
-        <div className="flex items-center gap-1.5 font-semibold text-neutral-800 dark:text-neutral-200">
-          <span className="text-neutral-400 text-xs font-bold">$</span>
+      <div className="space-y-1.5 rounded-xl border border-border bg-surface-elevated p-3.5">
+        <div className="flex items-center gap-1.5 font-semibold text-text">
+          <span className="text-text-subtle text-xs font-bold">$</span>
           <span>{t("Como funciona")}</span>
         </div>
-        <p className="text-[11px] leading-relaxed text-neutral-600 dark:text-neutral-400">
+        <p className="text-[11px] leading-relaxed text-text-muted">
           {t(
             "Este nó dispara eventos no Facebook através da Conversions API. Selecione um pixel configurado nas Configurações para usar."
           )}

@@ -117,23 +117,23 @@ export function ClassifyForm({
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <h3 className="text-sm font-bold text-neutral-900 dark:text-neutral-100">
+            <h3 className="text-sm font-bold text-text">
               {t("Classificador IA")}
             </h3>
             <span className="rounded-md bg-violet-100 px-1.5 py-0.5 text-[10px] font-semibold text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">
               {t("Inteligência Artificial")}
             </span>
           </div>
-          <p className="truncate text-[11px] text-neutral-500 dark:text-neutral-400">
+          <p className="truncate text-[11px] text-text-muted">
             {t("Interpreta as respostas dos leads e ramifica as rotas automaticamente.")}
           </p>
         </div>
       </div>
 
       {/* Gerenciador Visual de Classes / Intenções */}
-      <div className="space-y-2 rounded-xl border border-neutral-200 bg-neutral-50/50 p-3 dark:border-neutral-800 dark:bg-neutral-900/40">
+      <div className="space-y-2 rounded-xl border border-border bg-surface-elevated p-3">
         <div className="flex items-center justify-between">
-          <Label htmlFor="classify-classes" className="text-xs font-semibold text-neutral-800 dark:text-neutral-200">
+          <Label htmlFor="classify-classes" className="text-xs font-semibold text-text">
             {t("Rotas de Classificação")}
           </Label>
           <span className="text-[11px] font-medium text-violet-600 dark:text-violet-400">
@@ -142,9 +142,9 @@ export function ClassifyForm({
         </div>
 
         {/* Badges das classes já cadastradas */}
-        <div className="flex flex-wrap gap-1.5 min-h-[32px] items-center p-1.5 rounded-lg border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-950">
+        <div className="flex flex-wrap gap-1.5 min-h-[32px] items-center p-1.5 rounded-lg border border-border bg-surface">
           {classesAtuais.length === 0 ? (
-            <span className="text-[11px] text-neutral-400 italic px-1">
+            <span className="text-[11px] text-text-subtle italic px-1">
               {t("Nenhuma classe configurada. Digite abaixo ou selecione uma sugestão.")}
             </span>
           ) : (
@@ -180,7 +180,7 @@ export function ClassifyForm({
               }
             }}
             placeholder={t("Nova classe (ex: Interessado, Dúvida...)")}
-            className="h-8 text-xs bg-white dark:bg-neutral-950"
+            className="h-8 text-xs bg-surface"
           />
           <button
             type="button"
@@ -195,7 +195,7 @@ export function ClassifyForm({
 
         {/* Sugestões Rápidas de Classes */}
         <div className="pt-1">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-text-subtle">
             {t("Sugestões Rápidas:")}
           </span>
           <div className="mt-1 flex flex-wrap gap-1">
@@ -210,8 +210,8 @@ export function ClassifyForm({
                   className={cn(
                     "rounded-md border px-2 py-0.5 text-[10.5px] font-medium transition-colors cursor-pointer",
                     jaExiste
-                      ? "border-neutral-200 bg-neutral-100 text-neutral-400 dark:border-neutral-800 dark:bg-neutral-900"
-                      : "border-neutral-300 bg-white text-neutral-700 hover:border-violet-400 hover:text-violet-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:border-violet-500"
+                      ? "border-border bg-surface-elevated text-text-subtle"
+                      : "border-border-strong bg-surface text-text-muted hover:border-violet-400 hover:text-violet-700 dark:hover:border-violet-500"
                   )}
                 >
                   + {sugestao}
@@ -224,7 +224,7 @@ export function ClassifyForm({
 
       {/* Alvo da Leitura da IA */}
       <div className="space-y-2">
-        <Label htmlFor="classify-target" className="text-xs font-semibold text-neutral-800 dark:text-neutral-200">
+        <Label htmlFor="classify-target" className="text-xs font-semibold text-text">
           {t("O que a IA vai analisar")}
         </Label>
         
@@ -240,14 +240,14 @@ export function ClassifyForm({
               "flex flex-col items-start gap-1 rounded-xl border p-2.5 text-left transition-all cursor-pointer shadow-2xs",
               target === "last_reply"
                 ? "border-violet-600 bg-violet-50/70 dark:border-violet-500 dark:bg-violet-950/40 ring-1 ring-violet-600/30"
-                : "border-neutral-200 bg-white hover:border-neutral-300 dark:border-neutral-800 dark:bg-neutral-900"
+                : "border-border bg-surface hover:border-border-strong"
             )}
           >
-            <div className="flex items-center gap-1.5 font-semibold text-neutral-900 dark:text-neutral-100">
+            <div className="flex items-center gap-1.5 font-semibold text-text">
               <ChatCircle size={15} className="text-violet-600 dark:text-violet-400" />
               <span>{t("Última resposta")}</span>
             </div>
-            <p className="text-[10.5px] text-neutral-500 dark:text-neutral-400">
+            <p className="text-[10.5px] text-text-muted">
               {t("Lê estritamente o último texto recebido.")}
             </p>
           </button>
@@ -262,14 +262,14 @@ export function ClassifyForm({
               "flex flex-col items-start gap-1 rounded-xl border p-2.5 text-left transition-all cursor-pointer shadow-2xs",
               target === "summary"
                 ? "border-violet-600 bg-violet-50/70 dark:border-violet-500 dark:bg-violet-950/40 ring-1 ring-violet-600/30"
-                : "border-neutral-200 bg-white hover:border-neutral-300 dark:border-neutral-800 dark:bg-neutral-900"
+                : "border-border bg-surface hover:border-border-strong"
             )}
           >
-            <div className="flex items-center gap-1.5 font-semibold text-neutral-900 dark:text-neutral-100">
+            <div className="flex items-center gap-1.5 font-semibold text-text">
               <ListChecks size={15} className="text-violet-600 dark:text-violet-400" />
               <span>{t("Resumo da conversa")}</span>
             </div>
-            <p className="text-[10.5px] text-neutral-500 dark:text-neutral-400">
+            <p className="text-[10.5px] text-text-muted">
               {t("Analisa o contexto consolidado da conversa.")}
             </p>
           </button>
@@ -300,13 +300,13 @@ export function ClassifyForm({
       </div>
 
       {/* Tempo Limite de Resposta */}
-      <div className="space-y-2 rounded-xl border border-neutral-200 bg-white p-3 dark:border-neutral-800 dark:bg-neutral-900 shadow-2xs">
+      <div className="space-y-2 rounded-xl border border-border bg-surface p-3 shadow-2xs">
         <div className="flex items-center justify-between">
-          <Label htmlFor="classify-grace" className="flex items-center gap-1.5 text-xs font-semibold text-neutral-800 dark:text-neutral-200">
-            <Clock size={14} className="text-neutral-500" />
+          <Label htmlFor="classify-grace" className="flex items-center gap-1.5 text-xs font-semibold text-text">
+            <Clock size={14} className="text-text-muted" />
             <span>{t(ESPERA_PELA_RESPOSTA.rotulo)}</span>
           </Label>
-          <span className="text-[11px] font-semibold text-neutral-600 dark:text-neutral-300">
+          <span className="text-[11px] font-semibold text-text-muted">
             {graceMin >= 60 ? `${(graceMin / 60).toFixed(1)}h` : `${graceMin} min`}
           </span>
         </div>
@@ -322,9 +322,9 @@ export function ClassifyForm({
               setGraceMin(v);
               commit({ classesText, graceMin: v, target, hint });
             }}
-            className="h-8 text-xs w-28 bg-white dark:bg-neutral-950"
+            className="h-8 text-xs w-28 bg-surface"
           />
-          <span className="text-xs text-neutral-500">{t("minutos")}</span>
+          <span className="text-xs text-text-muted">{t("minutos")}</span>
 
           {/* Presets rápidos de tempo */}
           <div className="flex items-center gap-1 ml-auto">
@@ -340,7 +340,7 @@ export function ClassifyForm({
                   "rounded-md px-1.5 py-1 text-[10.5px] font-medium transition-colors cursor-pointer",
                   graceMin === p.minutos
                     ? "bg-violet-600 text-white"
-                    : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200 dark:bg-neutral-800 dark:text-neutral-300"
+                    : "bg-surface-elevated text-text-muted hover:bg-surface-elevated"
                 )}
               >
                 {p.rotulo}
@@ -354,11 +354,11 @@ export function ClassifyForm({
       {/* Instruções Adicionais para IA (Prompt Hint) */}
       <div className="space-y-1.5">
         <div className="flex items-center justify-between">
-          <Label htmlFor="classify-hint" className="flex items-center gap-1.5 text-xs font-semibold text-neutral-800 dark:text-neutral-200">
+          <Label htmlFor="classify-hint" className="flex items-center gap-1.5 text-xs font-semibold text-text">
             <Lightbulb size={14} className="text-amber-500" />
             <span>{t("Orientação adicional para a IA (Opcional)")}</span>
           </Label>
-          <span className="text-[10px] text-neutral-400">
+          <span className="text-[10px] text-text-subtle">
             {hint.length}/500
           </span>
         </div>
@@ -374,9 +374,9 @@ export function ClassifyForm({
           placeholder={t(
             "Ex: Se o lead disser que já comprou com outra empresa, classifique como 'Sem interesse'. Se perguntar sobre preço ou planos, classifique como 'Dúvida'."
           )}
-          className="text-xs resize-none bg-white dark:bg-neutral-950"
+          className="text-xs resize-none bg-surface"
         />
-        <p className="text-[11px] text-neutral-500 dark:text-neutral-400">
+        <p className="text-[11px] text-text-muted">
           {t("Oriente como interpretar termos ambíguos ou gírias regionais.")}
         </p>
       </div>

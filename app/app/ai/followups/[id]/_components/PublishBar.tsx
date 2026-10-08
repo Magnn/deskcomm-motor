@@ -264,7 +264,7 @@ export function PublishBar({
         <div className="flex flex-col items-center gap-1">
           <div className="flex items-center gap-2">
             <WhatsappLogo size={18} weight="fill" className="text-emerald-500" />
-            <h1 className="text-sm font-bold text-slate-800 dark:text-neutral-100">{flow.name}</h1>
+            <h1 className="text-sm font-bold text-text">{flow.name}</h1>
             <RenameFollowupFlowButton
               flowId={flowId}
               flowName={flow.name}
@@ -282,7 +282,7 @@ export function PublishBar({
             )}
           </div>
 
-          <div className="inline-flex items-center rounded-full border border-neutral-200 bg-neutral-100/80 p-0.5 text-xs shadow-2xs dark:border-neutral-800 dark:bg-neutral-900">
+          <div className="inline-flex items-center rounded-full border border-border bg-surface-elevated p-0.5 text-xs shadow-2xs">
             {/* Abre a Fila já filtrada por este fluxo: quem entrou, em que caixa está
                 e, se parou, por quê. Em aba nova — o canvas pode ter alteração não salva. */}
             <Link
@@ -291,7 +291,7 @@ export function PublishBar({
               rel="noreferrer"
               data-testid="abrir-logs-do-fluxo"
               title={t("Ver quem entrou neste fluxo, em que caixa está e por que parou")}
-              className="cursor-pointer rounded-full px-3 py-0.5 text-[11px] font-medium text-neutral-500 hover:text-neutral-900 dark:text-neutral-400"
+              className="cursor-pointer rounded-full px-3 py-0.5 text-[11px] font-medium text-text-muted hover:text-text"
             >
               Logs
             </Link>
@@ -303,7 +303,7 @@ export function PublishBar({
             </button>
             <button
               type="button"
-              className="cursor-pointer rounded-full px-3 py-0.5 text-[11px] font-medium text-neutral-500 hover:text-neutral-900 dark:text-neutral-400"
+              className="cursor-pointer rounded-full px-3 py-0.5 text-[11px] font-medium text-text-muted hover:text-text"
             >
               {t("Relatórios")}
             </button>

@@ -51,10 +51,10 @@ export function AddNoteForm({
           <Note size={18} />
         </div>
         <div>
-          <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+          <h3 className="text-sm font-semibold text-text">
             {t("Anotação no Contato")}
           </h3>
-          <p className="text-[11px] text-neutral-500 dark:text-neutral-400">
+          <p className="text-[11px] text-text-muted">
             {t("Registra nota interna no histórico da conversa (apenas equipe)")}
           </p>
         </div>
@@ -63,7 +63,7 @@ export function AddNoteForm({
       {/* Editor estilo Sticky Note */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <label htmlFor="add-note-body" className="block text-[12px] font-semibold text-neutral-800 dark:text-neutral-200">
+          <label htmlFor="add-note-body" className="block text-[12px] font-semibold text-text">
             {t("Conteúdo da nota interna")}
           </label>
           <button
@@ -88,7 +88,7 @@ export function AddNoteForm({
                   key={v}
                   type="button"
                   onClick={() => insertVariable(v)}
-                  className="px-2 py-0.5 rounded-md bg-white dark:bg-zinc-800 text-amber-900 dark:text-amber-300 border border-amber-300 dark:border-amber-700 text-[11px] font-mono hover:bg-amber-100 cursor-pointer shadow-2xs"
+                  className="px-2 py-0.5 rounded-md bg-surface text-amber-900 dark:text-amber-300 border border-amber-300 dark:border-amber-700 text-[11px] font-mono hover:bg-amber-100 cursor-pointer shadow-2xs"
                 >
                   {v}
                 </button>
