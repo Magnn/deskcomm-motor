@@ -854,6 +854,16 @@ const HOSTS_DECLARADOS: Record<string, EntradaDeHost> = {
     motivo:
       "tela de login do Facebook (`lib/channels/messenger/api.ts`, `urlDeAutorizacao`): é onde a pessoa escolhe as páginas que vão atender pelo Messenger. O código não chama o host — quem abre é o navegador da pessoa, na tela da própria Meta.",
   },
+  "connect.facebook.net": {
+    categoria: "FORNECEDOR",
+    motivo:
+      "endereço do SDK do Facebook que o botão Conectar com Facebook do WhatsApp oficial carrega (`components/connections/ConectarComFacebook.tsx`): é ele que abre a janela do Cadastro Incorporado da Meta. O navegador busca o script desse host — trocar pelo domínio do revendedor faria a janela não abrir.",
+  },
+  "facebook.com": {
+    categoria: "PROTOCOLO",
+    motivo:
+      "origem que o navegador declara no aviso da janela do Cadastro Incorporado (`vemDoFacebook`, em `components/connections/ConectarComFacebook.tsx`): é com ela que a tela confere que a conta e o número escolhidos vieram mesmo da Meta. Não é destino de chamada nem texto de tela — é o identificador que o protocolo manda.",
+  },
   "api.asaas.com": {
     categoria: "FORNECEDOR",
     motivo:
@@ -1170,6 +1180,11 @@ describe("catraca de host de terceiro no código que embarca", () => {
       "console.typesafe.ai",
       "deskcomm.app",
       "elevenlabs.io",
+      // Decisão escrita: a origem do aviso que a janela do Cadastro Incorporado
+      // manda ao navegador (`vemDoFacebook`, no botão Conectar com Facebook do
+      // WhatsApp oficial). O produto não fala com esse host — ele só confere que
+      // o aviso veio de lá, como o `s.whatsapp.net` abaixo.
+      "facebook.com",
       // Link que abre o pino que o CLIENTE mandou (`lib/messaging/localizacao.ts`).
       // Mesma natureza do `wa.me` abaixo: o produto não fala com o host, quem
       // abre é o celular do atendente. Crescimento escrito, como a regra pede.

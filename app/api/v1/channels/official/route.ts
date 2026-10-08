@@ -3,6 +3,13 @@ import { requireSupportWrite } from "@/lib/impersonate/support";
  * GET  /api/v1/channels/official — estado da conexão oficial + o que colar na Meta.
  * POST /api/v1/channels/official — VALIDA a credencial e só então grava.
  *
+ * O `POST` tem DUAS entradas e um caminho só. A colada traz número, conta e
+ * token; a do login do Facebook traz o código que a janela do Cadastro
+ * Incorporado devolveu, e o token sai da troca desse código
+ * (`lib/channels/meta/cadastro-incorporado.ts`). Dali em diante é a mesma
+ * validação, a mesma gravação e o mesmo registro de webhook — quem lê o canal
+ * depois não sabe, nem precisa saber, por qual das duas ele chegou.
+ *
  * O `POST` valida contra a Graph API **antes** de persistir. Gravar primeiro e
  * descobrir depois é o que faz o operador achar que conectou e só entender que não na
  * primeira mensagem que não sai — com o lead do outro lado esperando.
@@ -31,6 +38,12 @@ import { requireRole } from "@/lib/auth/require-role";
 import { ARCHIVED_AT, queryTolerantToMissingArchived } from "@/lib/channels/archived";
 import { CHANNEL_PROVIDER_META } from "@/lib/channels/capabilities";
 import { appDaMeta, appDaMetaDoAmbiente } from "@/lib/channels/meta/app";
+import {
+  appDoCadastroIncorporado,
+  credencialDoCadastroIncorporado,
+  garantirNumeroRegistrado,
+  type CredencialDoCadastro,
+} from "@/lib/channels/meta/cadastro-incorporado";
 import { metaGraphBase } from "@/lib/channels/meta/credentials";
 import { validateMetaCredentials } from "@/lib/channels/meta/validate-credentials";
 import {
@@ -38,6 +51,9 @@ import {
   registrarWebhookDaSessao,
 } from "@/lib/channels/meta/webhook-da-sessao";
 import { reactivateChannelSession } from "@/lib/channels/reactivate";
+import { env } from "@/lib/env";
+import { graphVersion } from "@/lib/graph-version";
+import { logger } from "@/lib/logger";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { metadataInicialDoCanal } from "@/lib/ai/elegibilidade/pre-go-live";
 import { encryptWebhookSecret } from "@/lib/webhooks/secrets";
@@ -47,11 +63,35 @@ import { traduzir } from "@/lib/i18n/dicionario";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-const conectarSchema = z.object({
+const coladoSchema = z.object({
   phone_number_id: z.string().min(5),
   waba_id: z.string().min(5),
   token: z.string().min(20),
 });
+
+/**
+ * O que a janela do Cadastro Incorporado devolve. Os dois ids são opcionais: eles
+ * vêm num aviso do navegador que pode não chegar, e o servidor sabe lê-los do
+ * token. Vindos do navegador, não são confiados — a validação com a Meta, logo
+ * abaixo, é feita com o token trocado AQUI e recusa id que ele não alcança.
+ */
+const peloLoginSchema = z.object({
+  code: z.string().min(10),
+  phone_number_id: z.string().min(5).optional(),
+  waba_id: z.string().min(5).optional(),
+});
+
+const conectarSchema = z.union([coladoSchema, peloLoginSchema]);
+
+/** Por que o login do Facebook não virou credencial, na frase de quem vai consertar. */
+const FRASE_DA_FALHA_DO_LOGIN: Record<Extract<CredencialDoCadastro, { ok: false }>["falha"], string> = {
+  troca_do_codigo: "O Facebook não confirmou a autorização. Tente conectar de novo.",
+  token_expira:
+    "A configuração do login do Facebook desta instalação emite um acesso que vence. Quem administra a instalação precisa trocá-la, no app da Meta, por uma que não expira.",
+  nenhum_numero: "Nenhum número de WhatsApp foi liberado no Facebook. Ao conectar, conclua a escolha do número.",
+  varios_numeros:
+    "O Facebook liberou mais de um número e não informou qual foi escolhido. Tente conectar de novo e conclua a janela até o fim.",
+};
 
 interface DesfechoGravado {
   meta_webhook_override_uri: string | null;
@@ -142,8 +182,16 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   const base = basePublicaDoWebhookMeta(req);
   const desfecho = data?.id ? await lerDesfechoDoWebhook(admin, data.id) : null;
+  const appDoLogin = await appDoCadastroIncorporado();
   return ok({
     connected: Boolean(data),
+    /**
+     * O que o botão "Conectar com Facebook" precisa para abrir a janela da Meta.
+     * Nenhum dos três é segredo (o id do app e o da configuração aparecem na
+     * própria janela). `null` = a instalação não configurou o login, e a tela
+     * fica com o formulário.
+     */
+    login: appDoLogin ? { appId: appDoLogin.appId, configId: appDoLogin.configId, versao: graphVersion() } : null,
     channel_session_id: data?.id ?? null,
     // `hasToken` em vez do token: uma vez gravado, a tela mostra que EXISTE, nunca
     // qual é. Devolver o segredo para preencher o campo seria vazá-lo a cada render.
@@ -202,7 +250,37 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       requestId,
     });
   }
-  const { phone_number_id, waba_id, token } = parsed.data;
+
+  let phone_number_id: string;
+  let waba_id: string;
+  let token: string;
+  const peloLogin = "code" in parsed.data;
+  if ("code" in parsed.data) {
+    const app = await appDoCadastroIncorporado();
+    if (!app) {
+      return fail("invalid_request", t("O login do Facebook não está configurado nesta instalação."), 422, {
+        requestId,
+      });
+    }
+    const credencial = await credencialDoCadastroIncorporado({
+      app,
+      code: parsed.data.code,
+      phoneNumberId: parsed.data.phone_number_id,
+      wabaId: parsed.data.waba_id,
+    });
+    if (!credencial.ok) {
+      // O detalhe é a mensagem da plataforma — nunca o código nem o token.
+      logger.warn("[canal-oficial.login] o código não virou credencial", {
+        requestId,
+        falha: credencial.falha,
+        detalhe: credencial.detalhe,
+      });
+      return fail("invalid_request", t(FRASE_DA_FALHA_DO_LOGIN[credencial.falha]), 422, { requestId });
+    }
+    ({ phoneNumberId: phone_number_id, wabaId: waba_id, token } = credencial);
+  } else {
+    ({ phone_number_id, waba_id, token } = parsed.data);
+  }
 
   // VALIDA ANTES DE GRAVAR — a rota não sabe com quem fala; ela pergunta se a
   // credencial presta e o canal responde.
@@ -258,6 +336,26 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   if (!existente || existente.archived_at) {
     const semPlano = await travaDeNovoNumero(admin, orgId, t, requestId);
     if (semPlano) return semPlano;
+  }
+
+  // Número criado na janela do Facebook ainda não está na Cloud API. Depois da
+  // trava do plano (recusar por plano não pode deixar efeito na Meta) e ANTES de
+  // gravar: canal gravado com número sem registro diz "conectado" e não envia.
+  // O formulário colado não passa por aqui — quem cola o id já tem o número em uso.
+  if (peloLogin) {
+    const registro = await garantirNumeroRegistrado({
+      phoneNumberId: phone_number_id,
+      token,
+      segredoDoPin: env.INTERNAL_SECRET,
+    });
+    if (!registro.ok) {
+      return fail(
+        "invalid_request",
+        `${t("A Meta não ativou este número para envio:")} ${registro.motivo}`,
+        422,
+        { requestId },
+      );
+    }
   }
 
   const linha = {
