@@ -17,6 +17,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { CampoDeChave } from "@/components/ui/campo-de-chave";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -197,13 +198,11 @@ export function AddCredentialDialog({ open, onOpenChange, providerInicial = "ant
                 {t("Onde pegar a chave")}
               </a>
             </div>
-            <Input
+            <CampoDeChave
               id="cred-key"
-              type="password"
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
               placeholder={provedor.prefixoDaChave}
-              autoComplete="off"
               required
             />
             {errors.api_key && (
