@@ -86,9 +86,9 @@ describe("o bloco de preço na data — semanas depois, com a contagem zerada", 
   });
 
   it("a pessoa seguiu reclamando e a escada desceu ALÉM do combinado: vale a escada", () => {
-    const b = blocoDePreco(cfg, { reclamacoes: 3, combinadoCents: 10_000 });
+    const b = blocoDePreco(cfg, { reclamacoes: 2, combinadoCents: 10_000 });
     expect(b).not.toContain("VALOR COMBINADO");
-    expect(b).toContain("Ofereça SÓ R$ 90");
+    expect(b).toContain("ofereça AGORA R$ 90");
   });
 
   it("combinado que não é mais degrau é ignorado pelo bloco", () => {

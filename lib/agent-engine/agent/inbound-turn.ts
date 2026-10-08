@@ -101,7 +101,7 @@ import { blocoDeObjecoes } from '@/lib/objecoes/bloco-do-prompt';
 import { blocoDeOferta } from '@/lib/oferta/bloco-do-prompt';
 import { passoDaLeitura } from '@/lib/leitura/estado-da-leitura';
 import { destinoNaConversa, fotoDaLeitura, imagemDaLeitura, mesaJaMostrada } from '@/lib/leitura/imagens';
-import { combinadoEmVigor, precoPermitidoAgora, reclamacoesDeValor, valorCombinadoNaConversa } from '@/lib/preco/estado-da-negociacao';
+import { combinadoEmVigor, estadoDaNegociacao, precoPermitidoAgora, reclamacoesDeValor, valorCombinadoNaConversa } from '@/lib/preco/estado-da-negociacao';
 import { blocoDoCombinado } from '@/lib/followup/bloco-do-combinado';
 import { PAUSA_ANTES_DA_PRIMEIRA, RITMO_PADRAO, pausaEntreBolhas, sinalizaDigitandoEntreBolhas, type Ritmo } from '@/lib/ritmo/tipos';
 import { buscaValorCombinado, criaRetornoDbPg } from '@/lib/followup/retorno-pg';
@@ -2289,7 +2289,13 @@ async function executarTurnoDoAgente(
   // pessoa reclamou do valor depois do preço dito — e isso é contado aqui, em código, sobre as
   // mensagens do contexto (o painel de Teste incluso). Vai no FIM do system: o prefixo estável e
   // cacheável não muda. Sem `pricing` ligado, `blocoDePreco` devolve "" e o system segue idêntico.
-  const reclamacoesDeValorNoTurno = reclamacoesDeValor(openingContext.context.messages);
+  // A pessoa dizer quanto tem ("só tenho 60") pula a escada para o degrau que cabe, e já conta
+  // como reclamação — sem `pricing` não há valor de venda com que comparar, e fica só a contagem.
+  const negociacaoDoTurno = agentConfig?.pricing
+    ? estadoDaNegociacao(agentConfig.pricing, openingContext.context.messages)
+    : { reclamacoes: reclamacoesDeValor(openingContext.context.messages), valorQueTemCents: null };
+  const reclamacoesDeValorNoTurno = negociacaoDoTurno.reclamacoes;
+  const valorQueTemNoTurno = negociacaoDoTurno.valorQueTemCents;
   // Pós-venda: quem já pagou sai da escada da primeira venda. A hora do pagamento só é buscada
   // quando há oferta ligada E a pessoa tem a marca de pago — o turno comum não paga a consulta.
   let posVendaDoTurno: ReturnType<typeof estadoDoPosVenda> = null;
@@ -2344,18 +2350,19 @@ async function executarTurnoDoAgente(
   }
   const blocoDePrecoDoTurno = blocoDePreco(agentConfig?.pricing, {
     reclamacoes: reclamacoesDeValorNoTurno,
+    valorQueTemCents: valorQueTemNoTurno,
     posVenda: posVendaDoTurno,
     combinadoCents: combinadoDoTurno,
   });
   // A REDE: o mesmo passo vira o piso de preço da trava de promessas deste turno. Se o modelo
-  // oferecer o desconto antes da hora, a mensagem é vetada antes de sair (`before-send`). No
+  // oferecer um valor abaixo do degrau liberado, a mensagem é vetada antes de sair (`before-send`). No
   // pós-venda liberado o piso é o valor da segunda oferta — sem isso ela seria vetada.
   const promiseMinPriceCents =
     agentConfig?.pricing != null
       ? posVendaDoTurno !== null
         ? posVendaDoTurno.priceCents
         : Math.min(
-            precoPermitidoAgora(agentConfig.pricing, reclamacoesDeValorNoTurno),
+            precoPermitidoAgora(agentConfig.pricing, reclamacoesDeValorNoTurno, valorQueTemNoTurno),
             combinadoDoTurno ?? Number.POSITIVE_INFINITY,
           )
       : undefined;

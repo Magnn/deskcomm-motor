@@ -15,7 +15,14 @@ import { describe, expect, it } from "vitest";
 
 import { decidePromise } from "@/lib/agent-engine/guardrails/promise/engine";
 import { blocoDePreco, semObjecaoDePrecoQuandoHaBloco } from "@/lib/preco/bloco-do-prompt";
-import { expandirHistoricoColado, precoPermitidoAgora, reclamacoesDeValor, tabelaDoTurno } from "@/lib/preco/estado-da-negociacao";
+import {
+  estadoDaNegociacao,
+  expandirHistoricoColado,
+  precoPermitidoAgora,
+  reclamacoesDeValor,
+  tabelaDoTurno,
+  valorQueAPessoaTem,
+} from "@/lib/preco/estado-da-negociacao";
 import { sincronizarPiso, tabelaDoPiso } from "@/lib/preco/sincronizar-piso";
 import { lerPricing, pisoEmCentavos, pricingSchema, reais } from "@/lib/preco/tipos";
 
@@ -131,27 +138,48 @@ describe("blocoDePreco", () => {
       expect(b).not.toContain("ESMERALDA");
       expect(b).not.toContain("R$ 110");
     }
-    // 1ª reclamação: mantém o valor, não fala de valor menor.
+    // 1ª reclamação: JÁ o degrau 1 (medido em 08/10/2026: segurar o valor na 1ª perdia quem não
+    // tinha o valor cheio), e pergunta UMA vez quanto ela consegue.
     const b1 = blocoDePreco(cfg, { reclamacoes: 1 });
-    expect(b1).toContain("NÃO baixe");
-    expect(b1).not.toContain("ESMERALDA");
-    expect(b1).not.toContain("R$ 110");
-    // 2ª: SÓ o degrau 1.
+    expect(b1).toContain("ofereça AGORA R$ 110");
+    expect(b1).toContain("NÃO repita o valor de venda");
+    expect(b1).toContain("use o cupom CUPOM110 no pagamento, no mesmo link");
+    expect(b1).toContain("me diz quanto você consegue fazer hoje");
+    expect(b1).not.toContain("pay.cakto.com.br/abc_100");
+    expect(b1).not.toContain("MENOR valor possível");
+    // 2ª: o último degrau, que é o mínimo, com o link dele — e sem perguntar de novo.
     const b2 = blocoDePreco(cfg, { reclamacoes: 2 });
-    expect(b2).toContain("Ofereça SÓ R$ 110");
-    expect(b2).toContain("use o cupom CUPOM110 no pagamento, no mesmo link");
-    expect(b2).not.toContain("pay.cakto.com.br/abc_100");
-    expect(b2).not.toContain("MENOR valor possível");
-    // 3ª: o último degrau, que é o mínimo, com o link dele.
+    expect(b2).toContain("ofereça AGORA R$ 100, que é o MENOR valor possível");
+    expect(b2).toContain("pague por este link: https://pay.cakto.com.br/abc_100");
+    expect(b2).not.toContain("CUPOM110");
+    expect(b2).not.toContain("quanto você consegue");
+    // 3ª em diante: já recebeu o menor valor; não oferece mais nada e combina a data POR ESSE valor.
     const b3 = blocoDePreco(cfg, { reclamacoes: 3 });
-    expect(b3).toContain("Ofereça SÓ R$ 100, que é o MENOR valor possível");
-    expect(b3).toContain("pague por este link: https://pay.cakto.com.br/abc_100");
+    expect(b3).toContain("já recebeu o menor valor possível (R$ 100)");
+    expect(b3).toContain("deixo combinado por esse valor");
     expect(b3).not.toContain("CUPOM110");
-    // 4ª em diante: já recebeu o menor valor; não oferece mais nada.
-    const b4 = blocoDePreco(cfg, { reclamacoes: 4 });
-    expect(b4).toContain("já recebeu o menor valor possível (R$ 100)");
-    expect(b4).toContain("quer que eu te lembre amanhã");
-    expect(b4).not.toContain("CUPOM110");
+  });
+
+  it("⭐ ela disse quanto tem: pula direto para o degrau que cabe, sem repetir o número dela", () => {
+    // Tem R$ 115: cabe o degrau de R$ 110 (o maior que não passa do que ela tem).
+    const cabe = blocoDePreco(cfg, { reclamacoes: 1, valorQueTemCents: 11_500 });
+    expect(cabe).toContain("ela disse quanto consegue pagar");
+    expect(cabe).toContain("ofereça AGORA R$ 110");
+    expect(cabe).not.toContain("R$ 115");
+    expect(cabe).not.toContain("quanto você consegue");
+    // Tem R$ 40, menos que o mínimo: o mínimo, dito como mínimo — nunca os R$ 40.
+    const abaixo = blocoDePreco(cfg, { reclamacoes: 1, valorQueTemCents: 4_000 });
+    expect(abaixo).toContain("ofereça AGORA R$ 100, que é o MENOR valor possível");
+    expect(abaixo).not.toContain("R$ 40");
+  });
+
+  it("⭐ outra data só depois do valor do degrau, e a data vale para ESSE valor; falta do essencial encerra a insistência", () => {
+    const b = blocoDePreco(cfg, { reclamacoes: 1 });
+    expect(b).toContain("OUTRA DATA: só combine pagamento em outra data DEPOIS de dizer R$ 110");
+    expect(b).toContain("nunca para o valor de venda");
+    expect(b).toContain("falta para o essencial");
+    // Antes de qualquer reclamação nada disso aparece (não insinua que existe valor menor).
+    expect(blocoDePreco(cfg, { reclamacoes: 0 })).not.toContain("OUTRA DATA");
   });
 
   it("⭐ com degraus, a negociação é da agente em TODO passo: não chama humano por valor nem para mandar link", () => {
@@ -244,6 +272,64 @@ describe("reclamacoesDeValor", () => {
   });
 });
 
+describe("o que a pessoa disse que tem — e o aviso de antes do preço", () => {
+  const dela = (body: string) => ({ direction: "inbound", body });
+  const nossa = (body: string) => ({ direction: "outbound", body });
+  const preco = nossa("O trabalho custa R$ 130, pagamento único.");
+
+  it.each([
+    ["só tenho 60", 6_000],
+    ["eu tenho só 70 reais", 7_000],
+    ["consigo pagar 80 hoje", 8_000],
+    ["faz por 50?", 5_000],
+    ["dá pra fazer por R$ 90", 9_000],
+    ["tenho 55,00 no pix", 5_500],
+    ["no momento só 60 reais", 6_000],
+  ])("%s", (frase, cents) => {
+    expect(valorQueAPessoaTem([preco, dela(frase)])).toBe(cents);
+  });
+
+  it.each([
+    "não tenho 100",
+    "nem 50 reais eu tenho",
+    "tenho 35 anos",
+    "só recebo dia 10",
+    "parcela em 12x?",
+    "tenho 2 filhos",
+    "estou sem dinheiro",
+  ])("não é valor que ela tem: %s", (frase) => {
+    expect(valorQueAPessoaTem([preco, dela(frase)])).toBeNull();
+  });
+
+  it("vale a ÚLTIMA vez que ela disse, e só depois do preço", () => {
+    expect(valorQueAPessoaTem([preco, dela("só tenho 50"), nossa("Entendo."), dela("consigo 70")])).toBe(7_000);
+    expect(valorQueAPessoaTem([dela("só tenho 50"), preco])).toBeNull();
+    expect(valorQueAPessoaTem([dela("só tenho 50")])).toBeNull();
+  });
+
+  it("dizer quanto tem já conta como reclamação; valor igual ou acima do de venda não é negociação", () => {
+    const c = { list_price_cents: 13_000 };
+    expect(estadoDaNegociacao(c, [preco, dela("consigo 80")])).toEqual({ reclamacoes: 1, valorQueTemCents: 8_000 });
+    expect(estadoDaNegociacao(c, [preco, dela("tenho 130 aqui")])).toEqual({ reclamacoes: 0, valorQueTemCents: null });
+    expect(estadoDaNegociacao(c, [dela("consigo 80")])).toEqual({ reclamacoes: null, valorQueTemCents: null });
+  });
+
+  it("⭐ quem avisou ANTES do preço que estava sem dinheiro chega um degrau à frente — mas só depois de reagir ao preço", () => {
+    const antes = [dela("já aviso que estou sem dinheiro"), preco];
+    expect(reclamacoesDeValor(antes)).toBe(0);
+    expect(reclamacoesDeValor([...antes, dela("ok, me manda o link")])).toBe(0);
+    expect(reclamacoesDeValor([...antes, dela("não tenho esse valor")])).toBe(2);
+    expect(reclamacoesDeValor([preco, dela("não tenho esse valor")])).toBe(1);
+  });
+
+  it.each(["só tenho isso", "tenho só um pouco", "tô bem apertada esse mês", "não vou poder pagar", "vai ficar pra depois"])(
+    "frase de quem tem menos conta como reclamação: %s",
+    (frase) => {
+      expect(reclamacoesDeValor([preco, dela(frase)])).toBe(1);
+    },
+  );
+});
+
 describe("a trava de promessas", () => {
   const pricing = pricingSchema.parse(COM_DEGRAUS);
 
@@ -325,10 +411,15 @@ describe("a escada vira piso da trava, turno a turno", () => {
   it("o menor valor permitido agora sobe e desce com a contagem", () => {
     expect(precoPermitidoAgora(cfg, null)).toBe(13_000);
     expect(precoPermitidoAgora(cfg, 0)).toBe(13_000);
-    expect(precoPermitidoAgora(cfg, 1)).toBe(13_000); // a 1ª reclamação NÃO libera desconto
-    expect(precoPermitidoAgora(cfg, 2)).toBe(11_000);
-    expect(precoPermitidoAgora(cfg, 3)).toBe(10_000);
+    expect(precoPermitidoAgora(cfg, 1)).toBe(11_000); // a 1ª reclamação já libera o degrau 1
+    expect(precoPermitidoAgora(cfg, 2)).toBe(10_000);
     expect(precoPermitidoAgora(cfg, 9)).toBe(10_000); // nunca abaixo do mínimo
+    // Dizer quanto tem pula a escada — e nunca abaixo do mínimo, nem acima do que a contagem já deu.
+    expect(precoPermitidoAgora(cfg, 1, 10_500)).toBe(10_000);
+    expect(precoPermitidoAgora(cfg, 1, 11_900)).toBe(11_000);
+    expect(precoPermitidoAgora(cfg, 1, 2_000)).toBe(10_000);
+    expect(precoPermitidoAgora(cfg, 2, 11_900)).toBe(10_000);
+    expect(precoPermitidoAgora(cfg, 0, 5_000)).toBe(13_000); // sem reclamação não há degrau
     expect(precoPermitidoAgora(pricingSchema.parse(BASE), 5)).toBe(13_000); // sem degraus: sem desconto
   });
 
@@ -344,20 +435,21 @@ describe("a escada vira piso da trava, turno a turno", () => {
   });
 
   it("desconto oferecido CEDO demais é vetado; o do degrau liberado passa (a rede de verdade)", () => {
-    // 1ª reclamação: o modelo ignora o molde e oferece R$ 110 → vetado.
-    const cedo = tabelaDoTurno({ minPriceCents: 10_000 }, precoPermitidoAgora(cfg, 1));
+    // Sem reclamação: o modelo ignora o molde e oferece R$ 110 → vetado.
+    const cedo = tabelaDoTurno({ minPriceCents: 10_000 }, precoPermitidoAgora(cfg, 0));
     expect(decidePromise({ candidate: "Fica R$ 110 com o cupom CUPOM110.", table: cedo! }).allow).toBe(false);
     expect(decidePromise({ candidate: "Entendo. O valor é R$ 130, pagamento único.", table: cedo! }).allow).toBe(true);
-    // 2ª reclamação: R$ 110 já é permitido; R$ 100 ainda não.
-    const segunda = tabelaDoTurno({ minPriceCents: 10_000 }, precoPermitidoAgora(cfg, 2));
-    expect(decidePromise({ candidate: "Fica R$ 110 com o cupom CUPOM110.", table: segunda! }).allow).toBe(true);
-    expect(decidePromise({ candidate: "Consigo R$ 100 pra você.", table: segunda! }).allow).toBe(false);
+    // 1ª reclamação: R$ 110 já é permitido; R$ 100 ainda não.
+    const primeira = tabelaDoTurno({ minPriceCents: 10_000 }, precoPermitidoAgora(cfg, 1));
+    expect(decidePromise({ candidate: "Fica R$ 110 com o cupom CUPOM110.", table: primeira! }).allow).toBe(true);
+    expect(decidePromise({ candidate: "Consigo R$ 100 pra você.", table: primeira! }).allow).toBe(false);
   });
 
   it("a fiação: o turno passa o piso do turno à cadeia de envio, e a cadeia o aplica à tabela", () => {
     const turno = readFileSync("lib/agent-engine/agent/inbound-turn.ts", "utf8");
     const cadeia = readFileSync("lib/agent-engine/guardrails/before-send.ts", "utf8");
-    expect(turno).toContain("precoPermitidoAgora(agentConfig.pricing, reclamacoesDeValorNoTurno)");
+    expect(turno).toContain("precoPermitidoAgora(agentConfig.pricing, reclamacoesDeValorNoTurno, valorQueTemNoTurno)");
+    expect(turno).toContain("estadoDaNegociacao(agentConfig.pricing, openingContext.context.messages)");
     expect(turno).toContain("...(promiseMinPriceCents !== undefined ? { promiseMinPriceCents } : {})");
     expect(turno).toContain("system: systemDoTurno");
     expect(cadeia).toContain("tabelaDoTurno(promise?.table ?? null, args.promiseMinPriceCents)");
@@ -386,7 +478,7 @@ describe("um link por produto no degrau (cada trabalho tem o seu link de oferta)
   });
 
   it("o molde leva um marcador (não a lista) e a lista vem à parte, para a agente mandar só um", () => {
-    const b = blocoDePreco(cfg, { reclamacoes: 2 });
+    const b = blocoDePreco(cfg, { reclamacoes: 1 });
     expect(b).toContain("R$ 50,70");
     expect(b).toContain("[o link do trabalho que você indicou");
     expect(b).toContain("LINKS NESTE VALOR (R$ 50,70)");
@@ -398,7 +490,7 @@ describe("um link por produto no degrau (cada trabalho tem o seu link de oferta)
   });
 
   it("antes do degrau, nenhum link do valor menor aparece (não vaza)", () => {
-    for (const reclamacoes of [null, 0, 1]) {
+    for (const reclamacoes of [null, 0]) {
       const b = blocoDePreco(cfg, { reclamacoes });
       expect(b).not.toContain("5bvpedx");
       expect(b).not.toContain("LINKS NESTE VALOR");
