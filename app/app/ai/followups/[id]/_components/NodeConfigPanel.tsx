@@ -108,11 +108,11 @@ export function NodeConfigPanel({ node, flowId, onChange, onDelete, onClose, ram
 
   return (
     <div
-      className="flex h-full flex-col min-h-0 bg-white dark:bg-zinc-950 font-sans text-text select-text"
+      className="flex h-full flex-col min-h-0 bg-surface font-sans text-text select-text"
       data-testid="node-config-panel"
     >
       {/* Cabeçalho AcassIA: Título inline + Botão de renomear roxo */}
-      <header className="flex items-center justify-between px-5 py-3 border-b border-slate-200 dark:border-zinc-800 shrink-0 min-h-[52px] bg-white dark:bg-zinc-950">
+      <header className="flex items-center justify-between px-5 py-3 border-b border-border shrink-0 min-h-[52px] bg-surface">
         {editingTitle ? (
           <div className="flex items-center gap-1.5 flex-1 mr-2">
             <input
@@ -129,11 +129,11 @@ export function NodeConfigPanel({ node, flowId, onChange, onDelete, onClose, ram
                 }
               }}
               onBlur={confirmRename}
-              className="flex-1 text-[15px] font-bold text-slate-900 dark:text-zinc-100 tracking-tight border border-purple-500 rounded-lg px-2.5 py-1 outline-hidden focus:ring-2 focus:ring-purple-500/30 bg-slate-50 dark:bg-zinc-900"
+              className="flex-1 text-[15px] font-bold text-text tracking-tight border border-purple-500 rounded-lg px-2.5 py-1 outline-hidden focus:ring-2 focus:ring-purple-500/30 bg-surface-elevated"
             />
           </div>
         ) : (
-          <span className="text-[15px] font-bold text-slate-800 dark:text-zinc-100 tracking-tight truncate">
+          <span className="text-[15px] font-bold text-text tracking-tight truncate">
             {label || t(visual.paletteLabel)}
           </span>
         )}
@@ -158,7 +158,7 @@ export function NodeConfigPanel({ node, flowId, onChange, onDelete, onClose, ram
           {onClose && (
             <button
               type="button"
-              className="w-7 h-7 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 flex items-center justify-center transition-colors cursor-pointer"
+              className="w-7 h-7 rounded-lg text-text-subtle hover:text-text-muted hover:bg-surface-elevated flex items-center justify-center transition-colors cursor-pointer"
               title={t("Fechar painel")}
               onClick={onClose}
             >
@@ -305,7 +305,7 @@ export function NodeConfigPanel({ node, flowId, onChange, onDelete, onClose, ram
       </div>
 
       {/* Rodapé fixo: Botão Salvar Verde AcassIA + Excluir Nó */}
-      <footer className="px-5 py-3 border-t border-slate-100 dark:border-zinc-800 bg-white dark:bg-zinc-950 shrink-0 space-y-2">
+      <footer className="px-5 py-3 border-t border-border bg-surface shrink-0 space-y-2">
         <button
           type="button"
           onClick={handleSave}
@@ -326,7 +326,7 @@ export function NodeConfigPanel({ node, flowId, onChange, onDelete, onClose, ram
             type="button"
             data-testid="delete-node"
             onClick={onDelete}
-            className="text-xs text-slate-400 hover:text-rose-600 transition-colors inline-flex items-center justify-center gap-1.5 py-1 cursor-pointer w-full"
+            className="text-xs text-text-subtle hover:text-rose-600 transition-colors inline-flex items-center justify-center gap-1.5 py-1 cursor-pointer w-full"
           >
             <Trash size={13} aria-hidden />
             {t("Excluir nó")}

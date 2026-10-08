@@ -87,10 +87,10 @@ export function GoogleSheetsForm({ config, onChange }: Props) {
           <GoogleLogo size={18} />
         </div>
         <div>
-          <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+          <h3 className="text-sm font-semibold text-text">
             {t("Google Sheets")}
           </h3>
-          <p className="text-[11px] text-neutral-500 dark:text-neutral-400">
+          <p className="text-[11px] text-text-muted">
             {t("Integração bidirecional com Planilhas Google")}
           </p>
         </div>
@@ -98,7 +98,7 @@ export function GoogleSheetsForm({ config, onChange }: Props) {
 
       {/* Operação */}
       <div className="space-y-1.5">
-        <label className="block text-[11px] font-semibold text-neutral-700 dark:text-neutral-300">
+        <label className="block text-[11px] font-semibold text-text-muted">
           {t("Ação na Planilha")} *
         </label>
         <select
@@ -108,7 +108,7 @@ export function GoogleSheetsForm({ config, onChange }: Props) {
             setOperation(val);
             update({ operation: val });
           }}
-          className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-xs text-neutral-900 shadow-2xs outline-hidden focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100"
+          className="w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-xs text-text shadow-2xs outline-hidden focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
         >
           {GOOGLE_SHEETS_OPERATIONS.map((op) => (
             <option key={op} value={op}>
@@ -116,14 +116,14 @@ export function GoogleSheetsForm({ config, onChange }: Props) {
             </option>
           ))}
         </select>
-        <p className="text-[10px] text-neutral-500 dark:text-neutral-400">
+        <p className="text-[10px] text-text-muted">
           {opLabels[operation]?.desc}
         </p>
       </div>
 
       {/* ID da Planilha */}
       <div className="space-y-1">
-        <label className="block text-[11px] font-semibold text-neutral-700 dark:text-neutral-300">
+        <label className="block text-[11px] font-semibold text-text-muted">
           {t("ID ou Link da Planilha")} *
         </label>
         <input
@@ -138,13 +138,13 @@ export function GoogleSheetsForm({ config, onChange }: Props) {
             setSpreadsheetId(resolved);
             update({ spreadsheet_id: resolved });
           }}
-          className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-xs font-mono text-neutral-900 shadow-2xs outline-hidden focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100"
+          className="w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-xs font-mono text-text shadow-2xs outline-hidden focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
         />
       </div>
 
       {/* Nome da Aba / Página */}
       <div className="space-y-1">
-        <label className="block text-[11px] font-semibold text-neutral-700 dark:text-neutral-300">
+        <label className="block text-[11px] font-semibold text-text-muted">
           {t("Nome da Aba / Página")} *
         </label>
         <input
@@ -155,19 +155,19 @@ export function GoogleSheetsForm({ config, onChange }: Props) {
             setSheetName(e.target.value);
             update({ sheet_name: e.target.value });
           }}
-          className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-xs text-neutral-900 shadow-2xs outline-hidden focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100"
+          className="w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-xs text-text shadow-2xs outline-hidden focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
         />
       </div>
 
       {/* Campos de Busca (se não for insert_row) */}
       {operation !== "insert_row" && (
-        <div className="space-y-3 rounded-lg border border-neutral-200 bg-neutral-50/50 p-2.5 dark:border-neutral-800 dark:bg-neutral-900/40">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">
+        <div className="space-y-3 rounded-lg border border-border bg-surface-elevated p-2.5">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted">
             {t("Critério de Busca")}
           </span>
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="block text-[10px] font-medium text-neutral-600 dark:text-neutral-400">
+              <label className="block text-[10px] font-medium text-text-muted">
                 {t("Coluna")} (ex: A ou Email)
               </label>
               <input
@@ -178,11 +178,11 @@ export function GoogleSheetsForm({ config, onChange }: Props) {
                   setLookupColumn(e.target.value);
                   update({ lookup_column: e.target.value });
                 }}
-                className="w-full rounded-lg border border-neutral-300 bg-white px-2.5 py-1.5 text-xs text-neutral-900 shadow-2xs outline-hidden focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100"
+                className="w-full rounded-lg border border-border-strong bg-surface px-2.5 py-1.5 text-xs text-text shadow-2xs outline-hidden focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
               />
             </div>
             <div>
-              <label className="block text-[10px] font-medium text-neutral-600 dark:text-neutral-400">
+              <label className="block text-[10px] font-medium text-text-muted">
                 {t("Valor de Busca")}
               </label>
               <input
@@ -193,7 +193,7 @@ export function GoogleSheetsForm({ config, onChange }: Props) {
                   setLookupValue(e.target.value);
                   update({ lookup_value: e.target.value });
                 }}
-                className="w-full rounded-lg border border-neutral-300 bg-white px-2.5 py-1.5 text-xs text-neutral-900 shadow-2xs outline-hidden focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100"
+                className="w-full rounded-lg border border-border-strong bg-surface px-2.5 py-1.5 text-xs text-text shadow-2xs outline-hidden focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
               />
             </div>
           </div>
@@ -203,7 +203,7 @@ export function GoogleSheetsForm({ config, onChange }: Props) {
       {/* Mapeamento de Colunas */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <label className="block text-[11px] font-semibold text-neutral-700 dark:text-neutral-300">
+          <label className="block text-[11px] font-semibold text-text-muted">
             {t("Mapeamento de Colunas e Dados")}
           </label>
           <button
@@ -217,7 +217,7 @@ export function GoogleSheetsForm({ config, onChange }: Props) {
         </div>
 
         {mappings.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-neutral-300 p-3 text-center text-[11px] text-neutral-400 dark:border-neutral-700">
+          <div className="rounded-lg border border-dashed border-border-strong p-3 text-center text-[11px] text-text-subtle">
             {t("Nenhuma coluna mapeada. Clique em 'Adicionar Coluna' para enviar dados.")}
           </div>
         ) : (
@@ -229,19 +229,19 @@ export function GoogleSheetsForm({ config, onChange }: Props) {
                   placeholder={t("Coluna (ex: Nome)")}
                   value={m.column}
                   onChange={(e) => handleUpdateMapping(idx, { column: e.target.value })}
-                  className="w-1/3 rounded-lg border border-neutral-300 bg-white px-2.5 py-1.5 text-xs text-neutral-900 shadow-2xs outline-hidden focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100"
+                  className="w-1/3 rounded-lg border border-border-strong bg-surface px-2.5 py-1.5 text-xs text-text shadow-2xs outline-hidden focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
                 />
                 <input
                   type="text"
                   placeholder={t("Valor (ex: {{nome}})")}
                   value={m.value}
                   onChange={(e) => handleUpdateMapping(idx, { value: e.target.value })}
-                  className="flex-1 rounded-lg border border-neutral-300 bg-white px-2.5 py-1.5 text-xs text-neutral-900 shadow-2xs outline-hidden focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100"
+                  className="flex-1 rounded-lg border border-border-strong bg-surface px-2.5 py-1.5 text-xs text-text shadow-2xs outline-hidden focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
                 />
                 <button
                   type="button"
                   onClick={() => handleRemoveMapping(idx)}
-                  className="rounded-lg p-1.5 text-neutral-400 hover:bg-neutral-100 hover:text-rose-600 dark:hover:bg-neutral-800"
+                  className="rounded-lg p-1.5 text-text-subtle hover:bg-surface-elevated hover:text-rose-600"
                 >
                   <Trash size={14} />
                 </button>

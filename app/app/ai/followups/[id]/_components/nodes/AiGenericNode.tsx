@@ -36,8 +36,8 @@ export function AiGenericNode({ id, data, selected }: NodeProps<RFNode>) {
       </div>
 
       {/* Caixa do Prompt */}
-      <div className="rounded-lg border border-emerald-200/60 bg-white p-2 text-[10.5px] leading-relaxed text-neutral-800 shadow-2xs dark:border-emerald-800/40 dark:bg-neutral-950 dark:text-neutral-200">
-        <p className="line-clamp-2 italic text-neutral-600 dark:text-neutral-300">
+      <div className="rounded-lg border border-emerald-200/60 bg-surface p-2 text-[10.5px] leading-relaxed text-text shadow-2xs dark:border-emerald-800/40">
+        <p className="line-clamp-2 italic text-text-muted">
           "{prompt}"
         </p>
       </div>
@@ -59,7 +59,7 @@ export function AiGenericNode({ id, data, selected }: NodeProps<RFNode>) {
         )}
 
         {config.temperature !== undefined && (
-          <span className="text-neutral-400 text-[9.5px] ml-auto">
+          <span className="text-text-subtle text-[9.5px] ml-auto">
             temp: {config.temperature}
           </span>
         )}

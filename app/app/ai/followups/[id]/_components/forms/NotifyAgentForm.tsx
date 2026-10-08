@@ -113,14 +113,14 @@ export function NotifyAgentForm({
   return (
     <div className="space-y-4 font-sans text-xs">
       {/* Texto de Ajuda AcassIA */}
-      <div className="space-y-2 text-[11.5px] text-slate-500 dark:text-zinc-400 leading-relaxed text-justify">
+      <div className="space-y-2 text-[11.5px] text-text-muted leading-relaxed text-justify">
         <p>
           {t(
             "Esse bloco envia uma mensagem interna de aviso para atendentes do workspace, sem enviar nada ao contato. No modo Manual você escolhe quais atendentes receberão o aviso; no modo Automático a notificação vai para quem já está ligado ao atendimento (atendente responsável do chat e/ou seguidores do contato)."
           )}
         </p>
         <p>
-          <strong className="font-semibold text-slate-700 dark:text-zinc-300">
+          <strong className="font-semibold text-text-muted">
             {t("Dica importante:")}
           </strong>{" "}
           {t(
@@ -131,14 +131,14 @@ export function NotifyAgentForm({
 
       {/* Divisor Configurar */}
       <div className="relative flex items-center justify-center my-3">
-        <div className="w-full border-t border-slate-200 dark:border-zinc-800" />
-        <span className="absolute bg-white dark:bg-zinc-950 px-3 text-[11px] text-slate-400 dark:text-zinc-500 font-medium">
+        <div className="w-full border-t border-border" />
+        <span className="absolute bg-surface px-3 text-[11px] text-text-subtle font-medium">
           {t("Configurar")}
         </span>
       </div>
 
       {/* Abas Pill: Manual / Automático */}
-      <div className="flex rounded-full border border-purple-200 dark:border-purple-900/60 p-0.5 bg-slate-50/50 dark:bg-zinc-900/50">
+      <div className="flex rounded-full border border-purple-200 dark:border-purple-900/60 p-0.5 bg-surface-elevated">
         <button
           type="button"
           onClick={() => handleModoChange("manual")}
@@ -146,7 +146,7 @@ export function NotifyAgentForm({
             "flex-1 py-1.5 text-center text-[12px] font-semibold rounded-full transition-all cursor-pointer",
             modo === "manual"
               ? "bg-[#9333ea] text-white shadow-xs"
-              : "text-slate-700 dark:text-zinc-300 hover:text-purple-600"
+              : "text-text-muted hover:text-purple-600"
           )}
         >
           {t("Manual")}
@@ -158,7 +158,7 @@ export function NotifyAgentForm({
             "flex-1 py-1.5 text-center text-[12px] font-semibold rounded-full transition-all cursor-pointer",
             modo === "automatico"
               ? "bg-[#9333ea] text-white shadow-xs"
-              : "text-slate-700 dark:text-zinc-300 hover:text-purple-600"
+              : "text-text-muted hover:text-purple-600"
           )}
         >
           {t("Automático")}
@@ -172,7 +172,7 @@ export function NotifyAgentForm({
             <select
               value={atendenteId}
               onChange={(e) => handleAtendenteChange(e.target.value)}
-              className="w-full h-10 rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 pr-8 text-xs text-slate-700 dark:text-zinc-200 focus:outline-hidden appearance-none cursor-pointer"
+              className="w-full h-10 rounded-lg border border-border bg-surface px-3 pr-8 text-xs text-text-muted focus:outline-hidden appearance-none cursor-pointer"
             >
               <option value="">{t("Selecione um atendente")}</option>
               {(agentes ?? []).map((agente: { id: string; name: string }) => (
@@ -183,18 +183,18 @@ export function NotifyAgentForm({
             </select>
             <ChevronDown
               size={15}
-              className="absolute right-3 top-3 text-slate-400 pointer-events-none"
+              className="absolute right-3 top-3 text-text-subtle pointer-events-none"
             />
           </div>
         </div>
       ) : (
         <div className="rounded-xl border border-purple-200 dark:border-purple-900/40 bg-purple-50/40 dark:bg-purple-950/20 p-3 space-y-2.5">
-          <p className="text-[12px] font-semibold text-slate-800 dark:text-zinc-200">
+          <p className="text-[12px] font-semibold text-text">
             {t("Notificar o(s) usuário(s) responsável(is) pelo atendimento")}
           </p>
           <div className="space-y-2">
-            <div className="flex items-center justify-between rounded-lg border border-slate-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-2.5 shadow-2xs">
-              <span className="text-[12px] font-medium text-slate-700 dark:text-zinc-200">
+            <div className="flex items-center justify-between rounded-lg border border-border bg-surface p-2.5 shadow-2xs">
+              <span className="text-[12px] font-medium text-text-muted">
                 {t("Atendente do chat")}
               </span>
               <button
@@ -208,12 +208,12 @@ export function NotifyAgentForm({
                   "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out focus:outline-hidden",
                   notificarAtendenteChat
                     ? "bg-[#9333ea]"
-                    : "bg-slate-300 dark:bg-zinc-700"
+                    : "bg-border-strong"
                 )}
               >
                 <span
                   className={cn(
-                    "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out mt-0.5",
+                    "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-surface shadow-sm ring-0 transition duration-200 ease-in-out mt-0.5",
                     notificarAtendenteChat
                       ? "translate-x-4 ml-0.5"
                       : "translate-x-0.5"
@@ -222,8 +222,8 @@ export function NotifyAgentForm({
               </button>
             </div>
 
-            <div className="flex items-center justify-between rounded-lg border border-slate-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-2.5 shadow-2xs">
-              <span className="text-[12px] font-medium text-slate-700 dark:text-zinc-200">
+            <div className="flex items-center justify-between rounded-lg border border-border bg-surface p-2.5 shadow-2xs">
+              <span className="text-[12px] font-medium text-text-muted">
                 {t("Seguidores do contato")}
               </span>
               <button
@@ -235,12 +235,12 @@ export function NotifyAgentForm({
                   "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out focus:outline-hidden",
                   notificarSeguidores
                     ? "bg-[#9333ea]"
-                    : "bg-slate-300 dark:bg-zinc-700"
+                    : "bg-border-strong"
                 )}
               >
                 <span
                   className={cn(
-                    "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out mt-0.5",
+                    "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-surface shadow-sm ring-0 transition duration-200 ease-in-out mt-0.5",
                     notificarSeguidores
                       ? "translate-x-4 ml-0.5"
                       : "translate-x-0.5"
@@ -257,7 +257,7 @@ export function NotifyAgentForm({
         <div className="flex items-center justify-between">
           <label
             htmlFor="notify-agent-message"
-            className="text-[12px] font-semibold text-slate-800 dark:text-zinc-200"
+            className="text-[12px] font-semibold text-text"
           >
             {t("Mensagem a ser enviada")}
           </label>
@@ -273,9 +273,9 @@ export function NotifyAgentForm({
             </PopoverTrigger>
             <PopoverContent
               align="end"
-              className="w-56 p-2 space-y-1 text-xs bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 shadow-md rounded-xl"
+              className="w-56 p-2 space-y-1 text-xs bg-surface border border-border shadow-md rounded-xl"
             >
-              <p className="px-2 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+              <p className="px-2 py-1 text-[10px] font-bold text-text-subtle uppercase tracking-wider">
                 {t("Inserir variável")}
               </p>
               {CAMPOS_RAPIDOS.map((campo) => (
@@ -283,10 +283,10 @@ export function NotifyAgentForm({
                   key={campo.tag}
                   type="button"
                   onClick={() => insertTag(campo.tag)}
-                  className="w-full text-left px-2 py-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-zinc-800 font-mono text-[11px] text-slate-700 dark:text-zinc-200 flex items-center justify-between cursor-pointer"
+                  className="w-full text-left px-2 py-1.5 rounded-md hover:bg-surface-elevated font-mono text-[11px] text-text-muted flex items-center justify-between cursor-pointer"
                 >
                   <span>{campo.tag}</span>
-                  <span className="text-[10px] font-sans text-slate-400">
+                  <span className="text-[10px] font-sans text-text-subtle">
                     {campo.label}
                   </span>
                 </button>
@@ -301,7 +301,7 @@ export function NotifyAgentForm({
           maxLength={500}
           value={message}
           onChange={(e) => handleMessageChange(e.target.value)}
-          className="w-full rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-2.5 text-[12px] font-mono text-slate-700 dark:text-zinc-100 focus:outline-hidden focus:border-purple-500 focus:ring-1 focus:ring-purple-500/20 shadow-2xs resize-none"
+          className="w-full rounded-xl border border-border bg-surface p-2.5 text-[12px] font-mono text-text-muted focus:outline-hidden focus:border-purple-500 focus:ring-1 focus:ring-purple-500/20 shadow-2xs resize-none"
         />
       </div>
 

@@ -32,14 +32,14 @@ export function NotifyAgentNode({ id, data, selected }: NodeProps<RFNode>) {
       </div>
 
       {/* Box com a mensagem interna */}
-      <div className="rounded-lg border border-purple-200/60 bg-white p-2 text-[11px] text-neutral-800 shadow-2xs dark:border-purple-800/40 dark:bg-neutral-950 dark:text-neutral-200">
-        <p className="line-clamp-2 font-mono text-[10px] text-neutral-600 dark:text-neutral-300 leading-snug">
+      <div className="rounded-lg border border-purple-200/60 bg-surface p-2 text-[11px] text-text shadow-2xs dark:border-purple-800/40">
+        <p className="line-clamp-2 font-mono text-[10px] text-text-muted leading-snug">
           {messageText}
         </p>
       </div>
 
       {/* Rodapé: Aviso interno não visível ao lead */}
-      <div className="flex items-center justify-between text-[9.5px] text-neutral-400 px-0.5">
+      <div className="flex items-center justify-between text-[9.5px] text-text-subtle px-0.5">
         <span>🔒 {t("Mensagem interna (privada)")}</span>
         <span className="font-semibold text-purple-600 dark:text-purple-400">{t("Sem pausa")}</span>
       </div>

@@ -52,10 +52,10 @@ export function PixPaymentForm({ config, onChange }: Props) {
           <CreditCard size={18} />
         </div>
         <div>
-          <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+          <h3 className="text-sm font-semibold text-text">
             {t("Editar PIX")}
           </h3>
-          <p className="text-[11px] text-neutral-500 dark:text-neutral-400">
+          <p className="text-[11px] text-text-muted">
             {t("Cobrança instantânea via chave ou botão PIX")}
           </p>
         </div>
@@ -63,7 +63,7 @@ export function PixPaymentForm({ config, onChange }: Props) {
 
       {/* Tipo da Chave PIX */}
       <div className="space-y-1.5">
-        <label className="block text-[11px] font-semibold text-neutral-700 dark:text-neutral-300">
+        <label className="block text-[11px] font-semibold text-text-muted">
           {t("Tipo da Chave PIX")} *
         </label>
         <select
@@ -73,7 +73,7 @@ export function PixPaymentForm({ config, onChange }: Props) {
             setKeyType(val);
             update({ key_type: val });
           }}
-          className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-xs text-neutral-900 shadow-2xs outline-hidden focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100"
+          className="w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-xs text-text shadow-2xs outline-hidden focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
         >
           {PIX_TYPES.map((pt) => (
             <option key={pt.value} value={pt.value}>
@@ -86,10 +86,10 @@ export function PixPaymentForm({ config, onChange }: Props) {
       {/* Chave PIX */}
       <div className="space-y-1">
         <div className="flex items-center justify-between">
-          <label className="block text-[11px] font-semibold text-neutral-700 dark:text-neutral-300">
+          <label className="block text-[11px] font-semibold text-text-muted">
             {t("Chave PIX")} *
           </label>
-          <span className="text-[11px] text-neutral-400 font-mono">&lt;&gt;</span>
+          <span className="text-[11px] text-text-subtle font-mono">&lt;&gt;</span>
         </div>
         <input
           type="text"
@@ -99,9 +99,9 @@ export function PixPaymentForm({ config, onChange }: Props) {
             update({ pix_key: e.target.value });
           }}
           placeholder="123e4567-e89b-12d3-a456-426614174000"
-          className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-xs font-mono text-neutral-900 shadow-2xs outline-hidden focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100"
+          className="w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-xs font-mono text-text shadow-2xs outline-hidden focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
         />
-        <p className="text-[11px] leading-relaxed text-neutral-500 dark:text-neutral-400">
+        <p className="text-[11px] leading-relaxed text-text-muted">
           {t("Na integração oficial, o código do pedido (EMV) usa esta mesma chave. Como no chat ao vivo.")}
         </p>
       </div>
@@ -109,10 +109,10 @@ export function PixPaymentForm({ config, onChange }: Props) {
       {/* Destinatário do pagamento */}
       <div className="space-y-1">
         <div className="flex items-center justify-between">
-          <label className="block text-[11px] font-semibold text-neutral-700 dark:text-neutral-300">
+          <label className="block text-[11px] font-semibold text-text-muted">
             {t("Destinatário do pagamento")}
           </label>
-          <span className="text-[11px] text-neutral-400 font-mono">&lt;&gt;</span>
+          <span className="text-[11px] text-text-subtle font-mono">&lt;&gt;</span>
         </div>
         <input
           type="text"
@@ -122,9 +122,9 @@ export function PixPaymentForm({ config, onChange }: Props) {
             update({ beneficiary: e.target.value });
           }}
           placeholder="Ex: Leona Solutions"
-          className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-xs text-neutral-900 shadow-2xs outline-hidden focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100"
+          className="w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-xs text-text shadow-2xs outline-hidden focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
         />
-        <p className="text-[11px] text-neutral-500 dark:text-neutral-400">
+        <p className="text-[11px] text-text-muted">
           {t("Se não preenchido, será usado \"Pix\" nas conexões padrão.")}
         </p>
         <p className="text-[11px] font-medium text-amber-700 dark:text-amber-400">
@@ -135,10 +135,10 @@ export function PixPaymentForm({ config, onChange }: Props) {
       {/* Valor (R$) */}
       <div className="space-y-1">
         <div className="flex items-center justify-between">
-          <label className="block text-[11px] font-semibold text-neutral-700 dark:text-neutral-300">
+          <label className="block text-[11px] font-semibold text-text-muted">
             {t("Valor (R$)")}
           </label>
-          <span className="text-[11px] text-neutral-400 font-mono">&lt;&gt;</span>
+          <span className="text-[11px] text-text-subtle font-mono">&lt;&gt;</span>
         </div>
         <input
           type="text"
@@ -148,7 +148,7 @@ export function PixPaymentForm({ config, onChange }: Props) {
             update({ amount: e.target.value });
           }}
           placeholder="Ex: 49,90"
-          className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-xs text-neutral-900 shadow-2xs outline-hidden focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100"
+          className="w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-xs text-text shadow-2xs outline-hidden focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
         />
         <p className="text-[11px] font-medium text-amber-700 dark:text-amber-400">
           {t("Obrigatório quando o fluxo roda na integração oficial (WhatsApp Cloud API / Meta).")}
@@ -157,7 +157,7 @@ export function PixPaymentForm({ config, onChange }: Props) {
 
       {/* Texto da mensagem (opcional) */}
       <div className="space-y-1">
-        <label className="block text-[11px] font-semibold text-neutral-700 dark:text-neutral-300">
+        <label className="block text-[11px] font-semibold text-text-muted">
           {t("Texto da mensagem (opcional)")}
         </label>
         <div className="relative">
@@ -170,9 +170,9 @@ export function PixPaymentForm({ config, onChange }: Props) {
               update({ message_text: e.target.value });
             }}
             placeholder={t("Ex.: Oi {primeiro_nome}, segue o PIX combinado 👇")}
-            className="w-full rounded-lg border border-neutral-300 bg-white p-2.5 text-xs text-neutral-900 shadow-2xs outline-hidden focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100 resize-none"
+            className="w-full rounded-lg border border-border-strong bg-surface p-2.5 text-xs text-text shadow-2xs outline-hidden focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 resize-none"
           />
-          <div className="flex items-center justify-between pt-0.5 text-[10px] text-neutral-400">
+          <div className="flex items-center justify-between pt-0.5 text-[10px] text-text-subtle">
             <span className="font-medium text-amber-700 dark:text-amber-400">
               {t("Abre a mensagem, antes do valor e da chave. Aceita {primeiro_nome}, {nome_completo} e {telefone}.")}
             </span>
@@ -183,7 +183,7 @@ export function PixPaymentForm({ config, onChange }: Props) {
 
       {/* Imagem do card (URL ou variável) */}
       <div className="space-y-2">
-        <label className="block text-[11px] font-semibold text-neutral-700 dark:text-neutral-300">
+        <label className="block text-[11px] font-semibold text-text-muted">
           {t("Imagem do card (URL ou variável)")}
         </label>
         <div className="relative">
@@ -195,7 +195,7 @@ export function PixPaymentForm({ config, onChange }: Props) {
               update({ card_image_url: e.target.value });
             }}
             placeholder="https://…/banner.jpg ou {product_image}"
-            className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-xs text-neutral-900 shadow-2xs outline-hidden focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100"
+            className="w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-xs text-text shadow-2xs outline-hidden focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
           />
         </div>
         <p className="text-[11px] font-medium text-amber-700 dark:text-amber-400">
@@ -225,7 +225,7 @@ export function PixPaymentForm({ config, onChange }: Props) {
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 shadow-2xs transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700"
+            className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-border-strong bg-surface px-3 py-1.5 text-xs font-semibold text-text-muted shadow-2xs transition-colors hover:bg-surface-elevated"
           >
             <UploadSimple size={14} />
             <span>{t("Enviar imagem")}</span>
@@ -247,7 +247,7 @@ export function PixPaymentForm({ config, onChange }: Props) {
         </div>
 
         {cardImageUrl && (cardImageUrl.startsWith("http") || cardImageUrl.startsWith("data:image")) && (
-          <div className="relative mt-2 overflow-hidden rounded-lg border border-neutral-200 bg-neutral-100 p-1 dark:border-neutral-700 dark:bg-neutral-900 max-w-[200px]">
+          <div className="relative mt-2 overflow-hidden rounded-lg border border-border bg-surface-elevated p-1 max-w-[200px]">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={cardImageUrl}
@@ -257,18 +257,18 @@ export function PixPaymentForm({ config, onChange }: Props) {
           </div>
         )}
 
-        <p className="text-[11px] text-neutral-500 dark:text-neutral-400">
+        <p className="text-[11px] text-text-muted">
           {t("Use variáveis como {full_name} ou campos customizados. Valores são resolvidos na execução do fluxo.")}
         </p>
       </div>
 
       {/* Card Como funciona */}
-      <div className="space-y-2 rounded-xl border border-neutral-200 bg-neutral-50/60 p-3 dark:border-neutral-800 dark:bg-neutral-900/60">
-        <div className="flex items-center gap-1.5 font-semibold text-neutral-800 dark:text-neutral-200">
-          <Info size={14} className="text-neutral-500 dark:text-neutral-400" />
+      <div className="space-y-2 rounded-xl border border-border bg-surface-elevated p-3">
+        <div className="flex items-center gap-1.5 font-semibold text-text">
+          <Info size={14} className="text-text-muted" />
           <span>{t("Como funciona")}</span>
         </div>
-        <p className="text-[11px] leading-relaxed text-neutral-600 dark:text-neutral-400">
+        <p className="text-[11px] leading-relaxed text-text-muted">
           {t(
             "Este nó envia um botão PIX para o cliente, permitindo que ele copie a chave PIX e realize o pagamento diretamente no aplicativo do banco. O mesmo bloco pode ser usado em conexões padrão e na integração oficial."
           )}

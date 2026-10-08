@@ -208,11 +208,11 @@ export function ConditionForm({
                 "p-2.5 rounded-xl border text-left flex flex-col justify-between transition-all cursor-pointer",
                 combinator === "and"
                   ? "border-blue-500 bg-blue-50/50 dark:bg-blue-950/20 text-blue-900 dark:text-blue-200 ring-1 ring-blue-500 shadow-2xs"
-                  : "border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-600 dark:text-zinc-400 hover:border-slate-300"
+                  : "border-border bg-surface text-text-muted hover:border-border-strong"
               )}
             >
               <span className="text-[11px] font-bold">{t("Corresponde a TODAS")}</span>
-              <span className="text-[10px] text-slate-500 dark:text-zinc-400 mt-1">{t("E (AND) — todas válidas")}</span>
+              <span className="text-[10px] text-text-muted mt-1">{t("E (AND) — todas válidas")}</span>
             </button>
 
             <button
@@ -225,11 +225,11 @@ export function ConditionForm({
                 "p-2.5 rounded-xl border text-left flex flex-col justify-between transition-all cursor-pointer",
                 combinator === "or"
                   ? "border-blue-500 bg-blue-50/50 dark:bg-blue-950/20 text-blue-900 dark:text-blue-200 ring-1 ring-blue-500 shadow-2xs"
-                  : "border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-600 dark:text-zinc-400 hover:border-slate-300"
+                  : "border-border bg-surface text-text-muted hover:border-border-strong"
               )}
             >
               <span className="text-[11px] font-bold">{t("Corresponde a QUALQUER")}</span>
-              <span className="text-[10px] text-slate-500 dark:text-zinc-400 mt-1">{t("OU (OR) — pelo menos uma")}</span>
+              <span className="text-[10px] text-text-muted mt-1">{t("OU (OR) — pelo menos uma")}</span>
             </button>
           </div>
 
@@ -262,11 +262,11 @@ export function ConditionForm({
         {checks.map((check, idx) => (
           <div
             key={check.id ?? idx}
-            className="space-y-2.5 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-3.5 shadow-2xs"
+            className="space-y-2.5 rounded-xl border border-border bg-surface p-3.5 shadow-2xs"
             data-testid={`condition-check-${idx}`}
           >
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-800 dark:text-zinc-200">
+              <span className="text-xs font-bold text-text">
                 {t("Condição")} {idx + 1}
               </span>
               <Button

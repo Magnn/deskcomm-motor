@@ -105,14 +105,14 @@ export function MenuForm({
   return (
     <div className="space-y-4 font-sans text-xs">
       {/* Texto descritivo superior AcassIA */}
-      <p className="text-[11.5px] text-slate-500 dark:text-zinc-400 leading-relaxed text-justify">
+      <p className="text-[11.5px] text-text-muted leading-relaxed text-justify">
         {t("Apresente opções para o contato escolher um caminho na conversa.")}
       </p>
 
       {/* Divisor: Configurar Título */}
       <div className="relative flex items-center justify-center my-3">
-        <div className="w-full border-t border-slate-200 dark:border-zinc-800" />
-        <span className="absolute bg-white dark:bg-zinc-950 px-3 text-[11px] text-slate-400 dark:text-zinc-500 font-medium">
+        <div className="w-full border-t border-border" />
+        <span className="absolute bg-surface px-3 text-[11px] text-text-subtle font-medium">
           {t("Configurar Título")}
         </span>
       </div>
@@ -121,7 +121,7 @@ export function MenuForm({
       <div className="space-y-1.5">
         <label
           htmlFor="menu-prompt"
-          className="block text-[12px] font-semibold text-slate-800 dark:text-zinc-200"
+          className="block text-[12px] font-semibold text-text"
         >
           {t("Mensagem de texto")}
         </label>
@@ -135,20 +135,20 @@ export function MenuForm({
             commit({ prompt: event.target.value });
           }}
           placeholder={t("Selecione uma das opções:")}
-          className="w-full h-10 rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 text-xs text-slate-700 dark:text-zinc-100 placeholder:text-slate-400 focus:outline-hidden focus:border-purple-500 shadow-2xs"
+          className="w-full h-10 rounded-lg border border-border bg-surface px-3 text-xs text-text-muted placeholder:text-text-subtle focus:outline-hidden focus:border-purple-500 shadow-2xs"
         />
       </div>
 
       {/* Divisor com Botão Central: + Adicionar Opção */}
       <div className="relative flex items-center justify-center my-4">
-        <div className="w-full border-t border-slate-200 dark:border-zinc-800" />
+        <div className="w-full border-t border-border" />
         <button
           type="button"
           disabled={options.length >= 8}
           onClick={adicionarOpcao}
-          className="absolute bg-white dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded-full px-4 py-1 text-[11.5px] font-semibold text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-900 flex items-center gap-1.5 shadow-2xs transition-colors disabled:opacity-50 cursor-pointer"
+          className="absolute bg-surface border border-border rounded-full px-4 py-1 text-[11.5px] font-semibold text-text-muted hover:bg-surface-elevated flex items-center gap-1.5 shadow-2xs transition-colors disabled:opacity-50 cursor-pointer"
         >
-          <Plus size={13} className="text-slate-400" />
+          <Plus size={13} className="text-text-subtle" />
           <span>{t("Adicionar Opção")}</span>
         </button>
       </div>
@@ -158,7 +158,7 @@ export function MenuForm({
         {options.map((option, index) => (
           <div
             key={option.id}
-            className="rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-2xs overflow-hidden"
+            className="rounded-xl border border-border bg-surface shadow-2xs overflow-hidden"
           >
             {/* Input da Opção */}
             <div className="p-2.5">
@@ -168,15 +168,15 @@ export function MenuForm({
                 value={option.label}
                 onChange={(event) => atualizarOpcao(index, event.target.value)}
                 placeholder={t("Nova opção")}
-                className="w-full h-9 rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-3 text-xs text-slate-800 dark:text-zinc-100 focus:outline-hidden focus:border-purple-500"
+                className="w-full h-9 rounded-lg border border-border bg-surface px-3 text-xs text-text focus:outline-hidden focus:border-purple-500"
               />
             </div>
 
             {/* Linha divisória fina */}
-            <div className="border-t border-slate-100 dark:border-zinc-800/80" />
+            <div className="border-t border-border" />
 
             {/* Rodapé: Opção X + Lixeira */}
-            <div className="px-3 py-2 flex items-center justify-between bg-white dark:bg-zinc-900">
+            <div className="px-3 py-2 flex items-center justify-between bg-surface">
               <span className="text-[11.5px] font-medium text-blue-500 dark:text-blue-400">
                 {t("Opção")} {index + 1}
               </span>
@@ -214,7 +214,7 @@ export function MenuForm({
       />
 
       {/* Nota explicativa de rodapé AcassIA */}
-      <p className="text-[11px] text-slate-400 dark:text-zinc-500 pt-1 leading-relaxed">
+      <p className="text-[11px] text-text-subtle pt-1 leading-relaxed">
         {t(
           "Conecte as saídas negativas no fluxograma: resposta incorreta e expiração do bloco."
         )}

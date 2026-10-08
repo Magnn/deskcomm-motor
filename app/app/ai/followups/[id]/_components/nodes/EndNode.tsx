@@ -36,14 +36,14 @@ export function EndNode({ id, data, selected }: NodeProps<RFNode>) {
   }[outcome] || {
     label: t("Concluído"),
     icon: CheckCircle,
-    badgeClass: "bg-zinc-100 text-zinc-800 border-zinc-300",
+    badgeClass: "bg-surface-elevated text-text border-border-strong",
     desc: t("Fim"),
   };
 
   const Icon = outcomeConfig.icon;
 
   const customPreview = (
-    <div className="space-y-1.5 rounded-lg border border-zinc-200 bg-zinc-50/70 p-2.5 text-xs text-zinc-900 shadow-2xs dark:border-zinc-800 dark:bg-zinc-950/20 dark:text-zinc-200">
+    <div className="space-y-1.5 rounded-lg border border-border bg-surface-elevated p-2.5 text-xs text-text shadow-2xs">
       <div className="flex items-center justify-between gap-1.5 font-semibold">
         <div className="flex items-center gap-1.5 truncate">
           <Icon size={14} className="shrink-0" />
@@ -55,7 +55,7 @@ export function EndNode({ id, data, selected }: NodeProps<RFNode>) {
       </div>
 
       {config?.note && (
-        <p className="line-clamp-2 italic text-[11px] text-zinc-600 dark:text-zinc-400 border-t border-zinc-200/60 dark:border-zinc-800/60 pt-1">
+        <p className="line-clamp-2 italic text-[11px] text-text-muted border-t border-border pt-1">
           "{config.note}"
         </p>
       )}

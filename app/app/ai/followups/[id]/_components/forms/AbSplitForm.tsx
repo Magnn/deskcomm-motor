@@ -114,7 +114,7 @@ export function AbSplitForm({
   return (
     <div className="space-y-4 font-sans text-xs">
       {/* Texto de Ajuda AcassIA */}
-      <div className="space-y-2 text-[11.5px] text-slate-500 dark:text-zinc-400 leading-relaxed text-justify">
+      <div className="space-y-2 text-[11.5px] text-text-muted leading-relaxed text-justify">
         <p>
           {t(
             "É possível segmentar sua audiência para experimentar diversas variações de uma campanha e identificar qual delas apresenta o desempenho mais eficaz."
@@ -129,14 +129,14 @@ export function AbSplitForm({
 
       {/* Divisor com Botão Central + Adicionar Teste */}
       <div className="relative flex items-center justify-center my-4">
-        <div className="w-full border-t border-slate-200 dark:border-zinc-800" />
+        <div className="w-full border-t border-border" />
         <button
           type="button"
           disabled={branches.length >= 6}
           onClick={adicionarTeste}
-          className="absolute bg-white dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded-full px-4 py-1 text-[11.5px] font-semibold text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-900 flex items-center gap-1.5 shadow-2xs transition-colors disabled:opacity-50 cursor-pointer"
+          className="absolute bg-surface border border-border rounded-full px-4 py-1 text-[11.5px] font-semibold text-text-muted hover:bg-surface-elevated flex items-center gap-1.5 shadow-2xs transition-colors disabled:opacity-50 cursor-pointer"
         >
-          <Plus size={13} className="text-slate-400" />
+          <Plus size={13} className="text-text-subtle" />
           <span>{t("Adicionar Teste")}</span>
         </button>
       </div>
@@ -146,11 +146,11 @@ export function AbSplitForm({
         {branches.map((branch, index) => (
           <div
             key={branch.id}
-            className="rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-2xs overflow-hidden"
+            className="rounded-xl border border-border bg-surface shadow-2xs overflow-hidden"
           >
             {/* Linha superior: T1 + slider */}
             <div className="p-3 flex items-center gap-3">
-              <span className="text-[13px] font-bold text-slate-800 dark:text-zinc-100 min-w-[20px]">
+              <span className="text-[13px] font-bold text-text min-w-[20px]">
                 T{index + 1}
               </span>
               <div className="flex-1 flex items-center">
@@ -168,10 +168,10 @@ export function AbSplitForm({
             </div>
 
             {/* Linha divisória fina */}
-            <div className="border-t border-slate-100 dark:border-zinc-800/80" />
+            <div className="border-t border-border" />
 
             {/* Linha inferior: XX% de execução + lixeira */}
-            <div className="px-3 py-2 flex items-center justify-between bg-white dark:bg-zinc-900">
+            <div className="px-3 py-2 flex items-center justify-between bg-surface">
               <span className="text-[11.5px] font-medium text-blue-500 dark:text-blue-400">
                 {branch.percent}% {t("de execução")}
               </span>

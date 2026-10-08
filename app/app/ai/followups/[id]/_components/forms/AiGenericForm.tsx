@@ -231,7 +231,7 @@ export function AiGenericForm({
         <div className="flex justify-between items-center">
           <label
             htmlFor="gpt-prompt"
-            className="block text-[12px] font-bold text-slate-800 dark:text-zinc-200"
+            className="block text-[12px] font-bold text-text"
           >
             {t("Prompt de comando")}
           </label>
@@ -247,7 +247,7 @@ export function AiGenericForm({
               </button>
             </PopoverTrigger>
             <PopoverContent align="end" className="w-64 p-2 space-y-1">
-              <span className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider block px-2 py-1">
+              <span className="text-[10px] font-bold text-text-subtle uppercase tracking-wider block px-2 py-1">
                 {t("Inserir variável no cursor")}
               </span>
               <div className="space-y-0.5 max-h-56 overflow-y-auto">
@@ -256,7 +256,7 @@ export function AiGenericForm({
                     key={v.tag}
                     type="button"
                     onClick={() => insertVariable(v.tag)}
-                    className="w-full flex items-center justify-between px-2 py-1.5 text-xs text-slate-700 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-md transition-colors text-left cursor-pointer"
+                    className="w-full flex items-center justify-between px-2 py-1.5 text-xs text-text-muted hover:bg-surface-elevated rounded-md transition-colors text-left cursor-pointer"
                   >
                     <span>{v.label}</span>
                     <code className="text-[10px] text-blue-600 bg-blue-50 dark:bg-blue-950/60 px-1 py-0.5 rounded-md font-mono">
@@ -280,13 +280,13 @@ export function AiGenericForm({
           }}
           placeholder={t("Digite aqui o prompt desejado.\n\nExemplo: Responda ao cliente de acordo as instruções.")}
           maxLength={2000}
-          className="w-full rounded-[10px] border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-2.5 text-[13px] text-slate-800 dark:text-zinc-100 placeholder:text-slate-400 focus:outline-hidden focus:border-indigo-500 min-h-[105px] resize-y"
+          className="w-full rounded-[10px] border border-border bg-surface p-2.5 text-[13px] text-text placeholder:text-text-subtle focus:outline-hidden focus:border-indigo-500 min-h-[105px] resize-y"
         />
       </div>
 
       {/* 2. Modelo GPT com badge */}
       <div className="space-y-1.5">
-        <label className="block text-[12px] font-bold text-slate-800 dark:text-zinc-200">
+        <label className="block text-[12px] font-bold text-text">
           {t("Modelo GPT")}
         </label>
 
@@ -294,9 +294,9 @@ export function AiGenericForm({
           <PopoverTrigger asChild>
             <button
               type="button"
-              className="w-full h-10 rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-3 flex items-center justify-between text-xs text-slate-800 dark:text-zinc-200 hover:border-slate-300 dark:hover:border-zinc-700 transition-colors cursor-pointer"
+              className="w-full h-10 rounded-lg border border-border bg-surface px-3 flex items-center justify-between text-xs text-text hover:border-border-strong transition-colors cursor-pointer"
             >
-              <span className="font-semibold text-slate-800 dark:text-zinc-100">
+              <span className="font-semibold text-text">
                 {currentModel.name}
               </span>
               <div className="flex items-center gap-2">
@@ -315,7 +315,7 @@ export function AiGenericForm({
                 >
                   {currentModel.badge}
                 </span>
-                <ChevronDown size={15} className="text-slate-400" />
+                <ChevronDown size={15} className="text-text-subtle" />
               </div>
             </button>
           </PopoverTrigger>
@@ -334,11 +334,11 @@ export function AiGenericForm({
                   "w-full text-left p-2.5 rounded-lg transition-colors cursor-pointer border",
                   modeloGpt === m.id
                     ? "bg-purple-50/60 dark:bg-purple-950/30 border-purple-200 dark:border-purple-800"
-                    : "hover:bg-slate-50 dark:hover:bg-zinc-800/60 border-transparent"
+                    : "hover:bg-surface-elevated border-transparent"
                 )}
               >
                 <div className="flex items-center justify-between mb-1">
-                  <span className="font-bold text-xs text-slate-800 dark:text-zinc-100">
+                  <span className="font-bold text-xs text-text">
                     {m.name}
                   </span>
                   <span
@@ -357,7 +357,7 @@ export function AiGenericForm({
                     {m.badge}
                   </span>
                 </div>
-                <p className="text-[11px] text-slate-400 dark:text-zinc-500 leading-tight">
+                <p className="text-[11px] text-text-subtle leading-tight">
                   {m.subtitle}
                 </p>
               </button>
@@ -365,16 +365,16 @@ export function AiGenericForm({
           </PopoverContent>
         </Popover>
 
-        <p className="text-[10.5px] text-slate-400 dark:text-zinc-500">
+        <p className="text-[10.5px] text-text-subtle">
           {t("Novos blocos usam GPT-4o Mini por padrão. Seleções salvas continuam respeitadas.")}
         </p>
       </div>
 
       {/* 3. Sliders: Max Tokens e Temperature */}
       <div className="grid grid-cols-2 gap-2.5">
-        <div className="rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-3 space-y-2 shadow-2xs">
+        <div className="rounded-xl border border-border bg-surface p-3 space-y-2 shadow-2xs">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-800 dark:text-zinc-100">
+            <span className="text-xs font-semibold text-text">
               {`Max Tokens (${maxTokens})`}
             </span>
           </div>
@@ -393,9 +393,9 @@ export function AiGenericForm({
           />
         </div>
 
-        <div className="rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-3 space-y-2 shadow-2xs">
+        <div className="rounded-xl border border-border bg-surface p-3 space-y-2 shadow-2xs">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-800 dark:text-zinc-100">
+            <span className="text-xs font-semibold text-text">
               {`Temperature (${temperature})`}
             </span>
           </div>
@@ -418,8 +418,8 @@ export function AiGenericForm({
       {/* 4. 6 Toggles de recursos */}
       <div className="space-y-2">
         {/* Enviar resultado como texto? */}
-        <div className="flex items-center justify-between p-3 rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950">
-          <span className="text-[12px] font-semibold text-slate-800 dark:text-zinc-200">
+        <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-surface">
+          <span className="text-[12px] font-semibold text-text">
             {t("Enviar resultado como texto?")}
           </span>
           <button
@@ -433,12 +433,12 @@ export function AiGenericForm({
             }}
             className={cn(
               "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden",
-              enviarResultadoTexto ? "bg-[#9333ea]" : "bg-slate-300 dark:bg-zinc-700"
+              enviarResultadoTexto ? "bg-[#9333ea]" : "bg-border-strong"
             )}
           >
             <span
               className={cn(
-                "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-xs ring-0 transition duration-200 ease-in-out",
+                "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-surface shadow-xs ring-0 transition duration-200 ease-in-out",
                 enviarResultadoTexto ? "translate-x-4" : "translate-x-0"
               )}
             />
@@ -446,8 +446,8 @@ export function AiGenericForm({
         </div>
 
         {/* Manter contexto? */}
-        <div className="flex items-center justify-between p-3 rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950">
-          <span className="text-[12px] font-semibold text-slate-800 dark:text-zinc-200">
+        <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-surface">
+          <span className="text-[12px] font-semibold text-text">
             {t("Manter contexto?")}
           </span>
           <button
@@ -461,12 +461,12 @@ export function AiGenericForm({
             }}
             className={cn(
               "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden",
-              manterContexto ? "bg-[#9333ea]" : "bg-slate-300 dark:bg-zinc-700"
+              manterContexto ? "bg-[#9333ea]" : "bg-border-strong"
             )}
           >
             <span
               className={cn(
-                "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-xs ring-0 transition duration-200 ease-in-out",
+                "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-surface shadow-xs ring-0 transition duration-200 ease-in-out",
                 manterContexto ? "translate-x-4" : "translate-x-0"
               )}
             />
@@ -474,8 +474,8 @@ export function AiGenericForm({
         </div>
 
         {/* Leitura de imagem e PDF */}
-        <div className="flex items-center justify-between p-3 rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950">
-          <span className="text-[12px] font-semibold text-slate-800 dark:text-zinc-200">
+        <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-surface">
+          <span className="text-[12px] font-semibold text-text">
             {t("Leitura de imagem e PDF")}
           </span>
           <button
@@ -489,12 +489,12 @@ export function AiGenericForm({
             }}
             className={cn(
               "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden",
-              leituraImagemPdf ? "bg-[#9333ea]" : "bg-slate-300 dark:bg-zinc-700"
+              leituraImagemPdf ? "bg-[#9333ea]" : "bg-border-strong"
             )}
           >
             <span
               className={cn(
-                "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-xs ring-0 transition duration-200 ease-in-out",
+                "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-surface shadow-xs ring-0 transition duration-200 ease-in-out",
                 leituraImagemPdf ? "translate-x-4" : "translate-x-0"
               )}
             />
@@ -502,8 +502,8 @@ export function AiGenericForm({
         </div>
 
         {/* Ativar Personalidade */}
-        <div className="flex items-center justify-between p-3 rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950">
-          <span className="text-[12px] font-semibold text-slate-800 dark:text-zinc-200">
+        <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-surface">
+          <span className="text-[12px] font-semibold text-text">
             {t("Ativar Personalidade")}
           </span>
           <button
@@ -517,12 +517,12 @@ export function AiGenericForm({
             }}
             className={cn(
               "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden",
-              ativarPersonalidade ? "bg-[#9333ea]" : "bg-slate-300 dark:bg-zinc-700"
+              ativarPersonalidade ? "bg-[#9333ea]" : "bg-border-strong"
             )}
           >
             <span
               className={cn(
-                "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-xs ring-0 transition duration-200 ease-in-out",
+                "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-surface shadow-xs ring-0 transition duration-200 ease-in-out",
                 ativarPersonalidade ? "translate-x-4" : "translate-x-0"
               )}
             />
@@ -530,8 +530,8 @@ export function AiGenericForm({
         </div>
 
         {/* Ativar Base de Informações */}
-        <div className="flex items-center justify-between p-3 rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950">
-          <span className="text-[12px] font-semibold text-slate-800 dark:text-zinc-200">
+        <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-surface">
+          <span className="text-[12px] font-semibold text-text">
             {t("Ativar Base de Informações")}
           </span>
           <button
@@ -545,12 +545,12 @@ export function AiGenericForm({
             }}
             className={cn(
               "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden",
-              ativarBaseInformacoes ? "bg-[#9333ea]" : "bg-slate-300 dark:bg-zinc-700"
+              ativarBaseInformacoes ? "bg-[#9333ea]" : "bg-border-strong"
             )}
           >
             <span
               className={cn(
-                "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-xs ring-0 transition duration-200 ease-in-out",
+                "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-surface shadow-xs ring-0 transition duration-200 ease-in-out",
                 ativarBaseInformacoes ? "translate-x-4" : "translate-x-0"
               )}
             />
@@ -558,8 +558,8 @@ export function AiGenericForm({
         </div>
 
         {/* Ativar Restrições */}
-        <div className="flex items-center justify-between p-3 rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950">
-          <span className="text-[12px] font-semibold text-slate-800 dark:text-zinc-200">
+        <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-surface">
+          <span className="text-[12px] font-semibold text-text">
             {t("Ativar Restrições")}
           </span>
           <button
@@ -573,12 +573,12 @@ export function AiGenericForm({
             }}
             className={cn(
               "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden",
-              ativarRestricoes ? "bg-[#9333ea]" : "bg-slate-300 dark:bg-zinc-700"
+              ativarRestricoes ? "bg-[#9333ea]" : "bg-border-strong"
             )}
           >
             <span
               className={cn(
-                "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-xs ring-0 transition duration-200 ease-in-out",
+                "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-surface shadow-xs ring-0 transition duration-200 ease-in-out",
                 ativarRestricoes ? "translate-x-4" : "translate-x-0"
               )}
             />
@@ -588,7 +588,7 @@ export function AiGenericForm({
 
       {/* 5. Deseja salvar o retorno do GPT em um campo de fluxo? */}
       <div className="space-y-1.5">
-        <label className="block text-[12px] font-bold text-slate-800 dark:text-zinc-200">
+        <label className="block text-[12px] font-bold text-text">
           {t("Deseja salvar o retorno do GPT em um campo de fluxo?")}
         </label>
 
@@ -604,7 +604,7 @@ export function AiGenericForm({
                 setSaveTo(next);
                 commit({ save_to: next, salvar_em_campo: true });
               }}
-              className="w-full h-10 rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-3 pr-8 text-xs text-slate-700 dark:text-zinc-200 focus:outline-hidden appearance-none cursor-pointer"
+              className="w-full h-10 rounded-lg border border-border bg-surface px-3 pr-8 text-xs text-text-muted focus:outline-hidden appearance-none cursor-pointer"
             >
               <option value="resumo_ia">{t("Selecione um campo")}</option>
               <optgroup label={t("Contato")}>
@@ -625,14 +625,14 @@ export function AiGenericForm({
             </select>
             <ChevronDown
               size={15}
-              className="absolute right-3 top-3 text-slate-400 pointer-events-none"
+              className="absolute right-3 top-3 text-text-subtle pointer-events-none"
             />
           </div>
 
           <button
             type="button"
             onClick={() => setIsNewFieldOpen(true)}
-            className="w-10 h-10 rounded-lg border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 flex items-center justify-center text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors cursor-pointer shrink-0"
+            className="w-10 h-10 rounded-lg border border-border-strong bg-surface flex items-center justify-center text-text-muted hover:bg-surface-elevated transition-colors cursor-pointer shrink-0"
             title={t("Criar novo campo de fluxo")}
           >
             <Plus size={16} />
@@ -678,7 +678,7 @@ export function AiGenericForm({
                   )
                 }
               />
-              <p className="text-[10px] text-slate-400">
+              <p className="text-[10px] text-text-subtle">
                 {t("Use letras minúsculas e sublinhados.")}
               </p>
             </div>

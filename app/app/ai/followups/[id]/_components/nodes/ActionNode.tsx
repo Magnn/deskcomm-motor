@@ -32,7 +32,7 @@ export function ActionNode({ id, data, selected }: NodeProps<RFNode>) {
     const op = isRemove ? t("Remover etiqueta") : t("Adicionar etiqueta");
     customPreview = (
       <div className="flex items-center gap-2 rounded-xl border border-blue-200/80 bg-blue-50/50 p-2 text-xs dark:border-blue-900/40 dark:bg-blue-950/20">
-        <span className="flex items-center gap-1.5 text-xs font-semibold text-neutral-700 dark:text-neutral-300">
+        <span className="flex items-center gap-1.5 text-xs font-semibold text-text-muted">
           <span className="flex h-4 w-4 items-center justify-center rounded-full bg-blue-600 text-[10px] leading-none text-white font-bold">
             {isRemove ? <Trash size={10} /> : <Plus size={10} />}
           </span>
@@ -52,7 +52,7 @@ export function ActionNode({ id, data, selected }: NodeProps<RFNode>) {
           <ChatCircle size={13} weight="fill" className="shrink-0 text-blue-600 dark:text-blue-400" />
           <span>{t("Mensagem de Texto")}</span>
         </div>
-        <p className="line-clamp-2 rounded-lg border border-blue-100 bg-white p-2 text-[10.5px] italic text-neutral-600 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-300 leading-snug">
+        <p className="line-clamp-2 rounded-lg border border-blue-100 bg-surface p-2 text-[10.5px] italic text-text-muted leading-snug">
           "{bodyText}"
         </p>
       </div>
@@ -70,15 +70,15 @@ export function ActionNode({ id, data, selected }: NodeProps<RFNode>) {
             {t("Dinâmica")}
           </span>
         </div>
-        <p className="line-clamp-2 rounded-lg border border-violet-100 bg-white p-2 text-[10.5px] italic text-neutral-600 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-300 leading-snug">
+        <p className="line-clamp-2 rounded-lg border border-violet-100 bg-surface p-2 text-[10.5px] italic text-text-muted leading-snug">
           "{promptHint}"
         </p>
       </div>
     );
   } else if (rawMode === "template") {
     customPreview = (
-      <div className="flex w-full flex-col gap-1.5 rounded-xl border border-neutral-200 bg-white p-2.5 text-xs shadow-2xs dark:border-neutral-800 dark:bg-neutral-900">
-        <div className="flex items-center gap-1.5 font-bold text-neutral-800 dark:text-neutral-200 text-[11px]">
+      <div className="flex w-full flex-col gap-1.5 rounded-xl border border-border bg-surface p-2.5 text-xs shadow-2xs">
+        <div className="flex items-center gap-1.5 font-bold text-text text-[11px]">
           <FileText size={14} className="shrink-0 text-blue-600" />
           <span>{t("Modelo Cadastrado")}</span>
         </div>

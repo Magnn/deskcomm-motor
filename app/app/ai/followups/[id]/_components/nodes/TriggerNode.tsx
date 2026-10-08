@@ -80,20 +80,20 @@ export function TriggerNode({ id, data, selected }: NodeProps<RFNode>) {
         <button
           type="button"
           onClick={handleCopyId}
-          className="rounded-lg p-1.5 text-zinc-300 transition-colors hover:bg-zinc-800 hover:text-white cursor-pointer"
+          className="rounded-lg p-1.5 text-text-subtle transition-colors hover:bg-zinc-800 hover:text-white cursor-pointer"
           title={t("Copiar ID do nó")}
         >
           {copiedId ? (
             <Check size={14} className="text-emerald-400" />
           ) : (
-            <Hash className="h-3.5 w-3.5 text-zinc-300" />
+            <Hash className="h-3.5 w-3.5 text-text-subtle" />
           )}
         </button>
       </NodeToolbar>
 
       <div
         className={cn(
-          "group relative flex w-[185px] flex-col items-center gap-1.5 rounded-xl border-[1.5px] border-emerald-500 bg-white p-2.5 font-sans shadow-sm transition-all select-none dark:bg-neutral-900",
+          "group relative flex w-[185px] flex-col items-center gap-1.5 rounded-xl border-[1.5px] border-emerald-500 bg-surface p-2.5 font-sans shadow-sm transition-all select-none",
           selected
             ? "shadow-md ring-2 ring-emerald-500/30"
             : "hover:border-emerald-600 hover:shadow-md",
@@ -114,7 +114,7 @@ export function TriggerNode({ id, data, selected }: NodeProps<RFNode>) {
             )}
           </div>
           <div
-            className="min-w-0 flex-1 truncate text-left text-xs font-bold tracking-tight text-slate-800 dark:text-neutral-100"
+            className="min-w-0 flex-1 truncate text-left text-xs font-bold tracking-tight text-text"
             data-testid="inicio-titulo"
           >
             {titulo}
@@ -123,7 +123,7 @@ export function TriggerNode({ id, data, selected }: NodeProps<RFNode>) {
 
         {/* Descrição do gatilho */}
         <div
-          className="w-full text-center text-[10px] font-medium text-slate-500 dark:text-neutral-400"
+          className="w-full text-center text-[10px] font-medium text-text-muted"
           data-testid="inicio-descricao"
         >
           {descricao}

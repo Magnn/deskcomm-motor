@@ -91,14 +91,14 @@ export function NodePalette({ onAdd, onClose, variant = "desktop" }: Props) {
   return (
     <aside
       className={cn(
-        "flex h-full min-h-0 shrink-0 flex-col border-r border-border bg-white select-none dark:bg-neutral-900",
+        "flex h-full min-h-0 shrink-0 flex-col border-r border-border bg-surface select-none",
         isMobile ? "w-full" : "w-[285px]",
       )}
       data-testid="node-palette"
     >
       {/* Cabeçalho */}
-      <div className="flex shrink-0 items-center justify-between border-b border-neutral-100 px-4 py-3.5 dark:border-neutral-800">
-        <h2 className="text-sm font-semibold text-neutral-800 dark:text-neutral-100">
+      <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3.5">
+        <h2 className="text-sm font-semibold text-text">
           {t("Menu de opções")}
         </h2>
         {onClose && (
@@ -107,7 +107,7 @@ export function NodePalette({ onAdd, onClose, variant = "desktop" }: Props) {
             onClick={onClose}
             aria-label={t("Fechar menu")}
             title={t("Fechar menu")}
-            className="cursor-pointer rounded-lg p-1 text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-600 dark:hover:bg-neutral-800 dark:hover:text-neutral-200"
+            className="cursor-pointer rounded-lg p-1 text-text-subtle transition-colors hover:bg-surface-elevated hover:text-text-muted"
           >
             <X size={18} aria-hidden />
           </button>
@@ -119,7 +119,7 @@ export function NodePalette({ onAdd, onClose, variant = "desktop" }: Props) {
         <MagnifyingGlass
           size={14}
           aria-hidden
-          className="pointer-events-none absolute top-1/2 left-6 -translate-y-1/2 text-neutral-400"
+          className="pointer-events-none absolute top-1/2 left-6 -translate-y-1/2 text-text-subtle"
         />
         <Input
           type="search"
@@ -127,7 +127,7 @@ export function NodePalette({ onAdd, onClose, variant = "desktop" }: Props) {
           onChange={(event) => setBusca(event.target.value)}
           placeholder={t("Buscar opção")}
           aria-label={t("Buscar opção")}
-          className="h-8 rounded-lg border-neutral-200 bg-neutral-50 pl-8 text-xs placeholder:text-neutral-400 dark:border-neutral-700 dark:bg-neutral-800/80"
+          className="h-8 rounded-lg border-border bg-surface-elevated pl-8 text-xs placeholder:text-text-subtle"
           data-testid="node-palette-search"
         />
       </div>
@@ -138,7 +138,7 @@ export function NodePalette({ onAdd, onClose, variant = "desktop" }: Props) {
           <PaletteItem key={visual.type} visual={visual} onAdd={onAdd} t={t} />
         ))}
         {itens.length === 0 && (
-          <p className="px-2 py-4 text-xs text-neutral-400">{t("Nenhuma opção encontrada.")}</p>
+          <p className="px-2 py-4 text-xs text-text-subtle">{t("Nenhuma opção encontrada.")}</p>
         )}
       </div>
     </aside>
@@ -169,7 +169,7 @@ function PaletteItem({
       onClick={onAdd ? () => onAdd(visual.type) : undefined}
       title={onAdd ? undefined : t("Arraste para o canvas")}
       data-testid={`palette-add-${visual.type}`}
-      className="group relative flex w-full cursor-grab items-start gap-3 rounded-xl border border-neutral-200/90 bg-white p-2.5 text-left shadow-xs transition-all duration-150 hover:border-violet-300 hover:bg-neutral-50/60 hover:shadow-sm active:cursor-grabbing dark:border-neutral-800 dark:bg-neutral-900 dark:hover:border-violet-600 dark:hover:bg-neutral-800/60"
+      className="group relative flex w-full cursor-grab items-start gap-3 rounded-xl border border-border bg-surface p-2.5 text-left shadow-xs transition-all duration-150 hover:border-violet-300 hover:bg-surface-elevated hover:shadow-sm active:cursor-grabbing dark:hover:border-violet-600"
     >
       {/* Ícone colorido e proporcional */}
       <span
@@ -184,11 +184,11 @@ function PaletteItem({
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Linha 1: nome + badge */}
         <div className="flex items-center justify-between gap-1.5">
-          <span className="truncate text-xs font-semibold text-neutral-800 dark:text-neutral-100">
+          <span className="truncate text-xs font-semibold text-text">
             {t(visual.paletteLabel)}
           </span>
           {isPopular && (
-            <span className="shrink-0 rounded-full border border-neutral-200/70 bg-neutral-100 px-2 py-0.5 text-[10px] font-medium text-neutral-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400">
+            <span className="shrink-0 rounded-full border border-border bg-surface-elevated px-2 py-0.5 text-[10px] font-medium text-text-muted">
               {t("Popular")}
             </span>
           )}
@@ -200,7 +200,7 @@ function PaletteItem({
         </div>
 
         {/* Linha 2: descrição */}
-        <span className="mt-0.5 truncate text-[11px] text-neutral-400 dark:text-neutral-500">
+        <span className="mt-0.5 truncate text-[11px] text-text-subtle">
           {t(visual.paletteDesc)}
         </span>
       </div>

@@ -75,7 +75,7 @@ export function TriggerForm({
 
   return (
     <div className="space-y-4 font-sans text-xs">
-      <div className="space-y-1 text-slate-500 dark:text-zinc-400 leading-relaxed text-[11px]">
+      <div className="space-y-1 text-text-muted leading-relaxed text-[11px]">
         <p>
           {t(
             "O nó de gatilho determina a porta de entrada dos contatos no funil. Escolha a integração e o evento disparador."
@@ -84,22 +84,22 @@ export function TriggerForm({
       </div>
 
       <div className="flex items-center gap-3">
-        <div className="h-px flex-1 bg-slate-200 dark:bg-zinc-800" />
-        <span className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest">
+        <div className="h-px flex-1 bg-surface-elevated" />
+        <span className="text-[10px] font-bold text-text-subtle uppercase tracking-widest">
           {t("Configurar Gatilho")}
         </span>
-        <div className="h-px flex-1 bg-slate-200 dark:bg-zinc-800" />
+        <div className="h-px flex-1 bg-surface-elevated" />
       </div>
 
       {/* Origem / Integração */}
       <div className="space-y-1.5">
-        <label className="block text-[12px] font-semibold text-slate-800 dark:text-zinc-200">
+        <label className="block text-[12px] font-semibold text-text">
           {t("Origem do Gatilho")}
         </label>
         <select
           value={integration}
           onChange={(e) => handleIntegrationChange(e.target.value)}
-          className="w-full rounded-[10px] border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2 text-[13px] text-slate-800 dark:text-zinc-100 outline-hidden focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 shadow-xs"
+          className="w-full rounded-[10px] border border-border bg-surface px-3 py-2 text-[13px] text-text outline-hidden focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 shadow-xs"
         >
           {ORIGENS_DO_INICIO.map((origem) => (
             <option key={origem} value={origem}>
@@ -111,13 +111,13 @@ export function TriggerForm({
 
       {/* Evento */}
       <div className="space-y-1.5">
-        <label className="block text-[12px] font-semibold text-slate-800 dark:text-zinc-200">
+        <label className="block text-[12px] font-semibold text-text">
           {t("Evento Disparador")}
         </label>
         <select
           value={event}
           onChange={(e) => handleEventChange(e.target.value)}
-          className="w-full rounded-[10px] border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2 text-[13px] text-slate-800 dark:text-zinc-100 outline-hidden focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 shadow-xs"
+          className="w-full rounded-[10px] border border-border bg-surface px-3 py-2 text-[13px] text-text outline-hidden focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 shadow-xs"
         >
           {isWhatsApp && (
             <>
@@ -158,10 +158,10 @@ export function TriggerForm({
       {isWhatsApp && event === "keyword" && (
         <div className="space-y-1.5 animate-in fade-in duration-200">
           <div className="flex items-baseline justify-between">
-            <label className="block text-[12px] font-semibold text-slate-800 dark:text-zinc-200">
+            <label className="block text-[12px] font-semibold text-text">
               {t("Palavra-chave")}
             </label>
-            <span className="text-[10px] text-slate-400">
+            <span className="text-[10px] text-text-subtle">
               {t("ativa o gatilho ao receber")}
             </span>
           </div>
@@ -173,14 +173,14 @@ export function TriggerForm({
               updateField({ keyword: e.target.value });
             }}
             placeholder='Ex.: "QUERO_PROPOSTA" ou "COMPRAR"'
-            className="w-full rounded-[10px] border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2 text-[13px] text-slate-800 dark:text-zinc-100 placeholder:text-slate-400 outline-hidden focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 shadow-xs"
+            className="w-full rounded-[10px] border border-border bg-surface px-3 py-2 text-[13px] text-text placeholder:text-text-subtle outline-hidden focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 shadow-xs"
           />
         </div>
       )}
 
       {isCrm && (event === "tag_added" || event === "tag_removed") && (
         <div className="space-y-1.5 animate-in fade-in duration-200">
-          <label className="block text-[12px] font-semibold text-slate-800 dark:text-zinc-200">
+          <label className="block text-[12px] font-semibold text-text">
             {t("Nome da Tag")}
           </label>
           <input
@@ -191,14 +191,14 @@ export function TriggerForm({
               updateField({ tag: e.target.value });
             }}
             placeholder="ex: vip, cliente, lead-frio"
-            className="w-full rounded-[10px] border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2 text-[13px] text-slate-800 dark:text-zinc-100 placeholder:text-slate-400 outline-hidden focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 shadow-xs"
+            className="w-full rounded-[10px] border border-border bg-surface px-3 py-2 text-[13px] text-text placeholder:text-text-subtle outline-hidden focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 shadow-xs"
           />
         </div>
       )}
 
       {isCrm && event === "field_changed" && (
         <div className="space-y-1.5 animate-in fade-in duration-200">
-          <label className="block text-[12px] font-semibold text-slate-800 dark:text-zinc-200">
+          <label className="block text-[12px] font-semibold text-text">
             {t("Chave do Campo Personalizado")}
           </label>
           <input
@@ -209,14 +209,14 @@ export function TriggerForm({
               updateField({ custom_field: e.target.value });
             }}
             placeholder="ex: status_financeiro, plano"
-            className="w-full rounded-[10px] border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2 text-[13px] text-slate-800 dark:text-zinc-100 placeholder:text-slate-400 outline-hidden focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 shadow-xs"
+            className="w-full rounded-[10px] border border-border bg-surface px-3 py-2 text-[13px] text-text placeholder:text-text-subtle outline-hidden focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 shadow-xs"
           />
         </div>
       )}
 
       {isCrm && event === "contact_inactivity" && (
         <div className="space-y-1.5 animate-in fade-in duration-200">
-          <label className="block text-[12px] font-semibold text-slate-800 dark:text-zinc-200">
+          <label className="block text-[12px] font-semibold text-text">
             {t("Tempo de inatividade")}
           </label>
           <div className="flex items-center gap-2">
@@ -230,9 +230,9 @@ export function TriggerForm({
                 setInactivityHours(val);
                 updateField({ inactivity_hours: val });
               }}
-              className="w-24 rounded-[10px] border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2 text-[13px] text-slate-800 dark:text-zinc-100 outline-hidden focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 shadow-xs"
+              className="w-24 rounded-[10px] border border-border bg-surface px-3 py-2 text-[13px] text-text outline-hidden focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 shadow-xs"
             />
-            <span className="text-slate-500">{t("horas sem interação")}</span>
+            <span className="text-text-muted">{t("horas sem interação")}</span>
           </div>
         </div>
       )}

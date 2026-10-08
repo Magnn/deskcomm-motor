@@ -47,10 +47,10 @@ export function RepeatForm({
           <ArrowsClockwise size={18} />
         </div>
         <div>
-          <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+          <h3 className="text-sm font-semibold text-text">
             {t("Repetição / Loop")}
           </h3>
-          <p className="text-[11px] text-neutral-500 dark:text-neutral-400">
+          <p className="text-[11px] text-text-muted">
             {t("Repete um trecho do fluxo por até X voltas controladas")}
           </p>
         </div>
@@ -59,7 +59,7 @@ export function RepeatForm({
       {/* Seção de Limite Máximo de Voltas com Presets */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <Label htmlFor="repeat-max" className="text-[11px] font-semibold text-neutral-700 dark:text-neutral-300">
+          <Label htmlFor="repeat-max" className="text-[11px] font-semibold text-text-muted">
             {t("No máximo quantas voltas")}
           </Label>
           <span className="text-xs font-mono font-bold text-teal-700 dark:text-teal-400 bg-teal-100/60 dark:bg-teal-950/60 px-2 py-0.5 rounded-md">
@@ -76,7 +76,7 @@ export function RepeatForm({
             step="1"
             value={currentVal}
             onChange={(e) => commit(e.target.value)}
-            className="grow h-1.5 bg-neutral-200 rounded-lg appearance-none cursor-pointer accent-teal-600 dark:bg-zinc-700"
+            className="grow h-1.5 bg-surface-elevated rounded-lg appearance-none cursor-pointer accent-teal-600"
           />
           <Input
             id="repeat-max"
@@ -91,7 +91,7 @@ export function RepeatForm({
 
         {/* Pílulas de presets rápidos */}
         <div className="flex items-center gap-1.5 pt-0.5">
-          <span className="text-[10px] text-neutral-400">{t("Atalhos:")}</span>
+          <span className="text-[10px] text-text-subtle">{t("Atalhos:")}</span>
           {PRESETS.map((p) => (
             <button
               key={p}
@@ -100,7 +100,7 @@ export function RepeatForm({
               className={`px-2 py-0.5 rounded-md text-[11px] font-medium transition-colors cursor-pointer ${
                 currentVal === p
                   ? "bg-teal-600 text-white shadow-2xs"
-                  : "bg-neutral-100 dark:bg-zinc-800 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200"
+                  : "bg-surface-elevated text-text-muted hover:bg-surface-elevated"
               }`}
             >
               {p}x
@@ -110,8 +110,8 @@ export function RepeatForm({
       </div>
 
       {/* Explicação das Saídas do Loop */}
-      <div className="space-y-2 rounded-lg border border-neutral-200 bg-neutral-50/50 p-3 text-neutral-700 dark:border-zinc-800 dark:bg-zinc-900/40 dark:text-neutral-300">
-        <span className="text-[11px] font-semibold text-neutral-900 dark:text-neutral-100 block">
+      <div className="space-y-2 rounded-lg border border-border bg-surface-elevated p-3 text-text-muted">
+        <span className="text-[11px] font-semibold text-text block">
           {t("Como este nó roteia:")}
         </span>
         <div className="space-y-1.5 text-[11px]">
@@ -119,7 +119,7 @@ export function RepeatForm({
             <ArrowBendUpLeft size={14} className="shrink-0" />
             <span><strong>{t("Próxima volta:")}</strong> {t("Executa enquanto contador <")} {currentVal}</span>
           </div>
-          <div className="flex items-center gap-1.5 text-neutral-600 dark:text-neutral-400">
+          <div className="flex items-center gap-1.5 text-text-muted">
             <Check size={14} className="shrink-0 text-emerald-600" />
             <span><strong>{t("Acabou:")}</strong> {t("Disparado ao atingir o teto de voltas")}</span>
           </div>
@@ -131,7 +131,7 @@ export function RepeatForm({
         <Info size={14} className="text-blue-500 shrink-0 mt-0.5" />
         <span>
           {t("Dica: você pode usar ")}
-          <code className="bg-white/80 dark:bg-zinc-900 px-1 py-0.5 rounded-md font-mono text-[10px]">
+          <code className="bg-white/80 px-1 py-0.5 rounded-md font-mono text-[10px]">
             {t("{volta}")}
           </code>
           {t(" nos textos de nós seguintes para exibir o número da iteração.")}

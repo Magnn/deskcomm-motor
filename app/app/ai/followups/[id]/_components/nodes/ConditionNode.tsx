@@ -27,8 +27,8 @@ export function ConditionNode({ id, data, selected }: NodeProps<RFNode>) {
   const customPreview = !isPerCheck ? (
     <div className="flex w-full flex-col gap-2.5 font-sans">
       {/* Box 1: Lógica do combinador + Handle Verdadeiro (Roxo) */}
-      <div className="relative rounded-lg border border-dashed border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-2.5 text-center">
-        <p className="text-[12px] font-bold text-slate-700 dark:text-zinc-200 leading-snug">
+      <div className="relative rounded-lg border border-dashed border-border-strong bg-surface p-2.5 text-center">
+        <p className="text-[12px] font-bold text-text-muted leading-snug">
           {logicText}
         </p>
         <Handle
@@ -43,9 +43,9 @@ export function ConditionNode({ id, data, selected }: NodeProps<RFNode>) {
       </div>
 
       {/* Box 2: Condições verificadas + Badge azul */}
-      <div className="rounded-lg border border-dashed border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-3 text-center flex flex-col items-center gap-2">
+      <div className="rounded-lg border border-dashed border-border-strong bg-surface p-3 text-center flex flex-col items-center gap-2">
         {checks.length === 0 ? (
-          <p className="text-xs text-slate-400">{t("Sem condições configuradas")}</p>
+          <p className="text-xs text-text-subtle">{t("Sem condições configuradas")}</p>
         ) : (
           checks.slice(0, 3).map((check, idx) => {
             const isTag = check.field === "tag";
@@ -56,7 +56,7 @@ export function ConditionNode({ id, data, selected }: NodeProps<RFNode>) {
 
             return (
               <div key={idx} className="flex flex-col items-center gap-1.5 w-full">
-                <span className="text-xs font-medium text-slate-700 dark:text-zinc-300">
+                <span className="text-xs font-medium text-text-muted">
                   {checkTitle}
                 </span>
                 <span className="rounded-full bg-[#0055ff] text-white px-4 py-1 text-xs font-bold shadow-2xs max-w-[200px] truncate">
@@ -68,12 +68,12 @@ export function ConditionNode({ id, data, selected }: NodeProps<RFNode>) {
         )}
       </div>
 
-      <div className="border-t border-slate-100 dark:border-zinc-800" />
+      <div className="border-t border-border" />
 
       {/* Linha Inferior: Condições não foram cumpridas + Handle Falso (Vermelho) */}
-      <div className="relative rounded-lg bg-slate-100/90 dark:bg-zinc-900 px-3 py-2 flex items-center gap-2">
+      <div className="relative rounded-lg bg-surface-elevated px-3 py-2 flex items-center gap-2">
         <Info size={14} className="text-[#ef4444] shrink-0" />
-        <span className="text-xs font-medium text-slate-600 dark:text-zinc-400 truncate">
+        <span className="text-xs font-medium text-text-muted truncate">
           {t("Condições não foram cumpridas")}
         </span>
         <Handle
@@ -88,16 +88,16 @@ export function ConditionNode({ id, data, selected }: NodeProps<RFNode>) {
       </div>
     </div>
   ) : (
-    <div className="flex w-full flex-col gap-1 rounded-lg border border-slate-100 bg-white p-1.5 dark:border-border/60 dark:bg-surface-elevated">
+    <div className="flex w-full flex-col gap-1 rounded-lg border border-border bg-surface p-1.5">
       <div className="flex min-h-[40px] flex-col items-center gap-2 rounded-md border border-dashed border-[#ef4444]/40 bg-[#fff1f2] p-2.5 text-center dark:bg-red-950/20">
-        <div className="w-full text-center text-[11px] font-semibold leading-tight text-slate-700 dark:text-slate-300">
+        <div className="w-full text-center text-[11px] font-semibold leading-tight text-text-muted">
           {logicText}
         </div>
         <div className="flex w-full flex-col gap-1.5">
           {checks.length > 0 ? (
             checks.slice(0, 3).map((check, i) => (
               <div key={i} className="flex flex-col items-center justify-center gap-1">
-                <div className="rounded-md border border-dashed border-slate-200 bg-white px-2 py-1 text-[10px] leading-snug font-medium text-slate-600 dark:border-border dark:bg-surface dark:text-slate-400">
+                <div className="rounded-md border border-dashed border-border bg-surface px-2 py-1 text-[10px] leading-snug font-medium text-text-muted">
                   {t("Validar se o campo")} <span className="font-bold">{check.field}</span> {t("é igual a")}
                 </div>
                 <div className="rounded-full bg-[#10b981] px-3 py-0.5 text-[10px] font-bold text-white shadow-2xs">
@@ -106,7 +106,7 @@ export function ConditionNode({ id, data, selected }: NodeProps<RFNode>) {
               </div>
             ))
           ) : (
-            <div className="rounded-md border border-dotted px-2 py-1 text-[10px] text-slate-400">{t("Sem condições")}</div>
+            <div className="rounded-md border border-dotted px-2 py-1 text-[10px] text-text-subtle">{t("Sem condições")}</div>
           )}
         </div>
       </div>

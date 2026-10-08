@@ -49,7 +49,7 @@ export function AbSplitNode({ id, data, selected }: NodeProps<RFNode>) {
       </div>
 
       {/* Barra de Proporção Multi-Segmentada */}
-      <div className="flex h-2 w-full overflow-hidden rounded-full bg-neutral-200 dark:bg-zinc-800">
+      <div className="flex h-2 w-full overflow-hidden rounded-full bg-surface-elevated">
         {branches.map((b, i) => (
           <div
             key={b.id}
@@ -65,11 +65,11 @@ export function AbSplitNode({ id, data, selected }: NodeProps<RFNode>) {
         {branches.map((b, i) => (
           <div
             key={b.id}
-            className="flex items-center gap-1 rounded-md bg-white/80 dark:bg-zinc-900/80 px-1.5 py-0.5 font-mono shadow-2xs border border-pink-200/60 dark:border-pink-900/40"
+            className="flex items-center gap-1 rounded-md bg-white/80 px-1.5 py-0.5 font-mono shadow-2xs border border-pink-200/60 dark:border-pink-900/40"
           >
             <div className={`h-1.5 w-1.5 rounded-full ${BAR_COLORS[i % BAR_COLORS.length]}`} />
-            <span className="font-semibold text-neutral-800 dark:text-neutral-200">{b.label}:</span>
-            <span className="font-bold text-neutral-900 dark:text-neutral-100">{b.percent}%</span>
+            <span className="font-semibold text-text">{b.label}:</span>
+            <span className="font-bold text-text">{b.percent}%</span>
           </div>
         ))}
       </div>
