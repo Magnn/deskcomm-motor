@@ -245,6 +245,34 @@ export function estadoDaNegociacao(
   };
 }
 
+/** Uma data dita sem rodeio: "dia 27", "27/10", "fim do mês", "só recebo…", "quando cair". */
+const DATA_CERTA =
+  /\bdia\s+\d{1,2}\b|\b\d{1,2}\/\d{1,2}\b|(?:fim|final|come[çc]o|in[ií]cio|meio)\s+d[oe]\s+m[êe]s|m[êe]s\s+que\s+vem|pr[óo]ximo\s+m[êe]s|semana\s+que\s+vem|pr[óo]xima\s+semana|quinto\s+dia\s+[úu]til|quando\s+(?:eu\s+)?(?:receber|cair|sair)|s[óo]\s+recebo|dia\s+d[oe]\s+(?:meu\s+)?pagamento/i;
+/** "amanhã", "sexta": só é data de pagamento se a mesma mensagem fala de pagar ou receber. */
+const DATA_SOLTA = /\bamanh[ãa]\b|\b(?:segunda|ter[çc]a|quarta|quinta|sexta|s[áa]bado|domingo)\b/i;
+const FALA_DE_PAGAR = /receb|pag[oau]|dinheiro|sal[áa]rio|pix|consigo|mando|fa[çc]o\b|cai\b|cair\b/i;
+
+/**
+ * A PESSOA DEU UMA DATA PARA PAGAR nas mensagens que este turno responde (as dela depois da
+ * última resposta nossa), com o preço já dito.
+ *
+ * Medido em 08/10/2026, na primeira conversa depois de a escada passar a descer na 1ª
+ * reclamação: a agente ofereceu R$ 100, a pessoa respondeu "não tenho nada agora, só dia 27", e a
+ * agente encerrou com "quando o dinheiro entrar, me chama" — sem valor e sem agendar retorno. O
+ * roteiro mandava agendar; quem decide o molde do turno é o código (`bloco-do-prompt.ts`).
+ */
+export function deuDataParaPagar(mensagens: readonly MensagemParaContar[]): boolean {
+  const msgs = expandirHistoricoColado(mensagens);
+  if (!msgs.some((m) => m.direction === "outbound" && PRECO_DITO.test(m.body ?? ""))) return false;
+  for (let i = msgs.length - 1; i >= 0; i -= 1) {
+    const m = msgs[i]!;
+    if (m.direction !== "inbound") break;
+    const corpo = m.body ?? "";
+    if (DATA_CERTA.test(corpo) || (DATA_SOLTA.test(corpo) && FALA_DE_PAGAR.test(corpo))) return true;
+  }
+  return false;
+}
+
 const VALORES_EM_REAIS = /R\$\s?(\d{1,3}(?:\.\d{3})+|\d+)(?:,(\d{2}))?/g;
 
 /**
