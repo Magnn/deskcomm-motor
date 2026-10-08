@@ -124,3 +124,30 @@ export function criaRetornoDbPg(db: pg.Pool): RetornoDb {
     },
   };
 }
+
+/** Por quanto tempo depois da data o valor combinado ainda vale. */
+export const VALIDADE_DO_VALOR_COMBINADO_DIAS = 7;
+
+/**
+ * O valor combinado mais recente deste contato, em centavos — de um retorno ainda por vir ou
+ * que disparou há até `VALIDADE_DO_VALOR_COMBINADO_DIAS` dias. Retorno cancelado não conta.
+ *
+ * Lê também o retorno JÁ DISPARADO de propósito: na data a linha se desabilita (one-shot), e é
+ * justamente dali em diante — a mensagem do dia e a resposta da pessoa — que o valor precisa valer.
+ */
+export async function buscaValorCombinado(db: pg.Pool, orgId: string, contactId: string): Promise<number | null> {
+  const { rows } = await db.query<{ valor: string | number | null }>(
+    `select payload->>'agreed_price_cents' as valor
+       from cron_jobs
+      where organization_id = $1 and contact_id = $2
+        and kind = 'at' and job_kind = 'followup_turn'
+        and cancelled_at is null
+        and payload->>'agreed_price_cents' is not null
+        and next_run_at > now() - make_interval(days => $3)
+      order by next_run_at desc
+      limit 1`,
+    [orgId, contactId, VALIDADE_DO_VALOR_COMBINADO_DIAS],
+  );
+  const valor = Number(rows[0]?.valor);
+  return Number.isInteger(valor) && valor > 0 ? valor : null;
+}

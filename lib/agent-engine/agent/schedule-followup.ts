@@ -79,6 +79,8 @@ export async function applyScheduleFollowup(
   cfg: { clock: () => Date; knobs: FollowupWindowKnobs },
   ids: { tenantId: string; leadId: string; agentId?: string | null },
   rawInput: unknown,
+  /** O que o RUNTIME sabe e o modelo não diz — hoje, o valor combinado na negociação. */
+  doRuntime: { valorCombinadoCents?: number | null } = {},
 ): Promise<ScheduleFollowupResult> {
   const forbidden = findForbiddenKey(rawInput);
   if (forbidden !== null) {
@@ -103,6 +105,7 @@ export async function applyScheduleFollowup(
       prometidoPara: input.promised_at,
       promessa: input.promise,
       contexto: input.context_snapshot ?? null,
+      valorCombinadoCents: doRuntime.valorCombinadoCents ?? null,
     },
   );
 

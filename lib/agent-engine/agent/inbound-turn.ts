@@ -101,9 +101,9 @@ import { blocoDeObjecoes } from '@/lib/objecoes/bloco-do-prompt';
 import { blocoDeOferta } from '@/lib/oferta/bloco-do-prompt';
 import { passoDaLeitura } from '@/lib/leitura/estado-da-leitura';
 import { destinoNaConversa, fotoDaLeitura, imagemDaLeitura, mesaJaMostrada } from '@/lib/leitura/imagens';
-import { precoPermitidoAgora, reclamacoesDeValor } from '@/lib/preco/estado-da-negociacao';
+import { combinadoEmVigor, precoPermitidoAgora, reclamacoesDeValor, valorCombinadoNaConversa } from '@/lib/preco/estado-da-negociacao';
 import { blocoDoCombinado } from '@/lib/followup/bloco-do-combinado';
-import { criaRetornoDbPg } from '@/lib/followup/retorno-pg';
+import { buscaValorCombinado, criaRetornoDbPg } from '@/lib/followup/retorno-pg';
 import { estadoDoPosVenda, horaDoPagamento } from '@/lib/preco/pos-venda';
 import { deveResponderEmAudio } from '@/lib/voz/decisao';
 import { enqueueJob, rescheduleJob, type JobRow, type Queryable } from '../queue/queue';
@@ -2330,9 +2330,21 @@ async function executarTurnoDoAgente(
   if (contatoCobradoPorMensagem) {
     runLog.info('economia de mensagem cobrada — resposta em mensagem única neste turno', {});
   }
+  // O VALOR COMBINADO: quem fechou por um degrau e ficou de pagar em outra data. Vem do retorno
+  // agendado (`buscaValorCombinado`), e só vale se ainda for um degrau da escada em vigor. Sem ele,
+  // semanas depois a contagem de reclamações volta a zero e o valor combinado seria vetado.
+  let combinadoDoTurno: number | null = null;
+  if (!preview && agentConfig?.pricing?.enabled && agentConfig.pricing.steps.length > 0) {
+    try {
+      combinadoDoTurno = combinadoEmVigor(agentConfig.pricing, await buscaValorCombinado(pool, tenantId, leadId));
+    } catch {
+      combinadoDoTurno = null;
+    }
+  }
   const blocoDePrecoDoTurno = blocoDePreco(agentConfig?.pricing, {
     reclamacoes: reclamacoesDeValorNoTurno,
     posVenda: posVendaDoTurno,
+    combinadoCents: combinadoDoTurno,
   });
   // A REDE: o mesmo passo vira o piso de preço da trava de promessas deste turno. Se o modelo
   // oferecer o desconto antes da hora, a mensagem é vetada antes de sair (`before-send`). No
@@ -2341,7 +2353,10 @@ async function executarTurnoDoAgente(
     agentConfig?.pricing != null
       ? posVendaDoTurno !== null
         ? posVendaDoTurno.priceCents
-        : precoPermitidoAgora(agentConfig.pricing, reclamacoesDeValorNoTurno)
+        : Math.min(
+            precoPermitidoAgora(agentConfig.pricing, reclamacoesDeValorNoTurno),
+            combinadoDoTurno ?? Number.POSITIVE_INFINITY,
+          )
       : undefined;
   // Entrega personalizada: quem PAGOU (tags `pago` + `produto:<trabalho>`, postas pela compra
   // aprovada na Cakto) recebe, neste turno, o guia do trabalho certo e as regras gerais — buscados
@@ -3877,6 +3892,14 @@ async function executarTurnoDoAgente(
             { clock, knobs: followupKnobs },
             { tenantId, leadId, agentId: agentConfig?.agentId ?? null },
             raw,
+            // O valor combinado é lido da conversa pelo CÓDIGO (o último valor da escada que a
+            // agente disse), nunca do que o modelo escreve no agendamento.
+            {
+              valorCombinadoCents:
+                agentConfig?.pricing?.enabled === true
+                  ? (valorCombinadoNaConversa(agentConfig.pricing, openingContext.context.messages) ?? combinadoDoTurno)
+                  : null,
+            },
           );
           if (!res.ok) {
             return res; // erro de ensino (payload / data no passado / fora da janela)

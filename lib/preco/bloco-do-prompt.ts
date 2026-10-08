@@ -17,6 +17,7 @@
  * (`promise_table.minPriceCents`, ligada por `sincronizar-piso.ts`): se o modelo citar um
  * valor abaixo do mínimo, a mensagem é vetada antes de sair.
  */
+import { combinadoEmVigor, precoPermitidoAgora } from "./estado-da-negociacao";
 import type { EstadoDoPosVenda } from "./pos-venda";
 import { pisoEmCentavos, reais, type PricingConfig } from "./tipos";
 
@@ -43,6 +44,29 @@ export interface EstadoDoBloco {
   reclamacoes: number | null;
   /** A pessoa já comprou e a segunda oferta está liberada (`pos-venda.ts`). Ausente/`null` = primeira venda. */
   posVenda?: EstadoDoPosVenda | null;
+  /**
+   * O valor que esta pessoa combinou pagar em outra data, guardado com o retorno agendado
+   * (`lib/followup/retorno-pg.ts`). Ausente/`null` = não há combinado.
+   */
+  combinadoCents?: number | null;
+}
+
+/**
+ * A instrução de quem JÁ COMBINOU um valor e ficou de pagar depois. Substitui a escada: semanas
+ * depois a contagem de reclamações voltou a zero (elas saíram da janela de histórico), e sem isto a
+ * agente voltaria ao valor de venda — e o valor combinado seria vetado pela trava de promessas.
+ */
+function instrucaoDoCombinado(c: PricingConfig, combinadoCents: number): string {
+  const valor = reais(combinadoCents);
+  const degrau = c.steps.find((s) => s.price_cents === combinadoCents);
+  const como = degrau ? comoPagar(degrau) : "mande o link de pagamento desse valor";
+  const lista =
+    degrau?.product_links && degrau.product_links.length > 0
+      ? `\n- LINKS NESTE VALOR (${valor}) — mande SÓ o do trabalho que você indicou, nunca a lista: ${degrau.product_links
+          .map((l) => `${l.name}: ${l.url}`)
+          .join(" | ")}`
+      : "";
+  return `- VALOR COMBINADO: esta pessoa já combinou com você ${valor} e ficou de pagar em outra data. O valor DELA é ${valor}: NÃO volte ao valor de venda, NÃO ofereça menos e NÃO renegocie. Quando ela for pagar, diga só "${valor}, como combinamos" e, pra pagar, ${como}. O molde de dizer o preço pela primeira vez NÃO se aplica a ela.${lista}`;
 }
 
 /**
@@ -145,7 +169,14 @@ export function blocoDePreco(
       `- Este valor não tem desconto. Se ela pedir ou disser que está caro, explique com carinho que o valor é único e NÃO invente cupom, promoção ou condição.`,
     );
   } else {
-    linhas.push(instrucaoDeNegociacao(c, estado.reclamacoes));
+    // O combinado só manda enquanto é MENOR que o que a escada libera agora: se a pessoa seguiu
+    // reclamando e a escada desceu além dele, vale a escada.
+    const combinado = combinadoEmVigor(c, estado.combinadoCents);
+    linhas.push(
+      combinado !== null && combinado < precoPermitidoAgora(c, estado.reclamacoes)
+        ? instrucaoDoCombinado(c, combinado)
+        : instrucaoDeNegociacao(c, estado.reclamacoes),
+    );
     // Medido em produção: o prompt escrito pelo operador mandava chamar a equipe para enviar
     // o link do valor negociado, e a agente obedecia — a negociação morria numa fila de
     // atendimento. Com degraus configurados, o valor e o link de cada um estão AQUI.

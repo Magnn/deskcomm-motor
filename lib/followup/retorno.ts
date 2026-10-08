@@ -49,6 +49,12 @@ export interface PayloadDoRetorno {
   context_snapshot?: string | null;
   /** De onde veio o agendamento (ex.: `reactivation`). */
   source?: string;
+  /**
+   * O valor que a pessoa combinou pagar, em centavos, quando fechou por um degrau da negociação.
+   * Calculado pelo CÓDIGO no turno que agendou — nunca vem do modelo. É o que faz o valor
+   * combinado valer na data, semanas depois.
+   */
+  agreed_price_cents?: number;
 }
 
 export interface RetornoAgendado {
@@ -153,6 +159,8 @@ export interface AgendaRetornoInput {
   promessa: string;
   contexto?: string | null;
   source?: string;
+  /** O valor combinado, em centavos — ver `PayloadDoRetorno.agreed_price_cents`. */
+  valorCombinadoCents?: number | null;
 }
 
 export type ResultadoDoAgendamento =
@@ -206,6 +214,9 @@ export async function agendaRetorno(
       promised_at: input.prometidoPara,
       context_snapshot: input.contexto ?? null,
       ...(input.source ? { source: input.source } : {}),
+      ...(typeof input.valorCombinadoCents === "number" && Number.isInteger(input.valorCombinadoCents) && input.valorCombinadoCents > 0
+        ? { agreed_price_cents: input.valorCombinadoCents }
+        : {}),
     },
   });
 
