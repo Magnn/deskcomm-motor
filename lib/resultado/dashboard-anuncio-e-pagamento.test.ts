@@ -10,7 +10,7 @@ import { lerGastoDeAnuncios, limparCacheDoGasto, somarGastoEmCentavos, type Deps
 import { criarBancoEmMemoria } from "@/tests/helpers/banco-em-memoria";
 
 import { contasDoAnuncio } from "./contas-do-anuncio";
-import { calcularDelta, calcularIntervalo, diaNoFuso, gastoTemComparacao } from "./periodo";
+import { calcularDelta, calcularIntervalo, diaNoFuso, gastoTemComparacao, paraParede } from "./periodo";
 import { lerVendasDoPagamento, vendasDoLedger } from "./vendas-do-pagamento";
 
 const linha = (id: string, tipo: string, pedido: string, quando: string, over: object = {}) => ({
@@ -188,6 +188,14 @@ describe("o período no fuso da organização", () => {
     expect(calcularDelta(50, 100)).toBe(-50);
     expect(calcularDelta(-10, 0)).toBe(-100);
     expect(calcularDelta(0, 0)).toBe(0);
+  });
+
+  it("a hora da venda é a da organização: 13h21 de São Paulo cai na barra das 13h, não na das 16h", () => {
+    const venda = new Date("2026-10-08T16:21:00Z");
+    expect(paraParede(venda, SP).getUTCHours()).toBe(13);
+    // Venda às 22h de São Paulo já é o dia seguinte em UTC: o dia da barra é o da organização.
+    const noite = paraParede(new Date("2026-10-08T01:30:00Z"), SP);
+    expect([noite.getUTCDate(), noite.getUTCHours()]).toEqual([7, 22]);
   });
 
   it("dia 31 não estoura o 'mês passado' (março → fevereiro), e outro fuso dá outro dia", () => {
