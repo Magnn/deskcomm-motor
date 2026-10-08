@@ -767,13 +767,16 @@ export function DashboardClient({ orgName }: { orgName: string }) {
                     return (
                       <div
                         key={i}
-                        className="flex-1 flex flex-col items-center group relative cursor-pointer"
+                        // `h-full justify-end`: sem altura na coluna, o `height: N%` da barra não tem do que
+                        // ser porcentagem e a barra some — o gráfico ficava em branco mesmo com venda.
+                        className="flex-1 h-full flex flex-col items-center justify-end group relative cursor-pointer"
+                        data-testid="barra-do-horario"
                         title={`${h.label}: ${h.qtd} vendas (${formatBRL(h.valor)})`}
                       >
                         <div
                           style={{ height: `${heightPercent}%` }}
                           className={`w-full max-w-[12px] rounded-t transition-all ${
-                            h.qtd > 0 ? "bg-accent group-hover:bg-accent-hover" : "bg-surface-elevated"
+                            h.qtd > 0 ? "bg-accent group-hover:bg-accent-hover" : "bg-border"
                           }`}
                         />
                       </div>
@@ -1096,11 +1099,11 @@ export function DashboardClient({ orgName }: { orgName: string }) {
                   const maxCount = Math.max(...(data?.atendimentosPorHora?.map((x) => x.count) || [1]), 1);
                   const hPct = h.count > 0 ? (h.count / maxCount) * 100 : 4;
                   return (
-                    <div key={i} className="flex-1 flex flex-col items-center group relative cursor-pointer" title={`${h.label}: ${h.count} atendimentos`}>
+                    <div key={i} className="flex-1 h-full flex flex-col items-center justify-end group relative cursor-pointer" title={`${h.label}: ${h.count} atendimentos`}>
                       <div
                         style={{ height: `${hPct}%` }}
                         className={`w-full max-w-[10px] rounded-t transition-all ${
-                          h.count > 0 ? "bg-accent" : "bg-surface-elevated"
+                          h.count > 0 ? "bg-accent" : "bg-border"
                         }`}
                       />
                     </div>

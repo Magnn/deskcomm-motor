@@ -5,7 +5,7 @@ import { ok, fail } from "@/lib/api/wrappers";
 import { lerGastoDeAnuncios } from "@/lib/plataformas-de-anuncio/meta/gasto-do-periodo";
 import { roleAtLeast } from "@/lib/auth/types";
 import { contasDoAnuncio, type GastoDoPeriodo } from "@/lib/resultado/contas-do-anuncio";
-import { calcularDelta, calcularIntervalo, gastoTemComparacao, lerFusoDaOrganizacao } from "@/lib/resultado/periodo";
+import { calcularDelta, calcularIntervalo, gastoTemComparacao, lerFusoDaOrganizacao, paraParede } from "@/lib/resultado/periodo";
 import { lerVendasDoPagamento, type VendaDoPainel } from "@/lib/resultado/vendas-do-pagamento";
 
 export const dynamic = "force-dynamic";
@@ -178,12 +178,13 @@ export async function GET(req: NextRequest) {
           vendasPorPeriodoMap.set(key, { label: key, valor: 0, qtd: 0 });
         }
       } else {
-        // Dias
-        const cur = new Date(start);
-        while (cur <= end) {
-          const key = `${String(cur.getDate()).padStart(2, "0")}/${String(cur.getMonth() + 1).padStart(2, "0")}`;
+        // Dias, contados no fuso da organização (relógio de parede: campos UTC = hora local).
+        const cur = paraParede(start, fuso);
+        const ultimo = paraParede(end, fuso);
+        while (cur <= ultimo) {
+          const key = `${String(cur.getUTCDate()).padStart(2, "0")}/${String(cur.getUTCMonth() + 1).padStart(2, "0")}`;
           vendasPorPeriodoMap.set(key, { label: key, valor: 0, qtd: 0 });
-          cur.setDate(cur.getDate() + 1);
+          cur.setUTCDate(cur.getUTCDate() + 1);
         }
       }
 
@@ -227,9 +228,10 @@ export async function GET(req: NextRequest) {
 
       // Preencher séries temporais e distribuições
       for (const s of sales) {
-        const saleDate = new Date(s.created_at);
+        // A hora e o dia da venda são os da organização, não os do servidor.
+        const saleDate = paraParede(new Date(s.created_at), fuso);
         const valor = (Number(s.total_cents) || 0) / 100;
-        const hora = saleDate.getHours();
+        const hora = saleDate.getUTCHours();
 
         // Horário
         if (vendasPorHorario[hora]) {
@@ -243,7 +245,7 @@ export async function GET(req: NextRequest) {
           const blockHour = Math.floor(hora / 2) * 2;
           pKey = `${String(blockHour).padStart(2, "0")}h`;
         } else {
-          pKey = `${String(saleDate.getDate()).padStart(2, "0")}/${String(saleDate.getMonth() + 1).padStart(2, "0")}`;
+          pKey = `${String(saleDate.getUTCDate()).padStart(2, "0")}/${String(saleDate.getUTCMonth() + 1).padStart(2, "0")}`;
         }
         const item = vendasPorPeriodoMap.get(pKey);
         if (item) {
@@ -426,7 +428,7 @@ export async function GET(req: NextRequest) {
     }));
 
     for (const c of conversas) {
-      const h = new Date(c.created_at).getHours();
+      const h = paraParede(new Date(c.created_at), fuso).getUTCHours();
       if (atendimentosPorHora[h]) atendimentosPorHora[h].count += 1;
     }
 

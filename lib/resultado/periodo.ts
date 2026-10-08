@@ -43,8 +43,12 @@ function deslocamento(instante: Date, fuso: string): number {
   return parede - Math.floor(instante.getTime() / 1000) * 1000;
 }
 
-/** O instante como "relógio de parede" do fuso: uma Date cujos campos UTC são a hora local. */
-function paraParede(instante: Date, fuso: string): Date {
+/**
+ * O instante como "relógio de parede" do fuso: uma Date cujos campos UTC são a hora local. Quem quer a
+ * hora ou o dia de uma venda lê `getUTCHours()`/`getUTCDate()` DAQUI — `getHours()` no instante devolve
+ * a hora do servidor (UTC), e a venda das 13h de São Paulo aparecia na barra das 16h.
+ */
+export function paraParede(instante: Date, fuso: string): Date {
   return new Date(instante.getTime() + deslocamento(instante, fuso));
 }
 
