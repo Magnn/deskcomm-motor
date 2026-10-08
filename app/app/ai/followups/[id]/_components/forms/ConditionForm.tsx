@@ -207,7 +207,7 @@ export function ConditionForm({
               className={cn(
                 "p-2.5 rounded-xl border text-left flex flex-col justify-between transition-all cursor-pointer",
                 combinator === "and"
-                  ? "border-blue-500 bg-blue-50/50 dark:bg-blue-950/20 text-blue-900 dark:text-blue-200 ring-1 ring-blue-500 shadow-2xs"
+                  ? "border-cat-blue bg-cat-blue-bg text-cat-blue-fg ring-1 ring-cat-blue shadow-2xs"
                   : "border-border bg-surface text-text-muted hover:border-border-strong"
               )}
             >
@@ -224,7 +224,7 @@ export function ConditionForm({
               className={cn(
                 "p-2.5 rounded-xl border text-left flex flex-col justify-between transition-all cursor-pointer",
                 combinator === "or"
-                  ? "border-blue-500 bg-blue-50/50 dark:bg-blue-950/20 text-blue-900 dark:text-blue-200 ring-1 ring-blue-500 shadow-2xs"
+                  ? "border-cat-blue bg-cat-blue-bg text-cat-blue-fg ring-1 ring-cat-blue shadow-2xs"
                   : "border-border bg-surface text-text-muted hover:border-border-strong"
               )}
             >
@@ -275,7 +275,7 @@ export function ConditionForm({
                 size="icon"
                 aria-label={t("Remover condição")}
                 disabled={checks.length <= 1}
-                className="text-red-500 hover:text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 h-7 w-7 rounded-md cursor-pointer"
+                className="text-cat-red hover:text-cat-red hover:bg-cat-red-bg h-7 w-7 rounded-md cursor-pointer"
                 onClick={() => {
                   const next = checks.filter((_, i) => i !== idx);
                   setChecks(next);
@@ -410,10 +410,10 @@ export function ConditionForm({
           setChecks(next);
           commit({ checks: next });
         }}
-        className="w-full h-11 rounded-xl border border-dashed border-blue-300 dark:border-blue-900/50 bg-blue-50/40 dark:bg-blue-950/20 hover:bg-blue-50 dark:hover:bg-blue-950/40 text-blue-600 dark:text-blue-400 font-semibold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-2xs"
+        className="w-full h-11 rounded-xl border border-dashed border-cat-blue/30 bg-cat-blue-bg hover:bg-cat-blue-bg text-cat-blue font-semibold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-2xs"
       >
         <Plus size={16} aria-hidden />
-        <div className="h-4 w-px bg-blue-200 dark:bg-blue-900/50" />
+        <div className="h-4 w-px bg-cat-blue-bg" />
         <span>{t("Condição")}</span>
       </Button>
       {error && <p className="text-xs text-error-fg">{error}</p>}

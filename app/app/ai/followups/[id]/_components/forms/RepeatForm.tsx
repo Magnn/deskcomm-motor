@@ -42,8 +42,8 @@ export function RepeatForm({
   return (
     <div className="space-y-4 font-sans text-xs">
       {/* Header banner sofisticado */}
-      <div className="flex items-center gap-2.5 rounded-lg border border-teal-200 bg-teal-50/70 p-3 text-teal-950 dark:border-teal-900/60 dark:bg-teal-950/20 dark:text-teal-200">
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-teal-600 text-white shadow-2xs">
+      <div className="flex items-center gap-2.5 rounded-lg border border-cat-teal/30 bg-cat-teal-bg p-3 text-cat-teal-fg">
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-cat-teal text-white shadow-2xs">
           <ArrowsClockwise size={18} />
         </div>
         <div>
@@ -62,7 +62,7 @@ export function RepeatForm({
           <Label htmlFor="repeat-max" className="text-[11px] font-semibold text-text-muted">
             {t("No máximo quantas voltas")}
           </Label>
-          <span className="text-xs font-mono font-bold text-teal-700 dark:text-teal-400 bg-teal-100/60 dark:bg-teal-950/60 px-2 py-0.5 rounded-md">
+          <span className="text-xs font-mono font-bold text-cat-teal-fg bg-cat-teal-bg px-2 py-0.5 rounded-md">
             {currentVal} {currentVal === 1 ? t("volta") : t("voltas")}
           </span>
         </div>
@@ -76,7 +76,7 @@ export function RepeatForm({
             step="1"
             value={currentVal}
             onChange={(e) => commit(e.target.value)}
-            className="grow h-1.5 bg-surface-elevated rounded-lg appearance-none cursor-pointer accent-teal-600"
+            className="grow h-1.5 bg-surface-elevated rounded-lg appearance-none cursor-pointer accent-cat-teal"
           />
           <Input
             id="repeat-max"
@@ -99,7 +99,7 @@ export function RepeatForm({
               onClick={() => applyPreset(p)}
               className={`px-2 py-0.5 rounded-md text-[11px] font-medium transition-colors cursor-pointer ${
                 currentVal === p
-                  ? "bg-teal-600 text-white shadow-2xs"
+                  ? "bg-cat-teal text-white shadow-2xs"
                   : "bg-surface-elevated text-text-muted hover:bg-surface-elevated"
               }`}
             >
@@ -115,20 +115,20 @@ export function RepeatForm({
           {t("Como este nó roteia:")}
         </span>
         <div className="space-y-1.5 text-[11px]">
-          <div className="flex items-center gap-1.5 text-teal-700 dark:text-teal-400">
+          <div className="flex items-center gap-1.5 text-cat-teal-fg">
             <ArrowBendUpLeft size={14} className="shrink-0" />
             <span><strong>{t("Próxima volta:")}</strong> {t("Executa enquanto contador <")} {currentVal}</span>
           </div>
           <div className="flex items-center gap-1.5 text-text-muted">
-            <Check size={14} className="shrink-0 text-emerald-600" />
+            <Check size={14} className="shrink-0 text-cat-green" />
             <span><strong>{t("Acabou:")}</strong> {t("Disparado ao atingir o teto de voltas")}</span>
           </div>
         </div>
       </div>
 
       {/* Variáveis disponíveis no Loop */}
-      <div className="flex items-start gap-1.5 p-2 rounded-lg bg-blue-50/50 border border-blue-200/60 dark:bg-blue-950/20 dark:border-blue-900/40 text-[11px] text-blue-900 dark:text-blue-300">
-        <Info size={14} className="text-blue-500 shrink-0 mt-0.5" />
+      <div className="flex items-start gap-1.5 p-2 rounded-lg bg-cat-blue-bg border border-cat-blue/30 text-[11px] text-cat-blue-fg">
+        <Info size={14} className="text-cat-blue shrink-0 mt-0.5" />
         <span>
           {t("Dica: você pode usar ")}
           <code className="bg-white/80 px-1 py-0.5 rounded-md font-mono text-[10px]">
@@ -138,7 +138,7 @@ export function RepeatForm({
         </span>
       </div>
 
-      {error && <p className="text-xs text-rose-600 dark:text-rose-400">{error}</p>}
+      {error && <p className="text-xs text-cat-red">{error}</p>}
     </div>
   );
 }

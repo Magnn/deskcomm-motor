@@ -211,7 +211,7 @@ export function VoiceStudioForm({ config, onChange }: Props) {
           <button
             type="button"
             onClick={() => setShowCustomFields(!showCustomFields)}
-            className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors cursor-pointer"
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-cat-blue hover:text-cat-blue-fg transition-colors cursor-pointer"
           >
             <Eye size={14} className="shrink-0" />
             <span>{t("Campos Personalizados")}</span>
@@ -220,8 +220,8 @@ export function VoiceStudioForm({ config, onChange }: Props) {
 
         {/* Gaveta de Campos Personalizados */}
         {showCustomFields && (
-          <div className="p-2.5 rounded-lg border border-blue-200 bg-blue-50/70 dark:border-blue-900/60 dark:bg-blue-950/30 space-y-1.5 animate-in fade-in slide-in-from-top-1">
-            <span className="text-[11px] font-medium text-blue-900 dark:text-blue-300 block">
+          <div className="p-2.5 rounded-lg border border-cat-blue/30 bg-cat-blue-bg space-y-1.5 animate-in fade-in slide-in-from-top-1">
+            <span className="text-[11px] font-medium text-cat-blue-fg block">
               {t("Clique para inserir uma variável no áudio:")}
             </span>
             <div className="flex flex-wrap gap-1.5">
@@ -230,7 +230,7 @@ export function VoiceStudioForm({ config, onChange }: Props) {
                   key={cf.id}
                   type="button"
                   onClick={() => insertVariable(cf.id)}
-                  className="px-2 py-1 rounded-md bg-surface hover:bg-blue-100/80 text-blue-800 border border-blue-200 dark:text-blue-300 dark:border-blue-800 text-[11px] font-mono shadow-2xs transition-colors cursor-pointer"
+                  className="px-2 py-1 rounded-md bg-surface hover:bg-cat-blue-bg text-cat-blue-fg border border-cat-blue/30 text-[11px] font-mono shadow-2xs transition-colors cursor-pointer"
                 >
                   {cf.id}
                 </button>
@@ -249,7 +249,7 @@ export function VoiceStudioForm({ config, onChange }: Props) {
           }}
           rows={4}
           placeholder={t("Digite aqui o texto desejado para virar um áudio.")}
-          className="w-full rounded-lg border border-border-strong bg-surface p-3 text-xs text-text placeholder-neutral-400 focus:border-purple-600 focus:outline-hidden focus:ring-1 focus:ring-purple-600 resize-y"
+          className="w-full rounded-lg border border-border-strong bg-surface p-3 text-xs text-text placeholder-neutral-400 focus:border-cat-violet focus:outline-hidden focus:ring-1 focus:ring-cat-violet resize-y"
         />
       </div>
 
@@ -259,7 +259,7 @@ export function VoiceStudioForm({ config, onChange }: Props) {
         <div className="mx-3 flex items-center gap-1.5 text-xs text-text-muted font-normal">
           <span>{t("Configurações de voz")}</span>
           <span title={t("Ajuste a estabilidade, similaridade, estilo e velocidade da voz")} className="cursor-help">
-            <Info size={14} className="text-blue-500" />
+            <Info size={14} className="text-cat-blue" />
           </span>
         </div>
         <div className="grow border-t border-border" />
@@ -285,7 +285,7 @@ export function VoiceStudioForm({ config, onChange }: Props) {
             }}
             className="grow h-1.5 bg-surface-elevated rounded-lg appearance-none cursor-pointer accent-[#a855f7]"
           />
-          <div className="w-14 shrink-0 text-center py-0.5 px-2 rounded-md border border-blue-200 bg-blue-50/60 dark:border-blue-900 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 text-xs font-mono">
+          <div className="w-14 shrink-0 text-center py-0.5 px-2 rounded-md border border-cat-blue/30 bg-cat-blue-bg text-cat-blue text-xs font-mono">
             {formatSliderValue(stability)}
           </div>
         </div>
@@ -308,7 +308,7 @@ export function VoiceStudioForm({ config, onChange }: Props) {
             }}
             className="grow h-1.5 bg-surface-elevated rounded-lg appearance-none cursor-pointer accent-[#a855f7]"
           />
-          <div className="w-14 shrink-0 text-center py-0.5 px-2 rounded-md border border-blue-200 bg-blue-50/60 dark:border-blue-900 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 text-xs font-mono">
+          <div className="w-14 shrink-0 text-center py-0.5 px-2 rounded-md border border-cat-blue/30 bg-cat-blue-bg text-cat-blue text-xs font-mono">
             {formatSliderValue(similarity)}
           </div>
         </div>
@@ -331,7 +331,7 @@ export function VoiceStudioForm({ config, onChange }: Props) {
             }}
             className="grow h-1.5 bg-surface-elevated rounded-lg appearance-none cursor-pointer accent-[#a855f7]"
           />
-          <div className="w-14 shrink-0 text-center py-0.5 px-2 rounded-md border border-blue-200 bg-blue-50/60 dark:border-blue-900 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 text-xs font-mono">
+          <div className="w-14 shrink-0 text-center py-0.5 px-2 rounded-md border border-cat-blue/30 bg-cat-blue-bg text-cat-blue text-xs font-mono">
             {formatSliderValue(style)}
           </div>
         </div>
@@ -354,16 +354,16 @@ export function VoiceStudioForm({ config, onChange }: Props) {
             }}
             className="grow h-1.5 bg-surface-elevated rounded-lg appearance-none cursor-pointer accent-[#a855f7]"
           />
-          <div className="w-14 shrink-0 text-center py-0.5 px-2 rounded-md border border-blue-200 bg-blue-50/60 dark:border-blue-900 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 text-xs font-mono">
+          <div className="w-14 shrink-0 text-center py-0.5 px-2 rounded-md border border-cat-blue/30 bg-cat-blue-bg text-cat-blue text-xs font-mono">
             {formatSliderValue(speed)}x
           </div>
         </div>
       </div>
 
       {/* Aviso em vermelho de tokens */}
-      <div className="text-center pt-1 text-[11px] text-red-600 dark:text-red-400">
+      <div className="text-center pt-1 text-[11px] text-cat-red">
         <span>{t("Testar esse áudio irá consumir ")}</span>
-        <strong className="font-semibold text-red-700 dark:text-red-300">{t("0 tokens.")}</strong>
+        <strong className="font-semibold text-cat-red-fg">{t("0 tokens.")}</strong>
       </div>
 
       {/* 4. Player de Teste de Áudio no estilo exato do screenshot */}
@@ -373,7 +373,7 @@ export function VoiceStudioForm({ config, onChange }: Props) {
           onClick={handleTestAudio}
           className="flex flex-col items-center justify-center w-14 h-12 rounded-md bg-surface-elevated hover:bg-border-strong/80 text-text-muted transition-colors shrink-0 cursor-pointer"
         >
-          <ArrowsClockwise size={16} className={isPlayingAudio ? "animate-spin text-purple-600" : ""} />
+          <ArrowsClockwise size={16} className={isPlayingAudio ? "animate-spin text-cat-violet" : ""} />
           <span className="text-[10px] font-medium pt-0.5">{t("Testar")}</span>
         </button>
 
@@ -381,7 +381,7 @@ export function VoiceStudioForm({ config, onChange }: Props) {
           <button
             type="button"
             onClick={handleTestAudio}
-            className="hover:text-purple-600 transition-colors cursor-pointer"
+            className="hover:text-cat-violet transition-colors cursor-pointer"
           >
             {isPlayingAudio ? <Pause size={14} weight="fill" /> : <Play size={14} weight="fill" />}
           </button>
@@ -406,7 +406,7 @@ export function VoiceStudioForm({ config, onChange }: Props) {
       </div>
 
       {erroDaVoz && (
-        <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[11px] text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">
+        <p role="alert" className="rounded-lg border border-cat-red/30 bg-cat-red-bg px-3 py-2 text-[11px] text-cat-red-fg">
           {erroDaVoz}
         </p>
       )}
@@ -441,7 +441,7 @@ export function VoiceStudioForm({ config, onChange }: Props) {
               }}
               className={`p-2.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-1.5 ${
                 isSelected
-                  ? "border-[#9333ea] bg-purple-50/50 dark:border-purple-600 dark:bg-purple-950/30 shadow-xs"
+                  ? "border-[#9333ea] bg-cat-violet-bg shadow-xs"
                   : "border-border bg-surface hover:border-border-strong"
               }`}
             >
@@ -451,7 +451,7 @@ export function VoiceStudioForm({ config, onChange }: Props) {
                     {v.name}
                   </h4>
                   {isSelected && (
-                    <Check size={12} weight="bold" className="text-purple-600 shrink-0" />
+                    <Check size={12} weight="bold" className="text-cat-violet shrink-0" />
                   )}
                 </div>
                 <p className="text-[10px] text-text-subtle truncate">
@@ -466,7 +466,7 @@ export function VoiceStudioForm({ config, onChange }: Props) {
                 title={isPlayingThis ? t("Pausar prévia") : t("Ouvir prévia")}
                 className={`w-7 h-7 rounded-full border flex items-center justify-center shrink-0 transition-transform active:scale-95 cursor-pointer ${
                   isPlayingThis
-                    ? "border-indigo-600 bg-indigo-600 text-white animate-pulse"
+                    ? "border-cat-violet bg-cat-violet text-white animate-pulse"
                     : "border-border-strong bg-surface-elevated text-text-muted hover:bg-surface-elevated"
                 }`}
               >

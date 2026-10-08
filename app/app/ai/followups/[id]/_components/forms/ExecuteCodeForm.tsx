@@ -58,7 +58,7 @@ export function ExecuteCodeForm({ config, onChange }: Props) {
   return (
     <div className="space-y-4 font-sans text-xs">
       {/* Header do Card */}
-      <div className="flex items-center gap-2.5 rounded-lg border border-amber-200 bg-amber-50/60 p-3 text-amber-950 dark:border-amber-900/60 dark:bg-amber-950/20 dark:text-amber-200">
+      <div className="flex items-center gap-2.5 rounded-lg border border-cat-amber/30 bg-cat-amber-bg p-3 text-cat-amber-fg">
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#d97706] text-white shadow-2xs">
           <Code size={18} />
         </div>
@@ -90,7 +90,7 @@ export function ExecuteCodeForm({ config, onChange }: Props) {
               update({ code: e.target.value });
             }}
             placeholder="// return { resultado: 123 };"
-            className="w-full font-mono text-[11px] leading-relaxed rounded-lg border border-neutral-300 bg-neutral-900 text-neutral-100 p-3 shadow-inner outline-hidden focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
+            className="w-full font-mono text-[11px] leading-relaxed rounded-lg border border-neutral-300 bg-neutral-900 text-neutral-100 p-3 shadow-inner outline-hidden focus:border-cat-amber focus:ring-1 focus:ring-cat-amber"
           />
         </div>
       </div>
@@ -112,7 +112,7 @@ export function ExecuteCodeForm({ config, onChange }: Props) {
               setTimeoutMs(val);
               update({ timeout_ms: val });
             }}
-            className="w-32 rounded-lg border border-border-strong bg-surface px-3 py-1.5 text-xs text-text shadow-2xs outline-hidden focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
+            className="w-32 rounded-lg border border-border-strong bg-surface px-3 py-1.5 text-xs text-text shadow-2xs outline-hidden focus:border-cat-amber focus:ring-1 focus:ring-cat-amber"
           />
           <span className="text-[11px] text-text-muted">{t("ms (máx. 10.000 ms)")}</span>
         </div>
@@ -127,7 +127,7 @@ export function ExecuteCodeForm({ config, onChange }: Props) {
           <button
             type="button"
             onClick={handleAddMapping}
-            className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-800 hover:bg-amber-100 dark:bg-amber-950/40 dark:text-amber-300 dark:hover:bg-amber-900/50 cursor-pointer"
+            className="inline-flex items-center gap-1 rounded-md bg-cat-amber-bg px-2 py-1 text-[11px] font-semibold text-cat-amber-fg hover:bg-cat-amber-bg cursor-pointer"
           >
             <Plus size={12} weight="bold" />
             <span>{t("Mapear Campo")}</span>
@@ -148,7 +148,7 @@ export function ExecuteCodeForm({ config, onChange }: Props) {
                   setOutputField(e.target.value);
                   update({ output_field: e.target.value });
                 }}
-                className="w-full rounded-lg border border-border-strong bg-surface px-2.5 py-1.5 text-xs text-text shadow-2xs outline-hidden focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
+                className="w-full rounded-lg border border-border-strong bg-surface px-2.5 py-1.5 text-xs text-text shadow-2xs outline-hidden focus:border-cat-amber focus:ring-1 focus:ring-cat-amber"
               />
             </div>
           </div>
@@ -161,19 +161,19 @@ export function ExecuteCodeForm({ config, onChange }: Props) {
                   placeholder={t("Caminho JSON (ex: dados.total)")}
                   value={m.json_path}
                   onChange={(e) => handleUpdateMapping(idx, { json_path: e.target.value })}
-                  className="w-1/2 font-mono rounded-lg border border-border-strong bg-surface px-2.5 py-1.5 text-xs text-text shadow-2xs outline-hidden focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
+                  className="w-1/2 font-mono rounded-lg border border-border-strong bg-surface px-2.5 py-1.5 text-xs text-text shadow-2xs outline-hidden focus:border-cat-amber focus:ring-1 focus:ring-cat-amber"
                 />
                 <input
                   type="text"
                   placeholder={t("Campo de destino")}
                   value={m.target_field}
                   onChange={(e) => handleUpdateMapping(idx, { target_field: e.target.value })}
-                  className="flex-1 rounded-lg border border-border-strong bg-surface px-2.5 py-1.5 text-xs text-text shadow-2xs outline-hidden focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
+                  className="flex-1 rounded-lg border border-border-strong bg-surface px-2.5 py-1.5 text-xs text-text shadow-2xs outline-hidden focus:border-cat-amber focus:ring-1 focus:ring-cat-amber"
                 />
                 <button
                   type="button"
                   onClick={() => handleRemoveMapping(idx)}
-                  className="rounded-lg p-1.5 text-text-subtle hover:bg-surface-elevated hover:text-rose-600"
+                  className="rounded-lg p-1.5 text-text-subtle hover:bg-surface-elevated hover:text-cat-red"
                 >
                   <Trash size={14} />
                 </button>
@@ -184,7 +184,7 @@ export function ExecuteCodeForm({ config, onChange }: Props) {
       </div>
 
       {/* Info Card */}
-      <div className="rounded-lg border border-amber-100 bg-amber-50/50 p-2.5 text-[11px] text-amber-900 dark:border-amber-900/30 dark:bg-amber-950/20 dark:text-amber-300 flex items-start gap-2">
+      <div className="rounded-lg border border-cat-amber/30 bg-cat-amber-bg p-2.5 text-[11px] text-cat-amber-fg flex items-start gap-2">
         <Info size={14} className="shrink-0 mt-0.5" />
         <span>
           {t("O código executa em ambiente sandbox isolado. Sempre utilize")} <code className="font-mono">return</code>{" "}

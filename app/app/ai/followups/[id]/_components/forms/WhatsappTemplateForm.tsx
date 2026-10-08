@@ -94,7 +94,7 @@ export function WhatsappTemplateForm({ config, onChange }: Props) {
 
   return (
     <div className="space-y-4 font-sans text-xs">
-      <div className="flex items-center gap-2.5 rounded-lg border border-blue-200 bg-blue-50/60 p-3 text-blue-950 dark:border-blue-900/60 dark:bg-blue-950/20 dark:text-blue-200">
+      <div className="flex items-center gap-2.5 rounded-lg border border-cat-blue/30 bg-cat-blue-bg p-3 text-cat-blue-fg">
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#2563eb] text-white shadow-2xs">
           <ChatCircle size={18} />
         </div>
@@ -105,7 +105,7 @@ export function WhatsappTemplateForm({ config, onChange }: Props) {
       </div>
 
       <div className="flex items-center gap-2 pt-1 font-semibold text-text">
-        <FileText size={18} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
+        <FileText size={18} className="text-cat-green shrink-0" />
         <span className="text-sm">{t("Template WhatsApp (Meta)")}</span>
       </div>
 
@@ -118,7 +118,7 @@ export function WhatsappTemplateForm({ config, onChange }: Props) {
           value={escolhido ? escolhidoKey : ""}
           disabled={modelos === null}
           onChange={(e) => escolher(e.target.value)}
-          className="w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-xs text-text shadow-2xs outline-hidden focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
+          className="w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-xs text-text shadow-2xs outline-hidden focus:border-cat-blue focus:ring-1 focus:ring-cat-blue"
         >
           <option value="">{modelos === null ? t("Carregando modelos…") : t("Selecione um template")}</option>
           {aprovados.map((m) => (
@@ -128,14 +128,14 @@ export function WhatsappTemplateForm({ config, onChange }: Props) {
           ))}
         </select>
         {modelos !== null && aprovados.length === 0 && (
-          <p role="status" className="text-[11px] text-amber-700 dark:text-amber-400">
+          <p role="status" className="text-[11px] text-cat-amber-fg">
             {falhou
               ? t("Não foi possível carregar os modelos agora.")
               : t("Nenhum modelo aprovado encontrado. Conecte o canal oficial e sincronize os modelos em Conexões.")}
           </p>
         )}
         {semEscolhaNaLista && (
-          <p role="alert" className="text-[11px] text-red-600 dark:text-red-400">
+          <p role="alert" className="text-[11px] text-cat-red">
             {t("O modelo salvo nesta caixa não está entre os aprovados desta conta — escolha outro.")}
           </p>
         )}
@@ -174,7 +174,7 @@ export function WhatsappTemplateForm({ config, onChange }: Props) {
                   value={values[s.valueKey] ?? ""}
                   onChange={(e) => definir(s.valueKey, e.target.value)}
                   placeholder={midia ? "https://…" : "{primeiro_nome}"}
-                  className="w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-xs text-text shadow-2xs outline-hidden focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
+                  className="w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-xs text-text shadow-2xs outline-hidden focus:border-cat-blue focus:ring-1 focus:ring-cat-blue"
                 />
                 {!midia && (
                   <div className="flex flex-wrap gap-1">
@@ -183,7 +183,7 @@ export function WhatsappTemplateForm({ config, onChange }: Props) {
                         key={v}
                         type="button"
                         onClick={() => definir(s.valueKey, `${values[s.valueKey] ?? ""}${v}`)}
-                        className="rounded-full border border-border-strong px-2 py-0.5 text-[10px] text-text-muted hover:border-blue-500 hover:text-blue-600"
+                        className="rounded-full border border-border-strong px-2 py-0.5 text-[10px] text-text-muted hover:border-cat-blue hover:text-cat-blue"
                       >
                         {v}
                       </button>

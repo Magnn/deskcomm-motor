@@ -29,17 +29,17 @@ export function CollectNode({ id, data, selected }: NodeProps<RFNode>) {
     <div className="flex w-full flex-col gap-2 rounded-xl border border-orange-200/80 bg-gradient-to-b from-orange-50/50 to-white p-2.5 text-xs shadow-2xs dark:border-orange-900/40 dark:from-orange-950/20 dark:to-neutral-900">
       {/* Topo com Tipo de Pergunta e Status */}
       <div className="flex items-center justify-between gap-1 text-[11px]">
-        <div className="flex items-center gap-1.5 font-bold text-orange-800 dark:text-orange-300">
-          <Question size={14} weight="fill" className="text-orange-600 dark:text-orange-400 shrink-0" />
+        <div className="flex items-center gap-1.5 font-bold text-cat-amber-fg">
+          <Question size={14} weight="fill" className="text-cat-amber shrink-0" />
           <span>{t("Pergunta Coletora")}</span>
         </div>
-        <span className="flex items-center gap-1 rounded-full bg-orange-100/90 px-1.5 py-0.5 text-[9.5px] font-bold text-orange-800 dark:bg-orange-950/60 dark:text-orange-200 shrink-0 font-mono">
+        <span className="flex items-center gap-1 rounded-full bg-cat-amber-bg px-1.5 py-0.5 text-[9.5px] font-bold text-cat-amber-fg shrink-0 font-mono">
           {fieldType}
         </span>
       </div>
 
       {/* Balão com a pergunta */}
-      <div className="rounded-lg border border-orange-200/60 bg-surface p-2 text-[10.5px] leading-relaxed text-text shadow-2xs dark:border-orange-800/40">
+      <div className="rounded-lg border border-cat-amber/30 bg-surface p-2 text-[10.5px] leading-relaxed text-text shadow-2xs">
         <p className="line-clamp-2 italic text-text-muted">
           "{questionText}"
         </p>
@@ -47,14 +47,14 @@ export function CollectNode({ id, data, selected }: NodeProps<RFNode>) {
 
       {/* Badges de Saída: Salvar em Campo + Confirmação */}
       <div className="flex items-center justify-between gap-1 text-[10px] pt-0.5">
-        <span className="inline-flex items-center gap-1 rounded-md bg-orange-100/80 px-1.5 py-0.5 font-mono font-semibold text-orange-800 dark:bg-orange-950 dark:text-orange-300 truncate max-w-[130px]">
+        <span className="inline-flex items-center gap-1 rounded-md bg-cat-amber-bg px-1.5 py-0.5 font-mono font-semibold text-cat-amber-fg truncate max-w-[130px]">
           <Tag size={10} className="shrink-0" />
           <span>&#123;&#123;{fieldKey}&#125;&#125;</span>
         </span>
 
         {config.permite_correcao && (
           <span className="inline-flex items-center gap-1 text-text-muted text-[9.5px]">
-            <Check size={10} className="text-emerald-600" />
+            <Check size={10} className="text-cat-green" />
             <span>{t("Permite correção")}</span>
           </span>
         )}

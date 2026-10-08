@@ -89,7 +89,7 @@ export function ConditionNode({ id, data, selected }: NodeProps<RFNode>) {
     </div>
   ) : (
     <div className="flex w-full flex-col gap-1 rounded-lg border border-border bg-surface p-1.5">
-      <div className="flex min-h-[40px] flex-col items-center gap-2 rounded-md border border-dashed border-[#ef4444]/40 bg-[#fff1f2] p-2.5 text-center dark:bg-red-950/20">
+      <div className="flex min-h-[40px] flex-col items-center gap-2 rounded-md border border-dashed border-[#ef4444]/40 bg-[#fff1f2] p-2.5 text-center">
         <div className="w-full text-center text-[11px] font-semibold leading-tight text-text-muted">
           {logicText}
         </div>

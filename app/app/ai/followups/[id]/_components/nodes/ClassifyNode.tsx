@@ -24,11 +24,11 @@ export function ClassifyNode({ id, data, selected }: NodeProps<RFNode>) {
     <div className="flex w-full flex-col gap-2 rounded-xl border border-violet-200/80 bg-gradient-to-b from-violet-50/60 to-white p-2.5 text-xs shadow-2xs dark:border-violet-900/40 dark:from-violet-950/20 dark:to-neutral-900">
       {/* Topo informativo do classificador */}
       <div className="flex items-center justify-between gap-1 text-[11px]">
-        <div className="flex items-center gap-1.5 font-bold text-violet-700 dark:text-violet-300">
-          <Sparkle size={13} weight="fill" className="text-violet-600 dark:text-violet-400 shrink-0" />
+        <div className="flex items-center gap-1.5 font-bold text-cat-violet-fg">
+          <Sparkle size={13} weight="fill" className="text-cat-violet shrink-0" />
           <span className="truncate">{targetLabel}</span>
         </div>
-        <div className="flex items-center gap-1 rounded-full bg-violet-100/80 px-2 py-0.5 text-[10px] font-semibold text-violet-800 dark:bg-violet-900/60 dark:text-violet-200 shrink-0">
+        <div className="flex items-center gap-1 rounded-full bg-cat-violet-bg px-2 py-0.5 text-[10px] font-semibold text-cat-violet-fg shrink-0">
           <Clock size={11} className="shrink-0" />
           <span>{graceMinutes >= 60 ? `${(graceMinutes / 60).toFixed(0)}h` : `${graceMinutes}m`}</span>
         </div>
@@ -44,15 +44,15 @@ export function ClassifyNode({ id, data, selected }: NodeProps<RFNode>) {
           classes.slice(0, 4).map((cls, idx) => (
             <span
               key={idx}
-              className="inline-flex items-center gap-1 rounded-md border border-violet-200 bg-surface px-2 py-0.5 text-[10px] font-bold text-violet-900 shadow-2xs dark:border-violet-800/60 dark:text-violet-200"
+              className="inline-flex items-center gap-1 rounded-md border border-cat-violet/30 bg-surface px-2 py-0.5 text-[10px] font-bold text-cat-violet-fg shadow-2xs"
             >
-              <span className="h-1.5 w-1.5 rounded-full bg-violet-500" />
+              <span className="h-1.5 w-1.5 rounded-full bg-cat-violet" />
               <span className="truncate max-w-[110px]">{cls}</span>
             </span>
           ))
         )}
         {classes.length > 4 && (
-          <span className="rounded-md bg-violet-100 px-1.5 py-0.5 text-[9.5px] font-bold text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">
+          <span className="rounded-md bg-cat-violet-bg px-1.5 py-0.5 text-[9.5px] font-bold text-cat-violet-fg">
             +{classes.length - 4}
           </span>
         )}
@@ -61,7 +61,7 @@ export function ClassifyNode({ id, data, selected }: NodeProps<RFNode>) {
       {/* Dica da instrução (se houver) */}
       {config.hint && (
         <div className="flex items-center gap-1.5 rounded-lg border border-border bg-surface-elevated px-2 py-1 text-[10px] text-text-muted">
-          <Lightbulb size={11} className="text-amber-500 shrink-0" />
+          <Lightbulb size={11} className="text-cat-amber shrink-0" />
           <span className="truncate italic">{config.hint}</span>
         </div>
       )}

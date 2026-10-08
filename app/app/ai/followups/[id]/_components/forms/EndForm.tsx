@@ -31,27 +31,27 @@ const OUTCOME_CARDS: Array<{
     label: "Convertido",
     desc: "O lead atingiu a meta ou concluiu o objetivo com sucesso.",
     icon: CheckCircle,
-    color: "text-emerald-600 dark:text-emerald-400",
-    activeBorder: "border-emerald-500",
-    activeBg: "bg-emerald-50/60 dark:bg-emerald-950/30",
+    color: "text-cat-green",
+    activeBorder: "border-cat-green",
+    activeBg: "bg-cat-green-bg",
   },
   {
     id: "exhausted",
     label: "Esgotado",
     desc: "O fluxo tentou todos os contatos sem sucesso ou sem resposta.",
     icon: Warning,
-    color: "text-amber-600 dark:text-amber-400",
-    activeBorder: "border-amber-500",
-    activeBg: "bg-amber-50/60 dark:bg-amber-950/30",
+    color: "text-cat-amber",
+    activeBorder: "border-cat-amber",
+    activeBg: "bg-cat-amber-bg",
   },
   {
     id: "custom",
     label: "Personalizado",
     desc: "Encerramento com desfecho e nota específicos para o CRM.",
     icon: Sparkle,
-    color: "text-purple-600 dark:text-purple-400",
-    activeBorder: "border-purple-500",
-    activeBg: "bg-purple-50/60 dark:bg-purple-950/30",
+    color: "text-cat-violet",
+    activeBorder: "border-cat-violet",
+    activeBg: "bg-cat-violet-bg",
   },
 ];
 
@@ -137,7 +137,7 @@ export function EndForm({
                       {t(card.label)}
                     </span>
                     {isSelected && (
-                      <span className="text-[10px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-100/70 dark:bg-emerald-950/60 px-1.5 py-0.5 rounded-md">
+                      <span className="text-[10px] font-medium text-cat-green bg-cat-green-bg px-1.5 py-0.5 rounded-md">
                         {t("Ativo")}
                       </span>
                     )}
@@ -183,7 +183,7 @@ export function EndForm({
           <button
             type="button"
             onClick={() => setShowVars(!showVars)}
-            className="inline-flex items-center gap-1 text-[11px] text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+            className="inline-flex items-center gap-1 text-[11px] text-cat-blue hover:underline cursor-pointer"
           >
             <Eye size={12} />
             <span>{t("Variáveis")}</span>
@@ -191,13 +191,13 @@ export function EndForm({
         </div>
 
         {showVars && (
-          <div className="flex flex-wrap gap-1 p-2 rounded-lg bg-blue-50/50 border border-blue-200 dark:bg-blue-950/20 dark:border-blue-900">
+          <div className="flex flex-wrap gap-1 p-2 rounded-lg bg-cat-blue-bg border border-cat-blue/30">
             {VAR_TAGS.map((v) => (
               <button
                 key={v}
                 type="button"
                 onClick={() => insertVariable(v)}
-                className="px-1.5 py-0.5 rounded-md text-[10px] font-mono bg-surface text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 hover:bg-blue-100 cursor-pointer"
+                className="px-1.5 py-0.5 rounded-md text-[10px] font-mono bg-surface text-cat-blue-fg border border-cat-blue/30 hover:bg-cat-blue-bg cursor-pointer"
               >
                 {v}
               </button>
@@ -223,7 +223,7 @@ export function EndForm({
         </div>
       </div>
 
-      {error && <p className="text-xs text-rose-600 dark:text-rose-400">{error}</p>}
+      {error && <p className="text-xs text-cat-red">{error}</p>}
     </div>
   );
 }

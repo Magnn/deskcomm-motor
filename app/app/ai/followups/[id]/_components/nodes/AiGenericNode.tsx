@@ -25,18 +25,18 @@ export function AiGenericNode({ id, data, selected }: NodeProps<RFNode>) {
     <div className="flex w-full flex-col gap-2 rounded-xl border border-emerald-200/80 bg-gradient-to-b from-emerald-50/50 to-white p-2.5 text-xs shadow-2xs dark:border-emerald-900/40 dark:from-emerald-950/20 dark:to-neutral-900">
       {/* Topo com Modelo e Status */}
       <div className="flex items-center justify-between gap-1 text-[11px]">
-        <div className="flex items-center gap-1.5 font-bold text-emerald-800 dark:text-emerald-300">
-          <Sparkle size={14} weight="fill" className="text-emerald-600 dark:text-emerald-400 shrink-0" />
+        <div className="flex items-center gap-1.5 font-bold text-cat-green-fg">
+          <Sparkle size={14} weight="fill" className="text-cat-green shrink-0" />
           <span>{t("Prompt de IA (GPT)")}</span>
         </div>
-        <span className="flex items-center gap-1 rounded-full bg-emerald-100/90 px-1.5 py-0.5 text-[9.5px] font-bold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-200 shrink-0 font-mono">
+        <span className="flex items-center gap-1 rounded-full bg-cat-green-bg px-1.5 py-0.5 text-[9.5px] font-bold text-cat-green-fg shrink-0 font-mono">
           <Cpu size={10} />
           <span>{modelName}</span>
         </span>
       </div>
 
       {/* Caixa do Prompt */}
-      <div className="rounded-lg border border-emerald-200/60 bg-surface p-2 text-[10.5px] leading-relaxed text-text shadow-2xs dark:border-emerald-800/40">
+      <div className="rounded-lg border border-cat-green/30 bg-surface p-2 text-[10.5px] leading-relaxed text-text shadow-2xs">
         <p className="line-clamp-2 italic text-text-muted">
           "{prompt}"
         </p>
@@ -45,14 +45,14 @@ export function AiGenericNode({ id, data, selected }: NodeProps<RFNode>) {
       {/* Badges de Saída: Salvar em Campo / Enviar ao Contato */}
       <div className="flex flex-wrap items-center justify-between gap-1 text-[10px] pt-0.5">
         {saveKey && (
-          <span className="inline-flex items-center gap-1 rounded-md bg-emerald-100/80 px-1.5 py-0.5 font-mono font-semibold text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 truncate max-w-[130px]">
+          <span className="inline-flex items-center gap-1 rounded-md bg-cat-green-bg px-1.5 py-0.5 font-mono font-semibold text-cat-green-fg truncate max-w-[130px]">
             <Tag size={10} className="shrink-0" />
             <span>&#123;&#123;{saveKey}&#125;&#125;</span>
           </span>
         )}
 
         {config.enviar_resultado_texto && (
-          <span className="inline-flex items-center gap-1 rounded-md bg-blue-100/80 px-1.5 py-0.5 font-semibold text-blue-800 dark:bg-blue-950 dark:text-blue-300 shrink-0">
+          <span className="inline-flex items-center gap-1 rounded-md bg-cat-blue-bg px-1.5 py-0.5 font-semibold text-cat-blue-fg shrink-0">
             <PaperPlaneTilt size={10} />
             <span>{t("Envia resposta")}</span>
           </span>

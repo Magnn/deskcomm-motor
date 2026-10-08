@@ -135,7 +135,7 @@ export function MenuForm({
             commit({ prompt: event.target.value });
           }}
           placeholder={t("Selecione uma das opções:")}
-          className="w-full h-10 rounded-lg border border-border bg-surface px-3 text-xs text-text-muted placeholder:text-text-subtle focus:outline-hidden focus:border-purple-500 shadow-2xs"
+          className="w-full h-10 rounded-lg border border-border bg-surface px-3 text-xs text-text-muted placeholder:text-text-subtle focus:outline-hidden focus:border-cat-violet shadow-2xs"
         />
       </div>
 
@@ -168,7 +168,7 @@ export function MenuForm({
                 value={option.label}
                 onChange={(event) => atualizarOpcao(index, event.target.value)}
                 placeholder={t("Nova opção")}
-                className="w-full h-9 rounded-lg border border-border bg-surface px-3 text-xs text-text focus:outline-hidden focus:border-purple-500"
+                className="w-full h-9 rounded-lg border border-border bg-surface px-3 text-xs text-text focus:outline-hidden focus:border-cat-violet"
               />
             </div>
 
@@ -177,7 +177,7 @@ export function MenuForm({
 
             {/* Rodapé: Opção X + Lixeira */}
             <div className="px-3 py-2 flex items-center justify-between bg-surface">
-              <span className="text-[11.5px] font-medium text-blue-500 dark:text-blue-400">
+              <span className="text-[11.5px] font-medium text-cat-blue">
                 {t("Opção")} {index + 1}
               </span>
               <button
@@ -185,7 +185,7 @@ export function MenuForm({
                 aria-label={`${t("Remover opção")} ${index + 1}`}
                 disabled={options.length <= 2}
                 onClick={() => removerOpcao(index)}
-                className="text-red-500 hover:text-red-600 dark:text-red-400 transition-colors p-1 disabled:opacity-30 cursor-pointer"
+                className="text-cat-red hover:text-cat-red transition-colors p-1 disabled:opacity-30 cursor-pointer"
               >
                 <Trash2 size={14} />
               </button>

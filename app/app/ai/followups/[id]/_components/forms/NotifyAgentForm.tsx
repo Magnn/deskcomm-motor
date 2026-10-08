@@ -138,7 +138,7 @@ export function NotifyAgentForm({
       </div>
 
       {/* Abas Pill: Manual / Automático */}
-      <div className="flex rounded-full border border-purple-200 dark:border-purple-900/60 p-0.5 bg-surface-elevated">
+      <div className="flex rounded-full border border-cat-violet/30 p-0.5 bg-surface-elevated">
         <button
           type="button"
           onClick={() => handleModoChange("manual")}
@@ -146,7 +146,7 @@ export function NotifyAgentForm({
             "flex-1 py-1.5 text-center text-[12px] font-semibold rounded-full transition-all cursor-pointer",
             modo === "manual"
               ? "bg-[#9333ea] text-white shadow-xs"
-              : "text-text-muted hover:text-purple-600"
+              : "text-text-muted hover:text-cat-violet"
           )}
         >
           {t("Manual")}
@@ -158,7 +158,7 @@ export function NotifyAgentForm({
             "flex-1 py-1.5 text-center text-[12px] font-semibold rounded-full transition-all cursor-pointer",
             modo === "automatico"
               ? "bg-[#9333ea] text-white shadow-xs"
-              : "text-text-muted hover:text-purple-600"
+              : "text-text-muted hover:text-cat-violet"
           )}
         >
           {t("Automático")}
@@ -188,7 +188,7 @@ export function NotifyAgentForm({
           </div>
         </div>
       ) : (
-        <div className="rounded-xl border border-purple-200 dark:border-purple-900/40 bg-purple-50/40 dark:bg-purple-950/20 p-3 space-y-2.5">
+        <div className="rounded-xl border border-cat-violet/30 bg-cat-violet-bg p-3 space-y-2.5">
           <p className="text-[12px] font-semibold text-text">
             {t("Notificar o(s) usuário(s) responsável(is) pelo atendimento")}
           </p>
@@ -265,9 +265,9 @@ export function NotifyAgentForm({
             <PopoverTrigger asChild>
               <button
                 type="button"
-                className="inline-flex items-center gap-1.5 text-[12px] font-medium text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+                className="inline-flex items-center gap-1.5 text-[12px] font-medium text-cat-blue hover:underline cursor-pointer"
               >
-                <Eye size={13} className="text-blue-600 dark:text-blue-400" />
+                <Eye size={13} className="text-cat-blue" />
                 <span>{t("Campos Personalizados")}</span>
               </button>
             </PopoverTrigger>
@@ -301,7 +301,7 @@ export function NotifyAgentForm({
           maxLength={500}
           value={message}
           onChange={(e) => handleMessageChange(e.target.value)}
-          className="w-full rounded-xl border border-border bg-surface p-2.5 text-[12px] font-mono text-text-muted focus:outline-hidden focus:border-purple-500 focus:ring-1 focus:ring-purple-500/20 shadow-2xs resize-none"
+          className="w-full rounded-xl border border-border bg-surface p-2.5 text-[12px] font-mono text-text-muted focus:outline-hidden focus:border-cat-violet focus:ring-1 focus:ring-cat-violet/20 shadow-2xs resize-none"
         />
       </div>
 

@@ -99,7 +99,7 @@ export function TriggerForm({
         <select
           value={integration}
           onChange={(e) => handleIntegrationChange(e.target.value)}
-          className="w-full rounded-[10px] border border-border bg-surface px-3 py-2 text-[13px] text-text outline-hidden focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 shadow-xs"
+          className="w-full rounded-[10px] border border-border bg-surface px-3 py-2 text-[13px] text-text outline-hidden focus:border-cat-violet focus:ring-2 focus:ring-cat-violet/20 shadow-xs"
         >
           {ORIGENS_DO_INICIO.map((origem) => (
             <option key={origem} value={origem}>
@@ -117,7 +117,7 @@ export function TriggerForm({
         <select
           value={event}
           onChange={(e) => handleEventChange(e.target.value)}
-          className="w-full rounded-[10px] border border-border bg-surface px-3 py-2 text-[13px] text-text outline-hidden focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 shadow-xs"
+          className="w-full rounded-[10px] border border-border bg-surface px-3 py-2 text-[13px] text-text outline-hidden focus:border-cat-violet focus:ring-2 focus:ring-cat-violet/20 shadow-xs"
         >
           {isWhatsApp && (
             <>
@@ -173,7 +173,7 @@ export function TriggerForm({
               updateField({ keyword: e.target.value });
             }}
             placeholder='Ex.: "QUERO_PROPOSTA" ou "COMPRAR"'
-            className="w-full rounded-[10px] border border-border bg-surface px-3 py-2 text-[13px] text-text placeholder:text-text-subtle outline-hidden focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 shadow-xs"
+            className="w-full rounded-[10px] border border-border bg-surface px-3 py-2 text-[13px] text-text placeholder:text-text-subtle outline-hidden focus:border-cat-violet focus:ring-2 focus:ring-cat-violet/20 shadow-xs"
           />
         </div>
       )}
@@ -191,7 +191,7 @@ export function TriggerForm({
               updateField({ tag: e.target.value });
             }}
             placeholder="ex: vip, cliente, lead-frio"
-            className="w-full rounded-[10px] border border-border bg-surface px-3 py-2 text-[13px] text-text placeholder:text-text-subtle outline-hidden focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 shadow-xs"
+            className="w-full rounded-[10px] border border-border bg-surface px-3 py-2 text-[13px] text-text placeholder:text-text-subtle outline-hidden focus:border-cat-violet focus:ring-2 focus:ring-cat-violet/20 shadow-xs"
           />
         </div>
       )}
@@ -209,7 +209,7 @@ export function TriggerForm({
               updateField({ custom_field: e.target.value });
             }}
             placeholder="ex: status_financeiro, plano"
-            className="w-full rounded-[10px] border border-border bg-surface px-3 py-2 text-[13px] text-text placeholder:text-text-subtle outline-hidden focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 shadow-xs"
+            className="w-full rounded-[10px] border border-border bg-surface px-3 py-2 text-[13px] text-text placeholder:text-text-subtle outline-hidden focus:border-cat-violet focus:ring-2 focus:ring-cat-violet/20 shadow-xs"
           />
         </div>
       )}
@@ -230,7 +230,7 @@ export function TriggerForm({
                 setInactivityHours(val);
                 updateField({ inactivity_hours: val });
               }}
-              className="w-24 rounded-[10px] border border-border bg-surface px-3 py-2 text-[13px] text-text outline-hidden focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 shadow-xs"
+              className="w-24 rounded-[10px] border border-border bg-surface px-3 py-2 text-[13px] text-text outline-hidden focus:border-cat-violet focus:ring-2 focus:ring-cat-violet/20 shadow-xs"
             />
             <span className="text-text-muted">{t("horas sem interação")}</span>
           </div>
@@ -239,11 +239,11 @@ export function TriggerForm({
 
       {isWhatsApp ? (
         <div
-          className="p-3 bg-indigo-50/60 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/40 rounded-xl space-y-1"
+          className="p-3 bg-cat-violet-bg border border-cat-violet/30 rounded-xl space-y-1"
           data-testid="inicio-como-funciona"
         >
-          <p className="text-[11px] text-indigo-700 dark:text-indigo-400 font-medium">{t("Como funciona")}</p>
-          <p className="text-[11px] text-indigo-600/80 dark:text-indigo-400/80 leading-relaxed">
+          <p className="text-[11px] text-cat-violet-fg font-medium">{t("Como funciona")}</p>
+          <p className="text-[11px] text-cat-violet leading-relaxed">
             {t(
               "Este evento vale para os números vinculados a este fluxo. Vincule o número no botão do gatilho, no topo da tela, em \"Números que este fluxo responde\". A mudança só passa a valer depois de publicar."
             )}
@@ -251,11 +251,11 @@ export function TriggerForm({
         </div>
       ) : (
         <div
-          className="p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40 rounded-xl space-y-1"
+          className="p-3 bg-cat-amber-bg border border-cat-amber/30 rounded-xl space-y-1"
           data-testid="inicio-origem-em-construcao"
         >
-          <p className="text-[11px] text-amber-800 dark:text-amber-400 font-medium">{t("Esta origem ainda não dispara o fluxo")}</p>
-          <p className="text-[11px] text-amber-700/90 dark:text-amber-400/80 leading-relaxed">
+          <p className="text-[11px] text-cat-amber-fg font-medium">{t("Esta origem ainda não dispara o fluxo")}</p>
+          <p className="text-[11px] text-cat-amber-fg leading-relaxed">
             {t(
               "Por enquanto só a origem WhatsApp inicia o fluxo por esta caixa. Com outra origem aqui o fluxo não publica. Para iniciar por etapa do funil, lead criado ou webhook, use o botão do gatilho, no topo da tela."
             )}

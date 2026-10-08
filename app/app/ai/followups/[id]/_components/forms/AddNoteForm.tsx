@@ -46,8 +46,8 @@ export function AddNoteForm({
   return (
     <div className="space-y-4 font-sans text-xs">
       {/* Header banner sofisticado */}
-      <div className="flex items-center gap-2.5 rounded-lg border border-amber-200 bg-amber-50/70 p-3 text-amber-950 dark:border-amber-900/60 dark:bg-amber-950/20 dark:text-amber-200">
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-600 text-white shadow-2xs">
+      <div className="flex items-center gap-2.5 rounded-lg border border-cat-amber/30 bg-cat-amber-bg p-3 text-cat-amber-fg">
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-cat-amber text-white shadow-2xs">
           <Note size={18} />
         </div>
         <div>
@@ -69,7 +69,7 @@ export function AddNoteForm({
           <button
             type="button"
             onClick={() => setShowVars(!showVars)}
-            className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-700 hover:text-amber-800 dark:text-amber-400 cursor-pointer"
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-cat-amber-fg hover:text-cat-amber-fg cursor-pointer"
           >
             <Eye size={13} />
             <span>{t("Campos Personalizados")}</span>
@@ -78,8 +78,8 @@ export function AddNoteForm({
 
         {/* Seletor de Variáveis */}
         {showVars && (
-          <div className="p-2.5 rounded-lg border border-amber-200 bg-amber-50/80 dark:border-amber-900/60 dark:bg-amber-950/40 space-y-1.5">
-            <span className="text-[11px] font-medium text-amber-900 dark:text-amber-300 block">
+          <div className="p-2.5 rounded-lg border border-cat-amber/30 bg-cat-amber-bg space-y-1.5">
+            <span className="text-[11px] font-medium text-cat-amber-fg block">
               {t("Inserir variável na nota:")}
             </span>
             <div className="flex flex-wrap gap-1.5">
@@ -88,7 +88,7 @@ export function AddNoteForm({
                   key={v}
                   type="button"
                   onClick={() => insertVariable(v)}
-                  className="px-2 py-0.5 rounded-md bg-surface text-amber-900 dark:text-amber-300 border border-amber-300 dark:border-amber-700 text-[11px] font-mono hover:bg-amber-100 cursor-pointer shadow-2xs"
+                  className="px-2 py-0.5 rounded-md bg-surface text-cat-amber-fg border border-cat-amber/30 text-[11px] font-mono hover:bg-cat-amber-bg cursor-pointer shadow-2xs"
                 >
                   {v}
                 </button>
@@ -97,7 +97,7 @@ export function AddNoteForm({
           </div>
         )}
 
-        <div className="relative rounded-xl border border-amber-300 bg-amber-50/40 p-3 shadow-2xs dark:border-amber-800/80 dark:bg-amber-950/20">
+        <div className="relative rounded-xl border border-cat-amber/30 bg-cat-amber-bg p-3 shadow-2xs">
           <textarea
             id="add-note-body"
             rows={5}
@@ -105,9 +105,9 @@ export function AddNoteForm({
             value={body}
             onChange={(e) => commit(e.target.value)}
             placeholder={t("Documente contexto, decisões do fluxo, links ou observações importantes sobre este atendimento...")}
-            className="w-full bg-transparent text-xs text-amber-950 dark:text-amber-100 placeholder:text-amber-600/50 dark:placeholder:text-amber-400/50 outline-hidden resize-none leading-relaxed"
+            className="w-full bg-transparent text-xs text-cat-amber-fg placeholder:text-cat-amber outline-hidden resize-none leading-relaxed"
           />
-          <div className="flex items-center justify-between border-t border-amber-200/80 pt-2 text-[10px] text-amber-700/80 dark:border-amber-900/60 dark:text-amber-400">
+          <div className="flex items-center justify-between border-t border-cat-amber/30 pt-2 text-[10px] text-cat-amber-fg">
             <span className="flex items-center gap-1">
               <Info size={12} />
               {t("O contato nunca visualiza esta mensagem")}
@@ -117,7 +117,7 @@ export function AddNoteForm({
         </div>
       </div>
 
-      {error && <p className="text-xs text-rose-600 dark:text-rose-400 font-medium">{error}</p>}
+      {error && <p className="text-xs text-cat-red font-medium">{error}</p>}
     </div>
   );
 }

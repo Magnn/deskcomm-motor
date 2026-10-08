@@ -109,28 +109,28 @@ const HEADER_BG_BY_TYPE: Record<string, string> = {
 };
 
 const BORDER_COLOR_BY_TYPE: Record<string, string> = {
-  action: "!border-purple-600 text-purple-600",
-  trigger: "!border-emerald-600 text-emerald-600",
+  action: "!border-cat-violet text-cat-violet",
+  trigger: "!border-cat-green text-cat-green",
   wait: "!border-slate-600 text-text-muted",
-  condition: "!border-red-600 text-red-600",
-  ai_classify: "!border-purple-700 text-purple-700",
-  match_reply: "!border-red-600 text-red-600",
-  menu: "!border-teal-700 text-teal-700",
-  repeat: "!border-teal-600 text-teal-600",
-  collect: "!border-orange-500 text-orange-500",
-  ab_split: "!border-pink-600 text-pink-600",
-  ai_generic: "!border-green-600 text-green-600",
-  api_call: "!border-purple-600 text-purple-600",
-  notify_agent: "!border-blue-600 text-blue-600",
-  add_note: "!border-amber-600 text-amber-600",
-  attendant_route: "!border-yellow-600 text-yellow-600",
-  pix_payment: "!border-emerald-600 text-emerald-600",
-  payment_gateway: "!border-purple-600 text-purple-600",
-  whatsapp_template: "!border-blue-600 text-blue-600",
-  meta_pixel: "!border-amber-600 text-amber-600",
-  voice_studio: "!border-purple-600 text-purple-600",
-  google_sheets: "!border-emerald-600 text-emerald-600",
-  execute_code: "!border-amber-600 text-amber-600",
+  condition: "!border-cat-red text-cat-red",
+  ai_classify: "!border-cat-violet text-cat-violet-fg",
+  match_reply: "!border-cat-red text-cat-red",
+  menu: "!border-cat-teal text-cat-teal-fg",
+  repeat: "!border-cat-teal text-cat-teal",
+  collect: "!border-cat-amber text-cat-amber",
+  ab_split: "!border-cat-pink text-cat-pink",
+  ai_generic: "!border-cat-green text-cat-green",
+  api_call: "!border-cat-violet text-cat-violet",
+  notify_agent: "!border-cat-blue text-cat-blue",
+  add_note: "!border-cat-amber text-cat-amber",
+  attendant_route: "!border-cat-amber text-cat-amber",
+  pix_payment: "!border-cat-green text-cat-green",
+  payment_gateway: "!border-cat-violet text-cat-violet",
+  whatsapp_template: "!border-cat-blue text-cat-blue",
+  meta_pixel: "!border-cat-amber text-cat-amber",
+  voice_studio: "!border-cat-violet text-cat-violet",
+  google_sheets: "!border-cat-green text-cat-green",
+  execute_code: "!border-cat-amber text-cat-amber",
   end: "!border-zinc-500 text-text-muted",
 };
 
@@ -158,7 +158,7 @@ export function NodeCard({
   const hasError = (errors?.length ?? 0) > 0;
   const branchRows = branches !== undefined && branches.length > 1 ? branches : null;
   const headerBg = HEADER_BG_BY_TYPE[visual.type] ?? "bg-[#7c3aed]";
-  const targetBorderClass = BORDER_COLOR_BY_TYPE[visual.type] ?? "!border-purple-600 text-purple-600";
+  const targetBorderClass = BORDER_COLOR_BY_TYPE[visual.type] ?? "!border-cat-violet text-cat-violet";
   const handleTopStyle = { top: "68px" };
 
   const [copiedId, setCopiedId] = useState(false);
@@ -188,7 +188,7 @@ export function NodeCard({
           className="flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium text-zinc-200 transition-colors hover:bg-zinc-800 hover:text-white cursor-pointer"
           title={t("Editar configurações")}
         >
-          <SquarePen className="h-3.5 w-3.5 text-indigo-400" />
+          <SquarePen className="h-3.5 w-3.5 text-cat-violet" />
           {t("Editar")}
         </button>
 
@@ -211,7 +211,7 @@ export function NodeCard({
           title={t("Copiar ID do nó")}
         >
           {copiedId ? (
-            <Check size={14} className="text-emerald-400" />
+            <Check size={14} className="text-cat-green" />
           ) : (
             <Hash className="h-3.5 w-3.5 text-text-subtle" />
           )}
@@ -224,7 +224,7 @@ export function NodeCard({
               e.stopPropagation();
               window.dispatchEvent(new CustomEvent("flow-delete-node", { detail: { id } }));
             }}
-            className="rounded-lg p-1.5 text-text-subtle transition-colors hover:bg-red-500/20 hover:text-red-400 cursor-pointer"
+            className="rounded-lg p-1.5 text-text-subtle transition-colors hover:bg-cat-red-bg hover:text-cat-red cursor-pointer"
             title={t("Excluir nó")}
           >
             <Trash2 className="h-3.5 w-3.5" />
@@ -236,10 +236,10 @@ export function NodeCard({
         className={cn(
           "group relative min-w-[280px] max-w-[320px] w-[280px] overflow-visible rounded-[10px] border-[1.5px] font-sans shadow-sm transition-all duration-300 select-none bg-surface",
           selected
-            ? "border-purple-600 ring-1 ring-purple-600 shadow-md"
+            ? "border-cat-violet ring-1 ring-cat-violet shadow-md"
             : "border-slate-500 hover:border-slate-600 hover:shadow-md",
-          simulating && !hasError && "animate-pulse ring-2 ring-emerald-500 ring-offset-1",
-          hasError && "border-red-500 ring-2 ring-red-500 ring-offset-1",
+          simulating && !hasError && "animate-pulse ring-2 ring-cat-green ring-offset-1",
+          hasError && "border-cat-red ring-2 ring-cat-red ring-offset-1",
         )}
         data-testid={`node-card-${id}`}
         data-simulating={simulating || undefined}
@@ -357,7 +357,7 @@ export function NodeCard({
               return (
                 <li
                   key={i}
-                  className="flex items-center gap-2 rounded-[8px] border border-dashed border-[#f472b6]/60 bg-[#fdf2f8] dark:bg-pink-950/20 px-2.5 py-2 text-[11px] font-medium text-text-muted leading-[1.4]"
+                  className="flex items-center gap-2 rounded-[8px] border border-dashed border-[#f472b6]/60 bg-[#fdf2f8] px-2.5 py-2 text-[11px] font-medium text-text-muted leading-[1.4]"
                 >
                   <row.Icon size={15} aria-hidden className="shrink-0 text-[#f43f5e]" />
                   <span title={row.texto}>{row.texto}</span>
@@ -369,7 +369,7 @@ export function NodeCard({
               return (
                 <li
                   key={i}
-                  className="flex items-start gap-2 rounded-[8px] border border-dashed border-[#60a5fa]/60 bg-[#eff6ff] dark:bg-blue-950/20 px-2.5 py-2 text-[11px] font-normal text-text-muted leading-relaxed"
+                  className="flex items-start gap-2 rounded-[8px] border border-dashed border-[#60a5fa]/60 bg-[#eff6ff] px-2.5 py-2 text-[11px] font-normal text-text-muted leading-relaxed"
                 >
                   <span className="shrink-0 font-serif text-sm font-bold leading-none select-none text-[#2563eb] mt-0.5">
                     T
@@ -399,7 +399,7 @@ export function NodeCard({
               return (
                 <li
                   key={i}
-                  className="flex items-center gap-2 rounded-[8px] border border-dashed border-[#c084fc]/60 bg-[#faf5ff] dark:bg-purple-950/20 px-2.5 py-2 text-[11px] font-medium text-text-muted leading-[1.4]"
+                  className="flex items-center gap-2 rounded-[8px] border border-dashed border-[#c084fc]/60 bg-[#faf5ff] px-2.5 py-2 text-[11px] font-medium text-text-muted leading-[1.4]"
                 >
                   <row.Icon size={15} aria-hidden className="shrink-0 text-[#9333ea]" />
                   <span title={row.texto}>
@@ -414,7 +414,7 @@ export function NodeCard({
               return (
                 <li
                   key={i}
-                  className="flex items-center gap-2 rounded-[8px] border border-dashed border-[#fb923c]/60 bg-[#fff7ed] dark:bg-orange-950/20 px-2.5 py-2 text-[11px] font-medium text-text-muted leading-[1.4]"
+                  className="flex items-center gap-2 rounded-[8px] border border-dashed border-[#fb923c]/60 bg-[#fff7ed] px-2.5 py-2 text-[11px] font-medium text-text-muted leading-[1.4]"
                 >
                   <row.Icon size={15} aria-hidden className="shrink-0 text-[#ea580c]" />
                   <span title={row.texto}>{row.texto || "Enviando uma imagem"}</span>
@@ -425,7 +425,7 @@ export function NodeCard({
               return (
                 <li
                   key={i}
-                  className="flex items-center gap-2 rounded-[8px] border border-dashed border-[#4ade80]/60 bg-[#f0fdf4] dark:bg-green-950/20 px-2.5 py-2 text-[11px] font-medium text-text-muted leading-[1.4]"
+                  className="flex items-center gap-2 rounded-[8px] border border-dashed border-[#4ade80]/60 bg-[#f0fdf4] px-2.5 py-2 text-[11px] font-medium text-text-muted leading-[1.4]"
                 >
                   <row.Icon size={15} aria-hidden className="shrink-0 text-[#16a34a]" />
                   <span title={row.texto}>{row.texto || t("Enviando um vídeo")}</span>
@@ -436,7 +436,7 @@ export function NodeCard({
               return (
                 <li
                   key={i}
-                  className="flex items-center gap-2 rounded-[8px] border border-dashed border-[#60a5fa]/60 bg-[#eff6ff] dark:bg-blue-950/20 px-2.5 py-2 text-[11px] font-medium text-text-muted leading-[1.4]"
+                  className="flex items-center gap-2 rounded-[8px] border border-dashed border-[#60a5fa]/60 bg-[#eff6ff] px-2.5 py-2 text-[11px] font-medium text-text-muted leading-[1.4]"
                 >
                   <row.Icon size={15} aria-hidden className="shrink-0 text-[#2563eb]" />
                   <span title={row.texto}>{row.texto || "Enviando um documento"}</span>

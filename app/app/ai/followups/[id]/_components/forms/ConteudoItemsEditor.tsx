@@ -57,18 +57,18 @@ const DEFAULT_TC = {
   btnText: "text-[#2563eb]",
   btnIcon: "text-[#2563eb]",
   strip: "bg-[#3b82f6]",
-  border: "border-[#3b82f6] dark:border-blue-700",
+  border: "border-[#3b82f6]",
 };
 
 const TYPE_COLORS: Record<string, { btnText: string; btnIcon: string; strip: string; border: string }> = {
-  text:     { btnText: "text-[#2563eb]", btnIcon: "text-[#2563eb]", strip: "bg-[#3b82f6]", border: "border-[#3b82f6] dark:border-blue-700" },
-  image:    { btnText: "text-[#ea580c]", btnIcon: "text-[#ea580c]", strip: "bg-[#f97316]", border: "border-[#f97316] dark:border-orange-600" },
-  audio:    { btnText: "text-[#9333ea]", btnIcon: "text-[#9333ea]", strip: "bg-[#a855f7]", border: "border-[#a855f7] dark:border-purple-600" },
-  video:    { btnText: "text-[#16a34a]", btnIcon: "text-[#16a34a]", strip: "bg-[#22c55e]", border: "border-[#22c55e] dark:border-green-600" },
-  document: { btnText: "text-[#1e3a8a]", btnIcon: "text-[#1e40af]", strip: "bg-[#3b82f6]", border: "border-[#3b82f6] dark:border-blue-700" },
-  delay:    { btnText: "text-[#db2777]", btnIcon: "text-[#e11d48]", strip: "bg-[#ec4899]", border: "border-[#f43f5e] dark:border-pink-600" },
-  contact:  { btnText: "text-[#db2777]", btnIcon: "text-[#db2777]", strip: "bg-[#ec4899]", border: "border-[#ec4899] dark:border-pink-600" },
-  sticker:  { btnText: "text-[#b45309]", btnIcon: "text-[#d97706]", strip: "bg-[#f59e0b]", border: "border-[#f59e0b] dark:border-amber-600" },
+  text:     { btnText: "text-[#2563eb]", btnIcon: "text-[#2563eb]", strip: "bg-[#3b82f6]", border: "border-[#3b82f6]" },
+  image:    { btnText: "text-[#ea580c]", btnIcon: "text-[#ea580c]", strip: "bg-[#f97316]", border: "border-[#f97316]" },
+  audio:    { btnText: "text-[#9333ea]", btnIcon: "text-[#9333ea]", strip: "bg-[#a855f7]", border: "border-[#a855f7]" },
+  video:    { btnText: "text-[#16a34a]", btnIcon: "text-[#16a34a]", strip: "bg-[#22c55e]", border: "border-[#22c55e]" },
+  document: { btnText: "text-[#1e3a8a]", btnIcon: "text-[#1e40af]", strip: "bg-[#3b82f6]", border: "border-[#3b82f6]" },
+  delay:    { btnText: "text-[#db2777]", btnIcon: "text-[#e11d48]", strip: "bg-[#ec4899]", border: "border-[#f43f5e]" },
+  contact:  { btnText: "text-[#db2777]", btnIcon: "text-[#db2777]", strip: "bg-[#ec4899]", border: "border-[#ec4899]" },
+  sticker:  { btnText: "text-[#b45309]", btnIcon: "text-[#d97706]", strip: "bg-[#f59e0b]", border: "border-[#f59e0b]" },
 };
 
 
@@ -293,7 +293,7 @@ function ItemCard({
               <PopoverTrigger asChild>
                 <button
                   type="button"
-                  className="inline-flex items-center gap-1 text-[11px] font-medium text-sky-600 dark:text-sky-400 hover:underline focus:outline-hidden cursor-pointer"
+                  className="inline-flex items-center gap-1 text-[11px] font-medium text-cat-blue hover:underline focus:outline-hidden cursor-pointer"
                 >
                   <Gear size={13} aria-hidden />
                   {t("Campos Personalizados")}
@@ -315,7 +315,7 @@ function ItemCard({
                     className="w-full flex items-center justify-between px-2 py-1.5 text-xs text-text-muted hover:bg-surface-elevated rounded-md transition-colors text-left cursor-pointer"
                   >
                     <span>{c.label}</span>
-                    <code className="text-[10px] text-sky-600 bg-sky-50 dark:bg-sky-950/60 px-1 py-0.5 rounded-md">
+                    <code className="text-[10px] text-cat-blue bg-cat-blue-bg px-1 py-0.5 rounded-md">
                       {c.tag}
                     </code>
                   </button>
@@ -382,14 +382,14 @@ function ItemCard({
         <div className="grid gap-2.5">
           <p className="text-[10.5px] leading-relaxed text-text-muted">
             {t("Você pode usar variáveis no nome e no telefone:")}{" "}
-            <code className="font-mono text-[10px] text-sky-600">{"{{nome}}"}</code>,{" "}
-            <code className="font-mono text-[10px] text-sky-600">{"{{primeiro_nome}}"}</code>,{" "}
-            <code className="font-mono text-[10px] text-sky-600">{"{{telefone}}"}</code>.{" "}
+            <code className="font-mono text-[10px] text-cat-blue">{"{{nome}}"}</code>,{" "}
+            <code className="font-mono text-[10px] text-cat-blue">{"{{primeiro_nome}}"}</code>,{" "}
+            <code className="font-mono text-[10px] text-cat-blue">{"{{telefone}}"}</code>.{" "}
             {t("São resolvidas no envio do fluxo.")}
           </p>
           <label className="block space-y-1">
             <span className="block text-[12px] font-semibold text-text">
-              {t("Nome do Contato")} <span className="text-rose-500">*</span>
+              {t("Nome do Contato")} <span className="text-cat-red">*</span>
             </span>
             <Input
               placeholder={t("Ex: João Silva")}
@@ -403,7 +403,7 @@ function ItemCard({
           </label>
           <label className="block space-y-1">
             <span className="block text-[12px] font-semibold text-text">
-              {t("Telefone")} <span className="text-rose-500">*</span>
+              {t("Telefone")} <span className="text-cat-red">*</span>
             </span>
             <Input
               placeholder={t("Ex: +55 11 99999-9999")}
@@ -462,7 +462,7 @@ function ItemCard({
             type="button"
             onClick={onRemove}
             disabled={disabled}
-            className="w-6 h-6 rounded-md border border-[#e2e8f0] bg-surface flex items-center justify-center text-rose-500 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 dark:hover:bg-rose-950/40 disabled:opacity-30 transition-colors cursor-pointer"
+            className="w-6 h-6 rounded-md border border-[#e2e8f0] bg-surface flex items-center justify-center text-cat-red hover:text-cat-red hover:border-cat-red/30 hover:bg-cat-red-bg disabled:opacity-30 transition-colors cursor-pointer"
             title={t("Remover")}
           >
             <Trash size={13} />
@@ -558,7 +558,7 @@ function AudioCardBody({
           type="button"
           disabled={disabled || upload.isPending}
           onClick={() => inputRef.current?.click()}
-          className="font-semibold text-purple-600 dark:text-purple-400 hover:underline cursor-pointer disabled:opacity-50"
+          className="font-semibold text-cat-violet hover:underline cursor-pointer disabled:opacity-50"
         >
           {upload.isPending ? t("Enviando…") : temArquivo ? t("Trocar áudio") : t("Enviar áudio")}
         </button>
@@ -624,7 +624,7 @@ function AudioCardBody({
             title={!temArquivo ? t("Envie o áudio primeiro.") : undefined}
             onClick={() => void transcrever(item, true)}
             data-testid="conteudo-audio-transcrever"
-            className="text-[11px] font-semibold text-purple-600 dark:text-purple-400 hover:underline cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:no-underline"
+            className="text-[11px] font-semibold text-cat-violet hover:underline cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:no-underline"
           >
             {transcricao.isPending ? t("Transcrevendo…") : t("Transcrever")}
           </button>
@@ -900,7 +900,7 @@ function MediaSection({
             type="button"
             disabled={disabled || upload.isPending}
             onClick={() => inputRef.current?.click()}
-            className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+            className="text-[11px] font-semibold text-cat-blue hover:underline cursor-pointer"
           >
             {t("Trocar arquivo")}
           </button>

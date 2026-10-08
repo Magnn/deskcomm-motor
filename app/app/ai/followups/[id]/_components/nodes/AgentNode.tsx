@@ -26,9 +26,9 @@ export function AgentNode({ id, data, selected }: NodeProps<RFNode>) {
   const customPreview = (
     <div className="flex w-full flex-col gap-2">
       {/* Caixa de objetivo do agente */}
-      <div className="rounded-lg border border-purple-200/80 bg-purple-50/50 p-2.5 text-xs font-medium text-text dark:border-purple-900/40 dark:bg-purple-950/20">
-        <div className="flex items-center gap-1.5 mb-1 text-[10px] font-bold text-purple-700 dark:text-purple-300 uppercase tracking-wider">
-          <Sparkle size={12} weight="fill" className="text-purple-600" />
+      <div className="rounded-lg border border-cat-violet/30 bg-cat-violet-bg p-2.5 text-xs font-medium text-text">
+        <div className="flex items-center gap-1.5 mb-1 text-[10px] font-bold text-cat-violet-fg uppercase tracking-wider">
+          <Sparkle size={12} weight="fill" className="text-cat-violet" />
           <span>Objetivo do Agente</span>
         </div>
         <p className="line-clamp-3 text-[11px] leading-relaxed text-text-muted">
@@ -39,11 +39,11 @@ export function AgentNode({ id, data, selected }: NodeProps<RFNode>) {
       {/* Parâmetros do agente */}
       <div className="grid grid-cols-2 gap-1.5 text-[10.5px]">
         <div className="flex items-center gap-1.5 rounded-lg border border-border bg-surface-elevated px-2 py-1 text-text-muted">
-          <ChatCircle size={12} className="text-purple-600 shrink-0" />
+          <ChatCircle size={12} className="text-cat-violet shrink-0" />
           <span>{t("Máx.")} {turnos} turnos</span>
         </div>
         <div className="flex items-center gap-1.5 rounded-lg border border-border bg-surface-elevated px-2 py-1 text-text-muted">
-          <Clock size={12} className="text-amber-600 shrink-0" />
+          <Clock size={12} className="text-cat-amber shrink-0" />
           <span>{t("Silêncio:")} {silencio} min</span>
         </div>
       </div>

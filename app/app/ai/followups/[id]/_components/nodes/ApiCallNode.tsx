@@ -37,7 +37,7 @@ export function ApiCallNode({ id, data, selected }: NodeProps<RFNode>) {
     </div>
   ) : (
     <div className="flex items-center gap-2 p-1">
-      <span className="inline-flex items-center rounded-md bg-purple-100 dark:bg-purple-950/80 px-2 py-0.5 text-[10px] font-bold text-purple-700 dark:text-purple-300 uppercase tracking-wider border border-purple-200 dark:border-purple-800">
+      <span className="inline-flex items-center rounded-md bg-cat-violet-bg px-2 py-0.5 text-[10px] font-bold text-cat-violet-fg uppercase tracking-wider border border-cat-violet/30">
         {config.method || "GET"}
       </span>
       <span className="max-w-[170px] truncate font-mono text-[11px] text-text-muted">

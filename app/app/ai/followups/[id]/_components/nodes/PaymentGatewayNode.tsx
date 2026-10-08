@@ -14,17 +14,17 @@ export function PaymentGatewayNode({ id, data, selected }: NodeProps<RFNode>) {
   const config = data.config as PaymentGatewayConfig;
 
   const customPreview = (
-    <div className="space-y-2 rounded-lg border border-purple-200 bg-purple-50/50 p-2.5 text-xs text-purple-950 shadow-2xs dark:border-purple-800 dark:bg-purple-950/20 dark:text-purple-200">
+    <div className="space-y-2 rounded-lg border border-cat-violet/30 bg-cat-violet-bg p-2.5 text-xs text-cat-violet-fg shadow-2xs">
       <div className="flex items-center justify-between font-semibold">
         <span className="flex items-center gap-1.5">
-          <CreditCard size={14} className="text-purple-600 dark:text-purple-400" />
+          <CreditCard size={14} className="text-cat-violet" />
           <span>{config.currency || "BRL"}</span>
         </span>
-        <span className="rounded-md bg-purple-100 px-1.5 py-0.5 font-bold text-purple-800 dark:bg-purple-900/50 dark:text-purple-300">
+        <span className="rounded-md bg-cat-violet-bg px-1.5 py-0.5 font-bold text-cat-violet-fg">
           {config.open_amount ? t("Valor aberto") : `${config.currency || "BRL"} ${config.amount || "0,00"}`}
         </span>
       </div>
-      <div className="text-[11px] text-purple-700/80 dark:text-purple-300/80 truncate">
+      <div className="text-[11px] text-cat-violet-fg truncate">
         {t("Cliente")}: {config.customer_name || "{full_name}"} ({config.customer_phone || "{phone_number}"})
       </div>
     </div>

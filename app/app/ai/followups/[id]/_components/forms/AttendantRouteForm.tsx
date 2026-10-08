@@ -94,12 +94,12 @@ export function AttendantRouteForm({
                   className={cn(
                     "flex items-center justify-between p-2 rounded-lg border transition-all cursor-pointer",
                     isSelected
-                      ? "border-purple-300 bg-purple-50/60 dark:border-purple-800 dark:bg-purple-950/30"
+                      ? "border-cat-violet/30 bg-cat-violet-bg"
                       : "border-border hover:border-border"
                   )}
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="w-7 h-7 rounded-full bg-purple-100 dark:bg-purple-900/50 flex items-center justify-center text-purple-700 dark:text-purple-300 font-bold text-xs shrink-0">
+                    <div className="w-7 h-7 rounded-full bg-cat-violet-bg flex items-center justify-center text-cat-violet-fg font-bold text-xs shrink-0">
                       {agente.name.slice(0, 2).toUpperCase()}
                     </div>
                     <div className="min-w-0">
@@ -118,7 +118,7 @@ export function AttendantRouteForm({
                     type="checkbox"
                     checked={isSelected}
                     onChange={() => toggleAttendant(agente.id)}
-                    className="w-4 h-4 rounded-sm text-[#9333ea] focus:ring-purple-500 border-border-strong cursor-pointer"
+                    className="w-4 h-4 rounded-sm text-[#9333ea] focus:ring-cat-violet border-border-strong cursor-pointer"
                   />
                 </label>
               );
@@ -188,7 +188,7 @@ export function AttendantRouteForm({
         )}
       </div>
 
-      {error && <p className="text-xs text-rose-500 font-medium">{error}</p>}
+      {error && <p className="text-xs text-cat-red font-medium">{error}</p>}
     </div>
   );
 }

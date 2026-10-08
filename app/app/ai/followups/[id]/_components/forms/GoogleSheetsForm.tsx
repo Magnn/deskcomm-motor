@@ -82,7 +82,7 @@ export function GoogleSheetsForm({ config, onChange }: Props) {
   return (
     <div className="space-y-4 font-sans text-xs">
       {/* Header do Card */}
-      <div className="flex items-center gap-2.5 rounded-lg border border-emerald-200 bg-emerald-50/60 p-3 text-emerald-950 dark:border-emerald-900/60 dark:bg-emerald-950/20 dark:text-emerald-200">
+      <div className="flex items-center gap-2.5 rounded-lg border border-cat-green/30 bg-cat-green-bg p-3 text-cat-green-fg">
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#15803d] text-white shadow-2xs">
           <GoogleLogo size={18} />
         </div>
@@ -108,7 +108,7 @@ export function GoogleSheetsForm({ config, onChange }: Props) {
             setOperation(val);
             update({ operation: val });
           }}
-          className="w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-xs text-text shadow-2xs outline-hidden focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
+          className="w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-xs text-text shadow-2xs outline-hidden focus:border-cat-green focus:ring-1 focus:ring-cat-green"
         >
           {GOOGLE_SHEETS_OPERATIONS.map((op) => (
             <option key={op} value={op}>
@@ -138,7 +138,7 @@ export function GoogleSheetsForm({ config, onChange }: Props) {
             setSpreadsheetId(resolved);
             update({ spreadsheet_id: resolved });
           }}
-          className="w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-xs font-mono text-text shadow-2xs outline-hidden focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
+          className="w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-xs font-mono text-text shadow-2xs outline-hidden focus:border-cat-green focus:ring-1 focus:ring-cat-green"
         />
       </div>
 
@@ -155,7 +155,7 @@ export function GoogleSheetsForm({ config, onChange }: Props) {
             setSheetName(e.target.value);
             update({ sheet_name: e.target.value });
           }}
-          className="w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-xs text-text shadow-2xs outline-hidden focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
+          className="w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-xs text-text shadow-2xs outline-hidden focus:border-cat-green focus:ring-1 focus:ring-cat-green"
         />
       </div>
 
@@ -178,7 +178,7 @@ export function GoogleSheetsForm({ config, onChange }: Props) {
                   setLookupColumn(e.target.value);
                   update({ lookup_column: e.target.value });
                 }}
-                className="w-full rounded-lg border border-border-strong bg-surface px-2.5 py-1.5 text-xs text-text shadow-2xs outline-hidden focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
+                className="w-full rounded-lg border border-border-strong bg-surface px-2.5 py-1.5 text-xs text-text shadow-2xs outline-hidden focus:border-cat-green focus:ring-1 focus:ring-cat-green"
               />
             </div>
             <div>
@@ -193,7 +193,7 @@ export function GoogleSheetsForm({ config, onChange }: Props) {
                   setLookupValue(e.target.value);
                   update({ lookup_value: e.target.value });
                 }}
-                className="w-full rounded-lg border border-border-strong bg-surface px-2.5 py-1.5 text-xs text-text shadow-2xs outline-hidden focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
+                className="w-full rounded-lg border border-border-strong bg-surface px-2.5 py-1.5 text-xs text-text shadow-2xs outline-hidden focus:border-cat-green focus:ring-1 focus:ring-cat-green"
               />
             </div>
           </div>
@@ -209,7 +209,7 @@ export function GoogleSheetsForm({ config, onChange }: Props) {
           <button
             type="button"
             onClick={handleAddMapping}
-            className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300 dark:hover:bg-emerald-900/50 cursor-pointer"
+            className="inline-flex items-center gap-1 rounded-md bg-cat-green-bg px-2 py-1 text-[11px] font-semibold text-cat-green-fg hover:bg-cat-green-bg cursor-pointer"
           >
             <Plus size={12} weight="bold" />
             <span>{t("Adicionar Coluna")}</span>
@@ -229,19 +229,19 @@ export function GoogleSheetsForm({ config, onChange }: Props) {
                   placeholder={t("Coluna (ex: Nome)")}
                   value={m.column}
                   onChange={(e) => handleUpdateMapping(idx, { column: e.target.value })}
-                  className="w-1/3 rounded-lg border border-border-strong bg-surface px-2.5 py-1.5 text-xs text-text shadow-2xs outline-hidden focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
+                  className="w-1/3 rounded-lg border border-border-strong bg-surface px-2.5 py-1.5 text-xs text-text shadow-2xs outline-hidden focus:border-cat-green focus:ring-1 focus:ring-cat-green"
                 />
                 <input
                   type="text"
                   placeholder={t("Valor (ex: {{nome}})")}
                   value={m.value}
                   onChange={(e) => handleUpdateMapping(idx, { value: e.target.value })}
-                  className="flex-1 rounded-lg border border-border-strong bg-surface px-2.5 py-1.5 text-xs text-text shadow-2xs outline-hidden focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
+                  className="flex-1 rounded-lg border border-border-strong bg-surface px-2.5 py-1.5 text-xs text-text shadow-2xs outline-hidden focus:border-cat-green focus:ring-1 focus:ring-cat-green"
                 />
                 <button
                   type="button"
                   onClick={() => handleRemoveMapping(idx)}
-                  className="rounded-lg p-1.5 text-text-subtle hover:bg-surface-elevated hover:text-rose-600"
+                  className="rounded-lg p-1.5 text-text-subtle hover:bg-surface-elevated hover:text-cat-red"
                 >
                   <Trash size={14} />
                 </button>
@@ -251,7 +251,7 @@ export function GoogleSheetsForm({ config, onChange }: Props) {
         )}
       </div>
 
-      <div className="rounded-lg border border-emerald-100 bg-emerald-50/50 p-2.5 text-[11px] text-emerald-800 dark:border-emerald-900/30 dark:bg-emerald-950/20 dark:text-emerald-300 flex items-start gap-2">
+      <div className="rounded-lg border border-cat-green/30 bg-cat-green-bg p-2.5 text-[11px] text-cat-green-fg flex items-start gap-2">
         <Info size={14} className="shrink-0 mt-0.5" />
         <span>
           {t("Variáveis disponíveis")}: <code className="font-mono">{"{{nome}}"}</code>,{" "}

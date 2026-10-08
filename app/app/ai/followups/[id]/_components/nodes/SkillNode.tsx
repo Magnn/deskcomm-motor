@@ -16,13 +16,13 @@ export function SkillNode({ id, data, selected }: NodeProps<RFNode>) {
   const skillName = config?.skill_name || t("Nenhuma skill selecionada");
 
   const customPreview = (
-    <div className="space-y-1.5 rounded-lg border border-orange-200 bg-orange-50/70 p-2.5 text-xs text-orange-950 shadow-2xs dark:border-orange-900/60 dark:bg-orange-950/20 dark:text-orange-200">
+    <div className="space-y-1.5 rounded-lg border border-cat-amber/30 bg-cat-amber-bg p-2.5 text-xs text-cat-amber-fg shadow-2xs">
       <div className="flex items-center justify-between font-semibold">
-        <div className="flex items-center gap-1.5 truncate text-orange-800 dark:text-orange-300">
-          <PuzzlePiece size={14} className="shrink-0 text-orange-600" />
+        <div className="flex items-center gap-1.5 truncate text-cat-amber-fg">
+          <PuzzlePiece size={14} className="shrink-0 text-cat-amber" />
           <span className="truncate">{skillName}</span>
         </div>
-        <span className="rounded-xs bg-orange-200/80 dark:bg-orange-900/60 px-1.5 py-0.5 text-[9px] font-mono font-medium text-orange-900 dark:text-orange-300 shrink-0">
+        <span className="rounded-xs bg-cat-amber-bg px-1.5 py-0.5 text-[9px] font-mono font-medium text-cat-amber-fg shrink-0">
           {t("Skill Ativa")}
         </span>
       </div>

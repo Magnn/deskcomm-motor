@@ -163,9 +163,9 @@ export function MatchReplyForm({
             <PopoverTrigger asChild>
               <button
                 type="button"
-                className="inline-flex items-center gap-1.5 text-[12px] font-medium text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+                className="inline-flex items-center gap-1.5 text-[12px] font-medium text-cat-blue hover:underline cursor-pointer"
               >
-                <Eye size={13} className="text-blue-600 dark:text-blue-400" />
+                <Eye size={13} className="text-cat-blue" />
                 <span>{t("Campos Personalizados")}</span>
               </button>
             </PopoverTrigger>
@@ -203,7 +203,7 @@ export function MatchReplyForm({
             commit({ question: e.target.value });
           }}
           placeholder={t("Ex: Qual o seu nome?")}
-          className="w-full rounded-xl border border-border bg-surface p-2.5 text-[12px] text-text-muted placeholder:text-text-subtle focus:outline-hidden focus:border-purple-500 focus:ring-1 focus:ring-purple-500/20 shadow-2xs resize-none"
+          className="w-full rounded-xl border border-border bg-surface p-2.5 text-[12px] text-text-muted placeholder:text-text-subtle focus:outline-hidden focus:border-cat-violet focus:ring-1 focus:ring-cat-violet/20 shadow-2xs resize-none"
         />
       </div>
 

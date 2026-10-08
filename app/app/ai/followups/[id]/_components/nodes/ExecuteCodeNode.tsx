@@ -16,31 +16,31 @@ export function ExecuteCodeNode({ id, data, selected }: NodeProps<RFNode>) {
   const codeSnippet = config.code ? config.code.split("\n")[0]?.slice(0, 35) : "";
 
   const customPreview = (
-    <div className="space-y-2 rounded-lg border border-amber-200 bg-amber-50/50 p-2.5 text-xs text-amber-950 shadow-2xs dark:border-amber-800 dark:bg-amber-950/20 dark:text-amber-200">
+    <div className="space-y-2 rounded-lg border border-cat-amber/30 bg-cat-amber-bg p-2.5 text-xs text-cat-amber-fg shadow-2xs">
       <div className="flex items-center justify-between font-semibold">
         <span className="flex items-center gap-1.5">
-          <Code size={14} className="text-amber-600 dark:text-amber-400" />
+          <Code size={14} className="text-cat-amber" />
           <span>{t("Executar JavaScript")}</span>
         </span>
-        <span className="rounded-md bg-amber-100 px-1.5 py-0.5 text-[10px] font-mono font-bold text-amber-800 dark:bg-amber-900/50 dark:text-amber-300">
+        <span className="rounded-md bg-cat-amber-bg px-1.5 py-0.5 text-[10px] font-mono font-bold text-cat-amber-fg">
           {config.timeout_ms || 3000}ms
         </span>
       </div>
 
-      <div className="rounded-md border border-amber-200/60 bg-amber-100/40 p-1.5 font-mono text-[10px] text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/40 dark:text-amber-300 truncate">
+      <div className="rounded-md border border-cat-amber/30 bg-cat-amber-bg p-1.5 font-mono text-[10px] text-cat-amber-fg truncate">
         {codeSnippet || "return { status: 'ok' };"}
       </div>
 
       {config.mappings && config.mappings.length > 0 ? (
-        <div className="text-[10px] text-amber-800 dark:text-amber-300">
+        <div className="text-[10px] text-cat-amber-fg">
           {config.mappings.length} {config.mappings.length === 1 ? t("campo mapeado") : t("campos mapeados")}
         </div>
       ) : config.output_field ? (
-        <div className="text-[10px] text-amber-800 dark:text-amber-300 truncate">
+        <div className="text-[10px] text-cat-amber-fg truncate">
           {t("Salvar em")}: <span className="font-mono">{config.output_field}</span>
         </div>
       ) : (
-        <div className="text-[10px] italic text-amber-700/70 dark:text-amber-400/70">
+        <div className="text-[10px] italic text-cat-amber-fg">
           {t("Sem mapeamento de retorno")}
         </div>
       )}

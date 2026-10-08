@@ -63,7 +63,7 @@ export function WaitNode({ id, data, selected }: NodeProps<RFNode>) {
         <span>Aguardar o prazo de {tempoTexto}</span>
       </div>
       <div className="flex items-center gap-2 px-1 text-[11px] font-medium text-text-muted">
-        <div className="h-2 w-2 shrink-0 rounded-full bg-blue-500" />
+        <div className="h-2 w-2 shrink-0 rounded-full bg-cat-blue" />
         <span>{t("Após esse tempo o fluxo prosseguirá.")}</span>
       </div>
     </div>
