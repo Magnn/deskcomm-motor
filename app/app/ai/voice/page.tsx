@@ -223,7 +223,7 @@ export default function VoiceStudioPage() {
             </div>
           </div>
           <p className="text-xs text-text-muted flex items-center gap-1.5 mt-2">
-            <Info size={13} className="text-accent/70 shrink-0" />
+            <Info size={13} className="text-accent shrink-0" />
             {t("Gerenciar as vozes disponíveis, assim como personalizar vozes de acordo com suas preferências.")}
           </p>
         </div>
@@ -234,7 +234,7 @@ export default function VoiceStudioPage() {
           onClick={() => setModalNovaVozOpen(true)}
           className="h-10 px-5 rounded-xl bg-gradient-to-r from-accent to-accent-hover hover:from-accent-hover hover:to-accent-hover active:scale-[0.98] text-white font-semibold text-xs transition-all shadow-sm hover:shadow-md hover:shadow-accent/25 flex items-center justify-center gap-2 cursor-pointer self-start md:self-auto"
         >
-          <Sparkles size={14} className="text-white/80" />
+          <Sparkles size={14} className="text-white" />
           <span>+ {t("Nova voz")}</span>
         </button>
       </div>
@@ -444,7 +444,7 @@ export default function VoiceStudioPage() {
             >
               {gerando ? (
                 <>
-                  <RotateCw size={16} className="animate-spin text-white/80" />
+                  <RotateCw size={16} className="animate-spin text-white" />
                   <span>{t("Sintetizando áudio...")}</span>
                 </>
               ) : (
@@ -756,7 +756,7 @@ function AdicionarNovaVozModal({
           <button
             type="button"
             onClick={() => onOpenChange(false)}
-            className="text-white/80 hover:text-white transition-colors cursor-pointer"
+            className="text-white hover:text-white transition-colors cursor-pointer"
           >
             <X size={18} />
           </button>
