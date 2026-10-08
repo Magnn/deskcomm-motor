@@ -100,8 +100,10 @@ export function motivoDeManterJanela(retornoEm: Date, restanteMs: number): strin
   return (
     `manter a conversa aberta: o cliente combinou retorno para ${retornoEm.toISOString()}, e este canal só permite ` +
     `mensagem livre por 24 horas depois da última mensagem dele — faltam cerca de ${duracao(restanteMs)}. Mande UMA ` +
-    "mensagem curta que peça uma resposta simples (por exemplo, confirmar que o combinado continua de pé), para a " +
-    "conversa seguir aberta até a data. Diga a verdade sobre o motivo do contato; não invente novidade nem " +
-    "urgência, e não antecipe a oferta. Se o cliente pediu para não ser procurado antes da data, não envie nada"
+    "mensagem curta que peça uma resposta simples, ligada ao que ele contou e ao que ficou combinado (por exemplo, " +
+    "confirmar que o combinado continua de pé), para a conversa seguir aberta até a data. Se você já mandou uma " +
+    "mensagem assim nos dias anteriores, não repita a mesma frase nem a mesma pergunta. Diga a verdade sobre o " +
+    "motivo do contato; não invente novidade nem urgência, não puxe assunto novo e não antecipe a oferta. Se o " +
+    "cliente pediu para não ser procurado antes da data, não envie nada"
   );
 }

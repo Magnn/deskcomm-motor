@@ -102,6 +102,8 @@ import { blocoDeOferta } from '@/lib/oferta/bloco-do-prompt';
 import { passoDaLeitura } from '@/lib/leitura/estado-da-leitura';
 import { destinoNaConversa, fotoDaLeitura, imagemDaLeitura, mesaJaMostrada } from '@/lib/leitura/imagens';
 import { precoPermitidoAgora, reclamacoesDeValor } from '@/lib/preco/estado-da-negociacao';
+import { blocoDoCombinado } from '@/lib/followup/bloco-do-combinado';
+import { criaRetornoDbPg } from '@/lib/followup/retorno-pg';
 import { estadoDoPosVenda, horaDoPagamento } from '@/lib/preco/pos-venda';
 import { deveResponderEmAudio } from '@/lib/voz/decisao';
 import { enqueueJob, rescheduleJob, type JobRow, type Queryable } from '../queue/queue';
@@ -2455,6 +2457,21 @@ async function executarTurnoDoAgente(
     // worker (e do app, no painel de Teste) que o bloco entrou neste turno.
     runLog.info('variação de estilo no turno', { linhas: blocoDeVariacaoDoTurno.split('\n').length });
   }
+  // O retorno que esta pessoa já tem marcado (`lib/followup/bloco-do-combinado.ts`). Sem ele os turnos
+  // do meio — a resposta à mensagem que mantém a janela aberta — não sabiam do combinado e refaziam a
+  // oferta. Falha na leitura = sem bloco: o turno segue como sempre.
+  let blocoDoCombinadoDoTurno = '';
+  if (!preview) {
+    try {
+      const retornoVivo = await criaRetornoDbPg(pool).buscaRetornoVivo(tenantId, leadId);
+      const { rows: fusoRows } = retornoVivo
+        ? await pool.query<{ timezone: string | null }>('select timezone from organizations where id = $1', [tenantId])
+        : { rows: [] };
+      blocoDoCombinadoDoTurno = blocoDoCombinado(retornoVivo, new Date(), fusoRows[0]?.timezone ?? 'America/Sao_Paulo');
+    } catch {
+      blocoDoCombinadoDoTurno = '';
+    }
+  }
   // A ORDEM dos blocos mora em `blocos-do-turno.ts` (é dado lá, com o porquê): aqui só se diz qual
   // texto é de qual bloco. Bloco novo = um nome na fila lá + uma chave aqui; o typecheck cobra os dois.
   const systemDoTurno = comporSystemDoTurno(system, {
@@ -2467,6 +2484,7 @@ async function executarTurnoDoAgente(
     fluxo: blocoDoFluxoDoTurno,
     leitura: blocoDaLeituraDoTurno,
     preco: blocoDePrecoDoTurno,
+    combinado: blocoDoCombinadoDoTurno,
     entrega: blocoDaEntrega,
     limites: blocoDeLimitesDoTurno,
   });

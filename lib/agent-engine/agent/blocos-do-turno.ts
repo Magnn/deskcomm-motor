@@ -36,8 +36,11 @@
  *                   específicos do funil, que vencem se houver conflito.
  *   8. `leitura`  — DIRETIVO: qual carta revelar agora (ou a causa raiz).
  *   9. `preco`    — DIRETIVO: o degrau de preço e o que dizer.
- *  10. `entrega`  — DIRETIVO: o guia do trabalho que a pessoa já pagou.
- *  11. `limites`  — PROIBIÇÃO DO DONO: o que o agente nunca diz nem promete e os assuntos que não
+ *  10. `combinado` — DIRETIVO: o retorno que a pessoa já tem marcado (quem só paga no dia tal) e como
+ *                   se comportar até lá. Depois do preço de propósito: enquanto a data não chega, "não
+ *                   refaça a oferta" tem de vencer o molde de negociação.
+ *  11. `entrega`  — DIRETIVO: o guia do trabalho que a pessoa já pagou.
+ *  12. `limites`  — PROIBIÇÃO DO DONO: o que o agente nunca diz nem promete e os assuntos que não
  *                   discute (aba Limites). ÚLTIMO de propósito: o que o dono PROÍBE tem de vencer o que
  *                   o funil manda — se um limite conflita com leitura, preço ou entrega, o limite ganha.
  *
@@ -59,7 +62,7 @@
  * Sem nenhum bloco (todos ''), o system sai idêntico ao de entrada — o prefixo
  * estável e cacheável não muda.
  */
-export const BLOCOS_DO_TURNO = ['identidade', 'oferta', 'consciencia', 'objecoes', 'anuncio', 'estilo', 'fluxo', 'leitura', 'preco', 'entrega', 'limites'] as const;
+export const BLOCOS_DO_TURNO = ['identidade', 'oferta', 'consciencia', 'objecoes', 'anuncio', 'estilo', 'fluxo', 'leitura', 'preco', 'combinado', 'entrega', 'limites'] as const;
 
 export type NomeDoBlocoDoTurno = (typeof BLOCOS_DO_TURNO)[number];
 
