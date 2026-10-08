@@ -4894,6 +4894,24 @@ export const DICIONARIO: Traducoes = {
   },
   "Validando com a Meta…": { es: "Validando con Meta…" },
   "Validar e conectar": { es: "Validar y conectar" },
+  // ── Ritmo de resposta do agente ────────────────────────────────────────
+  "Ritmo de resposta": { es: "Ritmo de respuesta" },
+  "Quanto o agente leva para “digitar”. Resposta longa que chega inteira em dois segundos parece automática; mais devagar parece gente, e cada atendimento demora um pouco mais.":
+    { es: "Cuánto tarda el agente en “escribir”. Una respuesta larga que llega entera en dos segundos parece automática; más despacio parece una persona, y cada atención tarda un poco más." },
+  "Rápido": { es: "Rápido" },
+  "Natural": { es: "Natural" },
+  "Calmo": { es: "Tranquilo" },
+  "As mensagens seguintes saem uma atrás da outra. É como o agente sempre respondeu.":
+    { es: "Los mensajes siguientes salen uno tras otro. Es como el agente siempre respondió." },
+  "Cada mensagem leva o tempo de ser digitada, com “digitando…” aparecendo entre elas.":
+    { es: "Cada mensaje tarda lo que se tarda en escribirlo, con “escribiendo…” apareciendo entre ellos." },
+  "Mais devagar ainda. Para atendimento em que pressa passa a impressão errada.":
+    { es: "Más despacio todavía. Para una atención en la que la prisa da la impresión equivocada." },
+  "Entre duas mensagens de tamanho comum:": { es: "Entre dos mensajes de tamaño común:" },
+  "cerca de": { es: "cerca de" },
+  "Ritmo salvo. Vale a partir da próxima resposta.": { es: "Ritmo guardado. Vale a partir de la próxima respuesta." },
+  "Vale a partir da próxima resposta, sem publicar. Áudios e fotos não mudam.":
+    { es: "Vale a partir de la próxima respuesta, sin publicar. Los audios y las fotos no cambian." },
   // ── WhatsApp oficial pelo login do Facebook ────────────────────────────
   "Trocar o número conectado": { es: "Cambiar el número conectado" },
   "A janela do Facebook abre, você escolhe a conta do WhatsApp Business e o número, e o canal fica pronto para enviar e receber. Nada para copiar ou colar.":

@@ -21,6 +21,7 @@ import { lerLimites, type LimitesConfig } from '@/lib/limites/tipos';
 import { lerObjecoes, type ObjecoesConfig } from '@/lib/objecoes/tipos';
 import { lerOferta, type OfertaConfig } from '@/lib/oferta/tipos';
 import { lerPricing, type PricingConfig } from '@/lib/preco/tipos';
+import { lerRitmo, type Ritmo } from '@/lib/ritmo/tipos';
 import { lerVoiceReply, type VoiceReplyConfig } from '@/lib/voz/tipos';
 
 import { lerJanelaDeAtendimento, type JanelaDeAtendimento } from './janela-de-atendimento';
@@ -104,6 +105,11 @@ export interface PublishedAgentConfig {
    * negocia e o turno segue como sempre. Ausente e `null` significam a mesma coisa.
    */
   pricing?: PricingConfig | null;
+  /**
+   * O ritmo da resposta (`ai_agents.config.ritmo`): quanto o agente leva para "digitar" cada
+   * bolha. Ausente = `rapido`, o comportamento de sempre.
+   */
+  ritmo?: Ritmo;
   /**
    * Identidade e tom (`ai_agents.config.identity`, aba "Identidade"): como o agente se chama, de que
    * empresa fala, com que tom. `null` = desligada: o turno segue como sempre. Ausente e `null`
@@ -268,6 +274,7 @@ function mapAgentConfigRow(r: Row): PublishedAgentConfig {
     // "desligada" — a direção segura é continuar respondendo em texto.
     voiceReply: lerVoiceReply(r.config),
     pricing: lerPricing(r.config),
+    ritmo: lerRitmo(r.config),
     identity: lerIdentidade(r.config),
     offer: lerOferta(r.config),
     consciencia: lerConsciencia(r.config),

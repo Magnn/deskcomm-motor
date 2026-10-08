@@ -14,6 +14,7 @@ import { RunsTable } from "./RunsTable";
 import { UsoDasCapacidades } from "./UsoDasCapacidades";
 import { VersionHistory } from "./VersionHistory";
 import { PrecoDoAgente } from "./PrecoDoAgente";
+import { RitmoDoAgente } from "./RitmoDoAgente";
 import { IdentidadeDoAgente } from "./IdentidadeDoAgente";
 import { OfertaDoAgente } from "./OfertaDoAgente";
 import { ConscienciaDoAgente } from "./ConscienciaDoAgente";
@@ -107,6 +108,7 @@ export function AgentTabs(props: Props) {
           routerMembership={props.routerMembership}
           readOnly={props.readOnly}
         />
+        <RitmoDoAgente agentId={props.agent.id} config={props.agent.config} readOnly={props.readOnly} />
       </TabsContent>
 
       <TabsContent value="identity" className="m-0">

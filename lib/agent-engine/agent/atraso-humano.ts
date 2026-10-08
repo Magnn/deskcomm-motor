@@ -65,10 +65,20 @@ export const ATRASO_MAXIMO_MS = 7500;
  * Quanto esperar antes de mandar `texto`, em ms. Pura — é o que a torna
  * testável sem relógio e sem canal.
  */
-export function calcularAtrasoHumano(texto: string): number {
+export function calcularAtrasoHumano(texto: string, ritmo?: ParametrosDoAtraso): number {
   const comprimento = (texto ?? '').trim().length;
-  const bruto = ATRASO_NOTAR_MS + MS_POR_CARACTERE * comprimento;
-  return Math.min(ATRASO_MAXIMO_MS, Math.max(ATRASO_MINIMO_MS, bruto));
+  const bruto = (ritmo?.baseMs ?? ATRASO_NOTAR_MS) + (ritmo?.msPorCaractere ?? MS_POR_CARACTERE) * comprimento;
+  return Math.min(ritmo?.maximoMs ?? ATRASO_MAXIMO_MS, Math.max(ATRASO_MINIMO_MS, bruto));
+}
+
+/**
+ * Os três números da fórmula, quando o agente tem um RITMO escolhido (`lib/ritmo/tipos.ts`).
+ * Ausente = os números de sempre deste arquivo.
+ */
+export interface ParametrosDoAtraso {
+  baseMs: number;
+  msPorCaractere: number;
+  maximoMs: number;
 }
 
 export interface EsperaHumanaArgs {
@@ -76,6 +86,8 @@ export interface EsperaHumanaArgs {
   texto: string;
   /** Tempo já gasto neste turno. Não desconta o throttle ENTRE envios. */
   processamentoMs?: number;
+  /** O ritmo escolhido para o agente. Ausente = os números de sempre. */
+  ritmo?: ParametrosDoAtraso;
   sleep: (ms: number) => Promise<void>;
   log: Logger;
   /**
@@ -101,7 +113,7 @@ export async function esperarComoHumano(args: EsperaHumanaArgs): Promise<number>
   const gasto = args.processamentoMs ?? 0;
   const ms = Math.max(
     0,
-    calcularAtrasoHumano(args.texto) - (Number.isFinite(gasto) ? Math.max(0, gasto) : 0),
+    calcularAtrasoHumano(args.texto, args.ritmo) - (Number.isFinite(gasto) ? Math.max(0, gasto) : 0),
   );
 
   // O cliente já esperou o alvo: não acrescentar presença decorativa nem sleep.

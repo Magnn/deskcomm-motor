@@ -4,6 +4,7 @@ import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
 
 import { sendInBubbles } from "@/lib/agent-engine/agent/split-message";
+import { RITMOS, pausaEntreBolhas } from "@/lib/ritmo/tipos";
 
 /**
  * A PERGUNTA QUE DECIDE ESTE RECURSO: o atraso humano SOMA ao anti-ban, ou SUBSTITUI?
@@ -153,6 +154,25 @@ describe("fiação — a espera humana é paga UMA vez por turno", () => {
     expect(FONTE_INBOUND).toMatch(/^ {2}let jaEsperouComoHumano = false;$/m);
   });
 
+  it("⭐ nenhum ritmo põe duas bolhas mais juntas que o piso anti-ban (1,2 s)", () => {
+    for (const ritmo of RITMOS) {
+      for (const sorte of [0, 0.25, 0.999]) {
+        for (const bolha of ["", "ok", "x".repeat(600)]) {
+          expect(pausaEntreBolhas(ritmo, bolha, () => sorte)).toBeGreaterThanOrEqual(1200);
+        }
+      }
+    }
+    // E o padrão é o de sempre: 1200 + até 800.
+    expect(pausaEntreBolhas("rapido", "qualquer", () => 0)).toBe(1200);
+    expect(pausaEntreBolhas("rapido", "qualquer", () => 0.999)).toBeLessThan(2000);
+  });
+
+  it("o ritmo longo entre bolhas só vale onde a vez do envio é por contato", () => {
+    // Em canal com risco de banimento a vez é do NÚMERO: pausa longa ali pararia os outros contatos.
+    expect(FONTE_INBOUND).toMatch(/ritmoEntreBolhasDoTurno = capabilitiesOf\(provider\)\.banRisk \? 'rapido' : ritmoEscolhido;/);
+    expect(FONTE_INBOUND).toMatch(/^ {2}let ritmoEntreBolhasDoTurno: Ritmo = 'rapido';$/m);
+  });
+
   it("o call site mantém o jitter anti-ban entre bolhas, sem a pausa humana dentro do lock", () => {
     // O `send` que a cadeia chama. Desde as fotos do catálogo (0390) ele manda
     // bolhas E fotos, e o MESMO jitter vale entre as duas — por isso a âncora é o
@@ -162,10 +182,16 @@ describe("fiação — a espera humana é paga UMA vez por turno", () => {
     expect(doSendMessage).toBeGreaterThan(-1);
     const i = FONTE_INBOUND.indexOf("send: (finalBody: string) =>", doSendMessage);
     expect(i).toBeGreaterThan(-1);
-    const janela = FONTE_INBOUND.slice(i, i + 1600);
+    const janela = FONTE_INBOUND.slice(i, i + 2800);
     // Os dois convivem: o jitter é throttle anti-ban entre mensagens físicas, o
     // atraso humano é a pausa do turno. Perder o primeiro é afrouxar o anti-ban.
-    expect(janela).toMatch(/jitter\s*[:=]\s*\(\)\s*=>\s*1200 \+ Math\.floor\(Math\.random\(\) \* 800\)/);
+    //
+    // O número 1200 saiu deste arquivo quando o RITMO de resposta entrou: a pausa entre bolhas passou
+    // a vir de `pausaEntreBolhas` (`lib/ritmo/tipos.ts`), que no ritmo padrão devolve exatamente
+    // 1200 + até 800 e, em qualquer ritmo, nunca menos que o piso — o caso logo abaixo prende isso.
+    expect(janela).toMatch(/const jitter = \(proximaBolha: string\) => pausaEntreBolhas\(ritmoDoAgente, proximaBolha\);/);
+    // Nota de voz e foto seguem no piso, qualquer que seja o ritmo.
+    expect(janela).toMatch(/const jitterAntiBan = \(\) => pausaEntreBolhas\('rapido', ''\);/);
     expect(janela).toContain("sendInBubbles(texto, {");
     // Issue #654: a pausa humana saiu daqui. Ela era paga no `antesDaPrimeira`, que
     // rodava dentro do callback `send` — isto é, com o `pg_advisory_xact_lock` do
