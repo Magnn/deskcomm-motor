@@ -59,7 +59,15 @@ export interface EstadoDoBloco {
    * mais um degrau ou de mandar a pessoa "chamar quando receber". Ausente/`null` = não é o caso.
    */
   dataParaOValorCents?: number | null;
+  /**
+   * A pessoa disse que falta para o essencial (`faltaParaOEssencial`): o bloco não traz valor para
+   * oferecer nem molde de cobrança — só a instrução de recuar.
+   */
+  faltaParaOEssencial?: boolean;
 }
+
+const RECUO_PELO_ESSENCIAL =
+  "- ELA DISSE QUE FALTA PARA O ESSENCIAL (remédio, comida, aluguel, conta de casa). NÃO diga preço, NÃO ofereça valor menor, NÃO pergunte como ela prefere pagar, NÃO mande link e NÃO combine data de pagamento. Acolha o que ela disse, diga que a saúde e a casa dela vêm primeiro e que a porta fica aberta quando ela puder. Se ELA pedir o valor de novo, diga só o valor de venda, uma vez, sem insistir.";
 
 /**
  * O turno de FECHAR O COMBINADO: ela deu a data, o valor já foi oferecido. Quem tem nada hoje não
@@ -214,6 +222,7 @@ export function blocoDePreco(
     linhas.push(
       `- Este valor não tem desconto. Se ela pedir ou disser que está caro, explique com carinho que o valor é único e NÃO invente cupom, promoção ou condição.`,
     );
+    if (estado.faltaParaOEssencial === true) linhas.push(RECUO_PELO_ESSENCIAL);
   } else {
     // O combinado só manda enquanto é MENOR que o que a escada libera agora: se a pessoa seguiu
     // reclamando e a escada desceu além dele, vale a escada.
@@ -223,7 +232,9 @@ export function blocoDePreco(
     const dataPara = combinadoEmVigor(c, estado.dataParaOValorCents);
     const fechaAData = combinado === null && dataPara !== null && (estado.valorQueTemCents ?? null) === null;
     linhas.push(
-      combinado !== null && combinado < precoPermitidoAgora(c, estado.reclamacoes, estado.valorQueTemCents ?? null)
+      estado.faltaParaOEssencial === true
+        ? RECUO_PELO_ESSENCIAL
+        : combinado !== null && combinado < precoPermitidoAgora(c, estado.reclamacoes, estado.valorQueTemCents ?? null)
         ? instrucaoDoCombinado(c, combinado)
         : fechaAData
           ? instrucaoDeFecharADataCombinada(dataPara)

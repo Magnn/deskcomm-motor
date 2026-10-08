@@ -179,7 +179,10 @@ export function reclamacoesDeValor(mensagens: readonly MensagemParaContar[]): nu
   const msgs = expandirHistoricoColado(mensagens);
   const primeiroPreco = msgs.findIndex((m) => m.direction === "outbound" && PRECO_DITO.test(m.body ?? ""));
   if (primeiroPreco === -1) return null;
-  const reclama = (m: MensagemParaContar) => m.direction === "inbound" && RECLAMACAO_DE_VALOR.test(m.body ?? "");
+  // Adiar o pagamento também é dizer que o valor não cabe hoje: "vou ter o dinheiro só semana que
+  // vem" não tem nenhuma palavra de reclamação, e em 08/10/2026 passou sem oferta nenhuma.
+  const reclama = (m: MensagemParaContar) =>
+    m.direction === "inbound" && (RECLAMACAO_DE_VALOR.test(m.body ?? "") || adiaOPagamento(m.body ?? ""));
   const depois = msgs.slice(primeiroPreco + 1).filter(reclama).length;
   if (depois === 0) return 0;
   return depois + (msgs.slice(0, primeiroPreco).some(reclama) ? 1 : 0);
@@ -276,7 +279,27 @@ const DATA_CERTA =
   /\bdia\s+\d{1,2}\b|\b\d{1,2}\/\d{1,2}\b|(?:fim|final|come[çc]o|in[ií]cio|meio)\s+d[oe]\s+m[êe]s|m[êe]s\s+que\s+vem|pr[óo]ximo\s+m[êe]s|semana\s+que\s+vem|pr[óo]xima\s+semana|quinto\s+dia\s+[úu]til|quando\s+(?:eu\s+)?(?:receber|cair|sair)|s[óo]\s+recebo|dia\s+d[oe]\s+(?:meu\s+)?pagamento/i;
 /** "amanhã", "sexta": só é data de pagamento se a mesma mensagem fala de pagar ou receber. */
 const DATA_SOLTA = /\bamanh[ãa]\b|\b(?:segunda|ter[çc]a|quarta|quinta|sexta|s[áa]bado|domingo)\b/i;
-const FALA_DE_PAGAR = /receb|pag[oau]|dinheiro|sal[áa]rio|pix|consigo|mando|fa[çc]o\b|cai\b|cair\b/i;
+const FALA_DE_PAGAR = /receb|pag[oau]|dinheiro|grana|sal[áa]rio|pix|consigo|mando|fa[çc]o\b|cai\b|cair\b|vou\s+ter|tiver\b/i;
+
+/** A mensagem adia o pagamento: uma data (certa ou solta) JUNTO de fala de pagar ou receber. */
+function adiaOPagamento(corpo: string): boolean {
+  return (DATA_CERTA.test(corpo) || DATA_SOLTA.test(corpo)) && FALA_DE_PAGAR.test(corpo);
+}
+
+/**
+ * A PESSOA DISSE QUE FALTA PARA O ESSENCIAL — remédio, comida, aluguel, gás, luz, água.
+ *
+ * Medido em 08/10/2026: uma pessoa escreveu que ia "deixar de comprar remédio pressão" e, minutos
+ * depois, recebeu o preço, a pergunta "Pix ou cartão?" e uma data de pagamento. A regra de recuar
+ * existia só como frase dentro do molde de negociação; aqui é o código que decide, olhando a
+ * conversa inteira, e o bloco de preço deixa de trazer valor para oferecer.
+ */
+const FALTA_PARA_O_ESSENCIAL =
+  /(?:deixa(?:r|ndo|rei)?\s+de\s+(?:comprar|pagar|comer)|sem\s+(?:dinheiro\s+)?(?:pr[ao]s?|para\s+(?:o|a|os|as)?)|n[ãa]o\s+tenho\s+(?:nem\s+)?(?:dinheiro\s+)?(?:pr[ao]s?|para\s+(?:o|a|os|as)?)|nem\s+pr[ao]s?|falta(?:ndo)?|tirar\s+d[oae]s?)\s*(?:\S+\s+){0,3}?(?:rem[ée]dios?|comida|comer|aluguel|g[áa]s|conta\s+de\s+luz|[áa]gua\b|leite|fraldas?|feira|mercado)/i;
+
+export function faltaParaOEssencial(mensagens: readonly MensagemParaContar[]): boolean {
+  return expandirHistoricoColado(mensagens).some((m) => m.direction === "inbound" && FALTA_PARA_O_ESSENCIAL.test(m.body ?? ""));
+}
 
 /**
  * A PESSOA DEU UMA DATA PARA PAGAR nas mensagens que este turno responde (as dela depois da

@@ -105,6 +105,7 @@ import {
   combinadoEmVigor,
   degrauQueFaltaOferecerAntesDeAgendar,
   deuDataParaPagar,
+  faltaParaOEssencial,
   estadoDaNegociacao,
   precoPermitidoAgora,
   reclamacoesDeValor,
@@ -2304,6 +2305,8 @@ async function executarTurnoDoAgente(
     ? estadoDaNegociacao(agentConfig.pricing, openingContext.context.messages)
     : { reclamacoes: reclamacoesDeValor(openingContext.context.messages), valorQueTemCents: null };
   const reclamacoesDeValorNoTurno = negociacaoDoTurno.reclamacoes;
+  // Quem disse que falta para remédio, comida ou aluguel não recebe oferta nem data de pagamento.
+  const faltaParaOEssencialNoTurno = faltaParaOEssencial(openingContext.context.messages);
   const valorQueTemNoTurno = negociacaoDoTurno.valorQueTemCents;
   // Pós-venda: quem já pagou sai da escada da primeira venda. A hora do pagamento só é buscada
   // quando há oferta ligada E a pessoa tem a marca de pago — o turno comum não paga a consulta.
@@ -2367,6 +2370,7 @@ async function executarTurnoDoAgente(
         : null,
     posVenda: posVendaDoTurno,
     combinadoCents: combinadoDoTurno,
+    faltaParaOEssencial: faltaParaOEssencialNoTurno,
   });
   // A REDE: o mesmo passo vira o piso de preço da trava de promessas deste turno. Se o modelo
   // oferecer um valor abaixo do degrau liberado, a mensagem é vetada antes de sair (`before-send`). No
@@ -3949,11 +3953,22 @@ async function executarTurnoDoAgente(
           // volta na data para o valor cheio que já recusou (`degrauQueFaltaOferecerAntesDeAgendar`).
           if (agentConfig?.pricing?.enabled === true) {
             const bruto = (raw ?? {}) as { promise?: unknown; reason?: unknown };
+            const textoDoRetorno = `${typeof bruto.promise === 'string' ? bruto.promise : ''} ${typeof bruto.reason === 'string' ? bruto.reason : ''}`;
+            if (faltaParaOEssencialNoTurno && /R\$|\blink\b|\bpag|\breceb|\bpix\b|\bvalor\b/i.test(textoDoRetorno)) {
+              return {
+                ok: false,
+                error: {
+                  code: 'invalid_payload',
+                  message:
+                    'NÃO agende pagamento: ela disse que falta para o essencial (remédio, comida, aluguel). Não combine data de pagamento nem cite valor. Acolha e diga que a porta fica aberta quando ela puder.',
+                },
+              };
+            }
             const falta = degrauQueFaltaOferecerAntesDeAgendar(
               agentConfig.pricing,
               { reclamacoes: reclamacoesDeValorNoTurno, valorQueTemCents: valorQueTemNoTurno, combinadoCents: combinadoDoTurno },
               openingContext.context.messages,
-              `${typeof bruto.promise === 'string' ? bruto.promise : ''} ${typeof bruto.reason === 'string' ? bruto.reason : ''}`,
+              textoDoRetorno,
             );
             if (falta !== null) {
               return {
