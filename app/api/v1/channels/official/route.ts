@@ -212,7 +212,13 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
           // link de `/admin/google` na Agenda. Para o admin de um tenant qualquer
           // o link seria um 404; a tela diz a ele quem procurar.
           configurarEm: authz.user.is_platform_admin && !authz.user.support ? "/admin/meta" : null,
-          fields: ["messages", "message_template_status_update"],
+          /**
+           * A URL DO APP — uma só para a instalação, sem token. É onde a Meta
+           * entrega o que não aceita endereço por número: o estado dos modelos
+           * e, no número em coexistência, o que o negócio manda pelo celular.
+           */
+          appCallbackUrl: `${base}/api/v1/webhooks/meta`,
+          fields: ["messages", "message_template_status_update", "smb_message_echoes"],
         }
       : null,
     /**

@@ -36,7 +36,9 @@ import { encontrarContatoPorTelefone } from "../contato-por-telefone";
 import { marcarConversaComMensagem } from "../marcar-conversa";
 import { canonicalPhoneBR, phoneLookupVariants } from "../phone-variants";
 import type { ChannelTenantScope } from "../types";
-import type { InboundMessageEvent } from "./webhook";
+import { pausarIaPorAtendimentoManual } from "@/lib/escalacao/atendimento-manual";
+import { logger } from "@/lib/logger";
+import type { InboundMessageEvent, OutboundEchoEvent } from "./webhook";
 
 type Admin = SupabaseClient;
 
@@ -129,7 +131,7 @@ async function findContactByVariants(
 }
 
 /** Prévia curta para a lista de conversas. Mídia vira rótulo, nunca URL. */
-function previewOf(e: InboundMessageEvent): string {
+function previewOf(e: Pick<InboundMessageEvent, "type" | "text" | "sharedContact" | "media">): string {
   if (e.type === "text") return (e.text ?? "").slice(0, 120);
   if (e.type === "contact") return e.sharedContact?.name ? `👤 ${e.sharedContact.name}` : "[contato]";
   if (e.type === "audio") return e.media?.voice ? "🎤 Mensagem de voz" : "🎵 Áudio";
@@ -313,4 +315,115 @@ export async function ingestMetaInbound(
     messageId,
     conversationId: conversationId as string,
   };
+}
+
+/**
+ * Mensagem que o NEGÓCIO mandou pelo aplicativo do celular, num número em
+ * coexistência. Entra no histórico como saída feita por fora do CRM e PAUSA a IA
+ * naquela conversa — a mesma regra dos outros canais que reconhecem resposta à mão.
+ *
+ * O que NÃO acontece aqui, de propósito: nenhum efeito de entrada (lead, opt-out,
+ * despacho do agente) e nenhum carimbo de `last_inbound_at`. Quem falou foi o
+ * negócio; a janela de 24h só abre quando o CLIENTE fala.
+ */
+export async function ingestMetaEcho(
+  admin: Admin,
+  e: OutboundEchoEvent,
+  dono: ChannelTenantScope,
+): Promise<IngestOutcome> {
+  let sessao: { id: string; organization_id: string } | null;
+  try {
+    sessao = await sessionByPhoneNumberId(admin, dono.organizationId, e.phoneNumberId);
+  } catch (err) {
+    return { status: "failed", reason: err instanceof Error ? err.message : "sessao_do_numero" };
+  }
+  if (!sessao) return { status: "no_session" };
+
+  const orgId = sessao.organization_id;
+  const existente = await findContactByVariants(admin, orgId, e.to);
+  const phone = existente?.phone_number
+    ? canonicalPhoneBR(existente.phone_number)
+    : canonicalPhoneBR(`+${e.to.replace(/\D/g, "")}`);
+
+  const { data: contactId, error: erroContato } = await admin.rpc(
+    "fn_upsert_wa_contact" as never,
+    { p_org: orgId, p_kind: "phone", p_phone: phone, p_lid: null, p_chat_id: e.to, p_notify: null } as never,
+  );
+  if (erroContato || !contactId) {
+    return { status: "failed", reason: `contato: ${erroContato?.message ?? "sem id"}` };
+  }
+
+  const { data: conversationId, error: erroConversa } = await admin.rpc(
+    "fn_upsert_wa_conversation" as never,
+    { p_org: orgId, p_contact: contactId as string, p_session: sessao.id } as never,
+  );
+  if (erroConversa || !conversationId) {
+    return { status: "failed", reason: `conversa: ${erroConversa?.message ?? "sem id"}` };
+  }
+
+  const { data: inserida, error: erroInsert } = await admin
+    .from("messages")
+    .insert({
+      organization_id: orgId,
+      conversation_id: conversationId as string,
+      channel_session_id: sessao.id,
+      contact_id: contactId as string,
+      direction: "outbound",
+      // Veio de FORA do CRM: é o que o painel de atendimento por fora conta.
+      sent_via: "external_device",
+      status: "sent",
+      type: e.type === "text" ? "text" : e.type,
+      body: e.type === "contact" ? (e.sharedContact?.name ?? e.text) : e.text,
+      external_id: e.externalId,
+      media_url: e.media ? `meta-media:${e.media.id}` : null,
+      media_mime: e.media?.mime ?? null,
+      sent_at: e.sentAt.toISOString(),
+      metadata: {
+        ...(e.media ? { meta_media_id: e.media.id, voice: e.media.voice } : {}),
+        ...(e.sharedContact ? { shared_contact: e.sharedContact } : {}),
+      },
+    })
+    .select("id")
+    .maybeSingle();
+
+  if (erroInsert) {
+    // 23505 = a Meta re-entregando, ou o eco de um envio que já está gravado.
+    if (erroInsert.code === "23505") return { status: "duplicate" };
+    return { status: "failed", reason: `mensagem: ${erroInsert.message}` };
+  }
+
+  await marcarConversaComMensagem(admin, {
+    organizationId: orgId,
+    conversationId: conversationId as string,
+    direction: "outbound",
+    preview: previewOf(e),
+    at: e.sentAt.toISOString(),
+    canal: "meta",
+  });
+
+  const messageId = (inserida as { id: string } | null)?.id ?? "";
+  if (e.media && messageId) {
+    const { error: erroPersistencia } = await admin.rpc("emit_event" as never, {
+      p_event_type: "media.persist_requested",
+      p_entity_kind: "message",
+      p_entity_id: messageId,
+      p_payload: { message_id: messageId, conversation_id: conversationId as string },
+      p_metadata: { source: "meta_webhook" },
+      p_organization_id: orgId,
+    } as never);
+    if (erroPersistencia) {
+      logger.error("[meta.ingest] pedido de persistência da mídia do eco falhou", {
+        organization_id: orgId,
+        erro: erroPersistencia.message,
+      });
+    }
+  }
+
+  await pausarIaPorAtendimentoManual(admin, {
+    organizationId: orgId,
+    conversationId: conversationId as string,
+    canal: "meta",
+  });
+
+  return { status: "ingested", messageId, conversationId: conversationId as string };
 }
