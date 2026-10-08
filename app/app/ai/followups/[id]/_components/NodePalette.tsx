@@ -169,7 +169,7 @@ function PaletteItem({
       onClick={onAdd ? () => onAdd(visual.type) : undefined}
       title={onAdd ? undefined : t("Arraste para o canvas")}
       data-testid={`palette-add-${visual.type}`}
-      className="group relative flex w-full cursor-grab items-start gap-3 rounded-xl border border-border bg-surface p-2.5 text-left shadow-xs transition-all duration-150 hover:border-violet-300 hover:bg-surface-elevated hover:shadow-sm active:cursor-grabbing dark:hover:border-violet-600"
+      className="group relative flex w-full cursor-grab items-start gap-3 rounded-xl border border-border bg-surface p-2.5 text-left shadow-xs transition-all duration-150 hover:border-cat-violet/30 hover:bg-surface-elevated hover:shadow-sm active:cursor-grabbing"
     >
       {/* Ícone colorido e proporcional */}
       <span
@@ -193,7 +193,7 @@ function PaletteItem({
             </span>
           )}
           {isNovidade && (
-            <span className="shrink-0 rounded-full bg-blue-600 px-2 py-0.5 text-[10px] font-medium text-white shadow-xs">
+            <span className="shrink-0 rounded-full bg-cat-blue px-2 py-0.5 text-[10px] font-medium text-white shadow-xs">
               {t("Novidade")}
             </span>
           )}

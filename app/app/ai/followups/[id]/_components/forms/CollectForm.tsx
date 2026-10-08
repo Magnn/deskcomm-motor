@@ -248,7 +248,7 @@ export function CollectForm({
             <PopoverTrigger asChild>
               <button
                 type="button"
-                className="text-[11.5px] font-semibold text-[#2563eb] hover:text-[#1d4ed8] dark:text-blue-400 flex items-center gap-1.5 transition-colors cursor-pointer"
+                className="text-[11.5px] font-semibold text-[#2563eb] hover:text-[#1d4ed8] flex items-center gap-1.5 transition-colors cursor-pointer"
               >
                 <Eye size={13} />
                 <span>{t("Campos Personalizados")}</span>
@@ -267,7 +267,7 @@ export function CollectForm({
                     className="w-full flex items-center justify-between px-2 py-1.5 text-xs text-text-muted hover:bg-surface-elevated rounded-md transition-colors text-left cursor-pointer"
                   >
                     <span>{v.label}</span>
-                    <code className="text-[10px] text-blue-600 bg-blue-50 dark:bg-blue-950/60 px-1 py-0.5 rounded-md font-mono">
+                    <code className="text-[10px] text-cat-blue bg-cat-blue-bg px-1 py-0.5 rounded-md font-mono">
                       {v.tag}
                     </code>
                   </button>
@@ -280,7 +280,7 @@ export function CollectForm({
                     className="w-full flex items-center justify-between px-2 py-1.5 text-xs text-text-muted hover:bg-surface-elevated rounded-md transition-colors text-left cursor-pointer"
                   >
                     <span>{f.label}</span>
-                    <code className="text-[10px] text-indigo-600 bg-indigo-50 dark:bg-indigo-950/60 px-1 py-0.5 rounded-md font-mono">
+                    <code className="text-[10px] text-cat-violet bg-cat-violet-bg px-1 py-0.5 rounded-md font-mono">
                       {`{{${f.label}}}`}
                     </code>
                   </button>
@@ -370,7 +370,7 @@ export function CollectForm({
                     className={cn(
                       "w-full flex items-center justify-between px-2.5 py-2 text-xs rounded-md transition-colors text-left cursor-pointer",
                       selectedKey === f.key && salvarEmCampo
-                        ? "bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 font-semibold"
+                        ? "bg-cat-blue-bg text-cat-blue-fg font-semibold"
                         : "hover:bg-surface-elevated text-text-muted"
                     )}
                   >
@@ -412,7 +412,7 @@ export function CollectForm({
             <span className="text-[12.5px] font-bold text-text">
               {t("Agrupar respostas")}
             </span>
-            <span className="rounded-full bg-[#f0fdf4] text-[#16a34a] border border-[#bbf7d0] px-2 py-0.5 text-[10px] font-medium dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800">
+            <span className="rounded-full bg-[#f0fdf4] text-[#16a34a] border border-[#bbf7d0] px-2 py-0.5 text-[10px] font-medium">
               {t("a partir da 1ª mensagem")}
             </span>
             <span
@@ -454,7 +454,7 @@ export function CollectForm({
             <span className="text-[12.5px] font-bold text-text">
               {t("Expiração do bloco")}
             </span>
-            <span className="rounded-full bg-[#fff1f2] text-[#e11d48] border border-[#fecdd3] px-2 py-0.5 text-[10px] font-medium dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-800">
+            <span className="rounded-full bg-[#fff1f2] text-[#e11d48] border border-[#fecdd3] px-2 py-0.5 text-[10px] font-medium">
               {t("a partir do envio")}
             </span>
             <span
@@ -501,7 +501,7 @@ export function CollectForm({
         </div>
       </div>
 
-      {error && <p className="text-xs text-rose-500 font-medium">{error}</p>}
+      {error && <p className="text-xs text-cat-red font-medium">{error}</p>}
 
       {/* Modal Criar Novo Campo de Fluxo */}
       <Dialog open={isNewFieldOpen} onOpenChange={setIsNewFieldOpen}>

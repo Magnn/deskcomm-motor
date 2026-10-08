@@ -62,7 +62,7 @@ const PROVIDERS: Provider[] = [
             fill="#22c55e"
           />
         </svg>
-        <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[9px] font-bold text-white shadow-xs">
+        <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-cat-red text-[9px] font-bold text-white shadow-xs">
           1
         </span>
       </div>
@@ -105,7 +105,7 @@ const PROVIDERS: Provider[] = [
           <circle cx="12" cy="12" r="4.5" fill="#16a34a" />
           <path d="M12 3V6M12 18V21M3 12H6M18 12H21" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" />
         </svg>
-        <span className="text-[7.5px] font-extrabold tracking-tight text-emerald-700 leading-tight">
+        <span className="text-[7.5px] font-extrabold tracking-tight text-cat-green-fg leading-tight">
           kiwify
         </span>
       </div>
@@ -390,7 +390,7 @@ export function NewFlowDialog({ open, onOpenChange }: Props) {
         <form onSubmit={onSubmit} className="space-y-4 bg-surface px-7 py-5 font-sans">
           {/* Seletor Pílula: Whatsapp API Oficial | Whatsapp Business */}
           <div className="flex justify-center pt-1 pb-1">
-            <div className="inline-flex items-center rounded-full border border-indigo-200/90 bg-surface-elevated p-1 shadow-xs dark:border-indigo-900/50">
+            <div className="inline-flex items-center rounded-full border border-cat-violet/30 bg-surface-elevated p-1 shadow-xs">
               <button
                 type="button"
                 onClick={() => setChannel("oficial")}
@@ -398,7 +398,7 @@ export function NewFlowDialog({ open, onOpenChange }: Props) {
                   "cursor-pointer rounded-full px-6 py-1.5 text-xs font-semibold transition-all",
                   channel === "oficial"
                     ? "bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow-md shadow-indigo-500/25"
-                    : "text-indigo-700 hover:text-indigo-900 dark:text-indigo-300",
+                    : "text-cat-violet-fg hover:text-cat-violet-fg",
                 )}
               >
                 Whatsapp API Oficial
@@ -410,7 +410,7 @@ export function NewFlowDialog({ open, onOpenChange }: Props) {
                   "cursor-pointer rounded-full px-6 py-1.5 text-xs font-semibold transition-all",
                   channel === "business"
                     ? "bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow-md shadow-indigo-500/25"
-                    : "text-indigo-700 hover:text-indigo-900 dark:text-indigo-300",
+                    : "text-cat-violet-fg hover:text-cat-violet-fg",
                 )}
               >
                 Whatsapp Business
@@ -421,7 +421,7 @@ export function NewFlowDialog({ open, onOpenChange }: Props) {
           {/* Campo: Título do fluxo * */}
           <div className="space-y-1">
             <Label htmlFor="flow-name" className="text-xs font-bold text-text">
-              {t("Título do fluxo")} <span className="sr-only">Nome</span><span className="text-rose-500">*</span>
+              {t("Título do fluxo")} <span className="sr-only">Nome</span><span className="text-cat-red">*</span>
             </Label>
             <Input
               id="flow-name"
@@ -429,7 +429,7 @@ export function NewFlowDialog({ open, onOpenChange }: Props) {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder={t("Ex: Recuperação de carrinho abandonado")}
-              className="h-10 rounded-lg border-border-strong text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+              className="h-10 rounded-lg border-border-strong text-sm focus:border-cat-violet focus:ring-1 focus:ring-cat-violet"
               maxLength={80}
               required
               autoFocus
@@ -442,7 +442,7 @@ export function NewFlowDialog({ open, onOpenChange }: Props) {
           {/* Campo: Gatilho * com Grade 2x6 */}
           <div className="space-y-2">
             <Label className="text-xs font-bold text-text">
-              {t("Gatilho")} <span className="text-rose-500">*</span>
+              {t("Gatilho")} <span className="text-cat-red">*</span>
             </Label>
             <div className="grid grid-cols-6 gap-2">
               {PROVIDERS.map((p) => {
@@ -458,7 +458,7 @@ export function NewFlowDialog({ open, onOpenChange }: Props) {
                     className={cn(
                       "flex h-12 w-full cursor-pointer items-center justify-center rounded-xl border bg-surface p-1 transition-all shadow-2xs",
                       isSelected
-                        ? "border-2 border-indigo-600 ring-2 ring-indigo-500/30 shadow-xs"
+                        ? "border-2 border-cat-violet ring-2 ring-cat-violet/30 shadow-xs"
                         : "border-border hover:border-border-strong",
                     )}
                     title={p.name}
@@ -486,7 +486,7 @@ export function NewFlowDialog({ open, onOpenChange }: Props) {
           {/* Campo: Evento * */}
           <div className="space-y-1">
             <Label htmlFor="event-select" className="text-xs font-bold text-text">
-              {t("Evento")} <span className="text-rose-500">*</span>
+              {t("Evento")} <span className="text-cat-red">*</span>
             </Label>
             <Select value={selectedEvent} onValueChange={setSelectedEvent}>
               <SelectTrigger id="event-select" className="h-10 rounded-lg border-border-strong text-sm">
@@ -513,14 +513,14 @@ export function NewFlowDialog({ open, onOpenChange }: Props) {
                 value={keyword}
                 onChange={(e) => setKeyword(e.target.value)}
                 placeholder={t("Ex: EU QUERO, QUERO SABER MAIS")}
-                className="h-10 rounded-lg border-border-strong text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                className="h-10 rounded-lg border-border-strong text-sm focus:border-cat-violet focus:ring-1 focus:ring-cat-violet"
                 maxLength={60}
               />
             </div>
           )}
 
           {erro && (
-            <p role="alert" data-testid="new-flow-error" className="text-xs font-medium text-rose-500">
+            <p role="alert" data-testid="new-flow-error" className="text-xs font-medium text-cat-red">
               {erro}
             </p>
           )}

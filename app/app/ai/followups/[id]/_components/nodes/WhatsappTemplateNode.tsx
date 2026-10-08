@@ -17,25 +17,25 @@ export function WhatsappTemplateNode({ id, data, selected }: NodeProps<RFNode>) 
     <div className="flex w-full flex-col gap-2 rounded-xl border border-emerald-200/80 bg-gradient-to-b from-emerald-50/50 to-white p-2.5 text-xs shadow-2xs dark:border-emerald-900/40 dark:from-emerald-950/20 dark:to-neutral-900">
       {/* Topo com Logo WhatsApp + Status Aprovado */}
       <div className="flex items-center justify-between gap-1 text-[11px]">
-        <div className="flex items-center gap-1.5 font-bold text-emerald-800 dark:text-emerald-300">
-          <WhatsappLogo size={14} weight="fill" className="text-emerald-600 dark:text-emerald-400 shrink-0" />
+        <div className="flex items-center gap-1.5 font-bold text-cat-green-fg">
+          <WhatsappLogo size={14} weight="fill" className="text-cat-green shrink-0" />
           <span className="truncate">{t("Template HSM")}</span>
         </div>
-        <div className="flex items-center gap-1 rounded-full bg-emerald-100/90 px-2 py-0.5 text-[9.5px] font-bold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-200 shrink-0">
+        <div className="flex items-center gap-1 rounded-full bg-cat-green-bg px-2 py-0.5 text-[9.5px] font-bold text-cat-green-fg shrink-0">
           <CheckCircle size={10} weight="fill" />
           <span>{t("Meta Cloud")}</span>
         </div>
       </div>
 
       {/* Nome do Template Aprovado */}
-      <div className="rounded-lg border border-emerald-200/60 bg-surface px-2.5 py-1.5 font-mono text-[11px] font-semibold text-emerald-900 shadow-2xs dark:border-emerald-800/40 dark:text-emerald-200 truncate">
+      <div className="rounded-lg border border-cat-green/30 bg-surface px-2.5 py-1.5 font-mono text-[11px] font-semibold text-cat-green-fg shadow-2xs truncate">
         {config.template_name || t("Nenhum template selecionado")}
       </div>
 
       {/* Rodapé com Timeout */}
       <div className="flex items-center justify-between text-[10.5px] text-text-muted px-0.5">
         <span className="flex items-center gap-1">
-          <Clock size={12} className="shrink-0 text-emerald-600" />
+          <Clock size={12} className="shrink-0 text-cat-green" />
           <span>
             {t("Expira em")}: <strong className="text-text-muted">{config.timeout} {t(config.timeout_unit || "Minutos")}</strong>
           </span>

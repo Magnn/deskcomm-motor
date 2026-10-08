@@ -348,18 +348,18 @@ export function ApiCallForm({
       </div>
 
       {/* Card: Adicionar uma nova requisição / Visualizar requisição configurada */}
-      <div className="rounded-xl border border-border bg-surface p-3 shadow-2xs transition-all hover:border-purple-300 dark:hover:border-purple-900/60">
+      <div className="rounded-xl border border-border bg-surface p-3 shadow-2xs transition-all hover:border-cat-violet/30">
         {!isConfigured ? (
           <button
             type="button"
             onClick={() => setIsModalOpen(true)}
             className="w-full flex items-center gap-3 text-left group cursor-pointer"
           >
-            <div className="w-9 h-9 rounded-lg bg-purple-50 dark:bg-purple-950/60 flex items-center justify-center text-[#9333ea] dark:text-purple-400 shrink-0 border border-purple-100 dark:border-purple-900/50">
+            <div className="w-9 h-9 rounded-lg bg-cat-violet-bg flex items-center justify-center text-[#9333ea] shrink-0 border border-cat-violet/30">
               <Send size={18} className="rotate-[-20deg]" />
             </div>
             <div className="h-6 w-[1px] bg-surface-elevated" />
-            <span className="text-xs font-semibold text-[#9333ea] hover:text-purple-700 dark:text-purple-400 transition-colors">
+            <span className="text-xs font-semibold text-[#9333ea] hover:text-cat-violet-fg transition-colors">
               {t("Adicionar uma nova requisição")}
             </span>
           </button>
@@ -370,13 +370,13 @@ export function ApiCallForm({
               onClick={() => setIsModalOpen(true)}
               className="flex-1 flex items-center gap-3 text-left cursor-pointer group min-w-0"
             >
-              <div className="w-9 h-9 rounded-lg bg-purple-50 dark:bg-purple-950/60 flex items-center justify-center text-[#9333ea] dark:text-purple-400 shrink-0 border border-purple-100 dark:border-purple-900/50">
+              <div className="w-9 h-9 rounded-lg bg-cat-violet-bg flex items-center justify-center text-[#9333ea] shrink-0 border border-cat-violet/30">
                 <Send size={18} className="rotate-[-20deg]" />
               </div>
               <div className="h-6 w-[1px] bg-surface-elevated shrink-0" />
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5 mb-0.5">
-                  <span className="rounded-md bg-purple-100 dark:bg-purple-950 px-1.5 py-0.2 text-[10px] font-bold text-purple-700 dark:text-purple-300 uppercase">
+                  <span className="rounded-md bg-cat-violet-bg px-1.5 py-0.2 text-[10px] font-bold text-cat-violet-fg uppercase">
                     {method}
                   </span>
                   {headers.length > 0 && (
@@ -385,7 +385,7 @@ export function ApiCallForm({
                     </span>
                   )}
                 </div>
-                <p className="font-mono text-xs text-text truncate group-hover:text-purple-600 transition-colors">
+                <p className="font-mono text-xs text-text truncate group-hover:text-cat-violet transition-colors">
                   {url}
                 </p>
               </div>
@@ -394,7 +394,7 @@ export function ApiCallForm({
             <button
               type="button"
               onClick={() => setIsModalOpen(true)}
-              className="p-1.5 rounded-lg border border-purple-200 text-[#9333ea] bg-purple-50/50 hover:bg-purple-100/50 dark:border-purple-900/60 dark:bg-purple-950/30 dark:text-purple-400 transition-colors cursor-pointer shrink-0"
+              className="p-1.5 rounded-lg border border-cat-violet/30 text-[#9333ea] bg-cat-violet-bg hover:bg-cat-violet-bg transition-colors cursor-pointer shrink-0"
               title={t("Editar requisição")}
             >
               <SquarePen size={15} />
@@ -404,11 +404,11 @@ export function ApiCallForm({
       </div>
 
       {/* Card de Aviso (Cor de pêssego/laranja AcassIA) */}
-      <div className="rounded-xl border border-orange-200/90 bg-[#fff8f0] dark:bg-amber-950/20 dark:border-amber-900/40 p-3.5 flex items-start gap-2.5 shadow-2xs">
-        <div className="text-orange-500 dark:text-orange-400 shrink-0 mt-0.5">
+      <div className="rounded-xl border border-cat-amber/30 bg-[#fff8f0] p-3.5 flex items-start gap-2.5 shadow-2xs">
+        <div className="text-cat-amber shrink-0 mt-0.5">
           <Info size={17} />
         </div>
-        <p className="text-[11.5px] leading-relaxed text-orange-700 dark:text-orange-300 font-normal">
+        <p className="text-[11.5px] leading-relaxed text-cat-amber-fg font-normal">
           {t(
             "Em caso de falha na API de destino, o fluxo realizará até três tentativas, com intervalo de 1 minuto entre cada uma. Persistindo a falha, a requisição será finalizada e o fluxo seguirá pela saída Erro ao efetuar a requisição."
           )}
@@ -451,7 +451,7 @@ export function ApiCallForm({
                 {t("Preencher com este cURL")}
               </Button>
             </div>
-            {curlError && <p className="text-xs text-rose-500">{curlError}</p>}
+            {curlError && <p className="text-xs text-cat-red">{curlError}</p>}
           </div>
         )}
       </div>
@@ -485,12 +485,12 @@ export function ApiCallForm({
       </div>
 
       {urlBloqueada && (
-        <p className="text-xs text-rose-500 font-medium">
+        <p className="text-xs text-cat-red font-medium">
           {t("Esta URL aponta para um endereço local/privado.")}
         </p>
       )}
 
-      {error && <p className="text-xs text-rose-500 font-medium">{error}</p>}
+      {error && <p className="text-xs text-cat-red font-medium">{error}</p>}
 
       {/* ─────────────────────────────────────────────────────────────
           MODAL: Configurar Requisição (100% AcassIA)
@@ -566,7 +566,7 @@ export function ApiCallForm({
                       className={cn(
                         "w-6 h-6 rounded-md flex items-center justify-center transition-colors cursor-pointer",
                         urlValidated
-                          ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400"
+                          ? "bg-cat-green-bg text-cat-green-fg"
                           : "text-text-subtle hover:text-text-muted hover:bg-surface-elevated"
                       )}
                       title={t("Validar URL")}
@@ -578,7 +578,7 @@ export function ApiCallForm({
                       <PopoverTrigger asChild>
                         <button
                           type="button"
-                          className="w-6 h-6 rounded-md flex items-center justify-center text-text-subtle hover:text-purple-600 hover:bg-purple-50 transition-colors cursor-pointer"
+                          className="w-6 h-6 rounded-md flex items-center justify-center text-text-subtle hover:text-cat-violet hover:bg-cat-violet-bg transition-colors cursor-pointer"
                           title={t("Inserir variável")}
                         >
                           <Code2 size={14} />
@@ -594,10 +594,10 @@ export function ApiCallForm({
                               key={v.code}
                               type="button"
                               onClick={() => handleInsertVariable("url", v.code)}
-                              className="w-full text-left px-2 py-1.5 text-xs text-text-muted hover:bg-purple-50 rounded-lg transition-colors cursor-pointer flex items-center justify-between"
+                              className="w-full text-left px-2 py-1.5 text-xs text-text-muted hover:bg-cat-violet-bg rounded-lg transition-colors cursor-pointer flex items-center justify-between"
                             >
                               <span>{v.label}</span>
-                              <span className="font-mono text-[10px] text-purple-600 dark:text-purple-400">
+                              <span className="font-mono text-[10px] text-cat-violet">
                                 {v.code}
                               </span>
                             </button>
@@ -629,7 +629,7 @@ export function ApiCallForm({
                     className={cn(
                       "px-4 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer whitespace-nowrap",
                       isActive
-                        ? "border border-purple-500 bg-purple-50 text-[#9333ea] dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-600 shadow-2xs"
+                        ? "border border-cat-violet bg-cat-violet-bg text-[#9333ea] shadow-2xs"
                         : "border border-border text-text-muted hover:border-border-strong"
                     )}
                   >
@@ -646,7 +646,7 @@ export function ApiCallForm({
                   <button
                     type="button"
                     onClick={addHeader}
-                    className="text-xs font-semibold text-[#2563eb] hover:text-blue-700 dark:text-blue-400 flex items-center gap-1 transition-colors cursor-pointer"
+                    className="text-xs font-semibold text-[#2563eb] hover:text-cat-blue-fg flex items-center gap-1 transition-colors cursor-pointer"
                   >
                     <Plus size={14} />
                     <span>{t("Adicionar Header")}</span>
@@ -686,7 +686,7 @@ export function ApiCallForm({
                             <PopoverTrigger asChild>
                               <button
                                 type="button"
-                                className="absolute right-2 text-text-subtle hover:text-purple-600 transition-colors cursor-pointer"
+                                className="absolute right-2 text-text-subtle hover:text-cat-violet transition-colors cursor-pointer"
                                 title={t("Inserir variável")}
                               >
                                 <Code2 size={13} />
@@ -702,10 +702,10 @@ export function ApiCallForm({
                                     key={v.code}
                                     type="button"
                                     onClick={() => handleInsertVariable(`header_${index}`, v.code)}
-                                    className="w-full text-left px-2 py-1.5 text-xs text-text-muted hover:bg-purple-50 rounded-lg transition-colors cursor-pointer flex items-center justify-between"
+                                    className="w-full text-left px-2 py-1.5 text-xs text-text-muted hover:bg-cat-violet-bg rounded-lg transition-colors cursor-pointer flex items-center justify-between"
                                   >
                                     <span>{v.label}</span>
-                                    <span className="font-mono text-[10px] text-purple-600 dark:text-purple-400">
+                                    <span className="font-mono text-[10px] text-cat-violet">
                                       {v.code}
                                     </span>
                                   </button>
@@ -718,7 +718,7 @@ export function ApiCallForm({
                           <button
                             type="button"
                             onClick={() => removeHeader(index)}
-                            className="text-text-subtle hover:text-rose-500 transition-colors p-1 cursor-pointer"
+                            className="text-text-subtle hover:text-cat-red transition-colors p-1 cursor-pointer"
                             title={t("Excluir")}
                           >
                             <Trash2 size={15} />
@@ -743,7 +743,7 @@ export function ApiCallForm({
                     <PopoverTrigger asChild>
                       <button
                         type="button"
-                        className="text-xs font-semibold text-[#9333ea] hover:text-purple-700 dark:text-purple-400 flex items-center gap-1 transition-colors cursor-pointer"
+                        className="text-xs font-semibold text-[#9333ea] hover:text-cat-violet-fg flex items-center gap-1 transition-colors cursor-pointer"
                       >
                         <Code2 size={13} />
                         <span>{t("Inserir Variável")}</span>
@@ -759,10 +759,10 @@ export function ApiCallForm({
                             key={v.code}
                             type="button"
                             onClick={() => handleInsertVariable("body", v.code)}
-                            className="w-full text-left px-2 py-1.5 text-xs text-text-muted hover:bg-purple-50 rounded-lg transition-colors cursor-pointer flex items-center justify-between"
+                            className="w-full text-left px-2 py-1.5 text-xs text-text-muted hover:bg-cat-violet-bg rounded-lg transition-colors cursor-pointer flex items-center justify-between"
                           >
                             <span>{v.label}</span>
-                            <span className="font-mono text-[10px] text-purple-600 dark:text-purple-400">
+                            <span className="font-mono text-[10px] text-cat-violet">
                               {v.code}
                             </span>
                           </button>
@@ -802,7 +802,7 @@ export function ApiCallForm({
                     type="button"
                     onClick={runTestRequest}
                     disabled={isTesting || !url.trim()}
-                    className="bg-[#9333ea] hover:bg-purple-700 text-white rounded-xl text-xs h-8 px-4"
+                    className="bg-[#9333ea] hover:bg-cat-violet text-white rounded-xl text-xs h-8 px-4"
                   >
                     {isTesting ? (
                       <span className="flex items-center gap-1.5">
@@ -825,8 +825,8 @@ export function ApiCallForm({
                         className={cn(
                           "px-2 py-0.5 rounded-full font-bold uppercase text-[10px]",
                           testResponse.status >= 200 && testResponse.status < 300
-                            ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
-                            : "bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300"
+                            ? "bg-cat-green-bg text-cat-green-fg"
+                            : "bg-cat-red-bg text-cat-red-fg"
                         )}
                       >
                         Status: {testResponse.status} {testResponse.statusText}
@@ -867,7 +867,7 @@ export function ApiCallForm({
                   <button
                     type="button"
                     onClick={addMapping}
-                    className="text-xs font-semibold text-[#2563eb] hover:text-blue-700 dark:text-blue-400 flex items-center gap-1 transition-colors cursor-pointer"
+                    className="text-xs font-semibold text-[#2563eb] hover:text-cat-blue-fg flex items-center gap-1 transition-colors cursor-pointer"
                   >
                     <Plus size={14} />
                     <span>{t("Adicionar Mapeamento")}</span>
@@ -928,7 +928,7 @@ export function ApiCallForm({
                           <button
                             type="button"
                             onClick={() => removeMapping(index)}
-                            className="text-text-subtle hover:text-rose-500 transition-colors p-1 cursor-pointer"
+                            className="text-text-subtle hover:text-cat-red transition-colors p-1 cursor-pointer"
                             title={t("Excluir")}
                           >
                             <Trash2 size={15} />

@@ -47,7 +47,7 @@ export function PixPaymentForm({ config, onChange }: Props) {
   return (
     <div className="space-y-4 font-sans text-xs">
       {/* Header do Card no estilo AcassIA */}
-      <div className="flex items-center gap-2.5 rounded-lg border border-emerald-200 bg-emerald-50/60 p-3 text-emerald-950 dark:border-emerald-900/60 dark:bg-emerald-950/20 dark:text-emerald-200">
+      <div className="flex items-center gap-2.5 rounded-lg border border-cat-green/30 bg-cat-green-bg p-3 text-cat-green-fg">
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#059669] text-white shadow-2xs">
           <CreditCard size={18} />
         </div>
@@ -73,7 +73,7 @@ export function PixPaymentForm({ config, onChange }: Props) {
             setKeyType(val);
             update({ key_type: val });
           }}
-          className="w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-xs text-text shadow-2xs outline-hidden focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
+          className="w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-xs text-text shadow-2xs outline-hidden focus:border-cat-green focus:ring-1 focus:ring-cat-green"
         >
           {PIX_TYPES.map((pt) => (
             <option key={pt.value} value={pt.value}>
@@ -99,7 +99,7 @@ export function PixPaymentForm({ config, onChange }: Props) {
             update({ pix_key: e.target.value });
           }}
           placeholder="123e4567-e89b-12d3-a456-426614174000"
-          className="w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-xs font-mono text-text shadow-2xs outline-hidden focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
+          className="w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-xs font-mono text-text shadow-2xs outline-hidden focus:border-cat-green focus:ring-1 focus:ring-cat-green"
         />
         <p className="text-[11px] leading-relaxed text-text-muted">
           {t("Na integração oficial, o código do pedido (EMV) usa esta mesma chave. Como no chat ao vivo.")}
@@ -122,12 +122,12 @@ export function PixPaymentForm({ config, onChange }: Props) {
             update({ beneficiary: e.target.value });
           }}
           placeholder="Ex: Leona Solutions"
-          className="w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-xs text-text shadow-2xs outline-hidden focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
+          className="w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-xs text-text shadow-2xs outline-hidden focus:border-cat-green focus:ring-1 focus:ring-cat-green"
         />
         <p className="text-[11px] text-text-muted">
           {t("Se não preenchido, será usado \"Pix\" nas conexões padrão.")}
         </p>
-        <p className="text-[11px] font-medium text-amber-700 dark:text-amber-400">
+        <p className="text-[11px] font-medium text-cat-amber-fg">
           {t("Obrigatório na integração oficial (WhatsApp Cloud API / Meta).")}
         </p>
       </div>
@@ -148,9 +148,9 @@ export function PixPaymentForm({ config, onChange }: Props) {
             update({ amount: e.target.value });
           }}
           placeholder="Ex: 49,90"
-          className="w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-xs text-text shadow-2xs outline-hidden focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
+          className="w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-xs text-text shadow-2xs outline-hidden focus:border-cat-green focus:ring-1 focus:ring-cat-green"
         />
-        <p className="text-[11px] font-medium text-amber-700 dark:text-amber-400">
+        <p className="text-[11px] font-medium text-cat-amber-fg">
           {t("Obrigatório quando o fluxo roda na integração oficial (WhatsApp Cloud API / Meta).")}
         </p>
       </div>
@@ -170,10 +170,10 @@ export function PixPaymentForm({ config, onChange }: Props) {
               update({ message_text: e.target.value });
             }}
             placeholder={t("Ex.: Oi {primeiro_nome}, segue o PIX combinado 👇")}
-            className="w-full rounded-lg border border-border-strong bg-surface p-2.5 text-xs text-text shadow-2xs outline-hidden focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 resize-none"
+            className="w-full rounded-lg border border-border-strong bg-surface p-2.5 text-xs text-text shadow-2xs outline-hidden focus:border-cat-green focus:ring-1 focus:ring-cat-green resize-none"
           />
           <div className="flex items-center justify-between pt-0.5 text-[10px] text-text-subtle">
-            <span className="font-medium text-amber-700 dark:text-amber-400">
+            <span className="font-medium text-cat-amber-fg">
               {t("Abre a mensagem, antes do valor e da chave. Aceita {primeiro_nome}, {nome_completo} e {telefone}.")}
             </span>
             <span>{messageText.length}/1024</span>
@@ -195,10 +195,10 @@ export function PixPaymentForm({ config, onChange }: Props) {
               update({ card_image_url: e.target.value });
             }}
             placeholder="https://…/banner.jpg ou {product_image}"
-            className="w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-xs text-text shadow-2xs outline-hidden focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
+            className="w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-xs text-text shadow-2xs outline-hidden focus:border-cat-green focus:ring-1 focus:ring-cat-green"
           />
         </div>
-        <p className="text-[11px] font-medium text-amber-700 dark:text-amber-400">
+        <p className="text-[11px] font-medium text-cat-amber-fg">
           {t("Integração oficial (Meta): imagem no topo do card. Conexões padrão ignoram.")}
         </p>
 
@@ -238,7 +238,7 @@ export function PixPaymentForm({ config, onChange }: Props) {
                 update({ card_image_url: "" });
               }}
               title={t("Remover imagem")}
-              className="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2 py-1.5 text-xs font-semibold text-red-600 shadow-2xs transition-colors hover:bg-red-100 dark:border-red-900/60 dark:bg-red-950/20 dark:text-red-400"
+              className="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-cat-red/30 bg-cat-red-bg px-2 py-1.5 text-xs font-semibold text-cat-red shadow-2xs transition-colors hover:bg-cat-red-bg"
             >
               <Trash size={13} />
               <span>{t("Remover")}</span>
@@ -273,7 +273,7 @@ export function PixPaymentForm({ config, onChange }: Props) {
             "Este nó envia um botão PIX para o cliente, permitindo que ele copie a chave PIX e realize o pagamento diretamente no aplicativo do banco. O mesmo bloco pode ser usado em conexões padrão e na integração oficial."
           )}
         </p>
-        <p className="text-[11px] font-medium leading-relaxed text-amber-700 dark:text-amber-400">
+        <p className="text-[11px] font-medium leading-relaxed text-cat-amber-fg">
           {t(
             "Nas conexões padrão, basta chave e tipo. Na integração oficial (Meta), valor (R$) e nome do recebedor são obrigatórios na execução. Preencha abaixo para o envio funcionar."
           )}

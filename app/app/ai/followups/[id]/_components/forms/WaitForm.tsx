@@ -370,7 +370,7 @@ export function WaitForm({
       </div>
 
       {error && (
-        <p className="rounded-md border border-red-200 bg-red-50 p-2 text-xs text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-400">
+        <p className="rounded-md border border-cat-red/30 bg-cat-red-bg p-2 text-xs text-cat-red-fg">
           {error}
         </p>
       )}

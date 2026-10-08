@@ -31,14 +31,14 @@ export function ActionNode({ id, data, selected }: NodeProps<RFNode>) {
     const isRemove = campos.op === "remove";
     const op = isRemove ? t("Remover etiqueta") : t("Adicionar etiqueta");
     customPreview = (
-      <div className="flex items-center gap-2 rounded-xl border border-blue-200/80 bg-blue-50/50 p-2 text-xs dark:border-blue-900/40 dark:bg-blue-950/20">
+      <div className="flex items-center gap-2 rounded-xl border border-cat-blue/30 bg-cat-blue-bg p-2 text-xs">
         <span className="flex items-center gap-1.5 text-xs font-semibold text-text-muted">
-          <span className="flex h-4 w-4 items-center justify-center rounded-full bg-blue-600 text-[10px] leading-none text-white font-bold">
+          <span className="flex h-4 w-4 items-center justify-center rounded-full bg-cat-blue text-[10px] leading-none text-white font-bold">
             {isRemove ? <Trash size={10} /> : <Plus size={10} />}
           </span>
           <span className="text-[11px]">{op}</span>
         </span>
-        <span className="inline-flex items-center gap-1 rounded-full bg-blue-600 px-2.5 py-0.5 text-[10px] font-bold text-white shadow-2xs">
+        <span className="inline-flex items-center gap-1 rounded-full bg-cat-blue px-2.5 py-0.5 text-[10px] font-bold text-white shadow-2xs">
           <Tag size={10} weight="fill" />
           <span className="truncate max-w-[110px]">{tagName}</span>
         </span>
@@ -48,11 +48,11 @@ export function ActionNode({ id, data, selected }: NodeProps<RFNode>) {
     const bodyText = campos.body || "";
     customPreview = (
       <div className="flex w-full flex-col gap-1.5 rounded-xl border border-blue-200/80 bg-gradient-to-b from-blue-50/50 to-white p-2.5 text-xs shadow-2xs dark:border-blue-900/40 dark:from-blue-950/20 dark:to-neutral-900">
-        <div className="flex items-center gap-1.5 font-bold text-blue-800 dark:text-blue-300 text-[11px]">
-          <ChatCircle size={13} weight="fill" className="shrink-0 text-blue-600 dark:text-blue-400" />
+        <div className="flex items-center gap-1.5 font-bold text-cat-blue-fg text-[11px]">
+          <ChatCircle size={13} weight="fill" className="shrink-0 text-cat-blue" />
           <span>{t("Mensagem de Texto")}</span>
         </div>
-        <p className="line-clamp-2 rounded-lg border border-blue-100 bg-surface p-2 text-[10.5px] italic text-text-muted leading-snug">
+        <p className="line-clamp-2 rounded-lg border border-cat-blue/30 bg-surface p-2 text-[10.5px] italic text-text-muted leading-snug">
           "{bodyText}"
         </p>
       </div>
@@ -62,15 +62,15 @@ export function ActionNode({ id, data, selected }: NodeProps<RFNode>) {
     customPreview = (
       <div className="flex w-full flex-col gap-1.5 rounded-xl border border-violet-200/80 bg-gradient-to-b from-violet-50/50 to-white p-2.5 text-xs shadow-2xs dark:border-violet-900/40 dark:from-violet-950/20 dark:to-neutral-900">
         <div className="flex items-center justify-between text-[11px]">
-          <div className="flex items-center gap-1.5 font-bold text-violet-800 dark:text-violet-300">
-            <Sparkle size={13} weight="fill" className="shrink-0 text-violet-600 dark:text-violet-400" />
+          <div className="flex items-center gap-1.5 font-bold text-cat-violet-fg">
+            <Sparkle size={13} weight="fill" className="shrink-0 text-cat-violet" />
             <span>{t("Mensagem IA")}</span>
           </div>
-          <span className="rounded-full bg-violet-100 px-1.5 py-0.5 text-[9px] font-semibold text-violet-700 dark:bg-violet-950 dark:text-violet-300">
+          <span className="rounded-full bg-cat-violet-bg px-1.5 py-0.5 text-[9px] font-semibold text-cat-violet-fg">
             {t("Dinâmica")}
           </span>
         </div>
-        <p className="line-clamp-2 rounded-lg border border-violet-100 bg-surface p-2 text-[10.5px] italic text-text-muted leading-snug">
+        <p className="line-clamp-2 rounded-lg border border-cat-violet/30 bg-surface p-2 text-[10.5px] italic text-text-muted leading-snug">
           "{promptHint}"
         </p>
       </div>
@@ -79,7 +79,7 @@ export function ActionNode({ id, data, selected }: NodeProps<RFNode>) {
     customPreview = (
       <div className="flex w-full flex-col gap-1.5 rounded-xl border border-border bg-surface p-2.5 text-xs shadow-2xs">
         <div className="flex items-center gap-1.5 font-bold text-text text-[11px]">
-          <FileText size={14} className="shrink-0 text-blue-600" />
+          <FileText size={14} className="shrink-0 text-cat-blue" />
           <span>{t("Modelo Cadastrado")}</span>
         </div>
       </div>

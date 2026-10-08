@@ -14,23 +14,23 @@ export function MetaPixelNode({ id, data, selected }: NodeProps<RFNode>) {
   const config = data.config as MetaPixelConfig;
 
   const customPreview = (
-    <div className="space-y-2 rounded-lg border border-amber-200 bg-amber-50/50 p-2.5 text-xs text-amber-950 shadow-2xs dark:border-amber-800 dark:bg-amber-950/20 dark:text-amber-200">
+    <div className="space-y-2 rounded-lg border border-cat-amber/30 bg-cat-amber-bg p-2.5 text-xs text-cat-amber-fg shadow-2xs">
       <div className="flex items-center justify-between font-semibold">
-        <span className="flex items-center gap-1.5 text-amber-800 dark:text-amber-300">
-          <Target size={14} className="text-amber-600 dark:text-amber-400 shrink-0" />
+        <span className="flex items-center gap-1.5 text-cat-amber-fg">
+          <Target size={14} className="text-cat-amber shrink-0" />
           <span>{config.event_type || t("Evento")}</span>
         </span>
         {config.item_value && (
-          <span className="rounded-md bg-amber-100 px-1.5 py-0.5 font-bold text-amber-800 dark:bg-amber-900/50 dark:text-amber-300">
+          <span className="rounded-md bg-cat-amber-bg px-1.5 py-0.5 font-bold text-cat-amber-fg">
             {config.currency || "BRL"} {config.item_value}
           </span>
         )}
       </div>
-      <div className="text-[11px] text-amber-700/80 dark:text-amber-300/80 truncate">
+      <div className="text-[11px] text-cat-amber-fg truncate">
         {config.pixel_id ? `Pixel: ${config.pixel_id}` : t("Pixel não selecionado")}
       </div>
       {config.page_id && (
-        <div className="text-[11px] text-amber-700/80 dark:text-amber-300/80 truncate">
+        <div className="text-[11px] text-cat-amber-fg truncate">
           Page ID: {config.page_id}
         </div>
       )}

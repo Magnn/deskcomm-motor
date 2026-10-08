@@ -162,7 +162,7 @@ export function AbSplitForm({
                   onChange={(e) =>
                     handleSliderChange(index, Number(e.target.value))
                   }
-                  className="w-full h-1.5 bg-purple-100 dark:bg-purple-950/60 rounded-lg appearance-none cursor-pointer accent-[#a855f7]"
+                  className="w-full h-1.5 bg-cat-violet-bg rounded-lg appearance-none cursor-pointer accent-[#a855f7]"
                 />
               </div>
             </div>
@@ -172,7 +172,7 @@ export function AbSplitForm({
 
             {/* Linha inferior: XX% de execução + lixeira */}
             <div className="px-3 py-2 flex items-center justify-between bg-surface">
-              <span className="text-[11.5px] font-medium text-blue-500 dark:text-blue-400">
+              <span className="text-[11.5px] font-medium text-cat-blue">
                 {branch.percent}% {t("de execução")}
               </span>
               <button
@@ -180,7 +180,7 @@ export function AbSplitForm({
                 aria-label={`Remover teste ${index + 1}`}
                 disabled={branches.length <= 2}
                 onClick={() => removerTeste(index)}
-                className="text-red-500 hover:text-red-600 dark:text-red-400 transition-colors p-1 disabled:opacity-30 cursor-pointer"
+                className="text-cat-red hover:text-cat-red transition-colors p-1 disabled:opacity-30 cursor-pointer"
               >
                 <Trash2 size={14} />
               </button>
@@ -191,7 +191,7 @@ export function AbSplitForm({
 
       {/* Banner de Validação se a soma for diferente de 100% */}
       {!isBalanced && (
-        <div className="flex items-center justify-between p-2.5 rounded-xl border text-xs font-semibold bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400">
+        <div className="flex items-center justify-between p-2.5 rounded-xl border text-xs font-semibold bg-cat-amber-bg border-cat-amber/30 text-cat-amber">
           <span>{t("Total Distribuído:")}</span>
           <span>
             {total}% {t("⚠ Deve somar 100%")}

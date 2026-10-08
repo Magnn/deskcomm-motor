@@ -21,18 +21,18 @@ export function AttendantRouteNode({ id, data, selected }: NodeProps<RFNode>) {
     <div className="flex w-full flex-col gap-2 rounded-xl border border-amber-200/80 bg-gradient-to-b from-amber-50/50 to-white p-2.5 text-xs shadow-2xs dark:border-amber-900/40 dark:from-amber-950/20 dark:to-neutral-900">
       {/* Topo com Título e Regra de Fila */}
       <div className="flex items-center justify-between gap-1 text-[11px]">
-        <div className="flex items-center gap-1.5 font-bold text-amber-800 dark:text-amber-300">
-          <UsersThree size={14} className="text-amber-600 dark:text-amber-400 shrink-0" />
+        <div className="flex items-center gap-1.5 font-bold text-cat-amber-fg">
+          <UsersThree size={14} className="text-cat-amber shrink-0" />
           <span>{t("Fila de Atendimento")}</span>
         </div>
-        <span className="flex items-center gap-1 rounded-full bg-amber-100/90 px-1.5 py-0.5 text-[9.5px] font-bold text-amber-800 dark:bg-amber-950/60 dark:text-amber-200 shrink-0">
+        <span className="flex items-center gap-1 rounded-full bg-cat-amber-bg px-1.5 py-0.5 text-[9.5px] font-bold text-cat-amber-fg shrink-0">
           <Clock size={10} />
           <span>{maxWait}{t("m máx")}</span>
         </span>
       </div>
 
       {/* Caixa de Atendentes Selecionados */}
-      <div className="rounded-lg border border-amber-200/60 bg-surface p-2 text-[10.5px] text-text shadow-2xs dark:border-amber-800/40">
+      <div className="rounded-lg border border-cat-amber/30 bg-surface p-2 text-[10.5px] text-text shadow-2xs">
         <div className="flex items-center justify-between">
           <span className="text-text-muted">
             {attendantCount > 0
@@ -40,7 +40,7 @@ export function AttendantRouteNode({ id, data, selected }: NodeProps<RFNode>) {
               : t("Todos os atendentes elegíveis")}
           </span>
           {config.auto_follow && (
-            <span className="flex items-center gap-1 text-[9.5px] font-semibold text-emerald-600 dark:text-emerald-400" title={t("Mantém o atendente se já houver conversa prévia")}>
+            <span className="flex items-center gap-1 text-[9.5px] font-semibold text-cat-green" title={t("Mantém o atendente se já houver conversa prévia")}>
               <UserCircle size={11} />
               <span>{t("Seguidor")}</span>
             </span>
@@ -51,7 +51,7 @@ export function AttendantRouteNode({ id, data, selected }: NodeProps<RFNode>) {
       {/* Rodapé com política Round-Robin */}
       <div className="flex items-center justify-between text-[9.5px] text-text-subtle px-0.5">
         <span>🔄 {t("Distribuição alternada")}</span>
-        <span className="font-semibold text-amber-700 dark:text-amber-300">Round-Robin</span>
+        <span className="font-semibold text-cat-amber-fg">Round-Robin</span>
       </div>
     </div>
   );

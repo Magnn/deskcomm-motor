@@ -129,7 +129,7 @@ export function NodeConfigPanel({ node, flowId, onChange, onDelete, onClose, ram
                 }
               }}
               onBlur={confirmRename}
-              className="flex-1 text-[15px] font-bold text-text tracking-tight border border-purple-500 rounded-lg px-2.5 py-1 outline-hidden focus:ring-2 focus:ring-purple-500/30 bg-surface-elevated"
+              className="flex-1 text-[15px] font-bold text-text tracking-tight border border-cat-violet rounded-lg px-2.5 py-1 outline-hidden focus:ring-2 focus:ring-cat-violet/30 bg-surface-elevated"
             />
           </div>
         ) : (
@@ -141,7 +141,7 @@ export function NodeConfigPanel({ node, flowId, onChange, onDelete, onClose, ram
         <div className="flex items-center gap-1.5 shrink-0">
           <button
             type="button"
-            className="p-1.5 rounded-md border border-purple-200 text-[#9333ea] bg-purple-50/50 hover:bg-purple-100/50 transition-colors cursor-pointer dark:border-purple-900/60 dark:bg-purple-950/30 dark:text-purple-400"
+            className="p-1.5 rounded-md border border-cat-violet/30 text-[#9333ea] bg-cat-violet-bg hover:bg-cat-violet-bg transition-colors cursor-pointer"
             title={editingTitle ? t("Confirmar") : t("Renomear")}
             onClick={() => {
               if (editingTitle) confirmRename();
@@ -149,7 +149,7 @@ export function NodeConfigPanel({ node, flowId, onChange, onDelete, onClose, ram
             }}
           >
             {editingTitle ? (
-              <Check size={15} className="text-emerald-600" weight="bold" />
+              <Check size={15} className="text-cat-green" weight="bold" />
             ) : (
               <SquarePen className="w-4 h-4 text-[#9333ea]" />
             )}
@@ -170,9 +170,9 @@ export function NodeConfigPanel({ node, flowId, onChange, onDelete, onClose, ram
 
       {/* Indicador de alterações não salvas (AcassIA dirty indicator) */}
       {isDirty && (
-        <div className="px-5 py-1.5 bg-amber-50 dark:bg-amber-950/40 border-b border-amber-200/60 dark:border-amber-900/40 flex items-center gap-2 shrink-0 animate-in fade-in duration-150">
-          <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-          <span className="text-[11px] text-amber-700 dark:text-amber-400 font-medium">
+        <div className="px-5 py-1.5 bg-cat-amber-bg border-b border-cat-amber/30 flex items-center gap-2 shrink-0 animate-in fade-in duration-150">
+          <div className="w-2 h-2 rounded-full bg-cat-amber animate-pulse" />
+          <span className="text-[11px] text-cat-amber-fg font-medium">
             {t("Alterações não salvas")}
           </span>
         </div>
@@ -326,7 +326,7 @@ export function NodeConfigPanel({ node, flowId, onChange, onDelete, onClose, ram
             type="button"
             data-testid="delete-node"
             onClick={onDelete}
-            className="text-xs text-text-subtle hover:text-rose-600 transition-colors inline-flex items-center justify-center gap-1.5 py-1 cursor-pointer w-full"
+            className="text-xs text-text-subtle hover:text-cat-red transition-colors inline-flex items-center justify-center gap-1.5 py-1 cursor-pointer w-full"
           >
             <Trash size={13} aria-hidden />
             {t("Excluir nó")}

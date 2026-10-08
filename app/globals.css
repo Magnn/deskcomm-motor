@@ -90,6 +90,37 @@
   --color-info-bg: rgba(74, 122, 147, 0.12);
   --color-info-fg: #355d72;
 
+  /* Categorias (light).
+   *
+   * Cores que dizem DE QUE TIPO uma coisa é — a caixa de um fluxo, por exemplo —, e não em que
+   * ESTADO ela está. São outra pergunta que a dos estados acima: "verde" de categoria não promete
+   * sucesso, e mudar o tom do sucesso não pode mudar a cor de um tipo de caixa.
+   *
+   * Três papéis por matiz, como nos estados: a cor (ícone, texto de destaque, fundo cheio), o
+   * fundo suave (`-bg`) e o texto sobre o fundo suave (`-fg`). Os valores de hoje são os que as
+   * telas já usavam escritos à mão: tokenizar não redesenha — só dá UM lugar para mudar. */
+  --color-cat-violet: #7c3aed;
+  --color-cat-violet-bg: rgba(124, 58, 237, 0.1);
+  --color-cat-violet-fg: #6d28d9;
+  --color-cat-pink: #db2777;
+  --color-cat-pink-bg: rgba(219, 39, 119, 0.1);
+  --color-cat-pink-fg: #be185d;
+  --color-cat-teal: #0d9488;
+  --color-cat-teal-bg: rgba(13, 148, 136, 0.1);
+  --color-cat-teal-fg: #0f766e;
+  --color-cat-green: #059669;
+  --color-cat-green-bg: rgba(5, 150, 105, 0.1);
+  --color-cat-green-fg: #047857;
+  --color-cat-amber: #d97706;
+  --color-cat-amber-bg: rgba(217, 119, 6, 0.1);
+  --color-cat-amber-fg: #b45309;
+  --color-cat-red: #e11d48;
+  --color-cat-red-bg: rgba(225, 29, 72, 0.1);
+  --color-cat-red-fg: #be123c;
+  --color-cat-blue: #2563eb;
+  --color-cat-blue-bg: rgba(37, 99, 235, 0.1);
+  --color-cat-blue-fg: #1d4ed8;
+
   /* Spacing (4-base) */
   --space-0: 0px;
   --space-1: 4px;
@@ -289,6 +320,29 @@
   --color-info: #4a7a93;
   --color-info-bg: rgba(74, 122, 147, 0.12);
   --color-info-fg: #355d72;
+
+  /* Categorias (light) — espelho do :root, como os estados acima */
+  --color-cat-violet: #7c3aed;
+  --color-cat-violet-bg: rgba(124, 58, 237, 0.1);
+  --color-cat-violet-fg: #6d28d9;
+  --color-cat-pink: #db2777;
+  --color-cat-pink-bg: rgba(219, 39, 119, 0.1);
+  --color-cat-pink-fg: #be185d;
+  --color-cat-teal: #0d9488;
+  --color-cat-teal-bg: rgba(13, 148, 136, 0.1);
+  --color-cat-teal-fg: #0f766e;
+  --color-cat-green: #059669;
+  --color-cat-green-bg: rgba(5, 150, 105, 0.1);
+  --color-cat-green-fg: #047857;
+  --color-cat-amber: #d97706;
+  --color-cat-amber-bg: rgba(217, 119, 6, 0.1);
+  --color-cat-amber-fg: #b45309;
+  --color-cat-red: #e11d48;
+  --color-cat-red-bg: rgba(225, 29, 72, 0.1);
+  --color-cat-red-fg: #be123c;
+  --color-cat-blue: #2563eb;
+  --color-cat-blue-bg: rgba(37, 99, 235, 0.1);
+  --color-cat-blue-fg: #1d4ed8;
   --shadow-xs: 0 1px 2px 0 rgba(20, 18, 14, 0.04);
   --shadow-sm: 0 1px 2px 0 rgba(20, 18, 14, 0.05), 0 1px 1px 0 rgba(20, 18, 14, 0.03);
   --shadow-md: 0 4px 12px -2px rgba(20, 18, 14, 0.06), 0 2px 4px -1px rgba(20, 18, 14, 0.04);
@@ -388,6 +442,29 @@
   --color-info: #7da9bf;
   --color-info-bg: rgba(125, 169, 191, 0.18);
   --color-info-fg: #9bbfd2;
+
+  /* Categorias (dark) */
+  --color-cat-violet: #a78bfa;
+  --color-cat-violet-bg: rgba(167, 139, 250, 0.16);
+  --color-cat-violet-fg: #c4b5fd;
+  --color-cat-pink: #f472b6;
+  --color-cat-pink-bg: rgba(244, 114, 182, 0.16);
+  --color-cat-pink-fg: #f9a8d4;
+  --color-cat-teal: #2dd4bf;
+  --color-cat-teal-bg: rgba(45, 212, 191, 0.16);
+  --color-cat-teal-fg: #5eead4;
+  --color-cat-green: #34d399;
+  --color-cat-green-bg: rgba(52, 211, 153, 0.16);
+  --color-cat-green-fg: #6ee7b7;
+  --color-cat-amber: #fbbf24;
+  --color-cat-amber-bg: rgba(251, 191, 36, 0.16);
+  --color-cat-amber-fg: #fcd34d;
+  --color-cat-red: #fb7185;
+  --color-cat-red-bg: rgba(251, 113, 133, 0.16);
+  --color-cat-red-fg: #fda4af;
+  --color-cat-blue: #60a5fa;
+  --color-cat-blue-bg: rgba(96, 165, 250, 0.16);
+  --color-cat-blue-fg: #93c5fd;
 
   /* Shadows — heavier in dark */
   --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
@@ -509,6 +586,28 @@
   --color-info: var(--color-info);
   --color-info-bg: var(--color-info-bg);
   --color-info-fg: var(--color-info-fg);
+  /* Categorias — ver o comentário da paleta no :root. */
+  --color-cat-violet: var(--color-cat-violet);
+  --color-cat-violet-bg: var(--color-cat-violet-bg);
+  --color-cat-violet-fg: var(--color-cat-violet-fg);
+  --color-cat-pink: var(--color-cat-pink);
+  --color-cat-pink-bg: var(--color-cat-pink-bg);
+  --color-cat-pink-fg: var(--color-cat-pink-fg);
+  --color-cat-teal: var(--color-cat-teal);
+  --color-cat-teal-bg: var(--color-cat-teal-bg);
+  --color-cat-teal-fg: var(--color-cat-teal-fg);
+  --color-cat-green: var(--color-cat-green);
+  --color-cat-green-bg: var(--color-cat-green-bg);
+  --color-cat-green-fg: var(--color-cat-green-fg);
+  --color-cat-amber: var(--color-cat-amber);
+  --color-cat-amber-bg: var(--color-cat-amber-bg);
+  --color-cat-amber-fg: var(--color-cat-amber-fg);
+  --color-cat-red: var(--color-cat-red);
+  --color-cat-red-bg: var(--color-cat-red-bg);
+  --color-cat-red-fg: var(--color-cat-red-fg);
+  --color-cat-blue: var(--color-cat-blue);
+  --color-cat-blue-bg: var(--color-cat-blue-bg);
+  --color-cat-blue-fg: var(--color-cat-blue-fg);
 
   /* Aliases shadcn (consumers ainda não migrados). Espelham 1:1 o que o
      `tailwind.config.ts` mapeava — inclusive `ring`, que apontava para a

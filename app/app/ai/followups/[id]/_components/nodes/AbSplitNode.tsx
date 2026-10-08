@@ -11,21 +11,21 @@ import { NODE_VISUALS, describeNodeConfig } from "./nodeVisuals";
 import { NodeCard } from "./NodeCard";
 
 const BRANCH_COLORS = [
-  "bg-pink-500 text-pink-700 dark:text-pink-300",
-  "bg-indigo-500 text-indigo-700 dark:text-indigo-300",
-  "bg-teal-500 text-teal-700 dark:text-teal-300",
-  "bg-amber-500 text-amber-700 dark:text-amber-300",
-  "bg-purple-500 text-purple-700 dark:text-purple-300",
-  "bg-emerald-500 text-emerald-700 dark:text-emerald-300",
+  "bg-cat-pink text-cat-pink-fg",
+  "bg-cat-violet text-cat-violet-fg",
+  "bg-cat-teal text-cat-teal-fg",
+  "bg-cat-amber text-cat-amber-fg",
+  "bg-cat-violet text-cat-violet-fg",
+  "bg-cat-green text-cat-green-fg",
 ];
 
 const BAR_COLORS = [
-  "bg-pink-500",
-  "bg-indigo-500",
-  "bg-teal-500",
-  "bg-amber-500",
-  "bg-purple-500",
-  "bg-emerald-500",
+  "bg-cat-pink",
+  "bg-cat-violet",
+  "bg-cat-teal",
+  "bg-cat-amber",
+  "bg-cat-violet",
+  "bg-cat-green",
 ];
 
 export function AbSplitNode({ id, data, selected }: NodeProps<RFNode>) {
@@ -37,13 +37,13 @@ export function AbSplitNode({ id, data, selected }: NodeProps<RFNode>) {
   ];
 
   const customPreview = (
-    <div className="space-y-2 rounded-lg border border-pink-200 bg-pink-50/50 p-2.5 text-xs text-pink-950 shadow-2xs dark:border-pink-900/60 dark:bg-pink-950/20 dark:text-pink-200">
+    <div className="space-y-2 rounded-lg border border-cat-pink/30 bg-cat-pink-bg p-2.5 text-xs text-cat-pink-fg shadow-2xs">
       <div className="flex items-center justify-between font-semibold">
-        <div className="flex items-center gap-1.5 text-pink-800 dark:text-pink-300">
+        <div className="flex items-center gap-1.5 text-cat-pink-fg">
           <GitBranch size={14} className="shrink-0" />
           <span>{t("Divisão A/B")}</span>
         </div>
-        <span className="rounded-xs bg-pink-200/80 dark:bg-pink-900/60 px-1.5 py-0.5 text-[10px] font-medium text-pink-900 dark:text-pink-300">
+        <span className="rounded-xs bg-cat-pink-bg px-1.5 py-0.5 text-[10px] font-medium text-cat-pink-fg">
           {branches.length} {t("caminhos")}
         </span>
       </div>
@@ -65,7 +65,7 @@ export function AbSplitNode({ id, data, selected }: NodeProps<RFNode>) {
         {branches.map((b, i) => (
           <div
             key={b.id}
-            className="flex items-center gap-1 rounded-md bg-white/80 px-1.5 py-0.5 font-mono shadow-2xs border border-pink-200/60 dark:border-pink-900/40"
+            className="flex items-center gap-1 rounded-md bg-white/80 px-1.5 py-0.5 font-mono shadow-2xs border border-cat-pink/30"
           >
             <div className={`h-1.5 w-1.5 rounded-full ${BAR_COLORS[i % BAR_COLORS.length]}`} />
             <span className="font-semibold text-text">{b.label}:</span>

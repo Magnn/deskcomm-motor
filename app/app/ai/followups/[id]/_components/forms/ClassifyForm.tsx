@@ -120,7 +120,7 @@ export function ClassifyForm({
             <h3 className="text-sm font-bold text-text">
               {t("Classificador IA")}
             </h3>
-            <span className="rounded-md bg-violet-100 px-1.5 py-0.5 text-[10px] font-semibold text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">
+            <span className="rounded-md bg-cat-violet-bg px-1.5 py-0.5 text-[10px] font-semibold text-cat-violet-fg">
               {t("Inteligência Artificial")}
             </span>
           </div>
@@ -136,7 +136,7 @@ export function ClassifyForm({
           <Label htmlFor="classify-classes" className="text-xs font-semibold text-text">
             {t("Rotas de Classificação")}
           </Label>
-          <span className="text-[11px] font-medium text-violet-600 dark:text-violet-400">
+          <span className="text-[11px] font-medium text-cat-violet">
             {classesAtuais.length} {classesAtuais.length === 1 ? t("rota") : t("rotas")}
           </span>
         </div>
@@ -151,13 +151,13 @@ export function ClassifyForm({
             classesAtuais.map((cls, idx) => (
               <span
                 key={idx}
-                className="inline-flex items-center gap-1 rounded-md border border-violet-200 bg-violet-50 px-2 py-1 text-[11px] font-semibold text-violet-800 shadow-2xs dark:border-violet-800/60 dark:bg-violet-950/40 dark:text-violet-200"
+                className="inline-flex items-center gap-1 rounded-md border border-cat-violet/30 bg-cat-violet-bg px-2 py-1 text-[11px] font-semibold text-cat-violet-fg shadow-2xs"
               >
                 <span>{cls}</span>
                 <button
                   type="button"
                   onClick={() => removerClasse(idx)}
-                  className="rounded-full p-0.5 text-violet-500 hover:bg-violet-200/60 hover:text-violet-900 dark:hover:bg-violet-800 dark:hover:text-violet-100 transition-colors cursor-pointer"
+                  className="rounded-full p-0.5 text-cat-violet hover:bg-cat-violet-bg hover:text-cat-violet-fg transition-colors cursor-pointer"
                   title={t("Remover classe")}
                 >
                   <X size={12} />
@@ -186,7 +186,7 @@ export function ClassifyForm({
             type="button"
             onClick={() => adicionarClasse(novaClasse)}
             disabled={!novaClasse.trim()}
-            className="inline-flex h-8 items-center gap-1 rounded-lg bg-violet-600 px-2.5 text-xs font-semibold text-white shadow-2xs hover:bg-violet-700 disabled:opacity-40 transition-colors cursor-pointer shrink-0"
+            className="inline-flex h-8 items-center gap-1 rounded-lg bg-cat-violet px-2.5 text-xs font-semibold text-white shadow-2xs hover:bg-cat-violet disabled:opacity-40 transition-colors cursor-pointer shrink-0"
           >
             <Plus size={14} />
             <span>{t("Adicionar")}</span>
@@ -211,7 +211,7 @@ export function ClassifyForm({
                     "rounded-md border px-2 py-0.5 text-[10.5px] font-medium transition-colors cursor-pointer",
                     jaExiste
                       ? "border-border bg-surface-elevated text-text-subtle"
-                      : "border-border-strong bg-surface text-text-muted hover:border-violet-400 hover:text-violet-700 dark:hover:border-violet-500"
+                      : "border-border-strong bg-surface text-text-muted hover:border-cat-violet hover:text-cat-violet-fg"
                   )}
                 >
                   + {sugestao}
@@ -239,12 +239,12 @@ export function ClassifyForm({
             className={cn(
               "flex flex-col items-start gap-1 rounded-xl border p-2.5 text-left transition-all cursor-pointer shadow-2xs",
               target === "last_reply"
-                ? "border-violet-600 bg-violet-50/70 dark:border-violet-500 dark:bg-violet-950/40 ring-1 ring-violet-600/30"
+                ? "border-cat-violet bg-cat-violet-bg ring-1 ring-cat-violet/30"
                 : "border-border bg-surface hover:border-border-strong"
             )}
           >
             <div className="flex items-center gap-1.5 font-semibold text-text">
-              <ChatCircle size={15} className="text-violet-600 dark:text-violet-400" />
+              <ChatCircle size={15} className="text-cat-violet" />
               <span>{t("Última resposta")}</span>
             </div>
             <p className="text-[10.5px] text-text-muted">
@@ -261,12 +261,12 @@ export function ClassifyForm({
             className={cn(
               "flex flex-col items-start gap-1 rounded-xl border p-2.5 text-left transition-all cursor-pointer shadow-2xs",
               target === "summary"
-                ? "border-violet-600 bg-violet-50/70 dark:border-violet-500 dark:bg-violet-950/40 ring-1 ring-violet-600/30"
+                ? "border-cat-violet bg-cat-violet-bg ring-1 ring-cat-violet/30"
                 : "border-border bg-surface hover:border-border-strong"
             )}
           >
             <div className="flex items-center gap-1.5 font-semibold text-text">
-              <ListChecks size={15} className="text-violet-600 dark:text-violet-400" />
+              <ListChecks size={15} className="text-cat-violet" />
               <span>{t("Resumo da conversa")}</span>
             </div>
             <p className="text-[10.5px] text-text-muted">
@@ -339,7 +339,7 @@ export function ClassifyForm({
                 className={cn(
                   "rounded-md px-1.5 py-1 text-[10.5px] font-medium transition-colors cursor-pointer",
                   graceMin === p.minutos
-                    ? "bg-violet-600 text-white"
+                    ? "bg-cat-violet text-white"
                     : "bg-surface-elevated text-text-muted hover:bg-surface-elevated"
                 )}
               >
@@ -355,7 +355,7 @@ export function ClassifyForm({
       <div className="space-y-1.5">
         <div className="flex items-center justify-between">
           <Label htmlFor="classify-hint" className="flex items-center gap-1.5 text-xs font-semibold text-text">
-            <Lightbulb size={14} className="text-amber-500" />
+            <Lightbulb size={14} className="text-cat-amber" />
             <span>{t("Orientação adicional para a IA (Opcional)")}</span>
           </Label>
           <span className="text-[10px] text-text-subtle">

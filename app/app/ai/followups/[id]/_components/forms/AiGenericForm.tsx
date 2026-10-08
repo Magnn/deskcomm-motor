@@ -240,7 +240,7 @@ export function AiGenericForm({
             <PopoverTrigger asChild>
               <button
                 type="button"
-                className="text-[11.5px] font-semibold text-[#2563eb] hover:text-[#1d4ed8] dark:text-blue-400 flex items-center gap-1.5 transition-colors cursor-pointer"
+                className="text-[11.5px] font-semibold text-[#2563eb] hover:text-[#1d4ed8] flex items-center gap-1.5 transition-colors cursor-pointer"
               >
                 <Eye size={13} />
                 <span>{t("Campos Personalizados")}</span>
@@ -259,7 +259,7 @@ export function AiGenericForm({
                     className="w-full flex items-center justify-between px-2 py-1.5 text-xs text-text-muted hover:bg-surface-elevated rounded-md transition-colors text-left cursor-pointer"
                   >
                     <span>{v.label}</span>
-                    <code className="text-[10px] text-blue-600 bg-blue-50 dark:bg-blue-950/60 px-1 py-0.5 rounded-md font-mono">
+                    <code className="text-[10px] text-cat-blue bg-cat-blue-bg px-1 py-0.5 rounded-md font-mono">
                       {v.tag}
                     </code>
                   </button>
@@ -280,7 +280,7 @@ export function AiGenericForm({
           }}
           placeholder={t("Digite aqui o prompt desejado.\n\nExemplo: Responda ao cliente de acordo as instruções.")}
           maxLength={2000}
-          className="w-full rounded-[10px] border border-border bg-surface p-2.5 text-[13px] text-text placeholder:text-text-subtle focus:outline-hidden focus:border-indigo-500 min-h-[105px] resize-y"
+          className="w-full rounded-[10px] border border-border bg-surface p-2.5 text-[13px] text-text placeholder:text-text-subtle focus:outline-hidden focus:border-cat-violet min-h-[105px] resize-y"
         />
       </div>
 
@@ -304,13 +304,13 @@ export function AiGenericForm({
                   className={cn(
                     "text-[10px] px-2 py-0.5 rounded-full font-medium border",
                     currentModel.badgeVariant === "green" &&
-                      "bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800",
+                      "bg-cat-green-bg text-cat-green border-cat-green/30",
                     currentModel.badgeVariant === "blue" &&
-                      "bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-950/40 dark:text-blue-400 dark:border-blue-800",
+                      "bg-cat-blue-bg text-cat-blue border-cat-blue/30",
                     currentModel.badgeVariant === "amber" &&
-                      "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800",
+                      "bg-cat-amber-bg text-cat-amber-fg border-cat-amber/30",
                     currentModel.badgeVariant === "purple" &&
-                      "bg-purple-50 text-purple-600 border-purple-200 dark:bg-purple-950/40 dark:text-purple-400 dark:border-purple-800"
+                      "bg-cat-violet-bg text-cat-violet border-cat-violet/30"
                   )}
                 >
                   {currentModel.badge}
@@ -333,7 +333,7 @@ export function AiGenericForm({
                 className={cn(
                   "w-full text-left p-2.5 rounded-lg transition-colors cursor-pointer border",
                   modeloGpt === m.id
-                    ? "bg-purple-50/60 dark:bg-purple-950/30 border-purple-200 dark:border-purple-800"
+                    ? "bg-cat-violet-bg border-cat-violet/30"
                     : "hover:bg-surface-elevated border-transparent"
                 )}
               >
@@ -345,13 +345,13 @@ export function AiGenericForm({
                     className={cn(
                       "text-[9.5px] px-2 py-0.5 rounded-full font-medium border",
                       m.badgeVariant === "green" &&
-                        "bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800",
+                        "bg-cat-green-bg text-cat-green border-cat-green/30",
                       m.badgeVariant === "blue" &&
-                        "bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-950/40 dark:text-blue-400 dark:border-blue-800",
+                        "bg-cat-blue-bg text-cat-blue border-cat-blue/30",
                       m.badgeVariant === "amber" &&
-                        "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800",
+                        "bg-cat-amber-bg text-cat-amber-fg border-cat-amber/30",
                       m.badgeVariant === "purple" &&
-                        "bg-purple-50 text-purple-600 border-purple-200 dark:bg-purple-950/40 dark:text-purple-400 dark:border-purple-800"
+                        "bg-cat-violet-bg text-cat-violet border-cat-violet/30"
                     )}
                   >
                     {m.badge}
@@ -640,7 +640,7 @@ export function AiGenericForm({
         </div>
       </div>
 
-      {error && <p className="text-xs text-rose-500 font-medium">{error}</p>}
+      {error && <p className="text-xs text-cat-red font-medium">{error}</p>}
 
       {/* Modal Criar Novo Campo de Fluxo */}
       <Dialog open={isNewFieldOpen} onOpenChange={setIsNewFieldOpen}>

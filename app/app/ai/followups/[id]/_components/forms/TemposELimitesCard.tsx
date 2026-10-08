@@ -41,7 +41,7 @@ export function TemposELimitesCard({
             <span className="text-[12.5px] font-bold text-text">
               {t("Agrupar respostas")}
             </span>
-            <span className="rounded-full bg-[#f0fdf4] text-[#16a34a] border border-[#bbf7d0] px-2 py-0.5 text-[10px] font-medium dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800">
+            <span className="rounded-full bg-[#f0fdf4] text-[#16a34a] border border-[#bbf7d0] px-2 py-0.5 text-[10px] font-medium">
               {t("a partir da 1ª mensagem")}
             </span>
             <span
@@ -79,7 +79,7 @@ export function TemposELimitesCard({
             <span className="text-[12.5px] font-bold text-text">
               {t("Expiração do bloco")}
             </span>
-            <span className="rounded-full bg-[#fff1f2] text-[#e11d48] border border-[#fecdd3] px-2 py-0.5 text-[10px] font-medium dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-800">
+            <span className="rounded-full bg-[#fff1f2] text-[#e11d48] border border-[#fecdd3] px-2 py-0.5 text-[10px] font-medium">
               {t("a partir do envio")}
             </span>
             <span

@@ -73,7 +73,7 @@ export function TriggerNode({ id, data, selected }: NodeProps<RFNode>) {
           className="flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium text-zinc-200 transition-colors hover:bg-zinc-800 hover:text-white cursor-pointer"
           title={t("Editar configurações")}
         >
-          <SquarePen className="h-3.5 w-3.5 text-emerald-400" />
+          <SquarePen className="h-3.5 w-3.5 text-cat-green" />
           {t("Editar")}
         </button>
 
@@ -84,7 +84,7 @@ export function TriggerNode({ id, data, selected }: NodeProps<RFNode>) {
           title={t("Copiar ID do nó")}
         >
           {copiedId ? (
-            <Check size={14} className="text-emerald-400" />
+            <Check size={14} className="text-cat-green" />
           ) : (
             <Hash className="h-3.5 w-3.5 text-text-subtle" />
           )}
@@ -93,11 +93,11 @@ export function TriggerNode({ id, data, selected }: NodeProps<RFNode>) {
 
       <div
         className={cn(
-          "group relative flex w-[185px] flex-col items-center gap-1.5 rounded-xl border-[1.5px] border-emerald-500 bg-surface p-2.5 font-sans shadow-sm transition-all select-none",
+          "group relative flex w-[185px] flex-col items-center gap-1.5 rounded-xl border-[1.5px] border-cat-green bg-surface p-2.5 font-sans shadow-sm transition-all select-none",
           selected
-            ? "shadow-md ring-2 ring-emerald-500/30"
-            : "hover:border-emerald-600 hover:shadow-md",
-          data.simulating && "animate-pulse ring-2 ring-emerald-500",
+            ? "shadow-md ring-2 ring-cat-green/30"
+            : "hover:border-cat-green hover:shadow-md",
+          data.simulating && "animate-pulse ring-2 ring-cat-green",
         )}
         data-testid={`trigger-node-${id}`}
         onDoubleClick={(e) => {
@@ -130,7 +130,7 @@ export function TriggerNode({ id, data, selected }: NodeProps<RFNode>) {
         </div>
 
         {/* Ícone de seta para baixo */}
-        <div className="flex h-4 w-4 items-center justify-center rounded-md text-emerald-600 dark:text-emerald-400">
+        <div className="flex h-4 w-4 items-center justify-center rounded-md text-cat-green">
           <svg width="10" height="8" viewBox="0 0 10 8" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M5 1v6M1 4l4 4 4-4" />
           </svg>
@@ -141,8 +141,8 @@ export function TriggerNode({ id, data, selected }: NodeProps<RFNode>) {
           className={cn(
             "w-full truncate rounded-lg border px-2 py-1 text-center text-[10.5px] font-semibold",
             pedeAtencao
-              ? "border-amber-500 bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300"
-              : "border-emerald-500 bg-emerald-50/60 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300",
+              ? "border-cat-amber bg-cat-amber-bg text-cat-amber-fg"
+              : "border-cat-green bg-cat-green-bg text-cat-green-fg",
           )}
           data-testid="inicio-resumo"
           title={resumo}

@@ -263,7 +263,7 @@ export function PublishBar({
         {/* Centro: Título com Logo WhatsApp + Badge de Status + Seletor de Tabs */}
         <div className="flex flex-col items-center gap-1">
           <div className="flex items-center gap-2">
-            <WhatsappLogo size={18} weight="fill" className="text-emerald-500" />
+            <WhatsappLogo size={18} weight="fill" className="text-cat-green" />
             <h1 className="text-sm font-bold text-text">{flow.name}</h1>
             <RenameFollowupFlowButton
               flowId={flowId}
@@ -272,11 +272,11 @@ export function PublishBar({
               size="icon"
             />
             {dirty ? (
-              <span className="rounded-full border border-amber-300 bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700 shadow-2xs dark:border-amber-800 dark:bg-amber-950/60 dark:text-amber-400">
+              <span className="rounded-full border border-cat-amber/30 bg-cat-amber-bg px-2 py-0.5 text-[10px] font-bold text-cat-amber-fg shadow-2xs">
                 {t("Alterações não salvas")}
               </span>
             ) : (
-              <span className="rounded-md bg-emerald-600 px-2.5 py-0.5 text-[10px] font-bold text-white shadow-2xs tracking-wide">
+              <span className="rounded-md bg-cat-green px-2.5 py-0.5 text-[10px] font-bold text-white shadow-2xs tracking-wide">
                 SALVO
               </span>
             )}

@@ -16,18 +16,18 @@ export function RepeatNode({ id, data, selected }: NodeProps<RFNode>) {
   const max = config?.max_count ?? 3;
 
   const customPreview = (
-    <div className="space-y-1.5 rounded-lg border border-teal-200 bg-teal-50/60 p-2.5 text-xs text-teal-950 shadow-2xs dark:border-teal-900/60 dark:bg-teal-950/20 dark:text-teal-200">
+    <div className="space-y-1.5 rounded-lg border border-cat-teal/30 bg-cat-teal-bg p-2.5 text-xs text-cat-teal-fg shadow-2xs">
       <div className="flex items-center justify-between font-semibold">
-        <div className="flex items-center gap-1.5 text-teal-800 dark:text-teal-300">
+        <div className="flex items-center gap-1.5 text-cat-teal-fg">
           <ArrowsClockwise size={14} className="shrink-0 animate-spin-slow" />
           <span>{t("Ciclo de Repetição")}</span>
         </div>
-        <span className="rounded-xs bg-teal-200/80 dark:bg-teal-900/60 px-1.5 py-0.5 text-[10px] font-mono font-bold text-teal-900 dark:text-teal-200">
+        <span className="rounded-xs bg-cat-teal-bg px-1.5 py-0.5 text-[10px] font-mono font-bold text-cat-teal-fg">
           {t("Até")} {max}x
         </span>
       </div>
 
-      <div className="flex items-center justify-between pt-1 border-t border-teal-200/60 dark:border-teal-900/40 text-[10px] text-teal-700/80 dark:text-teal-400">
+      <div className="flex items-center justify-between pt-1 border-t border-cat-teal/30 text-[10px] text-cat-teal-fg">
         <span className="flex items-center gap-1">
           <ArrowBendUpLeft size={11} /> {t("Volta")} &lt; {max}
         </span>

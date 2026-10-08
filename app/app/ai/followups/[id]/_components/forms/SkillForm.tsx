@@ -41,8 +41,8 @@ export function SkillForm({
   return (
     <div className="space-y-4 font-sans text-xs">
       {/* Header banner sofisticado */}
-      <div className="flex items-center gap-2.5 rounded-lg border border-orange-200 bg-orange-50/70 p-3 text-orange-950 dark:border-orange-900/60 dark:bg-orange-950/20 dark:text-orange-200">
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-orange-600 text-white shadow-2xs">
+      <div className="flex items-center gap-2.5 rounded-lg border border-cat-amber/30 bg-cat-amber-bg p-3 text-cat-amber-fg">
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-cat-amber text-white shadow-2xs">
           <PuzzlePiece size={18} />
         </div>
         <div>
@@ -87,7 +87,7 @@ export function SkillForm({
                 onClick={() => commit(s.id)}
                 className={`p-2 rounded-lg border transition-all cursor-pointer flex items-center justify-between ${
                   isSelected
-                    ? "border-orange-500 bg-orange-50/60 dark:bg-orange-950/30 dark:border-orange-700 shadow-2xs"
+                    ? "border-cat-amber bg-cat-amber-bg shadow-2xs"
                     : "border-border bg-surface hover:border-border-strong"
                 }`}
               >
@@ -96,7 +96,7 @@ export function SkillForm({
                     <span className="text-xs font-semibold text-text">
                       {s.label}
                     </span>
-                    <code className="text-[10px] text-orange-700 dark:text-orange-400 bg-orange-100/70 dark:bg-orange-950/60 px-1 py-0.2 rounded-md font-mono">
+                    <code className="text-[10px] text-cat-amber-fg bg-cat-amber-bg px-1 py-0.2 rounded-md font-mono">
                       {s.id}
                     </code>
                   </div>
@@ -105,7 +105,7 @@ export function SkillForm({
                   </p>
                 </div>
                 {isSelected && (
-                  <Check size={14} weight="bold" className="text-orange-600 shrink-0" />
+                  <Check size={14} weight="bold" className="text-cat-amber shrink-0" />
                 )}
               </div>
             );
@@ -113,7 +113,7 @@ export function SkillForm({
         </div>
       </div>
 
-      {error && <p className="text-xs text-rose-600 dark:text-rose-400 font-medium">{error}</p>}
+      {error && <p className="text-xs text-cat-red font-medium">{error}</p>}
     </div>
   );
 }

@@ -57,7 +57,7 @@ export function MetaPixelForm({ config, onChange }: Props) {
   return (
     <div className="space-y-4 font-sans text-xs">
       {/* Header do Card no estilo AcassIA */}
-      <div className="flex items-center gap-2.5 rounded-lg border border-amber-200 bg-amber-50/60 p-3 text-amber-950 dark:border-amber-900/60 dark:bg-amber-950/20 dark:text-amber-200">
+      <div className="flex items-center gap-2.5 rounded-lg border border-cat-amber/30 bg-cat-amber-bg p-3 text-cat-amber-fg">
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#d97706] text-white shadow-2xs">
           <Target size={18} />
         </div>
@@ -82,7 +82,7 @@ export function MetaPixelForm({ config, onChange }: Props) {
             setPixelId(e.target.value);
             update({ pixel_id: e.target.value });
           }}
-          className="w-full rounded-lg border-2 border-amber-400/80 bg-surface px-3 py-2 text-xs text-text shadow-2xs outline-hidden focus:border-amber-500 focus:ring-1 focus:ring-amber-500 dark:border-amber-600/80"
+          className="w-full rounded-lg border-2 border-cat-amber/80 bg-surface px-3 py-2 text-xs text-text shadow-2xs outline-hidden focus:border-cat-amber focus:ring-1 focus:ring-cat-amber"
         >
           <option value="">{t("Selecione um pixel configurado")}</option>
           <option value="pixel_principal">Pixel Principal (Meta Ads)</option>
@@ -107,7 +107,7 @@ export function MetaPixelForm({ config, onChange }: Props) {
             setEventType(e.target.value);
             update({ event_type: e.target.value });
           }}
-          className="w-full rounded-lg border-2 border-amber-400/80 bg-surface px-3 py-2 text-xs text-text shadow-2xs outline-hidden focus:border-amber-500 focus:ring-1 focus:ring-amber-500 dark:border-amber-600/80"
+          className="w-full rounded-lg border-2 border-cat-amber/80 bg-surface px-3 py-2 text-xs text-text shadow-2xs outline-hidden focus:border-cat-amber focus:ring-1 focus:ring-cat-amber"
         >
           {PIXEL_EVENTS.map((ev) => (
             <option key={ev.id} value={ev.id}>
@@ -131,7 +131,7 @@ export function MetaPixelForm({ config, onChange }: Props) {
               update({ page_id: e.target.value });
             }}
             placeholder="Ex: 123456789012345 ou {pagina_id}"
-            className="w-full rounded-lg border border-border-strong bg-surface p-2.5 text-xs text-text shadow-2xs outline-hidden focus:border-amber-500 focus:ring-1 focus:ring-amber-500 resize-none font-mono"
+            className="w-full rounded-lg border border-border-strong bg-surface p-2.5 text-xs text-text shadow-2xs outline-hidden focus:border-cat-amber focus:ring-1 focus:ring-cat-amber resize-none font-mono"
           />
           <div className="flex items-center gap-1 p-1 text-[11px] text-text-subtle">
             <span className="font-mono">&lt;&gt;</span>
@@ -149,7 +149,7 @@ export function MetaPixelForm({ config, onChange }: Props) {
         <label className="block text-[11px] font-semibold text-text-muted">
           {t("Valor do item")} *
         </label>
-        <div className="relative rounded-lg border border-border-strong bg-surface p-2.5 shadow-2xs focus-within:border-amber-500 focus-within:ring-1 focus-within:ring-amber-500">
+        <div className="relative rounded-lg border border-border-strong bg-surface p-2.5 shadow-2xs focus-within:border-cat-amber focus-within:ring-1 focus-within:ring-cat-amber">
           <textarea
             rows={4}
             value={itemValue}
@@ -166,7 +166,7 @@ export function MetaPixelForm({ config, onChange }: Props) {
                 setItemValue((prev) => (prev ? `${prev} {preco}` : "{preco}"));
                 update({ item_value: itemValue ? `${itemValue} {preco}` : "{preco}" });
               }}
-              className="cursor-pointer hover:text-amber-600 transition-colors"
+              className="cursor-pointer hover:text-cat-amber transition-colors"
               title={t("Inserir variável")}
             >
               &lt;&gt;
@@ -192,14 +192,14 @@ export function MetaPixelForm({ config, onChange }: Props) {
               setCurrency("{moeda}");
               update({ currency: "{moeda}" });
             }}
-            className="flex items-center gap-1 text-[11px] font-medium text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 transition-colors cursor-pointer"
+            className="flex items-center gap-1 text-[11px] font-medium text-cat-green hover:text-cat-green-fg transition-colors cursor-pointer"
           >
             <span>&lt;&gt;</span>
             <span>{t("Variáveis")}</span>
           </button>
         </div>
 
-        <div className="flex items-center rounded-lg border-2 border-emerald-500/80 bg-surface px-2.5 py-1.5 shadow-2xs dark:border-emerald-600/80">
+        <div className="flex items-center rounded-lg border-2 border-cat-green/80 bg-surface px-2.5 py-1.5 shadow-2xs">
           <div className="flex items-center gap-1 pr-2 text-text-subtle border-r border-border mr-2">
             <span className="flex h-5 w-5 items-center justify-center rounded-full border border-border-strong text-[10px] font-bold text-text-muted">
               $
@@ -217,7 +217,7 @@ export function MetaPixelForm({ config, onChange }: Props) {
             className="w-full bg-transparent text-xs font-medium text-text outline-hidden"
           />
         </div>
-        <p className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+        <p className="text-[11px] font-medium text-cat-green">
           {currencyFeedback}
         </p>
       </div>

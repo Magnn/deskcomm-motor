@@ -18,19 +18,19 @@ export function EndNode({ id, data, selected }: NodeProps<RFNode>) {
     converted: {
       label: t("Convertido"),
       icon: CheckCircle,
-      badgeClass: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800",
+      badgeClass: "bg-cat-green-bg text-cat-green-fg border-cat-green/30",
       desc: t("Meta concluída com sucesso"),
     },
     exhausted: {
       label: t("Esgotado"),
       icon: Warning,
-      badgeClass: "bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border-amber-300 dark:border-amber-800",
+      badgeClass: "bg-cat-amber-bg text-cat-amber-fg border-cat-amber/30",
       desc: t("Tentativas finalizadas"),
     },
     custom: {
       label: t("Personalizado"),
       icon: Sparkle,
-      badgeClass: "bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300 border-purple-300 dark:border-purple-800",
+      badgeClass: "bg-cat-violet-bg text-cat-violet-fg border-cat-violet/30",
       desc: t("Desfecho customizado"),
     },
   }[outcome] || {

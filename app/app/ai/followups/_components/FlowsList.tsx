@@ -166,8 +166,8 @@ export function FlowsList({ initialData, canWrite }: Props) {
               className={cn(
                 "cursor-pointer rounded-full px-3 py-1 text-xs font-semibold transition-all",
                 channelFilter === "oficial"
-                  ? "border border-emerald-500 bg-emerald-50 text-emerald-700 shadow-xs dark:bg-emerald-950/50 dark:text-emerald-300"
-                  : "text-text-muted hover:text-emerald-600",
+                  ? "border border-cat-green bg-cat-green-bg text-cat-green-fg shadow-xs"
+                  : "text-text-muted hover:text-cat-green",
               )}
             >
               {t("Número oficial")}
@@ -178,8 +178,8 @@ export function FlowsList({ initialData, canWrite }: Props) {
               className={cn(
                 "cursor-pointer rounded-full px-3 py-1 text-xs font-semibold transition-all",
                 channelFilter === "business"
-                  ? "border border-emerald-500 bg-emerald-50 text-emerald-700 shadow-xs dark:bg-emerald-950/50 dark:text-emerald-300"
-                  : "text-text-muted hover:text-emerald-600",
+                  ? "border border-cat-green bg-cat-green-bg text-cat-green-fg shadow-xs"
+                  : "text-text-muted hover:text-cat-green",
               )}
             >
               {t("Número por QR code")}
@@ -228,7 +228,7 @@ export function FlowsList({ initialData, canWrite }: Props) {
                       <span
                         key={tipo}
                         data-testid={`fluxo-numero-${tipo}`}
-                        className="rounded-full border border-emerald-500/60 bg-emerald-50/60 px-2 py-0.5 text-[10.5px] font-semibold text-emerald-700 dark:border-emerald-600/50 dark:bg-emerald-950/40 dark:text-emerald-300"
+                        className="rounded-full border border-cat-green/60 bg-cat-green-bg px-2 py-0.5 text-[10.5px] font-semibold text-cat-green-fg"
                       >
                         {tipo === "oficial" ? t("Número oficial") : t("Número por QR code")}
                       </span>

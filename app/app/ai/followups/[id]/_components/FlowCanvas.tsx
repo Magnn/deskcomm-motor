@@ -609,7 +609,7 @@ function FlowCanvasInner({ flowId, initialData }: Props) {
             aria-label={paletteOpen ? t("Fechar menu de opções") : t("Abrir menu de opções")}
             title={paletteOpen ? t("Fechar menu de opções") : t("Abrir menu de opções")}
             className={cn(
-              "absolute bottom-6 left-6 z-20 flex h-12 w-12 cursor-pointer items-center justify-center rounded-full bg-[#9333ea] hover:bg-[#7e22ce] text-white shadow-xl shadow-purple-500/35 transition-all hover:scale-105 active:scale-95",
+              "absolute bottom-6 left-6 z-20 flex h-12 w-12 cursor-pointer items-center justify-center rounded-full bg-[#9333ea] hover:bg-[#7e22ce] text-white shadow-xl shadow-cat-violet/35 transition-all hover:scale-105 active:scale-95",
               // Com o menu aberto no desktop o botão sai: o menu já tem o próprio X,
               // e um segundo X ao lado (o + girado) só duplicava o fechar.
               paletteOpen && "lg:hidden",

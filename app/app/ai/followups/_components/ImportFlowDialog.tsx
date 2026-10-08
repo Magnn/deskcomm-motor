@@ -155,9 +155,9 @@ export function ImportFlowDialog({ open, onOpenChange }: ImportFlowDialogProps) 
               </div>
             </button>
           ) : (
-            <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4 space-y-3">
+            <div className="rounded-xl border border-cat-green/30 bg-cat-green-bg p-4 space-y-3">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400">
+                <div className="flex items-center gap-2 text-cat-green-fg">
                   <Check className="h-4 w-4" />
                   <span className="text-xs font-semibold">{t("Modelo Validado com Sucesso")}</span>
                 </div>
