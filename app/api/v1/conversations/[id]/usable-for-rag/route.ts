@@ -1,6 +1,6 @@
 import { requireSupportWrite } from "@/lib/impersonate/support";
 /**
- * POST /api/v1/conversations/[id]/usable-for-rag
+ * GET | POST /api/v1/conversations/[id]/usable-for-rag
  *
  * Agent-toggle for the RAG opt-in flag (LGPD L-08). When enabled, the
  * conversation becomes eligible for the daily kb-conversations-batch cron,
@@ -27,6 +27,30 @@ const bodySchema = z.object({ enabled: z.boolean() });
 
 interface RouteCtx {
   params: Promise<{ id: string }>;
+}
+
+/**
+ * GET — o estado atual da marca, para a tela mostrar o controle na posição certa.
+ * Sem isto o botão nasceria sempre desligado e um clique poderia DESMARCAR o que já estava marcado.
+ */
+export async function GET(_req: NextRequest, ctx: RouteCtx): Promise<Response> {
+  const requestId = randomUUID();
+  const { id } = await ctx.params;
+
+  const authz = await requireRole("agent", { requestId, resource: "conversations" });
+  if (!authz.ok) return authz.response;
+  const t = (texto: string) => traduzir(texto, authz.user.idioma);
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("conversations")
+    .select("id, usable_for_rag, rag_review_status")
+    .eq("id", id)
+    .eq("organization_id", authz.org.orgId)
+    .maybeSingle();
+  if (error) return fail("internal_error", error.message, 500, { requestId });
+  if (!data) return fail("not_found", t("Conversa não encontrada."), 404, { requestId });
+  return ok(data, { requestId });
 }
 
 export async function POST(req: NextRequest, ctx: RouteCtx): Promise<Response> {
