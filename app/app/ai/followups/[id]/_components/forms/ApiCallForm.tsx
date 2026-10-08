@@ -802,7 +802,7 @@ export function ApiCallForm({
                     type="button"
                     onClick={runTestRequest}
                     disabled={isTesting || !url.trim()}
-                    className="bg-[#9333ea] hover:bg-cat-violet text-white rounded-xl text-xs h-8 px-4"
+                    className="bg-cat-violet hover:bg-cat-violet/90 text-cat-on rounded-xl text-xs h-8 px-4"
                   >
                     {isTesting ? (
                       <span className="flex items-center gap-1.5">
