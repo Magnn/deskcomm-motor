@@ -4894,6 +4894,13 @@ export const DICIONARIO: Traducoes = {
   },
   "Validando com a Meta…": { es: "Validando con Meta…" },
   "Validar e conectar": { es: "Validar y conectar" },
+  "Usar esta conversa para ensinar a IA": { es: "Usar esta conversación para enseñar a la IA" },
+  "Depois de encerrada, a conversa entra no conhecimento do agente na rotina da madrugada. Nomes, telefones, e-mails e documentos são retirados antes.":
+    { es: "Una vez cerrada, la conversación entra en el conocimiento del agente en la rutina de la madrugada. Los nombres, teléfonos, correos y documentos se retiran antes." },
+  "Esta conversa ficou de fora: não foi possível garantir a retirada dos dados pessoais.":
+    { es: "Esta conversación quedó fuera: no fue posible garantizar el retiro de los datos personales." },
+  "Conversa marcada para ensinar a IA.": { es: "Conversación marcada para enseñar a la IA." },
+  "Conversa desmarcada.": { es: "Conversación desmarcada." },
   "Nuvemshop: conectar a loja": { es: "Tiendanube: conectar la tienda" },
   "Apagar voz": { es: "Eliminar voz" },
   "Apagar a voz": { es: "¿Eliminar la voz" },

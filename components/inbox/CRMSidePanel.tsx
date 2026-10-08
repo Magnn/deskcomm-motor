@@ -21,6 +21,7 @@ import { apiClient } from "@/lib/api/client";
 import { toast } from "sonner";
 import type { ConversationWithContact } from "@/hooks/inbox/useConversationsRealtime";
 import { activityLabel, actorLabel, actorShape } from "@/lib/leads/activity-vocabulary";
+import { ConversaComoConhecimento } from "./ConversaComoConhecimento";
 import { ConversationTagsEditor } from "./ConversationTagsEditor";
 import { ContactTagsEditor } from "./ContactTagsEditor";
 import { useDefaultPipeline } from "@/hooks/pipelines/useDefaultPipeline";
@@ -686,6 +687,8 @@ export function CRMSidePanel({ conversation }: Props) {
         orgId={conversation.organization_id}
         tags={conversation.tags ?? []}
       />}
+
+      {!readonly && <ConversaComoConhecimento conversationId={conversation.id} />}
 
       <Separator />
 
