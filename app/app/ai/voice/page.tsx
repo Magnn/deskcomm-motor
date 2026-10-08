@@ -210,20 +210,20 @@ export default function VoiceStudioPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2.5">
-            <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-indigo-500/10 via-indigo-600/15 to-indigo-500/10 border border-indigo-200/60 dark:border-indigo-800/40 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shadow-2xs">
+            <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-accent/10 via-accent/15 to-accent/10 border border-accent/30 flex items-center justify-center text-accent shadow-2xs">
               <Headphones size={20} className="stroke-[2.2]" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-slate-900 dark:text-zinc-100 tracking-tight flex items-center gap-2">
+              <h1 className="text-2xl font-bold text-text tracking-tight flex items-center gap-2">
                 <span>{t("Voice Studio")}</span>
-                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border border-indigo-200/50 dark:border-indigo-800/40">
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-accent-soft text-accent border border-accent">
                   AI Audio
                 </span>
               </h1>
             </div>
           </div>
-          <p className="text-xs text-slate-500 dark:text-zinc-400 flex items-center gap-1.5 mt-2">
-            <Info size={13} className="text-indigo-500/70 shrink-0" />
+          <p className="text-xs text-text-muted flex items-center gap-1.5 mt-2">
+            <Info size={13} className="text-accent/70 shrink-0" />
             {t("Gerenciar as vozes disponíveis, assim como personalizar vozes de acordo com suas preferências.")}
           </p>
         </div>
@@ -232,9 +232,9 @@ export default function VoiceStudioPage() {
         <button
           type="button"
           onClick={() => setModalNovaVozOpen(true)}
-          className="h-10 px-5 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 active:scale-[0.98] text-white font-semibold text-xs transition-all shadow-sm hover:shadow-md hover:shadow-indigo-600/25 flex items-center justify-center gap-2 cursor-pointer self-start md:self-auto"
+          className="h-10 px-5 rounded-xl bg-gradient-to-r from-accent to-accent-hover hover:from-accent-hover hover:to-accent-hover active:scale-[0.98] text-white font-semibold text-xs transition-all shadow-sm hover:shadow-md hover:shadow-accent/25 flex items-center justify-center gap-2 cursor-pointer self-start md:self-auto"
         >
-          <Sparkles size={14} className="text-indigo-200" />
+          <Sparkles size={14} className="text-white/80" />
           <span>+ {t("Nova voz")}</span>
         </button>
       </div>
@@ -245,23 +245,23 @@ export default function VoiceStudioPage() {
         <div className="lg:col-span-8 space-y-5">
           {/* Card: VOZ SELECIONADA */}
           <div className="space-y-1.5">
-            <label className="block text-[11px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">
+            <label className="block text-[11px] font-bold text-text-subtle uppercase tracking-wider">
               {t("VOZ SELECIONADA")}
             </label>
-            <div className="h-17 rounded-2xl border border-slate-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-4 flex items-center justify-between shadow-2xs transition-all">
+            <div className="h-17 rounded-2xl border border-border bg-surface px-4 flex items-center justify-between shadow-2xs transition-all">
               {selectedVoice ? (
                 <div className="flex items-center gap-3.5">
-                  <div className="h-11 w-11 rounded-2xl bg-gradient-to-br from-indigo-600 to-indigo-700 text-white font-bold text-sm flex items-center justify-center shadow-xs ring-2 ring-indigo-500/20">
+                  <div className="h-11 w-11 rounded-2xl bg-gradient-to-br from-accent to-accent-hover text-white font-bold text-sm flex items-center justify-center shadow-xs ring-2 ring-accent/20">
                     {selectedVoice.iniciais || selectedVoice.nome.slice(0, 2).toUpperCase()}
                   </div>
                   <div>
-                    <div className="text-xs font-bold text-slate-900 dark:text-zinc-100 flex items-center gap-2">
+                    <div className="text-xs font-bold text-text flex items-center gap-2">
                       <span>{selectedVoice.nome}</span>
-                      <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/40">
+                      <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-accent-soft text-accent border border-accent">
                         {selectedVoice.categoria === "clonada" ? t("Clonada") : t("Pré-configurada")}
                       </span>
                     </div>
-                    <span className="text-[11px] text-slate-500 dark:text-zinc-400">
+                    <span className="text-[11px] text-text-muted">
                       {selectedVoice.categoria === "clonada"
                         ? t("Voz clonada personalizada")
                         : t("Modelo pronto ElevenLabs")}
@@ -270,14 +270,14 @@ export default function VoiceStudioPage() {
                 </div>
               ) : (
                 <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/40 flex items-center justify-center">
+                  <div className="h-10 w-10 rounded-2xl bg-accent-soft text-accent border border-accent flex items-center justify-center">
                     <Mic size={18} />
                   </div>
                   <div>
-                    <p className="text-xs font-semibold text-slate-800 dark:text-zinc-200">
+                    <p className="text-xs font-semibold text-text">
                       {t("Nenhuma voz selecionada")}
                     </p>
-                    <p className="text-[11px] text-slate-400">
+                    <p className="text-[11px] text-text-subtle">
                       {t("Escolha uma voz na biblioteca ao lado")}
                     </p>
                   </div>
@@ -299,7 +299,7 @@ export default function VoiceStudioPage() {
                 <button
                   type="button"
                   onClick={() => setSelectedVoice(null)}
-                  className="text-xs font-medium text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 transition-colors cursor-pointer px-2.5 py-1 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950/40"
+                  className="text-xs font-medium text-accent hover:text-accent transition-colors cursor-pointer px-2.5 py-1 rounded-lg hover:bg-accent-soft"
                 >
                   {t("Trocar")}
                 </button>
@@ -309,39 +309,39 @@ export default function VoiceStudioPage() {
 
           {/* Card: TEXTO */}
           <div className="space-y-1.5">
-            <label className="block text-[11px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">
+            <label className="block text-[11px] font-bold text-text-subtle uppercase tracking-wider">
               {t("TEXTO")}
             </label>
-            <div className="rounded-2xl border border-slate-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 space-y-3 shadow-2xs focus-within:border-indigo-500/50 focus-within:ring-2 focus-within:ring-indigo-500/10 transition-all">
+            <div className="rounded-2xl border border-border bg-surface p-4 space-y-3 shadow-2xs focus-within:border-accent focus-within:ring-2 focus-within:ring-accent transition-all">
               <textarea
                 rows={7}
                 value={texto}
                 onChange={(e) => setTexto(e.target.value)}
                 placeholder={t("Escreva o que a voz vai falar...")}
-                className="w-full text-xs text-slate-800 dark:text-zinc-100 placeholder:text-slate-400 bg-transparent resize-none focus:outline-hidden leading-relaxed"
+                className="w-full text-xs text-text placeholder:text-text-subtle bg-transparent resize-none focus:outline-hidden leading-relaxed"
               />
 
               {/* Rodapé do Textarea: Custo em Tokens e Botão de Gravar Áudio */}
-              <div className="pt-2.5 border-t border-slate-100 dark:border-zinc-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="text-[11px] text-slate-400 flex items-center gap-3">
-                  <span className="px-2 py-0.5 rounded-md bg-slate-50 dark:bg-zinc-800/60 border border-slate-200/60 dark:border-zinc-700/60">
+              <div className="pt-2.5 border-t border-border flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="text-[11px] text-text-subtle flex items-center gap-3">
+                  <span className="px-2 py-0.5 rounded-md bg-surface-elevated border border-border">
                     {t("Essa geração de áudio irá custar:")}{" "}
-                    <strong className="text-slate-800 dark:text-zinc-200 font-semibold">
+                    <strong className="text-text font-semibold">
                       {texto.length} tokens
                     </strong>
                   </span>
                   <span>
                     {t("Total de tokens disponíveis:")}{" "}
-                    <strong className="text-slate-700 dark:text-zinc-300 font-semibold">1.000</strong>
+                    <strong className="text-text-muted font-semibold">1.000</strong>
                   </span>
                 </div>
 
                 <button
                   type="button"
                   onClick={() => toast.info(t("Fale no microfone para transcrever ou digite acima."))}
-                  className="h-8 px-3.5 rounded-xl border border-indigo-200/80 dark:border-indigo-800/60 bg-indigo-50/60 dark:bg-indigo-950/30 text-indigo-700 dark:text-indigo-300 font-semibold text-xs flex items-center gap-1.5 hover:bg-indigo-100/60 active:scale-[0.98] transition-all cursor-pointer self-start sm:self-auto shadow-2xs"
+                  className="h-8 px-3.5 rounded-xl border border-accent bg-accent-soft text-accent font-semibold text-xs flex items-center gap-1.5 hover:bg-accent-soft active:scale-[0.98] transition-all cursor-pointer self-start sm:self-auto shadow-2xs"
                 >
-                  <Mic size={14} className="text-indigo-600 dark:text-indigo-400" />
+                  <Mic size={14} className="text-accent" />
                   <span>{t("Gravar áudio")}</span>
                 </button>
               </div>
@@ -349,16 +349,16 @@ export default function VoiceStudioPage() {
           </div>
 
           {/* Card: Ajustes Avançados */}
-          <div className="rounded-2xl border border-slate-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4.5 space-y-4 shadow-2xs">
-            <div className="flex items-center gap-2 text-xs font-bold text-slate-800 dark:text-zinc-200">
-              <Sliders size={15} className="text-indigo-600 dark:text-indigo-400" />
+          <div className="rounded-2xl border border-border bg-surface p-4.5 space-y-4 shadow-2xs">
+            <div className="flex items-center gap-2 text-xs font-bold text-text">
+              <Sliders size={15} className="text-accent" />
               <span>{t("Ajustes avançados")}</span>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 pt-1">
               {/* Estabilidade */}
               <div className="flex items-center justify-between gap-3">
-                <span className="text-xs text-slate-600 dark:text-zinc-400 w-24 shrink-0 font-medium">
+                <span className="text-xs text-text-muted w-24 shrink-0 font-medium">
                   {t("Estabilidade")}
                 </span>
                 <input
@@ -368,16 +368,16 @@ export default function VoiceStudioPage() {
                   step={0.05}
                   value={estabilidade}
                   onChange={(e) => setEstabilidade(Number(e.target.value))}
-                  className="flex-1 h-1.5 bg-slate-200 dark:bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                  className="flex-1 h-1.5 bg-surface-elevated rounded-lg appearance-none cursor-pointer accent-accent"
                 />
-                <span className="h-6 w-10 shrink-0 rounded-lg bg-indigo-50/80 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 text-xs font-mono font-bold flex items-center justify-center border border-indigo-100 dark:border-indigo-900/40">
+                <span className="h-6 w-10 shrink-0 rounded-lg bg-accent-soft text-accent text-xs font-mono font-bold flex items-center justify-center border border-accent">
                   {estabilidade.toFixed(1)}
                 </span>
               </div>
 
               {/* Similaridade */}
               <div className="flex items-center justify-between gap-3">
-                <span className="text-xs text-slate-600 dark:text-zinc-400 w-24 shrink-0 font-medium">
+                <span className="text-xs text-text-muted w-24 shrink-0 font-medium">
                   {t("Similaridade")}
                 </span>
                 <input
@@ -387,16 +387,16 @@ export default function VoiceStudioPage() {
                   step={0.05}
                   value={similaridade}
                   onChange={(e) => setSimilaridade(Number(e.target.value))}
-                  className="flex-1 h-1.5 bg-slate-200 dark:bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                  className="flex-1 h-1.5 bg-surface-elevated rounded-lg appearance-none cursor-pointer accent-accent"
                 />
-                <span className="h-6 w-10 shrink-0 rounded-lg bg-indigo-50/80 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 text-xs font-mono font-bold flex items-center justify-center border border-indigo-100 dark:border-indigo-900/40">
+                <span className="h-6 w-10 shrink-0 rounded-lg bg-accent-soft text-accent text-xs font-mono font-bold flex items-center justify-center border border-accent">
                   {similaridade.toFixed(1)}
                 </span>
               </div>
 
               {/* Sotaque */}
               <div className="flex items-center justify-between gap-3">
-                <span className="text-xs text-slate-600 dark:text-zinc-400 w-24 shrink-0 font-medium">
+                <span className="text-xs text-text-muted w-24 shrink-0 font-medium">
                   {t("Sotaque")}
                 </span>
                 <input
@@ -406,16 +406,16 @@ export default function VoiceStudioPage() {
                   step={0.05}
                   value={sotaque}
                   onChange={(e) => setSotaque(Number(e.target.value))}
-                  className="flex-1 h-1.5 bg-slate-200 dark:bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                  className="flex-1 h-1.5 bg-surface-elevated rounded-lg appearance-none cursor-pointer accent-accent"
                 />
-                <span className="h-6 w-10 shrink-0 rounded-lg bg-indigo-50/80 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 text-xs font-mono font-bold flex items-center justify-center border border-indigo-100 dark:border-indigo-900/40">
+                <span className="h-6 w-10 shrink-0 rounded-lg bg-accent-soft text-accent text-xs font-mono font-bold flex items-center justify-center border border-accent">
                   {sotaque.toFixed(1)}
                 </span>
               </div>
 
               {/* Velocidade */}
               <div className="flex items-center justify-between gap-3">
-                <span className="text-xs text-slate-600 dark:text-zinc-400 w-24 shrink-0 font-medium">
+                <span className="text-xs text-text-muted w-24 shrink-0 font-medium">
                   {t("Velocidade")}
                 </span>
                 <input
@@ -425,9 +425,9 @@ export default function VoiceStudioPage() {
                   step={0.05}
                   value={velocidade}
                   onChange={(e) => setVelocidade(Number(e.target.value))}
-                  className="flex-1 h-1.5 bg-slate-200 dark:bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                  className="flex-1 h-1.5 bg-surface-elevated rounded-lg appearance-none cursor-pointer accent-accent"
                 />
-                <span className="h-6 w-10 shrink-0 rounded-lg bg-indigo-50/80 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 text-xs font-mono font-bold flex items-center justify-center border border-indigo-100 dark:border-indigo-900/40">
+                <span className="h-6 w-10 shrink-0 rounded-lg bg-accent-soft text-accent text-xs font-mono font-bold flex items-center justify-center border border-accent">
                   {velocidade.toFixed(1)}
                 </span>
               </div>
@@ -440,11 +440,11 @@ export default function VoiceStudioPage() {
               type="button"
               disabled={gerando || !texto.trim() || !selectedVoice}
               onClick={handleGerarAudio}
-              className="w-full h-12 rounded-xl bg-gradient-to-r from-indigo-600 via-indigo-700 to-indigo-800 hover:from-indigo-700 hover:to-indigo-900 active:scale-[0.99] disabled:opacity-50 text-white font-bold text-xs transition-all shadow-md shadow-indigo-600/20 hover:shadow-lg hover:shadow-indigo-600/30 flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed disabled:shadow-none"
+              className="w-full h-12 rounded-xl bg-gradient-to-r from-accent via-accent-hover to-accent-hover hover:from-accent-hover hover:to-accent-hover active:scale-[0.99] disabled:opacity-50 text-white font-bold text-xs transition-all shadow-md shadow-accent/20 hover:shadow-lg hover:shadow-accent/30 flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed disabled:shadow-none"
             >
               {gerando ? (
                 <>
-                  <RotateCw size={16} className="animate-spin text-indigo-200" />
+                  <RotateCw size={16} className="animate-spin text-white/80" />
                   <span>{t("Sintetizando áudio...")}</span>
                 </>
               ) : (
@@ -457,16 +457,16 @@ export default function VoiceStudioPage() {
 
             {/* Player de Áudio Gerado */}
             {audioUrl && (
-              <div className="rounded-2xl border border-indigo-200 dark:border-indigo-900/50 bg-indigo-50/50 dark:bg-indigo-950/20 p-4 space-y-2.5 animate-in fade-in">
-                <div className="flex items-center justify-between text-xs font-semibold text-indigo-950 dark:text-indigo-200">
+              <div className="rounded-2xl border border-accent bg-accent-soft p-4 space-y-2.5 animate-in fade-in">
+                <div className="flex items-center justify-between text-xs font-semibold text-text">
                   <span className="flex items-center gap-1.5">
-                    <Volume2 size={16} className="text-indigo-600 dark:text-indigo-400" />
+                    <Volume2 size={16} className="text-accent" />
                     {t("Resultado da síntese")}
                   </span>
                   <a
                     href={audioUrl}
                     download="audio-sintetizado.mp3"
-                    className="text-[11px] font-semibold text-indigo-700 dark:text-indigo-300 hover:underline"
+                    className="text-[11px] font-semibold text-accent hover:underline"
                   >
                     {t("Baixar áudio")}
                   </a>
@@ -478,26 +478,26 @@ export default function VoiceStudioPage() {
         </div>
 
         {/* COLUNA DIREITA: BIBLIOTECA DE VOZES */}
-        <div className="lg:col-span-4 rounded-2xl border border-slate-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 space-y-4 shadow-2xs">
+        <div className="lg:col-span-4 rounded-2xl border border-border bg-surface p-4 space-y-4 shadow-2xs">
           <div className="flex items-center justify-between">
-            <h2 className="text-xs font-bold text-slate-900 dark:text-zinc-100 flex items-center gap-2">
+            <h2 className="text-xs font-bold text-text flex items-center gap-2">
               <span>{t("Biblioteca de vozes")}</span>
-              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300">
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-surface-elevated text-text-muted">
                 {vozesExibidas.length}
               </span>
             </h2>
           </div>
 
           {/* Filtros em Pílulas: Todas | Clonadas | Pré-configuradas (Paleta AcassIA Índigo) */}
-          <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100 dark:bg-zinc-800/70 border border-slate-200/40 dark:border-zinc-700/40">
+          <div className="flex items-center gap-1 p-1 rounded-xl bg-surface-elevated border border-border">
             <button
               type="button"
               onClick={() => setFiltroBiblioteca("todas")}
               className={cn(
                 "flex-1 py-1.5 text-[11px] font-semibold rounded-lg transition-all cursor-pointer text-center",
                 filtroBiblioteca === "todas"
-                  ? "bg-indigo-600 text-white dark:bg-indigo-500 shadow-xs"
-                  : "text-slate-600 hover:text-slate-900 dark:text-zinc-400 hover:bg-white/60 dark:hover:bg-zinc-700/50"
+                  ? "bg-accent text-white shadow-xs"
+                  : "text-text-muted hover:text-text hover:bg-white/60"
               )}
             >
               {t("Todas")}
@@ -508,8 +508,8 @@ export default function VoiceStudioPage() {
               className={cn(
                 "flex-1 py-1.5 text-[11px] font-semibold rounded-lg transition-all cursor-pointer text-center",
                 filtroBiblioteca === "clonadas"
-                  ? "bg-indigo-600 text-white dark:bg-indigo-500 shadow-xs"
-                  : "text-slate-600 hover:text-slate-900 dark:text-zinc-400 hover:bg-white/60 dark:hover:bg-zinc-700/50"
+                  ? "bg-accent text-white shadow-xs"
+                  : "text-text-muted hover:text-text hover:bg-white/60"
               )}
             >
               {t("Clonadas")}
@@ -520,8 +520,8 @@ export default function VoiceStudioPage() {
               className={cn(
                 "flex-1 py-1.5 text-[11px] font-semibold rounded-lg transition-all cursor-pointer text-center",
                 filtroBiblioteca === "pre"
-                  ? "bg-indigo-600 text-white dark:bg-indigo-500 shadow-xs"
-                  : "text-slate-600 hover:text-slate-900 dark:text-zinc-400 hover:bg-white/60 dark:hover:bg-zinc-700/50"
+                  ? "bg-accent text-white shadow-xs"
+                  : "text-text-muted hover:text-text hover:bg-white/60"
               )}
             >
               {t("Pré-configuradas")}
@@ -529,9 +529,9 @@ export default function VoiceStudioPage() {
           </div>
 
           {/* Lista de Vozes */}
-          <div className="space-y-2 max-h-[620px] overflow-y-auto pr-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-200 dark:[&::-webkit-scrollbar-thumb]:bg-zinc-700">
+          <div className="space-y-2 max-h-[620px] overflow-y-auto pr-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-surface-elevated dark:[&::-webkit-scrollbar-thumb]:bg-zinc-700">
             {vozesExibidas.length === 0 ? (
-              <div className="text-center py-8 text-xs text-slate-400 italic">
+              <div className="text-center py-8 text-xs text-text-subtle italic">
                 {filtroBiblioteca === "clonadas"
                   ? t("Nenhuma voz clonada ainda. Clique em '+ Nova voz' para clonar.")
                   : t("Nenhuma voz encontrada.")}
@@ -546,8 +546,8 @@ export default function VoiceStudioPage() {
                     className={cn(
                       "p-3 rounded-xl border flex items-center justify-between transition-all cursor-pointer shadow-2xs group",
                       isSelected
-                        ? "border-indigo-600 bg-indigo-50/50 dark:bg-indigo-950/30 ring-2 ring-indigo-500/25 text-indigo-950 dark:text-indigo-200"
-                        : "border-slate-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:border-indigo-300 dark:hover:border-zinc-700 hover:bg-slate-50/50 dark:hover:bg-zinc-850/50"
+                        ? "border-accent bg-accent-soft ring-2 ring-accent text-text"
+                        : "border-border bg-surface hover:border-accent hover:bg-surface-elevated"
                     )}
                   >
                     <div className="flex items-center gap-3">
@@ -555,17 +555,17 @@ export default function VoiceStudioPage() {
                         className={cn(
                           "h-9 w-9 rounded-xl font-bold text-xs flex items-center justify-center shrink-0 transition-colors",
                           isSelected
-                            ? "bg-gradient-to-br from-indigo-600 to-indigo-700 text-white shadow-xs"
-                            : "bg-indigo-50/70 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-900/40"
+                            ? "bg-gradient-to-br from-accent to-accent-hover text-white shadow-xs"
+                            : "bg-accent-soft text-accent border border-accent"
                         )}
                       >
                         {v.iniciais || v.nome.slice(0, 2).toUpperCase()}
                       </div>
                       <div>
-                        <p className="text-xs font-bold text-slate-900 dark:text-zinc-100">
+                        <p className="text-xs font-bold text-text">
                           {v.nome}
                         </p>
-                        <p className="text-[10px] text-slate-400">
+                        <p className="text-[10px] text-text-subtle">
                           {v.categoria === "clonada" ? t("Clonada") : t("Pré-configurada")}
                         </p>
                       </div>
@@ -576,8 +576,8 @@ export default function VoiceStudioPage() {
                       className={cn(
                         "transition-transform",
                         isSelected
-                          ? "text-indigo-600 dark:text-indigo-400 translate-x-0.5"
-                          : "text-slate-300 dark:text-zinc-600 group-hover:translate-x-0.5 group-hover:text-indigo-400"
+                          ? "text-accent translate-x-0.5"
+                          : "text-text-subtle group-hover:translate-x-0.5 group-hover:text-accent"
                       )}
                     />
                   </div>
@@ -747,9 +747,9 @@ function AdicionarNovaVozModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[560px] p-0 overflow-hidden border border-slate-200 dark:border-zinc-800 rounded-3xl bg-white dark:bg-zinc-950 shadow-2xl">
+      <DialogContent className="sm:max-w-[560px] p-0 overflow-hidden border border-border rounded-3xl bg-surface shadow-2xl">
         {/* Header Roxo AcassIA */}
-        <div className="bg-indigo-600 px-6 py-4 flex items-center justify-between text-white">
+        <div className="bg-accent px-6 py-4 flex items-center justify-between text-white">
           <DialogTitle className="text-base font-bold text-white tracking-tight">
             {t("Adicionar nova voz")}
           </DialogTitle>
@@ -764,13 +764,13 @@ function AdicionarNovaVozModal({
 
         {/* Corpo do Modal */}
         <div className="p-6 space-y-5 text-xs">
-          <p className="text-slate-500 dark:text-zinc-400 text-[11.5px] leading-relaxed">
+          <p className="text-text-muted text-[11.5px] leading-relaxed">
             {t("Envie amostras de áudio para clonar uma voz. Quanto mais limpo o áudio, melhor o resultado.")}
           </p>
 
           {/* Nome da voz */}
           <div className="space-y-1.5">
-            <label className="block font-bold text-slate-800 dark:text-zinc-200">
+            <label className="block font-bold text-text">
               {t("Nome da voz")}
             </label>
             <input
@@ -778,13 +778,13 @@ function AdicionarNovaVozModal({
               value={nome}
               onChange={(e) => setNome(e.target.value)}
               placeholder="Ex.: Atendente Comercial"
-              className="w-full h-10 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3.5 text-xs text-slate-800 dark:text-zinc-100 placeholder:text-slate-400 focus:outline-hidden focus:border-indigo-500 transition-colors shadow-2xs"
+              className="w-full h-10 rounded-xl border border-border bg-surface px-3.5 text-xs text-text placeholder:text-text-subtle focus:outline-hidden focus:border-accent transition-colors shadow-2xs"
             />
           </div>
 
           {/* Gênero da voz */}
           <div className="space-y-1.5">
-            <label className="block font-bold text-slate-800 dark:text-zinc-200">
+            <label className="block font-bold text-text">
               {t("Gênero da voz")}
             </label>
             <div className="grid grid-cols-3 gap-2">
@@ -802,11 +802,11 @@ function AdicionarNovaVozModal({
                   className={cn(
                     "h-9 rounded-xl border text-xs font-semibold transition-all cursor-pointer flex items-center justify-center gap-1.5",
                     genero === g.id
-                      ? "border-indigo-600 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 shadow-2xs"
-                      : "border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-600 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-850"
+                      ? "border-accent bg-accent-soft text-accent shadow-2xs"
+                      : "border-border bg-surface text-text-muted hover:bg-surface-elevated"
                   )}
                 >
-                  {genero === g.id && <Check size={13} className="text-indigo-600 dark:text-indigo-400" />}
+                  {genero === g.id && <Check size={13} className="text-accent" />}
                   <span>{t(g.label)}</span>
                 </button>
               ))}
@@ -815,7 +815,7 @@ function AdicionarNovaVozModal({
 
           {/* Amostras de Áudio */}
           <div className="space-y-1.5">
-            <label className="block font-bold text-slate-800 dark:text-zinc-200">
+            <label className="block font-bold text-text">
               {t("Amostras de áudio")}
             </label>
 
@@ -824,13 +824,13 @@ function AdicionarNovaVozModal({
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="h-32 rounded-2xl border-2 border-dashed border-indigo-200 dark:border-indigo-900/50 bg-indigo-50/40 dark:bg-indigo-950/20 hover:bg-indigo-50/70 p-3 flex flex-col items-center justify-center text-center gap-1.5 transition-all cursor-pointer"
+                className="h-32 rounded-2xl border-2 border-dashed border-accent bg-accent-soft hover:bg-accent-soft p-3 flex flex-col items-center justify-center text-center gap-1.5 transition-all cursor-pointer"
               >
-                <UploadCloud size={24} className="text-indigo-600 dark:text-indigo-400" />
-                <span className="font-bold text-[11.5px] text-slate-800 dark:text-zinc-200">
+                <UploadCloud size={24} className="text-accent" />
+                <span className="font-bold text-[11.5px] text-text">
                   {t("Arraste arquivos ou clique para enviar")}
                 </span>
-                <span className="text-[9.5px] text-slate-400 leading-tight">
+                <span className="text-[9.5px] text-text-subtle leading-tight">
                   {t("MP3, WAV, OGG ou OPUS · máx. 10MB por arquivo · até 5 arquivos")}
                 </span>
                 <input
@@ -844,25 +844,25 @@ function AdicionarNovaVozModal({
               </button>
 
               {/* Divisor "ou" */}
-              <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 bg-white dark:bg-zinc-950 px-1.5 py-0.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest rounded-full border border-slate-200 dark:border-zinc-800">
+              <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 bg-surface px-1.5 py-0.5 text-[10px] font-bold text-text-subtle uppercase tracking-widest rounded-full border border-border">
                 {t("ou")}
               </div>
 
               {/* Box Gravar Áudio */}
-              <div className="h-32 rounded-2xl border-2 border-dashed border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:border-slate-300 dark:hover:border-zinc-700 p-3 flex flex-col items-center justify-center text-center gap-1.5 transition-all relative">
+              <div className="h-32 rounded-2xl border-2 border-dashed border-border bg-surface hover:border-border p-3 flex flex-col items-center justify-center text-center gap-1.5 transition-all relative">
                 {gravando ? (
                   <div className="flex flex-col items-center justify-center gap-1.5">
-                    <div className="h-8 w-8 rounded-full bg-red-100 text-red-600 flex items-center justify-center animate-pulse">
+                    <div className="h-8 w-8 rounded-full bg-error-bg text-error flex items-center justify-center animate-pulse">
                       <Mic size={16} />
                     </div>
-                    <span className="font-mono text-xs font-bold text-red-600">
+                    <span className="font-mono text-xs font-bold text-error">
                       {Math.floor(segundosGravados / 60)}:
                       {String(segundosGravados % 60).padStart(2, "0")}
                     </span>
                     <button
                       type="button"
                       onClick={stopRecording}
-                      className="text-[10px] uppercase font-bold text-red-600 hover:underline cursor-pointer"
+                      className="text-[10px] uppercase font-bold text-error hover:underline cursor-pointer"
                     >
                       {t("Parar Gravação")}
                     </button>
@@ -873,11 +873,11 @@ function AdicionarNovaVozModal({
                     onClick={startRecording}
                     className="w-full h-full flex flex-col items-center justify-center gap-1.5 cursor-pointer"
                   >
-                    <Mic size={24} className="text-slate-400" />
-                    <span className="font-bold text-[11.5px] text-slate-800 dark:text-zinc-200">
+                    <Mic size={24} className="text-text-subtle" />
+                    <span className="font-bold text-[11.5px] text-text">
                       {t("Clique para gravar áudio")}
                     </span>
-                    <span className="text-[10px] text-slate-400">
+                    <span className="text-[10px] text-text-subtle">
                       {t("Pressione para iniciar")}
                     </span>
                   </button>
@@ -888,22 +888,22 @@ function AdicionarNovaVozModal({
             {/* Lista de Arquivos Anexados */}
             {arquivos.length > 0 && (
               <div className="pt-2 space-y-1.5">
-                <span className="text-[11px] font-semibold text-slate-500">
+                <span className="text-[11px] font-semibold text-text-muted">
                   {t("Amostras selecionadas:")} ({arquivos.length}/5)
                 </span>
                 <div className="space-y-1">
                   {arquivos.map((arq, idx) => (
                     <div
                       key={idx}
-                      className="flex items-center justify-between px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-[11px]"
+                      className="flex items-center justify-between px-3 py-1.5 rounded-lg bg-surface-elevated border border-border text-[11px]"
                     >
-                      <span className="truncate max-w-[320px] font-medium text-slate-700 dark:text-zinc-200">
+                      <span className="truncate max-w-[320px] font-medium text-text-muted">
                         {arq.name} ({(arq.size / 1024 / 1024).toFixed(2)} MB)
                       </span>
                       <button
                         type="button"
                         onClick={() => handleRemoverArquivo(idx)}
-                        className="text-red-500 hover:text-red-700 cursor-pointer p-0.5"
+                        className="text-error hover:text-error cursor-pointer p-0.5"
                       >
                         <Trash2 size={13} />
                       </button>
@@ -916,31 +916,31 @@ function AdicionarNovaVozModal({
 
           {/* Checkboxes de Ruído e Consentimento */}
           <div className="space-y-3 pt-1">
-            <label className="flex items-start gap-2.5 p-3 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 cursor-pointer hover:bg-slate-50 dark:hover:bg-zinc-850 transition-colors shadow-2xs">
+            <label className="flex items-start gap-2.5 p-3 rounded-xl border border-border bg-surface cursor-pointer hover:bg-surface-elevated transition-colors shadow-2xs">
               <input
                 type="checkbox"
                 checked={removerRuido}
                 onChange={(e) => setRemoverRuido(e.target.checked)}
-                className="mt-0.5 accent-indigo-600 rounded-md"
+                className="mt-0.5 accent-accent rounded-md"
               />
               <div className="text-[11px] leading-relaxed">
-                <span className="font-semibold text-slate-800 dark:text-zinc-200 block">
+                <span className="font-semibold text-text block">
                   {t("Remover ruído de fundo das amostras de voz")}
                 </span>
-                <span className="text-slate-400">
+                <span className="text-text-subtle">
                   {t("Recomendado somente para áudios com ruído ambiente.")}
                 </span>
               </div>
             </label>
 
-            <label className="flex items-start gap-2.5 p-3 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 cursor-pointer hover:bg-slate-50 dark:hover:bg-zinc-850 transition-colors shadow-2xs">
+            <label className="flex items-start gap-2.5 p-3 rounded-xl border border-border bg-surface cursor-pointer hover:bg-surface-elevated transition-colors shadow-2xs">
               <input
                 type="checkbox"
                 checked={consentimento}
                 onChange={(e) => setConsentimento(e.target.checked)}
-                className="mt-0.5 accent-indigo-600 rounded-md shrink-0"
+                className="mt-0.5 accent-accent rounded-md shrink-0"
               />
-              <span className="text-[10.5px] leading-relaxed text-slate-600 dark:text-zinc-400 font-medium">
+              <span className="text-[10.5px] leading-relaxed text-text-muted font-medium">
                 {t(
                   "Eu confirmo possuir todos os direitos ou consentimentos necessários para carregar e clonar amostras de voz. Reafirmo meu compromisso em cumprir os Termos de Serviço e a Política de Privacidade."
                 )}
@@ -953,7 +953,7 @@ function AdicionarNovaVozModal({
             <button
               type="button"
               onClick={() => onOpenChange(false)}
-              className="h-10 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-700 dark:text-zinc-300 font-bold text-xs hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors cursor-pointer shadow-2xs"
+              className="h-10 rounded-xl border border-border bg-surface text-text-muted font-bold text-xs hover:bg-surface-elevated transition-colors cursor-pointer shadow-2xs"
             >
               {t("Cancelar")}
             </button>
@@ -961,7 +961,7 @@ function AdicionarNovaVozModal({
               type="button"
               disabled={salvando || !nome.trim() || arquivos.length === 0 || !consentimento}
               onClick={handleCriarVoz}
-              className="h-10 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 disabled:opacity-50 text-white font-bold text-xs transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed"
+              className="h-10 rounded-xl bg-accent hover:bg-accent active:bg-accent-hover disabled:opacity-50 text-white font-bold text-xs transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed"
             >
               {salvando ? (
                 <>
