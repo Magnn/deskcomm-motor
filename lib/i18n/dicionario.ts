@@ -4921,8 +4921,19 @@ export const DICIONARIO: Traducoes = {
   "Para quem já atende por esse número no aplicativo e não quer deixá-lo. O que for respondido pelo celular aparece aqui e pausa o agente naquela conversa.":
     { es: "Para quien ya atiende por ese número en la aplicación y no quiere dejarla. Lo que se responda desde el celular aparece aquí y pausa al agente en esa conversación." },
   "URL do app (uma só para a instalação)": { es: "URL de la app (una sola para la instalación)" },
-  "Quem administra a instalação cadastra esta URL uma vez, no app da Meta, em Webhooks › WhatsApp Business Account. É por ela que chegam o estado dos modelos e as mensagens enviadas pelo aplicativo do celular.":
-    { es: "Quien administra la instalación registra esta URL una vez, en la app de Meta, en Webhooks › WhatsApp Business Account. Por ella llegan el estado de las plantillas y los mensajes enviados desde la aplicación del celular." },
+  "Quem administra a instalação registra esta URL na Meta com um clique, em Admin › API Oficial (Meta). É por ela que chegam o estado dos modelos e as mensagens enviadas pelo aplicativo do celular.":
+    { es: "Quien administra la instalación registra esta URL en Meta con un clic, en Admin › API Oficial (Meta). Por ella llegan el estado de las plantillas y los mensajes enviados desde la aplicación del celular." },
+  "Endereço do aplicativo na Meta": { es: "Dirección de la aplicación en Meta" },
+  "É por este endereço que chegam o estado dos modelos e as mensagens enviadas pelo aplicativo WhatsApp Business do celular, de todas as empresas desta instalação. O sistema registra na Meta por você: não é preciso colar o endereço nem o token no painel dela.":
+    { es: "Por esta dirección llegan el estado de las plantillas y los mensajes enviados desde la aplicación WhatsApp Business del celular, de todas las empresas de esta instalación. El sistema la registra en Meta por ti: no hace falta pegar la dirección ni el token en su panel." },
+  "Registrar endereço na Meta": { es: "Registrar dirección en Meta" },
+  "Endereço registrado na Meta.": { es: "Dirección registrada en Meta." },
+  "Registrado. A Meta passou a entregar neste endereço.": { es: "Registrado. Meta pasó a entregar en esta dirección." },
+  "A Meta não aceitou o endereço:": { es: "Meta no aceptó la dirección:" },
+  "Falta o ID do aplicativo da Meta na configuração do servidor (META_APP_ID).":
+    { es: "Falta el ID de la aplicación de Meta en la configuración del servidor (META_APP_ID)." },
+  "Esta instalação não tem um endereço público com HTTPS, e a Meta só registra endereço assim.":
+    { es: "Esta instalación no tiene una dirección pública con HTTPS, y Meta solo registra direcciones así." },
   "Canal conectado.": { es: "Canal conectado." },
   "Não foi possível conectar.": { es: "No se pudo conectar." },
   "provedor parceiro": { es: "proveedor asociado" },

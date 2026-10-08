@@ -466,6 +466,9 @@ export const AUDIT_ACTIONS = [
   // verificação de URL que estava valendo até alguém colar o valor novo na Meta.
   "platform_meta_app.updated",
   "platform_meta_app.verify_token_rotated",
+  // O endereço do app foi apontado na Meta para esta instalação. Auditável
+  // porque muda para onde vão os avisos de TODAS as empresas dela.
+  "platform_meta_app.webhook_registered",
   // A conexão da ORGANIZAÇÃO com a conta de anúncios (migration 0213).
   // Auditável porque o token gravado aqui escreve conversões na conta de
   // mídia do cliente: "quem apontou minhas vendas para este destino?" só tem

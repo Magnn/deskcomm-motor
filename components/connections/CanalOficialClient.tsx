@@ -200,7 +200,7 @@ export function CanalOficialClient() {
             <div className="flex flex-col gap-1">
               <ParaColar rotulo={t("URL do app (uma só para a instalação)")} valor={estado.webhook.appCallbackUrl} />
               <span className="text-xs text-muted-foreground">
-                {t("Quem administra a instalação cadastra esta URL uma vez, no app da Meta, em Webhooks › WhatsApp Business Account. É por ela que chegam o estado dos modelos e as mensagens enviadas pelo aplicativo do celular.")}
+                {t("Quem administra a instalação registra esta URL na Meta com um clique, em Admin › API Oficial (Meta). É por ela que chegam o estado dos modelos e as mensagens enviadas pelo aplicativo do celular.")}
               </span>
             </div>
           ) : null}

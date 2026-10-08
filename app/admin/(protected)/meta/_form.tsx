@@ -6,6 +6,10 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import {
+  registrarWebhookDoAppDaMeta,
+  type RegistrarWebhookDoAppResult,
+} from "@/app/actions/settings/registrarWebhookDoAppDaMeta";
+import {
   rotacionarVerifyTokenDaMeta,
   updateMetaApp,
   type UpdateMetaAppResult,
@@ -40,6 +44,10 @@ interface Props {
   /** O par está no `.env` desta instalação (o piso de rollback). */
   readonly temNoAmbiente: boolean;
   readonly leituraFalhou: boolean;
+  /** O endereço do app nesta instalação. `null` = sem endereço público HTTPS. */
+  readonly urlDoApp?: string | null;
+  /** O ID do app da Meta está definido? Sem ele não há a quem registrar. */
+  readonly temAppId?: boolean;
 }
 
 /** O piso do schema da action. Abaixo disso o Zod recusa e a tela culparia o dono. */
@@ -52,6 +60,8 @@ export function FormularioDaMeta({
   atualizadoEm,
   temNoAmbiente,
   leituraFalhou,
+  urlDoApp = null,
+  temAppId = false,
 }: Props) {
   const t = useT();
   const router = useRouter();
@@ -64,6 +74,29 @@ export function FormularioDaMeta({
   const [tokenNovo, setTokenNovo] = useState<string | null>(null);
   const [confirmandoTroca, setConfirmandoTroca] = useState(false);
   const [ocupado, iniciar] = useTransition();
+  const [registro, setRegistro] = useState<RegistrarWebhookDoAppResult | null>(null);
+
+  function motivoDoRegistro(r: Extract<RegistrarWebhookDoAppResult, { ok: false }>): string {
+    switch (r.error) {
+      case "sem_app_id":
+        return t("Falta o ID do aplicativo da Meta na configuração do servidor (META_APP_ID).");
+      case "sem_credencial":
+        return t("Cadastre a chave secreta do aplicativo primeiro. Sem ela o token não vale.");
+      case "sem_endereco_publico":
+        return t("Esta instalação não tem um endereço público com HTTPS, e a Meta só registra endereço assim.");
+      default:
+        return `${t("A Meta não aceitou o endereço:")} ${r.motivo ?? ""}`.trim();
+    }
+  }
+
+  function registrarEndereco() {
+    iniciar(async () => {
+      const r = await registrarWebhookDoAppDaMeta();
+      setRegistro(r);
+      if (r.ok) toast.success(t("Endereço registrado na Meta."));
+      else toast.error(motivoDoRegistro(r));
+    });
+  }
 
   const podeSalvar = chave.trim().length >= TAMANHO_MINIMO_DA_CHAVE;
 
@@ -243,6 +276,36 @@ export function FormularioDaMeta({
             </Button>
           </div>
         ) : null}
+      </Card>
+
+      <Card className="flex flex-col gap-3 p-4" data-testid="meta-endereco-do-app">
+        <div className="flex flex-col gap-1">
+          <h2 className="font-medium">{t("Endereço do aplicativo na Meta")}</h2>
+          <p className="text-sm text-muted-foreground">
+            {t("É por este endereço que chegam o estado dos modelos e as mensagens enviadas pelo aplicativo WhatsApp Business do celular, de todas as empresas desta instalação. O sistema registra na Meta por você: não é preciso colar o endereço nem o token no painel dela.")}
+          </p>
+        </div>
+        {urlDoApp ? <code className="overflow-x-auto rounded-md bg-muted px-2 py-1.5 text-xs">{urlDoApp}</code> : null}
+        {registro && !registro.ok ? (
+          <p role="alert" className="text-sm text-destructive" data-testid="meta-registro-recusado">
+            {motivoDoRegistro(registro)}
+          </p>
+        ) : null}
+        {registro?.ok ? (
+          <p role="status" className="text-sm text-muted-foreground" data-testid="meta-registro-feito">
+            {t("Registrado. A Meta passou a entregar neste endereço.")}
+          </p>
+        ) : null}
+        <div className="flex justify-end">
+          <Button
+            variant="outline"
+            data-testid="meta-registrar-endereco"
+            disabled={ocupado || !temAppId || !urlDoApp || !(temSegredoSalvo || temNoAmbiente)}
+            onClick={registrarEndereco}
+          >
+            {ocupado ? t("Registrando…") : t("Registrar endereço na Meta")}
+          </Button>
+        </div>
       </Card>
 
       <AlertDialog open={confirmandoTroca} onOpenChange={setConfirmandoTroca}>

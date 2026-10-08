@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 
 import { loadAuthUser } from "@/lib/auth/server";
 import { appDaMetaDoAmbiente } from "@/lib/channels/meta/app";
+import { env } from "@/lib/env";
 import { tagDeIdioma } from "@/lib/i18n/datas";
 import type { Idioma } from "@/lib/i18n/idiomas";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -66,6 +67,8 @@ export default async function Page() {
   // existe é o que torna a precedência visível: sem isto, quem tem o par no
   // arquivo abre a tela vazia e conclui que o canal oficial não recebe nada.
   const doAmbiente = appDaMetaDoAmbiente();
+  const base = (env.NEXT_PUBLIC_APP_URL ?? "").replace(/\/+$/, "");
+  const urlDoApp = base.startsWith("https://") ? `${base}/api/v1/webhooks/meta` : null;
 
   return (
     <FormularioDaMeta
@@ -77,6 +80,8 @@ export default async function Page() {
       // Leitura que falhou não pode virar "nunca configurado": essa frase
       // levaria o dono a gerar um token por cima do que já está colado na Meta.
       leituraFalhou={Boolean(error)}
+      urlDoApp={urlDoApp}
+      temAppId={(env.META_APP_ID ?? "").trim() !== ""}
     />
   );
 }
