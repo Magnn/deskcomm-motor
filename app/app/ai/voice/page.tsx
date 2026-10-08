@@ -22,6 +22,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+import { ApagarVozClonada } from "@/components/ai/ApagarVozClonada";
+
 import { useT } from "@/hooks/i18n/useT";
 import { apiClient } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
@@ -282,6 +284,17 @@ export default function VoiceStudioPage() {
                 </div>
               )}
 
+              {selectedVoice && selectedVoice.categoria === "clonada" && selectedVoice.provedor ? (
+                <ApagarVozClonada
+                  provedor={selectedVoice.provedor}
+                  vozId={selectedVoice.id}
+                  nome={selectedVoice.nome}
+                  aoApagar={() => {
+                    setSelectedVoice(null);
+                    void qc.invalidateQueries({ queryKey: ["ai", "voices"] });
+                  }}
+                />
+              ) : null}
               {selectedVoice && (
                 <button
                   type="button"
