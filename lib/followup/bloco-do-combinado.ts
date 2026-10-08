@@ -34,14 +34,19 @@ function dataLegivel(iso: string, fuso: string): string | null {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return null;
   try {
-    return new Intl.DateTimeFormat("pt-BR", {
+    // Só NÚMEROS, montados à mão: este texto é lido pelo modelo, não por uma pessoa numa tela, e
+    // dia/mês/hora em algarismos não dependem de idioma. O que importa aqui é o FUSO da empresa.
+    const partes = new Intl.DateTimeFormat("en-GB", {
       timeZone: fuso,
-      weekday: "long",
       day: "2-digit",
       month: "2-digit",
+      year: "numeric",
       hour: "2-digit",
       minute: "2-digit",
-    }).format(d);
+      hour12: false,
+    }).formatToParts(d);
+    const p = (tipo: string): string => partes.find((x) => x.type === tipo)?.value ?? "";
+    return `o dia ${p("day")}/${p("month")}/${p("year")}, às ${p("hour")}:${p("minute")}`;
   } catch {
     return d.toISOString();
   }
