@@ -434,6 +434,25 @@ describe("adiar o pagamento é reclamação de valor; faltar para o essencial en
     },
   );
 
+  it.each(["Não consigo", "não dá 😞", "Infelizmente não tenho", "Então tem como a gente conversa e fazer na segunda feira"])(
+    "⭐ resposta curta de quem não pode, e adiar o trabalho, contam (frases reais de 08/10): %s",
+    (frase) => {
+      expect(reclamacoesDeValor([preco, dela(frase)])).toBe(1);
+    },
+  );
+
+  it("negativa dentro de frase longa não conta sozinha", () => {
+    expect(reclamacoesDeValor([preco, dela("não consigo parar de pensar nele desde que ele foi embora de casa")])).toBe(0);
+  });
+
+  it("retorno escrito como 'seguir com o combinado do rito' também é de pagamento", () => {
+    const estado = { reclamacoes: 1, valorQueTemCents: null, combinadoCents: null };
+    const msgs = [preco, dela("Não consigo")];
+    expect(degrauQueFaltaOferecerAntesDeAgendar(cfg, estado, msgs, "Voltar na segunda para seguir com o combinado do rito")).toBe(11_000);
+    expect(degrauQueFaltaOferecerAntesDeAgendar(cfg, estado, msgs, "Retomar caso o dinheiro já tenha entrado")).toBe(11_000);
+    expect(degrauQueFaltaOferecerAntesDeAgendar(cfg, estado, msgs, "Voltar para saber como ela está e se a situação de trabalho avançou")).toBeNull();
+  });
+
   it.each(["Quarta feira", "dia 12 faz um ano que ele saiu de casa", "amanhã te conto"])("data sem fala de pagar não conta: %s", (frase) => {
     expect(reclamacoesDeValor([preco, dela(frase)])).toBe(0);
   });

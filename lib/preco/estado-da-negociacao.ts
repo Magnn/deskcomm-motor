@@ -182,7 +182,8 @@ export function reclamacoesDeValor(mensagens: readonly MensagemParaContar[]): nu
   // Adiar o pagamento também é dizer que o valor não cabe hoje: "vou ter o dinheiro só semana que
   // vem" não tem nenhuma palavra de reclamação, e em 08/10/2026 passou sem oferta nenhuma.
   const reclama = (m: MensagemParaContar) =>
-    m.direction === "inbound" && (RECLAMACAO_DE_VALOR.test(m.body ?? "") || adiaOPagamento(m.body ?? ""));
+    m.direction === "inbound" &&
+    (RECLAMACAO_DE_VALOR.test(m.body ?? "") || adiaOPagamento(m.body ?? "") || negativaCurta(m.body ?? ""));
   const depois = msgs.slice(primeiroPreco + 1).filter(reclama).length;
   if (depois === 0) return 0;
   return depois + (msgs.slice(0, primeiroPreco).some(reclama) ? 1 : 0);
@@ -248,7 +249,7 @@ export function estadoDaNegociacao(
   };
 }
 
-const RETORNO_DE_PAGAMENTO = /R\$|\blink\b|\bpag|\breceb|\bpix\b|\bvalor\b/i;
+const RETORNO_DE_PAGAMENTO = /R\$|\blink\b|\bpag|\breceb|\bpix\b|\bvalor\b|combinad|\brito\b|\bfechar\b|dinheiro/i;
 
 /**
  * O DEGRAU QUE FALTA OFERECER ANTES DE AGENDAR O PAGAMENTO, em centavos — ou `null` quando o
@@ -279,7 +280,21 @@ const DATA_CERTA =
   /\bdia\s+\d{1,2}\b|\b\d{1,2}\/\d{1,2}\b|(?:fim|final|come[çc]o|in[ií]cio|meio)\s+d[oe]\s+m[êe]s|m[êe]s\s+que\s+vem|pr[óo]ximo\s+m[êe]s|semana\s+que\s+vem|pr[óo]xima\s+semana|quinto\s+dia\s+[úu]til|quando\s+(?:eu\s+)?(?:receber|cair|sair)|s[óo]\s+recebo|dia\s+d[oe]\s+(?:meu\s+)?pagamento/i;
 /** "amanhã", "sexta": só é data de pagamento se a mesma mensagem fala de pagar ou receber. */
 const DATA_SOLTA = /\bamanh[ãa]\b|\b(?:segunda|ter[çc]a|quarta|quinta|sexta|s[áa]bado|domingo)\b/i;
-const FALA_DE_PAGAR = /receb|pag[oau]|dinheiro|grana|sal[áa]rio|pix|consigo|mando|fa[çc]o\b|cai\b|cair\b|vou\s+ter|tiver\b/i;
+const FALA_DE_PAGAR = /receb|pag[oau]|dinheiro|grana|sal[áa]rio|pix|consigo|mando|fa[çc]o\b|fazer\b|cai\b|cair\b|vou\s+ter|tiver\b/i;
+
+/**
+ * A resposta curta de quem não pode: "Não consigo", "não dá", "infelizmente não tenho". Sem objeto
+ * ela não casa com `RECLAMACAO_DE_VALOR`, e em 08/10/2026 foi a resposta ao preço de quem já tinha
+ * dito seis vezes que estava sem dinheiro — a contagem ficou em zero e o valor cheio foi repetido.
+ * Só vale quando é a mensagem INTEIRA: com objeto ("não tenho cartão") ela fala de outra coisa.
+ */
+const NEGATIVA_CURTA =
+  /^(?:infelizmente\s+)?n[ãa]o\s+(?:consigo|posso|d[áa]|tenho|tem\s+como|vou\s+conseguir|vai\s+dar)(?:\s+(?:n[ãa]o|agora|hoje|mesmo|infelizmente|nada|ainda))*$/i;
+function negativaCurta(corpo: string): boolean {
+  // A mensagem INTEIRA é a negativa (pontuação e emoji do fim não contam): "não tenho cartão" e
+  // "não tenho dúvida" têm objeto, e o objeto diz que não é sobre o valor.
+  return NEGATIVA_CURTA.test(corpo.trim().replace(/[^a-zà-ú]+$/i, ""));
+}
 
 /** A mensagem adia o pagamento: uma data (certa ou solta) JUNTO de fala de pagar ou receber. */
 function adiaOPagamento(corpo: string): boolean {
