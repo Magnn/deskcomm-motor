@@ -160,7 +160,7 @@ import {
   promessasEmAberto,
   type DeclaracaoDoTurno,
 } from './declaracao';
-import { falaEmTextoSolto } from './fala-em-texto-solto';
+import { ehNarracaoDoProprioAgente, falaEmTextoSolto } from './fala-em-texto-solto';
 import { lerJsonTolerante } from './json-quase-valido';
 import {
   projetarContexto,
@@ -4595,6 +4595,12 @@ async function executarTurnoDoAgente(
     // por um atalho. Ver `fala-em-texto-solto.ts` para a regra de quando o silêncio é respeitado.
     if (!preview) {
       const textoSolto = falaEmTextoSolto(turn.result, outcomes.length);
+      if (textoSolto === null && outcomes.length === 0 && ehNarracaoDoProprioAgente((turn.result.text ?? '').trim())) {
+        // Fica dito no log (só o tamanho — o texto fala da pessoa): o turno escolheu o silêncio.
+        runLog.info('o modelo narrou a própria decisão em vez de falar — nada foi enviado', {
+          caracteres: (turn.result.text ?? '').trim().length,
+        });
+      }
       const enviar = (tools as Record<string, { execute?: (args: { body: string }, opcoes: unknown) => unknown }>)
         .send_message?.execute;
       if (textoSolto !== null && typeof enviar === 'function') {
