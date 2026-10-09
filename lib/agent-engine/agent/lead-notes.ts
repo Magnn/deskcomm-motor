@@ -82,6 +82,35 @@ export function estimateIndexTokens(entries: LeadNoteIndexEntry[]): number {
   return countPayloadTokens(renderNotesIndex(entries));
 }
 
+/**
+ * QUAIS NOTAS ANTIGAS SAEM PARA A NOVA CABER — as mais velhas primeiro, só o necessário.
+ *
+ * Existe para o flush automático de antes da compaction, que não tem a quem devolver o erro de
+ * ensino: o modelo auxiliar já respondeu. Medido em produção em 09/10/2026: 468 leads tinham o
+ * índice no teto e o flush recusava a nota nova 1.329 vezes por dia — a memória desses leads
+ * parava no que foi dito nas primeiras conversas, e o que ficava de fora era justamente o mais
+ * recente (a compra, a data combinada, o valor negociado).
+ *
+ * `entries` vem da mais antiga para a mais nova. `null` = nem sozinha a nota nova cabe.
+ */
+export function maisAntigasQueSaemParaCaber(
+  entries: readonly LeadNoteIndexEntry[],
+  headlineNova: string,
+  jaSubstituidas: ReadonlySet<string>,
+  budgetTokens: number,
+): string[] | null {
+  const nova: LeadNoteIndexEntry = { id: '00000000-0000-0000-0000-000000000000', headline: headlineNova };
+  let restam = entries.filter((e) => !jaSubstituidas.has(e.id));
+  const saem: string[] = [];
+  while (estimateIndexTokens([...restam, nova]) > budgetTokens) {
+    const maisVelha = restam[0];
+    if (maisVelha === undefined) return null;
+    saem.push(maisVelha.id);
+    restam = restam.slice(1);
+  }
+  return saem;
+}
+
 /** Índice das notas do lead (id + headline), da mais antiga para a mais nova. */
 export async function getLeadNotesIndex(
   db: Queryable,

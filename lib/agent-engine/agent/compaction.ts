@@ -34,7 +34,13 @@ import {
   type LeadContext,
   type LeadContextMessage,
 } from '../edge/crm/get-lead-context';
-import { applySaveLeadNote } from './lead-notes';
+import {
+  applySaveLeadNote,
+  getLeadNotesIndex,
+  maisAntigasQueSaemParaCaber,
+  renderNotesIndex,
+  type LeadNoteIndexEntry,
+} from './lead-notes';
 
 /** Knobs da compaction (env COMPACTION_*; defaults conservadores no .env.example). */
 export interface CompactionKnobs {
@@ -78,8 +84,33 @@ export const compactionOutputSchema = z.object({
 export type CompactionOutput = z.infer<typeof compactionOutputSchema>;
 
 const flushOutputSchema = z.object({
-  notes: z.array(z.object({ headline: z.string().min(1), body: z.string().min(1) })).default([]),
+  notes: z
+    .array(
+      z.object({
+        headline: z.string().min(1),
+        body: z.string().min(1),
+        /** ids de notas já guardadas que ESTA nota junta ou atualiza (consolidação). */
+        supersedes: z.array(z.string().min(1).max(64)).max(50).optional(),
+      }),
+    )
+    .default([]),
 });
+
+/**
+ * O que o flush diz ao modelo sobre as notas que JÁ existem. Sem isto ele não tinha como
+ * consolidar: escrevia a mesma coisa de novo a cada compaction, o índice enchia e a nota nova
+ * era recusada. Vai DEPOIS da instrução fixa (o marcador dos testes segue intacto).
+ */
+export function instrucaoDeConsolidacao(indice: readonly LeadNoteIndexEntry[]): string {
+  if (indice.length === 0) return '';
+  return (
+    '\n\nNOTAS JÁ GUARDADAS deste lead (id entre colchetes):\n' +
+    renderNotesIndex([...indice]) +
+    '\nO índice tem limite de tamanho. NÃO repita o que já está guardado. Se um fato novo atualiza ou ' +
+    'completa uma nota antiga, escreva UMA nota que junte as duas e liste os ids antigos em ' +
+    '"supersedes": {"notes": [{"headline": string, "body": string, "supersedes": string[]}]}.'
+  );
+}
 
 /** Extrai o JSON do texto do modelo (tolerante a cerca de código/prosa) SEM ecoar o texto (PII). */
 function extractJson(text: string): unknown {
@@ -163,6 +194,8 @@ async function runFlush(
     noteSink?: (note: { headline: string; body: string }) => void;
   },
 ): Promise<void> {
+  // O índice atual vai junto do pedido: é com ele que o modelo consolida em vez de repetir.
+  const indiceAtual = ids.leadId ? await getLeadNotesIndex(db, ids.tenantId, ids.leadId) : [];
   const call = await runModelCall(
     db,
     cfg,
@@ -176,7 +209,11 @@ async function runFlush(
       messages: [
         {
           role: 'user',
-          content: buildTranscriptMessage(args.context, args.previousSummary, FLUSH_INSTRUCTION),
+          content: buildTranscriptMessage(
+            args.context,
+            args.previousSummary,
+            FLUSH_INSTRUCTION + instrucaoDeConsolidacao(indiceAtual),
+          ),
         },
       ],
     },
@@ -207,12 +244,42 @@ async function runFlush(
       { budgetTokens: args.notesIndexMaxTokens },
       note,
     );
-    if (!res.ok) {
-      // ponytail: hard cap do índice (F3-05) no flush automático — loga LOUD e segue
-      // (best-effort). Se saturar recorrentemente, subir COMPACTION para consolidar via
-      // supersedes num flush dedicado é o próximo degrau. Sem PII: só o código.
+    if (res.ok || res.error.code !== 'index_budget_exceeded') {
+      if (!res.ok) {
+        deps.log.warn('flush pré-compaction: nota durável recusada', { code: res.error.code });
+      }
+      continue;
+    }
+    // Índice no teto e o modelo não consolidou o bastante: a nota NOVA entra e saem as mais
+    // antigas, só o necessário. O fato recente (a compra, a data combinada) vale mais que o
+    // detalhe da primeira conversa — e recusar a nova era perder justamente ele, em silêncio.
+    const leadId = ids.leadId;
+    const jaSubstituidas = new Set(note.supersedes ?? []);
+    const saem = maisAntigasQueSaemParaCaber(
+      await getLeadNotesIndex(db, ids.tenantId, leadId),
+      note.headline,
+      jaSubstituidas,
+      args.notesIndexMaxTokens,
+    );
+    if (saem === null) {
       deps.log.warn('flush pré-compaction: nota durável recusada pelo cap do índice de notas', {
         code: res.error.code,
+      });
+      continue;
+    }
+    const denovo = await applySaveLeadNote(
+      db,
+      { ...ids, leadId },
+      { budgetTokens: args.notesIndexMaxTokens },
+      { ...note, supersedes: [...jaSubstituidas, ...saem].slice(0, 50) },
+    );
+    if (denovo.ok) {
+      deps.log.info('flush pré-compaction: índice de notas no teto — as mais antigas deram lugar à nova', {
+        removidas: saem.length,
+      });
+    } else {
+      deps.log.warn('flush pré-compaction: nota durável recusada pelo cap do índice de notas', {
+        code: denovo.error.code,
       });
     }
   }
