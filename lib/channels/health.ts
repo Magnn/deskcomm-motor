@@ -180,7 +180,7 @@ export async function listarConexoesCaidas(
 ): Promise<ConexaoCaida[]> {
   const { data } = await admin
     .from("channel_sessions")
-    .select("id, display_name, phone_number, status")
+    .select("id, display_name, phone_number, status, waha_session_name")
     .eq("organization_id", organizationId)
     .is("archived_at", null)
     // A faixa diz "nenhuma mensagem entra nem sai por esta conexão" e leva a
@@ -190,7 +190,12 @@ export async function listarConexoesCaidas(
     .in("provider", [...PROVIDERS_DE_MENSAGEM])
     .in("status", [...STATUS_QUE_AVISAM]);
 
-  return (data ?? []).map((s) => ({
+  return (data ?? [])
+    // Sessão por QR que NUNCA pareou (sem número) não é conexão caída: é uma tentativa que não
+    // foi concluída. Medido em 09/10/2026: dois QR não lidos acenderam "2 conexões desconectadas —
+    // nenhuma mensagem entra nem sai" numa organização cujo único número atendia normalmente.
+    .filter((s) => !(s.waha_session_name && !s.phone_number))
+    .map((s) => ({
     id: s.id as string,
     apelido: (s.display_name as string | null) ?? (s.phone_number as string | null) ?? "sem nome",
     status: (s.status as string | null) ?? "",

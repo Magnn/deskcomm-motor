@@ -324,25 +324,24 @@ export default function VoiceStudioPage() {
               {/* Rodapé do Textarea: Custo em Tokens e Botão de Gravar Áudio */}
               <div className="pt-2.5 border-t border-border flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="text-[11px] text-text-subtle flex items-center gap-3">
+                  {/* Só o que é verdade: o tamanho do texto. Aqui havia um "custo em tokens" (que era a
+                      contagem de letras) e um "total disponível: 1.000" escrito à mão — não existe saldo
+                      de tokens de voz; quem cobra é o provedor, pela chave da organização. */}
                   <span className="px-2 py-0.5 rounded-md bg-surface-elevated border border-border">
-                    {t("Essa geração de áudio irá custar:")}{" "}
-                    <strong className="text-text font-semibold">
-                      {texto.length} tokens
-                    </strong>
-                  </span>
-                  <span>
-                    {t("Total de tokens disponíveis:")}{" "}
-                    <strong className="text-text-muted font-semibold">1.000</strong>
+                    <strong className="text-text font-semibold">{texto.length}</strong> {t("caracteres")}
                   </span>
                 </div>
 
                 <button
                   type="button"
-                  onClick={() => toast.info(t("Fale no microfone para transcrever ou digite acima."))}
+                  // O botão só mostrava um aviso e não gravava nada (medido em 09/10/2026: quem tentou
+                  // gravar a própria voz por aqui ficou sem resposta). Gravar a voz É criar uma voz
+                  // nova: abre o mesmo diálogo do "+ Nova voz", que tem o gravador de verdade.
+                  onClick={() => setModalNovaVozOpen(true)}
                   className="h-8 px-3.5 rounded-xl border border-accent bg-accent-soft text-accent font-semibold text-xs flex items-center gap-1.5 hover:bg-accent-soft active:scale-[0.98] transition-all cursor-pointer self-start sm:self-auto shadow-2xs"
                 >
                   <Mic size={14} className="text-accent" />
-                  <span>{t("Gravar áudio")}</span>
+                  <span>{t("Gravar minha voz")}</span>
                 </button>
               </div>
             </div>

@@ -44,7 +44,7 @@ import {
   Trash,
   Warning,
 } from "@/lib/ui/icons";
-import { lerEstadoDoCanal } from "@/lib/channels/estado";
+import { lerEstadoDoCanal, nomeDoCanal, type TomDoEstado } from "@/lib/channels/estado";
 import { fonteDeTemplates } from "@/lib/channels/templates-fonte";
 import { useT } from "@/hooks/i18n/useT";
 
@@ -64,6 +64,14 @@ function statusInfo(
   const l = lerEstadoDoCanal(status);
   return { label: t(l.rotulo), variant: l.tom };
 }
+
+/** A cor do ponto de situação de cada número — a mesma leitura do selo, sem depender só do texto. */
+const PONTO_DO_ESTADO: Record<TomDoEstado, string> = {
+  success: "bg-success",
+  warning: "bg-warning",
+  error: "bg-error",
+  neutral: "bg-border-strong",
+};
 
 function errMsg(err: unknown, fallback: string, t: (texto: string) => string): string {
   return err instanceof ApiError && err.message ? t(err.message) : t(fallback);
@@ -245,19 +253,41 @@ export function ConnectionsClient({ wahaConfigured }: { wahaConfigured: boolean 
   // Esta aba é de NÚMEROS de WhatsApp. Rede social e página do Messenger têm aba
   // própria; perguntar pela MARCA do canal (e não excluir provider por provider)
   // é o que impede o próximo canal que não é número de aparecer aqui como um.
-  const list = (sessions ?? []).filter((session) => !session.provider || channelBrand(session) === "whatsapp");
+  // Quem está no ar vem primeiro: a lista é lida de cima, e o número que atende não pode ficar
+  // atrás de uma tentativa de conexão que não foi concluída.
+  const list = (sessions ?? [])
+    .filter((session) => !session.provider || channelBrand(session) === "whatsapp")
+    .sort((a, b) => Number(lerEstadoDoCanal(b.status).utilizavel) - Number(lerEstadoDoCanal(a.status).utilizavel));
+  // "3 números conectados" com dois caídos era o que a tela dizia (medido em 09/10/2026): o
+  // resumo conta o que está NO AR e diz, ao lado, quantos pedem atenção.
+  const noAr = list.filter((c) => lerEstadoDoCanal(c.status).utilizavel).length;
+  const pedemAtencao = list.length - noAr;
+  const resumo = [
+    `${noAr} ${noAr === 1 ? t("número conectado") : t("números conectados")}`,
+    pedemAtencao > 0 ? `${pedemAtencao} ${pedemAtencao === 1 ? t("precisa de atenção") : t("precisam de atenção")}` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-muted-foreground">
-          {isError
-            ? t("Não foi possível carregar seus números.")
-            : list.length === 0
-              ? t("Nenhum número conectado ainda.")
-              : `${list.length} ${list.length === 1 ? t("número conectado") : t("números conectados")}.`}
-        </p>
-        <div className="flex gap-2">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="min-w-0 space-y-0.5">
+          <p className="text-sm font-medium text-text" data-testid="resumo-dos-numeros">
+            {isError
+              ? t("Não foi possível carregar seus números.")
+              : list.length === 0
+                ? t("Nenhum número conectado ainda.")
+                : resumo}
+          </p>
+          <p className="text-xs text-text-muted">
+            {t("Novos canais começam em modo de teste, sem respostas automáticas até você autorizar números ou liberar o público.")}
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button asChild variant="ghost" size="sm">
+            <Link href="/app/settings/atendimento">{t("Responsáveis por número")}</Link>
+          </Button>
           {list.length > 0 && (
             <Button
               variant="outline"
@@ -273,51 +303,24 @@ export function ConnectionsClient({ wahaConfigured }: { wahaConfigured: boolean 
               {t("Atualizar saúde")}
             </Button>
           )}
-          <Button size="sm" disabled={creating || !wahaConfigured} onClick={handleConnectNew}>
+          {/* A ação principal da tela é "Conectar WhatsApp", no topo, que pergunta QUAL conexão.
+              Aqui fica o atalho de quem já sabe que quer QR — secundário, para a tela não ter
+              dois botões roxos dizendo quase a mesma coisa. */}
+          <Button variant="outline" size="sm" disabled={creating || !wahaConfigured} onClick={handleConnectNew}>
             {creating ? (
               <CircleNotch size={14} className="animate-spin" aria-hidden />
             ) : (
               <Plus size={14} aria-hidden />
             )}
-            {t("Conectar novo WhatsApp")}
+            {t("Conectar por QR")}
           </Button>
         </div>
       </div>
 
-      <p className="text-sm text-muted-foreground">
-        {t("Novos canais começam em modo de teste, sem respostas automáticas até você autorizar números ou liberar o público.")}
-      </p>
-
-      {list.length > 0 ? (
-        <ParaIntegrar
-          campos={[]}
-          ajuda={
-            <div className="space-y-1.5">
-              <p>
-                {t(
-                  "No canal por QR a credencial é interna desta instalação e não serve para fora. Para ligar outro CRM ao mesmo número, conecte-o por uma sessão própria (novo QR).",
-                )}
-              </p>
-              <p>
-                {t(
-                  "Dois dispositivos vinculados recebem as mesmas mensagens — se os dois tiverem atendimento automático, o cliente pode receber resposta dupla.",
-                )}
-              </p>
-            </div>
-          }
-          aviso={
-            <>
-              {t("Não compartilhe esta sessão.")}{" "}
-              {t("Crie uma conexão separada por QR no outro sistema.")}
-            </>
-          }
-        />
-      ) : null}
       {connectionDetail && <details className="rounded-md border p-3 text-sm"><summary>{t("Detalhes para suporte")}</summary><pre className="mt-2 whitespace-pre-wrap break-words">{connectionDetail}</pre><Button variant="outline" size="sm" onClick={async () => {
         if (await copyToClipboard(connectionDetail)) toast.success(t("Copiado!"));
         else toast.error(t("Não foi possível copiar. Selecione e copie manualmente."));
       }}>{t("Copiar detalhes")}</Button></details>}
-      <Link href="/app/settings/atendimento" className="text-sm underline">{t("Configurar responsáveis por número")}</Link>
       {!wahaConfigured && (
         <div className="rounded-md border border-warning bg-warning-bg p-4 text-sm text-warning-fg">
           <p className="font-medium">{t("O serviço do WhatsApp não está configurado.")}</p>
@@ -387,13 +390,26 @@ export function ConnectionsClient({ wahaConfigured }: { wahaConfigured: boolean 
             // podendo ser excluído.
             const vivaNoTransporte = dependeDoTransporte(c);
             const podeExcluir = wahaConfigured || !vivaNoTransporte;
+            const leitura = lerEstadoDoCanal(c.status);
+            // Sessão criada cujo QR nunca foi lido: não tem número nem apelido. O nome técnico da
+            // sessão não é nome de nada para quem opera, e "Caiu" diria que algo que funcionava
+            // parou — ela nunca chegou a conectar.
+            const nuncaConcluiu = vivaNoTransporte && !c.phone_number && !leitura.utilizavel;
             return (
-              <Card key={c.id} className="flex flex-col gap-3 p-4">
+              <Card
+                key={c.id}
+                className={`flex flex-col gap-3 p-4 transition-shadow hover:shadow-sm ${nuncaConcluiu ? "border-dashed" : ""}`}
+              >
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <Phone size={16} className="text-muted-foreground" aria-hidden />
-                      <span className="truncate text-sm font-medium">{channelLabel(c, t)}</span>
+                      <span
+                        aria-hidden
+                        className={`h-2 w-2 shrink-0 rounded-full ${PONTO_DO_ESTADO[nuncaConcluiu ? "neutral" : leitura.tom]}`}
+                      />
+                      <span className="truncate text-sm font-semibold text-text">
+                        {nuncaConcluiu ? t("Conexão não concluída") : nomeDoCanal(c, t)}
+                      </span>
                       {ehCanalOficial(c) && (
                         <Badge variant="default" className="shrink-0">
                           {t("API oficial")}
@@ -401,28 +417,33 @@ export function ConnectionsClient({ wahaConfigured }: { wahaConfigured: boolean 
                       )}
                     </div>
                     {c.phone_number && c.display_name && (
-                      <p className="mt-0.5 font-mono text-xs text-muted-foreground">
+                      <p className="mt-0.5 pl-4 font-mono text-xs text-text-muted">
                         {c.phone_number}
                       </p>
                     )}
                   </div>
-                  <Badge variant={info.variant}>{info.label}</Badge>
+                  <Badge variant={nuncaConcluiu ? "neutral" : info.variant} className="shrink-0">
+                    {nuncaConcluiu ? t("Não concluída") : info.label}
+                  </Badge>
                 </div>
-                <p className="text-[11px] text-muted-foreground">
-                  {c.last_health_check_at
-                    ? `${t("Verificado")} ${new Date(c.last_health_check_at).toLocaleString(tagDoIdioma)}`
-                    : t("Ainda não verificado")}
+                <p className="text-xs text-text-muted">
+                  {nuncaConcluiu
+                    ? t("O QR code não foi lido a tempo. Gere um novo para concluir, ou exclua esta tentativa.")
+                    : c.last_health_check_at
+                      ? `${t("Verificado")} ${new Date(c.last_health_check_at).toLocaleString(tagDoIdioma)}`
+                      : t("Ainda não verificado")}
                 </p>
                 <ChannelAiAccess channelId={c.id} />
                 <p className="text-xs text-muted-foreground">{t(!policy ? "Consulte os responsáveis em Atendimento." : policy.mode === "legacy_unconfigured" ? "Usa todos os atendentes elegíveis da organização." : policy.mode === "restricted_empty" ? "Ninguém configurado — as conversas ficarão na fila." : "Somente as pessoas selecionadas recebem este número.")}</p>
-                <div className="mt-auto flex flex-wrap gap-2">
+                <div className="mt-auto flex flex-wrap gap-2 border-t border-border pt-3">
                   {/* Some no canal oficial em vez de aparecer desabilitado: não é
                       indisponibilidade passageira (como o Excluir sem o serviço no
                       ar), é uma ação que não existe para esse canal — e o clique
                       ainda abriria o diálogo de QR, que ele nunca vai ter. */}
                   {vivaNoTransporte && (
                     <Button
-                      variant="outline"
+                      // Com o número fora do ar, reconectar é O que há para fazer neste cartão.
+                      variant={leitura.utilizavel ? "outline" : "primary"}
                       size="sm"
                       disabled={busyId === c.id || !wahaConfigured}
                       onClick={() => handleReconnect(c)}
@@ -432,7 +453,7 @@ export function ConnectionsClient({ wahaConfigured }: { wahaConfigured: boolean 
                       ) : (
                         <ArrowsClockwise size={14} aria-hidden />
                       )}
-                      {t("Reconectar")}
+                      {nuncaConcluiu ? t("Gerar novo QR") : t("Reconectar")}
                     </Button>
                   )}
                   <Button variant="outline" size="sm" onClick={() => setAntiBanId(c.id)}>
@@ -459,6 +480,41 @@ export function ConnectionsClient({ wahaConfigured }: { wahaConfigured: boolean 
           })}
         </div>
       )}
+
+      {/* Recolhido e no fim: é assunto de quem liga OUTRO sistema ao número — no topo, aberto,
+          era um cartão de aviso antes de qualquer número aparecer. */}
+      {list.length > 0 ? (
+        <details className="group rounded-lg border border-border bg-surface px-4 py-3 text-sm" data-testid="usar-em-outro-sistema">
+          <summary className="cursor-pointer select-none font-medium text-text-muted hover:text-text">
+            {t("Usar um destes números em outro sistema")}
+          </summary>
+          <div className="pt-3">
+        <ParaIntegrar
+          campos={[]}
+          ajuda={
+            <div className="space-y-1.5">
+              <p>
+                {t(
+                  "No canal por QR a credencial é interna desta instalação e não serve para fora. Para ligar outro CRM ao mesmo número, conecte-o por uma sessão própria (novo QR).",
+                )}
+              </p>
+              <p>
+                {t(
+                  "Dois dispositivos vinculados recebem as mesmas mensagens — se os dois tiverem atendimento automático, o cliente pode receber resposta dupla.",
+                )}
+              </p>
+            </div>
+          }
+          aviso={
+            <>
+              {t("Não compartilhe esta sessão.")}{" "}
+              {t("Crie uma conexão separada por QR no outro sistema.")}
+            </>
+          }
+        />
+          </div>
+        </details>
+      ) : null}
 
       {/* Só monta quando alguém pediu para abrir: assim o AntiBanSheet distingue
           "painel fechado" de "a conexão pedida sumiu da lista" — o segundo caso
