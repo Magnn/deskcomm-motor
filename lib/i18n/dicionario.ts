@@ -56,6 +56,7 @@ export const DICIONARIO: Traducoes = {
   "Histórico temporal das conversões e faturamento": { es: "Historial temporal de conversiones y facturación" },
   "Nenhum dado no período selecionado.": { es: "No hay datos en el período seleccionado." },
   "Vendas por horário": { es: "Ventas por horario" },
+  WhatsApp: { es: "WhatsApp" },
   "Gravar minha voz": { es: "Grabar mi voz" },
   "precisa de atenção": { es: "necesita atención" },
   "precisam de atenção": { es: "necesitan atención" },
