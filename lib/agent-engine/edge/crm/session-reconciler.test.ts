@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type pg from "pg";
 import { createLogger } from "../../obs/logger";
 
-import { deveRetomarSessao, redriveQueued } from "./session-reconciler";
+import { HORAS_ATE_VENCER_NA_FILA, deveRetomarSessao, encerrarVencidasNaFila, redriveQueued } from "./session-reconciler";
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -170,3 +170,27 @@ describe("resgate da fila — a mensagem da AUTOMAÇÃO é alcançada (#652)", (
   });
 });
 
+
+describe("mensagem vencida na fila", () => {
+  it("⭐ encerra como falha, com motivo, só o que é automático e tem mais de um dia — e não reenvia", async () => {
+    const query = vi.fn().mockResolvedValueOnce({ rowCount: 31 });
+    const warn = vi.fn();
+    const n = await encerrarVencidasNaFila({ query } as unknown as pg.Pool, { warn, info: vi.fn(), error: vi.fn() } as never);
+    expect(n).toBe(31);
+    expect(query).toHaveBeenCalledTimes(1);
+    const sql = String(query.mock.calls[0]?.[0]);
+    expect(sql).toContain("status = 'failed'");
+    expect(sql).toContain("error_code = 'queue_expired'");
+    expect(sql).toContain("status = 'queued'");
+    expect(sql).toContain("sent_via in ('ai', 'automation', 'system')");
+    expect(sql).toContain(`interval '${HORAS_ATE_VENCER_NA_FILA} hours'`);
+    expect(warn).toHaveBeenCalledWith("watchdog: mensagens vencidas na fila encerradas como falha", { quantidade: 31 });
+  });
+
+  it("sem nada vencido, não avisa", async () => {
+    const warn = vi.fn();
+    const n = await encerrarVencidasNaFila({ query: vi.fn().mockResolvedValueOnce({ rowCount: 0 }) } as unknown as pg.Pool, { warn, info: vi.fn(), error: vi.fn() } as never);
+    expect(n).toBe(0);
+    expect(warn).not.toHaveBeenCalled();
+  });
+});

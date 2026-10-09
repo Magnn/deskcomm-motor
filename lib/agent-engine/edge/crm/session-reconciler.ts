@@ -297,6 +297,35 @@ async function stampExternalIdAfterEcho(
   }
 }
 
+/** Depois de quantas horas na fila uma mensagem automática deixa de poder sair. */
+export const HORAS_ATE_VENCER_NA_FILA = 24;
+
+/**
+ * Encerra como FALHA a mensagem automática que venceu na fila. Função à parte do reenvio: são
+ * decisões diferentes (uma desiste, a outra insiste) e o reenvio tem a sua própria ordem de
+ * consultas, que os testes dele conferem.
+ */
+export async function encerrarVencidasNaFila(pool: pg.Pool, log: Logger): Promise<number> {
+  // Mensagem automática que ficou mais de um dia na fila não sai mais: a conversa já andou (e, no
+  // canal oficial, a janela de atendimento fechou). Ela vira FALHA, com o motivo escrito — que é o
+  // que a tela mostra e o que tira a mensagem da contagem de presas. Medido em produção em
+  // 09/10/2026: 31 mensagens `queued` havia de 3 a 5 dias (28 em canais arquivados), e o aviso
+  // "presas em canal que este resgate não alcança" saindo 759 vezes por dia sem ninguém encerrá-las.
+  // Não reenvia nada: enviar com dias de atraso é pior que não enviar.
+  const { rowCount: vencidas } = await pool.query(
+    `update messages
+        set status = 'failed', error_code = 'queue_expired',
+            error_message = 'Ficou mais de 24 horas na fila sem sair e não foi enviada.'
+      where direction = 'outbound' and status = 'queued'
+        and sent_via in ('ai', 'automation', 'system')
+        and created_at < now() - interval '${HORAS_ATE_VENCER_NA_FILA} hours'`,
+  );
+  if ((vencidas ?? 0) > 0) {
+    log.warn('watchdog: mensagens vencidas na fila encerradas como falha', { quantidade: vencidas });
+  }
+  return vencidas ?? 0;
+}
+
 /** Reenvia mensagens AI presas em queued com sessão WORKING. */
 export async function redriveQueued(
   pool: pg.Pool,
@@ -459,6 +488,7 @@ export async function runSessionWatchdogLoop(
   while (!signal.aborted) {
     try {
       const fixed = await reconcileSessions(pool, cfg, log);
+      await encerrarVencidasNaFila(pool, log);
       const redriven = await redriveQueued(pool, cfg, log);
       if (fixed + redriven > 0) {
         log.info('watchdog: tick com ação', { reconciled: fixed, redriven });
