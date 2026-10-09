@@ -38906,3 +38906,57 @@ create index if not exists messages_cobradas_por_org_idx
   where billing_billable is true;
 
 notify pgrst, 'reload schema';
+
+-- ---- Índices da fila, do evento e da chave de reenvio (migration 0918) ----
+create index if not exists idx_job_queue_vivo_por_contato
+  on public.job_queue (organization_id, contact_id)
+  where status in ('pending', 'running');
+
+-- Sem `where`: quem pergunta é o PostgREST, com o estado como PARÂMETRO, e o plano genérico não
+-- consegue provar o predicado de um índice parcial (medido: com o parcial criado, a varredura
+-- continuou). O índice comum serve às duas formas.
+create index if not exists idx_event_log_estado_e_atualizacao
+  on public.event_log (status, updated_at);
+
+create index if not exists idx_llm_calls_por_tarefa
+  on public.llm_calls (job_id);
+
+create index if not exists idx_send_ledger_por_contato_e_estado
+  on public.send_ledger (organization_id, contact_id, status);
+
+create index if not exists idx_messages_chave_de_idempotencia
+  on public.messages (organization_id, (metadata->>'idempotency_key'))
+  where (metadata->>'idempotency_key') is not null;
+
+-- ---- Lista de conversas sem a política de contatos por linha (migration 0919) ----
+create or replace function public.comando_da_conversa(c public.conversations)
+ returns text
+ language sql
+ stable
+ security definer
+ set search_path to 'public'
+as $function$
+  -- Uma leitura do contato (eram duas), feita como dono da função: sob a política de `contacts`
+  -- cada chamada reexecutava `fn_user_org_ids()` — e esta função roda uma vez POR CONVERSA.
+  -- `left join` a partir de uma linha fixa: contato ausente continua devolvendo linha, com as
+  -- duas travas em `false`, como o `coalesce` de antes garantia.
+  select public.fn_comando_da_conversa(
+    c.status,
+    c.assigned_to_user_id,
+    c.bot_silenced_until,
+    coalesce(ct.force_human, false),
+    coalesce(ct.is_blocked, false),
+    now()
+  )
+  from (select 1) uma_linha
+  left join public.contacts ct
+    on ct.id = c.contact_id and ct.organization_id = c.organization_id;
+$function$;
+
+comment on function public.comando_da_conversa(public.conversations)
+  is 'Campo calculado exposto pelo PostgREST: ?select=comando_da_conversa e ?comando_da_conversa=in.(...). Resolve o contato e carimba now(). SECURITY DEFINER desde a 0919: lê só as duas travas do contato DA MESMA organização da conversa recebida.';
+
+revoke execute on function public.comando_da_conversa(public.conversations) from public, anon;
+grant  execute on function public.comando_da_conversa(public.conversations) to authenticated, service_role;
+
+notify pgrst, 'reload schema';
