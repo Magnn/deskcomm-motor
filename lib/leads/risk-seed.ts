@@ -1,4 +1,4 @@
-import { protecaoAgendaSupabase } from "@/lib/agenda/protecao-followup";
+import { CONTATOS_POR_PEDIDO, protecaoAgendaSupabase } from "@/lib/agenda/protecao-followup";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { classifyRisk, resolveStageWindow, type RiskBucket } from "@/lib/leads/risk-radar";
@@ -131,15 +131,19 @@ async function coletaEClassifica(
   // que ele é. A fonte é a mesma que o radar usa.
   const contactIds = [...new Set(leads.map((l) => l.contact_id).filter((c): c is string => !!c))];
   const followupPorContato = new Set<string>();
-  if (contactIds.length > 0) {
-    const { data: jobs } = await admin
+  // Em lotes, pelo mesmo motivo da agenda (`CONTATOS_POR_PEDIDO`): a lista viaja na URL, e com
+  // ela inteira o pedido era recusado — sem erro lido aqui, o conjunto ficava VAZIO e todo negócio
+  // com retorno agendado entrava como abandono.
+  for (let i = 0; i < contactIds.length; i += CONTATOS_POR_PEDIDO) {
+    const { data: jobs, error: erroDosRetornos } = await admin
       .from("cron_jobs")
       .select("contact_id")
       .eq("organization_id", organizationId)
       .eq("kind", "at")
       .eq("enabled", true)
       .gt("next_run_at", now.toISOString())
-      .in("contact_id", contactIds);
+      .in("contact_id", contactIds.slice(i, i + CONTATOS_POR_PEDIDO));
+    if (erroDosRetornos) throw new Error(`risk_retornos_indisponiveis: ${erroDosRetornos.message}`);
     for (const j of (jobs ?? []) as Array<{ contact_id: string }>) {
       followupPorContato.add(j.contact_id);
     }

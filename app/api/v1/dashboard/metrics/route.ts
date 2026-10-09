@@ -77,8 +77,12 @@ export async function GET(req: NextRequest) {
     // Buscar conexões e canais da organização
     const { data: canais } = await admin
       .from("channel_sessions")
-      .select("id, name, phone_number, status")
-      .eq("organization_id", orgId);
+      // `name:display_name`: a coluna se chama `display_name`. Pedindo `name`, o banco recusava a
+      // consulta inteira (medido em produção em 09/10/2026: 583 recusas por dia) — a lista de
+      // conexões do painel vinha vazia e toda venda aparecia em "Canal Padrão".
+      .select("id, name:display_name, phone_number, status")
+      .eq("organization_id", orgId)
+      .is("archived_at", null);
 
     // Contagem total de leads acumulados da organização
     const { count: totalLeadsAcumulados } = await admin
@@ -387,14 +391,18 @@ export async function GET(req: NextRequest) {
     const [{ data: conversasData }, { data: atendentesData }, { data: stagesData }] = await Promise.all([
       admin
         .from("conversations")
-        .select("id, contact_id, status, assigned_to_user_id, channel_session_id, first_outbound_at, created_at, closed_at")
+        // `last_outbound_at` e `service_closed_at` são as colunas que existem. A consulta pedia
+        // `first_outbound_at` e `closed_at`, era recusada, e a aba Atendimento mostrava zero em tudo.
+        .select("id, contact_id, status, assigned_to_user_id, channel_session_id, last_outbound_at, created_at, service_closed_at")
         .eq("organization_id", orgId)
         .gte("created_at", start.toISOString())
         .lte("created_at", end.toISOString()),
       admin
-        .from("organization_members")
+        // A tabela de membros é `user_organizations`; `organization_members` nunca existiu.
+        .from("user_organizations")
         .select("user_id, role")
-        .eq("organization_id", orgId),
+        .eq("organization_id", orgId)
+        .is("revoked_at", null),
       admin
         .from("crm_stages")
         .select("id, name, color, position")
@@ -403,22 +411,15 @@ export async function GET(req: NextRequest) {
     ]);
 
     const conversas = conversasData ?? [];
-    const leadsAtendidos = conversas.filter((c) => c.first_outbound_at !== null || c.assigned_to_user_id !== null).length;
-    const leadsFinalizados = conversas.filter((c) => c.status === "archived" || c.closed_at !== null).length;
+    const leadsAtendidos = conversas.filter((c) => c.last_outbound_at !== null || c.assigned_to_user_id !== null).length;
+    const leadsFinalizados = conversas.filter(
+      (c) => c.status === "archived" || c.status === "closed" || c.status === "resolved" || c.service_closed_at !== null,
+    ).length;
 
-    // Calcular tempo médio de resposta (inbound -> first_outbound_at)
-    let totalTempoSegundos = 0;
-    let conversasComTempo = 0;
-    for (const c of conversas) {
-      if (c.created_at && c.first_outbound_at) {
-        const diff = (new Date(c.first_outbound_at).getTime() - new Date(c.created_at).getTime()) / 1000;
-        if (diff > 0 && diff < 86400 * 2) {
-          totalTempoSegundos += diff;
-          conversasComTempo += 1;
-        }
-      }
-    }
-    const tempoMedioMinutos = conversasComTempo > 0 ? Number((totalTempoSegundos / conversasComTempo / 60).toFixed(1)) : 0;
+    // Tempo médio da PRIMEIRA resposta: a conversa não guarda a hora da primeira resposta (só a da
+    // última), e medir pela última diria "respondeu em 6 horas" de uma conversa que foi respondida
+    // em 20 segundos e continuou. Sem o dado certo o painel mostra o traço, não um número inventado.
+    const tempoMedioMinutos = 0;
 
     // Distribuição horária de atendimentos
     const atendimentosPorHora = Array.from({ length: 24 }, (_, h) => ({
@@ -446,13 +447,14 @@ export async function GET(req: NextRequest) {
     // Conversões e Valor por Coluna do Kanban
     const { data: crmLeadsData } = await admin
       .from("crm_leads")
-      .select("id, stage_id, estimated_value_cents, contact_id")
+      // O valor do negócio mora em `value_cents`; `estimated_value_cents` não existe.
+      .select("id, stage_id, value_cents, contact_id")
       .eq("organization_id", orgId);
 
     const crmLeads = crmLeadsData ?? [];
     const conversoesPorColuna = (stagesData ?? []).map((st) => {
       const leadsDaColuna = crmLeads.filter((l) => l.stage_id === st.id);
-      const valorCents = leadsDaColuna.reduce((acc, l) => acc + (Number(l.estimated_value_cents) || 0), 0);
+      const valorCents = leadsDaColuna.reduce((acc, l) => acc + (Number(l.value_cents) || 0), 0);
       return {
         stageId: st.id,
         stageName: st.name,
