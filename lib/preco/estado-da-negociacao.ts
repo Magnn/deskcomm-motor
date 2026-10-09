@@ -115,7 +115,7 @@ export function expandirHistoricoColado(msgs: readonly MensagemParaContar[]): Me
  * EM QUE DEGRAU A CONVERSA ESTÁ — o índice em `steps`, ou `-1` para o valor de venda.
  *
  * Duas coisas descem a escada, e vale a que desce MAIS:
- *  - cada reclamação de valor libera um degrau, A PARTIR DA PRIMEIRA;
+ *  - a 1ª reclamação é respondida com a defesa do valor; da 2ª em diante cada uma libera um degrau;
  *  - a pessoa dizer quanto tem pula direto para o maior degrau que cabe nesse valor (ou para o
  *    último, se nem ele couber).
  *
@@ -131,7 +131,11 @@ export function degrauDoTurno(
 ): number {
   if (reclamacoes === null || reclamacoes <= 0 || c.steps.length === 0) return -1;
   const ultimo = c.steps.length - 1;
-  const porReclamacao = Math.min(reclamacoes - 1, ultimo);
+  // A 1ª reclamação NÃO libera degrau: a agente defende o valor uma vez, mostrando como pagar
+  // (`bloco-do-prompt.ts`). Medido em 09/10/2026, no primeiro meio dia com a escada descendo já
+  // na 1ª: 14 pessoas receberam o valor menor e nenhuma comprou; no dia anterior, com a defesa,
+  // 4 das que reclamaram compraram — 3 pelo valor cheio, depois de ouvir parcelamento ou Pix.
+  const porReclamacao = Math.min(reclamacoes - 2, ultimo);
   let porValor = -1;
   if (valorQueTemCents !== null && valorQueTemCents < c.list_price_cents) {
     const cabe = c.steps.findIndex((d) => d.price_cents <= valorQueTemCents);
