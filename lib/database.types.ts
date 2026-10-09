@@ -9833,6 +9833,20 @@ export type Database = {
         Returns: number
       }
       fn_gasto_de_ia_do_mes: { Args: { p_org: string }; Returns: number }
+      fn_recebidas_e_passagens_por_dia: {
+        Args: { p_ate: string; p_de: string; p_org: string }
+        Returns: Json
+      }
+      fn_uso_de_ia: {
+        Args: {
+          p_agente?: string
+          p_ate: string
+          p_de: string
+          p_finalidade?: string
+          p_org: string
+        }
+        Returns: Json
+      }
       fn_is_platform_admin: { Args: never; Returns: boolean }
       fn_lgpd_anonymize_contact: {
         Args: { p_contact_id: string; p_organization_id: string }

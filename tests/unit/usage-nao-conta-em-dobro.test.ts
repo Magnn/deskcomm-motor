@@ -22,11 +22,17 @@ const ROTA = "app/api/v1/ai/usage/route.ts";
 const LOG = "lib/ai/log-invocation.ts";
 
 describe("a rota de uso lê UMA tabela de telemetria", () => {
-  it("consulta llm_calls", () => {
+  it("soma pela função do banco, que lê llm_calls", () => {
     // Controle positivo: sem esta asserção, apagar a consulta inteira faria os
     // testes abaixo passarem por vacuidade.
     const fonte = readFileSync(ROTA, "utf8");
-    expect(fonte).toContain('.from("llm_calls")');
+    expect(fonte).toContain('.rpc("fn_uso_de_ia"');
+    const baseline = readFileSync("supabase/baseline.sql", "utf8");
+    // `lastIndexOf`: no baseline quem vale é a ÚLTIMA definição.
+    const funcao = baseline.slice(baseline.lastIndexOf("create or replace function public.fn_uso_de_ia("));
+    const corpo = funcao.slice(0, funcao.indexOf("$function$;"));
+    expect(corpo).toContain("from public.llm_calls");
+    expect(corpo.includes("ai_invocations")).toBe(false);
   });
 
   it("NÃO consulta ai_invocations", () => {
@@ -39,13 +45,13 @@ describe("a rota de uso lê UMA tabela de telemetria", () => {
     ).toBe(false);
   });
 
-  it("agrega UMA fonte, não a concatenação de duas", () => {
-    // O formato do defeito é literal: `[...invRows, ...engineRows]`. Guardar o
-    // nome da variável é frágil de propósito — quem reintroduzir o spread vai
-    // ter de passar por aqui e justificar.
+  it("⭐ NÃO lê chamadas linha por linha: a REST corta em 1.000", () => {
+    // Medido em 09/10/2026: `.from("llm_calls")...limit(50_000)` entregava 1.000 linhas, e a
+    // tela mostrava 1.000 de 177.579 chamadas. Vale para as três leituras que a rota fazia.
     const fonte = readFileSync(ROTA, "utf8");
-    const agregacao = fonte.slice(fonte.indexOf("aggregateUsage("));
-    expect(agregacao.slice(0, 200)).not.toMatch(/\[\s*\.\.\..*,\s*\.\.\./s);
+    for (const tabela of ["llm_calls", "messages", "event_log"]) {
+      expect(fonte.includes(`.from("${tabela}")`), `a rota voltou a ler ${tabela} linha por linha`).toBe(false);
+    }
   });
 });
 

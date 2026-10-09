@@ -1,11 +1,16 @@
 /**
  * Cost computation for AI invocations.
  *
- * Looks up `ai_pricing` (rarely changing global table) and converts token
- * usage to cost in *cents* (rounded up to integer to err on the side of
- * over-billing rather than free usage).
+ * Converte uso de tokens em custo, em *centavos* FRACIONÁRIOS (a coluna
+ * `llm_calls.cost_cents` é numeric).
+ *
+ * ⚠️ Até 09/10/2026 o resultado era arredondado PARA CIMA, "para errar para o lado de cobrar a
+ * mais". Numa chamada que custa centésimos de centavo isso não é margem, é outro número: medido
+ * em produção, 25.736 leituras de clima custaram US$ 222 na tela (um centavo cada) contra cerca
+ * de US$ 5 de verdade — e sozinhas faziam o orçamento do mês aparecer em 494% do limite.
  */
 
+import { costCents } from "@/lib/agent-engine/edge/llm/pricing";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 interface PricingRow {
@@ -105,9 +110,23 @@ async function precoDoCatalogo(
 }
 
 /**
- * Returns cost in **cents**, rounded up. Zero when pricing missing.
+ * Returns cost in **cents** (fracionário). Zero when pricing missing.
  */
 export async function computeCost(input: ComputeCostInput): Promise<number> {
+  // A tabela do motor (`pricing.ts`) vem primeiro: é a única que conhece o preço do trecho
+  // repetido e o horário de pico, e com ela a MESMA chamada custa o mesmo nos dois caminhos.
+  // O id chega aqui com o prefixo do provedor (`deepseek/deepseek-flash`); a tabela não o usa.
+  if (input.embeddingTokens === undefined) {
+    const semPrefixo = input.model.includes("/") ? input.model.slice(input.model.indexOf("/") + 1) : input.model;
+    const doMotor = costCents(semPrefixo, {
+      inputTokens: input.promptTokens ?? 0,
+      outputTokens: input.completionTokens ?? 0,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 0,
+    });
+    if (doMotor !== null) return doMotor;
+  }
+
   const pricing = await loadPricing();
   const row = pricing.get(input.model);
   if (!row) {
@@ -119,7 +138,7 @@ export async function computeCost(input: ComputeCostInput): Promise<number> {
     const cents =
       ((input.promptTokens ?? 0) * doCatalogo.prompt) / 1_000_000 +
       ((input.completionTokens ?? 0) * doCatalogo.completion) / 1_000_000;
-    return Math.ceil(cents);
+    return cents;
   }
 
   const promptRate = toNumber(row.prompt_cents_per_million_tokens);
@@ -135,7 +154,7 @@ export async function computeCost(input: ComputeCostInput): Promise<number> {
     (completionTokens * completionRate) / 1_000_000 +
     (embeddingTokens * embeddingRate) / 1_000_000;
 
-  return Math.ceil(cents);
+  return cents;
 }
 
 /** Test-only: drop the in-memory pricing cache. */

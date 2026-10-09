@@ -828,7 +828,7 @@ export async function runModelCall(db: pg.Pool, cfg: LlmEdgeConfig, input: RunMo
   // O TTL é o MESMO que gravou o prefixo estável acima: a gravação de cache custa
   // 1.25× a entrada em 5m e 2× em 1h, e supor a doutrina superfaturaria 60% da
   // parcela de cache write em quem usa o knob.
-  const cost = costCents(modeloEmUso, usage, cfg.cacheTtl ?? '1h');
+  const cost = costCents(modeloEmUso, usage, cfg.cacheTtl ?? '1h', new Date(startedAt));
 
   const { rows } = await db.query<{ id: string }>(
     `insert into llm_calls

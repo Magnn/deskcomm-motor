@@ -1432,7 +1432,7 @@
   "Quantas vezes o sistema leu o que o cliente queria e escolheu qual atendimento devia responder.": "系统有多少次读取客户需求，并选择应由哪个客服来回复。",
   "Quanto a inteligência artificial custou, quantos atendimentos ela fez, quanto demorou para responder e quantas vezes precisou chamar uma pessoa — nos últimos 30 dias.": "过去 30 天里，AI 花了多少钱、完成了多少次客户接待、回复耗时多久，以及有多少次需要转人工。",
   "Quanto foi para uma pessoa (%)": "转人工比例 (%)",
-  "Quanto gastou por dia (R$)": "每日花费 (R$)",
+  "Quanto gastou por dia (US$)": "每日花费 (US$)",
   "Reabrir": "重新打开",
   "Reativar": "重新启用",
   "Regras e aprendizados que TODOS os agentes de IA desta organização seguem em qualquer conversa — não é uma configuração de um agente específico.": "本组织中所有 AI 智能体在任何对话中都会遵循的规则和学习内容——这不是某个特定智能体的配置。",
