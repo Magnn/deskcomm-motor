@@ -148,23 +148,30 @@ function instrucaoDeNegociacao(c: PricingConfig, reclamacoes: number | null, val
   if (reclamacoes === 0) {
     return "- NEGOCIAÇÃO: ela ainda não reclamou do valor. NÃO ofereça desconto, NÃO fale de valor menor e NÃO insinue que existe. Se ela reclamar, esta instrução muda no próximo turno.";
   }
-  // A escada desce já na 1ª reclamação e pula para o degrau que cabe quando ela diz quanto tem
-  // (`degrauDoTurno`). Depois de tantas reclamações quantos são os degraus, o mínimo já foi dito.
-  if (reclamacoes > c.steps.length) {
+  // A 1ª reclamação é respondida com a DEFESA do valor; a escada desce da 2ª em diante e pula
+  // para o degrau que cabe quando ela diz quanto tem (`degrauDoTurno`). Depois de uma reclamação
+  // a mais que o número de degraus, o mínimo já foi dito.
+  if (reclamacoes > c.steps.length + 1) {
     return `- NEGOCIAÇÃO: ela já recebeu o menor valor possível (${reais(piso)}) e ainda diz que não cabe. Responda com ESTE molde e nenhum outro, sem oferecer mais nada e sem perguntar o motivo: "Esse é o menor valor que consigo, ${reais(piso)}. Se hoje não der, me diz o dia em que você consegue e eu deixo combinado por esse valor."`;
   }
   const i = degrauDoTurno(c, reclamacoes, valorQueTemCents);
   const degrau = c.steps[i];
   if (degrau === undefined) {
-    return `- NEGOCIAÇÃO: o valor é ${venda}, pagamento único. NÃO fale de valor menor.`;
+    // A DEFESA. Não é repetir o preço: é mostrar que ele cabe do jeito que o roteiro permite pagar.
+    // Medido em 08/10/2026: três de quatro pessoas que reclamaram e compraram pagaram o valor
+    // cheio depois de ouvir o parcelamento no cartão ou o Pix pelo link.
+    return [
+      `- NEGOCIAÇÃO: ela disse que o valor não cabe. Nesta resposta NÃO baixe e NÃO fale de valor menor: mantenha ${venda} e mostre como fica fácil pagar, usando as formas de pagamento que o seu roteiro descreve (parcelamento no cartão, Pix pelo link) — a que responder ao que ELA disse. Termine perguntando se assim ela consegue. Se ela disser de novo que não cabe, esta instrução muda no próximo turno.`,
+      "- Se ela disser que falta para o essencial (comida, remédio, aluguel, conta atrasada), NÃO insista em valor nenhum: acolha, e diga que a porta fica aberta quando ela puder.",
+    ].join("\n");
   }
   const valor = reais(degrau.price_cents);
   const como = comoPagar(degrau);
   const ultimo = i === c.steps.length - 1;
-  // Pergunta quanto ela consegue UMA vez, na 1ª reclamação, e só se ela ainda não disse: a
+  // Pergunta quanto ela consegue UMA vez, na 1ª oferta de degrau, e só se ela ainda não disse: a
   // resposta faz o próximo turno pular direto para o degrau que cabe.
   const pergunta =
-    !ultimo && reclamacoes === 1 && valorQueTemCents === null
+    !ultimo && reclamacoes === 2 && valorQueTemCents === null
       ? " Se ainda não couber, me diz quanto você consegue fazer hoje."
       : "";
   const molde = ultimo
@@ -179,9 +186,7 @@ function instrucaoDeNegociacao(c: PricingConfig, reclamacoes: number | null, val
   const motivo =
     valorQueTemCents !== null
       ? "ela disse quanto consegue pagar"
-      : reclamacoes === 1
-        ? "ela disse que o valor não cabe"
-        : "ela disse de novo que o valor não cabe";
+      : "ela disse de novo que o valor não cabe";
   return [
     `- NEGOCIAÇÃO: ${motivo}. NÃO repita o valor de venda: ofereça AGORA ${valor}${ultimo ? ", que é o MENOR valor possível" : ""}. Responda com ESTE molde e nenhum outro (sem perguntar o motivo, sem chamar outra pessoa): "${molde}"${lista}`,
     // Medido em 08/10/2026: 40 retornos agendados no dia, nenhum com valor combinado — a agente
