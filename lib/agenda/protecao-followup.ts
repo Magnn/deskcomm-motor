@@ -149,6 +149,8 @@ export async function protecaoAgendaPg(
     if (!organization.rows[0]) throw new Error("agenda_org_missing");
     return protecaoDaAgenda(appointments.rows, organization.rows[0].settings?.agenda, agora);
   } catch {
+    // Um contato, um aviso — o texto é o mesmo de sempre (há alerta e teste presos a ele).
+    logger.warn("[agenda] proteção indisponível; cobrança adiada");
     return indisponivel(agora);
   }
 }
