@@ -37464,6 +37464,39 @@ $$;
 
 revoke all on function fn_publish_followup_flow_version(uuid, uuid, jsonb, uuid) from public, anon, authenticated;
 
+-- ---- Lista de conversas sem a política de contatos por linha (migration 0919) ----
+create or replace function public.comando_da_conversa(c public.conversations)
+ returns text
+ language sql
+ stable
+ security definer
+ set search_path to 'public'
+as $function$
+  -- Uma leitura do contato (eram duas), feita como dono da função: sob a política de `contacts`
+  -- cada chamada reexecutava `fn_user_org_ids()` — e esta função roda uma vez POR CONVERSA.
+  -- `left join` a partir de uma linha fixa: contato ausente continua devolvendo linha, com as
+  -- duas travas em `false`, como o `coalesce` de antes garantia.
+  select public.fn_comando_da_conversa(
+    c.status,
+    c.assigned_to_user_id,
+    c.bot_silenced_until,
+    coalesce(ct.force_human, false),
+    coalesce(ct.is_blocked, false),
+    now()
+  )
+  from (select 1) uma_linha
+  left join public.contacts ct
+    on ct.id = c.contact_id and ct.organization_id = c.organization_id;
+$function$;
+
+comment on function public.comando_da_conversa(public.conversations)
+  is 'Campo calculado exposto pelo PostgREST: ?select=comando_da_conversa e ?comando_da_conversa=in.(...). Resolve o contato e carimba now(). SECURITY DEFINER desde a 0919: lê só as duas travas do contato DA MESMA organização da conversa recebida.';
+
+revoke execute on function public.comando_da_conversa(public.conversations) from public, anon;
+grant  execute on function public.comando_da_conversa(public.conversations) to authenticated, service_role;
+
+notify pgrst, 'reload schema';
+
 -- ---- VARREDURA anon: função nova nasce exposta em quem ATUALIZA (migration 0116) ----
 --
 -- ⚠️ DE PROPÓSITO, NENHUMA FUNÇÃO É CRIADA DEPOIS DESTE BLOCO. Apêndice que cria
@@ -38927,36 +38960,3 @@ create index if not exists idx_send_ledger_por_contato_e_estado
 create index if not exists idx_messages_chave_de_idempotencia
   on public.messages (organization_id, (metadata->>'idempotency_key'))
   where (metadata->>'idempotency_key') is not null;
-
--- ---- Lista de conversas sem a política de contatos por linha (migration 0919) ----
-create or replace function public.comando_da_conversa(c public.conversations)
- returns text
- language sql
- stable
- security definer
- set search_path to 'public'
-as $function$
-  -- Uma leitura do contato (eram duas), feita como dono da função: sob a política de `contacts`
-  -- cada chamada reexecutava `fn_user_org_ids()` — e esta função roda uma vez POR CONVERSA.
-  -- `left join` a partir de uma linha fixa: contato ausente continua devolvendo linha, com as
-  -- duas travas em `false`, como o `coalesce` de antes garantia.
-  select public.fn_comando_da_conversa(
-    c.status,
-    c.assigned_to_user_id,
-    c.bot_silenced_until,
-    coalesce(ct.force_human, false),
-    coalesce(ct.is_blocked, false),
-    now()
-  )
-  from (select 1) uma_linha
-  left join public.contacts ct
-    on ct.id = c.contact_id and ct.organization_id = c.organization_id;
-$function$;
-
-comment on function public.comando_da_conversa(public.conversations)
-  is 'Campo calculado exposto pelo PostgREST: ?select=comando_da_conversa e ?comando_da_conversa=in.(...). Resolve o contato e carimba now(). SECURITY DEFINER desde a 0919: lê só as duas travas do contato DA MESMA organização da conversa recebida.';
-
-revoke execute on function public.comando_da_conversa(public.conversations) from public, anon;
-grant  execute on function public.comando_da_conversa(public.conversations) to authenticated, service_role;
-
-notify pgrst, 'reload schema';
