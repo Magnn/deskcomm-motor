@@ -26,6 +26,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { encontrarContatoPorTelefone } from "@/lib/channels/contato-por-telefone";
 import { enrollFollowupFlow } from "@/lib/followup/enroll";
 import { emitLeadActivity } from "@/lib/leads/activity-emitter";
+import { slugDoProduto } from "@/lib/preco/pos-venda";
 import { slugDoTrabalho, type CompraDaCakto } from "@/lib/webhooks/cakto";
 
 export type ResultadoDaCompra =
@@ -110,7 +111,10 @@ export async function aplicarEventoDaCakto(deps: DepsDaCompra, compra: CompraDaC
   if (contato.tags.includes(marcaDoPedido)) return { resultado: "ja_processada", contatoId: contato.id };
 
   await deps.gravarCompra(contato.id, {
-    tags: unir(contato.tags, ["pago", `produto:${trabalho ?? "outro"}`, marcaDoPedido]),
+    // Produto que não é um dos trabalhos ganha a marca pelo próprio nome (`produto:sons-vocalicos`):
+    // é ela que diz ao pós-venda o que a pessoa JÁ comprou. Com `produto:outro` para todos, a oferta
+    // recém-comprada seria oferecida de novo e a sequência nunca andaria.
+    tags: unir(contato.tags, ["pago", `produto:${trabalho ?? (slugDoProduto(compra.produtoNome ?? "") || "outro")}`, marcaDoPedido]),
     ultimaCompra: {
       pedido: compra.pedidoId,
       produto: rotuloDoProduto,

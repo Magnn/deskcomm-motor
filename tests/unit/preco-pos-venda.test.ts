@@ -189,3 +189,55 @@ describe("schema e piso", () => {
     expect(pisoEmCentavos(desligada)).toBe(10_000);
   });
 });
+
+describe("pós-venda em sequência: cada oferta só depois que a anterior foi comprada", () => {
+  const SONS = { name: "Sons Vocálicos", url: "https://pay.exemplo.test/sons" };
+  const ORACAO = { name: "Oração dos Sonhos", url: "https://pay.exemplo.test/oracao" };
+  const cfg = pricingSchema.parse({
+    enabled: true,
+    list_price_cents: 13_000,
+    post_sale: {
+      enabled: true,
+      price_cents: 4_500,
+      wait_hours: 20,
+      product_links: [SONS],
+      next_offers: [{ price_cents: 3_500, wait_hours: 1, product_links: [ORACAO] }],
+    },
+  });
+  const comprouOTrabalho = ["pago", "produto:abertura-do-coracao"];
+  const comprouOsSons = [...comprouOTrabalho, "produto:sons-vocalicos"];
+  const horas = (n: number) => new Date(PAGOU.getTime() + n * 3_600_000);
+
+  it("⭐ depois do trabalho, a oferta é a primeira — com o valor dela", () => {
+    const e = estadoDoPosVenda(cfg, { tags: comprouOTrabalho, pagoEm: PAGOU }, [], horas(21));
+    expect(e).toMatchObject({ priceCents: 4_500, links: [SONS], jaOferecida: false });
+  });
+
+  it("⭐ comprou a primeira: a oferta passa a ser a segunda, com o valor DELA e a espera dela", () => {
+    expect(estadoDoPosVenda(cfg, { tags: comprouOsSons, pagoEm: PAGOU }, [], horas(0.5))).toBeNull();
+    const e = estadoDoPosVenda(cfg, { tags: comprouOsSons, pagoEm: PAGOU }, [], horas(2));
+    expect(e).toMatchObject({ priceCents: 3_500, links: [ORACAO] });
+  });
+
+  it("não comprou a primeira: a segunda não aparece, por mais que o tempo passe", () => {
+    const e = estadoDoPosVenda(cfg, { tags: comprouOTrabalho, pagoEm: PAGOU }, [], horas(200));
+    expect(e?.links).toEqual([SONS]);
+  });
+
+  it("comprou as duas: não há mais oferta", () => {
+    const tudo = [...comprouOsSons, "produto:oracao-dos-sonhos"];
+    expect(estadoDoPosVenda(cfg, { tags: tudo, pagoEm: PAGOU }, [], horas(50))).toBeNull();
+  });
+
+  it("o piso da organização cobre a oferta seguinte mais barata (senão a trava vetaria o valor configurado)", () => {
+    expect(pisoEmCentavos(cfg)).toBe(3_500);
+  });
+
+  it("o bloco de quem já comprou diz o valor da oferta da vez e só o link dela", () => {
+    const e = estadoDoPosVenda(cfg, { tags: comprouOsSons, pagoEm: PAGOU }, [], horas(2));
+    const b = blocoDePreco(cfg, { reclamacoes: 0, posVenda: e });
+    expect(b).toContain("R$ 35");
+    expect(b).toContain(ORACAO.url);
+    expect(b).not.toContain(SONS.url);
+  });
+});
