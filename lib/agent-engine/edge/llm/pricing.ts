@@ -42,7 +42,27 @@ interface Preco {
   cacheWrite5m: number;
   /** 2× a entrada — TTL de 1 hora, a doutrina de caching (CLAUDE.md regra 15). */
   cacheWrite1h: number;
+  /**
+   * Fornecedor que cobra mais caro no horário de pico: os valores acima são os de FORA do pico, e
+   * no pico tudo é multiplicado por `vezes`. Ausente = preço único.
+   */
+  pico?: { vezes: number; ehPico: (quando: Date) => boolean };
 }
+
+/**
+ * O horário de pico da DeepSeek: 01:00–04:00 e 06:00–10:00 UTC, de segunda a sexta. Fonte:
+ * api-docs.deepseek.com/quick_start/pricing, conferida em 09/10/2026 ("Off-peak rates are half of
+ * the peak rates"). Os feriados chineses, que a página também exclui do pico, NÃO estão aqui: o
+ * erro fica para o lado de contar a mais, que é o lado que não esconde gasto.
+ */
+export function ehPicoDaDeepseek(quando: Date): boolean {
+  const diaDaSemana = quando.getUTCDay();
+  if (diaDaSemana === 0 || diaDaSemana === 6) return false;
+  const hora = quando.getUTCHours();
+  return (hora >= 1 && hora < 4) || (hora >= 6 && hora < 10);
+}
+
+const PICO_DA_DEEPSEEK = { vezes: 2, ehPico: ehPicoDaDeepseek };
 
 /** USD por MILHÃO de tokens, por id EXATO de modelo (o sufixo de data é tolerado). */
 const USD_PER_MTOK: Record<string, Preco> = {
@@ -91,6 +111,17 @@ const USD_PER_MTOK: Record<string, Preco> = {
   // Id exato de propósito: quando a versão fixada subir, esta linha sobe junto,
   // e até lá a versão nova sai com custo NULL — nunca com o preço de outra.
   'jev-1.13.0': { input: 0.042, output: 0, cacheRead: 0.042, cacheWrite5m: 0.042, cacheWrite1h: 0.042 },
+
+  // DeepSeek — valores de FORA do pico; no pico dobram (`pico`). Fonte:
+  // api-docs.deepseek.com/quick_start/pricing, conferida em 09/10/2026. O trecho repetido da
+  // conversa (cache hit) custa 2% da entrada, e a DeepSeek não cobra a gravação do cache: ela é
+  // entrada comum.
+  //
+  // ⚠️ Estas duas linhas faltaram de 19/09 a 09/10/2026, com a DeepSeek já no catálogo. Medido
+  // numa instalação: 152 mil chamadas em 30 dias (3,5 bilhões de tokens) com custo NULL — a tela
+  // de Uso mostrava centavos e o teto de orçamento não enxergava o modelo que fazia o atendimento.
+  'deepseek-flash': { input: 0.15, output: 0.6, cacheRead: 0.003, cacheWrite5m: 0.15, cacheWrite1h: 0.15, pico: PICO_DA_DEEPSEEK },
+  'deepseek-v4-pro': { input: 0.66, output: 1.98, cacheRead: 0.022, cacheWrite5m: 0.66, cacheWrite1h: 0.66, pico: PICO_DA_DEEPSEEK },
 };
 
 export interface TokenUsage {
@@ -121,8 +152,15 @@ export function precoDoModelo(model: string): Preco | undefined {
  *
  * `cacheTtl` é o TTL com que o prefixo estável foi gravado (knob `LLM_CACHE_TTL`);
  * o default repete a doutrina ('1h') para quem chama sem ele.
+ *
+ * `quando` é a hora da chamada: só importa para fornecedor com preço de pico.
  */
-export function costCents(model: string, usage: TokenUsage, cacheTtl: CacheTtl = '1h'): number | null {
+export function costCents(
+  model: string,
+  usage: TokenUsage,
+  cacheTtl: CacheTtl = '1h',
+  quando: Date = new Date(),
+): number | null {
   const p = precoDoModelo(model);
   if (p === undefined) {
     return null;
@@ -135,5 +173,6 @@ export function costCents(model: string, usage: TokenUsage, cacheTtl: CacheTtl =
       usage.cacheWriteTokens * cacheWrite +
       usage.outputTokens * p.output) /
     1_000_000;
-  return usd * 100;
+  const vezes = p.pico?.ehPico(quando) ? p.pico.vezes : 1;
+  return usd * 100 * vezes;
 }

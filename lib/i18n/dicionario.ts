@@ -3186,7 +3186,7 @@ export const DICIONARIO: Traducoes = {
     es: "Cuánto costó la inteligencia artificial, cuántas conversaciones atendió, cuánto tardó en responder y cuántas veces necesitó llamar a una persona en los últimos 30 días.",
   },
   "Quanto foi para uma pessoa (%)": { es: "Cuánto pasó a una persona (%)" },
-  "Quanto gastou por dia (R$)": { es: "Cuánto gastaste por día (R$)" },
+  "Quanto gastou por dia (US$)": { es: "Cuánto gastaste por día (US$)" },
   Reabrir: { es: "Reabrir" },
   Reativar: { es: "Reactivar" },
   "Regras e aprendizados que TODOS os agentes de IA desta organização seguem em qualquer conversa — não é uma configuração de um agente específico.": {
@@ -3226,6 +3226,19 @@ export const DICIONARIO: Traducoes = {
   "Todos os números desta página são só deste intervalo. Mude as datas para comparar um mês com o outro.": {
     es: "Todos los números de esta página corresponden solo a este intervalo. Cambia las fechas para comparar un mes con otro.",
   },
+  "Chamadas à IA": { es: "Llamadas a la IA" },
+  "cada resposta ao cliente faz várias": { es: "cada respuesta al cliente hace varias" },
+  "Tokens lidos pela IA": { es: "Tokens leídos por la IA" },
+  "o roteiro, o material e a conversa, relidos a cada chamada": { es: "el guion, el material y la conversación, releídos en cada llamada" },
+  "Tokens escritos pela IA": { es: "Tokens escritos por la IA" },
+  "as respostas e as anotações que ela produziu": { es: "las respuestas y las notas que produjo" },
+  "Leitura reaproveitada": { es: "Lectura reaprovechada" },
+  "trecho repetido da conversa, que o fornecedor cobra com desconto": { es: "tramo repetido de la conversación, que el proveedor cobra con descuento" },
+  "chamadas deste período usaram um modelo cujo preço o produto não conhece: os tokens delas estão contados, o custo não.": { es: "llamadas de este período usaron un modelo cuyo precio el producto no conoce: sus tokens están contados, el costo no." },
+  "Para onde foram os tokens": { es: "A dónde fueron los tokens" },
+  "Para quê": { es: "Para qué" },
+  "Lidos": { es: "Leídos" },
+  "Escritos": { es: "Escritos" },
   Tokens: { es: "Tokens" },
   "Tudo o que entrou na cabeça dele neste período, e de onde veio.": {
     es: "Todo lo que entró en su cabeza en este período, y de dónde vino.",
