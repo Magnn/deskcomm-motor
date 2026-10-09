@@ -181,10 +181,11 @@ describe("compra aprovada", () => {
     expect(r).toMatchObject({ resultado: "compra_registrada_sem_fluxo", motivo: expect.stringContaining("flow_not_active") });
   });
 
-  it("produto que não é um dos trabalhos: registra como `produto:outro`", async () => {
+  it("produto que não é um dos trabalhos: a marca leva o nome dele (é o que o pós-venda lê para não oferecer de novo)", async () => {
     const { deps, gravado } = fake();
     await aplicarEventoDaCakto(deps, mapCaktoPayload({ ...AVISO, data: { ...AVISO.data, product: { name: "Ritual da Lua Nova", id: "x" } } })!);
-    expect(gravado[0]!.tags).toContain("produto:outro");
+    expect(gravado[0]!.tags).toContain("produto:ritual-da-lua-nova");
+    expect(gravado[0]!.tags).not.toContain("produto:outro");
   });
 });
 

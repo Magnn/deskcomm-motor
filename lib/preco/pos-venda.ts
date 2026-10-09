@@ -77,19 +77,35 @@ export function estadoDoPosVenda(
   if (!compra.tags.includes(MARCA_DE_PAGO)) return null;
   if (MARCAS_DE_DEVOLUCAO.some((m) => compra.tags.includes(m))) return null;
   if (compra.pagoEm === null || Number.isNaN(compra.pagoEm.getTime())) return null;
-  if (agora.getTime() - compra.pagoEm.getTime() < oferta.wait_hours * 3_600_000) return null;
 
   const comprados = compra.tags
     .filter((t) => t.startsWith(PREFIXO_DO_PRODUTO))
     .map((t) => t.slice(PREFIXO_DO_PRODUTO.length))
     .filter((s) => s !== "" && s !== "outro");
-  const links = oferta.product_links.filter((l) => !jaComprou(l.name, comprados));
-  if (links.length === 0) return null;
 
+  // A SEQUÊNCIA: com ofertas seguintes configuradas, a oferta da vez é a primeira da qual a pessoa
+  // ainda não comprou nada — e ela só é alcançada depois de a anterior ter sido comprada. Sem
+  // ofertas seguintes nada muda: vale a oferta única, sem os produtos já comprados.
+  const emSequencia = [
+    { price_cents: oferta.price_cents, wait_hours: oferta.wait_hours, product_links: oferta.product_links },
+    ...(oferta.next_offers ?? []),
+  ];
+  let daVez = emSequencia[0]!;
+  if (emSequencia.length > 1) {
+    const naoComprada = emSequencia.find((o) => !o.product_links.some((l) => jaComprou(l.name, comprados)));
+    if (naoComprada === undefined) return null;
+    daVez = naoComprada;
+  }
+  // A espera é a da oferta DA VEZ, contada da última compra — que, numa oferta seguinte, é a compra
+  // da oferta anterior.
+  if (agora.getTime() - compra.pagoEm.getTime() < daVez.wait_hours * 3_600_000) return null;
+
+  const links = daVez.product_links.filter((l) => !jaComprou(l.name, comprados));
+  if (links.length === 0) return null;
   const jaOferecida = mensagens.some(
     (m) => m.direction === "outbound" && links.some((l) => (m.body ?? "").includes(l.url)),
   );
-  return { priceCents: oferta.price_cents, links, jaOferecida };
+  return { priceCents: daVez.price_cents, links, jaOferecida };
 }
 
 /** A hora do pagamento, como a compra a gravou em `contacts.source_metadata.ultima_compra`. */

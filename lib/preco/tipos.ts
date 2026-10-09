@@ -85,11 +85,28 @@ export const ESPERA_PADRAO_DO_POS_VENDA_H = 20;
  * em `pos-venda.ts`. Exige link porque é a mesma lei dos degraus: valor que a agente pode
  * dizer só existe com a forma de pagá-lo.
  */
+/** Quantas ofertas podem vir DEPOIS da primeira oferta de pós-venda. */
+export const MAX_OFERTAS_SEGUINTES = 3;
+
+/**
+ * Uma oferta que só aparece depois que a anterior foi COMPRADA — a sequência de pós-venda
+ * ("comprou o trabalho → oferece A; comprou A → oferece B"). Cada uma tem o seu valor: o link de
+ * cada produto cobra um preço, e a agente só pode dizer o que o link cobra.
+ */
+export const ofertaSeguinteSchema = z.object({
+  price_cents: centavos,
+  /** Horas depois da compra da oferta anterior. */
+  wait_hours: z.number().int().min(0).max(720).default(1),
+  product_links: z.array(linkPorProdutoSchema).min(1).max(MAX_LINKS_POR_PRODUTO),
+});
+
 export const ofertaPosVendaSchema = z.object({
   enabled: z.boolean().default(false),
   price_cents: centavos,
   wait_hours: z.number().int().min(0).max(720).default(ESPERA_PADRAO_DO_POS_VENDA_H),
   product_links: z.array(linkPorProdutoSchema).min(1).max(MAX_LINKS_POR_PRODUTO),
+  /** Em ordem: cada uma só é oferecida depois que a anterior foi comprada. */
+  next_offers: z.array(ofertaSeguinteSchema).max(MAX_OFERTAS_SEGUINTES).optional(),
 });
 export type OfertaPosVenda = z.infer<typeof ofertaPosVendaSchema>;
 
@@ -155,7 +172,10 @@ export type PricingConfig = z.infer<typeof pricingSchema>;
 export function pisoEmCentavos(c: Pick<PricingConfig, "list_price_cents" | "steps"> & Pick<Partial<PricingConfig>, "post_sale">): number {
   const ultimo = c.steps[c.steps.length - 1];
   const daEscada = ultimo ? ultimo.price_cents : c.list_price_cents;
-  return c.post_sale?.enabled ? Math.min(daEscada, c.post_sale.price_cents) : daEscada;
+  if (!c.post_sale?.enabled) return daEscada;
+  // As ofertas seguintes entram no piso pelo mesmo motivo da primeira: a trava de promessas da
+  // organização vetaria um valor que a própria tela configurou.
+  return Math.min(daEscada, c.post_sale.price_cents, ...(c.post_sale.next_offers ?? []).map((o) => o.price_cents));
 }
 
 /** "R$ 130" quando redondo, "R$ 129,90" quando não. */
