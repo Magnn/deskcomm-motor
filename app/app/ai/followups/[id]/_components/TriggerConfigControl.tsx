@@ -84,6 +84,8 @@ interface TriggerFormState {
   stageId: string;
   cancelOnReply: boolean;
   eventTypeIds: string[];
+  /** Gatilho de automação: o produto cujas compras este fluxo entrega (vazio = fluxo geral). */
+  produtoDoWebhook: string;
 }
 
 const DEFAULT_THRESHOLD_MINUTES = 60;
@@ -139,6 +141,7 @@ function parseTriggerConfig(raw: Record<string, unknown>): TriggerFormState {
         : "",
     stageId: kind === "stage_change" && typeof params.stage_id === "string" ? params.stage_id : "",
     cancelOnReply: raw.cancel_on_reply === true,
+    produtoDoWebhook: kind === "webhook" && typeof raw.product_name === "string" ? raw.product_name : "",
   };
 }
 
@@ -155,7 +158,10 @@ function toTriggerConfig(form: TriggerFormState): Record<string, unknown> {
   }
 
   if (form.kind === "case_opened") return { kind: "case_opened", ...common };
-  if (form.kind === "webhook") return { kind: "webhook", ...common };
+  if (form.kind === "webhook") {
+    const produto = form.produtoDoWebhook.trim();
+    return { kind: "webhook", ...(produto ? { product_name: produto } : {}), ...common };
+  }
   if (form.kind === "lead_created") return { kind: "lead_created", ...common };
 
   const segments = form.segments
@@ -411,11 +417,28 @@ export function TriggerConfigControl({ flowId, flowStatus, triggerConfig }: Prop
           )}
 
           {form.kind === "webhook" && (
-            <p className="text-xs text-muted-foreground">
-              {t(
-                "O fluxo começa quando uma regra em Webhooks usa a ação «Iniciar fluxo de mensagem» apontando para este fluxo publicado.",
-              )}
-            </p>
+            <>
+              <p className="text-xs text-muted-foreground">
+                {t(
+                  "O fluxo começa quando uma regra em Webhooks usa a ação «Iniciar fluxo de mensagem» apontando para este fluxo publicado.",
+                )}
+              </p>
+              <div className="space-y-2">
+                <Label htmlFor="trigger-produto-do-webhook">{t("Só para compras deste produto (opcional)")}</Label>
+                <Input
+                  id="trigger-produto-do-webhook"
+                  value={form.produtoDoWebhook}
+                  maxLength={160}
+                  placeholder={t("O nome do produto, como aparece no checkout")}
+                  onChange={(e) => setForm((f) => ({ ...f, produtoDoWebhook: e.target.value }))}
+                />
+                <p className="text-xs text-muted-foreground">
+                  {t(
+                    "Num fluxo de entrega: preenchido, ele entrega só as compras desse produto; em branco, entrega todas as que não têm fluxo próprio.",
+                  )}
+                </p>
+              </div>
+            </>
           )}
 
           {form.kind === "inbound_after_silence" && (

@@ -41,8 +41,39 @@ export interface DepsDaCompra {
   gravarCompra(contatoId: string, patch: { tags: string[]; ultimaCompra: Record<string, unknown> }): Promise<void>;
   anotar(contatoId: string, texto: string): Promise<void>;
   pararFluxosVivos(contatoId: string, motivo: string): Promise<number>;
-  acharFluxoDeEntrega(): Promise<string | null>;
+  acharFluxoDeEntrega(produtoNome: string | null): Promise<string | null>;
   inscrever(contatoId: string, fluxoId: string): Promise<{ ok: true } | { ok: false; motivo: string }>;
+}
+
+export interface FluxoDeEntrega {
+  id: string;
+  /** O produto que este fluxo entrega (`trigger_config.product_name`). `null` = fluxo geral. */
+  produto: string | null;
+}
+
+const semAcentoMinusculo = (s: string): string =>
+  s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
+
+/**
+ * QUAL FLUXO ENTREGA ESTA COMPRA. Pura.
+ *
+ * Até 09/10/2026 toda compra aprovada caía no mesmo fluxo — o primeiro chamado "Entrega…". Com um
+ * segundo produto à venda (uma oferta de pós-venda, por exemplo), quem o comprasse recebia a entrega
+ * do produto principal de novo, e o material que pagou não saía.
+ *
+ * A regra: o fluxo que DECLARA o produto (no gatilho) fica com as compras dele; o fluxo sem produto
+ * declarado é o geral e fica com todo o resto. `fluxos` vem do mais recente para o mais antigo.
+ */
+export function escolherFluxoDeEntrega(fluxos: readonly FluxoDeEntrega[], produtoNome: string | null): string | null {
+  const comprado = produtoNome === null ? "" : semAcentoMinusculo(produtoNome);
+  if (comprado !== "") {
+    const doProduto = fluxos.find((f) => {
+      const declarado = f.produto === null ? "" : semAcentoMinusculo(f.produto);
+      return declarado !== "" && (comprado === declarado || comprado.includes(declarado));
+    });
+    if (doProduto) return doProduto.id;
+  }
+  return fluxos.find((f) => f.produto === null || f.produto.trim() === "")?.id ?? null;
 }
 
 const reaisTexto = (cents: number | null): string =>
@@ -97,7 +128,7 @@ export async function aplicarEventoDaCakto(deps: DepsDaCompra, compra: CompraDaC
   // Quem pagou não pode continuar recebendo a cobrança de "quer continuar?".
   await deps.pararFluxosVivos(contato.id, "compra_aprovada");
 
-  const fluxo = await deps.acharFluxoDeEntrega();
+  const fluxo = await deps.acharFluxoDeEntrega(compra.produtoNome);
   if (fluxo === null) {
     return { resultado: "compra_registrada_sem_fluxo", contatoId: contato.id, motivo: "nenhum fluxo de entrega ativo" };
   }
@@ -195,16 +226,20 @@ export function depsReais(admin: SupabaseClient, organizationId: string, request
       return (data ?? []).length;
     },
 
-    async acharFluxoDeEntrega() {
+    async acharFluxoDeEntrega(produtoNome) {
       const { data } = await admin
         .from("followup_flow_pointers")
-        .select("id, name")
+        .select("id, name, trigger_config")
         .eq("organization_id", organizationId)
         .eq("status", "active")
         .ilike("name", "Entrega%")
         .order("updated_at", { ascending: false })
-        .limit(1);
-      return (data as Array<{ id: string }> | null)?.[0]?.id ?? null;
+        .limit(50);
+      const fluxos = ((data ?? []) as Array<{ id: string; trigger_config: { product_name?: unknown } | null }>).map((f) => ({
+        id: f.id,
+        produto: typeof f.trigger_config?.product_name === "string" ? f.trigger_config.product_name : null,
+      }));
+      return escolherFluxoDeEntrega(fluxos, produtoNome);
     },
 
     async inscrever(contatoId, fluxoId) {
