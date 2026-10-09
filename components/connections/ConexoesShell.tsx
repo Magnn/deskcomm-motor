@@ -95,24 +95,12 @@ export function ConexoesShell({
   };
 
   return (
-    <div className="flex flex-col gap-4">
-      {/* A escolha vem ANTES das abas: quem chega para conectar não sabe em qual
-          delas entrar, e a diferença entre as duas decide o que o número aguenta. */}
-      <div className="flex flex-wrap items-center justify-end gap-3">
-        {/* A porta do "comentou, recebe direct": a tela não está no menu lateral
-            (ele está no limite da dobra), então é daqui que se chega a ela. */}
-        <Link href="/app/instagram" className="text-sm underline underline-offset-4 hover:text-text" data-testid="porta-do-instagram">
-          {t("Instagram: comentou, recebe direct")}
-        </Link>
-        {/* A porta da loja: o grupo de canais não tem hub, e fora daqui a tela da Nuvemshop só
-            era alcançada pela busca (⌘K) — quem não sabia que ela existia não a achava. */}
-        <Link href="/app/integrations/nuvemshop" className="text-sm underline underline-offset-4 hover:text-text" data-testid="porta-da-nuvemshop">
-          {t("Nuvemshop: conectar a loja")}
-        </Link>
-        <EscolherConexao onEscolher={(tipo) => irPara(tipo === "oficial" ? "oficial" : "numeros")} />
-      </div>
-    <Tabs value={aba} onValueChange={(v) => irPara(v, sub)} className="flex flex-col gap-4">
-      <TabsList className="h-auto max-w-full flex-wrap justify-start">
+    <Tabs value={aba} onValueChange={(v) => irPara(v, sub)} className="flex flex-col gap-5">
+      {/* Uma linha só: os canais à esquerda, a ação principal à direita. A escolha fica ao lado
+          das abas porque quem chega para conectar não sabe em qual delas entrar — e é o ÚNICO
+          botão principal da tela (o atalho de QR, dentro da aba, é secundário). */}
+      <div className="flex flex-wrap items-start justify-between gap-3">
+      <TabsList className="h-auto max-w-full flex-wrap items-center justify-start gap-y-1">
         {/* Rótulos pelo que o usuário RECONHECE, não pelo nome técnico do motor por
             trás: ele sabe se leu um QR ou se tem conta na Meta; a sigla do provedor
             não diz nada a quem instalou o sistema para vender.
@@ -123,6 +111,11 @@ export function ConexoesShell({
             a frase custou menos que abrir exceção no gate, e o gate continua
             estrito: o dia em que alguém escrever o nome do provider aqui DE VERDADE,
             ele reprova igual. */}
+        {/* Dois grupos: WhatsApp (quatro jeitos de ligar um número) e os outros canais. Nove abas
+            em fila única não diziam que as quatro primeiras são o mesmo canal. */}
+        <span className="px-2 text-[10px] font-semibold uppercase tracking-wider text-text-subtle" aria-hidden>
+          {t("WhatsApp")}
+        </span>
         <TabsTrigger value="numeros">{t("Números por QR")}</TabsTrigger>
         <TabsTrigger value="oficial">{t("API Oficial (Meta)")}</TabsTrigger>
         {/* "Provedor parceiro" e não a marca: o rótulo da marca vem do servidor
@@ -130,14 +123,20 @@ export function ConexoesShell({
             porque no dia em que houver um segundo parceiro esta aba não muda.
             Aqui fica o CONCEITO; lá dentro o cartão diz de quem se trata. */}
         <TabsTrigger value="parceiro">{t("Provedor parceiro")}</TabsTrigger>
-        <TabsTrigger value="telefonia">{t("Telefone")}</TabsTrigger>
+        <TabsTrigger value="voz">{t("Chamada de voz")}</TabsTrigger>
+        {graphParceiro && <TabsTrigger value="graph">{graphParceiro.label}</TabsTrigger>}
+        <span className="mx-1 hidden h-5 w-px bg-border sm:block" aria-hidden />
+        <span className="px-2 text-[10px] font-semibold uppercase tracking-wider text-text-subtle" aria-hidden>
+          {t("Outros canais")}
+        </span>
         <TabsTrigger value="messenger">{t("Messenger")}</TabsTrigger>
         <TabsTrigger value="telegram">{t("Telegram")}</TabsTrigger>
         <TabsTrigger value="sociais">{t("Redes sociais")}</TabsTrigger>
         <TabsTrigger value="webchat">{t("Webchat (Site)")}</TabsTrigger>
-        <TabsTrigger value="voz">{t("Chamada de voz")}</TabsTrigger>
-        {graphParceiro && <TabsTrigger value="graph">{graphParceiro.label}</TabsTrigger>}
+        <TabsTrigger value="telefonia">{t("Telefone")}</TabsTrigger>
       </TabsList>
+        <EscolherConexao onEscolher={(tipo) => irPara(tipo === "oficial" ? "oficial" : "numeros")} />
+      </div>
 
       <TabsContent value="numeros" className="mt-0">
         <ConnectionsClient wahaConfigured={wahaConfigured} />
@@ -215,7 +214,36 @@ export function ConexoesShell({
           </TabsContent>
         </Tabs>
       </TabsContent>
+
+
+      {/* As portas de telas que não são canal de conversa. Eram dois links sublinhados soltos no
+          topo, disputando com o botão principal; aqui têm nome, uma linha de explicação e alvo
+          de clique do tamanho de um cartão. */}
+      <section aria-label={t("Mais integrações")} className="flex flex-col gap-2 border-t border-border pt-5">
+        <h2 className="text-xs font-semibold uppercase tracking-wider text-text-subtle">{t("Mais integrações")}</h2>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <Link
+            href="/app/instagram"
+            data-testid="porta-do-instagram"
+            className="rounded-lg border border-border bg-surface p-4 transition-colors hover:border-border-strong hover:bg-surface-elevated"
+          >
+            <span className="block text-sm font-semibold text-text">{t("Instagram: comentou, recebe direct")}</span>
+            <span className="mt-0.5 block text-xs text-text-muted">
+              {t("Responda por direct quem comenta nas suas publicações.")}
+            </span>
+          </Link>
+          <Link
+            href="/app/integrations/nuvemshop"
+            data-testid="porta-da-nuvemshop"
+            className="rounded-lg border border-border bg-surface p-4 transition-colors hover:border-border-strong hover:bg-surface-elevated"
+          >
+            <span className="block text-sm font-semibold text-text">{t("Nuvemshop: conectar a loja")}</span>
+            <span className="mt-0.5 block text-xs text-text-muted">
+              {t("Traga pedidos e clientes da loja para o atendimento.")}
+            </span>
+          </Link>
+        </div>
+      </section>
     </Tabs>
-    </div>
   );
 }
