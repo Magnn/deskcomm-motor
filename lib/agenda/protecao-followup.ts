@@ -57,8 +57,16 @@ export function protecaoDaAgenda(
     reavaliar_em: null,
   };
 }
+/**
+ * Quantos contatos vão em cada pedido. A lista viaja na URL (`contact_id=in.(…)`), e um UUID
+ * ocupa 37 caracteres: com os ~1.300 contatos de uma organização o pedido passava de 48 KB e o
+ * PostgREST o recusava. Medido em produção em 09/10/2026: a leitura falhava em TODA rodada, o
+ * vigia de risco abortava com `risk_agenda_indisponivel` a cada 30 minutos e este arquivo
+ * escrevia 10,8 mil avisos por dia — um por contato, sem dizer o motivo.
+ */
+export const CONTATOS_POR_PEDIDO = 150;
+
 function indisponivel(agora: Date): ProtecaoAgenda {
-  logger.warn("[agenda] proteção indisponível; cobrança adiada");
   return {
     adiar: true,
     motivo: "leitura_indisponivel",
@@ -75,26 +83,29 @@ export async function protecaoAgendaSupabase(
   if (!contatos.length) return new Map();
   try {
     const appointments: CompromissoProtetor[] = [];
-    let after: string | undefined;
-    // Keyset estável: uma resposta bem-sucedida pode ter sido truncada pelo
-    // max_rows do PostgREST. Só página VAZIA prova que a leitura terminou.
-    for (;;) {
-      let query = db
-        .from("calendar_appointments")
-        .select("id,contact_id,revision,starts_at,ends_at,status")
-        .eq("organization_id", org)
-        .in("contact_id", contatos)
-        .in("status", ["pending", "confirmed"])
-        .order("id", { ascending: true })
-        .limit(500);
-      if (after) query = query.gt("id", after);
-      const page = await query;
-      if (page.error) throw page.error;
-      if (!page.data?.length) break;
-      const last = page.data[page.data.length - 1]!.id;
-      if (after && last <= after) throw new Error("agenda_page_did_not_advance");
-      appointments.push(...page.data);
-      after = last;
+    for (let i = 0; i < contatos.length; i += CONTATOS_POR_PEDIDO) {
+      const lote = contatos.slice(i, i + CONTATOS_POR_PEDIDO);
+      let after: string | undefined;
+      // Keyset estável: uma resposta bem-sucedida pode ter sido truncada pelo
+      // max_rows do PostgREST. Só página VAZIA prova que a leitura terminou.
+      for (;;) {
+        let query = db
+          .from("calendar_appointments")
+          .select("id,contact_id,revision,starts_at,ends_at,status")
+          .eq("organization_id", org)
+          .in("contact_id", lote)
+          .in("status", ["pending", "confirmed"])
+          .order("id", { ascending: true })
+          .limit(500);
+        if (after) query = query.gt("id", after);
+        const page = await query;
+        if (page.error) throw page.error;
+        if (!page.data?.length) break;
+        const last = page.data[page.data.length - 1]!.id;
+        if (after && last <= after) throw new Error("agenda_page_did_not_advance");
+        appointments.push(...page.data);
+        after = last;
+      }
     }
     const organization = await db.from("organizations").select("settings").eq("id", org).single();
     if (organization.error) throw organization.error;
@@ -108,7 +119,13 @@ export async function protecaoAgendaSupabase(
         ),
       ]),
     );
-  } catch {
+  } catch (err) {
+    // UM aviso por leitura, com o motivo: um por contato enterrava o log e não dizia o que falhou.
+    logger.warn("[agenda] proteção indisponível; cobrança adiada", {
+      organization_id: org,
+      contatos: contatos.length,
+      motivo: err instanceof Error ? err.message : (err as { message?: string } | null)?.message ?? String(err),
+    });
     return new Map(contatos.map((id) => [id, indisponivel(agora)]));
   }
 }
@@ -132,6 +149,8 @@ export async function protecaoAgendaPg(
     if (!organization.rows[0]) throw new Error("agenda_org_missing");
     return protecaoDaAgenda(appointments.rows, organization.rows[0].settings?.agenda, agora);
   } catch {
+    // Um contato, um aviso — o texto é o mesmo de sempre (há alerta e teste presos a ele).
+    logger.warn("[agenda] proteção indisponível; cobrança adiada");
     return indisponivel(agora);
   }
 }
