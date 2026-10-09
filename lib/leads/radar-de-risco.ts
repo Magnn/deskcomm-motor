@@ -1,5 +1,6 @@
 import { protecaoAgendaSupabase, type ProtecaoAgenda } from "@/lib/agenda/protecao-followup";
 import type { Role } from "@/lib/auth/types";
+import { buscaEmLotes } from "@/lib/supabase/em-lotes";
 /**
  * O RADAR DE RISCO, montado — a lista de demandas abertas que esfriaram.
  *
@@ -196,37 +197,51 @@ export async function carregaRadarDeRisco(
   const nameByContact = new Map<string, string | null>();
 
   if (contactIds.length > 0) {
+    // Em lotes e com o erro lido (`buscaEmLotes`): com os até 500 contatos da tela num pedido só, as
+    // três leituras eram recusadas e ignoradas — o Radar mostrava "0 em voo" com dezenas de
+    // retornos agendados, sem nome de contato e sem o atalho para a conversa.
     const [followups, convs, contacts] = await Promise.all([
-      admin
-        .from("cron_jobs")
-        .select("contact_id, next_run_at")
-        .eq("organization_id", organizationId)
-        .eq("kind", "at")
-        .eq("enabled", true)
-        .gt("next_run_at", nowIso)
-        .in("contact_id", contactIds),
-      admin
-        .from("conversations")
-        .select("id, contact_id, assignee_kind")
-        .eq("organization_id", organizationId)
-        .in("contact_id", contactIds),
-      admin
-        .from("contacts")
-        .select("id, name, display_name")
-        .eq("organization_id", organizationId)
-        .in("id", contactIds),
+      buscaEmLotes<{ contact_id: string; next_run_at: string }>(contactIds, (lote) =>
+        admin
+          .from("cron_jobs")
+          .select("contact_id, next_run_at")
+          .eq("organization_id", organizationId)
+          .eq("kind", "at")
+          .eq("enabled", true)
+          .gt("next_run_at", nowIso)
+          .in("contact_id", lote),
+      ),
+      buscaEmLotes<{ id: string; contact_id: string; assignee_kind: "user" | "ai" | null }>(contactIds, (lote) =>
+        admin
+          .from("conversations")
+          .select("id, contact_id, assignee_kind")
+          .eq("organization_id", organizationId)
+          .in("contact_id", lote),
+      ),
+      buscaEmLotes<{ id: string; name: string | null; display_name: string | null }>(contactIds, (lote) =>
+        admin
+          .from("contacts")
+          .select("id, name, display_name")
+          .eq("organization_id", organizationId)
+          .in("id", lote),
+      ),
     ]);
 
-    for (const f of followups.data ?? []) {
+    // "Não li" não pode virar "não tem": sem os retornos, todo negócio com volta agendada apareceria
+    // como abandono.
+    const falhou = followups.error ?? convs.error ?? contacts.error;
+    if (falhou) throw new Error(`radar_leitura_indisponivel: ${falhou.message}`);
+
+    for (const f of followups.data) {
       const prev = followupByContact.get(f.contact_id);
       if (!prev || f.next_run_at < prev) followupByContact.set(f.contact_id, f.next_run_at);
     }
-    for (const c of convs.data ?? []) {
+    for (const c of convs.data) {
       if (!convByContact.has(c.contact_id)) {
         convByContact.set(c.contact_id, { id: c.id, assignee_kind: c.assignee_kind ?? null });
       }
     }
-    for (const p of contacts.data ?? []) {
+    for (const p of contacts.data) {
       nameByContact.set(p.id, nomeDoContato(p));
     }
   }
