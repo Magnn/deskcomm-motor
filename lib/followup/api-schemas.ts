@@ -36,7 +36,13 @@ const CANCEL_ON_REPLY = {
 export const triggerConfigSchema = z.discriminatedUnion("kind", [
   z.strictObject({kind:z.literal("appointment_no_show"),params:z.strictObject({event_type_ids:z.array(z.string().uuid()).optional()}).optional(),...CANCEL_ON_REPLY}),
   z.strictObject({ kind: z.literal("manual"), ...CANCEL_ON_REPLY }),
-  z.strictObject({ kind: z.literal("webhook"), ...CANCEL_ON_REPLY }),
+  // `product_name`: o fluxo só serve às compras DESTE produto (o nome dele no meio de pagamento).
+  // Ausente = fluxo geral de entrega. Quem lê é `escolherFluxoDeEntrega` (lib/pagamentos).
+  z.strictObject({
+    kind: z.literal("webhook"),
+    product_name: z.string().trim().min(1).max(160).optional(),
+    ...CANCEL_ON_REPLY,
+  }),
   z.strictObject({
     kind: z.literal("lead_created"),
     params: z.strictObject({}).optional(),

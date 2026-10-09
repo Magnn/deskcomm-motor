@@ -12,7 +12,8 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-import { aplicarEventoDaCakto, type DepsDaCompra } from "@/lib/pagamentos/compra-cakto";
+import { aplicarEventoDaCakto, type DepsDaCompra, escolherFluxoDeEntrega } from "@/lib/pagamentos/compra-cakto";
+import { triggerConfigSchema } from "@/lib/followup/api-schemas";
 import { isCaktoPayload, mapCaktoPayload, segredoDaCaktoConfere, slugDoTrabalho } from "@/lib/webhooks/cakto";
 
 /** O exemplo da documentação da Cakto, com o produto de um dos trabalhos. */
@@ -230,5 +231,38 @@ describe("a fiação da rota de captação", () => {
 
   it("erro real devolve 5xx (a Cakto reenvia; a marca do pedido impede entrega dupla)", () => {
     expect(rota).toContain('fail("internal_error", "cakto_event_failed", 500');
+  });
+});
+
+describe("cada produto com o seu fluxo de entrega", () => {
+  // Do mais recente para o mais antigo, como a consulta devolve.
+  const fluxos = [
+    { id: "sons", produto: "Sons Vocálicos" },
+    { id: "oracao", produto: "Oração dos Sonhos" },
+    { id: "geral", produto: null },
+  ];
+
+  it("⭐ a compra do produto declarado vai para o fluxo dele — não para o fluxo geral", () => {
+    expect(escolherFluxoDeEntrega(fluxos, "Sons Vocálicos")).toBe("sons");
+    expect(escolherFluxoDeEntrega(fluxos, "ORAÇÃO DOS SONHOS")).toBe("oracao");
+    expect(escolherFluxoDeEntrega(fluxos, "sons vocalicos — acesso")).toBe("sons");
+  });
+
+  it("⭐ produto sem fluxo próprio vai para o geral, mesmo com fluxos de produto mais recentes", () => {
+    expect(escolherFluxoDeEntrega(fluxos, "Trabalho Espiritual: Abertura do Coração")).toBe("geral");
+    expect(escolherFluxoDeEntrega(fluxos, null)).toBe("geral");
+  });
+
+  it("sem fluxo geral, produto desconhecido fica sem entrega automática (não cai no fluxo de outro produto)", () => {
+    expect(escolherFluxoDeEntrega(fluxos.slice(0, 2), "Trabalho Espiritual: Abertura do Coração")).toBeNull();
+    expect(escolherFluxoDeEntrega([], "Sons Vocálicos")).toBeNull();
+  });
+
+  it("a fiação: a compra passa o nome do produto, e o gatilho de automação aceita declarar o produto", () => {
+    const compra = readFileSync("lib/pagamentos/compra-cakto.ts", "utf8");
+    expect(compra).toContain("deps.acharFluxoDeEntrega(compra.produtoNome)");
+    expect(triggerConfigSchema.safeParse({ kind: "webhook", product_name: "Sons Vocálicos" }).success).toBe(true);
+    expect(triggerConfigSchema.safeParse({ kind: "webhook" }).success).toBe(true);
+    expect(triggerConfigSchema.safeParse({ kind: "webhook", product_name: "" }).success).toBe(false);
   });
 });
