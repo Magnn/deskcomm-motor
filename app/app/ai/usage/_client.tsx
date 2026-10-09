@@ -7,6 +7,8 @@ import { UsageFilters, type UsageFiltersAgent } from "@/components/ai/UsageFilte
 import { UsageChart } from "@/components/ai/UsageChart";
 import { formatCentsUSD } from "@/lib/money";
 import { useT } from "@/hooks/i18n/useT";
+import { useTagDeIdioma } from "@/hooks/i18n/useLocaleDeData";
+import { PONTO_POR_ID } from "@/lib/ai/pontos/registro";
 
 interface Props {
   agents: UsageFiltersAgent[];
@@ -34,6 +36,11 @@ function StatCard({
       {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
     </Card>
   );
+}
+
+/** 3.531.659.761 → "3,5 bi". O número inteiro vai no `title`, para quem quiser conferir. */
+function compacto(valor: number, idioma: string): string {
+  return new Intl.NumberFormat(idioma, { notation: "compact", maximumFractionDigits: 1 }).format(valor);
 }
 
 function StatSkeletons() {
@@ -64,6 +71,7 @@ function ChartSkeletons() {
 
 export function UsageDashboardClient({ agents, initial }: Props) {
   const t = useT();
+  const idioma = useTagDeIdioma();
   const searchParams = useSearchParams();
 
   const filters: AiUsageFilters = {
@@ -93,9 +101,15 @@ export function UsageDashboardClient({ agents, initial }: Props) {
               // orçamento logo acima em US$ e este StatCard em R$, dois centímetros abaixo.
               value={formatCentsUSD(q.data.totals.cost_cents)}
             />
+            {/*
+              Cada resposta ao cliente faz VÁRIAS chamadas (ler o clima, conferir a promessa,
+              escrever, resumir). O rótulo antigo, "Atendimentos com IA", fazia 177 mil chamadas
+              parecerem 177 mil clientes.
+            */}
             <StatCard
-              label={t("Atendimentos com IA")}
-              value={q.data.totals.invocations.toLocaleString("pt-BR")}
+              label={t("Chamadas à IA")}
+              value={q.data.totals.invocations.toLocaleString(idioma)}
+              hint={t("cada resposta ao cliente faz várias")}
             />
             <StatCard
               label={t("Passaram para uma pessoa")}
@@ -119,7 +133,75 @@ export function UsageDashboardClient({ agents, initial }: Props) {
             />
           </div>
 
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3" data-testid="uso-tokens">
+            <StatCard
+              label={t("Tokens lidos pela IA")}
+              value={compacto(q.data.totals.input_tokens, idioma)}
+              hint={t("o roteiro, o material e a conversa, relidos a cada chamada")}
+            />
+            <StatCard
+              label={t("Tokens escritos pela IA")}
+              value={compacto(q.data.totals.output_tokens, idioma)}
+              hint={t("as respostas e as anotações que ela produziu")}
+            />
+            <StatCard
+              label={t("Leitura reaproveitada")}
+              value={
+                q.data.totals.input_tokens > 0
+                  ? `${Math.round((q.data.totals.cached_tokens / q.data.totals.input_tokens) * 100)}%`
+                  : "—"
+              }
+              hint={t("trecho repetido da conversa, que o fornecedor cobra com desconto")}
+            />
+          </div>
+
+          {q.data.totals.unpriced_invocations > 0 && (
+            <p
+              data-testid="uso-sem-preco"
+              className="rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-xs text-amber-900 dark:text-amber-200"
+            >
+              {q.data.totals.unpriced_invocations.toLocaleString(idioma)}{" "}
+              {t(
+                "chamadas deste período usaram um modelo cujo preço o produto não conhece: os tokens delas estão contados, o custo não.",
+              )}
+            </p>
+          )}
+
           <UsageChart payload={q.data} />
+
+          {q.data.kinds.length > 0 && (
+            <Card className="p-4" data-testid="uso-por-finalidade">
+              <h3 className="text-sm font-medium text-muted-foreground">{t("Para onde foram os tokens")}</h3>
+              <div className="mt-3 overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b text-left text-xs text-muted-foreground">
+                      <th className="py-2 pr-3 font-medium">{t("Para quê")}</th>
+                      <th className="py-2 pr-3 text-right font-medium">{t("Chamadas")}</th>
+                      <th className="py-2 pr-3 text-right font-medium">{t("Lidos")}</th>
+                      <th className="py-2 pr-3 text-right font-medium">{t("Escritos")}</th>
+                      <th className="py-2 text-right font-medium">{t("Custo")}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {q.data.kinds.map((k) => (
+                      <tr key={k.kind} className="border-b last:border-0">
+                        <td className="py-2 pr-3">{t(PONTO_POR_ID.get(k.kind)?.rotulo ?? k.kind)}</td>
+                        <td className="py-2 pr-3 text-right tabular-nums">{k.invocations.toLocaleString(idioma)}</td>
+                        <td className="py-2 pr-3 text-right tabular-nums" title={k.input_tokens.toLocaleString(idioma)}>
+                          {compacto(k.input_tokens, idioma)}
+                        </td>
+                        <td className="py-2 pr-3 text-right tabular-nums" title={k.output_tokens.toLocaleString(idioma)}>
+                          {compacto(k.output_tokens, idioma)}
+                        </td>
+                        <td className="py-2 text-right tabular-nums">{formatCentsUSD(k.cost_cents)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          )}
         </>
       )}
     </div>

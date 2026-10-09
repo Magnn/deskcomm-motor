@@ -1,19 +1,40 @@
 /**
- * Pure aggregator for the AI usage observability dashboard.
+ * Montagem pura do payload da tela Uso de IA.
  *
- * Receives raw `ai_invocations` rows + per-day inbound/handoff counts and
- * returns the payload consumed by `/api/v1/ai/usage`. Kept side-effect free
- * to make it easy to unit test.
+ * A SOMA é do banco (`fn_uso_de_ia`, migration 0920). Antes este arquivo recebia as chamadas
+ * linha por linha — herança de `ai_invocations` — e a REST entregava no máximo 1.000 delas:
+ * medido em 09/10/2026, 1.000 de 177.579. Aqui só se arruma o que o banco já somou.
  */
 
-export interface InvocationRow {
-  created_at: string;
-  invocation_kind: string;
-  cost_cents: number | null;
-  prompt_tokens: number | null;
-  completion_tokens: number | null;
-  total_tokens: number | null;
-  latency_ms: number | null;
+/** Uma linha de `fn_uso_de_ia`. `nivel`: 0 = dia + finalidade; 1 = o dia; 3 = o período. */
+export interface LinhaDeUso {
+  nivel: number;
+  dia: string | null;
+  finalidade: string | null;
+  chamadas: number;
+  tokens_de_entrada: number;
+  tokens_de_saida: number;
+  tokens_reaproveitados: number;
+  custo_cents: number;
+  chamadas_sem_preco: number;
+  p50_ms: number;
+  p95_ms: number;
+}
+
+/** Uma linha de `fn_recebidas_e_passagens_por_dia`. */
+export interface DiaDeConversa {
+  dia: string;
+  recebidas: number;
+  passagens: number;
+}
+
+export interface UsoPorFinalidade {
+  kind: string;
+  invocations: number;
+  input_tokens: number;
+  output_tokens: number;
+  cached_tokens: number;
+  cost_cents: number;
 }
 
 export interface UsagePayload {
@@ -21,7 +42,15 @@ export interface UsagePayload {
   totals: {
     cost_cents: number;
     total_tokens: number;
+    /** Tudo o que a IA LEU. Inclui `cached_tokens`. */
+    input_tokens: number;
+    /** O que a IA ESCREVEU. */
+    output_tokens: number;
+    /** A parte da leitura que o fornecedor reaproveitou e cobrou com desconto. */
+    cached_tokens: number;
     invocations: number;
+    /** Chamadas com tokens e SEM custo: o produto não sabe o preço do modelo. */
+    unpriced_invocations: number;
     p50_latency_ms: number;
     p95_latency_ms: number;
     handoff_rate: number;
@@ -34,6 +63,8 @@ export interface UsagePayload {
     handoff_rate: Array<{ day: string; value: number }>;
   };
   by_kind: Record<string, number>;
+  /** Para onde foram os tokens, da finalidade que mais consumiu para a que menos. */
+  kinds: UsoPorFinalidade[];
 }
 
 /** Format a Date as YYYY-MM-DD in UTC. */
@@ -53,120 +84,89 @@ export function daysBetween(from: Date, to: Date): string[] {
   return out;
 }
 
-function percentile(sorted: number[], p: number): number {
-  if (sorted.length === 0) return 0;
-  if (sorted.length === 1) return sorted[0]!;
-  const idx = Math.min(sorted.length - 1, Math.max(0, Math.ceil((p / 100) * sorted.length) - 1));
-  return sorted[idx]!;
-}
+const n = (v: unknown): number => {
+  const x = typeof v === "number" ? v : Number(v);
+  return Number.isFinite(x) ? x : 0;
+};
 
-function tokensOf(row: InvocationRow): number {
-  if (row.total_tokens != null) return row.total_tokens;
-  return (row.prompt_tokens ?? 0) + (row.completion_tokens ?? 0);
-}
-
-export function aggregateUsage(
-  rows: InvocationRow[],
-  dailyInbounds: Map<string, number>,
-  dailyHandoffs: Map<string, number>,
+export function montarUso(
+  linhas: readonly LinhaDeUso[],
+  conversa: readonly DiaDeConversa[],
   range: { from: Date; to: Date },
 ): UsagePayload {
   const days = daysBetween(range.from, range.to);
+  const doDia = new Map<string, LinhaDeUso>();
+  const porFinalidade = new Map<string, UsoPorFinalidade>();
+  let total: LinhaDeUso | null = null;
 
-  // Per-day buckets.
-  const buckets = new Map<
-    string,
-    { cost: number; tokens: number; latencies: number[]; count: number }
-  >();
-  for (const day of days) {
-    buckets.set(day, { cost: 0, tokens: 0, latencies: [], count: 0 });
-  }
-
-  const byKind: Record<string, number> = {};
-  let totalCost = 0;
-  let totalTokens = 0;
-  const allLatencies: number[] = [];
-
-  for (const row of rows) {
-    const day = row.created_at.slice(0, 10);
-    const bucket = buckets.get(day);
-    if (!bucket) continue; // outside range — skip defensively
-    const cost = row.cost_cents ?? 0;
-    const tokens = tokensOf(row);
-    const latency = row.latency_ms ?? 0;
-
-    bucket.cost += cost;
-    bucket.tokens += tokens;
-    bucket.count += 1;
-    if (latency > 0) {
-      bucket.latencies.push(latency);
-      allLatencies.push(latency);
+  for (const l of linhas) {
+    if (l.nivel === 3) total = l;
+    else if (l.nivel === 1 && l.dia) doDia.set(l.dia, l);
+    else if (l.nivel === 0 && l.finalidade) {
+      const f = porFinalidade.get(l.finalidade) ?? {
+        kind: l.finalidade,
+        invocations: 0,
+        input_tokens: 0,
+        output_tokens: 0,
+        cached_tokens: 0,
+        cost_cents: 0,
+      };
+      f.invocations += n(l.chamadas);
+      f.input_tokens += n(l.tokens_de_entrada);
+      f.output_tokens += n(l.tokens_de_saida);
+      f.cached_tokens += n(l.tokens_reaproveitados);
+      f.cost_cents += n(l.custo_cents);
+      porFinalidade.set(l.finalidade, f);
     }
-
-    totalCost += cost;
-    totalTokens += tokens;
-
-    const kind = row.invocation_kind;
-    byKind[kind] = (byKind[kind] ?? 0) + 1;
   }
 
-  const costSeries: Array<{ day: string; value: number }> = [];
-  const tokensSeries: Array<{ day: string; value: number }> = [];
-  const p50Series: Array<{ day: string; value: number }> = [];
-  const p95Series: Array<{ day: string; value: number }> = [];
-  const handoffSeries: Array<{ day: string; value: number }> = [];
+  const recebidas = new Map(conversa.map((c) => [c.dia, n(c.recebidas)]));
+  const passagens = new Map(conversa.map((c) => [c.dia, n(c.passagens)]));
+  let totalRecebidas = 0;
+  let totalPassagens = 0;
 
-  let totalInvocations = 0;
+  const series: UsagePayload["series"] = {
+    cost_cents: [],
+    total_tokens: [],
+    p50_latency_ms: [],
+    p95_latency_ms: [],
+    handoff_rate: [],
+  };
   for (const day of days) {
-    const bucket = buckets.get(day)!;
-    const sortedLat = [...bucket.latencies].sort((a, b) => a - b);
-    const p50 = percentile(sortedLat, 50);
-    const p95 = percentile(sortedLat, 95);
-    const inb = dailyInbounds.get(day) ?? 0;
-    const hand = dailyHandoffs.get(day) ?? 0;
-    const rate = inb > 0 ? hand / inb : 0;
-
-    costSeries.push({ day, value: bucket.cost });
-    tokensSeries.push({ day, value: bucket.tokens });
-    p50Series.push({ day, value: p50 });
-    p95Series.push({ day, value: p95 });
-    handoffSeries.push({ day, value: Number(rate.toFixed(4)) });
-
-    totalInvocations += bucket.count;
+    const l = doDia.get(day);
+    const inb = recebidas.get(day) ?? 0;
+    const hand = passagens.get(day) ?? 0;
+    totalRecebidas += inb;
+    totalPassagens += hand;
+    series.cost_cents.push({ day, value: n(l?.custo_cents) });
+    series.total_tokens.push({ day, value: n(l?.tokens_de_entrada) + n(l?.tokens_de_saida) });
+    series.p50_latency_ms.push({ day, value: n(l?.p50_ms) });
+    series.p95_latency_ms.push({ day, value: n(l?.p95_ms) });
+    series.handoff_rate.push({ day, value: inb > 0 ? Number((hand / inb).toFixed(4)) : 0 });
   }
 
-  const sortedAll = [...allLatencies].sort((a, b) => a - b);
-  const p50All = percentile(sortedAll, 50);
-  const p95All = percentile(sortedAll, 95);
-
-  let totalInbounds = 0;
-  let totalHandoffs = 0;
-  for (const day of days) {
-    totalInbounds += dailyInbounds.get(day) ?? 0;
-    totalHandoffs += dailyHandoffs.get(day) ?? 0;
-  }
-  const overallRate = totalInbounds > 0 ? totalHandoffs / totalInbounds : 0;
+  const kinds = [...porFinalidade.values()].sort(
+    (a, b) => b.input_tokens + b.output_tokens - (a.input_tokens + a.output_tokens),
+  );
+  const entrada = n(total?.tokens_de_entrada);
+  const saida = n(total?.tokens_de_saida);
 
   return {
-    range: {
-      from: toUtcDay(range.from),
-      to: toUtcDay(range.to),
-    },
+    range: { from: toUtcDay(range.from), to: toUtcDay(range.to) },
     totals: {
-      cost_cents: totalCost,
-      total_tokens: totalTokens,
-      invocations: totalInvocations,
-      p50_latency_ms: p50All,
-      p95_latency_ms: p95All,
-      handoff_rate: Number(overallRate.toFixed(4)),
+      cost_cents: n(total?.custo_cents),
+      total_tokens: entrada + saida,
+      input_tokens: entrada,
+      output_tokens: saida,
+      cached_tokens: n(total?.tokens_reaproveitados),
+      invocations: n(total?.chamadas),
+      unpriced_invocations: n(total?.chamadas_sem_preco),
+      p50_latency_ms: n(total?.p50_ms),
+      p95_latency_ms: n(total?.p95_ms),
+      handoff_rate: totalRecebidas > 0 ? Number((totalPassagens / totalRecebidas).toFixed(4)) : 0,
     },
-    series: {
-      cost_cents: costSeries,
-      total_tokens: tokensSeries,
-      p50_latency_ms: p50Series,
-      p95_latency_ms: p95Series,
-      handoff_rate: handoffSeries,
-    },
-    by_kind: byKind,
+    series,
+    by_kind: Object.fromEntries(kinds.map((k) => [k.kind, k.invocations])),
+    kinds,
   };
 }
