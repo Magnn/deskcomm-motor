@@ -203,6 +203,11 @@ export async function abreAvisoDoEspelhoRecusado(
 /** Injetável só para teste — em produção é sempre a implementação real. */
 interface Deps {
   sync?: typeof sincronizaEstagioDoAgente;
+  /**
+   * Classifica o motivo quando o destino é a etapa de perda (`motivo-da-perda-do-agente.ts`).
+   * Quem tem a camada de IA em mãos é o turno; aqui ela só é repassada ao sync.
+   */
+  classificaPerda?: () => Promise<string | null>;
 }
 
 export async function mirrorLeadStageToCrm(
@@ -220,6 +225,7 @@ export async function mirrorLeadStageToCrm(
       organizationId: input.tenantId,
       contactId: input.leadId,
       passo: input.toStage,
+      ...(deps.classificaPerda ? { classificaPerda: deps.classificaPerda } : {}),
     });
 
     if (r.moveu || r.motivo === 'ja_esta_la') return { ok: true };
@@ -243,7 +249,7 @@ export async function mirrorLeadStageToCrm(
       },
       perda_sem_motivo: {
         reason: 'perda_sem_motivo',
-        detail: 'a etapa de destino fecha o negócio como perdido, e perder exige um motivo que o assistente não pode escolher',
+        detail: 'a etapa de destino fecha o negócio como perdido, e a classificação automática não chegou a um motivo com segurança',
       },
       ambiguo: {
         reason: 'not_configured',

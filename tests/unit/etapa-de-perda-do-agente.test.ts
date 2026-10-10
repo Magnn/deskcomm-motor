@@ -41,7 +41,27 @@ function funilDaClinica(over: Partial<EstagioCandidato> = {}): EstagioCandidato[
 }
 
 describe("o resolvedor do agente e a etapa de perda (#917)", () => {
-  it("etapa de perda: NÃO move — o card fica onde está e o motivo é do humano", () => {
+  it("⭐ etapa de perda COM motivo classificado: move, e o motivo vai junto na mesma escrita", () => {
+    // Decisão do dono (10/10/2026): a IA classifica o motivo. O valor é do vocabulário canônico do
+    // funil — o banco recusa o que não é.
+    const destino = resolveDestinoDoAgente(
+      funilDaClinica(),
+      "lost",
+      "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      "price",
+    );
+    expect(destino).toEqual({
+      move: true,
+      stageId: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+      stageName: "Perdido",
+      patch: { lost_reason: "price" },
+    });
+    // Etapa comum não ganha motivo, mesmo que alguém passe um.
+    const comum = resolveDestinoDoAgente(funilDaClinica(), "negotiating", "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "price");
+    expect(comum).toMatchObject({ move: true, patch: {} });
+  });
+
+  it("etapa de perda SEM motivo (ninguém classificou, ou sem segurança): NÃO move — o card fica onde está", () => {
     const destino = resolveDestinoDoAgente(
       funilDaClinica(),
       "lost",
@@ -60,6 +80,7 @@ describe("o resolvedor do agente e a etapa de perda (#917)", () => {
       move: true,
       stageId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
       stageName: "Procedimento",
+      patch: {},
     });
   });
 
@@ -85,6 +106,15 @@ describe("o resolvedor do agente e a etapa de perda (#917)", () => {
 
 describe("o espelho do funil traduz o não-movimento em AÇÃO para o humano (#917)", () => {
   const cfg = { supabase: {} as never } as never;
+
+  it("o espelho repassa a classificação ao sync — e só quando ela existe", async () => {
+    const sync = vi.fn(async () => ({ moveu: true as const, motivo: "movido" as const }));
+    const classificaPerda = async () => "price";
+    await mirrorLeadStageToCrm({} as never, cfg, { tenantId: "org", leadId: "c", toStage: "lost" as never }, { sync: sync as never, classificaPerda });
+    expect((sync.mock.calls[0] as unknown as [unknown, { classificaPerda?: unknown }])[1].classificaPerda).toBe(classificaPerda);
+    await mirrorLeadStageToCrm({} as never, cfg, { tenantId: "org", leadId: "c", toStage: "lost" as never }, { sync: sync as never });
+    expect((sync.mock.calls[1] as unknown as [unknown, object])[1]).not.toHaveProperty("classificaPerda");
+  });
 
   it("`perda_sem_motivo` NÃO é warn-only — é o que faz o caller abrir o item de inbox", async () => {
     expect(MIRROR_WARN_ONLY.has("perda_sem_motivo" as never)).toBe(false);

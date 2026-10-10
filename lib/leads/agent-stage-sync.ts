@@ -33,7 +33,7 @@ export interface EstagioCandidato {
 }
 
 export type DestinoDoAgente =
-  | { move: true; stageId: string; stageName: string }
+  | { move: true; stageId: string; stageName: string; patch: { lost_reason?: string } }
   /**
    * `sem_mapeamento` — o pipeline não declarou nenhum estágio para este passo.
    *
@@ -93,16 +93,21 @@ export function resolveDestinoDoAgente(
   estagios: EstagioCandidato[],
   passo: string,
   estagioAtualId: string,
+  /**
+   * O motivo que a CLASSIFICAÇÃO desta perda devolveu (`motivo-da-perda-do-agente.ts`), já no
+   * vocabulário canônico do funil. Ausente = ninguém classificou, e a etapa de perda recusa.
+   */
+  motivoDaPerda?: string | null,
 ): DestinoDoAgente {
   const alvo = estagios.find((e) => !e.is_archived && e.agent_stage_hint === passo);
   if (!alvo) return { move: false, motivo: "sem_mapeamento", passo };
   if (alvo.id === estagioAtualId) return { move: false, motivo: "ja_esta_la", passo };
-  // A decisão é a MESMA função do arrasto e do lote (issue #917) — sem motivo e
-  // SEM `motivoAtual`: o agente não manda motivo, e o que está na linha é o da
-  // perda anterior de um negócio reaberto (ver `perda_sem_motivo` acima).
-  const veredito = decideMotivoDaPerda({ etapaDeDestino: alvo });
+  // A decisão é a MESMA função do arrasto e do lote (issue #917) — SEM `motivoAtual`: o que está
+  // na linha é o da perda anterior de um negócio reaberto (ver `perda_sem_motivo` acima). O
+  // `motivo`, quando vem, é o desta perda, classificado agora sobre esta conversa.
+  const veredito = decideMotivoDaPerda({ etapaDeDestino: alvo, motivo: motivoDaPerda ?? null });
   if (!veredito.ok) return { move: false, motivo: "perda_sem_motivo", passo };
-  return { move: true, stageId: alvo.id, stageName: alvo.name };
+  return { move: true, stageId: alvo.id, stageName: alvo.name, patch: veredito.patch };
 }
 
 /**
@@ -203,6 +208,12 @@ export async function sincronizaEstagioDoAgente(
      * caminho que ainda não foi migrado, em silêncio.
      */
     escopoDeFunis?: readonly string[];
+    /**
+     * Classifica o motivo quando o destino é a etapa de PERDA. Só é chamada nesse caso. Devolve o
+     * valor canônico para o card, ou `null` quando não há segurança — aí vale a recusa de sempre
+     * (`perda_sem_motivo`), com aviso para uma pessoa. Ausente = ninguém classifica.
+     */
+    classificaPerda?: () => Promise<string | null>;
   },
 ): Promise<ResultadoDaSincronizacao> {
   // ⚠️ O erro do SELECT É LIDO, e isso não é zelo: o supabase-js NÃO LANÇA em
@@ -276,11 +287,29 @@ export async function sincronizaEstagioDoAgente(
     return { moveu: false, motivo: "indisponivel", leadId: lead.id, detalhe: erroStages.message };
   }
 
-  const destino = resolveDestinoDoAgente(
+  let destino = resolveDestinoDoAgente(
     (stageRows ?? []) as EstagioCandidato[],
     input.passo,
     lead.stage_id,
   );
+  let motivoClassificado: string | null = null;
+  if (!destino.move && destino.motivo === "perda_sem_motivo" && input.classificaPerda) {
+    // A classificação NUNCA derruba o espelho: teto de gasto, chave ou provedor fora viram "sem
+    // motivo", e o caminho de sempre (aviso para uma pessoa) segue valendo.
+    try {
+      motivoClassificado = await input.classificaPerda();
+    } catch {
+      motivoClassificado = null;
+    }
+    if (motivoClassificado !== null) {
+      destino = resolveDestinoDoAgente(
+        (stageRows ?? []) as EstagioCandidato[],
+        input.passo,
+        lead.stage_id,
+        motivoClassificado,
+      );
+    }
+  }
   if (!destino.move) return { moveu: false, motivo: destino.motivo, leadId: lead.id };
 
   // O erro DESTE select é descartado de propósito — e a diferença para os dois de
@@ -297,7 +326,7 @@ export async function sincronizaEstagioDoAgente(
   const serviceOrigin = await observeServiceOrigin(admin, input.organizationId, input.contactId);
   const { data: atualizadas, error } = await admin
     .from("crm_leads")
-    .update({ stage_id: destino.stageId })
+    .update({ stage_id: destino.stageId, ...destino.patch })
     .eq("id", lead.id)
     // Trava otimista pelo estágio de ORIGEM: se um humano arrastou o card entre
     // a leitura e a escrita, o agente não atropela a decisão dele.
@@ -342,7 +371,13 @@ export async function sincronizaEstagioDoAgente(
       (origem as { name: string } | null)?.name ?? null,
       destino.stageName,
     ),
-    payload: { passo_do_agente: input.passo, de: lead.stage_id, para: destino.stageId },
+    payload: {
+      passo_do_agente: input.passo,
+      de: lead.stage_id,
+      para: destino.stageId,
+      // A timeline diz QUEM deu o motivo: quem abrir o card vê que foi classificação automática.
+      ...(motivoClassificado !== null ? { motivo_da_perda: motivoClassificado, motivo_classificado_por: "ia" } : {}),
+    },
   });
   if (!atividade.ok) {
     await registraFalhaDeAtividade(admin, {

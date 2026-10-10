@@ -35,8 +35,8 @@ describe("resolveDestinoDoAgente", () => {
   it("cenário 26: o mesmo passo cai em nomes diferentes por nicho", () => {
     const naClinica = resolveDestinoDoAgente(clinica, "negotiating", "c1");
     const noEcommerce = resolveDestinoDoAgente(ecommerce, "negotiating", "e1");
-    expect(naClinica).toEqual({ move: true, stageId: "c3", stageName: "Proposta enviada" });
-    expect(noEcommerce).toEqual({ move: true, stageId: "e2", stageName: "Aguardando pagamento" });
+    expect(naClinica).toEqual({ move: true, stageId: "c3", stageName: "Proposta enviada", patch: {} });
+    expect(noEcommerce).toEqual({ move: true, stageId: "e2", stageName: "Aguardando pagamento", patch: {} });
   });
 
   it("sem mapeamento: NÃO move, e não inventa o mais próximo", () => {
