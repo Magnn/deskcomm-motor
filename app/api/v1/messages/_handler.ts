@@ -35,6 +35,7 @@ import {
   type ChannelSessionRef,
 } from "@/lib/channels";
 import { ARCHIVED_AT, queryTolerantToMissingArchived } from "@/lib/channels/archived";
+import { canalTemBotaoDeResposta, LINHA_SEM_BOTAO, lerBotoesDeResposta } from "@/lib/channels/botoes-de-resposta";
 import { conferirDefinicao } from "@/lib/channels/conferir-definicao";
 import { isMediaPathOwnedBy } from "@/lib/messaging/media/upload-validation";
 import {
@@ -471,6 +472,15 @@ export async function sendMessageHandler(
     );
   }
 
+  // Botões de resposta: canal que sabe enviar leva os botões; o que não sabe recebe a MESMA saída
+  // como uma linha no corpo — antes de a linha ser gravada, para o histórico mostrar o que saiu.
+  let botoesDeResposta = input.type === "text" ? lerBotoesDeResposta(input.metadata) : null;
+  if (botoesDeResposta && !canalTemBotaoDeResposta(c.channel_sessions?.provider ?? DEFAULT_CHANNEL_PROVIDER)) {
+    botoesDeResposta = null;
+    const { reply_buttons: _semBotao, ...resto } = input.metadata ?? {};
+    input = { ...input, body: `${input.body ?? ""}\n\n${LINHA_SEM_BOTAO}`.trim(), metadata: resto };
+  }
+
   let outboundBody = input.body ?? null;
   let outboundMetadata: Record<string, unknown> = { ...(input.metadata ?? {}) };
 
@@ -899,6 +909,7 @@ export async function sendMessageHandler(
           kind: input.type,
           body: input.body ?? "",
           replyToExternalId: citada?.external_id ?? null,
+          ...(botoesDeResposta ? { replyButtons: botoesDeResposta } : {}),
         }));
       }
 

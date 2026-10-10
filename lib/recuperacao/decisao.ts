@@ -103,10 +103,12 @@ export function ofereceSaida(passo: number, total: number, silencioMs: number): 
 /** O que o agente lê ao ser acordado para uma chamada de recuperação. */
 export function motivoDoPasso(passo: number, total: number, silencioMs: number): string {
   const saida = ofereceSaida(passo, total, silencioMs)
-    ? "Como esta é a última tentativa, termine com uma linha curta avisando que, se a pessoa não quiser mais " +
-      "receber mensagens, basta responder SAIR (SALIR se a conversa for em espanhol). "
-    : "NÃO ofereça descadastro nem peça para a pessoa responder SAIR: ela está no meio da conversa, e esse " +
-      "convite a tira dela. ";
+    ? "Como esta é a última tentativa, termine PERGUNTANDO, com suas palavras e sem pressão, se a pessoa quer " +
+      "continuar o atendimento ou prefere parar. Escreva uma mensagem só: o sistema acrescenta por conta própria " +
+      "a forma de responder (os botões \"Quero continuar\" e \"Parar atendimento\"), então NÃO descreva botões, " +
+      "NÃO escreva SAIR e não ensine palavra nenhuma para responder. "
+    : "NÃO pergunte se a pessoa quer parar, não ofereça descadastro e não peça para responder SAIR: ela está " +
+      "no meio da conversa, e esse convite a tira dela. ";
   return (
     `recuperação de silêncio, chamada ${passo} de ${total}: o cliente não respondeu à sua última mensagem há ` +
     `${duracao(silencioMs)}. Retome de onde a conversa parou com UMA mensagem curta e natural, ligada ao último ` +

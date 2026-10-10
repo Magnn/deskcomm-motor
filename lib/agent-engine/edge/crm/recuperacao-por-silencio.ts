@@ -35,6 +35,7 @@ import {
   decidirPasso,
   motivoDeManterJanela,
   motivoDoPasso,
+  ofereceSaida,
 } from '@/lib/recuperacao/decisao';
 
 import { proximaAberturaDoFollowup } from '../../agent/janela-de-followup';
@@ -165,7 +166,9 @@ export interface ResultadoDaRecuperacao {
   janelas: number;
 }
 
-type Chamada = { kind: 'step'; step: number; motivo: string } | { kind: 'keep_window'; step: 0; motivo: string };
+type Chamada =
+  | { kind: 'step'; step: number; motivo: string; ofereceSaida: boolean }
+  | { kind: 'keep_window'; step: 0; motivo: string };
 
 /** O canal desta conversa limita a mensagem livre a 24 h depois da última mensagem do cliente? */
 export function canalTemPrazo(provider: string | null): boolean {
@@ -225,10 +228,12 @@ export function decidirChamada(c: Candidata, agora: Date, temPrazo: boolean): Ch
     agora,
   );
   if (passo === null) return null;
+  const silencioMs = agora.getTime() - silencioDesde.getTime();
   return {
     kind: 'step',
     step: passo,
-    motivo: motivoDoPasso(passo, r.steps_minutes.length, agora.getTime() - silencioDesde.getTime()),
+    motivo: motivoDoPasso(passo, r.steps_minutes.length, silencioMs),
+    ofereceSaida: ofereceSaida(passo, r.steps_minutes.length, silencioMs),
   };
 }
 
@@ -289,7 +294,11 @@ export async function recuperarSilenciosos(
             demanda_id: fronteira.demanda_id,
             demanda_revision: fronteira.demanda_revision,
           },
-          recovery: { kind: chamada.kind, step: chamada.step },
+          recovery: {
+            kind: chamada.kind,
+            step: chamada.step,
+            ...(chamada.kind === 'step' && chamada.ofereceSaida ? { offer_stop: true } : {}),
+          },
         },
       });
     } catch (err) {
