@@ -30,6 +30,8 @@ import { lerResposta, montarPedido, type MensagemDaConversa, type Motivo } from 
 export const CONFIANCA_MINIMA = 60;
 /** Quantas falas seguidas da empresa, sem resposta, fazem do silêncio um fato. */
 export const FALAS_SEM_RESPOSTA = 2;
+/** E há quanto tempo a pessoa precisa estar calada para isso ser silêncio, e não o turno em curso. */
+export const SILENCIO_MINIMO_MS = 60 * 60_000;
 const MENSAGENS_LIDAS = 30;
 
 /** O valor que o CARD aceita para cada motivo. O banco só conhece o vocabulário canônico do funil. */
@@ -41,17 +43,31 @@ export function motivoDoCard(motivo: Motivo): "price" | "no_response" | "other" 
 
 /**
  * A pessoa parou de responder? `mensagens` da mais antiga para a mais nova. Fato, não inferência:
- * a empresa falou por último `FALAS_SEM_RESPOSTA` vezes ou mais e nada voltou. Pura.
+ * a empresa falou por último `FALAS_SEM_RESPOSTA` vezes ou mais, e a última fala DELA tem mais de
+ * `SILENCIO_MINIMO_MS`. Pura.
+ *
+ * ⚠️ O tempo é o que separa silêncio de turno em curso. A classificação roda DEPOIS de o agente
+ * responder: sem ele, as próprias falas de despedida do turno contavam como "falou duas vezes sem
+ * resposta". Medido na primeira perda em produção (10/10/2026): a cliente tinha acabado de escrever
+ * "realmente não tenho", e o card foi fechado como "sem resposta" — o motivo era preço.
  */
-export function parouDeResponder(mensagens: readonly MensagemDaConversa[]): boolean {
+export function parouDeResponder(
+  mensagens: readonly (MensagemDaConversa & { created_at?: string | Date | null })[],
+  agora: Date = new Date(),
+): boolean {
   let seguidas = 0;
   for (let i = mensagens.length - 1; i >= 0; i -= 1) {
     const m = mensagens[i]!;
     if ((m.body ?? "").trim() === "") continue;
-    if (m.direction === "inbound") break;
+    if (m.direction === "inbound") {
+      if (seguidas < FALAS_SEM_RESPOSTA) return false;
+      const quando = m.created_at ? new Date(m.created_at).getTime() : Number.NaN;
+      // Sem horário não há como afirmar silêncio: decide a IA, lendo a conversa.
+      return Number.isFinite(quando) && agora.getTime() - quando >= SILENCIO_MINIMO_MS;
+    }
     seguidas += 1;
   }
-  return seguidas >= FALAS_SEM_RESPOSTA && mensagens.some((m) => m.direction === "inbound");
+  return false;
 }
 
 export interface PerdaClassificada {
@@ -73,8 +89,8 @@ export async function classificarPerdaDoAtendimento(
   llmCfg: LlmEdgeConfig,
   d: { organizationId: string; contactId: string; jobId?: string | null },
 ): Promise<PerdaClassificada | null> {
-  const { rows } = await pool.query<MensagemDaConversa & { conversation_id: string | null }>(
-    `select direction, body, conversation_id from (
+  const { rows } = await pool.query<MensagemDaConversa & { conversation_id: string | null; created_at: string }>(
+    `select direction, body, conversation_id, created_at from (
        select direction, body, conversation_id, created_at from messages
        where organization_id = $1 and contact_id = $2 and body is not null
        order by created_at desc limit $3

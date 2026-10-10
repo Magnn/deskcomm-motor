@@ -376,7 +376,9 @@ export async function sincronizaEstagioDoAgente(
       de: lead.stage_id,
       para: destino.stageId,
       // A timeline diz QUEM deu o motivo: quem abrir o card vê que foi classificação automática.
-      ...(motivoClassificado !== null ? { motivo_da_perda: motivoClassificado, motivo_classificado_por: "ia" } : {}),
+      // "automatico" e não "ia": o motivo pode ter vindo de regra (silêncio) ou de inferência; a
+      // origem exata fica em `conversation_loss_reasons.source`.
+      ...(motivoClassificado !== null ? { motivo_da_perda: motivoClassificado, motivo_classificado_por: "automatico" } : {}),
     },
   });
   if (!atividade.ok) {
