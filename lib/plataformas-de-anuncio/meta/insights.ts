@@ -556,10 +556,52 @@ export async function lerGastoPorAnuncio(
   anuncios: readonly string[],
   de: string,
   ate: string,
-): Promise<{ gastos: Map<string, GastoLidoDoAnuncio>; semLeitura: number }> {
+  /** Quantos anúncios, no máximo, são perguntados UM A UM depois da leitura pelas contas. */
+  tetoUmAUm = 60,
+): Promise<{ gastos: Map<string, GastoLidoDoAnuncio>; semLeitura: number; naoConsultados: number }> {
   const gastos = new Map<string, GastoLidoDoAnuncio>();
   let semLeitura = 0;
-  const fila = [...new Set(anuncios)];
+  const pedidos = [...new Set(anuncios)];
+  const queremos = new Set(pedidos);
+
+  const guardar = (id: string, linha: InsightDoAnuncioCru): void => {
+    const gasto = Number(linha.spend);
+    gastos.set(id, {
+      gastoCents: Number.isFinite(gasto) && gasto > 0 ? Math.round(gasto * 100) : 0,
+      impressoes: Number(linha.impressions) || 0,
+      nome: linha.ad_name ?? null,
+      campanha: linha.campaign_name ?? null,
+    });
+  };
+
+  // 1) Pelas CONTAS que o token alcança: uma leitura por conta devolve todos os anúncios que
+  // rodaram no período. Sem isto, quem tem mais anúncios que o teto de leituras um a um ficava com
+  // metade do gasto em branco — medido em 10/10/2026: 146 anúncios, 60 lidos, 49% dos leads sem custo.
+  // Falha aqui não é falha da tela: o passo 2 pergunta pelo anúncio.
+  const contas = await listarContas(token);
+  if (contas.ok) {
+    for (const conta of contas.dados) {
+      const leitura = await buscarPaginado<InsightDoAnuncioCru & { ad_id?: string }>(
+        montarUrl(`${encodeURIComponent(conta.id)}/insights`, {
+          level: "ad",
+          fields: "ad_id,spend,impressions,ad_name,campaign_name",
+          time_range: JSON.stringify({ since: de, until: ate }),
+          limit: "500",
+        }),
+        token,
+        "gasto_por_anuncio_da_conta",
+      );
+      if (!leitura.ok) continue;
+      for (const linha of leitura.dados) {
+        if (linha.ad_id && queremos.has(linha.ad_id)) guardar(linha.ad_id, linha);
+      }
+    }
+  }
+
+  // 2) O que sobrou, pelo id do anúncio — conta que o token não lista, mas cujo anúncio ele lê.
+  const sobra = pedidos.filter((id) => !gastos.has(id));
+  const fila = sobra.slice(0, tetoUmAUm);
+  const naoConsultados = sobra.length - fila.length;
 
   const ler = async (id: string): Promise<void> => {
     const leitura = await buscarPaginado<InsightDoAnuncioCru>(
@@ -577,20 +619,12 @@ export async function lerGastoPorAnuncio(
     const linha = leitura.dados[0];
     // Sem linha = o anúncio não teve entrega no período pedido. Não é zero medido: o lead pode ter
     // vindo de um clique de dias antes.
-    if (!linha) return;
-    const gasto = Number(linha.spend);
-    gastos.set(id, {
-      gastoCents: Number.isFinite(gasto) && gasto > 0 ? Math.round(gasto * 100) : 0,
-      impressoes: Number(linha.impressions) || 0,
-      nome: linha.ad_name ?? null,
-      campanha: linha.campaign_name ?? null,
-    });
+    if (linha) guardar(id, linha);
   };
 
   const trabalhadores = Array.from({ length: Math.min(LEITURAS_EM_PARALELO, fila.length) }, async () => {
     for (let id = fila.shift(); id !== undefined; id = fila.shift()) await ler(id);
   });
   await Promise.all(trabalhadores);
-  return { gastos, semLeitura };
+  return { gastos, semLeitura, naoConsultados };
 }
-

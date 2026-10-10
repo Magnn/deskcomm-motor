@@ -108,6 +108,17 @@ describe("a fiação", () => {
     expect(rota).not.toContain("respostaSemConexao");
   });
 
+  it("⭐ o gasto é lido pelas contas antes de perguntar anúncio por anúncio, e o que fica sem consulta é avisado", () => {
+    const leitura = readFileSync("lib/plataformas-de-anuncio/meta/insights.ts", "utf8");
+    const corpo = leitura.slice(leitura.indexOf("export async function lerGastoPorAnuncio("));
+    // A leitura por conta vem primeiro: é ela que cobre quem tem mais anúncios que o teto.
+    expect(corpo.indexOf('level: "ad"')).toBeGreaterThan(-1);
+    expect(corpo.indexOf('level: "ad"')).toBeLessThan(corpo.indexOf('"gasto_do_anuncio"'));
+    expect(corpo).toContain("naoConsultados");
+    const rota = readFileSync("app/api/v1/ads/resultado-por-anuncio/route.ts", "utf8");
+    expect(rota).toContain("if (lido.naoConsultados > 0) {");
+  });
+
   it("a função do banco julga o anúncio por quem ele trouxe e tira os estornos da receita", () => {
     const baseline = readFileSync("supabase/baseline.sql", "utf8");
     const corpo = baseline.slice(baseline.lastIndexOf("create or replace function public.fn_resultado_por_anuncio("));
