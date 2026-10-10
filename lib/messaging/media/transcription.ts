@@ -12,6 +12,8 @@ export interface TranscriptionCreds {
   apiKey: string;
   model?: string;
   baseUrl?: string;
+  /** Quanto esperar a resposta. Ausente = sem teto (o comportamento de sempre). */
+  timeoutMs?: number;
 }
 
 const DEFAULT_BASE = "https://api.openai.com";
@@ -89,6 +91,7 @@ export function apiTranscriptionProvider(
         method: "POST",
         headers: { Authorization: `Bearer ${creds.apiKey}` },
         body: form,
+        ...(creds.timeoutMs ? { signal: AbortSignal.timeout(creds.timeoutMs) } : {}),
       });
       if (!res.ok) throw new Error(`transcription_${res.status}${await codigoDaRecusa(res)}`);
       const json = (await res.json()) as { text?: string };
@@ -195,6 +198,34 @@ export function googleTranscriptionProvider(
  */
 export function recusaDaConta(detalhe: string): boolean {
   return /^transcription_(401|402|403|429)\b/.test(detalhe);
+}
+
+/**
+ * O SERVIÇO PRÓPRIO DA INSTALAÇÃO com o caminho padrão atrás dele.
+ *
+ * Quem aponta a transcrição para um serviço seu (`TRANSCRIPTION_BASE_URL` — um Whisper rodando na
+ * própria máquina, por exemplo) não podia ficar SEM reserva nenhuma: até 10/10/2026 esse caminho
+ * ignorava as chaves da organização, e o serviço próprio fora do ar era áudio sem leitura.
+ *
+ * Diferente de `comReserva`, aqui QUALQUER falha cai para o padrão — fora do ar, tempo esgotado,
+ * erro interno. O serviço próprio não tem "conta" que recuse; quando ele falha, a causa é ele.
+ */
+export function comPadraoAtras(
+  proprio: TranscriptionProvider,
+  padrao: TranscriptionProvider,
+  aoCair?: (motivo: string) => void,
+): TranscriptionProvider {
+  return {
+    async transcribe(audio, mime) {
+      try {
+        return await proprio.transcribe(audio, mime);
+      } catch (err) {
+        const detalhe = err instanceof Error ? err.message : String(err);
+        aoCair?.(detalhe.slice(0, 120));
+        return padrao.transcribe(audio, mime);
+      }
+    },
+  };
 }
 
 /**

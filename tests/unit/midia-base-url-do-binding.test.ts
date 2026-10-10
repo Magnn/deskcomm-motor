@@ -318,6 +318,8 @@ describe("worker de mídia: base_url do binding de visão (#855)", () => {
       apiKey: "chave-do-servico",
       baseUrl: "https://api.groq.com/openai/v1",
       model: "whisper-large-v3",
+      // O serviço próprio tem teto de tempo: abaixo do que o turno espera, para a reserva chegar.
+      timeoutMs: 75_000,
     });
   });
 
