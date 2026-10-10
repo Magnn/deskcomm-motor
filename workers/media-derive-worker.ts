@@ -21,9 +21,10 @@ import {
   apiTranscriptionProvider,
   comReserva,
   elevenlabsTranscriptionProvider,
+  googleTranscriptionProvider,
   motivoDaFalhaDeTranscricao,
 } from "@/lib/messaging/media/transcription";
-import { resolverChaveDeVoz } from "@/lib/voz/chaves";
+import { resolverChaveDeVoz, resolverChaveDoGoogleParaOuvir } from "@/lib/voz/chaves";
 import { logger } from "@/lib/logger";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { motivoDaRecusaDeDestino } from "@/lib/automation/destinos-internos-autorizados";
@@ -468,19 +469,38 @@ function buildDeriveDeps(
     const chave = await resolverChaveDeVoz(orgId, "elevenlabs");
     return chave ? elevenlabsTranscriptionProvider({ apiKey: chave }) : null;
   };
+  // A SEGUNDA RESERVA: a chave do Google da organização, cujo modelo ouve áudio. Só entra quando as
+  // duas de cima recusaram pela conta — ver `googleTranscriptionProvider`.
+  const segundaReservaDeTranscricao = async () => {
+    const chave = await resolverChaveDoGoogleParaOuvir(orgId);
+    return chave ? googleTranscriptionProvider({ apiKey: chave }) : null;
+  };
+  const avisarSegundaReserva = (motivo: string) =>
+    logger.warn("[media-derive] transcrição pela segunda reserva — as duas primeiras recusaram pela conta", {
+      organization_id: orgId,
+      motivo,
+    });
   const transcricaoPadrao: DeriveDeps["transcriber"] = openaiKey
-    ? comReserva(apiTranscriptionProvider({ apiKey: openaiKey }), reservaDeTranscricao, (motivo) =>
-        logger.warn("[media-derive] transcrição pela reserva — o serviço principal recusou pela conta", {
-          organization_id: orgId,
-          // Só o código da recusa (status + identificador do provedor), nunca o áudio nem a chave.
-          motivo,
-        }),
+    ? comReserva(
+        comReserva(apiTranscriptionProvider({ apiKey: openaiKey }), reservaDeTranscricao, (motivo) =>
+          logger.warn("[media-derive] transcrição pela reserva — o serviço principal recusou pela conta", {
+            organization_id: orgId,
+            // Só o código da recusa (status + identificador do provedor), nunca o áudio nem a chave.
+            motivo,
+          }),
+        ),
+        segundaReservaDeTranscricao,
+        avisarSegundaReserva,
       )
     : {
-        // Sem chave do serviço principal, a reserva é o caminho; sem nenhuma das duas, o aviso de sempre.
+        // Sem chave do serviço principal, a reserva é o caminho; sem nenhuma, o aviso de sempre.
         transcribe: async (audio, mime) => {
           const reserva = await reservaDeTranscricao();
-          return reserva ? reserva.transcribe(audio, mime) : semTranscricao!.transcribe(audio, mime);
+          if (!reserva) {
+            const segunda = await segundaReservaDeTranscricao();
+            return segunda ? segunda.transcribe(audio, mime) : semTranscricao!.transcribe(audio, mime);
+          }
+          return comReserva(reserva, segundaReservaDeTranscricao, avisarSegundaReserva).transcribe(audio, mime);
         },
       };
   // O endereço do serviço de transcrição vem do .env da instalação e a chamada

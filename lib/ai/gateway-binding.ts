@@ -26,7 +26,7 @@ import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createOpenAI } from "@ai-sdk/openai";
 import type { LanguageModel } from "ai";
 
-import { DEEPSEEK_ENDPOINT } from "@/lib/agent-engine/edge/llm/providers";
+import { comRaciocinioDesligado, DEEPSEEK_ENDPOINT } from "@/lib/agent-engine/edge/llm/providers";
 import { decryptKey, byteaToBuffer } from "@/lib/crypto/aes_gcm";
 import { logger } from "@/lib/logger";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -545,8 +545,17 @@ function instanciar(
     // A DeepSeek fala a API da OpenAI. Sem este caso, uma organização em
     // DeepSeek cairia no `default` (null) e a pilha antiga seguiria para o
     // padrão com aviso — a tela ofereceria um provedor que estes workers ignoram.
+    // ⚠️ SEM RACIOCÍNIO. Por este caminho passam os classificadores (clima da conversa, intenção):
+    // perguntas de resposta curta. O raciocínio da DeepSeek nasce ligado e é cobrado como saída —
+    // medido em produção em 10/10/2026, a leitura de clima gastava 339 tokens de saída em média
+    // para devolver UM número, e em 965 de 8.693 chamadas (11%) o raciocínio consumia o teto
+    // inteiro: a resposta vinha vazia e o clima daquela mensagem não era medido.
     case "deepseek":
-      return createOpenAI({ apiKey, baseURL: baseUrl ?? DEEPSEEK_ENDPOINT })(modelId);
+      return createOpenAI({
+        apiKey,
+        baseURL: baseUrl ?? DEEPSEEK_ENDPOINT,
+        fetch: comRaciocinioDesligado(globalThis.fetch),
+      })(modelId);
     default:
       return null;
   }

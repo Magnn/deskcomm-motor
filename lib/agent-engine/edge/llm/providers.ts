@@ -107,7 +107,7 @@ export type RaciocinioDeepseek = 'provider' | 'disabled';
  * O corpo é lido por cima do `init` que o SDK montou, então nada mais muda; um
  * `reasoning` já presente é preservado (só o `effort` é forçado a 'none').
  */
-function comRaciocinioDesligado(inner: typeof fetch): typeof fetch {
+export function comRaciocinioDesligado(inner: typeof fetch): typeof fetch {
   return (input, init) => {
     const corpo = init?.body;
     if (typeof corpo === 'string') {

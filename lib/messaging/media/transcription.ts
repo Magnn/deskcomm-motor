@@ -137,6 +137,57 @@ export function elevenlabsTranscriptionProvider(
   };
 }
 
+// ─── A SEGUNDA RESERVA ───────────────────────────────────────────────────
+//
+// Medido em produção em 10/10/2026: o serviço principal sem saldo E a reserva recusando parte dos
+// áudios (401) — 232 de 796 áudios de cliente em 24 horas ficaram sem leitura, e a agente respondeu a
+// todos sem saber o que a pessoa disse. A organização tinha uma terceira chave ativa, a do Google, cujo
+// modelo ouve áudio. Duas contas zeradas no mesmo dia não podem deixar o atendimento surdo.
+
+const BASE_DO_GOOGLE = "https://generativelanguage.googleapis.com/v1beta";
+export const MODELO_PADRAO_DA_SEGUNDA_RESERVA = "gemini-3.5-flash";
+const PEDIDO_DE_TRANSCRICAO =
+  "Transcreva este áudio palavra por palavra, no idioma em que foi falado. Devolva SOMENTE a transcrição: sem comentário, sem resumo, sem marcação de tempo, sem descrever sons. Se não houver fala, devolva vazio.";
+
+/** Transcrição por um modelo do Google que ouve áudio (`POST …/models/<modelo>:generateContent`). */
+export function googleTranscriptionProvider(
+  creds: { apiKey: string; model?: string },
+  fetchImpl: typeof fetch = fetch,
+): TranscriptionProvider {
+  return {
+    async transcribe(audio, mime) {
+      const modelo = encodeURIComponent(creds.model ?? MODELO_PADRAO_DA_SEGUNDA_RESERVA);
+      const res = await fetchImpl(`${BASE_DO_GOOGLE}/models/${modelo}:generateContent`, {
+        method: "POST",
+        // A chave vai no CABEÇALHO, nunca no endereço: endereço aparece em log de proxy.
+        headers: { "x-goog-api-key": creds.apiKey, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [
+            {
+              role: "user",
+              parts: [
+                { text: PEDIDO_DE_TRANSCRICAO },
+                { inline_data: { mime_type: mime.split(";")[0]!.trim(), data: Buffer.from(audio).toString("base64") } },
+              ],
+            },
+          ],
+          generationConfig: { temperature: 0 },
+        }),
+        signal: AbortSignal.timeout(60_000),
+      });
+      // Mesmo prefixo dos outros dois, com `reserva2`: o log diz QUAL dos três recusou. Só o status sai.
+      if (!res.ok) throw new Error(`transcription_${res.status}:reserva2`);
+      const json = (await res.json()) as {
+        candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+      };
+      return (json.candidates?.[0]?.content?.parts ?? [])
+        .map((p) => p.text ?? "")
+        .join("")
+        .trim();
+    },
+  };
+}
+
 /**
  * A recusa foi da CONTA (sem saldo, cota, chave)? Só essas caem para a reserva: fora do ar, áudio
  * ilegível e tempo esgotado não melhoram trocando de provedor por causa da conta — e o caminho de
