@@ -39052,3 +39052,19 @@ create index if not exists idx_send_ledger_por_contato_e_estado
 create index if not exists idx_messages_chave_de_idempotencia
   on public.messages (organization_id, (metadata->>'idempotency_key'))
   where (metadata->>'idempotency_key') is not null;
+
+-- ---- A proposta do flywheel pode ser dispensada e desfeita (migration 0921) ----
+alter table public.flywheel_distiller_proposals
+  add column if not exists dismissed_at timestamptz,
+  add column if not exists dismissed_by uuid,
+  add column if not exists previous_version_id uuid references public.ai_agent_versions(id) on delete set null,
+  add column if not exists reverted_at timestamptz,
+  add column if not exists reverted_by uuid;
+
+comment on column public.flywheel_distiller_proposals.previous_version_id
+  is 'A versão do agente que estava publicada quando a proposta foi aplicada: é para ela que o desfazer volta.';
+
+-- A lista da tela pede as pendentes da organização, da mais nova para a mais antiga.
+create index if not exists idx_flywheel_propostas_pendentes
+  on public.flywheel_distiller_proposals (organization_id, proposed_at desc)
+  where applied_at is null and dismissed_at is null;

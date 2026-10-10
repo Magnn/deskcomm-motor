@@ -59,11 +59,13 @@ export async function GET(req: NextRequest, ctx: Ctx): Promise<Response> {
   let query = admin
     .from("flywheel_distiller_proposals")
     .select(
-      "id, run_id, dataset, type, target, content, evidence, proposed_at, applied_at, applied_version_id, applied_by",
+      "id, run_id, dataset, type, target, content, evidence, proposed_at, applied_at, applied_version_id, applied_by, dismissed_at, reverted_at",
     )
     .eq("organization_id", org.orgId)
     .order("proposed_at", { ascending: false })
     .limit(limit);
+  // Dispensada não volta para a tela em filtro nenhum: é o que "dispensar" quer dizer.
+  query = query.is("dismissed_at", null);
   if (status === "pending") query = query.is("applied_at", null);
   if (status === "applied") query = query.not("applied_at", "is", null);
 

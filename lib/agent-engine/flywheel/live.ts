@@ -9,6 +9,7 @@ import type pg from 'pg';
 import { runModelCall, type LlmEdgeConfig } from '../edge/llm/run-model-call';
 import type { Logger } from '../obs/logger';
 import { aggregateFollowupOutcomes, type FlowOutcomeStat } from '../../followup/outcome-stats';
+import { runSalesLearningOnce } from './vendas';
 
 // Os dois pontos do flywheel NÃO fixam modelo aqui. Fixavam `claude-haiku-4-5`,
 // e um id de modelo só é válido no vocabulário do provedor que a instalação usa:
@@ -22,6 +23,8 @@ import { aggregateFollowupOutcomes, type FlowOutcomeStat } from '../../followup/
 // de um 400 do provedor.
 const DIMENSION = 'memory_hygiene';
 const DATASET = 'live';
+/** Com este tanto de propostas pendentes da dimensão, o destilador não gera outra. */
+const PENDENTES_QUE_SEGURAM_O_DESTILADOR = 3;
 
 interface TurnRow {
   job_id: string;
@@ -186,7 +189,22 @@ export async function runFlywheelOnce(
     if (inserted) judged += 1;
     log.info('flywheel: veredito gravado', { job_id: turn.job_id, verdict: verdictValue, inserted });
 
-    if (verdictValue === 'no' && inserted) {
+    // FILA QUE NINGUÉM LEU NÃO CRESCE. Medido em 10/10/2026: 90 propostas pendentes desta
+    // dimensão numa organização, quase todas a mesma frase — cada turno reprovado destilava de novo.
+    const filaCheia =
+      verdictValue === 'no' && inserted
+        ? Number(
+            (
+              await pool.query<{ n: string }>(
+                `select count(*) as n from flywheel_distiller_proposals
+                 where organization_id = $1 and applied_at is null and dismissed_at is null
+                   and evidence->>'dimension' = $2`,
+                [turn.organization_id, DIMENSION],
+              )
+            ).rows[0]?.n ?? 0,
+          ) >= PENDENTES_QUE_SEGURAM_O_DESTILADOR
+        : false;
+    if (verdictValue === 'no' && inserted && !filaCheia) {
       const distilled = await runModelCall(
         pool,
         llmCfg,
@@ -259,6 +277,9 @@ export async function runFlywheelLoop(
     try {
       const result = await runFlywheelOnce(pool, llmCfg, { limit: opts.limit, log: opts.log });
       opts.log.info('flywheel: rodada agendada concluída', result as unknown as Record<string, unknown>);
+      // A dimensão de VENDAS (`vendas.ts`) roda no mesmo passo e também só PROPÕE. Erro dela não
+      // contamina a rodada de memória, que já terminou.
+      await runSalesLearningOnce(pool, llmCfg, { log: opts.log });
     } catch (err) {
       opts.log.error('flywheel: rodada agendada falhou', {
         error: (err instanceof Error ? err.message : String(err)).slice(0, 200),
