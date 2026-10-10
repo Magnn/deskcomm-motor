@@ -6,6 +6,7 @@ import { lerGastoDeAnuncios } from "@/lib/plataformas-de-anuncio/meta/gasto-do-p
 import { roleAtLeast } from "@/lib/auth/types";
 import { contasDoAnuncio, type GastoDoPeriodo } from "@/lib/resultado/contas-do-anuncio";
 import { calcularDelta, calcularIntervalo, gastoTemComparacao, lerFusoDaOrganizacao, paraParede } from "@/lib/resultado/periodo";
+import { custoDeIaPorVenda, lerConsumoDeIa } from "@/lib/resultado/custo-de-ia";
 import { lerVendasDoPagamento, type VendaDoPainel } from "@/lib/resultado/vendas-do-pagamento";
 
 export const dynamic = "force-dynamic";
@@ -133,12 +134,15 @@ export async function GET(req: NextRequest) {
       // venda: quem vende pelo link nunca passa pela comanda. As vendas do gateway entram na MESMA lista,
       // já sem as estornadas, e todo o resto do painel (gráficos, estado, histórico) as soma junto.
       const podeVerGasto = user.is_platform_admin || roleAtLeast(org.role, "manager");
-      const [vendasDoGateway, vendasDoGatewayAntes, gastoDoPeriodo, gastoAnterior] = await Promise.all([
+      const [vendasDoGateway, vendasDoGatewayAntes, gastoDoPeriodo, gastoAnterior, consumoDeIa, consumoDeIaAntes] = await Promise.all([
         lerVendasDoPagamento(admin, orgId, start, end),
         lerVendasDoPagamento(admin, orgId, prevStart, prevEnd),
         // Gasto de anúncio é dado de gerente para cima, como a tela de anúncios (`requireRole("manager")`).
         podeVerGasto ? lerGastoDeAnuncios(admin, orgId, start, end, fuso) : RESTRITO,
         podeVerGasto ? lerGastoDeAnuncios(admin, orgId, prevStart, prevEnd, fuso) : RESTRITO,
+        // Custo de IA é dado de gerente para cima, como a tela Uso de IA (`requireRole("manager")`).
+        podeVerGasto ? lerConsumoDeIa(admin, orgId, start, end) : null,
+        podeVerGasto ? lerConsumoDeIa(admin, orgId, prevStart, prevEnd) : null,
       ]);
       const sales: VendaDoPainel[] = [...((salesData ?? []) as VendaDoPainel[]), ...vendasDoGateway].sort((a, b) =>
         a.created_at < b.created_at ? 1 : -1,
@@ -357,6 +361,20 @@ export async function GET(req: NextRequest) {
             estado: contas.estado,
             moeda: contas.moeda,
           },
+          // Em DÓLAR e fora do lucro: ver `lib/resultado/custo-de-ia.ts`. `null` = sem permissão ou
+          // leitura indisponível — nunca zero.
+          consumoDeIa:
+            consumoDeIa === null
+              ? null
+              : {
+                  custoUsd: consumoDeIa.custoCents / 100,
+                  delta: consumoDeIaAntes === null ? null : calcularDelta(consumoDeIa.custoCents, consumoDeIaAntes.custoCents),
+                  tokensLidos: consumoDeIa.tokensLidos,
+                  tokensEscritos: consumoDeIa.tokensEscritos,
+                  chamadas: consumoDeIa.chamadas,
+                  chamadasSemPreco: consumoDeIa.chamadasSemPreco,
+                  porVendaUsd: custoDeIaPorVenda(consumoDeIa, vendasCount),
+                },
         },
         vendasPorPeriodo: Array.from(vendasPorPeriodoMap.values()),
         vendasPorHorario,
