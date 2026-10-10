@@ -12,6 +12,7 @@ const RECUPERACAO_PADRAO = { ...PADRAO_DO_PRODUTO, steps_minutes: [3, 15, 180] }
 
 import {
   CONSULTA_DE_SILENCIOSAS,
+  MAXIMO_DE_CHAMADAS_POR_RODADA,
   REGISTRO_DA_CHAMADA,
   decidirChamada,
   recuperarSilenciosos,
@@ -91,7 +92,27 @@ describe("decidirChamada", () => {
     expect(decidirChamada(silenciosa({ followup: desligada }), AGORA, true)).toBeNull();
   });
 
-  it("silêncio que começou antes de o agente ser publicado não inicia a régua; régua já iniciada continua", () => {
+  it("⭐ a consulta mede desde quando a recuperação está LIGADA — republicar o roteiro não reinicia a data", () => {
+    // Medido em produção em 10/10/2026: a data era a da última publicação do agente, e cada
+    // republicação (três num dia) tirava da régua toda conversa que já estava em silêncio —
+    // 505 de 581 candidatas barradas, 190 pessoas com o link na mão sem nenhuma retomada.
+    expect(CONSULTA_DE_SILENCIOSAS).toContain("coalesce(lig.ligada_em, ag.published_at) as published_at");
+    expect(CONSULTA_DE_SILENCIOSAS).toContain("select min(x.published_at) as ligada_em");
+    // A sequência é a das versões com a recuperação ligada DEPOIS da última sem ela.
+    expect(CONSULTA_DE_SILENCIOSAS).toContain("coalesce(y.followup->'recovery'->>'enabled', 'false') <> 'true'");
+  });
+
+  it("⭐ régua que não começou a tempo não começa atrasada; a que já começou segue", () => {
+    // Último passo aos 180 min + 60 de folga: calado há 5 h sem nenhuma chamada não recebe a "primeira".
+    expect(decidirChamada(silenciosa({ last_outbound_at: ha(300), last_inbound_at: ha(310) }), AGORA, true)).toBeNull();
+    // Dentro da folga ainda começa.
+    expect(decidirChamada(silenciosa({ last_outbound_at: ha(200), last_inbound_at: ha(210) }), AGORA, true)).toMatchObject({ kind: "step", step: 1 });
+    // Já iniciada: o 3º passo sai mesmo com o silêncio longo.
+    const emCurso = { feitas: 2, ultima_em: ha(200), silence_since: ha(300), last_outbound_at: ha(200), last_inbound_at: ha(310) };
+    expect(decidirChamada(silenciosa(emCurso), AGORA, true)).toMatchObject({ kind: "step", step: 3 });
+  });
+
+  it("silêncio que começou antes de a recuperação ser ligada não inicia a régua; régua já iniciada continua", () => {
     const publicadoAgora = { published_at: ha(1), last_outbound_at: ha(4) };
     expect(decidirChamada(silenciosa(publicadoAgora), AGORA, true)).toBeNull();
     const jaIniciada = { published_at: ha(1), feitas: 1, ultima_em: ha(13), last_outbound_at: ha(13), silence_since: ha(16), last_inbound_at: ha(20) };
@@ -128,6 +149,21 @@ describe("decidirChamada", () => {
 });
 
 describe("recuperarSilenciosos", () => {
+  it("⭐ fila represada sai aos poucos: no máximo o teto por rodada, do silêncio mais recente para o mais antigo", async () => {
+    const id = (i: number) => `00000000-0000-4000-8000-${String(i).padStart(12, "0")}`;
+    // 60 conversas com a 1ª chamada vencida; a de índice 0 é a que se calou há MENOS tempo.
+    const muitas = Array.from({ length: 60 }, (_, i) =>
+      silenciosa({ conversation_id: id(i), anchor_message_id: id(1000 + i), last_outbound_at: ha(4 + i), last_inbound_at: ha(10 + i) }),
+    );
+    // A consulta devolve da mais antiga para a mais nova — a ordem que deixava as novas de fora.
+    const pool = poolCom([...muitas].reverse());
+    const r = await recuperarSilenciosos(pool as never, log, { agora: AGORA });
+    expect(r.chamadas).toBe(MAXIMO_DE_CHAMADAS_POR_RODADA);
+    const registradas = pool.chamadas.filter((c) => c.sql === REGISTRO_DA_CHAMADA).map((c) => c.params[1]);
+    expect(registradas[0]).toBe(id(0));
+    expect(registradas).not.toContain(id(59));
+  });
+
   it("passo vencido: registra a chamada na âncora e enfileira UM turno de retorno com o motivo e a fronteira", async () => {
     const pool = poolCom([silenciosa()]);
     const r = await recuperarSilenciosos(pool as never, log, { agora: AGORA });
