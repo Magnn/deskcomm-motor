@@ -83,15 +83,35 @@ function duracao(ms: number): string {
   return h === 1 ? "1 hora" : `${h} horas`;
 }
 
+/** Silêncio a partir do qual a ÚLTIMA chamada oferece a saída. Antes disso a pessoa ainda está na conversa. */
+const SILENCIO_PARA_OFERECER_SAIDA_MS = 60 * MIN;
+
+/**
+ * A chamada oferece "responda SAIR"? Só a ÚLTIMA de um silêncio longo.
+ *
+ * Toda chamada oferecia, inclusive a de 3 minutos. Medido em produção em 10/10/2026: 559 mensagens
+ * num dia terminando com o convite, no meio de venda ("conseguiu abrir o link? … é só responder SAIR"),
+ * e 21 pessoas que estavam conversando responderam a palavra e ficaram bloqueadas. Quem está há minutos
+ * sem responder não pediu para sair — e convidar a sair a cada cobrança ensina a sair. Pedido espontâneo
+ * de descadastro segue valendo em qualquer mensagem (`lib/opt-out/deteccao.ts`); o que mudou é só
+ * quando NÓS oferecemos.
+ */
+export function ofereceSaida(passo: number, total: number, silencioMs: number): boolean {
+  return passo >= total && silencioMs >= SILENCIO_PARA_OFERECER_SAIDA_MS;
+}
+
 /** O que o agente lê ao ser acordado para uma chamada de recuperação. */
 export function motivoDoPasso(passo: number, total: number, silencioMs: number): string {
+  const saida = ofereceSaida(passo, total, silencioMs)
+    ? "Como esta é a última tentativa, termine com uma linha curta avisando que, se a pessoa não quiser mais " +
+      "receber mensagens, basta responder SAIR (SALIR se a conversa for em espanhol). "
+    : "NÃO ofereça descadastro nem peça para a pessoa responder SAIR: ela está no meio da conversa, e esse " +
+      "convite a tira dela. ";
   return (
     `recuperação de silêncio, chamada ${passo} de ${total}: o cliente não respondeu à sua última mensagem há ` +
     `${duracao(silencioMs)}. Retome de onde a conversa parou com UMA mensagem curta e natural, ligada ao último ` +
     "assunto, que seja fácil de responder. Não repita o que já disse, não pressione e não invente urgência nem " +
-    "novidade. Termine com uma linha curta avisando que, se a pessoa não quiser mais receber mensagens, basta " +
-    "responder SAIR (SALIR se a conversa for em espanhol). Se a conversa já tinha terminado, ou se o cliente " +
-    "pediu para não ser procurado, não envie nada"
+    `novidade. ${saida}Se a conversa já tinha terminado, ou se o cliente pediu para não ser procurado, não envie nada`
   );
 }
 

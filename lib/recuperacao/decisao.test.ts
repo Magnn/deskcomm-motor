@@ -80,10 +80,19 @@ describe("o que o agente lê ao ser acordado", () => {
     expect(recuperacaoSchema.safeParse(RECUPERACAO_PADRAO).success).toBe(true);
   });
 
-  it("toda chamada de recuperação manda avisar como sair, com a palavra que o descadastro reconhece", () => {
-    const motivo = motivoDoPasso(1, 2, 60 * 60_000);
-    expect(motivo).toContain("responder SAIR");
-    expect(motivo).toContain("SALIR");
-    expect(motivo).toContain("1 hora");
+  it("⭐ só a ÚLTIMA chamada de um silêncio longo convida a sair, com a palavra que o descadastro reconhece", () => {
+    const ultima = motivoDoPasso(2, 2, 3 * 60 * 60_000);
+    expect(ultima).toContain("basta responder SAIR");
+    expect(ultima).toContain("SALIR");
+    expect(ultima).toContain("3 horas");
+  });
+
+  it("⭐ chamada do meio da conversa NÃO convida a sair — medido: 21 pessoas bloqueadas num dia respondendo o convite", () => {
+    for (const motivo of [motivoDoPasso(1, 3, 3 * 60_000), motivoDoPasso(2, 3, 15 * 60_000), motivoDoPasso(1, 2, 60 * 60_000)]) {
+      expect(motivo).not.toContain("basta responder SAIR");
+      expect(motivo).toContain("NÃO ofereça descadastro");
+    }
+    // Última chamada, mas a pessoa falou há minutos (régua curta): ainda está na conversa.
+    expect(motivoDoPasso(1, 1, 5 * 60_000)).not.toContain("basta responder SAIR");
   });
 });
