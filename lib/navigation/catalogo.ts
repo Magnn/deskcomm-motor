@@ -709,6 +709,19 @@ export const NAV_CATALOG = [
     sidebar: true,
   },
   {
+    // Vizinha de Meta Ads porque é a outra metade: lá está o que a plataforma enxerga; aqui, o que
+    // aconteceu DEPOIS do clique com as pessoas que cada anúncio trouxe — até a compra.
+    href: "/app/ads/resultado",
+    label: "Resultado por anúncio",
+    description: "Qual anúncio traz quem compra, e quanto custou cada venda.",
+    icon: "Megaphone",
+    group: "analise",
+    section: "Os números do período",
+    minRole: "manager",
+    // Fora do menu lateral, de propósito: ele já está no limite de itens antes da dobra. A porta do
+    // dia a dia é o atalho no topo da tela Meta Ads, que é de onde se chega com esta pergunta.
+  },
+  {
     // Irmã de "Desempenho", não a mesma coisa: lá é DESFECHO (funil agora,
     // ganho/perdido por atendente); aqui é o TRABALHO que aconteceu no
     // período, com quem fez cada coisa. Um mês inteiro atendido pela IA e um
