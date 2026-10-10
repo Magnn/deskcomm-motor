@@ -519,3 +519,78 @@ export async function lerInsights(
   if (!repetida.ok) return repetida;
   return { ...repetida, aviso: AVISO_DO_CONNECT_RATE_AUSENTE };
 }
+
+// ─── Gasto por ANÚNCIO ─────────────────────────────────────────────────────
+
+interface InsightDoAnuncioCru {
+  spend?: string;
+  impressions?: string;
+  ad_name?: string;
+  campaign_name?: string;
+}
+
+export interface GastoLidoDoAnuncio {
+  gastoCents: number;
+  impressoes: number;
+  nome: string | null;
+  campanha: string | null;
+}
+
+/** Quantas leituras correm ao mesmo tempo: o bastante para não demorar, pouco para não bater cota. */
+const LEITURAS_EM_PARALELO = 8;
+
+/**
+ * O gasto de cada anúncio no período, lido PELO ID DO ANÚNCIO.
+ *
+ * Por que pelo anúncio, e não pela conta: uma operação costuma anunciar por várias contas, e o
+ * contato só guarda o id do anúncio que o trouxe. Perguntar `<anuncio>/insights` responde sem
+ * precisar saber de qual conta ele é — medido em 10/10/2026 numa instalação com a mesma oferta
+ * espalhada em quatro contas, onde ler só a conta padrão mostrava metade do gasto.
+ *
+ * Anúncio que o token não alcança (outra empresa, conta sem consentimento) ou que não rodou no
+ * período fica FORA do mapa: quem monta a tela trata ausência como "gasto desconhecido", nunca zero.
+ * Anúncio que rodou e gastou zero devolve linha com zero — aí zero é zero.
+ */
+export async function lerGastoPorAnuncio(
+  token: string,
+  anuncios: readonly string[],
+  de: string,
+  ate: string,
+): Promise<{ gastos: Map<string, GastoLidoDoAnuncio>; semLeitura: number }> {
+  const gastos = new Map<string, GastoLidoDoAnuncio>();
+  let semLeitura = 0;
+  const fila = [...new Set(anuncios)];
+
+  const ler = async (id: string): Promise<void> => {
+    const leitura = await buscarPaginado<InsightDoAnuncioCru>(
+      montarUrl(`${encodeURIComponent(id)}/insights`, {
+        fields: "spend,impressions,ad_name,campaign_name",
+        time_range: JSON.stringify({ since: de, until: ate }),
+      }),
+      token,
+      "gasto_do_anuncio",
+    );
+    if (!leitura.ok) {
+      semLeitura += 1;
+      return;
+    }
+    const linha = leitura.dados[0];
+    // Sem linha = o anúncio não teve entrega no período pedido. Não é zero medido: o lead pode ter
+    // vindo de um clique de dias antes.
+    if (!linha) return;
+    const gasto = Number(linha.spend);
+    gastos.set(id, {
+      gastoCents: Number.isFinite(gasto) && gasto > 0 ? Math.round(gasto * 100) : 0,
+      impressoes: Number(linha.impressions) || 0,
+      nome: linha.ad_name ?? null,
+      campanha: linha.campaign_name ?? null,
+    });
+  };
+
+  const trabalhadores = Array.from({ length: Math.min(LEITURAS_EM_PARALELO, fila.length) }, async () => {
+    for (let id = fila.shift(); id !== undefined; id = fila.shift()) await ler(id);
+  });
+  await Promise.all(trabalhadores);
+  return { gastos, semLeitura };
+}
+

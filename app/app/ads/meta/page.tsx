@@ -66,6 +66,9 @@ export default async function MetaAdsPage() {
             "O desempenho das campanhas que estão trazendo gente para cá. Os números vêm da plataforma no momento em que você clica em Atualizar — nada fica guardado aqui.",
           )}
         </p>
+        <a className="mt-2 inline-block text-sm font-medium underline underline-offset-2" href="/app/ads/resultado">
+          {t("Ver qual anúncio traz quem compra")}
+        </a>
       </header>
 
       {conexao.conectada ? (

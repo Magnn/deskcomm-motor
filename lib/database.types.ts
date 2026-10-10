@@ -9837,6 +9837,10 @@ export type Database = {
         Args: { p_ate: string; p_de: string; p_org: string }
         Returns: Json
       }
+      fn_resultado_por_anuncio: {
+        Args: { p_ate: string; p_de: string; p_org: string }
+        Returns: Json
+      }
       fn_uso_de_ia: {
         Args: {
           p_agente?: string
