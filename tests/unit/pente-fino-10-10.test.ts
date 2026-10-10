@@ -13,6 +13,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { comRaciocinioDesligado } from "@/lib/agent-engine/edge/llm/providers";
 import { falhaAntesDeSair, recusaPassageiraDaMeta } from "@/lib/channels/adapters/meta-cloud";
+import { comReserva, googleTranscriptionProvider, type TranscriptionProvider } from "@/lib/messaging/media/transcription";
 
 describe("o caminho dos classificadores chama a DeepSeek SEM raciocínio", () => {
   it("o corpo do pedido sai com o raciocínio desligado nas duas formas que a DeepSeek lê", async () => {
@@ -109,5 +110,58 @@ describe("o adapter em si: teto de tempo e as duas repetições", () => {
       .mockImplementation(async () => Promise.reject(Object.assign(new TypeError("fetch failed"), { cause: { code: "ECONNRESET" } })));
     await expect(adapter.send(envelope)).rejects.toThrow("fetch failed");
     expect(rede).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("transcrição: a segunda reserva, quando as duas primeiras contas recusam", () => {
+  const audio = Buffer.from("fala");
+  const recusa = (codigo: string): TranscriptionProvider => ({
+    transcribe: async () => {
+      throw new Error(codigo);
+    },
+  });
+
+  it("⭐ principal sem saldo e reserva recusando: o áudio é lido pela segunda reserva", async () => {
+    const avisos: string[] = [];
+    const cadeia = comReserva(
+      comReserva(recusa("transcription_429:credit_balance_exhausted"), async () => recusa("transcription_401:reserva")),
+      async () => ({ transcribe: async () => "oi, quero saber do trabalho" }),
+      (motivo) => avisos.push(motivo),
+    );
+    await expect(cadeia.transcribe(audio, "audio/ogg")).resolves.toBe("oi, quero saber do trabalho");
+    // O aviso carrega os dois códigos, na ordem: é o que diz ao dono quais contas regularizar.
+    expect(avisos).toEqual(["transcription_429:credit_balance_exhausted (reserva: transcription_401:reserva)"]);
+  });
+
+  it("sem chave para a segunda reserva, sobe o erro das duas primeiras — começando pelo do principal", async () => {
+    const cadeia = comReserva(
+      comReserva(recusa("transcription_429:credit_balance_exhausted"), async () => recusa("transcription_401:reserva")),
+      async () => null,
+    );
+    await expect(cadeia.transcribe(audio, "audio/ogg")).rejects.toThrow(/^transcription_429:credit_balance_exhausted \(reserva: transcription_401:reserva\)$/);
+  });
+
+  it("o pedido ao Google leva a chave no cabeçalho (nunca no endereço) e o áudio em base64", async () => {
+    const rede = vi.fn(async () =>
+      new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: " bom dia " }, { text: "tudo bem?" }] } }] })),
+    );
+    const texto = await googleTranscriptionProvider({ apiKey: "CHAVE", model: "gemini-x" }, rede as unknown as typeof fetch).transcribe(
+      audio,
+      "audio/ogg; codecs=opus",
+    );
+    expect(texto).toBe("bom dia tudo bem?");
+    const [url, init] = rede.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe("https://generativelanguage.googleapis.com/v1beta/models/gemini-x:generateContent");
+    expect(url).not.toContain("CHAVE");
+    expect((init.headers as Record<string, string>)["x-goog-api-key"]).toBe("CHAVE");
+    const corpo = JSON.parse(String(init.body));
+    expect(corpo.contents[0].parts[1].inline_data).toEqual({ mime_type: "audio/ogg", data: audio.toString("base64") });
+  });
+
+  it("recusa do Google sai com o código da segunda reserva, e só o status", async () => {
+    const rede = vi.fn(async () => new Response("{}", { status: 429 }));
+    await expect(
+      googleTranscriptionProvider({ apiKey: "CHAVE" }, rede as unknown as typeof fetch).transcribe(audio, "audio/ogg"),
+    ).rejects.toThrow("transcription_429:reserva2");
   });
 });

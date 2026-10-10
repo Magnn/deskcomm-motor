@@ -21,10 +21,8 @@ const VARIAVEL_DE_AMBIENTE: Record<IdDeProvedorDeVoz, string> = {
   elevenlabs: "ELEVENLABS_API_KEY",
 };
 
-export async function resolverChaveDeVoz(
-  organizationId: string,
-  provedor: IdDeProvedorDeVoz,
-): Promise<string | null> {
+/** A credencial ATIVA e VALIDADA mais antiga da organização para o provedor, ou `null`. Nunca lança. */
+async function chaveDaOrganizacao(organizationId: string, provedor: string): Promise<string | null> {
   try {
     const { data } = await createAdminClient()
       .from("ai_provider_credentials")
@@ -44,8 +42,26 @@ export async function resolverChaveDeVoz(
       });
     }
   } catch {
-    // cai para o ambiente abaixo
+    // quem chama cai para o ambiente, ou para `null`
   }
+  return null;
+}
+
+export async function resolverChaveDeVoz(
+  organizationId: string,
+  provedor: IdDeProvedorDeVoz,
+): Promise<string | null> {
+  const daOrganizacao = await chaveDaOrganizacao(organizationId, provedor);
+  if (daOrganizacao) return daOrganizacao;
   const doAmbiente = process.env[VARIAVEL_DE_AMBIENTE[provedor]];
   return doAmbiente && doAmbiente.trim() !== "" ? doAmbiente : null;
+}
+
+/**
+ * A chave do Google DESTA organização, para a segunda reserva da transcrição
+ * (`googleTranscriptionProvider`). Só a da organização: o áudio do cliente dela não sai para uma
+ * conta do Google que ela não cadastrou.
+ */
+export async function resolverChaveDoGoogleParaOuvir(organizationId: string): Promise<string | null> {
+  return chaveDaOrganizacao(organizationId, "google");
 }
