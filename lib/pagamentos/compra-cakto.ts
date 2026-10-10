@@ -22,6 +22,8 @@
  * fica para uma pessoa: não há janela aberta, e mensagem fora dela exige template aprovado.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { logger } from "@/lib/logger";
+import { conversaoDeVendaHandler } from "@/lib/conversoes/envio.handler";
 
 import { encontrarContatoPorTelefone } from "@/lib/channels/contato-por-telefone";
 import { enrollFollowupFlow } from "@/lib/followup/enroll";
@@ -41,6 +43,12 @@ export interface DepsDaCompra {
   acharContato(c: { telefone: string | null; email: string | null }): Promise<{ id: string; tags: string[] } | null>;
   gravarCompra(contatoId: string, patch: { tags: string[]; ultimaCompra: Record<string, unknown> }): Promise<void>;
   anotar(contatoId: string, texto: string): Promise<void>;
+  /**
+   * Grava o valor pago no NEGÓCIO do contato e, se ele já estiver fechado como ganho, reporta a
+   * venda à plataforma de anúncio. Nunca lança: a compra já está registrada, e a entrega não pode
+   * esperar por isto.
+   */
+  registrarValorNoNegocio(contatoId: string, valorCentavos: number): Promise<void>;
   pararFluxosVivos(contatoId: string, motivo: string): Promise<number>;
   acharFluxoDeEntrega(produtoNome: string | null): Promise<string | null>;
   inscrever(contatoId: string, fluxoId: string): Promise<{ ok: true } | { ok: false; motivo: string }>;
@@ -75,6 +83,43 @@ export function escolherFluxoDeEntrega(fluxos: readonly FluxoDeEntrega[], produt
     if (doProduto) return doProduto.id;
   }
   return fluxos.find((f) => f.produto === null || f.produto.trim() === "")?.id ?? null;
+}
+
+export interface NegocioDoContato {
+  id: string;
+  status: string;
+  value_cents: number | null;
+  closed_at: string | null;
+  last_activity_at: string | null;
+  created_at: string;
+}
+
+/** Há quanto tempo um negócio ganho ainda é "o desta compra" (e o que a plataforma de anúncio aceita). */
+const JANELA_DO_NEGOCIO_GANHO_MS = 7 * 24 * 60 * 60 * 1000;
+
+/**
+ * EM QUAL NEGÓCIO O VALOR ENTRA, e com quanto ele fica. Pura.
+ *
+ *   - o negócio ABERTO do contato (o mais recente) recebe o valor: é a venda que o agente vai fechar;
+ *   - sem aberto, o negócio GANHO mais recente, fechado há até 7 dias: o agente fechou antes de o
+ *     aviso de pagamento chegar, ou é uma segunda compra (oferta de pós-venda) — aí o valor SOMA;
+ *   - negócio perdido ou ganho antigo não é desta compra: `null`, e nada é escrito.
+ */
+export function negocioQueRecebeOValor(
+  negocios: readonly NegocioDoContato[],
+  valorCentavos: number,
+  agora: Date,
+): { id: string; novoValor: number; jaGanho: boolean } | null {
+  const recente = (a: NegocioDoContato, b: NegocioDoContato) =>
+    (b.last_activity_at ?? b.created_at).localeCompare(a.last_activity_at ?? a.created_at);
+  const aberto = negocios.filter((n) => n.status === "open").sort(recente)[0];
+  if (aberto) return { id: aberto.id, novoValor: valorCentavos, jaGanho: false };
+
+  const ganho = negocios
+    .filter((n) => n.status === "won" && n.closed_at !== null && agora.getTime() - new Date(n.closed_at).getTime() <= JANELA_DO_NEGOCIO_GANHO_MS)
+    .sort((a, b) => (b.closed_at ?? "").localeCompare(a.closed_at ?? ""))[0];
+  if (!ganho) return null;
+  return { id: ganho.id, novoValor: Math.max(0, ganho.value_cents ?? 0) + valorCentavos, jaGanho: true };
 }
 
 const reaisTexto = (cents: number | null): string =>
@@ -128,6 +173,14 @@ export async function aplicarEventoDaCakto(deps: DepsDaCompra, compra: CompraDaC
     contato.id,
     `Compra aprovada na Cakto: ${rotuloDoProduto} (${reaisTexto(compra.valorCentavos)}${compra.cupom ? `, cupom ${compra.cupom}` : ""}). A entrega começa automaticamente.`,
   );
+
+  // O VALOR PAGO VAI PARA O NEGÓCIO. Sem isto o negócio fechava como ganho com valor vazio, e a
+  // venda nunca era reportada à plataforma de anúncio: `Purchase` exige valor, e o envio registrava
+  // `sem_valor`. Medido em 10/10/2026: 31 vendas na semana, 1 negócio com valor, 18 envios pulados
+  // — a Meta otimizava as campanhas sem enxergar nenhuma venda vinda do clique no WhatsApp.
+  if (typeof compra.valorCentavos === "number" && compra.valorCentavos > 0) {
+    await deps.registrarValorNoNegocio(contato.id, compra.valorCentavos);
+  }
 
   // Quem pagou não pode continuar recebendo a cobrança de "quer continuar?".
   await deps.pararFluxosVivos(contato.id, "compra_aprovada");
@@ -183,6 +236,49 @@ export function depsReais(admin: SupabaseClient, organizationId: string, request
         .update({ tags, source_metadata: { ...atual, ultima_compra: ultimaCompra } as never })
         .eq("organization_id", organizationId)
         .eq("id", contatoId);
+    },
+
+    async registrarValorNoNegocio(contatoId, valorCentavos) {
+      try {
+        const { data } = await admin
+          .from("crm_leads")
+          .select("id, status, value_cents, closed_at, last_activity_at, created_at")
+          .eq("organization_id", organizationId)
+          .eq("contact_id", contatoId);
+        const alvo = negocioQueRecebeOValor((data ?? []) as NegocioDoContato[], valorCentavos, new Date());
+        if (alvo === null) return;
+        const { error } = await admin
+          .from("crm_leads")
+          .update({ value_cents: alvo.novoValor })
+          .eq("organization_id", organizationId)
+          .eq("id", alvo.id);
+        if (error) {
+          logger.warn("[cakto] valor da compra não foi gravado no negócio", { organization_id: organizationId, detalhe: error.message });
+          return;
+        }
+        // Negócio JÁ ganho: o evento de fechamento passou antes de o valor existir, e o envio da
+        // venda foi pulado por `sem_valor`. Ninguém vai emitir o evento de novo — o envio é refeito
+        // aqui, pelo mesmo consumidor (ele relê o negócio e não repete venda já enviada). Negócio
+        // ainda aberto não precisa: quando fechar, o evento encontra o valor.
+        if (alvo.jaGanho) {
+          await conversaoDeVendaHandler.handle({
+            id: requestId,
+            organization_id: organizationId,
+            event_type: "lead.won",
+            entity_kind: "crm_lead",
+            entity_id: alvo.id,
+            payload: {},
+            metadata: {},
+            consumed_by: [],
+            attempts: 0,
+          });
+        }
+      } catch (err) {
+        logger.warn("[cakto] registro do valor no negócio falhou", {
+          organization_id: organizationId,
+          detalhe: err instanceof Error ? err.message : String(err),
+        });
+      }
     },
 
     async anotar(contatoId, texto) {
