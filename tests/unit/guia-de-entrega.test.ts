@@ -69,7 +69,7 @@ describe("carregarGuiaDeEntrega — o que entra no prompt", () => {
         : [t("Entregável: Abertura do Coração", "GUIA: vela rosa")],
     );
     const b = await carregarGuiaDeEntrega({ buscar }, CORACAO);
-    expect(buscar).toHaveBeenCalledTimes(2);
+    expect(buscar).toHaveBeenCalledTimes(3);
     expect(buscar.mock.calls[1]?.[0]).toContain("Abertura do Coração");
     expect(b).toContain("REGRA: uma etapa por vez");
     expect(b).toContain("GUIA: vela rosa");
@@ -83,6 +83,35 @@ describe("carregarGuiaDeEntrega — o que entra no prompt", () => {
     const b = await carregarGuiaDeEntrega({ buscar }, CORACAO);
     expect(b).toContain("GUIA DO CORAÇÃO");
     expect(b).not.toContain("GUIA DA PROSPERIDADE");
+  });
+
+  it("⭐ o acompanhamento do trabalho pago entra DEPOIS do guia, com a ordem de só usar no fim", async () => {
+    const buscar = async (q: string) =>
+      q.includes("acompanhamento")
+        ? [t("Entregável: Abertura do Coração — acompanhamento de 7 dias", "ETAPA 1 DOS SETE DIAS")]
+        : [t("Entregável: Abertura do Coração", "NOITE 1"), t("Entregável: Abertura do Coração — acompanhamento de 7 dias", "ETAPA 1 DOS SETE DIAS")];
+    const b = await carregarGuiaDeEntrega({ buscar }, CORACAO);
+    expect(b).toContain("ACOMPANHAMENTO DEPOIS DO TRABALHO");
+    expect(b.indexOf("NOITE 1")).toBeLessThan(b.indexOf("ACOMPANHAMENTO DEPOIS DO TRABALHO"));
+    expect(b.indexOf("ACOMPANHAMENTO DEPOIS DO TRABALHO")).toBeLessThan(b.indexOf("ETAPA 1 DOS SETE DIAS"));
+    // Uma vez só: o trecho que a busca do guia trouxe junto não entra no meio do guia.
+    expect(b.split("ETAPA 1 DOS SETE DIAS")).toHaveLength(2);
+  });
+
+  it("⭐ acompanhamento de OUTRO trabalho não vaza para quem pagou este", async () => {
+    const buscar = async () => [
+      t("Entregável: Abertura do Coração", "NOITE 1"),
+      t("Entregável: Limpeza e Proteção — acompanhamento", "BANHO DA LIMPEZA"),
+    ];
+    const b = await carregarGuiaDeEntrega({ buscar }, CORACAO);
+    expect(b).toContain("NOITE 1");
+    expect(b).not.toContain("BANHO DA LIMPEZA");
+    expect(b).not.toContain("ACOMPANHAMENTO DEPOIS DO TRABALHO");
+  });
+
+  it("sem acompanhamento escrito, o bloco é o de sempre", async () => {
+    const b = await carregarGuiaDeEntrega({ buscar: async () => [t("Entregável: Abertura do Coração", "NOITE 1")] }, CORACAO);
+    expect(b).not.toContain("ACOMPANHAMENTO DEPOIS DO TRABALHO");
   });
 
   it("descarta materiais que não são de entrega (ficha de oferta, FAQ)", async () => {
