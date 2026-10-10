@@ -276,6 +276,23 @@ const FRASES_AMBIGUAS_DE_OPT_OUT: readonly RegExp[] = [
   /\bja\s+(?:disse|falei)\s+que\s+nao\s+(?:quero|tenho\s+interesse)\b/u,
   /\bnao\s+(?:me\s+)?interessa\s+mais\b/u,
   /\bpara\s+com\s+isso\b/u,
+  // ── "não quero mais ser atendida" — parar O ATENDIMENTO, dito por extenso ──
+  //
+  // Medido em produção em 10/10/2026: "tem como você sair eu não quero mais falar com vocês" não
+  // casava regra nenhuma, e a pessoa recebeu mais OITO mensagens do agente. O pedido não nomeia
+  // "mensagem" nem "lista", então escapava das frases inequívocas — mas nomeia o atendimento, ou
+  // nomeia QUEM ATENDE.
+  //
+  // É essa a âncora, e ela não é opcional: num atendimento sobre a vida da pessoa, "não quero mais
+  // falar com ele", "vou desistir dele" e "acho melhor parar" são o ASSUNTO da conversa, não um
+  // pedido para encerrá-la. Por isso "falar/conversar" só vale com você/vocês como objeto, e
+  // "parar/continuar" só com atendimento/conversa. Fica no nível ambíguo: para de responder e uma
+  // pessoa confirma — não bloqueia sozinho.
+  /\bnao\s+quero\s+(?:mais\s+)?(?:ser\s+atendid[oa]|atendimento|esse\s+atendimento|este\s+atendimento)\b/u,
+  /\bnao\s+quero\s+mais\s+(?:falar|conversar|papo|conversa)\s+(?:com\s+(?:voce|voces|vc|vcs|tu|ti)|contigo)(?![\s,]+(?:mae|pai|filh[oa]|amig[oa]|irma|irmao)\b)\b/u,
+  /\bnao\s+quero\s+(?:mais\s+)?(?:continuar|seguir|prosseguir)\s+(?:com\s+)?(?:o\s+|a\s+|esse\s+|essa\s+|este\s+|esta\s+)?(?:atendimento|conversa)\b/u,
+  /(?<!\bnao\s+(?:(?:quero|queria|vou|pretendo|precisa|precisam)\s+)?)(?<!\bcomo\s)\b(?:parar|pare|encerrar|encerra|encerre|finalizar|finaliza|finalize|cancelar|cancela|cancele)\s+(?:o\s+|esse\s+|este\s+|meu\s+|com\s+o\s+)?atendimento\b/u,
+  /\bnao\s+tenho\s+mais\s+interesse\b/u,
   // ── espanhol ──────────────────────────────────────────────────────────────
   //
   // Esta lista tinha ZERO entradas em espanhol. Não por decisão: o ambíguo é
