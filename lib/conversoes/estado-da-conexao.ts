@@ -146,6 +146,12 @@ export const MOTIVO_LEGIVEL: Record<string, string> = {
     "O lead veio de uma plataforma para a qual ainda não sabemos reportar conversão.",
   recusado_pela_plataforma:
     "A plataforma recusou o envio. O detalhe ao lado é a resposta dela.",
+  sem_conta_do_whatsapp:
+    "A conversa deste lead não passou por um número oficial do WhatsApp (API da Meta). A plataforma só aceita a venda vinda de uma conta do WhatsApp Business.",
+  canal_sem_credencial:
+    "O número oficial desta conversa está sem credencial utilizável. Reconecte o WhatsApp oficial em Conexões.",
+  conjunto_de_dados_indisponivel:
+    "Não foi possível ler nem criar o conjunto de dados da conta do WhatsApp Business. O detalhe ao lado é a resposta da plataforma; a próxima venda tenta de novo.",
   sem_atribuicao:
     "Este lead não veio de um anúncio de clique para o WhatsApp, então não há clique a ligar ao evento.",
   plataforma_diferente:

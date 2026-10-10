@@ -45,6 +45,7 @@ import { lerCredencial } from "@/lib/plataformas-de-anuncio/credenciais";
 import { transporteDe } from "@/lib/plataformas-de-anuncio/registry";
 import type { ConversaoOffline, NomeDoEvento } from "@/lib/plataformas-de-anuncio/types";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { lerDestinoDeMensageria } from "./destino-de-mensageria";
 import { lerAtribuicao } from "./leitura-da-atribuicao";
 import { jaFoiEnviada, registraEnvio } from "./registro-de-envio";
 
@@ -150,6 +151,28 @@ async function handle(row: EventRow): Promise<HandlerResult> {
     return ok("skipped", credencial.motivo);
   }
 
+  // ── O DESTINO DA META É O DO CANAL, NÃO O DA TELA ─────────────────────────────────────────────
+  // A tela de Conversões continua sendo o INTERRUPTOR (ligado/desligado, código de teste). Mas a
+  // conversão de mensageria só é aceita no conjunto de dados da própria conta do WhatsApp Business,
+  // com o token do canal e declarando a conta — `destino-de-mensageria.ts` conta as três recusas
+  // que ensinaram isso. Conversa que não passou por um canal oficial não tem destino: pendência com
+  // nome próprio, em vez de uma recusa da plataforma que pareceria defeito do envio.
+  let contaDoWhatsApp: string | null = null;
+  let credencialDoEnvio = credencial.credencial;
+  if (plataforma === "meta_ads") {
+    const destino = await lerDestinoDeMensageria(admin, row.organization_id, lead.contact_id as string);
+    if (!destino.ok) {
+      await registra("skipped", destino.motivo, destino.detalhe);
+      return ok("skipped", destino.motivo);
+    }
+    contaDoWhatsApp = destino.destino.contaDoWhatsApp;
+    credencialDoEnvio = {
+      ...credencial.credencial,
+      datasetId: destino.destino.datasetId,
+      accessToken: destino.destino.accessToken,
+    };
+  }
+
   const conversao: ConversaoOffline = {
     organizationId: row.organization_id,
     leadId: lead.id,
@@ -162,13 +185,14 @@ async function handle(row: EventRow): Promise<HandlerResult> {
     ocorridoEm: new Date(lead.closed_at ?? row.created_at ?? Date.now()),
     cliqueDeOrigem,
     telefone,
+    contaDoWhatsApp,
     // A coluna tem `DEFAULT 'BRL'` e um CHECK de ISO-4217; o fallback só cobre a
     // linha que teve a moeda apagada à mão.
     moeda: lead.currency ?? "BRL",
     valorCentavos: lead.value_cents,
   };
 
-  const resultado = await transporte.enviar(credencial.credencial, conversao);
+  const resultado = await transporte.enviar(credencialDoEnvio, conversao);
 
   if (resultado.tipo === "ok") {
     await registra("sent", null, resultado.detalhe);

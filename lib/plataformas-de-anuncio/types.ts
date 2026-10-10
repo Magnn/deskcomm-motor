@@ -88,6 +88,12 @@ export interface ConversaoOffline {
   cliqueDeOrigem: string;
   /** E.164 sem `+`, ainda EM CLARO: o hash é responsabilidade do transporte. */
   telefone: string | null;
+  /**
+   * A conta do WhatsApp Business por onde a conversa aconteceu (`channel_sessions.meta_waba_id`).
+   * Para conversão de mensageria a plataforma EXIGE esta conta (ou a Página) em `user_data`, e ela
+   * tem de ser a que está vinculada ao conjunto de dados. Ausente = canal sem conta oficial.
+   */
+  contaDoWhatsApp?: string | null;
   /** `null` = evento sem valor (só `Purchase` o exige — e quem o monta recusa antes de chegar aqui). */
   valorCentavos: number | null;
   moeda: string;

@@ -92,6 +92,9 @@ async function enviar(
 
   const userData: Record<string, unknown> = {
     ctwa_clid: conversao.cliqueDeOrigem,
+    // Obrigatório em `business_messaging`: sem a conta do WhatsApp Business (ou a Página) a
+    // plataforma devolve 400 / subcódigo 2804116. Tem de ser a conta vinculada ao conjunto de dados.
+    ...(conversao.contaDoWhatsApp ? { whatsapp_business_account_id: conversao.contaDoWhatsApp } : {}),
   };
   // Array de propósito: o formato aceita múltiplos valores por campo, e mandar
   // string crua onde ele espera lista é aceito com aviso e ignorado no match.
@@ -147,9 +150,12 @@ async function enviar(
   let codigo: number | null = null;
   let mensagem = texto.slice(0, 400);
   try {
-    const json = JSON.parse(texto) as { error?: { code?: number; message?: string } };
+    const json = JSON.parse(texto) as { error?: { code?: number; message?: string; error_user_msg?: string } };
     if (typeof json.error?.code === "number") codigo = json.error.code;
     if (json.error?.message) mensagem = json.error.message;
+    // `message` costuma ser só "Invalid parameter"; quem diz QUAL parâmetro é `error_user_msg`. Sem
+    // ele a tela mostrava uma recusa que ninguém conseguia consertar.
+    if (json.error?.error_user_msg) mensagem = `${mensagem}: ${json.error.error_user_msg}`.slice(0, 400);
   } catch {
     // Corpo não-JSON num erro é o caso de gateway/WAF no meio. Fica o texto cru.
   }
