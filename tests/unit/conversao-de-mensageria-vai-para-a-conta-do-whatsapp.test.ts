@@ -9,7 +9,7 @@ import { readFileSync } from "node:fs";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { idDoConjuntoDeDados } from "@/lib/conversoes/destino-de-mensageria";
+import { conjuntoDeDadosDaConta, idDoConjuntoDeDados } from "@/lib/channels/meta/conjunto-de-dados-da-conta";
 import { transporteMeta } from "@/lib/plataformas-de-anuncio/meta/conversions";
 
 afterEach(() => vi.restoreAllMocks());
@@ -24,6 +24,36 @@ describe("o id do conjunto de dados, nos dois formatos da resposta", () => {
     expect(idDoConjuntoDeDados({ data: [] })).toBeNull();
     expect(idDoConjuntoDeDados(null)).toBeNull();
     expect(idDoConjuntoDeDados({ id: "  " })).toBeNull();
+  });
+});
+
+describe("ler o conjunto de dados da conta, e criar quando não há", () => {
+  it("conta que já tem: devolve o existente, sem criar", async () => {
+    const rede = vi.fn(async () => new Response(JSON.stringify({ data: [{ id: "111" }] })));
+    await expect(conjuntoDeDadosDaConta("conta", "TOKEN", rede as unknown as typeof fetch)).resolves.toEqual({ id: "111" });
+    expect(rede).toHaveBeenCalledTimes(1);
+    const [url, init] = rede.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toContain("/conta/dataset");
+    expect(url).not.toContain("TOKEN");
+    expect((init.headers as Record<string, string>).authorization).toBe("Bearer TOKEN");
+  });
+
+  it("⭐ conta sem nenhum: cria, e devolve o id criado", async () => {
+    const respostas = [new Response(JSON.stringify({ data: [] })), new Response(JSON.stringify({ id: "2958536614503663" }))];
+    const rede = vi.fn(async () => respostas.shift()!);
+    await expect(conjuntoDeDadosDaConta("conta", "TOKEN", rede as unknown as typeof fetch)).resolves.toEqual({ id: "2958536614503663" });
+    expect((rede.mock.calls[1] as unknown as [string, RequestInit])[1].method).toBe("POST");
+  });
+
+  it("sem permissão para ler: NÃO tenta criar às cegas — devolve o erro", async () => {
+    const rede = vi.fn(async () => new Response("{}", { status: 403 }));
+    await expect(conjuntoDeDadosDaConta("conta", "TOKEN", rede as unknown as typeof fetch)).resolves.toEqual({ erro: "leitura do conjunto de dados: 403" });
+    expect(rede).toHaveBeenCalledTimes(1);
+  });
+
+  it("rede fora: erro, nunca exceção", async () => {
+    const rede = vi.fn(async () => Promise.reject(new Error("fetch failed")));
+    await expect(conjuntoDeDadosDaConta("conta", "TOKEN", rede as unknown as typeof fetch)).resolves.toEqual({ erro: "fetch failed" });
   });
 });
 

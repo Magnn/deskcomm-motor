@@ -24,11 +24,10 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { conjuntoDeDadosDaConta } from "@/lib/channels/meta/conjunto-de-dados-da-conta";
 import { resolveMetaCreds } from "@/lib/channels/meta/credentials";
-import { VERSAO_PADRAO_DA_GRAPH } from "@/lib/graph-version";
 import { logger } from "@/lib/logger";
 
-const TEMPO_LIMITE_MS = 10_000;
 const CHAVE_NO_CANAL = "conversions_dataset_id";
 
 export interface DestinoDeMensageria {
@@ -67,36 +66,6 @@ async function canalOficialDoContato(
   if (!linha) return null;
   const canal = Array.isArray(linha.channel_sessions) ? linha.channel_sessions[0] : linha.channel_sessions;
   return canal && canal.meta_waba_id && canal.meta_phone_number_id ? canal : null;
-}
-
-/** O id do conjunto de dados que a resposta da plataforma traz — nos dois formatos que ela usa. Pura. */
-export function idDoConjuntoDeDados(corpo: unknown): string | null {
-  const c = corpo as { id?: unknown; data?: Array<{ id?: unknown }> } | null;
-  const direto = typeof c?.id === "string" && c.id.trim() !== "" ? c.id.trim() : null;
-  if (direto) return direto;
-  const daLista = c?.data?.find((d) => typeof d?.id === "string" && d.id.trim() !== "")?.id;
-  return typeof daLista === "string" ? daLista.trim() : null;
-}
-
-async function conjuntoDeDadosDaConta(
-  conta: string,
-  token: string,
-  fetchImpl: typeof fetch,
-): Promise<{ id: string } | { erro: string }> {
-  const url = `https://graph.facebook.com/${VERSAO_PADRAO_DA_GRAPH}/${encodeURIComponent(conta)}/dataset`;
-  const cabecalho = { authorization: `Bearer ${token}` };
-  try {
-    const leitura = await fetchImpl(url, { headers: cabecalho, signal: AbortSignal.timeout(TEMPO_LIMITE_MS) });
-    const existente = leitura.ok ? idDoConjuntoDeDados(await leitura.json().catch(() => null)) : null;
-    if (existente) return { id: existente };
-    if (!leitura.ok && leitura.status !== 404) return { erro: `leitura do conjunto de dados: ${leitura.status}` };
-
-    const criacao = await fetchImpl(url, { method: "POST", headers: cabecalho, signal: AbortSignal.timeout(TEMPO_LIMITE_MS) });
-    const criado = criacao.ok ? idDoConjuntoDeDados(await criacao.json().catch(() => null)) : null;
-    return criado ? { id: criado } : { erro: `criação do conjunto de dados: ${criacao.status}` };
-  } catch (err) {
-    return { erro: err instanceof Error ? err.message : "falha de rede" };
-  }
 }
 
 export async function lerDestinoDeMensageria(
