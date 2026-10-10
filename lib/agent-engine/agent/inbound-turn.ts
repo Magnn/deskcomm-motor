@@ -65,6 +65,7 @@ import {
 import type { ProviderRegistry } from '../edge/llm/providers';
 import { HANDOFF_REASON_ORCAMENTO } from '../edge/llm/orcamento';
 import { abreAvisoDoEspelhoRecusado, mirrorLeadStageToCrm } from '../edge/crm/move-lead-stage';
+import { classificarPerdaDoAtendimento } from '@/lib/resultado/motivo-da-perda-do-agente';
 import { insertInboxItem } from '../db/repository';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { moverLeadParaEtapaDeHandoff } from '@/lib/leads/handoff-stage-move';
@@ -3762,14 +3763,30 @@ async function executarTurnoDoAgente(
             // merecem aviso PRÓPRIO, cada um no seu: `fora_do_escopo` (nada quebrou,
             // o dono decide se libera o funil) e `perda_sem_motivo` (#917 — o card
             // não anda porque a perda exige um motivo que só o humano pode dar).
-            const mirror = await mirrorLeadStageToCrm(pool, deps.crmCfg, {
-              tenantId,
-              leadId,
-              toStage: update.transition.to,
-              ...(update.transition.reason !== undefined
-                ? { reason: update.transition.reason }
-                : {}),
-            });
+            const mirror = await mirrorLeadStageToCrm(
+              pool,
+              deps.crmCfg,
+              {
+                tenantId,
+                leadId,
+                toStage: update.transition.to,
+                ...(update.transition.reason !== undefined
+                  ? { reason: update.transition.reason }
+                  : {}),
+              },
+              {
+                // Etapa de perda: a IA classifica o motivo (fato primeiro, inferência depois). Sem
+                // segurança devolve null, e o aviso de sempre vai para a Central.
+                classificaPerda: async () =>
+                  (
+                    await classificarPerdaDoAtendimento(pool, deps.llmCfg, {
+                      organizationId: tenantId,
+                      contactId: leadId,
+                      jobId: job?.id ?? null,
+                    })
+                  )?.motivoDoCard ?? null,
+              },
+            );
             if (!mirror.ok) {
               runLog.warn('espelho de stage no CRM falhou — harness mantido', {
                 to_stage: update.transition.to,
