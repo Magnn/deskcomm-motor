@@ -47,6 +47,40 @@ export function toE164Digits(raw: string): string {
 import { metaCredsFromEnv } from "../meta/credentials";
 export { metaCredsFromEnv as getMetaCreds };
 
+/** Quanto o envio espera a Meta responder antes de desistir. */
+const TETO_DO_ENVIO_MS = 30_000;
+/** Duas repetições, com a espera de cada uma. Só nos casos em que a mensagem comprovadamente NÃO saiu. */
+const ESPERAS_ENTRE_TENTATIVAS_MS = [600, 1800] as const;
+
+const esperar = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+/** Códigos de rede em que a conexão nem chegou a ser aberta: o pedido não saiu daqui. */
+const NAO_CONECTOU = new Set(["ECONNREFUSED", "ENOTFOUND", "EAI_AGAIN", "UND_ERR_CONNECT_TIMEOUT", "ENETUNREACH", "EHOSTUNREACH"]);
+
+/**
+ * A FALHA ACONTECEU ANTES DE O PEDIDO SAIR — o único caso de rede em que repetir é seguro.
+ *
+ * `fetch failed` cobre duas situações opostas: a conexão que não abriu (DNS, recusa, tempo de
+ * conexão) e a conexão que caiu DEPOIS de o pedido ir (`ECONNRESET`, soquete fechado, tempo de
+ * resposta). Na segunda a Meta pode ter recebido e enviado; repetir mandaria a mesma mensagem
+ * duas vezes ao cliente, e envio em dobro é pior que envio perdido. Por isso só a primeira repete.
+ * Medido em 09/10/2026: seis respostas da IA viraram falha por `fetch failed` numa tarde.
+ */
+export function falhaAntesDeSair(err: unknown): boolean {
+  const causa = (err as { cause?: { code?: unknown } } | null)?.cause;
+  return typeof causa?.code === "string" && NAO_CONECTOU.has(causa.code);
+}
+
+/**
+ * RECUSA PASSAGEIRA: a Meta respondeu com erro, então a mensagem NÃO foi enviada, e o código é dos
+ * que ela mesma manda tentar de novo — 2 (serviço temporariamente indisponível), 131000 (algo deu
+ * errado, genérico) e 131016 (serviço indisponível). Erro de parâmetro, de janela ou de política
+ * não entra: repetir não muda a resposta.
+ */
+export function recusaPassageiraDaMeta(codigo: number | undefined): boolean {
+  return codigo === 2 || codigo === 131000 || codigo === 131016;
+}
+
 /**
  * `kind: "contact"` → objeto `contacts` da Cloud API.
  *
@@ -346,35 +380,53 @@ export const metaCloudAdapter: ChannelAdapter = {
       { type: "text", text: { body: envelope.body ?? "" } };
 
     await envelope.beforeSend?.();
-    const res = await fetch(
-      `https://graph.facebook.com/${creds.graphVersion}/${creds.phoneNumberId}/messages`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${creds.token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          messaging_product: "whatsapp",
-          recipient_type: "individual",
-          to: envelope.to,
-          ...corpo,
-        }),
-      },
-    );
+    const url = `https://graph.facebook.com/${creds.graphVersion}/${creds.phoneNumberId}/messages`;
+    const pedido = JSON.stringify({
+      messaging_product: "whatsapp",
+      recipient_type: "individual",
+      to: envelope.to,
+      ...corpo,
+    });
 
-    const body = (await res.json().catch(() => ({}))) as {
-      messages?: { id?: string }[];
-      error?: { code?: number; message?: string; error_data?: { details?: string } };
-    };
+    for (let tentativa = 0; ; tentativa += 1) {
+      let res: Response;
+      try {
+        res = await fetch(url, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${creds.token}`,
+            "Content-Type": "application/json",
+          },
+          body: pedido,
+          // Sem teto, um pedido que a rede engole fica aberto para sempre e a mensagem nunca sai
+          // de `queued` — ninguém fica sabendo que ela não foi.
+          signal: AbortSignal.timeout(TETO_DO_ENVIO_MS),
+        });
+      } catch (err) {
+        if (tentativa < ESPERAS_ENTRE_TENTATIVAS_MS.length && falhaAntesDeSair(err)) {
+          await esperar(ESPERAS_ENTRE_TENTATIVAS_MS[tentativa]!);
+          continue;
+        }
+        throw err;
+      }
 
-    if (!res.ok || body.error) {
-      // `details` é o campo que diz QUAL parâmetro divergiu; sem ele o operador lê
-      // "Parameter format does not match" e não tem pista nenhuma.
-      const detalhe = body.error?.error_data?.details ?? body.error?.message ?? `http_${res.status}`;
-      throw new Error(`meta_${body.error?.code ?? res.status}: ${detalhe}`);
+      const body = (await res.json().catch(() => ({}))) as {
+        messages?: { id?: string }[];
+        error?: { code?: number; message?: string; error_data?: { details?: string } };
+      };
+
+      if (!res.ok || body.error) {
+        if (tentativa < ESPERAS_ENTRE_TENTATIVAS_MS.length && recusaPassageiraDaMeta(body.error?.code)) {
+          await esperar(ESPERAS_ENTRE_TENTATIVAS_MS[tentativa]!);
+          continue;
+        }
+        // `details` é o campo que diz QUAL parâmetro divergiu; sem ele o operador lê
+        // "Parameter format does not match" e não tem pista nenhuma.
+        const detalhe = body.error?.error_data?.details ?? body.error?.message ?? `http_${res.status}`;
+        throw new Error(`meta_${body.error?.code ?? res.status}: ${detalhe}`);
+      }
+
+      return { externalId: body.messages?.[0]?.id ?? null };
     }
-
-    return { externalId: body.messages?.[0]?.id ?? null };
   },
 };

@@ -173,11 +173,10 @@ describe("resgate da fila — a mensagem da AUTOMAÇÃO é alcançada (#652)", (
 
 describe("mensagem vencida na fila", () => {
   it("⭐ encerra como falha, com motivo, só o que é automático e tem mais de um dia — e não reenvia", async () => {
-    const query = vi.fn().mockResolvedValueOnce({ rowCount: 31 });
+    const query = vi.fn().mockResolvedValueOnce({ rowCount: 31 }).mockResolvedValueOnce({ rowCount: 0 });
     const warn = vi.fn();
     const n = await encerrarVencidasNaFila({ query } as unknown as pg.Pool, { warn, info: vi.fn(), error: vi.fn() } as never);
     expect(n).toBe(31);
-    expect(query).toHaveBeenCalledTimes(1);
     const sql = String(query.mock.calls[0]?.[0]);
     expect(sql).toContain("status = 'failed'");
     expect(sql).toContain("error_code = 'queue_expired'");
@@ -187,9 +186,28 @@ describe("mensagem vencida na fila", () => {
     expect(warn).toHaveBeenCalledWith("watchdog: mensagens vencidas na fila encerradas como falha", { quantidade: 31 });
   });
 
+  it("⭐ canal arquivado: a mensagem na fila vira falha, seja de quem for — inclusive a do atendente", async () => {
+    // Medido em 10/10/2026: quatro mensagens de atendente `queued` havia cinco dias em números
+    // arquivados. A regra de cima só olha a automática; esta não filtra por quem escreveu.
+    const query = vi.fn().mockResolvedValueOnce({ rowCount: 0 }).mockResolvedValueOnce({ rowCount: 4 });
+    const warn = vi.fn();
+    const n = await encerrarVencidasNaFila({ query } as unknown as pg.Pool, { warn, info: vi.fn(), error: vi.fn() } as never);
+    expect(n).toBe(4);
+    expect(query).toHaveBeenCalledTimes(2);
+    const sql = String(query.mock.calls[1]?.[0]);
+    expect(sql).toContain("error_code = 'channel_archived'");
+    expect(sql).toContain("s.archived_at is not null");
+    expect(sql).toContain("m.status = 'queued'");
+    // Só o que foi escrito ANTES de arquivar: mensagem nova num canal reaberto não é tocada.
+    expect(sql).toContain("m.created_at < s.archived_at");
+    expect(sql).not.toContain("sent_via");
+    expect(warn).toHaveBeenCalledWith("watchdog: mensagens na fila de canal arquivado encerradas como falha", { quantidade: 4 });
+  });
+
   it("sem nada vencido, não avisa", async () => {
     const warn = vi.fn();
-    const n = await encerrarVencidasNaFila({ query: vi.fn().mockResolvedValueOnce({ rowCount: 0 }) } as unknown as pg.Pool, { warn, info: vi.fn(), error: vi.fn() } as never);
+    const query = vi.fn().mockResolvedValue({ rowCount: 0 });
+    const n = await encerrarVencidasNaFila({ query } as unknown as pg.Pool, { warn, info: vi.fn(), error: vi.fn() } as never);
     expect(n).toBe(0);
     expect(warn).not.toHaveBeenCalled();
   });

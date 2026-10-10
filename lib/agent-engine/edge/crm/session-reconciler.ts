@@ -323,7 +323,24 @@ export async function encerrarVencidasNaFila(pool: pg.Pool, log: Logger): Promis
   if ((vencidas ?? 0) > 0) {
     log.warn('watchdog: mensagens vencidas na fila encerradas como falha', { quantidade: vencidas });
   }
-  return vencidas ?? 0;
+  // CANAL ARQUIVADO NÃO ENVIA MAIS — de quem quer que seja a mensagem. A regra acima só alcança a
+  // automática; a que um ATENDENTE escreveu ficava `queued` para sempre, com o reloginho na tela.
+  // Medido em 10/10/2026: quatro mensagens de atendente na fila havia cinco dias, em números
+  // desconectados e arquivados no mesmo dia. O número não volta; a mensagem vira falha, com o motivo.
+  const { rowCount: semCanal } = await pool.query(
+    `update messages m
+        set status = 'failed', error_code = 'channel_archived',
+            error_message = 'O número desta conversa foi desconectado antes de a mensagem sair.'
+       from channel_sessions s
+      where s.id = m.channel_session_id and s.organization_id = m.organization_id
+        and s.archived_at is not null
+        and m.direction = 'outbound' and m.status = 'queued'
+        and m.created_at < s.archived_at`,
+  );
+  if ((semCanal ?? 0) > 0) {
+    log.warn('watchdog: mensagens na fila de canal arquivado encerradas como falha', { quantidade: semCanal });
+  }
+  return (vencidas ?? 0) + (semCanal ?? 0);
 }
 
 /** Reenvia mensagens AI presas em queued com sessão WORKING. */
