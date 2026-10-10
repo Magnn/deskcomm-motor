@@ -57,26 +57,37 @@ describe("o valor que o card aceita", () => {
 });
 
 describe("parouDeResponder — fato, não inferência", () => {
-  it("a empresa falou por último duas vezes e nada voltou: parou", () => {
-    expect(parouDeResponder([dela("quanto custa?"), nossa("R$ 130"), nossa("Posso te mandar o link?")])).toBe(true);
+  const AGORA = new Date("2026-10-10T15:00:00Z");
+  const ha = (min: number) => new Date(AGORA.getTime() - min * 60_000).toISOString();
+  const em = <T extends object>(m: T, min: number) => ({ ...m, created_at: ha(min) });
+
+  it("a empresa falou por último duas vezes e ela está calada há mais de uma hora: parou", () => {
+    expect(parouDeResponder([em(dela("quanto custa?"), 200), em(nossa("R$ 130"), 199), em(nossa("Posso te mandar o link?"), 120)], AGORA)).toBe(true);
+  });
+
+  it("⭐ ela ACABOU de falar e o agente respondeu em duas bolhas: NÃO é silêncio, é o turno em curso", () => {
+    // O caso real: "realmente não tenho" → duas bolhas de despedida → classificação. Era preço.
+    expect(parouDeResponder([em(nossa("R$ 130"), 30), em(dela("realmente não tenho"), 1), em(nossa("Eu entendo."), 0), em(nossa("A porta fica aberta."), 0)], AGORA)).toBe(false);
   });
 
   it("uma fala só depois da dela ainda é conversa em andamento", () => {
-    expect(parouDeResponder([dela("quanto custa?"), nossa("R$ 130")])).toBe(false);
+    expect(parouDeResponder([em(dela("quanto custa?"), 300), em(nossa("R$ 130"), 299)], AGORA)).toBe(false);
   });
 
   it("ela respondeu por último: não parou", () => {
-    expect(parouDeResponder([nossa("R$ 130"), nossa("Posso mandar?"), dela("tá caro")])).toBe(false);
+    expect(parouDeResponder([em(nossa("R$ 130"), 300), em(nossa("Posso mandar?"), 299), em(dela("tá caro"), 298)], AGORA)).toBe(false);
   });
 
-  it("quem nunca falou não 'parou de responder'", () => {
-    expect(parouDeResponder([nossa("Oi"), nossa("Tudo bem?")])).toBe(false);
+  it("quem nunca falou não 'parou de responder'; e sem horário não se afirma silêncio", () => {
+    expect(parouDeResponder([em(nossa("Oi"), 300), em(nossa("Tudo bem?"), 299)], AGORA)).toBe(false);
+    expect(parouDeResponder([dela("quanto?"), nossa("R$ 130"), nossa("Segue o link")], AGORA)).toBe(false);
   });
 });
 
 describe("classificarPerdaDoAtendimento", () => {
   it("⭐ silêncio depois da oferta: `no_response` por REGRA, sem chamar a IA", async () => {
-    const { pool, escritas } = poolCom([dela("quanto?"), nossa("R$ 130"), nossa("Segue o link")]);
+    const ontem = (m: object) => ({ ...m, created_at: new Date(Date.now() - 24 * 3_600_000).toISOString() });
+    const { pool, escritas } = poolCom([ontem(dela("quanto?")), ontem(nossa("R$ 130")), ontem(nossa("Segue o link"))] as never);
     const r = await classificarPerdaDoAtendimento(pool, {} as never, ID);
     expect(r).toMatchObject({ motivoDoCard: "no_response", motivo: "sem_resposta", origem: "regra", confianca: 100 });
     expect(chamadasAoModelo).toHaveLength(0);
