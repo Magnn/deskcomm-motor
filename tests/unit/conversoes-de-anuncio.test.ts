@@ -14,6 +14,14 @@ import { PLATAFORMAS, transporteDe } from "@/lib/plataformas-de-anuncio/registry
 import { createAdminClient } from "@/lib/supabase/admin";
 
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: vi.fn() }));
+// O destino de mensageria (conta, conjunto de dados e token do canal oficial) tem teste próprio em
+// `conversao-de-mensageria-vai-para-a-conta-do-whatsapp.test.ts`; aqui ele é um canal que existe.
+vi.mock("@/lib/conversoes/destino-de-mensageria", () => ({
+  lerDestinoDeMensageria: vi.fn(async () => ({
+    ok: true,
+    destino: { contaDoWhatsApp: "conta-do-whatsapp", datasetId: "conjunto-da-conta", accessToken: "token-do-canal" },
+  })),
+}));
 
 const ORG = "11111111-1111-1111-1111-111111111111";
 const LEAD = "22222222-2222-2222-2222-222222222222";
