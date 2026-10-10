@@ -12,7 +12,13 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-import { aplicarEventoDaCakto, type DepsDaCompra, escolherFluxoDeEntrega } from "@/lib/pagamentos/compra-cakto";
+import {
+  aplicarEventoDaCakto,
+  type DepsDaCompra,
+  escolherFluxoDeEntrega,
+  negocioQueRecebeOValor,
+  type NegocioDoContato,
+} from "@/lib/pagamentos/compra-cakto";
 import { triggerConfigSchema } from "@/lib/followup/api-schemas";
 import { isCaktoPayload, mapCaktoPayload, segredoDaCaktoConfere, slugDoTrabalho } from "@/lib/webhooks/cakto";
 
@@ -108,6 +114,9 @@ function fake(sobrescreve: Partial<DepsDaCompra> = {}) {
       chamadas.push("anotar");
       notas.push(texto);
     },
+    async registrarValorNoNegocio(_id, valor) {
+      chamadas.push(`valor:${valor}`);
+    },
     async pararFluxosVivos(_id, motivo) {
       chamadas.push(`parar:${motivo}`);
       return 1;
@@ -136,6 +145,9 @@ describe("compra aprovada", () => {
     expect(gravado[0]!.ultimaCompra).toMatchObject({ valor_centavos: 5070, cupom: "cupomteste1" });
     expect(notas[0]).toContain("R$ 50,70");
     expect(notas[0]).toContain("cupom cupomteste1");
+    // ⭐ O valor pago vai para o negócio: sem ele a venda não é reportada à plataforma de anúncio.
+    expect(chamadas).toContain("valor:5070");
+    expect(chamadas.indexOf("valor:5070")).toBeGreaterThan(chamadas.indexOf("gravarCompra"));
     // Quem pagou não recebe o "quer continuar?" — parar ANTES de inscrever.
     expect(chamadas.indexOf("parar:compra_aprovada")).toBeGreaterThan(-1);
     expect(chamadas.indexOf("parar:compra_aprovada")).toBeLessThan(chamadas.indexOf("inscrever:fluxo-entrega"));
@@ -150,6 +162,8 @@ describe("compra aprovada", () => {
     const r = await aplicarEventoDaCakto(deps, mapCaktoPayload(AVISO)!);
     expect(r).toEqual({ resultado: "ja_processada", contatoId: "c1" });
     expect(chamadas.some((c) => c.startsWith("inscrever") || c === "gravarCompra")).toBe(false);
+    // E o valor NÃO é somado de novo no negócio.
+    expect(chamadas.some((c) => c.startsWith("valor:"))).toBe(false);
   });
 
   it("outro pedido da mesma pessoa entrega normalmente (a marca é por pedido, não por pessoa)", async () => {
@@ -265,5 +279,45 @@ describe("cada produto com o seu fluxo de entrega", () => {
     expect(triggerConfigSchema.safeParse({ kind: "webhook", product_name: "Sons Vocálicos" }).success).toBe(true);
     expect(triggerConfigSchema.safeParse({ kind: "webhook" }).success).toBe(true);
     expect(triggerConfigSchema.safeParse({ kind: "webhook", product_name: "" }).success).toBe(false);
+  });
+});
+
+describe("em qual negócio o valor da compra entra", () => {
+  const AGORA = new Date("2026-10-10T15:00:00Z");
+  const ha = (horas: number) => new Date(AGORA.getTime() - horas * 3_600_000).toISOString();
+  const negocio = (over: Partial<NegocioDoContato>): NegocioDoContato => ({
+    id: "n1",
+    status: "open",
+    value_cents: null,
+    closed_at: null,
+    last_activity_at: ha(1),
+    created_at: ha(48),
+    ...over,
+  });
+
+  it("⭐ negócio ABERTO recebe o valor — quando o agente fechar, a venda já tem quanto valeu", () => {
+    expect(negocioQueRecebeOValor([negocio({})], 13_000, AGORA)).toEqual({ id: "n1", novoValor: 13_000, jaGanho: false });
+  });
+
+  it("com dois abertos, vale o de atividade mais recente", () => {
+    const r = negocioQueRecebeOValor([negocio({ id: "velho", last_activity_at: ha(30) }), negocio({ id: "novo", last_activity_at: ha(2) })], 13_000, AGORA);
+    expect(r?.id).toBe("novo");
+  });
+
+  it("⭐ o agente fechou ANTES de o aviso chegar: o ganho recente recebe o valor, marcado como já ganho", () => {
+    // `jaGanho` é o que faz o envio da venda ser refeito: o evento de fechamento passou sem valor.
+    const r = negocioQueRecebeOValor([negocio({ status: "won", closed_at: ha(0.1) })], 13_000, AGORA);
+    expect(r).toEqual({ id: "n1", novoValor: 13_000, jaGanho: true });
+  });
+
+  it("segunda compra da mesma pessoa (oferta de pós-venda): o valor SOMA no negócio ganho", () => {
+    const r = negocioQueRecebeOValor([negocio({ status: "won", closed_at: ha(20), value_cents: 13_000 })], 4_500, AGORA);
+    expect(r).toEqual({ id: "n1", novoValor: 17_500, jaGanho: true });
+  });
+
+  it("negócio perdido, ou ganho há mais de 7 dias, não é desta compra: nada é escrito", () => {
+    expect(negocioQueRecebeOValor([negocio({ status: "lost", closed_at: ha(1) })], 13_000, AGORA)).toBeNull();
+    expect(negocioQueRecebeOValor([negocio({ status: "won", closed_at: ha(24 * 8) })], 13_000, AGORA)).toBeNull();
+    expect(negocioQueRecebeOValor([], 13_000, AGORA)).toBeNull();
   });
 });
