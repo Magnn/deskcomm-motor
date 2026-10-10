@@ -535,6 +535,7 @@ export async function revertToVersionAction(
     knowledge_source_ids: string[];
     split_messages: boolean;
     split_max_chars: number;
+    followup: Record<string, unknown> | null;
   };
   const src = source as unknown as SourceRow;
 
@@ -583,6 +584,9 @@ export async function revertToVersionAction(
         knowledge_source_ids: src.knowledge_source_ids ?? [],
         split_messages: src.split_messages,
         split_max_chars: src.split_max_chars,
+        // O follow-up (régua de silêncio incluída) é da versão: reverter sem ele voltava o roteiro e
+        // desligava a recuperação de quem parou de responder.
+        ...(src.followup != null ? { followup: src.followup } : {}),
         status: "draft",
         created_by: authUser.id,
       })

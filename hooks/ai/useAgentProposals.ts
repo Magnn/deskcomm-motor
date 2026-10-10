@@ -14,6 +14,8 @@ export interface ProposalRow {
   applied_at: string | null;
   applied_version_id: string | null;
   applied_by: string | null;
+  dismissed_at: string | null;
+  reverted_at: string | null;
 }
 
 /** Propostas do flywheel na tela do agente (Operação Visível F3). */
@@ -41,4 +43,27 @@ export function useApplyProposal(agentId: string) {
       void qc.invalidateQueries({ queryKey: ["org-memory"] });
     },
   });
+}
+
+function useAcaoDaProposta(agentId: string, acao: "revert" | "dismiss") {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (proposalId: string) =>
+      apiClient.post(`/api/v1/ai/agents/${agentId}/proposals/${proposalId}/${acao}`, {}),
+    onSettled: () => {
+      void qc.invalidateQueries({ queryKey: ["agent-proposals", agentId] });
+      void qc.invalidateQueries({ queryKey: ["agent-versions", agentId] });
+      void qc.invalidateQueries({ queryKey: ["org-memory"] });
+    },
+  });
+}
+
+/** Desfaz uma proposta aplicada: o agente volta ao que era antes dela. */
+export function useRevertProposal(agentId: string) {
+  return useAcaoDaProposta(agentId, "revert");
+}
+
+/** Dispensa uma proposta pendente: ela sai da lista. */
+export function useDismissProposal(agentId: string) {
+  return useAcaoDaProposta(agentId, "dismiss");
 }

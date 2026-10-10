@@ -239,6 +239,8 @@ export const AUDIT_ACTIONS = [
   "ai.pacing_knobs_updated",
   "ai.inbox_item_status_changed",
   "ai.flywheel_proposal_applied",
+  "ai.flywheel_proposal_reverted",
+  "ai.flywheel_proposal_dismissed",
   "ai.org_memory_published",
   "ai.org_memory_entry_created",
   "ai.org_memory_entry_updated",
