@@ -75,7 +75,7 @@ export async function GET(_req: NextRequest): Promise<Response> {
     .from("org_memory_entries")
     .select("id, title, body, source, status, created_at")
     .eq("organization_id", org.orgId)
-    .neq("status", "proposed")
+    // As SUGERIDAS pela IA vêm junto: é nesta tela que alguém as aprova ou dispensa.
     .order("created_at", { ascending: false });
   if (entriesErr) {
     return fail("internal_error", t("Erro ao carregar entradas da memória."), 500, { requestId });

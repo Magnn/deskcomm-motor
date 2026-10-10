@@ -9,10 +9,15 @@
  */
 import type pg from 'pg';
 
+import { aprendizadosQueCabem } from '../../memoria-da-org/teto';
+
 export interface OrgMemoryEntry {
   id: string;
   title: string;
   body: string;
+  /** `manual`, `flywheel` ou `agent` — quem decide o que cabe no teto olha isto. */
+  source?: string | null;
+  created_at?: string | null;
 }
 
 export interface LoadedOrgMemory {
@@ -28,13 +33,16 @@ export async function loadOrgMemory(db: pg.Pool, tenantId: string): Promise<Load
     [tenantId],
   );
   const { rows: entryRows } = await db.query<OrgMemoryEntry>(
-    `select id, title, body
+    `select id, title, body, source, created_at::text as created_at
      from org_memory_entries
      where organization_id = $1 and status = 'active'
      order by created_at asc, id asc`,
     [tenantId],
   );
-  return { content: docRows[0]?.content ?? null, entries: entryRows };
+  // O TETO: o que a IA anotou entra do mais recente para o mais antigo, até o limite; o que uma
+  // pessoa escreveu ou aprovou entra sempre (`memoria-da-org/teto.ts`). A ordem de criação fica.
+  const { dentro } = aprendizadosQueCabem(entryRows);
+  return { content: docRows[0]?.content ?? null, entries: entryRows.filter((e) => dentro.has(e.id)) };
 }
 
 /** Bloco do prefixo estável — '' quando a org não tem memória (zero custo). */

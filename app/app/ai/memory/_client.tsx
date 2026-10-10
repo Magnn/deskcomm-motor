@@ -19,6 +19,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { showApiError } from "@/components/feedback/ApiErrorToast";
+import { aprendizadosQueCabem } from "@/lib/memoria-da-org/teto";
 import { Archive, ArrowsClockwise, Plus } from "@/lib/ui/icons";
 import { usePermission } from "@/hooks/auth/AuthProvider";
 import {
@@ -66,6 +67,7 @@ export function OrgMemoryClient({ initialState }: Props) {
   const [content, setContent] = React.useState(document?.content ?? "");
   const [historyTarget, setHistoryTarget] = React.useState<OrgMemoryVersionMeta | null>(null);
   const [showArchived, setShowArchived] = React.useState(false);
+  const [showProposed, setShowProposed] = React.useState(false);
   const [formOpen, setFormOpen] = React.useState(false);
   const [title, setTitle] = React.useState("");
   const [body, setBody] = React.useState("");
@@ -135,7 +137,13 @@ export function OrgMemoryClient({ initialState }: Props) {
     );
   }
 
-  const visibleEntries = entries.filter((e) => (showArchived ? e.status === "archived" : e.status === "active"));
+  const sugeridas = entries.filter((e) => e.status === "proposed");
+  const ativas = entries.filter((e) => e.status === "active");
+  const visibleEntries = showProposed
+    ? sugeridas
+    : entries.filter((e) => (showArchived ? e.status === "archived" : e.status === "active"));
+  // A MESMA conta que o agente faz ao montar o prompt: quantos aprendizados ativos ficam de fora.
+  const foraDoTeto = aprendizadosQueCabem(ativas).fora;
 
   return (
     <div className="flex flex-col gap-6">
@@ -269,7 +277,35 @@ export function OrgMemoryClient({ initialState }: Props) {
             </form>
           )}
 
-          {entries.some((e) => e.status === "archived") && (
+          {sugeridas.length > 0 && !showProposed && (
+            <button
+              type="button"
+              data-testid="memoria-sugeridas"
+              onClick={() => {
+                setShowProposed(true);
+                setShowArchived(false);
+              }}
+              className="self-start rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-left text-xs text-amber-900 dark:text-amber-200"
+            >
+              {sugeridas.length} {t("sugestões da IA aguardando a sua aprovação. Elas só passam a valer nos atendimentos depois que você aprovar.")}
+            </button>
+          )}
+          {showProposed && (
+            <button
+              type="button"
+              onClick={() => setShowProposed(false)}
+              className="self-start text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+            >
+              {t("Ver aprendizados ativos")}
+            </button>
+          )}
+          {!showProposed && !showArchived && foraDoTeto > 0 && (
+            <p className="rounded-md border border-border/60 p-3 text-xs text-muted-foreground" data-testid="memoria-fora-do-teto">
+              {foraDoTeto} {t("anotações mais antigas da IA estão ativas mas não entram nos atendimentos: a memória tem um limite de tamanho, porque ela é relida a cada resposta. Arquive o que não serve mais para abrir espaço.")}
+            </p>
+          )}
+
+          {!showProposed && entries.some((e) => e.status === "archived") && (
             <button
               type="button"
               onClick={() => setShowArchived((v) => !v)}
@@ -281,7 +317,9 @@ export function OrgMemoryClient({ initialState }: Props) {
 
           {visibleEntries.length === 0 ? (
             <p className="rounded-md border border-dashed border-border p-4 text-sm text-muted-foreground">
-              {showArchived
+              {showProposed
+                ? t("Nenhuma sugestão aguardando aprovação.")
+                : showArchived
                 ? t("Nenhum aprendizado arquivado.")
                 : t(
                     'Nenhum aprendizado ainda. Use "+ Novo aprendizado" para ensinar algo que os agentes devem lembrar em toda conversa — ou aguarde o sistema sugerir aprendizados automaticamente a partir do atendimento real.',
@@ -302,17 +340,33 @@ export function OrgMemoryClient({ initialState }: Props) {
                     <span className="ml-auto text-xs text-muted-foreground">{formatDate(entry.created_at, tagDoIdioma)}</span>
                   </div>
                   <p className="whitespace-pre-wrap text-text-muted">{entry.body}</p>
-                  <div className="flex sm:justify-end">
+                  <div className="flex gap-2 sm:justify-end">
+                    {entry.status === "proposed" && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={setStatus.isPending}
+                        onClick={() => handleToggleArchive(entry.id, "active")}
+                        className="w-full sm:w-auto"
+                        data-testid="memoria-aprovar"
+                      >
+                        {t("Aprovar")}
+                      </Button>
+                    )}
                     <Button
                       variant="ghost"
                       size="sm"
                       disabled={setStatus.isPending}
                       onClick={() =>
-                        handleToggleArchive(entry.id, entry.status === "active" ? "archived" : "active")
+                        handleToggleArchive(entry.id, entry.status === "archived" ? "active" : "archived")
                       }
                       className="w-full sm:w-auto"
                     >
-                      {entry.status === "active" ? (
+                      {entry.status === "proposed" ? (
+                        <>
+                          <Archive /> {t("Dispensar")}
+                        </>
+                      ) : entry.status === "active" ? (
                         <>
                           <Archive /> {t("Arquivar")}
                         </>

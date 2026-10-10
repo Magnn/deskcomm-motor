@@ -25,7 +25,7 @@ export interface OrgMemoryEntryRow {
   title: string;
   body: string;
   source: OrigemDaMemoria;
-  status: "active" | "archived";
+  status: "active" | "archived" | "proposed";
   created_at: string;
 }
 export interface OrgMemoryState {
