@@ -164,6 +164,13 @@ export interface OutboundEnvelope extends ChannelTenantScope {
    * `undefined` = envio solto, que é o caso comum.
    */
   replyToExternalId?: string | null;
+  /**
+   * Botões de resposta sob o texto (`lib/channels/botoes-de-resposta.ts`). Só em `kind: "text"`.
+   *
+   * OPCIONAL, e quem monta o envelope só o preenche para canal que sabe enviar botão — para os
+   * demais a mesma pergunta já foi escrita no corpo. Adapter que não conhece o campo ignora.
+   */
+  replyButtons?: readonly { id: string; title: string }[];
 }
 
 /**

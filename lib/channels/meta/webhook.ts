@@ -206,6 +206,28 @@ function str(v: unknown): string | null {
 }
 
 /**
+ * O que a pessoa TOCOU, como texto. `null` = a mensagem não é um toque.
+ *
+ * Toque em botão de resposta chega como `interactive.button_reply`; em item de lista, como
+ * `interactive.list_reply`; em botão de modelo aprovado, como `button`. Nenhum dos três traz
+ * `text` — e sem esta leitura o toque entrava como mensagem VAZIA de um tipo que ninguém lê: o
+ * agente não via a resposta e a pessoa ficava falando sozinha depois de responder.
+ *
+ * Vira texto, com o título do botão, de propósito: é o que a pessoa leu e escolheu, e assim toda
+ * regra que já entende texto (descadastro, pedido de humano, o próprio agente) vale para o toque.
+ */
+export function textoDoToque(raw: Record<string, unknown>): string | null {
+  const tipo = str(raw.type);
+  if (tipo === "interactive") {
+    const i = (raw.interactive ?? {}) as Record<string, unknown>;
+    const resposta = (i.button_reply ?? i.list_reply ?? {}) as Record<string, unknown>;
+    return str(resposta.title);
+  }
+  if (tipo === "button") return str(((raw.button ?? {}) as Record<string, unknown>).text);
+  return null;
+}
+
+/**
  * Extrai os eventos que nos interessam. **Evento desconhecido é IGNORADO, não erro** —
  * a Meta re-entrega tudo que não recebe 2xx, então devolver falha para um evento que
  * não nos interessa vira auto-DDoS: ela re-tenta o mesmo payload em backoff por horas.
@@ -249,7 +271,8 @@ export function parseMetaWebhook(envelope: MetaWebhookEnvelope): MetaWebhookEven
           const tipo = str(raw.type) ?? "unknown";
           const corpoMidia = tipo !== "contacts" ? (raw[tipo] as Record<string, unknown> | undefined) : undefined;
           const sharedContact = tipo === "contacts" ? parseMetaInboundContact(raw) : null;
-          const tipoCrm = tipo === "contacts" ? "contact" : tipo;
+          const toque = textoDoToque(raw);
+          const tipoCrm = toque !== null ? "text" : tipo === "contacts" ? "contact" : tipo;
 
           out.push({
             kind: "inbound_message",
@@ -262,9 +285,10 @@ export function parseMetaWebhook(envelope: MetaWebhookEnvelope): MetaWebhookEven
             sentAt: new Date(Number(str(raw.timestamp) ?? "0") * 1000),
             type: tipoCrm,
             text:
-              tipoCrm === "text"
+              toque ??
+              (tipoCrm === "text"
                 ? str((raw.text as Record<string, unknown>)?.body)
-                : sharedContact?.name ?? null,
+                : sharedContact?.name ?? null),
             ...(sharedContact ? { sharedContact } : {}),
             media:
               corpoMidia && str(corpoMidia.id)

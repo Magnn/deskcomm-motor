@@ -37,6 +37,7 @@ import type { Queryable } from '../../queue/queue';
 import { cancelJob, rescheduleJob, type JobRow } from '../../queue/queue';
 import { cancelPendingCronsForLead } from '../../cron/scheduler';
 import { CrmTransportError, type CrmEdgeConfig } from './mcp-client';
+import { BOTOES_DE_CONTINUAR_OU_PARAR } from '@/lib/channels/botoes-de-resposta';
 
 /** Erro de negócio não classificado do handler (ex.: conversa inexistente) — ledger fica 'requested'. */
 export class SendToolError extends Error {
@@ -75,6 +76,8 @@ export interface SendMessageInput {
    * vCard de verdade é o adapter do canal, igual ao envio manual do atendente.
    */
   contact?: { name: string; phoneNumber: string };
+  /** Botões de resposta sob o texto. Quem decide QUANDO é o sistema, nunca o modelo. */
+  replyButtons?: readonly { id: string; title: string }[];
 }
 
 /**
@@ -117,6 +120,9 @@ export function corpoDoEnvio(
       // Mesmo formato do envio manual (`sendMessageSchema`): nome + telefone.
       ...(input.contact
         ? { shared_contact: { name: input.contact.name, phone_number: input.contact.phoneNumber } }
+        : {}),
+      ...(input.replyButtons && !input.contact && !input.media && !input.template
+        ? { reply_buttons: input.replyButtons }
         : {}),
     },
   };
@@ -171,6 +177,12 @@ export async function sendTurnMessage(
       jobClaim: input.jobClaim,
     };
     await assertMeetingDeliveryPg(db, meetingDelivery);
+  }
+  // A chamada que oferece a saída (`recovery.offer_stop`, decidido em `lib/recuperacao/decisao.ts`)
+  // leva os botões na PRIMEIRA bolha de texto do turno — a chamada pede uma mensagem só.
+  const recuperacao = sourceJobs[0]?.payload.recovery as { offer_stop?: unknown } | undefined;
+  if (recuperacao?.offer_stop === true && input.seq === 1 && !input.replyButtons) {
+    input = { ...input, replyButtons: BOTOES_DE_CONTINUAR_OU_PARAR };
   }
   let approvedReply: ApprovedReplyContext | undefined;
   if (sourceJobs[0]?.kind === 'approved_reply') {

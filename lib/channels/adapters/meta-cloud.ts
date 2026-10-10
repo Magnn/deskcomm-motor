@@ -96,6 +96,26 @@ export function contactPayload(env: OutboundEnvelope): Record<string, unknown> |
 }
 
 /** `kind` do envelope → objeto de mídia da Cloud API. */
+/**
+ * Texto com botões de resposta. `null` = este envio não é um (sem botões, sem corpo, ou não é texto).
+ *
+ * O corpo de uma mensagem interativa tem teto próprio (1.024), menor que o do texto livre: acima
+ * dele o envio sai como texto comum — perder os botões é melhor que a plataforma recusar a mensagem.
+ */
+export function buttonsPayload(env: OutboundEnvelope): Record<string, unknown> | null {
+  const botoes = env.replyButtons ?? [];
+  const corpo = env.body ?? "";
+  if (env.kind !== "text" || botoes.length === 0 || corpo.trim() === "" || corpo.length > 1024) return null;
+  return {
+    type: "interactive",
+    interactive: {
+      type: "button",
+      body: { text: corpo },
+      action: { buttons: botoes.map((b) => ({ type: "reply", reply: { id: b.id, title: b.title } })) },
+    },
+  };
+}
+
 export function mediaPayload(env: OutboundEnvelope): Record<string, unknown> | null {
   if (!env.media) return null;
   const link = env.media.url;
@@ -377,6 +397,7 @@ export const metaCloudAdapter: ChannelAdapter = {
     const corpo =
       contactPayload(envelope) ??
       mediaPayload(envelope) ??
+      buttonsPayload(envelope) ??
       { type: "text", text: { body: envelope.body ?? "" } };
 
     await envelope.beforeSend?.();
