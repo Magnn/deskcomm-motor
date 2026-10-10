@@ -114,34 +114,26 @@ export function expandirHistoricoColado(msgs: readonly MensagemParaContar[]): Me
 /**
  * EM QUE DEGRAU A CONVERSA ESTÁ — o índice em `steps`, ou `-1` para o valor de venda.
  *
- * Duas coisas descem a escada, e vale a que desce MAIS:
- *  - a 1ª reclamação é respondida com a defesa do valor; da 2ª em diante cada uma libera um degrau;
- *  - a pessoa dizer quanto tem pula direto para o maior degrau que cabe nesse valor (ou para o
- *    último, se nem ele couber).
+ * UM DEGRAU POR VEZ, sempre: a 1ª rodada de reclamação é respondida com a defesa do valor; da 2ª
+ * em diante cada rodada libera UM degrau (`reclamacoesDeValor` conta rodadas, não mensagens).
  *
- * Até 08/10/2026 a 1ª reclamação só repetia o valor de venda e cada uma seguinte liberava um
- * degrau. Medido nas conversas daquele dia: 42 pessoas reclamaram do valor depois do preço, a
- * agente citou um valor menor para 1, e 1 comprou — quem não tem o valor cheio desiste na 2ª
- * resposta, e com seis degraus seriam sete reclamações até o mínimo.
+ * ⚠️ A pessoa dizer quanto tem NÃO pula degrau. De 08 a 09/10/2026 pulava: "só tenho 50" levava a
+ * agente de R$ 130 direto a R$ 50, o menor valor, na resposta seguinte — medido nas conversas de
+ * 09/10, e o dono viu a queda de 130 para 50 na tela. Quem diz um número abre a negociação; a
+ * agente responde com o PRÓXIMO degrau, e só desce outro se a pessoa disser de novo que não cabe.
+ * O parâmetro fica na assinatura porque o estado do turno o carrega; aqui ele não decide nada.
+ *
+ * Histórico da regra: até 08/10 a 1ª reclamação só repetia o valor e cada mensagem seguinte
+ * liberava um degrau (42 reclamaram, 1 comprou); em 09/10 de manhã a escada descia já na 1ª
+ * (14 ofertas, nenhuma compra); à tarde a defesa da 1ª voltou.
  */
 export function degrauDoTurno(
   c: Pick<PricingConfig, "list_price_cents" | "steps">,
   reclamacoes: number | null,
-  valorQueTemCents: number | null = null,
+  _valorQueTemCents: number | null = null,
 ): number {
   if (reclamacoes === null || reclamacoes <= 0 || c.steps.length === 0) return -1;
-  const ultimo = c.steps.length - 1;
-  // A 1ª reclamação NÃO libera degrau: a agente defende o valor uma vez, mostrando como pagar
-  // (`bloco-do-prompt.ts`). Medido em 09/10/2026, no primeiro meio dia com a escada descendo já
-  // na 1ª: 14 pessoas receberam o valor menor e nenhuma comprou; no dia anterior, com a defesa,
-  // 4 das que reclamaram compraram — 3 pelo valor cheio, depois de ouvir parcelamento ou Pix.
-  const porReclamacao = Math.min(reclamacoes - 2, ultimo);
-  let porValor = -1;
-  if (valorQueTemCents !== null && valorQueTemCents < c.list_price_cents) {
-    const cabe = c.steps.findIndex((d) => d.price_cents <= valorQueTemCents);
-    porValor = cabe === -1 ? ultimo : cabe;
-  }
-  return Math.max(porReclamacao, porValor);
+  return Math.min(reclamacoes - 2, c.steps.length - 1);
 }
 
 /**
@@ -171,26 +163,70 @@ export function tabelaDoTurno(base: PromiseTable | null, pisoDoTurno: number | u
   return { ...(base ?? {}), minPriceCents: Math.max(base?.minPriceCents ?? 0, pisoDoTurno) };
 }
 
+/** A mensagem da pessoa reclama do valor, adia o pagamento ou é a negativa curta de quem não pode. */
+function reclamaDoValor(m: MensagemParaContar): boolean {
+  // Adiar o pagamento também é dizer que o valor não cabe hoje: "vou ter o dinheiro só semana que
+  // vem" não tem nenhuma palavra de reclamação, e em 08/10/2026 passou sem oferta nenhuma.
+  return (
+    m.direction === "inbound" &&
+    (RECLAMACAO_DE_VALOR.test(m.body ?? "") || adiaOPagamento(m.body ?? "") || negativaCurta(m.body ?? ""))
+  );
+}
+
 /**
- * Quantas vezes a pessoa reclamou do valor. `null` = preço ainda não dito.
+ * Quantas RODADAS de reclamação do valor a conversa teve. `null` = preço ainda não dito.
  *
- * Conta o que veio DEPOIS do preço — e, havendo ao menos uma, soma UMA pelo que ela avisou
- * antes ("já vou dizendo que estou sem dinheiro"). Medido em 08/10/2026: 35 de 94 pessoas com
- * dinheiro curto avisaram antes de ouvir o valor, e o aviso era jogado fora. Sozinho ele não
- * abre a negociação: enquanto ela não reagir ao preço, não há o que negociar.
+ * Uma rodada é o que a pessoa escreve entre duas falas da agente. Três mensagens seguidas ("não
+ * consigo", "tô sem dinheiro", "mas obrigada") são UMA rodada: a agente ainda não respondeu, e a
+ * escada só anda depois de a pessoa ouvir a resposta e dizer de novo que não cabe.
+ *
+ * ⚠️ Até 09/10/2026 contava-se MENSAGEM, e somava-se uma pelo aviso dado antes do preço ("já vou
+ * dizendo que estou sem dinheiro"). Medido nas conversas daquele dia: quem escreveu a reclamação
+ * em duas mensagens seguidas recebeu o primeiro degrau sem ouvir defesa nenhuma, e quem tinha
+ * avisado antes pulou do valor de venda para o segundo degrau. O aviso de antes do preço não
+ * conta mais: antes do preço não há o que negociar.
  */
 export function reclamacoesDeValor(mensagens: readonly MensagemParaContar[]): number | null {
   const msgs = expandirHistoricoColado(mensagens);
   const primeiroPreco = msgs.findIndex((m) => m.direction === "outbound" && PRECO_DITO.test(m.body ?? ""));
   if (primeiroPreco === -1) return null;
-  // Adiar o pagamento também é dizer que o valor não cabe hoje: "vou ter o dinheiro só semana que
-  // vem" não tem nenhuma palavra de reclamação, e em 08/10/2026 passou sem oferta nenhuma.
-  const reclama = (m: MensagemParaContar) =>
-    m.direction === "inbound" &&
-    (RECLAMACAO_DE_VALOR.test(m.body ?? "") || adiaOPagamento(m.body ?? "") || negativaCurta(m.body ?? ""));
-  const depois = msgs.slice(primeiroPreco + 1).filter(reclama).length;
-  if (depois === 0) return 0;
-  return depois + (msgs.slice(0, primeiroPreco).some(reclama) ? 1 : 0);
+  let rodadas = 0;
+  let rodadaJaContada = false;
+  for (const m of msgs.slice(primeiroPreco + 1)) {
+    if (m.direction !== "inbound") {
+      rodadaJaContada = false;
+      continue;
+    }
+    if (!rodadaJaContada && reclamaDoValor(m)) {
+      rodadas += 1;
+      rodadaJaContada = true;
+    }
+  }
+  return rodadas;
+}
+
+/**
+ * A PESSOA RECLAMOU DO VALOR NAS MENSAGENS QUE ESTE TURNO RESPONDE (as dela depois da última
+ * fala da agente) — reclamação, adiamento, negativa curta ou um valor que ela diz ter.
+ *
+ * A contagem é da conversa inteira; a OFERTA é do turno. Medido em 09/10/2026: a pessoa reclamou,
+ * ouviu a defesa, respondeu "ele volta?" — e recebeu "consigo fazer por R$ 100", porque a contagem
+ * continuava em pé. Quem voltou a falar do caso não está pedindo desconto.
+ */
+export function reclamouDoValorAgora(
+  c: Pick<PricingConfig, "list_price_cents">,
+  mensagens: readonly MensagemParaContar[],
+): boolean {
+  const msgs = expandirHistoricoColado(mensagens);
+  const fim = msgs.length;
+  let inicio = fim;
+  while (inicio > 0 && msgs[inicio - 1]!.direction === "inbound") inicio -= 1;
+  const daVez = msgs.slice(inicio, fim);
+  if (daVez.some(reclamaDoValor)) return true;
+  // "Só tenho 80" pode não ter palavra de reclamação nenhuma.
+  const dito = valorQueAPessoaTem([...msgs.slice(0, inicio), ...daVez]);
+  const ditoAntes = valorQueAPessoaTem(msgs.slice(0, inicio));
+  return dito !== null && dito < c.list_price_cents && dito !== ditoAntes;
 }
 
 /**
@@ -214,8 +250,8 @@ const NEGADO = /(?:n[ãa]o|nem|sem)\s+(?:\S+\s+){0,2}$/i;
  * QUANTO A PESSOA DISSE QUE TEM, em centavos — a última vez que ela disse, depois do preço.
  * `null` = não disse (ou disse só o que NÃO tem: "não tenho 100" é reclamação, não proposta).
  *
- * Serve para pular a escada: quem diz "só tenho 60" não precisa reclamar quatro vezes para
- * chegar ao degrau de R$ 60. A agente nunca repete o número dela — oferece o degrau que cabe.
+ * NÃO pula a escada (`degrauDoTurno`): conta como reclamação e muda o texto da oferta. A agente
+ * nunca repete o número dela — oferece o próximo degrau.
  */
 export function valorQueAPessoaTem(mensagens: readonly MensagemParaContar[]): number | null {
   const msgs = expandirHistoricoColado(mensagens);
@@ -239,17 +275,21 @@ export function valorQueAPessoaTem(mensagens: readonly MensagemParaContar[]): nu
   return null;
 }
 
-/** O estado que o turno usa: a contagem e o valor que a pessoa disse ter. Dizer o valor já é uma reclamação. */
+/**
+ * O estado que o turno usa: a contagem de rodadas, o valor que a pessoa disse ter e se ela
+ * reclamou AGORA. Dizer o valor já é uma reclamação.
+ */
 export function estadoDaNegociacao(
   c: Pick<PricingConfig, "list_price_cents">,
   mensagens: readonly MensagemParaContar[],
-): { reclamacoes: number | null; valorQueTemCents: number | null } {
+): { reclamacoes: number | null; valorQueTemCents: number | null; reclamouAgora: boolean } {
   const reclamacoes = reclamacoesDeValor(mensagens);
   const dito = valorQueAPessoaTem(mensagens);
   const valorQueTemCents = dito !== null && dito < c.list_price_cents ? dito : null;
   return {
     reclamacoes: reclamacoes !== null && valorQueTemCents !== null ? Math.max(reclamacoes, 1) : reclamacoes,
     valorQueTemCents,
+    reclamouAgora: reclamacoes !== null && reclamouDoValorAgora(c, mensagens),
   };
 }
 

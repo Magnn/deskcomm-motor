@@ -50,9 +50,15 @@ export interface EstadoDoBloco {
   combinadoCents?: number | null;
   /**
    * Quanto a pessoa disse que tem ou consegue pagar (`valorQueAPessoaTem`), quando é menos que o
-   * valor de venda. Pula a escada para o degrau que cabe. Ausente/`null` = ela não disse.
+   * valor de venda. NÃO pula degrau: só muda o texto da oferta. Ausente/`null` = ela não disse.
    */
   valorQueTemCents?: number | null;
+  /**
+   * A pessoa reclamou do valor nas mensagens que este turno responde (`reclamouDoValorAgora`).
+   * `false` = a contagem da conversa está em pé, mas agora ela fala de outra coisa: o turno NÃO
+   * oferece desconto. Ausente = `true` (quem monta o estado à mão testa a escada).
+   */
+  reclamouAgora?: boolean;
   /**
    * A pessoa acabou de dar uma data para pagar (`deuDataParaPagar`) e a agente JÁ ofereceu este
    * degrau: o turno fecha o combinado — data + este valor + retorno agendado — em vez de descer
@@ -138,7 +144,12 @@ function blocoDoPosVenda(p: EstadoDoPosVenda): string {
 }
 
 /** A instrução de negociação PARA ESTE TURNO — uma só. */
-function instrucaoDeNegociacao(c: PricingConfig, reclamacoes: number | null, valorQueTemCents: number | null): string {
+function instrucaoDeNegociacao(
+  c: PricingConfig,
+  reclamacoes: number | null,
+  valorQueTemCents: number | null,
+  reclamouAgora: boolean,
+): string {
   const venda = reais(c.list_price_cents);
   const piso = pisoEmCentavos(c);
 
@@ -148,9 +159,25 @@ function instrucaoDeNegociacao(c: PricingConfig, reclamacoes: number | null, val
   if (reclamacoes === 0) {
     return "- NEGOCIAÇÃO: ela ainda não reclamou do valor. NÃO ofereça desconto, NÃO fale de valor menor e NÃO insinue que existe. Se ela reclamar, esta instrução muda no próximo turno.";
   }
-  // A 1ª reclamação é respondida com a DEFESA do valor; a escada desce da 2ª em diante e pula
-  // para o degrau que cabe quando ela diz quanto tem (`degrauDoTurno`). Depois de uma reclamação
-  // a mais que o número de degraus, o mínimo já foi dito.
+  // ELA NÃO ESTÁ RECLAMANDO AGORA: a oferta é do turno em que ela reclama. Aqui o valor em vigor
+  // fica dito (para quando ela for pagar), e nada é oferecido.
+  if (!reclamouAgora) {
+    const jaLiberado = c.steps[degrauDoTurno(c, reclamacoes, valorQueTemCents)];
+    if (jaLiberado === undefined) {
+      return `- NEGOCIAÇÃO: ela reclamou do valor antes, mas AGORA fala de outra coisa. NÃO ofereça desconto, NÃO fale de valor menor e NÃO volte ao assunto do preço por conta própria: responda o que ela disse. O valor é ${venda}. Se ela disser de novo que não cabe, esta instrução muda no próximo turno.`;
+    }
+    const valorEmVigor = reais(jaLiberado.price_cents);
+    const linksEmVigor =
+      jaLiberado.product_links && jaLiberado.product_links.length > 0
+        ? `\n- LINKS NESTE VALOR (${valorEmVigor}) — mande SÓ o do trabalho que você indicou, nunca a lista: ${jaLiberado.product_links
+            .map((l) => `${l.name}: ${l.url}`)
+            .join(" | ")}`
+        : "";
+    return `- NEGOCIAÇÃO: você já ofereceu ${valorEmVigor} a ela, e AGORA ela fala de outra coisa. NÃO ofereça outro valor, NÃO baixe mais e NÃO repita a oferta por conta própria: responda o que ela disse. O valor dela é ${valorEmVigor}; se ELA quiser pagar ou pedir o link, ${comoPagar(jaLiberado)}.${linksEmVigor}`;
+  }
+  // A 1ª rodada de reclamação é respondida com a DEFESA do valor; da 2ª em diante cada rodada
+  // libera UM degrau — dizer quanto tem não pula nenhum (`degrauDoTurno`). Depois de uma rodada a
+  // mais que o número de degraus, o mínimo já foi dito.
   if (reclamacoes > c.steps.length + 1) {
     return `- NEGOCIAÇÃO: ela já recebeu o menor valor possível (${reais(piso)}) e ainda diz que não cabe. Responda com ESTE molde e nenhum outro, sem oferecer mais nada e sem perguntar o motivo: "Esse é o menor valor que consigo, ${reais(piso)}. Se hoje não der, me diz o dia em que você consegue e eu deixo combinado por esse valor."`;
   }
@@ -168,15 +195,11 @@ function instrucaoDeNegociacao(c: PricingConfig, reclamacoes: number | null, val
   const valor = reais(degrau.price_cents);
   const como = comoPagar(degrau);
   const ultimo = i === c.steps.length - 1;
-  // Pergunta quanto ela consegue UMA vez, na 1ª oferta de degrau, e só se ela ainda não disse: a
-  // resposta faz o próximo turno pular direto para o degrau que cabe.
-  const pergunta =
-    !ultimo && reclamacoes === 2 && valorQueTemCents === null
-      ? " Se ainda não couber, me diz quanto você consegue fazer hoje."
-      : "";
+  // O molde NÃO pergunta "quanto você consegue": a resposta não pula degrau, e perguntar para
+  // depois oferecer outro número é prometer o que a escada não cumpre.
   const molde = ultimo
     ? `Esse é o menor valor que consigo: ${valor}. Pra pagar, ${como}. Quer seguir?`
-    : `Não quero que o valor te impeça. Consigo fazer por ${valor} pra você: ${como}. Cabe pra você hoje?${pergunta}`;
+    : `Não quero que o valor te impeça. Consigo fazer por ${valor} pra você: ${como}. Cabe pra você hoje?`;
   const lista =
     degrau.product_links && degrau.product_links.length > 0
       ? `\n- LINKS NESTE VALOR (${valor}) — mande SÓ o do trabalho que você indicou, nunca a lista: ${degrau.product_links
@@ -188,7 +211,7 @@ function instrucaoDeNegociacao(c: PricingConfig, reclamacoes: number | null, val
       ? "ela disse quanto consegue pagar"
       : "ela disse de novo que o valor não cabe";
   return [
-    `- NEGOCIAÇÃO: ${motivo}. NÃO repita o valor de venda: ofereça AGORA ${valor}${ultimo ? ", que é o MENOR valor possível" : ""}. Responda com ESTE molde e nenhum outro (sem perguntar o motivo, sem chamar outra pessoa): "${molde}"${lista}`,
+    `- NEGOCIAÇÃO: ${motivo}. NÃO repita o valor de venda: ofereça AGORA ${valor}${ultimo ? ", que é o MENOR valor possível" : ""} — este valor e NENHUM outro, mesmo que ela tenha dito um número menor. Responda com ESTE molde e nenhum outro (sem perguntar o motivo, sem chamar outra pessoa): "${molde}"${lista}`,
     // Medido em 08/10/2026: 40 retornos agendados no dia, nenhum com valor combinado — a agente
     // trocava a oferta do degrau por "me chama quando receber", e a pessoa voltava ao valor cheio.
     `- OUTRA DATA: só combine pagamento em outra data DEPOIS de dizer ${valor} e ela responder que hoje não consegue nem esse valor. Ao combinar, diga a data e ${valor} juntos — a data vale para ESTE valor, nunca para o valor de venda.`,
@@ -243,7 +266,7 @@ export function blocoDePreco(
         ? instrucaoDoCombinado(c, combinado)
         : fechaAData
           ? instrucaoDeFecharADataCombinada(dataPara)
-          : instrucaoDeNegociacao(c, estado.reclamacoes, estado.valorQueTemCents ?? null),
+          : instrucaoDeNegociacao(c, estado.reclamacoes, estado.valorQueTemCents ?? null, estado.reclamouAgora ?? true),
     );
     // Medido em produção: o prompt escrito pelo operador mandava chamar a equipe para enviar
     // o link do valor negociado, e a agente obedecia — a negociação morria numa fila de
