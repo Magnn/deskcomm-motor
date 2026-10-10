@@ -3258,6 +3258,9 @@ export const DICIONARIO: Traducoes = {
   "É uma amostra pequena: aplique, acompanhe as vendas e desfaça se piorar.": { es: "Es una muestra pequeña: aplique, siga las ventas y deshaga si empeora." },
   "Dispensar": { es: "Descartar" },
   "Desfazer": { es: "Deshacer" },
+  "sugestões da IA aguardando a sua aprovação. Elas só passam a valer nos atendimentos depois que você aprovar.": { es: "sugerencias de la IA esperando su aprobación. Solo empiezan a valer en las atenciones después de que usted apruebe." },
+  "anotações mais antigas da IA estão ativas mas não entram nos atendimentos: a memória tem um limite de tamanho, porque ela é relida a cada resposta. Arquive o que não serve mais para abrir espaço.": { es: "notas más antiguas de la IA están activas pero no entran en las atenciones: la memoria tiene un límite de tamaño, porque se relee en cada respuesta. Archive lo que ya no sirve para abrir espacio." },
+  "Nenhuma sugestão aguardando aprovação.": { es: "Ninguna sugerencia esperando aprobación." },
   Tokens: { es: "Tokens" },
   "Tudo o que entrou na cabeça dele neste período, e de onde veio.": {
     es: "Todo lo que entró en su cabeza en este período, y de dónde vino.",

@@ -199,8 +199,10 @@ const gravarMemoriaInputShape = {
 export const crmSaveOrgMemory: McpToolDefinition<typeof gravarMemoriaInputShape> = {
   name: "crm_save_org_memory",
   description:
-    "Registra um aprendizado que vale para toda a operação, não para um cliente só. Nasce com " +
-    "origem 'agent' para o humano distinguir o que a IA anotou do que ele mesmo escreveu.",
+    "SUGERE um aprendizado que vale para toda a operação, não para um cliente só. A sugestão fica " +
+    "aguardando uma pessoa aprovar na tela de Memória e só passa a valer depois disso. NUNCA cite " +
+    "nome, telefone, caso ou dado de um cliente: o que é de uma pessoa vai nas anotações do lead, " +
+    "não aqui. Não registre valor, piso ou regra de preço: preço é configuração, e muda.",
   inputSchema: gravarMemoriaInputShape,
   category: "write",
   // `ai_operator`: a rota equivalente (`ai/memory/entries` POST) exige `manager`
@@ -216,7 +218,12 @@ export const crmSaveOrgMemory: McpToolDefinition<typeof gravarMemoriaInputShape>
         title: input.titulo,
         body: input.corpo,
         source: "agent",
-        status: "active",
+        // ⚠️ Nasce SUGERIDA, não ativa. Até 10/10/2026 nascia ativa e entrava no prompt de todos os
+        // atendimentos seguintes sem ninguém ler. Medido numa instalação: 79 anotações em quinze
+        // dias — entre elas casos de clientes citados pelo nome (que passavam a constar na conversa
+        // de TODOS os outros), regras de preço já vencidas mandando não negociar, e instruções de
+        // desistir do cliente. Política da empresa não se escreve sozinha.
+        status: "proposed",
       })
       .select("id, title, status, created_at")
       .single();
