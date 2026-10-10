@@ -42,7 +42,19 @@ import { WINDOW_MS } from '../../guardrails/messaging-window';
 import type { Logger } from '../../obs/logger';
 import { enqueueJob } from '../../queue/queue';
 
-const LOTE = 200;
+/**
+ * Quantas conversas a consulta traz. É TODAS as candidatas das últimas 24 h, na prática: quem decide
+ * é `decidirChamada`, em código, e um corte aqui deixa de fora justamente as mais novas.
+ *
+ * ⚠️ Era 200, ordenado da mais antiga para a mais nova. Medido em produção em 10/10/2026: 581
+ * candidatas, e as 200 mais antigas eram quase todas conversas que a régua não ia tocar — as que
+ * tinham acabado de ficar em silêncio nunca chegavam a ser avaliadas.
+ */
+const LOTE = 5000;
+/** O teto de chamadas por rodada (a rodada é por minuto): uma fila represada sai aos poucos. */
+export const MAXIMO_DE_CHAMADAS_POR_RODADA = 40;
+/** Depois do último passo mais esta folga, uma régua que nem começou não começa mais. */
+const FOLGA_PARA_COMECAR_MS = 60 * 60_000;
 
 interface Candidata {
   conversation_id: string;
@@ -51,7 +63,10 @@ interface Candidata {
   provider: string | null;
   timezone: string | null;
   followup: unknown;
-  /** Quando a versão em vigor do agente foi publicada. */
+  /**
+   * Desde quando a recuperação está LIGADA neste agente: a publicação mais antiga da sequência de
+   * versões com ela ligada. Republicar o roteiro não mexe nesta data.
+   */
   published_at: string | null;
   anchor_message_id: string;
   last_inbound_at: string;
@@ -69,7 +84,7 @@ interface Candidata {
  */
 export const CONSULTA_DE_SILENCIOSAS = `
   select v.id as conversation_id, v.organization_id, v.contact_id,
-         cs.provider, o.timezone, ag.followup, ag.published_at,
+         cs.provider, o.timezone, ag.followup, coalesce(lig.ligada_em, ag.published_at) as published_at,
          ui.id as anchor_message_id, ui.created_at as last_inbound_at, uo.created_at as last_outbound_at,
          t.feitas, t.ultima_em, t.silence_since, t.janela_enviada,
          r.retorno_em
@@ -78,13 +93,25 @@ export const CONSULTA_DE_SILENCIOSAS = `
   join contacts c on c.id = v.contact_id and c.organization_id = v.organization_id
   join channel_sessions cs on cs.id = v.channel_session_id and cs.organization_id = v.organization_id
   join lateral (
-    select pv.followup, pv.published_at
+    select pv.followup, pv.published_at, a.id as agent_id
     from ai_agents a
     join ai_agent_versions pv on pv.id = a.published_version_id
     where a.organization_id = v.organization_id and a.archived_at is null
       and pv.status = 'published' and pv.channel_session_id = v.channel_session_id
     order by a.priority desc, a.created_at asc
     limit 1) ag on true
+  -- DESDE QUANDO a recuperação está ligada: a primeira publicação depois da última versão SEM ela.
+  left join lateral (
+    select min(x.published_at) as ligada_em
+    from ai_agent_versions x
+    where x.organization_id = v.organization_id and x.agent_id = ag.agent_id
+      and x.published_at is not null and x.followup->'recovery'->>'enabled' = 'true'
+      and x.published_at > coalesce((
+        select max(y.published_at) from ai_agent_versions y
+        where y.organization_id = v.organization_id and y.agent_id = ag.agent_id
+          and y.published_at is not null
+          and coalesce(y.followup->'recovery'->>'enabled', 'false') <> 'true'), '-infinity'::timestamptz)
+  ) lig on true
   join lateral (
     select m.id, m.created_at from messages m
     where m.organization_id = v.organization_id and m.conversation_id = v.id and m.direction = 'inbound'
@@ -174,10 +201,22 @@ export function decidirChamada(c: Candidata, agora: Date, temPrazo: boolean): Ch
   if (temPrazo && agora.getTime() >= fechaEm.getTime() - FOLGA_DO_FECHAMENTO_MS) return null;
   if (proximaAbertura(agora) !== null) return null;
   const silencioDesde = new Date(c.silence_since ?? c.last_outbound_at);
-  // A régua só começa em silêncio que nasceu DEPOIS de o agente ser publicado com ela. Sem isto, ligar a
+  // A régua só começa em silêncio que nasceu DEPOIS de a recuperação ser LIGADA. Sem isto, ligar a
   // recuperação chamaria de uma vez todo mundo que já estava calado — medido em produção antes de ligar:
-  // 122 conversas. Régua já iniciada segue até o fim, mesmo que o agente seja republicado no meio.
+  // 122 conversas. Régua já iniciada segue até o fim.
+  //
+  // ⚠️ A data é a de quando a recuperação foi ligada, NÃO a da última publicação do agente. Até
+  // 10/10/2026 era a da publicação, e cada vez que o roteiro era republicado (três vezes num dia) toda
+  // conversa que estava em silêncio naquele instante saía da régua para sempre. Medido: 505 de 581
+  // candidatas barradas por isso, e 190 pessoas que receberam o link de pagamento em três dias sem
+  // nenhuma retomada.
   if ((c.feitas ?? 0) === 0 && c.published_at !== null && silencioDesde.getTime() < new Date(c.published_at).getTime()) {
+    return null;
+  }
+  // Régua que não começou a tempo não começa atrasada: quem está calado há muito mais que o último
+  // passo (worker parado, fila represada) não recebe a "primeira" chamada horas depois.
+  const ultimoPassoMs = (r.steps_minutes.at(-1) ?? 0) * 60_000;
+  if ((c.feitas ?? 0) === 0 && agora.getTime() - silencioDesde.getTime() > ultimoPassoMs + FOLGA_PARA_COMECAR_MS) {
     return null;
   }
   const passo = decidirPasso(
@@ -202,9 +241,19 @@ export async function recuperarSilenciosos(
   const { rows } = await pool.query<Candidata>(CONSULTA_DE_SILENCIOSAS);
   const resultado: ResultadoDaRecuperacao = { chamadas: 0, janelas: 0 };
 
-  for (const c of rows) {
-    const chamada = decidirChamada(c, agora, canalTemPrazo(c.provider));
-    if (chamada === null) continue;
+  // Decide tudo primeiro e atende do silêncio MAIS RECENTE para o mais antigo, até o teto da rodada:
+  // quem acabou de se calar é quem mais tem chance de voltar, e o resto sai na rodada seguinte.
+  const decididas = rows
+    .map((c) => ({ c, chamada: decidirChamada(c, agora, canalTemPrazo(c.provider)) }))
+    .filter((d): d is { c: Candidata; chamada: Chamada } => d.chamada !== null)
+    .sort(
+      (a, b) =>
+        new Date(b.c.silence_since ?? b.c.last_outbound_at).getTime() -
+        new Date(a.c.silence_since ?? a.c.last_outbound_at).getTime(),
+    )
+    .slice(0, MAXIMO_DE_CHAMADAS_POR_RODADA);
+
+  for (const { c, chamada } of decididas) {
 
     // A fronteira do atendimento é o que o turno confere antes de falar: conversa encerrada no meio
     // do caminho vence a chamada sem enviar nada.
