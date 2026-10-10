@@ -14,8 +14,15 @@
  * ─── Em que ordem ─────────────────────────────────────────────────────────────────────────────────
  *   1. outras chaves do MESMO provedor, da mais antiga para a mais nova, com o MESMO modelo — o
  *      cliente não percebe diferença;
- *   2. chaves de OUTRO provedor, com o modelo padrão do catálogo que aquela chave alcança e que
- *      aceita ferramentas. O tom pode mudar um pouco; ficar mudo é pior.
+ *   2. chaves de OUTRO provedor, com o modelo MAIS BARATO do catálogo que aquela chave alcança e
+ *      que aceita ferramentas. O tom pode mudar um pouco; ficar mudo é pior.
+ *
+ *      ⚠️ Era o modelo PADRÃO do provedor, e o padrão é o modelo de vitrine, não o barato. Medido em
+ *      08/10/2026: o saldo da chave principal (DeepSeek) acabou às 18:25, a reserva assumiu a operação
+ *      inteira com `gpt-5.6-terra` e, em 27 minutos e 1.109 chamadas, gastou US$ 24,51 — todo o
+ *      crédito da conta de reserva, a 23 vezes o custo por chamada da principal. Sem crédito, a
+ *      transcrição de áudio, que usa a mesma conta, parou junto. Reserva é para não ficar mudo
+ *      enquanto alguém regulariza a principal; ela não pode custar mais que o problema.
  *
  * ─── O que NÃO faz ────────────────────────────────────────────────────────────────────────────────
  * Não troca no meio de um turno que já executou ferramenta (a mensagem já saiu; refazer a chamada
@@ -60,8 +67,8 @@ export const CONSULTA_DAS_RESERVAS = `
                        and m.supports_tools
                        and m.deprecated_at is null
                        and m.model_id = any(c.models_available)
-                     order by m.is_default_for_provider desc,
-                              m.input_price_per_million_cents asc nulls last,
+                     order by m.input_price_per_million_cents asc nulls last,
+                              m.output_price_per_million_cents asc nulls last,
                               m.model_id
                      limit 1)
          end as model
