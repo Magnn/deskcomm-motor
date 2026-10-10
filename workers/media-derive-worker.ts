@@ -19,6 +19,7 @@ import { TIPOS_DERIVAVEIS } from "@/lib/messaging/media/derivable";
 import { deriveVideoText } from "@/lib/messaging/media/video-derive";
 import {
   apiTranscriptionProvider,
+  comPadraoAtras,
   comReserva,
   elevenlabsTranscriptionProvider,
   googleTranscriptionProvider,
@@ -534,13 +535,25 @@ function buildDeriveDeps(
   // worker, não no Next. Não é dependência nova: o worker já carrega o módulo
   // por `lib/supabase/admin`.
   const chaveDeTranscricao = env.TRANSCRIPTION_API_KEY;
+  // O serviço próprio da instalação vem primeiro, e o caminho padrão (chave da organização e as
+  // reservas dela) fica ATRÁS: serviço próprio fora do ar não pode ser áudio sem leitura. O teto de
+  // tempo fica abaixo do que o turno espera pela transcrição, para a reserva ainda chegar a tempo.
   const transcriber: DeriveDeps["transcriber"] = chaveDeTranscricao
-    ? transcriberDeServico(
-        apiTranscriptionProvider({
-          apiKey: chaveDeTranscricao,
-          baseUrl: env.TRANSCRIPTION_BASE_URL || undefined,
-          model: env.TRANSCRIPTION_MODEL || undefined,
-        }),
+    ? comPadraoAtras(
+        transcriberDeServico(
+          apiTranscriptionProvider({
+            apiKey: chaveDeTranscricao,
+            baseUrl: env.TRANSCRIPTION_BASE_URL || undefined,
+            model: env.TRANSCRIPTION_MODEL || undefined,
+            timeoutMs: 75_000,
+          }),
+        )!,
+        transcricaoPadrao!,
+        (motivo) =>
+          logger.warn("[media-derive] o serviço próprio de transcrição falhou — seguindo pelo caminho padrão", {
+            organization_id: orgId,
+            motivo,
+          }),
       )
     : transcricaoPadrao;
   return {
