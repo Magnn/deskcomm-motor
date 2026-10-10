@@ -3239,6 +3239,13 @@ export const DICIONARIO: Traducoes = {
   "Para quê": { es: "Para qué" },
   "Lidos": { es: "Leídos" },
   "Escritos": { es: "Escritos" },
+  "Consumo de IA no período": { es: "Consumo de IA en el período" },
+  "Ver para onde foram os tokens": { es: "Ver a dónde fueron los tokens" },
+  "Custo de IA": { es: "Costo de IA" },
+  "Custo de IA por venda": { es: "Costo de IA por venta" },
+  "lidos": { es: "leídos" },
+  "escritos": { es: "escritos" },
+  "chamadas usaram um modelo sem preço conhecido: o custo real é maior que o mostrado.": { es: "llamadas usaron un modelo sin precio conocido: el costo real es mayor que el mostrado." },
   Tokens: { es: "Tokens" },
   "Tudo o que entrou na cabeça dele neste período, e de onde veio.": {
     es: "Todo lo que entró en su cabeza en este período, y de dónde vino.",

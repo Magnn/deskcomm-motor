@@ -135,6 +135,23 @@ interface ConversaoColuna {
   valorTotal: number;
 }
 
+/** O que a IA consumiu no período. Custo em DÓLAR — é a moeda em que o fornecedor cobra. */
+interface ConsumoDeIaDoPainel {
+  custoUsd: number;
+  delta: number | null;
+  tokensLidos: number;
+  tokensEscritos: number;
+  chamadas: number;
+  chamadasSemPreco: number;
+  porVendaUsd: number | null;
+}
+
+const emDolar = (valor: number): string => valor.toLocaleString("pt-BR", { style: "currency", currency: "USD" });
+
+/** 3.531.659.761 → "3,5 bi". */
+const compacto = (valor: number): string =>
+  new Intl.NumberFormat("pt-BR", { notation: "compact", maximumFractionDigits: 1 }).format(valor);
+
 interface DashboardData {
   tab: string;
   totalLeadsAcumulados: number;
@@ -148,6 +165,7 @@ interface DashboardData {
     ticketMedio?: KPI;
     lucro?: KPI & { descontaAnuncio?: boolean };
     gastoMeta?: KPIDeGasto;
+    consumoDeIa?: ConsumoDeIaDoPainel | null;
     leadsAtendidos?: KPI;
     leadsFinalizados?: KPI;
     tempoRespostaMinutos?: KPI;
@@ -643,6 +661,63 @@ export function DashboardClient({ orgName }: { orgName: string }) {
           </div>
 
           {/* ── LINHA DE GRÁFICOS: VENDAS POR PERÍODO E POR HORÁRIO ──────── */}
+          {/* O que a IA consumiu no período — ao lado das vendas, que é onde o número vira decisão. */}
+          {data?.kpis.consumoDeIa ? (
+            <div
+              className="bg-surface p-4 rounded-2xl border border-border shadow-sm"
+              data-testid="painel-consumo-de-ia"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="text-sm font-semibold text-text">{t("Consumo de IA no período")}</h3>
+                <a href="/app/ai/usage" className="text-xs text-text-muted underline">
+                  {t("Ver para onde foram os tokens")}
+                </a>
+              </div>
+              <div className="mt-3 grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <div>
+                  <div className="text-2xl font-bold text-text" data-testid="kpi-custo-de-ia">
+                    {emDolar(data.kpis.consumoDeIa.custoUsd)}
+                  </div>
+                  <div className="text-xs text-text-muted flex items-center gap-2">
+                    <span>{t("Custo de IA")}</span>
+                    <Variacao delta={data.kpis.consumoDeIa.delta} />
+                  </div>
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-text" data-testid="kpi-custo-de-ia-por-venda">
+                    {data.kpis.consumoDeIa.porVendaUsd === null ? "—" : emDolar(data.kpis.consumoDeIa.porVendaUsd)}
+                  </div>
+                  <div className="text-xs text-text-muted">{t("Custo de IA por venda")}</div>
+                </div>
+                <div>
+                  <div
+                    className="text-2xl font-bold text-text"
+                    data-testid="kpi-tokens"
+                    title={`${data.kpis.consumoDeIa.tokensLidos.toLocaleString("pt-BR")} + ${data.kpis.consumoDeIa.tokensEscritos.toLocaleString("pt-BR")}`}
+                  >
+                    {compacto(data.kpis.consumoDeIa.tokensLidos + data.kpis.consumoDeIa.tokensEscritos)}
+                  </div>
+                  <div className="text-xs text-text-muted">
+                    {t("Tokens")} · {compacto(data.kpis.consumoDeIa.tokensLidos)} {t("lidos")} ·{" "}
+                    {compacto(data.kpis.consumoDeIa.tokensEscritos)} {t("escritos")}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-text">
+                    {data.kpis.consumoDeIa.chamadas.toLocaleString("pt-BR")}
+                  </div>
+                  <div className="text-xs text-text-muted">{t("Chamadas à IA")}</div>
+                </div>
+              </div>
+              {data.kpis.consumoDeIa.chamadasSemPreco > 0 ? (
+                <p className="mt-3 text-xs text-text-muted" data-testid="kpi-custo-de-ia-aviso">
+                  {data.kpis.consumoDeIa.chamadasSemPreco.toLocaleString("pt-BR")}{" "}
+                  {t("chamadas usaram um modelo sem preço conhecido: o custo real é maior que o mostrado.")}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Gráfico 1: Vendas por período (2/3 da largura) */}
             <div className="lg:col-span-2 bg-surface p-5 rounded-2xl border border-border shadow-sm space-y-4">
