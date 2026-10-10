@@ -2299,11 +2299,11 @@ async function executarTurnoDoAgente(
   // pessoa reclamou do valor depois do preço dito — e isso é contado aqui, em código, sobre as
   // mensagens do contexto (o painel de Teste incluso). Vai no FIM do system: o prefixo estável e
   // cacheável não muda. Sem `pricing` ligado, `blocoDePreco` devolve "" e o system segue idêntico.
-  // A pessoa dizer quanto tem ("só tenho 60") pula a escada para o degrau que cabe, e já conta
+  // A pessoa dizer quanto tem ("só tenho 60") NÃO pula degrau; só conta
   // como reclamação — sem `pricing` não há valor de venda com que comparar, e fica só a contagem.
   const negociacaoDoTurno = agentConfig?.pricing
     ? estadoDaNegociacao(agentConfig.pricing, openingContext.context.messages)
-    : { reclamacoes: reclamacoesDeValor(openingContext.context.messages), valorQueTemCents: null };
+    : { reclamacoes: reclamacoesDeValor(openingContext.context.messages), valorQueTemCents: null, reclamouAgora: true };
   const reclamacoesDeValorNoTurno = negociacaoDoTurno.reclamacoes;
   // Quem disse que falta para remédio, comida ou aluguel não recebe oferta nem data de pagamento.
   const faltaParaOEssencialNoTurno = faltaParaOEssencial(openingContext.context.messages);
@@ -2363,6 +2363,8 @@ async function executarTurnoDoAgente(
   const blocoDePrecoDoTurno = blocoDePreco(agentConfig?.pricing, {
     reclamacoes: reclamacoesDeValorNoTurno,
     valorQueTemCents: valorQueTemNoTurno,
+    // A oferta de degrau é do turno em que ela reclama — não de toda resposta depois da reclamação.
+    reclamouAgora: negociacaoDoTurno.reclamouAgora,
     // Ela deu a data e o degrau já foi oferecido: o turno fecha o combinado (data + valor + retorno).
     dataParaOValorCents:
       agentConfig?.pricing && deuDataParaPagar(openingContext.context.messages)
