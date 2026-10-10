@@ -3284,6 +3284,7 @@ export const DICIONARIO: Traducoes = {
   "Sem anúncio identificado": { es: "Sin anuncio identificado" },
   "“—” no gasto quer dizer que ele não foi lido para aquele anúncio, não que foi zero. O asterisco marca anúncio com menos de 100 leads: a conversão dele ainda não sustenta conclusão.": { es: "“—” en el gasto quiere decir que no fue leído para ese anuncio, no que fue cero. El asterisco marca un anuncio con menos de 100 leads: su conversión todavía no sostiene una conclusión." },
   "Ver qual anúncio traz quem compra": { es: "Ver qué anuncio trae a quien compra" },
+  "anúncios ficaram sem consulta de gasto nesta leitura: são os que menos trouxeram gente. Um período menor alcança todos.": { es: "anuncios quedaron sin consulta de gasto en esta lectura: son los que menos gente trajeron. Un período menor los alcanza a todos." },
   Tokens: { es: "Tokens" },
   "Tudo o que entrou na cabeça dele neste período, e de onde veio.": {
     es: "Todo lo que entró en su cabeza en este período, y de dónde vino.",

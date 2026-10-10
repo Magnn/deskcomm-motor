@@ -29,7 +29,7 @@ const querySchema = z.object({
   to: z.string().regex(DATA).optional(),
 });
 
-/** Quantos anúncios têm o gasto lido por pedido: os que mais trouxeram gente. */
+/** Quantos anúncios, no máximo, são perguntados um a um depois da leitura pelas contas. */
 const TETO_DE_LEITURAS = 60;
 const DIA_MS = 24 * 60 * 60 * 1000;
 
@@ -68,9 +68,14 @@ export async function GET(req: NextRequest): Promise<Response> {
   if (!credencial.ok) {
     avisos.push(t("Sem conexão de leitura com a conta de anúncios: o funil está completo, mas o gasto não foi lido."));
   } else {
-    const alvos = anunciosParaLerGasto(funil, TETO_DE_LEITURAS);
-    const lido = await lerGastoPorAnuncio(credencial.credencial.accessToken, alvos, de, ate);
+    // Todos os anúncios, na ordem dos que mais trouxeram gente: a leitura pelas contas cobre a
+    // maioria de uma vez, e o teto só limita o que sobrar para perguntar um a um.
+    const alvos = anunciosParaLerGasto(funil, Number.MAX_SAFE_INTEGER);
+    const lido = await lerGastoPorAnuncio(credencial.credencial.accessToken, alvos, de, ate, TETO_DE_LEITURAS);
     gastos = lido.gastos;
+    if (lido.naoConsultados > 0) {
+      avisos.push(`${lido.naoConsultados} ${t("anúncios ficaram sem consulta de gasto nesta leitura: são os que menos trouxeram gente. Um período menor alcança todos.")}`);
+    }
     if (lido.semLeitura > 0) {
       avisos.push(`${lido.semLeitura} ${t("anúncios não tiveram o gasto lido: a conexão não alcança a conta deles, ou a plataforma recusou a leitura.")}`);
     }
