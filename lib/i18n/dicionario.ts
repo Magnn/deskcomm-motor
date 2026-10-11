@@ -6177,6 +6177,7 @@ export const DICIONARIO: Traducoes = {
   "Use quando a pessoa pagou por fora do link (Pix direto, dinheiro). O contato fica marcado como pago e o negócio fecha com o valor.": { es: "Úselo cuando la persona pagó fuera del enlace (transferencia directa, efectivo). El contacto queda marcado como pagado y el negocio se cierra con el valor." },
   "O que ela comprou": { es: "Qué compró" },
   "Escolha o produto": { es: "Elija el producto" },
+  "Outro produto": { es: "Otro producto" },
   "Pix": { es: "Pix" },
   "Cartão": { es: "Tarjeta" },
   "Transferência": { es: "Transferencia" },
