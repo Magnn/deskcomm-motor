@@ -66,6 +66,7 @@ import type { ProviderRegistry } from '../edge/llm/providers';
 import { HANDOFF_REASON_ORCAMENTO } from '../edge/llm/orcamento';
 import { abreAvisoDoEspelhoRecusado, mirrorLeadStageToCrm } from '../edge/crm/move-lead-stage';
 import { ERRO_DE_GANHO_SEM_PAGAMENTO, declaraGanho, ganhoSemProvaDePagamento } from './ganho-exige-pagamento';
+import { ERRO_DE_TEXTO_JA_ENVIADO, semBaloesJaEnviados } from './balao-ja-enviado';
 import { classificarPerdaDoAtendimento } from '@/lib/resultado/motivo-da-perda-do-agente';
 import { insertInboxItem } from '../db/repository';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -3297,7 +3298,30 @@ async function executarTurnoDoAgente(
       ...AGENT_TOOL_DEFS.send_message,
       execute: async ({ body: corpoDoModelo, produto_codigo }) => {
         // O modelo às vezes ESCREVE a quebra de linha em vez de quebrar; ver `quebrasDeVerdade`.
-        const body = quebrasDeVerdade(corpoDoModelo);
+        let body = quebrasDeVerdade(corpoDoModelo);
+        // O AGENTE NÃO REENVIA O MESMO BALÃO (`balao-ja-enviado.ts`). O histórico é lido a cada chamada:
+        // a chamada anterior deste mesmo turno também conta. Falha na leitura = envia como veio.
+        if (!preview && body.trim() !== '') {
+          try {
+            const { rows: enviados } = await pool.query<{ body: string | null }>(
+              `select body from messages
+                where organization_id = $1 and conversation_id = $2 and direction = 'outbound'
+                  and created_at > now() - interval '60 minutes' and body is not null
+                order by created_at desc limit 80`,
+              [tenantId, input.conversationId],
+            );
+            const limpo = semBaloesJaEnviados(body, enviados.map((m) => m.body ?? ''));
+            if (limpo.retirados > 0) {
+              runLog.info('balão repetido retirado do envio', { conversation_id: input.conversationId, retirados: limpo.retirados });
+              if (limpo.corpo.trim() === '') return ERRO_DE_TEXTO_JA_ENVIADO;
+              body = limpo.corpo;
+            }
+          } catch (err) {
+            runLog.warn('não consegui conferir repetição de balão — envio segue', {
+              error: (err instanceof Error ? err.message : String(err)).slice(0, 120),
+            });
+          }
+        }
         // UMA RESPOSTA PARA A RAJADA: a pessoa mandou outra mensagem enquanto este turno pensava, e o
         // turno dela já está na fila. Este não envia; aquele lê as duas e responde uma vez.
         if (turnoSuperado === null && !preview && liveJob().kind === 'inbound_turn' && outcomes.length === 0) {
