@@ -260,6 +260,13 @@ const schema = z.object({
   TRANSCRIPTION_API_KEY: z.string().optional().default(""),
   TRANSCRIPTION_BASE_URL: z.string().optional().default(""),
   TRANSCRIPTION_MODEL: z.string().optional().default(""),
+  // Quantas transcrições cada processo (app, worker) manda AO MESMO TEMPO para
+  // o serviço próprio; as demais esperam a vez. O padrão é 1 porque o serviço
+  // próprio costuma ser um Whisper numa máquina só: pedidos simultâneos
+  // disputam os mesmos núcleos e nenhum termina no prazo. Suba só se o serviço
+  // tiver capacidade para isso. Entra como texto: valor inválido não pode
+  // derrubar o app no import — quem interpreta (e cai para 1) é o worker.
+  TRANSCRIPTION_MAX_CONCURRENCY: z.string().optional().default(""),
   // Endereço da API do Jev (TypeSafe AI). Vazio é ausente: vale
   // https://api.typesafe.ai. Existe para o dublê do e2e — a CHAVE nunca vem
   // daqui, é por organização (BYOK). Quem lê é `baseDaApiDoJev()`, em
