@@ -56,7 +56,7 @@ import { acelerarFluxoDoContato, acelerarPipelineDeEventos } from "@/lib/dev/kic
 import { autorizarContatoParaIA } from "@/lib/ai/elegibilidade/autorizacao";
 import { casarCampanha, lerCampanhas } from "@/lib/ai/elegibilidade/campanha";
 import { enrollFollowupFlow } from "@/lib/followup/enroll";
-import { escolherFluxoPelaMensagem, fluxosDePalavraChaveAtivos } from "@/lib/followup/fluxo-por-palavra-chave";
+import { escolherFluxoPelaMensagem, etiquetaDoFluxo, fluxosDePalavraChaveAtivos } from "@/lib/followup/fluxo-por-palavra-chave";
 import { configDoInicio, eventoWhatsappDoInicio, mensagemAbreOFluxo } from "@/lib/followup/gatilho-do-inicio";
 import { flowGraphSchema, type TriggerNodeConfig } from "@/lib/followup/graph-schema";
 import { lerConfigDeFluxoDoCanal, quemAtendeONumero, type QuemAtende } from "@/lib/channels/channel-flow-config";
@@ -239,6 +239,35 @@ async function lerInicioDoFluxoPublicado(
   return configDoInicio(parsed.data) ?? null;
 }
 
+/**
+ * Põe no contato a etiqueta do fluxo por onde ele entrou (`etiquetaDoFluxo`). Falha aqui não desfaz a
+ * entrada: o fluxo já começou, e a etiqueta é organização — vira aviso no log.
+ */
+async function marcarEntradaPeloFluxo(admin: Admin, entrada: EntradaDeMensagem, etiqueta: string | null): Promise<void> {
+  if (etiqueta === null) return;
+  try {
+    const { data } = await admin
+      .from("contacts")
+      .select("tags")
+      .eq("organization_id", entrada.organizationId)
+      .eq("id", entrada.contactId)
+      .maybeSingle();
+    const tags = ((data as { tags: string[] | null } | null)?.tags ?? []) as string[];
+    if (tags.includes(etiqueta)) return;
+    const { error } = await admin
+      .from("contacts")
+      .update({ tags: [...tags, etiqueta] })
+      .eq("organization_id", entrada.organizationId)
+      .eq("id", entrada.contactId);
+    if (error) throw new Error(error.message);
+  } catch (err) {
+    logger.warn("[pos-entrada] não consegui etiquetar o contato com o fluxo de entrada", {
+      contactId: entrada.contactId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+}
+
 /** Os estados em que uma inscrição ainda está conduzindo a conversa. */
 const INSCRICAO_VIVA = ["active", "waiting_reply", "coletando"];
 
@@ -299,6 +328,7 @@ async function entrarEmFluxoPorPalavraChave(admin: Admin, entrada: EntradaDeMens
     });
     // A mesma razão do número de fluxo: sem isto a primeira mensagem só sairia no relógio de um minuto.
     await acelerarFluxoDoContato(admin, { organizationId: entrada.organizationId, contactId: entrada.contactId });
+    await marcarEntradaPeloFluxo(admin, entrada, etiquetaDoFluxo(fluxos.find((f) => f.pointerId === flowId)?.nome));
     return true;
   } catch (err) {
     logger.warn("[pos-entrada] não consegui avaliar fluxo de palavra-chave — agente acionado", {

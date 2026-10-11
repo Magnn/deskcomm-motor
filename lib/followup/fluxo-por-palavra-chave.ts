@@ -29,6 +29,24 @@ export interface FluxoDePalavraChave {
   pointerId: string;
   /** Já normalizada (`normalizarParaGatilho`) e nunca vazia. */
   palavra: string;
+  /** O nome que o dono deu ao fluxo — vira a etiqueta de quem entrou por ele. */
+  nome?: string;
+}
+
+/**
+ * A etiqueta de quem entrou por este fluxo: `fluxo:<nome em minúsculas, sem acento, com hífens>`.
+ *
+ * Um número só, várias ofertas: sem uma marca de entrada, a caixa de entrada mistura quem veio pelo
+ * anúncio de uma oferta com quem veio pelo de outra. A etiqueta vai no CONTATO (`contacts.tags`), que é
+ * onde o filtro "Etiqueta" da caixa de entrada, a lista de contatos e as campanhas já leem. Pura.
+ * `null` quando o nome não deixa nada depois de limpo.
+ */
+export function etiquetaDoFluxo(nome: string | null | undefined): string | null {
+  const slug = normalizarParaGatilho(nome ?? "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60);
+  return slug === "" ? null : `fluxo:${slug}`;
 }
 
 /**
@@ -48,7 +66,7 @@ export function escolherFluxoPelaMensagem(fluxos: readonly FluxoDePalavraChave[]
 }
 
 /** Do que o banco devolveu para a lista usada na decisão. Pura: grafo fora do schema fica de fora. */
-export function fluxosDePalavraChaveDe(linhas: ReadonlyArray<{ pointerId: string; graph: unknown }>): FluxoDePalavraChave[] {
+export function fluxosDePalavraChaveDe(linhas: ReadonlyArray<{ pointerId: string; graph: unknown; nome?: string | null }>): FluxoDePalavraChave[] {
   const lista: FluxoDePalavraChave[] = [];
   for (const l of linhas) {
     const grafo = flowGraphSchema.safeParse(l.graph);
@@ -56,7 +74,7 @@ export function fluxosDePalavraChaveDe(linhas: ReadonlyArray<{ pointerId: string
     const inicio = configDoInicio(grafo.data);
     if (eventoWhatsappDoInicio(inicio) !== "keyword") continue;
     const palavra = normalizarParaGatilho(inicio?.keyword ?? "");
-    if (palavra !== "") lista.push({ pointerId: l.pointerId, palavra });
+    if (palavra !== "") lista.push({ pointerId: l.pointerId, palavra, ...(l.nome ? { nome: l.nome } : {}) });
   }
   return lista;
 }
@@ -81,14 +99,14 @@ export async function fluxosDePalavraChaveAtivos(admin: SupabaseClient, organiza
   // ⚠️ Filtro de organização nos dois passos: o client é service-role e ignora RLS.
   const { data: ponteiros, error } = await admin
     .from("followup_flow_pointers")
-    .select("id, active_version_id")
+    .select("id, name, active_version_id")
     .eq("organization_id", organizationId)
     .eq("status", "active")
     .eq("surface", "followup")
     .not("active_version_id", "is", null)
     .limit(100);
   if (error) return [];
-  const ativos = (ponteiros ?? []) as Array<{ id: string; active_version_id: string }>;
+  const ativos = (ponteiros ?? []) as Array<{ id: string; name: string | null; active_version_id: string }>;
 
   let fluxos: FluxoDePalavraChave[] = [];
   if (ativos.length > 0) {
@@ -99,7 +117,7 @@ export async function fluxosDePalavraChaveAtivos(admin: SupabaseClient, organiza
       .in("id", ativos.map((p) => p.active_version_id));
     if (erroDasVersoes) return [];
     const grafoDaVersao = new Map(((versoes ?? []) as Array<{ id: string; graph: unknown }>).map((v) => [v.id, v.graph]));
-    fluxos = fluxosDePalavraChaveDe(ativos.map((p) => ({ pointerId: p.id, graph: grafoDaVersao.get(p.active_version_id) })));
+    fluxos = fluxosDePalavraChaveDe(ativos.map((p) => ({ pointerId: p.id, graph: grafoDaVersao.get(p.active_version_id), nome: p.name })));
   }
   memoria.set(organizationId, { ate: agora + VALIDADE_MS, fluxos });
   return fluxos;
