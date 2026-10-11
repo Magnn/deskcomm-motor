@@ -91,3 +91,46 @@ export async function ultimaInboundJaRespondida(
   );
   return rows[0]?.respondida === true;
 }
+
+/**
+ * O OUTRO LADO DA MESMA REGRA: o turno que NÃO viu a mensagem mais nova não responde por cima dela.
+ *
+ * ## O defeito (medido em produção, 2026-10-11)
+ *
+ * Uma cliente que tinha acabado de pagar escreveu "Minha filha tem rinite e temos um gato" e, 40 s
+ * depois, "Tem rinite e alergia". O turno A já estava rodando quando a segunda chegou: respondeu só
+ * à primeira e perguntou do lugar para a vela. O turno B, da segunda mensagem, rodou em seguida com a
+ * conversa inteira e respondeu de novo — as duas respostas diziam a mesma coisa e repetiam a mesma
+ * pergunta. Na mesma conversa a agente perguntou três vezes se havia criança ou alergia em casa.
+ *
+ * A régua acima (`ultimaInboundJaRespondida`) não pega este caso de propósito: A não viu a mensagem
+ * de B, então B tem de responder. Quem está sobrando é A.
+ *
+ * ## A régua
+ *
+ * Na hora do PRIMEIRO envio do turno: chegou inbound mais nova do que a que este turno anotou
+ * (`ultima_inbound_vista_em`) E existe outro `inbound_turn` deste contato esperando a vez? Então este
+ * turno não envia — o que está na fila lê as duas mensagens e responde uma vez só.
+ *
+ * As duas condições juntas, sempre. Sem turno na fila, calar este seria trocar a resposta dobrada
+ * por silêncio; por isso tarefa retida (`run_after` distante) não conta como "esperando a vez".
+ * Turno que já enviou um balão não é interrompido: meia resposta é pior que resposta repetida.
+ */
+export async function turnoSuperadoPorMensagemNova(db: Queryable, alvo: AlvoDoTurno): Promise<boolean> {
+  const { rows } = await db.query<{ superado: boolean }>(
+    `select (
+         (select max(m.created_at) from messages m
+           where m.organization_id = $1 and m.conversation_id = $2 and m.direction = 'inbound')
+           > (j.payload->>'ultima_inbound_vista_em')::timestamptz
+         and exists (
+           select 1 from job_queue f
+            where f.organization_id = $1 and f.contact_id = $3 and f.id <> $4
+              and f.kind = 'inbound_turn' and f.status = 'pending'
+              and f.run_after < now() + interval '2 minutes')
+       ) as superado
+       from job_queue j
+      where j.organization_id = $1 and j.id = $4`,
+    [alvo.organizationId, alvo.conversationId, alvo.contactId, alvo.jobId],
+  );
+  return rows[0]?.superado === true;
+}

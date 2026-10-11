@@ -247,7 +247,7 @@ import { camadaLigada, lerCamadasDaOrg } from '../guardrails/camadas-da-org';
 import { fusoDaOrganizacao } from './fuso-da-org';
 import { renderAgora } from '@/lib/tempo/agora';
 import { decidirElegibilidadeDaConversa } from '@/lib/ai/elegibilidade/consulta-pg';
-import { anotarUltimaInboundVista, ultimaInboundJaRespondida } from './turno-ja-respondido';
+import { anotarUltimaInboundVista, turnoSuperadoPorMensagemNova, ultimaInboundJaRespondida } from './turno-ja-respondido';
 
 /**
  * Superfície ESTÁTICA das tools do agente (description + inputSchema) — parte do
@@ -2944,6 +2944,9 @@ async function executarTurnoDoAgente(
   // Uma recusa deste tipo devolve o texto confirmado ao modelo para que ele
   // reescreva antes de falar com o cliente. Não gasta envio nem toca no canal.
   let falseEmptyInboundVetoCount = 0;
+  // Chegou mensagem nova enquanto este turno pensava, e já há outro turno na fila para ela? Perguntado
+  // UMA vez, antes do primeiro envio (`turno-ja-respondido.ts`). `null` = ainda não perguntou.
+  let turnoSuperado: boolean | null = null;
   // A pausa humana (atraso-humano.ts) já foi paga NESTE turno? Por turno
   // (closure), como os contadores acima. O turno pode passar pela cadeia
   // `before_send` mais de uma vez — o modelo pode chamar `send_message` várias
@@ -3294,6 +3297,36 @@ async function executarTurnoDoAgente(
       execute: async ({ body: corpoDoModelo, produto_codigo }) => {
         // O modelo às vezes ESCREVE a quebra de linha em vez de quebrar; ver `quebrasDeVerdade`.
         const body = quebrasDeVerdade(corpoDoModelo);
+        // UMA RESPOSTA PARA A RAJADA: a pessoa mandou outra mensagem enquanto este turno pensava, e o
+        // turno dela já está na fila. Este não envia; aquele lê as duas e responde uma vez.
+        if (turnoSuperado === null && !preview && liveJob().kind === 'inbound_turn' && outcomes.length === 0) {
+          const jobDoTurno = liveJob();
+          turnoSuperado =
+            jobDoTurno.contact_id == null
+              ? false
+              : await turnoSuperadoPorMensagemNova(pool, {
+                  organizationId: tenantId,
+                  contactId: jobDoTurno.contact_id,
+                  conversationId: input.conversationId,
+                  jobId: jobDoTurno.id,
+                }).catch(() => false); // na dúvida, responde: silêncio é pior que resposta repetida
+          if (turnoSuperado) {
+            runLog.info('turno superado — chegou mensagem nova e há outro turno na fila; este não envia', {
+              conversation_id: input.conversationId,
+            });
+          }
+        }
+        if (turnoSuperado) {
+          return {
+            ok: false,
+            error: {
+              code: 'turno_superado',
+              message:
+                'O cliente mandou outra mensagem enquanto você escrevia. NÃO envie esta resposta e NÃO chame ' +
+                'send_message de novo: encerre o turno agora. A próxima resposta já considera as duas mensagens.',
+            },
+          };
+        }
         // CORPO VAZIO NÃO SAI. Medido ao vivo (2026-09-19): o `gpt-4o-mini`
         // chamou `send_message` várias vezes com corpo que virou vazio e o
         // WhatsApp do cliente recebeu bolhas em branco. O schema garante
