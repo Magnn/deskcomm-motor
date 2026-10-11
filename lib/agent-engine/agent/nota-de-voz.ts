@@ -123,32 +123,73 @@ export async function prepararNotasDeVoz(
   if (pedacos.length === 0) return { ok: false, motivo: 'sem_fala' };
   if (pedacos.length > MAX_NOTAS_POR_RESPOSTA) return { ok: false, motivo: 'longo_demais' };
 
-  const apiKey = await deps.resolverChave(input.tenantId, input.config.provider);
-  if (!apiKey) return { ok: false, motivo: 'sem_chave' };
-
-  try {
+  const gerar = async (config: VoiceReplyConfig): Promise<NotaPreparada[] | 'sem_chave'> => {
+    const apiKey = await deps.resolverChave(input.tenantId, config.provider);
+    if (!apiKey) return 'sem_chave';
     // Em paralelo: o turno já gastou o tempo do modelo, e cada nota é uma ida à rede.
-    const notas = await Promise.all(
+    return Promise.all(
       pedacos.map(async (pedaco): Promise<NotaPreparada> => {
-        const audio = await deps.sintetizar({
-          provedor: input.config.provider,
-          apiKey,
-          config: input.config,
-          texto: pedaco,
-        });
-        const caminho = `${input.tenantId}/${input.conversationId}/${nomeDaNota(input.config, pedaco)}`;
+        const audio = await deps.sintetizar({ provedor: config.provider, apiKey, config, texto: pedaco });
+        const caminho = `${input.tenantId}/${input.conversationId}/${nomeDaNota(config, pedaco)}`;
         if (!(await deps.guardar(caminho, audio.buffer, audio.mime))) {
           throw new ErroDeVoz('provedor_fora_do_ar', null, 'storage');
         }
         return { storagePath: caminho, mime: audio.mime, fala: pedaco };
       }),
     );
+  };
+
+  try {
+    const notas = await gerar(input.config);
+    if (notas === 'sem_chave') return { ok: false, motivo: 'sem_chave' };
     return { ok: true, notas, links };
   } catch (err) {
     const motivo = err instanceof ErroDeVoz ? err.codigo : 'erro_inesperado';
+    const reserva = configDaReserva(input.config);
+    // Só a cota esgotada chama a reserva: chave recusada ou voz apagada são defeitos de
+    // configuração do principal, e escondê-los atrás de outra voz adia o conserto.
+    if (motivo === 'limite_do_provedor' && reserva !== null) {
+      try {
+        const notas = await gerar(reserva);
+        if (notas !== 'sem_chave') {
+          deps.log.warn('provedor de voz sem cota — a resposta saiu pela reserva', {
+            principal: input.config.provider,
+            reserva: reserva.provider,
+          });
+          return { ok: true, notas, links };
+        }
+        deps.log.warn('provedor de voz sem cota e a reserva não tem chave cadastrada', { reserva: reserva.provider });
+      } catch (erroDaReserva) {
+        deps.log.warn('provedor de voz sem cota e a reserva também falhou', {
+          reserva: reserva.provider,
+          motivo: erroDaReserva instanceof ErroDeVoz ? erroDaReserva.codigo : 'erro_inesperado',
+        });
+      }
+    }
     deps.log.warn('resposta em áudio caiu para texto', { motivo });
     return { ok: false, motivo };
   }
+}
+
+/**
+ * A configuração com que a RESERVA fala: provedor, voz e ajustes dela; o corte das notas é o do
+ * agente. Estabilidade e semelhança são do principal e não passam adiante.
+ */
+export function configDaReserva(config: VoiceReplyConfig): VoiceReplyConfig | null {
+  const r = config.reserva;
+  if (!r || r.provider === config.provider) return null;
+  return {
+    enabled: config.enabled,
+    mode: config.mode,
+    min_chars_for_voice: config.min_chars_for_voice,
+    max_chars_per_note: config.max_chars_per_note,
+    provider: r.provider,
+    voice_id: r.voice_id,
+    ...(r.voice_name !== undefined ? { voice_name: r.voice_name } : {}),
+    ...(r.model !== undefined ? { model: r.model } : {}),
+    ...(r.speed !== undefined ? { speed: r.speed } : {}),
+    ...(r.style_instructions !== undefined ? { style_instructions: r.style_instructions } : {}),
+  };
 }
 
 /**

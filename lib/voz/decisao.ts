@@ -20,9 +20,12 @@ export function deveResponderEmAudio(
   config: Pick<VoiceReplyConfig, "mode" | "min_chars_for_voice">,
   { pessoaMandouAudio, texto }: EntradaDaDecisao,
 ): boolean {
-  if (pessoaMandouAudio) return true; // o espelho vale nos dois modos
-  if (config.mode !== "moments") return false;
   // Conta a FALA, não o texto: link e emoji não se falam, então uma resposta de 300
   // caracteres que é quase só o link de pagamento não é "um momento" para voz.
-  return textoParaFala(texto).length >= config.min_chars_for_voice;
+  const longa = () => textoParaFala(texto).length >= config.min_chars_for_voice;
+  // Espelho só nas longas: a pessoa falou, e a agente só fala de volta quando tem o que explicar.
+  if (config.mode === "mirror_long") return pessoaMandouAudio && longa();
+  if (pessoaMandouAudio) return true; // o espelho vale em `mirror` e em `moments`
+  if (config.mode !== "moments") return false;
+  return longa();
 }
