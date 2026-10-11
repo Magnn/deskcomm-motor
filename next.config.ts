@@ -78,6 +78,16 @@ const nextConfig: NextConfig = {
   typedRoutes: true,
   experimental: {
     optimizePackageImports: ["@phosphor-icons/react", "lucide-react", "date-fns"],
+    /**
+     * O `proxy.ts` roda em toda rota, e o Next guarda o corpo do pedido para
+     * entregá-lo de novo ao handler — até este teto. O padrão é 10 MB: acima
+     * disso o handler recebe o corpo CORTADO, o multipart não fecha e o upload
+     * de um PDF de 12 MB voltava 422 "Campo 'file' obrigatório", com a tela
+     * prometendo 50 MB. O teto é o do bucket (`MAX_MEDIA_BYTES`) mais a folga
+     * de 1 MB do envelope multipart — a mesma conta do guard de Content-Length
+     * das rotas de upload. Preso por `tests/unit/upload-cabe-no-proxy.test.ts`.
+     */
+    proxyClientMaxBodySize: 52_428_800 + 1_048_576,
   },
   images: {
     // O app não usa next/image de fato (só <img> raw); desligar o otimizador

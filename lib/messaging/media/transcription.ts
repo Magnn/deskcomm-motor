@@ -229,6 +229,63 @@ export function comPadraoAtras(
 }
 
 /**
+ * UM DE CADA VEZ no serviço próprio — o resto espera a vez, e quem esperou demais segue pelo padrão.
+ *
+ * Medido em produção em 11/10/2026: com ~100 áudios por hora, um Whisper em 4 núcleos recebia 10
+ * transcrições ao mesmo tempo. Cada uma sozinha leva ~20 s; dez juntas disputam os mesmos núcleos,
+ * nenhuma termina nos 75 s do teto, e o pedido cortado CONTINUA rodando do lado de lá, ocupando a
+ * máquina para os próximos. Foram 53 quedas para o caminho padrão em 70 minutos, com a máquina a
+ * 380% de CPU — e a demanda cabia folgada em fila: 100 áudios × 20 s são 33 minutos de trabalho
+ * por hora.
+ *
+ * A fila é por PROCESSO (o app e o worker têm cada um a sua). O prazo do pedido só começa a contar
+ * quando a vez chega; quem não conseguiu a vez em `esperaMaximaMs` lança, e `comPadraoAtras` leva o
+ * áudio para o caminho padrão — fila longa não pode virar áudio sem leitura.
+ */
+export function umDeCadaVez(
+  servico: TranscriptionProvider,
+  opts: { simultaneos: number; esperaMaximaMs: number },
+): TranscriptionProvider {
+  const simultaneos = Number.isFinite(opts.simultaneos) ? Math.max(1, Math.floor(opts.simultaneos)) : 1;
+  let emCurso = 0;
+  const fila: Array<() => void> = [];
+  const liberar = () => {
+    const proximo = fila.shift();
+    // A vaga passa direto para quem esperava: `emCurso` não desce e sobe.
+    if (proximo) proximo();
+    else emCurso -= 1;
+  };
+  const pegarVez = (): Promise<void> => {
+    if (emCurso < simultaneos) {
+      emCurso += 1;
+      return Promise.resolve();
+    }
+    return new Promise<void>((resolve, reject) => {
+      const minhaVez = () => {
+        clearTimeout(prazo);
+        resolve();
+      };
+      const prazo = setTimeout(() => {
+        const i = fila.indexOf(minhaVez);
+        if (i >= 0) fila.splice(i, 1);
+        reject(new Error("transcription_fila_cheia"));
+      }, opts.esperaMaximaMs);
+      fila.push(minhaVez);
+    });
+  };
+  return {
+    async transcribe(audio, mime) {
+      await pegarVez();
+      try {
+        return await servico.transcribe(audio, mime);
+      } finally {
+        liberar();
+      }
+    },
+  };
+}
+
+/**
  * O serviço principal com uma reserva. `reserva` devolve `null` quando não há chave para ela — aí vale o
  * erro do principal, que é o que diz ao dono o que regularizar.
  */
