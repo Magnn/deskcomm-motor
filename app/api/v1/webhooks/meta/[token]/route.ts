@@ -33,7 +33,7 @@ import { fail } from "@/lib/api/wrappers";
 import { appDaMeta } from "@/lib/channels/meta/app";
 import { lerEnvelopeMeta } from "@/lib/channels/meta/envelope";
 import { parseMetaWebhook, verificationChallenge, verifyMetaSignature } from "@/lib/channels/meta/webhook";
-import { aplicarEventoDaMeta } from "@/lib/channels/meta/aplicar-evento";
+import { aplicarEventoDaMeta, pedeReentrega } from "@/lib/channels/meta/aplicar-evento";
 import { metaSessionByWebhookToken } from "@/lib/channels/meta/session";
 import { logger } from "@/lib/logger";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -133,6 +133,11 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<NextRespons
   // ignoramos vira re-tentativa em backoff por horas.
   // `outcomes` no corpo: quem depura vê o que aconteceu com cada evento em vez de
   // ler um contador que não distingue sucesso de falha.
+  // Falha passageira (o banco não atendeu): 503 faz a Meta entregar de novo. A ingestão é idempotente
+  // pela `external_id`, então o que já entrou neste lote volta como `duplicate`.
+  if (pedeReentrega(desfechos)) {
+    return NextResponse.json({ received: eventos.length, outcomes: desfechos }, { status: 503 });
+  }
   return NextResponse.json(
     { received: eventos.length, outcomes: desfechos },
     { status: 200 },
