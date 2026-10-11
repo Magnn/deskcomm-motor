@@ -51,4 +51,40 @@ describe("a narração do próprio agente não é fala", () => {
     expect(ehNarracaoDoProprioAgente(texto)).toBe(false);
     expect(falaEmTextoSolto({ text: texto, steps: [{ toolCalls: [] }] }, 0)).toBe(texto);
   });
+
+  // Textos que SAÍRAM para clientes em produção em 10 e 11/10/2026, depois da primeira lista (nomes trocados).
+  it.each([
+    "Nenhuma mensagem enviada: a conversa já estava encerrada e a lead pediu, na prática, que o contato fosse respeitado.",
+    "Nenhum avanço de funil (segue lost, sem evidência nova) e nenhum aprendizado durável novo a registrar. Encerro o turno sem enviar mensagem.",
+    'Não vou enviar toque agora: a Maria se despediu há 4 minutos ("Boa noite, amiga") e a conversa já tinha encerrado com a porta aberta.',
+    'A mensagem mais recente veio vazia (sem texto). O histórico mostra que a atendente pediu "Pode ser?" e o lead respondeu com mensagem vazia.',
+    "Nenhuma mensagem enviada: a última interação não contém texto utilizável e o histórico já indica encerramento cordial.",
+    "Um follow-up automático de silêncio não se aplica a uma recusa explícita — insistir seria pressão e queimaria a porta que ficou aberta.",
+    "O checkpoint anterior é explícito: recusa final registrada, não reengajar, não reabrir leitura.",
+    "Não vou reengajar aqui. O contexto é claro: Maria recusou o trabalho e se despediu.",
+    "Nada a marcar no funil (segue em objeção financeira). Nada durável novo para salvar.",
+  ])("⭐ também não sai para a pessoa: %s", (texto) => {
+    expect(ehNarracaoDoProprioAgente(texto)).toBe(true);
+    expect(falaEmTextoSolto({ text: texto, steps: [{ toolCalls: [] }] }, 0)).toBeNull();
+  });
+
+  it.each([
+    "Meu bem, a sua última mensagem chegou aqui sem texto, não consegui ler o que você quis me mandar. Se quiser me escrever de novo, é só mandar.",
+    "Seu pedido passou para o estágio de separação e você recebe o código de rastreio ainda hoje.",
+    "Te mando um toque amanhã cedo pra gente fechar isso, combinado?",
+  ])("um sinal fraco dito À pessoa continua sendo fala: %s", (texto) => {
+    expect(ehNarracaoDoProprioAgente(texto)).toBe(false);
+  });
+});
+
+describe("turno que o sistema abriu não usa o texto solto", () => {
+  const fala = { text: "Oi, meu bem, passando pra saber como você está.", steps: [{ toolCalls: [] }] };
+
+  it("respondendo a uma mensagem da pessoa, a fala sai", () => {
+    expect(falaEmTextoSolto(fala, 0, true)).toBe(fala.text);
+  });
+
+  it("⭐ em retomada de silêncio ou retorno agendado, o silêncio é respeitado", () => {
+    expect(falaEmTextoSolto(fala, 0, false)).toBeNull();
+  });
 });

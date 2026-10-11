@@ -12,6 +12,9 @@
  *     pessoa, atualizou o funil, consultou o conhecimento) e não falou, escolheu não falar — e esse
  *     silêncio é respeitado;
  *   - o texto precisa existir;
+ *   - o turno precisa RESPONDER a uma mensagem da pessoa. Turno que o próprio sistema abriu (retomada
+ *     de silêncio, retorno agendado) não tem ninguém esperando resposta: ali o texto solto é quase
+ *     sempre o modelo explicando por que não vai chamar — e o silêncio é um desfecho legítimo;
  *   - o texto precisa ser FALA, e não a explicação de por que o agente decidiu não falar
  *     (`ehNarracaoDoProprioAgente`).
  *
@@ -45,7 +48,13 @@ export interface ResultadoDoTurno {
  * custa a pessoa lendo o raciocínio da máquina. Por isso a rede é larga.
  */
 const NARRACAO_FORTE: readonly RegExp[] = [
-  /\bn[ãa]o\s+(?:vou\s+(?:enviar|mandar|responder)|envio|enviarei|mando)\s+(?:nada|nenhuma|mensagem)/i,
+  /\bn[ãa]o\s+(?:vou\s+(?:enviar|mandar|responder)|envio|enviarei|mando)\s+(?:nada|nenhuma?|mensagem|toque|resposta)/i,
+  /\bnenhuma\s+mensagem\s+(?:foi\s+)?enviada\b/i,
+  /\bsem\s+enviar\s+(?:nada|nenhuma|mensagem|resposta)\b/i,
+  /\b(?:encerro|encerrando|finalizo|concluo)\s+o\s+turno\b/i,
+  /\bo\s+hist[óo]rico\s+mostra\b/i,
+  /\b(?:nada|nenhum\s+avan[çc]o)\b[^.]{0,30}\b(?:a|para)\s+(?:marcar|salvar|registrar|enviar)\b/i,
+  /\bn[ãa]o\s+(?:vou|devo)\s+(?:reengajar|reativar|reabrir)\b/i,
   /\bnenhuma\s+(?:a[çc][ãa]o|mensagem)\b[^.]{0,40}\b(?:turno|envio|necess[áa]ria|agora)\b/i,
   /\b(?:neste|este|pr[óo]ximo|nesse)\s+turno\b/i,
   /\b(?:toque|chamada)\s+(?:de\s+sil[êe]ncio|de\s+retomada|de\s+resgate|autom[áa]tic[oa])/i,
@@ -67,16 +76,43 @@ const NARRACAO_FRACA: readonly RegExp[] = [
   /\bfunil\b/i,
   /\bMotor\s+\d+\b/,
   /\bconduta\s+correta\b/i,
+  /\bturno\b/i,
+  /\b(?:lost|won)\b/,
+  /\breengaj/i,
+  /\baprendizado\s+(?:novo|dur[áa]vel)\b/i,
+  /\b(?:checkpoint|playbook|inbound|follow-?up)\b/i,
+  /\best[áa]gio\b/i,
+  /\btoque\b[^.]{0,30}\b(?:sil[êe]ncio|recupera[çc][ãa]o|[1-9]\/[1-9])/i,
+  // "A mensagem veio vazia" dita SOBRE a pessoa. Dita À pessoa ("a sua última mensagem chegou sem
+  // texto") é fala, e o interlocutor abaixo a distingue.
+  /(?:mensagem|intera[çc][ãa]o)\b[^.]{0,40}\b(?:vazia|sem\s+texto|n[ãa]o\s+cont[ée]m\s+texto)/i,
 ];
+
+/**
+ * A fala se dirige a alguém. Medido em produção em 10 e 11/10/2026: as narrações que a lista acima
+ * deixou passar ("Nenhuma mensagem enviada: a conversa já estava encerrada e a lead pediu…") tinham
+ * um sinal fraco só — e nenhuma palavra dita À pessoa. Texto com sinal fraco e sem interlocutor é
+ * relato, não conversa.
+ */
+const FALA_COM_A_PESSOA =
+  /(?:^|[^\p{L}])(?:voc[êe]s?|vc|te|ti|contigo|seus?|suas?|teus?|tuas?|meu\s+bem|minha\s+flor|querid[oa]|usted|tu)(?![\p{L}])/iu;
 
 export function ehNarracaoDoProprioAgente(texto: string): boolean {
   if (NARRACAO_FORTE.some((re) => re.test(texto))) return true;
-  return NARRACAO_FRACA.filter((re) => re.test(texto)).length >= 2;
+  const fracos = NARRACAO_FRACA.filter((re) => re.test(texto)).length;
+  if (fracos >= 2) return true;
+  return fracos === 1 && !FALA_COM_A_PESSOA.test(texto);
 }
 
 /** O texto a enviar, ou `null` quando o silêncio do turno deve ser respeitado. Pura. */
-export function falaEmTextoSolto(resultado: ResultadoDoTurno, mensagensEnviadas: number): string | null {
+export function falaEmTextoSolto(
+  resultado: ResultadoDoTurno,
+  mensagensEnviadas: number,
+  respondeAUmaMensagem = true,
+): string | null {
   if (mensagensEnviadas > 0) return null;
+  // Ninguém escreveu: o turno foi aberto pelo sistema, e não falar é um desfecho legítimo dele.
+  if (!respondeAUmaMensagem) return null;
   const acionouFerramenta = (resultado.steps ?? []).some((p) => (p.toolCalls?.length ?? 0) > 0);
   if (acionouFerramenta) return null;
   const texto = (resultado.text ?? "").trim();

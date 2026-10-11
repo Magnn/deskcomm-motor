@@ -1,4 +1,25 @@
 /**
+ * A QUEBRA DE LINHA ESCRITA POR EXTENSO — o modelo manda os dois caracteres `\` e `n` no lugar da
+ * quebra, e a pessoa lê "\n\nVocê não precisa segurar isso sozinha" no aparelho.
+ *
+ * ⚠️ Medido em produção de 07 a 11/10/2026: cerca de 100 mensagens por dia saíram assim. Acontece
+ * quando o roteiro do agente descreve os balões como "separados por \n\n" — o modelo copia a
+ * notação. Além de aparecer na tela, o divisor de bolhas não reconhece a notação como parágrafo,
+ * e o corte cai no meio da frase.
+ *
+ * Uma sequência de duas ou mais vira quebra sempre. Uma sozinha só vira quando não está colada numa
+ * letra minúscula ou dígito: `C:\novo` e `\nome` são texto de quem fala de arquivo, não quebra. Pura.
+ */
+export function quebrasDeVerdade(texto: string): string {
+  return texto.replace(/(?:\\r)?\\n(?:[ \t]*(?:\\r)?\\n)*/g, (trecho, posicao: number, inteiro: string) => {
+    const quantas = trecho.split('\\n').length - 1;
+    const depois = inteiro[posicao + trecho.length] ?? '';
+    if (quantas === 1 && /[a-z0-9_]/.test(depois)) return trecho;
+    return '\n'.repeat(quantas);
+  });
+}
+
+/**
  * Quebra o texto da resposta em "bolhas" curtas (Onda 4) — parágrafo → sentença
  * → palavra, juntando pedaços adjacentes que caibam em maxChars. Puro. Usado no
  * send do agente quando split_messages está on; o pacing anti-ban espaça cada
