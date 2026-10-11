@@ -21,7 +21,7 @@ import { randomUUID } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 
 import { fail } from "@/lib/api/wrappers";
-import { aplicarEventoDaMeta } from "@/lib/channels/meta/aplicar-evento";
+import { aplicarEventoDaMeta, pedeReentrega } from "@/lib/channels/meta/aplicar-evento";
 import { appDaMeta } from "@/lib/channels/meta/app";
 import { lerEnvelopeMeta } from "@/lib/channels/meta/envelope";
 import { metaSessionsDoAviso } from "@/lib/channels/meta/session";
@@ -84,5 +84,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     }
   }
 
+  // Falha passageira (o banco não atendeu): 503 faz a Meta entregar de novo. A ingestão é idempotente
+  // pela `external_id`, então o que já entrou neste lote volta como `duplicate`.
+  if (pedeReentrega(desfechos)) {
+    return NextResponse.json({ received: eventos.length, outcomes: desfechos }, { status: 503 });
+  }
   return NextResponse.json({ received: eventos.length, outcomes: desfechos }, { status: 200 });
 }
