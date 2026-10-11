@@ -44,6 +44,7 @@ import {
   SQL_ORCAMENTO,
   type ChaveDeOrcamento,
 } from './orcamento';
+import { resumoDosPassos } from './passos-do-turno';
 import { costCents } from './pricing';
 import { chaveDeOrcamentoDaInstalacao } from '../../../instalacao/comportamento';
 import { createDefaultRegistry, type ProviderRegistry } from './providers';
@@ -869,6 +870,10 @@ export async function runModelCall(db: pg.Pool, cfg: LlmEdgeConfig, input: RunMo
     ...usage,
     cost_cents: cost,
     latency_ms: latencyMs,
+    // O que cada volta do laço de ferramentas fez (`passos-do-turno.ts`): a linha de `llm_calls`
+    // soma tudo, e sem isto não se sabe se o último passo trabalha ou só relê o contexto.
+    // Chamada sem ferramenta tem um passo só e não ganha o campo.
+    ...((result.steps ?? []).length > 1 ? { passos: resumoDosPassos(result.steps) } : {}),
   });
   for (const aviso of decisao.avisos) {
     deps.log?.warn('llm: configuração do ponto tem incoerência', {
