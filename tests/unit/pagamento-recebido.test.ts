@@ -27,9 +27,11 @@ function dublês(opts: { tags?: string[]; negocios?: NegocioDoContato[]; fecha?:
   const passos: string[] = [];
   const gravado: { tags?: string[]; ultimaCompra?: Record<string, unknown> } = {};
   const notas: string[] = [];
+  const receitas: Array<Record<string, unknown>> = [];
   const deps: DepsDoPagamento = {
     lerContato: async () => (opts.semContato ? null : { id: "contato-1", tags: opts.tags ?? [] }),
     gravarCompra: async (_id, patch) => { passos.push("gravar"); gravado.tags = patch.tags; gravado.ultimaCompra = patch.ultimaCompra; },
+    registrarReceita: async (_id, receita) => { passos.push("receita"); receitas.push(receita); },
     anotar: async (_id, texto) => { passos.push("anotar"); notas.push(texto); },
     negociosDoContato: async () => opts.negocios ?? [aberto],
     registrarValorNoNegocio: async () => { passos.push("valor"); },
@@ -38,7 +40,7 @@ function dublês(opts: { tags?: string[]; negocios?: NegocioDoContato[]; fecha?:
     acharFluxoDeEntrega: async () => { passos.push("achar-fluxo"); return opts.fluxo === undefined ? "fluxo-1" : opts.fluxo; },
     inscrever: async () => { passos.push("inscrever"); return opts.inscreve === false ? { ok: false, motivo: "ja_inscrito" } : { ok: true }; },
   };
-  return { deps, passos, gravado, notas };
+  return { deps, passos, gravado, notas, receitas };
 }
 
 describe("registrarPagamentoRecebido", () => {
@@ -48,7 +50,9 @@ describe("registrarPagamentoRecebido", () => {
 
     expect(r).toEqual({ resultado: "registrado", negocio: "fechado", entrega: "nao_pedida" });
     // O fechamento vem depois do valor: é o evento de fechamento que reporta a venda, e ele precisa do valor.
-    expect(d.passos).toEqual(["gravar", "anotar", "valor", "fechar:neg-aberto", "parar"]);
+    expect(d.passos).toEqual(["gravar", "receita", "anotar", "valor", "fechar:neg-aberto", "parar"]);
+    // O dinheiro vai para o ledger com a chave do registro: é dele que o Dashboard e a aba Receita somam.
+    expect(d.receitas).toEqual([{ chave: CHAVE, valorCentavos: 13000, produto: "Abertura do Coração", metodo: "pix", pagoEm: AGORA.toISOString() }]);
     expect(d.gravado.tags).toEqual(expect.arrayContaining(["pago", "produto:abertura-do-coracao", `compra:manual-${CHAVE}`]));
     expect(d.gravado.ultimaCompra).toMatchObject({ valor_centavos: 13000, metodo: "pix", produto: "Abertura do Coração", pago_em: AGORA.toISOString() });
   });
@@ -70,7 +74,7 @@ describe("registrarPagamentoRecebido", () => {
   it("contato sem negócio: o pagamento fica registrado e o desfecho diz que não havia o que fechar", async () => {
     const d = dublês({ negocios: [] });
     expect(await registrarPagamentoRecebido(d.deps, { contatoId: "contato-1", pagamento: PAGAMENTO, agora: AGORA })).toMatchObject({ resultado: "registrado", negocio: "sem_negocio" });
-    expect(d.passos).toEqual(["gravar", "anotar", "valor", "parar"]);
+    expect(d.passos).toEqual(["gravar", "receita", "anotar", "valor", "parar"]);
   });
 
   it("⭐ se o negócio não fechar, o pagamento continua registrado e a tela é avisada", async () => {

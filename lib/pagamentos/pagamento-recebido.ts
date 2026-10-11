@@ -50,6 +50,11 @@ export interface DepsDoPagamento extends Pick<DepsDaCompra, "gravarCompra" | "re
   anotar(contatoId: string, texto: string): Promise<void>;
   /** Os negócios do contato, para decidir qual fecha. */
   negociosDoContato(contatoId: string): Promise<NegocioDoContato[]>;
+  /**
+   * Grava o fato de dinheiro no ledger de receita — é dele que o Dashboard e a aba Receita somam.
+   * Idempotente pela chave do registro. Falha aqui não desfaz o registro: lança, e quem chama decide.
+   */
+  registrarReceita(contatoId: string, receita: { chave: string; valorCentavos: number; produto: string; metodo: string; pagoEm: string }): Promise<void>;
   /** Fecha o negócio como ganho pela regra de encerramento do produto. `false` = não fechou. */
   fecharComoGanho(leadId: string): Promise<boolean>;
 }
@@ -78,6 +83,15 @@ export async function registrarPagamentoRecebido(
       metodo: pagamento.metodo,
       pago_em: pagoEm,
     },
+  });
+  // O dinheiro entra no ledger ANTES do resto: o painel soma o ledger, e uma venda fechada sem ele
+  // é a venda que "não aparece no dashboard" (medido em produção em 11/10/2026).
+  await deps.registrarReceita(contato.id, {
+    chave: pagamento.chave,
+    valorCentavos: pagamento.valor_cents,
+    produto: pagamento.produto,
+    metodo: pagamento.metodo,
+    pagoEm,
   });
   await deps.anotar(
     contato.id,
@@ -130,6 +144,23 @@ export function depsReaisDoPagamento(
       const { data } = await admin.from("contacts").select("id, tags").eq("organization_id", organizationId).eq("id", contatoId).maybeSingle();
       const c = data as { id: string; tags: string[] | null } | null;
       return c === null ? null : { id: c.id, tags: c.tags ?? [] };
+    },
+
+    async registrarReceita(contatoId, receita) {
+      const { error } = await admin.from("revenue_ledger").insert({
+        organization_id: organizationId,
+        event_type: "charge",
+        amount_cents: receita.valorCentavos,
+        currency: "BRL",
+        provider: "manual",
+        external_event_id: `manual-${receita.chave}`,
+        occurred_at: receita.pagoEm,
+        contact_id: contatoId,
+        created_by_user_id: userId,
+        metadata: { produto: receita.produto, metodo: receita.metodo },
+      });
+      // 23505 = o mesmo registro já está no ledger (reenvio): não é falha.
+      if (error && error.code !== "23505") throw new Error(`ledger de receita: ${error.message}`);
     },
 
     async negociosDoContato(contatoId) {

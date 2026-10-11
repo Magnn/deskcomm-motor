@@ -287,3 +287,37 @@ describe("revenue_ledger sob o default ACL de tabelas do Supabase (mesmo molde d
     expect(inseridas).toBe("1");
   });
 });
+
+describe("revenue_ledger — de onde vem o dinheiro (migration 0924)", () => {
+  it("aceita o pagamento registrado pela equipe ('manual') e recusa provedor desconhecido", () => {
+    sql(`
+      insert into public.revenue_ledger (organization_id, event_type, amount_cents, provider, external_event_id)
+      values ('${ORG_A}', 'charge', 13000, 'manual', 'manual-inv-0924');
+    `);
+    expect(sql(`select provider from public.revenue_ledger where external_event_id = 'manual-inv-0924'`)).toBe("manual");
+
+    let erro = "";
+    try {
+      sql(`
+        insert into public.revenue_ledger (organization_id, event_type, amount_cents, provider, external_event_id)
+        values ('${ORG_A}', 'charge', 13000, 'inventado', 'manual-inv-0924-b');
+      `);
+    } catch (e) {
+      erro = motivoDoErro(e);
+    }
+    expect(erro).toMatch(/revenue_ledger_provider_check/);
+  });
+
+  it("o mesmo registro manual enviado duas vezes não vira duas receitas", () => {
+    let erro = "";
+    try {
+      sql(`
+        insert into public.revenue_ledger (organization_id, event_type, amount_cents, provider, external_event_id)
+        values ('${ORG_A}', 'charge', 13000, 'manual', 'manual-inv-0924');
+      `);
+    } catch (e) {
+      erro = motivoDoErro(e);
+    }
+    expect(erro).toMatch(/revenue_ledger_dedupe_key/);
+  });
+});
