@@ -44,6 +44,9 @@ const textoDoValor = (cents: number): string => (cents / 100).toFixed(2).replace
  * valor. A chave do registro nasce com o diálogo: é ela que impede o clique duplo de registrar
  * duas vezes.
  */
+/** Valor do item "Outro produto" na lista — nunca é nome de produto (a API recebe o que for digitado). */
+const OUTRO_PRODUTO = "__outro_produto__";
+
 export function RegistrarPagamentoDialog({ conversationId, open, onOpenChange }: Props) {
   const t = useT();
   const sugestoes = useSugestoesDePagamento(conversationId, open);
@@ -55,6 +58,8 @@ export function RegistrarPagamentoDialog({ conversationId, open, onOpenChange }:
   const [valorDigitado, setValorDigitado] = useState<string | null>(null);
   const [metodo, setMetodo] = useState<MetodoDePagamento>("pix");
   const [iniciarEntrega, setIniciarEntrega] = useState(false);
+  // A lista é a dos produtos do AGENTE; o que é vendido por fluxo ou por fora dela é digitado.
+  const [foraDaLista, setForaDaLista] = useState(false);
 
   const lista = useMemo(() => sugestoes.data ?? [], [sugestoes.data]);
 
@@ -68,6 +73,12 @@ export function RegistrarPagamentoDialog({ conversationId, open, onOpenChange }:
 
   // Trocar de produto devolve o valor à sugestão dele.
   const escolher = (nome: string) => {
+    if (nome === OUTRO_PRODUTO) {
+      setForaDaLista(true);
+      setProdutoEscolhido("");
+      setValorDigitado("");
+      return;
+    }
     setProdutoEscolhido(nome);
     setValorDigitado(null);
   };
@@ -103,7 +114,7 @@ export function RegistrarPagamentoDialog({ conversationId, open, onOpenChange }:
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-1">
             <Label htmlFor="pagamento-produto">{t("O que ela comprou")}</Label>
-            {lista.length > 0 ? (
+            {lista.length > 0 && !foraDaLista ? (
               <Select value={produto} onValueChange={escolher}>
                 <SelectTrigger id="pagamento-produto" className="w-full" data-testid="pagamento-produto">
                   <SelectValue placeholder={t("Escolha o produto")} />
@@ -114,6 +125,9 @@ export function RegistrarPagamentoDialog({ conversationId, open, onOpenChange }:
                       {s.produto}
                     </SelectItem>
                   ))}
+                  <SelectItem value={OUTRO_PRODUTO} data-testid="pagamento-produto-outro">
+                    {t("Outro produto")}
+                  </SelectItem>
                 </SelectContent>
               </Select>
             ) : (

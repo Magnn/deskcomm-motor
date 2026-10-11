@@ -56,6 +56,7 @@ import { acelerarFluxoDoContato, acelerarPipelineDeEventos } from "@/lib/dev/kic
 import { autorizarContatoParaIA } from "@/lib/ai/elegibilidade/autorizacao";
 import { casarCampanha, lerCampanhas } from "@/lib/ai/elegibilidade/campanha";
 import { enrollFollowupFlow } from "@/lib/followup/enroll";
+import { escolherFluxoPelaMensagem, fluxosDePalavraChaveAtivos } from "@/lib/followup/fluxo-por-palavra-chave";
 import { configDoInicio, eventoWhatsappDoInicio, mensagemAbreOFluxo } from "@/lib/followup/gatilho-do-inicio";
 import { flowGraphSchema, type TriggerNodeConfig } from "@/lib/followup/graph-schema";
 import { lerConfigDeFluxoDoCanal, quemAtendeONumero, type QuemAtende } from "@/lib/channels/channel-flow-config";
@@ -238,6 +239,76 @@ async function lerInicioDoFluxoPublicado(
   return configDoInicio(parsed.data) ?? null;
 }
 
+/** Os estados em que uma inscrição ainda está conduzindo a conversa. */
+const INSCRICAO_VIVA = ["active", "waiting_reply", "coletando"];
+
+/**
+ * Número do AGENTE, mensagem que é de um fluxo de palavra-chave: `true` = o fluxo ficou com a
+ * mensagem e o agente não deve ser acordado. Ver o cabeçalho de `fluxo-por-palavra-chave.ts`.
+ *
+ * Qualquer falha devolve `false`: na dúvida o agente atende, como sempre atendeu. O que esta função
+ * nunca faz é deixar a pessoa sem ninguém.
+ */
+async function entrarEmFluxoPorPalavraChave(admin: Admin, entrada: EntradaDeMensagem): Promise<boolean> {
+  try {
+    const fluxos = await fluxosDePalavraChaveAtivos(admin, entrada.organizationId);
+    if (fluxos.length === 0) return false;
+
+    // A pessoa já está dentro de um desses fluxos: a mensagem é a resposta que ele espera.
+    const { data: viva } = await admin
+      .from("followup_enrollments")
+      .select("id")
+      .eq("organization_id", entrada.organizationId)
+      .eq("contact_id", entrada.contactId)
+      .in("pointer_id", fluxos.map((f) => f.pointerId))
+      .in("status", INSCRICAO_VIVA)
+      .limit(1)
+      .maybeSingle();
+    if (viva) {
+      logger.info("[pos-entrada] contato em fluxo de palavra-chave — agente não acionado", {
+        channelId: entrada.channelSessionId,
+        contactId: entrada.contactId,
+      });
+      return true;
+    }
+
+    const flowId = escolherFluxoPelaMensagem(fluxos, entrada.texto);
+    if (flowId === null) return false;
+
+    const inscricao = await enrollFollowupFlow(admin, {
+      organizationId: entrada.organizationId,
+      pointerId: flowId,
+      contactId: entrada.contactId,
+      actorUserId: null,
+      requestId: entrada.requestId ?? entrada.conversationId,
+    });
+    if (!inscricao.ok) {
+      // O fluxo casou e não aceitou a pessoa: o agente atende, e fica dito por quê.
+      logger.error("[pos-entrada] palavra-chave casou, mas a inscrição no fluxo falhou — agente acionado", {
+        channelId: entrada.channelSessionId,
+        contactId: entrada.contactId,
+        flowId,
+        code: inscricao.code,
+      });
+      return false;
+    }
+    logger.info("[pos-entrada] palavra-chave abriu um fluxo em número do agente", {
+      channelId: entrada.channelSessionId,
+      contactId: entrada.contactId,
+      flowId,
+    });
+    // A mesma razão do número de fluxo: sem isto a primeira mensagem só sairia no relógio de um minuto.
+    await acelerarFluxoDoContato(admin, { organizationId: entrada.organizationId, contactId: entrada.contactId });
+    return true;
+  } catch (err) {
+    logger.warn("[pos-entrada] não consegui avaliar fluxo de palavra-chave — agente acionado", {
+      channelId: entrada.channelSessionId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return false;
+  }
+}
+
 async function processarFluxoOuDespachoDoCanal(admin: Admin, entrada: EntradaDeMensagem): Promise<void> {
   let dono: QuemAtende | null = null;
   try {
@@ -334,6 +405,9 @@ async function processarFluxoOuDespachoDoCanal(admin: Admin, entrada: EntradaDeM
       // Em modo fluxo direto, encerra aqui sem acordar o LLM/Agente de IA
       return;
     }
+
+    // Número do agente: a palavra-chave de um fluxo publicado tem a vez (`fluxo-por-palavra-chave.ts`).
+    if (await entrarEmFluxoPorPalavraChave(admin, entrada)) return;
 
     // Modo padrão / 'ai': pede o despacho do agente de IA
     await pedirDespachoDoAgente(admin, entrada);
