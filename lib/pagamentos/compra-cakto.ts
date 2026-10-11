@@ -25,6 +25,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { logger } from "@/lib/logger";
 import { conversaoDeVendaHandler } from "@/lib/conversoes/envio.handler";
 
+import { nomeCasaComCompra } from "@/lib/catalogo/oferta-da-vez";
+import { lerCatalogo } from "@/lib/catalogo/tipos";
 import { encontrarContatoPorTelefone } from "@/lib/channels/contato-por-telefone";
 import { enrollFollowupFlow } from "@/lib/followup/enroll";
 import { emitLeadActivity } from "@/lib/leads/activity-emitter";
@@ -73,7 +75,16 @@ const semAcentoMinusculo = (s: string): string =>
  * A regra: o fluxo que DECLARA o produto (no gatilho) fica com as compras dele; o fluxo sem produto
  * declarado é o geral e fica com todo o resto. `fluxos` vem do mais recente para o mais antigo.
  */
-export function escolherFluxoDeEntrega(fluxos: readonly FluxoDeEntrega[], produtoNome: string | null): string | null {
+export function escolherFluxoDeEntrega(
+  fluxos: readonly FluxoDeEntrega[],
+  produtoNome: string | null,
+  /**
+   * Este produto é entregue NA CONVERSA pela agente (aba "Catálogo")? Então só serve o fluxo que o
+   * declara: o fluxo geral é a entrega de OUTRO produto, e quem pagou uma leitura receberia o material
+   * do produto principal.
+   */
+  entregueNaConversa = false,
+): string | null {
   const comprado = produtoNome === null ? "" : semAcentoMinusculo(produtoNome);
   if (comprado !== "") {
     const doProduto = fluxos.find((f) => {
@@ -82,6 +93,7 @@ export function escolherFluxoDeEntrega(fluxos: readonly FluxoDeEntrega[], produt
     });
     if (doProduto) return doProduto.id;
   }
+  if (entregueNaConversa) return null;
   return fluxos.find((f) => f.produto === null || f.produto.trim() === "")?.id ?? null;
 }
 
@@ -194,6 +206,33 @@ export async function aplicarEventoDaCakto(deps: DepsDaCompra, compra: CompraDaC
     return { resultado: "compra_registrada_sem_fluxo", contatoId: contato.id, motivo: inscricao.motivo };
   }
   return { resultado: "entrega_iniciada", contatoId: contato.id, trabalho };
+}
+
+/**
+ * Algum agente da organização tem este produto no catálogo como entrega NA CONVERSA? O aviso de compra
+ * é da organização, não de um agente — por isso a varredura. Falha de leitura = `false`: a compra segue
+ * pelo caminho de sempre.
+ */
+async function entregueNaConversaPorAlgumAgente(
+  admin: SupabaseClient,
+  organizationId: string,
+  produtoNome: string | null,
+): Promise<boolean> {
+  if (produtoNome === null) return false;
+  try {
+    const { data } = await admin
+      .from("ai_agents")
+      .select("config")
+      .eq("organization_id", organizationId)
+      .is("archived_at", null)
+      .limit(50);
+    const comprado = [slugDoProduto(produtoNome)];
+    return ((data ?? []) as Array<{ config: unknown }>).some((a) =>
+      (lerCatalogo(a.config)?.produtos ?? []).some((p) => p.entrega === "conversa" && nomeCasaComCompra(p.nome, comprado)),
+    );
+  } catch {
+    return false;
+  }
 }
 
 /** As pontas de verdade, ligadas ao Supabase (service role: a org vem SEMPRE da fonte do webhook). */
@@ -339,7 +378,7 @@ export function depsReais(admin: SupabaseClient, organizationId: string, request
         id: f.id,
         produto: typeof f.trigger_config?.product_name === "string" ? f.trigger_config.product_name : null,
       }));
-      return escolherFluxoDeEntrega(fluxos, produtoNome);
+      return escolherFluxoDeEntrega(fluxos, produtoNome, await entregueNaConversaPorAlgumAgente(admin, organizationId, produtoNome));
     },
 
     async inscrever(contatoId, fluxoId) {

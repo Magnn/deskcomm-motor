@@ -116,6 +116,9 @@ import { reais } from '@/lib/preco/tipos';
 import { blocoDoCombinado } from '@/lib/followup/bloco-do-combinado';
 import { PAUSA_ANTES_DA_PRIMEIRA, RITMO_PADRAO, pausaEntreBolhas, sinalizaDigitandoEntreBolhas, type Ritmo } from '@/lib/ritmo/tipos';
 import { buscaValorCombinado, criaRetornoDbPg } from '@/lib/followup/retorno-pg';
+import { blocoDaEntregaNaConversa, blocoDaOfertaDoCatalogo } from '@/lib/catalogo/bloco-do-prompt';
+import { produtosComFluxoDeEntrega } from '@/lib/catalogo/fluxos-de-entrega';
+import { entregaNaConversaEmAberto, ofertaDaVez, produtoDaUltimaCompra } from '@/lib/catalogo/oferta-da-vez';
 import { estadoDoPosVenda, horaDoPagamento } from '@/lib/preco/pos-venda';
 import { deveResponderEmAudio } from '@/lib/voz/decisao';
 import { enqueueJob, rescheduleJob, type JobRow, type Queryable } from '../queue/queue';
@@ -2312,8 +2315,15 @@ async function executarTurnoDoAgente(
   // Pós-venda: quem já pagou sai da escada da primeira venda. A hora do pagamento só é buscada
   // quando há oferta ligada E a pessoa tem a marca de pago — o turno comum não paga a consulta.
   let posVendaDoTurno: ReturnType<typeof estadoDoPosVenda> = null;
+  // Catálogo (aba "Catálogo"): ligado, é ELE que diz o que oferecer a quem já comprou — o pós-venda da
+  // aba Preço deixa de valer (uma verdade só). O produto de entrega NA CONVERSA recém-pago vira um
+  // bloco de entrega; os dois saem da mesma leitura da última compra.
+  let ofertaDoCatalogoNoTurno: ReturnType<typeof ofertaDaVez> = null;
+  let entregaNaConversaNoTurno: ReturnType<typeof entregaNaConversaEmAberto> = null;
   const tagsDoContato = openingContext.context.contact.tags ?? [];
-  if (!preview && agentConfig?.pricing?.post_sale?.enabled && tagsDoContato.includes('pago')) {
+  const catalogoDoAgente = agentConfig?.catalog ?? null;
+  const temPosVenda = catalogoDoAgente !== null || (agentConfig?.pricing?.post_sale?.enabled ?? false);
+  if (!preview && temPosVenda && tagsDoContato.includes('pago')) {
     try {
       const { rows } = await pool.query<{ ultima_compra: unknown }>(
         `select source_metadata->'ultima_compra' as ultima_compra
@@ -2322,15 +2332,37 @@ async function executarTurnoDoAgente(
           limit 1`,
         [tenantId, leadId],
       );
-      posVendaDoTurno = estadoDoPosVenda(
-        agentConfig.pricing,
-        { tags: tagsDoContato, pagoEm: horaDoPagamento(rows[0]?.ultima_compra) },
-        openingContext.context.messages,
-        new Date(),
-      );
+      const pagoEm = horaDoPagamento(rows[0]?.ultima_compra);
+      const agora = new Date();
+      if (catalogoDoAgente !== null) {
+        ofertaDoCatalogoNoTurno = ofertaDaVez(
+          catalogoDoAgente,
+          { tags: tagsDoContato, pagoEm },
+          openingContext.context.messages,
+          await produtosComFluxoDeEntrega(pool, tenantId),
+          agora,
+        );
+        entregaNaConversaNoTurno = entregaNaConversaEmAberto(
+          catalogoDoAgente,
+          { produto: produtoDaUltimaCompra(rows[0]?.ultima_compra), pagoEm },
+          tagsDoContato,
+          agora,
+        );
+        // Entrega em aberto vem antes de qualquer oferta: ninguém recebe proposta nova no meio do que pagou.
+        if (entregaNaConversaNoTurno !== null) ofertaDoCatalogoNoTurno = null;
+      } else if (agentConfig?.pricing) {
+        posVendaDoTurno = estadoDoPosVenda(
+          agentConfig.pricing,
+          { tags: tagsDoContato, pagoEm },
+          openingContext.context.messages,
+          agora,
+        );
+      }
     } catch {
       // Sem a hora do pagamento não há segunda oferta: o turno segue pela escada comum.
       posVendaDoTurno = null;
+      ofertaDoCatalogoNoTurno = null;
+      entregaNaConversaNoTurno = null;
     }
   }
   // Economia de mensagem cobrada (`economia-de-mensagem-cobrada.ts`): só é consultada quando o agente
@@ -2361,7 +2393,10 @@ async function executarTurnoDoAgente(
       combinadoDoTurno = null;
     }
   }
-  const blocoDePrecoDoTurno = blocoDePreco(agentConfig?.pricing, {
+  // Com produto do catálogo na vez, o bloco de preço é o dele: a escada é da compra que já aconteceu.
+  const blocoDePrecoDoTurno = ofertaDoCatalogoNoTurno !== null
+    ? blocoDaOfertaDoCatalogo(ofertaDoCatalogoNoTurno)
+    : blocoDePreco(agentConfig?.pricing, {
     reclamacoes: reclamacoesDeValorNoTurno,
     valorQueTemCents: valorQueTemNoTurno,
     // A oferta de degrau é do turno em que ela reclama — não de toda resposta depois da reclamação.
@@ -2374,12 +2409,14 @@ async function executarTurnoDoAgente(
     posVenda: posVendaDoTurno,
     combinadoCents: combinadoDoTurno,
     faltaParaOEssencial: faltaParaOEssencialNoTurno,
-  });
+      });
   // A REDE: o mesmo passo vira o piso de preço da trava de promessas deste turno. Se o modelo
   // oferecer um valor abaixo do degrau liberado, a mensagem é vetada antes de sair (`before-send`). No
   // pós-venda liberado o piso é o valor da segunda oferta — sem isso ela seria vetada.
   const promiseMinPriceCents =
-    agentConfig?.pricing != null
+    ofertaDoCatalogoNoTurno !== null
+      ? ofertaDoCatalogoNoTurno.produto.preco_cents
+      : agentConfig?.pricing != null
       ? posVendaDoTurno !== null
         ? posVendaDoTurno.priceCents
         : Math.min(
@@ -2422,6 +2459,9 @@ async function executarTurnoDoAgente(
       runLog.warn('guia de entrega indisponível', { erro: err instanceof Error ? err.message.slice(0, 120) : 'desconhecido' });
     }
   }
+  // Produto do catálogo entregue NA CONVERSA: o que ela pagou e o que pedir antes entram no bloco de
+  // entrega, depois do guia (se houver).
+  blocoDaEntrega += blocoDaEntregaNaConversa(entregaNaConversaNoTurno);
   // Leitura de tarot: a pessoa escolheu 3 números do baralho fechado (achado no histórico, DEPOIS de a
   // agente oferecê-lo) → o código sorteia de verdade (nunca o modelo) e revela uma carta por turno;
   // depois das 3, a causa raiz. Sem escolha na janela, ou com a causa raiz já dita, `passoDaLeitura`

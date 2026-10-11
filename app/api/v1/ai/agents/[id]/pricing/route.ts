@@ -19,6 +19,7 @@ import { type NextRequest } from "next/server";
 import { ok, fail } from "@/lib/api/wrappers";
 import { audit } from "@/lib/audit";
 import { requireRole } from "@/lib/auth/require-role";
+import { lerCatalogo, menorPrecoDoCatalogo } from "@/lib/catalogo/tipos";
 import { traduzir } from "@/lib/i18n/dicionario";
 import { sincronizarPiso } from "@/lib/preco/sincronizar-piso";
 import { pisoEmCentavos, pricingSchema } from "@/lib/preco/tipos";
@@ -93,7 +94,8 @@ export async function PUT(req: NextRequest, ctx: Ctx): Promise<Response> {
   const piso = pisoEmCentavos(pricing);
   if (pricing.enabled) {
     try {
-      await sincronizarPiso(admin, org.orgId, pricing);
+      // O catálogo do agente também tem valores que a agente diz: o mais barato entra no piso.
+      await sincronizarPiso(admin, org.orgId, pricing, menorPrecoDoCatalogo(lerCatalogo(agente.config)));
     } catch {
       return fail(
         "guardrail_sync_failed",

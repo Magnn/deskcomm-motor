@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Catálogo do agente — um registro por produto, uma oferta por vez",
+    "subtitle": "o que vender a quem já comprou: o código escolhe o produto da vez e o roteiro não cita produto; vale no próximo turno, sem publicar versão",
+    "output": "catalogo-do-agente.html",
+    "quality_profile": "standard"
+  },
+  "lanes": [
+    { "id": "tela", "label": "A tela (aba Catálogo)" },
+    { "id": "borda", "label": "API — o único caminho que escreve" },
+    { "id": "banco", "label": "Persistência" },
+    { "id": "regra", "label": "Regra — lê, escolhe e compila" },
+    { "id": "turno", "label": "Turno da IA" },
+    { "id": "compra", "label": "Aviso de compra" },
+    { "id": "volta", "label": "O laço de retorno" }
+  ],
+  "mainPath": ["tela", "rota", "config", "leitor", "da_vez", "bloco", "fila", "agente"],
+  "nodes": [
+    { "id": "tela", "lane": "tela", "col": 1, "type": "service", "label": "CatalogoDoAgente (aba Catálogo)", "sublabel": "um cartão por produto, em ordem de prioridade; selo de falta do fluxo de entrega vindo do servidor; a prévia mostra o bloco REAL" },
+    { "id": "rota", "lane": "borda", "col": 2, "type": "service", "label": "GET/PUT /api/v1/ai/agents/:id/catalogo", "sublabel": "PUT (admin) valida no schema, desce o piso da trava ANTES de salvar e grava por MERGE; GET (manager) devolve também o que falta em cada produto" },
+    { "id": "config", "lane": "banco", "col": 3, "type": "database", "label": "ai_agents.config.catalog", "sublabel": "jsonb do agente (o mesmo lugar de pricing e offer); vale no próximo turno, sem versão" },
+    { "id": "piso", "lane": "banco", "col": 3, "type": "database", "label": "promise_table_versions / _pointers", "sublabel": "o produto mais barato desce o piso da organização; o teto de desconto continua o da escada" },
+    { "id": "fluxos", "lane": "banco", "col": 4, "type": "database", "label": "followup_flow_pointers (Entrega…)", "sublabel": "fluxos ativos que declaram o produto no gatilho (trigger_config.product_name)" },
+    { "id": "contato", "lane": "banco", "col": 4, "type": "database", "label": "contacts.tags + source_metadata.ultima_compra", "sublabel": "pago, produto:<nome>, reembolso, chargeback e a hora do último pagamento" },
+    { "id": "leitor", "lane": "regra", "col": 4, "type": "service", "label": "lerCatalogo (lib/catalogo/tipos.ts)", "sublabel": "leitura defensiva: desligado ou jsonb quebrado => null; nunca lança" },
+    { "id": "da_vez", "lane": "regra", "col": 5, "type": "service", "label": "ofertaDaVez / entregaNaConversaEmAberto (lib/catalogo/oferta-da-vez.ts)", "sublabel": "UM produto: ativo, completo, ainda não comprado, liberado pela compra anterior e depois da espera; entrega em aberto vem antes de qualquer oferta" },
+    { "id": "bloco", "lane": "regra", "col": 6, "type": "service", "label": "blocoDaOfertaDoCatalogo / blocoDaEntregaNaConversa", "sublabel": "um produto, valor e link; oferta uma vez só, sem prazo nem ameaça; texto do cliente numa linha" },
+    { "id": "preco", "lane": "regra", "col": 6, "type": "service", "label": "Aba Preço (config.pricing)", "sublabel": "valor e negociação da PRIMEIRA venda; o pós-venda dela não vale com o catálogo ligado" },
+    { "id": "fila", "lane": "turno", "col": 7, "type": "service", "label": "comporSystemDoTurno — posições preco e entrega", "sublabel": "a oferta do catálogo ocupa o bloco de preço de quem já comprou; a entrega na conversa soma-se ao bloco de entrega" },
+    { "id": "trava", "lane": "turno", "col": 7, "type": "service", "label": "trava de promessas do turno", "sublabel": "o piso do turno é o valor do produto da vez: valor abaixo dele é vetado antes de sair" },
+    { "id": "agente", "lane": "turno", "col": 8, "type": "service", "label": "Agente responde à pessoa", "sublabel": "oferece um produto, ou conduz a entrega do que ela pagou" },
+    { "id": "aviso", "lane": "compra", "col": 5, "type": "service", "label": "aplicarEventoDaCakto (lib/pagamentos/compra-cakto.ts)", "sublabel": "marca produto:<nome>; produto entregue na conversa não cai no fluxo de entrega geral" },
+    { "id": "auditoria", "lane": "volta", "col": 3, "type": "service", "label": "audit: ai.catalog_updated", "sublabel": "quem mudou o que o agente vende, e quando; só contagens e o menor valor" }
+  ],
+  "edges": [
+    { "id": "e1", "from": "tela", "to": "rota", "label": "PUT com o formulário (snake_case)" },
+    { "id": "e2", "from": "rota", "to": "piso", "label": "desce o piso antes de salvar; se falhar, nada é salvo" },
+    { "id": "e3", "from": "rota", "to": "config", "label": "config.catalog, por merge" },
+    { "id": "e4", "from": "config", "to": "leitor", "label": "lido a cada turno com o agente publicado" },
+    { "id": "e5", "from": "leitor", "to": "da_vez", "label": "CatalogoConfig" },
+    { "id": "e6", "from": "contato", "to": "da_vez", "label": "o que ela já comprou e quando pagou" },
+    { "id": "e7", "from": "fluxos", "to": "da_vez", "label": "material sem fluxo de entrega não é oferecido" },
+    { "id": "e8", "from": "da_vez", "to": "bloco", "label": "o produto da vez, ou a entrega em aberto" },
+    { "id": "e9", "from": "bloco", "to": "fila", "label": "texto do bloco (vazio quando não há o que oferecer)" },
+    { "id": "e10", "from": "da_vez", "to": "trava", "label": "valor do produto da vez" },
+    { "id": "e11", "from": "fila", "to": "agente", "label": "system do turno" },
+    { "id": "e12", "from": "aviso", "to": "contato", "label": "compra aprovada marca o produto: é isso que faz a sequência andar" },
+    { "id": "e13", "from": "config", "to": "aviso", "label": "produto de conversa: só o fluxo que o declara serve" },
+    { "id": "e14", "from": "fluxos", "to": "rota", "label": "GET: o que falta em cada produto, pela mesma regra do turno" },
+    { "id": "e15", "from": "rota", "to": "auditoria", "label": "só depois de gravar" },
+    { "id": "e16", "from": "preco", "to": "fila", "label": "sem produto do catálogo na vez, vale o bloco de preço de sempre" },
+    { "id": "e17", "from": "config", "to": "tela", "label": "GET: a tela mostra o que o dono preencheu, inclusive desligado" }
+  ]
+}
