@@ -13,6 +13,9 @@
  * clique que abriu a conversa. Lead sem anúncio de origem não tem o que reportar, e
  * isso sai como `sem_atribuicao` no livro-razão, nunca como erro e nunca como sucesso.
  *
+ * O destino é o conjunto de dados da conta do WhatsApp do canal por onde a conversa passou — o
+ * mesmo da venda. Conversa fora de canal oficial não tem destino e sai como pendência com nome.
+ *
  * ─── Uma vez por lead e por evento ──────────────────────────────────────────
  *
  * O livro-razão é único por (organização, lead, evento) — a mesma trava que impede a
@@ -30,6 +33,7 @@ import { eventoDoNo } from "@/lib/plataformas-de-anuncio/evento-do-no";
 import type { ConversaoOffline } from "@/lib/plataformas-de-anuncio/types";
 
 import { valorEmCentavos } from "@/lib/moeda/valor-em-centavos";
+import { lerDestinoDeMensageria } from "./destino-de-mensageria";
 import { lerAtribuicao } from "./leitura-da-atribuicao";
 import { jaFoiEnviada, registraEnvio, type StatusDeEnvio } from "./registro-de-envio";
 
@@ -109,9 +113,28 @@ export async function reportarEventoDoPixel(
 
   const credencial = await lerCredencial(admin, org, "meta_ads");
   if (!credencial.ok) return registra("skipped", credencial.motivo);
-  // O pixel do nó, quando informado, vale mais que o conjunto de dados da conexão: é o que o dono do funil escolheu.
+  // ── O DESTINO É O DO CANAL, COMO NA VENDA ───────────────────────────────────────────────────
+  // Este nó mandava para o pixel escrito nele (ou o da tela), com o token da tela e sem declarar a
+  // conta do WhatsApp. Conversão de mensageria só é aceita no conjunto de dados da própria conta do
+  // WhatsApp Business, com o token do canal e a conta declarada — as três recusas estão contadas em
+  // `destino-de-mensageria.ts`, e a venda (`envio.handler.ts`) já tinha sido consertada. Este caminho
+  // ficou para trás: o nó existia na tela e o evento dele era recusado.
+  //
+  // O `pixel_id` do nó deixa de escolher o destino: não há pixel "do dono do funil" que a plataforma
+  // aceite aqui além do conjunto da conta. Quando o nó traz um diferente, o livro-razão diz que ele
+  // foi ignorado, em vez de fingir que foi usado.
+  const destino = await lerDestinoDeMensageria(admin, org, contactId);
+  if (!destino.ok) return registra("skipped", destino.motivo, destino.detalhe);
+  const credencialDoNo = {
+    ...credencial.credencial,
+    datasetId: destino.destino.datasetId,
+    accessToken: destino.destino.accessToken,
+  };
   const pixel = pedido.config.pixel_id.trim();
-  const credencialDoNo = pixel ? { ...credencial.credencial, datasetId: pixel } : credencial.credencial;
+  const notaDoPixel =
+    pixel && pixel !== destino.destino.datasetId
+      ? ` (o pixel ${pixel} do nó foi ignorado: conversa de WhatsApp só é aceita no conjunto de dados da conta, ${destino.destino.datasetId})`
+      : "";
 
   const conversao: ConversaoOffline = {
     organizationId: org,
@@ -121,12 +144,13 @@ export async function reportarEventoDoPixel(
     ocorridoEm: new Date(),
     cliqueDeOrigem: leitura.atribuicao.cliqueDeOrigem,
     telefone: leitura.atribuicao.telefone,
+    contaDoWhatsApp: destino.destino.contaDoWhatsApp,
     moeda,
     valorCentavos: valor,
   };
 
   const resultado = await transporte.enviar(credencialDoNo, conversao);
-  if (resultado.tipo === "ok") return registra("sent", null, resultado.detalhe, valor, moeda);
+  if (resultado.tipo === "ok") return registra("sent", null, `${resultado.detalhe ?? ""}${notaDoPixel}`.trim() || undefined, valor, moeda);
   if (resultado.tipo === "transitorio") {
     // Nada no livro-razão: ainda pode se resolver sozinho, e o passo do fluxo já seguiu. Fica o log.
     logger.warn("[conversoes.pixel] envio adiado pela plataforma; o fluxo já avançou", {
