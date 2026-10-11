@@ -457,6 +457,29 @@ diálogo e é asserida na spec.
 
 ---
 
+## J39 — Registrar na conversa um pagamento que entrou por fora do link `[P1]` (2026-10-11)
+
+Contexto do código: a compra só existia para o sistema quando o checkout avisava. Medido em produção
+em 11/10/2026: um cliente não conseguiu usar o link, pagou por Pix direto na chave da empresa, e o
+contato seguiu como "não pagou", o negócio ficou aberto sem valor e a venda não foi reportada à
+plataforma de anúncio — o conserto foi direto no banco. O botão **Registrar pagamento** do cabeçalho
+da conversa (`RegistrarPagamentoDialog.tsx`) lista os produtos que o agente vende, já com o valor
+(`GET /api/v1/conversations/:id/pagamento-recebido`), e o `POST` faz o que o aviso do checkout faria
+(`lib/pagamentos/pagamento-recebido.ts`): marca `pago`/`produto:`/`compra:manual-<chave>`, grava o
+valor, fecha o negócio como ganho pela mesma regra do botão Ganhar, tira a pessoa das retomadas e,
+se pedido, inicia a entrega. Só agent+; auditoria `payment.manual_registered` com valor e forma.
+
+Casos:
+- com um produto só, ele vem escolhido e o valor preenchido; confirmar registra em centavos;
+- clique duplo ou reenvio não registra duas vezes (a chave nasce com o diálogo);
+- negócio já ganho não é fechado de novo: o valor soma;
+- se o negócio não fechar, o pagamento fica registrado e a tela avisa para fechar no funil;
+- conversa de outra organização é "não encontrada"; o contato vem da conversa, nunca do corpo.
+
+Cobertura: `tests/unit/pagamento-recebido.test.ts`, a rota (`route.test.ts`) e o diálogo
+(`RegistrarPagamentoDialog.test.tsx`), todos com dublês. **Ainda não provado pela tela num
+navegador nem contra banco real** — falta a spec e2e.
+
 ## J38 — Cadastrar o que o agente vende a quem já comprou, um produto por cartão `[P1]` (2026-10-10)
 
 Contexto do código: o que se vende depois da primeira compra estava espalhado — a fala no roteiro, um

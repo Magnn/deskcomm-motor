@@ -121,6 +121,10 @@ export const AUDIT_ACTIONS = [
   // automático numa conversa não tinha rota e, portanto, não tinha ação de
   // auditoria. Desligar uma automação é decisão auditável tanto quanto religá-la.
   "conversation.ai_paused",
+  // Pagamento que entrou por fora do checkout, registrado por quem atende (POST
+  // /conversations/:id/pagamento-recebido): marca o contato como pago e fecha o negócio com o valor.
+  // É dinheiro declarado à mão — "quem disse que entrou, quanto e quando" só esta linha responde.
+  "payment.manual_registered",
   "conversation.tags_changed",
   "contact.tags_changed",
   // Fila de confirmação (spec 17 §4b): a IA PROPÕE, uma pessoa decide. As três
