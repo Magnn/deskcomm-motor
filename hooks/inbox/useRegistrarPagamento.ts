@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { showApiError } from "@/components/feedback/ApiErrorToast";
 import { apiClient } from "@/lib/api/client";
-import type { PagamentoRecebido, ResultadoDoPagamento, SugestaoDePagamento } from "@/lib/pagamentos/pagamento-recebido";
+import type { PagamentoRecebido, ResultadoDoPagamento, SugestaoDePagamento } from "@/lib/pagamentos/pagamento-recebido-tipos";
 
 /** Os produtos que a organização vende, com o valor de cada um. Só busca com o diálogo aberto. */
 export function useSugestoesDePagamento(conversationId: string, aberto: boolean) {

@@ -16,8 +16,9 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { useT } from "@/hooks/i18n/useT";
+import { randomId } from "@/lib/random-id";
 import { useRegistrarPagamento, useSugestoesDePagamento } from "@/hooks/inbox/useRegistrarPagamento";
-import { METODOS_DE_PAGAMENTO, ROTULO_DO_METODO, type MetodoDePagamento } from "@/lib/pagamentos/pagamento-recebido";
+import { METODOS_DE_PAGAMENTO, ROTULO_DO_METODO, type MetodoDePagamento } from "@/lib/pagamentos/pagamento-recebido-tipos";
 
 interface Props {
   conversationId: string;
@@ -48,7 +49,7 @@ export function RegistrarPagamentoDialog({ conversationId, open, onOpenChange }:
   const sugestoes = useSugestoesDePagamento(conversationId, open);
   const registrar = useRegistrarPagamento();
   // A chave nasce com o diálogo — quem o usa monta só quando abre (ver `ConversationHeader`).
-  const [chave] = useState(() => crypto.randomUUID());
+  const [chave] = useState(() => randomId());
   // `null` = a pessoa ainda não mexeu: vale o que a lista sugere.
   const [produtoEscolhido, setProdutoEscolhido] = useState<string | null>(null);
   const [valorDigitado, setValorDigitado] = useState<string | null>(null);

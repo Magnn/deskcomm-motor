@@ -24,7 +24,6 @@
  * Orquestração pura, com as pontas injetadas — como `aplicarEventoDaCakto`.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { z } from "zod";
 
 import { lerCatalogo } from "@/lib/catalogo/tipos";
 import { emitLeadActivity } from "@/lib/leads/activity-emitter";
@@ -32,37 +31,19 @@ import { lerPricing } from "@/lib/preco/tipos";
 import { slugDoProduto } from "@/lib/preco/pos-venda";
 
 import { depsReais as depsDaCompra, negocioQueRecebeOValor, type DepsDaCompra, type NegocioDoContato } from "./compra-cakto";
+import { ROTULO_DO_METODO, type DesfechoDaEntrega, type DesfechoDoNegocio, type PagamentoRecebido, type ResultadoDoPagamento, type SugestaoDePagamento } from "./pagamento-recebido-tipos";
 
-export const METODOS_DE_PAGAMENTO = ["pix", "dinheiro", "cartao", "transferencia", "outro"] as const;
-export type MetodoDePagamento = (typeof METODOS_DE_PAGAMENTO)[number];
-
-export const ROTULO_DO_METODO: Record<MetodoDePagamento, string> = {
-  pix: "Pix",
-  dinheiro: "Dinheiro",
-  cartao: "Cartão",
-  transferencia: "Transferência",
-  outro: "Outro",
-};
-
-export const pagamentoRecebidoSchema = z.strictObject({
-  /** Gerada pela tela ao abrir o diálogo; é o que impede o registro em dobro. */
-  chave: z.string().uuid(),
-  valor_cents: z.number().int().min(100).max(10_000_000),
-  produto: z.string().trim().min(1).max(120),
-  metodo: z.enum(METODOS_DE_PAGAMENTO).default("pix"),
-  /** Quando o dinheiro entrou. Ausente = agora. */
-  pago_em: z.string().datetime({ offset: true }).optional(),
-  iniciar_entrega: z.boolean().default(false),
-});
-export type PagamentoRecebido = z.infer<typeof pagamentoRecebidoSchema>;
-
-export type DesfechoDoNegocio = "fechado" | "ja_estava_ganho" | "sem_negocio" | "nao_fechou";
-export type DesfechoDaEntrega = "nao_pedida" | "iniciada" | "sem_fluxo";
-
-export type ResultadoDoPagamento =
-  | { resultado: "registrado"; negocio: DesfechoDoNegocio; entrega: DesfechoDaEntrega; motivoDaEntrega?: string }
-  | { resultado: "ja_registrado" }
-  | { resultado: "contato_nao_encontrado" };
+export {
+  METODOS_DE_PAGAMENTO,
+  ROTULO_DO_METODO,
+  pagamentoRecebidoSchema,
+  type DesfechoDaEntrega,
+  type DesfechoDoNegocio,
+  type MetodoDePagamento,
+  type PagamentoRecebido,
+  type ResultadoDoPagamento,
+  type SugestaoDePagamento,
+} from "./pagamento-recebido-tipos";
 
 export interface DepsDoPagamento extends Pick<DepsDaCompra, "gravarCompra" | "registrarValorNoNegocio" | "pararFluxosVivos" | "acharFluxoDeEntrega" | "inscrever"> {
   lerContato(contatoId: string): Promise<{ id: string; tags: string[] } | null>;
@@ -183,11 +164,6 @@ export function depsReaisDoPagamento(
       });
     },
   };
-}
-
-export interface SugestaoDePagamento {
-  produto: string;
-  valor_cents: number;
 }
 
 /**
