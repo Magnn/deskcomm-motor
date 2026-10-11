@@ -457,6 +457,31 @@ diálogo e é asserida na spec.
 
 ---
 
+## J38 — Cadastrar o que o agente vende a quem já comprou, um produto por cartão `[P1]` (2026-10-10)
+
+Contexto do código: o que se vende depois da primeira compra estava espalhado — a fala no roteiro, um
+valor e uma lista de links na aba Preço, o nome de um fluxo "Entrega — …" e a marca no contato. A aba
+**Catálogo** (`CatalogoDoAgente.tsx`) guarda um registro por produto, e o código
+(`lib/catalogo/oferta-da-vez.ts`) escolhe UM para oferecer. Detalhe em
+`docs/features/catalogo-do-agente.md`.
+
+| Caso | O que o dono faz e vê | Estado |
+|---|---|---|
+| J38.1 | Abrir a aba "Catálogo" | fica depois de "Preço"; abre desligada, sem produto | PASS (componente) |
+| J38.2 | Adicionar um produto e preencher nome, valor, link, o que é, entrega e o que pedir | a prévia ao lado mostra a instrução REAL que o agente recebe | PASS (componente) |
+| J38.3 | Salvar com link que não é https, sem valor ou sem nome | aviso na tela, nada vai ao servidor | PASS (componente) |
+| J38.4 | Subir um cartão | a ordem muda, e é a prioridade da oferta | PASS (componente) |
+| J38.5 | Produto de material pronto sem fluxo de entrega | selo "Falta o fluxo de entrega — não é oferecido" no cartão certo | PASS (componente) |
+| J38.6 | Desligar "O agente pode oferecer este produto" | vira rascunho e sai da prévia | PASS (componente) |
+| J38.7 | Aba Preço com o catálogo ligado | aviso de que a oferta para quem já comprou não vale | **NÃO COBERTO em tela** |
+| J38.8 | Quem só lê | sem Salvar nem Adicionar, campos travados | PASS (componente) |
+| J38.9 | A jornada inteira no navegador, em instalação fresca | — | **NÃO COBERTO** — sem spec Playwright |
+| J38.10 | Compra real de um produto do catálogo até a oferta seguinte | — | **NÃO COBERTO** — nenhuma compra real passou por este caminho |
+
+"PASS (componente)" = `tests/unit/aba-catalogo-do-agente.test.tsx`, com a API simulada. A regra de quem
+recebe qual oferta está em `tests/unit/catalogo-do-agente.test.ts`; a rota, em
+`app/api/v1/ai/agents/[id]/catalogo/route.test.ts`.
+
 ## J37 — Dizer ao agente o que ele nunca diz nem promete, sem escrever prosa `[P1]` (2026-09-26)
 
 Contexto do código: as abas Identidade, Oferta e Objeções dizem ao agente o que FAZER; o que o dono

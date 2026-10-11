@@ -16,6 +16,7 @@ import { VersionHistory } from "./VersionHistory";
 import { PrecoDoAgente } from "./PrecoDoAgente";
 import { RitmoDoAgente } from "./RitmoDoAgente";
 import { IdentidadeDoAgente } from "./IdentidadeDoAgente";
+import { CatalogoDoAgente } from "./CatalogoDoAgente";
 import { OfertaDoAgente } from "./OfertaDoAgente";
 import { ConscienciaDoAgente } from "./ConscienciaDoAgente";
 import { ObjecoesDoAgente } from "./ObjecoesDoAgente";
@@ -61,6 +62,7 @@ export function AgentTabs(props: Props) {
     | "capacidades"
     | "voice"
     | "price"
+    | "catalog"
     | "runs"
     | "history"
     | "proposals"
@@ -86,6 +88,7 @@ export function AgentTabs(props: Props) {
         <TabsTrigger value="capacidades">{t("Capacidades")}</TabsTrigger>
         <TabsTrigger value="voice">{t("Voz")}</TabsTrigger>
         <TabsTrigger value="price">{t("Preço")}</TabsTrigger>
+        <TabsTrigger value="catalog">{t("Catálogo")}</TabsTrigger>
         <TabsTrigger value="runs">{t("Execuções")}</TabsTrigger>
         <TabsTrigger value="history">{t("Histórico")}</TabsTrigger>
         <TabsTrigger value="proposals">{t("Propostas")}</TabsTrigger>
@@ -113,6 +116,10 @@ export function AgentTabs(props: Props) {
 
       <TabsContent value="identity" className="m-0">
         <IdentidadeDoAgente agentId={props.agent.id} config={props.agent.config} readOnly={props.readOnly} />
+      </TabsContent>
+
+      <TabsContent value="catalog" className="m-0">
+        <CatalogoDoAgente agentId={props.agent.id} config={props.agent.config} readOnly={props.readOnly} />
       </TabsContent>
 
       <TabsContent value="offer" className="m-0">

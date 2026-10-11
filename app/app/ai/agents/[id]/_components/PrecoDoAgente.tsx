@@ -25,6 +25,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useT } from "@/hooks/i18n/useT";
 import { apiClient } from "@/lib/api/client";
+import { lerCatalogo } from "@/lib/catalogo/tipos";
 import {
   ESPERA_PADRAO_DO_POS_VENDA_H,
   MAX_DEGRAUS,
@@ -370,6 +371,11 @@ export function PrecoDoAgente({ agentId, config, readOnly }: Props) {
                 "Um segundo produto, por outro valor, oferecido uma vez a quem já pagou. Só vale depois da espera abaixo, e nunca para o produto que a pessoa acabou de comprar.",
               )}
             </p>
+            {lerCatalogo(config) !== null ? (
+              <p className="mt-2 rounded-md bg-warning-bg px-2 py-1 text-sm text-warning-fg" data-testid="pos-venda-cede-ao-catalogo">
+                {t("O catálogo deste agente está ligado: a oferta de pós-venda abaixo não vale enquanto ele estiver ligado.")}
+              </p>
+            ) : null}
           </div>
           <Switch
             aria-label={t("Oferta para quem já comprou")}

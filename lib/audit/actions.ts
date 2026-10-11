@@ -844,6 +844,11 @@ export const AUDIT_ACTIONS = [
   // nunca prometer. Vale no PRÓXIMO turno, sem publicar versão — "quem mudou o que o agente diz que a
   // empresa vende, e quando" é a pergunta que só esta linha responde. O texto digitado não vai na auditoria.
   "ai.offer_updated",
+  // O catálogo de um agente (PUT /ai/agents/:id/catalogo): os produtos que ele pode oferecer a quem já
+  // comprou, com valor, link e forma de entrega. Vale no PRÓXIMO turno, sem publicar versão — "quem mudou
+  // o que o agente vende, e por quanto" é a pergunta que só esta linha responde. Nome, texto e link não
+  // vão na auditoria.
+  "ai.catalog_updated",
   // As objeções de um agente (PUT /ai/agents/:id/objecoes): o que a pessoa costuma dizer para não fechar e
   // a resposta aprovada. Vale no PRÓXIMO turno, sem publicar versão — "quem mudou o que o agente responde a
   // uma objeção, e quando" é a pergunta que só esta linha responde. O texto digitado não vai na auditoria.
