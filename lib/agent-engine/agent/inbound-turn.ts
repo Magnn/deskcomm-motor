@@ -65,6 +65,7 @@ import {
 import type { ProviderRegistry } from '../edge/llm/providers';
 import { HANDOFF_REASON_ORCAMENTO } from '../edge/llm/orcamento';
 import { abreAvisoDoEspelhoRecusado, mirrorLeadStageToCrm } from '../edge/crm/move-lead-stage';
+import { ERRO_DE_GANHO_SEM_PAGAMENTO, declaraGanho, ganhoSemProvaDePagamento } from './ganho-exige-pagamento';
 import { classificarPerdaDoAtendimento } from '@/lib/resultado/motivo-da-perda-do-agente';
 import { insertInboxItem } from '../db/repository';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -3822,6 +3823,19 @@ async function executarTurnoDoAgente(
       ...AGENT_TOOL_DEFS.update_lead_state,
       execute: async (raw) => {
         try {
+          // Venda por checkout só fecha com pagamento confirmado (`ganho-exige-pagamento.ts`). As marcas
+          // são relidas AGORA: o pagamento pode ter entrado depois de o turno começar.
+          const vendePorCheckout = Boolean(agentConfig?.pricing?.enabled && agentConfig.pricing.steps.length > 0);
+          if (vendePorCheckout && declaraGanho(raw)) {
+            const { rows: marcas } = await pool.query<{ tags: string[] | null }>(
+              'select tags from contacts where organization_id = $1 and id = $2',
+              [tenantId, leadId],
+            );
+            if (ganhoSemProvaDePagamento({ raw, vendePorCheckout, tagsDoContato: marcas[0]?.tags ?? [] })) {
+              runLog.warn('agente declarou ganho sem pagamento confirmado — recusado', { lead_id: leadId });
+              return ERRO_DE_GANHO_SEM_PAGAMENTO;
+            }
+          }
           const update = await applyLeadStateUpdate(
             pool,
             { tenantId, leadId, jobId: liveJob().id },
