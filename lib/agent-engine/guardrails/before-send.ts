@@ -1330,6 +1330,7 @@ async function enviarSobOLock(
           gate: veto.gate,
           code: veto.code,
           agentId: args.agentId ?? null,
+          texto: evaluatedBody,
         });
         if (!r.routed) {
           args.log.info('veto sem negócio para pendurar: registrado no event_log', {

@@ -12,7 +12,15 @@ export interface VetoActivityInput {
   gate: string;
   code: string;
   agentId?: string | null;
+  /**
+   * O texto que NÃO saiu. Sem ele, quem ajusta o roteiro vê "317 mensagens barradas" e não sabe quais
+   * frases a regra está barrando. Fica só na linha do tempo do negócio (que já guarda a conversa), cortado.
+   */
+  texto?: string | null;
 }
+
+/** Teto do texto barrado guardado na atividade. */
+export const TETO_DO_TEXTO_BARRADO = 600;
 
 /**
  * O agente decidiu NÃO falar — e isso vira linha na timeline.
@@ -43,7 +51,11 @@ export async function emitVetoActivity(
     evidence: { trace_ids: [input.traceId] },
     agentId: input.agentId ?? null,
     reason: vetoReason(input.gate, input.code),
-    payload: { gate: input.gate, code: input.code },
+    payload: {
+      gate: input.gate,
+      code: input.code,
+      ...(input.texto && input.texto.trim() !== "" ? { texto: input.texto.trim().slice(0, TETO_DO_TEXTO_BARRADO) } : {}),
+    },
   });
   return r.routed ? { routed: true } : { routed: false, reason: r.reason };
 }
