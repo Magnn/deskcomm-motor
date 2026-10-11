@@ -73,7 +73,7 @@ describe("classificarNovasMensagens", () => {
   it("grava os marcos de cada organização com as regras DELA, e avança o cursor", async () => {
     const b = cenario();
     const r = await classificarNovasMensagens(b.cliente as unknown as SupabaseClient);
-    expect(r).toEqual({ lidas: 4, marcos: 3, haMais: false });
+    expect(r).toEqual({ lidas: 4, marcos: 3, haMais: false, linksDePagamento: [] });
     expect((b.tabelas.conversation_milestones ?? []).map((m) => `${String(m.message_id)}:${String(m.kind)}:${String(m.category)}`).sort()).toEqual([
       "m2:oferta_apresentada:preco",
       "m3:objecao:preco",
@@ -86,7 +86,7 @@ describe("classificarNovasMensagens", () => {
     const b = cenario();
     await classificarNovasMensagens(b.cliente as unknown as SupabaseClient);
     const r = await classificarNovasMensagens(b.cliente as unknown as SupabaseClient);
-    expect(r).toEqual({ lidas: 0, marcos: 0, haMais: false });
+    expect(r).toEqual({ lidas: 0, marcos: 0, haMais: false, linksDePagamento: [] });
     expect(b.tabelas.conversation_milestones).toHaveLength(3);
   });
 
