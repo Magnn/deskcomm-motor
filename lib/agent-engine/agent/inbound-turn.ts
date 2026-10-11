@@ -101,7 +101,7 @@ import { resolverConscienciaDoAnuncio } from '@/lib/consciencia/ad-briefs';
 import { blocoDeLimites } from '@/lib/limites/bloco-do-prompt';
 import { blocoDeObjecoes } from '@/lib/objecoes/bloco-do-prompt';
 import { blocoDeOferta } from '@/lib/oferta/bloco-do-prompt';
-import { passoDaLeitura } from '@/lib/leitura/estado-da-leitura';
+import { passoDaLeitura, recusaDaCartaForaDoSorteio } from '@/lib/leitura/estado-da-leitura';
 import { destinoNaConversa, fotoDaLeitura, imagemDaLeitura, mesaJaMostrada } from '@/lib/leitura/imagens';
 import {
   combinadoEmVigor,
@@ -3327,6 +3327,14 @@ async function executarTurnoDoAgente(
                 'send_message de novo: encerre o turno agora. A próxima resposta já considera as duas mensagens.',
             },
           };
+        }
+        // CARTA SÓ A SORTEADA: sem os 3 números reconhecidos, ou fora da ordem, a revelação não sai.
+        if (!preview) {
+          const recusa = recusaDaCartaForaDoSorteio(body, passoDaLeituraNoTurno);
+          if (recusa !== null) {
+            runLog.info('carta fora do sorteio — revelação recusada', { conversation_id: input.conversationId });
+            return { ok: false, error: { code: 'carta_fora_do_sorteio', message: recusa } };
+          }
         }
         // CORPO VAZIO NÃO SAI. Medido ao vivo (2026-09-19): o `gpt-4o-mini`
         // chamou `send_message` várias vezes com corpo que virou vazio e o

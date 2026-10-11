@@ -373,3 +373,82 @@ describe("imagemDaLeitura — a mesa e a carta sorteada, decididas pelo código"
     expect(turno).toContain("mesaJaMostrada(openingContext.context.messages)");
   });
 });
+
+// Medido em produção em 11/10/2026: uma em cada quatro revelações saía sem a foto e com a carta inventada,
+// porque a escolha só era reconhecida como três algarismos separados numa mensagem só.
+describe("a escolha como as pessoas de fato escrevem", () => {
+  it("⭐ três algarismos colados são três cartas", async () => {
+    const { extrairNumerosEscolhidos: e } = await import("@/lib/leitura/sorteio");
+    expect(e("469")).toEqual([4, 6, 9]);
+    expect(e("789")).toEqual([7, 8, 9]);
+    expect(e("101519")).toEqual([10, 15, 19]);
+    expect(e("100")).toBeNull(); // zero não é carta, e sobram só 1
+    expect(e("5820")).toBeNull(); // quatro colados é ambíguo: a agente pede de novo
+  });
+
+  it("⭐ por extenso, inclusive como chega de áudio transcrito", async () => {
+    const { extrairNumerosEscolhidos: e } = await import("@/lib/leitura/sorteio");
+    expect(e("Dez quinze um")).toEqual([10, 15, 1]);
+    expect(e("três,onze e vinte dois")).toEqual([3, 11, 22]);
+    expect(e("Número dois número três número um")).toEqual([2, 3, 1]);
+    expect(e("vinte e um, sete e doze")).toEqual([21, 7, 12]);
+  });
+
+  it("frase de conversa com número por extenso NÃO é escolha", async () => {
+    const { extrairNumerosEscolhidos: e, numerosNaMensagem: n } = await import("@/lib/leitura/sorteio");
+    expect(e("tenho um filho de dois anos e três cachorros")).toBeNull();
+    expect(n("tenho um problema").soNumeros).toBe(false);
+    expect(n("7")).toEqual({ numeros: [7], soNumeros: true });
+    expect(n("onze")).toEqual({ numeros: [11], soNumeros: true });
+  });
+
+  it("⭐ um número por mensagem: a escolha fecha na terceira", () => {
+    const p = passoDaLeitura("lead-1", [PEDIDO, msg("inbound", "7"), msg("inbound", "10"), msg("inbound", "19")]);
+    expect(p?.passo).toBe("revelar_carta");
+    const de_uma_vez = passoDaLeitura("lead-1", [PEDIDO, msg("inbound", "7, 10 e 19")]);
+    expect(p && p.passo === "revelar_carta" ? p.cartas.map((c) => c.id) : null).toEqual(
+      de_uma_vez && de_uma_vez.passo === "revelar_carta" ? de_uma_vez.cartas.map((c) => c.id) : "x",
+    );
+  });
+
+  it("dois números ainda não são escolha; conversa no meio não entra na soma", () => {
+    expect(passoDaLeitura("lead-1", [PEDIDO, msg("inbound", "7"), msg("inbound", "10")])).toBeNull();
+    const p = passoDaLeitura("lead-1", [
+      PEDIDO,
+      msg("inbound", "12"),
+      msg("inbound", "meu marido saiu de casa há 2 anos"),
+      msg("outbound", "Faltam dois números, meu bem."),
+      msg("inbound", "17"),
+      msg("inbound", "9"),
+    ]);
+    expect(p?.passo).toBe("revelar_carta");
+  });
+
+  it('"Sim" e "Ok" depois do pedido não abrem leitura', () => {
+    expect(passoDaLeitura("lead-1", [PEDIDO, msg("inbound", "Sim")])).toBeNull();
+    expect(passoDaLeitura("lead-1", [PEDIDO, msg("inbound", "Ok")])).toBeNull();
+  });
+});
+
+describe("recusaDaCartaForaDoSorteio — a agente só revela a carta sorteada", () => {
+  it("⭐ sem os 3 números reconhecidos, a revelação não sai e o modelo é mandado pedir os números", async () => {
+    const { recusaDaCartaForaDoSorteio: r } = await import("@/lib/leitura/estado-da-leitura");
+    expect(r("CARTA 1: *O Mago* (carta número 1 da mesa).", null)).toMatch(/não escolheu 3 números/);
+    expect(r("Entendi, meu bem. Me diz 3 números de 1 a 22.", null)).toBeNull();
+  });
+
+  it("na ordem certa passa; fora de ordem e depois das 3, não", async () => {
+    const { recusaDaCartaForaDoSorteio: r } = await import("@/lib/leitura/estado-da-leitura");
+    const passo = passoDaLeitura("lead-1", [PEDIDO, msg("inbound", "3, 8 e 15")]);
+    expect(r("CARTA 1: *X*", passo)).toBeNull();
+    expect(r("CARTA 2: *X*", passo)).toMatch(/CARTA 1/);
+    const fim = passoDaLeitura("lead-1", [
+      PEDIDO,
+      msg("inbound", "3, 8 e 15"),
+      msg("outbound", "CARTA 1: a"),
+      msg("outbound", "CARTA 2: b"),
+      msg("outbound", "CARTA 3: c"),
+    ]);
+    expect(r("CARTA 3: de novo", fim)).toMatch(/já foram reveladas/);
+  });
+});
