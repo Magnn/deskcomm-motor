@@ -20,6 +20,7 @@ import { deriveVideoText } from "@/lib/messaging/media/video-derive";
 import {
   apiTranscriptionProvider,
   comPadraoAtras,
+  umDeCadaVez,
   comReserva,
   elevenlabsTranscriptionProvider,
   googleTranscriptionProvider,
@@ -540,14 +541,7 @@ function buildDeriveDeps(
   // tempo fica abaixo do que o turno espera pela transcrição, para a reserva ainda chegar a tempo.
   const transcriber: DeriveDeps["transcriber"] = chaveDeTranscricao
     ? comPadraoAtras(
-        transcriberDeServico(
-          apiTranscriptionProvider({
-            apiKey: chaveDeTranscricao,
-            baseUrl: env.TRANSCRIPTION_BASE_URL || undefined,
-            model: env.TRANSCRIPTION_MODEL || undefined,
-            timeoutMs: 75_000,
-          }),
-        )!,
+        transcriberDeServico(filaDoServicoProprio(chaveDeTranscricao))!,
         transcricaoPadrao!,
         (motivo) =>
           logger.warn("[media-derive] o serviço próprio de transcrição falhou — seguindo pelo caminho padrão", {
@@ -563,6 +557,33 @@ function buildDeriveDeps(
     // Onda 3.1: vídeo → ffmpeg (áudio+frames) reusando transcrição e visão da org.
     deriveVideo: (buffer) => deriveVideoText(buffer, { transcriber, describeImage }),
   };
+}
+
+/**
+ * O serviço próprio de transcrição atrás de UMA fila por processo.
+ *
+ * `buildDeps` roda a cada mensagem; se a fila nascesse lá dentro, cada áudio teria a sua e nenhum
+ * esperaria o outro — por isso ela mora aqui, no módulo, e é refeita só quando a configuração muda.
+ * Os 30 s de espera somados aos 75 s do pedido ficam abaixo dos 120 s que o turno aguarda.
+ */
+let filaEmUso: { assinatura: string; servico: NonNullable<DeriveDeps["transcriber"]> } | null = null;
+function filaDoServicoProprio(apiKey: string): NonNullable<DeriveDeps["transcriber"]> {
+  const assinatura = [apiKey, env.TRANSCRIPTION_BASE_URL, env.TRANSCRIPTION_MODEL, env.TRANSCRIPTION_MAX_CONCURRENCY].join("|");
+  if (filaEmUso?.assinatura !== assinatura) {
+    filaEmUso = {
+      assinatura,
+      servico: umDeCadaVez(
+        apiTranscriptionProvider({
+          apiKey,
+          baseUrl: env.TRANSCRIPTION_BASE_URL || undefined,
+          model: env.TRANSCRIPTION_MODEL || undefined,
+          timeoutMs: 75_000,
+        }),
+        { simultaneos: Number.parseInt(env.TRANSCRIPTION_MAX_CONCURRENCY, 10), esperaMaximaMs: 30_000 },
+      ),
+    };
+  }
+  return filaEmUso.servico;
 }
 
 /**

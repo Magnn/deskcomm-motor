@@ -58,7 +58,15 @@ describe("a fiação no worker", () => {
     const fonte = readFileSync("workers/media-derive-worker.ts", "utf8");
     const trecho = fonte.slice(fonte.indexOf("const transcriber: DeriveDeps"));
     expect(trecho.slice(0, 700)).toContain("comPadraoAtras(");
-    expect(trecho.slice(0, 700)).toContain("timeoutMs:");
+    expect(trecho.slice(0, 700)).toContain("filaDoServicoProprio(");
     expect(trecho.slice(0, 900)).toContain("transcricaoPadrao!");
+  });
+
+  it("⭐ o serviço da instalação entra em fila e mantém o teto de tempo", () => {
+    const fonte = readFileSync("workers/media-derive-worker.ts", "utf8");
+    const fila = fonte.slice(fonte.indexOf("function filaDoServicoProprio("));
+    expect(fila.slice(0, 900)).toContain("umDeCadaVez(");
+    expect(fila.slice(0, 900)).toContain("timeoutMs:");
+    expect(fila.slice(0, 900)).toContain("esperaMaximaMs:");
   });
 });
