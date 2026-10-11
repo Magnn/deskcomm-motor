@@ -16,6 +16,7 @@ import { requireRole } from "@/lib/auth/require-role";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { mensagemDoEscopo, validarEscopoDaVersao } from "@/lib/ai/agents/escopo";
+import { escopoParaAVersaoNova } from "@/lib/ai/agents/escopo-herdado";
 import { versionCreateSchema } from "@/lib/ai/agents/validation";
 import { lerAmbiente } from "@/lib/instalacao/ambiente";
 import { traduzir } from "@/lib/i18n/dicionario";
@@ -105,7 +106,7 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<Response> {
   for (let attempt = 0; attempt < 3; attempt++) {
     const { data: maxRow } = await admin
       .from("ai_agent_versions")
-      .select("version_number")
+      .select("version_number, pipeline_ids, knowledge_source_ids")
       .eq("agent_id", id)
       .eq("organization_id", activeOrg.orgId)
       .order("version_number", { ascending: false })
@@ -130,9 +131,15 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<Response> {
     // conferência, um id de outra organização (ou de um material apagado) entra
     // no array, a versão é publicada, e o assistente não acha nada — sem erro,
     // com a tela mostrando a marcação como se estivesse valendo.
+    //
+    // O que NÃO veio no corpo é herdado da versão mais recente, não zerado: quem
+    // cria versão mandando só o roteiro não pode publicar um agente sem funil e
+    // sem material (`escopo-herdado.ts`). O herdado passa pela MESMA conferência:
+    // um funil apagado desde a versão anterior é recusado aqui, com nome.
+    const escopoDaVersao = escopoParaAVersaoNova(raw, v, maxRow ?? null);
     const escopo = await validarEscopoDaVersao(admin, activeOrg.orgId, {
-      pipeline_ids: v.pipeline_ids,
-      knowledge_source_ids: v.knowledge_source_ids,
+      pipeline_ids: escopoDaVersao.pipeline_ids,
+      knowledge_source_ids: escopoDaVersao.knowledge_source_ids,
     });
     if (!escopo.ok) {
       return fail("validation_failed", mensagemDoEscopo(escopo), 422, { requestId });
@@ -170,8 +177,8 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<Response> {
         operator_enabled: v.operator_enabled,
         operator_model: v.operator_model,
         operator_tool_ids: v.operator_tool_ids,
-        pipeline_ids: v.pipeline_ids,
-        knowledge_source_ids: v.knowledge_source_ids,
+        pipeline_ids: escopoDaVersao.pipeline_ids,
+        knowledge_source_ids: escopoDaVersao.knowledge_source_ids,
         status: "draft",
         created_by: authUser.id,
       })
@@ -186,7 +193,7 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<Response> {
         resourceType: "ai_agent_version",
         resourceId: data.id,
         requestId,
-        metadata: { agent_id: id, version_number: nextNumber },
+        metadata: { agent_id: id, version_number: nextNumber, escopo_herdado: escopoDaVersao.herdados },
       });
       return ok(data, { status: 201, requestId });
     }
