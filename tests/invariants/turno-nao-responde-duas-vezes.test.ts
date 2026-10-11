@@ -347,6 +347,81 @@ describe("a régua: outro turno já viu e respondeu a última mensagem do client
   });
 });
 
+/** Um turno na fila ou rodando, com o que anotou ter visto (`null` = não anotou). */
+async function turnoNaFila(opts: {
+  status: "running" | "pending";
+  vistoAte?: string | null;
+  kind?: "inbound_turn" | "followup_turn";
+  runAfter?: string;
+}): Promise<string> {
+  const jobId = crypto.randomUUID();
+  const payload: Record<string, unknown> = { conversation_id: CONV };
+  if (opts.vistoAte) payload.ultima_inbound_vista_em = opts.vistoAte;
+  await pool.query(
+    `insert into job_queue (id, organization_id, contact_id, kind, payload, status, attempts, run_after)
+     values ($1,$2,$3,$4,$5,$6,0,coalesce($7::timestamptz, now()))`,
+    [jobId, ORG, CONTACT, opts.kind ?? "inbound_turn", payload, opts.status, opts.runAfter ?? null],
+  );
+  return jobId;
+}
+
+describe("a régua do outro lado: este turno foi superado por mensagem nova?", () => {
+  // O caso medido em produção (2026-10-11): a segunda mensagem chegou com o turno da primeira rodando.
+  it("⭐ chegou mensagem que este turno não viu e o turno dela está na fila: este não envia", async () => {
+    await inbound("Minha filha tem rinite e temos um gato", T("12:10"));
+    const a = await turnoNaFila({ status: "running", vistoAte: T("12:10") });
+    await inbound("Tem rinite e alergia", T("12:50"));
+    await turnoNaFila({ status: "pending" });
+    expect(await m.regua.turnoSuperadoPorMensagemNova(pool, alvo(a))).toBe(true);
+  });
+
+  it("⭐ mensagem nova SEM turno na fila: este responde (calar seria deixar a pessoa no vácuo)", async () => {
+    await inbound("Minha filha tem rinite e temos um gato", T("12:10"));
+    const a = await turnoNaFila({ status: "running", vistoAte: T("12:10") });
+    await inbound("Tem rinite e alergia", T("12:50"));
+    expect(await m.regua.turnoSuperadoPorMensagemNova(pool, alvo(a))).toBe(false);
+  });
+
+  it("nenhuma mensagem nova desde que o turno leu: responde, mesmo com outro turno na fila", async () => {
+    await inbound("Tem um gato", T("12:10"));
+    const a = await turnoNaFila({ status: "running", vistoAte: T("12:10") });
+    await turnoNaFila({ status: "pending" });
+    expect(await m.regua.turnoSuperadoPorMensagemNova(pool, alvo(a))).toBe(false);
+  });
+
+  it("o que está na fila é retomada de silêncio, não resposta: este responde", async () => {
+    await inbound("Tem um gato", T("12:10"));
+    const a = await turnoNaFila({ status: "running", vistoAte: T("12:10") });
+    await inbound("E uma filha", T("12:50"));
+    await turnoNaFila({ status: "pending", kind: "followup_turn" });
+    expect(await m.regua.turnoSuperadoPorMensagemNova(pool, alvo(a))).toBe(false);
+  });
+
+  it("turno retido na fila (sem data para rodar) não conta como esperando a vez", async () => {
+    await inbound("Tem um gato", T("12:10"));
+    const a = await turnoNaFila({ status: "running", vistoAte: T("12:10") });
+    await inbound("E uma filha", T("12:50"));
+    await turnoNaFila({ status: "pending", runAfter: "infinity" });
+    expect(await m.regua.turnoSuperadoPorMensagemNova(pool, alvo(a))).toBe(false);
+  });
+
+  it("turno sem anotação do que viu não é calado", async () => {
+    await inbound("Tem um gato", T("12:10"));
+    const a = await turnoNaFila({ status: "running", vistoAte: null });
+    await inbound("E uma filha", T("12:50"));
+    await turnoNaFila({ status: "pending" });
+    expect(await m.regua.turnoSuperadoPorMensagemNova(pool, alvo(a))).toBe(false);
+  });
+
+  it("mensagem nova em OUTRA conversa do contato não supera este turno", async () => {
+    await inbound("Tem um gato", T("12:10"));
+    const a = await turnoNaFila({ status: "running", vistoAte: T("12:10") });
+    await inbound("de outra conversa", T("12:50"), OUTRA_CONV);
+    await turnoNaFila({ status: "pending" });
+    expect(await m.regua.turnoSuperadoPorMensagemNova(pool, alvo(a))).toBe(false);
+  });
+});
+
 describe("a porta: o handler real de inbound_turn", () => {
   it("não chama o modelo nem envia quando outro turno já respondeu à última mensagem", async () => {
     await inbound("Sim", T("02:39"));
