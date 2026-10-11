@@ -36,9 +36,10 @@ function orgsDoAtalho(userId: string): string[] {
   const out = sql(`
     set role authenticated;
     select set_config('request.jwt.claims', '{"sub":"${userId}"}', false);
-    select coalesce(string_agg(o::text, ',' order by o::text), '') from public.fn_orgs_com_conversas_todas_visiveis() o;
+    select coalesce(string_agg(o::text, ',' order by o::text), 'nenhuma') from public.fn_orgs_com_conversas_todas_visiveis() o;
   `);
-  return lastLine(out).split(",").filter((s) => s !== "");
+  // Sentinela: uma linha vazia faria `lastLine` devolver a saída do `set_config` acima.
+  return lastLine(out).split(",").filter((s) => s !== "nenhuma");
 }
 
 beforeAll(() => {

@@ -5363,11 +5363,8 @@ revoke execute on function public.fn_can_view_conversation(uuid, uuid) from anon
 grant execute on function public.fn_can_view_conversation(uuid, uuid)
   to authenticated, service_role;
 
-drop policy if exists "conversations_select" on public.conversations;
-create policy "conversations_select" on public.conversations
-  for select using (
-    public.fn_can_view_conversation(organization_id, assigned_to_user_id)
-  );
+-- A política "conversations_select" é criada no apêndice da migration 0923, que põe o atalho por
+-- organização na frente desta função. Definida uma vez só: versão intermediária valeria a cada update.
 
 drop policy if exists "conversations_agent_write" on public.conversations;
 drop policy if exists "conversations_agent_insert" on public.conversations;
@@ -37653,6 +37650,41 @@ grant  execute on function public.fn_resultado_por_anuncio(uuid, timestamptz, ti
 
 notify pgrst, 'reload schema';
 
+-- ---- A política de leitura de conversas decide por organização antes da linha (migration 0923) ----
+-- Quem enxerga a organização inteira (administrador da plataforma; viewer, manager, admin) passa por um
+-- conjunto avaliado uma vez por consulta; `fn_can_view_conversation` segue na política, por linha, para
+-- os demais. Medido em produção: 170 ms -> 1,7 ms em 2.217 conversas. Racional completo na migration.
+create or replace function public.fn_orgs_com_conversas_todas_visiveis()
+ returns setof uuid
+ language sql
+ stable
+ security definer
+ set search_path to 'public'
+as $function$
+  select o.id
+    from public.organizations o
+   where (select public.fn_is_platform_admin())
+  union
+  select org
+    from public.fn_user_org_ids() as org
+   where public.fn_user_role_in_org(org) in ('viewer', 'manager', 'admin');
+$function$;
+
+comment on function public.fn_orgs_com_conversas_todas_visiveis()
+  is 'Organizações em que quem chama enxerga TODAS as conversas (administrador da plataforma; viewer, manager ou admin). Atalho da política conversations_select: avaliado uma vez por consulta, antes de fn_can_view_conversation por linha (migration 0923).';
+
+revoke execute on function public.fn_orgs_com_conversas_todas_visiveis() from public, anon;
+grant  execute on function public.fn_orgs_com_conversas_todas_visiveis() to authenticated, service_role;
+
+drop policy if exists "conversations_select" on public.conversations;
+create policy "conversations_select" on public.conversations
+  for select using (
+    organization_id in (select public.fn_orgs_com_conversas_todas_visiveis())
+    or public.fn_can_view_conversation(organization_id, assigned_to_user_id)
+  );
+
+notify pgrst, 'reload schema';
+
 -- ---- VARREDURA anon: função nova nasce exposta em quem ATUALIZA (migration 0116) ----
 --
 -- ⚠️ DE PROPÓSITO, NENHUMA FUNÇÃO É CRIADA DEPOIS DESTE BLOCO. Apêndice que cria
@@ -39132,38 +39164,3 @@ comment on column public.flywheel_distiller_proposals.previous_version_id
 create index if not exists idx_flywheel_propostas_pendentes
   on public.flywheel_distiller_proposals (organization_id, proposed_at desc)
   where applied_at is null and dismissed_at is null;
-
--- ---- A política de leitura de conversas decide por organização antes da linha (migration 0923) ----
--- Quem enxerga a organização inteira (administrador da plataforma; viewer, manager, admin) passa por um
--- conjunto avaliado uma vez por consulta; `fn_can_view_conversation` segue na política, por linha, para
--- os demais. Medido em produção: 170 ms -> 1,7 ms em 2.217 conversas. Racional completo na migration.
-create or replace function public.fn_orgs_com_conversas_todas_visiveis()
- returns setof uuid
- language sql
- stable
- security definer
- set search_path to 'public'
-as $function$
-  select o.id
-    from public.organizations o
-   where (select public.fn_is_platform_admin())
-  union
-  select org
-    from public.fn_user_org_ids() as org
-   where public.fn_user_role_in_org(org) in ('viewer', 'manager', 'admin');
-$function$;
-
-comment on function public.fn_orgs_com_conversas_todas_visiveis()
-  is 'Organizações em que quem chama enxerga TODAS as conversas (administrador da plataforma; viewer, manager ou admin). Atalho da política conversations_select: avaliado uma vez por consulta, antes de fn_can_view_conversation por linha (migration 0923).';
-
-revoke execute on function public.fn_orgs_com_conversas_todas_visiveis() from public, anon;
-grant  execute on function public.fn_orgs_com_conversas_todas_visiveis() to authenticated, service_role;
-
-drop policy if exists "conversations_select" on public.conversations;
-create policy "conversations_select" on public.conversations
-  for select using (
-    organization_id in (select public.fn_orgs_com_conversas_todas_visiveis())
-    or public.fn_can_view_conversation(organization_id, assigned_to_user_id)
-  );
-
-notify pgrst, 'reload schema';
