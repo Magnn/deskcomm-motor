@@ -39164,3 +39164,14 @@ comment on column public.flywheel_distiller_proposals.previous_version_id
 create index if not exists idx_flywheel_propostas_pendentes
   on public.flywheel_distiller_proposals (organization_id, proposed_at desc)
   where applied_at is null and dismissed_at is null;
+
+-- ---- O ledger de receita aceita o pagamento registrado pela equipe (migration 0924) ----
+-- 'manual' é valor novo e 'cakto' continua aceito: não há dado a corrigir antes de recriar o CHECK.
+alter table public.revenue_ledger
+  drop constraint if exists revenue_ledger_provider_check;
+
+alter table public.revenue_ledger
+  add constraint revenue_ledger_provider_check check (provider in ('cakto', 'manual'));
+
+comment on column public.revenue_ledger.provider
+  is 'De onde veio o fato de dinheiro: ''cakto'' (aviso do checkout) ou ''manual'' (registrado pela equipe na conversa).';
