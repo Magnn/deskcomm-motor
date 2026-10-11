@@ -31,7 +31,7 @@ import { lerPricing } from "@/lib/preco/tipos";
 import { slugDoProduto } from "@/lib/preco/pos-venda";
 
 import { depsReais as depsDaCompra, negocioQueRecebeOValor, type DepsDaCompra, type NegocioDoContato } from "./compra-cakto";
-import { ROTULO_DO_METODO, type DesfechoDaEntrega, type DesfechoDoNegocio, type PagamentoRecebido, type ResultadoDoPagamento, type SugestaoDePagamento } from "./pagamento-recebido-tipos";
+import { ROTULO_DO_METODO, type DesfechoDoNegocio, type PagamentoRecebido, type ResultadoDoPagamento, type SugestaoDePagamento } from "./pagamento-recebido-tipos";
 
 export {
   METODOS_DE_PAGAMENTO,
