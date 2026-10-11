@@ -25,9 +25,34 @@ export function quebrasDeVerdade(texto: string): string {
  * send do agente quando split_messages está on; o pacing anti-ban espaça cada
  * bolha. Nunca devolve bolha vazia nem (salvo palavra atômica gigante) > maxChars.
  */
+/** Um parágrafo que é um código Pix "copia e cola" (EMV): começa por 000201 e não tem quebra de linha. */
+export function ehCodigoDoPix(paragrafo: string): boolean {
+  return /^000201[0-9A-Za-z]/.test(paragrafo) && paragrafo.length >= 60 && !paragrafo.includes("\n");
+}
+
 export function splitIntoBubbles(text: string, maxChars: number): string[] {
   const trimmed = (text ?? "").trim();
   if (trimmed === "") return [];
+  // O CÓDIGO DO PIX É UM BALÃO SÓ, SEMPRE. Ele passa do limite e tem espaço no meio (o nome de quem
+  // recebe): partido em dois, ou colado na frase vizinha, deixa de ser pagável. Cada parágrafo que é um
+  // código vai inteiro e sozinho; o que vem antes e depois é cortado como sempre.
+  const paragrafos = trimmed.split(/\n{2,}/).map((p) => p.trim()).filter((p) => p !== "");
+  if (paragrafos.some(ehCodigoDoPix)) {
+    const saida: string[] = [];
+    let pendente: string[] = [];
+    const despejar = () => {
+      if (pendente.length > 0) saida.push(...splitIntoBubbles(pendente.join("\n\n"), maxChars));
+      pendente = [];
+    };
+    for (const p of paragrafos) {
+      if (ehCodigoDoPix(p)) {
+        despejar();
+        saida.push(p);
+      } else pendente.push(p);
+    }
+    despejar();
+    return saida;
+  }
   if (trimmed.length <= maxChars) return [trimmed];
 
   // Unidades atômicas: parágrafos → sentenças. Cada unidade que ainda estoura é

@@ -9804,6 +9804,20 @@ export const DICIONARIO: Traducoes = {
 
   // Formulário da conexão de conversões
   "Conexão salva.": { es: "Conexión guardada." },
+  "A chave não está no formato esperado. Ela começa por sk_ ou rk_.": { es: "La clave no tiene el formato esperado. Empieza por sk_ o rk_." },
+  "A Stripe recusou esta chave. Confira se copiou a chave secreta inteira e se ela tem permissão de escrita.": { es: "Stripe rechazó esta clave. Compruebe que copió la clave secreta completa y que tiene permiso de escritura." },
+  "Não consegui falar com a Stripe agora. Tente de novo em instantes.": { es: "No pude comunicarme con Stripe ahora. Inténtelo de nuevo en unos instantes." },
+  "Esta instalação está sem a chave mestra de criptografia, e a chave não foi gravada.": { es: "Esta instalación no tiene la clave maestra de cifrado, y la clave no se guardó." },
+  "A chave foi gravada, mas o aviso de pagamento não: a Stripe só avisa endereços https. Abra o sistema pelo domínio com cadeado e salve de novo.": { es: "La clave se guardó, pero el aviso de pago no: Stripe solo avisa a direcciones https. Abra el sistema por el dominio con candado y guarde de nuevo." },
+  "Conectado, mas o Pix ainda não está ativo nesta conta da Stripe. Ative em Configurações › Formas de pagamento, na Stripe.": { es: "Conectado, pero Pix todavía no está activo en esta cuenta de Stripe. Actívelo en Configuración › Métodos de pago, en Stripe." },
+  "Pix na conversa (Stripe)": { es: "Pix en la conversación (Stripe)" },
+  "Quando o agente enviar o link de pagamento, a pessoa recebe também o Pix copia e cola no mesmo valor, sem cadastro. O pagamento é confirmado sozinho.": { es: "Cuando el agente envíe el enlace de pago, la persona recibe también el Pix copia y pega por el mismo valor, sin registro. El pago se confirma solo." },
+  "Chave gravada, mas o aviso de pagamento não foi registrado. Salve a chave de novo.": { es: "Clave guardada, pero el aviso de pago no fue registrado. Guarde la clave de nuevo." },
+  "Chave secreta da Stripe": { es: "Clave secreta de Stripe" },
+  "Cole a chave gerada na Stripe": { es: "Pegue la clave generada en Stripe" },
+  "Na Stripe: Desenvolvedores › Chaves de API. Guardada criptografada; nunca volta para esta tela.": { es: "En Stripe: Desarrolladores › Claves de API. Se guarda cifrada; nunca vuelve a esta pantalla." },
+  "Enviar o Pix junto com o link de pagamento": { es: "Enviar el Pix junto con el enlace de pago" },
+  "Desligar volta a enviar só o link e mantém a chave gravada.": { es: "Al desactivar se vuelve a enviar solo el enlace y la clave queda guardada." },
   "Identificador do destino de conversões": { es: "Identificador del destino de conversiones" },
   "Só números. Você encontra no gerenciador de anúncios, na fonte de dados que recebe as conversões.":
     { es: "Solo números. Lo encuentras en el administrador de anuncios, en la fuente de datos que recibe las conversiones." },

@@ -16,6 +16,7 @@ import { lerEstadoDaCobranca } from "@/lib/pagamentos/estado-da-conexao";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 import { FormularioDeCobranca } from "./_form";
+import { ConexaoComAStripe, type EstadoDaStripe } from "./_stripe";
 
 export const metadata = { title: "Pagamentos" };
 export const dynamic = "force-dynamic";
@@ -27,7 +28,22 @@ export default async function PagamentosPage() {
   if (!(user.is_platform_admin && !user.support) && ROLE_RANK[activeOrg.role] < ROLE_RANK.admin) {
     redirect("/403");
   }
-  const estado = await lerEstadoDaCobranca(createAdminClient(), activeOrg.orgId);
+  const admin = createAdminClient();
+  const estado = await lerEstadoDaCobranca(admin, activeOrg.orgId);
+  // Só booleanos: nem a chave nem o segredo do aviso entram no que vai para a tela.
+  const { data: linhaDaStripe } = await admin
+    .from("payment_gateway_connections")
+    .select("enabled, api_key_encrypted, webhook_secret_encrypted")
+    .eq("organization_id", activeOrg.orgId)
+    .eq("provider", "stripe")
+    .maybeSingle();
+  const s = linhaDaStripe as { enabled: boolean; api_key_encrypted: string | null; webhook_secret_encrypted: string | null } | null;
+  const estadoDaStripe: EstadoDaStripe = {
+    conectada: Boolean(s),
+    temChave: Boolean(s?.api_key_encrypted),
+    habilitada: s?.enabled ?? false,
+    temAviso: Boolean(s?.webhook_secret_encrypted),
+  };
   const t = (texto: string) => traduzir(texto, user.idioma);
 
   return (
@@ -45,6 +61,7 @@ export default async function PagamentosPage() {
             : t("Ainda não conectado.")}
         </p>
       </header>
+      <ConexaoComAStripe estado={estadoDaStripe} idioma={user.idioma} />
       <FormularioDeCobranca estado={estado} idioma={user.idioma} />
     </div>
   );

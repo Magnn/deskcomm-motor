@@ -39175,3 +39175,23 @@ alter table public.revenue_ledger
 
 comment on column public.revenue_ledger.provider
   is 'De onde veio o fato de dinheiro: ''cakto'' (aviso do checkout) ou ''manual'' (registrado pela equipe na conversa).';
+
+-- ---- A conexão de cobrança e o ledger de receita aceitam a Stripe (migration 0925) ----
+-- Valores novos nos dois CHECKs; os existentes continuam aceitos: não há dado a corrigir antes.
+alter table public.payment_gateway_connections
+  add column if not exists webhook_secret_encrypted text;
+
+alter table public.payment_gateway_connections
+  drop constraint if exists payment_gateway_connections_provider_conhecido;
+alter table public.payment_gateway_connections
+  add constraint payment_gateway_connections_provider_conhecido check (provider in ('asaas', 'stripe'));
+
+alter table public.revenue_ledger
+  drop constraint if exists revenue_ledger_provider_check;
+alter table public.revenue_ledger
+  add constraint revenue_ledger_provider_check check (provider in ('cakto', 'manual', 'stripe'));
+
+comment on column public.payment_gateway_connections.webhook_secret_encrypted
+  is 'Segredo da assinatura do aviso de pagamento do provedor (Stripe), cifrado. Nunca é devolvido à tela.';
+comment on column public.revenue_ledger.provider
+  is 'De onde veio o fato de dinheiro: ''cakto'' (aviso do checkout), ''manual'' (registrado pela equipe) ou ''stripe'' (Pix gerado na conversa).';
