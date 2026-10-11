@@ -91,6 +91,26 @@ export function ActionForm({
   const [items, setItems] = useState<ConteudoItem[]>(config.mode === "content" ? config.items : []);
   const [error, setError] = useState<string | null>(null);
 
+  /**
+   * O que falta, na língua de quem monta o fluxo. A mensagem do schema ("Too
+   * small: expected string to have >=1 characters") não diz QUAL card nem o que
+   * fazer com ele — e enquanto um card está incompleto nada do nó é gravado.
+   */
+  const motivoDaRecusa = (issue: { path: PropertyKey[]; message: string } | undefined): string => {
+    if (!issue) return t("Configuração inválida.");
+    const [raiz, indice, campo] = issue.path;
+    if (raiz !== "items" || typeof indice !== "number") return issue.message;
+    const falta =
+      campo === "storage_path" || campo === "mime" || campo === "url"
+        ? t("falta o arquivo. Envie o arquivo (ou informe o link) ou remova o card.")
+        : campo === "body"
+          ? t("falta o texto. Escreva o texto ou remova o card.")
+          : campo === "name" || campo === "phone_number"
+            ? t("faltam o nome e o telefone do contato.")
+            : null;
+    return falta ? `${t("Conteúdo")} ${indice + 1}: ${falta}` : issue.message;
+  };
+
   const commit = (next: {
     mode: ModoDaAcao;
     body: string;
@@ -113,7 +133,7 @@ export function ActionForm({
             : { mode: "content" as const, items: next.items };
     const parsed = actionConfigSchema.safeParse(candidate);
     if (!parsed.success) {
-      setError(parsed.error.issues[0]?.message ?? t("Configuração inválida."));
+      setError(motivoDaRecusa(parsed.error.issues[0]));
       return;
     }
     setError(null);

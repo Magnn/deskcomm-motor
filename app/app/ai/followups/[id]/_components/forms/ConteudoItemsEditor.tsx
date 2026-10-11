@@ -3,10 +3,17 @@
  * Editor de itens do nó "Conteúdo" com paridade visual 100% fiel ao AcassIA / Lalla.
  * Grade 4x2 de botões com gradientes sutis e inset highlight,
  * divisor "Conteúdos", pill badge azul de estado vazio,
- * cards com faixa colorida lateral, barra de ferramentas superior (Mover/Duplicar/Excluir),
+ * cards com faixa colorida lateral, rodapé com Mover (arrastar) / Duplicar / Excluir,
  * upload zone com limites oficiais e controles refinados.
  */
 import * as React from "react";
+import {
+  DragDropContext,
+  Draggable,
+  Droppable,
+  type DraggableProvidedDragHandleProps,
+  type DropResult,
+} from "@hello-pangea/dnd";
 import { CloudUpload, Image as LucideImage, Move, Video as LucideVideo } from "lucide-react";
 
 import { toast } from "sonner";
@@ -32,6 +39,7 @@ import {
   CaretDown,
   CaretUp,
   Clock,
+  Copy,
   DotsSixVertical,
   Eye,
   FileText,
@@ -141,16 +149,18 @@ export function ConteudoItemsEditor({ flowId, items, onChange, disabled }: Props
     onChange(next);
   };
 
-  const mover = (i: number, dir: -1 | 1) => {
-    const j = i + dir;
-    if (j < 0 || j >= items.length) return;
+  const mover = (de: number, para: number) => {
+    if (de === para || para < 0 || para >= items.length) return;
     const next = [...items];
-    const temp = next[i];
-    const target = next[j];
-    if (!temp || !target) return;
-    next[i] = target;
-    next[j] = temp;
+    const [movido] = next.splice(de, 1);
+    if (!movido) return;
+    next.splice(para, 0, movido);
     onChange(next);
+  };
+
+  const aoSoltar = (r: DropResult) => {
+    if (!r.destination) return;
+    mover(r.source.index, r.destination.index);
   };
 
   const duplicar = (i: number) => {
@@ -216,27 +226,78 @@ export function ConteudoItemsEditor({ flowId, items, onChange, disabled }: Props
             </p>
           </div>
         ) : (
-          <div id="flow-content-list" className="flex flex-col gap-[14px] mt-0.5">
-            {items.map((item, i) => (
-              <ItemCard
-                key={i}
-                index={i}
-                total={items.length}
-                flowId={flowId}
-                item={item}
-                disabled={disabled}
-                onUpdate={(next) => atualizar(i, next)}
-                onMove={(dir) => mover(i, dir)}
-                onDuplicate={() => duplicar(i)}
-                onRemove={() => remover(i)}
-              />
-            ))}
-          </div>
+          <DragDropContext onDragEnd={aoSoltar}>
+            {/*
+              O card arrastado é desenhado no <body> (`renderClone`): o painel
+              rola e pode ter ancestral com `transform`, e ali o `position: fixed`
+              do arraste sairia do lugar. O espaço entre cards é `pb` no invólucro,
+              não `gap` — a biblioteca não mede `gap` ao abrir espaço.
+            */}
+            <Droppable
+              droppableId="conteudo-itens"
+              renderClone={(arraste, _estado, rubrica) => {
+                const i = rubrica.source.index;
+                const item = items[i];
+                if (!item) return <div ref={arraste.innerRef} {...arraste.draggableProps} />;
+                return (
+                  <div ref={arraste.innerRef} {...arraste.draggableProps} className="font-sans">
+                    <ItemCard
+                      index={i}
+                      flowId={flowId}
+                      item={item}
+                      disabled={disabled}
+                      arrastando
+                      alca={arraste.dragHandleProps}
+                      podeDuplicar={!atMax}
+                      onUpdate={(next) => atualizar(i, next)}
+                      onDuplicate={() => duplicar(i)}
+                      onRemove={() => remover(i)}
+                    />
+                  </div>
+                );
+              }}
+            >
+              {(lista) => (
+                <div
+                  id="flow-content-list"
+                  ref={lista.innerRef}
+                  {...lista.droppableProps}
+                  className="flex flex-col mt-0.5"
+                >
+                  {items.map((item, i) => (
+                    <Draggable
+                      key={i}
+                      draggableId={`conteudo-item-${i}`}
+                      index={i}
+                      isDragDisabled={disabled || items.length < 2}
+                    >
+                      {(arraste) => (
+                        <div ref={arraste.innerRef} {...arraste.draggableProps} className="pb-[14px]">
+                          <ItemCard
+                            index={i}
+                            flowId={flowId}
+                            item={item}
+                            disabled={disabled}
+                            alca={items.length < 2 ? null : arraste.dragHandleProps}
+                            podeDuplicar={!atMax}
+                            onUpdate={(next) => atualizar(i, next)}
+                            onDuplicate={() => duplicar(i)}
+                            onRemove={() => remover(i)}
+                          />
+                        </div>
+                      )}
+                    </Draggable>
+                  ))}
+                  {lista.placeholder}
+                </div>
+              )}
+            </Droppable>
+          </DragDropContext>
         )}
       </div>
 
       {items.length > 0 && items.length < MAX_CONTEUDO_ITEMS && (
-        <p className="text-[10px] text-[#94a3b8] mt-3 text-center">
+        <p className="text-[10px] text-[#94a3b8] mt-0 text-center">
           <span className="opacity-60">{t("0–120s · pausa antes do próximo passo")}</span>
         </p>
       )}
@@ -246,22 +307,26 @@ export function ConteudoItemsEditor({ flowId, items, onChange, disabled }: Props
 
 function ItemCard({
   index,
-  total,
   flowId,
   item,
   disabled,
+  arrastando,
+  alca,
+  podeDuplicar,
   onUpdate,
-  onMove,
   onDuplicate,
   onRemove,
 }: {
   index: number;
-  total: number;
   flowId: string;
   item: ConteudoItem;
   disabled?: boolean;
+  /** Este é o card que está na mão do usuário (clone do arraste). */
+  arrastando?: boolean;
+  /** Props da alça de arraste; `null` quando não há para onde mover (um card só). */
+  alca: DraggableProvidedDragHandleProps | null;
+  podeDuplicar: boolean;
   onUpdate: (item: ConteudoItem) => void;
-  onMove: (dir: -1 | 1) => void;
   onDuplicate: () => void;
   onRemove: () => void;
 }) {
@@ -271,7 +336,8 @@ function ItemCard({
   return (
     <div
       className={cn(
-        "relative rounded-xl border bg-surface overflow-hidden shadow-xs transition-all duration-200",
+        "relative rounded-xl border bg-surface overflow-hidden shadow-xs transition-shadow duration-200",
+        arrastando && "shadow-lg",
         tc.border,
       )}
       style={{ padding: "12px 14px" }}
@@ -449,14 +515,34 @@ function ItemCard({
         </span>
 
         <div className="flex items-center gap-1.5">
+          {/*
+            Alça de arraste. É <span>, não <button>: a biblioteca recusa iniciar
+            o arraste quando o alvo é um elemento interativo (button, input…).
+            Pelo teclado: Espaço pega o card, setas movem, Espaço solta.
+          */}
+          {alca && !disabled && (
+            <span
+              {...alca}
+              aria-label={t("Arraste para mover")}
+              title={t("Arraste para mover")}
+              data-testid={`conteudo-item-mover-${index}`}
+              className={cn(
+                "w-6 h-6 rounded-md border border-[#e2e8f0] bg-surface flex items-center justify-center text-[#6366f1] hover:bg-[#f1f5f9] transition-colors touch-none",
+                arrastando ? "cursor-grabbing" : "cursor-grab",
+              )}
+            >
+              <Move size={13} aria-hidden />
+            </span>
+          )}
           <button
             type="button"
             onClick={onDuplicate}
-            disabled={disabled}
+            disabled={disabled || !podeDuplicar}
+            data-testid={`conteudo-item-duplicar-${index}`}
             className="w-6 h-6 rounded-md border border-[#e2e8f0] bg-surface flex items-center justify-center text-[#6366f1] hover:bg-[#f1f5f9] disabled:opacity-30 transition-colors cursor-pointer"
-            title={t("Duplicar / Mover")}
+            title={t("Duplicar")}
           >
-            <Move size={13} />
+            <Copy size={13} />
           </button>
           <button
             type="button"
