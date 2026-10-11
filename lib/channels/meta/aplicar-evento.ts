@@ -18,6 +18,36 @@ import type { MetaWebhookSession } from "./session";
 import { statusUpdate } from "./status-update";
 import type { MetaWebhookEvent } from "./webhook";
 
+/**
+ * A MENSAGEM QUE CHEGOU NA HORA EM QUE O BANCO NÃO ATENDIA.
+ *
+ * ⚠️ Medido em produção em 11/10/2026: por seis minutos a camada de dados ficou sem conexão livre
+ * ("Timed out acquiring connection from connection pool"), a ingestão devolveu `failed`, a rota
+ * respondeu 200 e a Meta deu a entrega por feita. A mensagem da pessoa não existe no histórico e
+ * o agente nunca a viu. O 200 incondicional protege contra re-entrega em loop do que NUNCA vai
+ * entrar; para o que só não entrou AGORA ele é perda de mensagem.
+ *
+ * Reconhecida pela mensagem do erro, que é o que a ingestão devolve. Na dúvida é definitiva: pedir
+ * re-entrega do que não tem conserto é o loop que o 200 existe para evitar.
+ */
+const FALHA_PASSAGEIRA =
+  /connection pool|timed? ?out|timeout|fetch failed|ECONNRESET|ECONNREFUSED|ETIMEDOUT|EAI_AGAIN|socket hang up|too many clients|max clients|terminating connection|could not connect|bad gateway|service unavailable|gateway time/i;
+
+export function ehFalhaPassageira(motivo: string): boolean {
+  return FALHA_PASSAGEIRA.test(motivo);
+}
+
+/** O desfecho que faz a rota responder 503, para a Meta entregar o aviso de novo. */
+export const DESFECHO_PASSAGEIRO = "failed_transient";
+
+/** Os avisos que a rota acabou de aplicar pedem re-entrega? Pura. */
+export function pedeReentrega(desfechos: readonly string[]): boolean {
+  return desfechos.includes(DESFECHO_PASSAGEIRO);
+}
+
+const ESPERAS_DA_NOVA_TENTATIVA_MS = [400, 1200] as const;
+const esperar = (ms: number) => new Promise<void>((ok) => setTimeout(ok, ms));
+
 export async function aplicarEventoDaMeta(
   admin: SupabaseClient,
   e: MetaWebhookEvent,
@@ -27,20 +57,32 @@ export async function aplicarEventoDaMeta(
   if (e.kind === "inbound_message" || e.kind === "outbound_echo") {
     // A organização vem de quem resolveu a sessão, nunca do corpo: é a mesma
     // fonte que decide onde os dois updates abaixo escrevem (issue #236).
-    const r =
+    const ingerir = () =>
       e.kind === "inbound_message"
-        ? await ingestMetaInbound(admin, e, { organizationId: session.organizationId })
-        : await ingestMetaEcho(admin, e, { organizationId: session.organizationId });
+        ? ingestMetaInbound(admin, e, { organizationId: session.organizationId })
+        : ingestMetaEcho(admin, e, { organizationId: session.organizationId });
+    let r = await ingerir();
+    // Falha PASSAGEIRA (banco sem conexão livre, rede) se tenta de novo aqui mesmo: a ingestão é
+    // idempotente pela `external_id`, e a espera é curta para a Meta não desistir da chamada.
+    for (const espera of ESPERAS_DA_NOVA_TENTATIVA_MS) {
+      if (r.status !== "failed" || !ehFalhaPassageira(r.reason)) break;
+      await esperar(espera);
+      r = await ingerir();
+    }
     if (r.status === "failed" || r.status === "no_session") {
-      // 2xx continua (a Meta re-entregaria em loop), mas a falha NÃO fica muda:
-      // vai ao log estruturado e ao corpo da resposta.
+      const passageira = r.status === "failed" && ehFalhaPassageira(r.reason);
+      // Falha definitiva segue 2xx (a Meta re-entregaria em loop o que nunca vai entrar), mas NÃO
+      // fica muda: vai ao log estruturado e ao corpo da resposta. A passageira é devolvida como
+      // `failed_transient`, e a rota responde 503 para a Meta entregar de novo.
       logger.error("[meta.ingest] mensagem não ingerida", {
         kind: e.kind,
         status: r.status,
         reason: r.status === "failed" ? r.reason : undefined,
+        vai_pedir_reentrega: passageira,
         external_id: e.externalId,
         phone_number_id: e.phoneNumberId,
       });
+      if (passageira) return DESFECHO_PASSAGEIRO;
     }
     return r.status;
   }
