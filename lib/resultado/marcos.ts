@@ -115,6 +115,17 @@ export interface ResultadoDaRodada {
   marcos: number;
   /** Ainda há mensagens depois deste lote — a próxima rodada continua. */
   haMais: boolean;
+  /**
+   * Os links de pagamento que SAÍRAM neste lote. Quem roda a rotina decide o que fazer com eles
+   * (reportar o passo à plataforma de anúncio); este módulo só reconhece e grava o marco.
+   */
+  linksDePagamento: LinkDePagamentoEnviado[];
+}
+
+export interface LinkDePagamentoEnviado {
+  organizationId: string;
+  contactId: string;
+  em: string;
 }
 
 /**
@@ -148,16 +159,22 @@ export async function classificarNovasMensagens(db: SupabaseClient): Promise<Res
     (m) => m.created_at > cursor.last_created_at || m.id > cursor.last_event_id,
   );
   const lote = todas.slice(0, LOTE);
-  if (lote.length === 0) return { lidas: 0, marcos: 0, haMais: false };
+  if (lote.length === 0) return { lidas: 0, marcos: 0, haMais: false, linksDePagamento: [] };
 
   const frasesPorOrg = new Map<string, string[]>();
   const linhas: Record<string, unknown>[] = [];
+  const linksDePagamento: LinkDePagamentoEnviado[] = [];
   for (const m of lote) {
     if (!m.conversation_id) continue;
     let frases = frasesPorOrg.get(m.organization_id);
     if (!frases) {
       frases = m.direction === "inbound" ? await frasesDaOrganizacao(db, m.organization_id) : [];
       if (m.direction === "inbound") frasesPorOrg.set(m.organization_id, frases);
+    }
+    // O link é lido direto do corpo, e não da categoria do marco: quando a mesma mensagem diz o
+    // preço E traz o link, o marco sai como "preço" — e o link foi enviado do mesmo jeito.
+    if (m.direction === "outbound" && m.contact_id && LINK_DE_PAGAMENTO.test(m.body ?? "")) {
+      linksDePagamento.push({ organizationId: m.organization_id, contactId: m.contact_id, em: m.sent_at ?? m.created_at });
     }
     for (const marco of marcosDaMensagem(m, frases)) {
       linhas.push({
@@ -187,5 +204,5 @@ export async function classificarNovasMensagens(db: SupabaseClient): Promise<Res
   );
   if (erroAvanco) throw new Error(`marcos: cursor não avançou: ${erroAvanco.message}`);
 
-  return { lidas: lote.length, marcos: linhas.length, haMais: todas.length > LOTE };
+  return { lidas: lote.length, marcos: linhas.length, haMais: todas.length > LOTE, linksDePagamento };
 }
