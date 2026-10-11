@@ -6,6 +6,7 @@ import { AgendaDeferredError } from "@/lib/agenda/protecao-followup";
 import { avisarRespostaDeCasoObsoleto } from "@/lib/atendimento/aviso-caso-obsoleto";
 import { withServiceJob } from "@/lib/atendimento/fronteira-server";
 import { StaleServiceBoundaryError } from "@/lib/atendimento/fronteira";
+import { AgentVersionReplacedError } from "@/lib/ai/agents/operation";
 /**
  * Worker 24/7 do agent-engine (fusão Vendaval → DeskcommCRM) — o processo
  * long-running que o CRM não tinha: fila durável, cron/follow-up, drain do
@@ -508,6 +509,25 @@ export async function startWorker(
             claimOfJob(job)?.acquired_at ?? null,
           ],
         );
+        return;
+      }
+      // Versão do agente trocada no meio do turno: a pessoa escreveu e continua esperando. O turno
+      // volta para a fila (com as tentativas e a espera normais dela) e roda de novo na versão nova.
+      // Só o turno de resposta: retomada e entrega têm dono próprio para o próprio reagendamento.
+      if (err instanceof AgentVersionReplacedError && job.kind === "inbound_turn") {
+        log.warn("versão do agente trocada no meio do turno — o turno volta para a fila", {
+          job_id: job.id,
+          kind: job.kind,
+        });
+        try {
+          await failJob(pool, job.id, workerId, err, claimOfJob(job)?.acquired_at);
+        } catch (failErr) {
+          log.error("disposição do job indisponível — lease expira via reaper", {
+            job_id: job.id,
+            error: errMsg(failErr),
+          });
+          Sentry.captureException(failErr);
+        }
         return;
       }
       const terminal = err instanceof StaleServiceBoundaryError || ehVetoPermanenteDeNegocio(err);
