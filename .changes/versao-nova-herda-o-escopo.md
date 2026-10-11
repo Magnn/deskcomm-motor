@@ -14,5 +14,5 @@ Agora o que não vem no pedido é mantido da versão anterior. Quem quiser tirar
 funis ou todos os materiais continua podendo: basta mandar a lista vazia. Pela tela
 nada muda — ela sempre enviou os dois campos.
 
-Um agente que já perdeu o funil ou os materiais dessa forma **não é corrigido
-sozinho**: abra a configuração dele, marque de novo os funis e os materiais e publique.
+Um agente que já perdeu o funil ou os materiais dessa forma não é corrigido sozinho:
+abra a configuração dele, marque de novo os funis e os materiais e publique.
