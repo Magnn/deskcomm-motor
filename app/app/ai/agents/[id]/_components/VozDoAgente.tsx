@@ -212,6 +212,7 @@ export function VozDoAgente({ agentId, config, active, readOnly }: Props) {
           {(
             [
               ["mirror", t("Só quando a pessoa mandar áudio")],
+              ["mirror_long", t("Só quando a pessoa mandar áudio e a resposta for longa")],
               ["moments", t("Também nas respostas longas (as explicações)")],
             ] as const
           ).map(([valor, rotulo]) => (
@@ -227,7 +228,7 @@ export function VozDoAgente({ agentId, config, active, readOnly }: Props) {
               {rotulo}
             </label>
           ))}
-          {(form.mode ?? "mirror") === "moments" ? (
+          {(form.mode ?? "mirror") !== "mirror" ? (
             <div className="flex flex-col gap-1 pl-6">
               <Label htmlFor="voz-min-chars">{t("Falar a partir de quantos caracteres")}</Label>
               <Input
@@ -240,9 +241,13 @@ export function VozDoAgente({ agentId, config, active, readOnly }: Props) {
                 disabled={readOnly}
               />
               <p className="text-xs text-muted-foreground">
-                {t(
-                  "Respostas curtas seguem em texto; as mais longas (uma leitura, uma explicação) saem em áudio mesmo que a pessoa esteja escrevendo. Link e emoji não contam.",
-                )}
+                {form.mode === "mirror_long"
+                  ? t(
+                      "Quando a pessoa mandar áudio, só as respostas mais longas (uma leitura, uma explicação) saem em áudio; as curtas seguem em texto. Link e emoji não contam.",
+                    )
+                  : t(
+                      "Respostas curtas seguem em texto; as mais longas (uma leitura, uma explicação) saem em áudio mesmo que a pessoa esteja escrevendo. Link e emoji não contam.",
+                    )}
               </p>
             </div>
           ) : null}

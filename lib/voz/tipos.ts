@@ -116,11 +116,18 @@ export const MIME_DA_NOTA_DE_VOZ = "audio/ogg;codecs=opus";
  *    mesmo que a pessoa esteja escrevendo. A decisão é determinística, pelo
  *    tamanho: nenhum marcador no prompt, então não há como um "[voz]" vazar para
  *    a pessoa.
+ *  - `mirror_long`: o espelho, mas SÓ nas respostas longas. A pessoa mandou áudio e a agente tem
+ *    algo a explicar (uma leitura, a oferta): sai falado. O "tá bom, meu bem" de uma linha sai
+ *    escrito. Medido em produção de 06 a 11/10/2026: no espelho puro foram 14 áudios por conversa,
+ *    e a voz custou quase o mesmo que toda a IA de texto, usada em 7% das conversas.
+ *
+ * `reserva`: o provedor que assume quando o principal acusa cota esgotada
+ * (`limite_do_provedor`). Sem ela, a resposta cai para texto, como sempre caiu.
  */
 export const voiceReplySchema = z.object({
   enabled: z.boolean().default(false),
-  mode: z.enum(["mirror", "moments"]).default("mirror"),
-  /** Só vale em `moments`: a fala (sem link e emoji) precisa ter pelo menos isto. */
+  mode: z.enum(["mirror", "moments", "mirror_long"]).default("mirror"),
+  /** Vale em `moments` e em `mirror_long`: a fala (sem link e emoji) precisa ter pelo menos isto. */
   min_chars_for_voice: z.number().int().min(80).max(1500).default(240),
   provider: z.enum(IDS_DE_PROVEDOR_DE_VOZ),
   voice_id: z.string().trim().min(1).max(120),
@@ -140,6 +147,17 @@ export const voiceReplySchema = z.object({
   style_instructions: z.string().trim().max(400).optional(),
   /** Acima disto o texto vira mais de uma nota — nota longa demais ninguém ouve. */
   max_chars_per_note: z.number().int().min(100).max(1500).default(700),
+  /** Quem fala quando o provedor principal fica sem cota. */
+  reserva: z
+    .object({
+      provider: z.enum(IDS_DE_PROVEDOR_DE_VOZ),
+      voice_id: z.string().trim().min(1).max(120),
+      voice_name: z.string().trim().max(120).optional(),
+      model: z.string().trim().max(80).optional(),
+      speed: z.number().min(0.7).max(1.2).optional(),
+      style_instructions: z.string().trim().max(400).optional(),
+    })
+    .optional(),
 });
 export type VoiceReplyConfig = z.infer<typeof voiceReplySchema>;
 
