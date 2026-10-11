@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import {
   escolherFluxoPelaMensagem,
+  etiquetaDoFluxo,
   esquecerFluxosDePalavraChave,
   fluxosDePalavraChaveAtivos,
   fluxosDePalavraChaveDe,
@@ -56,6 +57,19 @@ describe("escolherFluxoPelaMensagem", () => {
   });
 });
 
+describe("etiquetaDoFluxo", () => {
+  it("⭐ o nome do fluxo vira a etiqueta de quem entrou por ele", () => {
+    expect(etiquetaDoFluxo("TAROT RAPIDO")).toBe("fluxo:tarot-rapido");
+    expect(etiquetaDoFluxo("  Tarô sem Mistério — oferta 2 ")).toBe("fluxo:taro-sem-misterio-oferta-2");
+  });
+
+  it("nome que não deixa nada depois de limpo não vira etiqueta", () => {
+    expect(etiquetaDoFluxo("🔮✨")).toBeNull();
+    expect(etiquetaDoFluxo(null)).toBeNull();
+    expect(etiquetaDoFluxo(undefined)).toBeNull();
+  });
+});
+
 describe("fluxosDePalavraChaveDe", () => {
   it("só entra fluxo cuja caixa Início é WhatsApp + palavra-chave preenchida", () => {
     const lista = fluxosDePalavraChaveDe([
@@ -99,12 +113,12 @@ describe("fluxosDePalavraChaveAtivos", () => {
     return { admin, chamadas, filtros };
   }
 
-  const ponteiros = [{ id: "p1", active_version_id: "v1" }];
+  const ponteiros = [{ id: "p1", name: "TAROT RAPIDO", active_version_id: "v1" }];
   const versoes = [{ id: "v1", graph: grafo({ integration: "whatsapp", event: "keyword", keyword: "quero tarot sem misterio" }) }];
 
   it("⭐ lê só fluxo ATIVO, PUBLICADO e de follow-up, sempre com a organização nos dois passos", async () => {
     const b = banco({ ponteiros, versoes });
-    expect(await fluxosDePalavraChaveAtivos(b.admin, ORG, 1_000)).toEqual([{ pointerId: "p1", palavra: "quero tarot sem misterio" }]);
+    expect(await fluxosDePalavraChaveAtivos(b.admin, ORG, 1_000)).toEqual([{ pointerId: "p1", palavra: "quero tarot sem misterio", nome: "TAROT RAPIDO" }]);
     expect(b.filtros).toContainEqual(["followup_flow_pointers", "eq:organization_id", ORG]);
     expect(b.filtros).toContainEqual(["followup_flow_pointers", "eq:status", "active"]);
     expect(b.filtros).toContainEqual(["followup_flow_pointers", "eq:surface", "followup"]);
