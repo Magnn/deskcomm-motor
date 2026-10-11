@@ -138,24 +138,54 @@ const ALL_KINDS: Array<{
   { type: "sticker", label: "Sticker", Icon: ({ className }) => <Smiley size={17} className={className} /> },
 ];
 
+let contadorDeCards = 0;
+const novoId = () => `c${contadorDeCards++}`;
+
 export function ConteudoItemsEditor({ flowId, items, onChange, disabled }: Props) {
   const t = useT();
 
-  const atualizar = (i: number, item: ConteudoItem) =>
-    onChange(items.map((it, idx) => (idx === i ? item : it)));
+  /**
+   * Cada card tem uma identidade que o acompanha quando a lista muda. Com
+   * `key={índice}` o estado de um card (o envio em curso, por exemplo) ficava
+   * preso à POSIÇÃO: duplicar, remover ou mover outro card no meio de um envio
+   * fazia o "Enviando…" aparecer no card errado e o arquivo cair em outro.
+   * Os itens não carregam id (o schema é estrito), então a lista de ids vive
+   * aqui, em paralelo, e anda junto em toda operação.
+   */
+  const [ids, setIds] = React.useState<string[]>(() => items.map(novoId));
+  // A lista foi trocada por fora (outro nó aberto, config recarregada).
+  if (ids.length !== items.length) setIds(items.map(novoId));
+
+  // O que vale AGORA — quem responde depois de um `await` (fim de upload,
+  // transcrição) não pode gravar por cima da lista de quando começou.
+  const itemsRef = React.useRef(items);
+  const idsRef = React.useRef(ids);
+  React.useLayoutEffect(() => {
+    itemsRef.current = items;
+    idsRef.current = ids;
+  });
+
+  const atualizar = (id: string, item: ConteudoItem) => {
+    const i = idsRef.current.indexOf(id);
+    if (i < 0) return; // o card foi removido enquanto a resposta vinha
+    onChange(itemsRef.current.map((it, idx) => (idx === i ? item : it)));
+  };
 
   const remover = (i: number) => {
-    const next = items.filter((_, idx) => idx !== i);
-    onChange(next);
+    setIds(ids.filter((_, idx) => idx !== i));
+    onChange(items.filter((_, idx) => idx !== i));
   };
 
   const mover = (de: number, para: number) => {
     if (de === para || para < 0 || para >= items.length) return;
-    const next = [...items];
-    const [movido] = next.splice(de, 1);
-    if (!movido) return;
-    next.splice(para, 0, movido);
-    onChange(next);
+    const reordenar = <T,>(lista: T[]): T[] => {
+      const next = [...lista];
+      const [movido] = next.splice(de, 1);
+      next.splice(para, 0, movido as T);
+      return next;
+    };
+    setIds(reordenar(ids));
+    onChange(reordenar(items));
   };
 
   const aoSoltar = (r: DropResult) => {
@@ -168,11 +198,15 @@ export function ConteudoItemsEditor({ flowId, items, onChange, disabled }: Props
     const next = [...items];
     const clone = JSON.parse(JSON.stringify(items[i])) as ConteudoItem;
     next.splice(i + 1, 0, clone);
+    const nextIds = [...ids];
+    nextIds.splice(i + 1, 0, novoId());
+    setIds(nextIds);
     onChange(next);
   };
 
   const adicionar = (type: ConteudoItemType) => {
     if (items.length >= MAX_CONTEUDO_ITEMS) return;
+    setIds([...ids, novoId()]);
     onChange([...items, itemPadrao(type)]);
   };
 
@@ -249,7 +283,7 @@ export function ConteudoItemsEditor({ flowId, items, onChange, disabled }: Props
                       arrastando
                       alca={arraste.dragHandleProps}
                       podeDuplicar={!atMax}
-                      onUpdate={(next) => atualizar(i, next)}
+                      onUpdate={(next) => atualizar(ids[i] ?? "", next)}
                       onDuplicate={() => duplicar(i)}
                       onRemove={() => remover(i)}
                     />
@@ -264,10 +298,12 @@ export function ConteudoItemsEditor({ flowId, items, onChange, disabled }: Props
                   {...lista.droppableProps}
                   className="flex flex-col mt-0.5"
                 >
-                  {items.map((item, i) => (
+                  {items.map((item, i) => {
+                    const id = ids[i] ?? `sem-id-${i}`;
+                    return (
                     <Draggable
-                      key={i}
-                      draggableId={`conteudo-item-${i}`}
+                      key={id}
+                      draggableId={id}
                       index={i}
                       isDragDisabled={disabled || items.length < 2}
                     >
@@ -280,14 +316,15 @@ export function ConteudoItemsEditor({ flowId, items, onChange, disabled }: Props
                             disabled={disabled}
                             alca={items.length < 2 ? null : arraste.dragHandleProps}
                             podeDuplicar={!atMax}
-                            onUpdate={(next) => atualizar(i, next)}
+                            onUpdate={(next) => atualizar(id, next)}
                             onDuplicate={() => duplicar(i)}
                             onRemove={() => remover(i)}
                           />
                         </div>
                       )}
                     </Draggable>
-                  ))}
+                    );
+                  })}
                   {lista.placeholder}
                 </div>
               )}
@@ -559,6 +596,40 @@ function ItemCard({
   );
 }
 
+/**
+ * O envio em curso, à vista: quanto já foi e como desistir. Sem isto o card
+ * dizia só "Enviando…" — igual para 1 segundo ou para um envio que nunca ia
+ * terminar.
+ */
+function EnvioEmCurso({ upload }: { upload: ReturnType<typeof useUploadFlowContentMedia> }) {
+  const t = useT();
+  if (!upload.isPending) return null;
+  const porcento = upload.progresso ?? 0;
+  return (
+    <div className="flex items-center gap-2" data-testid="conteudo-envio-em-curso">
+      <div
+        role="progressbar"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={porcento}
+        aria-label={t("Enviando…")}
+        className="h-1.5 flex-1 overflow-hidden rounded-full bg-[#e2e8f0]"
+      >
+        <div className="h-full rounded-full bg-[#2563eb] transition-[width] duration-200" style={{ width: `${porcento}%` }} />
+      </div>
+      <span className="w-9 text-right text-[11px] tabular-nums text-text-subtle">{porcento}%</span>
+      <button
+        type="button"
+        onClick={upload.cancelar}
+        data-testid="conteudo-envio-cancelar"
+        className="text-[11px] font-semibold text-cat-red hover:underline cursor-pointer"
+      >
+        {t("Cancelar")}
+      </button>
+    </div>
+  );
+}
+
 function AudioCardBody({
   flowId,
   item,
@@ -573,6 +644,10 @@ function AudioCardBody({
   const t = useT();
   const upload = useUploadFlowContentMedia();
   const inputRef = React.useRef<HTMLInputElement>(null);
+  const itemAtual = React.useRef(item);
+  React.useLayoutEffect(() => {
+    itemAtual.current = item;
+  });
 
   const transcricao = useTranscribeFlowAudio();
 
@@ -599,8 +674,9 @@ function AudioCardBody({
   const onPick = async (file: File) => {
     try {
       const r = await upload.mutateAsync({ flowId, file });
-      // Arquivo novo: a transcrição antiga não vale mais.
-      const { transcript: _antiga, ...semTranscricao } = item;
+      // Arquivo novo: a transcrição antiga não vale mais. `itemAtual`, não
+      // `item`: o que foi editado no card durante o envio continua valendo.
+      const { transcript: _antiga, ...semTranscricao } = itemAtual.current;
       const novo = { ...semTranscricao, storage_path: r.storage_path, mime: r.media_mime, filename: file.name };
       onChange(novo);
       // Em silêncio quando falta chave: quem só quer enviar o áudio não precisa de aviso.
@@ -649,6 +725,7 @@ function AudioCardBody({
           {upload.isPending ? t("Enviando…") : temArquivo ? t("Trocar áudio") : t("Enviar áudio")}
         </button>
       </div>
+      <EnvioEmCurso upload={upload} />
 
       {/*
         "Enviar como áudio gravado?" — GRAVADO no item (`voice_note`) e respeitado
@@ -752,6 +829,10 @@ function MediaSection({
   const t = useT();
   const upload = useUploadFlowContentMedia();
   const inputRef = React.useRef<HTMLInputElement>(null);
+  const itemAtual = React.useRef(item);
+  React.useLayoutEffect(() => {
+    itemAtual.current = item;
+  });
   const temArquivo = (item.storage_path ?? "").trim() !== "";
   // Origem por LINK (ou variável que guarda um link): gravada em `url`, e o motor
   // baixa na hora do envio. Figurinha não tem — precisa ser convertida aqui.
@@ -795,9 +876,11 @@ function MediaSection({
     }
     try {
       const r = await upload.mutateAsync({ flowId, file, ...(item.type === "sticker" ? { as: "sticker" as const } : {}) });
-      const { url: _link, ...semLink } = item as typeof item & { url?: string };
+      // `itemAtual`, não `item`: a legenda digitada durante o envio continua valendo.
+      const agora = itemAtual.current;
+      const { url: _link, ...semLink } = agora as typeof agora & { url?: string };
       const base = { ...semLink, storage_path: r.storage_path, mime: r.media_mime };
-      onChange(item.type === "document" ? ({ ...base, filename: file.name } as ConteudoItem) : (base as ConteudoItem));
+      onChange(agora.type === "document" ? ({ ...base, filename: file.name } as ConteudoItem) : (base as ConteudoItem));
     } catch {
       // tratado pelo hook
     }
@@ -992,6 +1075,8 @@ function MediaSection({
           </button>
         </div>
       )}
+
+      <EnvioEmCurso upload={upload} />
 
       {/* Legenda: só nos tipos em que o canal tem legenda (figurinha não tem). */}
       {item.type !== "sticker" && (
