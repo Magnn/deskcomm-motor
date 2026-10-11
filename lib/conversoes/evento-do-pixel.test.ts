@@ -15,6 +15,7 @@ const leituras = vi.hoisted(() => ({
   } as unknown,
   credencial: { ok: true, credencial: { datasetId: "dataset-da-conexao", accessToken: "tok", testEventCode: null } } as unknown,
   envio: { tipo: "ok" } as unknown,
+  destino: { ok: true, destino: { datasetId: "do-canal", accessToken: "token-do-canal", contaDoWhatsApp: "waba-1" } } as unknown,
 }));
 
 const enviar = vi.hoisted(() => vi.fn());
@@ -23,6 +24,7 @@ const registraEnvio = vi.hoisted(() => vi.fn(async () => undefined));
 vi.mock("./leitura-da-atribuicao", () => ({ lerAtribuicao: async () => leituras.atribuicao }));
 vi.mock("./registro-de-envio", () => ({ jaFoiEnviada: async () => leituras.jaEnviada, registraEnvio }));
 vi.mock("@/lib/plataformas-de-anuncio/credenciais", () => ({ lerCredencial: async () => leituras.credencial }));
+vi.mock("./destino-de-mensageria", () => ({ lerDestinoDeMensageria: async () => leituras.destino }));
 vi.mock("@/lib/plataformas-de-anuncio/registry", () => ({ transporteDe: () => ({ plataforma: "meta_ads", enviar }) }));
 vi.mock("@/lib/logger", () => ({ logger: { warn: vi.fn(), info: vi.fn(), error: vi.fn() } }));
 
@@ -52,6 +54,7 @@ beforeEach(() => {
   leituras.jaEnviada = false;
   leituras.atribuicao = { temAtribuicao: true, atribuicao: { plataforma: "meta_ads", cliqueDeOrigem: "clid-1", telefone: "5511999990000" } };
   leituras.credencial = { ok: true, credencial: { datasetId: "dataset-da-conexao", accessToken: "tok", testEventCode: null } };
+  leituras.destino = { ok: true, destino: { datasetId: "do-canal", accessToken: "token-do-canal", contaDoWhatsApp: "waba-1" } };
   enviar.mockReset().mockResolvedValue({ tipo: "ok" });
   registraEnvio.mockClear();
 });
@@ -79,11 +82,23 @@ describe("reportarEventoDoPixel", () => {
     expect(registraEnvio).toHaveBeenCalledWith(admin, expect.objectContaining({ status: "sent", evento: "Purchase", leadId: "lead-1" }));
   });
 
-  it("o pixel do nó vale mais que o conjunto de dados da conexão", async () => {
-    await reportarEventoDoPixel(admin, pedido({ pixel_id: "  pixel-do-no " }));
-    expect(enviar.mock.calls[0]![0]).toMatchObject({ datasetId: "pixel-do-no" });
+  it("⭐ o destino é o do CANAL: conjunto de dados da conta, token do canal e a conta declarada", async () => {
     await reportarEventoDoPixel(admin, pedido({ pixel_id: "" }));
-    expect(enviar.mock.calls[1]![0]).toMatchObject({ datasetId: "dataset-da-conexao" });
+    const [credencial, conversao] = enviar.mock.calls[0]!;
+    expect(credencial).toMatchObject({ datasetId: "do-canal", accessToken: "token-do-canal" });
+    expect(conversao).toMatchObject({ contaDoWhatsApp: "waba-1" });
+  });
+
+  it("⭐ pixel escrito no nó não escolhe mais o destino, e o livro-razão diz que foi ignorado", async () => {
+    await reportarEventoDoPixel(admin, pedido({ pixel_id: "  pixel-do-no " }));
+    expect(enviar.mock.calls[0]![0]).toMatchObject({ datasetId: "do-canal" });
+    expect((registraEnvio.mock.calls.at(-1) as unknown[])[1]).toMatchObject({ status: "sent", detalhe: expect.stringContaining("pixel-do-no") });
+  });
+
+  it("⭐ conversa fora de canal oficial: pendência com nome, nada enviado", async () => {
+    leituras.destino = { ok: false, motivo: "sem_conta_do_whatsapp" };
+    expect(await reportarEventoDoPixel(admin, pedido())).toEqual({ status: "skipped", motivo: "sem_conta_do_whatsapp" });
+    expect(enviar).not.toHaveBeenCalled();
   });
 
   it("evento que não é compra sai SEM valor quando o nó não informa — nunca value 0", async () => {
