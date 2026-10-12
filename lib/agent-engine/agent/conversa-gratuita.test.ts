@@ -101,3 +101,14 @@ describe('resposta a uma pergunta de pagamento', () => {
     expect(silencioPorConversaGratuita([...longa, aviso, m('inbound', 'queria desabafar')], 2)).toBe(true);
   });
 });
+
+describe('dúvida sobre a oferta é comercial', () => {
+  it('⭐ casos medidos em 12/10: quem diz que está com dúvida, que não entendeu ou pede para esperar é atendido', async () => {
+    const { silencioPorConversaGratuita } = await import('./conversa-gratuita');
+    const rodada = (texto: string) => [m('inbound', texto), AG];
+    const longa = [OFERTA, ...rodada('ele sumiu'), ...rodada('tô triste'), ...rodada('saudade'), ...rodada('não durmo')];
+    for (const fala of ['To com dúvida', 'Nao sei e que nao entendo', 'Vc pode espera', 'como funciona isso']) {
+      expect(silencioPorConversaGratuita([...longa, m('inbound', fala)], 2), fala).toBe(false);
+    }
+  });
+});

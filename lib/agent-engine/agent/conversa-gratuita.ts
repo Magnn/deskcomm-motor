@@ -35,7 +35,7 @@ const PRECO_DITO = /R\$\s?\d|\b\d+(?:[.,]\d+)?\s*reais?\b/i;
  * quem pergunta isso compra mais do que quem diz "ok".
  */
 const COMERCIAL =
-  /\d|\bpag|\bpix\b|\bvalor|\bquanto\b|\bpre[çc]o|\breais\b|r\$|\blink\b|\bcart[ãa]o|\bparcel|\bquero\b|\baceito\b|pode\s+mandar|\breceb|\bsal[áa]rio|\bboleto|comprovante|\bdinheiro|\bdesconto|\bentrada\b|\brestante|\bcomprar|\bcontrat|\bfa[çc]o\b|\bcomo (eu )?fa[çc]o|\bfunciona|\bgolpe|\bgarant|\bconfi[aáo]|\bseguro\b|\benganad|\btrabalho|\brito\b|\bresultado|\bdemora|\bquanto tempo|\bpergunta|\bacompanhamento|\[(?:image|imagem|foto|document|documento|arquivo)|o cliente enviou uma m[íi]dia/i;
+  /\d|d[úu]vida|n[ãa]o\s+entend|como\s+funciona|\besper(?:a|ar|e)\b|\bpag|\bpix\b|\bvalor|\bquanto\b|\bpre[çc]o|\breais\b|r\$|\blink\b|\bcart[ãa]o|\bparcel|\bquero\b|\baceito\b|pode\s+mandar|\breceb|\bsal[áa]rio|\bboleto|comprovante|\bdinheiro|\bdesconto|\bentrada\b|\brestante|\bcomprar|\bcontrat|\bfa[çc]o\b|\bcomo (eu )?fa[çc]o|\bfunciona|\bgolpe|\bgarant|\bconfi[aáo]|\bseguro\b|\benganad|\btrabalho|\brito\b|\bresultado|\bdemora|\bquanto tempo|\bpergunta|\bacompanhamento|\[(?:image|imagem|foto|document|documento|arquivo)|o cliente enviou uma m[íi]dia/i;
 
 /** Sinal de risco à vida ou de violência: aqui o limite nunca vale. */
 const RISCO =
