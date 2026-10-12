@@ -67,6 +67,8 @@ interface Formulario {
   /** Relatório sob medida de cada cobrança (por nome) e o modelo que o escreve: sem campo na tela, atravessam o formulário intactos. */
   relatorios?: Record<string, NonNullable<NonNullable<PricingConfig["extras"]>[number]["report"]>>;
   modeloDoRelatorio?: string;
+  /** Cobrança só pelo provedor conectado: ainda sem controle na tela, atravessa o formulário intacta. */
+  soPeloProvedor?: boolean;
   /** Depoimentos em áudio enviados depois do preço: ainda sem campo na tela, atravessam o formulário intactos. */
   provas?: PricingConfig["social_proof"];
   /** Quantas respostas de graça depois da oferta. Vazio = sem limite. */
@@ -138,6 +140,7 @@ function formularioInicial(config: Props["config"]): Formulario {
     ...(c.min_down_payment_cents !== undefined ? { entradaMinima: c.min_down_payment_cents } : {}),
     ...((c.extras ?? []).some((e) => e.report) ? { relatorios: Object.fromEntries((c.extras ?? []).flatMap((e) => (e.report ? [[e.name, e.report]] : []))) } : {}),
     ...(c.report_model !== undefined ? { modeloDoRelatorio: c.report_model } : {}),
+    ...(c.provider_only_checkout !== undefined ? { soPeloProvedor: c.provider_only_checkout } : {}),
     ...(c.social_proof ? { provas: c.social_proof } : {}),
     extras: (c.extras ?? []).map((e) => `${e.name} | ${emTexto(e.price_cents)} | ${e.when}${e.valid_days ? ` | ${e.valid_days}` : ""}${e.delivery ? ` | entrega: ${e.delivery}` : ""}`).join("\n"),
   };
@@ -244,6 +247,7 @@ function paraCorpo(f: Formulario): { corpo: PricingConfig } | { erro: string } {
     ...(gratuitas !== null ? { free_replies_after_offer: gratuitas } : {}),
     ...(f.entradaMinima !== undefined ? { min_down_payment_cents: f.entradaMinima } : {}),
     ...(f.modeloDoRelatorio !== undefined ? { report_model: f.modeloDoRelatorio } : {}),
+    ...(f.soPeloProvedor !== undefined ? { provider_only_checkout: f.soPeloProvedor } : {}),
     ...(f.provas ? { social_proof: f.provas } : {}),
     ...(temChave
       ? { pix_key: { key: f.chavePix.trim(), holder: f.nomeDaChavePix.trim(), ...(f.cidadeDaChavePix ? { city: f.cidadeDaChavePix } : {}) } }
