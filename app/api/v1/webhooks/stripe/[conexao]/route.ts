@@ -133,6 +133,44 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ conexao: s
       if (contato && !tags.includes(marca)) {
         await admin.from("contacts").update({ tags: [...tags, marca] }).eq("organization_id", conexao.organizationId).eq("id", contatoId);
       }
+      // Quem acabou de pagar não pode esperar escrever de novo para ser atendido: pede um turno do agente sobre a
+      // última mensagem dela (o mesmo pedido que o resgate do lead sem resposta emite). Falha aqui não desfaz o
+      // registro do pagamento.
+      try {
+        const conversaId = typeof meta.conversation_id === "string" ? meta.conversation_id : null;
+        if (conversaId !== null) {
+          const { data: ultima } = await admin
+            .from("messages")
+            .select("id, channel_session_id")
+            .eq("organization_id", conexao.organizationId)
+            .eq("conversation_id", conversaId)
+            .eq("direction", "inbound")
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          const m = ultima as { id: string; channel_session_id: string | null } | null;
+          if (m) {
+            await admin.rpc("emit_event", {
+              p_event_type: "ai_agent.dispatch_requested",
+              p_entity_kind: "message",
+              p_entity_id: m.id,
+              p_payload: {
+                organization_id: conexao.organizationId,
+                conversation_id: conversaId,
+                contact_id: contatoId,
+                channel_session_id: m.channel_session_id,
+                inbound_message_id: m.id,
+                // Sem isto o turno é pulado: a última mensagem dela quase sempre já foi respondida (com o código do Pix).
+                fato_novo: "pagamento_de_extra",
+              },
+              p_metadata: { source: "pagamento_de_extra" },
+              p_organization_id: conexao.organizationId,
+            });
+          }
+        }
+      } catch (err) {
+        logger.warn("[stripe.aviso] extra pago, mas o turno do agente não foi pedido", { requestId, error: err instanceof Error ? err.message : String(err) });
+      }
       await audit({
         action: "webhook.cakto_evento_aplicado",
         organizationId: conexao.organizationId,

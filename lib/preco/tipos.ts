@@ -141,6 +141,11 @@ export const extraSchema = z.object({
    * atendido sem nova cobrança até o fim dele (um acompanhamento de 30 dias).
    */
   valid_days: z.number().int().min(1).max(366).optional(),
+  /**
+   * Como entregar depois de pago: o que pedir à pessoa e o que fazer. Sem isto, o agente só sabe que foi pago e
+   * improvisa a entrega. Ausente = "entregue o que ela pagou, completo".
+   */
+  delivery: z.string().trim().min(5).max(600).optional(),
 });
 export type Extra = z.infer<typeof extraSchema>;
 
