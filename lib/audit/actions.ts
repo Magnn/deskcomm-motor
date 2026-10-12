@@ -125,6 +125,7 @@ export const AUDIT_ACTIONS = [
   // /conversations/:id/pagamento-recebido): marca o contato como pago e fecha o negócio com o valor.
   // É dinheiro declarado à mão — "quem disse que entrou, quanto e quando" só esta linha responde.
   "payment.manual_registered",
+  "payment.pix_sent",
   "conversation.tags_changed",
   "contact.tags_changed",
   // Fila de confirmação (spec 17 §4b): a IA PROPÕE, uma pessoa decide. As três
