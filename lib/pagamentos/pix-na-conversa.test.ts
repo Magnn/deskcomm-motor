@@ -214,3 +214,20 @@ describe("assinaturaDaStripeConfere", () => {
     expect(assinaturaDaStripeConfere(corpo, "v1=abc", segredo, agora)).toBe(false);
   });
 });
+
+describe("mensagem única (economia de mensagem cobrada) com código do Pix", () => {
+  it("⭐ o código sai sozinho mesmo quando a resposta não é dividida em balões", async () => {
+    const { splitForSend } = await import("@/lib/agent-engine/agent/split-message");
+    const corpo = `Claro, Wilson.\n\nO trabalho custa R$ 130.\n\nCopia o código abaixo.\n\n${CODIGO}\n\nSe preferir cartão: ${CEM}\n\nMe manda o comprovante.`;
+    expect(splitForSend(corpo, false, 250)).toEqual([
+      "Claro, Wilson.\n\nO trabalho custa R$ 130.\n\nCopia o código abaixo.",
+      CODIGO,
+      `Se preferir cartão: ${CEM}\n\nMe manda o comprovante.`,
+    ]);
+  });
+
+  it("sem código do Pix, a mensagem única continua única", async () => {
+    const { splitForSend } = await import("@/lib/agent-engine/agent/split-message");
+    expect(splitForSend("Oi.\n\nTudo bem?", false, 250)).toEqual(["Oi.\n\nTudo bem?"]);
+  });
+});
