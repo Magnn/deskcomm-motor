@@ -77,6 +77,7 @@ import { blocoDaRespostaAtropelada, respostaAtropelada } from './resposta-atrope
 import { blocoDaEntrada, blocoDaEntradaImediata, blocoDaPropostaDeEntrada, blocoDoValorAceito } from '@/lib/preco/bloco-da-entrada';
 import { linkDePagamentoNoCorpo, linksDePagamentoDaConfig } from '@/lib/pagamentos/pix-na-conversa';
 import { blocoDoPrecoInternacional, precoInternacionalDoContato } from '@/lib/preco/preco-internacional';
+import { blocoDaChavePix, pixPelaChaveNoLugarDaMarca, temMarcaDeChavePix } from '@/lib/preco/chave-pix';
 import { blocoDosExtras, extrasDaConfig, janelaDeLeituraDosExtras, slugDoExtra, type ExtraPago } from '@/lib/preco/extras';
 import { classificarPerdaDoAtendimento } from '@/lib/resultado/motivo-da-perda-do-agente';
 import { insertInboxItem } from '../db/repository';
@@ -2541,6 +2542,19 @@ async function executarTurnoDoAgente(
             combinadoDoTurno ?? Number.POSITIVE_INFINITY,
           )
       : undefined;
+  // PIX PELA CHAVE DA EMPRESA (`lib/preco/chave-pix.ts`): os valores que este turno pode cobrar por ela. O modelo
+  // escreve o valor na marca; o envio só aceita um destes.
+  const valoresDaChavePix: number[] =
+    preview || internacionalDoTurno !== null || !agentConfig?.pricing?.pix_key
+      ? []
+      : [
+          ...(promiseMinPriceCentsDaEscada !== undefined ? [promiseMinPriceCentsDaEscada] : []),
+          ...(entradaDoTurno !== null ? [entradaDoTurno.entradaCents] : []),
+          ...(entradaImediataDoTurno !== null ? [entradaImediataDoTurno.entradaCents] : []),
+          ...(valorAceitoDoTurno !== null ? [valorAceitoDoTurno] : []),
+          ...extrasDoTurno.map((e) => e.price_cents),
+        ];
+  const blocoDaChavePixDoTurno = blocoDaChavePix(agentConfig?.pricing?.pix_key, valoresDaChavePix);
   // Com entrada proposta, o piso do turno desce até ela: sem isso a trava vetaria o valor e o link da entrada.
   const promiseMinPriceCents =
     (entradaDoTurno ?? propostaDeEntradaDoTurno) !== null && promiseMinPriceCentsDaEscada !== undefined
@@ -2706,7 +2720,7 @@ async function executarTurnoDoAgente(
     estilo: blocoDeVariacaoDoTurno,
     fluxo: blocoDoFluxoDoTurno,
     leitura: blocoDaLeituraDoTurno,
-    preco: blocoDePrecoDoTurno + blocoDaEntradaDoTurno + blocoDosExtrasDoTurno,
+    preco: blocoDePrecoDoTurno + blocoDaEntradaDoTurno + blocoDosExtrasDoTurno + blocoDaChavePixDoTurno,
     combinado: blocoDoCombinadoDoTurno,
     entrega: blocoDaEntrega,
     atropelo: blocoDoAtropeloDoTurno,
@@ -3508,6 +3522,21 @@ async function executarTurnoDoAgente(
         // PIX NA CONVERSA (`lib/pagamentos/pix-na-conversa.ts`): o link de pagamento que o agente escolheu —
         // no valor que a escada liberou — ganha o código do Pix na frente. Sem conta de Pix conectada, ou em
         // qualquer falha, o corpo segue como veio.
+        // A CHAVE PIX DA EMPRESA: a marca `[[CHAVE PIX: valor]]` vira o código, a chave e o nome. Marca sem chave
+        // configurada, com valor não liberado ou mal escrita recusa o envio: marca crua não chega à pessoa.
+        if (!preview && temMarcaDeChavePix(body)) {
+          const comChave = pixPelaChaveNoLugarDaMarca({
+            corpo: body,
+            chave: agentConfig?.pricing?.pix_key,
+            valoresPermitidosCents: valoresDaChavePix,
+            identificador: input.conversationId.replace(/-/g, '').slice(0, 20),
+          });
+          if ('recusa' in comChave) {
+            return { ok: false, error: { code: 'chave_pix_indisponivel', message: comChave.recusa } };
+          }
+          runLog.info('pix pela chave da empresa enviado', { conversation_id: input.conversationId });
+          body = comChave.corpo;
+        }
         // A ENTRADA NO VALOR QUE A PESSOA DISSE: a marca `[[PIX: Entrada]]` vira o Pix desse valor. Só no turno que
         // autorizou a entrada; fora dele a marca cai na conferência das cobranças avulsas e o envio é recusado.
         if (!preview && entradaImediataDoTurno !== null && agentConfig?.pricing && temMarcaDaEntrada(body)) {

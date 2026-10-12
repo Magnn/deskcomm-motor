@@ -177,6 +177,18 @@ export const pricingSchema = z
      * da escada. A entrada paga inicia a entrega do produto inteiro, então este é o menor valor por que ele sai.
      */
     min_down_payment_cents: centavos.optional(),
+    /**
+     * A chave Pix da própria empresa, para quem pede "o número da chave" (`lib/preco/chave-pix.ts`). O dinheiro cai
+     * direto na conta, mas a confirmação é manual. Ausente = só o Pix do provedor.
+     */
+    pix_key: z
+      .object({
+        key: z.string().trim().min(5).max(80),
+        /** O nome de quem recebe, como aparece no banco. */
+        holder: z.string().trim().min(2).max(60),
+        city: z.string().trim().max(30).optional(),
+      })
+      .optional(),
     /** Do maior para o menor; o último é o mínimo. */
     steps: z.array(degrauDeNegociacaoSchema).max(MAX_DEGRAUS).default([]),
     /** O que oferecer a quem já comprou. Ausente = a agente não faz segunda oferta. */
