@@ -56,3 +56,38 @@ describe("blocoDaEntrada", () => {
     expect(blocoDaEntrada(null, { entradaCents: 5000, restanteCents: 8000 })).toBe("");
   });
 });
+
+describe("entradaAPropor — antes do desconto, a agente propõe entrada + restante", () => {
+  it("⭐ ela disse quanto tem e não falou de data: propõe a entrada, sem mexer no valor da venda", async () => {
+    const { entradaAPropor } = await import("./estado-da-negociacao");
+    const conversa = [PRECO, m("inbound", "Desculpa não tenho esse valor"), m("inbound", "Tenho apenas 50 reais")];
+    expect(entradaAPropor(PRICING, conversa)).toEqual({ entradaCents: 5000, restanteCents: 8000 });
+  });
+
+  it("proposta feita uma vez: se a agente já falou do restante e ela não deu data, a escada segue", async () => {
+    const { entradaAPropor } = await import("./estado-da-negociacao");
+    const conversa = [
+      PRECO,
+      m("inbound", "Tenho apenas 50 reais"),
+      m("outbound", "Você entra com R$ 50 hoje e o restante de R$ 80 fica para um dia bom. Que dia?"),
+      m("inbound", "não vou ter como pagar o resto, só tenho 50 mesmo"),
+    ];
+    expect(entradaAPropor(PRICING, conversa)).toBeNull();
+  });
+
+  it("com a data dita, quem responde é a entrada fechada, não a proposta", async () => {
+    const { entradaAPropor } = await import("./estado-da-negociacao");
+    const conversa = [PRECO, m("inbound", "tenho 50 reais hoje e o resto dia 30")];
+    expect(entradaAPropor(PRICING, conversa)).toBeNull();
+    expect(entradaComRestante(PRICING, conversa)).toEqual({ entradaCents: 5000, restanteCents: 8000 });
+  });
+
+  it("o bloco manda perguntar o dia e não enviar link ainda", async () => {
+    const { blocoDaPropostaDeEntrada } = await import("./bloco-da-entrada");
+    const bloco = blocoDaPropostaDeEntrada({ entradaCents: 5000, restanteCents: 8000 });
+    expect(bloco).toMatch(/R\$\s?50 hoje e o restante de R\$\s?80/);
+    expect(bloco).toContain("Que dia fica bom");
+    expect(bloco).toContain("NÃO envie link");
+    expect(blocoDaPropostaDeEntrada(null)).toBe("");
+  });
+});

@@ -36,3 +36,23 @@ export function blocoDaEntrada(
     `NÃO chame a equipe humana por causa disto.`,
   ].join("\n");
 }
+
+/**
+ * O bloco do turno em que a pessoa disse quanto tem hoje e ainda não falou de data (`entradaAPropor`):
+ * a agente propõe entrada + restante ANTES de qualquer desconto. O valor da venda não muda.
+ */
+export function blocoDaPropostaDeEntrada(entrada: { entradaCents: number; restanteCents: number } | null): string {
+  if (entrada === null) return "";
+  const e = reais(entrada.entradaCents);
+  const r = reais(entrada.restanteCents);
+  return [
+    "",
+    "",
+    `PROPONHA ENTRADA + RESTANTE (ESTE BLOCO VENCE O DESCONTO DO BLOCO DE PREÇO NESTE TURNO)`,
+    `A pessoa disse quanto tem hoje. NÃO ofereça desconto agora e NÃO ofereça cartão. Proponha, em 2 balões:`,
+    `1. "Dá pra fazer assim, [nome]: você entra com ${e} hoje e o restante de ${r} fica para um dia que for bom pra você."`,
+    `2. "Que dia fica bom pra você mandar o restante?"`,
+    `NÃO envie link nem código neste turno: o pagamento da entrada vai quando ela disser o dia.`,
+    `Se ela responder que não consegue pagar o restante em dia nenhum, aí sim siga a negociação de valor do bloco de preço.`,
+  ].join("\n");
+}

@@ -450,3 +450,30 @@ export function entradaComRestante(
   const entradaCents = candidatas[0];
   return entradaCents === undefined ? null : { entradaCents, restanteCents: c.list_price_cents - entradaCents };
 }
+
+/**
+ * A ENTRADA QUE A AGENTE PROPÕE — antes de dar desconto.
+ *
+ * A pessoa disse quanto tem hoje e ainda não falou de data. A escada responderia com o próximo
+ * degrau (desconto). Antes disso vale propor o que mantém o valor da venda: ela entra com o que tem
+ * e o restante fica para um dia que ela escolher. Proposta feita UMA vez: se a agente já falou em
+ * "restante" depois do preço e a pessoa não deu data, a escada de sempre segue (ela recusou o prazo).
+ *
+ * `null` quando ela já deu a data (aí é `entradaComRestante`), quando não disse valor, ou quando não
+ * há par entrada/restante que feche nos degraus.
+ */
+export function entradaAPropor(
+  c: Pick<PricingConfig, "list_price_cents" | "steps">,
+  mensagens: readonly MensagemParaContar[],
+): { entradaCents: number; restanteCents: number } | null {
+  const tem = valorQueAPessoaTem(mensagens);
+  if (tem === null || tem >= c.list_price_cents) return null;
+  if (deuDataParaPagar(mensagens)) return null;
+  const msgs = expandirHistoricoColado(mensagens);
+  const primeiroPreco = msgs.findIndex((m) => m.direction === "outbound" && PRECO_DITO.test(m.body ?? ""));
+  if (msgs.some((m, i) => i > primeiroPreco && m.direction === "outbound" && /\brestante\b/i.test(m.body ?? ""))) return null;
+  const degraus = new Set(c.steps.map((s) => s.price_cents));
+  const candidatas = [...degraus].filter((v) => v <= tem && degraus.has(c.list_price_cents - v)).sort((a, b) => b - a);
+  const entradaCents = candidatas[0];
+  return entradaCents === undefined ? null : { entradaCents, restanteCents: c.list_price_cents - entradaCents };
+}
