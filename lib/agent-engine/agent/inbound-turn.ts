@@ -68,6 +68,7 @@ import { abreAvisoDoEspelhoRecusado, mirrorLeadStageToCrm } from '../edge/crm/mo
 import { ERRO_DE_GANHO_SEM_PAGAMENTO, declaraGanho, ganhoSemProvaDePagamento } from './ganho-exige-pagamento';
 import { ERRO_DE_TEXTO_JA_ENVIADO, semBaloesJaEnviados } from './balao-ja-enviado';
 import { linkInternacionalNoLugarDoLink } from './link-internacional-no-envio';
+import { linkDoValorPrometido } from '@/lib/preco/link-do-valor';
 import { boletoNoLugarDaMarca } from './boleto-no-envio';
 import { pixDaEntradaNoLugarDaMarca, temMarcaDaEntrada } from './pix-da-entrada-no-envio';
 import { pixDoExtraNoLugarDaMarca } from './pix-do-extra-no-envio';
@@ -3721,6 +3722,19 @@ async function executarTurnoDoAgente(
             return { ok: false, error: { code: 'cobranca_avulsa_indisponivel', message: comExtra.recusa } };
           }
           body = comExtra.corpo;
+        }
+        // O LINK COBRA O VALOR QUE A MENSAGEM DIZ (`lib/preco/link-do-valor.ts`): link cadastrado de outro valor é
+        // trocado pelo do valor dito; link do site de pagamento fora da configuração recusa o envio.
+        if (!preview && agentConfig?.pricing?.enabled && internacionalDoTurno === null) {
+          const conferido = linkDoValorPrometido(body, agentConfig.pricing);
+          if ('recusa' in conferido) {
+            runLog.warn('link de pagamento fora da configuração ou sem par no valor dito — envio recusado', {});
+            return { ok: false, error: { code: 'link_fora_do_valor', message: conferido.recusa } };
+          }
+          if (conferido.trocas.length > 0) {
+            runLog.warn('link de pagamento trocado pelo do valor dito na mensagem', { trocas: conferido.trocas });
+            body = conferido.corpo;
+          }
         }
         // QUEM PAGA EM MOEDA ESTRANGEIRA: o link em reais vira a cobrança na moeda dela — e, se a cobrança não
         // sair, o envio é recusado: o link em reais cobraria um valor que a conversa não disse.
