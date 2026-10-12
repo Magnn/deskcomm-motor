@@ -425,3 +425,28 @@ export function combinadoEmVigor(
   if (guardado === null || guardado === undefined) return null;
   return c.steps.some((s) => s.price_cents === guardado) ? guardado : null;
 }
+/**
+ * ENTRADA HOJE + RESTANTE NUMA DATA — a proposta que vem da própria pessoa.
+ *
+ * Medido em produção em 11/10/2026: "tenho apenas 50 reais" e, em seguida, "posso te mandar o
+ * restante dia 30". A escada só conhece "um valor, à vista": a agente respondeu com parcelamento no
+ * cartão e a venda parou ali. Quem oferece uma parte agora e dá a data do resto fechou a compra.
+ *
+ * Só existe quando as DUAS coisas estão na conversa: o valor que ela disse ter (`valorQueAPessoaTem`)
+ * e a data, nas mensagens que este turno responde (`deuDataParaPagar`). A entrada é o maior degrau
+ * que cabe no que ela tem, e o restante (venda − entrada) também precisa ser um degrau — é o que
+ * garante que os dois valores têm link de pagamento. Sem par que feche, devolve `null` e a escada
+ * de sempre segue valendo. O valor total NÃO muda: entrada + restante = valor de venda.
+ */
+export function entradaComRestante(
+  c: Pick<PricingConfig, "list_price_cents" | "steps">,
+  mensagens: readonly MensagemParaContar[],
+): { entradaCents: number; restanteCents: number } | null {
+  const tem = valorQueAPessoaTem(mensagens);
+  if (tem === null || tem >= c.list_price_cents) return null;
+  if (!deuDataParaPagar(mensagens)) return null;
+  const degraus = new Set(c.steps.map((s) => s.price_cents));
+  const candidatas = [...degraus].filter((v) => v <= tem && degraus.has(c.list_price_cents - v)).sort((a, b) => b - a);
+  const entradaCents = candidatas[0];
+  return entradaCents === undefined ? null : { entradaCents, restanteCents: c.list_price_cents - entradaCents };
+}
