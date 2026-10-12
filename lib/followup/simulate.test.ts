@@ -515,7 +515,7 @@ describe("avancarSimulacao — grafo mal formado", () => {
     expect(state.transcript.some((t) => t.kind === "erro")).toBe(false);
   });
 
-  it("ciclo sem saída para no teto de 80 passos em vez de travar", async () => {
+  it("ciclo sem saída para no teto de passos em vez de travar", async () => {
     const graph: FlowGraph = {
       nodes: [
         no({ id: "t1", type: "trigger", label: "Início", config: {} }),
