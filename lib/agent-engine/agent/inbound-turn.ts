@@ -70,7 +70,7 @@ import { ERRO_DE_TEXTO_JA_ENVIADO, semBaloesJaEnviados } from './balao-ja-enviad
 import { linkInternacionalNoLugarDoLink } from './link-internacional-no-envio';
 import { pixNoLugarDoLink } from './pix-no-envio';
 import { blocoDaRespostaAtropelada, respostaAtropelada } from './resposta-atropelada';
-import { blocoDaEntrada, blocoDaPropostaDeEntrada } from '@/lib/preco/bloco-da-entrada';
+import { blocoDaEntrada, blocoDaPropostaDeEntrada, blocoDoValorAceito } from '@/lib/preco/bloco-da-entrada';
 import { blocoDoPrecoInternacional, precoInternacionalDoContato } from '@/lib/preco/preco-internacional';
 import { classificarPerdaDoAtendimento } from '@/lib/resultado/motivo-da-perda-do-agente';
 import { insertInboxItem } from '../db/repository';
@@ -114,6 +114,7 @@ import {
   degrauQueFaltaOferecerAntesDeAgendar,
   deuDataParaPagar,
   entradaAPropor,
+  valorOferecidoParaPagarAgora,
   entradaComRestante,
   faltaParaOEssencial,
   estadoDaNegociacao,
@@ -2442,14 +2443,27 @@ async function executarTurnoDoAgente(
     !preview && agentConfig?.pricing?.enabled && internacionalDoTurno === null && ofertaDoCatalogoNoTurno === null && posVendaDoTurno === null && !faltaParaOEssencialNoTurno
       ? entradaComRestante(agentConfig.pricing, openingContext.context.messages)
       : null;
+  // "Deixa por 80, te mando agora": oferta de pagar agora (`valorOferecidoParaPagarAgora`). Mesmas guardas da entrada.
+  const ofertaDeAgoraNoTurno =
+    entradaDoTurno === null && !preview && agentConfig?.pricing?.enabled && internacionalDoTurno === null && ofertaDoCatalogoNoTurno === null &&
+    posVendaDoTurno === null && !faltaParaOEssencialNoTurno
+      ? valorOferecidoParaPagarAgora(agentConfig.pricing, openingContext.context.messages)
+      : null;
   // Ela disse quanto tem e ainda não deu a data: antes do desconto, a agente propõe entrada + restante.
   const propostaDeEntradaDoTurno =
     entradaDoTurno === null && !preview && agentConfig?.pricing?.enabled && internacionalDoTurno === null && ofertaDoCatalogoNoTurno === null && posVendaDoTurno === null &&
-    !faltaParaOEssencialNoTurno && negociacaoDoTurno.reclamouAgora
+    !faltaParaOEssencialNoTurno && (negociacaoDoTurno.reclamouAgora || ofertaDeAgoraNoTurno !== null)
       ? entradaAPropor(agentConfig.pricing, openingContext.context.messages)
       : null;
+  // A entrada já foi proposta (ou não cabe) e ela oferece pagar agora um valor que é degrau: fecha nele.
+  const valorAceitoDoTurno = entradaDoTurno === null && propostaDeEntradaDoTurno === null ? ofertaDeAgoraNoTurno : null;
+  if (valorAceitoDoTurno !== null) {
+    runLog.info('valor oferecido para pagar agora — aceito neste turno', { aceito_cents: valorAceitoDoTurno });
+  }
   const blocoDaEntradaDoTurno =
-    blocoDaEntrada(agentConfig?.pricing, entradaDoTurno) + blocoDaPropostaDeEntrada(propostaDeEntradaDoTurno);
+    blocoDaEntrada(agentConfig?.pricing, entradaDoTurno) +
+    blocoDaPropostaDeEntrada(propostaDeEntradaDoTurno) +
+    blocoDoValorAceito(agentConfig?.pricing, valorAceitoDoTurno);
   if (blocoDaEntradaDoTurno !== '') {
     runLog.info('entrada + restante proposta pela pessoa', { entrada_cents: entradaDoTurno?.entradaCents, restante_cents: entradaDoTurno?.restanteCents });
   }
@@ -2468,6 +2482,8 @@ async function executarTurnoDoAgente(
   const promiseMinPriceCents =
     (entradaDoTurno ?? propostaDeEntradaDoTurno) !== null && promiseMinPriceCentsDaEscada !== undefined
       ? Math.min(promiseMinPriceCentsDaEscada, (entradaDoTurno ?? propostaDeEntradaDoTurno)!.entradaCents)
+      : valorAceitoDoTurno !== null && promiseMinPriceCentsDaEscada !== undefined
+      ? Math.min(promiseMinPriceCentsDaEscada, valorAceitoDoTurno)
       : promiseMinPriceCentsDaEscada;
   // Entrega personalizada: quem PAGOU (tags `pago` + `produto:<trabalho>`, postas pela compra
   // aprovada na Cakto) recebe, neste turno, o guia do trabalho certo e as regras gerais — buscados

@@ -56,3 +56,28 @@ export function blocoDaPropostaDeEntrada(entrada: { entradaCents: number; restan
     `Se ela responder que não consegue pagar o restante em dia nenhum, aí sim siga a negociação de valor do bloco de preço.`,
   ].join("\n");
 }
+
+/**
+ * O bloco do turno em que a pessoa OFERECEU PAGAR AGORA um valor que cabe num degrau (`valorOferecidoParaPagarAgora`),
+ * depois de a entrada + restante já ter sido proposta. A venda fecha nesse degrau, neste turno.
+ */
+export function blocoDoValorAceito(pricing: Pick<PricingConfig, "steps"> | null | undefined, aceitoCents: number | null): string {
+  if (!pricing || aceitoCents === null) return "";
+  const degrau = pricing.steps.find((s) => s.price_cents === aceitoCents);
+  const links = (degrau?.product_links ?? []).map((l) => `  - ${l.name}: ${l.url}`);
+  if (links.length === 0 && degrau?.payment_url) links.push(`  - ${degrau.payment_url}`);
+  if (links.length === 0) return "";
+  const v = reais(aceitoCents);
+  return [
+    "",
+    "",
+    `VALOR ACEITO (ESTE BLOCO VENCE O BLOCO DE PREÇO NESTE TURNO)`,
+    `A pessoa ofereceu pagar AGORA. Isso é venda: feche em ${v}. NÃO defenda o valor cheio, NÃO ofereça outro valor e NÃO peça para ela esperar.`,
+    `Faça, nesta ordem, numa resposta só:`,
+    `1. Um balão: "Fechado, [nome]: fica ${v}, uma vez só, e eu começo o seu trabalho hoje."`,
+    `2. O link de ${v} do trabalho dela, SOZINHO em um balão (o sistema acrescenta o Pix desse valor):`,
+    ...links,
+    `3. Um balão final com pergunta: "Conseguiu copiar o código do Pix?"`,
+    `NÃO chame a equipe humana por causa disto.`,
+  ].join("\n");
+}
