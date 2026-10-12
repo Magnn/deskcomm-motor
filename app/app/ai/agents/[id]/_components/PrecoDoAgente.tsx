@@ -64,6 +64,9 @@ interface Formulario {
   dolar: string;
   /** As cobranças avulsas, uma linha cada: "Nome | valor | quando cobrar". */
   extras: string;
+  /** Relatório sob medida de cada cobrança (por nome) e o modelo que o escreve: sem campo na tela, atravessam o formulário intactos. */
+  relatorios?: Record<string, NonNullable<NonNullable<PricingConfig["extras"]>[number]["report"]>>;
+  modeloDoRelatorio?: string;
   /** Depoimentos em áudio enviados depois do preço: ainda sem campo na tela, atravessam o formulário intactos. */
   provas?: PricingConfig["social_proof"];
   /** Quantas respostas de graça depois da oferta. Vazio = sem limite. */
@@ -133,6 +136,8 @@ function formularioInicial(config: Props["config"]): Formulario {
     nomeDaChavePix: c.pix_key?.holder ?? "",
     ...(c.pix_key?.city ? { cidadeDaChavePix: c.pix_key.city } : {}),
     ...(c.min_down_payment_cents !== undefined ? { entradaMinima: c.min_down_payment_cents } : {}),
+    ...((c.extras ?? []).some((e) => e.report) ? { relatorios: Object.fromEntries((c.extras ?? []).flatMap((e) => (e.report ? [[e.name, e.report]] : []))) } : {}),
+    ...(c.report_model !== undefined ? { modeloDoRelatorio: c.report_model } : {}),
     ...(c.social_proof ? { provas: c.social_proof } : {}),
     extras: (c.extras ?? []).map((e) => `${e.name} | ${emTexto(e.price_cents)} | ${e.when}${e.valid_days ? ` | ${e.valid_days}` : ""}${e.delivery ? ` | entrega: ${e.delivery}` : ""}`).join("\n"),
   };
@@ -218,6 +223,7 @@ function paraCorpo(f: Formulario): { corpo: PricingConfig } | { erro: string } {
       when: partes.slice(2, temDias ? -1 : undefined).join(" | "),
       ...(temDias ? { valid_days: Number(ultima) } : {}),
       ...(entrega.length >= 5 ? { delivery: entrega } : {}),
+      ...(f.relatorios?.[partes[0] ?? ""] ? { report: f.relatorios[partes[0] ?? ""] } : {}),
     });
   }
   const gratuitas = f.respostasGratuitas.trim() === "" ? null : Number(f.respostasGratuitas);
@@ -237,6 +243,7 @@ function paraCorpo(f: Formulario): { corpo: PricingConfig } | { erro: string } {
     ...(extras.length > 0 ? { extras } : {}),
     ...(gratuitas !== null ? { free_replies_after_offer: gratuitas } : {}),
     ...(f.entradaMinima !== undefined ? { min_down_payment_cents: f.entradaMinima } : {}),
+    ...(f.modeloDoRelatorio !== undefined ? { report_model: f.modeloDoRelatorio } : {}),
     ...(f.provas ? { social_proof: f.provas } : {}),
     ...(temChave
       ? { pix_key: { key: f.chavePix.trim(), holder: f.nomeDaChavePix.trim(), ...(f.cidadeDaChavePix ? { city: f.cidadeDaChavePix } : {}) } }

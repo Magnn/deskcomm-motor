@@ -146,6 +146,20 @@ export const extraSchema = z.object({
    * improvisa a entrega. Ausente = "entregue o que ela pagou, completo".
    */
   delivery: z.string().trim().min(5).max(600).optional(),
+  /**
+   * A entrega é um relatório em PDF gerado sob medida depois do pagamento (`lib/preco/relatorio-pronto.ts`).
+   * `sinastria` calcula os dois mapas a partir das datas de nascimento; `leitura` escreve a partir do que a
+   * pessoa contou. Com isto, o `delivery` é montado pelo sistema.
+   */
+  report: z
+    .object({
+      kind: z.enum(["sinastria", "leitura"]),
+      /** O título na capa. Ausente = o nome do extra. */
+      title: z.string().trim().min(3).max(60).optional(),
+      /** O que este produto entrega e em que tom, para quem escreve o relatório. */
+      guidance: z.string().trim().min(10).max(800).optional(),
+    })
+    .optional(),
 });
 export type Extra = z.infer<typeof extraSchema>;
 
@@ -212,6 +226,8 @@ export const pricingSchema = z
           .max(6),
       })
       .optional(),
+    /** O modelo que escreve os relatórios sob medida. Ausente = o modelo do agente. */
+    report_model: z.string().trim().min(2).max(80).optional(),
     /** Do maior para o menor; o último é o mínimo. */
     steps: z.array(degrauDeNegociacaoSchema).max(MAX_DEGRAUS).default([]),
     /** O que oferecer a quem já comprou. Ausente = a agente não faz segunda oferta. */
