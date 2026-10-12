@@ -166,6 +166,7 @@ import {
   performHumanHandoff,
 } from './human-handoff';
 import {
+  compactacaoAindaVale,
   maybeCompact,
   renderCompactedSummary,
   trimTranscriptToBudget,
@@ -2976,7 +2977,33 @@ async function executarTurnoDoAgente(
   // summary DURÁVEL segue vindo do checkpoint de fechamento; aqui ele só alimenta o prompt.
   let effectivePrevious = previous;
   let effectiveContext = openingContext.context;
-  if (deps.knobs.compaction !== undefined) {
+  // A ÚLTIMA COMPACTAÇÃO AINDA VALE (`compactacaoAindaVale`): com poucas mensagens novas desde ela, o turno usa o
+  // resumo que o fechamento anterior gravou no checkpoint e só corta o histórico, sem chamar modelo nenhum.
+  let reaproveitaCompactacao = false;
+  if (
+    !preview &&
+    deps.knobs.compaction !== undefined &&
+    leadId !== '' &&
+    openingContext.context.messages.length >= deps.knobs.compaction.triggerMessages &&
+    (previous?.rolling_summary ?? '').trim() !== ''
+  ) {
+    try {
+      const { rows } = await pool.query<{ em: Date | null }>(
+        `select max(created_at) as em from llm_calls where organization_id = $1 and contact_id = $2 and purpose = 'compaction' and status = 'ok'`,
+        [tenantId, leadId],
+      );
+      reaproveitaCompactacao = compactacaoAindaVale(openingContext.context.messages, rows[0]?.em ?? null);
+    } catch {
+      reaproveitaCompactacao = false; // na dúvida, compacta como sempre
+    }
+  }
+  if (reaproveitaCompactacao && deps.knobs.compaction !== undefined) {
+    runLog.info('compactação reaproveitada — resumo do checkpoint anterior, sem chamada de modelo', {});
+    effectiveContext = {
+      ...openingContext.context,
+      messages: trimTranscriptToBudget(openingContext.context.messages, deps.knobs.compaction.transcriptMaxTokens),
+    };
+  } else if (deps.knobs.compaction !== undefined) {
     const compacted = await maybeCompact(
       pool,
       deps.llmCfg,

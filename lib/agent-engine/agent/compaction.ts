@@ -285,6 +285,35 @@ async function runFlush(
   }
 }
 
+/** Quantas mensagens novas, desde a última compactação, justificam compactar de novo. */
+export const NOVAS_MENSAGENS_PARA_RECOMPACTAR = 24;
+
+/**
+ * A ÚLTIMA COMPACTAÇÃO AINDA VALE?
+ *
+ * O gatilho da compactação é o tamanho do histórico, e o histórico de uma conversa longa nunca volta a ficar
+ * abaixo dele. Medido em 12/10/2026: 2.568 compactações em 5.261 turnos — depois da 40ª mensagem, TODO turno
+ * refazia o flush e a compactação da conversa inteira (duas chamadas de modelo e cerca de 9 segundos de espera),
+ * embora o fechamento do turno anterior já tivesse gravado o resumo atualizado no checkpoint.
+ *
+ * Enquanto chegaram poucas mensagens desde a última compactação, o turno reaproveita o resumo do checkpoint e
+ * só corta o histórico no orçamento. Sem compactação anterior, ou com conversa nova o bastante, compacta. Pura.
+ */
+export function compactacaoAindaVale(
+  mensagens: ReadonlyArray<{ sent_at: string }>,
+  ultimaCompactacao: Date | null,
+  minimoDeNovas: number = NOVAS_MENSAGENS_PARA_RECOMPACTAR,
+): boolean {
+  if (ultimaCompactacao === null) return false;
+  const corte = ultimaCompactacao.getTime();
+  const novas = mensagens.filter((m) => {
+    const t = Date.parse(m.sent_at);
+    // Hora ilegível conta como nova: na dúvida, compacta.
+    return !Number.isFinite(t) || t > corte;
+  }).length;
+  return novas < minimoDeNovas;
+}
+
 /**
  * Compacta o histórico do lead quando ele cresce além do limiar. Retorna null (no-op)
  * quando o gatilho não bate — o turno segue com o transcript cru (capado por
