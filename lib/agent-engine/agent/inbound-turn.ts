@@ -68,6 +68,7 @@ import { abreAvisoDoEspelhoRecusado, mirrorLeadStageToCrm } from '../edge/crm/mo
 import { ERRO_DE_GANHO_SEM_PAGAMENTO, declaraGanho, ganhoSemProvaDePagamento } from './ganho-exige-pagamento';
 import { ERRO_DE_TEXTO_JA_ENVIADO, semBaloesJaEnviados } from './balao-ja-enviado';
 import { pixNoLugarDoLink } from './pix-no-envio';
+import { blocoDaEntrada } from '@/lib/preco/bloco-da-entrada';
 import { classificarPerdaDoAtendimento } from '@/lib/resultado/motivo-da-perda-do-agente';
 import { insertInboxItem } from '../db/repository';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -109,6 +110,7 @@ import {
   combinadoEmVigor,
   degrauQueFaltaOferecerAntesDeAgendar,
   deuDataParaPagar,
+  entradaComRestante,
   faltaParaOEssencial,
   estadoDaNegociacao,
   precoPermitidoAgora,
@@ -2416,7 +2418,17 @@ async function executarTurnoDoAgente(
   // A REDE: o mesmo passo vira o piso de preço da trava de promessas deste turno. Se o modelo
   // oferecer um valor abaixo do degrau liberado, a mensagem é vetada antes de sair (`before-send`). No
   // pós-venda liberado o piso é o valor da segunda oferta — sem isso ela seria vetada.
-  const promiseMinPriceCents =
+  // ENTRADA + RESTANTE: a pessoa ofereceu uma parte hoje e deu a data do resto (`entradaComRestante`). Só na
+  // primeira venda (sem catálogo nem pós-venda na vez) e nunca para quem disse que falta para o essencial.
+  const entradaDoTurno =
+    !preview && agentConfig?.pricing?.enabled && ofertaDoCatalogoNoTurno === null && posVendaDoTurno === null && !faltaParaOEssencialNoTurno
+      ? entradaComRestante(agentConfig.pricing, openingContext.context.messages)
+      : null;
+  const blocoDaEntradaDoTurno = blocoDaEntrada(agentConfig?.pricing, entradaDoTurno);
+  if (blocoDaEntradaDoTurno !== '') {
+    runLog.info('entrada + restante proposta pela pessoa', { entrada_cents: entradaDoTurno?.entradaCents, restante_cents: entradaDoTurno?.restanteCents });
+  }
+  const promiseMinPriceCentsDaEscada =
     ofertaDoCatalogoNoTurno !== null
       ? ofertaDoCatalogoNoTurno.produto.preco_cents
       : agentConfig?.pricing != null
@@ -2427,6 +2439,11 @@ async function executarTurnoDoAgente(
             combinadoDoTurno ?? Number.POSITIVE_INFINITY,
           )
       : undefined;
+  // Com entrada proposta, o piso do turno desce até ela: sem isso a trava vetaria o valor e o link da entrada.
+  const promiseMinPriceCents =
+    entradaDoTurno !== null && promiseMinPriceCentsDaEscada !== undefined
+      ? Math.min(promiseMinPriceCentsDaEscada, entradaDoTurno.entradaCents)
+      : promiseMinPriceCentsDaEscada;
   // Entrega personalizada: quem PAGOU (tags `pago` + `produto:<trabalho>`, postas pela compra
   // aprovada na Cakto) recebe, neste turno, o guia do trabalho certo e as regras gerais — buscados
   // pelo código, porque o modelo pequeno não chamava a busca. Sem as duas tags, nada é injetado.
@@ -2570,7 +2587,7 @@ async function executarTurnoDoAgente(
     estilo: blocoDeVariacaoDoTurno,
     fluxo: blocoDoFluxoDoTurno,
     leitura: blocoDaLeituraDoTurno,
-    preco: blocoDePrecoDoTurno,
+    preco: blocoDePrecoDoTurno + blocoDaEntradaDoTurno,
     combinado: blocoDoCombinadoDoTurno,
     entrega: blocoDaEntrega,
     limites: blocoDeLimitesDoTurno,
