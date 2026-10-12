@@ -105,6 +105,7 @@ import {
 import {
   dependenciasReaisDeNota,
   enviarNotasDeVoz,
+  audiosDesdeOPedido,
   inboundEhAudio,
   prepararNotasDeVoz,
 } from './nota-de-voz';
@@ -151,7 +152,7 @@ import { blocoDaEntregaNaConversa, blocoDaOfertaDoCatalogo } from '@/lib/catalog
 import { produtosComFluxoDeEntrega } from '@/lib/catalogo/fluxos-de-entrega';
 import { entregaNaConversaEmAberto, ofertaDaVez, produtoDaUltimaCompra } from '@/lib/catalogo/oferta-da-vez';
 import { estadoDoPosVenda, horaDoPagamento } from '@/lib/preco/pos-venda';
-import { deveResponderEmAudio } from '@/lib/voz/decisao';
+import { deveResponderEmAudio, pediuAudio } from '@/lib/voz/decisao';
 import { enqueueJob, rescheduleJob, type JobRow, type Queryable } from '../queue/queue';
 import {
   applyLeadStateUpdate,
@@ -2818,6 +2819,11 @@ async function executarTurnoDoAgente(
       conversationId: input.conversationId,
       inboundMessageId: input.inboundMessageId,
     }));
+  // Voz só a pedido (`mode: on_request`): conta os áudios já mandados desde o último pedido da pessoa.
+  const audiosDesdeOPedidoNoTurno =
+    voiceReply !== null && voiceReply.mode === 'on_request'
+      ? await audiosDesdeOPedido(pool, { tenantId, conversationId: input.conversationId }, pediuAudio)
+      : null;
 
   // Seam de canal (F2-25): o envio vai SÓ pela interface ChannelAdapter — o
   // default WAHA-via-CRM envolve o sink F2-06. Instanciado por job (o pool é
@@ -4083,7 +4089,7 @@ async function executarTurnoDoAgente(
               // QUALQUER falha (chave, cota, provedor, formato) cai para `comoTexto` — a
               // pessoa nunca fica sem resposta por causa da voz.
               const comoVoz = async (texto: string): Promise<ChannelSendResult> => {
-                if (!voiceReply || !deveResponderEmAudio(voiceReply, { pessoaMandouAudio, texto })) {
+                if (!voiceReply || !deveResponderEmAudio(voiceReply, { pessoaMandouAudio, texto, audiosDesdeOPedido: audiosDesdeOPedidoNoTurno })) {
                   return comoTexto(texto);
                 }
                 const preparadas = await prepararNotasDeVoz(dependenciasReaisDeNota(runLog), {
