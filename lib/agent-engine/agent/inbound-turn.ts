@@ -80,7 +80,7 @@ import {
   silencioPorConversaGratuita,
 } from './conversa-gratuita';
 import { blocoDaRespostaAtropelada, respostaAtropelada } from './resposta-atropelada';
-import { blocoDaEntrada, blocoDaEntradaImediata, blocoDaPropostaDeEntrada, blocoDoValorAceito } from '@/lib/preco/bloco-da-entrada';
+import { blocoDaEntrada, blocoDaEntradaImediata, blocoDaPropostaDeEntrada, blocoDoValorAbaixoDoPiso, blocoDoValorAceito } from '@/lib/preco/bloco-da-entrada';
 import { linkDePagamentoNoCorpo, linksDePagamentoDaConfig } from '@/lib/pagamentos/pix-na-conversa';
 import { blocoDoPrecoInternacional, precoInternacionalDoContato } from '@/lib/preco/preco-internacional';
 import { blocoDaChavePix, pixPelaChaveNoLugarDaMarca, temMarcaDeChavePix } from '@/lib/preco/chave-pix';
@@ -131,6 +131,7 @@ import {
   deuDataParaPagar,
   entradaAPropor,
   entradaImediata,
+  valorAbaixoDoPisoAgora,
   valorOferecidoParaPagarAgora,
   entradaComRestante,
   faltaParaOEssencial,
@@ -2495,7 +2496,14 @@ async function executarTurnoDoAgente(
   if (valorAceitoDoTurno !== null) {
     runLog.info('valor oferecido para pagar agora — aceito neste turno', { aceito_cents: valorAceitoDoTurno });
   }
+  // Primeira vez abaixo do menor valor: a agente segura o menor valor antes de aceitar entrada.
+  const abaixoDoPisoNoTurno =
+    entradaImediataDoTurno === null && entradaDoTurno === null && !preview && agentConfig?.pricing?.enabled && internacionalDoTurno === null &&
+    ofertaDoCatalogoNoTurno === null && posVendaDoTurno === null && !faltaParaOEssencialNoTurno
+      ? valorAbaixoDoPisoAgora(agentConfig.pricing, openingContext.context.messages)
+      : null;
   const blocoDaEntradaDoTurno =
+    blocoDoValorAbaixoDoPiso(abaixoDoPisoNoTurno) +
     blocoDaEntrada(agentConfig?.pricing, entradaDoTurno) +
     blocoDaPropostaDeEntrada(propostaDeEntradaDoTurno) +
     blocoDoValorAceito(agentConfig?.pricing, valorAceitoDoTurno) +
