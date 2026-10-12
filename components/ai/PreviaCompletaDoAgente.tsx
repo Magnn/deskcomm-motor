@@ -88,6 +88,7 @@ export function PreviaCompletaDoAgente({ systemPrompt, config, toolIds, contextW
       preco: "",
       combinado: "",
       entrega: "",
+      atropelo: "",
       limites,
     });
   }, [systemPrompt, config]);

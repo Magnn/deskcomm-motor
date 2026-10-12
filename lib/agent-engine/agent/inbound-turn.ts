@@ -69,6 +69,7 @@ import { ERRO_DE_GANHO_SEM_PAGAMENTO, declaraGanho, ganhoSemProvaDePagamento } f
 import { ERRO_DE_TEXTO_JA_ENVIADO, semBaloesJaEnviados } from './balao-ja-enviado';
 import { linkInternacionalNoLugarDoLink } from './link-internacional-no-envio';
 import { pixNoLugarDoLink } from './pix-no-envio';
+import { blocoDaRespostaAtropelada, respostaAtropelada } from './resposta-atropelada';
 import { blocoDaEntrada, blocoDaPropostaDeEntrada } from '@/lib/preco/bloco-da-entrada';
 import { blocoDoPrecoInternacional, precoInternacionalDoContato } from '@/lib/preco/preco-internacional';
 import { classificarPerdaDoAtendimento } from '@/lib/resultado/motivo-da-perda-do-agente';
@@ -2602,6 +2603,11 @@ async function executarTurnoDoAgente(
   }
   // A ORDEM dos blocos mora em `blocos-do-turno.ts` (é dado lá, com o porquê): aqui só se diz qual
   // texto é de qual bloco. Bloco novo = um nome na fila lá + uma chave aqui; o typecheck cobra os dois.
+  // A pessoa escreveu de novo sem ter lido a resposta anterior: este turno não repete o que já saiu.
+  const blocoDoAtropeloDoTurno = blocoDaRespostaAtropelada(!preview && respostaAtropelada(openingContext.context.messages));
+  if (blocoDoAtropeloDoTurno !== '') {
+    runLog.info('resposta atropelada — este turno responde só ao que a mensagem nova acrescenta', {});
+  }
   const systemDoTurno = comporSystemDoTurno(system, {
     identidade: blocoDeIdentidadeDoTurno,
     oferta: blocoDeOfertaDoTurno,
@@ -2614,6 +2620,7 @@ async function executarTurnoDoAgente(
     preco: blocoDePrecoDoTurno + blocoDaEntradaDoTurno,
     combinado: blocoDoCombinadoDoTurno,
     entrega: blocoDaEntrega,
+    atropelo: blocoDoAtropeloDoTurno,
     limites: blocoDeLimitesDoTurno,
   });
   const currentInboundText =

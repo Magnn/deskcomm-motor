@@ -40,7 +40,10 @@
  *                   se comportar até lá. Depois do preço de propósito: enquanto a data não chega, "não
  *                   refaça a oferta" tem de vencer o molde de negociação.
  *  11. `entrega`  — DIRETIVO: o guia do trabalho que a pessoa já pagou.
- *  12. `limites`  — PROIBIÇÃO DO DONO: o que o agente nunca diz nem promete e os assuntos que não
+ *  12. `atropelo` — DIRETIVO: a pessoa escreveu de novo sem ter lido a resposta anterior; este turno não
+ *                   repete o que já saiu (`resposta-atropelada.ts`). Depois dos diretivos do funil porque
+ *                   "não repita" tem de vencer o molde que mandaria dizer tudo outra vez.
+ *  13. `limites`  — PROIBIÇÃO DO DONO: o que o agente nunca diz nem promete e os assuntos que não
  *                   discute (aba Limites). ÚLTIMO de propósito: o que o dono PROÍBE tem de vencer o que
  *                   o funil manda — se um limite conflita com leitura, preço ou entrega, o limite ganha.
  *
@@ -62,7 +65,7 @@
  * Sem nenhum bloco (todos ''), o system sai idêntico ao de entrada — o prefixo
  * estável e cacheável não muda.
  */
-export const BLOCOS_DO_TURNO = ['identidade', 'oferta', 'consciencia', 'objecoes', 'anuncio', 'estilo', 'fluxo', 'leitura', 'preco', 'combinado', 'entrega', 'limites'] as const;
+export const BLOCOS_DO_TURNO = ['identidade', 'oferta', 'consciencia', 'objecoes', 'anuncio', 'estilo', 'fluxo', 'leitura', 'preco', 'combinado', 'entrega', 'atropelo', 'limites'] as const;
 
 export type NomeDoBlocoDoTurno = (typeof BLOCOS_DO_TURNO)[number];
 
