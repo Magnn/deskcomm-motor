@@ -883,6 +883,8 @@ export interface RunBeforeSendArgs {
   promiseMinPriceCents?: number;
   /** O preço fixo de quem paga em moeda estrangeira: piso dos valores escritos nessa moeda neste turno. */
   promiseMinPriceInCurrency?: { moeda: string; cents: number };
+  /** Os valores exatos das cobranças avulsas liberadas neste turno: passam mesmo abaixo do piso. */
+  promiseAllowedPricesCents?: readonly number[];
   agentOperation?: AgentOperationContext;
   approvedReply?: ApprovedReplyContext;
   /** Contexto interno do único comando Meet; a origem é relida, nunca um booleano de bypass. */
@@ -1285,7 +1287,7 @@ async function enviarSobOLock(
       spinning: { knobs: spinningKnobs, window },
       ...(args.enforceSpinning === false ? { spinningEnforced: false as const } : {}),
       promise: {
-        table: args.enforcePromise === false ? null : tabelaDoTurno(promise?.table ?? null, args.promiseMinPriceCents, args.promiseMinPriceInCurrency),
+        table: args.enforcePromise === false ? null : tabelaDoTurno(promise?.table ?? null, args.promiseMinPriceCents, args.promiseMinPriceInCurrency, args.promiseAllowedPricesCents),
         ...(promise?.versionId !== undefined ? { versionId: promise.versionId } : {}),
       },
       semanticPromise,

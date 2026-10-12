@@ -26,6 +26,12 @@ export interface PromiseTable {
    * piso em reais e vetado. Não é publicado na tabela da organização.
    */
   minPriceCentsPorMoeda?: Partial<Record<'EUR', number>>;
+  /**
+   * Valores EXATOS que este turno pode dizer mesmo abaixo do piso: os das cobranças avulsas (`lib/preco/extras.ts`).
+   * É lista de valores exatos, e não um piso mais baixo, de propósito: baixar o piso deixaria o agente oferecer
+   * o produto principal por qualquer valor acima do extra mais barato. Só existe na tabela do turno.
+   */
+  precosLiberadosCents?: number[];
   /** Teto de desconto %: desconto candidato ACIMA disso → veto. */
   maxDiscountPercent?: number;
   /** Teto de parcelas: parcelamento candidato ACIMA disso → veto. */

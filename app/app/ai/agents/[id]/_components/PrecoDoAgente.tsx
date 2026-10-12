@@ -62,6 +62,8 @@ interface Formulario {
   /** Preço fixo para quem escreve de fora do Brasil. Vazio = não vende nessa moeda. */
   euro: string;
   dolar: string;
+  /** As cobranças avulsas, uma linha cada: "Nome | valor | quando cobrar". */
+  extras: string;
 }
 
 interface PosVendaNaTela {
@@ -90,7 +92,7 @@ function formularioInicial(config: Props["config"]): Formulario {
   const bruto = (config as { pricing?: unknown } | null | undefined)?.pricing;
   const r = pricingSchema.safeParse(bruto);
   if (!r.success) {
-    return { enabled: false, venda: "", referencia: "", referenciaReal: false, degraus: [], posVenda: POS_VENDA_VAZIO, linksDaVenda: "", euro: "", dolar: "" };
+    return { enabled: false, venda: "", referencia: "", referenciaReal: false, degraus: [], posVenda: POS_VENDA_VAZIO, linksDaVenda: "", euro: "", dolar: "", extras: "" };
   }
   const c = r.data;
   return {
@@ -116,6 +118,7 @@ function formularioInicial(config: Props["config"]): Formulario {
     linksDaVenda: (c.list_product_links ?? []).map((l) => `${l.name} | ${l.url}`).join("\n"),
     euro: emTexto(c.international_prices?.find((p) => p.currency === "EUR")?.price_cents),
     dolar: emTexto(c.international_prices?.find((p) => p.currency === "USD")?.price_cents),
+    extras: (c.extras ?? []).map((e) => `${e.name} | ${emTexto(e.price_cents)} | ${e.when}`).join("\n"),
   };
 }
 
@@ -181,12 +184,21 @@ function paraCorpo(f: Formulario): { corpo: PricingConfig } | { erro: string } {
   if (internacionais.length > 0 && daVenda.links.length === 0) {
     return { erro: "Para vender em euro ou dólar, informe os links do valor de venda: é por eles que a cobrança na outra moeda é criada." };
   }
+  const extras: NonNullable<PricingConfig["extras"]> = [];
+  for (const linha of f.extras.split("\n")) {
+    if (linha.trim() === "") continue;
+    const partes = linha.split("|").map((p) => p.trim());
+    const preco = emCentavos(partes[1] ?? "");
+    if (partes.length < 3 || preco === null) return { erro: "Cada cobrança à parte deve ser: Nome | valor | quando cobrar" };
+    extras.push({ name: partes[0] ?? "", price_cents: preco, when: partes.slice(2).join(" | ") });
+  }
   const candidato = {
     enabled: f.enabled,
     list_price_cents: venda,
     ...(referencia !== null ? { anchor_price_cents: referencia, anchor_is_real: f.referenciaReal } : {}),
     ...(daVenda.links.length > 0 ? { list_product_links: daVenda.links } : {}),
     ...(internacionais.length > 0 ? { international_prices: internacionais } : {}),
+    ...(extras.length > 0 ? { extras } : {}),
     steps,
     ...(posVenda !== undefined ? { post_sale: posVenda } : {}),
   };
@@ -406,6 +418,28 @@ export function PrecoDoAgente({ agentId, config, readOnly }: Props) {
             ? `${t("Mínimo que a agente aceita:")} ${reais(piso)}.`
             : t("Preencha os valores para ver o mínimo que a agente aceita.")}
         </p>
+      </Card>
+
+      <Card className="flex flex-col gap-3 p-4" data-testid="cobrancas-a-parte">
+        <div className="space-y-1">
+          <h2 className="text-base font-medium">{t("Cobranças à parte")}</h2>
+          <p className="max-w-2xl text-sm text-muted-foreground">
+            {t(
+              "O que a agente cobra além do produto principal: uma pergunta nova, um acompanhamento mais próximo. Ela diz o valor, manda o Pix na conversa e só atende depois de pago. Vale depois que a oferta principal foi apresentada. Precisa da Stripe conectada em Configurações › Pagamentos.",
+            )}
+          </p>
+        </div>
+        <div className="flex flex-col gap-1">
+          <Label htmlFor="preco-extras">{t("Uma linha por cobrança: Nome | valor | quando cobrar")}</Label>
+          <Textarea
+            id="preco-extras"
+            rows={4}
+            placeholder={t("Pergunta nova | 15,00 | a pessoa pede outra pergunta ou outro assunto depois da leitura gratuita.")}
+            value={form.extras}
+            onChange={(e) => patch({ extras: e.target.value })}
+            disabled={readOnly}
+          />
+        </div>
       </Card>
 
       <Card className="flex flex-col gap-3 p-4" data-testid="preco-internacional">

@@ -1,0 +1,83 @@
+/**
+ * A ponta que fala com o provedor para as COBRANÇAS AVULSAS (`lib/preco/extras.ts`): troca a marca
+ * `[[PIX: nome]]` que o agente escreveu pela instrução e pelo código do Pix daquele valor.
+ *
+ * Como no link internacional, a falha NÃO deixa o corpo passar: a marca crua não pode chegar à pessoa. Sem
+ * conta conectada, com o provedor recusando ou com marca desconhecida, o envio é RECUSADO e a instrução volta
+ * ao modelo.
+ */
+import type { SupabaseClient } from '@supabase/supabase-js';
+
+import { lerConexaoStripe, type ConexaoStripe } from '@/lib/pagamentos/conexao-stripe';
+import { VALIDADE_DO_PIX_S } from '@/lib/pagamentos/pix-na-conversa';
+import { ErroDaStripe, criarClienteStripe, type PedidoDePix, type PixCriado } from '@/lib/pagamentos/stripe';
+import { corpoComPixDoExtra, marcaDeExtraNoCorpo, referenciaDoExtra, slugDoExtra } from '@/lib/preco/extras';
+import type { Extra } from '@/lib/preco/tipos';
+
+interface Registro {
+  info(msg: string, dados?: Record<string, unknown>): void;
+  warn(msg: string, dados?: Record<string, unknown>): void;
+}
+
+export interface EntradaDoPixDoExtra {
+  corpo: string;
+  /** Os extras que ESTE turno pode cobrar. Vazio = nenhuma marca é aceita. */
+  extras: readonly Extra[];
+  organizationId: string;
+  contactId: string;
+  conversationId: string;
+  supabase: SupabaseClient;
+  log: Registro;
+  /** Injetáveis só para teste. */
+  lerConexao?: (admin: SupabaseClient, organizationId: string) => Promise<ConexaoStripe | null>;
+  criarPix?: (conexao: ConexaoStripe, pedido: PedidoDePix) => Promise<PixCriado>;
+  agora?: Date;
+}
+
+export type SaidaDoPixDoExtra = { corpo: string } | { recusa: string };
+
+const SEM_COBRANCA =
+  'Não foi possível gerar o Pix desta cobrança agora. NÃO envie a marca [[PIX: …]] nem chave Pix. Diga à pessoa, numa ' +
+  'mensagem curta, que o código do Pix chega em instantes, e chame atendimento humano para enviá-lo.';
+
+export async function pixDoExtraNoLugarDaMarca(e: EntradaDoPixDoExtra): Promise<SaidaDoPixDoExtra> {
+  const marca = marcaDeExtraNoCorpo(e.corpo, e.extras);
+  if (marca.tipo === 'nenhuma') return { corpo: e.corpo };
+  if (marca.tipo === 'invalida') return { recusa: marca.motivo };
+  try {
+    const conexao = await (e.lerConexao ?? lerConexaoStripe)(e.supabase, e.organizationId);
+    if (conexao === null) {
+      e.log.warn('cobrança avulsa não saiu — nenhuma conta de Pix conectada', { conversation_id: e.conversationId });
+      return { recusa: SEM_COBRANCA };
+    }
+    const pedido: PedidoDePix = {
+      valorCentavos: marca.extra.price_cents,
+      descricao: marca.extra.name,
+      referencia: referenciaDoExtra(e.conversationId, marca.extra, e.agora ?? new Date()),
+      metadados: {
+        organization_id: e.organizationId,
+        contact_id: e.contactId,
+        conversation_id: e.conversationId,
+        produto: marca.extra.name,
+        // É o que faz o aviso de pagamento NÃO tratar isto como a compra do produto principal.
+        extra: slugDoExtra(marca.extra.name),
+      },
+      expiraEmSegundos: VALIDADE_DO_PIX_S,
+    };
+    const pix = await (e.criarPix ?? ((c, p) => criarClienteStripe({ chave: c.chave }).criarPix(p)))(conexao, pedido);
+    e.log.info('pix de cobrança avulsa criado', {
+      conversation_id: e.conversationId,
+      extra: pedido.metadados.extra,
+      valor_centavos: marca.extra.price_cents,
+      cobranca: pix.id,
+    });
+    return { corpo: corpoComPixDoExtra(e.corpo, marca, pix.copiaECola) };
+  } catch (err) {
+    e.log.warn('cobrança avulsa não saiu — envio recusado para a marca não chegar à pessoa', {
+      conversation_id: e.conversationId,
+      motivo: err instanceof ErroDaStripe ? err.codigo : 'falha',
+      error: (err instanceof Error ? err.message : String(err)).slice(0, 160),
+    });
+    return { recusa: SEM_COBRANCA };
+  }
+}

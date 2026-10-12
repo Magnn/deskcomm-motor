@@ -120,7 +120,9 @@ export function decidePromise(args: { candidate: string; table: import('./table'
   for (const p of extractPromises(args.candidate)) {
     // Preço escrito em outra moeda é medido contra o piso DAQUELA moeda, quando o turno tem um.
     const piso = (p.moeda !== undefined ? table.minPriceCentsPorMoeda?.[p.moeda] : undefined) ?? table.minPriceCents;
-    if (p.kind === 'price' && piso !== undefined && p.value < piso) {
+    // O valor exato de uma cobrança avulsa passa mesmo abaixo do piso.
+    const liberado = p.kind === 'price' && p.moeda === undefined && (table.precosLiberadosCents ?? []).includes(p.value);
+    if (p.kind === 'price' && !liberado && piso !== undefined && p.value < piso) {
       return {
         allow: false,
         code: 'promise_out_of_table',

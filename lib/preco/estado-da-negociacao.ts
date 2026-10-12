@@ -163,9 +163,15 @@ export function tabelaDoTurno(
   pisoDoTurno: number | undefined,
   /** Quem paga em moeda estrangeira: o preço fixo dela é o piso dos valores escritos nessa moeda. */
   pisoEmOutraMoeda?: { moeda: string; cents: number },
+  /** Os valores exatos das cobranças avulsas que este turno pode dizer (`lib/preco/extras.ts`). */
+  precosLiberados?: readonly number[],
 ): PromiseTable | null {
-  const comPiso =
+  const comPisoSemExtras =
     pisoDoTurno === undefined ? base : { ...(base ?? {}), minPriceCents: Math.max(base?.minPriceCents ?? 0, pisoDoTurno) };
+  const comPiso =
+    precosLiberados !== undefined && precosLiberados.length > 0
+      ? { ...(comPisoSemExtras ?? {}), precosLiberadosCents: [...precosLiberados] }
+      : comPisoSemExtras;
   // Só o euro é lido como preço pela trava (`promise/engine.ts`); valor em outra moeda passa sem veto.
   if (pisoEmOutraMoeda?.moeda !== "EUR") return comPiso;
   return { ...(comPiso ?? {}), minPriceCentsPorMoeda: { EUR: pisoEmOutraMoeda.cents } };

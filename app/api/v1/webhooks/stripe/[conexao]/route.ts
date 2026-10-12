@@ -15,6 +15,10 @@
  * Stripe converteu (`lerValorConvertido`). Se a conversão não puder ser lida, a compra é aplicada do mesmo jeito
  * — a entrega não espera câmbio — e a receita fica registrada na moeda original, sem valor no negócio.
  *
+ * Cobrança avulsa (`lib/preco/extras.ts`): a cobrança que traz `metadata.extra` NÃO é a compra do produto
+ * principal. Ela só entra no livro de receita, com o nome do extra, e marca o contato com `extra:<nome>` — sem
+ * `pago`, sem valor no negócio e sem fluxo de entrega. É o turno seguinte do agente que lê esse pagamento.
+ *
  * Idempotência: a Stripe reentrega. A marca `compra:<id da cobrança>` no contato e a chave única do ledger
  * fazem a segunda entrega não repetir nada.
  */
@@ -97,6 +101,50 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ conexao: s
     status: "paid",
     cliente: { nome: null, email: null, telefone: null },
   };
+
+  const extra = typeof meta.extra === "string" && /^[a-z0-9-]{1,60}$/.test(meta.extra) ? meta.extra : null;
+  if (extra !== null) {
+    try {
+      const { error: erroDoLedger } = await admin.from("revenue_ledger").insert({
+        organization_id: conexao.organizationId,
+        event_type: "charge",
+        amount_cents: valorNaConta ?? valor,
+        currency: valorNaConta === null ? moedaDaCobranca : MOEDA_DA_CONTA,
+        provider: "stripe",
+        external_event_id: cobrancaId,
+        occurred_at: pagoEm,
+        contact_id: contatoId,
+        metadata: { produto: meta.produto ?? null, metodo: porPix ? "pix" : "cartao", conversa: meta.conversation_id ?? null, extra },
+      });
+      // Reentrega da Stripe: a receita já está lá e a marca também.
+      if (erroDoLedger?.code === "23505") return ok({ received: true, resultado: "repetida" }, { requestId }) as NextResponse;
+      if (erroDoLedger) throw new Error(erroDoLedger.message);
+      // ⚠️ Filtro de organização: o client é service-role.
+      const { data: contato } = await admin
+        .from("contacts")
+        .select("id, tags")
+        .eq("organization_id", conexao.organizationId)
+        .eq("id", contatoId)
+        .maybeSingle();
+      const tags = ((contato as { tags: string[] | null } | null)?.tags ?? []) as string[];
+      const marca = `extra:${extra}`;
+      if (contato && !tags.includes(marca)) {
+        await admin.from("contacts").update({ tags: [...tags, marca] }).eq("organization_id", conexao.organizationId).eq("id", contatoId);
+      }
+      await audit({
+        action: "webhook.cakto_evento_aplicado",
+        organizationId: conexao.organizationId,
+        resourceType: "payment_gateway_connections",
+        resourceId: conexao.id,
+        requestId,
+        metadata: { provedor: "stripe", evento: "payment_intent.succeeded", resultado: "cobranca_avulsa", pedido: cobrancaId, valor_centavos: valorNaConta, extra },
+      });
+      return ok({ received: true, resultado: "cobranca_avulsa" }, { requestId }) as NextResponse;
+    } catch (err) {
+      logger.error("[stripe.aviso] falha ao registrar a cobrança avulsa", { requestId, error: err instanceof Error ? err.message : String(err) });
+      return fail("internal_error", "Falha ao aplicar o pagamento.", 500, { requestId }) as NextResponse;
+    }
+  }
 
   try {
     const base = depsReais(admin, conexao.organizationId, requestId, conexao.id);
