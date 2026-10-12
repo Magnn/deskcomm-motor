@@ -64,6 +64,8 @@ interface Formulario {
   dolar: string;
   /** As cobranças avulsas, uma linha cada: "Nome | valor | quando cobrar". */
   extras: string;
+  /** Quantas respostas de graça depois da oferta. Vazio = sem limite. */
+  respostasGratuitas: string;
 }
 
 interface PosVendaNaTela {
@@ -92,7 +94,7 @@ function formularioInicial(config: Props["config"]): Formulario {
   const bruto = (config as { pricing?: unknown } | null | undefined)?.pricing;
   const r = pricingSchema.safeParse(bruto);
   if (!r.success) {
-    return { enabled: false, venda: "", referencia: "", referenciaReal: false, degraus: [], posVenda: POS_VENDA_VAZIO, linksDaVenda: "", euro: "", dolar: "", extras: "" };
+    return { enabled: false, venda: "", referencia: "", referenciaReal: false, degraus: [], posVenda: POS_VENDA_VAZIO, linksDaVenda: "", euro: "", dolar: "", extras: "", respostasGratuitas: "" };
   }
   const c = r.data;
   return {
@@ -118,6 +120,7 @@ function formularioInicial(config: Props["config"]): Formulario {
     linksDaVenda: (c.list_product_links ?? []).map((l) => `${l.name} | ${l.url}`).join("\n"),
     euro: emTexto(c.international_prices?.find((p) => p.currency === "EUR")?.price_cents),
     dolar: emTexto(c.international_prices?.find((p) => p.currency === "USD")?.price_cents),
+    respostasGratuitas: c.free_replies_after_offer === undefined ? "" : String(c.free_replies_after_offer),
     extras: (c.extras ?? []).map((e) => `${e.name} | ${emTexto(e.price_cents)} | ${e.when}${e.valid_days ? ` | ${e.valid_days}` : ""}`).join("\n"),
   };
 }
@@ -200,6 +203,10 @@ function paraCorpo(f: Formulario): { corpo: PricingConfig } | { erro: string } {
       ...(temDias ? { valid_days: Number(ultima) } : {}),
     });
   }
+  const gratuitas = f.respostasGratuitas.trim() === "" ? null : Number(f.respostasGratuitas);
+  if (gratuitas !== null && (!Number.isInteger(gratuitas) || gratuitas < 1 || gratuitas > 20)) {
+    return { erro: "O limite de respostas gratuitas é um número inteiro de 1 a 20, ou em branco para não limitar." };
+  }
   const candidato = {
     enabled: f.enabled,
     list_price_cents: venda,
@@ -207,6 +214,7 @@ function paraCorpo(f: Formulario): { corpo: PricingConfig } | { erro: string } {
     ...(daVenda.links.length > 0 ? { list_product_links: daVenda.links } : {}),
     ...(internacionais.length > 0 ? { international_prices: internacionais } : {}),
     ...(extras.length > 0 ? { extras } : {}),
+    ...(gratuitas !== null ? { free_replies_after_offer: gratuitas } : {}),
     steps,
     ...(posVenda !== undefined ? { post_sale: posVenda } : {}),
   };
@@ -445,6 +453,28 @@ export function PrecoDoAgente({ agentId, config, readOnly }: Props) {
             placeholder={t("Pergunta nova | 15,00 | a pessoa pede outra pergunta ou outro assunto depois da leitura gratuita.")}
             value={form.extras}
             onChange={(e) => patch({ extras: e.target.value })}
+            disabled={readOnly}
+          />
+        </div>
+      </Card>
+
+      <Card className="flex flex-col gap-3 p-4" data-testid="conversa-gratuita">
+        <div className="space-y-1">
+          <h2 className="text-base font-medium">{t("Conversa gratuita depois da oferta")}</h2>
+          <p className="max-w-2xl text-sm text-muted-foreground">
+            {t(
+              "Quantas vezes a agente responde de graça a quem já ouviu a oferta, não comprou e fala de outro assunto. Passado o limite, ela responde uma vez, curto, com o que está à venda. Falar de pagamento, valor ou data nunca conta, e quem dá sinal de risco é sempre atendido. Em branco, não há limite.",
+            )}
+          </p>
+        </div>
+        <div className="flex max-w-xs flex-col gap-1">
+          <Label htmlFor="preco-gratuitas">{t("Respostas gratuitas depois da oferta")}</Label>
+          <Input
+            id="preco-gratuitas"
+            inputMode="numeric"
+            placeholder="2"
+            value={form.respostasGratuitas}
+            onChange={(e) => patch({ respostasGratuitas: e.target.value })}
             disabled={readOnly}
           />
         </div>
