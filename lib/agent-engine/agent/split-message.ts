@@ -214,7 +214,20 @@ export const OK_KINDS = new Set(["sent", "already_sent", "queued"]);
  * chama decide — o `sendInBubbles` passa o corpo original ao `send`).
  */
 export function splitForSend(body: string, enabled: boolean, maxChars: number): string[] {
-  return enabled ? limitarBolhas(body, maxChars) : [body];
+  if (enabled) return limitarBolhas(body, maxChars);
+  // MENSAGEM ÚNICA (economia de mensagem cobrada) COM CÓDIGO DO PIX: o código vai sozinho mesmo assim.
+  // Medido em produção em 11/10/2026: o primeiro Pix real saiu no meio de um texto de 843 caracteres, e
+  // código no meio do texto não se copia com um toque — é preciso selecionar à mão, e a pessoa desiste.
+  // São no máximo três mensagens: o que vem antes, o código, o que vem depois.
+  const paragrafos = body
+    .split(/\n{2,}/)
+    .map((p) => p.trim())
+    .filter((p) => p !== "");
+  const i = paragrafos.findIndex(ehCodigoDoPix);
+  if (i < 0) return [body];
+  const antes = paragrafos.slice(0, i).join("\n\n");
+  const depois = paragrafos.slice(i + 1).join("\n\n");
+  return [antes, paragrafos[i]!, depois].filter((p) => p !== "");
 }
 
 /**
