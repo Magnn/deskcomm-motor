@@ -136,7 +136,7 @@ export async function carregarGuiaDeEntrega(deps: DepsDoGuia, trabalho: Trabalho
   // depender de um provedor de busca estar de pé.
   if (!guia.some((t) => t.source_name === `Entregável: ${trabalho.nome}`) && deps.lerPorNome) {
     [regras, guia, depois] = await Promise.all([
-      deps.lerPorNome("Entregável: regras gerais", true, 4),
+      deps.lerPorNome("Entregável: regras gerais", true, 9),
       deps.lerPorNome(`Entregável: ${trabalho.nome}`, false, 8),
       deps.lerPorNome(prefixoDoAcompanhamento(trabalho), true, 6),
     ]);
