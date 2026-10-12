@@ -81,3 +81,28 @@ export function blocoDoValorAceito(pricing: Pick<PricingConfig, "steps"> | null 
     `NÃO chame a equipe humana por causa disto.`,
   ].join("\n");
 }
+
+/** O nome da marca que o agente escreve para pedir o Pix da entrada: `[[PIX: Entrada]]`. */
+export const MARCA_DA_ENTRADA = "Entrada";
+
+/**
+ * O bloco do turno em que a pessoa disse quanto consegue pagar AGORA (`entradaImediata`): a entrada é esse valor,
+ * o Pix sai neste turno e o restante fica para depois. A data do restante é perguntada DEPOIS do Pix, nunca antes.
+ */
+export function blocoDaEntradaImediata(entrada: { entradaCents: number; restanteCents: number } | null): string {
+  if (entrada === null) return "";
+  const e = reais(entrada.entradaCents);
+  const r = reais(entrada.restanteCents);
+  return [
+    "",
+    "",
+    `ENTRADA AGORA, NO VALOR QUE ELA DISSE (ESTE BLOCO VENCE O BLOCO DE PREÇO NESTE TURNO)`,
+    `Ela disse quanto consegue pagar agora: ${e}. ACEITE exatamente esse valor como entrada. O restante, ${r}, ela acerta depois. NÃO arredonde, NÃO ofereça outro valor, NÃO defenda o valor cheio, NÃO ofereça desconto e NÃO pergunte a data antes de mandar o Pix.`,
+    `Faça, nesta ordem, numa resposta só:`,
+    `1. Um balão: "Fechado, [nome]: você entra com ${e} agora e o restante de ${r} a gente acerta depois."`,
+    `2. Sozinha no balão seguinte, a marca: [[PIX: ${MARCA_DA_ENTRADA}]] (o sistema troca a marca pelo código do Pix de ${e}).`,
+    `3. Um balão final: "Conseguiu copiar o código? Assim que cair eu já começo o seu trabalho. E me diz que dia fica bom pra acertar o restante."`,
+    `Quando ela disser o dia do restante, chame a ferramenta de agendar retorno para essa data, com a promessa "Enviar o pagamento do restante de ${r}".`,
+    `NÃO chame a equipe humana por causa disto.`,
+  ].join("\n");
+}

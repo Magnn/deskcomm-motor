@@ -172,6 +172,11 @@ export const pricingSchema = z
      * coisa que não a compra (`lib/agent-engine/agent/conversa-gratuita.ts`). Ausente = sem limite.
      */
     free_replies_after_offer: z.number().int().min(1).max(20).optional(),
+    /**
+     * A menor entrada que o agente aceita quando a pessoa diz quanto consegue pagar agora. Ausente = o menor degrau
+     * da escada. A entrada paga inicia a entrega do produto inteiro, então este é o menor valor por que ele sai.
+     */
+    min_down_payment_cents: centavos.optional(),
     /** Do maior para o menor; o último é o mínimo. */
     steps: z.array(degrauDeNegociacaoSchema).max(MAX_DEGRAUS).default([]),
     /** O que oferecer a quem já comprou. Ausente = a agente não faz segunda oferta. */

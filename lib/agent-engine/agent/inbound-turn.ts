@@ -68,12 +68,14 @@ import { abreAvisoDoEspelhoRecusado, mirrorLeadStageToCrm } from '../edge/crm/mo
 import { ERRO_DE_GANHO_SEM_PAGAMENTO, declaraGanho, ganhoSemProvaDePagamento } from './ganho-exige-pagamento';
 import { ERRO_DE_TEXTO_JA_ENVIADO, semBaloesJaEnviados } from './balao-ja-enviado';
 import { linkInternacionalNoLugarDoLink } from './link-internacional-no-envio';
+import { pixDaEntradaNoLugarDaMarca, temMarcaDaEntrada } from './pix-da-entrada-no-envio';
 import { pixDoExtraNoLugarDaMarca } from './pix-do-extra-no-envio';
 import { pixNoLugarDoLink } from './pix-no-envio';
 import { blocoDaConfirmacaoCurta, rodadaSoDeConfirmacao } from './confirmacao-curta';
 import { TAMANHO_DA_RESPOSTA_LIMITADA, blocoDaConversaGratuitaEsgotada, conversaGratuitaEsgotada } from './conversa-gratuita';
 import { blocoDaRespostaAtropelada, respostaAtropelada } from './resposta-atropelada';
-import { blocoDaEntrada, blocoDaPropostaDeEntrada, blocoDoValorAceito } from '@/lib/preco/bloco-da-entrada';
+import { blocoDaEntrada, blocoDaEntradaImediata, blocoDaPropostaDeEntrada, blocoDoValorAceito } from '@/lib/preco/bloco-da-entrada';
+import { linkDePagamentoNoCorpo, linksDePagamentoDaConfig } from '@/lib/pagamentos/pix-na-conversa';
 import { blocoDoPrecoInternacional, precoInternacionalDoContato } from '@/lib/preco/preco-internacional';
 import { blocoDosExtras, extrasDaConfig, janelaDeLeituraDosExtras, slugDoExtra, type ExtraPago } from '@/lib/preco/extras';
 import { classificarPerdaDoAtendimento } from '@/lib/resultado/motivo-da-perda-do-agente';
@@ -118,6 +120,7 @@ import {
   degrauQueFaltaOferecerAntesDeAgendar,
   deuDataParaPagar,
   entradaAPropor,
+  entradaImediata,
   valorOferecidoParaPagarAgora,
   entradaComRestante,
   faltaParaOEssencial,
@@ -2448,15 +2451,28 @@ async function executarTurnoDoAgente(
     !preview && agentConfig?.pricing?.enabled && internacionalDoTurno === null && ofertaDoCatalogoNoTurno === null && posVendaDoTurno === null && !faltaParaOEssencialNoTurno
       ? entradaComRestante(agentConfig.pricing, openingContext.context.messages)
       : null;
+  // "SÓ TENHO 90 NO PIX": a entrada é o valor que ela disse, e o Pix sai neste turno (`entradaImediata`). Vem antes
+  // da proposta de entrada e do valor aceito: manter o valor de venda com entrada vale mais que dar desconto.
+  const entradaImediataDoTurno =
+    entradaDoTurno === null && !preview && agentConfig?.pricing?.enabled && internacionalDoTurno === null && ofertaDoCatalogoNoTurno === null &&
+    posVendaDoTurno === null && !faltaParaOEssencialNoTurno
+      ? entradaImediata(agentConfig.pricing, openingContext.context.messages)
+      : null;
+  if (entradaImediataDoTurno !== null) {
+    runLog.info('entrada no valor que a pessoa disse — Pix neste turno', {
+      entrada_cents: entradaImediataDoTurno.entradaCents,
+      restante_cents: entradaImediataDoTurno.restanteCents,
+    });
+  }
   // "Deixa por 80, te mando agora": oferta de pagar agora (`valorOferecidoParaPagarAgora`). Mesmas guardas da entrada.
   const ofertaDeAgoraNoTurno =
-    entradaDoTurno === null && !preview && agentConfig?.pricing?.enabled && internacionalDoTurno === null && ofertaDoCatalogoNoTurno === null &&
+    entradaImediataDoTurno === null && entradaDoTurno === null && !preview && agentConfig?.pricing?.enabled && internacionalDoTurno === null && ofertaDoCatalogoNoTurno === null &&
     posVendaDoTurno === null && !faltaParaOEssencialNoTurno
       ? valorOferecidoParaPagarAgora(agentConfig.pricing, openingContext.context.messages)
       : null;
   // Ela disse quanto tem e ainda não deu a data: antes do desconto, a agente propõe entrada + restante.
   const propostaDeEntradaDoTurno =
-    entradaDoTurno === null && !preview && agentConfig?.pricing?.enabled && internacionalDoTurno === null && ofertaDoCatalogoNoTurno === null && posVendaDoTurno === null &&
+    entradaImediataDoTurno === null && entradaDoTurno === null && !preview && agentConfig?.pricing?.enabled && internacionalDoTurno === null && ofertaDoCatalogoNoTurno === null && posVendaDoTurno === null &&
     !faltaParaOEssencialNoTurno && (negociacaoDoTurno.reclamouAgora || ofertaDeAgoraNoTurno !== null)
       ? entradaAPropor(agentConfig.pricing, openingContext.context.messages)
       : null;
@@ -2468,7 +2484,8 @@ async function executarTurnoDoAgente(
   const blocoDaEntradaDoTurno =
     blocoDaEntrada(agentConfig?.pricing, entradaDoTurno) +
     blocoDaPropostaDeEntrada(propostaDeEntradaDoTurno) +
-    blocoDoValorAceito(agentConfig?.pricing, valorAceitoDoTurno);
+    blocoDoValorAceito(agentConfig?.pricing, valorAceitoDoTurno) +
+    blocoDaEntradaImediata(entradaImediataDoTurno);
   if (blocoDaEntradaDoTurno !== '') {
     runLog.info('entrada + restante proposta pela pessoa', { entrada_cents: entradaDoTurno?.entradaCents, restante_cents: entradaDoTurno?.restanteCents });
   }
@@ -3491,6 +3508,31 @@ async function executarTurnoDoAgente(
         // PIX NA CONVERSA (`lib/pagamentos/pix-na-conversa.ts`): o link de pagamento que o agente escolheu —
         // no valor que a escada liberou — ganha o código do Pix na frente. Sem conta de Pix conectada, ou em
         // qualquer falha, o corpo segue como veio.
+        // A ENTRADA NO VALOR QUE A PESSOA DISSE: a marca `[[PIX: Entrada]]` vira o Pix desse valor. Só no turno que
+        // autorizou a entrada; fora dele a marca cai na conferência das cobranças avulsas e o envio é recusado.
+        if (!preview && entradaImediataDoTurno !== null && agentConfig?.pricing && temMarcaDaEntrada(body)) {
+          // O produto é o do último link de pagamento que ela recebeu; sem nenhum, o primeiro da lista de venda.
+          const conhecidos = linksDePagamentoDaConfig(agentConfig.pricing);
+          const jaEnviado = [...openingContext.context.messages]
+            .reverse()
+            .map((m) => (m.direction === 'outbound' ? linkDePagamentoNoCorpo(m.body ?? '', conhecidos) : null))
+            .find((l) => l !== null);
+          const produtoDaEntrada = jaEnviado?.produto || conhecidos.find((l) => l.produto !== '')?.produto || '';
+          const comEntrada = await pixDaEntradaNoLugarDaMarca({
+            corpo: body,
+            entrada: entradaImediataDoTurno,
+            produto: produtoDaEntrada,
+            organizationId: tenantId,
+            contactId: leadId,
+            conversationId: input.conversationId,
+            supabase: deps.crmCfg.supabase,
+            log: runLog,
+          });
+          if ('recusa' in comEntrada) {
+            return { ok: false, error: { code: 'pix_da_entrada_indisponivel', message: comEntrada.recusa } };
+          }
+          body = comEntrada.corpo;
+        }
         // COBRANÇA AVULSA: a marca `[[PIX: nome]]` vira a instrução e o código do Pix. Marca que o turno não pode
         // cobrar, ou cobrança que não saiu, recusa o envio: marca crua não chega à pessoa.
         if (!preview) {
@@ -3653,7 +3695,15 @@ async function executarTurnoDoAgente(
             pool,
             log: runLog,
             ...(promiseMinPriceCents !== undefined ? { promiseMinPriceCents } : {}),
-            ...(extrasDoTurno.length > 0 ? { promiseAllowedPricesCents: extrasDoTurno.map((e) => e.price_cents) } : {}),
+            ...(extrasDoTurno.length > 0 || entradaImediataDoTurno !== null
+              ? {
+                  promiseAllowedPricesCents: [
+                    ...extrasDoTurno.map((e) => e.price_cents),
+                    // A entrada e o restante são valores exatos, quase sempre abaixo do piso da escada.
+                    ...(entradaImediataDoTurno !== null ? [entradaImediataDoTurno.entradaCents, entradaImediataDoTurno.restanteCents] : []),
+                  ],
+                }
+              : {}),
             ...(internacionalDoTurno !== null
               ? { promiseMinPriceInCurrency: { moeda: internacionalDoTurno.moeda, cents: internacionalDoTurno.precoCents } }
               : {}),
