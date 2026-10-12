@@ -117,4 +117,42 @@ describe("aba Preço", () => {
     expect(screen.queryByLabelText("Cupom no checkout")).not.toBeInTheDocument();
     expect(screen.getByTestId("resumo-do-preco")).toHaveTextContent("Mínimo que a agente aceita: R$ 130.");
   });
+
+  it("⭐ euro e dólar saem como preço por moeda, e salvar não apaga o que a tela não mostrava", async () => {
+    const seguintes = [{ price_cents: 5_000, wait_hours: 1, product_links: [{ name: "B", url: "https://pay.exemplo.com/b" }] }];
+    renderizar({
+      pricing: {
+        enabled: true,
+        list_price_cents: 13_000,
+        list_product_links: [{ name: "Abertura", url: "https://pay.exemplo.com/cheio" }],
+        steps: [],
+        post_sale: { enabled: true, price_cents: 7_000, wait_hours: 20, product_links: [{ name: "A", url: "https://pay.exemplo.com/a" }], next_offers: seguintes },
+      },
+    });
+    expect(screen.getByLabelText("Links do valor de venda (uma linha por produto: Nome | https://…)")).toHaveValue(
+      "Abertura | https://pay.exemplo.com/cheio",
+    );
+    fireEvent.change(screen.getByLabelText("Valor em euro (€)"), { target: { value: "20" } });
+    fireEvent.change(screen.getByLabelText("Valor em dólar (US$)"), { target: { value: "25,00" } });
+    fireEvent.click(screen.getByRole("button", { name: "Salvar preço" }));
+    await waitFor(() => expect(api.put).toHaveBeenCalledTimes(1));
+    const corpo = (api.put.mock.calls[0] as [string, Record<string, unknown>])[1];
+    expect(corpo).toMatchObject({
+      list_product_links: [{ name: "Abertura", url: "https://pay.exemplo.com/cheio" }],
+      international_prices: [
+        { currency: "EUR", price_cents: 2_000 },
+        { currency: "USD", price_cents: 2_500 },
+      ],
+      post_sale: { next_offers: seguintes },
+    });
+    expect(pricingSchema.safeParse(corpo).success).toBe(true);
+  });
+
+  it("euro sem os links do valor de venda não salva: sem eles não há o que trocar pela cobrança na moeda", async () => {
+    renderizar({ pricing: { enabled: true, list_price_cents: 13_000, steps: [] } });
+    fireEvent.change(screen.getByLabelText("Valor em euro (€)"), { target: { value: "20" } });
+    fireEvent.click(screen.getByRole("button", { name: "Salvar preço" }));
+    await waitFor(() => expect(toast.error).toHaveBeenCalled());
+    expect(api.put).not.toHaveBeenCalled();
+  });
 });

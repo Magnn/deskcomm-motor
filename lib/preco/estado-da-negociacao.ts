@@ -158,9 +158,17 @@ export function precoPermitidoAgora(
  * permite agora. Nunca desce o piso da organização — só o sobe. Sem tabela da org, cria uma só
  * com o piso do turno.
  */
-export function tabelaDoTurno(base: PromiseTable | null, pisoDoTurno: number | undefined): PromiseTable | null {
-  if (pisoDoTurno === undefined) return base;
-  return { ...(base ?? {}), minPriceCents: Math.max(base?.minPriceCents ?? 0, pisoDoTurno) };
+export function tabelaDoTurno(
+  base: PromiseTable | null,
+  pisoDoTurno: number | undefined,
+  /** Quem paga em moeda estrangeira: o preço fixo dela é o piso dos valores escritos nessa moeda. */
+  pisoEmOutraMoeda?: { moeda: string; cents: number },
+): PromiseTable | null {
+  const comPiso =
+    pisoDoTurno === undefined ? base : { ...(base ?? {}), minPriceCents: Math.max(base?.minPriceCents ?? 0, pisoDoTurno) };
+  // Só o euro é lido como preço pela trava (`promise/engine.ts`); valor em outra moeda passa sem veto.
+  if (pisoEmOutraMoeda?.moeda !== "EUR") return comPiso;
+  return { ...(comPiso ?? {}), minPriceCentsPorMoeda: { EUR: pisoEmOutraMoeda.cents } };
 }
 
 /** A mensagem da pessoa reclama do valor, adia o pagamento ou é a negativa curta de quem não pode. */

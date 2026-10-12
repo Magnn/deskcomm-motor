@@ -42,6 +42,23 @@ export interface PixCriado {
   expiraEm: string | null;
 }
 
+export interface PedidoDeLink {
+  valorCentavos: number;
+  /** ISO-4217 (`EUR`, `USD`). */
+  moeda: string;
+  descricao: string;
+  /** Determinística — a repetição do envio devolve o MESMO link. */
+  referencia: string;
+  metadados: Record<string, string>;
+  /** O que a pessoa lê na página da Stripe depois de pagar. */
+  mensagemDepoisDePagar: string;
+}
+
+export interface LinkCriado {
+  id: string;
+  url: string;
+}
+
 export class ErroDaStripe extends Error {
   constructor(
     readonly codigo: "chave_invalida" | "pix_indisponivel" | "recusada" | "indisponivel",
@@ -127,6 +144,47 @@ export function criarClienteStripe(cred: CredencialStripe, opts: { fetch?: Fetch
         qrPng: qr.image_url_png ?? null,
         expiraEm: typeof qr.expires_at === "number" ? new Date(qr.expires_at * 1000).toISOString() : null,
       };
+    },
+
+    /**
+     * Cria (ou reencontra, pela referência) um link de pagamento em moeda estrangeira, no cartão. É o que
+     * substitui o link em reais para quem escreve de fora do país. O link vale para UM pagamento: depois de
+     * pago ele se fecha, e os metadados seguem para a cobrança — é por eles que o aviso acha a pessoa.
+     */
+    async criarLinkDePagamento(pedido: PedidoDeLink): Promise<LinkCriado> {
+      const campos: Record<string, string | number | boolean> = {
+        "line_items[0][price_data][currency]": pedido.moeda.toLowerCase(),
+        "line_items[0][price_data][unit_amount]": pedido.valorCentavos,
+        "line_items[0][price_data][product_data][name]": pedido.descricao.slice(0, 200),
+        "line_items[0][quantity]": 1,
+        "restrictions[completed_sessions][limit]": 1,
+        "after_completion[type]": "hosted_confirmation",
+        "after_completion[hosted_confirmation][custom_message]": pedido.mensagemDepoisDePagar.slice(0, 500),
+        "payment_intent_data[description]": pedido.descricao.slice(0, 200),
+      };
+      for (const [k, v] of Object.entries(pedido.metadados)) {
+        campos[`metadata[${k}]`] = v.slice(0, 480);
+        campos[`payment_intent_data[metadata][${k}]`] = v.slice(0, 480);
+      }
+      const link = await chamar("POST", "/payment_links", campos, pedido.referencia);
+      if (typeof link.url !== "string" || !link.url.startsWith("https://")) {
+        throw new ErroDaStripe("recusada", "a Stripe criou o link sem endereço");
+      }
+      return { id: String(link.id ?? ""), url: link.url };
+    },
+
+    /**
+     * Quanto uma cobrança em moeda estrangeira virou na moeda da conta (o que a Stripe credita, antes da
+     * tarifa). `null` quando a Stripe ainda não tem o lançamento ou a chave não pode lê-lo — quem chama
+     * registra o valor na moeda original em vez de inventar um câmbio.
+     */
+    async lerValorConvertido(cobrancaId: string): Promise<{ valorCentavos: number; moeda: string } | null> {
+      const pi = await chamar("GET", `/payment_intents/${encodeURIComponent(cobrancaId)}?expand[]=latest_charge.balance_transaction`);
+      const lancamento = ((pi.latest_charge ?? {}) as { balance_transaction?: unknown }).balance_transaction;
+      if (lancamento === null || typeof lancamento !== "object") return null;
+      const { amount, currency } = lancamento as { amount?: unknown; currency?: unknown };
+      if (typeof amount !== "number" || amount <= 0 || typeof currency !== "string") return null;
+      return { valorCentavos: amount, moeda: currency.toUpperCase() };
     },
 
     /** Registra na Stripe o endereço que recebe o aviso de pagamento. Devolve o segredo da assinatura (vem uma vez só). */

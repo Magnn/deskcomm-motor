@@ -118,14 +118,16 @@ const naMoeda = (cents: number, moeda: DetectedPromise['moeda']): string =>
 export function decidePromise(args: { candidate: string; table: import('./table').PromiseTable }): PromiseDecision {
   const { table } = args;
   for (const p of extractPromises(args.candidate)) {
-    if (p.kind === 'price' && table.minPriceCents !== undefined && p.value < table.minPriceCents) {
+    // Preço escrito em outra moeda é medido contra o piso DAQUELA moeda, quando o turno tem um.
+    const piso = (p.moeda !== undefined ? table.minPriceCentsPorMoeda?.[p.moeda] : undefined) ?? table.minPriceCents;
+    if (p.kind === 'price' && piso !== undefined && p.value < piso) {
       return {
         allow: false,
         code: 'promise_out_of_table',
         reason:
           `o preço ${naMoeda(p.value, p.moeda)} está fora da tabela do playbook (mínimo permitido: ` +
-          `${naMoeda(table.minPriceCents, p.moeda)}); corrija para um valor da tabela antes de reenviar.`,
-        detail: { promise_kind: 'price', detected_cents: p.value, allowed_min_cents: table.minPriceCents },
+          `${naMoeda(piso, p.moeda)}); corrija para um valor da tabela antes de reenviar.`,
+        detail: { promise_kind: 'price', detected_cents: p.value, allowed_min_cents: piso },
       };
     }
     if (p.kind === 'discount' && table.maxDiscountPercent !== undefined && p.value > table.maxDiscountPercent) {

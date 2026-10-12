@@ -57,6 +57,11 @@ interface Formulario {
   referenciaReal: boolean;
   degraus: DegrauNaTela[];
   posVenda: PosVendaNaTela;
+  /** Os links do valor de venda, um por produto, uma linha cada: "Nome | https://…". */
+  linksDaVenda: string;
+  /** Preço fixo para quem escreve de fora do Brasil. Vazio = não vende nessa moeda. */
+  euro: string;
+  dolar: string;
 }
 
 interface PosVendaNaTela {
@@ -65,6 +70,8 @@ interface PosVendaNaTela {
   horas: string;
   /** Um link por produto, uma linha cada: "Nome | https://…". */
   links: string;
+  /** As ofertas seguintes não têm campo nesta tela: vão e voltam como vieram, para salvar não apagá-las. */
+  seguintes?: NonNullable<PricingConfig["post_sale"]>["next_offers"];
 }
 
 const POS_VENDA_VAZIO: PosVendaNaTela = { ligado: false, preco: "", horas: String(ESPERA_PADRAO_DO_POS_VENDA_H), links: "" };
@@ -83,7 +90,7 @@ function formularioInicial(config: Props["config"]): Formulario {
   const bruto = (config as { pricing?: unknown } | null | undefined)?.pricing;
   const r = pricingSchema.safeParse(bruto);
   if (!r.success) {
-    return { enabled: false, venda: "", referencia: "", referenciaReal: false, degraus: [], posVenda: POS_VENDA_VAZIO };
+    return { enabled: false, venda: "", referencia: "", referenciaReal: false, degraus: [], posVenda: POS_VENDA_VAZIO, linksDaVenda: "", euro: "", dolar: "" };
   }
   const c = r.data;
   return {
@@ -103,8 +110,12 @@ function formularioInicial(config: Props["config"]): Formulario {
           preco: emTexto(c.post_sale.price_cents),
           horas: String(c.post_sale.wait_hours),
           links: c.post_sale.product_links.map((l) => `${l.name} | ${l.url}`).join("\n"),
+          ...(c.post_sale.next_offers ? { seguintes: c.post_sale.next_offers } : {}),
         }
       : POS_VENDA_VAZIO,
+    linksDaVenda: (c.list_product_links ?? []).map((l) => `${l.name} | ${l.url}`).join("\n"),
+    euro: emTexto(c.international_prices?.find((p) => p.currency === "EUR")?.price_cents),
+    dolar: emTexto(c.international_prices?.find((p) => p.currency === "USD")?.price_cents),
   };
 }
 
@@ -150,12 +161,32 @@ function paraCorpo(f: Formulario): { corpo: PricingConfig } | { erro: string } {
     const porProduto = lerLinksPorProduto(pv.links);
     if ("erro" in porProduto) return { erro: porProduto.erro };
     if (porProduto.links.length === 0) return { erro: "Informe ao menos um link para a oferta de pós-venda." };
-    posVenda = { enabled: pv.ligado, price_cents: preco, wait_hours: horas, product_links: porProduto.links };
+    posVenda = {
+      enabled: pv.ligado,
+      price_cents: preco,
+      wait_hours: horas,
+      product_links: porProduto.links,
+      ...(pv.seguintes ? { next_offers: pv.seguintes } : {}),
+    };
+  }
+  const daVenda = lerLinksPorProduto(f.linksDaVenda);
+  if ("erro" in daVenda) return { erro: daVenda.erro };
+  const internacionais: NonNullable<PricingConfig["international_prices"]> = [];
+  for (const [currency, texto] of [["EUR", f.euro], ["USD", f.dolar]] as const) {
+    if (texto.trim() === "") continue;
+    const preco = emCentavos(texto);
+    if (preco === null) return { erro: "Confira o valor para quem escreve de fora do Brasil." };
+    internacionais.push({ currency, price_cents: preco });
+  }
+  if (internacionais.length > 0 && daVenda.links.length === 0) {
+    return { erro: "Para vender em euro ou dólar, informe os links do valor de venda: é por eles que a cobrança na outra moeda é criada." };
   }
   const candidato = {
     enabled: f.enabled,
     list_price_cents: venda,
     ...(referencia !== null ? { anchor_price_cents: referencia, anchor_is_real: f.referenciaReal } : {}),
+    ...(daVenda.links.length > 0 ? { list_product_links: daVenda.links } : {}),
+    ...(internacionais.length > 0 ? { international_prices: internacionais } : {}),
     steps,
     ...(posVenda !== undefined ? { post_sale: posVenda } : {}),
   };
@@ -247,6 +278,21 @@ export function PrecoDoAgente({ agentId, config, readOnly }: Props) {
               {t("O preço cheio. A agente o cita uma vez, como “valor de referência”, sem prazo nem pressão.")}
             </p>
           </div>
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <Label htmlFor="preco-links-da-venda">{t("Links do valor de venda (uma linha por produto: Nome | https://…)")}</Label>
+          <Textarea
+            id="preco-links-da-venda"
+            rows={3}
+            placeholder={t("Nome do trabalho | https://…")}
+            value={form.linksDaVenda}
+            onChange={(e) => patch({ linksDaVenda: e.target.value })}
+            disabled={readOnly}
+          />
+          <p className="text-xs text-muted-foreground">
+            {t("Com eles o sistema sabe que link cobra o valor de venda: é o que permite mandar o Pix na conversa e cobrar em outra moeda.")}
+          </p>
         </div>
 
         {form.referencia.trim() !== "" ? (
@@ -360,6 +406,41 @@ export function PrecoDoAgente({ agentId, config, readOnly }: Props) {
             ? `${t("Mínimo que a agente aceita:")} ${reais(piso)}.`
             : t("Preencha os valores para ver o mínimo que a agente aceita.")}
         </p>
+      </Card>
+
+      <Card className="flex flex-col gap-3 p-4" data-testid="preco-internacional">
+        <div className="space-y-1">
+          <h2 className="text-base font-medium">{t("Quem escreve de fora do Brasil")}</h2>
+          <p className="max-w-2xl text-sm text-muted-foreground">
+            {t(
+              "Preço fixo, sem negociação, para número de outro país: quem está num país do euro paga em euro, e o resto do mundo em dólar. A agente diz esse valor e manda um link de cartão nessa moeda no lugar do link em reais. Precisa da Stripe conectada em Configurações › Pagamentos. Deixe em branco para não vender na moeda.",
+            )}
+          </p>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="preco-euro">{t("Valor em euro (€)")}</Label>
+            <Input
+              id="preco-euro"
+              inputMode="decimal"
+              placeholder="20,00"
+              value={form.euro}
+              onChange={(e) => patch({ euro: e.target.value })}
+              disabled={readOnly}
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="preco-dolar">{t("Valor em dólar (US$)")}</Label>
+            <Input
+              id="preco-dolar"
+              inputMode="decimal"
+              placeholder="25,00"
+              value={form.dolar}
+              onChange={(e) => patch({ dolar: e.target.value })}
+              disabled={readOnly}
+            />
+          </div>
+        </div>
       </Card>
 
       <Card className="flex flex-col gap-4 p-4" data-testid="pos-venda">

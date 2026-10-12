@@ -10,6 +10,11 @@
  * só quem é a pessoa: aqui ela vem do `metadata.contact_id` que o turno gravou ao criar a cobrança, e não de um
  * telefone digitado num checkout.
  *
+ * Moeda: a cobrança de quem escreve de fora do país é em euro ou dólar (`lib/preco/preco-internacional.ts`). O
+ * negócio, a receita e a conversão enviada ao anúncio são na moeda da conta, então o valor que entra é o que a
+ * Stripe converteu (`lerValorConvertido`). Se a conversão não puder ser lida, a compra é aplicada do mesmo jeito
+ * — a entrega não espera câmbio — e a receita fica registrada na moeda original, sem valor no negócio.
+ *
  * Idempotência: a Stripe reentrega. A marca `compra:<id da cobrança>` no contato e a chave única do ledger
  * fazem a segunda entrega não repetir nada.
  */
@@ -20,11 +25,14 @@ import { fail, ok } from "@/lib/api/wrappers";
 import { logger } from "@/lib/logger";
 import { aplicarEventoDaCakto, depsReais } from "@/lib/pagamentos/compra-cakto";
 import { lerConexaoStripePorId } from "@/lib/pagamentos/conexao-stripe";
-import { assinaturaDaStripeConfere } from "@/lib/pagamentos/stripe";
+import { assinaturaDaStripeConfere, criarClienteStripe } from "@/lib/pagamentos/stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { CompraDaCakto } from "@/lib/webhooks/cakto";
 
 export const dynamic = "force-dynamic";
+
+/** A moeda em que o negócio, a receita e os anúncios são contados. */
+const MOEDA_DA_CONTA = "BRL";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -60,6 +68,21 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ conexao: s
   }
   const cobrancaId = String(pi.id ?? evento.id ?? "");
   const pagoEm = new Date().toISOString();
+  const moedaDaCobranca = typeof pi.currency === "string" ? pi.currency.toUpperCase() : MOEDA_DA_CONTA;
+  const porPix = Array.isArray(pi.payment_method_types) && pi.payment_method_types.includes("pix");
+  // Na moeda da conta o valor é o da cobrança. Em outra moeda, é o que a Stripe converteu — ou nenhum.
+  let valorNaConta: number | null = moedaDaCobranca === MOEDA_DA_CONTA ? valor : null;
+  if (valorNaConta === null) {
+    try {
+      const convertido = await criarClienteStripe({ chave: conexao.chave }).lerValorConvertido(cobrancaId);
+      if (convertido?.moeda === MOEDA_DA_CONTA) valorNaConta = convertido.valorCentavos;
+    } catch (err) {
+      logger.warn("[stripe.aviso] conversão não lida — receita fica na moeda original", {
+        requestId,
+        error: (err instanceof Error ? err.message : String(err)).slice(0, 160),
+      });
+    }
+  }
   const compra: CompraDaCakto = {
     evento: "purchase_approved",
     pedidoId: cobrancaId,
@@ -67,9 +90,9 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ conexao: s
     produtoId: null,
     produtoNome: meta.produto || null,
     ofertaNome: null,
-    valorCentavos: valor,
+    valorCentavos: valorNaConta,
     cupom: null,
-    metodo: "pix",
+    metodo: porPix ? "pix" : "cartao",
     pagoEm,
     status: "paid",
     cliente: { nome: null, email: null, telefone: null },
@@ -98,13 +121,18 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ conexao: s
     const { error: erroDoLedger } = await admin.from("revenue_ledger").insert({
       organization_id: conexao.organizationId,
       event_type: "charge",
-      amount_cents: valor,
-      currency: "BRL",
+      amount_cents: valorNaConta ?? valor,
+      currency: valorNaConta === null ? moedaDaCobranca : MOEDA_DA_CONTA,
       provider: "stripe",
       external_event_id: cobrancaId,
       occurred_at: pagoEm,
       contact_id: "contatoId" in efeito ? efeito.contatoId : null,
-      metadata: { produto: meta.produto ?? null, metodo: "pix", conversa: meta.conversation_id ?? null },
+      metadata: {
+        produto: meta.produto ?? null,
+        metodo: porPix ? "pix" : "cartao",
+        conversa: meta.conversation_id ?? null,
+        ...(moedaDaCobranca !== MOEDA_DA_CONTA ? { moeda_original: moedaDaCobranca, valor_original_cents: valor } : {}),
+      },
     });
     if (erroDoLedger && erroDoLedger.code !== "23505") {
       logger.error("[stripe.aviso] ledger não gravou", { requestId, error: erroDoLedger.message });
@@ -117,7 +145,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ conexao: s
         resourceType: "payment_gateway_connections",
         resourceId: conexao.id,
         requestId,
-        metadata: { provedor: "stripe", evento: "payment_intent.succeeded", resultado: efeito.resultado, pedido: cobrancaId, valor_centavos: valor },
+        metadata: { provedor: "stripe", evento: "payment_intent.succeeded", resultado: efeito.resultado, pedido: cobrancaId, valor_centavos: valorNaConta, moeda_da_cobranca: moedaDaCobranca },
       });
     }
     return ok({ received: true, resultado: efeito.resultado }, { requestId }) as NextResponse;
