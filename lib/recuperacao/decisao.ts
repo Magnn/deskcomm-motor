@@ -101,7 +101,17 @@ export function ofereceSaida(passo: number, total: number, silencioMs: number): 
 }
 
 /** O que o agente lê ao ser acordado para uma chamada de recuperação. */
-export function motivoDoPasso(passo: number, total: number, silencioMs: number): string {
+export function motivoDoPasso(passo: number, total: number, silencioMs: number, ofertaCents: number | null = null): string {
+  if (ofertaCents !== null) {
+    const valor = `R$ ${ofertaCents % 100 === 0 ? ofertaCents / 100 : (ofertaCents / 100).toFixed(2).replace(".", ",")}`;
+    return (
+      `recuperação de silêncio, chamada ${passo} de ${total}: o cliente ouviu o valor e não respondeu há ${duracao(silencioMs)}. ` +
+      `Nesta chamada você tem um valor novo para oferecer: ${valor}. Escreva UMA mensagem curta, pelo nome: diga que conseguiu ` +
+      `deixar o trabalho dela por ${valor}, uma vez só, e pergunte se ela quer que você mande o Pix agora. NÃO envie link nem ` +
+      "código nesta mensagem, NÃO diga outro valor, NÃO invente prazo nem diga que é a última vaga, e NÃO pergunte se ela quer " +
+      "parar. Se o cliente pediu para não ser procurado, não envie nada"
+    );
+  }
   const saida = ofereceSaida(passo, total, silencioMs)
     ? "Como esta é a última tentativa, termine PERGUNTANDO, com suas palavras e sem pressão, se a pessoa quer " +
       "continuar o atendimento ou prefere parar. Escreva uma mensagem só: o sistema acrescenta por conta própria " +

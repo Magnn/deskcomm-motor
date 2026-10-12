@@ -28,7 +28,7 @@ import type pg from 'pg';
 import { readCurrentServiceBoundary } from '@/lib/atendimento/fronteira-server';
 import { capabilitiesOf } from '@/lib/channels/capabilities';
 import type { ChannelProvider } from '@/lib/channels/types';
-import { lerRecuperacao } from '@/lib/recuperacao/config';
+import { lerRecuperacao, ofertaDoPasso } from '@/lib/recuperacao/config';
 import {
   FOLGA_DO_FECHAMENTO_MS,
   decidirManterJanela,
@@ -73,6 +73,9 @@ interface Candidata {
   last_inbound_at: string;
   last_outbound_at: string;
   feitas: number | null;
+  /** A pessoa já comprou, e já ouviu algum valor nesta conversa: é o que decide se o passo oferece valor. */
+  ja_pagou?: boolean | null;
+  ouviu_preco?: boolean | null;
   ultima_em: string | null;
   silence_since: string | null;
   janela_enviada: boolean | null;
@@ -88,7 +91,11 @@ export const CONSULTA_DE_SILENCIOSAS = `
          cs.provider, o.timezone, ag.followup, coalesce(lig.ligada_em, ag.published_at) as published_at,
          ui.id as anchor_message_id, ui.created_at as last_inbound_at, uo.created_at as last_outbound_at,
          t.feitas, t.ultima_em, t.silence_since, t.janela_enviada,
-         r.retorno_em
+         r.retorno_em,
+         ('pago' = any(coalesce(c.tags, '{}'::text[]))) as ja_pagou,
+         exists (select 1 from messages mp
+                  where mp.organization_id = v.organization_id and mp.conversation_id = v.id
+                    and mp.direction = 'outbound' and mp.body ~ 'R[$] ?[0-9]') as ouviu_preco
   from conversations v
   join organizations o on o.id = v.organization_id
   join contacts c on c.id = v.contact_id and c.organization_id = v.organization_id
@@ -232,8 +239,12 @@ export function decidirChamada(c: Candidata, agora: Date, temPrazo: boolean): Ch
   return {
     kind: 'step',
     step: passo,
-    motivo: motivoDoPasso(passo, r.steps_minutes.length, silencioMs),
-    ofereceSaida: ofereceSaida(passo, r.steps_minutes.length, silencioMs),
+    // O passo oferece valor só a quem já ouviu o preço e não pagou; nesse caso ele não convida a parar.
+    motivo: motivoDoPasso(passo, r.steps_minutes.length, silencioMs, c.ouviu_preco === true && c.ja_pagou !== true ? ofertaDoPasso(r, passo) : null),
+    ofereceSaida:
+      c.ouviu_preco === true && c.ja_pagou !== true && ofertaDoPasso(r, passo) !== null
+        ? false
+        : ofereceSaida(passo, r.steps_minutes.length, silencioMs),
   };
 }
 

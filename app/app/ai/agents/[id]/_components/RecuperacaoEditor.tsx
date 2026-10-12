@@ -40,7 +40,12 @@ export function RecuperacaoEditor({ value, onChange, disabled }: Props) {
 
   function passos(steps_minutes: number[]) {
     if (value === null) return;
-    onChange({ ...value, steps_minutes });
+    // O valor oferecido por passo (ainda sem campo na tela) acompanha a lista: não pode sobrar valor sem passo.
+    onChange({
+      ...value,
+      steps_minutes,
+      ...(value.step_offers_cents ? { step_offers_cents: value.step_offers_cents.slice(0, steps_minutes.length) } : {}),
+    });
   }
 
   function mudarPasso(i: number, numero: number, unidade: Unidade) {
