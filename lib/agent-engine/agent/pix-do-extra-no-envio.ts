@@ -10,7 +10,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 
 import { lerConexaoStripe, type ConexaoStripe } from '@/lib/pagamentos/conexao-stripe';
 import { VALIDADE_DO_PIX_S } from '@/lib/pagamentos/pix-na-conversa';
-import { ErroDaStripe, criarClienteStripe, type PedidoDePix, type PixCriado } from '@/lib/pagamentos/stripe';
+import { ErroDaStripe, criarClienteStripe, type LinkCriado, type PedidoDeLink, type PedidoDePix, type PixCriado } from '@/lib/pagamentos/stripe';
 import { corpoComPixDoExtra, marcaDeExtraNoCorpo, referenciaDoExtra, slugDoExtra } from '@/lib/preco/extras';
 import type { Extra } from '@/lib/preco/tipos';
 
@@ -31,6 +31,7 @@ export interface EntradaDoPixDoExtra {
   /** Injetáveis só para teste. */
   lerConexao?: (admin: SupabaseClient, organizationId: string) => Promise<ConexaoStripe | null>;
   criarPix?: (conexao: ConexaoStripe, pedido: PedidoDePix) => Promise<PixCriado>;
+  criarLink?: (conexao: ConexaoStripe, pedido: PedidoDeLink) => Promise<LinkCriado>;
   agora?: Date;
 }
 
@@ -64,14 +65,34 @@ export async function pixDoExtraNoLugarDaMarca(e: EntradaDoPixDoExtra): Promise<
       },
       expiraEmSegundos: VALIDADE_DO_PIX_S,
     };
-    const pix = await (e.criarPix ?? ((c, p) => criarClienteStripe({ chave: c.chave }).criarPix(p)))(conexao, pedido);
+    // Pix e cartão saem JUNTOS: medido em 12/10/2026, uma pessoa aceitou a cobrança, disse que só tinha cartão e
+    // ficou sem como pagar. Cada um falha por conta própria; só recusa o envio se nenhum dos dois saiu.
+    const [pix, link] = await Promise.all([
+      (e.criarPix ?? ((c, p) => criarClienteStripe({ chave: c.chave }).criarPix(p)))(conexao, pedido).catch((err: unknown) => {
+        e.log.warn('pix da cobrança avulsa não saiu', { conversation_id: e.conversationId, error: (err instanceof Error ? err.message : String(err)).slice(0, 160) });
+        return null;
+      }),
+      (e.criarLink ?? ((c, p) => criarClienteStripe({ chave: c.chave }).criarLinkDePagamento(p)))(conexao, {
+        valorCentavos: marca.extra.price_cents,
+        moeda: 'BRL',
+        descricao: marca.extra.name,
+        referencia: `${pedido.referencia}-cartao`,
+        metadados: pedido.metadados,
+        mensagemDepoisDePagar: 'Pagamento recebido. Pode voltar à conversa: a entrega continua por lá.',
+      }).catch((err: unknown) => {
+        e.log.warn('link de cartão da cobrança avulsa não saiu', { conversation_id: e.conversationId, error: (err instanceof Error ? err.message : String(err)).slice(0, 160) });
+        return null;
+      }),
+    ]);
+    if (pix === null && link === null) return { recusa: SEM_COBRANCA };
     e.log.info('pix de cobrança avulsa criado', {
       conversation_id: e.conversationId,
       extra: pedido.metadados.extra,
       valor_centavos: marca.extra.price_cents,
-      cobranca: pix.id,
+      cobranca: pix?.id ?? null,
+      link_de_cartao: link?.id ?? null,
     });
-    return { corpo: corpoComPixDoExtra(e.corpo, marca, pix.copiaECola) };
+    return { corpo: corpoComPixDoExtra(e.corpo, marca, pix?.copiaECola ?? null, link?.url ?? null) };
   } catch (err) {
     e.log.warn('cobrança avulsa não saiu — envio recusado para a marca não chegar à pessoa', {
       conversation_id: e.conversationId,

@@ -67,15 +67,33 @@ export function marcaDeExtraNoCorpo(corpo: string, extras: readonly Extra[]): Ma
  * Troca o balão da marca pela instrução e pelo código, cada um no seu balão. O texto que vinha junto da marca
  * (o modelo às vezes escreve uma frase antes) é preservado no balão anterior. Pura.
  */
-export function corpoComPixDoExtra(corpo: string, marca: { extra: Extra; texto: string }, copiaECola: string): string {
+export function corpoComPixDoExtra(
+  corpo: string,
+  marca: { extra: Extra; texto: string },
+  copiaECola: string | null,
+  /** Link de cartão do mesmo valor, para quem não tem saldo no Pix. Ausente = só o Pix. */
+  linkDoCartao?: string | null,
+): string {
   const baloes = corpo.split(/\n{2,}/);
   const i = baloes.findIndex((b) => b.includes(marca.texto));
   if (i < 0) return corpo;
   const resto = baloes[i]!.replace(marca.texto, "").trim();
-  const novos = [
-    `Pra pagar no Pix é só copiar o código abaixo e colar no app do seu banco, na opção *Pix Copia e Cola*. Valor: *${reais(marca.extra.price_cents)}*. No banco aparece o nome da empresa de pagamentos, é assim mesmo.`,
-    copiaECola,
-  ];
+  const valor = reais(marca.extra.price_cents);
+  const novos: string[] = [];
+  if (copiaECola) {
+    novos.push(
+      `Pra pagar no Pix é só copiar o código abaixo e colar no app do seu banco, na opção *Pix Copia e Cola*. Valor: *${valor}*. No banco aparece o nome da empresa de pagamentos, é assim mesmo.`,
+      copiaECola,
+    );
+  }
+  if (linkDoCartao) {
+    novos.push(
+      copiaECola
+        ? `Se preferir cartão de crédito, é por este link: ${linkDoCartao}`
+        : `Pra pagar no cartão de crédito, valor *${valor}*, é por este link: ${linkDoCartao}`,
+    );
+  }
+  if (novos.length === 0) return corpo;
   return [...baloes.slice(0, i), ...(resto ? [resto] : []), ...novos, ...baloes.slice(i + 1)].join("\n\n");
 }
 
@@ -117,7 +135,8 @@ export function blocoDosExtras(extras: readonly Extra[], pagos: readonly ExtraPa
     linhas.push(`- *${e.name}* — ${reais(e.price_cents)}. Quando cobrar: ${e.when} Para cobrar, escreva sozinho num balão: ${marcaDoExtra(e.name)}`);
   }
   linhas.push(
-    "- COMO COBRAR, numa resposta só: 1º um balão curto dizendo o que é e o valor; 2º a marca sozinha no balão seguinte (o sistema troca a marca pelo código do Pix); 3º um balão final: \"Assim que o Pix cair eu vejo aqui e já te atendo. Conseguiu copiar o código?\"",
+    "- COMO COBRAR, numa resposta só: 1º um balão curto dizendo o que é e o valor; 2º a marca sozinha no balão seguinte (o sistema troca a marca pelo código do Pix e pelo link de cartão de crédito); 3º um balão final: \"Assim que o pagamento cair eu vejo aqui e já te atendo. Conseguiu copiar o código?\"",
+    "- Se ela disser que não tem Pix, que só tem cartão ou pedir o link do cartão: o link de cartão vai junto com o Pix. Mande a marca de novo, sozinha no balão, e diga que o link do cartão está logo abaixo do código. NUNCA peça nem aceite foto ou número de cartão na conversa: os dados do cartão são digitados só na página do pagamento.",
     "- NÃO chame atendimento humano para cobrar isto, NÃO peça comprovante e NÃO entregue antes de o pagamento aparecer neste bloco como PAGO.",
     "- Dúvida sobre o trabalho principal, sobre o pagamento ou sobre o que você já leu para ela NÃO é cobrança à parte: responda normalmente.",
   );
