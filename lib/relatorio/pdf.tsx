@@ -36,10 +36,11 @@ const s = StyleSheet.create({
   fioDoTitulo: { width: 40, height: 2, backgroundColor: OURO, marginTop: 10, marginBottom: 14 },
   abre: { fontFamily: "Times-Italic", fontSize: 14, lineHeight: 1.35, color: "#3d3358", marginBottom: 10 },
   p: { marginBottom: 8 },
-  descoberta: { backgroundColor: "#ffffff", borderWidth: 1, borderColor: LINHA, borderLeftWidth: 3, borderLeftColor: OURO, borderRadius: 6, padding: 14, marginVertical: 8 },
+  descoberta: { backgroundColor: "#ffffff", borderWidth: 1, borderColor: LINHA, borderLeftWidth: 3, borderLeftColor: OURO, borderRadius: 6, padding: 10, marginVertical: 5 },
+  pDoCartao: { fontSize: 9.5, lineHeight: 1.42, marginBottom: 5 },
   rotulo: { color: SUAVE, fontFamily: "Helvetica-Bold", fontSize: 7, letterSpacing: 1.8, textTransform: "uppercase" },
-  h3: { fontFamily: "Times-Bold", fontSize: 15, color: NOITE, marginTop: 3, marginBottom: 6, lineHeight: 1.2 },
-  aplique: { backgroundColor: "#f6f0e2", borderRadius: 5, padding: 10, marginTop: 2 },
+  h3: { fontFamily: "Times-Bold", fontSize: 13.5, color: NOITE, marginTop: 2, marginBottom: 4, lineHeight: 1.2 },
+  aplique: { backgroundColor: "#f6f0e2", borderRadius: 5, padding: 7, marginTop: 1 },
   apliqueRotulo: { color: ROSA, fontFamily: "Helvetica-Bold", fontSize: 7, letterSpacing: 1.8, textTransform: "uppercase", marginBottom: 3 },
   chave: { flexDirection: "row", marginBottom: 14 },
   bola: { width: 26, height: 26, borderRadius: 13, backgroundColor: NOITE, alignItems: "center", justifyContent: "center", marginRight: 12 },
@@ -56,9 +57,10 @@ const s = StyleSheet.create({
   tabelas: { flexDirection: "row", gap: 12, marginTop: 6 },
   tabela: { flex: 1, backgroundColor: "#ffffff", borderWidth: 1, borderColor: LINHA, borderRadius: 5 },
   tabelaTitulo: { fontFamily: "Times-Bold", fontSize: 13, color: NOITE, padding: 7, borderBottomWidth: 1, borderBottomColor: LINHA },
-  linhaDaTabela: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 3.5, paddingHorizontal: 7, borderBottomWidth: 1, borderBottomColor: "#f1ebdd", fontSize: 9 },
+  linhaDaTabela: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 2.4, paddingHorizontal: 7, borderBottomWidth: 1, borderBottomColor: "#f1ebdd", fontSize: 9 },
   legenda: { flexDirection: "row", justifyContent: "center", gap: 14, marginBottom: 6, fontSize: 8, color: SUAVE },
-  nota: { fontSize: 8.3, color: SUAVE, borderTopWidth: 1, borderTopColor: LINHA, paddingTop: 7, marginTop: 10 },
+  notaNoPe: { position: "absolute", left: 40, right: 40, bottom: 16, fontSize: 7.2, lineHeight: 1.3, color: SUAVE },
+  nota: { fontSize: 7.6, lineHeight: 1.35, color: SUAVE, borderTopWidth: 1, borderTopColor: LINHA, paddingTop: 5, marginTop: 7 },
 });
 
 /** `**negrito**` vira negrito; o resto do texto segue como está. */
@@ -99,7 +101,7 @@ function Roda({ sinastria }: { sinastria: Sinastria }): React.ReactElement {
     });
   };
   return (
-    <Svg viewBox="0 0 300 300" style={{ width: 196, height: 196, alignSelf: "center", marginVertical: 4 }}>
+    <Svg viewBox="0 0 300 300" width={146} height={146}>
       <Circle cx={C} cy={C} r={R} stroke="#c9bfa5" strokeWidth={1} fill="none" />
       <Circle cx={C} cy={C} r={R2} stroke="#c9bfa5" strokeWidth={1} fill="none" />
       <Circle cx={C} cy={C} r={RL} stroke="#ddd3bd" strokeWidth={0.6} fill="none" />
@@ -171,19 +173,21 @@ function Relatorio({ d }: { d: DadosDoRelatorio }): React.ReactElement {
           <Text style={s.num}>O mapa de vocês</Text>
           <Text style={s.h2}>Dois céus, um desenho só</Text>
           <View style={s.fioDoTitulo} />
-          <Text style={s.p}>Este é o céu do dia em que cada um nasceu, um por cima do outro. Cada linha no centro é um ponto em que o mapa de um toca o mapa do outro. É dessas linhas que sai tudo o que você vai ler aqui.</Text>
-          <Roda sinastria={d.sinastria} />
+          <Text style={s.p}>O céu do dia em que cada um nasceu, um por cima do outro. Cada linha no centro é um ponto em que um mapa toca o outro: é delas que sai o que você vai ler.</Text>
+          <View style={{ height: 148, alignItems: "center", justifyContent: "center" }}>
+            <Roda sinastria={d.sinastria} />
+          </View>
           <View style={s.legenda}>
             <Text style={{ color: ROSA }}>{d.sinastria.a.nome} (fora)</Text>
             <Text style={{ color: AZUL }}>{d.sinastria.b.nome} (dentro)</Text>
             <Text style={{ color: "#3aa58a" }}>facilidade</Text>
             <Text style={{ color: "#cf5a6f" }}>tensão</Text>
           </View>
-          <View style={s.tabelas} wrap={false}>
+          <View style={s.tabelas}>
             <Tabela quem={d.sinastria.a} />
             <Tabela quem={d.sinastria.b} />
           </View>
-          <Text style={s.nota}>
+          <Text style={s.notaNoPe} fixed>
             {incerto ? "* Sem a hora de nascimento, esse planeta pode estar em um signo ou no outro: ele mudou de signo naquele dia. " : ""}
             Linhas tracejadas são encontros que dependem da hora para serem confirmados. Ascendente e casas não entram nesta leitura, porque só existem com a hora e a cidade de nascimento.
           </Text>
@@ -200,11 +204,11 @@ function Relatorio({ d }: { d: DadosDoRelatorio }): React.ReactElement {
               <View key={k} style={s.descoberta} wrap={false}>
                 <Text style={s.rotulo}>Uma descoberta da sua leitura</Text>
                 {b.titulo ? <Text style={s.h3}>{b.titulo}</Text> : null}
-                {b.texto.map((t, j) => <Rico key={j} texto={t} />)}
+                {b.texto.map((t, j) => <Rico key={j} texto={t} estilo={s.pDoCartao} />)}
                 {b.aplique ? (
-                  <View style={s.aplique}>
+                  <View style={s.aplique} wrap={false}>
                     <Text style={s.apliqueRotulo}>Aplique à sua história</Text>
-                    <Rico texto={b.aplique} estilo={{ fontSize: 10 }} />
+                    <Rico texto={b.aplique} estilo={{ fontSize: 9.3, lineHeight: 1.4 }} />
                   </View>
                 ) : null}
               </View>
