@@ -321,3 +321,29 @@ describe("revenue_ledger — de onde vem o dinheiro (migration 0924)", () => {
     expect(erro).toMatch(/revenue_ledger_dedupe_key/);
   });
 });
+
+describe("a Stripe como origem de cobrança e de receita (migration 0925)", () => {
+  it("o ledger aceita 'stripe' e a conexão de cobrança aceita 'stripe' com o segredo do aviso", () => {
+    sql(`
+      insert into public.revenue_ledger (organization_id, event_type, amount_cents, provider, external_event_id)
+      values ('${ORG_A}', 'charge', 9000, 'stripe', 'pi_inv_0925');
+    `);
+    expect(sql(`select provider from public.revenue_ledger where external_event_id = 'pi_inv_0925'`)).toBe("stripe");
+
+    sql(`
+      delete from public.payment_gateway_connections where organization_id = '${ORG_A}' and provider = 'stripe';
+      insert into public.payment_gateway_connections (organization_id, provider, api_key_encrypted, webhook_secret_encrypted, enabled)
+      values ('${ORG_A}', 'stripe', 'cifrado', 'cifrado', true);
+    `);
+    expect(sql(`select count(*) from public.payment_gateway_connections where organization_id = '${ORG_A}' and provider = 'stripe'`)).toBe("1");
+
+    let erro = "";
+    try {
+      sql(`insert into public.payment_gateway_connections (organization_id, provider) values ('${ORG_A}', 'inventado');`);
+    } catch (e) {
+      erro = motivoDoErro(e);
+    }
+    expect(erro).toMatch(/payment_gateway_connections_provider_conhecido/);
+    sql(`delete from public.payment_gateway_connections where organization_id = '${ORG_A}' and provider = 'stripe';`);
+  });
+});

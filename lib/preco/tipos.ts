@@ -124,6 +124,11 @@ export const pricingSchema = z
      * sem ela.
      */
     anchor_is_real: z.boolean().optional(),
+    /**
+     * Os links de pagamento do VALOR DE VENDA, um por produto. Os degraus já tinham os seus; o valor cheio
+     * só existia no texto do roteiro, e o código não tinha como saber que link cobra quanto.
+     */
+    list_product_links: z.array(linkPorProdutoSchema).max(MAX_LINKS_POR_PRODUTO).optional(),
     /** Do maior para o menor; o último é o mínimo. */
     steps: z.array(degrauDeNegociacaoSchema).max(MAX_DEGRAUS).default([]),
     /** O que oferecer a quem já comprou. Ausente = a agente não faz segunda oferta. */

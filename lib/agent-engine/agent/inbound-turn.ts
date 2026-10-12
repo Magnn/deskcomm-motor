@@ -67,6 +67,7 @@ import { HANDOFF_REASON_ORCAMENTO } from '../edge/llm/orcamento';
 import { abreAvisoDoEspelhoRecusado, mirrorLeadStageToCrm } from '../edge/crm/move-lead-stage';
 import { ERRO_DE_GANHO_SEM_PAGAMENTO, declaraGanho, ganhoSemProvaDePagamento } from './ganho-exige-pagamento';
 import { ERRO_DE_TEXTO_JA_ENVIADO, semBaloesJaEnviados } from './balao-ja-enviado';
+import { pixNoLugarDoLink } from './pix-no-envio';
 import { classificarPerdaDoAtendimento } from '@/lib/resultado/motivo-da-perda-do-agente';
 import { insertInboxItem } from '../db/repository';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -3351,6 +3352,20 @@ async function executarTurnoDoAgente(
                 'send_message de novo: encerre o turno agora. A próxima resposta já considera as duas mensagens.',
             },
           };
+        }
+        // PIX NA CONVERSA (`lib/pagamentos/pix-na-conversa.ts`): o link de pagamento que o agente escolheu —
+        // no valor que a escada liberou — ganha o código do Pix na frente. Sem conta de Pix conectada, ou em
+        // qualquer falha, o corpo segue como veio.
+        if (!preview && agentConfig?.pricing?.enabled) {
+          body = await pixNoLugarDoLink({
+            corpo: body,
+            pricing: agentConfig.pricing,
+            organizationId: tenantId,
+            contactId: leadId,
+            conversationId: input.conversationId,
+            supabase: deps.crmCfg.supabase,
+            log: runLog,
+          });
         }
         // CARTA SÓ A SORTEADA: sem os 3 números reconhecidos, ou fora da ordem, a revelação não sai.
         if (!preview) {

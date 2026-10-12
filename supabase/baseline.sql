@@ -39165,13 +39165,30 @@ create index if not exists idx_flywheel_propostas_pendentes
   on public.flywheel_distiller_proposals (organization_id, proposed_at desc)
   where applied_at is null and dismissed_at is null;
 
--- ---- O ledger de receita aceita o pagamento registrado pela equipe (migration 0924) ----
--- 'manual' é valor novo e 'cakto' continua aceito: não há dado a corrigir antes de recriar o CHECK.
+-- ---- O ledger de receita aceita o pagamento registrado pela equipe e a Stripe (migrations 0924 e 0925) ----
+-- 'manual' (0924) e 'stripe' (0925) são valores novos e 'cakto' continua aceito: não há dado a corrigir antes de
+-- recriar o CHECK. Um bloco só para as duas migrations: a constraint é reconstruída uma vez.
 alter table public.revenue_ledger
   drop constraint if exists revenue_ledger_provider_check;
 
 alter table public.revenue_ledger
-  add constraint revenue_ledger_provider_check check (provider in ('cakto', 'manual'));
+  add constraint revenue_ledger_provider_check check (provider in ('cakto', 'manual', 'stripe'));
 
 comment on column public.revenue_ledger.provider
-  is 'De onde veio o fato de dinheiro: ''cakto'' (aviso do checkout) ou ''manual'' (registrado pela equipe na conversa).';
+  is 'De onde veio o fato de dinheiro: ''cakto'' (aviso do checkout), ''manual'' (registrado pela equipe) ou ''stripe'' (Pix gerado na conversa).';
+
+-- ---- A conexão de cobrança aceita a Stripe (migration 0925) ----
+-- Valor novo no CHECK; o existente continua aceito: não há dado a corrigir antes. O CHECK do ledger de receita,
+-- que a mesma migration alarga, está no bloco das migrations 0924 e 0925, acima.
+alter table public.payment_gateway_connections
+  add column if not exists webhook_secret_encrypted text;
+
+alter table public.payment_gateway_connections
+  drop constraint if exists payment_gateway_connections_provider_conhecido;
+alter table public.payment_gateway_connections
+  add constraint payment_gateway_connections_provider_conhecido check (provider in ('asaas', 'stripe'));
+
+comment on column public.payment_gateway_connections.webhook_secret_encrypted
+  is 'Segredo da assinatura do aviso de pagamento do provedor (Stripe), cifrado. Nunca é devolvido à tela.';
+comment on column public.revenue_ledger.provider
+  is 'De onde veio o fato de dinheiro: ''cakto'' (aviso do checkout), ''manual'' (registrado pela equipe) ou ''stripe'' (Pix gerado na conversa).';
