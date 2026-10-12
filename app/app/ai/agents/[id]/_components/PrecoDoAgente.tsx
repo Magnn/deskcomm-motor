@@ -134,7 +134,7 @@ function formularioInicial(config: Props["config"]): Formulario {
     ...(c.pix_key?.city ? { cidadeDaChavePix: c.pix_key.city } : {}),
     ...(c.min_down_payment_cents !== undefined ? { entradaMinima: c.min_down_payment_cents } : {}),
     ...(c.social_proof ? { provas: c.social_proof } : {}),
-    extras: (c.extras ?? []).map((e) => `${e.name} | ${emTexto(e.price_cents)} | ${e.when}${e.valid_days ? ` | ${e.valid_days}` : ""}`).join("\n"),
+    extras: (c.extras ?? []).map((e) => `${e.name} | ${emTexto(e.price_cents)} | ${e.when}${e.valid_days ? ` | ${e.valid_days}` : ""}${e.delivery ? ` | entrega: ${e.delivery}` : ""}`).join("\n"),
   };
 }
 
@@ -203,7 +203,10 @@ function paraCorpo(f: Formulario): { corpo: PricingConfig } | { erro: string } {
   const extras: NonNullable<PricingConfig["extras"]> = [];
   for (const linha of f.extras.split("\n")) {
     if (linha.trim() === "") continue;
-    const partes = linha.split("|").map((p) => p.trim());
+    const todas = linha.split("|").map((p) => p.trim());
+    // "entrega: …" em qualquer posição é o como entregar depois de pago; o resto segue a ordem de sempre.
+    const entrega = todas.find((p) => /^entrega\s*:/i.test(p))?.replace(/^entrega\s*:\s*/i, "") ?? "";
+    const partes = todas.filter((p) => !/^entrega\s*:/i.test(p));
     const preco = emCentavos(partes[1] ?? "");
     if (partes.length < 3 || preco === null) return { erro: "Cada cobrança à parte deve ser: Nome | valor | quando cobrar" };
     // Um número inteiro no fim da linha é o período em dias ("… | 30"); sem ele, a cobrança vale uma entrega.
@@ -214,6 +217,7 @@ function paraCorpo(f: Formulario): { corpo: PricingConfig } | { erro: string } {
       price_cents: preco,
       when: partes.slice(2, temDias ? -1 : undefined).join(" | "),
       ...(temDias ? { valid_days: Number(ultima) } : {}),
+      ...(entrega.length >= 5 ? { delivery: entrega } : {}),
     });
   }
   const gratuitas = f.respostasGratuitas.trim() === "" ? null : Number(f.respostasGratuitas);
@@ -468,7 +472,7 @@ export function PrecoDoAgente({ agentId, config, readOnly }: Props) {
           </p>
         </div>
         <div className="flex flex-col gap-1">
-          <Label htmlFor="preco-extras">{t("Uma linha por cobrança: Nome | valor | quando cobrar | dias que vale (opcional)")}</Label>
+          <Label htmlFor="preco-extras">{t("Uma linha por cobrança: Nome | valor | quando cobrar | dias que vale (opcional) | entrega: como entregar depois de pago (opcional)")}</Label>
           <Textarea
             id="preco-extras"
             rows={4}

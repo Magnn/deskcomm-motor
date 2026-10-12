@@ -68,6 +68,7 @@ import { abreAvisoDoEspelhoRecusado, mirrorLeadStageToCrm } from '../edge/crm/mo
 import { ERRO_DE_GANHO_SEM_PAGAMENTO, declaraGanho, ganhoSemProvaDePagamento } from './ganho-exige-pagamento';
 import { ERRO_DE_TEXTO_JA_ENVIADO, semBaloesJaEnviados } from './balao-ja-enviado';
 import { linkInternacionalNoLugarDoLink } from './link-internacional-no-envio';
+import { linkDoValorPrometido } from '@/lib/preco/link-do-valor';
 import { boletoNoLugarDaMarca } from './boleto-no-envio';
 import { pixDaEntradaNoLugarDaMarca, temMarcaDaEntrada } from './pix-da-entrada-no-envio';
 import { pixDoExtraNoLugarDaMarca } from './pix-do-extra-no-envio';
@@ -597,6 +598,8 @@ const inboundTurnPayloadSchema = z
     channel_session_id: z.string().uuid(),
     inbound_message_id: z.string().uuid(),
     crm_event_id: z.string().uuid(),
+    /** Ver `dispatchPayloadSchema` em `edge/crm/drain.ts`: um fato novo (pagamento confirmado) pede a fala do agente. */
+    fato_novo: z.string().max(60).optional(),
   })
   .passthrough();
 
@@ -2523,17 +2526,18 @@ async function executarTurnoDoAgente(
   if (extrasDoTurno.length > 0) {
     try {
       // Lê até o maior período pago entre os extras (um acompanhamento de 30 dias vale 30 dias, não 24 horas).
-      const { rows } = await pool.query<{ slug: string; hora: string; dia: string; dias_atras: number }>(
+      const { rows } = await pool.query<{ slug: string; hora: string; dia: string; dias_atras: number; minutos_atras: number }>(
         `select metadata->>'extra' as slug, to_char(occurred_at at time zone $3, 'HH24:MI') as hora,
                 to_char(occurred_at at time zone $3, 'DD/MM') as dia,
-                floor(extract(epoch from (now() - occurred_at)) / 86400)::int as dias_atras
+                floor(extract(epoch from (now() - occurred_at)) / 86400)::int as dias_atras,
+                floor(extract(epoch from (now() - occurred_at)) / 60)::int as minutos_atras
            from revenue_ledger
           where organization_id = $1 and contact_id = $2 and event_type = 'charge'
             and metadata ? 'extra' and occurred_at > now() - make_interval(days => $4)
           order by occurred_at desc limit 8`,
         [tenantId, leadId, fusoDaOrg, janelaDeLeituraDosExtras(extrasDoTurno)],
       );
-      extrasPagosNoTurno = rows.map((r) => ({ slug: r.slug, hora: r.hora, dia: r.dia, diasAtras: r.dias_atras }));
+      extrasPagosNoTurno = rows.map((r) => ({ slug: r.slug, hora: r.hora, dia: r.dia, diasAtras: r.dias_atras, minutosAtras: r.minutos_atras }));
     } catch (err) {
       runLog.warn('não consegui ler as cobranças avulsas pagas — o turno segue sem elas', {
         error: (err instanceof Error ? err.message : String(err)).slice(0, 120),
@@ -3727,6 +3731,19 @@ async function executarTurnoDoAgente(
             return { ok: false, error: { code: 'cobranca_avulsa_indisponivel', message: comExtra.recusa } };
           }
           body = comExtra.corpo;
+        }
+        // O LINK COBRA O VALOR QUE A MENSAGEM DIZ (`lib/preco/link-do-valor.ts`): link cadastrado de outro valor é
+        // trocado pelo do valor dito; link do site de pagamento fora da configuração recusa o envio.
+        if (!preview && agentConfig?.pricing?.enabled && internacionalDoTurno === null) {
+          const conferido = linkDoValorPrometido(body, agentConfig.pricing);
+          if ('recusa' in conferido) {
+            runLog.warn('link de pagamento fora da configuração ou sem par no valor dito — envio recusado', {});
+            return { ok: false, error: { code: 'link_fora_do_valor', message: conferido.recusa } };
+          }
+          if (conferido.trocas.length > 0) {
+            runLog.warn('link de pagamento trocado pelo do valor dito na mensagem', { trocas: conferido.trocas });
+            body = conferido.corpo;
+          }
         }
         // QUEM PAGA EM MOEDA ESTRANGEIRA: o link em reais vira a cobrança na moeda dela — e, se a cobrança não
         // sair, o envio é recusado: o link em reais cobraria um valor que a conversa não disse.
@@ -5785,7 +5802,8 @@ export function createInboundTurnHandler(deps: InboundTurnDeps) {
       conversationId: payload.conversation_id,
       jobId: job.id,
     };
-    if (await ultimaInboundJaRespondida(pool, alvo)) {
+    // Um fato novo (pagamento que acabou de cair) pede a fala do agente mesmo com a última mensagem respondida.
+    if (payload.fato_novo === undefined && (await ultimaInboundJaRespondida(pool, alvo))) {
       deps.log.info('turno pulado — outro turno já viu e respondeu a última mensagem do cliente', {
         job_id: job.id,
         conversation_id: payload.conversation_id,
