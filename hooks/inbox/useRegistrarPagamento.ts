@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { showApiError } from "@/components/feedback/ApiErrorToast";
 import { apiClient } from "@/lib/api/client";
+import type { EnviarPix, PixEnviado } from "@/lib/pagamentos/enviar-pix-tipos";
 import type { PagamentoRecebido, ResultadoDoPagamento, SugestaoDePagamento } from "@/lib/pagamentos/pagamento-recebido-tipos";
 
 /** Os produtos que a organização vende, com o valor de cada um. Só busca com o diálogo aberto. */
@@ -30,6 +31,20 @@ export function useRegistrarPagamento() {
       qc.invalidateQueries({ queryKey: ["conversations"] });
       qc.invalidateQueries({ queryKey: ["conversation", args.conversation_id] });
       qc.invalidateQueries({ queryKey: ["leads"] });
+    },
+  });
+}
+
+/** Envia um Pix copia e cola na conversa, pelo atendente. As mensagens entram no histórico como qualquer resposta. */
+export function useEnviarPix() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (args: { conversation_id: string; pix: EnviarPix }) =>
+      (await apiClient.post<{ data: PixEnviado }>(`/api/v1/conversations/${args.conversation_id}/pix`, args.pix)).data,
+    onError: (err) => showApiError(err),
+    onSuccess: (_data, args) => {
+      qc.invalidateQueries({ queryKey: ["messages", args.conversation_id] });
+      qc.invalidateQueries({ queryKey: ["conversation", args.conversation_id] });
     },
   });
 }

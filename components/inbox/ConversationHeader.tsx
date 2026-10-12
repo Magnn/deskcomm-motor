@@ -31,6 +31,7 @@ import { useAutomaticoAtivo } from "@/hooks/ai/useAutomaticoAtivo";
 import { OwnerBadge } from "@/components/kanban/OwnerBadge";
 import { comandoDaConversa, ROTULO_DO_MOTIVO } from "@/lib/inbox/comando-da-conversa";
 import { ReassignDialog } from "@/components/inbox/ReassignDialog";
+import { EnviarPixDialog } from "@/components/inbox/EnviarPixDialog";
 import { RegistrarPagamentoDialog } from "@/components/inbox/RegistrarPagamentoDialog";
 import { SnoozeButton } from "@/components/inbox/SnoozeButton";
 import { useMarkAsUnread } from "@/hooks/inbox/useMarkAsUnread";
@@ -89,6 +90,7 @@ export function ConversationHeader({ conversation, onAbrirConversa, onSair }: Pr
   const automaticoDaOrg = useAutomaticoAtivo();
   const [reassignOpen, setReassignOpen] = useState(false);
   const [pagamentoOpen, setPagamentoOpen] = useState(false);
+  const [pixOpen, setPixOpen] = useState(false);
   const [confirmFecharOpen, setConfirmFecharOpen] = useState(false);
   const [confirmArquivarOpen, setConfirmArquivarOpen] = useState(false);
 
@@ -323,6 +325,17 @@ export function ConversationHeader({ conversation, onAbrirConversa, onSair }: Pr
             {t("Registrar pagamento")}
           </Button>
         )}
+        {!encerrada && conversation.contact_id && (
+          <Button
+            size="sm"
+            variant="outline"
+            data-testid="abrir-enviar-pix"
+            title={t("Envia o Pix copia e cola nesta conversa, no valor que você informar. O pagamento é confirmado sozinho.")}
+            onClick={() => setPixOpen(true)}
+          >
+            {t("Enviar Pix")}
+          </Button>
+        )}
         {!encerrada && (
           <SnoozeButton
             conversationId={conversation.id}
@@ -397,6 +410,7 @@ export function ConversationHeader({ conversation, onAbrirConversa, onSair }: Pr
         )}
       </div>
       {/* Só monta aberto: o diálogo busca a lista de produtos, e fechado não há por que buscar. */}
+      {pixOpen && <EnviarPixDialog conversationId={conversation.id} open={pixOpen} onOpenChange={setPixOpen} />}
       {pagamentoOpen && (
         <RegistrarPagamentoDialog conversationId={conversation.id} open={pagamentoOpen} onOpenChange={setPagamentoOpen} />
       )}
