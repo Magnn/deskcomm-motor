@@ -70,10 +70,11 @@ import { ERRO_DE_TEXTO_JA_ENVIADO, semBaloesJaEnviados } from './balao-ja-enviad
 import { linkInternacionalNoLugarDoLink } from './link-internacional-no-envio';
 import { pixDoExtraNoLugarDaMarca } from './pix-do-extra-no-envio';
 import { pixNoLugarDoLink } from './pix-no-envio';
+import { blocoDaConfirmacaoCurta, rodadaSoDeConfirmacao } from './confirmacao-curta';
 import { blocoDaRespostaAtropelada, respostaAtropelada } from './resposta-atropelada';
 import { blocoDaEntrada, blocoDaPropostaDeEntrada, blocoDoValorAceito } from '@/lib/preco/bloco-da-entrada';
 import { blocoDoPrecoInternacional, precoInternacionalDoContato } from '@/lib/preco/preco-internacional';
-import { blocoDosExtras, extrasDaConfig, type ExtraPago } from '@/lib/preco/extras';
+import { blocoDosExtras, extrasDaConfig, janelaDeLeituraDosExtras, type ExtraPago } from '@/lib/preco/extras';
 import { classificarPerdaDoAtendimento } from '@/lib/resultado/motivo-da-perda-do-agente';
 import { insertInboxItem } from '../db/repository';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -2480,15 +2481,18 @@ async function executarTurnoDoAgente(
   let extrasPagosNoTurno: ExtraPago[] = [];
   if (extrasDoTurno.length > 0) {
     try {
-      const { rows } = await pool.query<{ slug: string; hora: string }>(
-        `select metadata->>'extra' as slug, to_char(occurred_at at time zone $3, 'HH24:MI') as hora
+      // Lê até o maior período pago entre os extras (um acompanhamento de 30 dias vale 30 dias, não 24 horas).
+      const { rows } = await pool.query<{ slug: string; hora: string; dia: string; dias_atras: number }>(
+        `select metadata->>'extra' as slug, to_char(occurred_at at time zone $3, 'HH24:MI') as hora,
+                to_char(occurred_at at time zone $3, 'DD/MM') as dia,
+                floor(extract(epoch from (now() - occurred_at)) / 86400)::int as dias_atras
            from revenue_ledger
           where organization_id = $1 and contact_id = $2 and event_type = 'charge'
-            and metadata ? 'extra' and occurred_at > now() - interval '24 hours'
-          order by occurred_at desc limit 3`,
-        [tenantId, leadId, fusoDaOrg],
+            and metadata ? 'extra' and occurred_at > now() - make_interval(days => $4)
+          order by occurred_at desc limit 8`,
+        [tenantId, leadId, fusoDaOrg, janelaDeLeituraDosExtras(extrasDoTurno)],
       );
-      extrasPagosNoTurno = rows;
+      extrasPagosNoTurno = rows.map((r) => ({ slug: r.slug, hora: r.hora, dia: r.dia, diasAtras: r.dias_atras }));
     } catch (err) {
       runLog.warn('não consegui ler as cobranças avulsas pagas — o turno segue sem elas', {
         error: (err instanceof Error ? err.message : String(err)).slice(0, 120),
@@ -2649,9 +2653,16 @@ async function executarTurnoDoAgente(
   // A ORDEM dos blocos mora em `blocos-do-turno.ts` (é dado lá, com o porquê): aqui só se diz qual
   // texto é de qual bloco. Bloco novo = um nome na fila lá + uma chave aqui; o typecheck cobra os dois.
   // A pessoa escreveu de novo sem ter lido a resposta anterior: este turno não repete o que já saiu.
-  const blocoDoAtropeloDoTurno = blocoDaRespostaAtropelada(!preview && respostaAtropelada(openingContext.context.messages));
-  if (blocoDoAtropeloDoTurno !== '') {
+  const atropeladaNoTurno = !preview && respostaAtropelada(openingContext.context.messages);
+  // "Ok", "👍", figurinha: o turno não repete a instrução que acabou de dar. Fora da leitura, onde o "sim" é o
+  // gatilho do passo seguinte e quem conduz é o código.
+  const soConfirmouNoTurno = !preview && blocoDaLeituraDoTurno === '' && rodadaSoDeConfirmacao(openingContext.context.messages);
+  const blocoDoAtropeloDoTurno = blocoDaRespostaAtropelada(atropeladaNoTurno) + blocoDaConfirmacaoCurta(soConfirmouNoTurno);
+  if (atropeladaNoTurno) {
     runLog.info('resposta atropelada — este turno responde só ao que a mensagem nova acrescenta', {});
+  }
+  if (soConfirmouNoTurno) {
+    runLog.info('confirmação curta — este turno não repete o que já foi dito', {});
   }
   const systemDoTurno = comporSystemDoTurno(system, {
     identidade: blocoDeIdentidadeDoTurno,

@@ -136,6 +136,11 @@ export const extraSchema = z.object({
   name: z.string().trim().min(2).max(60),
   price_cents: centavos,
   when: z.string().trim().min(5).max(400),
+  /**
+   * Por quantos dias o pagamento vale. Ausente = uma entrega (uma pergunta). Com dias, é um período: quem pagou é
+   * atendido sem nova cobrança até o fim dele (um acompanhamento de 30 dias).
+   */
+  valid_days: z.number().int().min(1).max(366).optional(),
 });
 export type Extra = z.infer<typeof extraSchema>;
 

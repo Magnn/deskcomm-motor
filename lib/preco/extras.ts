@@ -89,6 +89,16 @@ export interface ExtraPago {
   slug: string;
   /** "HH:MM", no fuso da organização. */
   hora: string;
+  /** "DD/MM" do pagamento e quantos dias inteiros se passaram desde ele. Ausentes = pagamento de hoje. */
+  dia?: string;
+  diasAtras?: number;
+  /** "DD/MM" em que um período pago termina; calculado por quem lê o livro de receita. */
+  ateDia?: string;
+}
+
+/** Até quantos dias atrás vale a pena ler pagamentos: o maior período entre os extras, e no mínimo um dia. */
+export function janelaDeLeituraDosExtras(extras: readonly Extra[]): number {
+  return Math.max(1, ...extras.map((e) => e.valid_days ?? 1));
 }
 
 /**
@@ -114,6 +124,15 @@ export function blocoDosExtras(extras: readonly Extra[], pagos: readonly ExtraPa
   for (const p of pagos) {
     const extra = extras.find((e) => slugDoExtra(e.name) === p.slug);
     if (!extra) continue;
+    const dias = extra.valid_days ?? 1;
+    // Pagamento mais velho que o período do extra já não vale nada.
+    if ((p.diasAtras ?? 0) >= dias) continue;
+    if (dias > 1) {
+      linhas.push(
+        `- ATIVO: ela pagou *${extra.name}* em ${p.dia ?? "hoje"} e tem direito a ele${p.ateDia ? ` até ${p.ateDia}` : ` por ${dias} dias`}. Atenda normalmente, todos os dias, SEM cobrar de novo por isto e sem dizer que acabou. Outras cobranças deste bloco continuam valendo.`,
+      );
+      continue;
+    }
     linhas.push(
       `- PAGO: ela pagou *${extra.name}* às ${p.hora}. Se depois desse horário você ainda NÃO entregou o que ela pagou (confira as suas falas acima), entregue AGORA, completo, sem cobrar de novo. Se já entregou, esse pagamento foi usado: um pedido novo é uma cobrança nova.`,
     );

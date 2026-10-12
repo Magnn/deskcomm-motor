@@ -118,7 +118,7 @@ function formularioInicial(config: Props["config"]): Formulario {
     linksDaVenda: (c.list_product_links ?? []).map((l) => `${l.name} | ${l.url}`).join("\n"),
     euro: emTexto(c.international_prices?.find((p) => p.currency === "EUR")?.price_cents),
     dolar: emTexto(c.international_prices?.find((p) => p.currency === "USD")?.price_cents),
-    extras: (c.extras ?? []).map((e) => `${e.name} | ${emTexto(e.price_cents)} | ${e.when}`).join("\n"),
+    extras: (c.extras ?? []).map((e) => `${e.name} | ${emTexto(e.price_cents)} | ${e.when}${e.valid_days ? ` | ${e.valid_days}` : ""}`).join("\n"),
   };
 }
 
@@ -190,7 +190,15 @@ function paraCorpo(f: Formulario): { corpo: PricingConfig } | { erro: string } {
     const partes = linha.split("|").map((p) => p.trim());
     const preco = emCentavos(partes[1] ?? "");
     if (partes.length < 3 || preco === null) return { erro: "Cada cobrança à parte deve ser: Nome | valor | quando cobrar" };
-    extras.push({ name: partes[0] ?? "", price_cents: preco, when: partes.slice(2).join(" | ") });
+    // Um número inteiro no fim da linha é o período em dias ("… | 30"); sem ele, a cobrança vale uma entrega.
+    const ultima = partes[partes.length - 1] ?? "";
+    const temDias = partes.length >= 4 && /^\d{1,3}$/.test(ultima);
+    extras.push({
+      name: partes[0] ?? "",
+      price_cents: preco,
+      when: partes.slice(2, temDias ? -1 : undefined).join(" | "),
+      ...(temDias ? { valid_days: Number(ultima) } : {}),
+    });
   }
   const candidato = {
     enabled: f.enabled,
@@ -430,7 +438,7 @@ export function PrecoDoAgente({ agentId, config, readOnly }: Props) {
           </p>
         </div>
         <div className="flex flex-col gap-1">
-          <Label htmlFor="preco-extras">{t("Uma linha por cobrança: Nome | valor | quando cobrar")}</Label>
+          <Label htmlFor="preco-extras">{t("Uma linha por cobrança: Nome | valor | quando cobrar | dias que vale (opcional)")}</Label>
           <Textarea
             id="preco-extras"
             rows={4}
