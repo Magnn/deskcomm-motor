@@ -9,7 +9,7 @@ import { ehCodigoDoPix, splitIntoBubbles } from "@/lib/agent-engine/agent/split-
 import { blocoDaChavePix, chavePorExtenso, pixPelaChaveNoLugarDaMarca, temMarcaDeChavePix } from "./chave-pix";
 
 const CHAVE = { key: "62.917.956/0001-00", holder: "Arcanum Imperium Digital" };
-const base = { chave: CHAVE, valoresPermitidosCents: [13000, 9000, 500], identificador: "conv1234" };
+const base = { chave: CHAVE, valoresPermitidosCents: [13000, 9000, 500], identificador: "conv1234", outraFormaJaTentada: true };
 
 describe("pixPelaChaveNoLugarDaMarca", () => {
   it("⭐ troca a marca pela instrução, pelo código sozinho num balão e pela chave por extenso", () => {
@@ -43,6 +43,11 @@ describe("pixPelaChaveNoLugarDaMarca", () => {
     }
   });
 
+  it("⭐ é o último recurso: sem outra forma de pagar já tentada na conversa, a chave é recusada", () => {
+    const saida = pixPelaChaveNoLugarDaMarca({ ...base, outraFormaJaTentada: false, corpo: "[[CHAVE PIX: 130]]" });
+    expect("recusa" in saida && saida.recusa).toContain("ÚLTIMO recurso");
+  });
+
   it("sem marca, o corpo passa intacto", () => {
     expect(pixPelaChaveNoLugarDaMarca({ ...base, corpo: "Me conta mais." })).toEqual({ corpo: "Me conta mais." });
     expect(temMarcaDeChavePix("a chave pix é minha")).toBe(false);
@@ -55,6 +60,7 @@ describe("blocoDaChavePix e chavePorExtenso", () => {
     expect(bloco).toContain("[[CHAVE PIX: 130]]");
     expect(bloco).toContain("R$ 130, R$ 90");
     expect(bloco).toContain("NÃO confirma sozinho");
+    expect(bloco).toContain("ÚLTIMO RECURSO");
     expect(blocoDaChavePix(null, [13000])).toBe("");
     expect(blocoDaChavePix(CHAVE, [])).toBe("");
   });

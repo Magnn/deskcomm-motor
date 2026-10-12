@@ -73,7 +73,9 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ conexao: s
   const cobrancaId = String(pi.id ?? evento.id ?? "");
   const pagoEm = new Date().toISOString();
   const moedaDaCobranca = typeof pi.currency === "string" ? pi.currency.toUpperCase() : MOEDA_DA_CONTA;
-  const porPix = Array.isArray(pi.payment_method_types) && pi.payment_method_types.includes("pix");
+  const tipos = Array.isArray(pi.payment_method_types) ? (pi.payment_method_types as unknown[]) : [];
+  // Cobrança de uma forma só diz qual foi; o link que aceita várias (boleto e cartão) fica como cartão.
+  const metodoDaCobranca = tipos.length === 1 && tipos[0] === "pix" ? "pix" : tipos.length === 1 && tipos[0] === "boleto" ? "boleto" : "cartao";
   // Na moeda da conta o valor é o da cobrança. Em outra moeda, é o que a Stripe converteu — ou nenhum.
   let valorNaConta: number | null = moedaDaCobranca === MOEDA_DA_CONTA ? valor : null;
   if (valorNaConta === null) {
@@ -96,7 +98,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ conexao: s
     ofertaNome: null,
     valorCentavos: valorNaConta,
     cupom: null,
-    metodo: porPix ? "pix" : "cartao",
+    metodo: metodoDaCobranca,
     pagoEm,
     status: "paid",
     cliente: { nome: null, email: null, telefone: null },
@@ -114,7 +116,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ conexao: s
         external_event_id: cobrancaId,
         occurred_at: pagoEm,
         contact_id: contatoId,
-        metadata: { produto: meta.produto ?? null, metodo: porPix ? "pix" : "cartao", conversa: meta.conversation_id ?? null, extra },
+        metadata: { produto: meta.produto ?? null, metodo: metodoDaCobranca, conversa: meta.conversation_id ?? null, extra },
       });
       // Reentrega da Stripe: a receita já está lá e a marca também.
       if (erroDoLedger?.code === "23505") return ok({ received: true, resultado: "repetida" }, { requestId }) as NextResponse;
@@ -177,7 +179,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ conexao: s
       contact_id: "contatoId" in efeito ? efeito.contatoId : null,
       metadata: {
         produto: meta.produto ?? null,
-        metodo: porPix ? "pix" : "cartao",
+        metodo: metodoDaCobranca,
         conversa: meta.conversation_id ?? null,
         ...(moedaDaCobranca !== MOEDA_DA_CONTA ? { moeda_original: moedaDaCobranca, valor_original_cents: valor } : {}),
       },

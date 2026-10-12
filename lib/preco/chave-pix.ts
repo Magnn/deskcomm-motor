@@ -46,8 +46,13 @@ export function pixPelaChaveNoLugarDaMarca(e: {
   chave: ChavePixDaEmpresa | null | undefined;
   valoresPermitidosCents: readonly number[];
   identificador: string;
+  /** Já saiu, nesta conversa, um Pix do provedor, um link ou um boleto? Sem isso a chave ainda não é a vez. */
+  outraFormaJaTentada: boolean;
 }): SaidaDaChavePix {
   if (!temMarcaDeChavePix(e.corpo)) return { corpo: e.corpo };
+  if (!e.outraFormaJaTentada) {
+    return { recusa: "A chave Pix da empresa é o ÚLTIMO recurso. Mande primeiro o pagamento do jeito normal (o Pix copia e cola ou o link) e ajude a pessoa a usar. Só use a marca [[CHAVE PIX: …]] se ela tentar e não conseguir." };
+  }
   const lista = [...new Set(e.valoresPermitidosCents)].sort((a, b) => b - a).map(reais).join(", ");
   if (!e.chave) return { recusa: "Não há chave Pix da empresa configurada. NÃO use a marca [[CHAVE PIX: …]] e NÃO envie chave nenhuma: mande o pagamento do jeito de sempre." };
   const achadas = [...e.corpo.matchAll(MARCA)];
@@ -79,7 +84,7 @@ export function blocoDaChavePix(chave: ChavePixDaEmpresa | null | undefined, val
     "",
     "",
     "PIX PELA CHAVE DA EMPRESA (opção; o jeito padrão de cobrar continua sendo o descrito acima)",
-    `- Use SÓ quando a pessoa pedir "a chave Pix" ou "o número do Pix", disser que não sabe ou não consegue pagar pelo código ou pelo link, ou pedir para outra pessoa fazer a transferência.`,
+    `- É o ÚLTIMO RECURSO. Use SÓ depois de ter mandado o pagamento normal (o Pix copia e cola, o link ou o boleto) e a pessoa ter tentado e NÃO ter conseguido, mesmo com a sua ajuda passo a passo. Nunca ofereça a chave por iniciativa sua e nunca como primeira forma de pagar.`,
     `- Para mandar, escreva sozinha num balão a marca com o valor em reais, assim: [[CHAVE PIX: ${Math.round(valores[0]! / 100)}]]. Valores liberados para esta pessoa agora: ${valores.map(reais).join(", ")}. O sistema troca a marca pelo código, pela chave e pelo nome ${chave.holder}. NUNCA digite a chave você mesma.`,
     `- O pagamento pela chave NÃO confirma sozinho. Quando ela mandar o comprovante, diga em um balão que a equipe está conferindo e que você avisa assim que confirmar, e chame o atendimento humano com o motivo "Pix pela chave: conferir o comprovante e registrar o pagamento". NÃO entregue nada e NÃO diga que o pagamento caiu antes de o sistema confirmar.`,
   ].join("\n");

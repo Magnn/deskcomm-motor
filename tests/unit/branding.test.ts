@@ -874,6 +874,11 @@ const HOSTS_DECLARADOS: Record<string, EntradaDeHost> = {
     motivo:
       "endpoint de TESTE da mesma API da Asaas (`lib/pagamentos/asaas.ts`), usado quando a organização conecta uma chave de sandbox em Configurações › Pagamentos. Mesma natureza do host de produção: destino do request, não texto de tela.",
   },
+  "viacep.com.br": {
+    categoria: "FORNECEDOR",
+    motivo:
+      "base pública de CEP (`lib/pagamentos/cep.ts`): é de onde vem o endereço de quem paga quando o agente emite um boleto na conversa — o banco exige o endereço, e a pessoa informa só o CEP. Só é chamado nesse momento, sem chave e sem dado além do CEP; organização que não emite boleto nunca o chama.",
+  },
   "api.stripe.com": {
     categoria: "FORNECEDOR",
     motivo:

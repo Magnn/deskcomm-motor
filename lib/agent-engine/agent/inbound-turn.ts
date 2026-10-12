@@ -68,6 +68,7 @@ import { abreAvisoDoEspelhoRecusado, mirrorLeadStageToCrm } from '../edge/crm/mo
 import { ERRO_DE_GANHO_SEM_PAGAMENTO, declaraGanho, ganhoSemProvaDePagamento } from './ganho-exige-pagamento';
 import { ERRO_DE_TEXTO_JA_ENVIADO, semBaloesJaEnviados } from './balao-ja-enviado';
 import { linkInternacionalNoLugarDoLink } from './link-internacional-no-envio';
+import { boletoNoLugarDaMarca } from './boleto-no-envio';
 import { pixDaEntradaNoLugarDaMarca, temMarcaDaEntrada } from './pix-da-entrada-no-envio';
 import { pixDoExtraNoLugarDaMarca } from './pix-do-extra-no-envio';
 import { pixNoLugarDoLink } from './pix-no-envio';
@@ -78,6 +79,7 @@ import { blocoDaEntrada, blocoDaEntradaImediata, blocoDaPropostaDeEntrada, bloco
 import { linkDePagamentoNoCorpo, linksDePagamentoDaConfig } from '@/lib/pagamentos/pix-na-conversa';
 import { blocoDoPrecoInternacional, precoInternacionalDoContato } from '@/lib/preco/preco-internacional';
 import { blocoDaChavePix, pixPelaChaveNoLugarDaMarca, temMarcaDeChavePix } from '@/lib/preco/chave-pix';
+import { blocoDoBoletoPronto, temMarcaDeBoleto } from '@/lib/preco/boleto-pronto';
 import { blocoDosExtras, extrasDaConfig, janelaDeLeituraDosExtras, slugDoExtra, type ExtraPago } from '@/lib/preco/extras';
 import { classificarPerdaDoAtendimento } from '@/lib/resultado/motivo-da-perda-do-agente';
 import { insertInboxItem } from '../db/repository';
@@ -2544,8 +2546,8 @@ async function executarTurnoDoAgente(
       : undefined;
   // PIX PELA CHAVE DA EMPRESA (`lib/preco/chave-pix.ts`): os valores que este turno pode cobrar por ela. O modelo
   // escreve o valor na marca; o envio só aceita um destes.
-  const valoresDaChavePix: number[] =
-    preview || internacionalDoTurno !== null || !agentConfig?.pricing?.pix_key
+  const valoresCobraveisNoTurno: number[] =
+    preview || internacionalDoTurno !== null || !agentConfig?.pricing?.enabled
       ? []
       : [
           ...(promiseMinPriceCentsDaEscada !== undefined ? [promiseMinPriceCentsDaEscada] : []),
@@ -2554,7 +2556,33 @@ async function executarTurnoDoAgente(
           ...(valorAceitoDoTurno !== null ? [valorAceitoDoTurno] : []),
           ...extrasDoTurno.map((e) => e.price_cents),
         ];
-  const blocoDaChavePixDoTurno = blocoDaChavePix(agentConfig?.pricing?.pix_key, valoresDaChavePix);
+  const valoresDaChavePix = agentConfig?.pricing?.pix_key ? valoresCobraveisNoTurno : [];
+  // O que é do produto principal neste turno (o resto dos valores cobráveis são cobranças à parte), e o produto
+  // que a pessoa está comprando: o do último link de pagamento que ela recebeu, ou o primeiro da lista de venda.
+  const valoresDoProdutoPrincipal: number[] = [
+    ...(promiseMinPriceCentsDaEscada !== undefined ? [promiseMinPriceCentsDaEscada] : []),
+    ...(entradaDoTurno !== null ? [entradaDoTurno.entradaCents] : []),
+    ...(entradaImediataDoTurno !== null ? [entradaImediataDoTurno.entradaCents] : []),
+    ...(valorAceitoDoTurno !== null ? [valorAceitoDoTurno] : []),
+  ];
+  const linksConhecidosNoTurno = linksDePagamentoDaConfig(agentConfig?.pricing);
+  const produtoIndicadoNoTurno =
+    [...openingContext.context.messages]
+      .reverse()
+      .map((m) => (m.direction === 'outbound' ? linkDePagamentoNoCorpo(m.body ?? '', linksConhecidosNoTurno) : null))
+      .find((l) => l !== null)?.produto || linksConhecidosNoTurno.find((l) => l.produto !== '')?.produto || '';
+  // O provedor exige um e-mail para emitir boleto. Quem não informa recebe um endereço do próprio sistema.
+  const emailPadraoDoBoleto = (() => {
+    try {
+      const host = new URL(process.env.NEXT_PUBLIC_APP_URL ?? '').hostname;
+      return host && host !== 'localhost' ? `sem-email+${leadId.slice(0, 8)}@${host}` : null;
+    } catch {
+      return null;
+    }
+  })();
+  // BOLETO PRONTO (`lib/preco/boleto-pronto.ts`): os mesmos valores, para quem paga na lotérica.
+  const blocoDaChavePixDoTurno =
+    blocoDoBoletoPronto(valoresCobraveisNoTurno) + blocoDaChavePix(agentConfig?.pricing?.pix_key, valoresDaChavePix);
   // Com entrada proposta, o piso do turno desce até ela: sem isso a trava vetaria o valor e o link da entrada.
   const promiseMinPriceCents =
     (entradaDoTurno ?? propostaDeEntradaDoTurno) !== null && promiseMinPriceCentsDaEscada !== undefined
@@ -3522,6 +3550,35 @@ async function executarTurnoDoAgente(
         // PIX NA CONVERSA (`lib/pagamentos/pix-na-conversa.ts`): o link de pagamento que o agente escolheu —
         // no valor que a escada liberou — ganha o código do Pix na frente. Sem conta de Pix conectada, ou em
         // qualquer falha, o corpo segue como veio.
+        // O BOLETO PRONTO: a marca `[[BOLETO: valor | nome | CPF | CEP]]` vira o boleto emitido. A marca traz o CPF
+        // de quem paga e nunca passa adiante: ou vira boleto, ou o envio é recusado.
+        if (!preview && temMarcaDeBoleto(body)) {
+          const extraDoValor = (cents: number) => extrasDoTurno.find((x) => x.price_cents === cents && !valoresDoProdutoPrincipal.includes(cents));
+          const comBoleto = await boletoNoLugarDaMarca({
+            corpo: body,
+            valoresPermitidosCents: valoresCobraveisNoTurno,
+            metadadosDoValor: (cents) => {
+              const extra = extraDoValor(cents);
+              return {
+                organization_id: tenantId,
+                contact_id: leadId,
+                conversation_id: input.conversationId,
+                produto: extra?.name ?? produtoIndicadoNoTurno,
+                ...(extra ? { extra: slugDoExtra(extra.name) } : {}),
+              };
+            },
+            descricaoDoValor: (cents) => extraDoValor(cents)?.name ?? (produtoIndicadoNoTurno || 'Pagamento'),
+            emailPadrao: emailPadraoDoBoleto,
+            organizationId: tenantId,
+            conversationId: input.conversationId,
+            supabase: deps.crmCfg.supabase,
+            log: runLog,
+          });
+          if ('recusa' in comBoleto) {
+            return { ok: false, error: { code: 'boleto_indisponivel', message: comBoleto.recusa } };
+          }
+          body = comBoleto.corpo;
+        }
         // A CHAVE PIX DA EMPRESA: a marca `[[CHAVE PIX: valor]]` vira o código, a chave e o nome. Marca sem chave
         // configurada, com valor não liberado ou mal escrita recusa o envio: marca crua não chega à pessoa.
         if (!preview && temMarcaDeChavePix(body)) {
@@ -3530,6 +3587,10 @@ async function executarTurnoDoAgente(
             chave: agentConfig?.pricing?.pix_key,
             valoresPermitidosCents: valoresDaChavePix,
             identificador: input.conversationId.replace(/-/g, '').slice(0, 20),
+            // Último recurso: só depois de um Pix do provedor, um link de pagamento ou um boleto já ter saído.
+            outraFormaJaTentada: openingContext.context.messages.some(
+              (m) => m.direction === 'outbound' && /(^|\n)000201|https:\/\/\S*(pay|buy|checkout|boleto)\S*/i.test(m.body ?? ''),
+            ),
           });
           if ('recusa' in comChave) {
             return { ok: false, error: { code: 'chave_pix_indisponivel', message: comChave.recusa } };
