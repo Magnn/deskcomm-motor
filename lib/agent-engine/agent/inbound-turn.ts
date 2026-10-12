@@ -86,6 +86,7 @@ import { blocoDoPrecoInternacional, precoInternacionalDoContato } from '@/lib/pr
 import { blocoDaChavePix, pixPelaChaveNoLugarDaMarca, temMarcaDeChavePix } from '@/lib/preco/chave-pix';
 import { blocoDoBoletoPronto, temMarcaDeBoleto } from '@/lib/preco/boleto-pronto';
 import { blocoDosExtras, extrasDaConfig, janelaDeLeituraDosExtras, slugDoExtra, type ExtraPago } from '@/lib/preco/extras';
+import { destinoDaProva, legendaDaProva, provasParaEnviar } from '@/lib/preco/prova-social';
 import { classificarPerdaDoAtendimento } from '@/lib/resultado/motivo-da-perda-do-agente';
 import { insertInboxItem } from '../db/repository';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -94,6 +95,7 @@ import { detectUrgencySignal } from '../guardrails/sinal-de-urgencia';
 import { buildNativeMediaParts } from './media-parts';
 import {
   copiarFotoNoStorage,
+  copiarProvaNoStorage,
   enviarComFotos,
   prepararFotosDoProduto,
   type FotoParaEnvio,
@@ -110,7 +112,7 @@ import {
   INSTRUCAO_DE_MENSAGEM_UNICA,
   ultimoTipoDeCobrancaDoContato,
 } from './economia-de-mensagem-cobrada';
-import { carregarGuiaDeEntrega, trabalhoPagoDasTags } from '@/lib/entrega/guia-de-entrega';
+import { blocoDaCompraConfirmadaSemGuia, carregarGuiaDeEntrega, trabalhoPagoDasTags } from '@/lib/entrega/guia-de-entrega';
 import { blocoDaLeitura } from '@/lib/leitura/bloco-do-prompt';
 import { blocoDoAnuncio, carregarAnuncioDoContato } from '@/lib/anuncio/contexto-do-anuncio';
 import { comporSystemDoTurno } from './blocos-do-turno';
@@ -249,7 +251,7 @@ import { isStatusSendable } from '../../channels/meta/template-binding';
 import { capabilitiesOf } from '@/lib/channels/capabilities';
 import { renderTemplateBody } from '@/lib/channels/meta/render-template';
 import { acenderDigitando, esperarComoHumano } from './atraso-humano';
-import { quebrasDeVerdade, sendInBubbles, splitForSend } from './split-message';
+import { OK_KINDS, quebrasDeVerdade, sendInBubbles, splitForSend } from './split-message';
 import type { DisclosureMode } from '../guardrails/disclosure/template';
 import { decidePromise } from '../guardrails/promise/engine';
 import { loadPromiseTable } from '../guardrails/promise/table';
@@ -2626,10 +2628,24 @@ async function executarTurnoDoAgente(
             );
             return out.ok ? out.results : [];
           },
+          lerPorNome: async (nome, comecaCom, limite) => {
+            const { rows } = await pool.query<{ content: string; source_name: string }>(
+              `select c.content, s.name as source_name
+                 from ai_chunks c join ai_knowledge_sources s on s.id = c.knowledge_source_id and s.organization_id = c.organization_id
+                where c.organization_id = $1 and s.id = any($2::uuid[]) and s.is_active
+                  and c.kb_version_id is not distinct from s.active_kb_version_id
+                  and (s.name = $3 or ($4 and left(s.name, length($3)) = $3))
+                order by s.name, c.position limit $5`,
+              [tenantId, fontesDoAgente, nome, comecaCom, limite],
+            );
+            return rows;
+          },
+          avisar: (msg) => runLog.warn(msg, { trabalho: trabalhoPago.slug }),
         },
         trabalhoPago,
       );
     } catch (err) {
+      blocoDaEntrega = blocoDaCompraConfirmadaSemGuia(trabalhoPago);
       // A entrega segue sem o guia (a agente cai no que o prompt diz) — nunca derruba o turno.
       runLog.warn('guia de entrega indisponível', { erro: err instanceof Error ? err.message.slice(0, 120) : 'desconhecido' });
     }
@@ -3136,6 +3152,8 @@ async function executarTurnoDoAgente(
   // O que o modelo de fato mandou neste turno (depois da cadeia). A trava "a
   // pergunta saiu?" do roteiro de atendimento lê daqui.
   const corposEnviados: string[] = [];
+  // Depoimentos de clientes saem uma vez por conversa, depois da mensagem que diz o preço (`lib/preco/prova-social.ts`).
+  let provasEnviadasNoTurno = false;
   // Teto de mensagens físicas por turno (F2-15b) — `seq` JÁ é a contagem certa: ele só
   // avança quando o envio de fato sai pro canal (send_message + send_template, bolhas
   // incluídas), nunca em veto de gate. Checar `seq` antes de tentar o próximo envio
@@ -4044,13 +4062,34 @@ async function executarTurnoDoAgente(
               // do turno (a checagem de `max_sends_per_turn` acima roda uma vez, antes).
               // O resto é medido ANTES DE CADA FOTO, depois do texto: o texto acima do
               // teto de legenda sai à parte e também gasta o teto.
+              // A mensagem que diz o preço leva os depoimentos em áudio que a empresa cadastrou. Falha ao copiar
+              // ou ao enviar um áudio não muda o desfecho da mensagem de texto, que já saiu.
+              const provas = provasEnviadasNoTurno
+                ? []
+                : provasParaEnviar(agentConfig?.pricing, finalBody, openingContext.context.messages);
+              if (provas.length > 0) provasEnviadasNoTurno = true;
+              const comDepoimentos = async (desfecho: ChannelSendResult): Promise<ChannelSendResult> => {
+                if (provas.length === 0 || !OK_KINDS.has(desfecho.kind)) return desfecho;
+                for (const prova of provas) {
+                  if (maxSendsPerTurn - seq <= 0) break;
+                  const destino = destinoDaProva(tenantId, input.conversationId, prova.storage_path);
+                  if (!(await copiarProvaNoStorage(runLog)(prova.storage_path, destino))) continue;
+                  await sleep(jitterAntiBan());
+                  const audio = await enviar(legendaDaProva(prova), { storagePath: destino, mime: prova.mime, kind: 'audio' });
+                  if (!OK_KINDS.has(audio.kind)) {
+                    runLog.warn('depoimento não enviado depois do preço', { desfecho: audio.kind });
+                    break;
+                  }
+                }
+                return desfecho;
+              };
               return enviarComFotos(finalBody, fotosDoProduto, {
                 sleep,
                 jitter: jitterAntiBan,
                 restantes: () => maxSendsPerTurn - seq,
                 enviarFoto: (foto, legenda) => enviar(legenda, foto),
                 enviarTexto: comoVoz,
-              });
+              }).then(comDepoimentos);
             },
           };
           let chain = await runBeforeSend(beforeSendArgs);

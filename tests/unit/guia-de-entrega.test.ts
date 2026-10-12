@@ -128,8 +128,13 @@ describe("carregarGuiaDeEntrega — o que entra no prompt", () => {
   });
 
   it("sem nenhum trecho de entrega, devolve vazio (o turno segue sem bloco)", async () => {
-    expect(await carregarGuiaDeEntrega({ buscar: async () => [] }, CORACAO)).toBe("");
-    expect(await carregarGuiaDeEntrega({ buscar: async () => [t("Outro", "x")] }, CORACAO)).toBe("");
+    // Sem guia, quem pagou ainda assim tem a compra confirmada: a agente não cobra de novo nem inventa a entrega.
+    for (const semGuia of [await carregarGuiaDeEntrega({ buscar: async () => [] }, CORACAO), await carregarGuiaDeEntrega({ buscar: async () => [t("Outro", "x")] }, CORACAO)]) {
+      expect(semGuia).toContain("COMPRA CONFIRMADA PELO SISTEMA");
+      expect(semGuia).toContain("NÃO peça comprovante");
+      expect(semGuia).toContain("NÃO invente o passo a passo");
+      expect(semGuia).not.toContain("MATERIAL DE ENTREGA");
+    }
   });
 
   it("propaga a falha da busca — quem chama decide (o turno a captura e segue)", async () => {
@@ -151,5 +156,41 @@ describe("a fiação no turno", () => {
     expect(turno).toContain("entrega: blocoDaEntrega");
     // a falha da busca não derruba o turno
     expect(turno).toContain("guia de entrega indisponível");
+  });
+});
+
+describe("guia lido pelo nome quando a busca não devolve nada", () => {
+  it("⭐ o caso medido: a busca falha (provedor sem crédito) e o guia do trabalho pago vem pelo nome", async () => {
+    const avisos: string[] = [];
+    const pedidos: string[] = [];
+    const bloco = await carregarGuiaDeEntrega(
+      {
+        buscar: async () => [],
+        lerPorNome: async (nome, comecaCom) => {
+          pedidos.push(`${nome}|${comecaCom}`);
+          if (nome === "Entregável: Abertura do Coração" && !comecaCom) return [{ content: "PASSO 1 do coração", source_name: nome }];
+          if (nome === "Entregável: regras gerais") return [{ content: "REGRA GERAL", source_name: "Entregável: regras gerais e como montar" }];
+          return [];
+        },
+        avisar: (m) => avisos.push(m),
+      },
+      CORACAO,
+    );
+    expect(bloco).toContain("MATERIAL DE ENTREGA");
+    expect(bloco).toContain("PASSO 1 do coração");
+    expect(bloco).toContain("REGRA GERAL");
+    expect(bloco).toContain("NÃO peça comprovante");
+    expect(pedidos).toContain("Entregável: Abertura do Coração|false");
+    expect(avisos).toEqual(["guia de entrega lido pelo nome: a busca não devolveu o material"]);
+  });
+
+  it("quando a busca traz o guia, a leitura pelo nome não roda", async () => {
+    const lerPorNome = vi.fn(async () => []);
+    const bloco = await carregarGuiaDeEntrega(
+      { buscar: async () => [{ content: "GUIA DA BUSCA", source_name: "Entregável: Abertura do Coração" }], lerPorNome },
+      CORACAO,
+    );
+    expect(bloco).toContain("GUIA DA BUSCA");
+    expect(lerPorNome).not.toHaveBeenCalled();
   });
 });
