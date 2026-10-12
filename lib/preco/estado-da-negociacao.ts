@@ -533,6 +533,9 @@ export function valorOferecidoParaPagarAgora(
  * pôs uma pergunta entre a pessoa e o pagamento. Decisão do dono no mesmo dia: gerar o Pix no valor que a pessoa
  * disse e deixar o restante para depois.
  *
+ * Abaixo do menor degrau a entrada só vale na SEGUNDA vez (ver o comentário no corpo): primeiro a agente segura o
+ * menor valor.
+ *
  * A régua: o valor tem de estar na RODADA ATUAL (o que ela escreveu depois da última fala da agente), ser menor
  * que o valor de venda e não ficar abaixo da entrada mínima — a entrada paga inicia a entrega do produto inteiro.
  * Sem mínimo configurado, vale o menor degrau da escada; sem escada nem mínimo, não há entrada.
@@ -544,12 +547,76 @@ export function entradaImediata(
   const msgs = expandirHistoricoColado(mensagens);
   const primeiroPreco = msgs.findIndex((m) => m.direction === "outbound" && PRECO_DITO.test(m.body ?? ""));
   if (primeiroPreco === -1) return null;
-  const rodada: MensagemParaContar[] = [];
-  for (let i = msgs.length - 1; i > primeiroPreco && msgs[i]!.direction === "inbound"; i -= 1) rodada.unshift(msgs[i]!);
-  if (rodada.length === 0) return null;
-  const dito = valorQueAPessoaTem([msgs[primeiroPreco]!, ...rodada]);
+  const leitura = rodadasDeValor(msgs, primeiroPreco);
+  if (leitura === null) return null;
   const menorDegrau = c.steps.length > 0 ? Math.min(...c.steps.map((s) => s.price_cents)) : undefined;
   const minimo = c.min_down_payment_cents ?? menorDegrau;
-  if (dito === null || minimo === undefined || dito < minimo || dito >= c.list_price_cents) return null;
+  if (minimo === undefined) return null;
+  const piso = menorDegrau ?? minimo;
+  let dito = leitura.atual;
+  if (dito === null || dito < piso) {
+    // ABAIXO DO MENOR VALOR: a primeira vez não é entrada — a agente segura o menor valor e pergunta se ela
+    // consegue completar (medido em 12/10: quem disse 30 voltou com 50 e pagou). Só quando ela volta dizendo que
+    // não consegue, ou repete um valor baixo, é que o valor dela vira entrada e o restante fica para depois.
+    const jaSegurou = leitura.anterioresAbaixoDe(piso);
+    if (jaSegurou === null) return null;
+    if (dito === null) {
+      if (!NAO_CONSEGUE_MAIS.test(leitura.textoDaRodada)) return null;
+      dito = jaSegurou;
+    }
+  }
+  if (dito < minimo || dito >= c.list_price_cents) return null;
   return { entradaCents: dito, restanteCents: c.list_price_cents - dito };
+}
+
+/** "Não consigo mais que isso", dito depois de a agente segurar o menor valor. */
+const NAO_CONSEGUE_MAIS =
+  /\bn[ãa]o\s+(consigo|consegui|tenho|d[áa]|vou conseguir|tem como|posso)\b|\bs[óo]\s+(isso|tenho isso|esse valor|consigo isso)\b|\b[ée]\s+o\s+que\s+(eu\s+)?(tenho|consigo)\b|\bn[ãa]o\s+arrumei\b/i;
+
+/**
+ * As rodadas da pessoa depois do preço (uma rodada = o que ela escreveu entre duas falas da agente) e o valor
+ * que ela disse ter em cada uma. `null` = a última mensagem não é dela.
+ */
+function rodadasDeValor(msgs: readonly MensagemParaContar[], primeiroPreco: number) {
+  const rodadas: MensagemParaContar[][] = [];
+  let aberta: MensagemParaContar[] | null = null;
+  for (const m of msgs.slice(primeiroPreco + 1)) {
+    if (m.direction === "inbound") {
+      if (aberta === null) rodadas.push((aberta = []));
+      aberta.push(m);
+    } else if (m.direction === "outbound") aberta = null;
+  }
+  if (aberta === null || rodadas.length === 0) return null;
+  const valorDa = (r: MensagemParaContar[]) => valorQueAPessoaTem([msgs[primeiroPreco]!, ...r]);
+  const atual = rodadas[rodadas.length - 1]!;
+  return {
+    atual: valorDa(atual),
+    textoDaRodada: atual.map((m) => m.body ?? "").join("\n"),
+    /** O último valor abaixo de `piso` dito numa rodada ANTERIOR (a agente já respondeu a ele), ou `null`. */
+    anterioresAbaixoDe: (piso: number): number | null => {
+      for (let i = rodadas.length - 2; i >= 0; i -= 1) {
+        const v = valorDa(rodadas[i]!);
+        if (v !== null && v < piso) return v;
+      }
+      return null;
+    },
+  };
+}
+
+/**
+ * Ela disse AGORA, pela primeira vez, um valor abaixo do menor valor por que o produto sai: o turno em que a
+ * agente segura esse menor valor antes de aceitar entrada (`blocoDoValorAbaixoDoPiso`).
+ */
+export function valorAbaixoDoPisoAgora(
+  c: Pick<PricingConfig, "list_price_cents" | "steps">,
+  mensagens: readonly MensagemParaContar[],
+): { ditoCents: number; pisoCents: number } | null {
+  const msgs = expandirHistoricoColado(mensagens);
+  const primeiroPreco = msgs.findIndex((m) => m.direction === "outbound" && PRECO_DITO.test(m.body ?? ""));
+  if (primeiroPreco === -1 || c.steps.length === 0) return null;
+  const leitura = rodadasDeValor(msgs, primeiroPreco);
+  const piso = Math.min(...c.steps.map((s) => s.price_cents));
+  if (leitura === null || leitura.atual === null || leitura.atual >= piso) return null;
+  if (leitura.anterioresAbaixoDe(piso) !== null) return null;
+  return { ditoCents: leitura.atual, pisoCents: piso };
 }
