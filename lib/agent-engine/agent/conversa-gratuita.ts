@@ -35,7 +35,7 @@ const PRECO_DITO = /R\$\s?\d|\b\d+(?:[.,]\d+)?\s*reais?\b/i;
  * quem pergunta isso compra mais do que quem diz "ok".
  */
 const COMERCIAL =
-  /\d|\bpag|\bpix\b|\bvalor|\bquanto\b|\bpre[çc]o|\breais\b|r\$|\blink\b|\bcart[ãa]o|\bparcel|\bquero\b|\baceito\b|pode\s+mandar|\breceb|\bsal[áa]rio|\bboleto|comprovante|\bdinheiro|\bdesconto|\bentrada\b|\brestante|\bcomprar|\bcontrat|\bfa[çc]o\b|\bcomo (eu )?fa[çc]o|\bfunciona|\bgolpe|\bgarant|\bconfi[aáo]|\bseguro\b|\benganad|\btrabalho|\brito\b|\bresultado|\bdemora|\bquanto tempo|\bpergunta|\bacompanhamento/i;
+  /\d|\bpag|\bpix\b|\bvalor|\bquanto\b|\bpre[çc]o|\breais\b|r\$|\blink\b|\bcart[ãa]o|\bparcel|\bquero\b|\baceito\b|pode\s+mandar|\breceb|\bsal[áa]rio|\bboleto|comprovante|\bdinheiro|\bdesconto|\bentrada\b|\brestante|\bcomprar|\bcontrat|\bfa[çc]o\b|\bcomo (eu )?fa[çc]o|\bfunciona|\bgolpe|\bgarant|\bconfi[aáo]|\bseguro\b|\benganad|\btrabalho|\brito\b|\bresultado|\bdemora|\bquanto tempo|\bpergunta|\bacompanhamento|\[(?:image|imagem|foto|document|documento|arquivo)|o cliente enviou uma m[íi]dia/i;
 
 /** Sinal de risco à vida ou de violência: aqui o limite nunca vale. */
 const RISCO =
@@ -50,6 +50,48 @@ const textoDaRodada = (rodada: readonly MensagemDaConversa[]): string => rodada.
  * A conversa gratuita acabou? `limite` = quantas rodadas não comerciais o agente responde de graça depois da
  * oferta. `limite` ausente, zero ou negativo desliga a regra.
  */
+/**
+ * Quantas respostas "escolha um caminho" a pessoa recebe depois de esgotar a conversa gratuita. Passou disso, o
+ * turno não chama modelo nem envia nada (`silencioPorConversaGratuita`).
+ */
+export const AVISOS_DEPOIS_DO_LIMITE = 2;
+
+/**
+ * Quantas rodadas NÃO comerciais o agente já respondeu depois da oferta — ou `null` quando a regra não se aplica
+ * a este turno (oferta ainda não feita, ninguém escreveu, ou a rodada atual é comercial ou de risco).
+ */
+export function rodadasGratuitasRespondidas(mensagens: readonly MensagemDaConversa[]): number | null {
+  const oferta = mensagens.findIndex((m) => m.direction === 'outbound' && PRECO_DITO.test(m.body ?? ''));
+  if (oferta === -1) return null;
+  const rodadas: MensagemDaConversa[][] = [];
+  let atual: MensagemDaConversa[] = [];
+  for (let i = oferta + 1; i < mensagens.length; i++) {
+    const m = mensagens[i]!;
+    if (m.direction === 'inbound') atual.push(m);
+    else if (atual.length > 0) {
+      rodadas.push(atual);
+      atual = [];
+    }
+  }
+  if (atual.length === 0) return null;
+  const agora = textoDaRodada(atual);
+  if (RISCO.test(agora) || COMERCIAL.test(agora)) return null;
+  return rodadas.filter((r) => !COMERCIAL.test(textoDaRodada(r))).length;
+}
+
+/**
+ * O SILÊNCIO DEPOIS DOS AVISOS. Medido em 12/10/2026: 30 contatos concentravam 41% do custo de IA do dia, e o
+ * mais caro recebeu 186 respostas em um dia sem comprar. Quem esgotou a conversa gratuita e já recebeu os avisos
+ * com os caminhos pagos não consome mais resposta: o turno termina sem chamar modelo. Qualquer rodada que fale
+ * de comprar ou pagar, que traga foto ou documento (pode ser o comprovante) ou que dê sinal de risco reabre o
+ * atendimento na hora — e o pedido de falar com uma pessoa é tratado antes desta regra.
+ */
+export function silencioPorConversaGratuita(mensagens: readonly MensagemDaConversa[], limite: number | null | undefined): boolean {
+  if (!limite || limite <= 0) return false;
+  const gratuitas = rodadasGratuitasRespondidas(mensagens);
+  return gratuitas !== null && gratuitas >= limite + AVISOS_DEPOIS_DO_LIMITE;
+}
+
 export function conversaGratuitaEsgotada(mensagens: readonly MensagemDaConversa[], limite: number | null | undefined): boolean {
   if (!limite || limite <= 0) return false;
   const oferta = mensagens.findIndex((m) => m.direction === 'outbound' && PRECO_DITO.test(m.body ?? ''));

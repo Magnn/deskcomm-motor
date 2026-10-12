@@ -23,7 +23,8 @@
  * Conversa fechada, com dono humano, contato em atendimento humano (`force_human`) ou bloqueado, canal
  * arquivado ou fora do ar, passagem para humano recente (ali o silêncio da IA é o comportamento certo, e
  * já existe o aviso de handoff), reação e figurinha (não pedem resposta), e mensagem com mais de 23 horas
- * (fora da janela de resposta do canal oficial).
+ * (fora da janela de resposta do canal oficial), e a mensagem que um turno deixou sem resposta DE PROPÓSITO,
+ * porque a conversa gratuita daquele contato acabou.
  */
 import type pg from 'pg';
 
@@ -94,6 +95,16 @@ export const CONSULTA_DE_CANDIDATAS = `
         and e.event_type = 'ai_agent.dispatch_requested'
         and e.entity_id = u.id
         and e.status in ('pending', 'processing'))
+    -- Silêncio de propósito: o turno que viu esta mensagem terminou sem responder porque a conversa gratuita
+    -- acabou (conversa-gratuita.ts). Reemitir o atendimento ou chamar uma pessoa desfaria a regra.
+    and not exists (
+      select 1 from job_queue s
+      where s.organization_id = u.organization_id and s.contact_id = u.contact_id
+        and s.kind = 'inbound_turn' and s.status = 'done'
+        -- A janela usa o índice de tarefas terminadas por data; sem ela, a conferência varre a fila inteira.
+        and s.created_at > now() - interval '24 hours'
+        and s.payload->>'silencio_gratuito' = 'true'
+        and (s.payload->>'ultima_inbound_vista_em')::timestamptz >= u.created_at)
   order by u.created_at
   limit ${LOTE}`;
 
