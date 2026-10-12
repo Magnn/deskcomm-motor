@@ -73,7 +73,12 @@ import { pixDaEntradaNoLugarDaMarca, temMarcaDaEntrada } from './pix-da-entrada-
 import { pixDoExtraNoLugarDaMarca } from './pix-do-extra-no-envio';
 import { pixNoLugarDoLink } from './pix-no-envio';
 import { blocoDaConfirmacaoCurta, rodadaSoDeConfirmacao } from './confirmacao-curta';
-import { TAMANHO_DA_RESPOSTA_LIMITADA, blocoDaConversaGratuitaEsgotada, conversaGratuitaEsgotada } from './conversa-gratuita';
+import {
+  TAMANHO_DA_RESPOSTA_LIMITADA,
+  blocoDaConversaGratuitaEsgotada,
+  conversaGratuitaEsgotada,
+  silencioPorConversaGratuita,
+} from './conversa-gratuita';
 import { blocoDaRespostaAtropelada, respostaAtropelada } from './resposta-atropelada';
 import { blocoDaEntrada, blocoDaEntradaImediata, blocoDaPropostaDeEntrada, blocoDoValorAceito } from '@/lib/preco/bloco-da-entrada';
 import { linkDePagamentoNoCorpo, linksDePagamentoDaConfig } from '@/lib/pagamentos/pix-na-conversa';
@@ -690,6 +695,9 @@ export const CHECKPOINT_INSTRUCTION =
   '{"commitments": string[], "objections": string[], "next_action": string|null, "rolling_summary": string} ' +
   '— compromissos assumidos, objeções do lead, próxima ação e o resumo acumulado ' +
   'da conversa até aqui (inclua o que o resumo anterior já dizia). ' +
+  // O resumo crescia sem teto (medido: média de 1.700 caracteres, até 8.900) e é reescrito inteiro a cada turno.
+  'O resumo tem NO MÁXIMO 900 caracteres: condense o que é antigo e mantenha nomes, valores, datas combinadas e ' +
+  'como a pessoa disse que pode pagar. No máximo 5 itens em cada lista, cada um com até 120 caracteres. ' +
   // ⚠️ O REFERENCIAL DE `next_action`, e ele não é zelo de redação.
   //
   // Este JSON é escrito no FECHO do turno: a pergunta já saiu, a resposta ainda
@@ -2932,6 +2940,27 @@ async function executarTurnoDoAgente(
       lead_avisado: aviso.avisado,
     });
     return; // bot silencia: a confirmação já saiu, e nada mais sai neste turno
+  }
+
+  // O SILÊNCIO DEPOIS DOS AVISOS (`silencioPorConversaGratuita`): quem esgotou a conversa gratuita e já recebeu os
+  // avisos com os caminhos pagos não consome mais resposta. Depois de tudo que trata pedido de pessoa e opt-out, e
+  // antes de qualquer chamada de modelo. Rodada comercial, com mídia ou com sinal de risco nunca chega aqui.
+  if (
+    gratuitaEsgotadaNoTurno &&
+    silencioPorConversaGratuita(openingContext.context.messages, agentConfig?.pricing?.free_replies_after_offer)
+  ) {
+    runLog.info('conversa gratuita esgotada e avisos já dados — turno encerrado sem modelo e sem envio', {
+      conversation_id: input.conversationId,
+    });
+    // O silêncio é de propósito: a marca no próprio job é o que impede o resgate do lead sem resposta
+    // (`resgate-de-lead-sem-resposta.ts`) de reemitir o atendimento e de abrir aviso para uma pessoa.
+    await pool
+      .query(`update job_queue set payload = payload || '{"silencio_gratuito": true}'::jsonb where organization_id = $1 and id = $2`, [
+        tenantId,
+        liveJob().id,
+      ])
+      .catch(() => undefined);
+    return;
   }
 
   // ROTEIRO DE ATENDIMENTO (módulo opcional `fluxos_atendimento`, #1130). Entra

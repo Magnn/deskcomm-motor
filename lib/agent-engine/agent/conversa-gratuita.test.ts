@@ -56,3 +56,28 @@ describe('blocoDaConversaGratuitaEsgotada', () => {
     expect(bloco).toContain('PROIBIDO neste turno: aconselhar');
   });
 });
+
+describe('silencioPorConversaGratuita', () => {
+  const rodada = (texto: string) => [m('inbound', texto), AG];
+  const longa = [OFERTA, ...rodada('ele sumiu'), ...rodada('tô triste'), ...rodada('saudade'), ...rodada('não durmo')];
+
+  it('⭐ depois do limite e dos dois avisos, o turno não responde mais', async () => {
+    const { silencioPorConversaGratuita } = await import('./conversa-gratuita');
+    expect(silencioPorConversaGratuita([...longa, m('inbound', 'queria desabafar')], 2)).toBe(true);
+    // No limite e no primeiro aviso ainda há resposta (curta).
+    expect(silencioPorConversaGratuita([OFERTA, ...rodada('a'), ...rodada('b'), m('inbound', 'c')], 2)).toBe(false);
+    expect(silencioPorConversaGratuita([OFERTA, ...rodada('a'), ...rodada('b'), ...rodada('c'), m('inbound', 'd')], 2)).toBe(false);
+  });
+
+  it('⭐ falar de compra, mandar foto ou dar sinal de risco reabre o atendimento na hora', async () => {
+    const { silencioPorConversaGratuita } = await import('./conversa-gratuita');
+    for (const fala of ['quero a pergunta', 'consegui o dinheiro', '[image]', '[o cliente enviou uma mídia que não consegui interpretar]', 'não quero mais viver']) {
+      expect(silencioPorConversaGratuita([...longa, m('inbound', fala)], 2), fala).toBe(false);
+    }
+  });
+
+  it('sem limite configurado, nunca silencia', async () => {
+    const { silencioPorConversaGratuita } = await import('./conversa-gratuita');
+    expect(silencioPorConversaGratuita([...longa, m('inbound', 'oi')], undefined)).toBe(false);
+  });
+});
