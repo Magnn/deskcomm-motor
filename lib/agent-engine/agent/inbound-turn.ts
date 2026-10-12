@@ -4048,22 +4048,14 @@ async function executarTurnoDoAgente(
               // do turno (a checagem de `max_sends_per_turn` acima roda uma vez, antes).
               // O resto é medido ANTES DE CADA FOTO, depois do texto: o texto acima do
               // teto de legenda sai à parte e também gasta o teto.
-              const enviado = enviarComFotos(finalBody, fotosDoProduto, {
-                sleep,
-                jitter: jitterAntiBan,
-                restantes: () => maxSendsPerTurn - seq,
-                enviarFoto: (foto, legenda) => enviar(legenda, foto),
-                enviarTexto: comoVoz,
-              });
               // A mensagem que diz o preço leva os depoimentos em áudio que a empresa cadastrou. Falha ao copiar
               // ou ao enviar um áudio não muda o desfecho da mensagem de texto, que já saiu.
               const provas = provasEnviadasNoTurno
                 ? []
                 : provasParaEnviar(agentConfig?.pricing, finalBody, openingContext.context.messages);
-              if (provas.length === 0) return enviado;
-              provasEnviadasNoTurno = true;
-              return enviado.then(async (desfecho) => {
-                if (!OK_KINDS.has(desfecho.kind)) return desfecho;
+              if (provas.length > 0) provasEnviadasNoTurno = true;
+              const comDepoimentos = async (desfecho: ChannelSendResult): Promise<ChannelSendResult> => {
+                if (provas.length === 0 || !OK_KINDS.has(desfecho.kind)) return desfecho;
                 for (const prova of provas) {
                   if (maxSendsPerTurn - seq <= 0) break;
                   const destino = destinoDaProva(tenantId, input.conversationId, prova.storage_path);
@@ -4076,7 +4068,14 @@ async function executarTurnoDoAgente(
                   }
                 }
                 return desfecho;
-              });
+              };
+              return enviarComFotos(finalBody, fotosDoProduto, {
+                sleep,
+                jitter: jitterAntiBan,
+                restantes: () => maxSendsPerTurn - seq,
+                enviarFoto: (foto, legenda) => enviar(legenda, foto),
+                enviarTexto: comoVoz,
+              }).then(comDepoimentos);
             },
           };
           let chain = await runBeforeSend(beforeSendArgs);
