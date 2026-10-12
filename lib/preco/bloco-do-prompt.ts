@@ -242,7 +242,7 @@ export function blocoDePreco(
     );
   } else {
     linhas.push(
-      `- Ao dizer o preço pela primeira vez (depois da leitura), use ESTE molde em 2 bolhas: 1ª "O trabalho custa ${venda}, pagamento único e seguro." 2ª só o link de pagamento do trabalho que você indicou.`,
+      `- Ao dizer o preço pela primeira vez (depois da leitura): se o seu roteiro traz a própria estrutura para apresentar a oferta e o pagamento, siga a do roteiro INTEIRA, com o valor ${venda}. Se não traz, use este molde em 2 bolhas: 1ª "O trabalho custa ${venda}, pagamento único e seguro." 2ª só o link de pagamento do trabalho que você indicou.`,
     );
   }
 

@@ -91,3 +91,34 @@ describe("entradaAPropor — antes do desconto, a agente propõe entrada + resta
     expect(blocoDaPropostaDeEntrada(null)).toBe("");
   });
 });
+
+describe("valorOferecidoParaPagarAgora", () => {
+  it("⭐ o caso medido: 'deixa p mim por 80' e 'eu te mando agora' fecha em 80", async () => {
+    const { valorOferecidoParaPagarAgora } = await import("./estado-da-negociacao");
+    expect(valorOferecidoParaPagarAgora(PRICING, [PRECO, m("inbound", "Deixa p mim por 80"), m("inbound", "Eu te mando agora")])).toBe(8000);
+    // O valor aceito é o maior degrau que cabe no que ela ofereceu.
+    expect(valorOferecidoParaPagarAgora(PRICING, [PRECO, m("inbound", "pago 85 agora no pix")])).toBe(8000);
+  });
+
+  it("⭐ dizer quanto tem, sem se comprometer a pagar agora, segue a escada: não é oferta de compra", async () => {
+    const { valorOferecidoParaPagarAgora } = await import("./estado-da-negociacao");
+    expect(valorOferecidoParaPagarAgora(PRICING, [PRECO, m("inbound", "só tenho 50 reais")])).toBeNull();
+    expect(valorOferecidoParaPagarAgora(PRICING, [PRECO, m("inbound", "deixa por 80")])).toBeNull();
+  });
+
+  it("o compromisso tem de estar na rodada atual, e o valor tem de caber num degrau", async () => {
+    const { valorOferecidoParaPagarAgora } = await import("./estado-da-negociacao");
+    const antiga = [PRECO, m("inbound", "faz por 80 que eu mando agora"), m("outbound", "Dá pra fazer assim: você entra com R$ 80 hoje e o restante depois."), m("inbound", "vou pensar")];
+    expect(valorOferecidoParaPagarAgora(PRICING, antiga)).toBeNull();
+    expect(valorOferecidoParaPagarAgora(PRICING, [PRECO, m("inbound", "tenho 30, te mando agora")])).toBeNull();
+    expect(valorOferecidoParaPagarAgora(PRICING, [m("inbound", "pago 80 agora")])).toBeNull();
+  });
+
+  it("o bloco manda fechar no valor aceito e traz o link desse degrau", async () => {
+    const { blocoDoValorAceito } = await import("./bloco-da-entrada");
+    const bloco = blocoDoValorAceito(PRICING, 8000);
+    expect(bloco).toContain("feche em R$ 80");
+    expect(bloco).toContain("https://pay.exemplo.com.br/v8000");
+    expect(blocoDoValorAceito(PRICING, null)).toBe("");
+  });
+});

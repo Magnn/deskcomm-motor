@@ -244,8 +244,8 @@ export function reclamouDoValorAgora(
  */
 const VALOR_QUE_TEM = new RegExp(
   [
-    "(?:s[óo]\\s+tenho|tenho\\s+s[óo]|tenho|s[óo]\\s+consigo|consigo|posso|d[áa]\\s+pra|faz|fecha|pago|dou|mando|arrumo|arranjo)" +
-      "(?:\\s+(?:pagar|fazer|dar|mandar|por|s[óo]|apenas|at[ée]|uns|no\\s+m[áa]ximo|agora|hoje))*\\s+(?:R\\$\\s?)?(\\d{2,3})(?:[.,]\\d{2})?(?!\\d)",
+    "(?:s[óo]\\s+tenho|tenho\\s+s[óo]|tenho|s[óo]\\s+consigo|consigo|posso|d[áa]\\s+pra|deixa|faz|fecha|pago|dou|mando|arrumo|arranjo)" +
+      "(?:\\s+(?:pagar|fazer|dar|mandar|por|pra\\s+mim|p\\s+mim|s[óo]|apenas|at[ée]|uns|no\\s+m[áa]ximo|agora|hoje))*\\s+(?:R\\$\\s?)?(\\d{2,3})(?:[.,]\\d{2})?(?!\\d)",
     "R\\$\\s?(\\d{2,3})(?:[.,]\\d{2})?(?!\\d)",
     "(?<!\\d)(\\d{2,3})(?:[.,]\\d{2})?\\s*(?:reais|real|contos?|pilas?)\\b",
   ].join("|"),
@@ -484,4 +484,36 @@ export function entradaAPropor(
   const candidatas = [...degraus].filter((v) => v <= tem && degraus.has(c.list_price_cents - v)).sort((a, b) => b - a);
   const entradaCents = candidatas[0];
   return entradaCents === undefined ? null : { entradaCents, restanteCents: c.list_price_cents - entradaCents };
+}
+
+/** A pessoa se compromete a pagar AGORA: "te mando agora", "pago hoje", "faço o Pix já". */
+const COMPROMISSO_DE_AGORA =
+  /\b(?:mando|pago|fa[çc]o|transfiro|passo|envio)\b[^.\n]{0,24}\b(?:agora|j[áa]|hoje|na\s+hora)\b|\b(?:agora|hoje|na\s+hora)\b[^.\n]{0,16}\b(?:mando|pago|fa[çc]o|transfiro)\b/i;
+
+/**
+ * O VALOR QUE A PESSOA OFERECEU PAGAR AGORA — e que a agente aceita na hora, sem esperar as rodadas da escada.
+ *
+ * Medido em 10/10/2026: um lead escreveu "deixa pra mim por 80" e "eu te mando agora". A escada mandava defender
+ * o valor cheio na primeira rodada; a agente repetiu R$ 130 e a conversa acabou com o dinheiro na mão dele.
+ *
+ * A diferença para `valorQueAPessoaTem` é o COMPROMISSO: "só tenho 50" abre a negociação e segue a escada, um
+ * degrau por rodada (a regra de 09/10 continua valendo). "80, te mando agora" é uma oferta de compra: o valor
+ * aceito é o maior degrau que cabe no que ela ofereceu. Abaixo do menor degrau não há o que aceitar.
+ *
+ * Quem chama garante a ordem: a entrada + restante é proposta ANTES (`entradaAPropor`), porque mantém o valor da
+ * venda. Esta função só diz se há oferta de pagar agora, e de quanto.
+ */
+export function valorOferecidoParaPagarAgora(
+  c: Pick<PricingConfig, "list_price_cents" | "steps">,
+  mensagens: readonly MensagemParaContar[],
+): number | null {
+  const tem = valorQueAPessoaTem(mensagens);
+  if (tem === null || tem >= c.list_price_cents) return null;
+  const msgs = expandirHistoricoColado(mensagens);
+  // A rodada: o que a pessoa escreveu depois da última fala da agente.
+  const rodada: string[] = [];
+  for (let i = msgs.length - 1; i >= 0 && msgs[i]!.direction === "inbound"; i -= 1) rodada.unshift(msgs[i]!.body ?? "");
+  if (!COMPROMISSO_DE_AGORA.test(rodada.join("\n"))) return null;
+  const cabem = c.steps.map((s) => s.price_cents).filter((v) => v <= tem);
+  return cabem.length === 0 ? null : Math.max(...cabem);
 }
