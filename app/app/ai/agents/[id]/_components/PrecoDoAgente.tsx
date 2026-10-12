@@ -64,6 +64,8 @@ interface Formulario {
   dolar: string;
   /** As cobranças avulsas, uma linha cada: "Nome | valor | quando cobrar". */
   extras: string;
+  /** Depoimentos em áudio enviados depois do preço: ainda sem campo na tela, atravessam o formulário intactos. */
+  provas?: PricingConfig["social_proof"];
   /** Quantas respostas de graça depois da oferta. Vazio = sem limite. */
   respostasGratuitas: string;
   /** A chave Pix da empresa e o nome de quem recebe. Os dois vazios = sem chave. */
@@ -131,6 +133,7 @@ function formularioInicial(config: Props["config"]): Formulario {
     nomeDaChavePix: c.pix_key?.holder ?? "",
     ...(c.pix_key?.city ? { cidadeDaChavePix: c.pix_key.city } : {}),
     ...(c.min_down_payment_cents !== undefined ? { entradaMinima: c.min_down_payment_cents } : {}),
+    ...(c.social_proof ? { provas: c.social_proof } : {}),
     extras: (c.extras ?? []).map((e) => `${e.name} | ${emTexto(e.price_cents)} | ${e.when}${e.valid_days ? ` | ${e.valid_days}` : ""}`).join("\n"),
   };
 }
@@ -230,6 +233,7 @@ function paraCorpo(f: Formulario): { corpo: PricingConfig } | { erro: string } {
     ...(extras.length > 0 ? { extras } : {}),
     ...(gratuitas !== null ? { free_replies_after_offer: gratuitas } : {}),
     ...(f.entradaMinima !== undefined ? { min_down_payment_cents: f.entradaMinima } : {}),
+    ...(f.provas ? { social_proof: f.provas } : {}),
     ...(temChave
       ? { pix_key: { key: f.chavePix.trim(), holder: f.nomeDaChavePix.trim(), ...(f.cidadeDaChavePix ? { city: f.cidadeDaChavePix } : {}) } }
       : {}),
