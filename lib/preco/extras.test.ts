@@ -91,6 +91,11 @@ describe("pixDoExtraNoLugarDaMarca", () => {
     log: { info: vi.fn(), warn: vi.fn() },
     lerConexao: async () => ({ id: "c", organizationId: "org", chave: "sk_x", segredoDoAviso: "w" }),
     agora: new Date("2026-10-12T12:00:00Z"),
+    // Sem isto o teste bateria na rede: o link de cartão sai junto com o Pix.
+    criarLink: async (_c: unknown, _p: unknown) => ({ id: "plink_1", url: "https://buy.exemplo.com/cartao" }),
+  };
+  const semLink = async () => {
+    throw new ErroDaStripe("indisponivel", "x");
   };
   const pix = { id: "pi_1", copiaECola: CODIGO, qrPng: null, expiraEm: null };
 
@@ -104,6 +109,18 @@ describe("pixDoExtraNoLugarDaMarca", () => {
     });
   });
 
+  it("⭐ o link de cartão vai junto com o Pix, com os mesmos metadados; sem Pix, vai só o cartão", async () => {
+    const criarLink = vi.fn(async (_c: unknown, _p: unknown) => ({ id: "plink_1", url: "https://buy.exemplo.com/cartao" }));
+    const juntos = await pixDoExtraNoLugarDaMarca({ ...base, corpo: "[[PIX: Pergunta nova]]", criarPix: async () => pix, criarLink });
+    const corpo = "corpo" in juntos ? juntos.corpo : "";
+    expect(corpo).toContain(CODIGO);
+    expect(corpo).toContain("Se preferir cartão de crédito, é por este link: https://buy.exemplo.com/cartao");
+    expect(criarLink.mock.calls[0]![1]).toMatchObject({ valorCentavos: 1500, moeda: "BRL", metadados: { extra: "pergunta-nova", contact_id: "contato" } });
+    const soCartao = await pixDoExtraNoLugarDaMarca({ ...base, corpo: "[[PIX: Pergunta nova]]", criarPix: semLink, criarLink });
+    expect("corpo" in soCartao && soCartao.corpo).toContain("Pra pagar no cartão de crédito, valor *R$ 15*");
+    expect("corpo" in soCartao && soCartao.corpo).not.toContain("[[");
+  });
+
   it("sem marca, o corpo passa intacto e ninguém é chamado", async () => {
     const criarPix = vi.fn();
     expect(await pixDoExtraNoLugarDaMarca({ ...base, corpo: "Me conta mais.", criarPix })).toEqual({ corpo: "Me conta mais." });
@@ -112,7 +129,7 @@ describe("pixDoExtraNoLugarDaMarca", () => {
 
   it("⭐ a marca crua nunca passa: provedor fora, sem conta, nome desconhecido e turno sem extras recusam o envio", async () => {
     const corpo = "[[PIX: Pergunta nova]]";
-    const fora = await pixDoExtraNoLugarDaMarca({ ...base, corpo, criarPix: async () => { throw new ErroDaStripe("indisponivel", "x"); } });
+    const fora = await pixDoExtraNoLugarDaMarca({ ...base, corpo, criarLink: semLink, criarPix: async () => { throw new ErroDaStripe("indisponivel", "x"); } });
     const semConta = await pixDoExtraNoLugarDaMarca({ ...base, corpo, lerConexao: async () => null, criarPix: vi.fn() });
     const desconhecida = await pixDoExtraNoLugarDaMarca({ ...base, corpo: "[[PIX: Consulta]]", criarPix: vi.fn() });
     const semExtras = await pixDoExtraNoLugarDaMarca({ ...base, extras: [], corpo, criarPix: vi.fn() });
