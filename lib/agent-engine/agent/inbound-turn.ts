@@ -72,6 +72,8 @@ import { linkDoValorPrometido } from '@/lib/preco/link-do-valor';
 import { boletoNoLugarDaMarca } from './boleto-no-envio';
 import { pixDaEntradaNoLugarDaMarca, temMarcaDaEntrada } from './pix-da-entrada-no-envio';
 import { pixDoExtraNoLugarDaMarca } from './pix-do-extra-no-envio';
+import { relatorioNoLugarDaMarca, type DocumentoDoTurno } from './relatorio-no-envio';
+import { temMarcaDeRelatorio } from '@/lib/preco/relatorio-pronto';
 import { pixNoLugarDoLink } from './pix-no-envio';
 import { cobrancaPeloProvedorNoLugarDoLink } from './cobranca-pelo-provedor-no-envio';
 import { blocoDaConfirmacaoCurta, rodadaSoDeConfirmacao } from './confirmacao-curta';
@@ -3173,6 +3175,8 @@ async function executarTurnoDoAgente(
   const corposEnviados: string[] = [];
   // Depoimentos de clientes saem uma vez por conversa, depois da mensagem que diz o preço (`lib/preco/prova-social.ts`).
   let provasEnviadasNoTurno = false;
+  // O relatório sob medida gerado neste turno (`relatorio-no-envio.ts`): sai como arquivo depois do texto.
+  let documentoDoTurno: DocumentoDoTurno | null = null;
   // Teto de mensagens físicas por turno (F2-15b) — `seq` JÁ é a contagem certa: ele só
   // avança quando o envio de fato sai pro canal (send_message + send_template, bolhas
   // incluídas), nunca em veto de gate. Checar `seq` antes de tentar o próximo envio
@@ -3716,6 +3720,47 @@ async function executarTurnoDoAgente(
           }
           body = comEntrada.corpo;
         }
+        // RELATÓRIO SOB MEDIDA: a marca `[[RELATORIO: …]]` de um extra PAGO vira um PDF gerado agora. Falta de
+        // pagamento, dado inválido ou geração que falha recusa o envio com a instrução; a marca crua não sai.
+        if (!preview && temMarcaDeRelatorio(body)) {
+          const { rows: agenteDoRelatorio } = await pool
+            .query<{ name: string | null }>('select name from ai_agents where organization_id = $1 and id = $2', [tenantId, agentConfig?.agentId ?? null])
+            .catch(() => ({ rows: [] as { name: string | null }[] }));
+          const comRelatorio = await relatorioNoLugarDaMarca({
+            corpo: body,
+            extras: extrasDoTurno,
+            pagos: extrasPagosNoTurno,
+            mensagens: openingContext.context.messages,
+            assinatura: agenteDoRelatorio[0]?.name?.trim() || 'Sua atendente',
+            organizationId: tenantId,
+            conversationId: input.conversationId,
+            jobId: liveJob().id,
+            log: runLog,
+            chamar: async (mensagens) => {
+              const chamada = await runModelCall(
+                pool,
+                deps.llmCfg,
+                {
+                  tenantId,
+                  leadId,
+                  jobId: liveJob().id,
+                  purpose: 'relatorio',
+                  maxOutputTokens: 7000,
+                  temperature: 0.7,
+                  messages: mensagens,
+                  ...argsAux(agentConfig?.pricing?.report_model),
+                },
+                { registry: deps.registry, log: runLog },
+              );
+              return chamada.result.text;
+            },
+          });
+          if ('recusa' in comRelatorio) {
+            return { ok: false, error: { code: 'relatorio_indisponivel', message: comRelatorio.recusa } };
+          }
+          body = comRelatorio.corpo;
+          documentoDoTurno = comRelatorio.documento;
+        }
         // COBRANÇA AVULSA: a marca `[[PIX: nome]]` vira a instrução e o código do Pix. Marca que o turno não pode
         // cobrar, ou cobrança que não saiu, recusa o envio: marca crua não chega à pessoa.
         if (!preview) {
@@ -4057,7 +4102,7 @@ async function executarTurnoDoAgente(
                   : undefined;
               const enviar = (
                 corpo: string,
-                media?: FotoParaEnvio & { kind?: 'image' | 'audio' },
+                media?: FotoParaEnvio & { kind?: 'image' | 'audio' | 'document' },
               ): Promise<ChannelSendResult> => {
                 seq += 1;
                 return liveChannel().send({
@@ -4138,7 +4183,16 @@ async function executarTurnoDoAgente(
                 restantes: () => maxSendsPerTurn - seq,
                 enviarFoto: (foto, legenda) => enviar(legenda, foto),
                 enviarTexto: comoVoz,
-              }).then(comDepoimentos);
+              }).then(comDepoimentos).then(async (desfecho) => {
+                // O arquivo do relatório sai depois do texto que o anuncia, uma vez só.
+                const doc = documentoDoTurno;
+                if (doc === null || !OK_KINDS.has(desfecho.kind)) return desfecho;
+                documentoDoTurno = null;
+                await sleep(jitterAntiBan());
+                const enviado = await enviar(doc.legenda, { storagePath: doc.storagePath, mime: doc.mime, kind: 'document' });
+                if (!OK_KINDS.has(enviado.kind)) runLog.warn('relatório gerado, mas o arquivo não saiu', { desfecho: enviado.kind });
+                return OK_KINDS.has(enviado.kind) ? desfecho : enviado;
+              });
             },
           };
           let chain = await runBeforeSend(beforeSendArgs);

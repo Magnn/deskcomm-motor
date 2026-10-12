@@ -21,6 +21,7 @@
  */
 import type { Extra, PricingConfig } from "./tipos";
 import { reais } from "./tipos";
+import { comoEntregarRelatorio } from "./relatorio-pronto";
 
 /** "Pergunta nova" → "pergunta-nova": é o que vai na marca, nos metadados da cobrança e no registro da receita. */
 export function slugDoExtra(nome: string): string {
@@ -157,7 +158,7 @@ export function blocoDosExtras(extras: readonly Extra[], pagos: readonly ExtraPa
     const ha = p.minutosAtras === undefined ? `às ${p.hora}` : p.minutosAtras < 1 ? "agora mesmo" : `há ${p.minutosAtras} min`;
     linhas.push(
       `- PAGAMENTO CONFIRMADO PELO SISTEMA: ela pagou *${extra.name}* ${ha}. O sistema viu o dinheiro cair; isto NÃO depende de comprovante. É PROIBIDO dizer que vai conferir ou que pediu para conferirem, pedir ou comentar comprovante, perguntar se ela pagou ou por qual meio, e cobrar de novo por isto.`,
-      `  COMO ENTREGAR *${extra.name}*: ${extra.delivery ?? "entregue o que ela pagou, completo, nesta resposta."}`,
+      `  COMO ENTREGAR *${extra.name}*: ${extra.report ? comoEntregarRelatorio(extra) : (extra.delivery ?? "entregue o que ela pagou, completo, nesta resposta.")}`,
       `  Se depois do pagamento você ainda NÃO entregou (confira as suas falas acima), comece a entrega AGORA, dizendo primeiro em meia frase que o pagamento caiu. Se já entregou, esse pagamento foi usado: um pedido NOVO é uma cobrança nova.`,
     );
   }

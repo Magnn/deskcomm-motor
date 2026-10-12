@@ -440,6 +440,18 @@ export const PONTOS_DE_IA: readonly PontoDeIa[] = [
     registraEm: "llm_calls",
   },
   {
+    id: "relatorio",
+    rotulo: "Escrever o relatório sob medida",
+    oQueFaz:
+      "Escreve o conteúdo do relatório em PDF que o cliente comprou, a partir do que ele contou e dos dados calculados.",
+    papel: "atender",
+    exige: {},
+    emissor: "lib/agent-engine/agent/relatorio-no-envio.ts",
+    sintomaDeFalha:
+      "Quem pagou por um relatório não recebe o arquivo: o agente avisa que vai preparar e a entrega não sai.",
+    registraEm: "llm_calls",
+  },
+  {
     id: "embedding_indexar",
     rotulo: "Indexar o seu material",
     oQueFaz:
