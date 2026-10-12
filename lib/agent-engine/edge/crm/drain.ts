@@ -33,6 +33,11 @@ const dispatchPayloadSchema = z
     contact_id: z.string().uuid(),
     channel_session_id: z.string().uuid(),
     inbound_message_id: z.string().uuid(),
+    /**
+     * Um FATO novo pede a fala do agente mesmo sem mensagem nova da pessoa (um pagamento que acabou de cair). O
+     * turno então não é pulado por "a última mensagem já foi respondida".
+     */
+    fato_novo: z.string().max(60).optional(),
   })
   .passthrough();
 
@@ -480,6 +485,7 @@ async function processEvent(
       channel_session_id: p.channel_session_id,
       inbound_message_id: p.inbound_message_id,
       crm_event_id: event.id,
+      ...(p.fato_novo !== undefined ? { fato_novo: p.fato_novo } : {}),
     },
     ...(runAfter !== undefined ? { runAfter } : {}),
   });
