@@ -874,6 +874,11 @@ const HOSTS_DECLARADOS: Record<string, EntradaDeHost> = {
     motivo:
       "endpoint de TESTE da mesma API da Asaas (`lib/pagamentos/asaas.ts`), usado quando a organização conecta uma chave de sandbox em Configurações › Pagamentos. Mesma natureza do host de produção: destino do request, não texto de tela.",
   },
+  "api.stripe.com": {
+    categoria: "FORNECEDOR",
+    motivo:
+      "endpoint da API da Stripe (`lib/pagamentos/stripe.ts`): é para onde vai o pedido do Pix copia e cola gerado na conversa e o registro do aviso de pagamento, com a chave da PRÓPRIA organização (Configurações › Pagamentos). Mesma natureza do host da Asaas: é o endereço do fornecedor, não marca nem telemetria — organização sem Stripe conectada nunca o chama.",
+  },
   // ── destino de chamada: o código fala com eles, sempre foi assim ──────────
   "api.openai.com": {
     categoria: "FORNECEDOR",
