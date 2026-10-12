@@ -141,7 +141,15 @@ describe("entradaImediata — o Pix no valor que a pessoa disse", () => {
   it("a entrada mínima é a configurada; sem ela, o menor degrau; sem degrau nem mínimo, não há entrada", async () => {
     const { entradaImediata } = await import("./estado-da-negociacao");
     const conversa = [PRECO, m("inbound", "só tenho 30")];
-    expect(entradaImediata({ ...PRICING, min_down_payment_cents: 3000 }, conversa)).toEqual({ entradaCents: 3000, restanteCents: 10000 });
+    // Abaixo do menor degrau, a primeira vez não é entrada: a agente segura o menor valor (decisão do dono, 12/10).
+    expect(entradaImediata({ ...PRICING, min_down_payment_cents: 3000 }, conversa)).toBeNull();
+    const segurou = [...conversa, m("outbound", "O menor valor é R$ 50. Você consegue completar hoje?")];
+    const comMinimo = { ...PRICING, min_down_payment_cents: 3000 };
+    expect(entradaImediata(comMinimo, [...segurou, m("inbound", "não consigo, é o que eu tenho")])).toEqual({ entradaCents: 3000, restanteCents: 10000 });
+    expect(entradaImediata(comMinimo, [...segurou, m("inbound", "só tenho 35")])).toEqual({ entradaCents: 3500, restanteCents: 9500 });
+    // Ela conseguiu o menor valor: não é entrada abaixo do piso, segue a regra de sempre.
+    expect(entradaImediata(comMinimo, [...segurou, m("inbound", "vou ver com meu tio")])).toBeNull();
+    expect(entradaImediata(comMinimo, [...segurou, m("inbound", "só tenho 20")])).toBeNull();
     expect(entradaImediata(PRICING, conversa)).toBeNull();
     expect(entradaImediata({ list_price_cents: 13000, steps: [] }, [PRECO, m("inbound", "só tenho 90")])).toBeNull();
   });
@@ -187,5 +195,22 @@ describe("entradaImediata — o Pix no valor que a pessoa disse", () => {
     const falhou = await pixDaEntradaNoLugarDaMarca({ ...base, criarPix: async () => { throw new Error("fora"); } });
     expect("recusa" in falhou).toBe(true);
     expect(await pixDaEntradaNoLugarDaMarca({ ...base, corpo: "Me conta mais.", criarPix: async () => { throw new Error("não devia chamar"); } })).toEqual({ corpo: "Me conta mais." });
+  });
+});
+
+describe("valor abaixo do menor valor — a agente segura antes de aceitar entrada", () => {
+  it("⭐ o caso medido: disse 30, a agente segura o menor valor; só na volta o valor vira entrada", async () => {
+    const { valorAbaixoDoPisoAgora } = await import("./estado-da-negociacao");
+    const { blocoDoValorAbaixoDoPiso } = await import("./bloco-da-entrada");
+    const piso = Math.min(...PRICING.steps.map((s) => s.price_cents));
+    const primeira = [PRECO, m("inbound", "só tenho 30")];
+    expect(valorAbaixoDoPisoAgora(PRICING, primeira)).toEqual({ ditoCents: 3000, pisoCents: piso });
+    const bloco = blocoDoValorAbaixoDoPiso({ ditoCents: 3000, pisoCents: piso });
+    expect(bloco).toContain("NÃO se despeça");
+    expect(blocoDoValorAbaixoDoPiso(null)).toBe("");
+    // Segunda vez: não segura de novo.
+    expect(valorAbaixoDoPisoAgora(PRICING, [...primeira, m("outbound", "O menor é esse."), m("inbound", "só tenho 30 mesmo")])).toBeNull();
+    // Valor no piso ou acima não entra aqui.
+    expect(valorAbaixoDoPisoAgora(PRICING, [PRECO, m("inbound", "só tenho 90")])).toBeNull();
   });
 });

@@ -82,6 +82,23 @@ export function blocoDoValorAceito(pricing: Pick<PricingConfig, "steps"> | null 
   ].join("\n");
 }
 
+/**
+ * O turno em que ela diz, pela primeira vez, um valor abaixo do menor valor (`valorAbaixoDoPisoAgora`): a agente
+ * segura o menor valor uma vez e ajuda a pessoa a chegar nele, sem encerrar a conversa.
+ */
+export function blocoDoValorAbaixoDoPiso(v: { ditoCents: number; pisoCents: number } | null): string {
+  if (v === null) return "";
+  const dito = reais(v.ditoCents);
+  const piso = reais(v.pisoCents);
+  return [
+    "",
+    "",
+    `VALOR ABAIXO DO MENOR VALOR (ESTE BLOCO VENCE O BLOCO DE PREÇO NESTE TURNO)`,
+    `Ela disse que tem ${dito}. O menor valor deste produto é ${piso}. NESTE turno, uma vez só: diga com carinho que o menor valor é ${piso} e pergunte se ela consegue completar até ${piso} ainda hoje. NÃO aceite ${dito} agora, NÃO fale em entrada ainda, NÃO ofereça outro desconto.`,
+    `NÃO se despeça e NÃO encerre: termine com a pergunta. Se ela responder que conseguiu ${piso}, feche em ${piso} e mande o pagamento na hora. Se ela responder que não consegue, o sistema libera o valor dela como entrada no próximo turno.`,
+  ].join("\n");
+}
+
 /** O nome da marca que o agente escreve para pedir o Pix da entrada: `[[PIX: Entrada]]`. */
 export const MARCA_DA_ENTRADA = "Entrada";
 
