@@ -189,6 +189,24 @@ export const pricingSchema = z
         city: z.string().trim().max(30).optional(),
       })
       .optional(),
+    /**
+     * Áudios de depoimento de clientes, enviados uma vez por conversa logo depois da mensagem que diz o preço
+     * (`lib/preco/prova-social.ts`). Os arquivos ficam em `whatsapp-media/<org>/provas/`. Ausente = nada é enviado.
+     */
+    social_proof: z
+      .object({
+        audios: z
+          .array(
+            z.object({
+              storage_path: z.string().trim().min(3).max(300),
+              mime: z.string().trim().regex(/^audio\//),
+              /** O que o áudio diz, em uma linha: vai para o histórico, para o agente saber o que a pessoa ouviu. */
+              descricao: z.string().trim().min(3).max(240),
+            }),
+          )
+          .max(6),
+      })
+      .optional(),
     /** Do maior para o menor; o último é o mínimo. */
     steps: z.array(degrauDeNegociacaoSchema).max(MAX_DEGRAUS).default([]),
     /** O que oferecer a quem já comprou. Ausente = a agente não faz segunda oferta. */
