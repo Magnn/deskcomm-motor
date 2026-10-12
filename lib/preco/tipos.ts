@@ -167,6 +167,11 @@ export const pricingSchema = z
     international_prices: z.array(precoInternacionalSchema).max(MOEDAS_INTERNACIONAIS.length).optional(),
     /** O que o agente cobra à parte do produto principal, por Pix na conversa. Ausente = nada é cobrado à parte. */
     extras: z.array(extraSchema).max(MAX_EXTRAS).optional(),
+    /**
+     * Quantas vezes o agente responde de graça, depois de apresentar a oferta, a quem não comprou e fala de outra
+     * coisa que não a compra (`lib/agent-engine/agent/conversa-gratuita.ts`). Ausente = sem limite.
+     */
+    free_replies_after_offer: z.number().int().min(1).max(20).optional(),
     /** Do maior para o menor; o último é o mínimo. */
     steps: z.array(degrauDeNegociacaoSchema).max(MAX_DEGRAUS).default([]),
     /** O que oferecer a quem já comprou. Ausente = a agente não faz segunda oferta. */

@@ -71,10 +71,11 @@ import { linkInternacionalNoLugarDoLink } from './link-internacional-no-envio';
 import { pixDoExtraNoLugarDaMarca } from './pix-do-extra-no-envio';
 import { pixNoLugarDoLink } from './pix-no-envio';
 import { blocoDaConfirmacaoCurta, rodadaSoDeConfirmacao } from './confirmacao-curta';
+import { TAMANHO_DA_RESPOSTA_LIMITADA, blocoDaConversaGratuitaEsgotada, conversaGratuitaEsgotada } from './conversa-gratuita';
 import { blocoDaRespostaAtropelada, respostaAtropelada } from './resposta-atropelada';
 import { blocoDaEntrada, blocoDaPropostaDeEntrada, blocoDoValorAceito } from '@/lib/preco/bloco-da-entrada';
 import { blocoDoPrecoInternacional, precoInternacionalDoContato } from '@/lib/preco/preco-internacional';
-import { blocoDosExtras, extrasDaConfig, janelaDeLeituraDosExtras, type ExtraPago } from '@/lib/preco/extras';
+import { blocoDosExtras, extrasDaConfig, janelaDeLeituraDosExtras, slugDoExtra, type ExtraPago } from '@/lib/preco/extras';
 import { classificarPerdaDoAtendimento } from '@/lib/resultado/motivo-da-perda-do-agente';
 import { insertInboxItem } from '../db/repository';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -2500,6 +2501,18 @@ async function executarTurnoDoAgente(
     }
   }
   const blocoDosExtrasDoTurno = blocoDosExtras(extrasDoTurno, extrasPagosNoTurno);
+  // O LIMITE DA CONVERSA GRATUITA (`conversa-gratuita.ts`): quem ouviu a oferta, não comprou e não tem nada pago
+  // valendo recebe um número de respostas de graça; depois disso, uma resposta curta com os caminhos pagos.
+  const temExtraValendo = extrasPagosNoTurno.some((p) => {
+    const extra = extrasDoTurno.find((e) => slugDoExtra(e.name) === p.slug);
+    return extra !== undefined && (p.diasAtras ?? 0) < (extra.valid_days ?? 1);
+  });
+  const gratuitaEsgotadaNoTurno =
+    !preview && agentConfig?.pricing?.enabled === true && internacionalDoTurno === null && !tagsDoContato.includes('pago') && !temExtraValendo &&
+    conversaGratuitaEsgotada(openingContext.context.messages, agentConfig.pricing.free_replies_after_offer);
+  if (gratuitaEsgotadaNoTurno) {
+    runLog.info('conversa gratuita esgotada — o turno responde uma vez, curto, com os caminhos pagos', {});
+  }
   const promiseMinPriceCentsDaEscada =
     ofertaDoCatalogoNoTurno !== null
       ? ofertaDoCatalogoNoTurno.produto.preco_cents
@@ -2657,7 +2670,10 @@ async function executarTurnoDoAgente(
   // "Ok", "👍", figurinha: o turno não repete a instrução que acabou de dar. Fora da leitura, onde o "sim" é o
   // gatilho do passo seguinte e quem conduz é o código.
   const soConfirmouNoTurno = !preview && blocoDaLeituraDoTurno === '' && rodadaSoDeConfirmacao(openingContext.context.messages);
-  const blocoDoAtropeloDoTurno = blocoDaRespostaAtropelada(atropeladaNoTurno) + blocoDaConfirmacaoCurta(soConfirmouNoTurno);
+  const blocoDoAtropeloDoTurno =
+    blocoDaRespostaAtropelada(atropeladaNoTurno) +
+    blocoDaConfirmacaoCurta(soConfirmouNoTurno) +
+    blocoDaConversaGratuitaEsgotada(gratuitaEsgotadaNoTurno, ['o trabalho', ...extrasDoTurno.map((e) => e.name)]);
   if (atropeladaNoTurno) {
     runLog.info('resposta atropelada — este turno responde só ao que a mensagem nova acrescenta', {});
   }
@@ -3404,6 +3420,21 @@ async function executarTurnoDoAgente(
       execute: async ({ body: corpoDoModelo, produto_codigo }) => {
         // O modelo às vezes ESCREVE a quebra de linha em vez de quebrar; ver `quebrasDeVerdade`.
         let body = quebrasDeVerdade(corpoDoModelo);
+        // A CONVERSA GRATUITA ACABOU: uma mensagem só, curta. O que passar disso volta ao modelo.
+        if (gratuitaEsgotadaNoTurno) {
+          if (outcomes.length > 0) {
+            return { ok: false, error: { code: 'conversa_gratuita_esgotada', message: 'Você já respondeu neste turno. NÃO envie mais nada: encerre o turno agora.' } };
+          }
+          if (body.trim().length > TAMANHO_DA_RESPOSTA_LIMITADA) {
+            return {
+              ok: false,
+              error: {
+                code: 'conversa_gratuita_esgotada',
+                message: `Resposta longa demais. Reescreva em UMA mensagem de até ${TAMANHO_DA_RESPOSTA_LIMITADA} caracteres: meia frase de acolhida e a pergunta de qual caminho ela escolhe. Sem conselho e sem pergunta sobre a vida dela.`,
+              },
+            };
+          }
+        }
         // O AGENTE NÃO REENVIA O MESMO BALÃO (`balao-ja-enviado.ts`). O histórico é lido a cada chamada:
         // a chamada anterior deste mesmo turno também conta. Falha na leitura = envia como veio.
         if (!preview && body.trim() !== '') {

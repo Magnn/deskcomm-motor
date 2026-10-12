@@ -1,0 +1,88 @@
+/**
+ * O LIMITE DA CONVERSA GRATUITA — quem ouviu a oferta e não comprou não ganha atendimento sem fim.
+ *
+ * ─── O que se via em produção ─────────────────────────────────────────────────────────
+ * Medido de 08 a 12/10/2026: 25.918 de 56.616 mensagens do agente foram para quem já tinha recebido a leitura
+ * gratuita e não pagou nada; 229 conversas passaram de 30 balões depois da leitura. O roteiro dizia que o
+ * acompanhamento é de quem comprou, e o modelo seguia conversando: perguntava da vida da pessoa, aconselhava,
+ * puxava assunto. Instrução em texto não segurou; a regra precisa ser do código.
+ *
+ * ─── A régua ──────────────────────────────────────────────────────────────────────────
+ * Depois que o preço foi dito, cada RODADA da pessoa (o que ela escreve entre duas falas do agente) é
+ * comercial ou não. Comercial é a que fala de pagar, de valor, de data, do que está à venda, ou traz um número.
+ * As rodadas não comerciais que o agente já respondeu são a conversa gratuita. Quando elas chegam ao limite
+ * que o operador definiu e a rodada atual também não é comercial, o turno responde UMA vez, curto, mostrando
+ * os caminhos pagos — e o envio recusa o que passar disso.
+ *
+ * ─── O que NUNCA é limitado ───────────────────────────────────────────────────────────
+ * Quem já pagou, quem tem um período pago valendo (quem chama decide), a rodada comercial (é a venda
+ * acontecendo) e a rodada com sinal de risco à vida ou de violência: a regra de cuidado vem antes de qualquer
+ * regra de cobrança.
+ *
+ * Tudo aqui é puro.
+ */
+export interface MensagemDaConversa {
+  direction: string;
+  body: string | null | undefined;
+}
+
+/** O preço foi dito por quem atende. O mesmo sinal que `lib/preco` usa. */
+const PRECO_DITO = /R\$\s?\d|\b\d+(?:[.,]\d+)?\s*reais?\b/i;
+
+/**
+ * A rodada fala de comprar, pagar, valor, data ou do que está à venda — ou traz um número (escolha, valor, dia).
+ * Dúvida e desconfiança sobre a oferta ("funciona?", "é golpe?", "tem garantia?") também são comerciais: medido,
+ * quem pergunta isso compra mais do que quem diz "ok".
+ */
+const COMERCIAL =
+  /\d|\bpag|\bpix\b|\bvalor|\bquanto\b|\bpre[çc]o|\breais\b|r\$|\blink\b|\bcart[ãa]o|\bparcel|\bquero\b|\baceito\b|pode\s+mandar|\breceb|\bsal[áa]rio|\bboleto|comprovante|\bdinheiro|\bdesconto|\bentrada\b|\brestante|\bcomprar|\bcontrat|\bfa[çc]o\b|\bcomo (eu )?fa[çc]o|\bfunciona|\bgolpe|\bgarant|\bconfi[aáo]|\bseguro\b|\benganad|\btrabalho|\brito\b|\bresultado|\bdemora|\bquanto tempo|\bpergunta|\bacompanhamento/i;
+
+/** Sinal de risco à vida ou de violência: aqui o limite nunca vale. */
+const RISCO =
+  /suic|me matar|tirar (a )?minha vida|n[ãa]o quero mais viver|quero morrer|vontade de morrer|me machucar|me cortar|me bate\b|me bateu|me agrid|apanh(o|ei|ando)|viol[êe]ncia|me amea[çc]/i;
+
+/** Tamanho máximo da resposta do turno em que o limite vale: um balão curto. */
+export const TAMANHO_DA_RESPOSTA_LIMITADA = 420;
+
+const textoDaRodada = (rodada: readonly MensagemDaConversa[]): string => rodada.map((m) => m.body ?? '').join('\n');
+
+/**
+ * A conversa gratuita acabou? `limite` = quantas rodadas não comerciais o agente responde de graça depois da
+ * oferta. `limite` ausente, zero ou negativo desliga a regra.
+ */
+export function conversaGratuitaEsgotada(mensagens: readonly MensagemDaConversa[], limite: number | null | undefined): boolean {
+  if (!limite || limite <= 0) return false;
+  const oferta = mensagens.findIndex((m) => m.direction === 'outbound' && PRECO_DITO.test(m.body ?? ''));
+  if (oferta === -1) return false;
+  // As rodadas da pessoa depois da oferta, na ordem; a última é a que este turno responde.
+  const rodadas: MensagemDaConversa[][] = [];
+  let atual: MensagemDaConversa[] = [];
+  for (let i = oferta + 1; i < mensagens.length; i++) {
+    const m = mensagens[i]!;
+    if (m.direction === 'inbound') atual.push(m);
+    else if (atual.length > 0) {
+      rodadas.push(atual);
+      atual = [];
+    }
+  }
+  if (atual.length === 0) return false; // ninguém escreveu: não é um turno de resposta
+  const agora = textoDaRodada(atual);
+  if (RISCO.test(agora) || COMERCIAL.test(agora)) return false;
+  const gratuitasJaRespondidas = rodadas.filter((r) => !COMERCIAL.test(textoDaRodada(r))).length;
+  return gratuitasJaRespondidas >= limite;
+}
+
+/** O bloco do turno em que a conversa gratuita acabou. `caminhos` = os nomes do que está à venda. */
+export function blocoDaConversaGratuitaEsgotada(esgotada: boolean, caminhos: readonly string[]): string {
+  if (!esgotada) return '';
+  const lista = caminhos.length > 0 ? caminhos.join(', ') : 'o trabalho';
+  return [
+    '',
+    '',
+    'A CONVERSA GRATUITA ACABOU (ESTE BLOCO VENCE TODO O RESTO NESTE TURNO)',
+    '- Esta pessoa já recebeu a leitura gratuita e a oferta, não comprou, e já teve as respostas gratuitas que o operador permite.',
+    `- Responda com UMA mensagem só, de até ${TAMANHO_DA_RESPOSTA_LIMITADA} caracteres: acolha em meia frase o que ela disse e diga, com carinho e firmeza, que para continuar você precisa que ela escolha um caminho: ${lista}. Termine perguntando qual ela quer.`,
+    '- É PROIBIDO neste turno: aconselhar, interpretar o que ela contou, fazer pergunta sobre a vida dela, puxar assunto, reler as cartas ou prometer que você segue ali com ela. Isso é o que está à venda.',
+    '- Se ela disser que não quer nenhum caminho, despeça-se em uma frase curta, sem pergunta.',
+  ].join('\n');
+}
