@@ -138,3 +138,22 @@ describe("a trava de valor mínimo com cobrança avulsa", () => {
     expect(decidePromise({ candidate: "Fica R$ 15.", table: { minPriceCents: 13000 } }).allow).toBe(false);
   });
 });
+
+describe("extra com período (acompanhamento de 30 dias)", () => {
+  const MENSAL = { name: "Acompanhamento do mês", price_cents: 6000, when: "a pessoa quer acompanhamento.", valid_days: 30 };
+
+  it("⭐ quem pagou há 12 dias segue ATIVO: atende sem cobrar de novo", async () => {
+    const { blocoDosExtras: bloco, janelaDeLeituraDosExtras } = await import("./extras");
+    const texto = bloco([PERGUNTA, MENSAL], [{ slug: "acompanhamento-do-mes", hora: "10:00", dia: "01/10", diasAtras: 12 }]);
+    expect(texto).toContain("ATIVO: ela pagou *Acompanhamento do mês* em 01/10");
+    expect(texto).toContain("SEM cobrar de novo");
+    expect(janelaDeLeituraDosExtras([PERGUNTA, MENSAL])).toBe(30);
+    expect(janelaDeLeituraDosExtras([PERGUNTA])).toBe(1);
+  });
+
+  it("⭐ o período acabou, ou a pergunta foi paga em outro dia: o pagamento não vale mais", async () => {
+    const { blocoDosExtras: bloco } = await import("./extras");
+    expect(bloco([MENSAL], [{ slug: "acompanhamento-do-mes", hora: "10:00", dia: "01/09", diasAtras: 30 }])).not.toContain("ATIVO");
+    expect(bloco([PERGUNTA, MENSAL], [{ slug: "pergunta-nova", hora: "10:00", dia: "10/10", diasAtras: 2 }])).not.toContain("PAGO:");
+  });
+});
