@@ -144,6 +144,25 @@ export function degrauDoTurno(
  * O defeito contrário — não oferecer o degrau quando podia — só deixa de conceder, e o bloco de
  * preço cuida dele.
  */
+/**
+ * O VALOR OFERECIDO POR UM LEMBRETE DE SILÊNCIO VALE NA CONVERSA. A recuperação de silêncio pode oferecer um degrau
+ * da escada a quem ouviu o preço e sumiu (`recovery.step_offers_cents`). Quando a pessoa responde "quero", o turno
+ * tem de cobrar esse valor — e a escada só desce por reclamação. Por isso a oferta conta como as reclamações que
+ * levariam a esse degrau: bloco de preço, link, Pix e trava de promessa passam a enxergar o mesmo valor.
+ * Valor que não é degrau não muda nada.
+ */
+export function reclamacoesComOfertaPorSilencio(
+  c: Pick<PricingConfig, "steps">,
+  reclamacoes: number | null,
+  ofertaCents: number | null,
+): number | null {
+  if (ofertaCents === null) return reclamacoes;
+  const i = c.steps.findIndex((d) => d.price_cents === ofertaCents);
+  if (i === -1) return reclamacoes;
+  // `degrauDoTurno` devolve `reclamacoes - 2`: o degrau i é alcançado com i + 2 reclamações.
+  return Math.max(reclamacoes ?? 0, i + 2);
+}
+
 export function precoPermitidoAgora(
   c: Pick<PricingConfig, "list_price_cents" | "steps">,
   reclamacoes: number | null,

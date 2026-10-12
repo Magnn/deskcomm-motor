@@ -136,6 +136,7 @@ import {
   deuDataParaPagar,
   entradaAPropor,
   entradaImediata,
+  reclamacoesComOfertaPorSilencio,
   valorAbaixoDoPisoAgora,
   valorOferecidoParaPagarAgora,
   entradaComRestante,
@@ -2348,7 +2349,31 @@ async function executarTurnoDoAgente(
   const negociacaoDoTurno = agentConfig?.pricing
     ? estadoDaNegociacao(agentConfig.pricing, openingContext.context.messages)
     : { reclamacoes: reclamacoesDeValor(openingContext.context.messages), valorQueTemCents: null, reclamouAgora: true };
-  const reclamacoesDeValorNoTurno = negociacaoDoTurno.reclamacoes;
+  // O valor que um lembrete de silêncio já ofereceu nesta conversa (`recovery.step_offers_cents`) vale como
+  // degrau alcançado: quem responde "quero" ao lembrete é cobrado por ele.
+  let ofertaPorSilencioCents: number | null = null;
+  if (!preview && agentConfig?.pricing?.enabled && agentConfig.pricing.steps.length > 0) {
+    try {
+      const { rows } = await pool.query<{ oferta: number | null }>(
+        `select min((pv.followup->'recovery'->'step_offers_cents'->>(s.step - 1))::int) as oferta
+           from silence_recovery_attempts s
+           join ai_agents a on a.organization_id = s.organization_id and a.id = $3
+           join ai_agent_versions pv on pv.id = a.published_version_id
+          where s.organization_id = $1 and s.conversation_id = $2 and s.kind = 'step'
+            and s.created_at > now() - interval '24 hours'
+            and jsonb_typeof(pv.followup->'recovery'->'step_offers_cents'->(s.step - 1)) = 'number'`,
+        [tenantId, input.conversationId, agentConfig.agentId ?? null],
+      );
+      ofertaPorSilencioCents = rows[0]?.oferta ?? null;
+    } catch (err) {
+      runLog.warn('não consegui ler a oferta feita pelo lembrete de silêncio — o turno segue sem ela', {
+        error: (err instanceof Error ? err.message : String(err)).slice(0, 120),
+      });
+    }
+  }
+  const reclamacoesDeValorNoTurno = agentConfig?.pricing
+    ? reclamacoesComOfertaPorSilencio(agentConfig.pricing, negociacaoDoTurno.reclamacoes, ofertaPorSilencioCents)
+    : negociacaoDoTurno.reclamacoes;
   // Quem disse que falta para remédio, comida ou aluguel não recebe oferta nem data de pagamento.
   const faltaParaOEssencialNoTurno = faltaParaOEssencial(openingContext.context.messages);
   const valorQueTemNoTurno = negociacaoDoTurno.valorQueTemCents;

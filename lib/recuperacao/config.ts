@@ -33,8 +33,18 @@ export const recuperacaoSchema = z
         hours_before_close: z.number().int().min(1).max(HORAS_ANTES_MAXIMO),
       })
       .strict(),
+    /**
+     * O VALOR QUE CADA PASSO OFERECE a quem já ouviu o preço e ficou em silêncio, na mesma ordem de
+     * `steps_minutes` (`null` = o passo só retoma a conversa). O valor tem de ser um degrau da escada de preço
+     * do agente: é por ele que o turno seguinte sabe cobrar. Ausente = nenhum passo oferece valor.
+     */
+    step_offers_cents: z.array(z.number().int().positive().nullable()).max(MAXIMO_DE_PASSOS).optional(),
   })
   .strict()
+  .refine((r) => (r.step_offers_cents?.length ?? 0) <= r.steps_minutes.length, {
+    path: ["step_offers_cents"],
+    message: "recovery_offers_exceed_steps",
+  })
   .refine((r) => r.steps_minutes.every((m, i) => i === 0 || m > (r.steps_minutes[i - 1] ?? 0)), {
     path: ["steps_minutes"],
     message: "recovery_steps_must_increase",
@@ -53,6 +63,11 @@ export const RECUPERACAO_PADRAO: Recuperacao = {
  * Lê `followup.recovery` da versão publicada. `null` = desligada, ausente (versão antiga) ou shape
  * inválido — nos três casos o agente NÃO chama ninguém: contato proativo só com configuração legível.
  */
+/** O valor que o passo `passo` (a partir de 1) oferece, ou `null`. */
+export function ofertaDoPasso(r: Pick<Recuperacao, "step_offers_cents"> | null, passo: number): number | null {
+  return r?.step_offers_cents?.[passo - 1] ?? null;
+}
+
 export function lerRecuperacao(followup: unknown): Recuperacao | null {
   if (typeof followup !== "object" || followup === null) return null;
   const lida = recuperacaoSchema.safeParse((followup as { recovery?: unknown }).recovery);
