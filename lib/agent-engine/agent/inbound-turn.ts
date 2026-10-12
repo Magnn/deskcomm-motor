@@ -68,7 +68,7 @@ import { abreAvisoDoEspelhoRecusado, mirrorLeadStageToCrm } from '../edge/crm/mo
 import { ERRO_DE_GANHO_SEM_PAGAMENTO, declaraGanho, ganhoSemProvaDePagamento } from './ganho-exige-pagamento';
 import { ERRO_DE_TEXTO_JA_ENVIADO, semBaloesJaEnviados } from './balao-ja-enviado';
 import { pixNoLugarDoLink } from './pix-no-envio';
-import { blocoDaEntrada } from '@/lib/preco/bloco-da-entrada';
+import { blocoDaEntrada, blocoDaPropostaDeEntrada } from '@/lib/preco/bloco-da-entrada';
 import { classificarPerdaDoAtendimento } from '@/lib/resultado/motivo-da-perda-do-agente';
 import { insertInboxItem } from '../db/repository';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -110,6 +110,7 @@ import {
   combinadoEmVigor,
   degrauQueFaltaOferecerAntesDeAgendar,
   deuDataParaPagar,
+  entradaAPropor,
   entradaComRestante,
   faltaParaOEssencial,
   estadoDaNegociacao,
@@ -2424,7 +2425,14 @@ async function executarTurnoDoAgente(
     !preview && agentConfig?.pricing?.enabled && ofertaDoCatalogoNoTurno === null && posVendaDoTurno === null && !faltaParaOEssencialNoTurno
       ? entradaComRestante(agentConfig.pricing, openingContext.context.messages)
       : null;
-  const blocoDaEntradaDoTurno = blocoDaEntrada(agentConfig?.pricing, entradaDoTurno);
+  // Ela disse quanto tem e ainda não deu a data: antes do desconto, a agente propõe entrada + restante.
+  const propostaDeEntradaDoTurno =
+    entradaDoTurno === null && !preview && agentConfig?.pricing?.enabled && ofertaDoCatalogoNoTurno === null && posVendaDoTurno === null &&
+    !faltaParaOEssencialNoTurno && negociacaoDoTurno.reclamouAgora
+      ? entradaAPropor(agentConfig.pricing, openingContext.context.messages)
+      : null;
+  const blocoDaEntradaDoTurno =
+    blocoDaEntrada(agentConfig?.pricing, entradaDoTurno) + blocoDaPropostaDeEntrada(propostaDeEntradaDoTurno);
   if (blocoDaEntradaDoTurno !== '') {
     runLog.info('entrada + restante proposta pela pessoa', { entrada_cents: entradaDoTurno?.entradaCents, restante_cents: entradaDoTurno?.restanteCents });
   }
@@ -2441,8 +2449,8 @@ async function executarTurnoDoAgente(
       : undefined;
   // Com entrada proposta, o piso do turno desce até ela: sem isso a trava vetaria o valor e o link da entrada.
   const promiseMinPriceCents =
-    entradaDoTurno !== null && promiseMinPriceCentsDaEscada !== undefined
-      ? Math.min(promiseMinPriceCentsDaEscada, entradaDoTurno.entradaCents)
+    (entradaDoTurno ?? propostaDeEntradaDoTurno) !== null && promiseMinPriceCentsDaEscada !== undefined
+      ? Math.min(promiseMinPriceCentsDaEscada, (entradaDoTurno ?? propostaDeEntradaDoTurno)!.entradaCents)
       : promiseMinPriceCentsDaEscada;
   // Entrega personalizada: quem PAGOU (tags `pago` + `produto:<trabalho>`, postas pela compra
   // aprovada na Cakto) recebe, neste turno, o guia do trabalho certo e as regras gerais — buscados
