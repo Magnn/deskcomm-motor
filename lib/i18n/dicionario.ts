@@ -6189,7 +6189,7 @@ export const DICIONARIO: Traducoes = {
   "Cobranças à parte": { es: "Cobros aparte" },
   "O que a agente cobra além do produto principal: uma pergunta nova, um acompanhamento mais próximo. Ela diz o valor, manda o Pix na conversa e só atende depois de pago. Vale depois que a oferta principal foi apresentada. Precisa da Stripe conectada em Configurações › Pagamentos.": { es: "Lo que la agente cobra además del producto principal: una pregunta nueva, un acompañamiento más cercano. Dice el valor, envía el Pix en la conversación y solo atiende después del pago. Vale después de presentar la oferta principal. Requiere Stripe conectada en Configuración › Pagos." },
   "Uma linha por cobrança: Nome | valor | quando cobrar": { es: "Una línea por cobro: Nombre | valor | cuándo cobrar" },
-  "Uma linha por cobrança: Nome | valor | quando cobrar | dias que vale (opcional)": { es: "Una línea por cobro: Nombre | valor | cuándo cobrar | días de validez (opcional)" },
+  "Uma linha por cobrança: Nome | valor | quando cobrar | dias que vale (opcional) | entrega: como entregar depois de pago (opcional)": { es: "Una línea por cobro: Nombre | valor | cuándo cobrar | días de validez (opcional) | entrega: cómo entregar después del pago (opcional)" },
   "Pergunta nova | 15,00 | a pessoa pede outra pergunta ou outro assunto depois da leitura gratuita.": { es: "Pregunta nueva | 15,00 | la persona pide otra pregunta u otro tema después de la lectura gratuita." },
   "Cada cobrança à parte deve ser: Nome | valor | quando cobrar": { es: "Cada cobro aparte debe ser: Nombre | valor | cuándo cobrar" },
   "Links do valor de venda (uma linha por produto: Nome | https://…)": { es: "Enlaces del valor de venta (una línea por producto: Nombre | https://…)" },

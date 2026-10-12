@@ -112,6 +112,8 @@ export interface ExtraPago {
   diasAtras?: number;
   /** "DD/MM" em que um período pago termina; calculado por quem lê o livro de receita. */
   ateDia?: string;
+  /** Há quantos minutos o pagamento caiu. Hora de relógio confunde o modelo quando o fuso da organização não é o da conversa. */
+  minutosAtras?: number;
 }
 
 /** Até quantos dias atrás vale a pena ler pagamentos: o maior período entre os extras, e no mínimo um dia. */
@@ -137,7 +139,7 @@ export function blocoDosExtras(extras: readonly Extra[], pagos: readonly ExtraPa
   linhas.push(
     "- COMO COBRAR, numa resposta só: 1º um balão curto dizendo o que é e o valor; 2º a marca sozinha no balão seguinte (o sistema troca a marca pelo código do Pix e pelo link de cartão de crédito); 3º um balão final: \"Assim que o pagamento cair eu vejo aqui e já te atendo. Conseguiu copiar o código?\"",
     "- Se ela disser que não tem Pix, que só tem cartão ou pedir o link do cartão: o link de cartão vai junto com o Pix. Mande a marca de novo, sozinha no balão, e diga que o link do cartão está logo abaixo do código. NUNCA peça nem aceite foto ou número de cartão na conversa: os dados do cartão são digitados só na página do pagamento.",
-    "- NÃO chame atendimento humano para cobrar isto, NÃO peça comprovante e NÃO entregue antes de o pagamento aparecer neste bloco como PAGO.",
+    "- NÃO chame atendimento humano para cobrar isto, NÃO peça comprovante e NÃO entregue antes de o pagamento aparecer neste bloco como PAGAMENTO CONFIRMADO.",
     "- Dúvida sobre o trabalho principal, sobre o pagamento ou sobre o que você já leu para ela NÃO é cobrança à parte: responda normalmente.",
   );
   for (const p of pagos) {
@@ -152,8 +154,11 @@ export function blocoDosExtras(extras: readonly Extra[], pagos: readonly ExtraPa
       );
       continue;
     }
+    const ha = p.minutosAtras === undefined ? `às ${p.hora}` : p.minutosAtras < 1 ? "agora mesmo" : `há ${p.minutosAtras} min`;
     linhas.push(
-      `- PAGO: ela pagou *${extra.name}* às ${p.hora}. Se depois desse horário você ainda NÃO entregou o que ela pagou (confira as suas falas acima), entregue AGORA, completo, sem cobrar de novo. Se já entregou, esse pagamento foi usado: um pedido novo é uma cobrança nova.`,
+      `- PAGAMENTO CONFIRMADO PELO SISTEMA: ela pagou *${extra.name}* ${ha}. O sistema viu o dinheiro cair; isto NÃO depende de comprovante. É PROIBIDO dizer que vai conferir ou que pediu para conferirem, pedir ou comentar comprovante, perguntar se ela pagou ou por qual meio, e cobrar de novo por isto.`,
+      `  COMO ENTREGAR *${extra.name}*: ${extra.delivery ?? "entregue o que ela pagou, completo, nesta resposta."}`,
+      `  Se depois do pagamento você ainda NÃO entregou (confira as suas falas acima), comece a entrega AGORA, dizendo primeiro em meia frase que o pagamento caiu. Se já entregou, esse pagamento foi usado: um pedido NOVO é uma cobrança nova.`,
     );
   }
   return linhas.join("\n");

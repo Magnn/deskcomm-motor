@@ -65,14 +65,14 @@ describe("blocoDosExtras", () => {
     expect(bloco).toContain("*Pergunta nova* — R$ 15");
     expect(bloco).toContain("[[PIX: Pergunta nova]]");
     expect(bloco).toContain("NÃO atenda de graça");
-    expect(bloco).not.toContain("PAGO:");
+    expect(bloco).not.toContain("PAGAMENTO CONFIRMADO PELO SISTEMA");
     expect(blocoDosExtras([])).toBe("");
   });
 
   it("⭐ o pagamento recente vira a ordem de entregar o que foi pago, sem cobrar de novo", () => {
     const bloco = blocoDosExtras(EXTRAS, [{ slug: "pergunta-nova", hora: "14:32" }]);
-    expect(bloco).toContain("PAGO: ela pagou *Pergunta nova* às 14:32");
-    expect(blocoDosExtras(EXTRAS, [{ slug: "outro", hora: "14:32" }])).not.toContain("PAGO:");
+    expect(bloco).toContain("PAGAMENTO CONFIRMADO PELO SISTEMA: ela pagou *Pergunta nova* às 14:32");
+    expect(blocoDosExtras(EXTRAS, [{ slug: "outro", hora: "14:32" }])).not.toContain("PAGAMENTO CONFIRMADO PELO SISTEMA");
   });
 
   it("configuração desligada não cobra nada à parte", () => {
@@ -171,6 +171,23 @@ describe("extra com período (acompanhamento de 30 dias)", () => {
   it("⭐ o período acabou, ou a pergunta foi paga em outro dia: o pagamento não vale mais", async () => {
     const { blocoDosExtras: bloco } = await import("./extras");
     expect(bloco([MENSAL], [{ slug: "acompanhamento-do-mes", hora: "10:00", dia: "01/09", diasAtras: 30 }])).not.toContain("ATIVO");
-    expect(bloco([PERGUNTA, MENSAL], [{ slug: "pergunta-nova", hora: "10:00", dia: "10/10", diasAtras: 2 }])).not.toContain("PAGO:");
+    expect(bloco([PERGUNTA, MENSAL], [{ slug: "pergunta-nova", hora: "10:00", dia: "10/10", diasAtras: 2 }])).not.toContain("PAGAMENTO CONFIRMADO PELO SISTEMA");
   });
 });
+
+describe('extra pago: confirmação firme e como entregar', () => {
+  it('⭐ o caso medido: pagou e a agente disse que ia conferir. O bloco proíbe e diz como entregar', () => {
+    const extras = [{ name: 'Sinastria Amorosa', price_cents: 3700, when: 'Quando ela pedir a sinastria.', delivery: 'Peça o nome e a data de nascimento dos dois.' }];
+    const bloco = blocoDosExtras(extras, [{ slug: 'sinastria-amorosa', hora: '13:43', minutosAtras: 12 }]);
+    expect(bloco).toContain('ela pagou *Sinastria Amorosa* há 12 min');
+    expect(bloco).toContain('NÃO depende de comprovante');
+    expect(bloco).toContain('COMO ENTREGAR *Sinastria Amorosa*: Peça o nome e a data de nascimento dos dois.');
+    expect(blocoDosExtras(extras, [{ slug: 'sinastria-amorosa', hora: '13:43', minutosAtras: 0 }])).toContain('agora mesmo');
+  });
+
+  it('sem instrução de entrega, manda entregar o que foi pago', () => {
+    const extras = [{ name: 'Pergunta nova', price_cents: 500, when: 'Quando ela fizer outra pergunta.' }];
+    expect(blocoDosExtras(extras, [{ slug: 'pergunta-nova', hora: '10:00' }])).toContain('entregue o que ela pagou, completo');
+  });
+});
+

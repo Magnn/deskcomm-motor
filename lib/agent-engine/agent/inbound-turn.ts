@@ -2514,17 +2514,18 @@ async function executarTurnoDoAgente(
   if (extrasDoTurno.length > 0) {
     try {
       // Lê até o maior período pago entre os extras (um acompanhamento de 30 dias vale 30 dias, não 24 horas).
-      const { rows } = await pool.query<{ slug: string; hora: string; dia: string; dias_atras: number }>(
+      const { rows } = await pool.query<{ slug: string; hora: string; dia: string; dias_atras: number; minutos_atras: number }>(
         `select metadata->>'extra' as slug, to_char(occurred_at at time zone $3, 'HH24:MI') as hora,
                 to_char(occurred_at at time zone $3, 'DD/MM') as dia,
-                floor(extract(epoch from (now() - occurred_at)) / 86400)::int as dias_atras
+                floor(extract(epoch from (now() - occurred_at)) / 86400)::int as dias_atras,
+                floor(extract(epoch from (now() - occurred_at)) / 60)::int as minutos_atras
            from revenue_ledger
           where organization_id = $1 and contact_id = $2 and event_type = 'charge'
             and metadata ? 'extra' and occurred_at > now() - make_interval(days => $4)
           order by occurred_at desc limit 8`,
         [tenantId, leadId, fusoDaOrg, janelaDeLeituraDosExtras(extrasDoTurno)],
       );
-      extrasPagosNoTurno = rows.map((r) => ({ slug: r.slug, hora: r.hora, dia: r.dia, diasAtras: r.dias_atras }));
+      extrasPagosNoTurno = rows.map((r) => ({ slug: r.slug, hora: r.hora, dia: r.dia, diasAtras: r.dias_atras, minutosAtras: r.minutos_atras }));
     } catch (err) {
       runLog.warn('não consegui ler as cobranças avulsas pagas — o turno segue sem elas', {
         error: (err instanceof Error ? err.message : String(err)).slice(0, 120),
