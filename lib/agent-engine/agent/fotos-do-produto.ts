@@ -53,6 +53,20 @@ export function copiarFotoNoStorage(log: Log): CopiarFoto {
   };
 }
 
+/**
+ * Copia um depoimento em áudio (`lib/preco/prova-social.ts`) de `whatsapp-media/<org>/provas/` para a pasta da
+ * conversa, no mesmo bucket. `true` = o arquivo está no destino.
+ */
+export function copiarProvaNoStorage(log: Log): CopiarFoto {
+  return async (origem, destino) => {
+    const { error } = await createAdminClient().storage.from(BUCKET_DA_CONVERSA).copy(origem, destino);
+    if (!error) return true;
+    if (/already exists/i.test(error.message) || (error as { statusCode?: string }).statusCode === '409') return true;
+    log.warn('depoimento não copiado para a conversa', { detalhe: error.message.slice(0, 120) });
+    return false;
+  };
+}
+
 export type FotosPreparadas =
   | { ok: true; fotos: FotoParaEnvio[]; tinha: number }
   | { ok: false; code: 'produto_nao_encontrado'; message: string };
