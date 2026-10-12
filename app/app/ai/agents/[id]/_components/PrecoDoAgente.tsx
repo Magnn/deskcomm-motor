@@ -66,6 +66,12 @@ interface Formulario {
   extras: string;
   /** Quantas respostas de graça depois da oferta. Vazio = sem limite. */
   respostasGratuitas: string;
+  /** A chave Pix da empresa e o nome de quem recebe. Os dois vazios = sem chave. */
+  chavePix: string;
+  nomeDaChavePix: string;
+  /** Campos da configuração que esta tela não mostra: vão e voltam como vieram. */
+  cidadeDaChavePix?: string | undefined;
+  entradaMinima?: number | undefined;
 }
 
 interface PosVendaNaTela {
@@ -94,7 +100,7 @@ function formularioInicial(config: Props["config"]): Formulario {
   const bruto = (config as { pricing?: unknown } | null | undefined)?.pricing;
   const r = pricingSchema.safeParse(bruto);
   if (!r.success) {
-    return { enabled: false, venda: "", referencia: "", referenciaReal: false, degraus: [], posVenda: POS_VENDA_VAZIO, linksDaVenda: "", euro: "", dolar: "", extras: "", respostasGratuitas: "" };
+    return { enabled: false, venda: "", referencia: "", referenciaReal: false, degraus: [], posVenda: POS_VENDA_VAZIO, linksDaVenda: "", euro: "", dolar: "", extras: "", respostasGratuitas: "", chavePix: "", nomeDaChavePix: "" };
   }
   const c = r.data;
   return {
@@ -121,6 +127,10 @@ function formularioInicial(config: Props["config"]): Formulario {
     euro: emTexto(c.international_prices?.find((p) => p.currency === "EUR")?.price_cents),
     dolar: emTexto(c.international_prices?.find((p) => p.currency === "USD")?.price_cents),
     respostasGratuitas: c.free_replies_after_offer === undefined ? "" : String(c.free_replies_after_offer),
+    chavePix: c.pix_key?.key ?? "",
+    nomeDaChavePix: c.pix_key?.holder ?? "",
+    ...(c.pix_key?.city ? { cidadeDaChavePix: c.pix_key.city } : {}),
+    ...(c.min_down_payment_cents !== undefined ? { entradaMinima: c.min_down_payment_cents } : {}),
     extras: (c.extras ?? []).map((e) => `${e.name} | ${emTexto(e.price_cents)} | ${e.when}${e.valid_days ? ` | ${e.valid_days}` : ""}`).join("\n"),
   };
 }
@@ -207,6 +217,10 @@ function paraCorpo(f: Formulario): { corpo: PricingConfig } | { erro: string } {
   if (gratuitas !== null && (!Number.isInteger(gratuitas) || gratuitas < 1 || gratuitas > 20)) {
     return { erro: "O limite de respostas gratuitas é um número inteiro de 1 a 20, ou em branco para não limitar." };
   }
+  const temChave = f.chavePix.trim() !== "" || f.nomeDaChavePix.trim() !== "";
+  if (temChave && (f.chavePix.trim() === "" || f.nomeDaChavePix.trim() === "")) {
+    return { erro: "Para usar a chave Pix da empresa, informe a chave e o nome de quem recebe." };
+  }
   const candidato = {
     enabled: f.enabled,
     list_price_cents: venda,
@@ -215,6 +229,10 @@ function paraCorpo(f: Formulario): { corpo: PricingConfig } | { erro: string } {
     ...(internacionais.length > 0 ? { international_prices: internacionais } : {}),
     ...(extras.length > 0 ? { extras } : {}),
     ...(gratuitas !== null ? { free_replies_after_offer: gratuitas } : {}),
+    ...(f.entradaMinima !== undefined ? { min_down_payment_cents: f.entradaMinima } : {}),
+    ...(temChave
+      ? { pix_key: { key: f.chavePix.trim(), holder: f.nomeDaChavePix.trim(), ...(f.cidadeDaChavePix ? { city: f.cidadeDaChavePix } : {}) } }
+      : {}),
     steps,
     ...(posVenda !== undefined ? { post_sale: posVenda } : {}),
   };
@@ -455,6 +473,27 @@ export function PrecoDoAgente({ agentId, config, readOnly }: Props) {
             onChange={(e) => patch({ extras: e.target.value })}
             disabled={readOnly}
           />
+        </div>
+      </Card>
+
+      <Card className="flex flex-col gap-3 p-4" data-testid="chave-pix-da-empresa">
+        <div className="space-y-1">
+          <h2 className="text-base font-medium">{t("Chave Pix da empresa")}</h2>
+          <p className="max-w-2xl text-sm text-muted-foreground">
+            {t(
+              "Para quem pede o número da chave ou não consegue pagar pelo código. A agente manda o Pix copia e cola já com o valor, gerado da sua chave: o dinheiro cai direto na sua conta. Este pagamento não confirma sozinho: confira o comprovante no extrato e use Registrar pagamento na conversa para liberar a entrega.",
+            )}
+          </p>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="preco-chave-pix">{t("Chave Pix (CNPJ, CPF, telefone, e-mail ou aleatória)")}</Label>
+            <Input id="preco-chave-pix" value={form.chavePix} onChange={(e) => patch({ chavePix: e.target.value })} disabled={readOnly} />
+          </div>
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="preco-nome-da-chave">{t("Nome de quem recebe, como aparece no banco")}</Label>
+            <Input id="preco-nome-da-chave" value={form.nomeDaChavePix} onChange={(e) => patch({ nomeDaChavePix: e.target.value })} disabled={readOnly} />
+          </div>
         </div>
       </Card>
 

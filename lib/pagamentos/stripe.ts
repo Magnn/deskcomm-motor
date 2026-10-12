@@ -59,6 +59,25 @@ export interface LinkCriado {
   url: string;
 }
 
+export interface PedidoDeBoleto {
+  valorCentavos: number;
+  descricao: string;
+  /** Determinística — a repetição do envio devolve o MESMO boleto. */
+  referencia: string;
+  metadados: Record<string, string>;
+  /** O banco exige quem paga: nome, CPF, e-mail e endereço. */
+  pagador: { nome: string; cpf: string; email: string; endereco: { cep: string; logradouro: string; cidade: string; uf: string } };
+  venceEmDias: number;
+}
+
+export interface BoletoCriado {
+  id: string;
+  /** A página do boleto, com o código de barras. */
+  url: string;
+  /** A linha digitável; `null` se não vier. */
+  linhaDigitavel: string | null;
+}
+
 export class ErroDaStripe extends Error {
   constructor(
     readonly codigo: "chave_invalida" | "pix_indisponivel" | "recusada" | "indisponivel",
@@ -144,6 +163,33 @@ export function criarClienteStripe(cred: CredencialStripe, opts: { fetch?: Fetch
         qrPng: qr.image_url_png ?? null,
         expiraEm: typeof qr.expires_at === "number" ? new Date(qr.expires_at * 1000).toISOString() : null,
       };
+    },
+
+    /** Emite (ou reencontra, pela referência) um boleto e devolve a página dele e a linha digitável. */
+    async criarBoleto(pedido: PedidoDeBoleto): Promise<BoletoCriado> {
+      const p = pedido.pagador;
+      const campos: Record<string, string | number | boolean> = {
+        amount: pedido.valorCentavos,
+        currency: "brl",
+        "payment_method_types[0]": "boleto",
+        "payment_method_data[type]": "boleto",
+        "payment_method_data[boleto][tax_id]": p.cpf,
+        "payment_method_data[billing_details][name]": p.nome.slice(0, 100),
+        "payment_method_data[billing_details][email]": p.email,
+        "payment_method_data[billing_details][address][line1]": p.endereco.logradouro.slice(0, 100),
+        "payment_method_data[billing_details][address][city]": p.endereco.cidade.slice(0, 60),
+        "payment_method_data[billing_details][address][state]": p.endereco.uf,
+        "payment_method_data[billing_details][address][postal_code]": p.endereco.cep,
+        "payment_method_data[billing_details][address][country]": "BR",
+        "payment_method_options[boleto][expires_after_days]": pedido.venceEmDias,
+        confirm: true,
+        description: pedido.descricao.slice(0, 200),
+      };
+      for (const [k, v] of Object.entries(pedido.metadados)) campos[`metadata[${k}]`] = v.slice(0, 480);
+      const pi = await chamar("POST", "/payment_intents", campos, pedido.referencia);
+      const detalhes = ((pi.next_action ?? {}) as { boleto_display_details?: { number?: string; hosted_voucher_url?: string } }).boleto_display_details;
+      if (!detalhes?.hosted_voucher_url) throw new ErroDaStripe("recusada", "a Stripe criou a cobrança sem o boleto");
+      return { id: String(pi.id ?? ""), url: detalhes.hosted_voucher_url, linhaDigitavel: detalhes.number ?? null };
     },
 
     /**
