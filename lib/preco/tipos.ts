@@ -124,6 +124,21 @@ export const precoInternacionalSchema = z.object({
 });
 export type PrecoInternacional = z.infer<typeof precoInternacionalSchema>;
 
+/** Quantas cobranças avulsas um agente pode ter. */
+export const MAX_EXTRAS = 6;
+
+/**
+ * COBRANÇA AVULSA: algo que o agente vende à parte do produto principal, por um valor próprio — uma pergunta
+ * nova, um acompanhamento mais próximo. Não tem link de checkout: o agente pede a cobrança e o sistema gera o
+ * Pix na conversa (`lib/preco/extras.ts`). `when` diz ao agente em que situação cobrar.
+ */
+export const extraSchema = z.object({
+  name: z.string().trim().min(2).max(60),
+  price_cents: centavos,
+  when: z.string().trim().min(5).max(400),
+});
+export type Extra = z.infer<typeof extraSchema>;
+
 export const pricingSchema = z
   .object({
     enabled: z.boolean().default(false),
@@ -145,6 +160,8 @@ export const pricingSchema = z
     list_product_links: z.array(linkPorProdutoSchema).max(MAX_LINKS_POR_PRODUTO).optional(),
     /** Preço fixo para quem escreve de fora do Brasil, um por moeda. Ausente = todo mundo paga em reais. */
     international_prices: z.array(precoInternacionalSchema).max(MOEDAS_INTERNACIONAIS.length).optional(),
+    /** O que o agente cobra à parte do produto principal, por Pix na conversa. Ausente = nada é cobrado à parte. */
+    extras: z.array(extraSchema).max(MAX_EXTRAS).optional(),
     /** Do maior para o menor; o último é o mínimo. */
     steps: z.array(degrauDeNegociacaoSchema).max(MAX_DEGRAUS).default([]),
     /** O que oferecer a quem já comprou. Ausente = a agente não faz segunda oferta. */

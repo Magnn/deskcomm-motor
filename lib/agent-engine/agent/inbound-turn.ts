@@ -68,10 +68,12 @@ import { abreAvisoDoEspelhoRecusado, mirrorLeadStageToCrm } from '../edge/crm/mo
 import { ERRO_DE_GANHO_SEM_PAGAMENTO, declaraGanho, ganhoSemProvaDePagamento } from './ganho-exige-pagamento';
 import { ERRO_DE_TEXTO_JA_ENVIADO, semBaloesJaEnviados } from './balao-ja-enviado';
 import { linkInternacionalNoLugarDoLink } from './link-internacional-no-envio';
+import { pixDoExtraNoLugarDaMarca } from './pix-do-extra-no-envio';
 import { pixNoLugarDoLink } from './pix-no-envio';
 import { blocoDaRespostaAtropelada, respostaAtropelada } from './resposta-atropelada';
 import { blocoDaEntrada, blocoDaPropostaDeEntrada, blocoDoValorAceito } from '@/lib/preco/bloco-da-entrada';
 import { blocoDoPrecoInternacional, precoInternacionalDoContato } from '@/lib/preco/preco-internacional';
+import { blocoDosExtras, extrasDaConfig, type ExtraPago } from '@/lib/preco/extras';
 import { classificarPerdaDoAtendimento } from '@/lib/resultado/motivo-da-perda-do-agente';
 import { insertInboxItem } from '../db/repository';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -118,6 +120,7 @@ import {
   entradaComRestante,
   faltaParaOEssencial,
   estadoDaNegociacao,
+  PRECO_DITO,
   precoPermitidoAgora,
   reclamacoesDeValor,
   valorCombinadoNaConversa,
@@ -2467,6 +2470,32 @@ async function executarTurnoDoAgente(
   if (blocoDaEntradaDoTurno !== '') {
     runLog.info('entrada + restante proposta pela pessoa', { entrada_cents: entradaDoTurno?.entradaCents, restante_cents: entradaDoTurno?.restanteCents });
   }
+  // COBRANÇAS AVULSAS (`lib/preco/extras.ts`): só depois que a oferta principal foi apresentada, ou para quem já
+  // comprou — antes disso, cobrar uma pergunta atropelaria a venda do produto principal.
+  const extrasDoTurno =
+    !preview && internacionalDoTurno === null &&
+    (tagsDoContato.includes('pago') || openingContext.context.messages.some((m) => m.direction === 'outbound' && PRECO_DITO.test(m.body ?? '')))
+      ? extrasDaConfig(agentConfig?.pricing)
+      : [];
+  let extrasPagosNoTurno: ExtraPago[] = [];
+  if (extrasDoTurno.length > 0) {
+    try {
+      const { rows } = await pool.query<{ slug: string; hora: string }>(
+        `select metadata->>'extra' as slug, to_char(occurred_at at time zone $3, 'HH24:MI') as hora
+           from revenue_ledger
+          where organization_id = $1 and contact_id = $2 and event_type = 'charge'
+            and metadata ? 'extra' and occurred_at > now() - interval '24 hours'
+          order by occurred_at desc limit 3`,
+        [tenantId, leadId, fusoDaOrg],
+      );
+      extrasPagosNoTurno = rows;
+    } catch (err) {
+      runLog.warn('não consegui ler as cobranças avulsas pagas — o turno segue sem elas', {
+        error: (err instanceof Error ? err.message : String(err)).slice(0, 120),
+      });
+    }
+  }
+  const blocoDosExtrasDoTurno = blocoDosExtras(extrasDoTurno, extrasPagosNoTurno);
   const promiseMinPriceCentsDaEscada =
     ofertaDoCatalogoNoTurno !== null
       ? ofertaDoCatalogoNoTurno.produto.preco_cents
@@ -2633,7 +2662,7 @@ async function executarTurnoDoAgente(
     estilo: blocoDeVariacaoDoTurno,
     fluxo: blocoDoFluxoDoTurno,
     leitura: blocoDaLeituraDoTurno,
-    preco: blocoDePrecoDoTurno + blocoDaEntradaDoTurno,
+    preco: blocoDePrecoDoTurno + blocoDaEntradaDoTurno + blocoDosExtrasDoTurno,
     combinado: blocoDoCombinadoDoTurno,
     entrega: blocoDaEntrega,
     atropelo: blocoDoAtropeloDoTurno,
@@ -3420,6 +3449,23 @@ async function executarTurnoDoAgente(
         // PIX NA CONVERSA (`lib/pagamentos/pix-na-conversa.ts`): o link de pagamento que o agente escolheu —
         // no valor que a escada liberou — ganha o código do Pix na frente. Sem conta de Pix conectada, ou em
         // qualquer falha, o corpo segue como veio.
+        // COBRANÇA AVULSA: a marca `[[PIX: nome]]` vira a instrução e o código do Pix. Marca que o turno não pode
+        // cobrar, ou cobrança que não saiu, recusa o envio: marca crua não chega à pessoa.
+        if (!preview) {
+          const comExtra = await pixDoExtraNoLugarDaMarca({
+            corpo: body,
+            extras: extrasDoTurno,
+            organizationId: tenantId,
+            contactId: leadId,
+            conversationId: input.conversationId,
+            supabase: deps.crmCfg.supabase,
+            log: runLog,
+          });
+          if ('recusa' in comExtra) {
+            return { ok: false, error: { code: 'cobranca_avulsa_indisponivel', message: comExtra.recusa } };
+          }
+          body = comExtra.corpo;
+        }
         // QUEM PAGA EM MOEDA ESTRANGEIRA: o link em reais vira a cobrança na moeda dela — e, se a cobrança não
         // sair, o envio é recusado: o link em reais cobraria um valor que a conversa não disse.
         if (!preview && agentConfig?.pricing?.enabled && internacionalDoTurno !== null) {
@@ -3565,6 +3611,7 @@ async function executarTurnoDoAgente(
             pool,
             log: runLog,
             ...(promiseMinPriceCents !== undefined ? { promiseMinPriceCents } : {}),
+            ...(extrasDoTurno.length > 0 ? { promiseAllowedPricesCents: extrasDoTurno.map((e) => e.price_cents) } : {}),
             ...(internacionalDoTurno !== null
               ? { promiseMinPriceInCurrency: { moeda: internacionalDoTurno.moeda, cents: internacionalDoTurno.precoCents } }
               : {}),

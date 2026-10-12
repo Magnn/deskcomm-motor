@@ -666,7 +666,7 @@ describe("a escada vira piso da trava, turno a turno", () => {
     expect(turno).toContain("estadoDaNegociacao(agentConfig.pricing, openingContext.context.messages)");
     expect(turno).toContain("...(promiseMinPriceCents !== undefined ? { promiseMinPriceCents } : {})");
     expect(turno).toContain("system: systemDoTurno");
-    expect(cadeia).toContain("tabelaDoTurno(promise?.table ?? null, args.promiseMinPriceCents, args.promiseMinPriceInCurrency)");
+    expect(cadeia).toContain("tabelaDoTurno(promise?.table ?? null, args.promiseMinPriceCents, args.promiseMinPriceInCurrency, args.promiseAllowedPricesCents)");
   });
 });
 
