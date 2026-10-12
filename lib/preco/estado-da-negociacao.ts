@@ -523,3 +523,33 @@ export function valorOferecidoParaPagarAgora(
   const cabem = c.steps.map((s) => s.price_cents).filter((v) => v <= tem);
   return cabem.length === 0 ? null : Math.max(...cabem);
 }
+
+/**
+ * A ENTRADA NO VALOR QUE A PESSOA DISSE, AGORA — "só tenho 90 no Pix" vira o Pix de R$ 90 neste turno.
+ *
+ * Medido em 12/10/2026: um lead escreveu "só tenho 90 no Pix" e a agente respondeu "você entra com R$ 80 hoje" e
+ * perguntou o dia do restante, sem mandar cobrança. A regra anterior (`entradaAPropor`) só aceitava entrada que
+ * fosse um degrau cujo complemento também fosse degrau, e pedia a data antes do Pix: deixou R$ 10 na mesa e
+ * pôs uma pergunta entre a pessoa e o pagamento. Decisão do dono no mesmo dia: gerar o Pix no valor que a pessoa
+ * disse e deixar o restante para depois.
+ *
+ * A régua: o valor tem de estar na RODADA ATUAL (o que ela escreveu depois da última fala da agente), ser menor
+ * que o valor de venda e não ficar abaixo da entrada mínima — a entrada paga inicia a entrega do produto inteiro.
+ * Sem mínimo configurado, vale o menor degrau da escada; sem escada nem mínimo, não há entrada.
+ */
+export function entradaImediata(
+  c: Pick<PricingConfig, "list_price_cents" | "steps"> & { min_down_payment_cents?: number | undefined },
+  mensagens: readonly MensagemParaContar[],
+): { entradaCents: number; restanteCents: number } | null {
+  const msgs = expandirHistoricoColado(mensagens);
+  const primeiroPreco = msgs.findIndex((m) => m.direction === "outbound" && PRECO_DITO.test(m.body ?? ""));
+  if (primeiroPreco === -1) return null;
+  const rodada: MensagemParaContar[] = [];
+  for (let i = msgs.length - 1; i > primeiroPreco && msgs[i]!.direction === "inbound"; i -= 1) rodada.unshift(msgs[i]!);
+  if (rodada.length === 0) return null;
+  const dito = valorQueAPessoaTem([msgs[primeiroPreco]!, ...rodada]);
+  const menorDegrau = c.steps.length > 0 ? Math.min(...c.steps.map((s) => s.price_cents)) : undefined;
+  const minimo = c.min_down_payment_cents ?? menorDegrau;
+  if (dito === null || minimo === undefined || dito < minimo || dito >= c.list_price_cents) return null;
+  return { entradaCents: dito, restanteCents: c.list_price_cents - dito };
+}

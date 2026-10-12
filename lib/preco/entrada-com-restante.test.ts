@@ -122,3 +122,70 @@ describe("valorOferecidoParaPagarAgora", () => {
     expect(blocoDoValorAceito(PRICING, null)).toBe("");
   });
 });
+
+describe("entradaImediata — o Pix no valor que a pessoa disse", () => {
+  it("⭐ o caso medido: 'só tenho 90 no Pix' é entrada de R$ 90 e restante de R$ 40, sem arredondar para degrau", async () => {
+    const { entradaImediata } = await import("./estado-da-negociacao");
+    expect(entradaImediata(PRICING, [PRECO, m("inbound", "Mais eu vi só tenho 90 no Pix")])).toEqual({ entradaCents: 9000, restanteCents: 4000 });
+    expect(entradaImediata(PRICING, [PRECO, m("inbound", "não tenho esse valor"), m("inbound", "consigo 75 hoje")])).toEqual({ entradaCents: 7500, restanteCents: 5500 });
+  });
+
+  it("⭐ abaixo da entrada mínima, igual ou acima do valor de venda, e valor dito em rodada antiga: não é entrada agora", async () => {
+    const { entradaImediata } = await import("./estado-da-negociacao");
+    expect(entradaImediata(PRICING, [PRECO, m("inbound", "só tenho 20")])).toBeNull();
+    expect(entradaImediata(PRICING, [PRECO, m("inbound", "tenho 130")])).toBeNull();
+    expect(entradaImediata(PRICING, [PRECO, m("inbound", "só tenho 90"), m("outbound", "Fechado, entra com R$ 90."), m("inbound", "ok")])).toBeNull();
+    expect(entradaImediata(PRICING, [m("inbound", "só tenho 90")])).toBeNull();
+  });
+
+  it("a entrada mínima é a configurada; sem ela, o menor degrau; sem degrau nem mínimo, não há entrada", async () => {
+    const { entradaImediata } = await import("./estado-da-negociacao");
+    const conversa = [PRECO, m("inbound", "só tenho 30")];
+    expect(entradaImediata({ ...PRICING, min_down_payment_cents: 3000 }, conversa)).toEqual({ entradaCents: 3000, restanteCents: 10000 });
+    expect(entradaImediata(PRICING, conversa)).toBeNull();
+    expect(entradaImediata({ list_price_cents: 13000, steps: [] }, [PRECO, m("inbound", "só tenho 90")])).toBeNull();
+  });
+
+  it("o bloco manda aceitar o valor exato, mandar a marca e só depois perguntar a data", async () => {
+    const { blocoDaEntradaImediata } = await import("./bloco-da-entrada");
+    const bloco = blocoDaEntradaImediata({ entradaCents: 9000, restanteCents: 4000 });
+    expect(bloco).toContain("R$ 90");
+    expect(bloco).toContain("R$ 40");
+    expect(bloco).toContain("[[PIX: Entrada]]");
+    expect(bloco).toContain("NÃO arredonde");
+    expect(blocoDaEntradaImediata(null)).toBe("");
+  });
+
+  it("⭐ a marca vira o Pix do valor da entrada, com os metadados do produto; se a cobrança falhar, o envio é recusado", async () => {
+    const { pixDaEntradaNoLugarDaMarca } = await import("@/lib/agent-engine/agent/pix-da-entrada-no-envio");
+    const codigo = "00020101021226740014br.gov.bcb.pix2552pix.exemplo.com/qr/v2/ABC5204000053039865802BR5925Empresa de Pagamentos6009SAO PAULO6304ABCD";
+    const base = {
+      corpo: "Fechado: você entra com R$ 90 agora.\n\n[[PIX: Entrada]]\n\nConseguiu copiar o código?",
+      entrada: { entradaCents: 9000, restanteCents: 4000 },
+      produto: "Abertura do Coração",
+      organizationId: "org",
+      contactId: "contato",
+      conversationId: "conversa",
+      supabase: {} as never,
+      log: { info: () => undefined, warn: () => undefined },
+      lerConexao: async () => ({ id: "c", organizationId: "org", chave: "sk_x", segredoDoAviso: "w" }),
+    };
+    const pedidos: unknown[] = [];
+    const saida = await pixDaEntradaNoLugarDaMarca({
+      ...base,
+      criarPix: async (_c, p) => {
+        pedidos.push(p);
+        return { id: "pi_1", copiaECola: codigo, qrPng: null, expiraEm: null };
+      },
+    });
+    const corpo = "corpo" in saida ? saida.corpo : "";
+    expect(corpo).toContain(codigo);
+    expect(corpo).toContain("*R$ 90*");
+    expect(corpo).not.toContain("[[");
+    expect(pedidos[0]).toMatchObject({ valorCentavos: 9000, metadados: { contact_id: "contato", produto: "Abertura do Coração", entrada: "sim", restante_cents: "4000" } });
+    expect((pedidos[0] as { metadados: Record<string, string> }).metadados.extra).toBeUndefined();
+    const falhou = await pixDaEntradaNoLugarDaMarca({ ...base, criarPix: async () => { throw new Error("fora"); } });
+    expect("recusa" in falhou).toBe(true);
+    expect(await pixDaEntradaNoLugarDaMarca({ ...base, corpo: "Me conta mais.", criarPix: async () => { throw new Error("não devia chamar"); } })).toEqual({ corpo: "Me conta mais." });
+  });
+});
