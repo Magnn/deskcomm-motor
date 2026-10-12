@@ -44,10 +44,12 @@ const FORMATO = `Responda SOMENTE com um objeto JSON, sem texto antes nem depois
 
 const REGRAS = `REGRAS QUE NÃO SE QUEBRAM
 - Escreva em português do Brasil, em segunda pessoa, com carinho e clareza. Frases curtas. Sem emoji.
+- Fale COM ela: trate-a por "você" no texto inteiro ("o seu Sol", "a sua Vênus"). O nome dela só aparece nos títulos e na abertura da carta.
 - Use o que ela contou: o relatório tem de soar feito para ela, não um texto que serviria a qualquer pessoa.
+- Cada assunto aparece UMA vez: não repita em um capítulo o que já foi lido em outro.
 - NUNCA afirme o que outra pessoa sente, pensa ou vai fazer. NUNCA prometa que alguém volta, procura, liga ou muda. NUNCA dê prazo. O relatório mostra como cada um funciona e o que ela pode fazer, não o futuro.
 - Não invente fatos da vida dela que ela não contou.
-- "chaves": exatamente 3. "dias": exatamente 7, a maioria com algo que depende só dela.`;
+- "chaves": exatamente 3. "dias": exatamente 7, a maioria com algo que depende só dela; o "titulo" de cada dia NÃO começa com "Dia N" (o número já é impresso).`;
 
 export function pedidoAoModelo(p: PedidoDeRelatorio, sinastria: Sinastria | null): string {
   const partes = [`Você escreve o relatório "${p.produto}", assinado por ${p.assinatura}, para ${p.a.nome}${p.b ? ` sobre a relação com ${p.b.nome}` : ""}.`];
@@ -59,7 +61,8 @@ export function pedidoAoModelo(p: PedidoDeRelatorio, sinastria: Sinastria | null
       `COMO USAR OS DADOS
 - Interprete SOMENTE os aspectos e posições listados acima. Não cite aspecto, signo, casa ou Ascendente que não esteja na lista.
 - Em cada bloco "descoberta", o "titulo" é o aspecto ou a posição ("Vênus de ${p.a.nome} em trígono com Saturno de ${p.b?.nome ?? "…"}") e o texto é a leitura simbólica tradicional dele.
-- O que está marcado INCERTO só entra como hipótese, dizendo que depende da hora de nascimento.
+- O que está marcado INCERTO só entra como hipótese, dizendo no TEXTO que depende da hora de nascimento. Não escreva "INCERTO" no título. No máximo 3 hipóteses no relatório inteiro.
+- Cada aspecto é interpretado em UM capítulo só. De 2 a 3 descobertas por capítulo.
 - Capítulos, nesta ordem (6 a 8): a assinatura da conexão; o magnetismo entre vocês; a linguagem do amor de cada um; o que aproxima vocês; o que provoca desencontros; o potencial da relação.`,
     );
   } else {
@@ -95,7 +98,17 @@ export function lerConteudo(texto: string): ConteudoLido {
   if (promessas.length > 0) {
     return { ok: false, motivo: `Há frases que afirmam o que outra pessoa sente ou vai fazer, ou prometem resultado. Reescreva sem elas: "${promessas.slice(0, 3).join('" | "')}".` };
   }
-  return { ok: true, conteudo: lido.data };
+  return { ok: true, conteudo: limpo(lido.data) };
+}
+
+/** O que o modelo insiste em escrever mesmo com a regra: o rótulo de incerteza no título e o "Dia N" que o PDF já imprime. */
+function limpo(c: ConteudoDoRelatorio): ConteudoDoRelatorio {
+  const semRotulo = (t: string | undefined): string | undefined => (t === undefined ? undefined : t.replace(/\s*[(\[]?\s*INCERTO[^)\]]*[)\]]?\s*$/i, "").trim());
+  return {
+    ...c,
+    capitulos: c.capitulos.map((k) => ({ ...k, blocos: k.blocos.map((b) => { const titulo = semRotulo(b.titulo); return { ...b, ...(titulo ? { titulo } : {}) }; }) })),
+    dias: c.dias.map((d) => ({ ...d, titulo: d.titulo.replace(/^\s*dia\s*\d+\s*[:.\-–—]\s*/i, "") || d.titulo })),
+  };
 }
 
 /** A página final: fixada pelo código, para o modelo não poder tirar nem enfeitar. */
