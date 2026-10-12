@@ -160,6 +160,8 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ conexao: s
                 contact_id: contatoId,
                 channel_session_id: m.channel_session_id,
                 inbound_message_id: m.id,
+                // Sem isto o turno é pulado: a última mensagem dela quase sempre já foi respondida (com o código do Pix).
+                fato_novo: "pagamento_de_extra",
               },
               p_metadata: { source: "pagamento_de_extra" },
               p_organization_id: conexao.organizationId,

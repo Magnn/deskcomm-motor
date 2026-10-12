@@ -595,6 +595,8 @@ const inboundTurnPayloadSchema = z
     channel_session_id: z.string().uuid(),
     inbound_message_id: z.string().uuid(),
     crm_event_id: z.string().uuid(),
+    /** Ver `dispatchPayloadSchema` em `edge/crm/drain.ts`: um fato novo (pagamento confirmado) pede a fala do agente. */
+    fato_novo: z.string().max(60).optional(),
   })
   .passthrough();
 
@@ -5772,7 +5774,8 @@ export function createInboundTurnHandler(deps: InboundTurnDeps) {
       conversationId: payload.conversation_id,
       jobId: job.id,
     };
-    if (await ultimaInboundJaRespondida(pool, alvo)) {
+    // Um fato novo (pagamento que acabou de cair) pede a fala do agente mesmo com a última mensagem respondida.
+    if (payload.fato_novo === undefined && (await ultimaInboundJaRespondida(pool, alvo))) {
       deps.log.info('turno pulado — outro turno já viu e respondeu a última mensagem do cliente', {
         job_id: job.id,
         conversation_id: payload.conversation_id,
