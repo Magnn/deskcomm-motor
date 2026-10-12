@@ -57,26 +57,53 @@ const textoDaRodada = (rodada: readonly MensagemDaConversa[]): string => rodada.
 export const AVISOS_DEPOIS_DO_LIMITE = 2;
 
 /**
+ * A última pergunta de quem atende era sobre PAGAR ("Quer que eu te mande o Pix de R$ 60 agora?"). O que a pessoa
+ * responde a isso é a venda acontecendo, mesmo que seja "não sei ainda" ou "tudo bem". Medido em 12/10/2026: três
+ * respostas a uma oferta nova ficaram sem resposta porque a rodada, sozinha, não tinha palavra de compra.
+ */
+const PERGUNTA_DE_PAGAMENTO = /(\bpix\b|r\$|\bpagar|\bpagamento|\bcart[ãa]o|\bboleto|\blink\b|\bvalor\b)[^?.!\n]*\?\s*$/i;
+
+interface Rodada {
+  texto: string;
+  /** A fala de quem atende logo antes desta rodada. */
+  anterior: string;
+}
+
+const rodadaComercial = (r: Rodada): boolean => COMERCIAL.test(r.texto) || PERGUNTA_DE_PAGAMENTO.test(r.anterior.trim());
+
+/** As rodadas da pessoa depois da oferta, na ordem; `aberta` é a que este turno responde (ou `null`). */
+function rodadasDepoisDaOferta(mensagens: readonly MensagemDaConversa[]): { respondidas: Rodada[]; aberta: Rodada | null } | null {
+  const oferta = mensagens.findIndex((m) => m.direction === 'outbound' && PRECO_DITO.test(m.body ?? ''));
+  if (oferta === -1) return null;
+  const respondidas: Rodada[] = [];
+  let anterior = mensagens[oferta]!.body ?? '';
+  let atual: MensagemDaConversa[] = [];
+  let anteriorDaAtual = anterior;
+  for (let i = oferta + 1; i < mensagens.length; i++) {
+    const m = mensagens[i]!;
+    if (m.direction === 'inbound') {
+      if (atual.length === 0) anteriorDaAtual = anterior;
+      atual.push(m);
+    } else {
+      if (atual.length > 0) {
+        respondidas.push({ texto: textoDaRodada(atual), anterior: anteriorDaAtual });
+        atual = [];
+      }
+      anterior = m.body ?? '';
+    }
+  }
+  return { respondidas, aberta: atual.length > 0 ? { texto: textoDaRodada(atual), anterior: anteriorDaAtual } : null };
+}
+
+/**
  * Quantas rodadas NÃO comerciais o agente já respondeu depois da oferta — ou `null` quando a regra não se aplica
  * a este turno (oferta ainda não feita, ninguém escreveu, ou a rodada atual é comercial ou de risco).
  */
 export function rodadasGratuitasRespondidas(mensagens: readonly MensagemDaConversa[]): number | null {
-  const oferta = mensagens.findIndex((m) => m.direction === 'outbound' && PRECO_DITO.test(m.body ?? ''));
-  if (oferta === -1) return null;
-  const rodadas: MensagemDaConversa[][] = [];
-  let atual: MensagemDaConversa[] = [];
-  for (let i = oferta + 1; i < mensagens.length; i++) {
-    const m = mensagens[i]!;
-    if (m.direction === 'inbound') atual.push(m);
-    else if (atual.length > 0) {
-      rodadas.push(atual);
-      atual = [];
-    }
-  }
-  if (atual.length === 0) return null;
-  const agora = textoDaRodada(atual);
-  if (RISCO.test(agora) || COMERCIAL.test(agora)) return null;
-  return rodadas.filter((r) => !COMERCIAL.test(textoDaRodada(r))).length;
+  const r = rodadasDepoisDaOferta(mensagens);
+  if (r === null || r.aberta === null) return null;
+  if (RISCO.test(r.aberta.texto) || rodadaComercial(r.aberta)) return null;
+  return r.respondidas.filter((x) => !rodadaComercial(x)).length;
 }
 
 /**
@@ -94,24 +121,8 @@ export function silencioPorConversaGratuita(mensagens: readonly MensagemDaConver
 
 export function conversaGratuitaEsgotada(mensagens: readonly MensagemDaConversa[], limite: number | null | undefined): boolean {
   if (!limite || limite <= 0) return false;
-  const oferta = mensagens.findIndex((m) => m.direction === 'outbound' && PRECO_DITO.test(m.body ?? ''));
-  if (oferta === -1) return false;
-  // As rodadas da pessoa depois da oferta, na ordem; a última é a que este turno responde.
-  const rodadas: MensagemDaConversa[][] = [];
-  let atual: MensagemDaConversa[] = [];
-  for (let i = oferta + 1; i < mensagens.length; i++) {
-    const m = mensagens[i]!;
-    if (m.direction === 'inbound') atual.push(m);
-    else if (atual.length > 0) {
-      rodadas.push(atual);
-      atual = [];
-    }
-  }
-  if (atual.length === 0) return false; // ninguém escreveu: não é um turno de resposta
-  const agora = textoDaRodada(atual);
-  if (RISCO.test(agora) || COMERCIAL.test(agora)) return false;
-  const gratuitasJaRespondidas = rodadas.filter((r) => !COMERCIAL.test(textoDaRodada(r))).length;
-  return gratuitasJaRespondidas >= limite;
+  const gratuitas = rodadasGratuitasRespondidas(mensagens);
+  return gratuitas !== null && gratuitas >= limite;
 }
 
 /** O bloco do turno em que a conversa gratuita acabou. `caminhos` = os nomes do que está à venda. */

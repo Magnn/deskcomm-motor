@@ -81,3 +81,23 @@ describe('silencioPorConversaGratuita', () => {
     expect(silencioPorConversaGratuita([...longa, m('inbound', 'oi')], undefined)).toBe(false);
   });
 });
+
+describe('resposta a uma pergunta de pagamento', () => {
+  const rodada = (texto: string) => [m('inbound', texto), AG];
+  const longa = [OFERTA, ...rodada('ele sumiu'), ...rodada('tô triste'), ...rodada('saudade'), ...rodada('não durmo')];
+  const NOVA_OFERTA = m('outbound', 'Hoje eu consegui baixar o valor: de R$ 130 por R$ 60. Quer que eu te mande o Pix de R$ 60 agora?');
+
+  it('⭐ o caso medido: "não sei ainda" depois de "quer o Pix?" é a venda acontecendo, não conversa gratuita', async () => {
+    const { silencioPorConversaGratuita, conversaGratuitaEsgotada } = await import('./conversa-gratuita');
+    for (const fala of ['Não sei ainda', 'Tudo bem', 'Vai falar sobre hoje ainda']) {
+      expect(silencioPorConversaGratuita([...longa, NOVA_OFERTA, m('inbound', fala)], 2), fala).toBe(false);
+      expect(conversaGratuitaEsgotada([...longa, NOVA_OFERTA, m('inbound', fala)], 2), fala).toBe(false);
+    }
+  });
+
+  it('pergunta que não é de pagamento não reabre', async () => {
+    const { silencioPorConversaGratuita } = await import('./conversa-gratuita');
+    const aviso = m('outbound', 'Pra eu seguir com você, preciso que escolha um caminho. Qual você prefere?');
+    expect(silencioPorConversaGratuita([...longa, aviso, m('inbound', 'queria desabafar')], 2)).toBe(true);
+  });
+});
