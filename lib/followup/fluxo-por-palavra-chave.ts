@@ -62,7 +62,56 @@ export function escolherFluxoPelaMensagem(fluxos: readonly FluxoDePalavraChave[]
     if (f.palavra === "" || !mensagem.includes(f.palavra)) continue;
     if (escolhido === null || f.palavra.length > escolhido.palavra.length) escolhido = f;
   }
-  return escolhido?.pointerId ?? null;
+  if (escolhido !== null) return escolhido.pointerId;
+  return fluxoPelaFraseQuaseIgual(fluxos, mensagem);
+}
+
+/** Palavras de uma frase já normalizada. */
+const palavrasDe = (frase: string): string[] => frase.split(/[^a-z0-9]+/).filter((p) => p !== "");
+
+/** Quantas trocas, faltas ou sobras de letra separam duas palavras (Levenshtein). */
+function distancia(a: string, b: string): number {
+  let linha = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    const nova = [i];
+    for (let j = 1; j <= b.length; j++) {
+      nova[j] = Math.min(linha[j]! + 1, nova[j - 1]! + 1, linha[j - 1]! + (a[i - 1] === b[j - 1] ? 0 : 1));
+    }
+    linha = nova;
+  }
+  return linha[b.length]!;
+}
+
+/** Palavra curta só vale igual; média tolera uma letra; longa, duas. */
+const erroTolerado = (palavra: string): number => (palavra.length <= 4 ? 0 : palavra.length <= 7 ? 1 : 2);
+
+/** Frases com menos palavras que isto só abrem o fluxo escritas por inteiro: tolerar erro numa palavra só é adivinhar. */
+export const PALAVRAS_MINIMAS_PARA_TOLERAR_ERRO = 3;
+
+/**
+ * A FRASE DO ANÚNCIO, DIGITADA ERRADA.
+ *
+ * Medido em 12/10/2026: a frase pronta do anúncio era "quero aprender tarot sem misterio", e chegou "quero
+ * aprender tarot soiem misterio". Por uma letra a pessoa não entrou no fluxo da oferta que escolheu, e o agente a
+ * levou para outra oferta. Quem escreve "contém a palavra-chave" pensa na frase, não na grafia exata.
+ *
+ * A régua: a frase tem de ter pelo menos três palavras, e a mensagem precisa trazer pelo menos três delas — e
+ * ao menos 60% — com erro pequeno de digitação. "Quero uma leitura de tarot" traz duas de cinco e não entra:
+ * é outra conversa. Com mais de um fluxo possível, ganha o que casou mais palavras; no empate, a frase mais longa.
+ */
+function fluxoPelaFraseQuaseIgual(fluxos: readonly FluxoDePalavraChave[], mensagem: string): string | null {
+  const ditas = palavrasDe(mensagem);
+  let melhor: { fluxo: FluxoDePalavraChave; casadas: number } | null = null;
+  for (const f of fluxos) {
+    const esperadas = palavrasDe(f.palavra);
+    if (esperadas.length < PALAVRAS_MINIMAS_PARA_TOLERAR_ERRO) continue;
+    const casadas = esperadas.filter((e) => ditas.some((d) => distancia(e, d) <= erroTolerado(e))).length;
+    if (casadas < PALAVRAS_MINIMAS_PARA_TOLERAR_ERRO || casadas < Math.ceil(esperadas.length * 0.6)) continue;
+    if (melhor === null || casadas > melhor.casadas || (casadas === melhor.casadas && f.palavra.length > melhor.fluxo.palavra.length)) {
+      melhor = { fluxo: f, casadas };
+    }
+  }
+  return melhor?.fluxo.pointerId ?? null;
 }
 
 /** Do que o banco devolveu para a lista usada na decisão. Pura: grafo fora do schema fica de fora. */
