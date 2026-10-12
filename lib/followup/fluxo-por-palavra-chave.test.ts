@@ -36,8 +36,9 @@ describe("escolherFluxoPelaMensagem", () => {
     expect(escolherFluxoPelaMensagem(fluxos, "quero   tarot sem misterio")).toBe("tarot");
   });
 
-  it("frase com palavra no meio NÃO casa — é o que separa o fluxo do atendimento comum", () => {
-    expect(escolherFluxoPelaMensagem(fluxos, "quero aprender tarot sem misterio")).toBeNull();
+  it("uma palavra a mais no meio ainda é a frase do anúncio; outra conversa não entra", () => {
+    // Até 12/10/2026 isto não casava. Mudou de propósito: quem traz TODAS as palavras da frase escolheu a oferta.
+    expect(escolherFluxoPelaMensagem(fluxos, "quero aprender tarot sem misterio")).toBe("tarot");
     expect(escolherFluxoPelaMensagem(fluxos, "quero uma consulta")).toBeNull();
   });
 
@@ -162,5 +163,35 @@ describe("a entrada de mensagem do número do agente", () => {
     // Número de fluxo e número de humano saem antes: a regra nova não toca neles.
     expect(numeroDeFluxo).toBeGreaterThan(-1);
     expect(fluxo).toBeGreaterThan(numeroDeFluxo);
+  });
+});
+
+describe("a frase do anúncio digitada errada", () => {
+  const TAROT = { pointerId: "tarot", palavra: "quero aprender tarot sem misterio" };
+  const CURTA = { pointerId: "curta", palavra: "quero tarot" };
+
+  it("⭐ o caso medido: 'soiem' no lugar de 'sem' ainda abre o fluxo", () => {
+    expect(escolherFluxoPelaMensagem([TAROT], "quero aprender tarot soiem misterio")).toBe("tarot");
+  });
+
+  it("letra trocada, acento e palavra faltando: ainda é a frase do anúncio", () => {
+    for (const texto of ["Quero aprender tarô sem mistério", "quero aprende tarot sem misterio", "quero aprender taro sem misteiro", "Quero aprender tarot", "queri aprender tarot sem misterio!!"]) {
+      expect(escolherFluxoPelaMensagem([TAROT], texto), texto).toBe("tarot");
+    }
+  });
+
+  it("⭐ outra conversa que só cita uma ou duas palavras da frase NÃO entra", () => {
+    for (const texto of ["quero uma leitura de tarot", "tarot", "quero saber do meu marido", "bom dia, quero aprender a rezar", "Olá! Posso ter mais informações sobre isso?"]) {
+      expect(escolherFluxoPelaMensagem([TAROT], texto), texto).toBeNull();
+    }
+  });
+
+  it("frase de duas palavras só abre escrita por inteiro", () => {
+    expect(escolherFluxoPelaMensagem([CURTA], "quero tarot agora")).toBe("curta");
+    expect(escolherFluxoPelaMensagem([CURTA], "quero taro")).toBeNull();
+  });
+
+  it("a frase exata continua ganhando do quase igual", () => {
+    expect(escolherFluxoPelaMensagem([TAROT, CURTA], "quero tarot e quero aprender sem misterio")).toBe("curta");
   });
 });
