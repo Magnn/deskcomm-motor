@@ -46,9 +46,10 @@ describe("comporSystemDoTurno", () => {
       preco: "\n\nPREÇO: R$ 130\n",
       combinado: "\n\nRETORNO COMBINADO ${r}\n",
       entrega: "\n\nGUIA DA ENTREGA ${y}\n",
+      atropelo: "\n\nA PESSOA ESCREVEU DE NOVO ${a}\n",
       limites: "\n\nLIMITES — nunca diga ${k}\n",
     };
-    for (let mascara = 0; mascara < 4096; mascara++) {
+    for (let mascara = 0; mascara < 8192; mascara++) {
       const b = {
         identidade: mascara & 1 ? textos.identidade : "",
         oferta: mascara & 2 ? textos.oferta : "",
@@ -62,8 +63,9 @@ describe("comporSystemDoTurno", () => {
         entrega: mascara & 512 ? textos.entrega : "",
         limites: mascara & 1024 ? textos.limites : "",
         combinado: mascara & 2048 ? textos.combinado : "",
+        atropelo: mascara & 4096 ? textos.atropelo : "",
       };
-      const antiga = `BASE${b.identidade}${b.oferta}${b.consciencia}${b.objecoes}${b.anuncio}${b.estilo}${b.fluxo}${b.leitura}${b.preco}${b.combinado}${b.entrega}${b.limites}`;
+      const antiga = `BASE${b.identidade}${b.oferta}${b.consciencia}${b.objecoes}${b.anuncio}${b.estilo}${b.fluxo}${b.leitura}${b.preco}${b.combinado}${b.entrega}${b.atropelo}${b.limites}`;
       expect(comporSystemDoTurno("BASE", b), `combinação ${mascara}`).toBe(antiga);
     }
   });
@@ -86,7 +88,7 @@ describe("a fila BLOCOS_DO_TURNO", () => {
   it("é a ordem decidida: identidade, anúncio e estilo abrem; leitura, preço e entrega seguem o funil", () => {
     // Trocar a ordem muda quem vence num conflito — o modelo pesa mais o que vem por último. É decisão
     // de produto: se este teste precisar mudar, mude junto o comentário de `blocos-do-turno.ts`.
-    expect([...BLOCOS_DO_TURNO]).toEqual(["identidade", "oferta", "consciencia", "objecoes", "anuncio", "estilo", "fluxo", "leitura", "preco", "combinado", "entrega", "limites"]);
+    expect([...BLOCOS_DO_TURNO]).toEqual(["identidade", "oferta", "consciencia", "objecoes", "anuncio", "estilo", "fluxo", "leitura", "preco", "combinado", "entrega", "atropelo", "limites"]);
   });
 
   it("os limites do dono fecham a fila: a proibição vence o funil (leitura, preço e entrega), e não o contrário", () => {
@@ -134,6 +136,7 @@ describe("a fiação no turno", () => {
       preco: "blocoDePrecoDoTurno",
       combinado: "blocoDoCombinadoDoTurno",
       entrega: "blocoDaEntrega",
+      atropelo: "blocoDoAtropeloDoTurno",
       limites: "blocoDeLimitesDoTurno",
     });
     expect(Object.keys(chavesDaChamada()).sort()).toEqual([...BLOCOS_DO_TURNO].sort());
