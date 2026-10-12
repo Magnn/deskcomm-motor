@@ -56,6 +56,8 @@ const LOTE = 5000;
 export const MAXIMO_DE_CHAMADAS_POR_RODADA = 40;
 /** Depois do último passo mais esta folga, uma régua que nem começou não começa mais. */
 const FOLGA_PARA_COMECAR_MS = 60 * 60_000;
+/** Um passo de uma régua em curso ainda sai com este atraso (worker parado, fila represada). Além disso, não sai. */
+export const ATRASO_MAXIMO_DE_UM_PASSO_MS = 3 * 60 * 60_000;
 
 interface Candidata {
   conversation_id: string;
@@ -236,6 +238,14 @@ export function decidirChamada(c: Candidata, agora: Date, temPrazo: boolean): Ch
   );
   if (passo === null) return null;
   const silencioMs = agora.getTime() - silencioDesde.getTime();
+  // PASSO ATRASADO NÃO DISPARA. Medido em 12/10/2026: um quarto passo (6 h) foi acrescentado à régua e, no minuto
+  // seguinte, toda conversa calada havia mais de 6 h (até 23 h) ficou devendo esse passo de uma vez — 70 mensagens
+  // em dois minutos, num número com a qualidade em vermelho. Um passo vale na hora dele; passada a folga, ele é
+  // de uma conversa que já esfriou, e chamá-la agora é disparo em massa, não recuperação.
+  const devidoHaMs = silencioMs - (r.steps_minutes[passo - 1] ?? 0) * 60_000;
+  // A régua que já começou tolera um atraso de worker (3 h); mais que isso, o passo perdeu a hora.
+  // Só para a régua em curso: a que ainda não começou tem a sua própria régua de atraso, logo acima.
+  if ((c.feitas ?? 0) > 0 && devidoHaMs > ATRASO_MAXIMO_DE_UM_PASSO_MS) return null;
   return {
     kind: 'step',
     step: passo,

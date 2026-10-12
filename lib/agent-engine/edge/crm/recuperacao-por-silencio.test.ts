@@ -112,6 +112,16 @@ describe("decidirChamada", () => {
     expect(decidirChamada(silenciosa(emCurso), AGORA, true)).toMatchObject({ kind: "step", step: 3 });
   });
 
+  it("⭐ o caso medido: passo acrescentado à régua não dispara para quem já passou muito da hora dele", () => {
+    // Três passos feitos, calada há 15 h, e a régua ganhou um quarto passo aos 360 min: ele venceu há 9 h.
+    const quatro = { recovery: { enabled: true, steps_minutes: [3, 15, 180, 360], keep_window: { enabled: false, hours_before_close: 3 } } };
+    const fria = { followup: quatro, feitas: 3, ultima_em: ha(720), silence_since: ha(900), last_outbound_at: ha(720), last_inbound_at: ha(910) };
+    expect(decidirChamada(silenciosa(fria), AGORA, true)).toBeNull();
+    // Na hora dele (calada há 6 h 10 min), o quarto passo sai.
+    const naHora = { followup: quatro, feitas: 3, ultima_em: ha(190), silence_since: ha(370), last_outbound_at: ha(190), last_inbound_at: ha(380) };
+    expect(decidirChamada(silenciosa(naHora), AGORA, true)).toMatchObject({ kind: "step", step: 4 });
+  });
+
   it("silêncio que começou antes de a recuperação ser ligada não inicia a régua; régua já iniciada continua", () => {
     const publicadoAgora = { published_at: ha(1), last_outbound_at: ha(4) };
     expect(decidirChamada(silenciosa(publicadoAgora), AGORA, true)).toBeNull();
