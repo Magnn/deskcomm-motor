@@ -212,6 +212,12 @@ export const pricingSchema = z
           .max(6),
       })
       .optional(),
+    /**
+     * A cobrança sai SÓ pelo provedor de pagamento conectado: os links de pagamento desta configuração viram a
+     * marca do que cobrar, e a pessoa recebe o Pix e o link de cartão do provedor — nunca o link externo
+     * (`lib/agent-engine/agent/cobranca-pelo-provedor-no-envio.ts`). Ausente = o link externo segue saindo.
+     */
+    provider_only_checkout: z.boolean().optional(),
     /** Do maior para o menor; o último é o mínimo. */
     steps: z.array(degrauDeNegociacaoSchema).max(MAX_DEGRAUS).default([]),
     /** O que oferecer a quem já comprou. Ausente = a agente não faz segunda oferta. */

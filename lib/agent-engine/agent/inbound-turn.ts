@@ -73,6 +73,7 @@ import { boletoNoLugarDaMarca } from './boleto-no-envio';
 import { pixDaEntradaNoLugarDaMarca, temMarcaDaEntrada } from './pix-da-entrada-no-envio';
 import { pixDoExtraNoLugarDaMarca } from './pix-do-extra-no-envio';
 import { pixNoLugarDoLink } from './pix-no-envio';
+import { cobrancaPeloProvedorNoLugarDoLink } from './cobranca-pelo-provedor-no-envio';
 import { blocoDaConfirmacaoCurta, rodadaSoDeConfirmacao } from './confirmacao-curta';
 import {
   TAMANHO_DA_RESPOSTA_LIMITADA,
@@ -3757,7 +3758,24 @@ async function executarTurnoDoAgente(
           }
           body = trocado.corpo;
         } else if (!preview && agentConfig?.pricing?.enabled) {
-          body = await pixNoLugarDoLink({
+          // SÓ PELO PROVEDOR: com a opção ligada e o provedor conectado, o link externo nunca sai — vira Pix e
+          // cartão do provedor, a chave da empresa em último caso, ou o envio é recusado.
+          const peloProvedor = agentConfig.pricing.provider_only_checkout
+            ? await cobrancaPeloProvedorNoLugarDoLink({
+                corpo: body,
+                pricing: agentConfig.pricing,
+                organizationId: tenantId,
+                contactId: leadId,
+                conversationId: input.conversationId,
+                supabase: deps.crmCfg.supabase,
+                log: runLog,
+              })
+            : ({ semProvedor: true } as const);
+          if ('recusa' in peloProvedor) {
+            return { ok: false, error: { code: 'cobranca_indisponivel', message: peloProvedor.recusa } };
+          }
+          if ('corpo' in peloProvedor) body = peloProvedor.corpo;
+          else body = await pixNoLugarDoLink({
             corpo: body,
             pricing: agentConfig.pricing,
             organizationId: tenantId,
