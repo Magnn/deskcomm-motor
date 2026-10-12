@@ -214,6 +214,7 @@ export function VozDoAgente({ agentId, config, active, readOnly }: Props) {
               ["mirror", t("Só quando a pessoa mandar áudio")],
               ["mirror_long", t("Só quando a pessoa mandar áudio e a resposta for longa")],
               ["moments", t("Também nas respostas longas (as explicações)")],
+              ["on_request", t("Só quando a pessoa pedir áudio (até 3 respostas, depois volta ao texto)")],
             ] as const
           ).map(([valor, rotulo]) => (
             <label key={valor} className="flex items-center gap-2 text-sm">
