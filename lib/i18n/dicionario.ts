@@ -319,6 +319,7 @@ export const DICIONARIO: Traducoes = {
   "Muitas adições nesta hora. Espere um pouco.": { es: "Demasiadas adiciones en esta hora. Espera un poco." },
   "Só quando a pessoa mandar áudio": { es: "Solo cuando la persona envíe audio" },
   "Também nas respostas longas (as explicações)": { es: "También en las respuestas largas (las explicaciones)" },
+  "Só quando a pessoa pedir áudio (até 3 respostas, depois volta ao texto)": { es: "Solo cuando la persona pida audio (hasta 3 respuestas, luego vuelve al texto)" },
   "Só quando a pessoa mandar áudio e a resposta for longa": { es: "Solo cuando la persona envíe audio y la respuesta sea larga" },
   "Falar a partir de quantos caracteres": { es: "Hablar desde cuántos caracteres" },
   "Quando a pessoa mandar áudio, só as respostas mais longas (uma leitura, uma explicação) saem em áudio; as curtas seguem em texto. Link e emoji não contam.": { es: "Cuando la persona envíe audio, solo las respuestas más largas (una lectura, una explicación) salen en audio; las cortas siguen en texto. El enlace y los emojis no cuentan." },

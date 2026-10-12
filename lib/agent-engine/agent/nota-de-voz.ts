@@ -230,6 +230,38 @@ export async function enviarNotasDeVoz<T extends BubbleOutcome>(
  * sem ele, um id vazado ligaria a voz no turno de outro tenant. Falha de leitura
  * vira `false`: na dúvida, texto.
  */
+/**
+ * Modo "só a pedido": quantos áudios a agente já mandou desde o último pedido de áudio da pessoa — ou `null` se
+ * ela nunca pediu. Depoimentos de clientes não contam (não são a voz da agente). Falha de leitura vira `null`:
+ * na dúvida, texto.
+ */
+export async function audiosDesdeOPedido(
+  db: Queryable,
+  input: { tenantId: string; conversationId: string },
+  pediu: (texto: string | null) => boolean,
+): Promise<number | null> {
+  try {
+    const { rows } = await db.query<{ direction: string; type: string; sent_via: string | null; texto: string | null }>(
+      `select direction, type, sent_via, coalesce(nullif(body, ''), media_derived_text) as texto
+         from messages
+        where organization_id = $1 and conversation_id = $2
+        order by created_at desc limit 200`,
+      [input.tenantId, input.conversationId],
+    );
+    let enviados = 0;
+    for (const m of rows) {
+      if (m.direction === 'inbound') {
+        if (pediu(m.texto)) return enviados;
+      } else if (m.type === 'audio' && m.sent_via === 'ai' && !(m.texto ?? '').startsWith('[depoimento')) {
+        enviados += 1;
+      }
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export async function inboundEhAudio(
   db: Queryable,
   input: { tenantId: string; conversationId: string; inboundMessageId: string },

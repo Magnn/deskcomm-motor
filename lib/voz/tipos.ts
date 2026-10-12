@@ -126,7 +126,7 @@ export const MIME_DA_NOTA_DE_VOZ = "audio/ogg;codecs=opus";
  */
 export const voiceReplySchema = z.object({
   enabled: z.boolean().default(false),
-  mode: z.enum(["mirror", "moments", "mirror_long"]).default("mirror"),
+  mode: z.enum(["mirror", "moments", "mirror_long", "on_request"]).default("mirror"),
   /** Vale em `moments` e em `mirror_long`: a fala (sem link e emoji) precisa ter pelo menos isto. */
   min_chars_for_voice: z.number().int().min(80).max(1500).default(240),
   provider: z.enum(IDS_DE_PROVEDOR_DE_VOZ),
