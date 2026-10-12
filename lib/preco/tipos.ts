@@ -110,6 +110,20 @@ export const ofertaPosVendaSchema = z.object({
 });
 export type OfertaPosVenda = z.infer<typeof ofertaPosVendaSchema>;
 
+/** As moedas em que dá para vender a quem escreve de fora do país (`preco-internacional.ts`). */
+export const MOEDAS_INTERNACIONAIS = ["EUR", "USD"] as const;
+export type MoedaInternacional = (typeof MOEDAS_INTERNACIONAIS)[number];
+
+/**
+ * O preço para quem escreve de FORA do Brasil, por moeda. É FIXO: não tem degrau, entrada nem cupom — o
+ * link em reais não serve a essa pessoa, e o que ela paga é uma cobrança criada na moeda dela.
+ */
+export const precoInternacionalSchema = z.object({
+  currency: z.enum(MOEDAS_INTERNACIONAIS),
+  price_cents: centavos,
+});
+export type PrecoInternacional = z.infer<typeof precoInternacionalSchema>;
+
 export const pricingSchema = z
   .object({
     enabled: z.boolean().default(false),
@@ -129,6 +143,8 @@ export const pricingSchema = z
      * só existia no texto do roteiro, e o código não tinha como saber que link cobra quanto.
      */
     list_product_links: z.array(linkPorProdutoSchema).max(MAX_LINKS_POR_PRODUTO).optional(),
+    /** Preço fixo para quem escreve de fora do Brasil, um por moeda. Ausente = todo mundo paga em reais. */
+    international_prices: z.array(precoInternacionalSchema).max(MOEDAS_INTERNACIONAIS.length).optional(),
     /** Do maior para o menor; o último é o mínimo. */
     steps: z.array(degrauDeNegociacaoSchema).max(MAX_DEGRAUS).default([]),
     /** O que oferecer a quem já comprou. Ausente = a agente não faz segunda oferta. */
@@ -151,6 +167,11 @@ export const pricingSchema = z
         });
       }
     }
+    (c.international_prices ?? []).forEach((p, i, todos) => {
+      if (todos.findIndex((o) => o.currency === p.currency) !== i) {
+        ctx.addIssue({ code: "custom", path: ["international_prices", i, "currency"], message: "cada moeda só pode ter um preço" });
+      }
+    });
     let anterior = c.list_price_cents;
     c.steps.forEach((s, i) => {
       if (s.price_cents >= anterior) {

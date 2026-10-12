@@ -20,6 +20,12 @@ import type { Queryable } from '../../queue/queue';
 export interface PromiseTable {
   /** Piso de preço em centavos: preço candidato ABAIXO disso → veto (anti-"R$1"). */
   minPriceCents?: number;
+  /**
+   * Piso de um preço escrito em OUTRA moeda (centavos daquela moeda). Só existe na tabela do turno de quem
+   * paga em moeda estrangeira (`lib/preco/preco-internacional.ts`): sem ele, "€ 20" seria comparado com o
+   * piso em reais e vetado. Não é publicado na tabela da organização.
+   */
+  minPriceCentsPorMoeda?: Partial<Record<'EUR', number>>;
   /** Teto de desconto %: desconto candidato ACIMA disso → veto. */
   maxDiscountPercent?: number;
   /** Teto de parcelas: parcelamento candidato ACIMA disso → veto. */

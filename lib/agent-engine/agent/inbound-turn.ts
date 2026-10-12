@@ -67,8 +67,10 @@ import { HANDOFF_REASON_ORCAMENTO } from '../edge/llm/orcamento';
 import { abreAvisoDoEspelhoRecusado, mirrorLeadStageToCrm } from '../edge/crm/move-lead-stage';
 import { ERRO_DE_GANHO_SEM_PAGAMENTO, declaraGanho, ganhoSemProvaDePagamento } from './ganho-exige-pagamento';
 import { ERRO_DE_TEXTO_JA_ENVIADO, semBaloesJaEnviados } from './balao-ja-enviado';
+import { linkInternacionalNoLugarDoLink } from './link-internacional-no-envio';
 import { pixNoLugarDoLink } from './pix-no-envio';
 import { blocoDaEntrada, blocoDaPropostaDeEntrada } from '@/lib/preco/bloco-da-entrada';
+import { blocoDoPrecoInternacional, precoInternacionalDoContato } from '@/lib/preco/preco-internacional';
 import { classificarPerdaDoAtendimento } from '@/lib/resultado/motivo-da-perda-do-agente';
 import { insertInboxItem } from '../db/repository';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -2399,9 +2401,23 @@ async function executarTurnoDoAgente(
       combinadoDoTurno = null;
     }
   }
+  // QUEM ESCREVE DE FORA DO BRASIL (`lib/preco/preco-internacional.ts`): preço fixo na moeda dela, sem escada,
+  // entrada nem Pix. Só na primeira venda — catálogo e pós-venda seguem os valores deles.
+  const internacionalDoTurno =
+    !preview && ofertaDoCatalogoNoTurno === null && posVendaDoTurno === null
+      ? precoInternacionalDoContato(agentConfig?.pricing, openingContext.context.contact.phone)
+      : null;
+  if (internacionalDoTurno !== null) {
+    runLog.info('contato de fora do país — preço fixo em moeda estrangeira neste turno', {
+      moeda: internacionalDoTurno.moeda,
+      valor_centavos: internacionalDoTurno.precoCents,
+    });
+  }
   // Com produto do catálogo na vez, o bloco de preço é o dele: a escada é da compra que já aconteceu.
   const blocoDePrecoDoTurno = ofertaDoCatalogoNoTurno !== null
     ? blocoDaOfertaDoCatalogo(ofertaDoCatalogoNoTurno)
+    : internacionalDoTurno !== null
+    ? blocoDoPrecoInternacional(agentConfig?.pricing, internacionalDoTurno)
     : blocoDePreco(agentConfig?.pricing, {
     reclamacoes: reclamacoesDeValorNoTurno,
     valorQueTemCents: valorQueTemNoTurno,
@@ -2422,12 +2438,12 @@ async function executarTurnoDoAgente(
   // ENTRADA + RESTANTE: a pessoa ofereceu uma parte hoje e deu a data do resto (`entradaComRestante`). Só na
   // primeira venda (sem catálogo nem pós-venda na vez) e nunca para quem disse que falta para o essencial.
   const entradaDoTurno =
-    !preview && agentConfig?.pricing?.enabled && ofertaDoCatalogoNoTurno === null && posVendaDoTurno === null && !faltaParaOEssencialNoTurno
+    !preview && agentConfig?.pricing?.enabled && internacionalDoTurno === null && ofertaDoCatalogoNoTurno === null && posVendaDoTurno === null && !faltaParaOEssencialNoTurno
       ? entradaComRestante(agentConfig.pricing, openingContext.context.messages)
       : null;
   // Ela disse quanto tem e ainda não deu a data: antes do desconto, a agente propõe entrada + restante.
   const propostaDeEntradaDoTurno =
-    entradaDoTurno === null && !preview && agentConfig?.pricing?.enabled && ofertaDoCatalogoNoTurno === null && posVendaDoTurno === null &&
+    entradaDoTurno === null && !preview && agentConfig?.pricing?.enabled && internacionalDoTurno === null && ofertaDoCatalogoNoTurno === null && posVendaDoTurno === null &&
     !faltaParaOEssencialNoTurno && negociacaoDoTurno.reclamouAgora
       ? entradaAPropor(agentConfig.pricing, openingContext.context.messages)
       : null;
@@ -3381,7 +3397,24 @@ async function executarTurnoDoAgente(
         // PIX NA CONVERSA (`lib/pagamentos/pix-na-conversa.ts`): o link de pagamento que o agente escolheu —
         // no valor que a escada liberou — ganha o código do Pix na frente. Sem conta de Pix conectada, ou em
         // qualquer falha, o corpo segue como veio.
-        if (!preview && agentConfig?.pricing?.enabled) {
+        // QUEM PAGA EM MOEDA ESTRANGEIRA: o link em reais vira a cobrança na moeda dela — e, se a cobrança não
+        // sair, o envio é recusado: o link em reais cobraria um valor que a conversa não disse.
+        if (!preview && agentConfig?.pricing?.enabled && internacionalDoTurno !== null) {
+          const trocado = await linkInternacionalNoLugarDoLink({
+            corpo: body,
+            pricing: agentConfig.pricing,
+            preco: internacionalDoTurno,
+            organizationId: tenantId,
+            contactId: leadId,
+            conversationId: input.conversationId,
+            supabase: deps.crmCfg.supabase,
+            log: runLog,
+          });
+          if ('recusa' in trocado) {
+            return { ok: false, error: { code: 'link_internacional_indisponivel', message: trocado.recusa } };
+          }
+          body = trocado.corpo;
+        } else if (!preview && agentConfig?.pricing?.enabled) {
           body = await pixNoLugarDoLink({
             corpo: body,
             pricing: agentConfig.pricing,
@@ -3509,6 +3542,9 @@ async function executarTurnoDoAgente(
             pool,
             log: runLog,
             ...(promiseMinPriceCents !== undefined ? { promiseMinPriceCents } : {}),
+            ...(internacionalDoTurno !== null
+              ? { promiseMinPriceInCurrency: { moeda: internacionalDoTurno.moeda, cents: internacionalDoTurno.precoCents } }
+              : {}),
             agentOperation,
             tenantId,
             leadId,
