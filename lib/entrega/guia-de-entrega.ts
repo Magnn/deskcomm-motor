@@ -47,7 +47,31 @@ export interface TrechoDoConhecimento {
 
 export interface DepsDoGuia {
   buscar(query: string, topK: number): Promise<TrechoDoConhecimento[]>;
+  /**
+   * Lê os trechos de um material pelo NOME, na ordem do documento, sem busca por semelhança. É a reserva de
+   * quando a busca não devolve nada (medido em 12/10/2026: o provedor de embeddings ficou sem crédito, a busca
+   * falhou calada e quem pagou ficou sem o guia). `comecaCom` = o nome é um prefixo.
+   */
+  lerPorNome?(nome: string, comecaCom: boolean, limite: number): Promise<TrechoDoConhecimento[]>;
+  /** Chamado quando a reserva por nome foi usada, ou quando nem ela trouxe o guia. */
+  avisar?(msg: string): void;
 }
+
+/**
+ * O que a agente sabe quando a pessoa PAGOU e o material de entrega não pôde ser carregado: a compra está
+ * confirmada e ela não pode cobrar de novo nem inventar o passo a passo.
+ */
+export function blocoDaCompraConfirmadaSemGuia(trabalho: TrabalhoPago): string {
+  return [
+    "",
+    "",
+    `COMPRA CONFIRMADA PELO SISTEMA (a pessoa PAGOU "${trabalho.nome}". ${REGRA_DE_QUEM_PAGOU})`,
+    `O material de entrega não pôde ser carregado neste turno. Responda SÓ: "Recebi seu pagamento, [primeiro nome]! Já estou separando o seu passo a passo e te mando em instantes." NÃO invente o passo a passo, os materiais nem as etapas do trabalho: quem entrega é o material, e ele chega no próximo turno.`,
+  ].join("\n");
+}
+
+const REGRA_DE_QUEM_PAGOU =
+  "O pagamento já caiu e foi conferido pelo sistema: NÃO peça comprovante, NÃO pergunte se ela pagou nem por qual meio, NÃO diga que vai conferir, NÃO reenvie Pix, link ou boleto, NÃO repita o preço.";
 
 /** Teto do bloco, em caracteres (~2.500 tokens). */
 export const TETO_DO_GUIA = 9000;
@@ -76,7 +100,7 @@ export function montarBlocoDoGuia(
   return [
     "",
     "",
-    `MATERIAL DE ENTREGA (a pessoa PAGOU "${trabalho.nome}"; entregue ESTE trabalho e nenhum outro. A compra está confirmada: não fale em confirmação nem em espera.)`,
+    `MATERIAL DE ENTREGA (a pessoa PAGOU "${trabalho.nome}"; entregue ESTE trabalho e nenhum outro. A compra está confirmada: não fale em confirmação nem em espera. ${REGRA_DE_QUEM_PAGOU})`,
     `ORDEM DA ENTREGA: (1) Se você ainda NÃO perguntou com quem ela mora, sua resposta é SÓ este molde: "Recebi seu pagamento, [primeiro nome]! Vou montar o seu trabalho de ${trabalho.nome} do jeito que cabe na sua casa e na sua rotina. Antes de eu montar, me conta: você mora sozinha ou com quem?" (2) Depois, UMA pergunta por mensagem até saber: criança, bicho ou asma em casa; se pode usar vela; quanto tempo tem à noite. (3) Só então monte a etapa 1 a partir do material abaixo, personalizada com o que ela contou. Uma etapa por vez, esperando ela dizer "pronto". Use só se a conversa for sobre a entrega ou o trabalho.`,
     "---",
     corpo,
@@ -103,11 +127,21 @@ function ehDeOutroTrabalho(nomeDoMaterial: string, trabalho: TrabalhoPago): bool
 
 /** Busca as regras gerais, o guia do trabalho pago e o acompanhamento dele, e monta o bloco. `""` = nada a injetar. */
 export async function carregarGuiaDeEntrega(deps: DepsDoGuia, trabalho: TrabalhoPago): Promise<string> {
-  const [regras, guia, depois] = await Promise.all([
+  let [regras, guia, depois] = await Promise.all([
     deps.buscar("Entregável: regras gerais e como montar o entregável personalizado", 4),
     deps.buscar(`Entregável: ${trabalho.nome}`, 6),
     deps.buscar(`${prefixoDoAcompanhamento(trabalho)}acompanhamento depois do trabalho`, 6),
   ]);
+  // A busca não trouxe o guia do trabalho pago: lê o material pelo nome. A entrega de quem pagou não pode
+  // depender de um provedor de busca estar de pé.
+  if (!guia.some((t) => t.source_name === `Entregável: ${trabalho.nome}`) && deps.lerPorNome) {
+    [regras, guia, depois] = await Promise.all([
+      deps.lerPorNome("Entregável: regras gerais", true, 4),
+      deps.lerPorNome(`Entregável: ${trabalho.nome}`, false, 8),
+      deps.lerPorNome(prefixoDoAcompanhamento(trabalho), true, 6),
+    ]);
+    deps.avisar?.(guia.length > 0 ? "guia de entrega lido pelo nome: a busca não devolveu o material" : "guia de entrega não encontrado nem pelo nome");
+  }
   const vistos = new Set<string>();
   const novo = (t: TrechoDoConhecimento): string | null => {
     const chave = t.content.trim();
@@ -132,5 +166,6 @@ export async function carregarGuiaDeEntrega(deps: DepsDoGuia, trabalho: Trabalho
     const chave = novo(t);
     if (chave !== null) acompanhamento.push(chave);
   }
-  return montarBlocoDoGuia(trabalho, trechos, acompanhamento);
+  const bloco = montarBlocoDoGuia(trabalho, trechos, acompanhamento);
+  return bloco !== "" ? bloco : blocoDaCompraConfirmadaSemGuia(trabalho);
 }

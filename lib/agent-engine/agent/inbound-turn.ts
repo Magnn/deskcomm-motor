@@ -110,7 +110,7 @@ import {
   INSTRUCAO_DE_MENSAGEM_UNICA,
   ultimoTipoDeCobrancaDoContato,
 } from './economia-de-mensagem-cobrada';
-import { carregarGuiaDeEntrega, trabalhoPagoDasTags } from '@/lib/entrega/guia-de-entrega';
+import { blocoDaCompraConfirmadaSemGuia, carregarGuiaDeEntrega, trabalhoPagoDasTags } from '@/lib/entrega/guia-de-entrega';
 import { blocoDaLeitura } from '@/lib/leitura/bloco-do-prompt';
 import { blocoDoAnuncio, carregarAnuncioDoContato } from '@/lib/anuncio/contexto-do-anuncio';
 import { comporSystemDoTurno } from './blocos-do-turno';
@@ -2626,10 +2626,24 @@ async function executarTurnoDoAgente(
             );
             return out.ok ? out.results : [];
           },
+          lerPorNome: async (nome, comecaCom, limite) => {
+            const { rows } = await pool.query<{ content: string; source_name: string }>(
+              `select c.content, s.name as source_name
+                 from ai_chunks c join ai_knowledge_sources s on s.id = c.knowledge_source_id and s.organization_id = c.organization_id
+                where c.organization_id = $1 and s.id = any($2::uuid[]) and s.is_active
+                  and c.kb_version_id is not distinct from s.active_kb_version_id
+                  and (s.name = $3 or ($4 and left(s.name, length($3)) = $3))
+                order by s.name, c.position limit $5`,
+              [tenantId, fontesDoAgente, nome, comecaCom, limite],
+            );
+            return rows;
+          },
+          avisar: (msg) => runLog.warn(msg, { trabalho: trabalhoPago.slug }),
         },
         trabalhoPago,
       );
     } catch (err) {
+      blocoDaEntrega = blocoDaCompraConfirmadaSemGuia(trabalhoPago);
       // A entrega segue sem o guia (a agente cai no que o prompt diz) — nunca derruba o turno.
       runLog.warn('guia de entrega indisponível', { erro: err instanceof Error ? err.message.slice(0, 120) : 'desconhecido' });
     }
