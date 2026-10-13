@@ -56,7 +56,7 @@ import { acelerarFluxoDoContato, acelerarPipelineDeEventos } from "@/lib/dev/kic
 import { autorizarContatoParaIA } from "@/lib/ai/elegibilidade/autorizacao";
 import { casarCampanha, lerCampanhas } from "@/lib/ai/elegibilidade/campanha";
 import { enrollFollowupFlow } from "@/lib/followup/enroll";
-import { escolherFluxoPelaMensagem, etiquetaDoFluxo, fluxosDePalavraChaveAtivos } from "@/lib/followup/fluxo-por-palavra-chave";
+import { escolherFluxoPelaMensagem, etiquetaDoFluxo, fluxosDePalavraChaveAtivos, fluxosDePrimeiroContatoAtivos } from "@/lib/followup/fluxo-por-palavra-chave";
 import { configDoInicio, eventoWhatsappDoInicio, mensagemAbreOFluxo } from "@/lib/followup/gatilho-do-inicio";
 import { flowGraphSchema, type TriggerNodeConfig } from "@/lib/followup/graph-schema";
 import { lerConfigDeFluxoDoCanal, quemAtendeONumero, type QuemAtende } from "@/lib/channels/channel-flow-config";
@@ -281,7 +281,9 @@ const INSCRICAO_VIVA = ["active", "waiting_reply", "coletando"];
 async function entrarEmFluxoPorPalavraChave(admin: Admin, entrada: EntradaDeMensagem): Promise<boolean> {
   try {
     const fluxos = await fluxosDePalavraChaveAtivos(admin, entrada.organizationId);
-    if (fluxos.length === 0) return false;
+    // O fluxo de PRIMEIRO CONTATO: recebe a primeira mensagem de quem nunca falou com este número.
+    const deEntrada = await fluxosDePrimeiroContatoAtivos(admin, entrada.organizationId);
+    if (fluxos.length === 0 && deEntrada.length === 0) return false;
 
     // A pessoa já está dentro de um desses fluxos: a mensagem é a resposta que ele espera.
     const { data: viva } = await admin
@@ -289,7 +291,7 @@ async function entrarEmFluxoPorPalavraChave(admin: Admin, entrada: EntradaDeMens
       .select("id")
       .eq("organization_id", entrada.organizationId)
       .eq("contact_id", entrada.contactId)
-      .in("pointer_id", fluxos.map((f) => f.pointerId))
+      .in("pointer_id", [...fluxos.map((f) => f.pointerId), ...deEntrada.map((f) => f.pointerId)])
       .in("status", INSCRICAO_VIVA)
       .limit(1)
       .maybeSingle();
@@ -301,7 +303,13 @@ async function entrarEmFluxoPorPalavraChave(admin: Admin, entrada: EntradaDeMens
       return true;
     }
 
-    const flowId = escolherFluxoPelaMensagem(fluxos, entrada.texto);
+    let flowId = escolherFluxoPelaMensagem(fluxos, entrada.texto);
+    // Sem palavra-chave casada: contato novo entra no fluxo de primeiro contato; quem já conversou fica com o agente.
+    if (flowId === null && deEntrada[0] !== undefined) {
+      if (await ehAPrimeiraMensagemDoContato(admin, entrada.organizationId, entrada.contactId, entrada.messageId)) {
+        flowId = deEntrada[0].pointerId;
+      }
+    }
     if (flowId === null) return false;
 
     const inscricao = await enrollFollowupFlow(admin, {
@@ -328,7 +336,7 @@ async function entrarEmFluxoPorPalavraChave(admin: Admin, entrada: EntradaDeMens
     });
     // A mesma razão do número de fluxo: sem isto a primeira mensagem só sairia no relógio de um minuto.
     await acelerarFluxoDoContato(admin, { organizationId: entrada.organizationId, contactId: entrada.contactId });
-    await marcarEntradaPeloFluxo(admin, entrada, etiquetaDoFluxo(fluxos.find((f) => f.pointerId === flowId)?.nome));
+    await marcarEntradaPeloFluxo(admin, entrada, etiquetaDoFluxo([...fluxos, ...deEntrada].find((f) => f.pointerId === flowId)?.nome));
     return true;
   } catch (err) {
     logger.warn("[pos-entrada] não consegui avaliar fluxo de palavra-chave — agente acionado", {
