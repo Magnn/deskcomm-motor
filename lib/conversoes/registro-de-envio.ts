@@ -46,6 +46,7 @@ export async function jaFoiEnviada(
   organizationId: string,
   leadId: string,
   evento: NomeDoEvento,
+  eventoId: string,
 ): Promise<boolean> {
   const { data } = await admin
     .from("ad_conversion_dispatches")
@@ -53,6 +54,8 @@ export async function jaFoiEnviada(
     .eq("organization_id", organizationId)
     .eq("lead_id", leadId)
     .eq("event_name", evento)
+    // Um negócio pode ter mais de uma compra reportada (a do produto e as avulsas): a pergunta é por ESTE evento.
+    .eq("event_id", eventoId)
     .maybeSingle();
 
   return (data as { status?: string } | null)?.status === "sent";
@@ -81,7 +84,7 @@ export async function registraEnvio(
       detail: registro.detalhe ?? null,
       attempted_at: new Date().toISOString(),
     },
-    { onConflict: "organization_id,lead_id,event_name" },
+    { onConflict: "organization_id,lead_id,event_name,event_id" },
   );
 
   if (error) {

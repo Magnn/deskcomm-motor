@@ -81,7 +81,7 @@ export async function reportarEventoDaConversa(
   // O livro-razão é por negócio. Sem negócio não há onde registrar, e o que não se registra não se audita.
   if (!leadId) return { status: "skipped", motivo: "sem_lead" };
 
-  if (await jaFoiEnviada(admin, org, leadId, evento)) return { status: "skipped", motivo: "ja_enviada" };
+  if (await jaFoiEnviada(admin, org, leadId, evento, `${leadId}:${evento}`)) return { status: "skipped", motivo: "ja_enviada" };
 
   const registra = async (status: StatusDeEnvio, motivo: string | null, detalhe?: string): Promise<DesfechoDoPasso> => {
     await registraEnvio(admin, {

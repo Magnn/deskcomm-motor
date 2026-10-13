@@ -100,7 +100,7 @@ async function handle(row: EventRow): Promise<HandlerResult> {
   // novo nem sujar o livro-razão.
   if (lead.status !== "won") return ok("skipped", "nao_e_ganho");
 
-  if (await jaFoiEnviada(admin, row.organization_id, lead.id, EVENTO)) {
+  if (await jaFoiEnviada(admin, row.organization_id, lead.id, EVENTO, `${lead.id}:${EVENTO}`)) {
     return ok("skipped", "ja_enviada");
   }
 
