@@ -66,7 +66,9 @@ import {
 import { interpolarDestino, persistirRespostaFollowupSupabase } from "./persistir-resposta";
 import { PERGUNTA_SEM_PRAZO_MS, prazoDaPerguntaMs } from "./graph-schema";
 
-const MAX_STEPS = 80;
+// Teto de passos de uma inscrição (protege contra ciclo no grafo). Cada caixa custa de 2 a 3 passos (medido: um
+// fluxo de 14 caixas chegou a 28, um de 5 a 16): 60 caixas no caminho mais longo (`MAX_PATH_STEPS`) pedem folga.
+const MAX_STEPS = 240;
 const CLAIM_LEASE_SECONDS = 120;
 const DEFAULT_CLAIM_LIMIT = 20;
 const MAX_ERROR_LEN = 300;

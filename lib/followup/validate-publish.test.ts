@@ -220,33 +220,33 @@ describe('validateFlowForPublish', () => {
     }
   });
 
-  it('does not flag max_steps_exceeded for a path of exactly 30 nodes', () => {
+  it('does not flag max_steps_exceeded for a path of exactly 60 nodes', () => {
     const waitNodes: FlowNode[] = [];
     const edges: FlowEdge[] = [];
     let prev = 't1';
-    for (let i = 1; i <= 28; i++) {
+    for (let i = 1; i <= 58; i++) {
       const id = `w${i}`;
       waitNodes.push(wait(id, { mode: 'fixed', duration_ms: 300_000 }));
       edges.push(edge(prev, id, always()));
       prev = id;
     }
     edges.push(edge(prev, 'e1', always()));
-    const g = graph([trigger('t1'), ...waitNodes, end('e1')], edges); // 1 + 28 + 1 = 30 nodes
+    const g = graph([trigger('t1'), ...waitNodes, end('e1')], edges); // 1 + 58 + 1 = 60 nodes
     expect(validateFlowForPublish(g).ok).toBe(true);
   });
 
-  it('flags max_steps_exceeded for a path of exactly 31 nodes', () => {
+  it('flags max_steps_exceeded for a path of exactly 61 nodes', () => {
     const waitNodes: FlowNode[] = [];
     const edges: FlowEdge[] = [];
     let prev = 't1';
-    for (let i = 1; i <= 29; i++) {
+    for (let i = 1; i <= 59; i++) {
       const id = `w${i}`;
       waitNodes.push(wait(id, { mode: 'fixed', duration_ms: 300_000 }));
       edges.push(edge(prev, id, always()));
       prev = id;
     }
     edges.push(edge(prev, 'e1', always()));
-    const g = graph([trigger('t1'), ...waitNodes, end('e1')], edges); // 1 + 29 + 1 = 31 nodes
+    const g = graph([trigger('t1'), ...waitNodes, end('e1')], edges); // 1 + 59 + 1 = 61 nodes
     const result = validateFlowForPublish(g);
     expect(result.ok).toBe(false);
     if (!result.ok) {
