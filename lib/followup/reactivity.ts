@@ -50,6 +50,7 @@
  *      usado em ~30 rotas deste repo). Resume `paused_handoff` → `active` com
  *      grace de 30min (RESUME_GRACE_MS).
  */
+import { fluxosDePalavraChaveAtivos, fluxosDePrimeiroContatoAtivos } from "./fluxo-por-palavra-chave";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { EventRow } from "@/lib/event-log/dispatcher";
@@ -515,6 +516,16 @@ export function createSupabaseReactivityClient(admin: SupabaseClient): Reactivit
           return dono.quem === "fluxo" ? [dono.flowId] : [];
         }),
       );
+
+      // O FUNIL DE ENTRADA TAMBÉM É ESTÁTICO. Fluxo que começa por palavra-chave ou por primeiro contato num número
+      // do agente é um funil montado mensagem a mensagem, igual ao que é dono de um número: o Delay dele é tempo.
+      // Medido em 12/10/2026: num funil desses, o Delay de 5 minutos foi cortado aos 67 segundos porque a pessoa
+      // escreveu, e as mensagens seguintes saíram todas de uma vez.
+      const [dePalavra, dePrimeiroContato] = await Promise.all([
+        fluxosDePalavraChaveAtivos(admin as never, orgId).catch(() => []),
+        fluxosDePrimeiroContatoAtivos(admin as never, orgId).catch(() => []),
+      ]);
+      for (const f of [...dePalavra, ...dePrimeiroContato]) donosDeNumero.add(f.pointerId);
 
       return enrollments.map((e) => {
         const p = byPointer.get(e.pointer_id);

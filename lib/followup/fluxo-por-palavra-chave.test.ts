@@ -7,6 +7,7 @@ import {
   esquecerFluxosDePalavraChave,
   fluxosDePalavraChaveAtivos,
   fluxosDePalavraChaveDe,
+  fluxosDePrimeiroContatoDe,
 } from "./fluxo-por-palavra-chave";
 
 const ORG = "11111111-1111-4111-8111-111111111111";
@@ -193,5 +194,29 @@ describe("a frase do anúncio digitada errada", () => {
 
   it("a frase exata continua ganhando do quase igual", () => {
     expect(escolherFluxoPelaMensagem([TAROT, CURTA], "quero tarot e quero aprender sem misterio")).toBe("curta");
+  });
+});
+
+describe("fluxo de primeiro contato em número do agente", () => {
+  it("⭐ só entra o fluxo cuja caixa Início escolheu 'primeiro contato' de forma explícita", () => {
+    const linhas = [
+      { pointerId: "entrada", nome: "CIGANA TAROT", graph: grafo({ integration: "whatsapp", event: "inicio_conversa" }) },
+      { pointerId: "palavra", nome: "Oferta", graph: grafo({ integration: "whatsapp", event: "keyword", keyword: "quero saber mais" }) },
+    ];
+    expect(fluxosDePrimeiroContatoDe(linhas)).toEqual([{ pointerId: "entrada", nome: "CIGANA TAROT" }]);
+    // O fluxo de palavra-chave continua sendo só o de palavra-chave.
+    expect(fluxosDePalavraChaveDe(linhas).map((f) => f.pointerId)).toEqual(["palavra"]);
+  });
+
+  it("⭐ fluxo antigo, com a caixa Início nunca editada, NÃO passa a capturar contatos novos", () => {
+    // Caixa vazia vale "qualquer mensagem" em número do fluxo. Em número do agente ela não pode valer nada:
+    // os fluxos de entrega e os manuais têm a caixa assim, e começariam a rodar para todo contato novo.
+    const linhas = [
+      { pointerId: "vazio", graph: grafo({}) },
+      { pointerId: "qualquer", graph: grafo({ integration: "whatsapp", event: "message_received" }) },
+      { pointerId: "outro-canal", graph: grafo({ integration: "instagram", event: "inicio_conversa" }) },
+      { pointerId: "quebrado", graph: { nodes: "x" } },
+    ];
+    expect(fluxosDePrimeiroContatoDe(linhas)).toEqual([]);
   });
 });

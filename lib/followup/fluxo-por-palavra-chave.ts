@@ -128,8 +128,39 @@ export function fluxosDePalavraChaveDe(linhas: ReadonlyArray<{ pointerId: string
   return lista;
 }
 
+/**
+ * O FLUXO DE PRIMEIRO CONTATO NUM NÚMERO QUE É DO AGENTE.
+ *
+ * Decisão do dono em 12/10/2026: todo o tráfego novo entra por um fluxo (mensagens prontas, sem gasto de modelo)
+ * e o agente fica de suporte. A caixa "Início" já tinha a opção "primeiro contato", mas ela só era lida quando
+ * o número pertencia ao fluxo — e tirar o número do agente deixaria sem resposta quem já está em atendimento.
+ *
+ * A regra: fluxo publicado cuja caixa "Início" é WhatsApp + "primeiro contato", ESCOLHIDO de forma explícita
+ * (caixa nunca editada não conta: ela vale "qualquer mensagem" e capturaria todo fluxo antigo), recebe a
+ * primeira mensagem de um contato novo. Palavra-chave de outro fluxo continua vencendo. Quem já conversou antes
+ * segue com o agente; quem termina o fluxo volta para ele. Com mais de um fluxo assim publicado, vale o primeiro
+ * que a leitura devolver: mantenha um só.
+ */
+export function fluxosDePrimeiroContatoDe(linhas: ReadonlyArray<{ pointerId: string; graph: unknown; nome?: string | null }>): Array<{ pointerId: string; nome?: string }> {
+  const lista: Array<{ pointerId: string; nome?: string }> = [];
+  for (const l of linhas) {
+    const grafo = flowGraphSchema.safeParse(l.graph);
+    if (!grafo.success) continue;
+    const inicio = configDoInicio(grafo.data);
+    if (inicio?.event !== "inicio_conversa" || eventoWhatsappDoInicio(inicio) !== "inicio_conversa") continue;
+    lista.push({ pointerId: l.pointerId, ...(l.nome ? { nome: l.nome } : {}) });
+  }
+  return lista;
+}
+
 const VALIDADE_MS = 30_000;
-const memoria = new Map<string, { ate: number; fluxos: FluxoDePalavraChave[] }>();
+const memoria = new Map<string, { ate: number; fluxos: FluxoDePalavraChave[]; primeiroContato: Array<{ pointerId: string; nome?: string }> }>();
+
+/** Os fluxos de primeiro contato publicados e ativos (mesma leitura e mesma memória dos de palavra-chave). */
+export async function fluxosDePrimeiroContatoAtivos(admin: SupabaseClient, organizationId: string, agora: number = Date.now()): Promise<Array<{ pointerId: string; nome?: string }>> {
+  await fluxosDePalavraChaveAtivos(admin, organizationId, agora);
+  return memoria.get(organizationId)?.primeiroContato ?? [];
+}
 
 /** Só para teste: a memória é por processo. */
 export function esquecerFluxosDePalavraChave(): void {
@@ -158,6 +189,7 @@ export async function fluxosDePalavraChaveAtivos(admin: SupabaseClient, organiza
   const ativos = (ponteiros ?? []) as Array<{ id: string; name: string | null; active_version_id: string }>;
 
   let fluxos: FluxoDePalavraChave[] = [];
+  let primeiroContato: Array<{ pointerId: string; nome?: string }> = [];
   if (ativos.length > 0) {
     const { data: versoes, error: erroDasVersoes } = await admin
       .from("followup_flow_versions")
@@ -166,8 +198,10 @@ export async function fluxosDePalavraChaveAtivos(admin: SupabaseClient, organiza
       .in("id", ativos.map((p) => p.active_version_id));
     if (erroDasVersoes) return [];
     const grafoDaVersao = new Map(((versoes ?? []) as Array<{ id: string; graph: unknown }>).map((v) => [v.id, v.graph]));
-    fluxos = fluxosDePalavraChaveDe(ativos.map((p) => ({ pointerId: p.id, graph: grafoDaVersao.get(p.active_version_id), nome: p.name })));
+    const linhas = ativos.map((p) => ({ pointerId: p.id, graph: grafoDaVersao.get(p.active_version_id), nome: p.name }));
+    fluxos = fluxosDePalavraChaveDe(linhas);
+    primeiroContato = fluxosDePrimeiroContatoDe(linhas);
   }
-  memoria.set(organizationId, { ate: agora + VALIDADE_MS, fluxos });
+  memoria.set(organizationId, { ate: agora + VALIDADE_MS, fluxos, primeiroContato });
   return fluxos;
 }
