@@ -239,7 +239,13 @@ function validarSuperficie(graph: FlowGraph, surface: FollowupFlowSurface, error
 
 const LONG_WAIT_THRESHOLD_MS = 86_400_000; // 24h
 const MIN_CYCLE_WAIT_MS = 300_000; // 5min
-const MAX_PATH_STEPS = 30;
+/**
+ * Quantas caixas cabem em sequência no caminho mais longo. Era 30, e um funil de leitura com fotos e áudios
+ * (cada caixa de conteúdo leva até 5 itens) passou disso com 31 — medido em 12/10/2026, o dono montou o fluxo e
+ * não conseguiu publicar. O teto existe para o fluxo caber no teto de passos do motor (`MAX_STEPS` em
+ * `engine.ts`), que conta de 2 a 3 passos por caixa: os dois sobem juntos.
+ */
+const MAX_PATH_STEPS = 60;
 
 function waitMs(config: Extract<FlowNode, { type: 'wait' }>['config']): number {
   return config.mode === 'fixed' ? config.duration_ms : config.max_ms;

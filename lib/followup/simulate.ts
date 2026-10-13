@@ -156,7 +156,7 @@ export interface SimState {
 /** Mesmo teto de `lib/followup/engine.ts` (`MAX_STEPS`) — não exportado de lá
  *  (é `const` de módulo), duplicado aqui de propósito: é UM inteiro, não
  *  lógica, e as duas travas protegem a mesma coisa (ciclo no grafo). */
-const LIMITE_PASSOS = 80;
+const LIMITE_PASSOS = 240;
 
 export function iniciarSimulacao(
   graph: FlowGraph,
@@ -672,6 +672,6 @@ export async function avancarSimulacao(args: {
 
   return falha(
     state,
-    "O fluxo passou de 80 passos sem parar (mesmo teto do motor real) — provável ciclo no grafo.",
+    `O fluxo passou de ${LIMITE_PASSOS} passos sem parar (mesmo teto do motor real) — provável ciclo no grafo.`,
   );
 }
