@@ -75,6 +75,9 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { preencherVariaveisDoContato } from '@/lib/followup/variaveis-do-contato';
 import { definicaoNaConexao } from '@/lib/channels/linha-do-espelho';
 import { criarClienteAsaas } from '@/lib/pagamentos/asaas';
+import { lerConexaoStripe } from '@/lib/pagamentos/conexao-stripe';
+import { criarClienteStripe } from '@/lib/pagamentos/stripe';
+import { expandirCobrancas } from '@/lib/followup/cobranca-no-conteudo';
 import { lerCredencialDeCobranca, MOTIVO_DA_COBRANCA } from '@/lib/pagamentos/credencial-de-cobranca';
 import { missingSlots } from '@/lib/channels/meta/build-components';
 import { renderTemplateBody } from '@/lib/channels/meta/render-template';
@@ -1252,7 +1255,7 @@ async function sendConteudoSequence(
   // A dupla PRIMEIRO: a simples, rodando antes, comeria o miolo de `{{email}}` e deixaria `{}` no texto.
   const trocarVariaveis = (texto: string): string =>
     preencherVariaveisDoContato(interpolarVariaveisDoContato(texto, dados), context.context.contact);
-  const items = itensDoFluxo.flatMap((i): ConteudoItemPayload[] => {
+  const itensSemCobranca = itensDoFluxo.flatMap((i): ConteudoItemPayload[] => {
     if (i.type === 'voice') return [{ ...i, text: trocarVariaveis(i.text) }];
     if (i.type === 'charge') {
       return [{ ...i, customer_name: trocarVariaveis(i.customer_name), customer_phone: trocarVariaveis(i.customer_phone) }];
@@ -1292,6 +1295,42 @@ async function sendConteudoSequence(
     }
     return [i];
   });
+
+  // COBRANÇA POR PESSOA (`lib/followup/cobranca-no-conteudo.ts`): o texto com a marca `[[COBRAR: valor]]` vira a
+  // cobrança DESTA pessoa no provedor conectado (Pix copia e cola, QR code e link de cartão), com o contato e a
+  // conversa nos metadados — é o que faz o aviso de pagamento marcar a venda e iniciar a entrega. Falha aqui
+  // lança: a caixa não sai com a marca crua, e o job tenta de novo.
+  const items = (await expandirCobrancas(itensSemCobranca, async ({ valorCentavos, produto, ordem }) => {
+    if (!leadId) throw new Error('cobranca_sem_contato: a marca [[COBRAR]] precisa de um contato');
+    const conexao = await lerConexaoStripe(createAdminClient(), tenantId);
+    if (conexao === null) throw new Error('cobranca_sem_conexao: nenhum provedor de pagamento conectado para a marca [[COBRAR]]');
+    const p = job.payload as { followup_enrollment_id?: string; node_id?: string };
+    // Determinística: o replay do job reencontra a mesma cobrança em vez de criar outra.
+    const referencia = `fluxo-${p.followup_enrollment_id ?? job.id}-${p.node_id ?? 'conteudo'}-${ordem}-${valorCentavos}`;
+    const descricao = produto ?? 'Pagamento';
+    const metadados = { organization_id: tenantId, contact_id: leadId, conversation_id: conversationId, produto: descricao };
+    const cliente = criarClienteStripe({ chave: conexao.chave });
+    const falhou = (qual: string) => (err: unknown) => {
+      runLog.warn(`cobrança do fluxo: ${qual} não saiu`, { error: (err instanceof Error ? err.message : String(err)).slice(0, 160) });
+      return null;
+    };
+    const [pix, link] = await Promise.all([
+      // Um dia de validade: num funil a pessoa lê, pensa e volta; uma hora é pouco.
+      cliente.criarPix({ valorCentavos, descricao, referencia, metadados, expiraEmSegundos: 86_400 }).catch(falhou('o Pix')),
+      cliente
+        .criarLinkDePagamento({
+          valorCentavos,
+          moeda: 'BRL',
+          descricao,
+          referencia: `${referencia}-cartao`,
+          metadados,
+          mensagemDepoisDePagar: 'Pagamento recebido. Pode voltar à conversa: a entrega continua por lá.',
+        })
+        .catch(falhou('o link de cartão')),
+    ]);
+    runLog.info('cobrança por pessoa criada no conteúdo do fluxo', { valor_centavos: valorCentavos, pix: pix?.id ?? null, link_de_cartao: link?.id ?? null });
+    return { copiaECola: pix?.copiaECola ?? null, qrCodeUrl: pix?.qrPng ?? null, urlDoCartao: link?.url ?? null };
+  })) as ConteudoItemPayload[];
 
   // Template: a definição é da CONEXÃO desta conversa. Tudo o que pode estar errado (não existe, não está
   // aprovado, campo sem valor) é recusado ANTES de qualquer envio, com a causa — nunca a Graph API devolvendo
