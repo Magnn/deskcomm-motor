@@ -33,7 +33,10 @@ export const CATEGORIA_PRECO = "preco";
 export const CATEGORIA_LINK = "link_de_pagamento";
 
 /** Links de pagamento conhecidos — mandar um é apresentar a oferta, mesmo sem dizer o preço. */
-const LINK_DE_PAGAMENTO = /pay\.cakto\.com\.br|mpago\.la|pag\.ae|\/checkout(?:[/?#]|\b)/i;
+// Medido em 13/10/2026: quando a cobrança passou a sair só pelo provedor (link da Stripe e Pix copia e cola), nada
+// disso casava aqui, e o início de checkout deixou de ser reportado à plataforma de anúncio — 45 pessoas cobradas em
+// 16 horas, nenhum evento. O Pix copia e cola é reconhecido pelo domínio do arranjo, que todo código traz.
+const LINK_DE_PAGAMENTO = /pay\.cakto\.com\.br|mpago\.la|pag\.ae|(?:buy|checkout)\.stripe\.com|br\.gov\.bcb\.pix|\/checkout(?:[/?#]|\b)/i;
 
 /** Sem acento, sem pontuação, minúsculo, um espaço só — para a frase cadastrada casar com o jeito de digitar. */
 export function normalizar(texto: string): string {

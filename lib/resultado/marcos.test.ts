@@ -6,6 +6,14 @@ import { criarBancoEmMemoria } from "@/tests/helpers/banco-em-memoria";
 import { CATEGORIA_LINK, CATEGORIA_PRECO, classificarNovasMensagens, CONSUMIDOR, marcosDaMensagem } from "./marcos";
 
 describe("marcosDaMensagem", () => {
+  it("⭐ link da Stripe e Pix copia e cola são meio de pagamento enviado", () => {
+    const esperado = [{ tipo: "oferta_apresentada", categoria: "link_de_pagamento" }];
+    expect(marcosDaMensagem({ direction: "outbound", body: "Se preferir cartão: https://buy.stripe.com/5kQ4gB6Jcapa" }, [])).toEqual(esperado);
+    expect(marcosDaMensagem({ direction: "outbound", body: "00020101021226740014br.gov.bcb.pix2552pix.ebanx.com/qr/v2/F7D5" }, [])).toEqual(esperado);
+    // A mesma coisa escrita pelo cliente não é oferta.
+    expect(marcosDaMensagem({ direction: "inbound", body: "https://buy.stripe.com/5kQ4gB6Jcapa" }, [])).toEqual([]);
+  });
+
   it("mensagem que SAIU com preço dito ou link de pagamento = oferta apresentada", () => {
     expect(marcosDaMensagem({ direction: "outbound", body: "O valor é R$ 130 à vista." }, [])).toEqual([{ tipo: "oferta_apresentada", categoria: CATEGORIA_PRECO }]);
     expect(marcosDaMensagem({ direction: "outbound", body: "Fica por 97 reais." }, [])).toEqual([{ tipo: "oferta_apresentada", categoria: CATEGORIA_PRECO }]);
