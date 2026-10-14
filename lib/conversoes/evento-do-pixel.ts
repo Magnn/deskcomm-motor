@@ -73,7 +73,7 @@ export async function reportarEventoDoPixel(
   // O livro-razão é por lead. Sem lead não há onde registrar — e o que não fica registrado não se audita.
   if (!linhaDoLead) return { status: "skipped", motivo: "sem_lead" };
 
-  if (await jaFoiEnviada(admin, org, linhaDoLead.id, evento)) {
+  if (await jaFoiEnviada(admin, org, linhaDoLead.id, evento, `${linhaDoLead.id}:${evento}`)) {
     return { status: "skipped", motivo: "ja_enviada" };
   }
 

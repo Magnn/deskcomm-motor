@@ -28,6 +28,7 @@ import { audit } from "@/lib/audit";
 import { fail, ok } from "@/lib/api/wrappers";
 import { logger } from "@/lib/logger";
 import { aplicarEventoDaCakto, depsReais } from "@/lib/pagamentos/compra-cakto";
+import { reportarCompraAvulsa } from "@/lib/conversoes/compra-avulsa";
 import { lerConexaoStripePorId } from "@/lib/pagamentos/conexao-stripe";
 import { assinaturaDaStripeConfere, criarClienteStripe } from "@/lib/pagamentos/stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -133,6 +134,18 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ conexao: s
       if (contato && !tags.includes(marca)) {
         await admin.from("contacts").update({ tags: [...tags, marca] }).eq("organization_id", conexao.organizationId).eq("id", contatoId);
       }
+      // A compra avulsa vai à plataforma de anúncio que trouxe o lead (`lib/conversoes/compra-avulsa.ts`). Nunca
+      // lança: receita registrada não falha por causa do anúncio.
+      const reportada = await reportarCompraAvulsa(admin, {
+        organizationId: conexao.organizationId,
+        contactId: contatoId,
+        referencia: cobrancaId,
+        valorCentavos: valorNaConta ?? valor,
+        moeda: valorNaConta === null ? moedaDaCobranca : MOEDA_DA_CONTA,
+        ocorridaEm: new Date(pagoEm),
+        produto: typeof meta.produto === "string" ? meta.produto : null,
+      });
+      if (reportada.status === "error") logger.warn("[stripe.aviso] compra avulsa não foi reportada à plataforma de anúncio", { requestId, motivo: reportada.motivo });
       // Quem acabou de pagar não pode esperar escrever de novo para ser atendido: pede um turno do agente sobre a
       // última mensagem dela (o mesmo pedido que o resgate do lead sem resposta emite). Falha aqui não desfaz o
       // registro do pagamento.

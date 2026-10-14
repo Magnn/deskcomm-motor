@@ -22470,10 +22470,17 @@ delete from public.ad_conversion_dispatches a
  where a.organization_id = b.organization_id
    and a.lead_id = b.lead_id
    and a.event_name = b.event_name
+   and a.event_id is not distinct from b.event_id
    and a.attempted_at < b.attempted_at;
 
-create unique index if not exists ad_conversion_dispatches_lead_event_uk
-  on public.ad_conversion_dispatches (organization_id, lead_id, event_name);
+-- ---- uma linha por EVENTO enviado, não por negócio (migration 0926) ----
+-- A chave era (organização, negócio, evento): um negócio só podia ter UMA compra reportada, e a compra avulsa de
+-- quem já tinha comprado o produto não tinha onde ser registrada. A chave passa a incluir o id do evento. O índice
+-- antigo sai aqui mesmo (e não num bloco no fim) porque este trecho é reaplicado a cada atualização: recriá-lo
+-- desfaria a mudança.
+drop index if exists public.ad_conversion_dispatches_lead_event_uk;
+create unique index if not exists ad_conversion_dispatches_evento_uk
+  on public.ad_conversion_dispatches (organization_id, lead_id, event_name, event_id) nulls not distinct;
 
 create index if not exists ad_conversion_dispatches_org_status_idx
   on public.ad_conversion_dispatches (organization_id, status, attempted_at desc);
