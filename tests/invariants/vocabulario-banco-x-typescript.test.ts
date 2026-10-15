@@ -49,6 +49,19 @@ const PARES: Array<{
   simbolo: string;
 }> = [
   {
+    tabela: "area_eventos",
+    coluna: "tipo",
+    // O rastro da área do cliente (0928): tipo novo só no banco seria evento que o painel não conta.
+    arquivo: "lib/area-do-cliente/vocabulario.ts",
+    simbolo: "TIPOS_DE_EVENTO_DA_AREA",
+  },
+  {
+    tabela: "area_sessoes",
+    coluna: "origem",
+    arquivo: "lib/area-do-cliente/vocabulario.ts",
+    simbolo: "ORIGENS_DE_SESSAO_DA_AREA",
+  },
+  {
     tabela: "extension_operations",
     coluna: "kind",
     // O recibo das extensões (0271). Quatro cópias no TypeScript viraram uma; um kind

@@ -55,6 +55,10 @@ it("todo handler mutante do app declara guarda de suporte ou é infraestrutura i
   if(path==="app/api/v1/tenants/subscription/route.ts")continue;
   // O mesmo aviso, vindo direto da Cakto: autenticado pela assinatura do webhook.
   if(path==="app/api/v1/tenants/subscription/cakto/route.ts")continue;
+  // A área do cliente (migration 0928): quem chama é o COMPRADOR, identificado pelo cookie da área
+  // (`lib/area-do-cliente/sessao.ts`), nunca uma sessão do Auth — não há sessão de suporte para a
+  // guarda ler. As rotas da EQUIPE em app/api/v1/area/ seguem cobertas pela guarda.
+  if(/^app\/api\/v1\/area\/publica\//.test(path))continue;
   if(path.includes("/impersonate"))continue; // início/fim autenticam a posse e têm contrato próprio
   const source=ts.createSourceFile(path,readFileSync(path,"utf8"),ts.ScriptTarget.Latest,true);
   // DUAS FORMAS de exportar um handler, e o gate precisa das duas. A varredura

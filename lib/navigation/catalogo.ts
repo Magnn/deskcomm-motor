@@ -221,6 +221,16 @@ export const NAV_CATALOG = [
     sidebar: true,
   },
   {
+    href: "/app/area-do-cliente",
+    label: "Área do cliente",
+    description: "A página de quem já comprou: compras, materiais e novos serviços, com o funil de onde as pessoas param.",
+    icon: "Storefront",
+    group: "crm",
+    section: "O dia a dia da venda",
+    minRole: "viewer",
+    sidebar: false,
+  },
+  {
     // O lançamento mora ao lado da campanha: as duas falam com muita gente de uma
     // vez. A diferença é o destino — a campanha fala com cada contato, o
     // lançamento fala com GRUPOS, e dá um link único que distribui quem chega.
