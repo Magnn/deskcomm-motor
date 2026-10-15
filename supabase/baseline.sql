@@ -39294,7 +39294,8 @@ create table if not exists public.area_eventos (
   tipo text not null check (tipo in (
     'convite_criado', 'entrou', 'visitou', 'material_aberto',
     'servico_visto', 'checkout_clicado', 'desejo', 'email_salvo', 'saiu',
-    'carta_do_dia', 'diario_escrito', 'aniversario_salvo'
+    'carta_do_dia', 'diario_escrito', 'aniversario_salvo',
+    'circulo_checkout', 'circulo_ativado', 'pergunta_enviada'
   )),
   servico_id uuid references public.area_servicos(id) on delete set null,
   ref text check (ref is null or char_length(ref) <= 120),
@@ -39318,6 +39319,47 @@ create table if not exists public.area_diario (
   created_at timestamptz not null default now()
 );
 create index if not exists area_diario_contato_idx on public.area_diario (organization_id, contact_id, created_at desc);
+
+-- ────────────────────────────────────────────────────────────────────────────
+-- 7 · o Círculo — a assinatura mensal da área
+-- ────────────────────────────────────────────────────────────────────────────
+-- Acesso por período pago: cada pagamento estende `valido_ate` em 30 dias a
+-- partir do maior entre agora e o vencimento atual. Uma linha por pessoa.
+create table if not exists public.area_assinaturas (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references public.organizations(id) on delete cascade,
+  contact_id uuid not null references public.contacts(id) on delete cascade,
+  valido_ate timestamptz not null,
+  ultimo_pagamento text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (organization_id, contact_id)
+);
+
+-- O conteúdo do mês do Círculo (gerado pela IA), um por organização por mês.
+create table if not exists public.area_conteudos (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references public.organizations(id) on delete cascade,
+  mes date not null,
+  titulo text not null check (char_length(titulo) between 1 and 120),
+  texto text not null check (char_length(texto) between 1 and 8000),
+  modelo text,
+  created_at timestamptz not null default now(),
+  unique (organization_id, mes)
+);
+
+-- A pergunta do mês de quem está no Círculo: uma por pessoa por mês.
+create table if not exists public.area_perguntas (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references public.organizations(id) on delete cascade,
+  contact_id uuid not null references public.contacts(id) on delete cascade,
+  mes date not null,
+  pergunta text not null check (char_length(pergunta) between 1 and 600),
+  resposta text check (resposta is null or char_length(resposta) <= 4000),
+  respondida_at timestamptz,
+  created_at timestamptz not null default now(),
+  unique (organization_id, contact_id, mes)
+);
 
 -- ────────────────────────────────────────────────────────────────────────────
 -- RLS: a equipe lê; a vitrine é editada por manager+; o resto só o servidor escreve.
@@ -39351,13 +39393,30 @@ alter table public.area_codigos enable row level security;
 alter table public.area_diario enable row level security;
 revoke all on public.area_diario from anon, authenticated;
 
+alter table public.area_assinaturas enable row level security;
+drop policy if exists tenant_isolation_area_assinaturas_select on public.area_assinaturas;
+create policy tenant_isolation_area_assinaturas_select on public.area_assinaturas
+  for select
+  using (organization_id in (select public.fn_user_org_ids()) or public.fn_is_platform_admin());
+
+alter table public.area_conteudos enable row level security;
+drop policy if exists tenant_isolation_area_conteudos_select on public.area_conteudos;
+create policy tenant_isolation_area_conteudos_select on public.area_conteudos
+  for select
+  using (organization_id in (select public.fn_user_org_ids()) or public.fn_is_platform_admin());
+
+-- A pergunta é da pessoa, como o diário: só o servidor lê e escreve.
+alter table public.area_perguntas enable row level security;
+revoke all on public.area_perguntas from anon, authenticated;
+
 alter table public.area_eventos enable row level security;
 drop policy if exists tenant_isolation_area_eventos_select on public.area_eventos;
 create policy tenant_isolation_area_eventos_select on public.area_eventos
   for select
   using (organization_id in (select public.fn_user_org_ids()) or public.fn_is_platform_admin());
 
-revoke all on public.area_servicos, public.area_convites, public.area_sessoes, public.area_codigos, public.area_eventos from anon;
+revoke all on public.area_servicos, public.area_convites, public.area_sessoes, public.area_codigos, public.area_eventos,
+  public.area_assinaturas, public.area_conteudos from anon;
 
 comment on table public.area_servicos is
   'A vitrine da área do cliente: o que a empresa oferece a quem já comprou. Comprar leva ao link de checkout; a compra volta pelo ledger de receita.';
