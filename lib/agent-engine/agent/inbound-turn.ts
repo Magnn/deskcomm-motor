@@ -77,6 +77,7 @@ import { temMarcaDeRelatorio } from '@/lib/preco/relatorio-pronto';
 import { pixNoLugarDoLink } from './pix-no-envio';
 import { cobrancaPeloProvedorNoLugarDoLink } from './cobranca-pelo-provedor-no-envio';
 import { blocoDaConfirmacaoCurta, rodadaSoDeConfirmacao } from './confirmacao-curta';
+import { blocoDaDesconfianca, rodadaComDesconfianca } from './desconfianca';
 import {
   TAMANHO_DA_RESPOSTA_LIMITADA,
   blocoDaConversaGratuitaEsgotada,
@@ -2795,15 +2796,22 @@ async function executarTurnoDoAgente(
   // "Ok", "👍", figurinha: o turno não repete a instrução que acabou de dar. Fora da leitura, onde o "sim" é o
   // gatilho do passo seguinte e quem conduz é o código.
   const soConfirmouNoTurno = !preview && blocoDaLeituraDoTurno === '' && rodadaSoDeConfirmacao(openingContext.context.messages);
+  // "Isso é golpe", "vou denunciar": uma resposta calma, sem valor nem link. Vale também no preview — é o que se quer
+  // ver no painel de teste. Insistir aqui é o caminho para o bloqueio e a denúncia (ver `desconfianca.ts`).
+  const desconfiouNoTurno = rodadaComDesconfianca(openingContext.context.messages);
   const blocoDoAtropeloDoTurno =
     blocoDaRespostaAtropelada(atropeladaNoTurno) +
     blocoDaConfirmacaoCurta(soConfirmouNoTurno) +
+    blocoDaDesconfianca(desconfiouNoTurno) +
     blocoDaConversaGratuitaEsgotada(gratuitaEsgotadaNoTurno, ['o trabalho', ...extrasDoTurno.map((e) => e.name)]);
   if (atropeladaNoTurno) {
     runLog.info('resposta atropelada — este turno responde só ao que a mensagem nova acrescenta', {});
   }
   if (soConfirmouNoTurno) {
     runLog.info('confirmação curta — este turno não repete o que já foi dito', {});
+  }
+  if (desconfiouNoTurno) {
+    runLog.info('desconfiança — este turno responde com calma, sem valor, link nem pressão', {});
   }
   const systemDoTurno = comporSystemDoTurno(system, {
     identidade: blocoDeIdentidadeDoTurno,

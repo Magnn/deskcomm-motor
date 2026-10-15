@@ -19,7 +19,8 @@
  * ─── O que ela NÃO toca ───────────────────────────────────────────────────────────────────────────
  * Conversa fechada ou com dono humano, contato em atendimento humano ou bloqueado, canal arquivado ou
  * fora do ar, passagem para humano recente, contato dentro de um fluxo de follow-up (uma voz por vez),
- * turno em andamento, cliente calado há mais de 24 horas, silêncio que começou antes de o agente ser
+ * turno em andamento, cliente calado há mais de 24 horas, cliente cuja última fala foi desconfiança
+ * ("é golpe") ou pedido de parar, silêncio que começou antes de o agente ser
  * publicado com a recuperação, e — para a régua — quem já tem retorno
  * combinado (essa pessoa disse quando quer ser procurada; cobrar antes é desrespeitar o combinado).
  */
@@ -28,6 +29,7 @@ import type pg from 'pg';
 import { readCurrentServiceBoundary } from '@/lib/atendimento/fronteira-server';
 import { capabilitiesOf } from '@/lib/channels/capabilities';
 import type { ChannelProvider } from '@/lib/channels/types';
+import { ehOptOutProvavel } from '@/lib/opt-out/deteccao';
 import { lerRecuperacao, ofertaDoPasso } from '@/lib/recuperacao/config';
 import {
   FOLGA_DO_FECHAMENTO_MS,
@@ -39,6 +41,7 @@ import {
   ofereceSaida,
 } from '@/lib/recuperacao/decisao';
 
+import { ehDesconfianca } from '../../agent/desconfianca';
 import { proximaAberturaDoFollowup } from '../../agent/janela-de-followup';
 import { WINDOW_MS } from '../../guardrails/messaging-window';
 import type { Logger } from '../../obs/logger';
@@ -75,6 +78,8 @@ interface Candidata {
   anchor_message_id: string;
   last_inbound_at: string;
   last_outbound_at: string;
+  /** O que a pessoa escreveu por último (texto, ou a transcrição do áudio). Decide se ela pode ser chamada de novo. */
+  ultima_fala?: string | null;
   feitas: number | null;
   /** A pessoa já comprou, e já ouviu algum valor nesta conversa: é o que decide se o passo oferece valor. */
   ja_pagou?: boolean | null;
@@ -95,6 +100,7 @@ export const CONSULTA_DE_SILENCIOSAS = `
   select v.id as conversation_id, v.organization_id, v.contact_id,
          cs.provider, o.timezone, ag.followup, coalesce(lig.ligada_em, ag.published_at) as published_at,
          ui.id as anchor_message_id, ui.created_at as last_inbound_at, uo.created_at as last_outbound_at,
+         coalesce(nullif(ui.body, ''), ui.media_derived_text) as ultima_fala,
          t.feitas, t.ultima_em, t.silence_since, t.janela_enviada,
          r.retorno_em,
          ('pago' = any(coalesce(c.tags, '{}'::text[]))) as ja_pagou,
@@ -134,7 +140,7 @@ export const CONSULTA_DE_SILENCIOSAS = `
           and coalesce(y.followup->'recovery'->>'enabled', 'false') <> 'true'), '-infinity'::timestamptz)
   ) lig on true
   join lateral (
-    select m.id, m.created_at from messages m
+    select m.id, m.created_at, m.body, m.media_derived_text from messages m
     where m.organization_id = v.organization_id and m.conversation_id = v.id and m.direction = 'inbound'
     order by m.created_at desc limit 1) ui on true
   join lateral (
@@ -218,6 +224,11 @@ export function canalTemPrazo(provider: string | null): boolean {
 export function decidirChamada(c: Candidata, agora: Date, temPrazo: boolean): Chamada | null {
   const r = lerRecuperacao(c.followup);
   if (r === null) return null;
+  // QUEM DESCONFIOU OU PEDIU PARA PARAR NÃO É CHAMADO DE NOVO. Medido em 15/10/2026, na conta oficial desativada
+  // por spam: o volume ia para quem conversava e desconfiava ("é golpe", "não quero mais"), e o silêncio dessa
+  // pessoa recebia a retomada — o passo que vem antes do bloqueio e da denúncia. A regra lê a fala MAIS RECENTE:
+  // se ela voltar a escrever e seguir, a âncora muda e a régua volta a valer.
+  if (ehDesconfianca(c.ultima_fala) || ehOptOutProvavel(c.ultima_fala)) return null;
 
   const fechaEm = new Date(new Date(c.last_inbound_at).getTime() + WINDOW_MS);
   const proximaAbertura = (instante: Date) => proximaAberturaDoFollowup(c.followup, c.timezone ?? 'UTC', instante);
