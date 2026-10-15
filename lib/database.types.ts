@@ -7057,6 +7057,7 @@ export type Database = {
           error_message: string | null
           external_id: string | null
           id: string
+          imported_at: string | null
           media_derived_status: string | null
           media_derived_text: string | null
           media_mime: string | null
@@ -7098,6 +7099,7 @@ export type Database = {
           error_message?: string | null
           external_id?: string | null
           id?: string
+          imported_at?: string | null
           media_derived_status?: string | null
           media_derived_text?: string | null
           media_mime?: string | null
@@ -7139,6 +7141,7 @@ export type Database = {
           error_message?: string | null
           external_id?: string | null
           id?: string
+          imported_at?: string | null
           media_derived_status?: string | null
           media_derived_text?: string | null
           media_mime?: string | null
@@ -9850,6 +9853,10 @@ export type Database = {
           p_org: string
         }
         Returns: Json
+      }
+      fn_importar_historico_da_conversa: {
+        Args: { p_org: string; p_session: string; p_contact: string; p_mensagens: Json }
+        Returns: { conversation_id: string | null; inseridas: number }[]
       }
       fn_is_platform_admin: { Args: never; Returns: boolean }
       fn_lgpd_anonymize_contact: {

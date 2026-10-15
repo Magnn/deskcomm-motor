@@ -53,7 +53,7 @@ describe("registrar o endereço do app na Meta", () => {
     expect(corpo.get("object")).toBe("whatsapp_business_account");
     expect(corpo.get("callback_url")).toBe("https://crm.exemplo.test/api/v1/webhooks/meta");
     expect(corpo.get("fields")).toBe(
-      "messages,message_template_status_update,smb_message_echoes,smb_app_state_sync,account_update",
+      "messages,message_template_status_update,smb_message_echoes,smb_app_state_sync,history,account_update",
     );
   });
 

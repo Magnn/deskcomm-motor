@@ -8,8 +8,6 @@ Ao conectar um número que continua no aplicativo WhatsApp Business do celular (
 
 Quando o cliente desconecta pelo celular, ou a Meta desliga o número por inatividade, a conexão passa a aparecer como fora do ar e um aviso é aberto na Central. Quando a conexão volta, o aviso fecha sozinho.
 
-O histórico de conversas do celular ainda não é importado.
-
 ## Requer atenção
 
 Em Admin › API Oficial, clique de novo em "Registrar endereço na Meta". O clique inclui os dois avisos novos (agenda do celular e mudança da conta) na assinatura do app. Sem ele, nenhum dos dois chega.
