@@ -10,6 +10,7 @@ import { calcularPainel, type LinhaDeCompra, type LinhaDeEvento } from "@/lib/ar
 import { FORMA_DO_TOKEN, codigoConfere, gerarCodigo, gerarToken, hashDoCodigo, hashDoToken } from "@/lib/area-do-cliente/token";
 import { nomeDoCookieDaArea } from "@/lib/area-do-cliente/vocabulario";
 import { PUBLIC_PATHS } from "@/lib/auth/public-paths";
+import { emailDoPagamento } from "@/lib/pagamentos/stripe";
 
 describe("segredos da área", () => {
   it("o token tem a forma esperada e o banco guarda só o hash", () => {
@@ -189,5 +190,20 @@ describe("o painel", () => {
     const desejo = (quem: string, texto: string): LinhaDeEvento => ({ ...ev(quem, "desejo", "2026-10-10T10:00:00Z"), props: { texto } });
     const p = calcularPainel([desejo("ana", "Leitura do trabalho"), desejo("bia", "leitura do trabalho"), desejo("ana", "Leitura do trabalho")], [], servicos);
     expect(p.desejos).toEqual([{ texto: "leitura do trabalho", pessoas: 2 }]);
+  });
+});
+
+describe("o e-mail de quem pagou pela Stripe", () => {
+  it("vem do cartão ou do boleto (billing_details), normalizado", () => {
+    expect(emailDoPagamento({ latest_charge: { billing_details: { email: " Ana@Exemplo.com " } } })).toBe("ana@exemplo.com");
+  });
+  it("sem billing_details, vale o e-mail do recibo", () => {
+    expect(emailDoPagamento({ latest_charge: { billing_details: { email: null }, receipt_email: "bia@x.com" } })).toBe("bia@x.com");
+    expect(emailDoPagamento({ receipt_email: "cia@x.com", latest_charge: "ch_123" })).toBe("cia@x.com");
+  });
+  it("o Pix da conversa não tem e-mail, e lixo não vira e-mail", () => {
+    expect(emailDoPagamento({ latest_charge: { billing_details: { email: null } } })).toBeNull();
+    expect(emailDoPagamento({ receipt_email: "sem-arroba" })).toBeNull();
+    expect(emailDoPagamento({})).toBeNull();
   });
 });

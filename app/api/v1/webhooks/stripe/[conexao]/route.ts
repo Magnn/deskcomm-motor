@@ -27,6 +27,7 @@ import { type NextRequest, type NextResponse } from "next/server";
 import { audit } from "@/lib/audit";
 import { fail, ok } from "@/lib/api/wrappers";
 import { logger } from "@/lib/logger";
+import { guardarEmailDoContato } from "@/lib/area-do-cliente/email-do-contato";
 import { aplicarEventoDaCakto, depsReais } from "@/lib/pagamentos/compra-cakto";
 import { reportarCompraAvulsa } from "@/lib/conversoes/compra-avulsa";
 import { lerConexaoStripePorId } from "@/lib/pagamentos/conexao-stripe";
@@ -89,6 +90,17 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ conexao: s
         error: (err instanceof Error ? err.message : String(err)).slice(0, 160),
       });
     }
+  }
+  // O e-mail de quem pagou (cartão e boleto têm; o Pix da conversa não) é a chave de entrada da área do
+  // cliente. Ler e guardar é melhor esforço: falhar aqui nunca impede o registro do pagamento.
+  try {
+    const email = await criarClienteStripe({ chave: conexao.chave }).lerEmailDoPagador(cobrancaId);
+    if (email !== null) await guardarEmailDoContato(admin, conexao.organizationId, contatoId, email);
+  } catch (err) {
+    logger.warn("[stripe.aviso] e-mail do pagador não lido", {
+      requestId,
+      error: (err instanceof Error ? err.message : String(err)).slice(0, 160),
+    });
   }
   const compra: CompraDaCakto = {
     evento: "purchase_approved",

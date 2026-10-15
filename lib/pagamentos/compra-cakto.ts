@@ -27,6 +27,7 @@ import { conversaoDeVendaHandler } from "@/lib/conversoes/envio.handler";
 
 import { nomeCasaComCompra } from "@/lib/catalogo/oferta-da-vez";
 import { lerCatalogo } from "@/lib/catalogo/tipos";
+import { guardarEmailDoContato } from "@/lib/area-do-cliente/email-do-contato";
 import { encontrarContatoPorTelefone } from "@/lib/channels/contato-por-telefone";
 import { enrollFollowupFlow } from "@/lib/followup/enroll";
 import { emitLeadActivity } from "@/lib/leads/activity-emitter";
@@ -285,14 +286,7 @@ export function depsReais(admin: SupabaseClient, organizationId: string, request
     },
 
     async guardarEmail(contatoId, email) {
-      // Só preenche o vazio, e e-mail que já é de outro contato (índice único) fica onde está.
-      const { error } = await admin
-        .from("contacts")
-        .update({ email })
-        .eq("organization_id", organizationId)
-        .eq("id", contatoId)
-        .is("email", null);
-      if (error && error.code !== "23505") throw new Error(error.message);
+      await guardarEmailDoContato(admin, organizationId, contatoId, email);
     },
 
     async registrarValorNoNegocio(contatoId, valorCentavos) {
