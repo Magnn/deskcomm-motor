@@ -73,8 +73,10 @@ export function urlDePoliticaSegura(valor: unknown): string | null {
 const SEM_SESSAO = async (): Promise<Operador> => ({
   sistema: branding().name,
   nome: null,
-  razaoSocial: null,
-  cnpj: null,
+  // Sem sessão não se sabe de que organização é o leitor, mas se sabe quem
+  // opera a instalação: é quem publica estes documentos para o público.
+  razaoSocial: (await valorDaInstalacao("OPERADOR_RAZAO_SOCIAL")).valor?.trim() || null,
+  cnpj: (await valorDaInstalacao("OPERADOR_CNPJ")).valor?.trim() || null,
   dpoEmail: (await valorDaInstalacao("LGPD_DPO_EMAIL")).valor?.trim() || null,
   politicaPropria: null,
   resolvido: false,

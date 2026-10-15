@@ -159,8 +159,9 @@ export const PUBLIC_PATHS: RegExp[] = [
   // dois, e o aceite acontece antes de a pessoa ter qualquer coisa no sistema —
   // exigir sessão para LER o que se está aceitando inverte a ordem. Âncorado nos
   // dois nomes de propósito: `/^\/legal/` deixaria qualquer sub-path futuro
-  // nascer público de carona.
-  /^\/legal\/(terms|privacy)$/,
+  // nascer público de carona. `data-deletion` é a terceira: a Meta exige a URL
+  // de instruções de exclusão no app, e o revisor a abre sem sessão.
+  /^\/legal\/(terms|privacy|data-deletion)$/,
 ];
 
 export function isPublicPath(pathname: string): boolean {
