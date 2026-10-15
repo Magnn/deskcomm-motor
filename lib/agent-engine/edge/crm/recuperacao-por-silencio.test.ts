@@ -141,6 +141,19 @@ describe("decidirChamada", () => {
     expect(decidirChamada(silenciosa(jaIniciada), AGORA, true)).toMatchObject({ kind: "step", step: 2 });
   });
 
+  it("⭐ quem desconfiou ou pediu para parar na última fala não é chamado de novo; quem seguiu depois, é", () => {
+    expect(decidirChamada(silenciosa({ ultima_fala: "Pois é golpe" }), AGORA, true)).toBeNull();
+    expect(decidirChamada(silenciosa({ ultima_fala: "vou te denunciar" }), AGORA, true)).toBeNull();
+    expect(decidirChamada(silenciosa({ ultima_fala: "não quero mais ser atendida" }), AGORA, true)).toBeNull();
+    // A história da pessoa não é acusação, e a fala mais recente é a que vale.
+    expect(decidirChamada(silenciosa({ ultima_fala: "já levei um golpe uma vez" }), AGORA, true)).toMatchObject({ step: 1 });
+    expect(decidirChamada(silenciosa({ ultima_fala: "tá, pode mandar o pix" }), AGORA, true)).toMatchObject({ step: 1 });
+    // Nem a mensagem de manter a conversa aberta sai para quem desconfiou.
+    expect(
+      decidirChamada(silenciosa({ ultima_fala: "isso é golpe", retorno_em: daqui(48 * 60), last_inbound_at: ha(22 * 60) }), AGORA, true),
+    ).toBeNull();
+  });
+
   it("quem combinou retorno não é cobrado pela régua", () => {
     const comRetorno = silenciosa({ retorno_em: daqui(60), last_outbound_at: ha(30), last_inbound_at: ha(40) });
     expect(decidirChamada(comRetorno, AGORA, true)).toBeNull();
