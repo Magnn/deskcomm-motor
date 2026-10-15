@@ -11,36 +11,54 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useT } from "@/hooks/i18n/useT";
+import type { LoginDoCanalOficial } from "@/hooks/channels/useOfficialChannel";
 import { PACING_DEFAULTS } from "@/lib/agent-engine/pacing/defaults";
 import { SPINNING_DEFAULTS } from "@/lib/agent-engine/spinning/defaults";
 import { Plus, QrCode, ShieldCheck } from "@/lib/ui/icons";
 
+import { AvisosDaJanela, ManterNoCelular, TextoDoPortfolio, useJanelaDoFacebook } from "./ConectarComFacebook";
+
 export type TipoDeConexao = "qr" | "oficial";
 
 interface Props {
-  /** Leva o usuário ao passo a passo do tipo escolhido (a aba que já existe). */
+  /**
+   * QR: abre o QR do número novo (em janela, sem trocar de tela).
+   * Oficial: só é chamado quando a instalação NÃO tem o login do Facebook
+   * configurado — aí o caminho é o formulário colado da aba oficial.
+   */
   onEscolher: (tipo: TipoDeConexao) => void;
+  /** O login do Facebook da instalação; `null` = não configurado. */
+  login?: LoginDoCanalOficial | null;
+  /** Já há número oficial nesta empresa? Muda só o rótulo (trocar, não conectar). */
+  oficialConectado?: boolean;
 }
 
 /**
- * "Conectar WhatsApp" — a escolha ANTES do passo a passo.
+ * "Conectar WhatsApp" — o ÚNICO botão de conectar número da tela de Conexões.
  *
- * As duas formas de conectar já existiam, cada uma na sua aba, sem nada que
- * dissesse a diferença. E a diferença decide o que o número aguenta: o pareado
- * por QR tem travas anti-banimento (texto repetido barrado, limite diário de
- * número novo, janela de horário) que o oficial não tem. Quem montava um funil
- * de volume num número por QR descobria isso com o funil parado.
+ * Ele abre a escolha entre as duas formas, e cada forma segue em janela:
+ * QR abre o QR; API oficial abre a janela do Facebook ali mesmo, sem levar a
+ * pessoa a uma aba para clicar num segundo botão. Até 15/10/2026 a escolha só
+ * trocava de aba, e cada aba tinha o seu botão de conectar — três botões para
+ * a mesma intenção (pedido do dono: "só devia ter um botão de conexão").
  *
- * Os números mostrados vêm dos MESMOS padrões que o motor aplica — nunca
- * copiados para cá: se o padrão mudar, a tela muda junto.
+ * A diferença entre as duas decide o que o número aguenta: o pareado por QR tem
+ * travas anti-banimento (texto repetido barrado, limite diário de número novo,
+ * janela de horário) que o oficial não tem. Os números mostrados vêm dos MESMOS
+ * padrões que o motor aplica — nunca copiados para cá.
  */
-export function EscolherConexao({ onEscolher }: Props) {
+export function EscolherConexao({ onEscolher, login = null, oficialConectado = false }: Props) {
   const t = useT();
   const [aberto, setAberto] = useState(false);
+  const [noCelular, setNoCelular] = useState(false);
+  // Montado com a tela (e não com a janela de escolha) para o SDK já estar
+  // pronto no clique: a janela do Facebook só abre dentro do próprio clique.
+  const janela = useJanelaDoFacebook(login, () => setAberto(false));
+  const ocupado = janela.naJanela || janela.conectando;
 
   const limiteDoNumeroNovo = PACING_DEFAULTS.warmupDailyCaps[0]?.cap ?? null;
   const repeticaoBarrada = SPINNING_DEFAULTS.repetitionThreshold + 1;
-  const janela = `${PACING_DEFAULTS.windowStartHour}h–${PACING_DEFAULTS.windowEndHour}h`;
+  const horario = `${PACING_DEFAULTS.windowStartHour}h–${PACING_DEFAULTS.windowEndHour}h`;
 
   const escolher = (tipo: TipoDeConexao) => {
     setAberto(false);
@@ -54,7 +72,9 @@ export function EscolherConexao({ onEscolher }: Props) {
         {t("Conectar WhatsApp")}
       </Button>
 
-      <Dialog open={aberto} onOpenChange={setAberto}>
+      {/* Fechar a escolha com a janela do Facebook aberta perderia o aviso de
+          volta (conta e número) — por isso ela não fecha enquanto ocupada. */}
+      <Dialog open={aberto} onOpenChange={(v) => !ocupado && setAberto(v)}>
         <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{t("Como você quer conectar o WhatsApp?")}</DialogTitle>
@@ -90,11 +110,17 @@ export function EscolherConexao({ onEscolher }: Props) {
                   </li>
                 )}
                 <li>
-                  {t("Envia só no horário")} {janela}.
+                  {t("Envia só no horário")} {horario}.
                 </li>
               </ul>
               <p className="text-sm font-medium text-text">{t("Indicado para atendimento e conversa.")}</p>
-              <Button className="mt-auto" variant="outline" onClick={() => escolher("qr")} data-testid="escolher-qr">
+              <Button
+                className="mt-auto"
+                variant="outline"
+                disabled={ocupado}
+                onClick={() => escolher("qr")}
+                data-testid="escolher-qr"
+              >
                 {t("Conectar por QR code")}
               </Button>
             </section>
@@ -111,7 +137,9 @@ export function EscolherConexao({ onEscolher }: Props) {
                 </h3>
               </div>
               <p className="text-sm text-text-muted">
-                {t("Você cadastra o número na Meta e cola as credenciais aqui. Leva mais tempo para configurar.")}
+                {login
+                  ? t("A janela do Facebook abre aqui mesmo: você escolhe o portfólio, a conta do WhatsApp e o número. Nada para copiar ou colar.")
+                  : t("Você cadastra o número na Meta e cola as credenciais aqui. Leva mais tempo para configurar.")}
               </p>
               <ul className="list-disc space-y-1 pl-4 text-sm text-text">
                 <li>{t("Sem risco de banimento por volume.")}</li>
@@ -120,9 +148,30 @@ export function EscolherConexao({ onEscolher }: Props) {
                 <li>{t("Depois de 24 horas sem resposta do contato, só envia modelo aprovado pela Meta.")}</li>
               </ul>
               <p className="text-sm font-medium text-text">{t("Indicado para funil fixo e volume.")}</p>
-              <Button className="mt-auto" onClick={() => escolher("oficial")} data-testid="escolher-oficial">
-                {t("Conectar pela API oficial")}
-              </Button>
+              {login ? (
+                <div className="mt-auto flex flex-col gap-2">
+                  <ManterNoCelular marcado={noCelular} desabilitado={ocupado} aoMudar={setNoCelular} />
+                  <TextoDoPortfolio />
+                  <Button
+                    onClick={() => janela.abrir(noCelular)}
+                    disabled={!janela.pronto || ocupado}
+                    data-testid="escolher-oficial"
+                  >
+                    {janela.conectando
+                      ? t("Conectando…")
+                      : janela.naJanela
+                        ? t("Conclua na janela do Facebook…")
+                        : oficialConectado
+                          ? t("Trocar o número com Facebook")
+                          : t("Conectar com Facebook")}
+                  </Button>
+                  <AvisosDaJanela bloqueado={janela.bloqueado} aviso={janela.aviso} />
+                </div>
+              ) : (
+                <Button className="mt-auto" onClick={() => escolher("oficial")} data-testid="escolher-oficial">
+                  {t("Conectar pela API oficial")}
+                </Button>
+              )}
             </section>
           </div>
         </DialogContent>

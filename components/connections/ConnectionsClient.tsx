@@ -39,7 +39,6 @@ import {
   CheckCircle,
   CircleNotch,
   Phone,
-  Plus,
   ShieldCheck,
   Trash,
   Warning,
@@ -132,7 +131,16 @@ function enumerar(partes: (string | null)[], t: (texto: string) => string): stri
   return uteis.length > 0 ? `${uteis.join(", ")} ${t("e")} ${ultimo}` : ultimo;
 }
 
-export function ConnectionsClient({ wahaConfigured }: { wahaConfigured: boolean }) {
+export function ConnectionsClient({
+  wahaConfigured,
+  qrPendente = false,
+  aoAtenderQr,
+}: {
+  wahaConfigured: boolean;
+  /** "Conectar por QR" escolhido no botão único: abrir o QR assim que montar. */
+  qrPendente?: boolean;
+  aoAtenderQr?: () => void;
+}) {
   const tagDoIdioma = useTagDeIdioma();
   const t = useT();
   const qc = useQueryClient();
@@ -209,6 +217,17 @@ export function ConnectionsClient({ wahaConfigured }: { wahaConfigured: boolean 
       setCreating(false);
     }
   }, [invalidate, t]);
+
+  // O botão único de Conexões pediu um QR: atende uma vez e avisa que atendeu.
+  useEffect(() => {
+    if (!qrPendente) return;
+    aoAtenderQr?.();
+    if (!wahaConfigured) {
+      toast.error(t("A conexão por QR code não está configurada nesta instalação."));
+      return;
+    }
+    void handleConnectNew();
+  }, [qrPendente, aoAtenderQr, handleConnectNew, wahaConfigured, t]);
 
   // Reconexão suave: a maioria das quedas é passageira (rede, container
   // reiniciado) e a credencial pareada continua boa, então o número volta sem
@@ -303,19 +322,18 @@ export function ConnectionsClient({ wahaConfigured }: { wahaConfigured: boolean 
               {t("Atualizar saúde")}
             </Button>
           )}
-          {/* A ação principal da tela é "Conectar WhatsApp", no topo, que pergunta QUAL conexão.
-              Aqui fica o atalho de quem já sabe que quer QR — secundário, para a tela não ter
-              dois botões roxos dizendo quase a mesma coisa. */}
-          <Button variant="outline" size="sm" disabled={creating || !wahaConfigured} onClick={handleConnectNew}>
-            {creating ? (
-              <CircleNotch size={14} className="animate-spin" aria-hidden />
-            ) : (
-              <Plus size={14} aria-hidden />
-            )}
-            {t("Conectar por QR")}
-          </Button>
+          {/* Conectar número novo é só pelo botão "Conectar WhatsApp", no topo da tela, que
+              pergunta QUAL conexão e abre o QR em janela. Aqui havia um segundo botão
+              ("Conectar por QR") — tirado a pedido do dono: um botão de conectar, não três. */}
         </div>
       </div>
+
+      {creating && (
+        <p role="status" className="flex items-center gap-2 text-sm text-text-muted" data-testid="preparando-qr">
+          <CircleNotch size={14} className="animate-spin" aria-hidden />
+          {t("Preparando o QR code…")}
+        </p>
+      )}
 
       {connectionDetail && <details className="rounded-md border p-3 text-sm"><summary>{t("Detalhes para suporte")}</summary><pre className="mt-2 whitespace-pre-wrap break-words">{connectionDetail}</pre><Button variant="outline" size="sm" onClick={async () => {
         if (await copyToClipboard(connectionDetail)) toast.success(t("Copiado!"));

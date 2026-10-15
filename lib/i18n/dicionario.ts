@@ -9787,6 +9787,18 @@ export const DICIONARIO: Traducoes = {
     { es: "Conecta tu cuenta publicitaria para que el sistema lea el rendimiento de tus campañas y lo muestre en Análisis › Meta Ads. Es una conexión de solo lectura: no se crea, pausa ni modifica nada en tu cuenta publicitaria." },
   "Conectar com Facebook":
     { es: "Conectar con Facebook" },
+  "A janela do Facebook abre aqui mesmo: você escolhe o portfólio, a conta do WhatsApp e o número. Nada para copiar ou colar.":
+    { es: "La ventana de Facebook se abre aquí mismo: eliges el portafolio, la cuenta de WhatsApp y el número. Nada para copiar ni pegar." },
+  "Trocar o número com Facebook":
+    { es: "Cambiar el número con Facebook" },
+  "A conexão por QR code não está configurada nesta instalação.":
+    { es: "La conexión por código QR no está configurada en esta instalación." },
+  "Preparando o QR code…":
+    { es: "Preparando el código QR…" },
+  "Para trocar o número, use o botão Conectar WhatsApp no topo da tela e escolha API oficial.":
+    { es: "Para cambiar el número, usa el botón Conectar WhatsApp en la parte superior de la pantalla y elige API oficial." },
+  "Para conectar, use o botão Conectar WhatsApp no topo da tela e escolha API oficial.":
+    { es: "Para conectar, usa el botón Conectar WhatsApp en la parte superior de la pantalla y elige API oficial." },
   "Reconectar com Facebook":
     { es: "Reconectar con Facebook" },
   "Você entra no Facebook, autoriza a leitura e volta para cá com a conta já conectada.":

@@ -120,7 +120,7 @@ it("⭐ marcado para manter no celular, a janela abre no modo de coexistência; 
   await waitFor(() => expect(b).toBeEnabled());
 
   fireEvent.click(b);
-  expect((opcoesDoLogin as { extras: { featureType: string } }).extras.featureType).toBe("");
+  expect((opcoesDoLogin as { extras: Record<string, unknown> }).extras).toEqual({});
   act(() => aoVoltar?.({ authResponse: null }));
 
   fireEvent.click(screen.getByTestId("manter-no-celular"));
@@ -131,4 +131,18 @@ it("⭐ marcado para manter no celular, a janela abre no modo de coexistência; 
 it("com canal já conectado, o botão diz reconectar", async () => {
   mount(true);
   await screen.findByRole("button", { name: "Reconectar com Facebook" });
+});
+
+it("⭐ a janela abre no formato da v4: extras vazio — sem a versão nem o sessionInfoVersion da v2, que a Meta descontinuou em 15/10/2026", async () => {
+  mount();
+  const b = await botao();
+  await waitFor(() => expect(b).toBeEnabled());
+  fireEvent.click(b);
+
+  expect(opcoesDoLogin).toEqual({
+    config_id: "cfg1",
+    response_type: "code",
+    override_default_response_type: true,
+    extras: {},
+  });
 });
