@@ -96,6 +96,7 @@ export {
   MessengerLogo,
   TelegramLogo,
   Phone,
+  DeviceMobile,
   PhoneIncoming,
   PhoneOutgoing,
   PhoneX,

@@ -1,29 +1,64 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import { PACING_DEFAULTS } from "@/lib/agent-engine/pacing/defaults";
 import { SPINNING_DEFAULTS } from "@/lib/agent-engine/spinning/defaults";
 
 import { EscolherConexao } from "./EscolherConexao";
 
+const h = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn() }));
+vi.mock("@/lib/api/client", () => ({ apiClient: h }));
 vi.mock("@/hooks/i18n/useT", () => ({ useT: () => (value: string) => value }));
+vi.mock("@/components/feedback/ApiErrorToast", () => ({ showApiError: vi.fn() }));
+
+const login = { appId: "app1", configId: "cfg1", versao: "v22.0" };
+
+type AoVoltar = (resposta: { authResponse?: { code?: string } | null }) => void;
+let aoVoltar: AoVoltar | null = null;
+let opcoesDoLogin: Record<string, unknown> | null = null;
 
 /**
- * A escolha entre conectar por QR code e pela API oficial. O que se cobra é que
- * a tela diga a diferença que IMPORTA — o que cada número aguenta — com os
- * mesmos números que o motor aplica, e que a escolha leve ao lugar certo.
+ * "Conectar WhatsApp" — o ÚNICO botão de conectar número. Cobra-se que a
+ * escolha diga a diferença que IMPORTA, com os números do motor, e que cada
+ * forma siga em janela: QR pede o QR, API oficial abre o Facebook ali mesmo.
  */
 describe("Conectar WhatsApp — a escolha", () => {
-  beforeEach(() => cleanup());
+  beforeEach(() => {
+    cleanup();
+    vi.clearAllMocks();
+    aoVoltar = null;
+    opcoesDoLogin = null;
+    window.FB = {
+      init: vi.fn(),
+      login: (volta, opcoes) => {
+        aoVoltar = volta;
+        opcoesDoLogin = opcoes;
+      },
+    };
+    h.post.mockResolvedValue({ data: { connected: true, displayName: "Loja", phoneNumber: "+5531999998888" } });
+  });
+  afterEach(() => {
+    delete window.FB;
+  });
 
-  const abrir = (onEscolher = vi.fn()) => {
-    render(<EscolherConexao onEscolher={onEscolher} />);
+  const montar = (props: Partial<Parameters<typeof EscolherConexao>[0]> = {}) => {
+    const onEscolher = vi.fn();
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <EscolherConexao onEscolher={onEscolher} {...props} />
+      </QueryClientProvider>,
+    );
+    return onEscolher;
+  };
+  const abrir = (props: Partial<Parameters<typeof EscolherConexao>[0]> = {}) => {
+    const onEscolher = montar(props);
     fireEvent.click(screen.getByTestId("conectar-whatsapp"));
     return onEscolher;
   };
 
   it("fechado, só o botão aparece — a escolha não ocupa a tela de quem já conectou", () => {
-    render(<EscolherConexao onEscolher={vi.fn()} />);
+    montar();
     expect(screen.queryByTestId("conexao-qr")).toBeNull();
     expect(screen.getByTestId("conectar-whatsapp")).toBeTruthy();
   });
@@ -51,14 +86,72 @@ describe("Conectar WhatsApp — a escolha", () => {
     expect(oficial).toContain("24 horas");
   });
 
-  it("escolher QR leva ao passo a passo do QR e fecha a escolha", () => {
+  it("escolher QR pede o QR e fecha a escolha", () => {
     const onEscolher = abrir();
     fireEvent.click(screen.getByTestId("escolher-qr"));
     expect(onEscolher).toHaveBeenCalledWith("qr");
     expect(screen.queryByTestId("conexao-qr")).toBeNull();
   });
 
-  it("escolher API oficial leva ao passo a passo dela", () => {
+  it("⭐ com o login do Facebook configurado, API oficial abre a janela da Meta ALI MESMO — sem levar a outra aba", async () => {
+    const onEscolher = abrir({ login });
+    const b = screen.getByTestId("escolher-oficial");
+    await waitFor(() => expect(b).toBeEnabled());
+    expect(b.textContent).toBe("Conectar com Facebook");
+    expect(screen.getByTestId("conectar-qualquer-portfolio")).toBeTruthy();
+
+    fireEvent.click(b);
+
+    expect(onEscolher).not.toHaveBeenCalled();
+    expect(opcoesDoLogin).toEqual({
+      config_id: "cfg1",
+      response_type: "code",
+      override_default_response_type: true,
+      extras: {},
+    });
+  });
+
+  it("concluída a janela, o código vai ao servidor e a escolha fecha", async () => {
+    abrir({ login });
+    const b = screen.getByTestId("escolher-oficial");
+    await waitFor(() => expect(b).toBeEnabled());
+    fireEvent.click(b);
+    act(() => aoVoltar?.({ authResponse: { code: "cod" } }));
+
+    await waitFor(() => expect(h.post).toHaveBeenCalledWith("/api/v1/channels/official", { code: "cod" }));
+    await waitFor(() => expect(screen.queryByTestId("conexao-oficial")).toBeNull());
+  });
+
+  it("⭐ coexistência é opção própria: abre a mesma janela no modo do aplicativo do celular", async () => {
+    abrir({ login });
+    const b = screen.getByTestId("escolher-coexistencia");
+    await waitFor(() => expect(b).toBeEnabled());
+    fireEvent.click(b);
+    expect(opcoesDoLogin?.extras).toEqual({ featureType: "whatsapp_business_app_onboarding" });
+    expect(b.textContent).toBe("Conclua na janela do Facebook…");
+    // A outra porta não finge estar aberta.
+    expect(screen.getByTestId("escolher-oficial").textContent).toBe("Conectar com Facebook");
+  });
+
+  it("API oficial sem coexistência abre com extras vazio", async () => {
+    abrir({ login });
+    const b = screen.getByTestId("escolher-oficial");
+    await waitFor(() => expect(b).toBeEnabled());
+    fireEvent.click(b);
+    expect(opcoesDoLogin?.extras).toEqual({});
+  });
+
+  it("sem login do Facebook na instalação, a coexistência não aparece — ela só existe pela janela da Meta", () => {
+    abrir();
+    expect(screen.queryByTestId("conexao-coexistencia")).toBeNull();
+  });
+
+  it("com número oficial já conectado, o botão diz trocar", async () => {
+    abrir({ login, oficialConectado: true });
+    await waitFor(() => expect(screen.getByTestId("escolher-oficial").textContent).toBe("Trocar o número com Facebook"));
+  });
+
+  it("sem login configurado na instalação, API oficial leva ao formulário colado", () => {
     const onEscolher = abrir();
     fireEvent.click(screen.getByTestId("escolher-oficial"));
     expect(onEscolher).toHaveBeenCalledWith("oficial");

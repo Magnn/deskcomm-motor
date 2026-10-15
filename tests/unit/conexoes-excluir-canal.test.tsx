@@ -308,8 +308,9 @@ describe("copiar detalhes de conexão no self-host HTTP", () => {
     postMock.mockRejectedValue(new ApiError(502, "connection_repair_required", { operation: "start" }, "request-owned"));
     vi.stubGlobal("navigator", {});
     document.execCommand = vi.fn().mockReturnValue(copied);
-    render(wrap(<ConnectionsClient wahaConfigured />));
-    fireEvent.click(screen.getByRole("button", { name: "Conectar por QR" }));
+    // Conectar número novo é só pelo botão único de Conexões: o pedido de QR
+    // chega à aba pela prop, como quando a pessoa escolhe "QR code" lá.
+    render(wrap(<ConnectionsClient wahaConfigured qrPendente aoAtenderQr={() => undefined} />));
     const details = await screen.findByText(/request-owned/);
     fireEvent.click(screen.getByText("Detalhes para suporte"));
     fireEvent.click(screen.getByRole("button", { name: "Copiar detalhes" }));

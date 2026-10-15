@@ -9787,6 +9787,36 @@ export const DICIONARIO: Traducoes = {
     { es: "Conecta tu cuenta publicitaria para que el sistema lea el rendimiento de tus campañas y lo muestre en Análisis › Meta Ads. Es una conexión de solo lectura: no se crea, pausa ni modifica nada en tu cuenta publicitaria." },
   "Conectar com Facebook":
     { es: "Conectar con Facebook" },
+  "A janela do Facebook abre aqui mesmo: você escolhe o portfólio, a conta do WhatsApp e o número. Nada para copiar ou colar.":
+    { es: "La ventana de Facebook se abre aquí mismo: eliges el portafolio, la cuenta de WhatsApp y el número. Nada para copiar ni pegar." },
+  "Trocar o número com Facebook":
+    { es: "Cambiar el número con Facebook" },
+  "As três formas funcionam. A diferença é o que o número aguenta depois de conectado, e se ele continua no aplicativo do celular.":
+    { es: "Las tres formas funcionan. La diferencia es lo que el número aguanta después de conectado, y si sigue en la aplicación del celular." },
+  "API oficial + celular (coexistência)":
+    { es: "API oficial + celular (coexistencia)" },
+  "Para o número que a empresa já usa no aplicativo WhatsApp Business do celular. Ele passa a funcionar aqui pela API oficial e continua no celular.":
+    { es: "Para el número que la empresa ya usa en la aplicación WhatsApp Business del celular. Pasa a funcionar aquí por la API oficial y sigue en el celular." },
+  "Não precisa tirar o número do aplicativo nem trocar de chip.":
+    { es: "No hace falta quitar el número de la aplicación ni cambiar de chip." },
+  "Na janela da Meta, você lê um QR code com o aplicativo WhatsApp Business do celular.":
+    { es: "En la ventana de Meta, escaneas un código QR con la aplicación WhatsApp Business del celular." },
+  "O que for respondido pelo celular aparece aqui e pausa o agente naquela conversa.":
+    { es: "Lo que se responda desde el celular aparece aquí y pausa al agente en esa conversación." },
+  "Mesmas regras da API oficial: a Meta pode cobrar, e depois de 24 horas só envia modelo aprovado.":
+    { es: "Mismas reglas de la API oficial: Meta puede cobrar y, después de 24 horas, solo envía plantillas aprobadas." },
+  "Indicado para quem já atende pelo aplicativo e não quer deixá-lo.":
+    { es: "Indicado para quien ya atiende por la aplicación y no quiere dejarla." },
+  "Conectar mantendo o celular":
+    { es: "Conectar manteniendo el celular" },
+  "A conexão por QR code não está configurada nesta instalação.":
+    { es: "La conexión por código QR no está configurada en esta instalación." },
+  "Preparando o QR code…":
+    { es: "Preparando el código QR…" },
+  "Para trocar o número, use o botão Conectar WhatsApp no topo da tela e escolha API oficial.":
+    { es: "Para cambiar el número, usa el botón Conectar WhatsApp en la parte superior de la pantalla y elige API oficial." },
+  "Para conectar, use o botão Conectar WhatsApp no topo da tela e escolha API oficial.":
+    { es: "Para conectar, usa el botón Conectar WhatsApp en la parte superior de la pantalla y elige API oficial." },
   "Reconectar com Facebook":
     { es: "Reconectar con Facebook" },
   "Você entra no Facebook, autoriza a leitura e volta para cá com a conta já conectada.":

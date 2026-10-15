@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -17,6 +18,7 @@ import { TemplatesClient } from "./TemplatesClient";
 import { TemplatesParceiroClient } from "./TemplatesParceiroClient";
 import { TelefoniaClient } from "./TelefoniaClient";
 import { WebchatClient } from "./WebchatClient";
+import { useOfficialChannel } from "@/hooks/channels/useOfficialChannel";
 import { useT } from "@/hooks/i18n/useT";
 import { rotaDeTemplates } from "@/lib/channels/templates-fonte";
 
@@ -83,6 +85,13 @@ export function ConexoesShell({
                 ? "graph"
                 : "numeros";
   const sub = params.get("sub") === "templates" ? "templates" : "conexao";
+  // O botão único "Conectar WhatsApp" abre a janela do Facebook ali mesmo; para
+  // isso precisa do login da instalação antes do clique.
+  const oficial = useOfficialChannel().data?.data;
+  // "Conectar por QR" escolhido na janela única: a aba dos números abre e o QR
+  // sobe em janela. Um pedido, atendido uma vez — trocar de aba e voltar não o
+  // repete (a aba remonta, e um contador a faria criar outro número).
+  const [qrPendente, setQrPendente] = useState(false);
 
   const irPara = (proximaAba: string, proximaSub?: string): void => {
     const q = new URLSearchParams();
@@ -135,11 +144,22 @@ export function ConexoesShell({
         <TabsTrigger value="webchat">{t("Webchat (Site)")}</TabsTrigger>
         <TabsTrigger value="telefonia">{t("Telefone")}</TabsTrigger>
       </TabsList>
-        <EscolherConexao onEscolher={(tipo) => irPara(tipo === "oficial" ? "oficial" : "numeros")} />
+        <EscolherConexao
+          login={oficial?.login ?? null}
+          oficialConectado={Boolean(oficial?.connected)}
+          onEscolher={(tipo) => {
+            if (tipo === "qr") setQrPendente(true);
+            irPara(tipo === "oficial" ? "oficial" : "numeros");
+          }}
+        />
       </div>
 
       <TabsContent value="numeros" className="mt-0">
-        <ConnectionsClient wahaConfigured={wahaConfigured} />
+        <ConnectionsClient
+          wahaConfigured={wahaConfigured}
+          qrPendente={qrPendente}
+          aoAtenderQr={() => setQrPendente(false)}
+        />
       </TabsContent>
 
       <TabsContent value="telefonia" className="mt-0">
@@ -207,7 +227,7 @@ export function ConexoesShell({
             <TabsTrigger value="templates">{t("Templates da Meta")}</TabsTrigger>
           </TabsList>
           <TabsContent value="conexao" className="mt-0">
-            <CanalOficialClient />
+            <CanalOficialClient comBotaoDeConectar={false} />
           </TabsContent>
           <TabsContent value="templates" className="mt-0">
             <TemplatesClient />

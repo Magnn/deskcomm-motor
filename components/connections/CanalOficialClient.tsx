@@ -98,7 +98,16 @@ function FormularioColado({
   );
 }
 
-export function CanalOficialClient() {
+export function CanalOficialClient({
+  comBotaoDeConectar = true,
+}: {
+  /**
+   * Em Conexões, conectar é só pelo botão único "Conectar WhatsApp" do topo, que
+   * abre a mesma janela do Facebook. O onboarding não tem esse botão e mantém o
+   * cartão daqui.
+   */
+  comBotaoDeConectar?: boolean;
+} = {}) {
   const t = useT();
   const { data, isPending } = useOfficialChannel();
   const conectar = useConnectOfficialChannel();
@@ -280,7 +289,15 @@ export function CanalOficialClient() {
         />
       ) : null}
 
-      {estado?.login ? (
+      {estado?.login && !comBotaoDeConectar ? (
+        <p className="text-sm text-muted-foreground" data-testid="conectar-pelo-botao-unico">
+          {estado.connected
+            ? t("Para trocar o número, use o botão Conectar WhatsApp no topo da tela e escolha API oficial.")
+            : t("Para conectar, use o botão Conectar WhatsApp no topo da tela e escolha API oficial.")}
+        </p>
+      ) : null}
+
+      {estado?.login && comBotaoDeConectar ? (
         <Card className="flex flex-col gap-3 p-4">
           <div>
             <h2 className="font-medium">
