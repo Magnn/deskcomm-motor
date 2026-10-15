@@ -444,6 +444,13 @@ const schema = z.object({
   LGPD_SIGNING_KEY: z.string().optional().default(""),
   LGPD_EXPORT_EXPIRES_HOURS: z.string().optional().default("72"),
   LGPD_DPO_EMAIL: z.string().optional().default(""),
+  /**
+   * Quem opera ESTA instalação, para quem lê os documentos legais sem sessão —
+   * a pessoa que abre o link da política antes de criar conta, e o revisor da
+   * Meta que confere o app. Sem elas o texto diz "o operador desta instalação".
+   */
+  OPERADOR_RAZAO_SOCIAL: z.string().optional().default(""),
+  OPERADOR_CNPJ: z.string().optional().default(""),
 
   // Google Agenda — opcional, e é a DECISÃO 3.1 em forma de schema. Sem as
   // duas, o módulo de agenda funciona INTEIRO: some o botão "Conectar Google" e

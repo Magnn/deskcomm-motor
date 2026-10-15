@@ -155,6 +155,23 @@ export const CATALOGO_DA_INSTALACAO: readonly ChaveDaInstalacao[] = [
     natureza: "texto",
     controle: "edita",
   },
+  {
+    chave: "OPERADOR_RAZAO_SOCIAL",
+    rotulo: "Razão social de quem opera esta instalação",
+    explicacao:
+      "Aparece nos documentos legais para quem os lê sem estar logado — inclusive quem analisa o app na Meta. Escreva igual ao cartão do CNPJ.",
+    grupo: "seguranca",
+    natureza: "texto",
+    controle: "edita",
+  },
+  {
+    chave: "OPERADOR_CNPJ",
+    rotulo: "CNPJ de quem opera esta instalação",
+    explicacao: "Mostrado ao lado da razão social nos documentos legais públicos.",
+    grupo: "seguranca",
+    natureza: "texto",
+    controle: "edita",
+  },
 
   // ── DIAGNÓSTICO: de partida ───────────────────────────────────────────────
   {
