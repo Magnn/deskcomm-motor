@@ -25,10 +25,9 @@ export type RegistrarWebhookDoAppResult =
 export async function registrarWebhookDoAppDaMeta(): Promise<RegistrarWebhookDoAppResult> {
   const { user } = await requirePlatformAdmin();
 
-  const appId = (env.META_APP_ID ?? "").trim();
-  if (appId === "") return { ok: false, error: "sem_app_id" };
+  const { appId, appSecret, verifyToken } = await appDaMeta();
+  if (!appId) return { ok: false, error: "sem_app_id" };
 
-  const { appSecret, verifyToken } = await appDaMeta();
   if (!appSecret || !verifyToken) return { ok: false, error: "sem_credencial" };
 
   const base = (env.NEXT_PUBLIC_APP_URL ?? "").replace(/\/+$/, "");

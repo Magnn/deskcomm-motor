@@ -37,11 +37,9 @@ export interface AppDoMetaAds {
 
 /** `null` = o login não está disponível nesta instalação; a tela cai para o token colado. */
 export async function appDoMetaAds(): Promise<AppDoMetaAds | null> {
-  const appId = (env.META_APP_ID ?? "").trim();
-  const { appSecret } = await appDaMeta();
-  if (appId === "" || !appSecret) return null;
-  const configId = (env.META_ADS_CONFIG_ID ?? "").trim();
-  return { appId, appSecret, configId: configId === "" ? null : configId };
+  const { appId, appSecret, adsConfigId } = await appDaMeta();
+  if (!appId || !appSecret) return null;
+  return { appId, appSecret, configId: adsConfigId };
 }
 
 /** Para onde a Meta devolve o navegador depois do consentimento. Tem de estar cadastrado no app. */

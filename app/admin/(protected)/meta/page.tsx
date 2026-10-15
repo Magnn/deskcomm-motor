@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { loadAuthUser } from "@/lib/auth/server";
-import { appDaMetaDoAmbiente } from "@/lib/channels/meta/app";
+import { appDaMetaDoAmbiente, idsDoAppDaMeta } from "@/lib/channels/meta/app";
 import { env } from "@/lib/env";
 import { tagDeIdioma } from "@/lib/i18n/datas";
 import type { Idioma } from "@/lib/i18n/idiomas";
@@ -67,6 +67,7 @@ export default async function Page() {
   // existe é o que torna a precedência visível: sem isto, quem tem o par no
   // arquivo abre a tela vazia e conclui que o canal oficial não recebe nada.
   const doAmbiente = appDaMetaDoAmbiente();
+  const emVigor = await idsDoAppDaMeta();
   const base = (env.NEXT_PUBLIC_APP_URL ?? "").replace(/\/+$/, "");
   const urlDoApp = base.startsWith("https://") ? `${base}/api/v1/webhooks/meta` : null;
 
@@ -81,7 +82,10 @@ export default async function Page() {
       // levaria o dono a gerar um token por cima do que já está colado na Meta.
       leituraFalhou={Boolean(error)}
       urlDoApp={urlDoApp}
-      temAppId={(env.META_APP_ID ?? "").trim() !== ""}
+      temAppId={Boolean(emVigor.appId)}
+      // O app EM VIGOR (banco ou `.env`, pela regra do resolvedor), para o dono
+      // ver qual app a janela do Facebook abre hoje antes de trocar.
+      app={emVigor}
     />
   );
 }

@@ -21,7 +21,7 @@
 import { MAX_MEDIA_BYTES, MediaTooLargeError } from "@/lib/messaging/media/types";
 import { assertDestinoResolvidoSeguro } from "@/lib/automation/outbound-ip";
 import { assertSafeOutboundUrl } from "@/lib/automation/outbound-url";
-import { env } from "@/lib/env";
+import { appDaMeta } from "@/lib/channels/meta/app";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 import { CHANNEL_PROVIDER_MESSENGER } from "../capabilities";
@@ -130,7 +130,7 @@ export const messengerAdapter: ChannelAdapter = {
   async checkHealth(input) {
     const t = await tokenDaPagina(createAdminClient(), { organizationId: input.organizationId, pageId: input.sessionRef });
     if (!t) return { reachable: true, status: "FAILED", detail: "credencial_indisponivel" };
-    const appId = (env.META_APP_ID ?? "").trim();
+    const { appId } = await appDaMeta();
     if (!appId) return { reachable: true, status: "FAILED", detail: "app_nao_configurado" };
     try {
       return (await avisosLigados(input.sessionRef, t, appId))

@@ -5,6 +5,7 @@ import { headers } from "next/headers";
 import { z } from "zod";
 
 import { invalidarAppDaMeta } from "@/lib/channels/meta/app";
+import { graphVersion } from "@/lib/graph-version";
 import { audit } from "@/lib/audit";
 import { logger } from "@/lib/logger";
 import { requirePlatformAdmin } from "@/lib/auth/requirePlatformAdmin";
@@ -13,7 +14,7 @@ import { encryptWebhookSecret } from "@/lib/webhooks/secrets";
 
 export type UpdateMetaAppResult =
   /** `verifyToken` SÓ vem quando o token acabou de ser gerado — é a única vez que ele sai do servidor. */
-  | { ok: true; verifyToken?: string }
+  | { ok: true; verifyToken?: string; /** Nome do app, quando o par foi conferido com a Meta. */ appName?: string }
   | { ok: false; error: string; details?: unknown };
 
 /**
@@ -76,7 +77,26 @@ const entradaSchema = z.object({
    * folga para quem colou de um gerenciador de segredos sem espaços sobrando.
    */
   app_secret: z.string().trim().min(16).max(300).optional(),
+  /**
+   * O ID do app (só dígitos). Trocar de app — por exemplo, porque o portfólio
+   * dono do antigo foi restrito pela Meta — exige a chave do app novo no MESMO
+   * save: chave de um app com ID de outro não abre janela nem assina nada.
+   */
+  app_id: z.string().trim().regex(/^\d{5,25}$/).optional(),
+  /**
+   * As configurações do "Login do Facebook para Empresas" do app. `""` apaga;
+   * ausente mantém — a não ser que o app mude, quando as do antigo caem.
+   */
+  whatsapp_config_id: idDeConfiguracao(),
+  messenger_config_id: idDeConfiguracao(),
+  ads_config_id: idDeConfiguracao(),
 });
+
+function idDeConfiguracao() {
+  return z.union([z.literal(""), z.string().trim().regex(/^\d{5,25}$/)]).optional();
+}
+
+const CONFIGURACOES = ["whatsapp_config_id", "messenger_config_id", "ads_config_id"] as const;
 
 export type MetaAppInput = z.infer<typeof entradaSchema>;
 
@@ -156,23 +176,62 @@ async function gravar(
  * dizia `app_secret_obrigatorio` — "cadastre a chave" para quem já cadastrou.
  */
 async function oQueEstaGravado(): Promise<
-  { ok: true; temSegredo: boolean; temToken: boolean } | { ok: false; recusa: UpdateMetaAppResult }
+  | { ok: true; temSegredo: boolean; temToken: boolean; appId: string | null }
+  | { ok: false; recusa: UpdateMetaAppResult }
 > {
   const { data, error } = await createAdminClient()
     .from("platform_meta_app")
-    .select("app_secret_encrypted, verify_token_encrypted")
+    .select("app_secret_encrypted, verify_token_encrypted, app_id")
     .eq("id", 1)
     .maybeSingle();
   if (error) {
     logger.warn("[meta.app] não deu para ler o que está gravado; nada foi alterado", { codigo: error.code });
     return { ok: false, recusa: { ok: false, error: "leitura_do_app_falhou", details: { codigo: error.code } } };
   }
-  const linha = data as { app_secret_encrypted?: string | null; verify_token_encrypted?: string | null } | null;
+  const linha = data as {
+    app_secret_encrypted?: string | null;
+    verify_token_encrypted?: string | null;
+    app_id?: string | null;
+  } | null;
   return {
     ok: true,
     temSegredo: texto(linha?.app_secret_encrypted) !== "",
     temToken: texto(linha?.verify_token_encrypted) !== "",
+    // Sem `app_id` gravado, o app em vigor é o do `.env` (o resolvedor faz igual).
+    appId: texto(linha?.app_id) || texto(process.env.META_APP_ID) || null,
   };
+}
+
+/**
+ * A chave e o ID são do MESMO app? A Graph responde ao token de app
+ * (`id|segredo`) só quando os dois casam — e devolve o nome, que a tela mostra
+ * para o dono conferir que é o app certo.
+ *
+ * Token no CORPO, nunca na URL (CLAUDE.md, anti-pattern 12): `POST` com
+ * `method=GET`, como em `lib/channels/meta/cadastro-incorporado.ts`.
+ */
+async function conferirParNaMeta(
+  appId: string,
+  appSecret: string,
+): Promise<{ ok: true; nome: string | null } | { ok: false; motivo: string }> {
+  try {
+    const res = await fetch(`https://graph.facebook.com/${graphVersion()}/${encodeURIComponent(appId)}`, {
+      method: "POST",
+      body: new URLSearchParams({ method: "GET", fields: "id,name", access_token: `${appId}|${appSecret}` }),
+      redirect: "error",
+      cache: "no-store",
+      signal: AbortSignal.timeout(15_000),
+    });
+    const corpo = (await res.json().catch(() => null)) as
+      | { id?: string; name?: string; error?: { message?: string } }
+      | null;
+    if (!res.ok || corpo?.error || String(corpo?.id ?? "") !== appId) {
+      return { ok: false, motivo: corpo?.error?.message ?? `http_${res.status}` };
+    }
+    return { ok: true, nome: corpo?.name ?? null };
+  } catch (err) {
+    return { ok: false, motivo: `rede indisponível: ${err instanceof Error ? err.message : "erro"}` };
+  }
 }
 
 /**
@@ -206,14 +265,42 @@ export async function updateMetaApp(input: MetaAppInput): Promise<UpdateMetaAppR
 
   if (!segredoNovo && !temSegredo) return SEM_SEGREDO;
 
-  if (!segredoNovo && jaTemToken) {
+  const valores: Record<string, unknown> = { updated_by: authUser.id };
+  const campos: string[] = [];
+
+  // ── O app ─────────────────────────────────────────────────────────────────
+  const appIdNovo = parsed.data.app_id;
+  const trocaDeApp = Boolean(appIdNovo) && appIdNovo !== gravado.appId;
+  // Chave guardada é do app ANTIGO: com o ID novo ela não assina nada, e o
+  // resolvedor a serviria como se servisse.
+  if (trocaDeApp && !segredoNovo) return { ok: false, error: "app_novo_sem_chave" };
+  let appName: string | null = null;
+  if (appIdNovo && segredoNovo) {
+    const par = await conferirParNaMeta(appIdNovo, segredoNovo);
+    if (!par.ok) return { ok: false, error: "app_recusado_pela_meta", details: { motivo: par.motivo } };
+    appName = par.nome;
+  }
+  if (appIdNovo) {
+    valores.app_id = appIdNovo;
+    campos.push("app_id");
+  }
+  for (const c of CONFIGURACOES) {
+    const v = parsed.data[c];
+    if (v !== undefined) {
+      valores[c] = v === "" ? null : v;
+      campos.push(c);
+    } else if (trocaDeApp) {
+      // A configuração de login é de UM app: a do antigo não abre a janela do novo.
+      valores[c] = null;
+      campos.push(c);
+    }
+  }
+
+  if (!segredoNovo && jaTemToken && campos.length === 0) {
     // Nada a fazer, e dizer isso é melhor que gravar uma trilha de "atualizou"
     // que não atualizou nada.
     return { ok: false, error: "nada_para_salvar" };
   }
-
-  const valores: Record<string, unknown> = { updated_by: authUser.id };
-  const campos: string[] = [];
 
   if (segredoNovo) {
     const cifrado = await encryptWebhookSecret(createAdminClient(), segredoNovo);
@@ -248,10 +335,16 @@ export async function updateMetaApp(input: MetaAppInput): Promise<UpdateMetaAppR
     campos,
     segredo_trocado: Boolean(segredoNovo),
     verify_token_gerado: Boolean(verifyToken),
+    // O ID não é segredo; a trilha precisa dizer DE QUAL app para qual.
+    ...(trocaDeApp ? { app_anterior: gravado.appId, app_novo: appIdNovo } : {}),
   });
   if (!r.ok) return r;
 
-  return verifyToken ? { ok: true, verifyToken } : { ok: true };
+  return {
+    ok: true,
+    ...(verifyToken ? { verifyToken } : {}),
+    ...(appName ? { appName } : {}),
+  };
 }
 
 /**

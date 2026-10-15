@@ -35,7 +35,6 @@
 import { createHmac } from "node:crypto";
 
 import { appDaMeta } from "@/lib/channels/meta/app";
-import { env } from "@/lib/env";
 import { graphVersion } from "@/lib/graph-version";
 
 const GRAPH = "https://graph.facebook.com";
@@ -59,10 +58,8 @@ export interface AppDoCadastroIncorporado {
  * ela é opcional): a janela do Cadastro Incorporado só abre a partir dela.
  */
 export async function appDoCadastroIncorporado(): Promise<AppDoCadastroIncorporado | null> {
-  const appId = (env.META_APP_ID ?? "").trim();
-  const configId = (env.META_WHATSAPP_CONFIG_ID ?? "").trim();
-  const { appSecret } = await appDaMeta();
-  if (appId === "" || configId === "" || !appSecret) return null;
+  const { appId, appSecret, whatsappConfigId: configId } = await appDaMeta();
+  if (!appId || !configId || !appSecret) return null;
   return { appId, appSecret, configId };
 }
 

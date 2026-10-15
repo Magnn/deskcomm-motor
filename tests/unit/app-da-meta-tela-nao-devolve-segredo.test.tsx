@@ -251,7 +251,7 @@ describe("/admin/meta — o formulário", () => {
     await userEvent.type(screen.getByLabelText("Chave secreta do aplicativo"), "0123456789abcdef-x");
     await userEvent.click(screen.getByTestId("meta-salvar"));
 
-    await waitFor(() => expect(toastErro).toHaveBeenCalledWith(expect.stringMatching(/32 caracteres/)));
+    await waitFor(() => expect(toastErro).toHaveBeenCalledWith(expect.stringMatching(/32 letras e números/)));
     expect(screen.queryByTestId("meta-token-gerado")).toBeNull();
   });
 });

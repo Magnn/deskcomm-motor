@@ -50,7 +50,19 @@ import { decryptWebhookSecret } from "@/lib/webhooks/secrets";
 export interface AppDaMetaEmVigor {
   readonly appSecret: string | null;
   readonly verifyToken: string | null;
+  /**
+   * O ID do app — o que o SDK do Facebook e o `oauth/access_token` pedem junto
+   * do segredo. Vem da MESMA fonte que o segredo (ver `idsDoApp`).
+   */
+  readonly appId: string | null;
+  /** As configurações do "Login do Facebook para Empresas" deste app, por uso. */
+  readonly whatsappConfigId: string | null;
+  readonly messengerConfigId: string | null;
+  readonly adsConfigId: string | null;
 }
+
+/** O ID do app e as configurações de login — o que NÃO é segredo. */
+type IdsDoApp = Pick<AppDaMetaEmVigor, "appId" | "whatsappConfigId" | "messengerConfigId" | "adsConfigId">;
 
 /** Os nomes das variáveis, para a tela poder dizer exatamente o que falta. */
 export const VARIAVEIS_DO_APP_DA_META = ["META_APP_SECRET", "META_WEBHOOK_VERIFY_TOKEN"] as const;
@@ -74,7 +86,16 @@ export function appDaMetaDoAmbiente(
   // decisão de `metaPodeReceber` (`lib/channels/meta/webhook.ts`).
   const appSecret = texto(source.META_APP_SECRET);
   const verifyToken = texto(source.META_WEBHOOK_VERIFY_TOKEN);
-  return { appSecret: appSecret || null, verifyToken: verifyToken || null };
+  return { appSecret: appSecret || null, verifyToken: verifyToken || null, ...idsDoAmbiente(source) };
+}
+
+function idsDoAmbiente(source: Record<string, string | undefined>): IdsDoApp {
+  return {
+    appId: texto(source.META_APP_ID) || null,
+    whatsappConfigId: texto(source.META_WHATSAPP_CONFIG_ID) || null,
+    messengerConfigId: texto(source.META_MESSENGER_CONFIG_ID) || null,
+    adsConfigId: texto(source.META_ADS_CONFIG_ID) || null,
+  };
 }
 
 /**
@@ -105,16 +126,25 @@ export function invalidarAppDaMeta(): void {
 interface LinhaDoApp {
   app_secret_encrypted: string | null;
   verify_token_encrypted: string | null;
+  app_id?: string | null;
+  whatsapp_config_id?: string | null;
+  messenger_config_id?: string | null;
+  ads_config_id?: string | null;
 }
+
+const COLUNAS_DOS_SEGREDOS = "app_secret_encrypted, verify_token_encrypted";
+/** Migration 0927. */
+const COLUNAS_DOS_IDS = "app_id, whatsapp_config_id, messenger_config_id, ads_config_id";
 
 /** Nunca lança: devolve `null` quando não há linha utilizável. */
 async function linhaDoBanco(): Promise<LinhaDoApp | null> {
   try {
-    const { data, error } = await createAdminClient()
-      .from("platform_meta_app")
-      .select("app_secret_encrypted, verify_token_encrypted")
-      .eq("id", 1)
-      .maybeSingle();
+    const ler = (colunas: string) =>
+      createAdminClient().from("platform_meta_app").select(colunas).eq("id", 1).maybeSingle();
+    let { data, error } = await ler(`${COLUNAS_DOS_SEGREDOS}, ${COLUNAS_DOS_IDS}`);
+    // Banco sem a 0927 (rollback de imagem, `update.sh` que falhou): as colunas
+    // dos ids não existem, e isso não pode derrubar o segredo que já está aqui.
+    if (error?.code === "42703") ({ data, error } = await ler(COLUNAS_DOS_SEGREDOS));
     // Clone que ainda não aplicou a 0257 devolve 42P01 aqui. Isso NÃO é erro
     // desta instalação — é o piso de rollback funcionando, e o `.env` assume.
     if (error) {
@@ -138,7 +168,9 @@ async function linhaDoBanco(): Promise<LinhaDoApp | null> {
  * segredo e sem o token o webhook nunca é aceito. Nos dois casos o desfecho
  * certo é o piso (o `.env` inteiro), não um par remendado.
  */
-async function parDoBanco(linha: LinhaDoApp | null): Promise<AppDaMetaEmVigor | null> {
+async function parDoBanco(
+  linha: LinhaDoApp | null,
+): Promise<Pick<AppDaMetaEmVigor, "appSecret" | "verifyToken"> | null> {
   const segredoCifrado = texto(linha?.app_secret_encrypted);
   const tokenCifrado = texto(linha?.verify_token_encrypted);
   if (!segredoCifrado || !tokenCifrado) return null;
@@ -166,9 +198,44 @@ export async function appDaMeta(): Promise<AppDaMetaEmVigor> {
   const memo = globalThis.__memoDoAppDaMeta;
   if (memo && memo.expiraEm > Date.now()) return memo.valor;
 
-  const valor = (await parDoBanco(await linhaDoBanco())) ?? appDaMetaDoAmbiente();
+  const linha = await linhaDoBanco();
+  const par = await parDoBanco(linha);
+  const valor: AppDaMetaEmVigor = par ? { ...par, ...idsDoApp(linha) } : appDaMetaDoAmbiente();
   globalThis.__memoDoAppDaMeta = { valor, expiraEm: Date.now() + TTL_MS };
   return valor;
+}
+
+/**
+ * O ID do app que acompanha o segredo DO BANCO.
+ *
+ * Com `app_id` gravado, tudo vem da linha — inclusive configuração vazia, que
+ * significa "este app não tem login para isso". As configurações do `.env` são
+ * de OUTRO app (o antigo) e abririam a janela da Meta com um `config_id` que o
+ * app novo não conhece.
+ *
+ * Sem `app_id` gravado vale o `.env` para os ids: é a instalação que cadastrou
+ * só a chave pela tela (o estado de antes da 0927), e mudar isso seria mudar o
+ * comportamento de quem não mexeu em nada. Quem grava um `app_id` novo é
+ * obrigado, pela action, a gravar a chave dele no mesmo save.
+ */
+function idsDoApp(linha: LinhaDoApp | null): IdsDoApp {
+  const appId = texto(linha?.app_id);
+  if (!appId) return idsDoAmbiente(process.env);
+  return {
+    appId,
+    whatsappConfigId: texto(linha?.whatsapp_config_id) || null,
+    messengerConfigId: texto(linha?.messenger_config_id) || null,
+    adsConfigId: texto(linha?.ads_config_id) || null,
+  };
+}
+
+/**
+ * Só o que NÃO é segredo — para a tela de `/admin/meta`, que não decifra nada
+ * (vigiado em `tests/unit/app-da-meta-tela-nao-devolve-segredo.test.tsx`).
+ * Mesma regra de `appDaMeta()` para os ids. Nunca lança.
+ */
+export async function idsDoAppDaMeta(): Promise<IdsDoApp> {
+  return idsDoApp(await linhaDoBanco());
 }
 
 /**
