@@ -42,6 +42,7 @@
  * leitura degrada para o ambiente, e o motivo vai ao log.
  */
 
+import { graphVersion } from "@/lib/graph-version";
 import { logger } from "@/lib/logger";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { decryptWebhookSecret } from "@/lib/webhooks/secrets";
@@ -257,3 +258,36 @@ export async function fontesDoAppDaMeta(): Promise<Record<string, string | undef
     META_WEBHOOK_VERIFY_TOKEN: verifyToken ?? undefined,
   };
 }
+
+/**
+ * A chave e o ID são do MESMO app? A Graph responde ao token de app
+ * (`id|segredo`) só quando os dois casam — e devolve o nome, que a tela mostra
+ * para o dono conferir que é o app certo.
+ *
+ * Token no CORPO, nunca na URL (CLAUDE.md, anti-pattern 12): `POST` com
+ * `method=GET`, como em `./cadastro-incorporado.ts`.
+ */
+export async function conferirParDoAppNaMeta(
+  appId: string,
+  appSecret: string,
+): Promise<{ ok: true; nome: string | null } | { ok: false; motivo: string }> {
+  try {
+    const res = await fetch(`https://graph.facebook.com/${graphVersion()}/${encodeURIComponent(appId)}`, {
+      method: "POST",
+      body: new URLSearchParams({ method: "GET", fields: "id,name", access_token: `${appId}|${appSecret}` }),
+      redirect: "error",
+      cache: "no-store",
+      signal: AbortSignal.timeout(15_000),
+    });
+    const corpo = (await res.json().catch(() => null)) as
+      | { id?: string; name?: string; error?: { message?: string } }
+      | null;
+    if (!res.ok || corpo?.error || String(corpo?.id ?? "") !== appId) {
+      return { ok: false, motivo: corpo?.error?.message ?? `http_${res.status}` };
+    }
+    return { ok: true, nome: corpo?.name ?? null };
+  } catch (err) {
+    return { ok: false, motivo: `rede indisponível: ${err instanceof Error ? err.message : "erro"}` };
+  }
+}
+
