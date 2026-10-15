@@ -84,7 +84,8 @@ export async function POST(req: NextRequest): Promise<Response> {
     organizationId: org,
     actorUserId: authz.user.id,
     resourceType: "organization",
-    resourceId: org,
+    // A organização já vai em organizationId; o lote não tem uma linha própria para apontar.
+    resourceId: null,
     requestId,
     metadata: { lote: true, quantidade: linhas.length, dias: lido.data.dias },
   });
