@@ -27,6 +27,7 @@ import { conversaoDeVendaHandler } from "@/lib/conversoes/envio.handler";
 
 import { nomeCasaComCompra } from "@/lib/catalogo/oferta-da-vez";
 import { lerCatalogo } from "@/lib/catalogo/tipos";
+import { guardarEmailDoContato } from "@/lib/area-do-cliente/email-do-contato";
 import { encontrarContatoPorTelefone } from "@/lib/channels/contato-por-telefone";
 import { enrollFollowupFlow } from "@/lib/followup/enroll";
 import { emitLeadActivity } from "@/lib/leads/activity-emitter";
@@ -44,6 +45,12 @@ export type ResultadoDaCompra =
 export interface DepsDaCompra {
   acharContato(c: { telefone: string | null; email: string | null }): Promise<{ id: string; tags: string[] } | null>;
   gravarCompra(contatoId: string, patch: { tags: string[]; ultimaCompra: Record<string, unknown> }): Promise<void>;
+  /**
+   * Guarda o e-mail do checkout no contato que ainda não tem um. É ele que deixa o comprador entrar
+   * de novo na área do cliente pelo código, de qualquer aparelho. Até 15/10/2026 o e-mail chegava em
+   * toda compra da Cakto e era descartado: nenhum dos 2.502 contatos da produção tinha e-mail.
+   */
+  guardarEmail?(contatoId: string, email: string): Promise<void>;
   anotar(contatoId: string, texto: string): Promise<void>;
   /**
    * Grava o valor pago no NEGÓCIO do contato e, se ele já estiver fechado como ganho, reporta a
@@ -195,6 +202,7 @@ export async function aplicarEventoDaCakto(deps: DepsDaCompra, compra: CompraDaC
   }
 
   // Quem pagou não pode continuar recebendo a cobrança de "quer continuar?".
+  if (compra.cliente.email !== null) await deps.guardarEmail?.(contato.id, compra.cliente.email);
   await deps.pararFluxosVivos(contato.id, "compra_aprovada");
 
   const fluxo = await deps.acharFluxoDeEntrega(compra.produtoNome);
@@ -275,6 +283,10 @@ export function depsReais(admin: SupabaseClient, organizationId: string, request
         .update({ tags, source_metadata: { ...atual, ultima_compra: ultimaCompra } as never })
         .eq("organization_id", organizationId)
         .eq("id", contatoId);
+    },
+
+    async guardarEmail(contatoId, email) {
+      await guardarEmailDoContato(admin, organizationId, contatoId, email);
     },
 
     async registrarValorNoNegocio(contatoId, valorCentavos) {

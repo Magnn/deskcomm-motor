@@ -316,6 +316,50 @@ export const PONTOS_DE_IA: readonly PontoDeIa[] = [
     },
   },
   {
+    id: "area_circulo_conteudo",
+    rotulo: "Escrever o conteúdo do mês do Círculo",
+    oQueFaz:
+      "Escreve, uma vez por mês, o conteúdo de quem assina o Círculo na área do cliente: a energia do mês, um ritual simples e uma reflexão.",
+    papel: "atender",
+    exige: {},
+    emissor: "lib/area-do-cliente/circulo-ia.ts",
+    sintomaDeFalha: "Quem assina o Círculo abre a área e encontra o aviso de que o conteúdo do mês ainda está sendo preparado.",
+    registraEm: "llm_calls",
+  },
+  {
+    id: "area_circulo_resposta",
+    rotulo: "Responder a pergunta do mês do Círculo",
+    oQueFaz:
+      "Responde a pergunta mensal de quem assina o Círculo, a partir de uma carta tirada pelo sistema, com orientação e sem promessa.",
+    papel: "atender",
+    exige: {},
+    emissor: "lib/area-do-cliente/circulo-ia.ts",
+    sintomaDeFalha: "A pergunta da assinante fica com \"sua resposta chega em breve\" sem resposta.",
+    registraEm: "llm_calls",
+  },
+  {
+    id: "area_presente_resposta",
+    rotulo: "Responder a pergunta dada de presente",
+    oQueFaz:
+      "Responde a pergunta de tarô de quem ganhou um presente na área do cliente, a partir de uma carta tirada pelo sistema, com orientação e sem promessa.",
+    papel: "atender",
+    exige: {},
+    emissor: "lib/area-do-cliente/circulo-ia.ts",
+    sintomaDeFalha: "Quem ganhou o presente faz a pergunta e vê o aviso de que a resposta está sendo preparada.",
+    registraEm: "llm_calls",
+  },
+  {
+    id: "area_ano_pessoal",
+    rotulo: "Escrever a leitura do Ano Pessoal",
+    oQueFaz:
+      "Escreve a leitura do ano que começa no aniversário da cliente: o tema do ano pela numerologia, uma orientação por trimestre e três intenções.",
+    papel: "atender",
+    exige: {},
+    emissor: "lib/area-do-cliente/circulo-ia.ts",
+    sintomaDeFalha: "Quem pagou o Ano Pessoal abre a área e encontra o aviso de que a leitura está sendo preparada.",
+    registraEm: "llm_calls",
+  },
+  {
     id: "loss_reason_classify",
     rotulo: "Entender por que a venda não aconteceu",
     oQueFaz:

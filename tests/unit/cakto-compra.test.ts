@@ -153,6 +153,19 @@ describe("compra aprovada", () => {
     expect(chamadas.indexOf("parar:compra_aprovada")).toBeLessThan(chamadas.indexOf("inscrever:fluxo-entrega"));
   });
 
+  it("guarda o e-mail do checkout no contato (é a chave de entrada da área do cliente)", async () => {
+    const guardados: Array<[string, string]> = [];
+    const { deps } = fake({
+      async guardarEmail(id, email) {
+        guardados.push([id, email]);
+      },
+    });
+    await aplicarEventoDaCakto(deps, mapCaktoPayload(AVISO)!);
+    expect(guardados).toHaveLength(1);
+    expect(guardados[0]?.[0]).toBe("c1");
+    expect(guardados[0]?.[1].toLowerCase()).toBe("marina@exemplo.com");
+  });
+
   it("o MESMO aviso reenviado não entrega de novo", async () => {
     const { deps, chamadas } = fake({
       async acharContato() {

@@ -100,6 +100,16 @@ export function corpoDaStripe(campos: Record<string, string | number | boolean>)
     .join("&");
 }
 
+/** Regra pura: o e-mail de um PaymentIntent com `latest_charge` expandido. */
+export function emailDoPagamento(pi: Record<string, unknown>): string | null {
+  const cobranca = (pi.latest_charge ?? null) as { billing_details?: { email?: unknown }; receipt_email?: unknown } | null;
+  const candidatos = [cobranca?.billing_details?.email, cobranca?.receipt_email, pi.receipt_email];
+  for (const c of candidatos) {
+    if (typeof c === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c.trim())) return c.trim().toLowerCase();
+  }
+  return null;
+}
+
 export function criarClienteStripe(cred: CredencialStripe, opts: { fetch?: Fetch } = {}) {
   const buscar: Fetch = opts.fetch ?? ((url, init) => fetch(url, init));
 
@@ -231,6 +241,15 @@ export function criarClienteStripe(cred: CredencialStripe, opts: { fetch?: Fetch
       const { amount, currency } = lancamento as { amount?: unknown; currency?: unknown };
       if (typeof amount !== "number" || amount <= 0 || typeof currency !== "string") return null;
       return { valorCentavos: amount, moeda: currency.toUpperCase() };
+    },
+
+    /**
+     * O e-mail de quem pagou, se a Stripe tiver um: o do cartão ou do boleto (`billing_details`) ou o do
+     * recibo. O Pix criado na conversa não pede e-mail, e aí volta `null`.
+     */
+    async lerEmailDoPagador(cobrancaId: string): Promise<string | null> {
+      const pi = await chamar("GET", `/payment_intents/${encodeURIComponent(cobrancaId)}?expand[]=latest_charge`);
+      return emailDoPagamento(pi);
     },
 
     /** Registra na Stripe o endereço que recebe o aviso de pagamento. Devolve o segredo da assinatura (vem uma vez só). */

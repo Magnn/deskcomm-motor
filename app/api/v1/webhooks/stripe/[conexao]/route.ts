@@ -27,6 +27,10 @@ import { type NextRequest, type NextResponse } from "next/server";
 import { audit } from "@/lib/audit";
 import { fail, ok } from "@/lib/api/wrappers";
 import { logger } from "@/lib/logger";
+import { EXTRA_DO_CIRCULO, ativarCirculo } from "@/lib/area-do-cliente/circulo";
+import { liberarCompraDaArea } from "@/lib/area-do-cliente/compras-da-area";
+import { guardarEmailDoContato } from "@/lib/area-do-cliente/email-do-contato";
+import { registrarEvento } from "@/lib/area-do-cliente/eventos";
 import { aplicarEventoDaCakto, depsReais } from "@/lib/pagamentos/compra-cakto";
 import { reportarCompraAvulsa } from "@/lib/conversoes/compra-avulsa";
 import { lerConexaoStripePorId } from "@/lib/pagamentos/conexao-stripe";
@@ -90,6 +94,17 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ conexao: s
       });
     }
   }
+  // O e-mail de quem pagou (cartão e boleto têm; o Pix da conversa não) é a chave de entrada da área do
+  // cliente. Ler e guardar é melhor esforço: falhar aqui nunca impede o registro do pagamento.
+  try {
+    const email = await criarClienteStripe({ chave: conexao.chave }).lerEmailDoPagador(cobrancaId);
+    if (email !== null) await guardarEmailDoContato(admin, conexao.organizationId, contatoId, email);
+  } catch (err) {
+    logger.warn("[stripe.aviso] e-mail do pagador não lido", {
+      requestId,
+      error: (err instanceof Error ? err.message : String(err)).slice(0, 160),
+    });
+  }
   const compra: CompraDaCakto = {
     evento: "purchase_approved",
     pedidoId: cobrancaId,
@@ -122,6 +137,19 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ conexao: s
       // Reentrega da Stripe: a receita já está lá e a marca também.
       if (erroDoLedger?.code === "23505") return ok({ received: true, resultado: "repetida" }, { requestId }) as NextResponse;
       if (erroDoLedger) throw new Error(erroDoLedger.message);
+      // A área do cliente: o que cada pagamento libera (todos idempotentes pelo id do pagamento).
+      await liberarCompraDaArea(admin, conexao.organizationId, contatoId, cobrancaId, extra, meta, metodoDaCobranca);
+      if (extra === EXTRA_DO_CIRCULO) {
+        const ativado = await ativarCirculo(admin, conexao.organizationId, contatoId, cobrancaId);
+        if (!ativado.jaAplicado) {
+          await registrarEvento(admin, {
+            organizationId: conexao.organizationId,
+            contactId: contatoId,
+            tipo: "circulo_ativado",
+            props: { valido_ate: ativado.validoAte, metodo: metodoDaCobranca },
+          });
+        }
+      }
       // ⚠️ Filtro de organização: o client é service-role.
       const { data: contato } = await admin
         .from("contacts")

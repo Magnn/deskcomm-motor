@@ -56,6 +56,17 @@ export const PUBLIC_PATHS: RegExp[] = [
   // conta. A rota só devolve o convite de UM grupo (ou uma página curta) — o slug
   // não abre nada mais do lançamento. Limite por IP dentro da própria rota.
   /^\/g\/[a-z0-9-]+$/,
+  // A ÁREA DO CLIENTE (migration 0928). Quem chega é o COMPRADOR, que não tem e
+  // não pode ter usuário no Auth — um usuário do Auth atravessaria este proxy
+  // como se fosse da equipe. A identidade dele é o cookie `area_<org>`, cujo
+  // hash mora em `area_sessoes` e é conferido DENTRO de cada página e rota
+  // (`lib/area-do-cliente/sessao.ts`). Organização com a área desligada
+  // responde 404. "Público" aqui é "o proxy não decide", nunca "sem
+  // autenticação". Ancorado no slug da organização.
+  /^\/c\/[a-z0-9][a-z0-9-]{1,62}(\/.*)?$/,
+  /^\/api\/v1\/area\/publica\/[a-z0-9][a-z0-9-]{1,62}\/(codigo|codigo\/confirmar|eventos|email|diario|aniversario|circulo|circulo\/conteudo|circulo\/pergunta|presente|ano-pessoal|ano-pessoal\/gerar)$/,
+  // A pergunta de quem GANHOU o presente: sem cadastro; o código de 32 caracteres é o direito.
+  /^\/api\/v1\/area\/publica\/[a-z0-9][a-z0-9-]{1,62}\/presente\/[A-Za-z0-9_-]{32}$/,
   // Relógio Hobby (GitHub Actions / cron-job.org). Auth é Bearer na própria
   // rota — sem isto o proxy devolve 401 e o follow-up waiting_reply nunca anda.
   /^\/api\/v1\/system\/relogio\/tick$/,

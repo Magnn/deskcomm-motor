@@ -75,6 +75,11 @@ interface Excecao {
  * linhas da OUTRA organização, não uma leitura como superusuário.
  */
 const PROVA_PROPRIA: readonly Excecao[] = [
+  { tabela: "area_presentes", razao: "tests/invariants/area-do-cliente-rls.test.ts — tabela só do servidor: com linhas gravadas, o admin da própria organização lê zero e nem anon nem authenticated têm grant." },
+  { tabela: "area_ano_pessoal", razao: "tests/invariants/area-do-cliente-rls.test.ts — tabela só do servidor: com linhas gravadas, o admin da própria organização lê zero e nem anon nem authenticated têm grant." },
+  { tabela: "area_codigos", razao: "tests/invariants/area-do-cliente-rls.test.ts — tabela só do servidor: com linhas gravadas, o admin da própria organização lê zero e nem anon nem authenticated têm grant." },
+  { tabela: "area_diario", razao: "tests/invariants/area-do-cliente-rls.test.ts — tabela só do servidor: com linhas gravadas, o admin da própria organização lê zero e nem anon nem authenticated têm grant." },
+  { tabela: "area_perguntas", razao: "tests/invariants/area-do-cliente-rls.test.ts — tabela só do servidor: com linhas gravadas, o admin da própria organização lê zero e nem anon nem authenticated têm grant." },
   { tabela: "prospecting_settings", razao: "tests/invariants/prospecting.test.ts — tabela exclusiva do servidor, ACL e RLS verificadas; FK composta e comandos autenticados cercam a organização." },
   { tabela: "prospecting_campaigns", razao: "tests/invariants/prospecting.test.ts — tabela exclusiva do servidor, ACL e RLS verificadas; FK composta e comandos autenticados cercam a organização." },
   { tabela: "prospecting_candidates", razao: "tests/invariants/prospecting.test.ts — tabela exclusiva do servidor, ACL e RLS verificadas; FK composta e comandos autenticados cercam a organização." },
