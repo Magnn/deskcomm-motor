@@ -6543,6 +6543,33 @@ export const DICIONARIO: Traducoes = {
   "Termos de Uso": { es: "Términos de Uso" },
   "e a": { es: "y la" },
   "Política de Privacidade": { es: "Política de Privacidad" },
+  "Exclusão de dados": { es: "Eliminación de datos" },
+  "Como pedir a exclusão dos seus dados no": { es: "Cómo pedir la eliminación de tus datos en" },
+  "1. Quem responde pelo pedido": { es: "1. Quién responde por el pedido" },
+  "Os pedidos são atendidos por": { es: "Los pedidos los atiende" },
+  "2. Se você conectou o Facebook ou o WhatsApp": { es: "2. Si conectaste Facebook o WhatsApp" },
+  "Para cortar o acesso na hora, remova o aplicativo em Configurações do Facebook › Integrações comerciais, ou nas configurações do seu portfólio empresarial. A partir daí o sistema não consegue mais ler nem enviar nada pela sua conta.":
+    {
+      es: "Para cortar el acceso de inmediato, elimina la aplicación en Configuración de Facebook › Integraciones comerciales, o en la configuración de tu portafolio empresarial. Desde ese momento el sistema ya no puede leer ni enviar nada por tu cuenta.",
+    },
+  "Para apagar também o que já foi guardado (conversas, contatos e a credencial da conexão), envie o pedido para o contato abaixo, a partir do e-mail da conta.":
+    {
+      es: "Para borrar también lo que ya se guardó (conversaciones, contactos y la credencial de la conexión), envía el pedido al contacto de abajo, desde el correo de la cuenta.",
+    },
+  "3. Se você foi atendido por uma empresa que usa o sistema": {
+    es: "3. Si te atendió una empresa que usa el sistema",
+  },
+  "Seus dados pertencem à empresa que conversou com você. Peça a ela a exclusão; se preferir, escreva para o contato abaixo e o pedido é encaminhado.":
+    {
+      es: "Tus datos pertenecen a la empresa que conversó contigo. Pídele a ella la eliminación; si prefieres, escribe al contacto de abajo y el pedido se reenvía.",
+    },
+  "4. O que acontece com o pedido": { es: "4. Qué pasa con el pedido" },
+  "Os dados que identificam a pessoa são anonimizados: o nome vira um código, e telefone, e-mail, arquivos de mídia e o conteúdo identificável deixam de existir. Isso não pode ser desfeito. O prazo é de até 15 dias a partir do pedido.":
+    {
+      es: "Los datos que identifican a la persona se anonimizan: el nombre pasa a ser un código, y el teléfono, el correo, los archivos multimedia y el contenido identificable dejan de existir. Esto no se puede deshacer. El plazo es de hasta 15 días desde el pedido.",
+    },
+  "5. Contato": { es: "5. Contacto" },
+  "Envie o pedido para o encarregado de dados:": { es: "Envía el pedido al encargado de datos:" },
   "Continuar": { es: "Continuar" },
   "Aceite os termos para continuar.": { es: "Acepta los términos para continuar." },
 
