@@ -209,6 +209,110 @@ export interface AccountUpdateEvent {
   iniciadoPor: string | null;
 }
 
+/**
+ * O HISTÓRICO do aplicativo do celular, num número em COEXISTÊNCIA (`history`).
+ *
+ * Chega uma vez, em pedaços, depois que o CRM pede logo após a conexão: até 180
+ * dias de conversa, agrupados por contato (`threads`). São mensagens que JÁ
+ * aconteceram — quem as grava é `ingestMetaHistorico`, que não as trata como
+ * entrada.
+ *
+ * `recusa` = o negócio escolheu, na janela da Meta, não compartilhar o histórico
+ * (código 2593109). Não vem conversa nenhuma, e nem virá.
+ */
+export interface HistorySyncEvent {
+  kind: "history_sync";
+  wabaId: string;
+  phoneNumberId: string;
+  /** 0 = último dia, 1 = até 90 dias, 2 = até 180 dias. */
+  fase: number | null;
+  /** Percentual da fase já entregue, segundo a Meta. */
+  progresso: number | null;
+  conversas: { contato: string; mensagens: MensagemDoHistorico[] }[];
+  recusa: { codigo: number | null; titulo: string | null } | null;
+}
+
+export interface MensagemDoHistorico {
+  externalId: string;
+  /** Quem falou: o contato (`inbound`) ou o negócio pelo celular (`outbound`). */
+  direcao: "inbound" | "outbound";
+  sentAt: Date;
+  /** Já no vocabulário do CHECK de `messages.type`. */
+  type: string;
+  text: string | null;
+  mime: string | null;
+  /** Ponteiro da mídia na Meta, guardado em `metadata`; o arquivo não é baixado. */
+  mediaId: string | null;
+  /** Já no vocabulário do CHECK de `messages.status`. */
+  status: string;
+}
+
+/** Tipos da Meta que têm coluna própria no CRM; o resto vira nota `system`. */
+const TIPOS_DO_HISTORICO = new Set(["text", "image", "video", "audio", "document", "sticker", "location", "reaction"]);
+
+/** `history_context.status` → `messages.status`. Sem leitura, `sent`. */
+const STATUS_DO_HISTORICO: Record<string, string> = {
+  DELIVERED: "delivered",
+  READ: "read",
+  PLAYED: "read",
+  ERROR: "failed",
+};
+
+function lerMensagemDoHistorico(raw: Record<string, unknown>, contato: string): MensagemDoHistorico | null {
+  const id = str(raw.id);
+  const from = str(raw.from)?.replace(/\D/g, "") ?? null;
+  const quando = Number(str(raw.timestamp) ?? "");
+  if (!id || !from || !Number.isFinite(quando) || quando <= 0) return null;
+
+  // A conversa é do CONTATO (`threads[].id`); quem não é ele é o negócio.
+  const direcao = from === contato ? "inbound" : "outbound";
+  const tipoMeta = str(raw.type) ?? "unknown";
+  const corpo = (raw[tipoMeta] ?? {}) as Record<string, unknown>;
+  const toque = textoDoToque(raw);
+
+  let type: string;
+  let text: string | null;
+  if (toque !== null) {
+    type = "text";
+    text = toque;
+  } else if (tipoMeta === "contacts") {
+    type = "contact";
+    text = parseMetaInboundContact(raw)?.name ?? null;
+  } else if (TIPOS_DO_HISTORICO.has(tipoMeta)) {
+    type = tipoMeta;
+    text =
+      tipoMeta === "text"
+        ? str(corpo.body)
+        : tipoMeta === "reaction"
+          ? str(corpo.emoji)
+          : tipoMeta === "location"
+            ? [str(corpo.name), str(corpo.address)].filter(Boolean).join(" · ") || null
+            : str(corpo.caption);
+  } else {
+    // `media_placeholder`, `unsupported`, `errors`…: a conversa fica legível sem
+    // inventar conteúdo.
+    type = "system";
+    text = `Mensagem do celular sem conteúdo no histórico (${tipoMeta})`;
+  }
+
+  const contexto = (raw.history_context ?? {}) as Record<string, unknown>;
+  const statusMeta = str(contexto.status)?.toUpperCase() ?? "";
+  return {
+    externalId: id,
+    direcao,
+    sentAt: new Date(quando * 1000),
+    type,
+    text,
+    mime: str(corpo.mime_type),
+    mediaId: type !== "system" ? str(corpo.id) : null,
+    status: direcao === "inbound" ? "delivered" : (STATUS_DO_HISTORICO[statusMeta] ?? "sent"),
+  };
+}
+
+function numero(v: unknown): number | null {
+  return typeof v === "number" && Number.isFinite(v) ? v : null;
+}
+
 const EVENTOS_DE_CONTA = new Set<AccountUpdateEvent["evento"]>([
   "PARTNER_REMOVED",
   "ACCOUNT_OFFBOARDED",
@@ -221,6 +325,7 @@ export type MetaWebhookEvent =
   | InboundMessageEvent
   | OutboundEchoEvent
   | ContactSyncEvent
+  | HistorySyncEvent
   | AccountUpdateEvent;
 
 /**
@@ -410,6 +515,46 @@ export function parseMetaWebhook(envelope: MetaWebhookEnvelope): MetaWebhookEven
         }
         if (contatos.length > 0) {
           out.push({ kind: "contact_sync", wabaId, phoneNumberId: str(meta.phone_number_id) ?? "", contatos });
+        }
+        continue;
+      }
+
+      if (change.field === "history" && Array.isArray(v.history)) {
+        const meta = (v.metadata ?? {}) as Record<string, unknown>;
+        const phoneNumberId = str(meta.phone_number_id) ?? "";
+        for (const pedaco of v.history as Record<string, unknown>[]) {
+          const erros = Array.isArray(pedaco.errors) ? (pedaco.errors as Record<string, unknown>[]) : [];
+          if (erros.length > 0) {
+            out.push({
+              kind: "history_sync",
+              wabaId,
+              phoneNumberId,
+              fase: null,
+              progresso: null,
+              conversas: [],
+              recusa: { codigo: numero(erros[0]?.code), titulo: str(erros[0]?.title) },
+            });
+            continue;
+          }
+          const info = (pedaco.metadata ?? {}) as Record<string, unknown>;
+          const conversas: HistorySyncEvent["conversas"] = [];
+          for (const fio of (Array.isArray(pedaco.threads) ? pedaco.threads : []) as Record<string, unknown>[]) {
+            const contato = str(fio.id)?.replace(/\D/g, "") ?? "";
+            if (contato === "") continue;
+            const mensagens = ((Array.isArray(fio.messages) ? fio.messages : []) as Record<string, unknown>[])
+              .map((m) => lerMensagemDoHistorico(m, contato))
+              .filter((m): m is MensagemDoHistorico => m !== null);
+            if (mensagens.length > 0) conversas.push({ contato, mensagens });
+          }
+          out.push({
+            kind: "history_sync",
+            wabaId,
+            phoneNumberId,
+            fase: numero(info.phase),
+            progresso: numero(info.progress),
+            conversas,
+            recusa: null,
+          });
         }
         continue;
       }

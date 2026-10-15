@@ -217,30 +217,34 @@ export async function garantirNumeroRegistrado(
 }
 
 /**
- * COEXISTÊNCIA: pede à Meta a agenda do aplicativo do celular.
+ * COEXISTÊNCIA: pede à Meta a agenda e o histórico do aplicativo do celular.
  *
- * A Meta entrega os contatos pelo aviso `smb_app_state_sync`, que o app precisa
- * assinar (`CAMPOS_DO_WEBHOOK_DO_APP`). O pedido só vale UMA vez e só nas 24 h
+ * A Meta entrega os contatos pelo aviso `smb_app_state_sync` e as conversas
+ * (até 180 dias) pelo aviso `history`, que o app precisa assinar
+ * (`CAMPOS_DO_WEBHOOK_DO_APP`). Cada pedido só vale UMA vez e só nas 24 h
  * seguintes à conexão — depois disso, só desconectando e refazendo a janela. Por
- * isso sai aqui, logo depois de gravar o canal, e não fica para um botão.
+ * isso saem aqui, logo depois de gravar o canal, e não ficam para um botão.
  *
- * O HISTÓRICO de conversas (`sync_type: "history"`) NÃO é pedido daqui: ele
- * também é de uma vez só, e pedi-lo antes de a ingestão de histórico existir
- * jogaria fora os 180 dias de conversa do cliente.
+ * O histórico só pode ser pedido porque a ingestão dele existe e não o trata
+ * como entrada (`ingestMetaHistorico`, migration 0929): pedido antes, os 180
+ * dias de conversa do cliente teriam sido jogados fora.
  *
  * `135000` = a Meta já recebeu este pedido antes (a pessoa reconectou o mesmo
- * número). Não é falha: os contatos já vieram ou estão vindo.
+ * número). Não é falha: o que foi pedido já veio ou está vindo.
  */
-export async function pedirAgendaDoAplicativo(
+type PedidoDeSincronizacao = { ok: true; jaPedida: boolean } | { ok: false; motivo: string };
+
+async function pedirSincronizacao(
   p: { phoneNumberId: string; token: string },
-  buscar: Buscar = fetch,
-): Promise<{ ok: true; jaPedida: boolean } | { ok: false; motivo: string }> {
+  syncType: "smb_app_state_sync" | "history",
+  buscar: Buscar,
+): Promise<PedidoDeSincronizacao> {
   let res: Response;
   try {
     res = await buscar(`${GRAPH}/${graphVersion()}/${encodeURIComponent(p.phoneNumberId)}/smb_app_data`, {
       method: "POST",
       headers: { Authorization: `Bearer ${p.token}`, "content-type": "application/json" },
-      body: JSON.stringify({ messaging_product: "whatsapp", sync_type: "smb_app_state_sync" }),
+      body: JSON.stringify({ messaging_product: "whatsapp", sync_type: syncType }),
       redirect: "error",
       cache: "no-store",
       signal: AbortSignal.timeout(TETO_MS),
@@ -256,4 +260,19 @@ export async function pedirAgendaDoAplicativo(
     return { ok: false, motivo: corpo?.error?.error_data?.details ?? corpo?.error?.message ?? `http_${res.status}` };
   }
   return { ok: true, jaPedida: false };
+}
+
+export async function pedirAgendaDoAplicativo(
+  p: { phoneNumberId: string; token: string },
+  buscar: Buscar = fetch,
+): Promise<PedidoDeSincronizacao> {
+  return pedirSincronizacao(p, "smb_app_state_sync", buscar);
+}
+
+/** A Meta pede a agenda ANTES do histórico; quem chama respeita a ordem. */
+export async function pedirHistoricoDoAplicativo(
+  p: { phoneNumberId: string; token: string },
+  buscar: Buscar = fetch,
+): Promise<PedidoDeSincronizacao> {
+  return pedirSincronizacao(p, "history", buscar);
 }

@@ -88,7 +88,7 @@ export type IngestOutcome =
  * motivo em vez de `no_session`. "Não achei" e "não consegui perguntar" pedem
  * ações diferentes do operador, e colapsá-los foi metade do defeito.
  */
-async function sessionByPhoneNumberId(
+export async function sessionByPhoneNumberId(
   admin: Admin,
   organizationId: string,
   phoneNumberId: string,

@@ -75,8 +75,8 @@ describe("o app assina o que a coexistência precisa", () => {
     expect(CAMPOS_DO_WEBHOOK_DO_APP).toContain("account_update");
   });
 
-  it("o histórico NÃO é assinado ainda: sem ingestão, os 180 dias seriam jogados fora", () => {
-    expect(CAMPOS_DO_WEBHOOK_DO_APP).not.toContain("history");
+  it("o histórico é assinado: a ingestão dele existe (ingestMetaHistorico)", () => {
+    expect(CAMPOS_DO_WEBHOOK_DO_APP).toContain("history");
   });
 });
 
