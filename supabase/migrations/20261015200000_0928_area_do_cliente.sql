@@ -11,7 +11,8 @@
 --   area_convites  — o link de acesso de um contato (o token só existe em hash);
 --   area_sessoes   — quem está dentro, em qual aparelho (o cookie só existe em hash);
 --   area_codigos   — o código de 6 números mandado por e-mail para entrar de novo;
---   area_eventos   — o rastro: entrou, viu, abriu, clicou para comprar, desejou.
+--   area_eventos   — o rastro: entrou, viu, abriu, clicou para comprar, desejou;
+--   area_diario    — o que a pessoa anota; só ela lê (a equipe vê a contagem).
 --
 -- Quem ESCREVE nas quatro últimas é só o servidor (service role), pelas rotas
 -- públicas da área. A equipe lê pela RLS. Nenhuma delas guarda texto livre do
@@ -95,7 +96,8 @@ create table if not exists public.area_eventos (
   sessao_id uuid references public.area_sessoes(id) on delete set null,
   tipo text not null check (tipo in (
     'convite_criado', 'entrou', 'visitou', 'material_aberto',
-    'servico_visto', 'checkout_clicado', 'desejo', 'email_salvo', 'saiu'
+    'servico_visto', 'checkout_clicado', 'desejo', 'email_salvo', 'saiu',
+    'carta_do_dia', 'diario_escrito', 'aniversario_salvo'
   )),
   servico_id uuid references public.area_servicos(id) on delete set null,
   ref text check (ref is null or char_length(ref) <= 120),
@@ -105,6 +107,20 @@ create table if not exists public.area_eventos (
 create index if not exists area_eventos_org_tempo_idx on public.area_eventos (organization_id, created_at desc);
 create index if not exists area_eventos_org_tipo_idx on public.area_eventos (organization_id, tipo, created_at desc);
 create index if not exists area_eventos_contato_idx on public.area_eventos (organization_id, contact_id, created_at desc);
+
+-- ────────────────────────────────────────────────────────────────────────────
+-- 6 · o diário — da pessoa, só dela
+-- ────────────────────────────────────────────────────────────────────────────
+-- O que ela anota sobre o próprio caminho. Nem a equipe lê pela RLS (sem
+-- policy de select): o painel só CONTA, pelo evento `diario_escrito`.
+create table if not exists public.area_diario (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references public.organizations(id) on delete cascade,
+  contact_id uuid not null references public.contacts(id) on delete cascade,
+  texto text not null check (char_length(texto) between 1 and 2000),
+  created_at timestamptz not null default now()
+);
+create index if not exists area_diario_contato_idx on public.area_diario (organization_id, contact_id, created_at desc);
 
 -- ────────────────────────────────────────────────────────────────────────────
 -- RLS: a equipe lê; a vitrine é editada por manager+; o resto só o servidor escreve.
@@ -134,6 +150,9 @@ create policy tenant_isolation_area_sessoes_select on public.area_sessoes
 
 -- O código nem a equipe lê: é segredo de quem recebeu o e-mail.
 alter table public.area_codigos enable row level security;
+
+alter table public.area_diario enable row level security;
+revoke all on public.area_diario from anon, authenticated;
 
 alter table public.area_eventos enable row level security;
 drop policy if exists tenant_isolation_area_eventos_select on public.area_eventos;
