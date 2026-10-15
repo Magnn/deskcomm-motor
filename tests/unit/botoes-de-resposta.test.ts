@@ -128,7 +128,13 @@ describe("a fiação", () => {
     const recuperacao = readFileSync("lib/agent-engine/edge/crm/recuperacao-por-silencio.ts", "utf8");
     expect(recuperacao).toContain("chamada.ofereceSaida ? { offer_stop: true } : {}");
     const envio = readFileSync("lib/agent-engine/edge/crm/send-message.ts", "utf8");
-    expect(envio).toContain("recuperacao?.offer_stop === true && input.seq === 1");
+    expect(envio).toContain("recuperacao?.offer_stop === true || sourceJobs[0]?.payload.offer_stop === true");
+    expect(envio).toContain("ofereceParar && input.seq === 1");
+  });
+
+  it("⭐ o turno que responde a quem desconfiou marca o próprio job para levar os botões", () => {
+    const turno = readFileSync("lib/agent-engine/agent/inbound-turn.ts", "utf8");
+    expect(turno).toMatch(/if \(desconfiouNoTurno && !preview\)[\s\S]{0,400}'\{"offer_stop": true\}'::jsonb/);
   });
 
   it("o handler entrega os botões ao canal que sabe, e escreve a linha para o que não sabe", () => {

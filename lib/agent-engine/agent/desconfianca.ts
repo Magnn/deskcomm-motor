@@ -64,7 +64,8 @@ export function blocoDaDesconfianca(desconfiou: boolean): string {
     'A PESSOA DESCONFIOU (disse que pode ser golpe, ou falou em denunciar/bloquear) — vale só para este turno',
     '- Responda em UMA mensagem curta e calma. Reconheça o receio dela como legítimo, sem se ofender e sem se justificar demais.',
     '- É PROIBIDO neste turno: dizer valor, mandar link, Pix ou forma de pagamento, oferecer desconto, pedir o pagamento ou o comprovante, contar depoimento de cliente, falar de urgência, vaga ou prazo, e dizer o que acontece se ela não fizer.',
-    '- Diga que ela não precisa decidir nada agora e que, se quiser seguir, é só escrever. Não termine com pergunta que force uma resposta.',
+    '- Diga que ela não precisa decidir nada agora e que pode escolher seguir ou parar. Não termine com pergunta que force uma resposta.',
+    '- O sistema acrescenta sozinho os botões "Quero continuar" e "Parar atendimento" a esta mensagem: NÃO descreva botões e não ensine palavra nenhuma para responder.',
     '- Se ela pediu para parar ou disse que não quer mais, apenas confirme com respeito e se despeça.',
   ].join('\n');
 }

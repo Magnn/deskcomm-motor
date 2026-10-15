@@ -179,9 +179,12 @@ export async function sendTurnMessage(
     await assertMeetingDeliveryPg(db, meetingDelivery);
   }
   // A chamada que oferece a saída (`recovery.offer_stop`, decidido em `lib/recuperacao/decisao.ts`)
-  // leva os botões na PRIMEIRA bolha de texto do turno — a chamada pede uma mensagem só.
+  // leva os botões na PRIMEIRA bolha de texto do turno — a chamada pede uma mensagem só. O turno que
+  // responde a quem desconfiou (`offer_stop` no próprio job, marcado por `inbound-turn.ts`) também:
+  // quem já pensa em denunciar tem a saída a um toque, e ela para tudo do lado de cá.
   const recuperacao = sourceJobs[0]?.payload.recovery as { offer_stop?: unknown } | undefined;
-  if (recuperacao?.offer_stop === true && input.seq === 1 && !input.replyButtons) {
+  const ofereceParar = recuperacao?.offer_stop === true || sourceJobs[0]?.payload.offer_stop === true;
+  if (ofereceParar && input.seq === 1 && !input.replyButtons) {
     input = { ...input, replyButtons: BOTOES_DE_CONTINUAR_OU_PARAR };
   }
   let approvedReply: ApprovedReplyContext | undefined;

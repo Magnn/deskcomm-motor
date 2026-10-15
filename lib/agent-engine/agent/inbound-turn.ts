@@ -2813,6 +2813,16 @@ async function executarTurnoDoAgente(
   if (desconfiouNoTurno) {
     runLog.info('desconfiança — este turno responde com calma, sem valor, link nem pressão', {});
   }
+  if (desconfiouNoTurno && !preview) {
+    // A resposta leva os botões "Quero continuar" / "Parar atendimento" (`send-message.ts` lê a marca): quem já pensa em
+    // denunciar tem a saída a um toque, e o toque para tudo daqui (opt-out ambíguo → silêncio + aviso na Central).
+    await pool
+      .query(`update job_queue set payload = payload || '{"offer_stop": true}'::jsonb where organization_id = $1 and id = $2`, [
+        tenantId,
+        liveJob().id,
+      ])
+      .catch(() => undefined);
+  }
   const systemDoTurno = comporSystemDoTurno(system, {
     identidade: blocoDeIdentidadeDoTurno,
     oferta: blocoDeOfertaDoTurno,
