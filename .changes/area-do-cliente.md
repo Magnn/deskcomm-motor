@@ -10,4 +10,8 @@ A pessoa entra pelo link de acesso que a equipe gera na tela (vale 30 dias, abre
 
 Em CRM › Área do cliente a equipe liga a página, cadastra os serviços da vitrine, gera o link de cada comprador (com botão para mandar pelo WhatsApp) e acompanha o painel: quantos receberam o link, entraram, voltaram, viram um serviço, clicaram em comprar e compraram; onde cada pessoa parou; o desempenho de cada serviço; e o que os clientes disseram que gostariam de receber.
 
+Para a pessoa voltar sem precisar comprar nada: a fase da lua da semana com a data da próxima cheia, um diário que só ela lê (a equipe vê apenas quantas pessoas escreveram), a pergunta do aniversário (vai para a data de nascimento do contato) e um aviso de "feliz aniversário" na semana do dia. Quem tem as fotos do baralho de tarô cadastradas pode ligar a carta do dia: uma carta por pessoa por dia, revelada com um toque.
+
+O e-mail de quem paga pela Stripe com cartão ou boleto também passa a ser guardado (o Pix gerado na conversa não traz e-mail).
+
 A área nasce desligada. Nada muda para quem não ligar.

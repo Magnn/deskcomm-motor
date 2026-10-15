@@ -26,6 +26,15 @@ export interface TextosDaArea {
   comSeuEmail: string;
   salvar: string;
   prontoEntreCom: string;
+  revelar: string;
+  cartaDoDia: string;
+  seuDiario: string;
+  diarioConvite: string;
+  diarioExemplo: string;
+  salvo: string;
+  aniversarioTitulo: string;
+  aniversarioConvite: string;
+  aniversarioObrigada: string;
 }
 
 async function postar(url: string, corpo: unknown, tx?: TextosDaArea): Promise<{ ok: boolean; mensagem?: string }> {
@@ -256,6 +265,183 @@ export function EmailDoCliente({ slug, cor, tx }: { slug: string; cor: string; t
         <button
           type="submit"
           disabled={estado === "enviando"}
+          className="shrink-0 rounded-xl px-4 py-3 font-semibold text-white disabled:opacity-60"
+          style={{ background: cor }}
+        >
+          {tx.salvar}
+        </button>
+      </form>
+      {erro ? <p className="mt-2 text-sm text-[#b91c1c]">{erro}</p> : null}
+    </section>
+  );
+}
+
+/**
+ * A carta do dia começa virada para baixo: o gesto de revelar é o que faz a
+ * pessoa voltar amanhã. A revelação conta no painel uma vez por dia.
+ */
+export function CartaDoDia({
+  slug,
+  cor,
+  tx,
+  cartaId,
+  nome,
+  mensagem,
+  foto,
+}: {
+  slug: string;
+  cor: string;
+  tx: TextosDaArea;
+  cartaId: number;
+  nome: string;
+  mensagem: string;
+  foto: string | null;
+}) {
+  const [revelada, setRevelada] = React.useState(false);
+  const revelar = () => {
+    setRevelada(true);
+    void postar(`/api/v1/area/publica/${slug}/eventos`, { tipo: "carta_do_dia", carta: cartaId }, tx);
+  };
+  return (
+    <section className="rounded-2xl bg-white p-5 shadow-sm" data-testid="area-carta-do-dia">
+      <h2 className="text-base font-semibold">{tx.cartaDoDia}</h2>
+      {revelada ? (
+        <div className="mt-3 flex gap-4">
+          {foto ? (
+            // eslint-disable-next-line @next/next/no-img-element -- URL assinada do Storage, sem otimizador
+            <img src={foto} alt={nome} className="aspect-[3/5] w-24 shrink-0 rounded-lg object-cover" />
+          ) : null}
+          <div className="min-w-0">
+            <p className="font-semibold" data-testid="area-carta-nome">
+              {nome}
+            </p>
+            <p className="mt-1 text-sm text-[#4b5563]">{mensagem}</p>
+          </div>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={revelar}
+          className="mt-3 flex aspect-[3/5] w-24 items-center justify-center rounded-lg text-3xl text-white shadow-md"
+          style={{ background: cor }}
+          aria-label={tx.revelar}
+          data-testid="area-revelar-carta"
+        >
+          ✦
+        </button>
+      )}
+      {!revelada ? <p className="mt-2 text-xs text-[#6b7280]">{tx.revelar}</p> : null}
+    </section>
+  );
+}
+
+export function DiarioDoCliente({
+  slug,
+  cor,
+  tx,
+  entradas,
+}: {
+  slug: string;
+  cor: string;
+  tx: TextosDaArea;
+  entradas: Array<{ id: string; texto: string; quando: string }>;
+}) {
+  const [lista, setLista] = React.useState(entradas);
+  const [texto, setTexto] = React.useState("");
+  const [enviando, setEnviando] = React.useState(false);
+  const [erro, setErro] = React.useState<string | null>(null);
+
+  const salvar = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setEnviando(true);
+    setErro(null);
+    try {
+      const res = await fetch(`/api/v1/area/publica/${slug}/diario`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ texto: texto.trim() }),
+        credentials: "same-origin",
+      });
+      const json = (await res.json().catch(() => null)) as { data?: { id: string; texto: string }; error?: { message?: string } } | null;
+      if (!res.ok || !json?.data) {
+        setErro(json?.error?.message ?? tx.naoFoiPossivel);
+      } else {
+        setLista((l) => [{ id: json.data!.id, texto: json.data!.texto, quando: "" }, ...l].slice(0, 10));
+        setTexto("");
+      }
+    } catch {
+      setErro(tx.semConexao);
+    }
+    setEnviando(false);
+  };
+
+  return (
+    <section className="rounded-2xl bg-white p-5 shadow-sm" data-testid="area-diario">
+      <h2 className="text-base font-semibold">{tx.seuDiario}</h2>
+      <p className="mt-1 text-sm text-[#4b5563]">{tx.diarioConvite}</p>
+      <form onSubmit={salvar} className="mt-3 space-y-2">
+        <textarea
+          value={texto}
+          onChange={(e) => setTexto(e.target.value)}
+          maxLength={2000}
+          rows={3}
+          required
+          className={CAMPO}
+          placeholder={tx.diarioExemplo}
+        />
+        <button
+          type="submit"
+          disabled={enviando || texto.trim() === ""}
+          className="rounded-full px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+          style={{ background: cor }}
+        >
+          {enviando ? tx.enviando : tx.salvar}
+        </button>
+        {erro ? <p className="text-sm text-[#b91c1c]">{erro}</p> : null}
+      </form>
+      {lista.length > 0 ? (
+        <ul className="mt-4 space-y-3 border-t border-[#eef0f3] pt-3">
+          {lista.map((d) => (
+            <li key={d.id} className="text-sm">
+              {d.quando ? <span className="block text-xs text-[#9ca3af]">{d.quando}</span> : null}
+              <span className="whitespace-pre-line">{d.texto}</span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </section>
+  );
+}
+
+export function AniversarioDoCliente({ slug, cor, tx }: { slug: string; cor: string; tx: TextosDaArea }) {
+  const [data, setData] = React.useState("");
+  const [estado, setEstado] = React.useState<"aberto" | "enviando" | "salvo">("aberto");
+  const [erro, setErro] = React.useState<string | null>(null);
+
+  const salvar = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setEstado("enviando");
+    setErro(null);
+    const r = await postar(`/api/v1/area/publica/${slug}/aniversario`, { data }, tx);
+    if (r.ok) setEstado("salvo");
+    else {
+      setEstado("aberto");
+      setErro(r.mensagem ?? null);
+    }
+  };
+
+  if (estado === "salvo") {
+    return <p className="rounded-2xl bg-white p-5 text-sm text-[#15803d] shadow-sm">{tx.aniversarioObrigada}</p>;
+  }
+  return (
+    <section className="rounded-2xl bg-white p-5 shadow-sm" data-testid="area-aniversario">
+      <h2 className="text-base font-semibold">{tx.aniversarioTitulo}</h2>
+      <p className="mt-1 text-sm text-[#4b5563]">{tx.aniversarioConvite}</p>
+      <form onSubmit={salvar} className="mt-3 flex flex-col gap-2 sm:flex-row">
+        <input type="date" required value={data} onChange={(e) => setData(e.target.value)} className={CAMPO} />
+        <button
+          type="submit"
+          disabled={estado === "enviando" || data === ""}
           className="shrink-0 rounded-xl px-4 py-3 font-semibold text-white disabled:opacity-60"
           style={{ background: cor }}
         >

@@ -13,7 +13,10 @@ import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 
-import { carregarDadosDaArea } from "@/lib/area-do-cliente/dados";
+import { semanaDoAniversario } from "@/lib/area-do-cliente/aniversario";
+import { MENSAGEM_DO_DIA, cartaDoDia } from "@/lib/area-do-cliente/carta-do-dia";
+import { carregarDadosDaArea, diaNoFuso, fotoDaCarta } from "@/lib/area-do-cliente/dados";
+import { faseDaLua, proximaLua } from "@/lib/area-do-cliente/lua";
 import { COR_PADRAO_DA_AREA } from "@/lib/area-do-cliente/config";
 import { registrarEvento } from "@/lib/area-do-cliente/eventos";
 import { nomeDoCookieDaArea, orgDaArea, sessaoDoCookie } from "@/lib/area-do-cliente/sessao";
@@ -22,7 +25,16 @@ import { traduzir } from "@/lib/i18n/dicionario";
 import { idiomaDoVisitante } from "@/lib/i18n/idiomaAnonimo";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-import { DesejoDoCliente, EmailDoCliente, EntrarNaArea, VitrineObservada, type TextosDaArea } from "./_client";
+import {
+  AniversarioDoCliente,
+  CartaDoDia,
+  DesejoDoCliente,
+  DiarioDoCliente,
+  EmailDoCliente,
+  EntrarNaArea,
+  VitrineObservada,
+  type TextosDaArea,
+} from "./_client";
 
 export const dynamic = "force-dynamic";
 
@@ -69,6 +81,15 @@ function textosDoNavegador(t: (s: string) => string): TextosDaArea {
     comSeuEmail: t("Com seu e-mail você entra aqui de qualquer celular, mesmo sem este link."),
     salvar: t("Salvar"),
     prontoEntreCom: t("Pronto! Da próxima vez, entre com este e-mail:"),
+    revelar: t("Toque para revelar a sua carta"),
+    cartaDoDia: t("Sua carta de hoje"),
+    seuDiario: t("Seu diário"),
+    diarioConvite: t("Anote o que você pediu, o que sentiu ou o que aconteceu. Só você vê."),
+    diarioExemplo: t("Hoje eu…"),
+    salvo: t("Salvo."),
+    aniversarioTitulo: t("Quando é o seu aniversário? 🎂"),
+    aniversarioConvite: t("Conta pra gente: no seu dia a gente prepara algo especial só para você."),
+    aniversarioObrigada: t("Anotado! No seu dia tem surpresa. 💜"),
   };
 }
 
@@ -123,6 +144,21 @@ export default async function AreaDoCliente({ params, searchParams }: Props) {
     ref: "inicio",
   });
 
+  const hoje = diaNoFuso(new Date().toISOString(), org.fuso);
+  const carta = org.config.carta_do_dia ? cartaDoDia(sessao.contactId, hoje) : null;
+  const fotoDaCartaDeHoje = carta ? await fotoDaCarta(admin, org.id, carta.id) : null;
+  const fase = faseDaLua(new Date());
+  const proximaCheia = proximaLua(new Date(), "cheia");
+  const fraseDaLua =
+    fase === "nova"
+      ? t("Lua nova: tempo de plantar intenções. Escreva no diário o que você quer começar.")
+      : fase === "crescente"
+        ? t("Lua crescente: tempo de agir e dar o primeiro passo no que você planejou.")
+        : fase === "cheia"
+          ? t("Lua cheia: tempo de colher e agradecer o que já chegou.")
+          : t("Lua minguante: tempo de soltar o que pesa e descansar.");
+  const aniversarioNestaSemana = dados.contato.nascimento ? semanaDoAniversario(dados.contato.nascimento, hoje) : false;
+
   const ola = dados.contato.primeiroNome ? `${t("Olá")}, ${dados.contato.primeiroNome}` : t("Olá");
   const vitrine = dados.servicos.filter((s) => !s.ja_comprado);
 
@@ -139,6 +175,42 @@ export default async function AreaDoCliente({ params, searchParams }: Props) {
       </header>
 
       <div className="mx-auto -mt-4 max-w-xl space-y-4 px-4">
+        {aniversarioNestaSemana ? (
+          <section className="rounded-2xl bg-white p-5 text-center shadow-sm" data-testid="area-feliz-aniversario">
+            <p className="text-2xl">🎂</p>
+            <h2 className="mt-1 text-lg font-semibold">
+              {t("Feliz aniversário")}
+              {dados.contato.primeiroNome ? `, ${dados.contato.primeiroNome}` : ""}!
+            </h2>
+            <p className="mt-1 text-sm text-[#4b5563]">{t("Um ano novo começa para você. Que ele venha leve e cheio de bons encontros.")}</p>
+          </section>
+        ) : null}
+
+        {carta ? (
+          <CartaDoDia
+            slug={org.slug}
+            cor={cor}
+            tx={tx}
+            cartaId={carta.id}
+            nome={t(carta.nome)}
+            mensagem={t(MENSAGEM_DO_DIA[carta.id] ?? "")}
+            foto={fotoDaCartaDeHoje}
+          />
+        ) : null}
+
+        <section className="rounded-2xl bg-white p-5 shadow-sm" data-testid="area-lua">
+          <h2 className="text-base font-semibold">
+            {fase === "nova" ? "🌑 " : fase === "crescente" ? "🌓 " : fase === "cheia" ? "🌕 " : "🌗 "}
+            {fase === "nova" ? t("Lua nova") : fase === "crescente" ? t("Lua crescente") : fase === "cheia" ? t("Lua cheia") : t("Lua minguante")}
+          </h2>
+          <p className="mt-1 text-sm text-[#4b5563]">{fraseDaLua}</p>
+          {fase !== "cheia" ? (
+            <p className="mt-2 text-xs text-[#6b7280]">
+              {t("Próxima lua cheia:")} {dataCurta(proximaCheia.toISOString(), org.fuso, tagDeIdioma(idioma))}
+            </p>
+          ) : null}
+        </section>
+
         {dados.leitura.length > 0 ? (
           <section className="rounded-2xl bg-white p-5 shadow-sm" data-testid="area-leitura">
             <h2 className="text-base font-semibold">{t("Sua leitura")}</h2>
@@ -238,6 +310,15 @@ export default async function AreaDoCliente({ params, searchParams }: Props) {
             </section>
           </VitrineObservada>
         ) : null}
+
+        <DiarioDoCliente
+          slug={org.slug}
+          cor={cor}
+          tx={tx}
+          entradas={dados.diario.map((d) => ({ id: d.id, texto: d.texto, quando: dataCurta(d.quando, org.fuso, tagDeIdioma(idioma)) }))}
+        />
+
+        {!dados.contato.nascimento ? <AniversarioDoCliente slug={org.slug} cor={cor} tx={tx} /> : null}
 
         <DesejoDoCliente slug={org.slug} cor={cor} tx={tx} />
 

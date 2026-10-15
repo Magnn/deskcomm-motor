@@ -63,6 +63,8 @@ export interface Painel {
   materiaisAbertos: { aberturas: number; pessoas: number };
   desejos: Array<{ texto: string; pessoas: number }>;
   receitaAtribuida_cents: number;
+  /** Os motivos para voltar, em pessoas: revelaram a carta, escreveram no diário, contaram o aniversário. */
+  engajamento: { cartaDoDia: number; diario: number; aniversarios: number };
 }
 
 const ORDEM_DO_AVANCO: Record<string, number> = {
@@ -183,6 +185,11 @@ export function calcularPainel(
     materiaisAbertos: { aberturas: aberturas.length, pessoas: new Set(aberturas.map((e) => e.contact_id)).size },
     desejos,
     receitaAtribuida_cents: receitaAtribuida,
+    engajamento: {
+      cartaDoDia: pessoasCom("carta_do_dia").size,
+      diario: pessoasCom("diario_escrito").size,
+      aniversarios: pessoasCom("aniversario_salvo").size,
+    },
   };
 }
 

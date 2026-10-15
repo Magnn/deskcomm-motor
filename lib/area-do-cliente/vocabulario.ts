@@ -27,7 +27,7 @@ export const TIPOS_DE_EVENTO_DA_AREA = [
 export type TipoDeEventoDaArea = (typeof TIPOS_DE_EVENTO_DA_AREA)[number];
 
 /** Os eventos que o NAVEGADOR pode mandar. Os demais só o servidor registra. */
-export const EVENTOS_DO_NAVEGADOR = ["servico_visto", "desejo"] as const satisfies readonly TipoDeEventoDaArea[];
+export const EVENTOS_DO_NAVEGADOR = ["servico_visto", "desejo", "carta_do_dia"] as const satisfies readonly TipoDeEventoDaArea[];
 export type EventoDoNavegador = (typeof EVENTOS_DO_NAVEGADOR)[number];
 
 /** Mesmo conjunto do CHECK de `area_sessoes.origem`. */

@@ -13,7 +13,9 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { BUCKET_DAS_FOTOS } from "@/lib/catalogo/fotos";
 import { nomeDoContato } from "@/lib/contacts/rotulo-do-contato";
+import { caminhoDaCarta } from "@/lib/leitura/imagens";
 import { slugDoProduto } from "@/lib/preco/pos-venda";
 
 const BUCKET = "whatsapp-media";
@@ -77,8 +79,15 @@ export interface ServicoDaVitrine {
   ja_comprado: boolean;
 }
 
+export interface EntradaDoDiario {
+  id: string;
+  texto: string;
+  quando: string;
+}
+
 export interface DadosDaArea {
-  contato: { nome: string; primeiroNome: string; email: string | null };
+  contato: { nome: string; primeiroNome: string; email: string | null; nascimento: string | null };
+  diario: EntradaDoDiario[];
   compras: Compra[];
   leitura: Array<{ dia: string; itens: ItemDaLeitura[] }>;
   materiais: Material[];
@@ -121,8 +130,13 @@ export async function carregarDadosDaArea(
   org: { id: string; fuso: string },
   contactId: string,
 ): Promise<DadosDaArea> {
-  const [contatoR, comprasR, midiasR, servicosR] = await Promise.all([
-    admin.from("contacts").select("name, display_name, email").eq("id", contactId).eq("organization_id", org.id).maybeSingle(),
+  const [contatoR, comprasR, midiasR, servicosR, diarioR] = await Promise.all([
+    admin
+      .from("contacts")
+      .select("name, display_name, email, birthdate")
+      .eq("id", contactId)
+      .eq("organization_id", org.id)
+      .maybeSingle(),
     admin
       .from("revenue_ledger")
       .select("id, event_type, amount_cents, currency, occurred_at, metadata, related_event_id")
@@ -146,9 +160,21 @@ export async function carregarDadosDaArea(
       .eq("ativo", true)
       .order("posicao", { ascending: true })
       .limit(40),
+    admin
+      .from("area_diario")
+      .select("id, texto, created_at")
+      .eq("organization_id", org.id)
+      .eq("contact_id", contactId)
+      .order("created_at", { ascending: false })
+      .limit(10),
   ]);
 
-  const contato = contatoR.data as { name: string | null; display_name: string | null; email: string | null } | null;
+  const contato = contatoR.data as {
+    name: string | null;
+    display_name: string | null;
+    email: string | null;
+    birthdate: string | null;
+  } | null;
   const nome = nomeDoContato(contato) ?? "";
 
   const lancamentos = (comprasR.data ?? []) as Array<{
@@ -202,7 +228,12 @@ export async function carregarDadosDaArea(
   }));
 
   return {
-    contato: { nome, primeiroNome: primeiroNome(nome), email: contato?.email ?? null },
+    contato: { nome, primeiroNome: primeiroNome(nome), email: contato?.email ?? null, nascimento: contato?.birthdate ?? null },
+    diario: ((diarioR.data ?? []) as Array<{ id: string; texto: string; created_at: string }>).map((d) => ({
+      id: d.id,
+      texto: d.texto,
+      quando: d.created_at,
+    })),
     compras,
     leitura: agruparLeituraPorDia(leituraItens, org.fuso),
     materiais,
@@ -231,4 +262,10 @@ export async function linkDoMaterial(
     .from(BUCKET)
     .createSignedUrl(m.media_storage_path as string, VALIDADE_DO_ARQUIVO_S);
   return assinado?.signedUrl ?? null;
+}
+
+/** O link da foto de uma carta do baralho da leitura (`catalog-photos/<org>/leitura/cartas/NN.jpg`). */
+export async function fotoDaCarta(admin: SupabaseClient, orgId: string, cartaId: number): Promise<string | null> {
+  const { data } = await admin.storage.from(BUCKET_DAS_FOTOS).createSignedUrl(caminhoDaCarta(orgId, cartaId), VALIDADE_DO_ARQUIVO_S);
+  return data?.signedUrl ?? null;
 }

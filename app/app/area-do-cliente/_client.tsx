@@ -195,6 +195,20 @@ function AbaPainel() {
               <p className="mt-3 text-xs text-muted-foreground">
                 {t("Materiais abertos:")} {p.materiaisAbertos.aberturas} ({p.materiaisAbertos.pessoas} {t("pessoas")})
               </p>
+              <ul className="mt-3 space-y-1 border-t border-border pt-3 text-sm" data-testid="area-engajamento">
+                <li className="flex justify-between">
+                  <span>{t("Revelaram a carta do dia")}</span>
+                  <span className="tabular-nums">{p.engajamento.cartaDoDia}</span>
+                </li>
+                <li className="flex justify-between">
+                  <span>{t("Escreveram no diário")}</span>
+                  <span className="tabular-nums">{p.engajamento.diario}</span>
+                </li>
+                <li className="flex justify-between">
+                  <span>{t("Contaram o aniversário")}</span>
+                  <span className="tabular-nums">{p.engajamento.aniversarios}</span>
+                </li>
+              </ul>
             </Card>
           </div>
 
@@ -518,10 +532,12 @@ function AbaConfig({ inicial }: { inicial: ConfigDaArea }) {
   const [boasVindas, setBoasVindas] = useState(inicial.boas_vindas ?? "");
   const [whatsapp, setWhatsapp] = useState(inicial.whatsapp ?? "");
   const [cor, setCor] = useState(inicial.cor ?? "");
+  const [cartaDoDia, setCartaDoDia] = useState(inicial.carta_do_dia ?? false);
   const salvar = useMutation({
     mutationFn: () =>
       apiClient.put("/api/v1/area/config", {
         ativo,
+        carta_do_dia: cartaDoDia,
         ...(titulo.trim() ? { titulo: titulo.trim() } : {}),
         ...(boasVindas.trim() ? { boas_vindas: boasVindas.trim() } : {}),
         ...(whatsapp.replace(/\D/g, "") ? { whatsapp: whatsapp.replace(/\D/g, "") } : {}),
@@ -561,6 +577,13 @@ function AbaConfig({ inicial }: { inicial: ConfigDaArea }) {
           onChange={(e) => setWhatsapp(e.target.value)}
         />
         <p className="mt-1 text-xs text-muted-foreground">{t("Se o número mudar, troque só aqui: nenhum cliente fica sem contato.")}</p>
+      </div>
+      <div className="flex items-center justify-between">
+        <div>
+          <Label htmlFor="area-carta">{t("Carta do dia")}</Label>
+          <p className="text-xs text-muted-foreground">{t("Usa as fotos do baralho da leitura. Ligue só se elas estiverem cadastradas.")}</p>
+        </div>
+        <Switch id="area-carta" checked={cartaDoDia} onCheckedChange={setCartaDoDia} />
       </div>
       <div>
         <Label htmlFor="area-cor">{t("Cor principal")}</Label>

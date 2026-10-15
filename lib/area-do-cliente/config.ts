@@ -24,6 +24,12 @@ export const configDaAreaSchema = z.strictObject({
     .trim()
     .regex(/^\d{10,15}$/, "só números, com DDI e DDD (ex.: 5569999999999)")
     .optional(),
+  /**
+   * Mostra a carta do dia (o baralho da leitura, `lib/leitura/baralho.ts`). Só
+   * faz sentido para quem tem as fotos das cartas no Storage — por isso desligada
+   * por padrão.
+   */
+  carta_do_dia: z.boolean().optional(),
   /** Cor principal da área, em hex. Vazio = a cor do produto. */
   cor: z
     .string()

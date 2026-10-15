@@ -4,7 +4,10 @@
  */
 import { describe, expect, it } from "vitest";
 
+import { dataDeNascimentoValida, diasParaOAniversario, semanaDoAniversario } from "@/lib/area-do-cliente/aniversario";
+import { MENSAGEM_DO_DIA, cartaDoDia } from "@/lib/area-do-cliente/carta-do-dia";
 import { lerConfigDaArea } from "@/lib/area-do-cliente/config";
+import { faseDaLua, proximaLua } from "@/lib/area-do-cliente/lua";
 import { agruparLeituraPorDia, classificarMidia, primeiroNome } from "@/lib/area-do-cliente/dados";
 import { calcularPainel, type LinhaDeCompra, type LinhaDeEvento } from "@/lib/area-do-cliente/metricas";
 import { FORMA_DO_TOKEN, codigoConfere, gerarCodigo, gerarToken, hashDoCodigo, hashDoToken } from "@/lib/area-do-cliente/token";
@@ -205,5 +208,76 @@ describe("o e-mail de quem pagou pela Stripe", () => {
     expect(emailDoPagamento({ latest_charge: { billing_details: { email: null } } })).toBeNull();
     expect(emailDoPagamento({ receipt_email: "sem-arroba" })).toBeNull();
     expect(emailDoPagamento({})).toBeNull();
+  });
+});
+
+describe("carta do dia", () => {
+  it("é a mesma para a mesma pessoa no mesmo dia, e muda com o dia", () => {
+    const a = cartaDoDia("contato-a", "2026-10-15");
+    expect(cartaDoDia("contato-a", "2026-10-15").id).toBe(a.id);
+    const semana = ["16", "17", "18", "19", "20", "21", "22"].map((d) => cartaDoDia("contato-a", `2026-10-${d}`).id);
+    expect(new Set([a.id, ...semana]).size).toBeGreaterThan(1);
+  });
+  it("todo o baralho tem mensagem do dia, e nenhuma promete resultado ou prazo", () => {
+    for (let id = 1; id <= 22; id++) {
+      const m = MENSAGEM_DO_DIA[id];
+      expect(m, `carta ${id}`).toBeTruthy();
+      expect(m).not.toMatch(/garant|com certeza|vai voltar|em \d+ dias|uma semana|cura/i);
+    }
+  });
+});
+
+describe("fase da lua", () => {
+  // Datas medidas: lua cheia em 17/10/2024 11:26 UTC; lua nova em 02/10/2024 18:49 UTC.
+  it("acerta as fases em datas conhecidas", () => {
+    expect(faseDaLua(new Date("2024-10-17T11:26:00Z"))).toBe("cheia");
+    expect(faseDaLua(new Date("2024-10-02T18:49:00Z"))).toBe("nova");
+    expect(faseDaLua(new Date("2024-10-10T12:00:00Z"))).toBe("crescente");
+    expect(faseDaLua(new Date("2024-10-25T12:00:00Z"))).toBe("minguante");
+  });
+  it("a próxima cheia cai a no máximo um dia da efeméride", () => {
+    const prevista = proximaLua(new Date("2024-10-03T00:00:00Z"), "cheia");
+    expect(Math.abs(prevista.getTime() - Date.parse("2024-10-17T11:26:00Z"))).toBeLessThan(86_400_000);
+  });
+});
+
+describe("aniversário", () => {
+  it("aceita data real e recusa futuro, impossível e lixo", () => {
+    const hoje = new Date("2026-10-15T12:00:00Z");
+    expect(dataDeNascimentoValida("1980-04-09", hoje)).toBe(true);
+    expect(dataDeNascimentoValida("2027-01-01", hoje)).toBe(false);
+    expect(dataDeNascimentoValida("1990-02-30", hoje)).toBe(false);
+    expect(dataDeNascimentoValida("1900-01-01", hoje)).toBe(false);
+    expect(dataDeNascimentoValida("09/04/1980", hoje)).toBe(false);
+  });
+  it("conta os dias e celebra na semana do aniversário", () => {
+    expect(diasParaOAniversario("1980-10-15", "2026-10-15")).toBe(0);
+    expect(diasParaOAniversario("1980-10-20", "2026-10-15")).toBe(5);
+    expect(semanaDoAniversario("1980-10-15", "2026-10-15")).toBe(true);
+    expect(semanaDoAniversario("1980-10-10", "2026-10-15")).toBe(true);
+    expect(semanaDoAniversario("1980-10-01", "2026-10-15")).toBe(false);
+    expect(semanaDoAniversario("1980-10-16", "2026-10-15")).toBe(false);
+  });
+  it("29 de fevereiro comemora em 28 nos anos comuns", () => {
+    expect(diasParaOAniversario("2000-02-29", "2027-02-28")).toBe(0);
+  });
+});
+
+describe("o painel conta os motivos para voltar", () => {
+  it("em pessoas, sem o conteúdo do diário", () => {
+    const e = (quem: string, tipo: LinhaDeEvento["tipo"]): LinhaDeEvento => ({
+      contact_id: quem,
+      tipo,
+      servico_id: null,
+      ref: null,
+      props: null,
+      created_at: "2026-10-15T10:00:00Z",
+    });
+    const p = calcularPainel(
+      [e("ana", "carta_do_dia"), e("ana", "carta_do_dia"), e("bia", "carta_do_dia"), e("ana", "diario_escrito"), e("cia", "aniversario_salvo")],
+      [],
+      [],
+    );
+    expect(p.engajamento).toEqual({ cartaDoDia: 2, diario: 1, aniversarios: 1 });
   });
 });

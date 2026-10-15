@@ -64,7 +64,7 @@ export const PUBLIC_PATHS: RegExp[] = [
   // responde 404. "Público" aqui é "o proxy não decide", nunca "sem
   // autenticação". Ancorado no slug da organização.
   /^\/c\/[a-z0-9][a-z0-9-]{1,62}(\/.*)?$/,
-  /^\/api\/v1\/area\/publica\/[a-z0-9][a-z0-9-]{1,62}\/(codigo|codigo\/confirmar|eventos|email)$/,
+  /^\/api\/v1\/area\/publica\/[a-z0-9][a-z0-9-]{1,62}\/(codigo|codigo\/confirmar|eventos|email|diario|aniversario)$/,
   // Relógio Hobby (GitHub Actions / cron-job.org). Auth é Bearer na própria
   // rota — sem isto o proxy devolve 401 e o follow-up waiting_reply nunca anda.
   /^\/api\/v1\/system\/relogio\/tick$/,

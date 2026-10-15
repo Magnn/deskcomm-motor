@@ -18,6 +18,7 @@ export const runtime = "nodejs";
 
 const corpo = z.discriminatedUnion("tipo", [
   z.strictObject({ tipo: z.literal("servico_visto"), servico_id: z.string().uuid() }),
+  z.strictObject({ tipo: z.literal("carta_do_dia"), carta: z.number().int().min(1).max(22) }),
   z.strictObject({
     tipo: z.literal("desejo"),
     opcao: z.string().trim().min(1).max(60).optional(),
@@ -63,6 +64,24 @@ export async function POST(req: NextRequest, { params }: Ctx): Promise<Response>
         tipo: "servico_visto",
         sessaoId: sessao.sessaoId,
         servicoId: e.servico_id,
+      });
+    }
+  } else if (e.tipo === "carta_do_dia") {
+    // Uma revelação por pessoa por dia: abrir de novo à tarde não infla o painel.
+    const { count } = await admin
+      .from("area_eventos")
+      .select("id", { count: "exact", head: true })
+      .eq("organization_id", org.id)
+      .eq("contact_id", sessao.contactId)
+      .eq("tipo", "carta_do_dia")
+      .gte("created_at", new Date(Date.now() - 20 * 3_600_000).toISOString());
+    if (!count) {
+      await registrarEvento(admin, {
+        organizationId: org.id,
+        contactId: sessao.contactId,
+        tipo: "carta_do_dia",
+        sessaoId: sessao.sessaoId,
+        ref: String(e.carta),
       });
     }
   } else {
