@@ -38,6 +38,10 @@ export type TipoDeEventoDaArea = (typeof TIPOS_DE_EVENTO_DA_AREA)[number];
 export const EVENTOS_DO_NAVEGADOR = ["servico_visto", "desejo", "carta_do_dia"] as const satisfies readonly TipoDeEventoDaArea[];
 export type EventoDoNavegador = (typeof EVENTOS_DO_NAVEGADOR)[number];
 
+/** Mesmo conjunto do CHECK de `area_mensagens.autor` (migration 0930). */
+export const AUTORES_DA_MENSAGEM = ["cliente", "equipe"] as const;
+export type AutorDaMensagem = (typeof AUTORES_DA_MENSAGEM)[number];
+
 /** Mesmo conjunto do CHECK de `area_sessoes.origem`. */
 export const ORIGENS_DE_SESSAO_DA_AREA = ["convite", "codigo"] as const;
 export type OrigemDeSessaoDaArea = (typeof ORIGENS_DE_SESSAO_DA_AREA)[number];

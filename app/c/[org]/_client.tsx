@@ -26,6 +26,16 @@ export interface TextosDaArea {
   comSeuEmail: string;
   salvar: string;
   prontoEntreCom: string;
+  faleComAGente: string;
+  faleComAGenteConvite: string;
+  escrevaAqui: string;
+  voce: string;
+  nos: string;
+  enviada: string;
+  conversaGuardada: string;
+  conversaGuardadaConvite: string;
+  verConversaInteira: string;
+  mostrarMenos: string;
   revelar: string;
   cartaDoDia: string;
   seuDiario: string;
@@ -465,6 +475,163 @@ export function AniversarioDoCliente({ slug, cor, tx }: { slug: string; cor: str
         </button>
       </form>
       {erro ? <p className="mt-2 text-sm text-[#b91c1c]">{erro}</p> : null}
+    </section>
+  );
+}
+
+type MensagemDaTela = { id: string; autor: "cliente" | "equipe"; texto: string; quando: string };
+
+/**
+ * "Fale com a gente" de dentro da área: a pessoa escreve, a equipe responde no
+ * painel, e a resposta aparece aqui. Enquanto a página está aberta, as
+ * respostas são buscadas a cada 20 segundos.
+ */
+export function FaleComAGente({
+  slug,
+  cor,
+  tx,
+  inicial,
+}: {
+  slug: string;
+  cor: string;
+  tx: TextosDaArea;
+  inicial: MensagemDaTela[];
+}) {
+  const [mensagens, setMensagens] = React.useState(inicial);
+  const [texto, setTexto] = React.useState("");
+  const [enviando, setEnviando] = React.useState(false);
+  const [erro, setErro] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    let vivo = true;
+    const buscar = async () => {
+      try {
+        const res = await fetch(`/api/v1/area/publica/${slug}/mensagens`, { credentials: "same-origin", cache: "no-store" });
+        const json = (await res.json().catch(() => null)) as { data?: MensagemDaTela[] } | null;
+        if (vivo && res.ok && json?.data) setMensagens(json.data);
+      } catch {
+        // Sem rede agora: tenta de novo na próxima volta.
+      }
+    };
+    const id = window.setInterval(() => void buscar(), 20_000);
+    return () => {
+      vivo = false;
+      window.clearInterval(id);
+    };
+  }, [slug]);
+
+  const enviar = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setEnviando(true);
+    setErro(null);
+    try {
+      const res = await fetch(`/api/v1/area/publica/${slug}/mensagens`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ texto: texto.trim() }),
+        credentials: "same-origin",
+      });
+      const json = (await res.json().catch(() => null)) as { data?: MensagemDaTela; error?: { message?: string } } | null;
+      if (res.ok && json?.data) {
+        setMensagens((m) => [...m, json.data as MensagemDaTela]);
+        setTexto("");
+      } else setErro(json?.error?.message ?? tx.naoFoiPossivel);
+    } catch {
+      setErro(tx.semConexao);
+    }
+    setEnviando(false);
+  };
+
+  return (
+    <section className="rounded-2xl bg-white p-5 shadow-sm" data-testid="area-fale-com-a-gente">
+      <h2 className="text-base font-semibold">💬 {tx.faleComAGente}</h2>
+      <p className="mt-1 text-sm text-[#4b5563]">{tx.faleComAGenteConvite}</p>
+      {mensagens.length > 0 ? (
+        <ul className="mt-3 max-h-80 space-y-2 overflow-y-auto">
+          {mensagens.map((m) => (
+            <li key={m.id} className={m.autor === "cliente" ? "flex justify-end" : "flex justify-start"}>
+              <span
+                className={
+                  m.autor === "cliente"
+                    ? "max-w-[85%] whitespace-pre-line rounded-2xl rounded-br-sm px-3 py-2 text-sm text-white"
+                    : "max-w-[85%] whitespace-pre-line rounded-2xl rounded-bl-sm bg-[#f3f4f6] px-3 py-2 text-sm"
+                }
+                style={m.autor === "cliente" ? { background: cor } : undefined}
+              >
+                <span className="mb-0.5 block text-[10px] opacity-70">{m.autor === "cliente" ? tx.voce : tx.nos}</span>
+                {m.texto}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      <form onSubmit={enviar} className="mt-3 space-y-2">
+        <textarea
+          value={texto}
+          onChange={(e) => setTexto(e.target.value)}
+          maxLength={2000}
+          rows={2}
+          required
+          className={CAMPO}
+          placeholder={tx.escrevaAqui}
+          data-testid="area-fale-texto"
+        />
+        <button
+          type="submit"
+          disabled={enviando || texto.trim() === ""}
+          className="rounded-full px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+          style={{ background: cor }}
+        >
+          {enviando ? tx.enviando : tx.enviar}
+        </button>
+        {erro ? <p className="text-sm text-[#b91c1c]">{erro}</p> : null}
+      </form>
+    </section>
+  );
+}
+
+/**
+ * A conversa de WhatsApp com a empresa, só para ler. Começa mostrando as
+ * últimas falas; "Ver a conversa inteira" abre o resto.
+ */
+export function ConversaGuardada({
+  tx,
+  empresa,
+  falas,
+}: {
+  tx: TextosDaArea;
+  empresa: string;
+  falas: Array<{ id: string; de: "voce" | "empresa"; texto: string; quando: string }>;
+}) {
+  const [inteira, setInteira] = React.useState(false);
+  const visiveis = inteira ? falas : falas.slice(-12);
+  return (
+    <section className="rounded-2xl bg-white p-5 shadow-sm" data-testid="area-conversa">
+      <h2 className="text-base font-semibold">{tx.conversaGuardada}</h2>
+      <p className="mt-1 text-sm text-[#4b5563]">{tx.conversaGuardadaConvite}</p>
+      <ul className={inteira ? "mt-3 max-h-[70vh] space-y-2 overflow-y-auto" : "mt-3 space-y-2"}>
+        {visiveis.map((f) => (
+          <li key={f.id} className={f.de === "voce" ? "flex justify-end" : "flex justify-start"}>
+            <span
+              className={
+                f.de === "voce"
+                  ? "max-w-[85%] whitespace-pre-line rounded-2xl rounded-br-sm bg-[#dcf8c6] px-3 py-2 text-sm"
+                  : "max-w-[85%] whitespace-pre-line rounded-2xl rounded-bl-sm bg-[#f3f4f6] px-3 py-2 text-sm"
+              }
+            >
+              <span className="mb-0.5 block text-[10px] text-[#6b7280]">
+                {f.de === "voce" ? tx.voce : empresa} · {f.quando}
+              </span>
+              {f.texto}
+            </span>
+          </li>
+        ))}
+      </ul>
+      {falas.length > 12 ? (
+        <button type="button" onClick={() => setInteira((v) => !v)} className="mt-3 text-sm underline">
+          {inteira ? tx.mostrarMenos : `${tx.verConversaInteira} (${falas.length})`}
+        </button>
+      ) : null}
     </section>
   );
 }

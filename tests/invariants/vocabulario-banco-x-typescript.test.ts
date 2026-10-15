@@ -56,6 +56,12 @@ const PARES: Array<{
     simbolo: "TIPOS_DE_EVENTO_DA_AREA",
   },
   {
+    tabela: "area_mensagens",
+    coluna: "autor",
+    arquivo: "lib/area-do-cliente/vocabulario.ts",
+    simbolo: "AUTORES_DA_MENSAGEM",
+  },
+  {
     tabela: "area_sessoes",
     coluna: "origem",
     arquivo: "lib/area-do-cliente/vocabulario.ts",

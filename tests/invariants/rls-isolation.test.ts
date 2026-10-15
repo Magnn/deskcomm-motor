@@ -309,6 +309,10 @@ beforeAll(() => {
           insert into public.area_assinaturas (organization_id, contact_id, valido_ate)
             values (v_org, v_contact, now() + interval '30 days');
         end if;
+        if not exists (select 1 from public.area_mensagens where organization_id = v_org) then
+          insert into public.area_mensagens (organization_id, contact_id, autor, texto)
+            values (v_org, v_contact, 'cliente', 'mensagem de invariante');
+        end if;
         if not exists (select 1 from public.area_conteudos where organization_id = v_org) then
           insert into public.area_conteudos (organization_id, mes, titulo, texto)
             values (v_org, date_trunc('month', now())::date, 'Conteúdo de invariante', 'texto');
@@ -684,6 +688,7 @@ export const TABLES = [
   "area_eventos",
   "area_assinaturas",
   "area_conteudos",
+  "area_mensagens",
 ] as const;
 
 describe("RLS tenant isolation (fn_user_org_ids pattern)", () => {

@@ -38878,6 +38878,32 @@ comment on table public.area_codigos is
 comment on table public.area_eventos is
   'O rastro da área do cliente, para medir o funil: convite_criado → entrou → visitou → servico_visto → checkout_clicado → (compra no ledger). desejo = o que a pessoa disse querer.';
 
+-- ---- Área do cliente: "Fale com a gente" dentro da área (migration 0930) ----
+create table if not exists public.area_mensagens (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references public.organizations(id) on delete cascade,
+  contact_id uuid not null references public.contacts(id) on delete cascade,
+  autor text not null check (autor in ('cliente', 'equipe')),
+  autor_user_id uuid references auth.users(id) on delete set null,
+  texto text not null check (char_length(texto) between 1 and 2000),
+  lida_pela_equipe_at timestamptz,
+  lida_pelo_cliente_at timestamptz,
+  created_at timestamptz not null default now()
+);
+create index if not exists area_mensagens_contato_idx on public.area_mensagens (organization_id, contact_id, created_at);
+create index if not exists area_mensagens_pendentes_idx on public.area_mensagens (organization_id, created_at desc)
+  where autor = 'cliente' and lida_pela_equipe_at is null;
+
+alter table public.area_mensagens enable row level security;
+drop policy if exists tenant_isolation_area_mensagens_select on public.area_mensagens;
+create policy tenant_isolation_area_mensagens_select on public.area_mensagens
+  for select
+  using (organization_id in (select public.fn_user_org_ids()) or public.fn_is_platform_admin());
+revoke all on public.area_mensagens from anon;
+
+comment on table public.area_mensagens is
+  'Conversa da área do cliente: o cliente escreve na área, a equipe responde no painel. Só o servidor escreve; a equipe lê pela RLS.';
+
 -- ---- travas do modo somente leitura do suporte, depois de toda tabela (migration 0274) ----
 --
 -- ⚠️ ESTA CHAMADA É O ÚLTIMO BLOCO DO ARQUIVO. Tabela nova, coluna

@@ -22,6 +22,30 @@ const BUCKET = "whatsapp-media";
 /** Os links dos arquivos valem 1 hora; a página os gera de novo a cada visita. */
 const VALIDADE_DO_ARQUIVO_S = 3600;
 const MAX_MIDIAS = 300;
+/** As últimas falas da conversa de WhatsApp que a área mostra. */
+const MAX_FALAS = 400;
+
+/**
+ * Regra pura: as falas da conversa que a área mostra, da mais antiga para a mais
+ * nova. Texto entra como está; áudio entra pela transcrição (sem transcrição,
+ * fica de fora — "[áudio]" solto não diz nada a quem lê).
+ */
+export function falasDaConversa(
+  linhas: ReadonlyArray<{ id: string; direction: string; type: string; body: string | null; media_derived_text: string | null; created_at: string }>,
+): FalaDaConversa[] {
+  const falas: FalaDaConversa[] = [];
+  for (const l of linhas) {
+    const texto = (l.type === "audio" ? (l.media_derived_text ?? "") : (l.body ?? "")).trim();
+    if (texto === "") continue;
+    falas.push({
+      id: l.id,
+      de: l.direction === "inbound" ? "voce" : "empresa",
+      texto: l.type === "audio" ? `🎤 ${texto}` : texto,
+      quando: l.created_at,
+    });
+  }
+  return falas.sort((a, b) => (a.quando < b.quando ? -1 : 1));
+}
 
 export interface MensagemComMidia {
   id: string;
@@ -38,7 +62,7 @@ export type ClasseDaMidia = "leitura" | "material";
 /** Regra pura: o que desta mensagem (já saída da empresa, com arquivo) aparece na área, e onde. */
 export function classificarMidia(m: Pick<MensagemComMidia, "type" | "media_storage_path" | "metadata">): ClasseDaMidia | null {
   if (!m.media_storage_path) return null;
-  if (m.type === "image") return "leitura";
+  if (m.type === "image") return /(^|\/)leitura-[^/]+$/.test(m.media_storage_path) ? "leitura" : null;
   if (m.type === "document" || m.type === "video") return "material";
   if (m.type === "audio") return m.metadata?.audio_as_file === true ? "material" : null;
   return null;
@@ -85,8 +109,27 @@ export interface EntradaDoDiario {
   quando: string;
 }
 
+export interface FalaDaConversa {
+  id: string;
+  /** Quem falou: a pessoa ou a empresa. */
+  de: "voce" | "empresa";
+  texto: string;
+  quando: string;
+}
+
+export interface MensagemDaArea {
+  id: string;
+  autor: "cliente" | "equipe";
+  texto: string;
+  quando: string;
+}
+
 export interface DadosDaArea {
   contato: { nome: string; primeiroNome: string; email: string | null; nascimento: string | null };
+  /** A conversa de WhatsApp com a empresa, só para ler: é onde a entrega em texto aconteceu. */
+  conversa: FalaDaConversa[];
+  /** O "Fale com a gente" de dentro da área. */
+  mensagens: MensagemDaArea[];
   diario: EntradaDoDiario[];
   compras: Compra[];
   leitura: Array<{ dia: string; itens: ItemDaLeitura[] }>;
@@ -130,7 +173,7 @@ export async function carregarDadosDaArea(
   org: { id: string; fuso: string },
   contactId: string,
 ): Promise<DadosDaArea> {
-  const [contatoR, comprasR, midiasR, servicosR, diarioR] = await Promise.all([
+  const [contatoR, comprasR, midiasR, servicosR, diarioR, conversaR, mensagensR] = await Promise.all([
     admin
       .from("contacts")
       .select("name, display_name, email, birthdate")
@@ -167,6 +210,21 @@ export async function carregarDadosDaArea(
       .eq("contact_id", contactId)
       .order("created_at", { ascending: false })
       .limit(10),
+    admin
+      .from("messages")
+      .select("id, direction, type, body, media_derived_text, created_at")
+      .eq("organization_id", org.id)
+      .eq("contact_id", contactId)
+      .in("type", ["text", "audio"])
+      .order("created_at", { ascending: false })
+      .limit(MAX_FALAS),
+    admin
+      .from("area_mensagens")
+      .select("id, autor, texto, created_at")
+      .eq("organization_id", org.id)
+      .eq("contact_id", contactId)
+      .order("created_at", { ascending: true })
+      .limit(200),
   ]);
 
   const contato = contatoR.data as {
@@ -187,10 +245,19 @@ export async function carregarDadosDaArea(
     related_event_id: string | null;
   }>;
   const estornados = new Set(
-    lancamentos.filter((l) => l.event_type !== "charge" && l.related_event_id).map((l) => l.related_event_id as string),
+    lancamentos
+      .filter((l) => (l.event_type === "refund" || l.event_type === "chargeback") && l.related_event_id)
+      .map((l) => l.related_event_id as string),
   );
+  const ajustes = new Map<string, number>();
+  for (const l of lancamentos) {
+    if (l.event_type === "adjustment" && l.related_event_id) {
+      ajustes.set(l.related_event_id, (ajustes.get(l.related_event_id) ?? 0) + l.amount_cents);
+    }
+  }
   const compras: Compra[] = lancamentos
-    .filter((l) => l.event_type === "charge")
+    // O lançamento anulado por ajuste (ex.: o mesmo comprovante registrado duas vezes) não é compra.
+    .filter((l) => l.event_type === "charge" && l.amount_cents + (ajustes.get(l.id) ?? 0) > 0)
     .map((l) => ({
       id: l.id,
       produto: typeof l.metadata?.produto === "string" && l.metadata.produto.trim() !== "" ? l.metadata.produto.trim() : null,
@@ -227,8 +294,24 @@ export async function carregarDadosDaArea(
     ja_comprado: comprados.has(slugDoProduto(s.nome)),
   }));
 
+  const conversa = falasDaConversa(
+    (conversaR.data ?? []) as Array<{
+      id: string;
+      direction: string;
+      type: string;
+      body: string | null;
+      media_derived_text: string | null;
+      created_at: string;
+    }>,
+  );
+  const mensagens = ((mensagensR.data ?? []) as Array<{ id: string; autor: "cliente" | "equipe"; texto: string; created_at: string }>).map(
+    (m) => ({ id: m.id, autor: m.autor, texto: m.texto, quando: m.created_at }),
+  );
+
   return {
     contato: { nome, primeiroNome: primeiroNome(nome), email: contato?.email ?? null, nascimento: contato?.birthdate ?? null },
+    conversa,
+    mensagens,
     diario: ((diarioR.data ?? []) as Array<{ id: string; texto: string; created_at: string }>).map((d) => ({
       id: d.id,
       texto: d.texto,

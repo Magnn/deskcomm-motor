@@ -644,6 +644,7 @@ export const AUDIT_ACTIONS = [
   "area.servico_alterado",
   "area.servico_removido",
   "area.convite_criado",
+  "area.mensagem_respondida",
   "comanda.aberta",
   "comanda.alterada",
   "comanda.cancelada",
