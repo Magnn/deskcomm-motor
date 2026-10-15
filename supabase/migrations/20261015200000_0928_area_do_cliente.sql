@@ -193,6 +193,7 @@ create policy tenant_isolation_area_sessoes_select on public.area_sessoes
 
 -- O código nem a equipe lê: é segredo de quem recebeu o e-mail.
 alter table public.area_codigos enable row level security;
+revoke all on public.area_codigos from anon, authenticated;
 
 alter table public.area_diario enable row level security;
 revoke all on public.area_diario from anon, authenticated;
@@ -232,5 +233,9 @@ comment on table public.area_codigos is
   'Código de 6 números mandado por e-mail para entrar na área do cliente. Só em hash; 5 tentativas; 10 minutos.';
 comment on table public.area_eventos is
   'O rastro da área do cliente, para medir o funil: convite_criado → entrou → visitou → servico_visto → checkout_clicado → (compra no ledger). desejo = o que a pessoa disse querer.';
+
+-- As travas do modo somente leitura do suporte valem também para as tabelas novas
+-- (mesma chamada que a 0274 deixou como último bloco do baseline).
+do $f$ begin perform public.fn_aplicar_travas_de_suporte(); end $f$;
 
 notify pgrst, 'reload schema';

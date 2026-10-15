@@ -15,6 +15,7 @@ import { notFound } from "next/navigation";
 
 import { semanaDoAniversario } from "@/lib/area-do-cliente/aniversario";
 import { MENSAGEM_DO_DIA, cartaDoDia } from "@/lib/area-do-cliente/carta-do-dia";
+import { DIAS_DO_AVISO_DE_RENOVACAO, assinaturaAtiva, diasRestantes, lerAssinatura, mesDoDia } from "@/lib/area-do-cliente/circulo";
 import { carregarDadosDaArea, diaNoFuso, fotoDaCarta } from "@/lib/area-do-cliente/dados";
 import { faseDaLua, proximaLua } from "@/lib/area-do-cliente/lua";
 import { COR_PADRAO_DA_AREA } from "@/lib/area-do-cliente/config";
@@ -35,6 +36,7 @@ import {
   VitrineObservada,
   type TextosDaArea,
 } from "./_client";
+import { CirculoDoCliente } from "./_circulo";
 
 export const dynamic = "force-dynamic";
 
@@ -90,6 +92,22 @@ function textosDoNavegador(t: (s: string) => string): TextosDaArea {
     aniversarioTitulo: t("Quando é o seu aniversário? 🎂"),
     aniversarioConvite: t("Conta pra gente: no seu dia a gente prepara algo especial só para você."),
     aniversarioObrigada: t("Anotado! No seu dia tem surpresa. 💜"),
+    circuloConvite: t("Todo mês: a energia do mês, um ritual simples para fazer em casa e uma pergunta sua respondida com uma carta."),
+    por30Dias: t("por 30 dias"),
+    pagarComPix: t("Pagar com Pix"),
+    pagarComCartao: t("Pagar com cartão"),
+    copiarCodigo: t("Copiar código Pix"),
+    codigoCopiado: t("Código copiado."),
+    depoisDePagar: t("Depois de pagar, volte aqui e atualize a página: o acesso libera sozinho."),
+    voceEstaNoCirculo: t("Você está no Círculo até"),
+    renovar: t("Renovar por mais 30 dias"),
+    conteudoPreparando: t("O conteúdo deste mês está sendo preparado…"),
+    perguntaDoMes: t("Sua pergunta do mês"),
+    perguntaExemplo: t("Ex.: o que preciso olhar no meu relacionamento agora?"),
+    perguntar: t("Perguntar às cartas"),
+    consultando: t("Tirando a sua carta…"),
+    respostaChegando: t("Sua resposta está sendo preparada. Volte daqui a pouco."),
+    tentarDeNovo: t("Tentar de novo"),
   };
 }
 
@@ -157,6 +175,22 @@ export default async function AreaDoCliente({ params, searchParams }: Props) {
         : fase === "cheia"
           ? t("Lua cheia: tempo de colher e agradecer o que já chegou.")
           : t("Lua minguante: tempo de soltar o que pesa e descansar.");
+  const circulo = org.config.circulo?.ativo ? org.config.circulo : null;
+  const validoAte = circulo ? await lerAssinatura(admin, org.id, sessao.contactId) : null;
+  const noCirculo = circulo ? assinaturaAtiva(validoAte, new Date()) : false;
+  const mesAtual = mesDoDia(hoje);
+  const [conteudoR, perguntaR] = noCirculo
+    ? await Promise.all([
+        admin.from("area_conteudos").select("titulo, texto").eq("organization_id", org.id).eq("mes", mesAtual).maybeSingle(),
+        admin
+          .from("area_perguntas")
+          .select("pergunta, resposta")
+          .eq("organization_id", org.id)
+          .eq("contact_id", sessao.contactId)
+          .eq("mes", mesAtual)
+          .maybeSingle(),
+      ])
+    : [{ data: null }, { data: null }];
   const aniversarioNestaSemana = dados.contato.nascimento ? semanaDoAniversario(dados.contato.nascimento, hoje) : false;
 
   const ola = dados.contato.primeiroNome ? `${t("Olá")}, ${dados.contato.primeiroNome}` : t("Olá");
@@ -184,6 +218,21 @@ export default async function AreaDoCliente({ params, searchParams }: Props) {
             </h2>
             <p className="mt-1 text-sm text-[#4b5563]">{t("Um ano novo começa para você. Que ele venha leve e cheio de bons encontros.")}</p>
           </section>
+        ) : null}
+
+        {circulo ? (
+          <CirculoDoCliente
+            slug={org.slug}
+            cor={cor}
+            tx={tx}
+            nome={circulo.nome}
+            preco={dinheiro(circulo.preco_cents, "BRL")}
+            ativo={noCirculo}
+            ate={noCirculo && validoAte ? dataCurta(validoAte, org.fuso, tagDeIdioma(idioma)) : null}
+            renovarJa={noCirculo && validoAte ? diasRestantes(validoAte, new Date()) <= DIAS_DO_AVISO_DE_RENOVACAO : false}
+            conteudo={(conteudoR.data as { titulo: string; texto: string } | null) ?? null}
+            pergunta={(perguntaR.data as { pergunta: string; resposta: string | null } | null) ?? null}
+          />
         ) : null}
 
         {carta ? (

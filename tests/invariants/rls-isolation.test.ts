@@ -287,6 +287,33 @@ beforeAll(() => {
             values (v_org, v_contact, 'email', 'rls-invariant@exemplo.test', now() + interval '7 days');
         end if;
 
+        -- área do cliente (0928): o que a equipe LÊ. As três tabelas só do servidor
+        -- (códigos, diário, perguntas) são provadas em area-do-cliente-rls.test.ts.
+        if not exists (select 1 from public.area_servicos where organization_id = v_org) then
+          insert into public.area_servicos (organization_id, nome, preco_cents, link_checkout)
+            values (v_org, 'Serviço de invariante', 100, 'https://exemplo.test/pagar');
+        end if;
+        if not exists (select 1 from public.area_convites where organization_id = v_org) then
+          insert into public.area_convites (organization_id, contact_id, token_hash, expires_at)
+            values (v_org, v_contact, 'convite-' || v_org::text, now() + interval '30 days');
+        end if;
+        if not exists (select 1 from public.area_sessoes where organization_id = v_org) then
+          insert into public.area_sessoes (organization_id, contact_id, token_hash, origem, expires_at)
+            values (v_org, v_contact, 'sessao-' || v_org::text, 'convite', now() + interval '90 days');
+        end if;
+        if not exists (select 1 from public.area_eventos where organization_id = v_org) then
+          insert into public.area_eventos (organization_id, contact_id, tipo)
+            values (v_org, v_contact, 'entrou');
+        end if;
+        if not exists (select 1 from public.area_assinaturas where organization_id = v_org) then
+          insert into public.area_assinaturas (organization_id, contact_id, valido_ate)
+            values (v_org, v_contact, now() + interval '30 days');
+        end if;
+        if not exists (select 1 from public.area_conteudos where organization_id = v_org) then
+          insert into public.area_conteudos (organization_id, mes, titulo, texto)
+            values (v_org, date_trunc('month', now())::date, 'Conteúdo de invariante', 'texto');
+        end if;
+
         if not exists (select 1 from public.catalog_products where organization_id = v_org) then
           insert into public.catalog_products
             (organization_id, codigo, nome, preco_cents)
@@ -650,6 +677,13 @@ export const TABLES = [
   // papel (o `agent` semeado aqui é controle positivo legítimo); a ESCRITA exige
   // admin e NÃO é medida por este molde genérico.
   "ai_agent_ad_briefs",
+  // migration 0928 — a área do cliente: o que a equipe lê.
+  "area_servicos",
+  "area_convites",
+  "area_sessoes",
+  "area_eventos",
+  "area_assinaturas",
+  "area_conteudos",
 ] as const;
 
 describe("RLS tenant isolation (fn_user_org_ids pattern)", () => {

@@ -35,6 +35,22 @@ export interface TextosDaArea {
   aniversarioTitulo: string;
   aniversarioConvite: string;
   aniversarioObrigada: string;
+  circuloConvite: string;
+  por30Dias: string;
+  pagarComPix: string;
+  pagarComCartao: string;
+  copiarCodigo: string;
+  codigoCopiado: string;
+  depoisDePagar: string;
+  voceEstaNoCirculo: string;
+  renovar: string;
+  conteudoPreparando: string;
+  perguntaDoMes: string;
+  perguntaExemplo: string;
+  perguntar: string;
+  consultando: string;
+  respostaChegando: string;
+  tentarDeNovo: string;
 }
 
 async function postar(url: string, corpo: unknown, tx?: TextosDaArea): Promise<{ ok: boolean; mensagem?: string }> {
@@ -53,7 +69,7 @@ async function postar(url: string, corpo: unknown, tx?: TextosDaArea): Promise<{
   }
 }
 
-const CAMPO =
+export const CAMPO =
   "w-full rounded-xl border border-[#d9dce3] bg-white px-4 py-3 text-base outline-hidden focus:border-[#7c3aed] focus:ring-2 focus:ring-[#7c3aed]/20";
 
 export function EntrarNaArea({ slug, cor, tx }: { slug: string; cor: string; tx: TextosDaArea }) {

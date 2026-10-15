@@ -30,6 +30,17 @@ export const configDaAreaSchema = z.strictObject({
    * por padrão.
    */
   carta_do_dia: z.boolean().optional(),
+  /**
+   * O Círculo: a assinatura mensal da área (conteúdo do mês + uma pergunta por
+   * mês, pela IA). Cobra pela Stripe da organização; desligado por padrão.
+   */
+  circulo: z
+    .strictObject({
+      ativo: z.boolean().default(false),
+      nome: z.string().trim().min(1).max(40).default("Círculo"),
+      preco_cents: z.number().int().min(100).max(1_000_000).default(2900),
+    })
+    .optional(),
   /** Cor principal da área, em hex. Vazio = a cor do produto. */
   cor: z
     .string()

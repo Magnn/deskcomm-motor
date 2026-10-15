@@ -27,7 +27,9 @@ import { type NextRequest, type NextResponse } from "next/server";
 import { audit } from "@/lib/audit";
 import { fail, ok } from "@/lib/api/wrappers";
 import { logger } from "@/lib/logger";
+import { EXTRA_DO_CIRCULO, ativarCirculo } from "@/lib/area-do-cliente/circulo";
 import { guardarEmailDoContato } from "@/lib/area-do-cliente/email-do-contato";
+import { registrarEvento } from "@/lib/area-do-cliente/eventos";
 import { aplicarEventoDaCakto, depsReais } from "@/lib/pagamentos/compra-cakto";
 import { reportarCompraAvulsa } from "@/lib/conversoes/compra-avulsa";
 import { lerConexaoStripePorId } from "@/lib/pagamentos/conexao-stripe";
@@ -134,6 +136,18 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ conexao: s
       // Reentrega da Stripe: a receita já está lá e a marca também.
       if (erroDoLedger?.code === "23505") return ok({ received: true, resultado: "repetida" }, { requestId }) as NextResponse;
       if (erroDoLedger) throw new Error(erroDoLedger.message);
+      // O Círculo da área do cliente: o pagamento estende o acesso em 30 dias (idempotente pelo id).
+      if (extra === EXTRA_DO_CIRCULO) {
+        const ativado = await ativarCirculo(admin, conexao.organizationId, contatoId, cobrancaId);
+        if (!ativado.jaAplicado) {
+          await registrarEvento(admin, {
+            organizationId: conexao.organizationId,
+            contactId: contatoId,
+            tipo: "circulo_ativado",
+            props: { valido_ate: ativado.validoAte, metodo: metodoDaCobranca },
+          });
+        }
+      }
       // ⚠️ Filtro de organização: o client é service-role.
       const { data: contato } = await admin
         .from("contacts")

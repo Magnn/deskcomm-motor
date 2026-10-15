@@ -65,6 +65,8 @@ export interface Painel {
   receitaAtribuida_cents: number;
   /** Os motivos para voltar, em pessoas: revelaram a carta, escreveram no diário, contaram o aniversário. */
   engajamento: { cartaDoDia: number; diario: number; aniversarios: number };
+  /** O Círculo no período, em pessoas: abriram o pagamento, pagaram, fizeram a pergunta do mês. */
+  circulo: { abriramPagamento: number; pagaram: number; perguntaram: number };
 }
 
 const ORDEM_DO_AVANCO: Record<string, number> = {
@@ -190,6 +192,11 @@ export function calcularPainel(
       diario: pessoasCom("diario_escrito").size,
       aniversarios: pessoasCom("aniversario_salvo").size,
     },
+    circulo: {
+      abriramPagamento: pessoasCom("circulo_checkout").size,
+      pagaram: pessoasCom("circulo_ativado").size,
+      perguntaram: pessoasCom("pergunta_enviada").size,
+    },
   };
 }
 
@@ -212,7 +219,11 @@ async function todas<T>(
   return { linhas, truncado: true };
 }
 
-export async function lerPainel(db: SupabaseClient, orgId: string, desde: Date): Promise<Painel & { truncado: boolean }> {
+export async function lerPainel(
+  db: SupabaseClient,
+  orgId: string,
+  desde: Date,
+): Promise<Painel & { truncado: boolean; assinantesAtivos: number }> {
   const [eventosR, comprasR, servicosR] = await Promise.all([
     todas<LinhaDeEvento>((de, ate) =>
       db
@@ -239,6 +250,11 @@ export async function lerPainel(db: SupabaseClient, orgId: string, desde: Date):
     ),
     db.from("area_servicos").select("id, nome, preco_cents").eq("organization_id", orgId),
   ]);
+  const { count: assinantesAtivos } = await db
+    .from("area_assinaturas")
+    .select("id", { count: "exact", head: true })
+    .eq("organization_id", orgId)
+    .gt("valido_ate", new Date().toISOString());
   if (servicosR.error) throw new Error(servicosR.error.message);
   const compras = comprasR.linhas.map((c) => ({
     contact_id: c.contact_id,
@@ -249,5 +265,6 @@ export async function lerPainel(db: SupabaseClient, orgId: string, desde: Date):
   return {
     ...calcularPainel(eventosR.linhas, compras, (servicosR.data ?? []) as ServicoDoPainel[]),
     truncado: eventosR.truncado || comprasR.truncado,
+    assinantesAtivos: assinantesAtivos ?? 0,
   };
 }

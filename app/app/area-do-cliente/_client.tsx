@@ -114,7 +114,8 @@ function AbaPainel() {
   const [dias, setDias] = useState(30);
   const q = useQuery({
     queryKey: ["area", "painel", dias],
-    queryFn: () => apiClient.get<{ data: Painel & { dias: number; truncado: boolean } }>(`/api/v1/area/painel?dias=${dias}`),
+    queryFn: () =>
+      apiClient.get<{ data: Painel & { dias: number; truncado: boolean; assinantesAtivos: number } }>(`/api/v1/area/painel?dias=${dias}`),
   });
   const p = q.data?.data;
   const rotulo: Record<string, string> = {
@@ -240,6 +241,28 @@ function AbaPainel() {
                 </tbody>
               </table>
             )}
+          </Card>
+
+          <Card className="p-4" data-testid="area-circulo-painel">
+            <h2 className="font-semibold">{t("Círculo")}</h2>
+            <dl className="mt-3 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
+              <div>
+                <dt className="text-xs text-muted-foreground">{t("Assinantes ativos agora")}</dt>
+                <dd className="text-lg font-semibold tabular-nums">{p.assinantesAtivos}</dd>
+              </div>
+              <div>
+                <dt className="text-xs text-muted-foreground">{t("Abriram o pagamento")}</dt>
+                <dd className="text-lg font-semibold tabular-nums">{p.circulo.abriramPagamento}</dd>
+              </div>
+              <div>
+                <dt className="text-xs text-muted-foreground">{t("Pagaram")}</dt>
+                <dd className="text-lg font-semibold tabular-nums">{p.circulo.pagaram}</dd>
+              </div>
+              <div>
+                <dt className="text-xs text-muted-foreground">{t("Fizeram a pergunta do mês")}</dt>
+                <dd className="text-lg font-semibold tabular-nums">{p.circulo.perguntaram}</dd>
+              </div>
+            </dl>
           </Card>
 
           <Card className="p-4" data-testid="area-desejos">
@@ -533,11 +556,19 @@ function AbaConfig({ inicial }: { inicial: ConfigDaArea }) {
   const [whatsapp, setWhatsapp] = useState(inicial.whatsapp ?? "");
   const [cor, setCor] = useState(inicial.cor ?? "");
   const [cartaDoDia, setCartaDoDia] = useState(inicial.carta_do_dia ?? false);
+  const [circuloAtivo, setCirculoAtivo] = useState(inicial.circulo?.ativo ?? false);
+  const [circuloNome, setCirculoNome] = useState(inicial.circulo?.nome ?? "Círculo");
+  const [circuloPreco, setCirculoPreco] = useState(((inicial.circulo?.preco_cents ?? 2900) / 100).toFixed(2).replace(".", ","));
   const salvar = useMutation({
     mutationFn: () =>
       apiClient.put("/api/v1/area/config", {
         ativo,
         carta_do_dia: cartaDoDia,
+        circulo: {
+          ativo: circuloAtivo,
+          nome: circuloNome.trim() || "Círculo",
+          preco_cents: Math.round(Number(circuloPreco.replace(/\./g, "").replace(",", ".")) * 100) || 2900,
+        },
         ...(titulo.trim() ? { titulo: titulo.trim() } : {}),
         ...(boasVindas.trim() ? { boas_vindas: boasVindas.trim() } : {}),
         ...(whatsapp.replace(/\D/g, "") ? { whatsapp: whatsapp.replace(/\D/g, "") } : {}),
@@ -584,6 +615,27 @@ function AbaConfig({ inicial }: { inicial: ConfigDaArea }) {
           <p className="text-xs text-muted-foreground">{t("Usa as fotos do baralho da leitura. Ligue só se elas estiverem cadastradas.")}</p>
         </div>
         <Switch id="area-carta" checked={cartaDoDia} onCheckedChange={setCartaDoDia} />
+      </div>
+      <div className="space-y-2 rounded-md border border-border p-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <Label htmlFor="area-circulo">{t("Círculo (assinatura mensal)")}</Label>
+            <p className="text-xs text-muted-foreground">
+              {t("Conteúdo do mês e uma pergunta por mês, escritos pela IA. Cobra pela Stripe: Pix ou cartão, 30 dias por pagamento.")}
+            </p>
+          </div>
+          <Switch id="area-circulo" checked={circuloAtivo} onCheckedChange={setCirculoAtivo} />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <Label htmlFor="area-circulo-nome">{t("Nome")}</Label>
+            <Input id="area-circulo-nome" value={circuloNome} maxLength={40} onChange={(e) => setCirculoNome(e.target.value)} />
+          </div>
+          <div>
+            <Label htmlFor="area-circulo-preco">{t("Preço por 30 dias (R$)")}</Label>
+            <Input id="area-circulo-preco" inputMode="decimal" value={circuloPreco} onChange={(e) => setCirculoPreco(e.target.value)} />
+          </div>
+        </div>
       </div>
       <div>
         <Label htmlFor="area-cor">{t("Cor principal")}</Label>

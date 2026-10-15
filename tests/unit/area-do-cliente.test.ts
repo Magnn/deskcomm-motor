@@ -6,6 +6,8 @@ import { describe, expect, it } from "vitest";
 
 import { dataDeNascimentoValida, diasParaOAniversario, semanaDoAniversario } from "@/lib/area-do-cliente/aniversario";
 import { MENSAGEM_DO_DIA, cartaDoDia } from "@/lib/area-do-cliente/carta-do-dia";
+import { assinaturaAtiva, diasRestantes, estenderValidade, mesDoDia } from "@/lib/area-do-cliente/circulo";
+import { REGRAS_DE_TOM, cartaDaPergunta, lerConteudo, pedidoDaResposta, pedidoDoConteudo } from "@/lib/area-do-cliente/circulo-ia";
 import { lerConfigDaArea } from "@/lib/area-do-cliente/config";
 import { faseDaLua, proximaLua } from "@/lib/area-do-cliente/lua";
 import { agruparLeituraPorDia, classificarMidia, primeiroNome } from "@/lib/area-do-cliente/dados";
@@ -279,5 +281,37 @@ describe("o painel conta os motivos para voltar", () => {
       [],
     );
     expect(p.engajamento).toEqual({ cartaDoDia: 2, diario: 1, aniversarios: 1 });
+  });
+});
+
+describe("Círculo", () => {
+  const agora = new Date("2026-10-15T12:00:00Z");
+  it("o pagamento soma 30 dias ao que ainda resta, nunca perde dia", () => {
+    expect(estenderValidade(null, agora).toISOString()).toBe("2026-11-14T12:00:00.000Z");
+    expect(estenderValidade(new Date("2026-10-20T12:00:00Z"), agora).toISOString()).toBe("2026-11-19T12:00:00.000Z");
+    // Vencido: conta de agora, não do vencimento.
+    expect(estenderValidade(new Date("2026-09-01T12:00:00Z"), agora).toISOString()).toBe("2026-11-14T12:00:00.000Z");
+  });
+  it("ativo, dias restantes e mês", () => {
+    expect(assinaturaAtiva(null, agora)).toBe(false);
+    expect(assinaturaAtiva("2026-10-15T11:59:00Z", agora)).toBe(false);
+    expect(assinaturaAtiva("2026-10-20T00:00:00Z", agora)).toBe(true);
+    expect(diasRestantes("2026-10-20T12:00:00Z", agora)).toBe(5);
+    expect(mesDoDia("2026-10-15")).toBe("2026-10-01");
+  });
+  it("os pedidos à IA levam as regras de tom e nunca pedem venda", () => {
+    const c = pedidoDoConteudo("Meu Mistério", "2026-10-01");
+    const r = pedidoDaResposta("Meu Mistério", "Ele volta?", cartaDaPergunta(() => 0));
+    for (const pedido of [c, r]) {
+      expect(pedido).toContain(REGRAS_DE_TOM);
+      expect(pedido).toMatch(/não prometa resultado/);
+      expect(pedido).toMatch(/Não peça dinheiro/);
+    }
+    expect(r).toContain("O Louco");
+  });
+  it("lê o JSON do conteúdo e recusa o que não serve", () => {
+    expect(lerConteudo('aqui vai: {"titulo":"Outubro","texto":"A energia…"}')).toEqual({ titulo: "Outubro", texto: "A energia…" });
+    expect(lerConteudo("sem json")).toBeNull();
+    expect(lerConteudo('{"titulo":"","texto":"x"}')).toBeNull();
   });
 });

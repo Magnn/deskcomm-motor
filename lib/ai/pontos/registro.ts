@@ -316,6 +316,28 @@ export const PONTOS_DE_IA: readonly PontoDeIa[] = [
     },
   },
   {
+    id: "area_circulo_conteudo",
+    rotulo: "Escrever o conteúdo do mês do Círculo",
+    oQueFaz:
+      "Escreve, uma vez por mês, o conteúdo de quem assina o Círculo na área do cliente: a energia do mês, um ritual simples e uma reflexão.",
+    papel: "atender",
+    exige: {},
+    emissor: "lib/area-do-cliente/circulo-ia.ts",
+    sintomaDeFalha: "Quem assina o Círculo abre a área e encontra o aviso de que o conteúdo do mês ainda está sendo preparado.",
+    registraEm: "llm_calls",
+  },
+  {
+    id: "area_circulo_resposta",
+    rotulo: "Responder a pergunta do mês do Círculo",
+    oQueFaz:
+      "Responde a pergunta mensal de quem assina o Círculo, a partir de uma carta tirada pelo sistema, com orientação e sem promessa.",
+    papel: "atender",
+    exige: {},
+    emissor: "lib/area-do-cliente/circulo-ia.ts",
+    sintomaDeFalha: "A pergunta da assinante fica com \"sua resposta chega em breve\" sem resposta.",
+    registraEm: "llm_calls",
+  },
+  {
     id: "loss_reason_classify",
     rotulo: "Entender por que a venda não aconteceu",
     oQueFaz:
