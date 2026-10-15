@@ -13,10 +13,111 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { logger } from "@/lib/logger";
 
+import { sincronizarSaudeDaConexao } from "../health";
 import { ingestMetaEcho, ingestMetaInbound } from "./ingest";
 import type { MetaWebhookSession } from "./session";
 import { statusUpdate } from "./status-update";
-import type { MetaWebhookEvent } from "./webhook";
+import type { AccountUpdateEvent, ContactSyncEvent, MetaWebhookEvent } from "./webhook";
+
+/**
+ * A AGENDA DO CELULAR VIRA CONTATO — e só isso.
+ *
+ * Passa pela mesma `fn_upsert_wa_contact` da ingestão, que reencontra o contato
+ * pelas duas grafias do nono dígito e só preenche o nome quando o CRM ainda não
+ * tem um: o nome que a equipe escreveu aqui vale mais que o do celular.
+ *
+ * O que NÃO acontece, de propósito: conversa, lead, rodízio, agente. Contato
+ * salvo no celular não é alguém que escreveu — criar conversa para cada um
+ * encheria a Inbox de vazio e acordaria o agente para gente que não falou.
+ *
+ * `remove` (apagado da agenda do celular) não apaga contato do CRM: o histórico
+ * de atendimento continua sendo da empresa, e apagar é decisão de quem atende.
+ */
+async function aplicarAgendaDoAplicativo(
+  admin: SupabaseClient,
+  e: ContactSyncEvent,
+  session: MetaWebhookSession,
+): Promise<string> {
+  let gravados = 0;
+  for (const c of e.contatos) {
+    if (c.acao !== "add") continue;
+    const { error } = await admin.rpc(
+      "fn_upsert_wa_contact" as never,
+      {
+        p_org: session.organizationId,
+        p_kind: "phone",
+        p_phone: `+${c.telefone}`,
+        p_lid: null,
+        p_chat_id: c.telefone,
+        p_notify: c.nome,
+      } as never,
+    );
+    if (error) {
+      if (ehFalhaPassageira(error.message)) return DESFECHO_PASSAGEIRO;
+      logger.error("[meta.contatos] contato da agenda não gravado", {
+        organization_id: session.organizationId,
+        erro: error.message,
+      });
+      continue;
+    }
+    gravados += 1;
+  }
+  return gravados > 0 ? "contacts_synced" : "contacts_skipped";
+}
+
+/** O estado do canal depois de cada evento da conta. */
+const STATUS_DO_EVENTO: Record<AccountUpdateEvent["evento"], "STOPPED" | "WORKING"> = {
+  PARTNER_REMOVED: "STOPPED",
+  ACCOUNT_OFFBOARDED: "STOPPED",
+  ACCOUNT_RECONNECTED: "WORKING",
+};
+
+/**
+ * O CLIENTE DESCONECTOU — e o canal não pode seguir "conectado" e mudo.
+ *
+ * Em coexistência o cliente desfaz a conexão pelo próprio celular, sem passar
+ * pelo CRM; e a Meta desliga sozinha por inatividade. O único aviso é este
+ * evento. Ele grava o estado no canal e passa pelo vigia de saúde
+ * (`sincronizarSaudeDaConexao`), que abre o aviso na Central uma vez por
+ * episódio e o FECHA quando chega `ACCOUNT_RECONNECTED`. Origem "empurrão": a
+ * varredura de credencial não enxerga o número desligado e não pode fechar o
+ * que a Meta abriu.
+ */
+async function aplicarMudancaDaConta(
+  admin: SupabaseClient,
+  e: AccountUpdateEvent,
+  session: MetaWebhookSession,
+  now: string,
+): Promise<string> {
+  const status = STATUS_DO_EVENTO[e.evento];
+  const { data: canal, error } = await admin
+    .from("channel_sessions")
+    .update({ status, updated_at: now })
+    .eq("organization_id", session.organizationId)
+    .eq("id", session.id)
+    .select("display_name, phone_number")
+    .maybeSingle();
+  if (error) {
+    if (ehFalhaPassageira(error.message)) return DESFECHO_PASSAGEIRO;
+    logger.error("[meta.conta] estado do canal não gravado", {
+      organization_id: session.organizationId,
+      evento: e.evento,
+      erro: error.message,
+    });
+    return "failed";
+  }
+
+  const linha = (canal ?? {}) as { display_name?: string | null; phone_number?: string | null };
+  const detalhe = [e.evento, e.motivo, e.iniciadoPor].filter(Boolean).join(" · ");
+  await sincronizarSaudeDaConexao(
+    admin,
+    { id: session.id, organization_id: session.organizationId, status },
+    { reachable: true, status, detail: status === "WORKING" ? null : detalhe },
+    linha.display_name ?? linha.phone_number ?? "WhatsApp oficial",
+    "empurrao",
+  );
+  return status === "WORKING" ? "account_reconnected" : "account_disconnected";
+}
 
 /**
  * A MENSAGEM QUE CHEGOU NA HORA EM QUE O BANCO NÃO ATENDIA.
@@ -86,6 +187,9 @@ export async function aplicarEventoDaMeta(
     }
     return r.status;
   }
+
+  if (e.kind === "contact_sync") return await aplicarAgendaDoAplicativo(admin, e, session);
+  if (e.kind === "account_update") return await aplicarMudancaDaConta(admin, e, session, now);
 
   if (e.kind === "template_status") {
     await admin

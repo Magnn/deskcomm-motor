@@ -42,10 +42,12 @@ import {
   appDoCadastroIncorporado,
   credencialDoCadastroIncorporado,
   garantirNumeroRegistrado,
+  pedirAgendaDoAplicativo,
   type CredencialDoCadastro,
 } from "@/lib/channels/meta/cadastro-incorporado";
 import { metaGraphBase } from "@/lib/channels/meta/credentials";
 import { validateMetaCredentials } from "@/lib/channels/meta/validate-credentials";
+import { CAMPOS_DO_WEBHOOK_DO_APP } from "@/lib/channels/meta/webhook-do-app";
 import {
   COLUNAS_DO_DESFECHO_DO_WEBHOOK,
   registrarWebhookDaSessao,
@@ -218,7 +220,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
            * e, no número em coexistência, o que o negócio manda pelo celular.
            */
           appCallbackUrl: `${base}/api/v1/webhooks/meta`,
-          fields: ["messages", "message_template_status_update", "smb_message_echoes"],
+          fields: [...CAMPOS_DO_WEBHOOK_DO_APP],
         }
       : null,
     /**
@@ -348,6 +350,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   // trava do plano (recusar por plano não pode deixar efeito na Meta) e ANTES de
   // gravar: canal gravado com número sem registro diz "conectado" e não envia.
   // O formulário colado não passa por aqui — quem cola o id já tem o número em uso.
+  let noAplicativo = false;
   if (peloLogin) {
     const registro = await garantirNumeroRegistrado({
       phoneNumberId: phone_number_id,
@@ -362,6 +365,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         { requestId },
       );
     }
+    noAplicativo = registro.noAplicativo;
   }
 
   const linha = {
@@ -455,8 +459,26 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         })
       : null;
 
+  // ─── Coexistência: a agenda do celular ─────────────────────────────────────
+  // Depois do webhook, porque é por ele que os contatos chegam. Falhar aqui não
+  // desfaz a conexão (o canal já envia e recebe); vai ao log e à resposta, e a
+  // pessoa ainda tem as 24 h da Meta para reconectar se quiser os contatos.
+  let agendaDoCelular: "pedida" | "ja_pedida" | "falhou" | null = null;
+  if (noAplicativo) {
+    const agenda = await pedirAgendaDoAplicativo({ phoneNumberId: phone_number_id, token });
+    agendaDoCelular = agenda.ok ? (agenda.jaPedida ? "ja_pedida" : "pedida") : "falhou";
+    if (!agenda.ok) {
+      logger.error("[meta.coexistencia] pedido da agenda do celular recusado", {
+        request_id: requestId,
+        organization_id: orgId,
+        motivo: agenda.motivo,
+      });
+    }
+  }
+
   return ok({
     connected: true,
+    agendaDoCelular,
     displayName: linha.display_name,
     phoneNumber: linha.phone_number,
     /** `registrado: false` NÃO desfaz a conexão — o canal envia; falta a entrega. */

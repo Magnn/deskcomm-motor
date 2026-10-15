@@ -23,7 +23,16 @@ const GRAPH = "https://graph.facebook.com";
 const TETO_MS = 20_000;
 
 /** Os avisos da conta do WhatsApp que o produto trata. */
-export const CAMPOS_DO_WEBHOOK_DO_APP = ["messages", "message_template_status_update", "smb_message_echoes"] as const;
+export const CAMPOS_DO_WEBHOOK_DO_APP = [
+  "messages",
+  "message_template_status_update",
+  "smb_message_echoes",
+  // Coexistência: a agenda do celular, pedida logo depois da conexão.
+  "smb_app_state_sync",
+  // O cliente desconectou (ou voltou) sem passar pelo CRM — sem isto o canal
+  // seguiria "conectado" e mudo.
+  "account_update",
+] as const;
 
 export type RegistroDoWebhookDoApp = { ok: true; url: string } | { ok: false; motivo: string };
 

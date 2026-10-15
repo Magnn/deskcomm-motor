@@ -170,7 +170,58 @@ export interface OutboundEchoEvent extends Omit<InboundMessageEvent, "kind" | "f
   to: string;
 }
 
-export type MetaWebhookEvent = TemplateStatusEvent | MessageStatusEvent | InboundMessageEvent | OutboundEchoEvent;
+/**
+ * A agenda do aplicativo WhatsApp Business de um número em COEXISTÊNCIA
+ * (`smb_app_state_sync`). Chega uma vez, em lote, depois que o CRM pede a
+ * sincronização logo após a conexão, e de novo a cada contato que o negócio
+ * salva, edita ou apaga no celular.
+ */
+export interface ContactSyncEvent {
+  kind: "contact_sync";
+  wabaId: string;
+  phoneNumberId: string;
+  contatos: {
+    /** `wa_id` do contato, só dígitos — mesma ressalva do nono dígito de `from`. */
+    telefone: string;
+    /** Como o negócio salvou o contato no celular. Ausente quando foi apagado. */
+    nome: string | null;
+    /** `add` cobre criar e editar; `remove` é apagar da agenda do celular. */
+    acao: "add" | "remove";
+  }[];
+}
+
+/**
+ * O que aconteceu com a CONTA do WhatsApp do cliente (`account_update`). Só os
+ * eventos que mudam se o número ainda fala por este app:
+ *
+ *   - `PARTNER_REMOVED`: o cliente desfez o acesso deste app (pelo celular, em
+ *     coexistência, ou no portfólio dele), ou a Meta desligou por inatividade;
+ *   - `ACCOUNT_OFFBOARDED`: o número saiu por troca de aparelho ou novo registro;
+ *   - `ACCOUNT_RECONNECTED`: voltou depois de um dos dois acima.
+ */
+export interface AccountUpdateEvent {
+  kind: "account_update";
+  wabaId: string;
+  evento: "PARTNER_REMOVED" | "ACCOUNT_OFFBOARDED" | "ACCOUNT_RECONNECTED";
+  /** `disconnection_info.reason`, quando a Meta manda (só em coexistência). */
+  motivo: string | null;
+  /** `SYSTEM` (inatividade, regra da Meta) ou `USER` (o cliente desconectou). */
+  iniciadoPor: string | null;
+}
+
+const EVENTOS_DE_CONTA = new Set<AccountUpdateEvent["evento"]>([
+  "PARTNER_REMOVED",
+  "ACCOUNT_OFFBOARDED",
+  "ACCOUNT_RECONNECTED",
+]);
+
+export type MetaWebhookEvent =
+  | TemplateStatusEvent
+  | MessageStatusEvent
+  | InboundMessageEvent
+  | OutboundEchoEvent
+  | ContactSyncEvent
+  | AccountUpdateEvent;
 
 /**
  * O formato do fio mora em `./envelope.ts`, onde é um schema Zod — e o tipo
@@ -343,6 +394,39 @@ export function parseMetaWebhook(envelope: MetaWebhookEnvelope): MetaWebhookEven
                 : null,
           });
         }
+        continue;
+      }
+
+      if (change.field === "smb_app_state_sync" && Array.isArray(v.state_sync)) {
+        const meta = (v.metadata ?? {}) as Record<string, unknown>;
+        const contatos: ContactSyncEvent["contatos"] = [];
+        for (const raw of v.state_sync as Record<string, unknown>[]) {
+          if (str(raw.type) !== "contact") continue;
+          const c = (raw.contact ?? {}) as Record<string, unknown>;
+          const telefone = str(c.phone_number)?.replace(/\D/g, "") ?? "";
+          const acao = str(raw.action);
+          if (telefone === "" || (acao !== "add" && acao !== "remove")) continue;
+          contatos.push({ telefone, nome: str(c.full_name) ?? str(c.first_name), acao });
+        }
+        if (contatos.length > 0) {
+          out.push({ kind: "contact_sync", wabaId, phoneNumberId: str(meta.phone_number_id) ?? "", contatos });
+        }
+        continue;
+      }
+
+      if (change.field === "account_update") {
+        const evento = str(v.event);
+        if (!evento || !EVENTOS_DE_CONTA.has(evento as AccountUpdateEvent["evento"])) continue;
+        // `PARTNER_REMOVED` traz a conta em `waba_info`; os outros dois, só no `entry.id`.
+        const info = (v.waba_info ?? {}) as Record<string, unknown>;
+        const desligamento = (v.disconnection_info ?? {}) as Record<string, unknown>;
+        out.push({
+          kind: "account_update",
+          wabaId: str(info.waba_id) ?? wabaId,
+          evento: evento as AccountUpdateEvent["evento"],
+          motivo: str(desligamento.reason),
+          iniciadoPor: str(desligamento.initiated_by),
+        });
         continue;
       }
 
