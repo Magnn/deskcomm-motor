@@ -27,6 +27,9 @@ export interface OrgDaArea {
   id: string;
   slug: string;
   nome: string;
+  /** Quem vende, para o rodapé de confiança e o recibo. */
+  razaoSocial: string | null;
+  cnpj: string | null;
   fuso: string;
   config: ConfigDaArea;
 }
@@ -41,7 +44,7 @@ export async function orgDaArea(admin: SupabaseClient, slug: string): Promise<Or
   if (!FORMA_DO_SLUG_DA_AREA.test(slug)) return null;
   const { data } = await admin
     .from("organizations")
-    .select("id, slug, display_name, legal_name, timezone, settings, suspended_at, redacted_at")
+    .select("id, slug, display_name, legal_name, cnpj, timezone, settings, suspended_at, redacted_at")
     .eq("slug", slug)
     .maybeSingle();
   const org = data as {
@@ -49,6 +52,7 @@ export async function orgDaArea(admin: SupabaseClient, slug: string): Promise<Or
     slug: string;
     display_name: string | null;
     legal_name: string | null;
+    cnpj: string | null;
     timezone: string | null;
     settings: unknown;
     suspended_at: string | null;
@@ -61,6 +65,8 @@ export async function orgDaArea(admin: SupabaseClient, slug: string): Promise<Or
     id: org.id,
     slug: org.slug,
     nome: org.display_name || org.legal_name || org.slug,
+    razaoSocial: org.legal_name || null,
+    cnpj: org.cnpj || null,
     fuso: org.timezone || "America/Sao_Paulo",
     config,
   };

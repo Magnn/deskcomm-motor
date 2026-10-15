@@ -12,7 +12,7 @@ import { janelaDoAnoPessoal, numeroDoAnoPessoal } from "@/lib/area-do-cliente/an
 import { lerConfigDaArea } from "@/lib/area-do-cliente/config";
 import { FORMA_DO_CODIGO_DO_PRESENTE, gerarCodigoDoPresente } from "@/lib/area-do-cliente/presente";
 import { faseDaLua, proximaLua } from "@/lib/area-do-cliente/lua";
-import { agruparLeituraPorDia, classificarMidia, primeiroNome } from "@/lib/area-do-cliente/dados";
+import { agruparLeituraPorDia, classificarMidia, falasDaConversa, primeiroNome } from "@/lib/area-do-cliente/dados";
 import { calcularPainel, type LinhaDeCompra, type LinhaDeEvento } from "@/lib/area-do-cliente/metricas";
 import { FORMA_DO_TOKEN, codigoConfere, gerarCodigo, gerarToken, hashDoCodigo, hashDoToken } from "@/lib/area-do-cliente/token";
 import { nomeDoCookieDaArea } from "@/lib/area-do-cliente/vocabulario";
@@ -64,8 +64,15 @@ describe("o que da conversa aparece na área", () => {
     media_storage_path: path,
     metadata,
   });
-  it("imagem é leitura; documento e vídeo são material", () => {
-    expect(classificarMidia(m("image"))).toBe("leitura");
+  it("só a foto da carta é leitura; depoimento e divulgação dos fluxos ficam de fora", () => {
+    // Nomes medidos em produção em 15/10/2026: a carta chega como leitura-cartas-NN.jpg,
+    // o resto das imagens dos fluxos como conteudo-<uuid>-N.jpg.
+    expect(classificarMidia(m("image", null, "org/conversa/leitura-cartas-05.jpg"))).toBe("leitura");
+    expect(classificarMidia(m("image", null, "org/conversa/leitura-mesa.jpg"))).toBe("leitura");
+    expect(classificarMidia(m("image", null, "org/conversa/conteudo-a90f5bfd-2.jpg"))).toBeNull();
+    expect(classificarMidia(m("image"))).toBeNull();
+  });
+  it("documento e vídeo são material", () => {
     expect(classificarMidia(m("document"))).toBe("material");
     expect(classificarMidia(m("video"))).toBe("material");
   });
@@ -342,5 +349,22 @@ describe("Ano Pessoal", () => {
     expect(janelaDoAnoPessoal("1980-01-03", "2026-12-20")).toEqual({ aberta: true, ano: 2027 });
     // Aniversário em 28/12, hoje 10/01: o ano que começou foi o anterior.
     expect(janelaDoAnoPessoal("1980-12-28", "2027-01-10")).toEqual({ aberta: true, ano: 2026 });
+  });
+});
+
+describe("a conversa guardada", () => {
+  it("texto entra como está, áudio pela transcrição, e na ordem do tempo", () => {
+    const falas = falasDaConversa([
+      { id: "2", direction: "outbound", type: "text", body: "Aqui está o seu ritual.", media_derived_text: null, created_at: "2026-10-14T10:02:00Z" },
+      { id: "1", direction: "inbound", type: "text", body: "Oi, paguei", media_derived_text: null, created_at: "2026-10-14T10:00:00Z" },
+      { id: "3", direction: "inbound", type: "audio", body: null, media_derived_text: "obrigada", created_at: "2026-10-14T10:05:00Z" },
+      { id: "4", direction: "inbound", type: "audio", body: null, media_derived_text: null, created_at: "2026-10-14T10:06:00Z" },
+      { id: "5", direction: "outbound", type: "text", body: "   ", media_derived_text: null, created_at: "2026-10-14T10:07:00Z" },
+    ]);
+    expect(falas.map((f) => [f.id, f.de, f.texto])).toEqual([
+      ["1", "voce", "Oi, paguei"],
+      ["2", "empresa", "Aqui está o seu ritual."],
+      ["3", "voce", "🎤 obrigada"],
+    ]);
   });
 });

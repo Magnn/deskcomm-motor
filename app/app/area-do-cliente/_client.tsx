@@ -40,6 +40,23 @@ interface Servico {
   posicao: number;
 }
 
+interface ConversaDaArea {
+  contact_id: string;
+  nome: string;
+  ultima: string;
+  ultima_de: "cliente" | "equipe";
+  quando: string;
+  pendentes: number;
+}
+
+interface MensagemDaArea {
+  id: string;
+  contact_id: string;
+  autor: "cliente" | "equipe";
+  texto: string;
+  created_at: string;
+}
+
 interface Comprador {
   contact_id: string;
   nome: string;
@@ -63,6 +80,12 @@ export function PainelDaAreaDoCliente() {
     queryFn: () => apiClient.get<{ data: { config: ConfigDaArea; endereco: string } }>("/api/v1/area/config"),
   });
   const ativa = config.data?.data.config.ativo ?? false;
+  const conversas = useQuery({
+    queryKey: ["area", "mensagens"],
+    queryFn: () => apiClient.get<{ data: ConversaDaArea[] }>("/api/v1/area/mensagens"),
+    refetchInterval: 30_000,
+  });
+  const pendentes = (conversas.data?.data ?? []).reduce((n, c) => n + c.pendentes, 0);
 
   return (
     <div className="space-y-4 p-6">
@@ -87,6 +110,14 @@ export function PainelDaAreaDoCliente() {
         <TabsList>
           <TabsTrigger value="painel">{t("Painel")}</TabsTrigger>
           <TabsTrigger value="servicos">{t("Serviços")}</TabsTrigger>
+          <TabsTrigger value="mensagens">
+            {t("Mensagens")}
+            {pendentes > 0 ? (
+              <span className="ml-1.5 rounded-full bg-error-bg px-1.5 text-xs font-semibold text-error-fg" data-testid="area-mensagens-pendentes">
+                {pendentes}
+              </span>
+            ) : null}
+          </TabsTrigger>
           <TabsTrigger value="compradores">{t("Compradores")}</TabsTrigger>
           <TabsTrigger value="config">{t("Configuração")}</TabsTrigger>
         </TabsList>
@@ -95,6 +126,9 @@ export function PainelDaAreaDoCliente() {
         </TabsContent>
         <TabsContent value="servicos">
           <AbaServicos />
+        </TabsContent>
+        <TabsContent value="mensagens">
+          <AbaMensagens />
         </TabsContent>
         <TabsContent value="compradores">
           <AbaCompradores ativa={ativa} />
@@ -457,6 +491,108 @@ function EditorDeServico({ servico, onClose }: { servico: Servico | null; onClos
   );
 }
 
+// ─── Mensagens ──────────────────────────────────────────────────────────────
+
+function AbaMensagens() {
+  const t = useT();
+  const tag = useTagDeIdioma();
+  const qc = useQueryClient();
+  const [aberta, setAberta] = useState<string | null>(null);
+  const [texto, setTexto] = useState("");
+  const conversas = useQuery({
+    queryKey: ["area", "mensagens"],
+    queryFn: () => apiClient.get<{ data: ConversaDaArea[] }>("/api/v1/area/mensagens"),
+    refetchInterval: 30_000,
+  });
+  const fio = useQuery({
+    queryKey: ["area", "mensagens", aberta],
+    queryFn: () => apiClient.get<{ data: MensagemDaArea[] }>(`/api/v1/area/mensagens?contato=${aberta}`),
+    enabled: aberta !== null,
+    refetchInterval: 15_000,
+  });
+  const responder = useMutation({
+    mutationFn: () => apiClient.post("/api/v1/area/mensagens", { contact_id: aberta, texto: texto.trim() }),
+    onSuccess: () => {
+      setTexto("");
+      void qc.invalidateQueries({ queryKey: ["area", "mensagens"] });
+    },
+    onError: showApiError,
+  });
+  const lista = conversas.data?.data ?? [];
+
+  return (
+    <div className="grid gap-4 pt-2 lg:grid-cols-[320px_1fr]">
+      <Card className="p-2">
+        {conversas.isLoading ? (
+          <Skeleton className="h-40 w-full" />
+        ) : lista.length === 0 ? (
+          <p className="p-4 text-sm text-muted-foreground">{t("Ninguém escreveu pela área ainda.")}</p>
+        ) : (
+          <ul className="divide-y divide-border">
+            {lista.map((c) => (
+              <li key={c.contact_id}>
+                <button
+                  type="button"
+                  onClick={() => setAberta(c.contact_id)}
+                  className={`w-full p-3 text-left text-sm ${aberta === c.contact_id ? "bg-surface-elevated" : ""}`}
+                >
+                  <span className="flex items-center justify-between gap-2">
+                    <span className="truncate font-medium">{c.nome}</span>
+                    {c.pendentes > 0 ? <Badge variant="error">{c.pendentes}</Badge> : null}
+                  </span>
+                  <span className="block truncate text-xs text-muted-foreground">
+                    {c.ultima_de === "equipe" ? `${t("Você")}: ` : ""}
+                    {c.ultima}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
+      <Card className="flex min-h-[320px] flex-col p-4">
+        {aberta === null ? (
+          <p className="text-sm text-muted-foreground">{t("Escolha uma conversa para ler e responder.")}</p>
+        ) : (
+          <>
+            <ul className="flex-1 space-y-2 overflow-y-auto">
+              {(fio.data?.data ?? []).map((m) => (
+                <li key={m.id} className={m.autor === "equipe" ? "flex justify-end" : "flex justify-start"}>
+                  <span
+                    className={`max-w-[80%] whitespace-pre-line rounded-lg px-3 py-2 text-sm ${
+                      m.autor === "equipe" ? "bg-accent text-white" : "bg-surface-elevated"
+                    }`}
+                  >
+                    {m.texto}
+                    <span className="mt-0.5 block text-[10px] opacity-70">
+                      {new Intl.DateTimeFormat(tag, { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }).format(
+                        new Date(m.created_at),
+                      )}
+                    </span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <form
+              className="mt-3 flex gap-2"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (texto.trim()) responder.mutate();
+              }}
+            >
+              <Textarea value={texto} onChange={(e) => setTexto(e.target.value)} rows={2} maxLength={2000} placeholder={t("Escreva a resposta…")} />
+              <Button type="submit" disabled={responder.isPending || !texto.trim()}>
+                {t("Responder")}
+              </Button>
+            </form>
+            <p className="mt-1 text-xs text-muted-foreground">{t("A resposta aparece na área do cliente, em \"Fale com a gente\".")}</p>
+          </>
+        )}
+      </Card>
+    </div>
+  );
+}
+
 // ─── Compradores ────────────────────────────────────────────────────────────
 
 function AbaCompradores({ ativa }: { ativa: boolean }) {
@@ -479,6 +615,27 @@ function AbaCompradores({ ativa }: { ativa: boolean }) {
     onError: showApiError,
   });
 
+  const lote = useMutation({
+    mutationFn: () =>
+      apiClient.post<{ data: { links: Array<{ nome: string; telefone: string | null; link: string }> } }>("/api/v1/area/convites/lote", {
+        dias: 120,
+      }),
+    onSuccess: (r) => {
+      // Planilha simples (CSV) para mandar pelo canal que estiver de pé.
+      const linhas = [["nome", "telefone", "link"], ...r.data.links.map((l) => [l.nome, l.telefone ?? "", l.link])];
+      const csv = linhas.map((cols) => cols.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(";")).join("\n");
+      const url = URL.createObjectURL(new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" }));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "links-da-area-do-cliente.csv";
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success(`${r.data.links.length} ${t("links gerados.")}`);
+      void qc.invalidateQueries({ queryKey: ["area", "compradores"] });
+    },
+    onError: showApiError,
+  });
+
   const lista = useMemo(() => {
     const termo = busca.trim().toLocaleLowerCase("pt-BR");
     const todos = q.data?.data ?? [];
@@ -495,7 +652,12 @@ function AbaCompradores({ ativa }: { ativa: boolean }) {
   }
   return (
     <div className="space-y-3 pt-2">
-      <Input placeholder={t("Buscar por nome ou telefone")} value={busca} onChange={(e) => setBusca(e.target.value)} />
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <Input placeholder={t("Buscar por nome ou telefone")} value={busca} onChange={(e) => setBusca(e.target.value)} />
+        <Button variant="outline" disabled={lote.isPending} onClick={() => lote.mutate()} data-testid="area-links-de-todos">
+          {lote.isPending ? t("Gerando…") : t("Gerar links de todos (planilha)")}
+        </Button>
+      </div>
       {q.isLoading ? (
         <Skeleton className="h-64 w-full" />
       ) : lista.length === 0 ? (
