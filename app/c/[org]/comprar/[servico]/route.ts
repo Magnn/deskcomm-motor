@@ -8,7 +8,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 import { registrarEvento } from "@/lib/area-do-cliente/eventos";
-import { NAO_ENCONTRADA, contextoDaArea } from "@/lib/area-do-cliente/http";
+import { NAO_ENCONTRADA, contextoDaArea, irPara } from "@/lib/area-do-cliente/http";
 import { caminhoDaArea } from "@/lib/area-do-cliente/vocabulario";
 
 export const dynamic = "force-dynamic";
@@ -22,7 +22,7 @@ export async function GET(req: NextRequest, { params }: Ctx): Promise<Response> 
   const ctx = await contextoDaArea(req, slug);
   if (!ctx) return NAO_ENCONTRADA();
   const { admin, org, sessao } = ctx;
-  const voltar = NextResponse.redirect(new URL(caminhoDaArea(org.slug), req.url), 303);
+  const voltar = irPara(caminhoDaArea(org.slug));
   if (!sessao || !UUID.test(servico)) return voltar;
 
   const { data } = await admin

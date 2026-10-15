@@ -6,10 +6,10 @@
  * sessão própria naquele aparelho. Link vencido ou desconhecido leva à tela de
  * entrar com o e-mail, nunca a um erro técnico.
  */
-import { NextResponse, type NextRequest } from "next/server";
+import type { NextRequest } from "next/server";
 
 import { registrarEvento } from "@/lib/area-do-cliente/eventos";
-import { NAO_ENCONTRADA, contextoDaArea, dentroDoLimite, paginaSimples } from "@/lib/area-do-cliente/http";
+import { NAO_ENCONTRADA, contextoDaArea, dentroDoLimite, irPara, paginaSimples } from "@/lib/area-do-cliente/http";
 import { criarSessao, nomeDoCookieDaArea, opcoesDoCookie } from "@/lib/area-do-cliente/sessao";
 import { FORMA_DO_TOKEN, hashDoToken } from "@/lib/area-do-cliente/token";
 import { caminhoDaArea } from "@/lib/area-do-cliente/vocabulario";
@@ -27,11 +27,10 @@ export async function GET(req: NextRequest, { params }: Ctx): Promise<Response> 
   const ctx = await contextoDaArea(req, slug);
   if (!ctx) return NAO_ENCONTRADA();
   const { admin, org } = ctx;
-  const destino = new URL(caminhoDaArea(org.slug), req.url);
+  const destino = caminhoDaArea(org.slug);
 
   if (!FORMA_DO_TOKEN.test(token)) {
-    destino.searchParams.set("link", "invalido");
-    return NextResponse.redirect(destino, 303);
+    return irPara(destino, { link: "invalido" });
   }
   const { data } = await admin
     .from("area_convites")
@@ -41,8 +40,7 @@ export async function GET(req: NextRequest, { params }: Ctx): Promise<Response> 
     .maybeSingle();
   const convite = data as { id: string; contact_id: string; expires_at: string } | null;
   if (!convite || new Date(convite.expires_at).getTime() <= Date.now()) {
-    destino.searchParams.set("link", convite ? "vencido" : "invalido");
-    return NextResponse.redirect(destino, 303);
+    return irPara(destino, { link: convite ? "vencido" : "invalido" });
   }
 
   const sessao = await criarSessao(admin, org, convite.contact_id, "convite");
@@ -55,7 +53,7 @@ export async function GET(req: NextRequest, { params }: Ctx): Promise<Response> 
     props: { origem: "convite" },
   });
 
-  const resposta = NextResponse.redirect(destino, 303);
+  const resposta = irPara(destino);
   resposta.cookies.set(nomeDoCookieDaArea(org.slug), sessao.token, opcoesDoCookie(sessao.expira));
   resposta.headers.set("Cache-Control", "no-store");
   // O token do link não pode vazar como Referer para o checkout ou para o arquivo.
