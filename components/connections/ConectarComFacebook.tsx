@@ -159,6 +159,9 @@ export function ConectarComFacebook({ login, conectado }: { login: LoginDoCanalO
               ? t("Reconectar com Facebook")
               : t("Conectar com Facebook")}
       </Button>
+      <p className="text-xs text-muted-foreground" data-testid="conectar-qualquer-portfolio">
+        {t("Na janela da Meta você escolhe o portfólio empresarial (BM) — qualquer um em que seja administrador — ou cria um novo ali mesmo, junto da conta do WhatsApp e do número. Reconectar com outro portfólio troca o número desta empresa.")}
+      </p>
       <label className="flex items-start gap-2 text-sm">
         <input
           type="checkbox"

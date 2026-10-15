@@ -39199,3 +39199,21 @@ comment on column public.payment_gateway_connections.webhook_secret_encrypted
   is 'Segredo da assinatura do aviso de pagamento do provedor (Stripe), cifrado. Nunca é devolvido à tela.';
 comment on column public.revenue_ledger.provider
   is 'De onde veio o fato de dinheiro: ''cakto'' (aviso do checkout), ''manual'' (registrado pela equipe) ou ''stripe'' (Pix gerado na conversa).';
+
+-- ---- O ID do app da Meta e as configurações de login vão para a instalação (migration 0927) ----
+alter table public.platform_meta_app
+  add column if not exists app_id text,
+  add column if not exists whatsapp_config_id text,
+  add column if not exists messenger_config_id text,
+  add column if not exists ads_config_id text;
+
+comment on column public.platform_meta_app.app_id is
+  'ID do app da Meta desta instalação. Gravado junto da chave secreta dele (a action recusa trocar um sem o outro). Vazio = vale o META_APP_ID do .env.';
+comment on column public.platform_meta_app.whatsapp_config_id is
+  'Configuração do Login do Facebook para Empresas com o Cadastro Incorporado do WhatsApp, do app em app_id. Vazio com app_id gravado = sem botão "Conectar com Facebook".';
+comment on column public.platform_meta_app.messenger_config_id is
+  'Configuração do Login do Facebook para Empresas do Messenger, do app em app_id. Opcional.';
+comment on column public.platform_meta_app.ads_config_id is
+  'Configuração do Login do Facebook para Empresas do Meta Ads, do app em app_id. Opcional.';
+
+notify pgrst, 'reload schema';

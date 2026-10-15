@@ -18,7 +18,7 @@ const h = vi.hoisted(() => ({
 vi.mock("@/lib/env", () => ({ env: h.env }));
 vi.mock("@/lib/audit", () => ({ audit: h.audit }));
 vi.mock("@/lib/auth/requirePlatformAdmin", () => ({ requirePlatformAdmin: async () => ({ user: { id: "u1" } }) }));
-vi.mock("@/lib/channels/meta/app", () => ({ appDaMeta: async () => h.app }));
+vi.mock("@/lib/channels/meta/app", () => ({ appDaMeta: async () => ({ appId: h.env.META_APP_ID || null, ...h.app }) }));
 vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
 
 let pedidos: { url: string; corpo: URLSearchParams }[] = [];

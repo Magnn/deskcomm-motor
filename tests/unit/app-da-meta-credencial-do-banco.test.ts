@@ -157,7 +157,7 @@ describe("appDaMeta: banco primeiro, .env como piso", () => {
     estoura = new Error("fetch failed");
 
     const { appDaMeta } = await importarComEnv(NO_ENV);
-    await expect(appDaMeta()).resolves.toEqual({
+    await expect(appDaMeta()).resolves.toMatchObject({
       appSecret: "segredo-do-env",
       verifyToken: "token-do-env",
     });
@@ -198,7 +198,7 @@ describe("appDaMeta: banco primeiro, .env como piso", () => {
     // direto para o HMAC e para o handshake, e string vazia é ausente — como em
     // `metaPodeReceber` (`lib/channels/meta/webhook.ts`).
     const { appDaMeta } = await importarComEnv({ META_APP_SECRET: "   ", META_WEBHOOK_VERIFY_TOKEN: "" });
-    expect(await appDaMeta()).toEqual({ appSecret: null, verifyToken: null });
+    expect(await appDaMeta()).toMatchObject({ appSecret: null, verifyToken: null });
   });
 });
 

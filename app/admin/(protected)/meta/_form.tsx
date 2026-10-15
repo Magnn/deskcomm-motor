@@ -48,7 +48,18 @@ interface Props {
   readonly urlDoApp?: string | null;
   /** O ID do app da Meta está definido? Sem ele não há a quem registrar. */
   readonly temAppId?: boolean;
+  /** O app em vigor e as configurações de login dele. Nada disso é segredo. */
+  readonly app?: IdsDoApp;
 }
+
+export interface IdsDoApp {
+  readonly appId: string | null;
+  readonly whatsappConfigId: string | null;
+  readonly messengerConfigId: string | null;
+  readonly adsConfigId: string | null;
+}
+
+const SEM_IDS: IdsDoApp = { appId: null, whatsappConfigId: null, messengerConfigId: null, adsConfigId: null };
 
 /** O piso do schema da action. Abaixo disso o Zod recusa e a tela culparia o dono. */
 const TAMANHO_MINIMO_DA_CHAVE = 16;
@@ -62,10 +73,15 @@ export function FormularioDaMeta({
   leituraFalhou,
   urlDoApp = null,
   temAppId = false,
+  app = SEM_IDS,
 }: Props) {
   const t = useT();
   const router = useRouter();
   const [chave, setChave] = useState("");
+  const [appId, setAppId] = useState(app.appId ?? "");
+  const [cfgWhatsapp, setCfgWhatsapp] = useState(app.whatsappConfigId ?? "");
+  const [cfgMessenger, setCfgMessenger] = useState(app.messengerConfigId ?? "");
+  const [cfgAds, setCfgAds] = useState(app.adsConfigId ?? "");
   /**
    * O token recém-gerado vive SÓ aqui, na memória desta aba. Recarregar a página
    * o perde — e isso é o desenho, não um defeito: a tela diz para copiar agora e
@@ -79,7 +95,7 @@ export function FormularioDaMeta({
   function motivoDoRegistro(r: Extract<RegistrarWebhookDoAppResult, { ok: false }>): string {
     switch (r.error) {
       case "sem_app_id":
-        return t("Falta o ID do aplicativo da Meta na configuração do servidor (META_APP_ID).");
+        return t("Preencha o ID do aplicativo acima e salve.");
       case "sem_credencial":
         return t("Cadastre a chave secreta do aplicativo primeiro. Sem ela o token não vale.");
       case "sem_endereco_publico":
@@ -98,12 +114,31 @@ export function FormularioDaMeta({
     });
   }
 
-  const podeSalvar = chave.trim().length >= TAMANHO_MINIMO_DA_CHAVE;
+  const chaveNova = chave.trim();
+  const temChaveNova = chaveNova.length >= TAMANHO_MINIMO_DA_CHAVE;
+  const appIdNovo = appId.trim();
+  const trocaDeApp = appIdNovo !== "" && appIdNovo !== (app.appId ?? "");
+  const configsMudadas = (
+    [
+      ["whatsapp_config_id", cfgWhatsapp, app.whatsappConfigId],
+      ["messenger_config_id", cfgMessenger, app.messengerConfigId],
+      ["ads_config_id", cfgAds, app.adsConfigId],
+    ] as const
+  ).filter(([, novo, atual]) => novo.trim() !== (atual ?? ""));
+  // App novo pede a chave DELE: a guardada é do antigo, e a action recusaria.
+  const faltaChaveDoAppNovo = trocaDeApp && !temChaveNova;
+  const podeSalvar = !faltaChaveDoAppNovo && (temChaveNova || trocaDeApp || configsMudadas.length > 0);
 
   function motivoDaRecusa(r: Extract<UpdateMetaAppResult, { ok: false }>): string {
     switch (r.error) {
       case "invalid_input":
-        return t("A chave parece incompleta. Copie de novo do painel da Meta — ela tem 32 caracteres.");
+        return t("Confira os campos: a chave tem 32 letras e números, e os IDs são só números.");
+      case "app_novo_sem_chave":
+        return t("Para trocar de aplicativo, cole também a chave secreta do aplicativo novo.");
+      case "app_recusado_pela_meta": {
+        const motivo = (r.details as { motivo?: string } | undefined)?.motivo ?? "";
+        return `${t("A Meta não reconheceu esse ID com essa chave. Confira se os dois são do mesmo aplicativo.")} ${motivo}`.trim();
+      }
       case "app_secret_obrigatorio":
         return t("Cadastre a chave secreta do aplicativo primeiro. Sem ela o token não vale.");
       case "nada_para_salvar":
@@ -129,9 +164,14 @@ export function FormularioDaMeta({
 
   function salvar() {
     iniciar(async () => {
-      const r = await updateMetaApp({ app_secret: chave.trim() });
+      const r = await updateMetaApp({
+        ...(temChaveNova ? { app_secret: chaveNova } : {}),
+        // Com chave nova, o ID vai junto para a action conferir o par na Meta.
+        ...(appIdNovo !== "" && (trocaDeApp || temChaveNova) ? { app_id: appIdNovo } : {}),
+        ...Object.fromEntries(configsMudadas.map(([campo, novo]) => [campo, novo.trim()])),
+      });
       if (r.ok) setChave("");
-      aoGravar(r, t("Chave secreta salva."));
+      aoGravar(r, r.ok && r.appName ? `${t("Salvo. Aplicativo conferido na Meta:")} ${r.appName}` : t("Salvo."));
     });
   }
 
@@ -167,6 +207,27 @@ export function FormularioDaMeta({
 
       <Card className="flex flex-col gap-4 p-4">
         <div className="flex flex-col gap-1.5">
+          <Label htmlFor="meta-app-id">{t("ID do aplicativo")}</Label>
+          <Input
+            id="meta-app-id"
+            data-testid="meta-app-id"
+            inputMode="numeric"
+            autoComplete="off"
+            value={appId}
+            onChange={(e) => setAppId(e.target.value)}
+            placeholder={t("Só números, como 1431224221868157")}
+          />
+          <p className="text-xs text-muted-foreground">
+            {t("Fica no topo do painel do aplicativo na Meta (developers.facebook.com). Para trocar de aplicativo — por exemplo, porque o portfólio dono do atual foi restrito —, cole aqui o ID do aplicativo novo e a chave secreta dele logo abaixo, e salve.")}
+          </p>
+          {faltaChaveDoAppNovo ? (
+            <p role="alert" data-testid="meta-falta-chave-do-app-novo" className="text-xs text-destructive">
+              {t("Para trocar de aplicativo, cole também a chave secreta do aplicativo novo.")}
+            </p>
+          ) : null}
+        </div>
+
+        <div className="flex flex-col gap-1.5">
           <Label htmlFor="meta-app-secret">{t("Chave secreta do aplicativo")}</Label>
           <Input
             id="meta-app-secret"
@@ -183,6 +244,34 @@ export function FormularioDaMeta({
               : t("Fica no painel da Meta, em Configurações do app › Básico. Ela é guardada cifrada e nunca volta a aparecer nesta tela.")}
           </p>
         </div>
+
+        <fieldset className="flex flex-col gap-3 rounded-md border border-border p-3">
+          <legend className="px-1 text-sm font-medium">{t("Configurações de login do aplicativo")}</legend>
+          <p className="text-xs text-muted-foreground">
+            {t("Ficam no painel do aplicativo, em Login do Facebook para Empresas › Configurações. Cada uma é do aplicativo acima: trocar de aplicativo limpa as que você não preencher.")}
+          </p>
+          {(
+            [
+              ["meta-config-whatsapp", t("WhatsApp (cadastro incorporado)"), cfgWhatsapp, setCfgWhatsapp, t("Liga o botão “Conectar com Facebook” do WhatsApp oficial em Conexões.")],
+              ["meta-config-messenger", t("Messenger (opcional)"), cfgMessenger, setCfgMessenger, null],
+              ["meta-config-ads", t("Meta Ads (opcional)"), cfgAds, setCfgAds, null],
+            ] as const
+          ).map(([id, rotulo, valor, mudar, ajuda]) => (
+            <div key={id} className="flex flex-col gap-1.5">
+              <Label htmlFor={id}>{rotulo}</Label>
+              <Input
+                id={id}
+                data-testid={id}
+                inputMode="numeric"
+                autoComplete="off"
+                value={valor}
+                onChange={(e) => mudar(e.target.value)}
+                placeholder={t("ID da configuração (só números)")}
+              />
+              {ajuda ? <p className="text-xs text-muted-foreground">{ajuda}</p> : null}
+            </div>
+          ))}
+        </fieldset>
 
         {temNoAmbiente ? (
           <p

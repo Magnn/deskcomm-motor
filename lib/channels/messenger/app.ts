@@ -4,7 +4,7 @@
  * É o MESMO app do WhatsApp oficial: o segredo que assina a entrega e o token do
  * handshake vêm de `appDaMeta()` (banco primeiro, `.env` como piso — a regra e o
  * porquê estão em `lib/channels/meta/app.ts`). Daqui só sai o que o Messenger
- * acrescenta: o ID do app, que o login do Facebook exige e que não mora no banco.
+ * acrescenta: a configuração do login dele (o ID do app vem junto do segredo).
  *
  * Sem os três (id, segredo, token), o recurso inteiro fica DESLIGADO: as rotas
  * respondem que não está configurado e o webhook não aceita nada.
@@ -21,11 +21,9 @@ export interface AppDoMessenger {
 }
 
 export async function appDoMessenger(): Promise<AppDoMessenger | null> {
-  const appId = (env.META_APP_ID ?? "").trim();
-  const { appSecret, verifyToken } = await appDaMeta();
-  if (appId === "" || !appSecret || !verifyToken) return null;
-  const configId = (env.META_MESSENGER_CONFIG_ID ?? "").trim();
-  return { appId, appSecret, verifyToken, configId: configId === "" ? null : configId };
+  const { appId, appSecret, verifyToken, messengerConfigId } = await appDaMeta();
+  if (!appId || !appSecret || !verifyToken) return null;
+  return { appId, appSecret, verifyToken, configId: messengerConfigId };
 }
 
 function base(): string {

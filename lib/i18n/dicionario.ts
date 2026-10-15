@@ -5073,8 +5073,30 @@ export const DICIONARIO: Traducoes = {
   "Endereço registrado na Meta.": { es: "Dirección registrada en Meta." },
   "Registrado. A Meta passou a entregar neste endereço.": { es: "Registrado. Meta pasó a entregar en esta dirección." },
   "A Meta não aceitou o endereço:": { es: "Meta no aceptó la dirección:" },
-  "Falta o ID do aplicativo da Meta na configuração do servidor (META_APP_ID).":
-    { es: "Falta el ID de la aplicación de Meta en la configuración del servidor (META_APP_ID)." },
+  "Preencha o ID do aplicativo acima e salve.": { es: "Completa el ID de la aplicación arriba y guarda." },
+  "ID do aplicativo": { es: "ID de la aplicación" },
+  "Só números, como 1431224221868157": { es: "Solo números, como 1431224221868157" },
+  "Fica no topo do painel do aplicativo na Meta (developers.facebook.com). Para trocar de aplicativo — por exemplo, porque o portfólio dono do atual foi restrito —, cole aqui o ID do aplicativo novo e a chave secreta dele logo abaixo, e salve.":
+    { es: "Está arriba en el panel de la aplicación en Meta (developers.facebook.com). Para cambiar de aplicación —por ejemplo, porque el portafolio dueño de la actual fue restringido—, pega aquí el ID de la aplicación nueva y su clave secreta justo debajo, y guarda." },
+  "Para trocar de aplicativo, cole também a chave secreta do aplicativo novo.":
+    { es: "Para cambiar de aplicación, pega también la clave secreta de la aplicación nueva." },
+  "Configurações de login do aplicativo": { es: "Configuraciones de inicio de sesión de la aplicación" },
+  "Ficam no painel do aplicativo, em Login do Facebook para Empresas › Configurações. Cada uma é do aplicativo acima: trocar de aplicativo limpa as que você não preencher.":
+    { es: "Están en el panel de la aplicación, en Inicio de sesión con Facebook para empresas › Configuraciones. Cada una es de la aplicación de arriba: cambiar de aplicación borra las que no completes." },
+  "WhatsApp (cadastro incorporado)": { es: "WhatsApp (registro insertado)" },
+  "Liga o botão “Conectar com Facebook” do WhatsApp oficial em Conexões.":
+    { es: "Activa el botón “Conectar con Facebook” del WhatsApp oficial en Conexiones." },
+  "Messenger (opcional)": { es: "Messenger (opcional)" },
+  "Meta Ads (opcional)": { es: "Meta Ads (opcional)" },
+  "ID da configuração (só números)": { es: "ID de la configuración (solo números)" },
+  "Confira os campos: a chave tem 32 letras e números, e os IDs são só números.":
+    { es: "Revisa los campos: la clave tiene 32 letras y números, y los IDs son solo números." },
+  "A Meta não reconheceu esse ID com essa chave. Confira se os dois são do mesmo aplicativo.":
+    { es: "Meta no reconoció ese ID con esa clave. Revisa que los dos sean de la misma aplicación." },
+  "Salvo. Aplicativo conferido na Meta:": { es: "Guardado. Aplicación verificada en Meta:" },
+  "Salvo.": { es: "Guardado." },
+  "Na janela da Meta você escolhe o portfólio empresarial (BM) — qualquer um em que seja administrador — ou cria um novo ali mesmo, junto da conta do WhatsApp e do número. Reconectar com outro portfólio troca o número desta empresa.":
+    { es: "En la ventana de Meta eliges el portafolio empresarial (BM) —cualquiera en el que seas administrador— o creas uno nuevo ahí mismo, junto con la cuenta de WhatsApp y el número. Reconectar con otro portafolio cambia el número de esta empresa." },
   "Esta instalação não tem um endereço público com HTTPS, e a Meta só registra endereço assim.":
     { es: "Esta instalación no tiene una dirección pública con HTTPS, y Meta solo registra direcciones así." },
   "Canal conectado.": { es: "Canal conectado." },
