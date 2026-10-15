@@ -68,7 +68,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   for (const e of eventos) {
     const sessoes = await metaSessionsDoAviso(
-      e.kind === "inbound_message" || e.kind === "outbound_echo"
+      e.kind === "inbound_message" || e.kind === "outbound_echo" || e.kind === "contact_sync"
         ? { phoneNumberId: e.phoneNumberId }
         : { wabaId: e.wabaId },
     );

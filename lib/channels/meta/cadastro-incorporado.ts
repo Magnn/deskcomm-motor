@@ -215,3 +215,45 @@ export async function garantirNumeroRegistrado(
   if (!registro.ok) return { ok: false, motivo: registro.motivo };
   return { ok: true, registrou: true, noAplicativo: false };
 }
+
+/**
+ * COEXISTÊNCIA: pede à Meta a agenda do aplicativo do celular.
+ *
+ * A Meta entrega os contatos pelo aviso `smb_app_state_sync`, que o app precisa
+ * assinar (`CAMPOS_DO_WEBHOOK_DO_APP`). O pedido só vale UMA vez e só nas 24 h
+ * seguintes à conexão — depois disso, só desconectando e refazendo a janela. Por
+ * isso sai aqui, logo depois de gravar o canal, e não fica para um botão.
+ *
+ * O HISTÓRICO de conversas (`sync_type: "history"`) NÃO é pedido daqui: ele
+ * também é de uma vez só, e pedi-lo antes de a ingestão de histórico existir
+ * jogaria fora os 180 dias de conversa do cliente.
+ *
+ * `135000` = a Meta já recebeu este pedido antes (a pessoa reconectou o mesmo
+ * número). Não é falha: os contatos já vieram ou estão vindo.
+ */
+export async function pedirAgendaDoAplicativo(
+  p: { phoneNumberId: string; token: string },
+  buscar: Buscar = fetch,
+): Promise<{ ok: true; jaPedida: boolean } | { ok: false; motivo: string }> {
+  let res: Response;
+  try {
+    res = await buscar(`${GRAPH}/${graphVersion()}/${encodeURIComponent(p.phoneNumberId)}/smb_app_data`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${p.token}`, "content-type": "application/json" },
+      body: JSON.stringify({ messaging_product: "whatsapp", sync_type: "smb_app_state_sync" }),
+      redirect: "error",
+      cache: "no-store",
+      signal: AbortSignal.timeout(TETO_MS),
+    });
+  } catch (err) {
+    return { ok: false, motivo: `rede indisponível: ${err instanceof Error ? err.message : "erro"}` };
+  }
+  const corpo = (await res.json().catch(() => null)) as
+    | { error?: { code?: number; message?: string; error_data?: { details?: string } } }
+    | null;
+  if (corpo?.error?.code === 135000) return { ok: true, jaPedida: true };
+  if (!res.ok || corpo?.error) {
+    return { ok: false, motivo: corpo?.error?.error_data?.details ?? corpo?.error?.message ?? `http_${res.status}` };
+  }
+  return { ok: true, jaPedida: false };
+}

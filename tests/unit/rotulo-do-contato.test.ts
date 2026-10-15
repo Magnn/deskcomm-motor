@@ -157,6 +157,11 @@ describe("a sétima cópia não nasce", () => {
    * último caso), para não sobrar autorização em nome de código que sumiu.
    */
   const LEITURAS_LEGITIMAS: ReadonlyArray<{ arquivo: string; trecho: string; motivo: string }> = [
+    {
+      arquivo: "lib/channels/meta/aplicar-evento.ts",
+      trecho: 'linha.display_name ?? linha.phone_number ?? "WhatsApp oficial",',
+      motivo: "apelido do CANAL (channel_sessions) no aviso de conexão caída da Central, não de contato",
+    },
     // ── prospecção (PR #963): nenhuma destas é nome de CONTATO ──────────────
     {
       arquivo: "app/app/prospecting/_client.tsx",
