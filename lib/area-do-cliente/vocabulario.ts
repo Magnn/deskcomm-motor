@@ -20,6 +20,9 @@ export const TIPOS_DE_EVENTO_DA_AREA = [
   "desejo",
   "email_salvo",
   "saiu",
+  "carta_do_dia",
+  "diario_escrito",
+  "aniversario_salvo",
 ] as const;
 export type TipoDeEventoDaArea = (typeof TIPOS_DE_EVENTO_DA_AREA)[number];
 
