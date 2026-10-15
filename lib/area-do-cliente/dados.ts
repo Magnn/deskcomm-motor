@@ -13,6 +13,7 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { nomeDoContato } from "@/lib/contacts/rotulo-do-contato";
 import { slugDoProduto } from "@/lib/preco/pos-venda";
 
 const BUCKET = "whatsapp-media";
@@ -148,7 +149,7 @@ export async function carregarDadosDaArea(
   ]);
 
   const contato = contatoR.data as { name: string | null; display_name: string | null; email: string | null } | null;
-  const nome = contato?.display_name || contato?.name || "";
+  const nome = nomeDoContato(contato) ?? "";
 
   const lancamentos = (comprasR.data ?? []) as Array<{
     id: string;

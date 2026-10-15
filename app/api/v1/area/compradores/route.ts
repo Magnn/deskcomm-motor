@@ -12,6 +12,7 @@ import type { NextRequest } from "next/server";
 
 import { ok, fail } from "@/lib/api/wrappers";
 import { requireRole } from "@/lib/auth/require-role";
+import { rotuloDoContato } from "@/lib/contacts/rotulo-do-contato";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -79,7 +80,7 @@ export async function GET(req: NextRequest): Promise<Response> {
     ]);
     for (const e of [c.error, v.error, s.error]) if (e) return fail("internal_error", e.message, 500, { requestId });
     for (const r of (c.data ?? []) as Array<{ id: string; name: string | null; display_name: string | null; phone_number: string | null; email: string | null }>) {
-      contatos.set(r.id, { nome: r.display_name || r.name || "(sem nome)", telefone: r.phone_number, email: r.email });
+      contatos.set(r.id, { nome: rotuloDoContato(r), telefone: r.phone_number, email: r.email });
     }
     for (const r of (v.data ?? []) as Array<{ contact_id: string; created_at: string }>) {
       if (!convites.has(r.contact_id) || r.created_at > (convites.get(r.contact_id) as string)) convites.set(r.contact_id, r.created_at);
