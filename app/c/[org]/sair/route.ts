@@ -4,10 +4,10 @@
  * POST, não GET: um navegador que pré-carrega links não pode tirar ninguém da
  * área. A sessão é revogada no banco (não só o cookie apagado).
  */
-import { NextResponse, type NextRequest } from "next/server";
+import type { NextRequest } from "next/server";
 
 import { registrarEvento } from "@/lib/area-do-cliente/eventos";
-import { NAO_ENCONTRADA, contextoDaArea } from "@/lib/area-do-cliente/http";
+import { NAO_ENCONTRADA, contextoDaArea, irPara } from "@/lib/area-do-cliente/http";
 import { nomeDoCookieDaArea } from "@/lib/area-do-cliente/sessao";
 import { caminhoDaArea } from "@/lib/area-do-cliente/vocabulario";
 
@@ -25,7 +25,7 @@ export async function POST(req: NextRequest, { params }: Ctx): Promise<Response>
     await admin.from("area_sessoes").update({ revoked_at: new Date().toISOString() }).eq("id", sessao.sessaoId);
     await registrarEvento(admin, { organizationId: org.id, contactId: sessao.contactId, tipo: "saiu", sessaoId: sessao.sessaoId });
   }
-  const resposta = NextResponse.redirect(new URL(caminhoDaArea(org.slug), req.url), 303);
+  const resposta = irPara(caminhoDaArea(org.slug));
   resposta.cookies.delete(nomeDoCookieDaArea(org.slug));
   return resposta;
 }

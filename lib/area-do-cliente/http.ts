@@ -4,9 +4,11 @@
  * não há sessão — a página manda para a tela de entrar, a API responde 401.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { NextRequest } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 
 import { checkRateLimit } from "@/lib/ai/dispatcher/rate-limit";
+import { env } from "@/lib/env";
+import { urlPublicaUsavel } from "@/lib/escalacao/url-publica";
 import { ipDoCliente } from "@/lib/http/ip-do-cliente";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -31,6 +33,30 @@ export async function dentroDoLimite(req: NextRequest, balde: string, limite: nu
   const ip = ipDoCliente(req.headers) ?? "sem-ip";
   const r = await checkRateLimit(`area:${balde}:${ip}`, limite, janelaS);
   return r.allowed;
+}
+
+/**
+ * 303 com `Location` RELATIVO. Atrás do proxy, `req.url` é o endereço interno
+ * do contêiner (`https://0.0.0.0:3000/...`) — montar a URL absoluta a partir
+ * dele mandava o navegador para uma página de erro. Caminho relativo o
+ * navegador resolve no domínio em que a pessoa já está.
+ */
+export function irPara(caminho: string, busca?: Record<string, string>): NextResponse {
+  const query = busca ? `?${new URLSearchParams(busca).toString()}` : "";
+  return new NextResponse(null, { status: 303, headers: { Location: `${caminho}${query}` } });
+}
+
+/**
+ * Origem para link que sai da tela (WhatsApp, e-mail): o endereço público da
+ * instalação; sem ele, o que o proxy repassou; por último, o da requisição.
+ */
+export function origemPublica(req: NextRequest): string {
+  const daInstalacao = env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, "");
+  if (urlPublicaUsavel(daInstalacao)) return daInstalacao as string;
+  const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host");
+  const protocolo = (req.headers.get("x-forwarded-proto") ?? "https").split(",")[0]?.trim() || "https";
+  const repassada = host ? `${protocolo}://${host}` : null;
+  return urlPublicaUsavel(repassada) ? (repassada as string) : req.nextUrl.origin;
 }
 
 export function paginaSimples(status: number, titulo: string, texto: string): Response {

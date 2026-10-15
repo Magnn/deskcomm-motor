@@ -10,6 +10,7 @@ import { z } from "zod";
 
 import { ok, fail } from "@/lib/api/wrappers";
 import { registrarEvento } from "@/lib/area-do-cliente/eventos";
+import { origemPublica } from "@/lib/area-do-cliente/http";
 import { gerarToken, hashDoToken } from "@/lib/area-do-cliente/token";
 import { VALIDADE_DO_CONVITE_DIAS, caminhoDaArea } from "@/lib/area-do-cliente/vocabulario";
 import { audit } from "@/lib/audit";
@@ -68,7 +69,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     requestId,
   });
   return ok(
-    { link: `${req.nextUrl.origin}${caminhoDaArea(slug)}/entrar/${token}`, expira: expira.toISOString() },
+    { link: `${origemPublica(req)}${caminhoDaArea(slug)}/entrar/${token}`, expira: expira.toISOString() },
     { requestId, status: 201 },
   );
 }
