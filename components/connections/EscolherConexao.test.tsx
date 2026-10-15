@@ -122,13 +122,28 @@ describe("Conectar WhatsApp — a escolha", () => {
     await waitFor(() => expect(screen.queryByTestId("conexao-oficial")).toBeNull());
   });
 
-  it("manter no celular abre a janela no modo de coexistência", async () => {
+  it("⭐ coexistência é opção própria: abre a mesma janela no modo do aplicativo do celular", async () => {
+    abrir({ login });
+    const b = screen.getByTestId("escolher-coexistencia");
+    await waitFor(() => expect(b).toBeEnabled());
+    fireEvent.click(b);
+    expect(opcoesDoLogin?.extras).toEqual({ featureType: "whatsapp_business_app_onboarding" });
+    expect(b.textContent).toBe("Conclua na janela do Facebook…");
+    // A outra porta não finge estar aberta.
+    expect(screen.getByTestId("escolher-oficial").textContent).toBe("Conectar com Facebook");
+  });
+
+  it("API oficial sem coexistência abre com extras vazio", async () => {
     abrir({ login });
     const b = screen.getByTestId("escolher-oficial");
     await waitFor(() => expect(b).toBeEnabled());
-    fireEvent.click(screen.getByTestId("manter-no-celular"));
     fireEvent.click(b);
-    expect(opcoesDoLogin?.extras).toEqual({ featureType: "whatsapp_business_app_onboarding" });
+    expect(opcoesDoLogin?.extras).toEqual({});
+  });
+
+  it("sem login do Facebook na instalação, a coexistência não aparece — ela só existe pela janela da Meta", () => {
+    abrir();
+    expect(screen.queryByTestId("conexao-coexistencia")).toBeNull();
   });
 
   it("com número oficial já conectado, o botão diz trocar", async () => {
