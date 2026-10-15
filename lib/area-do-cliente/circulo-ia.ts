@@ -1,6 +1,8 @@
 /**
- * A IA do Círculo — o EMISSOR dos pontos `area_circulo_conteudo` (o conteúdo do
- * mês) e `area_circulo_resposta` (a resposta à pergunta do mês).
+ * A IA da área do cliente — o EMISSOR dos pontos `area_circulo_conteudo` (o
+ * conteúdo do mês do Círculo), `area_circulo_resposta` (a pergunta do mês),
+ * `area_presente_resposta` (a pergunta dada de presente) e `area_ano_pessoal`
+ * (a leitura do ano que começa no aniversário).
  *
  * Passa por `runModelCall`: mesma chave (da empresa ou da plataforma), mesmo
  * teto de gasto e mesmo registro em `llm_calls` de qualquer outra chamada.
@@ -34,9 +36,11 @@ export function pedidoDoConteudo(empresa: string, mes: string): string {
   ].join("\n\n");
 }
 
-export function pedidoDaResposta(empresa: string, pergunta: string, carta: Carta): string {
+export function pedidoDaResposta(empresa: string, pergunta: string, carta: Carta, origem: "circulo" | "presente" = "circulo"): string {
   return [
-    `Você é a taróloga de ${empresa}. Uma assinante do Círculo fez a pergunta do mês.`,
+    origem === "presente"
+      ? `Você é a taróloga de ${empresa}. Esta pessoa ganhou de presente uma pergunta de tarô e fez a pergunta dela.`
+      : `Você é a taróloga de ${empresa}. Uma assinante do Círculo fez a pergunta do mês.`,
     `Pergunta: """${pergunta.slice(0, 600)}"""`,
     `A carta tirada para ela foi ${carta.nome} (símbolos: ${carta.simbolos.join(", ")}). Sentido geral: ${carta.sentido.geral}`,
     "Responda a ela em até 180 palavras: diga qual carta saiu, o que ela sugere para a pergunta e um pequeno passo que ela pode dar.",
@@ -85,15 +89,49 @@ export async function gerarConteudoDoMes(
 export async function responderPergunta(
   pool: pg.Pool,
   cfg: LlmEdgeConfig,
-  d: { organizationId: string; contactId: string; empresa: string; pergunta: string; carta: Carta },
+  d: {
+    organizationId: string;
+    contactId: string;
+    empresa: string;
+    pergunta: string;
+    carta: Carta;
+    origem?: "circulo" | "presente";
+  },
 ): Promise<string | null> {
   const chamada = await runModelCall(pool, cfg, {
     tenantId: d.organizationId,
     leadId: d.contactId,
     jobId: null,
-    purpose: "area_circulo_resposta",
-    messages: [{ role: "user", content: pedidoDaResposta(d.empresa, d.pergunta, d.carta) }],
+    purpose: d.origem === "presente" ? "area_presente_resposta" : "area_circulo_resposta",
+    messages: [{ role: "user", content: pedidoDaResposta(d.empresa, d.pergunta, d.carta, d.origem ?? "circulo") }],
   });
   const texto = (chamada.result.text ?? "").trim();
   return texto ? texto.slice(0, 4000) : null;
+}
+
+export function pedidoDoAnoPessoal(empresa: string, d: { numero: number; ano: number; primeiroNome: string }): string {
+  return [
+    `Você escreve a leitura do Ano Pessoal de uma cliente de ${empresa}${d.primeiroNome ? `, ${d.primeiroNome}` : ""}.`,
+    `Pela numerologia, o ano que começa no aniversário dela em ${d.ano} é um Ano Pessoal ${d.numero}.`,
+    "Escreva: (1) o tema do Ano Pessoal " + d.numero + " em poucas linhas, (2) uma orientação para cada trimestre do ano (quatro blocos curtos) e (3) três intenções para ela anotar.",
+    `Regras:\n- ${REGRAS_DE_TOM}`,
+    "Até 700 palavras. Use o nome dela no máximo duas vezes.",
+    "Responda só com o texto, com uma linha em branco entre as partes.",
+  ].join("\n\n");
+}
+
+export async function gerarAnoPessoal(
+  pool: pg.Pool,
+  cfg: LlmEdgeConfig,
+  d: { organizationId: string; contactId: string; empresa: string; numero: number; ano: number; primeiroNome: string },
+): Promise<{ texto: string; modelo: string | null } | null> {
+  const chamada = await runModelCall(pool, cfg, {
+    tenantId: d.organizationId,
+    leadId: d.contactId,
+    jobId: null,
+    purpose: "area_ano_pessoal",
+    messages: [{ role: "user", content: pedidoDoAnoPessoal(d.empresa, d) }],
+  });
+  const texto = (chamada.result.text ?? "").trim();
+  return texto ? { texto: texto.slice(0, 12000), modelo: chamada.model ?? null } : null;
 }

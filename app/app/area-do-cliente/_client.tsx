@@ -262,6 +262,18 @@ function AbaPainel() {
                 <dt className="text-xs text-muted-foreground">{t("Fizeram a pergunta do mês")}</dt>
                 <dd className="text-lg font-semibold tabular-nums">{p.circulo.perguntaram}</dd>
               </div>
+              <div>
+                <dt className="text-xs text-muted-foreground">{t("Presentes comprados")}</dt>
+                <dd className="text-lg font-semibold tabular-nums">{p.ofertas.presentesComprados}</dd>
+              </div>
+              <div>
+                <dt className="text-xs text-muted-foreground">{t("Presentes usados")}</dt>
+                <dd className="text-lg font-semibold tabular-nums">{p.ofertas.presentesUsados}</dd>
+              </div>
+              <div>
+                <dt className="text-xs text-muted-foreground">{t("Compraram o Ano Pessoal")}</dt>
+                <dd className="text-lg font-semibold tabular-nums">{p.ofertas.anoPessoalComprado}</dd>
+              </div>
             </dl>
           </Card>
 
@@ -547,6 +559,12 @@ function AbaCompradores({ ativa }: { ativa: boolean }) {
 
 // ─── Configuração ───────────────────────────────────────────────────────────
 
+/** "29,90" → 2990; vazio ou lixo → o padrão. */
+function centavos(texto: string, padrao: number): number {
+  const n = Math.round(Number(texto.replace(/\./g, "").replace(",", ".")) * 100);
+  return Number.isFinite(n) && n >= 100 ? n : padrao;
+}
+
 function AbaConfig({ inicial }: { inicial: ConfigDaArea }) {
   const t = useT();
   const qc = useQueryClient();
@@ -558,12 +576,18 @@ function AbaConfig({ inicial }: { inicial: ConfigDaArea }) {
   const [cartaDoDia, setCartaDoDia] = useState(inicial.carta_do_dia ?? false);
   const [circuloAtivo, setCirculoAtivo] = useState(inicial.circulo?.ativo ?? false);
   const [circuloNome, setCirculoNome] = useState(inicial.circulo?.nome ?? "Círculo");
+  const [presenteAtivo, setPresenteAtivo] = useState(inicial.presente?.ativo ?? false);
+  const [presentePreco, setPresentePreco] = useState(((inicial.presente?.preco_cents ?? 1700) / 100).toFixed(2).replace(".", ","));
+  const [anoAtivo, setAnoAtivo] = useState(inicial.ano_pessoal?.ativo ?? false);
+  const [anoPreco, setAnoPreco] = useState(((inicial.ano_pessoal?.preco_cents ?? 4700) / 100).toFixed(2).replace(".", ","));
   const [circuloPreco, setCirculoPreco] = useState(((inicial.circulo?.preco_cents ?? 2900) / 100).toFixed(2).replace(".", ","));
   const salvar = useMutation({
     mutationFn: () =>
       apiClient.put("/api/v1/area/config", {
         ativo,
         carta_do_dia: cartaDoDia,
+        presente: { ativo: presenteAtivo, preco_cents: centavos(presentePreco, 1700) },
+        ano_pessoal: { ativo: anoAtivo, preco_cents: centavos(anoPreco, 4700) },
         circulo: {
           ativo: circuloAtivo,
           nome: circuloNome.trim() || "Círculo",
@@ -635,6 +659,32 @@ function AbaConfig({ inicial }: { inicial: ConfigDaArea }) {
             <Label htmlFor="area-circulo-preco">{t("Preço por 30 dias (R$)")}</Label>
             <Input id="area-circulo-preco" inputMode="decimal" value={circuloPreco} onChange={(e) => setCirculoPreco(e.target.value)} />
           </div>
+        </div>
+      </div>
+      <div className="space-y-2 rounded-md border border-border p-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <Label htmlFor="area-presente">{t("Presente (pergunta de tarô)")}</Label>
+            <p className="text-xs text-muted-foreground">{t("O cliente compra uma pergunta para dar a alguém; quem recebe pergunta pelo link e a IA responde.")}</p>
+          </div>
+          <Switch id="area-presente" checked={presenteAtivo} onCheckedChange={setPresenteAtivo} />
+        </div>
+        <div>
+          <Label htmlFor="area-presente-preco">{t("Preço (R$)")}</Label>
+          <Input id="area-presente-preco" inputMode="decimal" value={presentePreco} onChange={(e) => setPresentePreco(e.target.value)} />
+        </div>
+      </div>
+      <div className="space-y-2 rounded-md border border-border p-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <Label htmlFor="area-ano">{t("Ano Pessoal")}</Label>
+            <p className="text-xs text-muted-foreground">{t("Aparece de 15 dias antes a 30 dias depois do aniversário de quem contou a data. A IA escreve a leitura depois do pagamento.")}</p>
+          </div>
+          <Switch id="area-ano" checked={anoAtivo} onCheckedChange={setAnoAtivo} />
+        </div>
+        <div>
+          <Label htmlFor="area-ano-preco">{t("Preço (R$)")}</Label>
+          <Input id="area-ano-preco" inputMode="decimal" value={anoPreco} onChange={(e) => setAnoPreco(e.target.value)} />
         </div>
       </div>
       <div>

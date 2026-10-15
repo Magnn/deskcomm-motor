@@ -10,10 +10,12 @@
  * que o Desk já tem — ver `lib/area-do-cliente/dados.ts`.
  */
 import type { Metadata } from "next";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { notFound } from "next/navigation";
 
+import { janelaDoAnoPessoal, numeroDoAnoPessoal } from "@/lib/area-do-cliente/ano-pessoal";
 import { semanaDoAniversario } from "@/lib/area-do-cliente/aniversario";
+import { caminhoDoPresente } from "@/lib/area-do-cliente/presente";
 import { MENSAGEM_DO_DIA, cartaDoDia } from "@/lib/area-do-cliente/carta-do-dia";
 import { DIAS_DO_AVISO_DE_RENOVACAO, assinaturaAtiva, diasRestantes, lerAssinatura, mesDoDia } from "@/lib/area-do-cliente/circulo";
 import { carregarDadosDaArea, diaNoFuso, fotoDaCarta } from "@/lib/area-do-cliente/dados";
@@ -37,6 +39,7 @@ import {
   type TextosDaArea,
 } from "./_client";
 import { CirculoDoCliente } from "./_circulo";
+import { AnoPessoalDoCliente, PresenteDoCliente, type TextosDasOfertas } from "./_ofertas";
 
 export const dynamic = "force-dynamic";
 
@@ -191,6 +194,48 @@ export default async function AreaDoCliente({ params, searchParams }: Props) {
           .maybeSingle(),
       ])
     : [{ data: null }, { data: null }];
+  const ofertaPresente = org.config.presente?.ativo ? org.config.presente : null;
+  const { data: presentesData } = ofertaPresente
+    ? await admin
+        .from("area_presentes")
+        .select("id, codigo, para_nome, pergunta")
+        .eq("organization_id", org.id)
+        .eq("de_contact_id", sessao.contactId)
+        .not("pago_at", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(10)
+    : { data: null };
+  const origem = (await headers()).get("host") ? `https://${(await headers()).get("host")}` : "";
+  const presentes = ((presentesData ?? []) as Array<{ id: string; codigo: string; para_nome: string | null; pergunta: string | null }>).map(
+    (p) => ({ id: p.id, para: p.para_nome, link: `${origem}${caminhoDoPresente(org.slug, p.codigo)}`, usado: p.pergunta !== null }),
+  );
+  const ofertaAno = org.config.ano_pessoal?.ativo && dados.contato.nascimento ? org.config.ano_pessoal : null;
+  const janelaAno = ofertaAno && dados.contato.nascimento ? janelaDoAnoPessoal(dados.contato.nascimento, hoje) : null;
+  const { data: anoData } = janelaAno?.aberta
+    ? await admin
+        .from("area_ano_pessoal")
+        .select("texto")
+        .eq("organization_id", org.id)
+        .eq("contact_id", sessao.contactId)
+        .eq("ano", janelaAno.ano)
+        .maybeSingle()
+    : { data: null };
+  const to: TextosDasOfertas = {
+    presenteTitulo: t("Dê uma pergunta de tarô de presente"),
+    presenteConvite: t("Alguém que você ama ganha uma pergunta para as cartas. Você recebe o link e manda para ela."),
+    presenteParaQuem: t("Para quem é? (opcional)"),
+    presenteParaQuemExemplo: t("Ex.: Ana"),
+    seusPresentes: t("Seus presentes"),
+    presenteNaoUsado: t("ainda não usado"),
+    presenteUsado: t("já usado ✓"),
+    copiarLink: t("Copiar link"),
+    linkCopiado: t("Link copiado."),
+    mandarPeloWhatsapp: t("Mandar pelo WhatsApp"),
+    mensagemDoPresente: t("Tenho um presente para você: uma pergunta para as cartas. Abra aqui:"),
+    anoPessoalTitulo: t("Seu Ano Pessoal"),
+    anoPessoalConvite: t("A leitura do ano que começa no seu aniversário: o tema do ano, uma orientação para cada trimestre e três intenções para você."),
+    anoPessoalPreparando: t("A leitura do seu ano está sendo preparada…"),
+  };
   const aniversarioNestaSemana = dados.contato.nascimento ? semanaDoAniversario(dados.contato.nascimento, hoje) : false;
 
   const ola = dados.contato.primeiroNome ? `${t("Olá")}, ${dados.contato.primeiroNome}` : t("Olá");
@@ -232,6 +277,20 @@ export default async function AreaDoCliente({ params, searchParams }: Props) {
             renovarJa={noCirculo && validoAte ? diasRestantes(validoAte, new Date()) <= DIAS_DO_AVISO_DE_RENOVACAO : false}
             conteudo={(conteudoR.data as { titulo: string; texto: string } | null) ?? null}
             pergunta={(perguntaR.data as { pergunta: string; resposta: string | null } | null) ?? null}
+          />
+        ) : null}
+
+        {ofertaAno && janelaAno?.aberta && dados.contato.nascimento ? (
+          <AnoPessoalDoCliente
+            slug={org.slug}
+            cor={cor}
+            tx={tx}
+            to={to}
+            ano={janelaAno.ano}
+            numero={numeroDoAnoPessoal(dados.contato.nascimento, janelaAno.ano)}
+            preco={dinheiro(ofertaAno.preco_cents, "BRL")}
+            pago={anoData !== null}
+            texto={(anoData as { texto: string | null } | null)?.texto ?? null}
           />
         ) : null}
 
@@ -368,6 +427,17 @@ export default async function AreaDoCliente({ params, searchParams }: Props) {
         />
 
         {!dados.contato.nascimento ? <AniversarioDoCliente slug={org.slug} cor={cor} tx={tx} /> : null}
+
+        {ofertaPresente ? (
+          <PresenteDoCliente
+            slug={org.slug}
+            cor={cor}
+            tx={tx}
+            to={to}
+            preco={dinheiro(ofertaPresente.preco_cents, "BRL")}
+            presentes={presentes}
+          />
+        ) : null}
 
         <DesejoDoCliente slug={org.slug} cor={cor} tx={tx} />
 

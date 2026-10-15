@@ -13,7 +13,8 @@
 --   area_codigos   — o código de 6 números mandado por e-mail para entrar de novo;
 --   area_eventos   — o rastro: entrou, viu, abriu, clicou para comprar, desejou;
 --   area_diario    — o que a pessoa anota; só ela lê (a equipe vê a contagem);
---   area_assinaturas, area_conteudos, area_perguntas — o Círculo (assinatura mensal).
+--   area_assinaturas, area_conteudos, area_perguntas — o Círculo (assinatura mensal);
+--   area_presentes — a pergunta de tarô dada de presente; area_ano_pessoal — a leitura do ano.
 --
 -- Quem ESCREVE nas quatro últimas é só o servidor (service role), pelas rotas
 -- públicas da área. A equipe lê pela RLS. Nenhuma delas guarda texto livre do
@@ -99,7 +100,9 @@ create table if not exists public.area_eventos (
     'convite_criado', 'entrou', 'visitou', 'material_aberto',
     'servico_visto', 'checkout_clicado', 'desejo', 'email_salvo', 'saiu',
     'carta_do_dia', 'diario_escrito', 'aniversario_salvo',
-    'circulo_checkout', 'circulo_ativado', 'pergunta_enviada'
+    'circulo_checkout', 'circulo_ativado', 'pergunta_enviada',
+    'presente_checkout', 'presente_pago', 'presente_usado',
+    'ano_pessoal_checkout', 'ano_pessoal_pago'
   )),
   servico_id uuid references public.area_servicos(id) on delete set null,
   ref text check (ref is null or char_length(ref) <= 120),
@@ -166,6 +169,39 @@ create table if not exists public.area_perguntas (
 );
 
 -- ────────────────────────────────────────────────────────────────────────────
+-- 8 · o presente — uma pergunta de tarô para dar a alguém
+-- ────────────────────────────────────────────────────────────────────────────
+-- Quem compra é o contato; quem recebe é quem abrir o link (`codigo`), sem
+-- cadastro. Vale uma pergunta. Só o servidor lê: a pergunta é de quem recebeu.
+create table if not exists public.area_presentes (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references public.organizations(id) on delete cascade,
+  de_contact_id uuid not null references public.contacts(id) on delete cascade,
+  codigo text not null unique check (char_length(codigo) between 16 and 64),
+  para_nome text check (para_nome is null or char_length(para_nome) <= 60),
+  pagamento text,
+  pago_at timestamptz,
+  pergunta text check (pergunta is null or char_length(pergunta) <= 600),
+  resposta text check (resposta is null or char_length(resposta) <= 4000),
+  respondida_at timestamptz,
+  created_at timestamptz not null default now()
+);
+create index if not exists area_presentes_de_idx on public.area_presentes (organization_id, de_contact_id, created_at desc);
+
+-- O Ano Pessoal: a leitura do ano que começa no aniversário, paga e escrita pela IA.
+create table if not exists public.area_ano_pessoal (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references public.organizations(id) on delete cascade,
+  contact_id uuid not null references public.contacts(id) on delete cascade,
+  ano integer not null check (ano between 2000 and 2200),
+  pagamento text,
+  texto text check (texto is null or char_length(texto) <= 12000),
+  modelo text,
+  created_at timestamptz not null default now(),
+  unique (organization_id, contact_id, ano)
+);
+
+-- ────────────────────────────────────────────────────────────────────────────
 -- RLS: a equipe lê; a vitrine é editada por manager+; o resto só o servidor escreve.
 -- ────────────────────────────────────────────────────────────────────────────
 alter table public.area_servicos enable row level security;
@@ -213,6 +249,12 @@ create policy tenant_isolation_area_conteudos_select on public.area_conteudos
 -- A pergunta é da pessoa, como o diário: só o servidor lê e escreve.
 alter table public.area_perguntas enable row level security;
 revoke all on public.area_perguntas from anon, authenticated;
+
+-- O presente e o Ano Pessoal são da pessoa: só o servidor lê e escreve.
+alter table public.area_presentes enable row level security;
+revoke all on public.area_presentes from anon, authenticated;
+alter table public.area_ano_pessoal enable row level security;
+revoke all on public.area_ano_pessoal from anon, authenticated;
 
 alter table public.area_eventos enable row level security;
 drop policy if exists tenant_isolation_area_eventos_select on public.area_eventos;

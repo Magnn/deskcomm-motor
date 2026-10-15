@@ -14,4 +14,12 @@ Para a pessoa voltar sem precisar comprar nada: a fase da lua da semana com a da
 
 O e-mail de quem paga pela Stripe com cartão ou boleto também passa a ser guardado (o Pix gerado na conversa não traz e-mail).
 
+Três ofertas pagas pela Stripe da empresa, cada uma ligada à parte em Configuração:
+
+- **Círculo**: 30 dias por pagamento (Pix com o código na própria área, ou cartão), com o conteúdo do mês e uma pergunta por mês respondidas pela IA com uma carta tirada pelo sistema. Renovar antes de vencer não perde dia nenhum.
+- **Presente**: o cliente compra uma pergunta de tarô para dar a alguém, recebe o link e manda pelo WhatsApp dele; quem recebe pergunta sem cadastro e a IA responde.
+- **Ano Pessoal**: de 15 dias antes a 30 dias depois do aniversário, a leitura do ano escrita pela IA.
+
+Os textos da IA seguem regras fixas: orientação, sem promessa de resultado, prazo, cura, medo, venda ou link. O painel mostra assinantes ativos, quem abriu o pagamento, quem pagou, perguntas feitas, presentes comprados e usados, e quem comprou o Ano Pessoal.
+
 A área nasce desligada. Nada muda para quem não ligar.

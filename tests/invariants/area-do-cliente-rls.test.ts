@@ -16,7 +16,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 
 import { GOV_ADMIN, GOV_ORG, countAs, seedGov, sql } from "./gov-helpers";
 
-const SO_DO_SERVIDOR = ["area_codigos", "area_diario", "area_perguntas"] as const;
+const SO_DO_SERVIDOR = ["area_codigos", "area_diario", "area_perguntas", "area_presentes", "area_ano_pessoal"] as const;
 
 beforeAll(() => {
   seedGov();
@@ -29,6 +29,10 @@ beforeAll(() => {
       values ('${GOV_ORG}', '${contato}', 'o que eu anotei');
     insert into public.area_perguntas (organization_id, contact_id, mes, pergunta)
       values ('${GOV_ORG}', '${contato}', date_trunc('month', now())::date, 'minha pergunta');
+    insert into public.area_presentes (organization_id, de_contact_id, codigo)
+      values ('${GOV_ORG}', '${contato}', 'presente-${contato}');
+    insert into public.area_ano_pessoal (organization_id, contact_id, ano)
+      values ('${GOV_ORG}', '${contato}', 2026);
   `);
 });
 

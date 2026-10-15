@@ -28,6 +28,7 @@ import { audit } from "@/lib/audit";
 import { fail, ok } from "@/lib/api/wrappers";
 import { logger } from "@/lib/logger";
 import { EXTRA_DO_CIRCULO, ativarCirculo } from "@/lib/area-do-cliente/circulo";
+import { liberarCompraDaArea } from "@/lib/area-do-cliente/compras-da-area";
 import { guardarEmailDoContato } from "@/lib/area-do-cliente/email-do-contato";
 import { registrarEvento } from "@/lib/area-do-cliente/eventos";
 import { aplicarEventoDaCakto, depsReais } from "@/lib/pagamentos/compra-cakto";
@@ -136,7 +137,8 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ conexao: s
       // Reentrega da Stripe: a receita já está lá e a marca também.
       if (erroDoLedger?.code === "23505") return ok({ received: true, resultado: "repetida" }, { requestId }) as NextResponse;
       if (erroDoLedger) throw new Error(erroDoLedger.message);
-      // O Círculo da área do cliente: o pagamento estende o acesso em 30 dias (idempotente pelo id).
+      // A área do cliente: o que cada pagamento libera (todos idempotentes pelo id do pagamento).
+      await liberarCompraDaArea(admin, conexao.organizationId, contatoId, cobrancaId, extra, meta, metodoDaCobranca);
       if (extra === EXTRA_DO_CIRCULO) {
         const ativado = await ativarCirculo(admin, conexao.organizationId, contatoId, cobrancaId);
         if (!ativado.jaAplicado) {

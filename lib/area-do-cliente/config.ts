@@ -41,6 +41,20 @@ export const configDaAreaSchema = z.strictObject({
       preco_cents: z.number().int().min(100).max(1_000_000).default(2900),
     })
     .optional(),
+  /** O presente: uma pergunta de tarô que o cliente compra para dar a alguém. */
+  presente: z
+    .strictObject({
+      ativo: z.boolean().default(false),
+      preco_cents: z.number().int().min(100).max(1_000_000).default(1700),
+    })
+    .optional(),
+  /** O Ano Pessoal: a leitura do ano, oferecida na janela do aniversário. */
+  ano_pessoal: z
+    .strictObject({
+      ativo: z.boolean().default(false),
+      preco_cents: z.number().int().min(100).max(1_000_000).default(4700),
+    })
+    .optional(),
   /** Cor principal da área, em hex. Vazio = a cor do produto. */
   cor: z
     .string()

@@ -338,6 +338,28 @@ export const PONTOS_DE_IA: readonly PontoDeIa[] = [
     registraEm: "llm_calls",
   },
   {
+    id: "area_presente_resposta",
+    rotulo: "Responder a pergunta dada de presente",
+    oQueFaz:
+      "Responde a pergunta de tarô de quem ganhou um presente na área do cliente, a partir de uma carta tirada pelo sistema, com orientação e sem promessa.",
+    papel: "atender",
+    exige: {},
+    emissor: "lib/area-do-cliente/circulo-ia.ts",
+    sintomaDeFalha: "Quem ganhou o presente faz a pergunta e vê o aviso de que a resposta está sendo preparada.",
+    registraEm: "llm_calls",
+  },
+  {
+    id: "area_ano_pessoal",
+    rotulo: "Escrever a leitura do Ano Pessoal",
+    oQueFaz:
+      "Escreve a leitura do ano que começa no aniversário da cliente: o tema do ano pela numerologia, uma orientação por trimestre e três intenções.",
+    papel: "atender",
+    exige: {},
+    emissor: "lib/area-do-cliente/circulo-ia.ts",
+    sintomaDeFalha: "Quem pagou o Ano Pessoal abre a área e encontra o aviso de que a leitura está sendo preparada.",
+    registraEm: "llm_calls",
+  },
+  {
     id: "loss_reason_classify",
     rotulo: "Entender por que a venda não aconteceu",
     oQueFaz:

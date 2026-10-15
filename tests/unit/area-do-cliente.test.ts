@@ -8,7 +8,9 @@ import { dataDeNascimentoValida, diasParaOAniversario, semanaDoAniversario } fro
 import { MENSAGEM_DO_DIA, cartaDoDia } from "@/lib/area-do-cliente/carta-do-dia";
 import { assinaturaAtiva, diasRestantes, estenderValidade, mesDoDia } from "@/lib/area-do-cliente/circulo";
 import { REGRAS_DE_TOM, cartaDaPergunta, lerConteudo, pedidoDaResposta, pedidoDoConteudo } from "@/lib/area-do-cliente/circulo-ia";
+import { janelaDoAnoPessoal, numeroDoAnoPessoal } from "@/lib/area-do-cliente/ano-pessoal";
 import { lerConfigDaArea } from "@/lib/area-do-cliente/config";
+import { FORMA_DO_CODIGO_DO_PRESENTE, gerarCodigoDoPresente } from "@/lib/area-do-cliente/presente";
 import { faseDaLua, proximaLua } from "@/lib/area-do-cliente/lua";
 import { agruparLeituraPorDia, classificarMidia, primeiroNome } from "@/lib/area-do-cliente/dados";
 import { calcularPainel, type LinhaDeCompra, type LinhaDeEvento } from "@/lib/area-do-cliente/metricas";
@@ -313,5 +315,32 @@ describe("Círculo", () => {
     expect(lerConteudo('aqui vai: {"titulo":"Outubro","texto":"A energia…"}')).toEqual({ titulo: "Outubro", texto: "A energia…" });
     expect(lerConteudo("sem json")).toBeNull();
     expect(lerConteudo('{"titulo":"","texto":"x"}')).toBeNull();
+  });
+});
+
+describe("presente", () => {
+  it("o código tem 32 caracteres e casa com o caminho público", () => {
+    const codigo = gerarCodigoDoPresente();
+    expect(FORMA_DO_CODIGO_DO_PRESENTE.test(codigo)).toBe(true);
+    expect(PUBLIC_PATHS.some((r) => r.test(`/api/v1/area/publica/magno/presente/${codigo}`))).toBe(true);
+    expect(PUBLIC_PATHS.some((r) => r.test("/api/v1/area/publica/magno/presente/curto"))).toBe(false);
+  });
+});
+
+describe("Ano Pessoal", () => {
+  it("o número é a soma reduzida de dia, mês e ano", () => {
+    // 09/04 em 2026: 9 + 4 + (2+0+2+6=10→1) = 14 → 5
+    expect(numeroDoAnoPessoal("1980-04-09", 2026)).toBe(5);
+    // 29/12 em 2026: (2+9=11→2) + (1+2=3) + 1 = 6
+    expect(numeroDoAnoPessoal("1990-12-29", 2026)).toBe(6);
+  });
+  it("a janela abre 15 dias antes e fecha 30 dias depois, no ano certo", () => {
+    expect(janelaDoAnoPessoal("1980-10-25", "2026-10-15")).toEqual({ aberta: true, ano: 2026 });
+    expect(janelaDoAnoPessoal("1980-10-01", "2026-10-15")).toEqual({ aberta: true, ano: 2026 });
+    expect(janelaDoAnoPessoal("1980-12-01", "2026-10-15").aberta).toBe(false);
+    // Aniversário em 03/01, hoje 20/12: o ano que vai começar é o seguinte.
+    expect(janelaDoAnoPessoal("1980-01-03", "2026-12-20")).toEqual({ aberta: true, ano: 2027 });
+    // Aniversário em 28/12, hoje 10/01: o ano que começou foi o anterior.
+    expect(janelaDoAnoPessoal("1980-12-28", "2027-01-10")).toEqual({ aberta: true, ano: 2026 });
   });
 });

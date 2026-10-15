@@ -67,6 +67,8 @@ export interface Painel {
   engajamento: { cartaDoDia: number; diario: number; aniversarios: number };
   /** O Círculo no período, em pessoas: abriram o pagamento, pagaram, fizeram a pergunta do mês. */
   circulo: { abriramPagamento: number; pagaram: number; perguntaram: number };
+  /** Presentes e Ano Pessoal no período: quem comprou e quantos presentes já foram usados. */
+  ofertas: { presentesComprados: number; presentesUsados: number; anoPessoalComprado: number };
 }
 
 const ORDEM_DO_AVANCO: Record<string, number> = {
@@ -196,6 +198,11 @@ export function calcularPainel(
       abriramPagamento: pessoasCom("circulo_checkout").size,
       pagaram: pessoasCom("circulo_ativado").size,
       perguntaram: pessoasCom("pergunta_enviada").size,
+    },
+    ofertas: {
+      presentesComprados: eventos.filter((e) => e.tipo === "presente_pago").length,
+      presentesUsados: eventos.filter((e) => e.tipo === "presente_usado").length,
+      anoPessoalComprado: pessoasCom("ano_pessoal_pago").size,
     },
   };
 }

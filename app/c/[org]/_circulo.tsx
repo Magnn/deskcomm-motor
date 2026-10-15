@@ -12,7 +12,7 @@ import { copyToClipboard } from "@/lib/clipboard";
 
 import { CAMPO, type TextosDaArea } from "./_client";
 
-async function postarJson<T>(
+export async function postarJson<T>(
   url: string,
   corpo: unknown,
   tx: TextosDaArea,
@@ -32,7 +32,20 @@ async function postarJson<T>(
   }
 }
 
-function PagarCirculo({ slug, cor, tx, rotulo }: { slug: string; cor: string; tx: TextosDaArea; rotulo?: string }) {
+/** Pagar uma oferta da área (Círculo, presente, Ano Pessoal): Pix aqui mesmo, cartão na Stripe. */
+export function PagarNaArea({
+  endpoint,
+  corpo = {},
+  cor,
+  tx,
+  rotulo,
+}: {
+  endpoint: string;
+  corpo?: Record<string, unknown>;
+  cor: string;
+  tx: TextosDaArea;
+  rotulo?: string;
+}) {
   const [pix, setPix] = React.useState<{ copiaECola: string; qrPng: string | null } | null>(null);
   const [enviando, setEnviando] = React.useState<"pix" | "cartao" | null>(null);
   const [erro, setErro] = React.useState<string | null>(null);
@@ -41,11 +54,7 @@ function PagarCirculo({ slug, cor, tx, rotulo }: { slug: string; cor: string; tx
   const pagar = async (forma: "pix" | "cartao") => {
     setEnviando(forma);
     setErro(null);
-    const r = await postarJson<{ copiaECola?: string; qrPng?: string | null; url?: string }>(
-      `/api/v1/area/publica/${slug}/circulo`,
-      { forma },
-      tx,
-    );
+    const r = await postarJson<{ copiaECola?: string; qrPng?: string | null; url?: string }>(endpoint, { ...corpo, forma }, tx);
     setEnviando(null);
     if (!r.ok) {
       setErro(r.mensagem);
@@ -166,7 +175,7 @@ export function CirculoDoCliente({
         <p className="mt-3 text-lg font-semibold">
           {preco} <span className="text-sm font-normal text-[#6b7280]">{tx.por30Dias}</span>
         </p>
-        <PagarCirculo slug={slug} cor={cor} tx={tx} />
+        <PagarNaArea endpoint={`/api/v1/area/publica/${slug}/circulo`} cor={cor} tx={tx} />
       </section>
     );
   }
@@ -177,7 +186,7 @@ export function CirculoDoCliente({
       <p className="mt-1 text-xs text-[#6b7280]">
         {tx.voceEstaNoCirculo} {ate}
       </p>
-      {renovarJa ? <PagarCirculo slug={slug} cor={cor} tx={tx} rotulo={tx.renovar} /> : null}
+      {renovarJa ? <PagarNaArea endpoint={`/api/v1/area/publica/${slug}/circulo`} cor={cor} tx={tx} rotulo={tx.renovar} /> : null}
 
       <div className="mt-4 border-t border-[#eef0f3] pt-4">
         {doMes ? (
