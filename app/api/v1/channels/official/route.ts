@@ -43,6 +43,7 @@ import {
   credencialDoCadastroIncorporado,
   garantirNumeroRegistrado,
   pedirAgendaDoAplicativo,
+  pedirHistoricoDoAplicativo,
   type CredencialDoCadastro,
 } from "@/lib/channels/meta/cadastro-incorporado";
 import { metaGraphBase } from "@/lib/channels/meta/credentials";
@@ -459,11 +460,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         })
       : null;
 
-  // ─── Coexistência: a agenda do celular ─────────────────────────────────────
-  // Depois do webhook, porque é por ele que os contatos chegam. Falhar aqui não
-  // desfaz a conexão (o canal já envia e recebe); vai ao log e à resposta, e a
-  // pessoa ainda tem as 24 h da Meta para reconectar se quiser os contatos.
+  // ─── Coexistência: a agenda e o histórico do celular ───────────────────────
+  // Depois do webhook, porque é por ele que contatos e conversas chegam. Falhar
+  // aqui não desfaz a conexão (o canal já envia e recebe); vai ao log e à
+  // resposta, e a pessoa ainda tem as 24 h da Meta para reconectar.
   let agendaDoCelular: "pedida" | "ja_pedida" | "falhou" | null = null;
+  let historicoDoCelular: "pedido" | "ja_pedido" | "falhou" | null = null;
   if (noAplicativo) {
     const agenda = await pedirAgendaDoAplicativo({ phoneNumberId: phone_number_id, token });
     agendaDoCelular = agenda.ok ? (agenda.jaPedida ? "ja_pedida" : "pedida") : "falhou";
@@ -474,11 +476,22 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         motivo: agenda.motivo,
       });
     }
+    // A Meta exige a agenda antes do histórico.
+    const historico = await pedirHistoricoDoAplicativo({ phoneNumberId: phone_number_id, token });
+    historicoDoCelular = historico.ok ? (historico.jaPedida ? "ja_pedido" : "pedido") : "falhou";
+    if (!historico.ok) {
+      logger.error("[meta.coexistencia] pedido do histórico do celular recusado", {
+        request_id: requestId,
+        organization_id: orgId,
+        motivo: historico.motivo,
+      });
+    }
   }
 
   return ok({
     connected: true,
     agendaDoCelular,
+    historicoDoCelular,
     displayName: linha.display_name,
     phoneNumber: linha.phone_number,
     /** `registrado: false` NÃO desfaz a conexão — o canal envia; falta a entrega. */

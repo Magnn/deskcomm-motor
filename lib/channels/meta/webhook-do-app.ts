@@ -29,6 +29,8 @@ export const CAMPOS_DO_WEBHOOK_DO_APP = [
   "smb_message_echoes",
   // Coexistência: a agenda do celular, pedida logo depois da conexão.
   "smb_app_state_sync",
+  // Coexistência: até 180 dias de conversa do celular, pedidos junto da agenda.
+  "history",
   // O cliente desconectou (ou voltou) sem passar pelo CRM — sem isto o canal
   // seguiria "conectado" e mudo.
   "account_update",

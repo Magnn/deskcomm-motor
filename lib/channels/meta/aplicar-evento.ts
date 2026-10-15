@@ -14,6 +14,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { logger } from "@/lib/logger";
 
 import { sincronizarSaudeDaConexao } from "../health";
+import { ingestMetaHistorico } from "./historico";
 import { ingestMetaEcho, ingestMetaInbound } from "./ingest";
 import type { MetaWebhookSession } from "./session";
 import { statusUpdate } from "./status-update";
@@ -189,6 +190,20 @@ export async function aplicarEventoDaMeta(
   }
 
   if (e.kind === "contact_sync") return await aplicarAgendaDoAplicativo(admin, e, session);
+  if (e.kind === "history_sync") {
+    const r = await ingestMetaHistorico(admin, e, session);
+    if (r.status === "no_session") return "no_session";
+    if (r.status !== "failed") return r.status === "declined" ? "history_declined" : "history_imported";
+    // O que já entrou fica (a importação é idempotente pela `external_id`): a
+    // re-entrega da Meta só grava o que faltou.
+    logger.error("[meta.historico] pedaço do histórico não gravado inteiro", {
+      organization_id: session.organizationId,
+      motivo: r.reason,
+      conversas_gravadas: r.conversas,
+      vai_pedir_reentrega: ehFalhaPassageira(r.reason),
+    });
+    return ehFalhaPassageira(r.reason) ? DESFECHO_PASSAGEIRO : "failed";
+  }
   if (e.kind === "account_update") return await aplicarMudancaDaConta(admin, e, session, now);
 
   if (e.kind === "template_status") {
