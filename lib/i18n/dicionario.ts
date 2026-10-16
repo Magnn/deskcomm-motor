@@ -8572,6 +8572,7 @@ export const DICIONARIO: Traducoes = {
   "Cadastre a chave secreta do aplicativo primeiro. Sem ela o token não vale.": { es: "Registra primero la clave secreta de la aplicación. Sin ella, el token no es válido." },
   "Nada mudou. Digite uma chave nova para substituir a atual.": { es: "Nada cambió. Escribe una clave nueva para reemplazar la actual." },
   "Não consegui conferir o que já está gravado, então nada foi alterado. Tente de novo em instantes.": { es: "No pude comprobar lo que ya está guardado, así que no se cambió nada. Inténtalo de nuevo en unos instantes." },
+  "Não consegui guardar a chave do aplicativo atual, então nada foi trocado — sem ela os números conectados por ele parariam. Tente de novo em instantes.": { es: "No pude guardar la clave de la aplicación actual, así que no se cambió nada — sin ella los números conectados por ella dejarían de funcionar. Inténtelo de nuevo en unos instantes." },
   "Não deu para salvar, e nada foi gravado.": { es: "No se pudo guardar. No se modificó nada." },
   "Chave secreta salva.": { es: "Clave secreta guardada." },
   "Token de verificação gerado.": { es: "Token de verificación generado." },

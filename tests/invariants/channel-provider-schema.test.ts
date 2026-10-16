@@ -75,8 +75,10 @@ describe("0087 · o canal da sessão chega ao clone", () => {
     // desfecho do registro do webhook do número ao conectar o canal oficial. A cerca
     // continua valendo — ela existe para pegar coluna que entrou SEM querer.
     // `meta_token_expires_at` (migration 0931) também: é quando vence o token de
-    // 60 dias, e o cron `meta-tokens` renova por ela.
+    // 60 dias, e o cron `meta-tokens` renova por ela. `meta_app_id` (migration 0933): por
+    // qual app o número entrou — é por ele que a renovação acha a chave depois de uma troca de app.
     expect(cols).toEqual([
+      "meta_app_id",
       "meta_phone_number_id",
       "meta_token_encrypted",
       "meta_token_expires_at",

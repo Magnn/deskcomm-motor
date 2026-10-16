@@ -30,7 +30,7 @@ import { randomUUID } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 
 import { fail } from "@/lib/api/wrappers";
-import { appDaMeta } from "@/lib/channels/meta/app";
+import { appDaMeta, chavesQueAssinamAvisos } from "@/lib/channels/meta/app";
 import { lerEnvelopeMeta } from "@/lib/channels/meta/envelope";
 import { parseMetaWebhook, verificationChallenge, verifyMetaSignature } from "@/lib/channels/meta/webhook";
 import { aplicarEventoDaMeta, pedeReentrega } from "@/lib/channels/meta/aplicar-evento";
@@ -76,8 +76,11 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<NextRespons
   // Do mesmo lugar que o handshake: BANCO primeiro, `.env` como piso (0257). Sem
   // segredo nenhum configurado a verificação devolve `false` e a entrega morre em
   // 401 — que é o desfecho de hoje, e não um 500.
-  const { appSecret } = await appDaMeta();
-  if (!verifyMetaSignature(rawBody, req.headers.get("x-hub-signature-256"), appSecret ?? "")) {
+  // A chave do app em vigor E as dos apps anteriores (0933): o número conectado
+  // por um app aposentado continua sendo assinado pela chave DELE.
+  const assinatura = req.headers.get("x-hub-signature-256");
+  const chaves = await chavesQueAssinamAvisos();
+  if (!chaves.some((chave) => verifyMetaSignature(rawBody, assinatura, chave))) {
     return fail("unauthorized", "invalid_signature", 401, { requestId });
   }
 

@@ -145,6 +145,8 @@ export function FormularioDaMeta({
         return t("Cadastre a chave secreta do aplicativo primeiro. Sem ela o token não vale.");
       case "nada_para_salvar":
         return t("Nada mudou. Digite uma chave nova para substituir a atual.");
+      case "app_anterior_nao_guardado":
+        return t("Não consegui guardar a chave do aplicativo atual, então nada foi trocado — sem ela os números conectados por ele parariam. Tente de novo em instantes.");
       case "leitura_do_app_falhou":
         return t("Não consegui conferir o que já está gravado, então nada foi alterado. Tente de novo em instantes.");
       default:

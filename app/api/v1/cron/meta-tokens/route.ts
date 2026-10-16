@@ -20,7 +20,7 @@ import { fail, ok } from "@/lib/api/wrappers";
 import { audit } from "@/lib/audit";
 import { autorizaCron } from "@/lib/auth/cron-auth";
 import { CHANNEL_PROVIDER_META } from "@/lib/channels/capabilities";
-import { appDaMeta } from "@/lib/channels/meta/app";
+import { appDaMeta, credencialDoAppDoNumero } from "@/lib/channels/meta/app";
 import { renovarTokenDoNumero } from "@/lib/channels/meta/cadastro-incorporado";
 import { logger } from "@/lib/logger";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -40,7 +40,7 @@ async function handle(req: NextRequest): Promise<Response> {
   const admin = createAdminClient();
   const { data, error } = await admin
     .from("channel_sessions")
-    .select("id, organization_id, meta_token_encrypted, meta_token_expires_at")
+    .select("id, organization_id, meta_token_encrypted, meta_token_expires_at, meta_app_id")
     .eq("provider", CHANNEL_PROVIDER_META)
     .is("archived_at", null)
     .not("meta_token_encrypted", "is", null)
@@ -54,12 +54,16 @@ async function handle(req: NextRequest): Promise<Response> {
 
   let renovados = 0;
   let falhas = 0;
-  type Linha = { id: string; organization_id: string; meta_token_encrypted: string; meta_token_expires_at: string };
+  type Linha = { id: string; organization_id: string; meta_token_encrypted: string; meta_token_expires_at: string; meta_app_id: string | null };
   for (const c of (data ?? []) as Linha[]) {
     try {
       const atual = await decryptWebhookSecret(admin, c.meta_token_encrypted);
       if (!atual) throw new Error("token ilegível");
-      const novo = await renovarTokenDoNumero({ appId, appSecret, token: atual });
+      // O token só renova com a chave do app que o emitiu (0933): depois de uma troca
+      // de app, o número antigo segue com a chave guardada do app dele.
+      const app = await credencialDoAppDoNumero(c.meta_app_id);
+      if (!app) throw new Error(`app ${c.meta_app_id ?? "da instalação"} sem chave conhecida`);
+      const novo = await renovarTokenDoNumero({ appId: app.appId, appSecret: app.appSecret, token: atual });
       if (!novo.ok) throw new Error(novo.motivo);
       const cifrado = await encryptWebhookSecret(admin, novo.token);
       if (!cifrado) throw new Error("cifra indisponível");

@@ -30,6 +30,7 @@ vi.mock("@/lib/channels/pos-entrada", () => ({ aplicarEfeitosPosEntrada: h.posEn
 vi.mock("@/lib/channels/contato-por-telefone", () => ({ encontrarContatoPorTelefone: async () => null }));
 vi.mock("@/lib/channels/meta/app", () => ({
   appDaMeta: async () => ({ appSecret: SEGREDO, verifyToken: "token-de-verificacao" }),
+  chavesQueAssinamAvisos: async () => [SEGREDO],
 }));
 vi.mock("@/lib/supabase/admin", () => {
   const consulta = () => {
