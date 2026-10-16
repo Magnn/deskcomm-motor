@@ -4,6 +4,7 @@ import {
   credencialDoCadastroIncorporado,
   garantirNumeroRegistrado,
   pinDoNumero,
+  renovarTokenDoNumero,
 } from "./cadastro-incorporado";
 
 function resposta(status: number, corpo: unknown): Response {
@@ -37,7 +38,7 @@ describe("o código da janela do Facebook vira a credencial do canal", () => {
 
     const r = await credencialDoCadastroIncorporado({ app, code: "cod", phoneNumberId: "num9", wabaId: "waba9" }, buscar);
 
-    expect(r).toEqual({ ok: true, token: "tok", phoneNumberId: "num9", wabaId: "waba9" });
+    expect(r).toEqual({ ok: true, token: "tok", phoneNumberId: "num9", wabaId: "waba9", expiraEm: null });
     expect(chamadas.map((c) => c.aresta)).toEqual(["oauth/access_token", "debug_token"]);
     // Código nascido no SDK é trocado SEM endereço de volta.
     expect(chamadas[0]?.corpo.has("redirect_uri")).toBe(false);
@@ -67,7 +68,7 @@ describe("o código da janela do Facebook vira a credencial do canal", () => {
 
     const r = await credencialDoCadastroIncorporado({ app, code: "cod" }, buscar);
 
-    expect(r).toEqual({ ok: true, token: "tok", phoneNumberId: "num1", wabaId: "waba1" });
+    expect(r).toEqual({ ok: true, token: "tok", phoneNumberId: "num1", wabaId: "waba1", expiraEm: null });
     expect(chamadas[2]?.aresta).toBe("waba1/phone_numbers");
     expect(chamadas[2]?.autorizacao).toBe("Bearer tok");
   });
@@ -98,7 +99,7 @@ describe("o código da janela do Facebook vira a credencial do canal", () => {
     });
   });
 
-  it("⭐ token que vence é recusado, mesmo com conta e número em mãos", async () => {
+  it("⭐ token de 60 dias é aceito e leva a data em que vence (a renovação cuida dele)", async () => {
     const { buscar } = graph([
       resposta(200, { access_token: "tok" }),
       resposta(200, { data: { expires_at: 1_800_000_000 } }),
@@ -106,7 +107,7 @@ describe("o código da janela do Facebook vira a credencial do canal", () => {
 
     expect(
       await credencialDoCadastroIncorporado({ app, code: "cod", phoneNumberId: "num9", wabaId: "waba9" }, buscar),
-    ).toEqual({ ok: false, falha: "token_expira", detalhe: null });
+    ).toEqual({ ok: true, token: "tok", phoneNumberId: "num9", wabaId: "waba9", expiraEm: new Date(1_800_000_000_000) });
   });
 
   it("inspeção que falha não derruba a conexão quando a janela avisou a conta e o número", async () => {
@@ -181,5 +182,39 @@ describe("o registro do número na Cloud API", () => {
     ]);
 
     expect(await garantirNumeroRegistrado(p, buscar)).toEqual({ ok: false, motivo: "Two step verification PIN mismatch" });
+  });
+});
+
+describe("renovar o token de 60 dias do número", () => {
+  it("⭐ troca pelo pedido documentado da Meta, com chave e token só no corpo", async () => {
+    const { buscar, chamadas } = graph([resposta(200, { access_token: "tok-novo", token_type: "bearer", expires_in: 5_183_944 })]);
+    const antes = Date.now();
+
+    const r = await renovarTokenDoNumero({ appId: "app1", appSecret: "segredo-do-app", token: "tok-velho" }, buscar);
+
+    expect(r.ok && r.token).toBe("tok-novo");
+    const vence = r.ok && r.expiraEm ? r.expiraEm.getTime() : 0;
+    expect(vence).toBeGreaterThanOrEqual(antes + 5_183_944_000);
+    expect(chamadas).toHaveLength(1);
+    expect(chamadas[0]!.aresta).toBe("oauth/access_token");
+    expect(Object.fromEntries(chamadas[0]!.corpo)).toEqual({
+      method: "GET",
+      grant_type: "fb_exchange_token",
+      client_id: "app1",
+      client_secret: "segredo-do-app",
+      fb_exchange_token: "tok-velho",
+      set_token_expires_in_60_days: "true",
+    });
+    expect(chamadas[0]!.url).not.toContain("segredo-do-app");
+    expect(chamadas[0]!.url).not.toContain("tok-velho");
+  });
+
+  it("recusa da Meta devolve o motivo dela", async () => {
+    const { buscar } = graph([resposta(400, { error: { message: "Error validating access token: Session has expired" } })]);
+
+    expect(await renovarTokenDoNumero({ appId: "app1", appSecret: "s", token: "t" }, buscar)).toEqual({
+      ok: false,
+      motivo: "Error validating access token: Session has expired",
+    });
   });
 });

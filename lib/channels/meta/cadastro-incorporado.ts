@@ -11,16 +11,21 @@
  * Daqui sai a mesma trinca que o formulário colado entrega (número, conta,
  * token), e a rota segue pelo MESMO caminho: valida com a Meta, grava cifrado,
  * registra o webhook. Este módulo só acrescenta o que o colado não precisava:
- * trocar o código, conferir que o token não vence e registrar o número na
- * Cloud API quando ele acabou de nascer na janela.
+ * trocar o código, saber quando o token vence e registrar o número na Cloud
+ * API quando ele acabou de nascer na janela.
  *
- * ─── Por que o token que vence é RECUSADO ───────────────────────────────────
+ * ─── O token de 60 dias é ACEITO e renovado ─────────────────────────────────
  *
  * A configuração do "Login do Facebook para Empresas" decide se o token dura
- * 60 dias ou não expira. Um canal de mensagem com token de 60 dias conecta,
- * funciona e para sozinho dois meses depois, sem aviso — pior que não conectar.
- * Quem resolve é quem administra a instalação, na configuração do login; a
- * recusa diz isso na hora, em vez de a descoberta ficar para o dia da parada.
+ * 60 dias ou não expira. Até 16/10/2026 o de 60 dias era recusado, porque o
+ * canal conectaria e pararia sozinho dois meses depois. Só que a Meta oferece a
+ * opção "Nunca" apenas a app que já é Provedor de Tecnologia: medido no painel,
+ * um app novo só tem o modelo de 60 dias, com a expiração travada. Recusar
+ * deixava a instalação sem canal oficial nenhum.
+ *
+ * Agora a data de vencimento vai junto da credencial (`expiraEm`), a rota a
+ * grava em `channel_sessions.meta_token_expires_at`, e o cron `meta-tokens`
+ * troca o token por outro de 60 dias antes do fim (`renovarTokenDoNumero`).
  *
  * ─── O PIN do registro ──────────────────────────────────────────────────────
  *
@@ -109,10 +114,17 @@ export interface NumeroDaConta {
 }
 
 export type CredencialDoCadastro =
-  | { ok: true; token: string; phoneNumberId: string; wabaId: string }
+  | {
+      ok: true;
+      token: string;
+      phoneNumberId: string;
+      wabaId: string;
+      /** Quando o token vence. `null` = não vence (ou a Meta não disse). */
+      expiraEm: Date | null;
+    }
   | {
       ok: false;
-      falha: "troca_do_codigo" | "token_expira" | "nenhum_numero" | "varios_numeros";
+      falha: "troca_do_codigo" | "nenhum_numero" | "varios_numeros";
       /** O que a Meta disse, quando foi ela quem recusou. */
       detalhe: string | null;
     };
@@ -148,13 +160,12 @@ export async function credencialDoCadastroIncorporado(
   });
   const dados = inspecao.corpo?.data ?? {};
   // `expires_at: 0` é como a Meta escreve "não expira".
-  if (typeof dados.expires_at === "number" && dados.expires_at > 0) {
-    return { ok: false, falha: "token_expira", detalhe: null };
-  }
+  const expiraEm =
+    typeof dados.expires_at === "number" && dados.expires_at > 0 ? new Date(dados.expires_at * 1000) : null;
 
   const phoneNumberId = (p.phoneNumberId ?? "").trim();
   const wabaId = (p.wabaId ?? "").trim();
-  if (phoneNumberId !== "" && wabaId !== "") return { ok: true, token, phoneNumberId, wabaId };
+  if (phoneNumberId !== "" && wabaId !== "") return { ok: true, token, phoneNumberId, wabaId, expiraEm };
 
   const contas = new Set<string>();
   for (const g of dados.granular_scopes ?? []) {
@@ -173,7 +184,41 @@ export async function credencialDoCadastroIncorporado(
   }
   if (numeros.length === 0) return { ok: false, falha: "nenhum_numero", detalhe: null };
   if (numeros.length > 1) return { ok: false, falha: "varios_numeros", detalhe: null };
-  return { ok: true, token, ...numeros[0]! };
+  return { ok: true, token, ...numeros[0]!, expiraEm };
+}
+
+/**
+ * Troca o token de 60 dias do número por outro de 60 dias, antes de ele vencer.
+ *
+ * É a renovação de token de usuário do sistema que vence, como a Meta a
+ * documenta (Business Management APIs › System Users): `oauth/access_token` com
+ * `grant_type=fb_exchange_token`, o ID e a chave do app, o token atual e
+ * `set_token_expires_in_60_days=true`. Token vencido não renova — por isso o
+ * cron age com folga.
+ *
+ * Chave e token no CORPO, nunca na URL (CLAUDE.md, anti-pattern 12).
+ */
+export async function renovarTokenDoNumero(
+  p: { appId: string; appSecret: string; token: string },
+  buscar: Buscar = fetch,
+): Promise<{ ok: true; token: string; expiraEm: Date | null } | { ok: false; motivo: string }> {
+  const r = await chamar<{ access_token?: string; expires_in?: number }>(buscar, "oauth/access_token", {
+    parametros: {
+      grant_type: "fb_exchange_token",
+      client_id: p.appId,
+      client_secret: p.appSecret,
+      fb_exchange_token: p.token,
+      set_token_expires_in_60_days: "true",
+    },
+  });
+  const novo = r.corpo?.access_token;
+  if (!r.ok || !novo) return { ok: false, motivo: r.ok ? "a Meta não devolveu token" : r.motivo };
+  const segundos = r.corpo?.expires_in;
+  return {
+    ok: true,
+    token: novo,
+    expiraEm: typeof segundos === "number" && segundos > 0 ? new Date(Date.now() + segundos * 1000) : null,
+  };
 }
 
 /** O PIN de duas etapas deste número: seis dígitos, sempre os mesmos para o mesmo número. */

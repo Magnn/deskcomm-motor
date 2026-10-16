@@ -74,9 +74,12 @@ describe("0087 · o canal da sessão chega ao clone", () => {
     // As três `meta_webhook_override_*` (migration 0311) entraram de propósito: são o
     // desfecho do registro do webhook do número ao conectar o canal oficial. A cerca
     // continua valendo — ela existe para pegar coluna que entrou SEM querer.
+    // `meta_token_expires_at` (migration 0931) também: é quando vence o token de
+    // 60 dias, e o cron `meta-tokens` renova por ela.
     expect(cols).toEqual([
       "meta_phone_number_id",
       "meta_token_encrypted",
+      "meta_token_expires_at",
       "meta_waba_id",
       "meta_webhook_override_em",
       "meta_webhook_override_erro",

@@ -191,6 +191,8 @@ export const AUDIT_ACTIONS = [
   "instagram.regra_removida",
   // A rodada que renovou (ou não conseguiu renovar) o token de alguma conta.
   "cron.instagram_tokens",
+  // A rodada que renovou (ou não conseguiu renovar) o token de 60 dias de algum número oficial.
+  "cron.meta_tokens",
   // Lançamentos em grupos de WhatsApp (`lib/lancamentos/`).
   "lancamento.criado",
   "lancamento.atualizado",

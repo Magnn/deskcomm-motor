@@ -89,8 +89,6 @@ const conectarSchema = z.union([coladoSchema, peloLoginSchema]);
 /** Por que o login do Facebook não virou credencial, na frase de quem vai consertar. */
 const FRASE_DA_FALHA_DO_LOGIN: Record<Extract<CredencialDoCadastro, { ok: false }>["falha"], string> = {
   troca_do_codigo: "O Facebook não confirmou a autorização. Tente conectar de novo.",
-  token_expira:
-    "A configuração do login do Facebook desta instalação emite um acesso que vence. Quem administra a instalação precisa trocá-la, no app da Meta, por uma que não expira.",
   nenhum_numero: "Nenhum número de WhatsApp foi liberado no Facebook. Ao conectar, conclua a escolha do número.",
   varios_numeros:
     "O Facebook liberou mais de um número e não informou qual foi escolhido. Tente conectar de novo e conclua a janela até o fim.",
@@ -263,6 +261,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   let phone_number_id: string;
   let waba_id: string;
   let token: string;
+  // Só o login do Facebook sabe quando o token vence; o colado fica nulo.
+  let tokenExpiraEm: Date | null = null;
   const peloLogin = "code" in parsed.data;
   if ("code" in parsed.data) {
     const app = await appDoCadastroIncorporado();
@@ -286,7 +286,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       });
       return fail("invalid_request", t(FRASE_DA_FALHA_DO_LOGIN[credencial.falha]), 422, { requestId });
     }
-    ({ phoneNumberId: phone_number_id, wabaId: waba_id, token } = credencial);
+    ({ phoneNumberId: phone_number_id, wabaId: waba_id, token, expiraEm: tokenExpiraEm } = credencial);
   } else {
     ({ phone_number_id, waba_id, token } = parsed.data);
   }
@@ -375,6 +375,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     meta_phone_number_id: phone_number_id,
     meta_waba_id: waba_id,
     meta_token_encrypted: cifrado,
+    // O cron `meta-tokens` renova antes deste dia (migration 0931).
+    meta_token_expires_at: tokenExpiraEm?.toISOString() ?? null,
     phone_number: validacao.displayPhoneNumber ? `+${validacao.displayPhoneNumber.replace(/\D/g, "")}` : null,
     display_name: validacao.verifiedName ?? "Canal oficial",
     status: "WORKING",

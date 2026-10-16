@@ -37834,6 +37834,14 @@ revoke execute on function public.fn_importar_historico_da_conversa(uuid, uuid, 
 grant execute on function public.fn_importar_historico_da_conversa(uuid, uuid, uuid, jsonb) to service_role;
 
 
+-- ---- Canal oficial: quando vence o token do número (migration 0931) ----
+alter table public.channel_sessions add column if not exists meta_token_expires_at timestamptz;
+create index if not exists channel_sessions_meta_token_vence_idx
+  on public.channel_sessions (meta_token_expires_at)
+  where meta_token_expires_at is not null and archived_at is null;
+comment on column public.channel_sessions.meta_token_expires_at is
+  'Quando vence o token do canal oficial (Meta). Nulo = não vence ou desconhecido. Renovado pelo cron meta-tokens.';
+
 -- ---- VARREDURA anon: função nova nasce exposta em quem ATUALIZA (migration 0116) ----
 --
 -- ⚠️ DE PROPÓSITO, NENHUMA FUNÇÃO É CRIADA DEPOIS DESTE BLOCO. Apêndice que cria
