@@ -60,6 +60,10 @@ vi.mock("@/app/actions/settings/updateMetaApp", () => ({
   rotacionarVerifyTokenDaMeta: (...a: unknown[]) => rotacionarVerifyTokenDaMeta(...a),
 }));
 
+// Salvar um app ou uma chave nova ativa tudo na Meta logo em seguida.
+const ativarAppDaMeta = vi.fn(async () => ({ ok: true, passos: [] }));
+vi.mock("@/app/actions/settings/ativarAppDaMeta", () => ({ ativarAppDaMeta: () => ativarAppDaMeta() }));
+
 const refresh = vi.fn();
 vi.mock("next/navigation", () => ({
   notFound: () => {

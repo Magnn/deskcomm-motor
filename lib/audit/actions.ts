@@ -476,6 +476,10 @@ export const AUDIT_ACTIONS = [
   // O endereço do app foi apontado na Meta para esta instalação. Auditável
   // porque muda para onde vão os avisos de TODAS as empresas dela.
   "platform_meta_app.webhook_registered",
+  // Tudo o que o produto usa do app foi ativado na Meta de uma vez (endereço do
+  // WhatsApp, das páginas e endereços públicos do app). O metadata leva o
+  // resultado de cada passo; `webhook_registered` fica pelas linhas antigas.
+  "platform_meta_app.activated",
   // A conexão da ORGANIZAÇÃO com a conta de anúncios (migration 0213).
   // Auditável porque o token gravado aqui escreve conversões na conta de
   // mídia do cliente: "quem apontou minhas vendas para este destino?" só tem
