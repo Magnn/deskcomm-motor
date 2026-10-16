@@ -6,7 +6,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { FormularioDeModelo } from "./FormularioDeModelo";
 import {
+  useCreateTemplate,
   useSaveTemplateValues,
   useSyncTemplates,
   useTemplates,
@@ -142,6 +144,8 @@ export function TemplatesClient() {
   const t = useT();
   const { data, isPending } = useTemplates();
   const sync = useSyncTemplates();
+  const criar = useCreateTemplate();
+  const [criando, setCriando] = useState(false);
 
   const waba = data?.data.waba ?? null;
   const templates = data?.data.templates ?? null;
@@ -179,16 +183,43 @@ export function TemplatesClient() {
           {t("Espelho da conta")} <span className="font-mono text-xs">{waba}</span> ·{" "}
           {templates.length} {t("template(s)")}
         </p>
-        <Button onClick={sincronizar} disabled={sync.isPending} data-testid="btn-sync">
-          {sync.isPending ? t("Sincronizando…") : t("Sincronizar com a Meta")}
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={sincronizar}
+            disabled={sync.isPending}
+            data-testid="btn-sync"
+          >
+            {sync.isPending ? t("Sincronizando…") : t("Sincronizar com a Meta")}
+          </Button>
+          <Button onClick={() => setCriando((v) => !v)} data-testid="btn-criar-modelo">
+            {criando ? t("Cancelar") : t("Criar modelo")}
+          </Button>
+        </div>
       </div>
+
+      {/* Criar AQUI, e não "no Gerenciador do WhatsApp": quem conecta o número
+          pelo Desk muitas vezes nem sabe onde fica o Gerenciador. Sem imagem no
+          cabeçalho — a Cloud API pede o identificador do upload dela, não link. */}
+      {criando && (
+        <FormularioDeModelo
+          aceitaImagem={false}
+          idiomaInicial="pt_BR"
+          enviando={criar.isPending}
+          onEnviar={async (modelo) => {
+            await criar.mutateAsync(modelo);
+            toast.success(t("Modelo enviado para revisão da Meta."));
+            setCriando(false);
+          }}
+        />
+      )}
 
       {templates.length === 0 ? (
         <Card className="p-6">
           <h2 className="font-medium">{t("Nenhum template ainda")}</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            {t("Crie templates no Gerenciador do WhatsApp e clique em")}{" "}
+            {t("Clique em")} <strong>{t("Criar modelo")}</strong>{" "}
+            {t("ou, se já criou no Gerenciador do WhatsApp, em")}{" "}
             <strong>{t("Sincronizar com a Meta")}</strong>.{" "}
             {t("Só templates aprovados podem ser enviados fora da janela de 24 horas.")}
           </p>

@@ -1,7 +1,8 @@
 import { requireSupportWrite } from "@/lib/impersonate/support";
 /**
  * GET  /api/v1/channels/templates — o espelho local + o CONTRATO derivado de cada um.
- * POST /api/v1/channels/templates — força um sync com a Graph API.
+ * POST /api/v1/channels/templates — força um sync com a Graph API; com
+ *      `{ acao: "criar", … }`, cria o modelo na conta antes de sincronizar.
  * PATCH /api/v1/channels/templates — salva (ou esquece) o link da mídia de um modelo.
  *
  * O contrato vai derivado no payload, e não guardado no banco, de propósito: guardar
@@ -13,14 +14,17 @@ import { requireSupportWrite } from "@/lib/impersonate/support";
  */
 import { randomUUID } from "node:crypto";
 import type { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 
 import { fail, ok } from "@/lib/api/wrappers";
+import { audit } from "@/lib/audit";
 import { requireRole } from "@/lib/auth/require-role";
 import { resolveMetaCreds } from "@/lib/channels/meta/credentials";
 import { metaSessionForOrg } from "@/lib/channels/meta/session";
 import { normalizeRejectedReason } from "@/lib/channels/meta/webhook";
 import { deriveTemplateContract, describeAddress } from "@/lib/channels/meta/template-contract";
 import { slotKey } from "@/lib/channels/meta/build-components";
+import { criarModeloNaMeta, type ModeloCriado } from "@/lib/channels/meta/template-create";
 import { syncTemplates } from "@/lib/channels/meta/template-sync";
 import { mesclarValoresSalvos } from "@/lib/channels/meta/valores-salvos";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -93,13 +97,13 @@ function textPreviews(components: unknown): Array<{ onde: string; text: string }
 }
 
 type OrgGate =
-  | { autorizado: true; orgId: string }
+  | { autorizado: true; orgId: string; userId: string }
   | { autorizado: false; resposta: NextResponse };
 
 async function orgOrFail(requestId: string): Promise<OrgGate> {
   const authz = await requireRole("admin", { requestId, resource: "channels_templates" });
   if (!authz.ok) return { autorizado: false, resposta: authz.response };
-  return { autorizado: true, orgId: authz.org.orgId };
+  return { autorizado: true, orgId: authz.org.orgId, userId: authz.user.id };
 }
 
 export async function GET(): Promise<NextResponse> {
@@ -173,13 +177,38 @@ export async function GET(): Promise<NextResponse> {
   });
 }
 
-export async function POST(_req: NextRequest): Promise<NextResponse> {
+/**
+ * O corpo do POST. Sem corpo (ou `{}`) é o sync de sempre — a tela e qualquer
+ * chamador antigo continuam funcionando. `criar` traz a definição no formato
+ * da Graph; `components` viaja cru até a Meta, que valida e devolve o motivo —
+ * aqui só se garante a forma e o vocabulário fechado da categoria (o mesmo
+ * contrato da rota do parceiro Graph-compatível).
+ */
+const corpoSchema = z.union([
+  z.object({ acao: z.literal("sincronizar").optional() }).strict(),
+  z.object({
+    acao: z.literal("criar"),
+    name: z.string().trim().min(1).max(512),
+    language: z.string().trim().min(2).max(15),
+    category: z.enum(["AUTHENTICATION", "MARKETING", "UTILITY"]).default("UTILITY"),
+    components: z.array(z.record(z.string(), z.unknown())).min(1).max(10),
+  }),
+]);
+
+export async function POST(req: NextRequest): Promise<NextResponse> {
   const supportDenied = await requireSupportWrite();
   if (supportDenied) return supportDenied;
 
   const requestId = randomUUID();
   const r = await orgOrFail(requestId);
   if (!r.autorizado) return r.resposta;
+
+  const texto = await req.text().catch(() => "");
+  const parsed = corpoSchema.safeParse(texto.trim() ? safeJson(texto) : {});
+  if (!parsed.success) {
+    return fail("invalid_request", "invalid_template_body", 422, { requestId });
+  }
+  const corpo = parsed.data;
 
   const sessao = await metaSessionForOrg(r.orgId);
   if (!sessao?.wabaId) {
@@ -203,14 +232,54 @@ export async function POST(_req: NextRequest): Promise<NextResponse> {
   });
   if (!creds) return fail("invalid_request", "missing_meta_token", 400, { requestId });
 
+  let criado: ModeloCriado | null = null;
+  if ("name" in corpo) {
+    try {
+      criado = await criarModeloNaMeta({
+        wabaId: sessao.wabaId,
+        token: creds.token,
+        graphVersion: creds.graphVersion,
+        modelo: {
+          name: corpo.name,
+          language: corpo.language,
+          category: corpo.category,
+          components: corpo.components,
+        },
+      });
+    } catch (err) {
+      // A recusa da Meta CHEGA ao operador: é ela que distingue "nome já
+      // existe" de "falta exemplo da variável" de "conta sem permissão".
+      return fail("upstream_error", err instanceof Error ? err.message : "create_failed", 502, {
+        requestId,
+      });
+    }
+    await audit({
+      action: "template.created",
+      actorUserId: r.userId,
+      organizationId: r.orgId,
+      resourceType: "meta_template",
+      // A coluna é uuid e o id da Meta não é: ele vai no metadata.
+      resourceId: null,
+      requestId,
+      metadata: {
+        meta_template_id: criado.id,
+        name: corpo.name,
+        language: corpo.language,
+        category: corpo.category,
+      },
+    });
+  }
+
   try {
+    // Sincroniza sempre — inclusive depois de criar: o modelo nasce em revisão
+    // e o operador precisa VER que ele existe e está pendente.
     const counts = await syncTemplates({
       organizationId: r.orgId,
       wabaId: sessao.wabaId,
       token: creds.token,
       graphVersion: creds.graphVersion,
     });
-    return ok(counts);
+    return ok({ ...counts, criado });
   } catch (err) {
     // A falha da Graph API vira mensagem legível na tela, não 500 mudo — o
     // operador precisa saber se é token vencido, WABA errada ou rede.
@@ -302,4 +371,12 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
   }
 
   return ok({ savedValues: planos[0]!.valores });
+}
+
+function safeJson(texto: string): unknown {
+  try {
+    return JSON.parse(texto);
+  } catch {
+    return null;
+  }
 }
