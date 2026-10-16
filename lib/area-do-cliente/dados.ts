@@ -64,7 +64,10 @@ export function classificarMidia(m: Pick<MensagemComMidia, "type" | "media_stora
   if (!m.media_storage_path) return null;
   if (m.type === "image") return /(^|\/)leitura-[^/]+$/.test(m.media_storage_path) ? "leitura" : null;
   if (m.type === "document" || m.type === "video") return "material";
-  if (m.type === "audio") return m.metadata?.audio_as_file === true ? "material" : null;
+  // Áudio só é material quando foi mandado como ARQUIVO e não é a voz da agente: a resposta
+  // falada da agente também pode sair como arquivo, e ela é fala da conversa, não entrega.
+  // Medido em 15/10/2026: os dois "materiais" de uma compradora eram recados de voz da agente.
+  if (m.type === "audio") return m.metadata?.audio_as_file === true && !m.metadata?.ai_actor_id ? "material" : null;
   return null;
 }
 
@@ -161,6 +164,24 @@ export function agruparLeituraPorDia(itens: ItemDaLeitura[], fuso: string): Arra
   return [...porDia.entries()]
     .sort(([a], [b]) => (a < b ? 1 : -1))
     .map(([dia, lista]) => ({ dia, itens: lista.sort((x, y) => (x.quando < y.quando ? -1 : 1)) }));
+}
+
+/**
+ * O mesmo material mandado duas vezes (mesmo tipo e mesma legenda, com menos de uma hora entre
+ * eles) aparece uma vez só — a repetição foi do envio, não do que a pessoa recebeu.
+ */
+export function semRepeticao(materiais: Material[]): Material[] {
+  const vistos = new Map<string, number>();
+  const saida: Material[] = [];
+  for (const m of [...materiais].sort((a, b) => (a.quando < b.quando ? 1 : -1))) {
+    const chave = `${m.tipo}|${m.nome ?? ""}`;
+    const t = new Date(m.quando).getTime();
+    const anterior = vistos.get(chave);
+    if (m.nome !== null && anterior !== undefined && Math.abs(anterior - t) < 3_600_000) continue;
+    vistos.set(chave, t);
+    saida.push(m);
+  }
+  return saida;
 }
 
 function nomeDoMaterial(m: MensagemComMidia): string | null {
@@ -281,12 +302,14 @@ export async function carregarDadosDaArea(
     if (url) leituraItens.push({ id: m.id, url, quando: m.created_at });
   });
 
-  const materiais: Material[] = midias
-    .filter((m) => classificarMidia(m) === "material")
-    .map((m) => {
-      const tipo: Material["tipo"] = m.type === "document" ? "documento" : m.type === "audio" ? "audio" : "video";
-      return { id: m.id, tipo, nome: nomeDoMaterial(m), quando: m.created_at };
-    });
+  const materiais: Material[] = semRepeticao(
+    midias
+      .filter((m) => classificarMidia(m) === "material")
+      .map((m) => {
+        const tipo: Material["tipo"] = m.type === "document" ? "documento" : m.type === "audio" ? "audio" : "video";
+        return { id: m.id, tipo, nome: nomeDoMaterial(m), quando: m.created_at };
+      }),
+  );
 
   const comprados = new Set(compras.filter((c) => !c.estornada && c.produto).map((c) => slugDoProduto(c.produto as string)));
   const servicos: ServicoDaVitrine[] = ((servicosR.data ?? []) as Array<Omit<ServicoDaVitrine, "ja_comprado">>).map((s) => ({

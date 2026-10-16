@@ -12,7 +12,7 @@ import { janelaDoAnoPessoal, numeroDoAnoPessoal } from "@/lib/area-do-cliente/an
 import { lerConfigDaArea } from "@/lib/area-do-cliente/config";
 import { FORMA_DO_CODIGO_DO_PRESENTE, gerarCodigoDoPresente } from "@/lib/area-do-cliente/presente";
 import { faseDaLua, proximaLua } from "@/lib/area-do-cliente/lua";
-import { agruparLeituraPorDia, classificarMidia, falasDaConversa, primeiroNome } from "@/lib/area-do-cliente/dados";
+import { agruparLeituraPorDia, classificarMidia, falasDaConversa, primeiroNome, semRepeticao } from "@/lib/area-do-cliente/dados";
 import { calcularPainel, type LinhaDeCompra, type LinhaDeEvento } from "@/lib/area-do-cliente/metricas";
 import { FORMA_DO_TOKEN, codigoConfere, gerarCodigo, gerarToken, hashDoCodigo, hashDoToken } from "@/lib/area-do-cliente/token";
 import { nomeDoCookieDaArea } from "@/lib/area-do-cliente/vocabulario";
@@ -366,5 +366,18 @@ describe("a conversa guardada", () => {
       ["2", "empresa", "Aqui está o seu ritual."],
       ["3", "voce", "🎤 obrigada"],
     ]);
+  });
+});
+
+describe("materiais", () => {
+  it("a voz da agente mandada como arquivo não é material", () => {
+    expect(classificarMidia({ type: "audio", media_storage_path: "o/c/x.ogg", metadata: { audio_as_file: true, ai_actor_id: "agent-engine" } })).toBeNull();
+    expect(classificarMidia({ type: "audio", media_storage_path: "o/c/x.ogg", metadata: { audio_as_file: true } })).toBe("material");
+  });
+  it("o mesmo material enviado duas vezes aparece uma vez", () => {
+    const m = (id: string, quando: string, nome: string | null = "Guia do ritual") => ({ id, tipo: "documento" as const, nome, quando });
+    expect(semRepeticao([m("a", "2026-10-14T23:31:00Z"), m("b", "2026-10-14T23:31:20Z"), m("c", "2026-10-16T10:00:00Z")]).map((x) => x.id)).toEqual(["c", "b"]);
+    // Sem legenda não dá para afirmar que é o mesmo: os dois ficam.
+    expect(semRepeticao([m("a", "2026-10-14T23:31:00Z", null), m("b", "2026-10-14T23:31:20Z", null)])).toHaveLength(2);
   });
 });
