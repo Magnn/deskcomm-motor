@@ -42,10 +42,9 @@ import {
   appDoCadastroIncorporado,
   credencialDoCadastroIncorporado,
   garantirNumeroRegistrado,
-  pedirAgendaDoAplicativo,
-  pedirHistoricoDoAplicativo,
   type CredencialDoCadastro,
 } from "@/lib/channels/meta/cadastro-incorporado";
+import { guardarEstadoDoCelular, lerEstadoDoCelular, prazoVencido, sincronizarCelular } from "@/lib/channels/meta/coexistencia";
 import { metaGraphBase } from "@/lib/channels/meta/credentials";
 import { escolherCanalOficial } from "@/lib/channels/meta/session";
 import { validateMetaCredentials } from "@/lib/channels/meta/validate-credentials";
@@ -175,7 +174,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     admin
       .from("channel_sessions")
       .select(
-        "id, meta_phone_number_id, meta_waba_id, meta_token_encrypted, phone_number, display_name, webhook_path_token, status, created_at",
+        "id, meta_phone_number_id, meta_waba_id, meta_token_encrypted, phone_number, display_name, webhook_path_token, status, created_at, metadata",
       )
       .eq("organization_id", orgId)
       .eq("provider", CHANNEL_PROVIDER_META)
@@ -194,6 +193,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     webhook_path_token: string | null;
     status: string | null;
     created_at: string | null;
+    metadata?: unknown;
   };
   const todas = (linhas ?? []) as LinhaOficial[];
   // A organização pode ter mais de um número oficial: esta aba mostra o que
@@ -230,6 +230,15 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     displayName: data?.display_name ?? null,
     phoneNumber: data?.phone_number ?? null,
     status: data?.status ?? null,
+    /**
+     * Coexistência: o desfecho do pedido da agenda e do histórico do celular.
+     * `null` = nunca pedido por este CRM (número só na API, ou conectado antes
+     * de o desfecho ser guardado); a tela oferece pedir mesmo assim.
+     */
+    celular: (() => {
+      const e = lerEstadoDoCelular(data?.metadata);
+      return e ? { ...e, prazoVencido: prazoVencido(e) } : null;
+    })(),
     /** O que o operador precisa colar do NOSSO lado no dashboard da Meta. */
     webhook: data
       ? {
@@ -506,26 +515,25 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   // resposta, e a pessoa ainda tem as 24 h da Meta para reconectar.
   let agendaDoCelular: "pedida" | "ja_pedida" | "falhou" | null = null;
   let historicoDoCelular: "pedido" | "ja_pedido" | "falhou" | null = null;
-  if (noAplicativo) {
-    const agenda = await pedirAgendaDoAplicativo({ phoneNumberId: phone_number_id, token });
-    agendaDoCelular = agenda.ok ? (agenda.jaPedida ? "ja_pedida" : "pedida") : "falhou";
-    if (!agenda.ok) {
-      logger.error("[meta.coexistencia] pedido da agenda do celular recusado", {
+  if (noAplicativo && idDaSessao) {
+    const celular = await sincronizarCelular(
+      { phoneNumberId: phone_number_id, token },
+      { conectadoEm: new Date().toISOString() },
+    );
+    agendaDoCelular = celular.agenda === "pedido" ? "pedida" : celular.agenda === "ja_pedido" ? "ja_pedida" : "falhou";
+    historicoDoCelular = celular.historico;
+    if (celular.motivo) {
+      logger.error("[meta.coexistencia] pedido da agenda/histórico do celular recusado", {
         request_id: requestId,
         organization_id: orgId,
-        motivo: agenda.motivo,
+        agenda: celular.agenda,
+        historico: celular.historico,
+        motivo: celular.motivo,
       });
     }
-    // A Meta exige a agenda antes do histórico.
-    const historico = await pedirHistoricoDoAplicativo({ phoneNumberId: phone_number_id, token });
-    historicoDoCelular = historico.ok ? (historico.jaPedida ? "ja_pedido" : "pedido") : "falhou";
-    if (!historico.ok) {
-      logger.error("[meta.coexistencia] pedido do histórico do celular recusado", {
-        request_id: requestId,
-        organization_id: orgId,
-        motivo: historico.motivo,
-      });
-    }
+    // Guardado no número: a aba API Oficial mostra o desfecho e, se faltou algo,
+    // oferece "Pedir de novo" dentro das 24 h da Meta.
+    await guardarEstadoDoCelular(admin, orgId, idDaSessao, celular);
   }
 
   return ok({

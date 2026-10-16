@@ -63,6 +63,20 @@ export interface OfficialChannelState {
     erro: string | null;
     em: string | null;
   } | null;
+  /**
+   * Coexistência: o desfecho do pedido da agenda e do histórico do celular.
+   * `null`/ausente = nunca pedido por este CRM.
+   */
+  celular?: EstadoDoCelularNaTela | null;
+}
+
+export interface EstadoDoCelularNaTela {
+  agenda: "pedido" | "ja_pedido" | "falhou";
+  historico: "pedido" | "ja_pedido" | "falhou";
+  motivo: string | null;
+  em: string;
+  conectadoEm: string | null;
+  prazoVencido: boolean;
 }
 
 /** Colando os três valores, ou com o código que a janela do Facebook devolveu. */
@@ -114,6 +128,22 @@ export function useRegistrarWebhookOficial() {
   return useMutation({
     mutationFn: async () =>
       apiClient.post<{ data: RegistroDoWebhook }>("/api/v1/channels/official/webhook", {}),
+    onError: showApiError,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["official-channel"] });
+    },
+  });
+}
+
+/**
+ * "Pedir de novo" a agenda e o histórico do celular (coexistência). Como no
+ * webhook, recusa da Meta volta com 200 e o motivo fica no cartão.
+ */
+export function usePedirCelularDeNovo() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () =>
+      apiClient.post<{ data: EstadoDoCelularNaTela & { jaFeito: boolean } }>("/api/v1/channels/official/celular", {}),
     onError: showApiError,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["official-channel"] });

@@ -11,7 +11,9 @@ import { Label } from "@/components/ui/label";
 import {
   useConnectOfficialChannel,
   useOfficialChannel,
+  usePedirCelularDeNovo,
   useRegistrarWebhookOficial,
+  type EstadoDoCelularNaTela,
 } from "@/hooks/channels/useOfficialChannel";
 import { copyToClipboard } from "@/lib/clipboard";
 import { useT } from "@/hooks/i18n/useT";
@@ -98,6 +100,76 @@ function FormularioColado({
   );
 }
 
+/**
+ * Coexistência: a agenda e o histórico do aplicativo do celular. A Meta aceita
+ * o pedido uma vez e só nas 24 h seguintes à conexão; recusa não gasta o
+ * pedido, então enquanto houver prazo a tela oferece pedir de novo.
+ */
+function CelularDoNumero({ estado }: { estado: EstadoDoCelularNaTela | null }) {
+  const t = useT();
+  const pedir = usePedirCelularDeNovo();
+  const rotulo = (d: EstadoDoCelularNaTela["agenda"]) =>
+    d === "falhou" ? t("não veio") : t("pedido à Meta");
+  const falta = !estado || estado.agenda === "falhou" || estado.historico === "falhou";
+
+  if (!estado) {
+    return (
+      <Card className="p-4" data-testid="celular-do-numero">
+        <details>
+          <summary className="cursor-pointer text-sm font-medium">
+            {t("Número também no aplicativo do celular? Trazer a agenda e as conversas")}
+          </summary>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {t("Vale só para número conectado em coexistência, até 24 horas depois de conectar. Os contatos entram no CRM e as conversas dos últimos 180 dias aparecem no histórico, sem abrir atendimento.")}
+          </p>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="mt-2"
+            onClick={() => pedir.mutate()}
+            disabled={pedir.isPending}
+          >
+            {pedir.isPending ? t("Pedindo…") : t("Pedir agenda e conversas")}
+          </Button>
+        </details>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="flex flex-col gap-2 p-4" data-testid="celular-do-numero">
+      <h2 className="font-medium">{t("Agenda e conversas do celular")}</h2>
+      <div className="flex flex-wrap items-center gap-2 text-sm">
+        <span>{t("Agenda:")}</span>
+        <Badge variant={estado.agenda === "falhou" ? "destructive" : "outline"}>{rotulo(estado.agenda)}</Badge>
+        <span>{t("Conversas:")}</span>
+        <Badge variant={estado.historico === "falhou" ? "destructive" : "outline"}>{rotulo(estado.historico)}</Badge>
+      </div>
+      {falta && estado.motivo ? (
+        <p className="text-sm text-muted-foreground">
+          {t("Motivo da Meta:")} {estado.motivo}
+        </p>
+      ) : null}
+      {!falta ? (
+        <p className="text-sm text-muted-foreground">
+          {t("A Meta envia os contatos e as conversas aos poucos, nas próximas horas. Deixe o aplicativo aberto no celular enquanto isso.")}
+        </p>
+      ) : estado.prazoVencido ? (
+        <p className="text-sm text-muted-foreground">
+          {t("Passaram as 24 horas da Meta. Para trazer a agenda e as conversas, desconecte o número pelo aplicativo do celular e conecte de novo.")}
+        </p>
+      ) : (
+        <div>
+          <Button type="button" size="sm" variant="outline" onClick={() => pedir.mutate()} disabled={pedir.isPending}>
+            {pedir.isPending ? t("Pedindo…") : t("Pedir de novo")}
+          </Button>
+        </div>
+      )}
+    </Card>
+  );
+}
+
 export function CanalOficialClient({
   comBotaoDeConectar = true,
 }: {
@@ -166,6 +238,7 @@ export function CanalOficialClient({
           </ul>
         </Card>
       ) : null}
+      {estado?.connected ? <CelularDoNumero estado={estado.celular ?? null} /> : null}
       {estado?.channel_session_id && <ChannelAiAccess channelId={estado.channel_session_id} />}
 
       {estado?.webhook ? (

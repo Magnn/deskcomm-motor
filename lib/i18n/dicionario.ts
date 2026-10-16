@@ -14379,6 +14379,23 @@ export const DICIONARIO: Traducoes = {
   "Este bot já atende outra empresa nesta instalação. Um bot só pode estar em um lugar.": {
     es: "Este bot ya atiende a otra empresa en esta instalación. Un bot solo puede estar en un lugar.",
   },
+  // Coexistência: agenda e conversas do celular (pedir de novo).
+  "não veio": { es: "no llegó" },
+  "pedido à Meta": { es: "pedido a Meta" },
+  "Número também no aplicativo do celular? Trazer a agenda e as conversas": { es: "¿El número también está en la aplicación del celular? Traer la agenda y las conversaciones" },
+  "Vale só para número conectado em coexistência, até 24 horas depois de conectar. Os contatos entram no CRM e as conversas dos últimos 180 dias aparecem no histórico, sem abrir atendimento.": { es: "Solo vale para un número conectado en coexistencia, hasta 24 horas después de conectar. Los contactos entran al CRM y las conversaciones de los últimos 180 días aparecen en el historial, sin abrir atención." },
+  "Pedindo…": { es: "Pidiendo…" },
+  "Pedir agenda e conversas": { es: "Pedir agenda y conversaciones" },
+  "Agenda e conversas do celular": { es: "Agenda y conversaciones del celular" },
+  "Agenda:": { es: "Agenda:" },
+  "Conversas:": { es: "Conversaciones:" },
+  "Motivo da Meta:": { es: "Motivo de Meta:" },
+  "A Meta envia os contatos e as conversas aos poucos, nas próximas horas. Deixe o aplicativo aberto no celular enquanto isso.": { es: "Meta envía los contactos y las conversaciones poco a poco, en las próximas horas. Deja la aplicación abierta en el celular mientras tanto." },
+  "Passaram as 24 horas da Meta. Para trazer a agenda e as conversas, desconecte o número pelo aplicativo do celular e conecte de novo.": { es: "Pasaron las 24 horas de Meta. Para traer la agenda y las conversaciones, desconecta el número desde la aplicación del celular y conéctalo de nuevo." },
+  "Pedir de novo": { es: "Pedir de nuevo" },
+  "Passaram as 24 horas que a Meta dá para pedir a agenda e o histórico. Para trazê-los, desconecte o número pelo aplicativo do celular e conecte de novo.": { es: "Pasaron las 24 horas que Meta da para pedir la agenda y el historial. Para traerlos, desconecta el número desde la aplicación del celular y conéctalo de nuevo." },
+  "A Meta não respondeu sobre este número:": { es: "Meta no respondió sobre este número:" },
+  "Este número não está no aplicativo WhatsApp Business do celular — não há agenda nem histórico para trazer.": { es: "Este número no está en la aplicación WhatsApp Business del celular: no hay agenda ni historial para traer." },
 };
 
 /**
