@@ -5,10 +5,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
-import {
-  registrarWebhookDoAppDaMeta,
-  type RegistrarWebhookDoAppResult,
-} from "@/app/actions/settings/registrarWebhookDoAppDaMeta";
+import { ativarAppDaMeta, type AtivarAppDaMetaResult } from "@/app/actions/settings/ativarAppDaMeta";
 import {
   rotacionarVerifyTokenDaMeta,
   updateMetaApp,
@@ -29,6 +26,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useT } from "@/hooks/i18n/useT";
+import { linksDoPainel, PERMISSOES_PARA_ACESSO_AVANCADO, type ChaveDoPasso } from "@/lib/channels/meta/ativar-app";
 import { copyToClipboard } from "@/lib/clipboard";
 
 interface Props {
@@ -90,28 +88,32 @@ export function FormularioDaMeta({
   const [tokenNovo, setTokenNovo] = useState<string | null>(null);
   const [confirmandoTroca, setConfirmandoTroca] = useState(false);
   const [ocupado, iniciar] = useTransition();
-  const [registro, setRegistro] = useState<RegistrarWebhookDoAppResult | null>(null);
+  const [ativacao, setAtivacao] = useState<AtivarAppDaMetaResult | null>(null);
 
-  function motivoDoRegistro(r: Extract<RegistrarWebhookDoAppResult, { ok: false }>): string {
+  const NOME_DO_PASSO: Record<ChaveDoPasso, string> = {
+    webhook_whatsapp: t("Avisos do WhatsApp (mensagens, modelos, celular em coexistência, desconexão)"),
+    webhook_paginas: t("Avisos das páginas do Facebook (Messenger)"),
+    enderecos_do_app: t("Domínio, política de privacidade e termos do aplicativo"),
+  };
+
+  function motivoDaAtivacao(r: Extract<AtivarAppDaMetaResult, { ok: false }>): string {
     switch (r.error) {
       case "sem_app_id":
         return t("Preencha o ID do aplicativo acima e salve.");
       case "sem_credencial":
         return t("Cadastre a chave secreta do aplicativo primeiro. Sem ela o token não vale.");
-      case "sem_endereco_publico":
-        return t("Esta instalação não tem um endereço público com HTTPS, e a Meta só registra endereço assim.");
       default:
-        return `${t("A Meta não aceitou o endereço:")} ${r.motivo ?? ""}`.trim();
+        return t("Esta instalação não tem um endereço público com HTTPS, e a Meta só registra endereço assim.");
     }
   }
 
-  function registrarEndereco() {
-    iniciar(async () => {
-      const r = await registrarWebhookDoAppDaMeta();
-      setRegistro(r);
-      if (r.ok) toast.success(t("Endereço registrado na Meta."));
-      else toast.error(motivoDoRegistro(r));
-    });
+  /** Ativa e confere na Meta. Roda sozinha depois de salvar um app ou uma chave nova. */
+  async function ativarNaMeta() {
+    const r = await ativarAppDaMeta();
+    setAtivacao(r);
+    if (!r.ok) toast.error(motivoDaAtivacao(r));
+    else if (r.passos.every((p) => p.ok)) toast.success(t("Tudo ativado na Meta."));
+    else toast.error(t("A Meta recusou parte da ativação. Veja o motivo no quadro."));
   }
 
   const chaveNova = chave.trim();
@@ -172,6 +174,8 @@ export function FormularioDaMeta({
       });
       if (r.ok) setChave("");
       aoGravar(r, r.ok && r.appName ? `${t("Salvo. Aplicativo conferido na Meta:")} ${r.appName}` : t("Salvo."));
+      // App ou chave nova: liga na Meta, na hora, tudo o que o produto usa dele.
+      if (r.ok && (temChaveNova || trocaDeApp)) await ativarNaMeta();
     });
   }
 
@@ -367,35 +371,47 @@ export function FormularioDaMeta({
         ) : null}
       </Card>
 
-      <Card className="flex flex-col gap-3 p-4" data-testid="meta-endereco-do-app">
+      <Card className="flex flex-col gap-3 p-4" data-testid="meta-ativacao">
         <div className="flex flex-col gap-1">
-          <h2 className="font-medium">{t("Endereço do aplicativo na Meta")}</h2>
+          <h2 className="font-medium">{t("Ativação na Meta")}</h2>
           <p className="text-sm text-muted-foreground">
-            {t("É por este endereço que chegam o estado dos modelos e as mensagens enviadas pelo aplicativo WhatsApp Business do celular, de todas as empresas desta instalação. O sistema registra na Meta por você: não é preciso colar o endereço nem o token no painel dela.")}
+            {t("Ao salvar um aplicativo ou uma chave nova, o sistema liga na Meta tudo o que usa dele e confere com ela o que ficou valendo. Não é preciso colar endereço nem token no painel. Pode ativar de novo quando quiser: cada vez substitui a anterior.")}
           </p>
         </div>
         {urlDoApp ? <code className="overflow-x-auto rounded-md bg-muted px-2 py-1.5 text-xs">{urlDoApp}</code> : null}
-        {registro && !registro.ok ? (
-          <p role="alert" className="text-sm text-destructive" data-testid="meta-registro-recusado">
-            {motivoDoRegistro(registro)}
+        {ativacao && !ativacao.ok ? (
+          <p role="alert" className="text-sm text-destructive" data-testid="meta-ativacao-recusada">
+            {motivoDaAtivacao(ativacao)}
           </p>
         ) : null}
-        {registro?.ok ? (
-          <p role="status" className="text-sm text-muted-foreground" data-testid="meta-registro-feito">
-            {t("Registrado. A Meta passou a entregar neste endereço.")}
-          </p>
+        {ativacao?.ok ? (
+          <ul className="flex flex-col gap-2" data-testid="meta-ativacao-passos">
+            {ativacao.passos.map((p) => (
+              <li key={p.chave} data-testid={`meta-passo-${p.chave}`} data-ok={p.ok} className="flex gap-2 text-sm">
+                <span aria-hidden className={p.ok ? "text-success" : "text-destructive"}>
+                  {p.ok ? "✓" : "✕"}
+                </span>
+                <span className="flex flex-col">
+                  <span>{NOME_DO_PASSO[p.chave]}</span>
+                  {p.motivo ? <span className="text-xs text-muted-foreground">{p.motivo}</span> : null}
+                </span>
+              </li>
+            ))}
+          </ul>
         ) : null}
         <div className="flex justify-end">
           <Button
             variant="outline"
-            data-testid="meta-registrar-endereco"
+            data-testid="meta-ativar"
             disabled={ocupado || !temAppId || !urlDoApp || !(temSegredoSalvo || temNoAmbiente)}
-            onClick={registrarEndereco}
+            onClick={() => iniciar(ativarNaMeta)}
           >
-            {ocupado ? t("Registrando…") : t("Registrar endereço na Meta")}
+            {ocupado ? t("Ativando…") : ativacao ? t("Ativar e conferir de novo") : t("Ativar tudo na Meta")}
           </Button>
         </div>
       </Card>
+
+      {app.appId ? <PassosDoPainel appId={app.appId} temConfigDoWhatsapp={Boolean(app.whatsappConfigId)} /> : null}
 
       <AlertDialog open={confirmandoTroca} onOpenChange={setConfirmandoTroca}>
         <AlertDialogContent>
@@ -414,5 +430,46 @@ export function FormularioDaMeta({
         </AlertDialogContent>
       </AlertDialog>
     </div>
+  );
+}
+
+/**
+ * O que a Graph não deixa o token do app fazer: só a pessoa, no painel da Meta.
+ * Cada passo leva direto ao lugar certo do aplicativo em vigor.
+ */
+function PassosDoPainel({ appId, temConfigDoWhatsapp }: { appId: string; temConfigDoWhatsapp: boolean }) {
+  const t = useT();
+  const links = linksDoPainel(appId);
+  const link = (href: string, texto: string) => (
+    <a href={href} target="_blank" rel="noopener noreferrer" className="font-medium text-foreground underline underline-offset-2">
+      {texto}
+    </a>
+  );
+  return (
+    <Card className="flex flex-col gap-3 p-4" data-testid="meta-passos-do-painel">
+      <div className="flex flex-col gap-1">
+        <h2 className="font-medium">{t("O que só dá para fazer no painel da Meta")}</h2>
+        <p className="text-sm text-muted-foreground">
+          {t("A Meta não deixa um sistema fazer estes passos pelo aplicativo. Cada um leva direto ao lugar certo.")}
+        </p>
+      </div>
+      <ol className="flex list-decimal flex-col gap-3 pl-5 text-sm">
+        <li data-testid="meta-painel-config">
+          {temConfigDoWhatsapp
+            ? t("Confira que a configuração do WhatsApp gera token que não expira (“Nunca”). Com token de 60 dias a conexão é recusada.")
+            : t("Crie a configuração do WhatsApp: Cadastro incorporado, produto WhatsApp Cloud API, usuário do sistema com expiração “Nunca” e as permissões whatsapp_business_management e whatsapp_business_messaging. Cole o ID dela acima.")}{" "}
+          {link(links.loginParaEmpresas, t("Abrir configurações de login"))}
+        </li>
+        <li data-testid="meta-painel-permissoes">
+          {t("Peça acesso avançado às permissões, para empresas de fora do seu portfólio conseguirem conectar:")}{" "}
+          <span className="font-mono text-xs">{PERMISSOES_PARA_ACESSO_AVANCADO.join(", ")}</span>.{" "}
+          {link(links.permissoes, t("Abrir permissões"))}
+        </li>
+        <li data-testid="meta-painel-verificacao">
+          {t("Portfólio verificado, aplicativo publicado (modo Ao vivo) e cadastro como Provedor de Tecnologia. Sem isso, só quem tem função no aplicativo conecta.")}{" "}
+          {link(links.basico, t("Abrir configurações básicas"))}
+        </li>
+      </ol>
+    </Card>
   );
 }
