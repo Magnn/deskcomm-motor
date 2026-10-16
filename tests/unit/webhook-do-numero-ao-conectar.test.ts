@@ -29,7 +29,7 @@ import { encryptWebhookSecret, decryptWebhookSecret } from "@/lib/webhooks/secre
 // O número do formulário colado já está na Cloud API nestes casos: o registro
 // (que pergunta à Meta) não faz parte do que este arquivo mede.
 vi.mock("@/lib/channels/meta/cadastro-incorporado", async (original) => ({
-  ...(await original<typeof import("@/lib/channels/meta/cadastro-incorporado")>()),
+  ...(await original<Record<string, unknown>>()),
   garantirNumeroRegistrado: vi.fn(async () => ({ ok: true, registrou: false, noAplicativo: false })),
 }));
 vi.mock("@/lib/auth/require-role", () => ({ requireRole: vi.fn() }));

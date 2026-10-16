@@ -289,7 +289,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   let token: string;
   // Só o login do Facebook sabe quando o token vence; o colado fica nulo.
   let tokenExpiraEm: Date | null = null;
-  const peloLogin = "code" in parsed.data;
   if ("code" in parsed.data) {
     const app = await appDoCadastroIncorporado();
     if (!app) {
