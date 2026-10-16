@@ -116,8 +116,29 @@ describe("ativar tudo no app da Meta", () => {
     expect(r.ok && r.passos[1]!.motivo).toContain("https://outro.test/api/v1/webhooks/messenger");
   });
 
+  it("vale o estado: pedido recusado com a Meta já certa é verde (medido em produção: escrita de configurações desligada no app)", async () => {
+    recusar = (p) =>
+      p.corpo.has("app_domains") ? "(#10) Changing app settings through API calls has been disabled for this app." : null;
+
+    const r = await ativar();
+
+    expect(r.ok && r.passos[2]).toEqual({ chave: "enderecos_do_app", ok: true, motivo: null });
+  });
+
+  it("recusa de configuração por API com algo faltando: diz qual chave ligar no painel", async () => {
+    recusar = (p) =>
+      p.corpo.has("app_domains") ? "(#10) Changing app settings through API calls has been disabled for this app." : null;
+    naMeta.app = {};
+
+    const r = await ativar();
+
+    expect(r.ok && r.passos[2]!.ok).toBe(false);
+    expect(r.ok && r.passos[2]!.motivo).toContain("Permitir acesso à API às configurações do app");
+  });
+
   it("um passo recusado pela Meta não impede os outros, e o motivo dela vai para o quadro", async () => {
     recusar = (p) => (p.corpo.get("object") === "page" ? "(#2200) Callback verification failed" : null);
+    naMeta.assinaturas = assinaturaCompleta().filter((a) => a.object !== "page");
 
     const r = await ativar();
 
