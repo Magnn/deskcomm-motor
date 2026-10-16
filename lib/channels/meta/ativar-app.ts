@@ -183,10 +183,26 @@ export async function ativarTudoNoAppDaMeta(
   };
 
   return (["webhook_whatsapp", "webhook_paginas", "enderecos_do_app"] as const).map((chave) => {
-    // A recusa da Meta é o motivo mais útil; a conferência só diz o que ficou.
-    const motivo = recusas.get(chave) ?? conferencia[chave];
-    return { chave, ok: motivo === null, motivo };
+    // Vale o ESTADO: se a Meta já tem tudo certo, o item está ativo mesmo que o
+    // pedido tenha sido recusado (medido em 15/10/2026: app com a escrita de
+    // configurações por API desligada, e domínio/termos já preenchidos à mão).
+    // Faltando algo, a recusa dela explica melhor que a conferência.
+    if (conferencia[chave] === null) return { chave, ok: true, motivo: null };
+    const recusa = recusas.get(chave);
+    return { chave, ok: false, motivo: recusa ? explicarRecusa(recusa) : conferencia[chave] };
   });
+}
+
+/**
+ * A recusa da Meta, com o caminho do conserto quando ele é conhecido. Pura.
+ * `(#10) Changing app settings through API calls has been disabled` = o app tem
+ * desligada a chave "Permitir acesso à API às configurações do app".
+ */
+export function explicarRecusa(motivo: string): string {
+  if (/changing app settings through api calls has been disabled/i.test(motivo)) {
+    return `A Meta não deixa este aplicativo ser configurado por sistema. No painel dela, em Configurações do app › Avançado, ligue “Permitir acesso à API às configurações do app” e ative de novo, ou preencha domínio, política de privacidade e termos em Configurações › Básico. (${motivo})`;
+  }
+  return motivo;
 }
 
 /** O que falta nos endereços públicos do app. Pura. */
