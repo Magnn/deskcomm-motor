@@ -197,7 +197,7 @@ describe("POST /api/v1/channels/official — pelo login do Facebook", () => {
     expect(h.webhook).not.toHaveBeenCalled();
   });
 
-  it("o formulário colado segue como era: não troca código e não registra número", async () => {
+  it("o formulário colado não troca código, mas garante o número registrado (medido: número 'Offline' na conta)", async () => {
     const res = await post({
       phone_number_id: "1103328999528818",
       waba_id: "2434045433735175",
@@ -206,7 +206,9 @@ describe("POST /api/v1/channels/official — pelo login do Facebook", () => {
 
     expect(res.status).toBe(200);
     expect(h.credencial).not.toHaveBeenCalled();
-    expect(h.registrar).not.toHaveBeenCalled();
+    expect(h.registrar).toHaveBeenCalledWith(
+      expect.objectContaining({ phoneNumberId: "1103328999528818", token: "EAA-token-colado-com-mais-de-vinte-caracteres" }),
+    );
     expect(h.inseridas[0]).toMatchObject({ meta_token_encrypted: "cifra(EAA-token-colado-com-mais-de-vinte-caracteres)" });
   });
 });

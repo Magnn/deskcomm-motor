@@ -289,7 +289,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   let token: string;
   // Só o login do Facebook sabe quando o token vence; o colado fica nulo.
   let tokenExpiraEm: Date | null = null;
-  const peloLogin = "code" in parsed.data;
   if ("code" in parsed.data) {
     const app = await appDoCadastroIncorporado();
     if (!app) {
@@ -380,12 +379,18 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     if (semPlano) return semPlano;
   }
 
-  // Número criado na janela do Facebook ainda não está na Cloud API. Depois da
-  // trava do plano (recusar por plano não pode deixar efeito na Meta) e ANTES de
-  // gravar: canal gravado com número sem registro diz "conectado" e não envia.
-  // O formulário colado não passa por aqui — quem cola o id já tem o número em uso.
+  // Número que ainda não está na Cloud API não envia: canal gravado assim diz
+  // "conectado" e fica mudo. Depois da trava do plano (recusar por plano não pode
+  // deixar efeito na Meta) e ANTES de gravar.
+  //
+  // Vale também para o formulário colado. Até 16/10/2026 ele não passava por
+  // aqui ("quem cola o id já tem o número em uso"), e foi medido o contrário: o
+  // número da própria conta da instalação estava "Offline" no Gerenciador do
+  // WhatsApp — criado na conta, nunca registrado. `garantirNumeroRegistrado` não
+  // toca em número que já está na Cloud API nem no que está no aplicativo do
+  // celular (coexistência), então o registro só acontece quando falta.
   let noAplicativo = false;
-  if (peloLogin) {
+  {
     const registro = await garantirNumeroRegistrado({
       phoneNumberId: phone_number_id,
       token,

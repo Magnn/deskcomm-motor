@@ -26,6 +26,12 @@ import { requireRole } from "@/lib/auth/require-role";
 import { validateMetaCredentials } from "@/lib/channels/meta/validate-credentials";
 import { encryptWebhookSecret, decryptWebhookSecret } from "@/lib/webhooks/secrets";
 
+// O número do formulário colado já está na Cloud API nestes casos: o registro
+// (que pergunta à Meta) não faz parte do que este arquivo mede.
+vi.mock("@/lib/channels/meta/cadastro-incorporado", async (original) => ({
+  ...(await original<Record<string, unknown>>()),
+  garantirNumeroRegistrado: vi.fn(async () => ({ ok: true, registrou: false, noAplicativo: false })),
+}));
 vi.mock("@/lib/auth/require-role", () => ({ requireRole: vi.fn() }));
 vi.mock("@/lib/impersonate/support", () => ({ requireSupportWrite: vi.fn(async () => null) }));
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: vi.fn() }));

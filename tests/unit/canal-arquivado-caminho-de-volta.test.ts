@@ -37,6 +37,12 @@ import { createClient } from "@/lib/supabase/server";
 import { getWahaClient } from "@/lib/waha/client";
 import { encryptWebhookSecret } from "@/lib/webhooks/secrets";
 
+// O número do formulário colado já está na Cloud API nestes casos: o registro
+// (que pergunta à Meta) não faz parte do que este arquivo mede.
+vi.mock("@/lib/channels/meta/cadastro-incorporado", async (original) => ({
+  ...(await original<Record<string, unknown>>()),
+  garantirNumeroRegistrado: vi.fn(async () => ({ ok: true, registrou: false, noAplicativo: false })),
+}));
 vi.mock("@/lib/auth/require-role", () => ({ requireRole: vi.fn() }));
 vi.mock("@/lib/auth/server", () => ({
   mfaEmDivida: vi.fn(async () => false),
