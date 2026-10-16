@@ -12,6 +12,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 const mutateAsync = vi.fn();
+const criarModelo = vi.fn();
 const salvos: { valores: Record<string, string> } = { valores: {} };
 
 vi.mock("@/hooks/channels/useTemplates", () => ({
@@ -40,6 +41,7 @@ vi.mock("@/hooks/channels/useTemplates", () => ({
     },
   }),
   useSyncTemplates: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useCreateTemplate: () => ({ mutateAsync: criarModelo, isPending: false }),
   useSaveTemplateValues: () => ({ mutateAsync, isPending: false }),
 }));
 
@@ -102,5 +104,35 @@ describe("TemplatesClient — link da mídia salvo no modelo", () => {
     rerender(<TemplatesClient />);
     expect(screen.getByTestId("template-link-midia")).toHaveValue("https://exemplo.com/x2.jpg");
     expect(screen.getByTestId("btn-salvar-link")).toBeDisabled();
+  });
+});
+
+describe("TemplatesClient — criar modelo no canal oficial", () => {
+  beforeEach(() => {
+    criarModelo.mockReset().mockResolvedValue({ data: {} });
+  });
+
+  it("abre o formulário sem subir imagem e manda a definição em pt_BR", async () => {
+    render(<TemplatesClient />);
+    await userEvent.click(screen.getByTestId("btn-criar-modelo"));
+    expect(screen.getByTestId("formulario-de-modelo")).toBeInTheDocument();
+    // A Cloud API não aceita link no cabeçalho de mídia: o campo não aparece.
+    expect(screen.queryByLabelText("Imagem do cabeçalho")).toBeNull();
+
+    await userEvent.type(screen.getByLabelText("Nome do modelo"), "confirmacao_atendimento");
+    await userEvent.type(screen.getByLabelText("Conteúdo"), "Seu atendimento está confirmado.");
+    await userEvent.click(screen.getByTestId("btn-enviar-modelo"));
+
+    expect(criarModelo).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "confirmacao_atendimento",
+        language: "pt_BR",
+        category: "UTILITY",
+        components: expect.arrayContaining([
+          expect.objectContaining({ type: "BODY", text: "Seu atendimento está confirmado." }),
+        ]),
+      }),
+    );
+    expect(screen.queryByTestId("formulario-de-modelo")).toBeNull();
   });
 });

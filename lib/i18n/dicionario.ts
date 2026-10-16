@@ -5324,9 +5324,11 @@ export const DICIONARIO: Traducoes = {
   "Sincronizando…": { es: "Sincronizando…" },
   "Sincronizar com a Meta": { es: "Sincronizar con Meta" },
   "Nenhum template ainda": { es: "Aún no hay plantillas" },
-  "Crie templates no Gerenciador do WhatsApp e clique em": {
-    es: "Crea plantillas en el Administrador de WhatsApp y haz clic en",
+  "Clique em": { es: "Haz clic en" },
+  "ou, se já criou no Gerenciador do WhatsApp, em": {
+    es: "o, si ya la creaste en el Administrador de WhatsApp, en",
   },
+  "Modelo enviado para revisão da Meta.": { es: "Plantilla enviada a revisión de Meta." },
   "Só templates aprovados podem ser enviados fora da janela de 24 horas.": {
     es: "Solo las plantillas aprobadas se pueden enviar fuera de la ventana de 24 horas.",
   },

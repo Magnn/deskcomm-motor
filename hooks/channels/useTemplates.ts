@@ -68,6 +68,34 @@ export function useSyncTemplates() {
   });
 }
 
+/** O corpo de criação — o que `FormularioDeModelo` entrega. */
+export interface NovoModeloInput {
+  name: string;
+  language: string;
+  category: string;
+  components: Record<string, unknown>[];
+}
+
+/**
+ * Cria o modelo na conta do canal oficial e sincroniza em seguida — a lista
+ * volta com ele PENDENTE. O erro da Meta chega ao operador pelo toast.
+ */
+export function useCreateTemplate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (modelo: NovoModeloInput) =>
+      apiClient.post<{ data: SyncCounts }>("/api/v1/channels/templates", {
+        acao: "criar",
+        ...modelo,
+      }),
+    onError: showApiError,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["channel-templates"] });
+      qc.invalidateQueries({ queryKey: ["templates-da-conversa"] });
+    },
+  });
+}
+
 /**
  * Grava (ou esquece, com string vazia) o link de mídia do modelo. Invalida
  * também a lista do painel da janela fechada, que lê a mesma rota com outra
