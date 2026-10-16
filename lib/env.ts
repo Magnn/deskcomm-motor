@@ -95,6 +95,15 @@ const schema = z.object({
    */
   PLANS_ENFORCED: z.string().optional().default(""),
   /**
+   * PLANOS PELA STRIPE (a conta do dono da instalação recebe a assinatura de cada
+   * empresa). A chave (`sk_…`/`rk_…`) liga o botão "Assinar" da tela de planos; o
+   * segredo é o do endereço `POST /api/v1/webhooks/stripe-planos` cadastrado
+   * na Stripe. Sem a chave, a tela volta aos links da Cakto. Ver
+   * `lib/planos/stripe-dos-planos.ts`.
+   */
+  STRIPE_PLANS_SECRET_KEY: z.string().optional().default(""),
+  STRIPE_PLANS_WEBHOOK_SECRET: z.string().optional().default(""),
+  /**
    * INSTAGRAM (comentou, recebe direct). O id e o segredo são os do produto
    * "Instagram" dentro do app da Meta; o token de verificação é o que se digita ao
    * cadastrar o webhook. Faltando qualquer um dos três o recurso fica desligado.

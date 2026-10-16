@@ -39114,7 +39114,7 @@ create table if not exists public.organization_subscriptions (
   updated_at timestamptz not null default now(),
   updated_by uuid,
   constraint organization_subscriptions_status_conhecido check (status in ('ativa', 'inativa')),
-  constraint organization_subscriptions_source_conhecida check (source in ('cakto', 'manual')),
+  constraint organization_subscriptions_source_conhecida check (source in ('cakto', 'manual', 'stripe')),
   constraint organization_subscriptions_plan_id_forma check (plan_id ~ '^[a-z0-9][a-z0-9_-]{0,39}$')
 );
 
@@ -39650,3 +39650,11 @@ comment on column public.platform_meta_app.ads_config_id is
 
 
 notify pgrst, 'reload schema';
+
+-- ---- A assinatura do plano pode vir da Stripe (migration 0932) ----
+-- 'stripe' é valor novo e os existentes continuam aceitos: não há dado a corrigir antes de recriar o CHECK.
+alter table public.organization_subscriptions
+  drop constraint if exists organization_subscriptions_source_conhecida;
+
+alter table public.organization_subscriptions
+  add constraint organization_subscriptions_source_conhecida check (source in ('cakto', 'manual', 'stripe'));

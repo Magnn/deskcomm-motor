@@ -110,10 +110,21 @@ export function emailDoPagamento(pi: Record<string, unknown>): string | null {
   return null;
 }
 
-export function criarClienteStripe(cred: CredencialStripe, opts: { fetch?: Fetch } = {}) {
+export type ChamadaDaStripe = (
+  metodo: "GET" | "POST" | "DELETE",
+  caminho: string,
+  campos?: Record<string, string | number | boolean>,
+  idempotencia?: string,
+) => Promise<Record<string, unknown>>;
+
+/**
+ * A chamada crua à API da Stripe, com o mesmo tratamento de erro do cliente abaixo. Exposta para quem
+ * precisa de outra parte da API (a assinatura dos planos, em `lib/planos/stripe-dos-planos.ts`).
+ */
+export function criarChamadaDaStripe(cred: CredencialStripe, opts: { fetch?: Fetch } = {}): ChamadaDaStripe {
   const buscar: Fetch = opts.fetch ?? ((url, init) => fetch(url, init));
 
-  async function chamar(metodo: "GET" | "POST", caminho: string, campos?: Record<string, string | number | boolean>, idempotencia?: string) {
+  return async function chamar(metodo, caminho, campos, idempotencia) {
     let resposta: Response;
     try {
       resposta = await buscar(`${BASE}${caminho}`, {
@@ -140,7 +151,11 @@ export function criarClienteStripe(cred: CredencialStripe, opts: { fetch?: Fetch
     }
     if (resposta.status >= 500 || resposta.status === 429) throw new ErroDaStripe("indisponivel", texto);
     throw new ErroDaStripe("recusada", texto);
-  }
+  };
+}
+
+export function criarClienteStripe(cred: CredencialStripe, opts: { fetch?: Fetch } = {}) {
+  const chamar = criarChamadaDaStripe(cred, opts);
 
   return {
     /** A chave vale? E de que conta é. Usado ao conectar pela tela. */

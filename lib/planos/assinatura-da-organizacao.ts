@@ -24,7 +24,7 @@ import { lerCatalogoDeclarado, planoPorId, PLANOS_PADRAO, type Plano } from "./c
 
 type Admin = SupabaseClient;
 
-export type OrigemDaAssinatura = "cakto" | "manual";
+export type OrigemDaAssinatura = "cakto" | "manual" | "stripe";
 
 export interface Assinatura {
   planoId: string;
@@ -70,7 +70,7 @@ function daLinha(l: Linha): Assinatura {
   return {
     planoId: l.plan_id,
     status: l.status === "ativa" ? "ativa" : "inativa",
-    origem: l.source === "manual" ? "manual" : "cakto",
+    origem: l.source === "manual" || l.source === "stripe" ? l.source : "cakto",
     referencia: l.reference,
     motivo: l.reason,
     atualizadaEm: l.updated_at,
