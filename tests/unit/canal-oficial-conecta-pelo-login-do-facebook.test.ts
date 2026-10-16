@@ -52,7 +52,12 @@ vi.mock("@/lib/supabase/admin", () => {
     select: () => leitura,
     eq: () => leitura,
     is: () => leitura,
+    order: () => leitura,
+    limit: () => leitura,
     maybeSingle: async () => ({ data: null, error: null }),
+    // Leitura em lista (os números oficiais da org): vazia.
+    then: (ok: (v: unknown) => unknown, erro?: (e: unknown) => unknown) =>
+      Promise.resolve({ data: [], error: null }).then(ok, erro),
   };
   return {
     createAdminClient: () => ({

@@ -150,6 +150,22 @@ export function CanalOficialClient({
           </p>
         </Card>
       ) : null}
+      {estado?.numeros && estado.numeros.length > 1 ? (
+        <Card className="flex flex-col gap-2 p-4" data-testid="canal-oficial-outros-numeros">
+          <p className="text-sm">
+            {t("Esta empresa tem mais de um número oficial. Os detalhes acima são do que está funcionando; todos aparecem em Conexões › Números, cada um com os próprios botões.")}
+          </p>
+          <ul className="flex flex-col gap-1 text-sm">
+            {estado.numeros.map((n) => (
+              <li key={n.channel_session_id} className="flex flex-wrap items-center gap-2">
+                <span className="font-mono text-xs">{n.phoneNumber ?? "—"}</span>
+                <span className="text-muted-foreground">{n.displayName ?? ""}</span>
+                <Badge variant={n.status === "WORKING" ? "outline" : "destructive"}>{n.status ?? "—"}</Badge>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      ) : null}
       {estado?.channel_session_id && <ChannelAiAccess channelId={estado.channel_session_id} />}
 
       {estado?.webhook ? (

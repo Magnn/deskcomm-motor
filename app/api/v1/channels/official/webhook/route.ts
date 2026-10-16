@@ -23,6 +23,7 @@ import { fail, ok } from "@/lib/api/wrappers";
 import { requireRole } from "@/lib/auth/require-role";
 import { ARCHIVED_AT, queryTolerantToMissingArchived } from "@/lib/channels/archived";
 import { CHANNEL_PROVIDER_META } from "@/lib/channels/capabilities";
+import { escolherCanalOficial } from "@/lib/channels/meta/session";
 import { registrarWebhookDaSessao } from "@/lib/channels/meta/webhook-da-sessao";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { basePublicaDoWebhookMeta } from "@/lib/webhooks/url-publica";
@@ -31,7 +32,7 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 const COLUNAS =
-  "id, meta_phone_number_id, meta_waba_id, meta_token_encrypted, webhook_path_token";
+  "id, meta_phone_number_id, meta_waba_id, meta_token_encrypted, webhook_path_token, status, created_at";
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const supportDenied = await requireSupportWrite();
@@ -43,28 +44,39 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const orgId = authz.org.orgId;
 
   const admin = createAdminClient();
-  const consultar = () =>
-    admin
+  // Com mais de um número oficial, o corpo pode dizer QUAL (`channel_session_id`);
+  // sem ele vale o principal, o mesmo que a aba mostra.
+  const corpo = (await req.json().catch(() => null)) as { channel_session_id?: unknown } | null;
+  const escolhido = typeof corpo?.channel_session_id === "string" ? corpo.channel_session_id : null;
+  const consultar = () => {
+    const q = admin
       .from("channel_sessions")
       .select(COLUNAS)
       .eq("organization_id", orgId)
-      .eq("provider", CHANNEL_PROVIDER_META);
+      .eq("provider", CHANNEL_PROVIDER_META)
+      .limit(50);
+    return escolhido ? q.eq("id", escolhido) : q;
+  };
 
   // Só a sessão VIVA: reaplicar o webhook de um canal arquivado apontaria a Meta para
   // uma URL cujo `webhook_path_token` já foi rotacionado — ou seja, registraria uma
   // entrega que ninguém atende. Canal arquivado se reconecta, não se "conserta".
   const { data } = await queryTolerantToMissingArchived(
-    () => consultar().is(ARCHIVED_AT, null).maybeSingle(),
-    () => consultar().maybeSingle(),
+    () => consultar().is(ARCHIVED_AT, null),
+    () => consultar(),
   );
 
-  const sessao = data as {
-    id: string;
-    meta_phone_number_id: string | null;
-    meta_waba_id: string | null;
-    meta_token_encrypted: string | null;
-    webhook_path_token: string | null;
-  } | null;
+  const sessao = escolherCanalOficial(
+    (data ?? []) as {
+      id: string;
+      meta_phone_number_id: string | null;
+      meta_waba_id: string | null;
+      meta_token_encrypted: string | null;
+      webhook_path_token: string | null;
+      status: string | null;
+      created_at: string | null;
+    }[],
+  );
 
   if (!sessao || !sessao.meta_phone_number_id || !sessao.meta_waba_id || !sessao.meta_token_encrypted) {
     return fail("invalid_request", "no_meta_channel", 422, { requestId });

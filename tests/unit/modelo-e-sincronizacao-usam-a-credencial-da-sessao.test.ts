@@ -100,6 +100,24 @@ function cadeia(tabela: string, filtros: Record<string, unknown>): Record<string
   alvo.is = () => alvo;
   alvo.order = () => alvo;
   alvo.limit = () => alvo;
+  // Leitura em lista (`metaSessionForOrg` lê os números oficiais da org e escolhe).
+  alvo.then = (ok: (v: unknown) => unknown, erro?: (e: unknown) => unknown) => {
+    const org = String(filtros.organization_id ?? "");
+    const conexao = tabela === "channel_sessions" ? sessoes[org] : undefined;
+    const data = conexao
+      ? [
+          {
+            id: `sessao-${org}`,
+            organization_id: org,
+            meta_waba_id: `waba-${org}`,
+            meta_phone_number_id: conexao.phoneNumberId,
+            status: "WORKING",
+            created_at: "2026-10-01T00:00:00Z",
+          },
+        ]
+      : [];
+    return Promise.resolve({ data, error: null }).then(ok, erro);
+  };
   return alvo;
 }
 

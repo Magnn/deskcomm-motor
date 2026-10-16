@@ -79,6 +79,25 @@ export async function metaSessionByWebhookToken(
 }
 
 /**
+ * Entre os números oficiais ATIVOS de uma organização, o que representa o canal
+ * quando uma tela só cabe um (a aba da API Oficial, os modelos da Meta): o que
+ * está funcionando, e entre esses o conectado por último. Pura.
+ *
+ * Existe desde que a organização pode ter mais de um número oficial (16/10/2026):
+ * antes havia um só, e "o primeiro criado" escolhia, em produção, o número antigo
+ * banido em vez do que acabou de ser conectado.
+ */
+export function escolherCanalOficial<T extends { status?: string | null; created_at?: string | null }>(
+  linhas: readonly T[],
+): T | null {
+  if (linhas.length === 0) return null;
+  const peso = (l: T) => (l.status === "WORKING" ? 1 : 0);
+  return [...linhas].sort(
+    (a, b) => peso(b) - peso(a) || String(b.created_at ?? "").localeCompare(String(a.created_at ?? "")),
+  )[0]!;
+}
+
+/**
  * A sessão oficial ATIVA da organização (se houver). Usada pela tela de templates
  * para saber QUAL WABA espelhar — e para dizer ao operador o que fazer quando não
  * há nenhuma, em vez de mostrar uma tabela vazia sem explicação.
@@ -99,14 +118,23 @@ export async function metaSessionForOrg(
       // credencial (`organization_id` + ele): sem o número, quem chama não tem como
       // pedir a credencial DESTA sessão e volta a olhar o ambiente — que é o defeito
       // que a fatia F4 da #850 fecha.
-      .select("id, organization_id, meta_waba_id, meta_phone_number_id")
+      .select("id, organization_id, meta_waba_id, meta_phone_number_id, status, created_at")
       .eq("organization_id", organizationId)
       .eq("provider", CHANNEL_PROVIDER_META)
-      .order("created_at", { ascending: true })
-      .limit(1);
-  const { data } = await queryTolerantToMissingArchived(
-    () => base().is(ARCHIVED_AT, null).maybeSingle(),
-    () => base().maybeSingle(),
+      .limit(50);
+  const { data: linhas } = await queryTolerantToMissingArchived(
+    () => base().is(ARCHIVED_AT, null),
+    () => base(),
+  );
+  const data = escolherCanalOficial(
+    (linhas ?? []) as {
+      id: string;
+      organization_id: string;
+      meta_waba_id: string | null;
+      meta_phone_number_id: string | null;
+      status: string | null;
+      created_at: string | null;
+    }[],
   );
 
   if (!data) return null;

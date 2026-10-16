@@ -11,8 +11,17 @@ export interface LoginDoCanalOficial {
   versao: string;
 }
 
+export interface NumeroOficial {
+  channel_session_id: string;
+  phoneNumber: string | null;
+  displayName: string | null;
+  status: string | null;
+}
+
 export interface OfficialChannelState {
   channel_session_id?: string | null;
+  /** Todos os números oficiais ativos da organização; o desta tela é um deles. */
+  numeros?: NumeroOficial[];
   connected: boolean;
   /** `null`/ausente = a instalação não configurou o login; a tela fica com o formulário. */
   login?: LoginDoCanalOficial | null;
