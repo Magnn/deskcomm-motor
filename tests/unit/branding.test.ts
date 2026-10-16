@@ -975,6 +975,11 @@ const HOSTS_DECLARADOS: Record<string, EntradaDeHost> = {
     motivo:
       "painel onde o usuário gera a PRÓPRIA chave da ElevenLabs (aba Voz do agente). O endereço é do fornecedor e é a informação que a tela tem de dar — mandar para outro lugar seria pior.",
   },
+  "developers.facebook.com": {
+    categoria: "FORNECEDOR",
+    motivo:
+      "painel do aplicativo da Meta de quem administra a instalação: /admin/meta leva direto ao passo que a Graph não deixa o sistema fazer (configuração do login, permissões, configurações básicas). É o app DELE, no domínio da Meta.",
+  },
   "console.anthropic.com": {
     categoria: "CONSOLE",
     motivo: "painel de chaves da Anthropic. Mesmo caso: é de onde a credencial do usuário sai.",
