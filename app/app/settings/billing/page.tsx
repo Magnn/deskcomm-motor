@@ -13,6 +13,8 @@ import { iaLegivel, precoLegivel } from "@/lib/planos/catalogo";
 import { lerAmbiente } from "@/lib/instalacao/ambiente";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { linkDoCheckoutDoPlano, produtosDaAssinatura } from "@/lib/tenants/assinatura-cakto";
+import { stripeDosPlanosLigada } from "@/lib/planos/stripe-dos-planos";
+import { abrirPortalDoPlano, assinarPlano } from "@/app/actions/settings/assinarPlano";
 
 export const dynamic = "force-dynamic";
 
@@ -21,14 +23,33 @@ export const dynamic = "force-dynamic";
  *
  * Com a cobrança de plano ligada na instalação (`PLANS_ENFORCED`), mostra o plano
  * em vigor, quantos números ele libera e quantos estão em uso, e os planos à
- * venda com o link de pagamento. O que aparece aqui é o MESMO retrato que a trava
+ * venda. Com a Stripe dos planos ligada (`STRIPE_PLANS_SECRET_KEY`), o botão abre
+ * o checkout de assinatura da Stripe; sem ela, vale o link da Cakto. O que aparece aqui é o MESMO retrato que a trava
  * de conexão lê (`situacaoDosNumeros`) — a tela não promete o que a trava nega.
  *
  * Com a cobrança desligada não há plano a mostrar: a tela diz com quem falar. O
  * endereço é o de quem opera a instalação (`SUPPORT_EMAIL`) — nunca o nosso — e,
  * sem ele configurado, nenhum endereço aparece.
  */
-export default async function BillingPage() {
+/** O que a pessoa lê ao voltar da Stripe (ou de uma recusa da ação). */
+const AVISOS: Record<string, { tom: "ok" | "erro" | "neutro"; texto: string }> = {
+  ok: { tom: "ok", texto: "Pagamento recebido. O plano é liberado assim que a Stripe confirmar — em geral, alguns segundos. Recarregue a página se ainda não aparecer." },
+  trocada: { tom: "ok", texto: "Plano trocado. A diferença proporcional entra na próxima fatura." },
+  cancelada: { tom: "neutro", texto: "Pagamento não concluído. Nada foi cobrado." },
+  ja_e_o_plano: { tom: "neutro", texto: "Esta conta já está neste plano." },
+  stripe_indisponivel: { tom: "erro", texto: "A Stripe não respondeu agora. Tente de novo em instantes." },
+  stripe_desligada: { tom: "erro", texto: "O pagamento pela Stripe não está configurado nesta instalação." },
+  plano_desconhecido: { tom: "erro", texto: "Esse plano não está mais à venda. Escolha um dos planos abaixo." },
+  sem_assinatura_stripe: { tom: "erro", texto: "Esta conta não tem assinatura na Stripe para gerenciar." },
+  suporte: { tom: "erro", texto: "Uma sessão de suporte não pode contratar plano pela empresa." },
+};
+
+export default async function BillingPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ assinatura?: string; erro?: string }>;
+}) {
+  const busca = await searchParams;
   // spec 13 §4: billing é admin-only (viewer/agent/manager = none).
   const user = await requireAuth();
   const activeOrg = await resolveActiveOrg(user);
@@ -50,6 +71,8 @@ export default async function BillingPage() {
     logger.error("[billing] não deu para ler a assinatura", { erro: err instanceof Error ? err.message : String(err) });
   }
 
+  const aviso = AVISOS[busca.erro ?? ""] ?? AVISOS[busca.assinatura ?? ""] ?? null;
+
   const falarComQuem = suporte ? (
     <>
       {t("Para questões de pagamento, contate")}{" "}
@@ -68,6 +91,22 @@ export default async function BillingPage() {
         <h1 className="text-2xl font-semibold tracking-tight">Billing</h1>
         <p className="text-sm text-muted-foreground">{t("Planos, faturas e cobrança.")}</p>
       </header>
+
+      {aviso && (
+        <p
+          role={aviso.tom === "erro" ? "alert" : "status"}
+          data-testid="aviso-da-assinatura"
+          className={
+            aviso.tom === "erro"
+              ? "max-w-4xl rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm"
+              : aviso.tom === "ok"
+                ? "max-w-4xl rounded-md border bg-success-bg px-4 py-3 text-sm text-success-fg"
+                : "max-w-4xl rounded-md border bg-muted px-4 py-3 text-sm"
+          }
+        >
+          {t(aviso.texto)}
+        </p>
+      )}
 
       {situacao === null ? (
         <Card className="max-w-xl p-6">
@@ -102,6 +141,8 @@ function PlanosDaConta({
   plataformaTemIa: boolean;
 }) {
   const planos = planosDaInstalacao();
+  const pelaStripe = stripeDosPlanosLigada();
+  const assinaturaNaStripe = situacao.assinatura?.origem === "stripe";
   const ofertas = produtosDaAssinatura(env.CAKTO_SUBSCRIPTION_PRODUCTS ?? "");
   const emDia = situacao.assinatura?.status === "ativa" && situacao.plano !== null;
   const planoAtualId = emDia ? situacao.plano!.id : null;
@@ -156,7 +197,18 @@ function PlanosDaConta({
                   {t("Inteligência artificial incluída: até")} {iaLegivel(p.iaMensalCentavosUsd)} {t("de uso por mês. Quem prefere usar a própria chave paga a própria IA.")}
                 </p>
               )}
-              {atual ? null : href ? (
+              {atual ? null : pelaStripe ? (
+                <form action={assinarPlano} className="mt-auto">
+                  <input type="hidden" name="plano" value={p.id} />
+                  <button
+                    type="submit"
+                    data-testid={`assinar-${p.id}`}
+                    className="inline-flex h-9 w-full items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+                  >
+                    {emDia ? t("Mudar para este plano") : t("Assinar")}
+                  </button>
+                </form>
+              ) : href ? (
                 <a
                   href={href}
                   target="_blank"
@@ -173,8 +225,21 @@ function PlanosDaConta({
         })}
       </div>
 
+      {pelaStripe && assinaturaNaStripe && (
+        <form action={abrirPortalDoPlano}>
+          <button
+            type="submit"
+            data-testid="gerenciar-assinatura"
+            className="inline-flex h-9 items-center justify-center rounded-md border px-4 text-sm font-medium hover:bg-muted"
+          >
+            {t("Gerenciar assinatura (cartão, faturas, cancelamento)")}
+          </button>
+        </form>
+      )}
+
       <p className="text-xs text-muted-foreground">
-        {emailDoComprador
+        {pelaStripe ? t("Pagamento mensal por cartão, processado pela Stripe. O plano é liberado na hora em que o pagamento é confirmado.") + " " : null}
+        {!pelaStripe && emailDoComprador
           ? `${t("Pague usando o e-mail desta conta —")} ${emailDoComprador} ${t("— para o plano ser liberado automaticamente.")} `
           : null}
         {falarComQuem}
