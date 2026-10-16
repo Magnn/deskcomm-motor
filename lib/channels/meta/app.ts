@@ -117,11 +117,13 @@ const TTL_MS = 30_000;
 declare global {
   // eslint-disable-next-line no-var
   var __memoDoAppDaMeta: { readonly valor: AppDaMetaEmVigor; readonly expiraEm: number } | null | undefined;
+  var __memoDosAppsAnteriores: { readonly valor: readonly AppAnterior[]; readonly expiraEm: number } | null | undefined;
 }
 
 /** Chamada por quem ESCREVE a credencial — a server action do /admin. */
 export function invalidarAppDaMeta(): void {
   globalThis.__memoDoAppDaMeta = null;
+  globalThis.__memoDosAppsAnteriores = null;
 }
 
 interface LinhaDoApp {
@@ -291,3 +293,67 @@ export async function conferirParDoAppNaMeta(
   }
 }
 
+// ── Os apps ANTERIORES (migration 0933) ─────────────────────────────────────
+//
+// Trocar o app da instalação não pode derrubar o número conectado pelo app de
+// antes: a Meta assina o aviso dele com a chave DAQUELE app, e o token de 60
+// dias dele só renova com ela. A tela de /admin/meta aposenta a chave antiga
+// em `platform_meta_apps_anteriores` no mesmo save que grava a nova.
+
+export interface AppAnterior {
+  readonly appId: string;
+  readonly appSecret: string;
+}
+
+/** Nunca lança: banco sem a 0933, ou leitura que falhou, devolvem lista vazia. */
+export async function appsAnterioresDaMeta(): Promise<readonly AppAnterior[]> {
+  const memo = globalThis.__memoDosAppsAnteriores;
+  if (memo && memo.expiraEm > Date.now()) return memo.valor;
+  let valor: AppAnterior[] = [];
+  try {
+    const admin = createAdminClient();
+    const { data, error } = await admin.from("platform_meta_apps_anteriores").select("app_id, app_secret_encrypted");
+    if (error) {
+      logger.info("[meta.app] sem apps anteriores legíveis", { codigo: error.code });
+    } else {
+      for (const l of (data ?? []) as Array<{ app_id: string; app_secret_encrypted: string }>) {
+        const appSecret = texto(await decryptWebhookSecret(admin, l.app_secret_encrypted));
+        if (appSecret) valor.push({ appId: l.app_id, appSecret });
+        else logger.warn("[meta.app] chave de app anterior não decifrou", { app: l.app_id });
+      }
+    }
+  } catch (err) {
+    logger.warn("[meta.app] leitura dos apps anteriores falhou", { error: err instanceof Error ? err.message : String(err) });
+    valor = [];
+  }
+  globalThis.__memoDosAppsAnteriores = { valor, expiraEm: Date.now() + TTL_MS };
+  return valor;
+}
+
+/**
+ * Todas as chaves que podem ter assinado um aviso legítimo: a do app em vigor
+ * primeiro, depois as dos apps anteriores. Conferir contra todas custa um HMAC a
+ * mais por app aposentado — e nenhuma delas é de terceiros.
+ */
+export async function chavesQueAssinamAvisos(): Promise<string[]> {
+  const { appSecret } = await appDaMeta();
+  const anteriores = await appsAnterioresDaMeta();
+  return [...new Set([appSecret, ...anteriores.map((a) => a.appSecret)].filter((c): c is string => Boolean(c)))];
+}
+
+/**
+ * A credencial do app pelo qual um número foi conectado. `null`/ausente/o app em
+ * vigor → o app em vigor; um app aposentado → a chave guardada dele; um app que a
+ * instalação não conhece → `null` (quem chama registra e não inventa).
+ */
+export async function credencialDoAppDoNumero(
+  metaAppId: string | null | undefined,
+): Promise<{ appId: string; appSecret: string } | null> {
+  const atual = await appDaMeta();
+  const pedido = texto(metaAppId);
+  if (!pedido || pedido === atual.appId) {
+    return atual.appId && atual.appSecret ? { appId: atual.appId, appSecret: atual.appSecret } : null;
+  }
+  const anterior = (await appsAnterioresDaMeta()).find((a) => a.appId === pedido);
+  return anterior ? { appId: anterior.appId, appSecret: anterior.appSecret } : null;
+}

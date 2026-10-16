@@ -8,6 +8,7 @@ import { conferirParDoAppNaMeta, invalidarAppDaMeta } from "@/lib/channels/meta/
 import { audit } from "@/lib/audit";
 import { logger } from "@/lib/logger";
 import { requirePlatformAdmin } from "@/lib/auth/requirePlatformAdmin";
+import { CHANNEL_PROVIDER_META } from "@/lib/channels/capabilities";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { encryptWebhookSecret } from "@/lib/webhooks/secrets";
 
@@ -175,7 +176,7 @@ async function gravar(
  * dizia `app_secret_obrigatorio` — "cadastre a chave" para quem já cadastrou.
  */
 async function oQueEstaGravado(): Promise<
-  | { ok: true; temSegredo: boolean; temToken: boolean; appId: string | null }
+  | { ok: true; temSegredo: boolean; temToken: boolean; appId: string | null; segredoCifrado: string | null }
   | { ok: false; recusa: UpdateMetaAppResult }
 > {
   const { data, error } = await createAdminClient()
@@ -195,6 +196,7 @@ async function oQueEstaGravado(): Promise<
   return {
     ok: true,
     temSegredo: texto(linha?.app_secret_encrypted) !== "",
+    segredoCifrado: texto(linha?.app_secret_encrypted) || null,
     temToken: texto(linha?.verify_token_encrypted) !== "",
     // Sem `app_id` gravado, o app em vigor é o do `.env` (o resolvedor faz igual).
     appId: texto(linha?.app_id) || texto(process.env.META_APP_ID) || null,
@@ -298,6 +300,15 @@ export async function updateMetaApp(input: MetaAppInput): Promise<UpdateMetaAppR
     campos.push("verify_token_encrypted");
   }
 
+  if (trocaDeApp && gravado.appId) {
+    const aposentado = await aposentarAppAnterior(gravado.appId, gravado.segredoCifrado, authUser.id);
+    if (!aposentado.ok) return aposentado;
+  }
+  if (trocaDeApp && appIdNovo) {
+    // O app que volta a ser o da instalação deixa de ser "anterior": a chave dele passa a vir da linha principal.
+    await createAdminClient().from("platform_meta_apps_anteriores").delete().eq("app_id", appIdNovo);
+  }
+
   const r = await gravar(authUser, valores, "platform_meta_app.updated", {
     campos,
     segredo_trocado: Boolean(segredoNovo),
@@ -312,6 +323,51 @@ export async function updateMetaApp(input: MetaAppInput): Promise<UpdateMetaAppR
     ...(verifyToken ? { verifyToken } : {}),
     ...(appName ? { appName } : {}),
   };
+}
+
+/**
+ * Trocar de app sem derrubar os números do app anterior (migration 0933).
+ *
+ * A Meta assina o aviso de cada número com a chave do app pelo qual ele foi
+ * conectado, e o token de 60 dias só renova com ela. Então, ANTES de o app novo
+ * entrar: a chave do anterior vai para `platform_meta_apps_anteriores` (a mesma
+ * cifra, copiada sem decifrar) e os números sem app registrado passam a dizer que
+ * são dele. Falhou qualquer passo, nada é trocado — trocar e perder os números é
+ * o desfecho que isto existe para impedir.
+ *
+ * Os números de TODAS as organizações: o app é da instalação, não de um tenant.
+ */
+async function aposentarAppAnterior(
+  appId: string,
+  segredoCifrado: string | null,
+  atorUserId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const admin = createAdminClient();
+  let cifrado = segredoCifrado;
+  if (!cifrado) {
+    // Instalação em que a chave do app anterior só existe no `.env`.
+    const doAmbiente = texto(process.env.META_APP_SECRET);
+    if (!doAmbiente) return { ok: true };
+    cifrado = await encryptWebhookSecret(admin, doAmbiente);
+    if (!cifrado) return { ok: false, error: "cifra indisponível — a chave do app anterior não foi guardada e nada foi trocado" };
+  }
+  const { error } = await admin
+    .from("platform_meta_apps_anteriores")
+    .upsert({ app_id: appId, app_secret_encrypted: cifrado, aposentado_por: atorUserId, aposentado_em: new Date().toISOString() }, { onConflict: "app_id" });
+  if (error) {
+    logger.error("[meta.app] não deu para guardar a chave do app anterior; nada foi trocado", { codigo: error.code });
+    return { ok: false, error: "app_anterior_nao_guardado" };
+  }
+  const { error: erroDosNumeros } = await admin
+    .from("channel_sessions")
+    .update({ meta_app_id: appId })
+    .eq("provider", CHANNEL_PROVIDER_META)
+    .is("meta_app_id", null);
+  if (erroDosNumeros) {
+    logger.error("[meta.app] não deu para marcar os números do app anterior; nada foi trocado", { codigo: erroDosNumeros.code });
+    return { ok: false, error: "app_anterior_nao_guardado" };
+  }
+  return { ok: true };
 }
 
 /**

@@ -32,6 +32,8 @@ const ingeridos: unknown[] = [];
 /** O que o dublê do banco devolve na leitura da credencial. */
 let linhaDoBanco: { app_secret_encrypted: string | null; verify_token_encrypted: string | null } | null = null;
 let erroDaLeitura: { code: string; message: string } | null = null;
+/** Apps que já foram o da instalação (0933). */
+let anteriores: { app_id: string; app_secret_encrypted: string }[] = [];
 
 vi.mock("@/lib/channels/meta/session", () => ({
   metaSessionByWebhookToken: async () => SESSAO,
@@ -47,6 +49,9 @@ vi.mock("@/lib/channels/meta/ingest", () => ({
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: () => ({
     from: (tabela: string) => {
+      if (tabela === "platform_meta_apps_anteriores") {
+        return { select: async () => ({ data: anteriores, error: null }) };
+      }
       if (tabela !== "platform_meta_app") {
         // A rota também escreve status de mensagem/modelo depois de ingerir;
         // este arquivo só exercita o caminho de entrada.
@@ -118,6 +123,7 @@ beforeEach(() => {
   linhaDoBanco = null;
   erroDaLeitura = null;
   decifrado = {};
+  anteriores = [];
   ingeridos.length = 0;
   invalidarAppDaMeta();
   vi.stubEnv("META_APP_SECRET", "");
@@ -206,5 +212,29 @@ describe("o caminho ANTIGO fica intacto — instalação que só tem .env", () =
   it("sem nenhuma das duas fontes, o desfecho é o de hoje: 403 no handshake", async () => {
     const res = await GET(handshake("qualquer"), ctx);
     expect(res.status).toBe(403);
+  });
+});
+
+describe("a entrega assinada por um app ANTERIOR continua aceita (0933)", () => {
+  it("🛟 número conectado pelo app aposentado: 200 e a mensagem entra", async () => {
+    linhaDoBanco = LINHA_CHEIA;
+    anteriores = [{ app_id: "1431680681878566", app_secret_encrypted: "CIFRA_ANTERIOR" }];
+    decifrado = { "\\xSEGREDO_CIFRADO": SEGREDO_DO_BANCO, "\\xTOKEN_CIFRADO": TOKEN_DO_BANCO, CIFRA_ANTERIOR: "segredo-do-app-anterior" };
+
+    const res = await POST(entrega("segredo-do-app-anterior"), ctx);
+
+    expect(res.status).toBe(200);
+    expect(ingeridos).toHaveLength(1);
+  });
+
+  it("chave que não é de app nenhum da instalação segue 401", async () => {
+    linhaDoBanco = LINHA_CHEIA;
+    anteriores = [{ app_id: "1431680681878566", app_secret_encrypted: "CIFRA_ANTERIOR" }];
+    decifrado = { "\\xSEGREDO_CIFRADO": SEGREDO_DO_BANCO, "\\xTOKEN_CIFRADO": TOKEN_DO_BANCO, CIFRA_ANTERIOR: "segredo-do-app-anterior" };
+
+    const res = await POST(entrega("segredo-de-terceiro"), ctx);
+
+    expect(res.status).toBe(401);
+    expect(ingeridos).toHaveLength(0);
   });
 });

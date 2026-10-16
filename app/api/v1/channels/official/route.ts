@@ -298,6 +298,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   let token: string;
   // Só o login do Facebook sabe quando o token vence; o colado fica nulo.
   let tokenExpiraEm: Date | null = null;
+  // Por qual app o número entrou (0933): depois de uma troca de app, é por ele que
+  // o token renova. O colado fica nulo = o app em vigor.
+  let metaAppId: string | null = null;
   if ("code" in parsed.data) {
     const app = await appDoCadastroIncorporado();
     if (!app) {
@@ -321,6 +324,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       return fail("invalid_request", t(FRASE_DA_FALHA_DO_LOGIN[credencial.falha]), 422, { requestId });
     }
     ({ phoneNumberId: phone_number_id, wabaId: waba_id, token, expiraEm: tokenExpiraEm } = credencial);
+    metaAppId = app.appId;
   } else {
     ({ phone_number_id, waba_id, token } = parsed.data);
   }
@@ -424,6 +428,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     meta_token_encrypted: cifrado,
     // O cron `meta-tokens` renova antes deste dia (migration 0931).
     meta_token_expires_at: tokenExpiraEm?.toISOString() ?? null,
+    meta_app_id: metaAppId,
     phone_number: validacao.displayPhoneNumber ? `+${validacao.displayPhoneNumber.replace(/\D/g, "")}` : null,
     display_name: validacao.verifiedName ?? "Canal oficial",
     status: "WORKING",

@@ -25,6 +25,8 @@ const ORIGINAL = { ...process.env };
 
 let linha: Record<string, string | null> | null = null;
 const gravacoes: Record<string, unknown>[] = [];
+/** O que foi escrito FORA de `platform_meta_app` (0933): apps anteriores e números. */
+const outras: { tabela: string; op: string; valores?: Record<string, unknown>; filtros: [string, unknown][] }[] = [];
 let pedidos: { url: string; corpo: string }[] = [];
 let respostaDaMeta: () => Response;
 
@@ -34,13 +36,30 @@ vi.mock("@/lib/auth/requirePlatformAdmin", () => ({
 vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: () => ({
-    from: () => ({
-      select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: linha, error: null }) }) }),
-      upsert: async (valores: Record<string, unknown>) => {
-        gravacoes.push(valores);
-        return { error: null };
-      },
-    }),
+    from: (tabela: string) => {
+      const registrar = (op: string, valores?: Record<string, unknown>) => {
+        const r = { tabela, op, valores, filtros: [] as [string, unknown][] };
+        outras.push(r);
+        const cadeia: Record<string, unknown> = {};
+        for (const m of ["eq", "is"]) {
+          cadeia[m] = (c: string, v: unknown) => {
+            r.filtros.push([`${m}:${c}`, v]);
+            return Object.assign(Promise.resolve({ error: null }), cadeia);
+          };
+        }
+        return Object.assign(Promise.resolve({ error: null }), cadeia);
+      };
+      return {
+        select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: linha, error: null }) }) }),
+        upsert: async (valores: Record<string, unknown>) => {
+          if (tabela === "platform_meta_app") gravacoes.push(valores);
+          else registrar("upsert", valores);
+          return { error: null };
+        },
+        update: (valores: Record<string, unknown>) => registrar("update", valores),
+        delete: () => registrar("delete"),
+      };
+    },
   }),
 }));
 vi.mock("@/lib/webhooks/secrets", () => ({
@@ -60,6 +79,7 @@ beforeEach(() => {
     ads_config_id: null,
   };
   gravacoes.length = 0;
+  outras.length = 0;
   pedidos = [];
   audit.mockClear();
   respostaDaMeta = () => new Response(JSON.stringify({ id: "9999999999", name: "App do portfólio novo" }), { status: 200 });
@@ -113,6 +133,35 @@ describe("updateMetaApp — trocar de app", () => {
     });
     // O token de verificação é NOSSO, não do app: trocar de app não o regera.
     expect(gravacoes[0]).not.toHaveProperty("verify_token_encrypted");
+  });
+
+  it("🛟 a chave do app anterior é guardada e os números dele passam a dizer que são dele (0933)", async () => {
+    const { updateMetaApp } = await acoes();
+
+    await updateMetaApp({ app_id: "9999999999", app_secret: SEGREDO_NOVO });
+
+    // A cifra é copiada como está — a chave antiga nunca é decifrada aqui.
+    expect(outras).toContainEqual(
+      expect.objectContaining({
+        tabela: "platform_meta_apps_anteriores",
+        op: "upsert",
+        valores: expect.objectContaining({ app_id: "1111111111", app_secret_encrypted: "cifra(segredo-antigo)" }),
+      }),
+    );
+    const numeros = outras.find((o) => o.tabela === "channel_sessions");
+    expect(numeros).toMatchObject({ op: "update", valores: { meta_app_id: "1111111111" } });
+    // Só os números sem app registrado — um número de app ainda mais antigo segue com o dele.
+    expect(numeros!.filtros).toContainEqual(["is:meta_app_id", null]);
+    // O app novo não fica na lista de anteriores.
+    expect(outras).toContainEqual(expect.objectContaining({ tabela: "platform_meta_apps_anteriores", op: "delete" }));
+  });
+
+  it("mesmo app: nada é aposentado", async () => {
+    const { updateMetaApp } = await acoes();
+
+    await updateMetaApp({ app_id: "1111111111", whatsapp_config_id: "7777777777" });
+
+    expect(outras).toEqual([]);
   });
 
   it("o token de app vai no corpo — nunca na URL — e a trilha não leva a chave", async () => {

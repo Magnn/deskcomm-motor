@@ -22,7 +22,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { fail } from "@/lib/api/wrappers";
 import { aplicarEventoDaMeta, pedeReentrega } from "@/lib/channels/meta/aplicar-evento";
-import { appDaMeta } from "@/lib/channels/meta/app";
+import { appDaMeta, chavesQueAssinamAvisos } from "@/lib/channels/meta/app";
 import { lerEnvelopeMeta } from "@/lib/channels/meta/envelope";
 import { metaSessionsDoAviso } from "@/lib/channels/meta/session";
 import { parseMetaWebhook, verificationChallenge, verifyMetaSignature } from "@/lib/channels/meta/webhook";
@@ -43,8 +43,11 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const requestId = randomUUID();
   const rawBody = await req.text();
 
-  const { appSecret } = await appDaMeta();
-  if (!verifyMetaSignature(rawBody, req.headers.get("x-hub-signature-256"), appSecret ?? "")) {
+  // A chave do app em vigor E as dos apps anteriores (0933): o número conectado
+  // por um app aposentado continua sendo assinado pela chave DELE.
+  const assinatura = req.headers.get("x-hub-signature-256");
+  const chaves = await chavesQueAssinamAvisos();
+  if (!chaves.some((chave) => verifyMetaSignature(rawBody, assinatura, chave))) {
     return fail("unauthorized", "invalid_signature", 401, { requestId });
   }
 
