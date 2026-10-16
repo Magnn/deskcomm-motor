@@ -268,7 +268,7 @@ export function EmailDoCliente({ slug, cor, tx }: { slug: string; cor: string; t
 
   if (estado === "salvo") {
     return (
-      <p className="rounded-2xl bg-white p-5 text-sm text-[#15803d] shadow-sm">
+      <p role="status" className="rounded-2xl bg-white p-5 text-sm text-[#15803d] shadow-sm">
         {tx.prontoEntreCom} <strong>{email}</strong>
       </p>
     );
@@ -283,6 +283,7 @@ export function EmailDoCliente({ slug, cor, tx }: { slug: string; cor: string; t
           required
           autoComplete="email"
           inputMode="email"
+          aria-label={tx.seuEmail}
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           className={CAMPO}
@@ -294,10 +295,10 @@ export function EmailDoCliente({ slug, cor, tx }: { slug: string; cor: string; t
           className="shrink-0 rounded-xl px-4 py-3 font-semibold text-white disabled:opacity-60"
           style={{ background: cor }}
         >
-          {tx.salvar}
+          {estado === "enviando" ? tx.enviando : tx.salvar}
         </button>
       </form>
-      {erro ? <p className="mt-2 text-sm text-[#b91c1c]">{erro}</p> : null}
+      {erro ? <p role="alert" className="mt-2 text-sm text-[#b91c1c]">{erro}</p> : null}
     </section>
   );
 }
@@ -414,6 +415,7 @@ export function DiarioDoCliente({
           required
           className={CAMPO}
           placeholder={tx.diarioExemplo}
+          aria-label={tx.seuDiario}
         />
         <button
           type="submit"
@@ -491,16 +493,21 @@ export function FaleComAGente({
   cor,
   tx,
   inicial,
+  idioma = "pt-BR",
+  fuso = "UTC",
 }: {
   slug: string;
   cor: string;
   tx: TextosDaArea;
   inicial: MensagemDaTela[];
+  idioma?: string;
+  fuso?: string;
 }) {
   const [mensagens, setMensagens] = React.useState(inicial);
   const [texto, setTexto] = React.useState("");
   const [enviando, setEnviando] = React.useState(false);
   const [erro, setErro] = React.useState<string | null>(null);
+  const [enviada, setEnviada] = React.useState(false);
 
   React.useEffect(() => {
     let vivo = true;
@@ -524,6 +531,7 @@ export function FaleComAGente({
     e.preventDefault();
     setEnviando(true);
     setErro(null);
+    setEnviada(false);
     try {
       const res = await fetch(`/api/v1/area/publica/${slug}/mensagens`, {
         method: "POST",
@@ -535,6 +543,7 @@ export function FaleComAGente({
       if (res.ok && json?.data) {
         setMensagens((m) => [...m, json.data as MensagemDaTela]);
         setTexto("");
+        setEnviada(true);
       } else setErro(json?.error?.message ?? tx.naoFoiPossivel);
     } catch {
       setErro(tx.semConexao);
@@ -547,7 +556,7 @@ export function FaleComAGente({
       <h2 className="text-base font-semibold">💬 {tx.faleComAGente}</h2>
       <p className="mt-1 text-sm text-[#4b5563]">{tx.faleComAGenteConvite}</p>
       {mensagens.length > 0 ? (
-        <ul className="mt-3 max-h-80 space-y-2 overflow-y-auto">
+        <ul className="mt-3 max-h-80 space-y-2 overflow-y-auto" aria-label={tx.conversaGuardada}>
           {mensagens.map((m) => (
             <li key={m.id} className={m.autor === "cliente" ? "flex justify-end" : "flex justify-start"}>
               <span
@@ -560,6 +569,9 @@ export function FaleComAGente({
               >
                 <span className="mb-0.5 block text-[10px] opacity-70">{m.autor === "cliente" ? tx.voce : tx.nos}</span>
                 {m.texto}
+                <time dateTime={m.quando} className="mt-1 block text-[11px] opacity-80">
+                  {new Intl.DateTimeFormat(idioma, { timeZone: fuso, day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }).format(new Date(m.quando))}
+                </time>
               </span>
             </li>
           ))}
@@ -574,6 +586,7 @@ export function FaleComAGente({
           required
           className={CAMPO}
           placeholder={tx.escrevaAqui}
+          aria-label={tx.escrevaAqui}
           data-testid="area-fale-texto"
         />
         <button
@@ -584,7 +597,8 @@ export function FaleComAGente({
         >
           {enviando ? tx.enviando : tx.enviar}
         </button>
-        {erro ? <p className="text-sm text-[#b91c1c]">{erro}</p> : null}
+        {enviada ? <p role="status" className="text-sm text-[#15803d]">{tx.enviada}</p> : null}
+        {erro ? <p role="alert" className="text-sm text-[#b91c1c]">{erro}</p> : null}
       </form>
     </section>
   );
