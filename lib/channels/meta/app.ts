@@ -42,6 +42,7 @@
  * leitura degrada para o ambiente, e o motivo vai ao log.
  */
 
+import { CHANNEL_PROVIDER_META } from "@/lib/channels/capabilities";
 import { graphVersion } from "@/lib/graph-version";
 import { logger } from "@/lib/logger";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -356,4 +357,21 @@ export async function credencialDoAppDoNumero(
   }
   const anterior = (await appsAnterioresDaMeta()).find((a) => a.appId === pedido);
   return anterior ? { appId: anterior.appId, appSecret: anterior.appSecret } : null;
+}
+
+/**
+ * Marca os números oficiais SEM app registrado como sendo do app `appId` — o que
+ * a troca de app faz antes de o app novo entrar. Devolve o código do erro, ou
+ * `null` quando gravou. Vale para todas as organizações: o app é da instalação.
+ */
+export async function marcarNumerosSemAppComo(
+  admin: ReturnType<typeof createAdminClient>,
+  appId: string,
+): Promise<string | null> {
+  const { error } = await admin
+    .from("channel_sessions")
+    .update({ meta_app_id: appId })
+    .eq("provider", CHANNEL_PROVIDER_META)
+    .is("meta_app_id", null);
+  return error ? (error.code ?? error.message) : null;
 }

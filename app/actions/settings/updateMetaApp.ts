@@ -4,11 +4,10 @@ import { randomBytes } from "node:crypto";
 import { headers } from "next/headers";
 import { z } from "zod";
 
-import { conferirParDoAppNaMeta, invalidarAppDaMeta } from "@/lib/channels/meta/app";
+import { conferirParDoAppNaMeta, invalidarAppDaMeta, marcarNumerosSemAppComo } from "@/lib/channels/meta/app";
 import { audit } from "@/lib/audit";
 import { logger } from "@/lib/logger";
 import { requirePlatformAdmin } from "@/lib/auth/requirePlatformAdmin";
-import { CHANNEL_PROVIDER_META } from "@/lib/channels/capabilities";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { encryptWebhookSecret } from "@/lib/webhooks/secrets";
 
@@ -358,13 +357,9 @@ async function aposentarAppAnterior(
     logger.error("[meta.app] não deu para guardar a chave do app anterior; nada foi trocado", { codigo: error.code });
     return { ok: false, error: "app_anterior_nao_guardado" };
   }
-  const { error: erroDosNumeros } = await admin
-    .from("channel_sessions")
-    .update({ meta_app_id: appId })
-    .eq("provider", CHANNEL_PROVIDER_META)
-    .is("meta_app_id", null);
+  const erroDosNumeros = await marcarNumerosSemAppComo(admin, appId);
   if (erroDosNumeros) {
-    logger.error("[meta.app] não deu para marcar os números do app anterior; nada foi trocado", { codigo: erroDosNumeros.code });
+    logger.error("[meta.app] não deu para marcar os números do app anterior; nada foi trocado", { codigo: erroDosNumeros });
     return { ok: false, error: "app_anterior_nao_guardado" };
   }
   return { ok: true };
