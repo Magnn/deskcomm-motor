@@ -5084,6 +5084,7 @@ export const DICIONARIO: Traducoes = {
   "Abrir permissões": { es: "Abrir permisos" },
   "Portfólio verificado, aplicativo publicado (modo Ao vivo) e cadastro como Provedor de Tecnologia. Sem isso, só quem tem função no aplicativo conecta.": { es: "Portafolio verificado, aplicación publicada (modo En vivo) y registro como Proveedor de Tecnología. Sin eso, solo quien tiene un rol en la aplicación se conecta." },
   "Abrir configurações básicas": { es: "Abrir configuración básica" },
+  "Esta empresa tem mais de um número oficial. Os detalhes acima são do que está funcionando; todos aparecem em Conexões › Números, cada um com os próprios botões.": { es: "Esta empresa tiene más de un número oficial. Los detalles de arriba son del que está funcionando; todos aparecen en Conexiones › Números, cada uno con sus propios botones." },
   "Preencha o ID do aplicativo acima e salve.": { es: "Completa el ID de la aplicación arriba y guarda." },
   "ID do aplicativo": { es: "ID de la aplicación" },
   "Só números, como 1431224221868157": { es: "Solo números, como 1431224221868157" },

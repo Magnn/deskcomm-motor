@@ -47,6 +47,7 @@ import {
   type CredencialDoCadastro,
 } from "@/lib/channels/meta/cadastro-incorporado";
 import { metaGraphBase } from "@/lib/channels/meta/credentials";
+import { escolherCanalOficial } from "@/lib/channels/meta/session";
 import { validateMetaCredentials } from "@/lib/channels/meta/validate-credentials";
 import { CAMPOS_DO_WEBHOOK_DO_APP } from "@/lib/channels/meta/webhook-do-app";
 import {
@@ -173,13 +174,31 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const consultar = () =>
     admin
       .from("channel_sessions")
-      .select("id, meta_phone_number_id, meta_waba_id, meta_token_encrypted, phone_number, display_name, webhook_path_token, status")
+      .select(
+        "id, meta_phone_number_id, meta_waba_id, meta_token_encrypted, phone_number, display_name, webhook_path_token, status, created_at",
+      )
       .eq("organization_id", orgId)
-      .eq("provider", CHANNEL_PROVIDER_META);
-  const { data } = await queryTolerantToMissingArchived(
-    () => consultar().is(ARCHIVED_AT, null).maybeSingle(),
-    () => consultar().maybeSingle(),
+      .eq("provider", CHANNEL_PROVIDER_META)
+      .limit(50);
+  const { data: linhas } = await queryTolerantToMissingArchived(
+    () => consultar().is(ARCHIVED_AT, null),
+    () => consultar(),
   );
+  type LinhaOficial = {
+    id: string;
+    meta_phone_number_id: string | null;
+    meta_waba_id: string | null;
+    meta_token_encrypted: string | null;
+    phone_number: string | null;
+    display_name: string | null;
+    webhook_path_token: string | null;
+    status: string | null;
+    created_at: string | null;
+  };
+  const todas = (linhas ?? []) as LinhaOficial[];
+  // A organização pode ter mais de um número oficial: esta aba mostra o que
+  // está funcionando (`escolherCanalOficial`), e `numeros` lista todos.
+  const data = escolherCanalOficial(todas);
 
   const base = basePublicaDoWebhookMeta(req);
   const desfecho = data?.id ? await lerDesfechoDoWebhook(admin, data.id) : null;
@@ -194,6 +213,13 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
      */
     login: appDoLogin ? { appId: appDoLogin.appId, configId: appDoLogin.configId, versao: graphVersion() } : null,
     channel_session_id: data?.id ?? null,
+    /** Todos os números oficiais ativos da organização — o de cima é um deles. */
+    numeros: todas.map((l) => ({
+      channel_session_id: l.id,
+      phoneNumber: l.phone_number,
+      displayName: l.display_name,
+      status: l.status,
+    })),
     // `hasToken` em vez do token: uma vez gravado, a tela mostra que EXISTE, nunca
     // qual é. Devolver o segredo para preencher o campo seria vazá-lo a cada render.
     hasToken: Boolean(data?.meta_token_encrypted),
@@ -319,16 +345,23 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     );
   }
 
-  // A busca NÃO filtra `archived_at`: um canal oficial excluído é exatamente o
-  // que este POST precisa achar para trazer de volta. Ignorá-lo criaria uma
-  // SEGUNDA linha oficial na org — e a linha velha continuaria segurando o par
-  // (org, número) na trava da 0106.
+  // A busca é pelo NÚMERO, não pela organização: desde 16/10/2026 a organização
+  // pode ter mais de um número oficial, e conectar o segundo SUBSTITUÍA a
+  // credencial do primeiro na mesma linha. Reconectar o mesmo número continua
+  // atualizando a linha dele; número novo ganha linha nova (e conta no plano).
+  //
+  // A busca NÃO filtra `archived_at`: o mesmo número excluído é exatamente o que
+  // este POST precisa achar para trazer de volta — ignorá-lo criaria uma segunda
+  // linha, e a velha continuaria segurando o par (org, número) na trava da 0106.
   const buscarExistente = (colunas: string) =>
     admin
       .from("channel_sessions")
       .select(colunas)
       .eq("organization_id", orgId)
       .eq("provider", CHANNEL_PROVIDER_META)
+      .eq("meta_phone_number_id", phone_number_id)
+      .order("created_at", { ascending: false })
+      .limit(1)
       .maybeSingle();
   const { data: existenteRaw } = await queryTolerantToMissingArchived(
     () => buscarExistente(`id, ${ARCHIVED_AT}, webhook_path_token`),

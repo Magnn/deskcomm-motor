@@ -58,7 +58,12 @@ vi.mock("@/lib/supabase/admin", () => {
     select: () => cadeiaDoCanal,
     eq: () => cadeiaDoCanal,
     is: () => cadeiaDoCanal,
+    order: () => cadeiaDoCanal,
+    limit: () => cadeiaDoCanal,
     maybeSingle: async () => ({ data: canal, error: null }),
+    // A rota lê os números oficiais da org em lista.
+    then: (ok: (v: unknown) => unknown, erro?: (e: unknown) => unknown) =>
+      Promise.resolve({ data: canal ? [canal] : [], error: null }).then(ok, erro),
   };
   return {
     createAdminClient: () => ({

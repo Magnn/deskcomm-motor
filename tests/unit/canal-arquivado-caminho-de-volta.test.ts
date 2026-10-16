@@ -94,7 +94,9 @@ function canalOficial(over: Linha = {}): Linha {
     organization_id: ORG,
     provider: CHANNEL_PROVIDER_META,
     waha_session_name: null,
-    meta_phone_number_id: "999",
+    // O MESMO número que `corpoOficial` reconecta: desde que a org pode ter mais de
+    // um número oficial, a ressurreição é do número, não "da linha oficial da org".
+    meta_phone_number_id: "1234567890",
     meta_token_encrypted: null,
     display_name: "Canal oficial",
     phone_number: null,
@@ -347,6 +349,20 @@ describe("POST /api/v1/channels/official — reconectar é ressuscitar", () => {
 
     expect(db.escritas.map((e) => e.tipo)).toEqual(["update"]);
     expect(db.linhas).toHaveLength(1);
+  });
+
+  it("⭐ OUTRO número na mesma org ganha linha própria: o primeiro fica intacto", async () => {
+    authOk();
+    const db = makeDb({
+      sessions: [canalOficial({ status: "WORKING", meta_phone_number_id: "555", meta_token_encrypted: "cifra-do-primeiro" })],
+    });
+    const { POST } = await import("@/app/api/v1/channels/official/route");
+    const res = await POST(reqOficial());
+
+    expect(res.status).toBe(200);
+    expect(db.escritas.map((e) => e.tipo)).toEqual(["insert"]);
+    expect(db.linhas).toHaveLength(2);
+    expect(db.linhas[0]).toMatchObject({ meta_phone_number_id: "555", meta_token_encrypted: "cifra-do-primeiro" });
   });
 
   it("canal que já estava ativo: atualiza normalmente e NÃO inventa uma ressurreição", async () => {
