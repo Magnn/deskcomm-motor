@@ -39,6 +39,15 @@ type Traducoes = Record<string, Partial<Record<Exclude<Idioma, "pt-BR">, string>
 
 export const DICIONARIO: Traducoes = {
   ...TRADUCOES_PAGINA_INICIAL,
+  "Atalhos da sua área": { es: "Accesos de tu área" },
+  "Meu espaço": { es: "Mi espacio" },
+  "Sua conversa, seus conteúdos e suas reflexões em um só lugar.": { es: "Tu conversación, tus contenidos y tus reflexiones en un solo lugar." },
+  "Salve seu e-mail para voltar a esta área em outro aparelho. Ao entrar, peça um código de acesso por e-mail.": { es: "Guarda tu correo para volver a esta área desde otro dispositivo. Al entrar, solicita un código de acceso por correo." },
+  "Escreva sua dúvida. A equipe responde nesta conversa; volte a esta página para acompanhar. As respostas aparecem automaticamente enquanto ela está aberta.": { es: "Escribe tu consulta. El equipo responde en esta conversación; vuelve a esta página para seguirla. Las respuestas aparecen automáticamente mientras está abierta." },
+  "Um espaço para guardar suas reflexões e reler quando quiser.": { es: "Un espacio para guardar tus reflexiones y releerlas cuando quieras." },
+  "Todo mês: a energia do mês, um ritual simples para fazer em casa e uma pergunta sua respondida com uma carta. O conteúdo e a resposta ficam aqui na sua área. Cada pagamento dá 30 dias de acesso, sem renovação automática.": { es: "Cada mes: la energía del mes, un ritual sencillo para hacer en casa y una pregunta tuya respondida con una carta. El contenido y la respuesta quedan aquí en tu área. Cada pago da 30 días de acceso, sin renovación automática." },
+  "Alguém que você ama ganha uma pergunta para as cartas. Após a confirmação do pagamento, o link aparece aqui para você copiar e enviar à pessoa.": { es: "Alguien a quien quieres recibe una pregunta para las cartas. Tras la confirmación del pago, el enlace aparece aquí para que lo copies y se lo envíes." },
+  "A leitura do ano que começa no seu aniversário: o tema do ano, uma orientação para cada trimestre e três intenções para você. Após a confirmação do pagamento, a leitura é preparada em texto e aparece aqui na sua área.": { es: "La lectura del año que empieza en tu cumpleaños: el tema del año, una orientación para cada trimestre y tres intenciones para ti. Tras la confirmación del pago, la lectura se prepara en texto y aparece aquí en tu área." },
 
   // ── Dashboard de Vendas e Atendimento ─────────────────────────────────────
   "Visão geral de vendas, atendimento, taxas de conversão e métricas da operação.": { es: "Visión general de ventas, atención, tasas de conversión y métricas de la operação." },

@@ -85,11 +85,11 @@ function textosDoNavegador(t: (s: string) => string): TextosDaArea {
     desejoExemplo: t("Ex.: uma leitura sobre o meu trabalho, um ritual para a lua cheia…"),
     enviar: t("Enviar"),
     guardeSeuAcesso: t("Guarde seu acesso"),
-    comSeuEmail: t("Com seu e-mail você entra aqui de qualquer celular, mesmo sem este link."),
+    comSeuEmail: t("Salve seu e-mail para voltar a esta área em outro aparelho. Ao entrar, peça um código de acesso por e-mail."),
     salvar: t("Salvar"),
     prontoEntreCom: t("Pronto! Da próxima vez, entre com este e-mail:"),
     faleComAGente: t("Fale com a gente"),
-    faleComAGenteConvite: t("Escreva aqui: a gente responde por aqui mesmo, e a resposta fica guardada nesta página."),
+    faleComAGenteConvite: t("Escreva sua dúvida. A equipe responde nesta conversa; volte a esta página para acompanhar. As respostas aparecem automaticamente enquanto ela está aberta."),
     escrevaAqui: t("Escreva sua mensagem…"),
     voce: t("Você"),
     nos: t("Nós"),
@@ -101,13 +101,13 @@ function textosDoNavegador(t: (s: string) => string): TextosDaArea {
     revelar: t("Toque para revelar a sua carta"),
     cartaDoDia: t("Sua carta de hoje"),
     seuDiario: t("Seu diário"),
-    diarioConvite: t("Anote o que você pediu, o que sentiu ou o que aconteceu. Só você vê."),
+    diarioConvite: t("Um espaço para guardar suas reflexões e reler quando quiser."),
     diarioExemplo: t("Hoje eu…"),
     salvo: t("Salvo."),
     aniversarioTitulo: t("Quando é o seu aniversário? 🎂"),
     aniversarioConvite: t("Conta pra gente: no seu dia a gente prepara algo especial só para você."),
     aniversarioObrigada: t("Anotado! No seu dia tem surpresa. 💜"),
-    circuloConvite: t("Todo mês: a energia do mês, um ritual simples para fazer em casa e uma pergunta sua respondida com uma carta."),
+    circuloConvite: t("Todo mês: a energia do mês, um ritual simples para fazer em casa e uma pergunta sua respondida com uma carta. O conteúdo e a resposta ficam aqui na sua área. Cada pagamento dá 30 dias de acesso, sem renovação automática."),
     por30Dias: t("por 30 dias"),
     pagarComPix: t("Pagar com Pix"),
     pagarComCartao: t("Pagar com cartão"),
@@ -242,7 +242,7 @@ export default async function AreaDoCliente({ params, searchParams }: Props) {
     : { data: null };
   const to: TextosDasOfertas = {
     presenteTitulo: t("Dê uma pergunta de tarô de presente"),
-    presenteConvite: t("Alguém que você ama ganha uma pergunta para as cartas. Você recebe o link e manda para ela."),
+    presenteConvite: t("Alguém que você ama ganha uma pergunta para as cartas. Após a confirmação do pagamento, o link aparece aqui para você copiar e enviar à pessoa."),
     presenteParaQuem: t("Para quem é? (opcional)"),
     presenteParaQuemExemplo: t("Ex.: Ana"),
     seusPresentes: t("Seus presentes"),
@@ -253,7 +253,7 @@ export default async function AreaDoCliente({ params, searchParams }: Props) {
     mandarPeloWhatsapp: t("Mandar pelo WhatsApp"),
     mensagemDoPresente: t("Tenho um presente para você: uma pergunta para as cartas. Abra aqui:"),
     anoPessoalTitulo: t("Seu Ano Pessoal"),
-    anoPessoalConvite: t("A leitura do ano que começa no seu aniversário: o tema do ano, uma orientação para cada trimestre e três intenções para você."),
+    anoPessoalConvite: t("A leitura do ano que começa no seu aniversário: o tema do ano, uma orientação para cada trimestre e três intenções para você. Após a confirmação do pagamento, a leitura é preparada em texto e aparece aqui na sua área."),
     anoPessoalPreparando: t("A leitura do seu ano está sendo preparada…"),
   };
   const aniversarioNestaSemana = dados.contato.nascimento ? semanaDoAniversario(dados.contato.nascimento, hoje) : false;
@@ -263,6 +263,7 @@ export default async function AreaDoCliente({ params, searchParams }: Props) {
   const tag = tagDeIdioma(idioma);
   const ultimaCompra = dados.compras.find((c) => !c.estornada) ?? null;
   const empresa = org.razaoSocial || org.nome;
+  const temOfertas = Boolean((ofertaAno && janelaAno?.aberta) || circulo || vitrine.length > 0 || ofertaPresente);
 
   return (
     <main className="min-h-screen bg-[#f7f5fb] pb-16 text-[#1c1f24]">
@@ -272,7 +273,14 @@ export default async function AreaDoCliente({ params, searchParams }: Props) {
           <h1 className="mt-1 text-2xl font-semibold" data-testid="area-ola">
             {ola} 💜
           </h1>
-          <p className="mt-2 text-sm opacity-90">{org.config.boas_vindas || t("Aqui fica tudo o que é seu.")}</p>
+          <p className="mt-2 text-sm opacity-90">{org.config.boas_vindas || t("Sua conversa, seus conteúdos e suas reflexões em um só lugar.")}</p>
+          <nav aria-label={t("Atalhos da sua área")} className="mt-4 flex flex-wrap gap-2 text-sm">
+            <a href="#atendimento" className="rounded-full border border-white/50 px-4 py-2 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2">{t("Atendimento")}</a>
+            <a href="#meu-espaco" className="rounded-full border border-white/50 px-4 py-2 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2">{t("Meu espaço")}</a>
+            {temOfertas ? (
+              <a href="#ofertas" className="rounded-full border border-white/50 px-4 py-2 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2">{t("Explorar")}</a>
+            ) : null}
+          </nav>
         </div>
       </header>
 
@@ -306,7 +314,9 @@ export default async function AreaDoCliente({ params, searchParams }: Props) {
         ) : null}
 
         {/* 2 · Um canal para falar com a empresa, sempre. */}
-        <FaleComAGente slug={org.slug} cor={cor} tx={tx} inicial={dados.mensagens} />
+        <div id="atendimento" className="scroll-mt-4">
+          <FaleComAGente slug={org.slug} cor={cor} tx={tx} inicial={dados.mensagens} idioma={tag} fuso={org.fuso} />
+        </div>
         {org.config.whatsapp ? (
           <a
             href={`https://wa.me/${org.config.whatsapp}`}
@@ -399,6 +409,7 @@ export default async function AreaDoCliente({ params, searchParams }: Props) {
         ) : null}
 
         {/* 5 · Os motivos para voltar. */}
+        <h2 id="meu-espaco" className="scroll-mt-4 px-1 pt-2 text-lg font-semibold">{t("Meu espaço")}</h2>
         {carta ? (
           <CartaDoDia
             slug={org.slug}
@@ -432,6 +443,9 @@ export default async function AreaDoCliente({ params, searchParams }: Props) {
         />
 
         {/* 6 · As ofertas, só depois de tudo o que é dela. */}
+        {temOfertas ? (
+          <h2 id="ofertas" className="scroll-mt-4 px-1 pt-2 text-lg font-semibold">{t("Explorar")}</h2>
+        ) : null}
         {ofertaAno && janelaAno?.aberta && dados.contato.nascimento ? (
           <AnoPessoalDoCliente
             slug={org.slug}
