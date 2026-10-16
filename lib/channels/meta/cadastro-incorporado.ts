@@ -262,6 +262,22 @@ export async function garantirNumeroRegistrado(
 }
 
 /**
+ * O número está no aplicativo do celular (coexistência)? E já está ativo na
+ * Cloud API? É o que a Meta manda conferir antes de sincronizar.
+ */
+export async function estadoDoNumeroNaMeta(
+  p: { phoneNumberId: string; token: string },
+  buscar: Buscar = fetch,
+): Promise<{ ok: true; noAplicativo: boolean; platformType: string | null } | { ok: false; motivo: string }> {
+  const r = await chamar<{ platform_type?: string; is_on_biz_app?: boolean }>(buscar, encodeURIComponent(p.phoneNumberId), {
+    parametros: { fields: "platform_type,is_on_biz_app" },
+    token: p.token,
+  });
+  if (!r.ok) return { ok: false, motivo: r.motivo };
+  return { ok: true, noAplicativo: r.corpo?.is_on_biz_app === true, platformType: r.corpo?.platform_type ?? null };
+}
+
+/**
  * COEXISTÊNCIA: pede à Meta a agenda e o histórico do aplicativo do celular.
  *
  * A Meta entrega os contatos pelo aviso `smb_app_state_sync` e as conversas
