@@ -121,6 +121,10 @@ CRONS="
 # próximos 15 dias — sem isto a regra de comentou-recebe-direct para de
 # responder dois meses depois de a conta ser conectada, sem ninguém ter mexido.
 13 4 * * *|60|api/v1/cron/instagram-tokens
+# O TOKEN DO NÚMERO OFICIAL (configuração de 60 dias da Meta). Diária: renova quem
+# vence nos próximos 20 dias — sem isto o número para de enviar e receber no dia
+# em que o token vence.
+23 4 * * *|60|api/v1/cron/meta-tokens
 0 12 * * *|60|api/v1/cron/lgpd-sla-watcher
 30 3 * * *|120|api/v1/cron/kb-conversations-batch
 15 4 * * *|60|api/v1/cron/sync-model-catalog

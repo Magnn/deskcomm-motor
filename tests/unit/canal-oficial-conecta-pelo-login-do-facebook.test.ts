@@ -149,16 +149,25 @@ describe("POST /api/v1/channels/official — pelo login do Facebook", () => {
     expect(h.inseridas).toHaveLength(0);
   });
 
-  it("token que vence: recusa com a frase de quem conserta, e nada é validado nem gravado", async () => {
-    h.credencial.mockResolvedValue({ ok: false, falha: "token_expira", detalhe: null });
+  it("⭐ token de 60 dias conecta e grava quando vence, para o cron renovar", async () => {
+    h.credencial.mockResolvedValue({
+      ok: true,
+      token: "token-trocado-no-servidor",
+      phoneNumberId: "1103328999528818",
+      wabaId: "2434045433735175",
+      expiraEm: new Date("2026-12-15T00:00:00Z"),
+    });
 
     const res = await post(peloLogin);
 
-    expect(res.status).toBe(422);
-    const corpo = (await res.json()) as { error: { message: string } };
-    expect(corpo.error.message).toContain("que não expira");
-    expect(h.validar).not.toHaveBeenCalled();
-    expect(h.inseridas).toHaveLength(0);
+    expect(res.status).toBe(200);
+    expect(h.inseridas[0]).toMatchObject({ meta_token_expires_at: "2026-12-15T00:00:00.000Z" });
+  });
+
+  it("token que não vence grava a validade vazia", async () => {
+    await post(peloLogin);
+
+    expect(h.inseridas[0]).toMatchObject({ meta_token_expires_at: null });
   });
 
   it("⭐ plano que não comporta outro número recusa ANTES de registrar o número na Meta", async () => {

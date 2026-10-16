@@ -456,8 +456,8 @@ function PassosDoPainel({ appId, temConfigDoWhatsapp }: { appId: string; temConf
       <ol className="flex list-decimal flex-col gap-3 pl-5 text-sm">
         <li data-testid="meta-painel-config">
           {temConfigDoWhatsapp
-            ? t("Confira que a configuração do WhatsApp gera token que não expira (“Nunca”). Com token de 60 dias a conexão é recusada.")
-            : t("Crie a configuração do WhatsApp: Cadastro incorporado, produto WhatsApp Cloud API, usuário do sistema com expiração “Nunca” e as permissões whatsapp_business_management e whatsapp_business_messaging. Cole o ID dela acima.")}{" "}
+            ? t("A configuração do WhatsApp pode ser a de 60 dias: o sistema renova o token de cada número sozinho, antes de vencer.")
+            : t("Crie a configuração do WhatsApp pelo modelo “Cadastro incorporado do WhatsApp” (token de 60 dias serve: o sistema renova sozinho) e cole o ID dela acima.")}{" "}
           {link(links.loginParaEmpresas, t("Abrir configurações de login"))}
         </li>
         <li data-testid="meta-painel-permissoes">
