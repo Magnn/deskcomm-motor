@@ -24,6 +24,7 @@ import { useT } from "@/hooks/i18n/useT";
 import { apiClient } from "@/lib/api/client";
 import { copyToClipboard } from "@/lib/clipboard";
 import type { ConfigDaArea } from "@/lib/area-do-cliente/config";
+import { MAXIMO_DE_ETAPAS } from "@/lib/area-do-cliente/etapas";
 import type { Painel } from "@/lib/area-do-cliente/metricas";
 import { Copy, PencilSimple, Plus, Trash, WhatsappLogo } from "@/lib/ui/icons";
 
@@ -38,6 +39,7 @@ interface Servico {
   destaque: boolean;
   ativo: boolean;
   posicao: number;
+  etapas?: Array<{ titulo: string; orientacao?: string }>;
 }
 
 interface ConversaDaArea {
@@ -375,6 +377,11 @@ function AbaServicos() {
                 <span className="truncate font-medium">{s.nome}</span>
                 {s.destaque ? <Badge variant="info">{t("Destaque")}</Badge> : null}
                 {!s.ativo ? <Badge variant="neutral">{t("Escondido")}</Badge> : null}
+                {s.etapas && s.etapas.length > 0 ? (
+                  <Badge variant="neutral">
+                    {s.etapas.length} {t("etapas")}
+                  </Badge>
+                ) : null}
               </div>
               <p className="text-sm text-muted-foreground">{reais(s.preco_cents, s.currency)}</p>
             </div>
@@ -412,6 +419,11 @@ function EditorDeServico({ servico, onClose }: { servico: Servico | null; onClos
   const [link, setLink] = useState(servico?.link_checkout ?? "");
   const [destaque, setDestaque] = useState(servico?.destaque ?? false);
   const [ativo, setAtivo] = useState(servico?.ativo ?? true);
+  const [etapas, setEtapas] = useState<Array<{ titulo: string; orientacao: string }>>(
+    (servico?.etapas ?? []).map((e) => ({ titulo: e.titulo, orientacao: e.orientacao ?? "" })),
+  );
+  const mudarEtapa = (i: number, campo: "titulo" | "orientacao", valor: string) =>
+    setEtapas((lista) => lista.map((e, j) => (j === i ? { ...e, [campo]: valor } : e)));
 
   const precoCents = Math.round(Number(preco.replace(/\./g, "").replace(",", ".")) * 100);
   const salvar = useMutation({
@@ -424,6 +436,9 @@ function EditorDeServico({ servico, onClose }: { servico: Servico | null; onClos
         link_checkout: link.trim(),
         destaque,
         ativo,
+        etapas: etapas
+          .filter((e) => e.titulo.trim())
+          .map((e) => (e.orientacao.trim() ? { titulo: e.titulo.trim(), orientacao: e.orientacao.trim() } : { titulo: e.titulo.trim() })),
       };
       return servico
         ? apiClient.patch(`/api/v1/area/servicos/${servico.id}`, corpo)
@@ -439,7 +454,7 @@ function EditorDeServico({ servico, onClose }: { servico: Servico | null; onClos
 
   return (
     <Dialog open onOpenChange={(aberto) => (!aberto ? onClose() : undefined)}>
-      <DialogContent>
+      <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{servico ? t("Editar serviço") : t("Novo serviço")}</DialogTitle>
         </DialogHeader>
@@ -473,6 +488,49 @@ function EditorDeServico({ servico, onClose }: { servico: Servico | null; onClos
           <div className="flex items-center justify-between">
             <Label htmlFor="srv-ativo">{t("Aparece para os clientes")}</Label>
             <Switch id="srv-ativo" checked={ativo} onCheckedChange={setAtivo} />
+          </div>
+          <div className="space-y-2 border-t pt-3" data-testid="area-etapas-do-servico">
+            <div>
+              <p className="text-sm font-medium">{t("Etapas do trabalho")}</p>
+              <p className="text-xs text-muted-foreground">
+                {t("Aparecem na área de quem comprou este serviço, em ordem; a pessoa marca cada uma que fez. Valem mesmo com o serviço escondido da vitrine.")}
+              </p>
+            </div>
+            {etapas.map((e, i) => (
+              <div key={i} className="flex items-start gap-2">
+                <span className="mt-2 w-5 shrink-0 text-right text-sm text-muted-foreground">{i + 1}</span>
+                <div className="min-w-0 flex-1 space-y-1">
+                  <Input
+                    aria-label={`${t("Etapa")} ${i + 1}`}
+                    value={e.titulo}
+                    maxLength={80}
+                    placeholder={t("Ex.: 1ª noite")}
+                    onChange={(ev) => mudarEtapa(i, "titulo", ev.target.value)}
+                  />
+                  <Input
+                    aria-label={`${t("Orientação da etapa")} ${i + 1}`}
+                    value={e.orientacao}
+                    maxLength={300}
+                    placeholder={t("Ex.: acenda a vela branca às 21h e respire fundo 3 vezes")}
+                    onChange={(ev) => mudarEtapa(i, "orientacao", ev.target.value)}
+                  />
+                </div>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  aria-label={`${t("Remover etapa")} ${i + 1}`}
+                  onClick={() => setEtapas((lista) => lista.filter((_, j) => j !== i))}
+                >
+                  <Trash size={16} aria-hidden />
+                </Button>
+              </div>
+            ))}
+            {etapas.length < MAXIMO_DE_ETAPAS ? (
+              <Button variant="outline" size="sm" onClick={() => setEtapas((lista) => [...lista, { titulo: "", orientacao: "" }])}>
+                <Plus size={14} weight="bold" aria-hidden />
+                <span>{t("Adicionar etapa")}</span>
+              </Button>
+            ) : null}
           </div>
         </div>
         <DialogFooter>

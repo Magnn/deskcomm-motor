@@ -26,6 +26,7 @@ import {
 } from "./_client";
 import { AbasDaArea, BotaoIrParaAba, type AbaDaArea } from "./_abas";
 import { CirculoDoCliente } from "./_circulo";
+import { EtapaDeHoje, EtapasDaArea, LinhasDoTempo, type TextosDasEtapas } from "./_etapas";
 import { LuaDeHoje } from "./_lua";
 import { AnoPessoalDoCliente, PresenteDoCliente, type TextosDasOfertas } from "./_ofertas";
 import { CARTAO, CEU, DETALHE, PAGINA, SERIF, SOBRETITULO, SOBRETITULO_NOTURNO, TEXTO_SUAVE } from "./_tema";
@@ -118,6 +119,7 @@ export interface VistaDaAreaProps {
     pergunta: { pergunta: string; resposta: string | null } | null;
   } | null;
   presente: { preco: string; presentes: Array<{ id: string; para: string | null; link: string; usado: boolean }> } | null;
+  te: TextosDasEtapas;
   /** A aba que abre primeiro (do endereço, `?aba=`); sem ela, Hoje. */
   abaInicial?: AbaDaArea;
 }
@@ -205,6 +207,8 @@ export function VistaDaArea(p: VistaDaAreaProps) {
           </section>
         ) : null}
 
+        <EtapaDeHoje />
+
         {p.carta ? (
           <CartaDoDia slug={slug} cor={cor} tx={tx} cartaId={p.carta.id} nome={p.carta.nome} mensagem={p.carta.mensagem} foto={p.carta.foto} />
         ) : null}
@@ -275,6 +279,8 @@ export function VistaDaArea(p: VistaDaAreaProps) {
             <p className={TEXTO_SUAVE}>{t("Quando você comprar um trabalho, ele aparece aqui, com tudo o que a gente te enviar.")}</p>
           </section>
         )}
+
+        <LinhasDoTempo />
 
         {dados.leitura.length > 0 ? (
           <section className={CARTAO} data-testid="area-leitura">
@@ -458,14 +464,16 @@ export function VistaDaArea(p: VistaDaAreaProps) {
 
   return (
     <main className={`${p.classeDaFonte} ${PAGINA} pb-32`}>
-      <AbasDaArea
-        inicial={p.abaInicial ?? "hoje"}
-        rotulos={rotulos}
-        rotuloDaBarra={t("Atalhos da sua área")}
-        cor={cor}
-        paineis={{ hoje, trabalho, conversa, explorar }}
-        rodape={rodape}
-      />
+      <EtapasDaArea slug={slug} inicial={dados.trabalhos} te={p.te} cor={cor} tag={tag} fuso={fuso}>
+        <AbasDaArea
+          inicial={p.abaInicial ?? "hoje"}
+          rotulos={rotulos}
+          rotuloDaBarra={t("Atalhos da sua área")}
+          cor={cor}
+          paineis={{ hoje, trabalho, conversa, explorar }}
+          rodape={rodape}
+        />
+      </EtapasDaArea>
     </main>
   );
 }

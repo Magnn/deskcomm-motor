@@ -18,6 +18,8 @@ import { nomeDoContato } from "@/lib/contacts/rotulo-do-contato";
 import { caminhoDaCarta } from "@/lib/leitura/imagens";
 import { slugDoProduto } from "@/lib/preco/pos-venda";
 
+import { lerEtapas, linhaDoTempo, type EtapaNaLinhaDoTempo } from "./etapas";
+
 const BUCKET = "whatsapp-media";
 /** Os links dos arquivos valem 1 hora; a página os gera de novo a cada visita. */
 const VALIDADE_DO_ARQUIVO_S = 3600;
@@ -141,6 +143,41 @@ export interface MensagemDaArea {
   quando: string;
 }
 
+/** Um trabalho comprado que tem etapas: a linha do tempo dele para esta pessoa. */
+export interface TrabalhoComEtapas {
+  servicoId: string;
+  nome: string;
+  etapas: EtapaNaLinhaDoTempo[];
+}
+
+/**
+ * Regra pura: os trabalhos comprados (não devolvidos) cujo serviço tem etapas,
+ * do mais recente para o mais antigo, um por serviço. A compra se liga ao
+ * serviço pelo NOME do produto pago, como na vitrine — inclusive serviço que
+ * não está mais à venda (as etapas continuam valendo para quem já comprou).
+ */
+export function trabalhosComEtapas(
+  compras: readonly Compra[],
+  servicos: ReadonlyArray<{ id: string; nome: string; etapas: unknown }>,
+  feitas: ReadonlyArray<{ servico_id: string; indice: number; feita_em: string }>,
+): TrabalhoComEtapas[] {
+  const porSlug = new Map<string, { id: string; nome: string; etapas: unknown }>();
+  for (const sv of servicos) if (!porSlug.has(slugDoProduto(sv.nome))) porSlug.set(slugDoProduto(sv.nome), sv);
+  const vistos = new Set<string>();
+  const saida: TrabalhoComEtapas[] = [];
+  for (const c of [...compras].sort((a, b) => (a.quando < b.quando ? 1 : -1))) {
+    if (c.estornada || !c.produto) continue;
+    const sv = porSlug.get(slugDoProduto(c.produto));
+    if (!sv || vistos.has(sv.id)) continue;
+    const etapas = lerEtapas(sv.etapas);
+    if (etapas.length === 0) continue;
+    vistos.add(sv.id);
+    const marcadas = new Map(feitas.filter((f) => f.servico_id === sv.id).map((f) => [f.indice, f.feita_em] as const));
+    saida.push({ servicoId: sv.id, nome: sv.nome, etapas: linhaDoTempo(etapas, marcadas) });
+  }
+  return saida;
+}
+
 export interface DadosDaArea {
   contato: { nome: string; primeiroNome: string; email: string | null; nascimento: string | null };
   /** A conversa de WhatsApp com a empresa, só para ler: é onde a entrega em texto aconteceu. */
@@ -152,6 +189,8 @@ export interface DadosDaArea {
   leitura: Array<{ dia: string; itens: ItemDaLeitura[] }>;
   materiais: Material[];
   servicos: ServicoDaVitrine[];
+  /** Os trabalhos comprados com etapas, para a linha do tempo. */
+  trabalhos: TrabalhoComEtapas[];
 }
 
 /** O nome que aparece no "Olá": o primeiro nome de verdade, ou nada (emoji e "." não são nome). */
@@ -208,7 +247,7 @@ export async function carregarDadosDaArea(
   org: { id: string; fuso: string },
   contactId: string,
 ): Promise<DadosDaArea> {
-  const [contatoR, comprasR, midiasR, servicosR, diarioR, conversaR, mensagensR] = await Promise.all([
+  const [contatoR, comprasR, midiasR, servicosR, diarioR, conversaR, mensagensR, comEtapasR, feitasR] = await Promise.all([
     admin
       .from("contacts")
       .select("name, display_name, email, birthdate")
@@ -260,6 +299,14 @@ export async function carregarDadosDaArea(
       .eq("contact_id", contactId)
       .order("created_at", { ascending: true })
       .limit(200),
+    // Todos os serviços, também os fora da vitrine: as etapas valem para quem já comprou.
+    admin.from("area_servicos").select("id, nome, etapas").eq("organization_id", org.id).limit(100),
+    admin
+      .from("area_etapas_feitas")
+      .select("servico_id, indice, feita_em")
+      .eq("organization_id", org.id)
+      .eq("contact_id", contactId)
+      .limit(400),
   ]);
 
   const contato = contatoR.data as {
@@ -345,7 +392,14 @@ export async function carregarDadosDaArea(
     (m) => ({ id: m.id, autor: m.autor, texto: m.texto, quando: m.created_at }),
   );
 
+  const trabalhos = trabalhosComEtapas(
+    compras,
+    (comEtapasR.data ?? []) as Array<{ id: string; nome: string; etapas: unknown }>,
+    (feitasR.data ?? []) as Array<{ servico_id: string; indice: number; feita_em: string }>,
+  );
+
   return {
+    trabalhos,
     contato: { nome, primeiroNome: primeiroNome(nome), email: contato?.email ?? null, nascimento: contato?.birthdate ?? null },
     conversa,
     mensagens,
