@@ -152,6 +152,12 @@ import { blocoDoCombinado } from '@/lib/followup/bloco-do-combinado';
 import { PAUSA_ANTES_DA_PRIMEIRA, RITMO_PADRAO, pausaEntreBolhas, sinalizaDigitandoEntreBolhas, type Ritmo } from '@/lib/ritmo/tipos';
 import { buscaValorCombinado, criaRetornoDbPg } from '@/lib/followup/retorno-pg';
 import { blocoDaEntregaNaConversa, blocoDaOfertaDoCatalogo } from '@/lib/catalogo/bloco-do-prompt';
+import {
+  blocoDaAreaNaConversa,
+  linkDaAreaNoLugarDaMarca,
+  podeReceberOLinkDaArea,
+  temMarcaDaArea,
+} from '@/lib/area-do-cliente/link-na-conversa';
 import { produtosComFluxoDeEntrega } from '@/lib/catalogo/fluxos-de-entrega';
 import { entregaNaConversaEmAberto, ofertaDaVez, produtoDaUltimaCompra } from '@/lib/catalogo/oferta-da-vez';
 import { estadoDoPosVenda, horaDoPagamento } from '@/lib/preco/pos-venda';
@@ -2705,6 +2711,18 @@ async function executarTurnoDoAgente(
   // Produto do catálogo entregue NA CONVERSA: o que ela pagou e o que pedir antes entram no bloco de
   // entrega, depois do guia (se houver).
   blocoDaEntrega += blocoDaEntregaNaConversa(entregaNaConversaNoTurno);
+  // Área do cliente: quem pagou e ainda não recebeu o link pela conversa ganha a marca que vira o link
+  // pessoal no envio (`lib/area-do-cliente/link-na-conversa.ts`). Uma vez por pessoa.
+  if (
+    !preview &&
+    (await podeReceberOLinkDaArea(deps.crmCfg.supabase, {
+      organizationId: tenantId,
+      contactId: leadId,
+      tags: openingContext.context.contact.tags ?? [],
+    }))
+  ) {
+    blocoDaEntrega += blocoDaAreaNaConversa();
+  }
   // Leitura de tarot: a pessoa escolheu 3 números do baralho fechado (achado no histórico, DEPOIS de a
   // agente oferecê-lo) → o código sorteia de verdade (nunca o modelo) e revela uma carta por turno;
   // depois das 3, a causa raiz. Sem escolha na janela, ou com a causa raiz já dita, `passoDaLeitura`
@@ -3796,6 +3814,22 @@ async function executarTurnoDoAgente(
           }
           body = comRelatorio.corpo;
           documentoDoTurno = comRelatorio.documento;
+        }
+        // ÁREA DO CLIENTE: a marca `[[AREA_DO_CLIENTE]]` vira o link pessoal, com o convite criado agora.
+        // Área desligada, quem não pagou ou convite que não grava recusa o envio: a marca crua não sai.
+        if (!preview && temMarcaDaArea(body)) {
+          const comArea = await linkDaAreaNoLugarDaMarca({
+            corpo: body,
+            admin: deps.crmCfg.supabase,
+            organizationId: tenantId,
+            contactId: leadId,
+            tags: openingContext.context.contact.tags ?? [],
+            origem: process.env.NEXT_PUBLIC_APP_URL,
+          });
+          if ('recusa' in comArea) {
+            return { ok: false, error: { code: 'area_do_cliente_indisponivel', message: comArea.recusa } };
+          }
+          body = comArea.corpo;
         }
         // COBRANÇA AVULSA: a marca `[[PIX: nome]]` vira a instrução e o código do Pix. Marca que o turno não pode
         // cobrar, ou cobrança que não saiu, recusa o envio: marca crua não chega à pessoa.
