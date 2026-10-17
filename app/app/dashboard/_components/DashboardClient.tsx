@@ -23,6 +23,7 @@ import {
 } from "@phosphor-icons/react";
 import { FunilDaConversaPainel } from "./FunilDaConversaPainel";
 import { MotivoDaPerdaPainel } from "./MotivoDaPerdaPainel";
+import { PosVendaPainel } from "./PosVendaPainel";
 import { ReceitaAtribuidaPainel } from "./ReceitaAtribuidaPainel";
 
 /** De quanto em quanto tempo o painel se relê sozinho, com a aba visível. */
@@ -1350,6 +1351,7 @@ export function DashboardClient({ orgName }: { orgName: string }) {
       {activeTab === "receita" && (
         <div className="space-y-6">
           <ReceitaAtribuidaPainel period={period} tagDoIdioma={tagDoIdioma} />
+          <PosVendaPainel period={period} tagDoIdioma={tagDoIdioma} />
           <FunilDaConversaPainel period={period} />
           <MotivoDaPerdaPainel period={period} />
         </div>

@@ -204,6 +204,7 @@ export const AUDIT_ACTIONS = [
   "cron.lancamentos",
   // A rodada que reconheceu marco novo de conversa (oferta apresentada, objeção).
   "cron.marcos_da_conversa",
+  "cron.resumo_pos_venda",
   // Motivo da perda (`lib/resultado/motivo-da-perda.ts`): a análise pedida por uma
   // pessoa que gravou algum motivo, e a correção manual de um motivo.
   "resultado.perdas_analisadas",
