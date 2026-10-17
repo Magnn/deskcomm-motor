@@ -2009,6 +2009,17 @@ async function executarTurnoDoAgente(
     return;
   }
 
+  // RESPOSTA A QUEM ESCREVEU não disputa o teto de volume do dia (aquecimento e
+  // limite diário). O teto existe contra DISPARO — mensagem que nós iniciamos —, e
+  // responder a quem acabou de escrever não é disparo. Medido em 17/10/2026: num
+  // número de 2 dias, 20 envios (campanha + conversa) bastaram para a IA adiar
+  // para o dia seguinte a resposta de quem escrevia às 9h. Janela de horário,
+  // intervalo entre envios, pedido de saída e LGPD seguem valendo, e o envio
+  // segue CONTADO — a campanha do mesmo número continua vendo o volume real.
+  // Só o turno de entrada: retomada, follow-up e caso continuam armados.
+  const TETO_DO_TURNO = (): { enforceDailyCaps?: false } =>
+    liveJob().kind === 'inbound_turn' ? { enforceDailyCaps: false } : {};
+
   // GATE DE ELEGIBILIDADE (opt-in por canal — `metadata.ai_gate = 'allowlist'`).
   // Segunda checagem, defesa em profundidade: o drain já barra antes de
   // enfileirar, mas um job pode ter sido enfileirado quando a conversa ainda
@@ -4001,6 +4012,7 @@ async function executarTurnoDoAgente(
             // no runtime — null cai nos degraus de warm-up (conservadores). Injetar
             // aqui quando o drain expuser o limite da sessão.
             crmDailyLimit: null,
+            ...TETO_DO_TURNO(),
             now: clock(),
             sleep: deps.sleep,
             lgpd,
@@ -5371,6 +5383,7 @@ async function executarTurnoDoAgente(
               body: texto,
               optedOutThisTurn,
               crmDailyLimit: null,
+              ...TETO_DO_TURNO(),
               // A pergunta repete por design (foi feita e não respondida); o
               // anti-blast vetaria justamente o que esta trava garante. Mesmo
               // motivo do aviso de escalação.
