@@ -8,11 +8,13 @@
  * mostra quando chega.
  */
 import * as React from "react";
+import { Check, Copy, Gift, Send, Sun } from "lucide-react";
 
 import { copyToClipboard } from "@/lib/clipboard";
 
-import { CAMPO, type TextosDaArea } from "./_client";
+import { TituloDaSecao, type TextosDaArea } from "./_client";
 import { PagarNaArea, postarJson } from "./_circulo";
+import { BOTAO, CAMPO, CARTAO, CARTAO_NOTURNO, SERIF, SOBRETITULO_NOTURNO, TEXTO_SUAVE } from "./_tema";
 
 export interface TextosDasOfertas {
   presenteTitulo: string;
@@ -49,17 +51,17 @@ export function PresenteDoCliente({
   const [para, setPara] = React.useState("");
   const [copiado, setCopiado] = React.useState<string | null>(null);
   return (
-    <section className="rounded-2xl bg-white p-5 shadow-sm" data-testid="area-presente">
-      <h2 className="text-base font-semibold">🎁 {to.presenteTitulo}</h2>
-      <p className="mt-1 text-sm text-[#4b5563]">{to.presenteConvite}</p>
-      <p className="mt-2 text-lg font-semibold">{preco}</p>
-      <label className="mt-3 block">
-        <span className="text-sm font-medium">{to.presenteParaQuem}</span>
+    <section className={CARTAO} data-testid="area-presente">
+      <TituloDaSecao titulo={to.presenteTitulo} icone={<Gift className="size-5" />} />
+      <p className={`mt-2 ${TEXTO_SUAVE}`}>{to.presenteConvite}</p>
+      <p className={`${SERIF} mt-4 text-3xl text-[#241f31]`}>{preco}</p>
+      <label className="mt-4 block">
+        <span className="text-sm font-semibold">{to.presenteParaQuem}</span>
         <input
           value={para}
           onChange={(e) => setPara(e.target.value)}
           maxLength={60}
-          className={`mt-1 ${CAMPO}`}
+          className={`mt-2 ${CAMPO}`}
           placeholder={to.presenteParaQuemExemplo}
         />
       </label>
@@ -71,35 +73,40 @@ export function PresenteDoCliente({
       />
 
       {presentes.length > 0 ? (
-        <div className="mt-5 border-t border-[#eef0f3] pt-4">
-          <h3 className="text-sm font-semibold">{to.seusPresentes}</h3>
-          <ul className="mt-2 space-y-3">
+        <div className="mt-6 border-t border-[#efe7d6] pt-5">
+          <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-[#a8842f]">{to.seusPresentes}</h3>
+          <ul className="mt-3 space-y-3">
             {presentes.map((p) => (
-              <li key={p.id} className="rounded-xl border border-[#eef0f3] p-3 text-sm">
+              <li key={p.id} className="rounded-2xl border border-[#ebe3d3] bg-[#fdfbf7] p-4 text-sm">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="font-medium">{p.para ?? "🎁"}</span>
-                  <span className={p.usado ? "text-xs text-[#15803d]" : "text-xs text-[#6b7280]"}>
+                  <span className="flex items-center gap-2 font-semibold">
+                    <Gift className="size-4 text-[#a8842f]" aria-hidden />
+                    {p.para ?? to.presenteTitulo}
+                  </span>
+                  <span className={p.usado ? "text-xs font-semibold text-[#2f7a4f]" : "text-xs text-[#8b8497]"}>
                     {p.usado ? to.presenteUsado : to.presenteNaoUsado}
                   </span>
                 </div>
                 {!p.usado ? (
-                  <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+                  <div className="mt-3 flex flex-col gap-2 sm:flex-row">
                     <button
                       type="button"
                       onClick={async () => {
                         if (await copyToClipboard(p.link)) setCopiado(p.id);
                       }}
-                      className="flex-1 rounded-lg border px-3 py-2 text-xs font-semibold"
+                      className="inline-flex h-10 w-full sm:flex-1 items-center justify-center gap-2 rounded-full border-2 bg-white px-4 text-xs font-semibold"
                       style={{ borderColor: cor, color: cor }}
                     >
+                      {copiado === p.id ? <Check className="size-4" aria-hidden /> : <Copy className="size-4" aria-hidden />}
                       {copiado === p.id ? to.linkCopiado : to.copiarLink}
                     </button>
                     <a
                       href={`https://wa.me/?text=${encodeURIComponent(`${to.mensagemDoPresente} ${p.link}`)}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex-1 rounded-lg bg-[#25d366] px-3 py-2 text-center text-xs font-semibold text-white"
+                      className="inline-flex h-10 w-full sm:flex-1 items-center justify-center gap-2 rounded-full bg-[#1f9d55] px-4 text-xs font-semibold text-white"
                     >
+                      <Send className="size-4" aria-hidden />
                       {to.mandarPeloWhatsapp}
                     </a>
                   </div>
@@ -147,23 +154,33 @@ export function AnoPessoalDoCliente({
   }, [pago, leitura, slug, ano, tx]);
 
   return (
-    <section className="rounded-2xl border-2 bg-white p-5 shadow-sm" style={{ borderColor: cor }} data-testid="area-ano-pessoal">
-      <h2 className="text-base font-semibold">
-        ✦ {to.anoPessoalTitulo} {ano} · {numero}
-      </h2>
+    <section className={CARTAO_NOTURNO} data-testid="area-ano-pessoal">
+      <span
+        className={`${SERIF} pointer-events-none absolute -right-2 -top-6 text-[120px] leading-none text-[#c9a54e]/15`}
+        aria-hidden
+      >
+        {numero}
+      </span>
+      <p className={SOBRETITULO_NOTURNO}>
+        {ano} · {numero}
+      </p>
+      <h3 className={`${SERIF} mt-1 flex items-center gap-2 text-[26px] leading-tight`}>
+        <Sun className="size-5 text-[#e2c47a]" aria-hidden />
+        {to.anoPessoalTitulo}
+      </h3>
       {pago ? (
         leitura ? (
-          <p className="mt-3 whitespace-pre-line text-sm leading-relaxed text-[#374151]" data-testid="area-ano-pessoal-texto">
+          <p className="relative mt-4 whitespace-pre-line text-[15px] leading-relaxed text-[#e6deef]" data-testid="area-ano-pessoal-texto">
             {leitura}
           </p>
         ) : (
-          <p className="mt-2 text-sm text-[#6b7280]">{to.anoPessoalPreparando}</p>
+          <p className="mt-3 text-[15px] text-[#b7aecb]">{to.anoPessoalPreparando}</p>
         )
       ) : (
         <>
-          <p className="mt-1 text-sm text-[#4b5563]">{to.anoPessoalConvite}</p>
-          <p className="mt-2 text-lg font-semibold">{preco}</p>
-          <PagarNaArea endpoint={`/api/v1/area/publica/${slug}/ano-pessoal`} cor={cor} tx={tx} />
+          <p className="relative mt-3 text-[15px] leading-relaxed text-[#d9d0e6]">{to.anoPessoalConvite}</p>
+          <p className={`${SERIF} mt-4 text-3xl text-[#f0dca8]`}>{preco}</p>
+          <PagarNaArea endpoint={`/api/v1/area/publica/${slug}/ano-pessoal`} cor={cor} tx={tx} escuro />
         </>
       )}
     </section>
@@ -204,23 +221,27 @@ export function PerguntaDoPresente({
 
   if (estado.pergunta) {
     return (
-      <div className="space-y-3 text-sm">
-        <p className="italic text-[#4b5563]">{estado.pergunta}</p>
+      <div className="space-y-4">
+        <p className={`${SERIF} text-xl italic leading-snug text-[#3a3347]`}>{estado.pergunta}</p>
         {estado.resposta ? (
-          <p className="whitespace-pre-line leading-relaxed text-[#374151]" data-testid="presente-resposta">
+          <p className="whitespace-pre-line text-[15px] leading-relaxed text-[#3a3347]" data-testid="presente-resposta">
             {estado.resposta}
           </p>
         ) : (
           <>
-            <p className="text-[#6b7280]">{consultando ? tx.consultando : tx.respostaChegando}</p>
+            <p className={TEXTO_SUAVE}>{consultando ? tx.consultando : tx.respostaChegando}</p>
             {!consultando ? (
-              <button type="button" onClick={() => void perguntar({})} className="underline" style={{ color: cor }}>
+              <button type="button" onClick={() => void perguntar({})} className="text-sm font-semibold underline underline-offset-4" style={{ color: cor }}>
                 {tx.tentarDeNovo}
               </button>
             ) : null}
           </>
         )}
-        {erro ? <p className="text-[#b91c1c]">{erro}</p> : null}
+        {erro ? (
+          <p role="alert" className="text-sm text-[#a5361f]">
+            {erro}
+          </p>
+        ) : null}
       </div>
     );
   }
@@ -240,16 +261,21 @@ export function PerguntaDoPresente({
         required
         className={CAMPO}
         placeholder={tx.perguntaExemplo}
+        aria-label={tx.perguntar}
       />
       <button
         type="submit"
         disabled={consultando || texto.trim().length < 3}
-        className="w-full rounded-xl py-3 font-semibold text-white disabled:opacity-60"
+        className={`${BOTAO} w-full`}
         style={{ background: cor }}
       >
         {consultando ? tx.consultando : tx.perguntar}
       </button>
-      {erro ? <p className="text-sm text-[#b91c1c]">{erro}</p> : null}
+      {erro ? (
+        <p role="alert" className="text-sm text-[#a5361f]">
+          {erro}
+        </p>
+      ) : null}
     </form>
   );
 }

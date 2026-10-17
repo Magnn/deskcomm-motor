@@ -15,9 +15,12 @@ import { orgDaArea } from "@/lib/area-do-cliente/sessao";
 import { traduzir } from "@/lib/i18n/dicionario";
 import { idiomaDoVisitante } from "@/lib/i18n/idiomaAnonimo";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { Gift, MessageCircle } from "lucide-react";
 
 import { PerguntaDoPresente } from "../../_ofertas";
 import type { TextosDaArea } from "../../_client";
+import { serifDaArea } from "../../_fonte";
+import { CARTAO, CEU, PAGINA, SERIF, SOBRETITULO_NOTURNO } from "../../_tema";
 
 export const dynamic = "force-dynamic";
 
@@ -56,25 +59,28 @@ export default async function PaginaDoPresente({ params }: Props) {
   } as TextosDaArea;
 
   return (
-    <main className="min-h-screen bg-[#f7f5fb] pb-16 text-[#1c1f24]">
-      <header className="px-4 pb-8 pt-10 text-white" style={{ background: cor }}>
-        <div className="mx-auto max-w-xl">
-          <p className="text-sm opacity-80">{org.config.titulo || org.nome}</p>
-          <h1 className="mt-1 text-2xl font-semibold">
-            🎁 {p.para_nome ? `${p.para_nome}, ${t("você ganhou um presente")}` : t("Você ganhou um presente")}
+    <main className={`${serifDaArea.variable} ${PAGINA} pb-16`}>
+      <header className={`${CEU} px-5 pb-24 pt-12`}>
+        <div className="pointer-events-none absolute inset-0" style={{ background: `radial-gradient(120% 70% at 50% -10%, ${cor}8c, transparent 70%)` }} />
+        <div className="relative mx-auto max-w-xl">
+          <p className={SOBRETITULO_NOTURNO}>{org.config.titulo || org.nome}</p>
+          <Gift className="mt-5 size-10 text-[#e2c47a]" strokeWidth={1.25} aria-hidden />
+          <h1 className={`${SERIF} mt-3 text-[34px] leading-tight`}>
+            {p.para_nome ? `${p.para_nome}, ${t("você ganhou um presente")}` : t("Você ganhou um presente")}
           </h1>
-          <p className="mt-2 text-sm opacity-90">{t("Uma pergunta para as cartas. Escreva com calma o que você quer entender agora.")}</p>
+          <p className="mt-3 text-[16px] leading-relaxed text-[#d9d0e6]">{t("Uma pergunta para as cartas. Escreva com calma o que você quer entender agora.")}</p>
         </div>
       </header>
-      <div className="mx-auto -mt-4 max-w-xl space-y-4 px-4">
-        <section className="rounded-2xl bg-white p-5 shadow-sm" data-testid="presente-pergunta">
+      <div className="relative mx-auto -mt-14 max-w-xl space-y-4 px-4">
+        <section className={CARTAO} data-testid="presente-pergunta">
           <PerguntaDoPresente slug={org.slug} codigo={codigo} cor={cor} tx={tx} inicial={{ pergunta: p.pergunta, resposta: p.resposta }} />
         </section>
         {org.config.whatsapp ? (
           <a
             href={`https://wa.me/${org.config.whatsapp}`}
-            className="block rounded-2xl bg-[#25d366] px-5 py-4 text-center font-semibold text-white shadow-sm"
+            className="flex h-14 items-center justify-center gap-2 rounded-full bg-[#1f9d55] px-5 text-[16px] font-semibold text-white shadow-[0_10px_24px_-12px_rgba(31,157,85,0.8)]"
           >
+            <MessageCircle className="size-5" aria-hidden />
             {t("Quero conhecer mais pelo WhatsApp")}
           </a>
         ) : null}

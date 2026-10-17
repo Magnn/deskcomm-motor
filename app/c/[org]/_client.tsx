@@ -3,8 +3,15 @@
  * As partes da área do cliente que precisam do navegador: entrar por código,
  * contar qual serviço apareceu na tela, ouvir o que a pessoa deseja e guardar
  * o e-mail dela. Sem biblioteca de formulário: são três campos.
+ *
+ * A aparência (paleta, cartões, botões) vem de `_tema.ts`.
  */
 import * as React from "react";
+import { ArrowUp, BookOpen, Cake, Check, KeyRound, Mail, MessagesSquare, Sparkles } from "lucide-react";
+
+import { BOTAO, CAMPO, CARTAO, DETALHE, SERIF, SOBRETITULO, TEXTO_SUAVE } from "./_tema";
+
+export { CAMPO };
 
 /** Textos já traduzidos no servidor (`page.tsx`): o navegador do cliente não tem o provedor de idioma da equipe. */
 export interface TextosDaArea {
@@ -79,8 +86,36 @@ async function postar(url: string, corpo: unknown, tx?: TextosDaArea): Promise<{
   }
 }
 
-export const CAMPO =
-  "w-full rounded-xl border border-[#d9dce3] bg-white px-4 py-3 text-base outline-hidden focus:border-[#7c3aed] focus:ring-2 focus:ring-[#7c3aed]/20";
+/** O título de uma seção: a linha dourada pequena e o nome com serifa. */
+export function TituloDaSecao({
+  sobre,
+  titulo,
+  icone,
+  id,
+}: {
+  sobre?: string;
+  titulo: string;
+  icone?: React.ReactNode;
+  id?: string;
+}) {
+  return (
+    <div>
+      {sobre ? <p className={SOBRETITULO}>{sobre}</p> : null}
+      <h2 id={id} className={`${SERIF} mt-1 flex items-center gap-2 text-[22px] leading-tight text-[#241f31]`}>
+        {icone ? <span className="text-[#a8842f]" aria-hidden>{icone}</span> : null}
+        {titulo}
+      </h2>
+    </div>
+  );
+}
+
+function Erro({ children }: { children: React.ReactNode }) {
+  return (
+    <p role="alert" className="mt-3 rounded-2xl bg-[#fdf1ef] px-4 py-2.5 text-sm text-[#a5361f]">
+      {children}
+    </p>
+  );
+}
 
 export function EntrarNaArea({ slug, cor, tx }: { slug: string; cor: string; tx: TextosDaArea }) {
   const [etapa, setEtapa] = React.useState<"email" | "codigo">("email");
@@ -110,11 +145,14 @@ export function EntrarNaArea({ slug, cor, tx }: { slug: string; cor: string; tx:
   };
 
   return (
-    <div className="mt-8 rounded-2xl bg-white p-6 shadow-sm">
+    <div className={`${CARTAO} mt-8`}>
       {etapa === "email" ? (
         <form onSubmit={pedirCodigo} className="space-y-4" data-testid="area-entrar-email">
           <label className="block">
-            <span className="text-sm font-medium">{tx.seuEmail}</span>
+            <span className="flex items-center gap-2 text-sm font-semibold">
+              <Mail className="size-4 text-[#a8842f]" aria-hidden />
+              {tx.seuEmail}
+            </span>
             <input
               type="email"
               required
@@ -122,25 +160,23 @@ export function EntrarNaArea({ slug, cor, tx }: { slug: string; cor: string; tx:
               inputMode="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className={`mt-1 ${CAMPO}`}
+              className={`mt-2 ${CAMPO}`}
               placeholder="voce@email.com"
             />
           </label>
-          <button
-            type="submit"
-            disabled={enviando}
-            className="w-full rounded-xl py-3 font-semibold text-white disabled:opacity-60"
-            style={{ background: cor }}
-          >
+          <button type="submit" disabled={enviando} className={`${BOTAO} w-full`} style={{ background: cor }}>
             {enviando ? tx.enviando : tx.receberCodigo}
           </button>
         </form>
       ) : (
         <form onSubmit={confirmar} className="space-y-4" data-testid="area-entrar-codigo">
-          <p className="text-sm text-[#4b5563]">{tx.codigoEnviadoAntes}</p>
-          <p className="text-sm font-medium">{email}</p>
+          <p className={TEXTO_SUAVE}>{tx.codigoEnviadoAntes}</p>
+          <p className="rounded-2xl bg-[#f6f1e6] px-4 py-2.5 text-sm font-semibold">{email}</p>
           <label className="block">
-            <span className="text-sm font-medium">{tx.codigo}</span>
+            <span className="flex items-center gap-2 text-sm font-semibold">
+              <KeyRound className="size-4 text-[#a8842f]" aria-hidden />
+              {tx.codigo}
+            </span>
             <input
               required
               inputMode="numeric"
@@ -149,27 +185,23 @@ export function EntrarNaArea({ slug, cor, tx }: { slug: string; cor: string; tx:
               maxLength={6}
               value={codigo}
               onChange={(e) => setCodigo(e.target.value.replace(/\D/g, ""))}
-              className={`mt-1 tracking-[0.4em] ${CAMPO}`}
+              className={`mt-2 text-center text-2xl tracking-[0.5em] ${CAMPO}`}
             />
           </label>
           <button
             type="submit"
             disabled={enviando || codigo.length !== 6}
-            className="w-full rounded-xl py-3 font-semibold text-white disabled:opacity-60"
+            className={`${BOTAO} w-full`}
             style={{ background: cor }}
           >
             {enviando ? tx.entrando : tx.entrar}
           </button>
-          <button type="button" onClick={() => setEtapa("email")} className="w-full text-sm text-[#6b7280] underline">
+          <button type="button" onClick={() => setEtapa("email")} className="w-full text-sm text-[#6f6880] underline underline-offset-4">
             {tx.usarOutroEmail}
           </button>
         </form>
       )}
-      {erro ? (
-        <p className="mt-3 text-sm text-[#b91c1c]" role="alert">
-          {erro}
-        </p>
-      ) : null}
+      {erro ? <Erro>{erro}</Erro> : null}
     </div>
   );
 }
@@ -219,12 +251,15 @@ export function DesejoDoCliente({ slug, cor, tx }: { slug: string; cor: string; 
   };
 
   return (
-    <section className="rounded-2xl bg-white p-5 shadow-sm" data-testid="area-desejo">
-      <h2 className="text-base font-semibold">{tx.desejoTitulo}</h2>
+    <section className={CARTAO} data-testid="area-desejo">
+      <TituloDaSecao titulo={tx.desejoTitulo} icone={<Sparkles className="size-5" />} />
       {estado === "enviado" ? (
-        <p className="mt-2 text-sm text-[#15803d]">{tx.desejoObrigada}</p>
+        <p role="status" className="mt-4 flex items-center gap-2 text-[15px] text-[#2f7a4f]">
+          <Check className="size-4" aria-hidden />
+          {tx.desejoObrigada}
+        </p>
       ) : (
-        <form onSubmit={enviar} className="mt-3 space-y-3">
+        <form onSubmit={enviar} className="mt-4 space-y-3">
           <textarea
             value={texto}
             onChange={(e) => setTexto(e.target.value)}
@@ -233,22 +268,24 @@ export function DesejoDoCliente({ slug, cor, tx }: { slug: string; cor: string; 
             required
             className={CAMPO}
             placeholder={tx.desejoExemplo}
+            aria-label={tx.desejoTitulo}
           />
           <button
             type="submit"
             disabled={estado === "enviando" || texto.trim() === ""}
-            className="rounded-full px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+            className={BOTAO}
             style={{ background: cor }}
           >
             {estado === "enviando" ? tx.enviando : tx.enviar}
           </button>
-          {erro ? <p className="text-sm text-[#b91c1c]">{erro}</p> : null}
+          {erro ? <Erro>{erro}</Erro> : null}
         </form>
       )}
     </section>
   );
 }
 
+/** Pedido discreto: uma faixa, não um cartão gritando no meio da página. */
 export function EmailDoCliente({ slug, cor, tx }: { slug: string; cor: string; tx: TextosDaArea }) {
   const [email, setEmail] = React.useState("");
   const [estado, setEstado] = React.useState<"aberto" | "enviando" | "salvo">("aberto");
@@ -268,15 +305,21 @@ export function EmailDoCliente({ slug, cor, tx }: { slug: string; cor: string; t
 
   if (estado === "salvo") {
     return (
-      <p role="status" className="rounded-2xl bg-white p-5 text-sm text-[#15803d] shadow-sm">
-        {tx.prontoEntreCom} <strong>{email}</strong>
+      <p role="status" className="flex items-center gap-2 rounded-3xl border border-[#cfe6d6] bg-[#f2faf4] px-5 py-4 text-[15px] text-[#2f7a4f]">
+        <Check className="size-4 shrink-0" aria-hidden />
+        <span>
+          {tx.prontoEntreCom} <strong>{email}</strong>
+        </span>
       </p>
     );
   }
   return (
-    <section className="rounded-2xl bg-white p-5 shadow-sm" data-testid="area-email">
-      <h2 className="text-base font-semibold">{tx.guardeSeuAcesso}</h2>
-      <p className="mt-1 text-sm text-[#4b5563]">{tx.comSeuEmail}</p>
+    <section className="rounded-3xl border border-dashed border-[#d8cdb6] bg-[#fbf8f1] px-5 py-5" data-testid="area-email">
+      <p className="flex items-center gap-2 text-[15px] font-semibold">
+        <KeyRound className="size-4 text-[#a8842f]" aria-hidden />
+        {tx.guardeSeuAcesso}
+      </p>
+      <p className="mt-1 text-sm leading-relaxed text-[#6f6880]">{tx.comSeuEmail}</p>
       <form onSubmit={salvar} className="mt-3 flex flex-col gap-2 sm:flex-row">
         <input
           type="email"
@@ -289,17 +332,23 @@ export function EmailDoCliente({ slug, cor, tx }: { slug: string; cor: string; t
           className={CAMPO}
           placeholder="voce@email.com"
         />
-        <button
-          type="submit"
-          disabled={estado === "enviando"}
-          className="shrink-0 rounded-xl px-4 py-3 font-semibold text-white disabled:opacity-60"
-          style={{ background: cor }}
-        >
+        <button type="submit" disabled={estado === "enviando"} className={`${BOTAO} shrink-0`} style={{ background: cor }}>
           {estado === "enviando" ? tx.enviando : tx.salvar}
         </button>
       </form>
-      {erro ? <p role="alert" className="mt-2 text-sm text-[#b91c1c]">{erro}</p> : null}
+      {erro ? <Erro>{erro}</Erro> : null}
     </section>
+  );
+}
+
+/** O verso das cartas: noite, moldura dourada e uma estrela no centro. */
+function VersoDaCarta() {
+  return (
+    <span className="absolute inset-0 flex items-center justify-center rounded-2xl bg-[#1b1433] bg-[radial-gradient(circle_at_50%_40%,rgba(201,165,78,0.28),transparent_60%)] shadow-[0_14px_30px_-14px_rgba(20,15,38,0.8)] [backface-visibility:hidden]">
+      <span className="absolute inset-2 rounded-xl border border-[#c9a54e]/60" />
+      <span className="absolute inset-3.5 rounded-lg border border-[#c9a54e]/25" />
+      <Sparkles className="size-9 text-[#e2c47a]" strokeWidth={1.25} aria-hidden />
+    </span>
   );
 }
 
@@ -326,38 +375,52 @@ export function CartaDoDia({
 }) {
   const [revelada, setRevelada] = React.useState(false);
   const revelar = () => {
+    if (revelada) return;
     setRevelada(true);
     void postar(`/api/v1/area/publica/${slug}/eventos`, { tipo: "carta_do_dia", carta: cartaId }, tx);
   };
   return (
-    <section className="rounded-2xl bg-white p-5 shadow-sm" data-testid="area-carta-do-dia">
-      <h2 className="text-base font-semibold">{tx.cartaDoDia}</h2>
-      {revelada ? (
-        <div className="mt-3 flex gap-4">
-          {foto ? (
-            // eslint-disable-next-line @next/next/no-img-element -- URL assinada do Storage, sem otimizador
-            <img src={foto} alt={nome} className="aspect-[3/5] w-24 shrink-0 rounded-lg object-cover" />
-          ) : null}
-          <div className="min-w-0">
-            <p className="font-semibold" data-testid="area-carta-nome">
-              {nome}
-            </p>
-            <p className="mt-1 text-sm text-[#4b5563]">{mensagem}</p>
-          </div>
-        </div>
-      ) : (
+    <section className={CARTAO} data-testid="area-carta-do-dia">
+      <TituloDaSecao titulo={tx.cartaDoDia} />
+      <div className="mt-5 flex items-start gap-5">
         <button
           type="button"
           onClick={revelar}
-          className="mt-3 flex aspect-[3/5] w-24 items-center justify-center rounded-lg text-3xl text-white shadow-md"
-          style={{ background: cor }}
+          disabled={revelada}
           aria-label={tx.revelar}
           data-testid="area-revelar-carta"
+          className="relative aspect-[3/5] w-28 shrink-0 [perspective:900px] focus-visible:outline-2 focus-visible:outline-offset-4 disabled:cursor-default sm:w-32"
+          style={{ outlineColor: cor }}
         >
-          ✦
+          <span
+            className={`absolute inset-0 transition-transform duration-700 ease-out [transform-style:preserve-3d] motion-reduce:transition-none ${
+              revelada ? "[transform:rotateY(180deg)]" : ""
+            }`}
+          >
+            <VersoDaCarta />
+            <span className="absolute inset-0 overflow-hidden rounded-2xl bg-[#1b1433] shadow-[0_14px_30px_-14px_rgba(20,15,38,0.8)] [backface-visibility:hidden] [transform:rotateY(180deg)]">
+              {foto ? (
+                // eslint-disable-next-line @next/next/no-img-element -- URL assinada do Storage, sem otimizador
+                <img src={foto} alt={nome} className="size-full object-cover" />
+              ) : (
+                <span className={`${SERIF} flex size-full items-center justify-center p-3 text-center text-lg text-[#f6f0e4]`}>{nome}</span>
+              )}
+            </span>
+          </span>
         </button>
-      )}
-      {!revelada ? <p className="mt-2 text-xs text-[#6b7280]">{tx.revelar}</p> : null}
+        <div className="min-w-0 pt-1" aria-live="polite">
+          {revelada ? (
+            <>
+              <p className={`${SERIF} text-xl leading-snug`} data-testid="area-carta-nome">
+                {nome}
+              </p>
+              <p className={`mt-2 ${TEXTO_SUAVE}`}>{mensagem}</p>
+            </>
+          ) : (
+            <p className={TEXTO_SUAVE}>{tx.revelar}</p>
+          )}
+        </div>
+      </div>
     </section>
   );
 }
@@ -403,36 +466,31 @@ export function DiarioDoCliente({
   };
 
   return (
-    <section className="rounded-2xl bg-white p-5 shadow-sm" data-testid="area-diario">
-      <h2 className="text-base font-semibold">{tx.seuDiario}</h2>
-      <p className="mt-1 text-sm text-[#4b5563]">{tx.diarioConvite}</p>
-      <form onSubmit={salvar} className="mt-3 space-y-2">
+    <section className={CARTAO} data-testid="area-diario">
+      <TituloDaSecao titulo={tx.seuDiario} icone={<BookOpen className="size-5" />} />
+      <p className={`mt-2 ${TEXTO_SUAVE}`}>{tx.diarioConvite}</p>
+      <form onSubmit={salvar} className="mt-4 space-y-3">
         <textarea
           value={texto}
           onChange={(e) => setTexto(e.target.value)}
           maxLength={2000}
-          rows={3}
+          rows={4}
           required
-          className={CAMPO}
+          className={`${CAMPO} bg-[repeating-linear-gradient(transparent,transparent_31px,#efe7d6_31px,#efe7d6_32px)] [background-position:0_12px] leading-8`}
           placeholder={tx.diarioExemplo}
           aria-label={tx.seuDiario}
         />
-        <button
-          type="submit"
-          disabled={enviando || texto.trim() === ""}
-          className="rounded-full px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
-          style={{ background: cor }}
-        >
+        <button type="submit" disabled={enviando || texto.trim() === ""} className={BOTAO} style={{ background: cor }}>
           {enviando ? tx.enviando : tx.salvar}
         </button>
-        {erro ? <p className="text-sm text-[#b91c1c]">{erro}</p> : null}
+        {erro ? <Erro>{erro}</Erro> : null}
       </form>
       {lista.length > 0 ? (
-        <ul className="mt-4 space-y-3 border-t border-[#eef0f3] pt-3">
+        <ul className="mt-5 space-y-4 border-t border-[#efe7d6] pt-4">
           {lista.map((d) => (
-            <li key={d.id} className="text-sm">
-              {d.quando ? <span className="block text-xs text-[#9ca3af]">{d.quando}</span> : null}
-              <span className="whitespace-pre-line">{d.texto}</span>
+            <li key={d.id} className="border-l-2 border-[#e2c47a] pl-4">
+              {d.quando ? <span className={`block ${DETALHE}`}>{d.quando}</span> : null}
+              <span className={`${SERIF} mt-0.5 block whitespace-pre-line text-[16px] leading-relaxed text-[#3a3347]`}>{d.texto}</span>
             </li>
           ))}
         </ul>
@@ -459,24 +517,24 @@ export function AniversarioDoCliente({ slug, cor, tx }: { slug: string; cor: str
   };
 
   if (estado === "salvo") {
-    return <p className="rounded-2xl bg-white p-5 text-sm text-[#15803d] shadow-sm">{tx.aniversarioObrigada}</p>;
+    return (
+      <p role="status" className="flex items-center gap-2 rounded-3xl border border-[#cfe6d6] bg-[#f2faf4] px-5 py-4 text-[15px] text-[#2f7a4f]">
+        <Check className="size-4 shrink-0" aria-hidden />
+        {tx.aniversarioObrigada}
+      </p>
+    );
   }
   return (
-    <section className="rounded-2xl bg-white p-5 shadow-sm" data-testid="area-aniversario">
-      <h2 className="text-base font-semibold">{tx.aniversarioTitulo}</h2>
-      <p className="mt-1 text-sm text-[#4b5563]">{tx.aniversarioConvite}</p>
-      <form onSubmit={salvar} className="mt-3 flex flex-col gap-2 sm:flex-row">
-        <input type="date" required value={data} onChange={(e) => setData(e.target.value)} className={CAMPO} />
-        <button
-          type="submit"
-          disabled={estado === "enviando" || data === ""}
-          className="shrink-0 rounded-xl px-4 py-3 font-semibold text-white disabled:opacity-60"
-          style={{ background: cor }}
-        >
+    <section className={CARTAO} data-testid="area-aniversario">
+      <TituloDaSecao titulo={tx.aniversarioTitulo.replace(/\s*🎂\s*$/u, "")} icone={<Cake className="size-5" />} />
+      <p className={`mt-2 ${TEXTO_SUAVE}`}>{tx.aniversarioConvite}</p>
+      <form onSubmit={salvar} className="mt-4 flex flex-col gap-2 sm:flex-row">
+        <input type="date" required value={data} onChange={(e) => setData(e.target.value)} className={CAMPO} aria-label={tx.aniversarioTitulo} />
+        <button type="submit" disabled={estado === "enviando" || data === ""} className={`${BOTAO} shrink-0`} style={{ background: cor }}>
           {tx.salvar}
         </button>
       </form>
-      {erro ? <p className="mt-2 text-sm text-[#b91c1c]">{erro}</p> : null}
+      {erro ? <Erro>{erro}</Erro> : null}
     </section>
   );
 }
@@ -508,6 +566,7 @@ export function FaleComAGente({
   const [enviando, setEnviando] = React.useState(false);
   const [erro, setErro] = React.useState<string | null>(null);
   const [enviada, setEnviada] = React.useState(false);
+  const lista = React.useRef<HTMLUListElement>(null);
 
   React.useEffect(() => {
     let vivo = true;
@@ -526,6 +585,12 @@ export function FaleComAGente({
       window.clearInterval(id);
     };
   }, [slug]);
+
+  // A conversa abre na última mensagem, como em qualquer aplicativo de conversa.
+  React.useEffect(() => {
+    const el = lista.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [mensagens.length]);
 
   const enviar = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -552,24 +617,28 @@ export function FaleComAGente({
   };
 
   return (
-    <section className="rounded-2xl bg-white p-5 shadow-sm" data-testid="area-fale-com-a-gente">
-      <h2 className="text-base font-semibold">💬 {tx.faleComAGente}</h2>
-      <p className="mt-1 text-sm text-[#4b5563]">{tx.faleComAGenteConvite}</p>
+    <section className={CARTAO} data-testid="area-fale-com-a-gente">
+      <TituloDaSecao titulo={tx.faleComAGente} icone={<MessagesSquare className="size-5" />} />
+      <p className={`mt-2 ${TEXTO_SUAVE}`}>{tx.faleComAGenteConvite}</p>
       {mensagens.length > 0 ? (
-        <ul className="mt-3 max-h-80 space-y-2 overflow-y-auto" aria-label={tx.conversaGuardada}>
+        <ul
+          ref={lista}
+          className="mt-4 max-h-80 space-y-2 overflow-y-auto rounded-2xl bg-[#f8f4ec] p-3"
+          aria-label={tx.conversaGuardada}
+        >
           {mensagens.map((m) => (
             <li key={m.id} className={m.autor === "cliente" ? "flex justify-end" : "flex justify-start"}>
               <span
                 className={
                   m.autor === "cliente"
-                    ? "max-w-[85%] whitespace-pre-line rounded-2xl rounded-br-sm px-3 py-2 text-sm text-white"
-                    : "max-w-[85%] whitespace-pre-line rounded-2xl rounded-bl-sm bg-[#f3f4f6] px-3 py-2 text-sm"
+                    ? "max-w-[85%] whitespace-pre-line rounded-2xl rounded-br-md px-3.5 py-2 text-[15px] text-white shadow-sm"
+                    : "max-w-[85%] whitespace-pre-line rounded-2xl rounded-bl-md border border-[#ebe3d3] bg-white px-3.5 py-2 text-[15px] shadow-sm"
                 }
                 style={m.autor === "cliente" ? { background: cor } : undefined}
               >
-                <span className="mb-0.5 block text-[10px] opacity-70">{m.autor === "cliente" ? tx.voce : tx.nos}</span>
+                <span className="mb-0.5 block text-[11px] font-semibold opacity-70">{m.autor === "cliente" ? tx.voce : tx.nos}</span>
                 {m.texto}
-                <time dateTime={m.quando} className="mt-1 block text-[11px] opacity-80">
+                <time dateTime={m.quando} className="mt-1 block text-right text-[11px] opacity-70">
                   {new Intl.DateTimeFormat(idioma, { timeZone: fuso, day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }).format(new Date(m.quando))}
                 </time>
               </span>
@@ -577,28 +646,43 @@ export function FaleComAGente({
           ))}
         </ul>
       ) : null}
-      <form onSubmit={enviar} className="mt-3 space-y-2">
-        <textarea
-          value={texto}
-          onChange={(e) => setTexto(e.target.value)}
-          maxLength={2000}
-          rows={2}
-          required
-          className={CAMPO}
-          placeholder={tx.escrevaAqui}
-          aria-label={tx.escrevaAqui}
-          data-testid="area-fale-texto"
-        />
-        <button
-          type="submit"
-          disabled={enviando || texto.trim() === ""}
-          className="rounded-full px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
-          style={{ background: cor }}
-        >
-          {enviando ? tx.enviando : tx.enviar}
-        </button>
-        {enviada ? <p role="status" className="text-sm text-[#15803d]">{tx.enviada}</p> : null}
-        {erro ? <p role="alert" className="text-sm text-[#b91c1c]">{erro}</p> : null}
+      <form onSubmit={enviar} className="mt-4">
+        <div className="flex items-end gap-2 rounded-3xl border border-[#e4dccb] bg-[#fdfbf7] p-1.5 pl-4 transition focus-within:border-[#a8842f] focus-within:bg-white focus-within:ring-4 focus-within:ring-[#c9a54e]/15">
+          <textarea
+            value={texto}
+            onChange={(e) => setTexto(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey && texto.trim() !== "" && !enviando) {
+                e.preventDefault();
+                e.currentTarget.form?.requestSubmit();
+              }
+            }}
+            maxLength={2000}
+            rows={1}
+            required
+            className="max-h-40 min-h-[2.75rem] flex-1 resize-none bg-transparent py-2.5 text-base text-[#241f31] placeholder:text-[#a59eb0] outline-hidden [field-sizing:content]"
+            placeholder={tx.escrevaAqui}
+            aria-label={tx.escrevaAqui}
+            data-testid="area-fale-texto"
+          />
+          <button
+            type="submit"
+            disabled={enviando || texto.trim() === ""}
+            aria-label={tx.enviar}
+            title={tx.enviar}
+            className="flex size-11 shrink-0 items-center justify-center rounded-full text-white transition hover:brightness-110 active:scale-95 disabled:cursor-not-allowed disabled:opacity-35 motion-reduce:transition-none"
+            style={{ background: cor }}
+          >
+            <ArrowUp className="size-5" strokeWidth={2.5} aria-hidden />
+          </button>
+        </div>
+        {enviando ? <p className={`mt-2 ${DETALHE}`}>{tx.enviando}</p> : null}
+        {enviada ? (
+          <p role="status" className="mt-2 text-sm text-[#2f7a4f]">
+            {tx.enviada}
+          </p>
+        ) : null}
+        {erro ? <Erro>{erro}</Erro> : null}
       </form>
     </section>
   );
@@ -608,6 +692,8 @@ export function FaleComAGente({
  * A conversa de WhatsApp com a empresa, só para ler. Começa mostrando as
  * últimas falas; "Ver a conversa inteira" abre o resto.
  */
+const FALAS_INICIAIS = 6;
+
 export function ConversaGuardada({
   tx,
   empresa,
@@ -618,31 +704,48 @@ export function ConversaGuardada({
   falas: Array<{ id: string; de: "voce" | "empresa"; texto: string; quando: string }>;
 }) {
   const [inteira, setInteira] = React.useState(false);
-  const visiveis = inteira ? falas : falas.slice(-12);
+  const visiveis = inteira ? falas : falas.slice(-FALAS_INICIAIS);
   return (
-    <section className="rounded-2xl bg-white p-5 shadow-sm" data-testid="area-conversa">
-      <h2 className="text-base font-semibold">{tx.conversaGuardada}</h2>
-      <p className="mt-1 text-sm text-[#4b5563]">{tx.conversaGuardadaConvite}</p>
-      <ul className={inteira ? "mt-3 max-h-[70vh] space-y-2 overflow-y-auto" : "mt-3 space-y-2"}>
-        {visiveis.map((f) => (
-          <li key={f.id} className={f.de === "voce" ? "flex justify-end" : "flex justify-start"}>
-            <span
-              className={
-                f.de === "voce"
-                  ? "max-w-[85%] whitespace-pre-line rounded-2xl rounded-br-sm bg-[#dcf8c6] px-3 py-2 text-sm"
-                  : "max-w-[85%] whitespace-pre-line rounded-2xl rounded-bl-sm bg-[#f3f4f6] px-3 py-2 text-sm"
-              }
-            >
-              <span className="mb-0.5 block text-[10px] text-[#6b7280]">
-                {f.de === "voce" ? tx.voce : empresa} · {f.quando}
-              </span>
-              {f.texto}
-            </span>
-          </li>
-        ))}
-      </ul>
-      {falas.length > 12 ? (
-        <button type="button" onClick={() => setInteira((v) => !v)} className="mt-3 text-sm underline">
+    <section className={CARTAO} data-testid="area-conversa">
+      <TituloDaSecao titulo={tx.conversaGuardada} />
+      <p className={`mt-2 ${TEXTO_SUAVE}`}>{tx.conversaGuardadaConvite}</p>
+      <div className="relative mt-4">
+        <ul
+          className={`space-y-2 rounded-2xl bg-[#f8f4ec] p-3 ${inteira ? "max-h-[70vh] overflow-y-auto" : ""}`}
+        >
+          {visiveis.map((f, i) => {
+            const anterior = visiveis[i - 1];
+            const mesmoAutor = anterior?.de === f.de;
+            return (
+              <li key={f.id} className={`${f.de === "voce" ? "flex justify-end" : "flex justify-start"} ${mesmoAutor ? "" : "pt-1"}`}>
+                <span
+                  className={
+                    f.de === "voce"
+                      ? "max-w-[85%] whitespace-pre-line rounded-2xl rounded-br-md bg-[#e9f6dd] px-3.5 py-2 text-[15px] leading-relaxed text-[#203018]"
+                      : "max-w-[85%] whitespace-pre-line rounded-2xl rounded-bl-md border border-[#ebe3d3] bg-white px-3.5 py-2 text-[15px] leading-relaxed"
+                  }
+                >
+                  {mesmoAutor ? null : (
+                    <span className={`mb-0.5 block text-[11px] font-semibold ${f.de === "voce" ? "text-[#4f7a3a]" : "text-[#a8842f]"}`}>
+                      {f.de === "voce" ? tx.voce : empresa} <span className="font-normal opacity-70">· {f.quando}</span>
+                    </span>
+                  )}
+                  {f.texto}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+        {!inteira && falas.length > FALAS_INICIAIS ? (
+          <span className="pointer-events-none absolute inset-x-0 top-0 h-12 rounded-t-2xl bg-gradient-to-b from-[#f8f4ec] to-transparent" />
+        ) : null}
+      </div>
+      {falas.length > FALAS_INICIAIS ? (
+        <button
+          type="button"
+          onClick={() => setInteira((v) => !v)}
+          className="mt-3 text-sm font-semibold text-[#8a6b22] underline decoration-[#e2c47a] decoration-2 underline-offset-4"
+        >
           {inteira ? tx.mostrarMenos : `${tx.verConversaInteira} (${falas.length})`}
         </button>
       ) : null}

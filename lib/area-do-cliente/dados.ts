@@ -44,8 +44,22 @@ export function falasDaConversa(
       quando: l.created_at,
     });
   }
-  return falas.sort((a, b) => (a.quando < b.quando ? -1 : 1));
+  falas.sort((a, b) => (a.quando < b.quando ? -1 : 1));
+  // O mesmo texto, do mesmo lado, logo em seguida é reenvio (retentativa, envio
+  // pelo número novo), não fala nova: quem relê vê uma vez só.
+  return falas.filter((f, i) => {
+    const antes = falas[i - 1];
+    return !(
+      antes &&
+      antes.de === f.de &&
+      antes.texto === f.texto &&
+      new Date(f.quando).getTime() - new Date(antes.quando).getTime() < REENVIO_DENTRO_DE_MS
+    );
+  });
 }
+
+/** Até quanto tempo depois o mesmo texto repetido ainda conta como reenvio. */
+const REENVIO_DENTRO_DE_MS = 6 * 3_600_000;
 
 export interface MensagemComMidia {
   id: string;
