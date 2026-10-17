@@ -153,6 +153,12 @@ import { PAUSA_ANTES_DA_PRIMEIRA, RITMO_PADRAO, pausaEntreBolhas, sinalizaDigita
 import { buscaValorCombinado, criaRetornoDbPg } from '@/lib/followup/retorno-pg';
 import { blocoDaEntregaNaConversa, blocoDaOfertaDoCatalogo } from '@/lib/catalogo/bloco-do-prompt';
 import {
+  blocoDoEncerramento,
+  registrarEncerramento,
+  semAMarcaDeEncerramento,
+  temMarcaDeEncerramento,
+} from '@/lib/contacts/encerrar-acompanhamento';
+import {
   blocoDaAreaNaConversa,
   linkDaAreaNoLugarDaMarca,
   podeReceberOLinkDaArea,
@@ -2405,7 +2411,23 @@ async function executarTurnoDoAgente(
   const tagsDoContato = openingContext.context.contact.tags ?? [];
   const catalogoDoAgente = agentConfig?.catalog ?? null;
   const temPosVenda = catalogoDoAgente !== null || (agentConfig?.pricing?.post_sale?.enabled ?? false);
-  if (!preview && temPosVenda && tagsDoContato.includes('pago')) {
+  // Quem pediu para parar o acompanhamento (`consent.marketing.declined_at`, gravado pela marca de
+  // encerramento — `lib/contacts/encerrar-acompanhamento.ts`) não recebe oferta de pós-venda. Lido para
+  // todo pagante: o mesmo dado decide se o bloco que ensina a marca entra no turno.
+  let recusouOfertasNoTurno = false;
+  if (!preview && tagsDoContato.includes('pago')) {
+    try {
+      const { rows } = await pool.query<{ recusou: string | null }>(
+        `select consent->'marketing'->>'declined_at' as recusou from contacts where organization_id = $1 and id = $2`,
+        [tenantId, leadId],
+      );
+      recusouOfertasNoTurno = Boolean(rows[0]?.recusou);
+    } catch {
+      // Na dúvida, NÃO oferece: a falha de leitura não pode virar oferta a quem pediu para parar.
+      recusouOfertasNoTurno = true;
+    }
+  }
+  if (!preview && temPosVenda && tagsDoContato.includes('pago') && !recusouOfertasNoTurno) {
     try {
       const { rows } = await pool.query<{ ultima_compra: unknown }>(
         `select source_metadata->'ultima_compra' as ultima_compra
@@ -2711,6 +2733,9 @@ async function executarTurnoDoAgente(
   // Produto do catálogo entregue NA CONVERSA: o que ela pagou e o que pedir antes entram no bloco de
   // entrega, depois do guia (se houver).
   blocoDaEntrega += blocoDaEntregaNaConversa(entregaNaConversaNoTurno);
+  if (!preview && (openingContext.context.contact.tags ?? []).includes('pago') && !recusouOfertasNoTurno) {
+    blocoDaEntrega += blocoDoEncerramento();
+  }
   // Área do cliente: quem pagou e ainda não recebeu o link pela conversa ganha a marca que vira o link
   // pessoal no envio (`lib/area-do-cliente/link-na-conversa.ts`). Uma vez por pessoa.
   if (
@@ -3814,6 +3839,19 @@ async function executarTurnoDoAgente(
           }
           body = comRelatorio.corpo;
           documentoDoTurno = comRelatorio.documento;
+        }
+        // ENCERRAMENTO: a marca `[[ENCERRAR_ACOMPANHAMENTO]]` sai do texto e grava a recusa no contato.
+        // Gravar falhou: a mensagem sai mesmo assim (a despedida não pode travar), e o aviso fica no log.
+        if (!preview && temMarcaDeEncerramento(body)) {
+          body = semAMarcaDeEncerramento(body);
+          try {
+            await registrarEncerramento(pool, { organizationId: tenantId, contactId: leadId });
+            runLog.info('acompanhamento encerrado a pedido — ofertas e disparos cortados', {});
+          } catch (err) {
+            runLog.warn('não consegui gravar o encerramento do acompanhamento', {
+              erro: err instanceof Error ? err.message.slice(0, 160) : 'desconhecido',
+            });
+          }
         }
         // ÁREA DO CLIENTE: a marca `[[AREA_DO_CLIENTE]]` vira o link pessoal, com o convite criado agora.
         // Área desligada, quem não pagou ou convite que não grava recusa o envio: a marca crua não sai.
