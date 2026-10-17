@@ -77,7 +77,12 @@ ele mesmo criou):
 | `diario/` | dump do banco + sessões do WhatsApp | 8 dias |
 | `semanal/` | o de domingo | 5 semanas |
 | `mensal/` | o do dia 1 | 6 meses |
-| `storage/` | anexos (espelho incremental) | o atual + 30 dias do que saiu (`storage-removidos/`) |
+| `semanal/storage-completo-*.tar` | todos os anexos, num pacote | os 2 últimos (~2,7 GB cada) |
+| `diario/storage-novos-*.tar` | anexos que mudaram nos últimos 2 dias | 8 dias |
+
+Anexos vão em pacote, nunca arquivo a arquivo: são ~15 mil arquivos pequenos e o
+Drive limita a criação por minuto (em 17/10/2026, 204 em 40 min). Restaurar os
+anexos = o último `storage-completo` + os `storage-novos` depois dele, nessa ordem.
 
 Ele confere o dump (gzip e rodapé do `pg_dump`) e o tamanho do que chegou ao
 Drive, e só então grava `/var/backups/deskcomm/ULTIMO_OK`. Log em
