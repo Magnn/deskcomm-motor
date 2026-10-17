@@ -49,7 +49,20 @@ export function blocoDaOfertaDoCatalogo(oferta: OfertaDaVez | null): string {
   ];
   if (recebe !== "") linhas.push(`  O que ela recebe: ${recebe}`);
 
-  if (oferta.jaOferecida) {
+  if (oferta.diaria === true) {
+    if (oferta.jaOferecida) {
+      linhas.push(
+        `- A OFERTA DE HOJE (${nome}, ${valor}) JÁ FOI FEITA. NÃO ofereça de novo nem ofereça outra coisa hoje. Se ELA pedir o link ou disser que quer, mande só o link. Siga o acompanhamento do que ela comprou.`,
+      );
+    } else {
+      linhas.push(
+        `- A OFERTA DE HOJE é ${nome}. Uma oferta por dia: quem já comprou é cliente da casa, e você oferece o próximo passo todos os dias.`,
+        "- ACOLHER ANTES: se NESTA mensagem ela contou uma dificuldade da vida (falta de casa ou de dinheiro, trabalho pesado, solidão, briga, cansaço, decepção) ou algo grave, NÃO ofereça neste turno: acolha com as palavras dela, acompanhe o que ela já comprou e termine com uma pergunta. A oferta fica para a próxima resposta dela.",
+        `- Nos outros casos, ofereça NESTE turno, ligando ao que ela contou, em 2 bolhas: 1ª "Pelo que você me contou, tem algo que combina com este momento: ${nome}. Fica ${valor}, pagamento único. Quer que eu te mande?" 2ª (só se ela disser que sim) o link.`,
+        '- Sem prazo, sem "só hoje", sem vaga, e NUNCA diga que o que ela comprou não funciona, ou que algo ruim acontece, sem este produto. Se ela disser não, agradeça em uma frase e siga o acompanhamento: amanhã vem outra oferta.',
+      );
+    }
+  } else if (oferta.jaOferecida) {
     linhas.push(
       `- Você JÁ ofereceu ${nome} por ${valor} nesta conversa. NÃO ofereça de novo e não insista. Se ELA pedir o link ou disser que quer, mande só o link.`,
     );

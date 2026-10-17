@@ -44,6 +44,8 @@ export interface CompraDoContato {
 export interface MensagemDoHistorico {
   direction: string;
   body?: string | null;
+  /** Quando a mensagem saiu (ISO 8601). Só a oferta diária do catálogo lê. */
+  sent_at?: string | null;
 }
 
 export interface EstadoDoPosVenda {
