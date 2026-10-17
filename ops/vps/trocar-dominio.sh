@@ -122,18 +122,38 @@ done
 if [ "$APLICAR" = 0 ]; then echo "Nada foi aplicado. Rode de novo com --aplicar."; exit 0; fi
 [ "$dns_ok" = 1 ] || { echo "Recusado: acerte o DNS antes (sem isso o certificado não sai)."; exit 1; }
 
-# aplica: cópia de cada arquivo, depois troca, depois valida o Caddy
+# O Caddy é validado ANTES de qualquer arquivo ser gravado. Medido em 17/10/2026: a versão anterior
+# gravava os .env primeiro, o Caddy recusava (o endereço novo já tinha um bloco próprio, criado à mão)
+# e os .env ficavam com os endereços novos enquanto o Caddy seguia nos velhos.
+CANDIDATO="$(mktemp)"; trap 'rm -f "$CANDIDATO"' EXIT
+printf '%s\n' "$NOVO_CADDY" > "$CANDIDATO"
+if ! saida="$(caddy validate --config "$CANDIDATO" --adapter caddyfile 2>&1)"; then
+  echo "Recusado: o Caddyfile novo não valida, e nada foi gravado. O Caddy disse:"
+  printf '%s\n' "$saida" | grep -iE "error|ambiguous" | tail -2
+  echo "Se um endereço novo já tem bloco próprio no Caddyfile, junte-o ao bloco do antigo à mão e rode de novo."
+  exit 1
+fi
+
+# aplica: cópia de cada arquivo, depois troca
 cp -p "$ENV_CRM" "$ENV_CRM.bak-antes-da-troca-$SUFIXO"; printf '%s\n' "$NOVO_CRM" > "$ENV_CRM"
 if [ -f "$ENV_SUPA" ]; then cp -p "$ENV_SUPA" "$ENV_SUPA.bak-antes-da-troca-$SUFIXO"; printf '%s\n' "$NOVO_SUPA" > "$ENV_SUPA"; fi
-cp -p "$CADDY" "$CADDY.bak-antes-da-troca-$SUFIXO"; printf '%s\n' "$NOVO_CADDY" > "$CADDY"
-if ! caddy validate --config "$CADDY" --adapter caddyfile >/dev/null 2>&1; then
-  cp -p "$CADDY.bak-antes-da-troca-$SUFIXO" "$CADDY"
-  echo "Recusado: o Caddyfile novo não valida — restaurado o anterior. Nada foi recarregado."; exit 1
-fi
+cp -p "$CADDY" "$CADDY.bak-antes-da-troca-$SUFIXO"; cp "$CANDIDATO" "$CADDY"
 systemctl reload caddy
 
-# serviços que leem os endereços
-( cd "$(dirname "$ENV_SUPA")" && docker compose up -d auth studio >/dev/null )
+# Serviços que leem os endereços. O projeto e os arquivos do compose vêm do PRÓPRIO contêiner em
+# execução, e `--no-deps` não deixa encostar no banco. Medido em 17/10/2026: `docker compose up` na
+# pasta, sem `-p`, assumiu o projeto `supabase` em vez de `deskcommcrm-supabase` e tentou CRIAR um
+# `supabase-db` novo — só não criou porque o nome fixo do contêiner deu conflito.
+PROJETO_SUPA="$(docker inspect supabase-auth --format '{{index .Config.Labels "com.docker.compose.project"}}' 2>/dev/null || true)"
+ARQUIVOS_SUPA="$(docker inspect supabase-auth --format '{{index .Config.Labels "com.docker.compose.project.config_files"}}' 2>/dev/null || true)"
+if [ -n "$PROJETO_SUPA" ] && [ -n "$ARQUIVOS_SUPA" ]; then
+  ARGS_SUPA=(-p "$PROJETO_SUPA")
+  IFS=',' read -r -a LISTA_SUPA <<< "$ARQUIVOS_SUPA"
+  for f in "${LISTA_SUPA[@]}"; do ARGS_SUPA+=(-f "$f"); done
+  ( cd "$(dirname "$ENV_SUPA")" && docker compose "${ARGS_SUPA[@]}" up -d --no-deps auth studio >/dev/null )
+else
+  echo "Aviso: não achei o contêiner supabase-auth; reinicie o login do Supabase à mão para ler o endereço novo."
+fi
 bash "$RAIZ/ops/vps/deploy.sh" "$(git -C "$RAIZ" rev-parse --short HEAD)" --migrations-aplicadas
 
 for par in "${PARES[@]}"; do

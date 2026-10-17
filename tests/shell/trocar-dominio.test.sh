@@ -12,6 +12,13 @@ erro() { echo "  FALHOU $1"; falhas=$((falhas + 1)); }
 
 mkdir -p "$T/bin" "$T/crm/ops/vps" "$T/supa"
 for c in caddy systemctl docker; do printf '#!/usr/bin/env bash\necho "%s $*" >> "%s/chamadas"\n' "$c" "$T" > "$T/bin/$c"; done
+# o Caddy recusa quando o teste pede (o endereço novo já tinha bloco próprio, em 17/10/2026)
+cat > "$T/bin/caddy" <<EOF
+#!/usr/bin/env bash
+echo "caddy \$*" >> "$T/chamadas"
+[ -f "$T/caddy-recusa" ] && { echo "Error: ambiguous site definition: acassia.tech"; exit 1; }
+exit 0
+EOF
 # DNS de mentira: arquivo "dns" com linhas "host ip"
 cat > "$T/bin/getent" <<EOF
 #!/usr/bin/env bash
@@ -68,6 +75,16 @@ printf 'acassia.tech 9.9.9.9\nacassia.tech 2.57.91.91\nwww.acassia.tech 9.9.9.9\
 if roda --aplicar; then erro "aplicou com registro a mais"; else ok "recusa endereço que aponta também para outro lugar"; fi
 grep -q "DNS ERRADO: acassia.tech" "$T/saida" && ok "diz qual registro sobra" || erro "não apontou o registro a mais"
 cmp -s "$T/crm/.env" "$T/env.orig" && ok "e não tocou no .env" || erro "tocou no .env com DNS errado"
+
+# 2b. o Caddy recusa: NENHUM arquivo é gravado (antes os .env eram gravados primeiro)
+printf 'acassia.tech 9.9.9.9\nwww.acassia.tech 9.9.9.9\napi.acassia.tech 9.9.9.9\n' > "$T/dns"
+touch "$T/caddy-recusa"
+if roda --aplicar; then erro "aplicou com o Caddy recusando"; else ok "Caddy recusando: recusa"; fi
+cmp -s "$T/crm/.env" "$T/env.orig" && cmp -s "$T/Caddyfile" "$T/caddy.orig" && grep -q "^SITE_URL=https://desk.atendiment.sbs$" "$T/supa/.env" \
+  && ok "e nenhum arquivo foi gravado" || erro "gravou arquivo com o Caddy recusando"
+grep -q "ambiguous site definition" "$T/saida" && ok "mostra o motivo do Caddy" || erro "sem o motivo: $(tail -3 "$T/saida")"
+if grep -q "systemctl reload" "$T/chamadas" 2>/dev/null; then erro "recarregou o Caddy"; else ok "e não recarregou"; fi
+rm -f "$T/caddy-recusa"
 
 # 3. com DNS certo, aplica
 printf 'acassia.tech 9.9.9.9\nwww.acassia.tech 9.9.9.9\napi.acassia.tech 9.9.9.9\n' > "$T/dns"
