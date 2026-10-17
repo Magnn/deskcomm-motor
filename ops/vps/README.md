@@ -104,12 +104,14 @@ dele tem a chave `token`).
 ## Trocar o domínio
 
 ```bash
-bash ops/vps/trocar-dominio.sh atendiment.sbs novodominio.com            # mostra o que muda
-bash ops/vps/trocar-dominio.sh atendiment.sbs novodominio.com --aplicar  # aplica
+bash ops/vps/trocar-dominio.sh desk.atendiment.sbs=acassia.tech desk-api.atendiment.sbs=api.acassia.tech            # mostra
+bash ops/vps/trocar-dominio.sh desk.atendiment.sbs=acassia.tech desk-api.atendiment.sbs=api.acassia.tech --aplicar  # aplica
 ```
 
-Antes: registros A de `desk.<novo>` e `desk-api.<novo>` apontando para a VPS (ele
-recusa sem isso). O domínio antigo continua respondendo ao lado do novo; no fim ele
+Cada par é `endereço antigo=endereço novo`, inteiro — o nome pode mudar junto. Endereço novo
+na raiz do domínio ganha o `www.` levando a ele. Antes: cada endereço novo (e o `www` da raiz)
+apontando SÓ para a VPS — ele recusa endereço sem registro e também com registro a mais, como a
+página de estacionamento que o registrador cria sozinho na raiz. O domínio antigo continua respondendo ao lado do novo; no fim ele
 lista o que se troca à mão em cada painel (Meta, Cakto, Stripe, Resend).
 
 ## Rotinas
