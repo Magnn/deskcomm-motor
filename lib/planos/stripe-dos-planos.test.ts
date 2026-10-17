@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { chaveDoPreco, criarStripeDosPlanos, lerAssinaturaDaStripe, situacaoDaAssinatura } from "./stripe-dos-planos";
+import { chaveDoPreco, criarStripeDosPlanos, lerAssinaturaDaStripe, nomeNoExtrato, situacaoDaAssinatura } from "./stripe-dos-planos";
 
 const ORG = "11111111-2222-4333-8444-555555555555";
 const PLANO = { id: "pro", nome: "Pro", precoMensalCentavos: 19_700, numeros: 3, iaMensalCentavosUsd: 1_200 };
@@ -40,6 +40,19 @@ describe("stripe dos planos — regras puras", () => {
     expect(a?.organizationId).toBeNull();
   });
 
+  it("o nome no extrato segue as regras da Stripe — ou não vai", () => {
+    expect(nomeNoExtrato("AcassIA")).toBe("ACASSIA");
+    expect(nomeNoExtrato("Clínica São José")).toBe("CLINICA SAO JOSE");
+    // Os proibidos da Stripe viram espaço; o limite é 22.
+    expect(nomeNoExtrato(`Loja "da" <Ana>*`)).toBe("LOJA DA ANA");
+    expect(nomeNoExtrato("Um nome de marca comprido demais")).toBe("UM NOME DE MARCA COMPR");
+    // Curto demais, sem letra ou vazio: o produto fica sem o campo (vale o nome da conta).
+    expect(nomeNoExtrato("Ana")).toBeNull();
+    expect(nomeNoExtrato("123456")).toBeNull();
+    expect(nomeNoExtrato("東京ストア")).toBeNull();
+    expect(nomeNoExtrato(null)).toBeNull();
+  });
+
   it("objeto que não é assinatura é recusado", () => {
     expect(lerAssinaturaDaStripe({ id: "cs_1" })).toBeNull();
   });
@@ -69,11 +82,24 @@ describe("stripe dos planos — chamadas", () => {
     expect(preco.get("unit_amount")).toBe("19700");
     expect(preco.get("recurring[interval]")).toBe("month");
     expect(preco.get("currency")).toBe("brl");
+    // Sem marca informada, o produto não leva nome no extrato (vale o da conta).
+    expect(preco.has("product_data[statement_descriptor]")).toBe(false);
     const checkout = new URLSearchParams(chamadas[2]!.corpo);
     expect(checkout.get("mode")).toBe("subscription");
     expect(checkout.get("line_items[0][price]")).toBe("price_1");
     expect(checkout.get("subscription_data[metadata][organization_id]")).toBe(ORG);
     expect(checkout.get("customer_email")).toBe("dono@empresa.com");
+  });
+
+  it("o produto do plano leva a marca da instalação como nome no extrato", async () => {
+    const corpos: string[] = [];
+    const fetch = vi.fn(async (url: string, init: RequestInit) => {
+      corpos.push(String(init.body ?? ""));
+      return url.includes("/prices?") ? resposta({ data: [] }) : resposta({ id: "price_2" });
+    });
+    const stripe = criarStripeDosPlanos({ chave: "sk_test_x", marca: "AcassIA" }, { fetch });
+    expect(await stripe.precoDoPlano(PLANO)).toBe("price_2");
+    expect(new URLSearchParams(corpos[1]!).get("product_data[statement_descriptor]")).toBe("ACASSIA");
   });
 
   it("reaproveita o preço que já existe", async () => {
