@@ -7,9 +7,8 @@
 # 2. confere que o dump está inteiro (gzip íntegro e o rodapé do pg_dump);
 # 3. manda ao Drive: diário (8 dias), semanal aos domingos (5 semanas) e mensal
 #    no dia 1 (6 meses), e confere o tamanho do que chegou;
-# 4. espelha os anexos do Storage (2,7 GB em 17/10/2026) de forma INCREMENTAL —
-#    copiar tudo todo dia não cabe no Drive — guardando por 30 dias o que foi
-#    apagado ou trocado;
+# 4. anexos do Storage em pacote: completo por semana, e o que mudou no dia —
+#    o Drive não aguenta 15 mil arquivos soltos (ver o passo 4 abaixo);
 # 5. grava `ULTIMO_OK` só se tudo passou. Qualquer falha sai com erro e fica no
 #    log: backup que falha em silêncio é o pior modo de falha.
 set -euo pipefail
@@ -61,6 +60,8 @@ if [ "$(date +%u)" = 7 ]; then for f in "${ARQUIVOS[@]}"; do rclone copy "$f" "$
 if [ "$(date +%d)" = 01 ]; then for f in "${ARQUIVOS[@]}"; do rclone copy "$f" "$REMOTO/mensal/"; done; fi
 rclone delete "$REMOTO/diario"  --min-age 8d
 rclone delete "$REMOTO/semanal" --min-age 36d 2>/dev/null || true
+# o pacote completo dos anexos tem ~2,7 GB: só os 2 últimos (cabe no Drive gratuito)
+rclone delete "$REMOTO/semanal" --include 'storage-completo-*' --min-age 15d 2>/dev/null || true
 rclone delete "$REMOTO/mensal"  --min-age 190d 2>/dev/null || true
 
 # o dump do dia chegou com o mesmo tamanho?
@@ -68,11 +69,22 @@ remoto="$(rclone size --json "$REMOTO/diario/$(basename "$DB")" | sed -n 's/.*"b
 [ "$remoto" = "$(stat -c %s "$DB")" ] \
   || { echo "ERRO: o dump no Drive tem ${remoto:-0} bytes, o local $(stat -c %s "$DB")"; exit 1; }
 
-# 4. anexos: espelho incremental, com 30 dias do que saiu
+# 4. anexos em PACOTE, nunca arquivo a arquivo: são ~15 mil arquivos pequenos e o
+# Drive limita a criação por minuto (medido em 17/10/2026: 204 em 40 min — a
+# primeira cópia levaria dois dias). Um pacote completo por semana (e na primeira
+# vez) e, todo dia, um pacote só com o que mudou nos últimos 2 dias. Restaurar =
+# o último completo + os diários depois dele. Mídia já é comprimida: tar sem gzip.
 if [ -d "$STORAGE" ]; then
-  rclone sync "$STORAGE" "$REMOTO/storage" --backup-dir "$REMOTO/storage-removidos/$(date +%F)" --fast-list
-  rclone delete "$REMOTO/storage-removidos" --min-age 30d 2>/dev/null || true
-  rclone rmdirs "$REMOTO/storage-removidos" --leave-root 2>/dev/null || true
+  if [ "$(date +%u)" = 7 ] || ! rclone lsf "$REMOTO/semanal/" 2>/dev/null | grep -q '^storage-completo-'; then
+    tar cf "$LOCAL/storage-completo-$TS.tar" -C "$STORAGE" .
+    rclone copy "$LOCAL/storage-completo-$TS.tar" "$REMOTO/semanal/"
+    rm -f "$LOCAL/storage-completo-$TS.tar"
+    echo "anexos: pacote completo enviado"
+  fi
+  ( cd "$STORAGE" && find . -type f -mtime -2 -print0 | tar cf "$LOCAL/storage-novos-$TS.tar" --null -T - )
+  rclone copy "$LOCAL/storage-novos-$TS.tar" "$REMOTO/diario/"
+  echo "anexos: $(tar tf "$LOCAL/storage-novos-$TS.tar" | grep -vc '/$') novo(s) no pacote do dia"
+  rm -f "$LOCAL/storage-novos-$TS.tar"
 fi
 
 date -u +%FT%TZ > "$LOCAL/ULTIMO_OK"
