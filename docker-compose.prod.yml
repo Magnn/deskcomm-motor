@@ -52,6 +52,14 @@ services:
       start_period: 40s
     logging: *default-logging
     networks: [internal]
+    # O banco pelo NOME, quando o Supabase roda nesta mesma máquina. Endereço
+    # fixo do host no .env (ex.: 172.17.0.1) quebra quando o Docker recria a
+    # rede: medido em 17/10/2026, um reinício pôs o docker0 em 172.16.0.1 e o
+    # worker ficou 4 h sem conectar. `host-gateway` é resolvido pelo próprio
+    # Docker a cada criação. Use SUPABASE_DB_URL=...@host.docker.internal:<porta>.
+    # Sem efeito para quem usa o Supabase na nuvem.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
 
   # Worker 24/7 do agent-engine (fusão Vendaval) — cérebro do agente SDR.
@@ -113,6 +121,9 @@ services:
       WAHA_API_BASE_URL: http://waha:3000
     networks:
       - internal
+    # O banco pelo nome — ver o comentário do `app`.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1:8787/healthz"]
       interval: 30s
