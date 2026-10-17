@@ -33,9 +33,13 @@ docker exec supabase-db pg_dump -U postgres -d postgres --no-owner --no-privileg
 mv "$DB.parcial" "$DB"
 
 # Sessões do WhatsApp: só entram se o arquivo tiver sessão dentro (volume errado
-# renderia um .tgz vazio que "dá certo").
+# renderia um .tgz vazio que "dá certo"). O contêiner é achado pelo SERVIÇO do
+# compose, não pelo nome: o nome muda com o projeto (`deskcommcrm-waha-1` até
+# 17/10/2026, `acassia-waha-1` depois), e um nome velho aqui faz o backup sair
+# sem o WhatsApp só com um AVISO no log.
 WAHA=""
-vol="$(docker inspect deskcommcrm-waha-1 --format '{{range .Mounts}}{{if eq .Destination "/app/.sessions"}}{{if .Name}}{{.Name}}{{else}}{{.Source}}{{end}}{{end}}{{end}}' 2>/dev/null || true)"
+waha_id="$(docker ps -q --filter label=com.docker.compose.service=waha | head -1)"
+vol="$(docker inspect "${waha_id:-sem-waha}" --format '{{range .Mounts}}{{if eq .Destination "/app/.sessions"}}{{if .Name}}{{.Name}}{{else}}{{.Source}}{{end}}{{end}}{{end}}' 2>/dev/null || true)"
 if [ -n "$vol" ] \
    && docker run --rm -v "$vol:/data:ro" -v "$LOCAL:/out" alpine:3.20 tar czf "/out/.waha-$TS.parcial" -C /data . \
    && [ "$(tar tzf "$LOCAL/.waha-$TS.parcial" | wc -l)" -gt 3 ]; then

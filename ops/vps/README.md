@@ -57,8 +57,11 @@ bash /root/migrar.sh
 bash /opt/deskcommcrm-stack/deskcomm/ops/vps/deploy.sh <commit> --migrations-aplicadas
 ```
 
-O nome do projeto Docker continua `deskcommcrm` (`COMPOSE_PROJECT_NAME` no `.env`):
-contêineres, volumes e rede seguem os mesmos. Para voltar à pasta antiga:
+O nome do projeto Docker era `deskcommcrm` (`COMPOSE_PROJECT_NAME` no `.env`) e virou
+`acassia` em 17/10/2026: os volumes do WhatsApp foram COPIADOS para `acassia_waha-data`
+e `acassia_waha-media` (os `deskcommcrm_*` ficaram como cópia de segurança), e a ponte
+da porta 3300 aponta para `acassia-app-1`. Os comandos abaixo são do tempo em que
+o projeto ainda se chamava `deskcommcrm`. Para voltar à pasta antiga:
 
 ```bash
 cd /opt/deskcommcrm-stack/DeskcommCRM
