@@ -8,9 +8,12 @@
  */
 import * as React from "react";
 
+import { Check, Copy, CreditCard, QrCode, Sparkles } from "lucide-react";
+
 import { copyToClipboard } from "@/lib/clipboard";
 
-import { CAMPO, type TextosDaArea } from "./_client";
+import { type TextosDaArea } from "./_client";
+import { BOTAO, BOTAO_CONTORNO, CAMPO, CARTAO_NOTURNO, SERIF, SOBRETITULO_NOTURNO } from "./_tema";
 
 export async function postarJson<T>(
   url: string,
@@ -39,12 +42,15 @@ export function PagarNaArea({
   cor,
   tx,
   rotulo,
+  escuro = false,
 }: {
   endpoint: string;
   corpo?: Record<string, unknown>;
   cor: string;
   tx: TextosDaArea;
   rotulo?: string;
+  /** Dentro de um cartão noturno: o Pix vira dourado e o cartão, contorno dourado. */
+  escuro?: boolean;
 }) {
   const [pix, setPix] = React.useState<{ copiaECola: string; qrPng: string | null } | null>(null);
   const [enviando, setEnviando] = React.useState<"pix" | "cartao" | null>(null);
@@ -66,49 +72,60 @@ export function PagarNaArea({
 
   if (pix) {
     return (
-      <div className="mt-3 space-y-3" data-testid="area-circulo-pix">
+      <div className="mt-4 space-y-3 rounded-2xl bg-white p-4 text-[#241f31]" data-testid="area-circulo-pix">
         {pix.qrPng ? (
           // eslint-disable-next-line @next/next/no-img-element -- QR hospedado pela Stripe
-          <img src={pix.qrPng} alt="QR Pix" className="mx-auto h-44 w-44" />
+          <img src={pix.qrPng} alt="QR Pix" className="mx-auto size-44" />
         ) : null}
-        <p className="break-all rounded-lg bg-[#f3f4f6] p-3 font-mono text-xs">{pix.copiaECola}</p>
+        <p className="break-all rounded-xl bg-[#f6f1e6] p-3 font-mono text-xs leading-relaxed">{pix.copiaECola}</p>
         <button
           type="button"
           onClick={async () => setCopiado(await copyToClipboard(pix.copiaECola))}
-          className="w-full rounded-xl py-3 font-semibold text-white"
+          className={`${BOTAO} w-full`}
           style={{ background: cor }}
         >
+          {copiado ? <Check className="size-4" aria-hidden /> : <Copy className="size-4" aria-hidden />}
           {copiado ? tx.codigoCopiado : tx.copiarCodigo}
         </button>
-        <p className="text-xs text-[#6b7280]">{tx.depoisDePagar}</p>
+        <p className="text-xs leading-relaxed text-[#6f6880]">{tx.depoisDePagar}</p>
       </div>
     );
   }
   return (
-    <div className="mt-3 space-y-2">
-      {rotulo ? <p className="text-sm font-medium">{rotulo}</p> : null}
+    <div className="mt-4 space-y-2">
+      {rotulo ? <p className="text-sm font-semibold">{rotulo}</p> : null}
       <div className="flex flex-col gap-2 sm:flex-row">
         <button
           type="button"
           disabled={enviando !== null}
           onClick={() => void pagar("pix")}
-          className="flex-1 rounded-xl py-3 font-semibold text-white disabled:opacity-60"
-          style={{ background: cor }}
+          className={`${BOTAO} w-full sm:flex-1`}
+          style={escuro ? { background: "#c9a54e", color: "#1b1433" } : { background: cor }}
           data-testid="area-circulo-pagar-pix"
         >
+          <QrCode className="size-4" aria-hidden />
           {enviando === "pix" ? tx.enviando : tx.pagarComPix}
         </button>
         <button
           type="button"
           disabled={enviando !== null}
           onClick={() => void pagar("cartao")}
-          className="flex-1 rounded-xl border-2 py-3 font-semibold disabled:opacity-60"
-          style={{ borderColor: cor, color: cor }}
+          className={
+            escuro
+              ? "inline-flex h-12 w-full sm:flex-1 items-center justify-center gap-2 rounded-full border border-[#c9a54e]/60 px-6 text-[15px] font-semibold text-[#f0dca8] transition hover:bg-white/5 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45 motion-reduce:transition-none"
+              : `${BOTAO_CONTORNO} w-full sm:flex-1`
+          }
+          style={escuro ? undefined : { borderColor: cor, color: cor }}
         >
+          <CreditCard className="size-4" aria-hidden />
           {enviando === "cartao" ? tx.enviando : tx.pagarComCartao}
         </button>
       </div>
-      {erro ? <p className="text-sm text-[#b91c1c]">{erro}</p> : null}
+      {erro ? (
+        <p role="alert" className={escuro ? "text-sm text-[#f3b2a4]" : "text-sm text-[#a5361f]"}>
+          {erro}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -169,50 +186,59 @@ export function CirculoDoCliente({
 
   if (!ativo) {
     return (
-      <section className="rounded-2xl border-2 bg-white p-5 shadow-sm" style={{ borderColor: cor }} data-testid="area-circulo-oferta">
-        <h2 className="text-base font-semibold">✦ {nome}</h2>
-        <p className="mt-1 text-sm text-[#4b5563]">{tx.circuloConvite}</p>
-        <p className="mt-3 text-lg font-semibold">
-          {preco} <span className="text-sm font-normal text-[#6b7280]">{tx.por30Dias}</span>
+      <section className={CARTAO_NOTURNO} data-testid="area-circulo-oferta">
+        <span className="pointer-events-none absolute -right-16 -top-16 size-48 rounded-full bg-[radial-gradient(circle,rgba(201,165,78,0.35),transparent_70%)]" />
+        <h3 className={`${SERIF} flex items-center gap-2 text-[26px] leading-tight`}>
+          <Sparkles className="size-5 text-[#e2c47a]" aria-hidden />
+          {nome}
+        </h3>
+        <p className="mt-3 text-[15px] leading-relaxed text-[#d9d0e6]">{tx.circuloConvite}</p>
+        <p className="mt-4 flex items-baseline gap-2">
+          <span className={`${SERIF} text-3xl text-[#f0dca8]`}>{preco}</span>
+          <span className="text-sm text-[#b7aecb]">{tx.por30Dias}</span>
         </p>
-        <PagarNaArea endpoint={`/api/v1/area/publica/${slug}/circulo`} cor={cor} tx={tx} />
+        <PagarNaArea endpoint={`/api/v1/area/publica/${slug}/circulo`} cor={cor} tx={tx} escuro />
       </section>
     );
   }
 
   return (
-    <section className="rounded-2xl bg-white p-5 shadow-sm" data-testid="area-circulo">
-      <h2 className="text-base font-semibold">✦ {nome}</h2>
-      <p className="mt-1 text-xs text-[#6b7280]">
+    <section className={CARTAO_NOTURNO} data-testid="area-circulo">
+      <span className="pointer-events-none absolute -right-16 -top-16 size-48 rounded-full bg-[radial-gradient(circle,rgba(201,165,78,0.3),transparent_70%)]" />
+      <h3 className={`${SERIF} flex items-center gap-2 text-[26px] leading-tight`}>
+        <Sparkles className="size-5 text-[#e2c47a]" aria-hidden />
+        {nome}
+      </h3>
+      <p className="mt-1 text-xs text-[#b7aecb]">
         {tx.voceEstaNoCirculo} {ate}
       </p>
-      {renovarJa ? <PagarNaArea endpoint={`/api/v1/area/publica/${slug}/circulo`} cor={cor} tx={tx} rotulo={tx.renovar} /> : null}
+      {renovarJa ? <PagarNaArea endpoint={`/api/v1/area/publica/${slug}/circulo`} cor={cor} tx={tx} rotulo={tx.renovar} escuro /> : null}
 
-      <div className="mt-4 border-t border-[#eef0f3] pt-4">
+      <div className="mt-5 border-t border-white/10 pt-5">
         {doMes ? (
           <article>
-            <h3 className="font-semibold">{doMes.titulo}</h3>
-            <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-[#374151]">{doMes.texto}</p>
+            <h4 className={`${SERIF} text-xl text-[#f0dca8]`}>{doMes.titulo}</h4>
+            <p className="mt-2 whitespace-pre-line text-[15px] leading-relaxed text-[#e6deef]">{doMes.texto}</p>
           </article>
         ) : (
-          <p className="text-sm text-[#6b7280]">{tx.conteudoPreparando}</p>
+          <p className="text-[15px] text-[#b7aecb]">{tx.conteudoPreparando}</p>
         )}
       </div>
 
-      <div className="mt-4 border-t border-[#eef0f3] pt-4">
-        <h3 className="font-semibold">{tx.perguntaDoMes}</h3>
+      <div className="mt-5 border-t border-white/10 pt-5">
+        <h4 className={SOBRETITULO_NOTURNO}>{tx.perguntaDoMes}</h4>
         {aPergunta ? (
-          <div className="mt-2 space-y-2 text-sm">
-            <p className="italic text-[#4b5563]">{aPergunta.pergunta}</p>
+          <div className="mt-3 space-y-3 text-[15px]">
+            <p className={`${SERIF} text-lg italic text-[#f6f0e4]`}>{aPergunta.pergunta}</p>
             {aPergunta.resposta ? (
-              <p className="whitespace-pre-line leading-relaxed text-[#374151]" data-testid="area-circulo-resposta">
+              <p className="whitespace-pre-line leading-relaxed text-[#e6deef]" data-testid="area-circulo-resposta">
                 {aPergunta.resposta}
               </p>
             ) : (
               <>
-                <p className="text-[#6b7280]">{consultando ? tx.consultando : tx.respostaChegando}</p>
+                <p className="text-[#b7aecb]">{consultando ? tx.consultando : tx.respostaChegando}</p>
                 {!consultando ? (
-                  <button type="button" onClick={() => void perguntar({})} className="text-sm underline" style={{ color: cor }}>
+                  <button type="button" onClick={() => void perguntar({})} className="text-sm font-semibold text-[#f0dca8] underline underline-offset-4">
                     {tx.tentarDeNovo}
                   </button>
                 ) : null}
@@ -221,7 +247,7 @@ export function CirculoDoCliente({
           </div>
         ) : (
           <form
-            className="mt-2 space-y-2"
+            className="mt-3 space-y-3"
             onSubmit={(e) => {
               e.preventDefault();
               void perguntar({ pergunta: texto.trim() });
@@ -233,20 +259,25 @@ export function CirculoDoCliente({
               maxLength={600}
               rows={3}
               required
-              className={CAMPO}
+              className={`${CAMPO} border-white/15 bg-white/5 text-[#f6f0e4] placeholder:text-[#9a90b0] focus:bg-white/10`}
               placeholder={tx.perguntaExemplo}
+              aria-label={tx.perguntaDoMes}
             />
             <button
               type="submit"
               disabled={consultando || texto.trim().length < 3}
-              className="rounded-full px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
-              style={{ background: cor }}
+              className={BOTAO}
+              style={{ background: "#c9a54e", color: "#1b1433" }}
             >
               {consultando ? tx.consultando : tx.perguntar}
             </button>
           </form>
         )}
-        {erro ? <p className="mt-2 text-sm text-[#b91c1c]">{erro}</p> : null}
+        {erro ? (
+          <p role="alert" className="mt-2 text-sm text-[#f3b2a4]">
+            {erro}
+          </p>
+        ) : null}
       </div>
     </section>
   );

@@ -13079,6 +13079,7 @@ export const DICIONARIO: Traducoes = {
   "A pergunta da assinante fica com \"sua resposta chega em breve\" sem resposta.": { es: "La pregunta de la suscriptora queda con \"su respuesta llega pronto\" sin respuesta." },
   "Toque para revelar a sua carta": { es: "Toque para revelar su carta" },
   "Sua carta de hoje": { es: "Su carta de hoy" },
+  "Hoje no céu": { es: "Hoy en el cielo" },
   "Seu diário": { es: "Su diario" },
   "Anote o que você pediu, o que sentiu ou o que aconteceu. Só você vê.": { es: "Anote lo que pidió, lo que sintió o lo que pasó. Solo usted lo ve." },
   "Hoje eu…": { es: "Hoy yo…" },

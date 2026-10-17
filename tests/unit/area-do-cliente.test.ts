@@ -367,6 +367,19 @@ describe("a conversa guardada", () => {
       ["3", "voce", "🎤 obrigada"],
     ]);
   });
+
+  it("o mesmo texto reenviado logo em seguida aparece uma vez; repetido dias depois, ou do outro lado, fica", () => {
+    const fala = (id: string, direction: string, body: string, created_at: string) =>
+      ({ id, direction, type: "text", body, media_derived_text: null, created_at });
+    const falas = falasDaConversa([
+      fala("1", "outbound", "Bom dia, vou iniciar hoje", "2026-10-15T09:00:00Z"),
+      fala("2", "outbound", "Bom dia, vou iniciar hoje", "2026-10-15T09:20:00Z"),
+      fala("3", "inbound", "ok", "2026-10-15T09:30:00Z"),
+      fala("4", "inbound", "ok", "2026-10-17T09:30:00Z"),
+      fala("5", "outbound", "ok", "2026-10-17T09:31:00Z"),
+    ]);
+    expect(falas.map((f) => f.id)).toEqual(["1", "3", "4", "5"]);
+  });
 });
 
 describe("materiais", () => {
