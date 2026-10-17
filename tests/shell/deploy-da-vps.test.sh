@@ -7,6 +7,10 @@
 # .env e o registro da versão anterior.
 set -euo pipefail
 
+# O repositório descartável não pode herdar GIT_DIR & cia. de quem roda a suíte.
+unset $(git rev-parse --local-env-vars)
+export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@t
+
 FONTE="$(cd "$(dirname "$0")/../.." && pwd)/ops/vps/deploy.sh"
 T="$(mktemp -d)"
 trap 'rm -rf "$T"' EXIT
@@ -52,7 +56,6 @@ export PATH="$T/bin:$PATH" DUBLE_DIR="$T" DUBLE_LOG="$T/docker.log"
 git init -q -b main "$T/origem"
 (
   cd "$T/origem"
-  git config user.email t@t; git config user.name t
   mkdir -p ops/vps supabase/migrations
   cp "$FONTE" ops/vps/deploy.sh
   echo "services: {}" > docker-compose.prod.yml
