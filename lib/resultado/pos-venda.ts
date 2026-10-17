@@ -7,10 +7,17 @@
  *   oferecido  → mensagem que SAIU para quem já pagou (`pago` no contato) citando o NOME do produto.
  *                A oferta do catálogo nomeia o produto na primeira bolha e só manda o link depois do
  *                "sim" (`lib/catalogo/bloco-do-prompt.ts`), então contar link sozinho subcontaria.
- *   pediu link → mensagem que saiu com o LINK do produto.
+ *   pediu link → mensagem que saiu com link ou código Pix de pagamento (`LINK_DE_PAGAMENTO`, o mesmo
+ *                reconhecimento dos marcos). A cobrança troca o link do catálogo pelo da Stripe ou
+ *                pelo Pix na hora de enviar, e o código costuma ir SOZINHO numa bolha: o pedido vai
+ *                para o produto citado na própria mensagem ou, sem citação, para o último produto
+ *                citado àquela cliente nas 24 h anteriores. Medido em 17/10/2026: procurando só o
+ *                link do catálogo, a Oração dos Sonhos tinha 15 ofertas, 1 compra e 0 links.
  *   comprou    → linha `charge` de `revenue_ledger` cujo produto casa com o do catálogo, pela MESMA
- *                regra que marca a compra no contato (`nomeCasaComCompra`). Estorno, chargeback e
- *                ajuste entram negativos na receita do produto e não contam como compra.
+ *                regra que marca a compra no contato (`nomeCasaComCompra`), e SÓ de quem já tinha
+ *                comprado antes — a primeira compra é a venda, não o pós-venda (o Desbloqueio dos
+ *                Caminhos comprado como primeiro trabalho entrava aqui). Estorno, chargeback e ajuste
+ *                entram negativos e não contam como compra, e só quando a cliente já tinha duas compras.
  *   receita média por cliente → tudo o que já entrou, de sempre, dividido por quem já pagou.
  *
  * As funções de conta são puras; só `lerPainelDoPosVenda` toca o banco.
@@ -21,7 +28,7 @@ import { nomeCasaComCompra } from "@/lib/catalogo/oferta-da-vez";
 import type { ProdutoDoCatalogo } from "@/lib/catalogo/tipos";
 import { lerCatalogo } from "@/lib/catalogo/tipos";
 import { slugDoProduto } from "@/lib/preco/pos-venda";
-import { normalizar } from "@/lib/resultado/marcos";
+import { LINK_DE_PAGAMENTO, normalizar } from "@/lib/resultado/marcos";
 
 export interface MensagemQueSaiu {
   contactId: string;
@@ -35,6 +42,8 @@ export interface FatoDeVenda {
   tipo: string;
   centavos: number;
   produto: string | null;
+  /** Quantas compras (`charge` > 0) a cliente tinha ANTES deste fato. */
+  comprasAntes: number;
 }
 
 export interface LinhaDoProduto {
@@ -75,21 +84,31 @@ export function contarOfertas(
   const nomes = produtos.map((p) => ({ chave: slugDoProduto(p.nome), nome: normalizar(p.nome), link: p.link }));
   const porProduto = new Map(nomes.map((n) => [n.chave, { oferecidas: new Set<string>(), links: new Set<string>() }]));
   const produtosDoDia = new Map<string, Set<string>>();
+  /** O último produto citado a cada cliente, e quando — para dar dono ao Pix que vai sozinho. */
+  const ultimoCitado = new Map<string, { chave: string; em: number }>();
 
-  for (const m of mensagens) {
+  const ordenadas = [...mensagens].sort((a, b) => Date.parse(a.criadaEm) - Date.parse(b.criadaEm));
+  for (const m of ordenadas) {
     const corpo = normalizar(m.body);
-    for (const n of nomes) {
-      if (n.nome === "") continue;
-      const citou = corpo.includes(n.nome);
-      const linkou = m.body.includes(n.link);
-      if (!citou && !linkou) continue;
-      const linha = porProduto.get(n.chave)!;
-      linha.oferecidas.add(m.contactId);
-      if (linkou) linha.links.add(m.contactId);
+    const em = Date.parse(m.criadaEm);
+    const temCobranca = LINK_DE_PAGAMENTO.test(m.body);
+    const citados = nomes.filter((n) => n.nome !== "" && (corpo.includes(n.nome) || m.body.includes(n.link)));
+    for (const n of citados) {
+      porProduto.get(n.chave)!.oferecidas.add(m.contactId);
+      ultimoCitado.set(m.contactId, { chave: n.chave, em });
       const chaveDoDia = `${m.contactId}|${diaNoFuso(m.criadaEm, fuso)}`;
       const doDia = produtosDoDia.get(chaveDoDia) ?? new Set<string>();
       doDia.add(n.chave);
       produtosDoDia.set(chaveDoDia, doDia);
+    }
+    if (!temCobranca && !citados.some((n) => m.body.includes(n.link))) continue;
+    if (citados.length > 0) {
+      for (const n of citados) porProduto.get(n.chave)!.links.add(m.contactId);
+      continue;
+    }
+    const ultimo = ultimoCitado.get(m.contactId);
+    if (ultimo !== undefined && !Number.isNaN(em) && em - ultimo.em <= 24 * 3_600_000) {
+      porProduto.get(ultimo.chave)!.links.add(m.contactId);
     }
   }
   const repetidasNoDia = [...produtosDoDia.values()].filter((s) => s.size > 1).length;
@@ -107,9 +126,13 @@ export function atribuirVendas(
     const comprado = [slugDoProduto(f.produto)];
     const p = produtos.find((x) => nomeCasaComCompra(x.nome, comprado));
     if (p === undefined) continue;
+    const ehCompra = f.tipo === "charge" && f.centavos > 0;
+    // Pós-venda é quem JÁ tinha comprado: a primeira compra fica de fora. Devolução só entra quando
+    // havia ao menos duas compras antes (a dela e a anterior), senão é a devolução da primeira venda.
+    if (f.comprasAntes < (ehCompra ? 1 : 2)) continue;
     const linha = out.get(slugDoProduto(p.nome))!;
     linha.receitaCentavos += f.centavos;
-    if (f.tipo === "charge" && f.centavos > 0) linha.compras += 1;
+    if (ehCompra) linha.compras += 1;
   }
   return out;
 }
@@ -196,10 +219,13 @@ export async function lerPainelDoPosVenda(
         limit $4`,
       [organizationId, periodo.inicio, periodo.fim, TETO_DE_MENSAGENS + 1],
     ),
-    pool.query<{ contact_id: string | null; event_type: string; amount_cents: string | number; produto: string | null }>(
-      `select contact_id, event_type, amount_cents, metadata->>'produto' as produto
-         from revenue_ledger
-        where organization_id = $1 and occurred_at >= $2 and occurred_at < $3`,
+    pool.query<{ contact_id: string | null; event_type: string; amount_cents: string | number; produto: string | null; compras_antes: string | number }>(
+      `select r.contact_id, r.event_type, r.amount_cents, r.metadata->>'produto' as produto,
+              (select count(*) from revenue_ledger x
+                where x.organization_id = r.organization_id and x.contact_id = r.contact_id
+                  and x.event_type = 'charge' and x.amount_cents > 0 and x.occurred_at < r.occurred_at) as compras_antes
+         from revenue_ledger r
+        where r.organization_id = $1 and r.occurred_at >= $2 and r.occurred_at < $3`,
       [organizationId, periodo.inicio, periodo.fim],
     ),
     pool.query<{ clientes: string | number; receita: string | number | null }>(
@@ -215,7 +241,13 @@ export async function lerPainelDoPosVenda(
   return montarPainel(
     produtos,
     mensagens.rows.slice(0, TETO_DE_MENSAGENS).map((m) => ({ contactId: m.contact_id, body: m.body, criadaEm: new Date(m.created_at).toISOString() })),
-    fatos.rows.map((f) => ({ contactId: f.contact_id, tipo: f.event_type, centavos: Number(f.amount_cents), produto: f.produto })),
+    fatos.rows.map((f) => ({
+      contactId: f.contact_id,
+      tipo: f.event_type,
+      centavos: Number(f.amount_cents),
+      produto: f.produto,
+      comprasAntes: Number(f.compras_antes),
+    })),
     { clientes: Number(deSempre.rows[0]?.clientes ?? 0), receitaCentavos: Number(deSempre.rows[0]?.receita ?? 0) },
     fuso,
     cortado,
