@@ -143,6 +143,19 @@ export interface MensagemDaArea {
   quando: string;
 }
 
+/**
+ * As chaves pelas quais uma compra se liga a um serviço: o nome inteiro e, quando
+ * o checkout prefixa uma categoria ("Trabalho Espiritual: Abertura do Coração"),
+ * também o que vem depois dos dois-pontos. Medido em 17/10/2026: 33 das 41
+ * compras da Abertura do Coração vieram com o prefixo.
+ */
+export function chavesDoProduto(produto: string): string[] {
+  const inteiro = slugDoProduto(produto);
+  const i = produto.indexOf(":");
+  const depois = i >= 0 ? slugDoProduto(produto.slice(i + 1)) : "";
+  return depois && depois !== inteiro ? [inteiro, depois] : [inteiro];
+}
+
 /** Um trabalho comprado que tem etapas: a linha do tempo dele para esta pessoa. */
 export interface TrabalhoComEtapas {
   servicoId: string;
@@ -167,7 +180,7 @@ export function trabalhosComEtapas(
   const saida: TrabalhoComEtapas[] = [];
   for (const c of [...compras].sort((a, b) => (a.quando < b.quando ? 1 : -1))) {
     if (c.estornada || !c.produto) continue;
-    const sv = porSlug.get(slugDoProduto(c.produto));
+    const sv = chavesDoProduto(c.produto).map((k) => porSlug.get(k)).find(Boolean);
     if (!sv || vistos.has(sv.id)) continue;
     const etapas = lerEtapas(sv.etapas);
     if (etapas.length === 0) continue;
@@ -372,7 +385,7 @@ export async function carregarDadosDaArea(
       }),
   );
 
-  const comprados = new Set(compras.filter((c) => !c.estornada && c.produto).map((c) => slugDoProduto(c.produto as string)));
+  const comprados = new Set(compras.filter((c) => !c.estornada && c.produto).flatMap((c) => chavesDoProduto(c.produto as string)));
   const servicos: ServicoDaVitrine[] = ((servicosR.data ?? []) as Array<Omit<ServicoDaVitrine, "ja_comprado">>).map((s) => ({
     ...s,
     ja_comprado: comprados.has(slugDoProduto(s.nome)),

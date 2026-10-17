@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { etapaDaVez, lerEtapas, linhaDoTempo, MAXIMO_DE_ETAPAS } from "@/lib/area-do-cliente/etapas";
-import { trabalhosComEtapas } from "@/lib/area-do-cliente/dados";
+import { chavesDoProduto, trabalhosComEtapas } from "@/lib/area-do-cliente/dados";
 import { servicoDaAreaParcialSchema, servicoDaAreaSchema } from "@/lib/area-do-cliente/servicos";
 
 const sete = Array.from({ length: 7 }, (_, i) => ({ titulo: `${i + 1}ª noite`, orientacao: "vela branca às 21h" }));
@@ -76,5 +76,18 @@ describe("os trabalhos com etapas de quem comprou", () => {
       [],
     );
     expect(t.map((x) => x.servicoId)).toEqual(["s3"]);
+  });
+});
+
+describe("o nome do produto no checkout", () => {
+  it("'Categoria: Trabalho' também liga ao serviço 'Trabalho'", () => {
+    expect(chavesDoProduto("Trabalho Espiritual: Abertura do Coração")).toEqual(["trabalho-espiritual-abertura-do-coracao", "abertura-do-coracao"]);
+    expect(chavesDoProduto("Abertura do Coração")).toEqual(["abertura-do-coracao"]);
+    const t = trabalhosComEtapas(
+      [{ id: "c1", produto: "Trabalho Espiritual: Abertura do Coração", valor_cents: 6000, currency: "BRL", quando: "2026-10-10T12:00:00Z", estornada: false }],
+      [{ id: "s1", nome: "Abertura do Coração", etapas: sete.slice(0, 3) }],
+      [],
+    );
+    expect(t.map((x) => x.servicoId)).toEqual(["s1"]);
   });
 });
