@@ -41,6 +41,31 @@ export function stripeDosPlanosLigada(): boolean {
   return configuracaoDaStripeDosPlanos() !== null;
 }
 
+/**
+ * O nome que a fatura do cartão mostra para a ASSINATURA — o `statement_descriptor` do produto do plano.
+ *
+ * Existe porque a mesma conta Stripe pode cobrar coisas diferentes: os planos desta instalação e as
+ * vendas do próprio dono (Pix, boleto, link de cartão), que saem com o nome padrão da conta. Sem isto,
+ * quem assina o sistema lê no extrato o nome da empresa-mãe e não reconhece a cobrança — e cobrança não
+ * reconhecida vira contestação. O nome vem da marca da instalação (`marcaDaSaida(null)`).
+ *
+ * Regras da Stripe para o campo: 5 a 22 caracteres, só alfabeto latino, ao menos uma letra e nenhum de
+ * `< > \ ' " *`. Nome que não cabe nelas devolve `null` e o produto fica sem o campo (vale o da conta) —
+ * mandar um nome recusado faria a Stripe recusar o PREÇO, e ninguém conseguiria assinar.
+ */
+export function nomeNoExtrato(nome: string | null | undefined): string | null {
+  const limpo = (nome ?? "")
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9 .,&-]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 22)
+    .trim();
+  return limpo.length >= 5 && /[A-Z]/.test(limpo) ? limpo : null;
+}
+
 /** A chave estável do preço de um plano. O preço entra nela: preço novo = chave nova. */
 export function chaveDoPreco(plano: Pick<Plano, "id" | "precoMensalCentavos">): string {
   return `plano_${plano.id}_${plano.precoMensalCentavos}`;
@@ -107,8 +132,12 @@ export function lerAssinaturaDaStripe(objeto: Record<string, unknown>): Assinatu
 
 // ── As chamadas ──────────────────────────────────────────────────────────────────────
 
-export function criarStripeDosPlanos(cfg: Pick<ConfiguracaoDaStripeDosPlanos, "chave">, opts: { fetch?: Fetch } = {}) {
+export function criarStripeDosPlanos(
+  cfg: Pick<ConfiguracaoDaStripeDosPlanos, "chave"> & { marca?: string | null },
+  opts: { fetch?: Fetch } = {},
+) {
   const chamar: ChamadaDaStripe = criarChamadaDaStripe({ chave: cfg.chave }, opts);
+  const extrato = nomeNoExtrato(cfg.marca);
 
   /** O preço mensal do plano na Stripe — reencontrado pela chave, ou criado agora (com o produto). */
   async function precoDoPlano(plano: Plano): Promise<string> {
@@ -128,6 +157,7 @@ export function criarStripeDosPlanos(cfg: Pick<ConfiguracaoDaStripeDosPlanos, "c
         lookup_key: chave,
         "product_data[name]": `Plano ${plano.nome}`,
         "product_data[metadata][plan_id]": plano.id,
+        ...(extrato ? { "product_data[statement_descriptor]": extrato } : {}),
         "metadata[plan_id]": plano.id,
       },
       `preco-${chave}`,

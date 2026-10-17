@@ -7,6 +7,7 @@ import { revalidatePath } from "next/cache";
 import { audit } from "@/lib/audit";
 import { loadAuthUser, resolveActiveOrg } from "@/lib/auth/server";
 import { ROLE_RANK } from "@/lib/auth/types";
+import { marcaDaSaida } from "@/lib/branding/saida";
 import { env } from "@/lib/env";
 import { supportWriteError } from "@/lib/impersonate/support";
 import { logger } from "@/lib/logger";
@@ -57,7 +58,9 @@ export async function assinarPlano(formData: FormData): Promise<void> {
   if (!plano) voltar("plano_desconhecido");
 
   const admin = createAdminClient();
-  const stripe = criarStripeDosPlanos(cfg);
+  // A marca da INSTALAÇÃO (não a da organização que paga): é ela que vende o plano, e é o nome que a
+  // fatura do cartão mostra na assinatura. `marcaDaSaida` nunca lança.
+  const stripe = criarStripeDosPlanos({ ...cfg, marca: (await marcaDaSaida(null)).nome });
   const base = await enderecoDoApp();
   let destino: string;
   try {
