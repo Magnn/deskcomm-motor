@@ -66,12 +66,57 @@ docker compose -f docker-compose.prod.yml --env-file .env up -d worker app sched
 crontab /opt/deskcommcrm-stack/deskcomm/.deploy-crontab.antes
 ```
 
-## O que ainda não está aqui
+## Backup
 
-- O `reverse_proxy` do Caddy do host passa por uma ponte `socat` (porta 3300). Ela
-  aceita a conexão mesmo com o `app` reiniciando, então o Caddy não tem como
-  segurar e repetir a requisição: durante a recriação do `app` o webhook pode levar
-  502. O conserto é o Caddy falar direto com o `app`.
-- Backup automático do banco para fora da VPS.
-- Rotinas do crontab do host ainda chamam o domínio pela internet, com segredo na
-  linha do cron.
+`ops/vps/backup.sh` roda todo dia (cron do host) e manda para o Google Drive
+(`gdrive:DeskcommCRM-backups`, rclone com escopo `drive.file` — enxerga só o que
+ele mesmo criou):
+
+| pasta | o quê | guarda |
+|---|---|---|
+| `diario/` | dump do banco + sessões do WhatsApp | 8 dias |
+| `semanal/` | o de domingo | 5 semanas |
+| `mensal/` | o do dia 1 | 6 meses |
+| `storage/` | anexos (espelho incremental) | o atual + 30 dias do que saiu (`storage-removidos/`) |
+
+Ele confere o dump (gzip e rodapé do `pg_dump`) e o tamanho do que chegou ao
+Drive, e só então grava `/var/backups/deskcomm/ULTIMO_OK`. Log em
+`/var/log/deskcomm-backup.log`. Uma vez por mês `ops/vps/testar-restauracao.sh`
+restaura o último dump num Postgres descartável com a mesma imagem da produção e
+compara as contagens das tabelas principais.
+
+Restaurar de verdade (banco parado para o app): baixe o dump
+(`rclone copy gdrive:DeskcommCRM-backups/diario/db-<data>.sql.gz .`), pare
+`worker`, `app` e `scheduler` e aplique com
+`zcat db-<data>.sql.gz | docker exec -i supabase-db psql -U postgres -d postgres`
+num banco vazio.
+
+O token do Drive mora em `/root/.config/rclone/rclone.conf` (600). Para trocar a
+conta: `rclone authorize "drive" "eyJzY29wZSI6ImRyaXZlLmZpbGUifQ"` numa máquina com
+navegador e cole o resultado em `token = ` (o valor sai em base64; o JSON dentro
+dele tem a chave `token`).
+
+## Trocar o domínio
+
+```bash
+bash ops/vps/trocar-dominio.sh atendiment.sbs novodominio.com            # mostra o que muda
+bash ops/vps/trocar-dominio.sh atendiment.sbs novodominio.com --aplicar  # aplica
+```
+
+Antes: registros A de `desk.<novo>` e `desk-api.<novo>` apontando para a VPS (ele
+recusa sem isso). O domínio antigo continua respondendo ao lado do novo; no fim ele
+lista o que se troca à mão em cada painel (Meta, Cakto, Stripe, Resend).
+
+## Rotinas
+
+As rotinas internas (`event-log-drain`, `followup-flow-worker`, campanha…) rodam
+no contêiner `scheduler`, pela rede do Docker. O crontab do host tem só backup e
+teste de restauração — até 17/10/2026 ele repetia duas rotinas pela internet, uma
+delas com o segredo escrito na linha (cópia em `/root/crontab.bak-antes-de-tirar-duplicatas`).
+
+## Medido e resolvido
+
+- 502 de webhook durante o deploy: o Caddy do host segura e repete por até 90 s,
+  e repete webhook mesmo com a conexão já aberta (`lb_retry_match`). Desde então
+  nenhum webhook levou 502 no log do Caddy; sobra a presença do atendente na
+  tela, que se repete sozinha.
