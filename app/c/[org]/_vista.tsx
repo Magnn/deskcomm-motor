@@ -5,7 +5,7 @@
  * só desenha. Por isso dá para ver a área inteira com dados de exemplo, sem
  * banco nem sessão: é assim que a tela é provada antes de ir ao ar.
  */
-import type { CSSProperties, ReactNode } from "react";
+import type { CSSProperties } from "react";
 import { Check, FileText, Film, Headphones, MessageCircle, Receipt } from "lucide-react";
 
 import type { DadosDaArea } from "@/lib/area-do-cliente/dados";
@@ -24,6 +24,7 @@ import {
   VitrineObservada,
   type TextosDaArea,
 } from "./_client";
+import { AbasDaArea, BotaoIrParaAba, type AbaDaArea } from "./_abas";
 import { CirculoDoCliente } from "./_circulo";
 import { LuaDeHoje } from "./_lua";
 import { AnoPessoalDoCliente, PresenteDoCliente, type TextosDasOfertas } from "./_ofertas";
@@ -36,18 +37,6 @@ const ICONE_DO_MATERIAL = { documento: FileText, audio: Headphones, video: Film 
 /** O brilho da cor da empresa no alto do céu. */
 export function brilho(cor: string): CSSProperties {
   return { background: `radial-gradient(120% 70% at 50% -10%, ${cor}8c, transparent 70%)` };
-}
-
-/** O título de um bloco grande da página (Meu espaço, Explorar): serifa e um fio dourado. */
-function TituloDoBloco({ id, children }: { id: string; children: ReactNode }) {
-  return (
-    <div className="flex items-center gap-3 px-1 pt-6">
-      <h2 id={id} className={`${SERIF} scroll-mt-6 text-[26px] text-[#241f31]`}>
-        {children}
-      </h2>
-      <span className="h-px flex-1 bg-gradient-to-r from-[#d9c38f] to-transparent" aria-hidden />
-    </div>
-  );
 }
 
 export interface VistaDeEntradaProps {
@@ -129,6 +118,8 @@ export interface VistaDaAreaProps {
     pergunta: { pergunta: string; resposta: string | null } | null;
   } | null;
   presente: { preco: string; presentes: Array<{ id: string; para: string | null; link: string; usado: boolean }> } | null;
+  /** A aba que abre primeiro (do endereço, `?aba=`); sem ela, Hoje. */
+  abaInicial?: AbaDaArea;
 }
 
 function dinheiro(cents: number, currency: string): string {
@@ -157,12 +148,23 @@ export function VistaDaArea(p: VistaDaAreaProps) {
   const ola = dados.contato.primeiroNome ? `${t("Olá")}, ${dados.contato.primeiroNome}` : t("Olá");
   const vitrine = dados.servicos.filter((s) => !s.ja_comprado);
   const ultimaCompra = dados.compras.find((c) => !c.estornada) ?? null;
-  const temOfertas = Boolean(p.anoPessoal || p.circulo || vitrine.length > 0 || p.presente);
-  const atalho =
-    "rounded-full border border-white/20 bg-white/10 px-4 py-2 backdrop-blur-sm transition hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white";
+  const ultimaDaEmpresa = [...dados.conversa].reverse().find((f) => f.de === "empresa") ?? null;
+  const rotulos = { hoje: t("Hoje"), trabalho: t("Meu trabalho"), conversa: t("Conversa"), explorar: t("Explorar") };
 
-  return (
-    <main className={`${p.classeDaFonte} ${PAGINA} pb-12`}>
+  /** O topo das abas que não são a Hoje: o mesmo céu, mais baixo, com o nome da aba. */
+  const topo = (nome: string) => (
+    <header className={`${CEU} px-5 pb-20 pt-9`}>
+      <div className="pointer-events-none absolute inset-0" style={brilho(cor)} />
+      <div className="relative mx-auto max-w-xl">
+        <p className={SOBRETITULO_NOTURNO}>{titulo}</p>
+        <h1 className={`${SERIF} mt-2 text-[34px] leading-tight`}>{nome}</h1>
+      </div>
+    </header>
+  );
+  const corpo = "relative mx-auto -mt-14 max-w-xl space-y-5 px-4";
+
+  const hoje = (
+    <>
       <header className={`${CEU} px-5 pb-28 pt-10`}>
         <div className="pointer-events-none absolute inset-0" style={brilho(cor)} />
         <div className="relative mx-auto max-w-xl">
@@ -188,20 +190,6 @@ export function VistaDaArea(p: VistaDaAreaProps) {
               ) : null}
             </div>
           </div>
-
-          <nav aria-label={t("Atalhos da sua área")} className="mt-5 flex flex-wrap gap-2 text-sm font-medium">
-            <a href="#atendimento" className={atalho}>
-              {t("Atendimento")}
-            </a>
-            <a href="#meu-espaco" className={atalho}>
-              {t("Meu espaço")}
-            </a>
-            {temOfertas ? (
-              <a href="#ofertas" className={atalho}>
-                {t("Explorar")}
-              </a>
-            ) : null}
-          </nav>
         </div>
       </header>
 
@@ -217,7 +205,45 @@ export function VistaDaArea(p: VistaDaAreaProps) {
           </section>
         ) : null}
 
-        {/* 1 · O que é dela: a compra confirmada, primeiro de tudo. */}
+        {p.carta ? (
+          <CartaDoDia slug={slug} cor={cor} tx={tx} cartaId={p.carta.id} nome={p.carta.nome} mensagem={p.carta.mensagem} foto={p.carta.foto} />
+        ) : null}
+
+        {/* A continuidade: a última palavra da empresa, com o caminho para responder. */}
+        {ultimaDaEmpresa ? (
+          <section className={CARTAO} data-testid="area-ultima-mensagem">
+            <p className={SOBRETITULO}>
+              {t("Última mensagem")} · {dataCurta(ultimaDaEmpresa.quando)}
+            </p>
+            <p className={`${SERIF} mt-3 line-clamp-5 whitespace-pre-line text-[18px] leading-relaxed text-[#3a3347]`}>
+              {ultimaDaEmpresa.texto}
+            </p>
+            <p className="mt-2 text-sm font-semibold text-[#a8842f]">— {titulo}</p>
+            <BotaoIrParaAba
+              aba="conversa"
+              className="mt-4 inline-flex h-11 items-center gap-2 rounded-full px-5 text-[15px] font-semibold text-white"
+              style={{ background: cor }}
+            >
+              <MessageCircle className="size-4" aria-hidden />
+              {t("Responder")}
+            </BotaoIrParaAba>
+          </section>
+        ) : null}
+
+        <DiarioDoCliente
+          slug={slug}
+          cor={cor}
+          tx={tx}
+          entradas={dados.diario.map((d) => ({ id: d.id, texto: d.texto, quando: dataCurta(d.quando) }))}
+        />
+      </div>
+    </>
+  );
+
+  const trabalho = (
+    <>
+      {topo(rotulos.trabalho)}
+      <div className={corpo}>
         {ultimaCompra ? (
           <section className={CARTAO} data-testid="area-compra-confirmada">
             <div className="flex items-start gap-4">
@@ -244,34 +270,11 @@ export function VistaDaArea(p: VistaDaAreaProps) {
               {t("Ver recibo")}
             </a>
           </section>
-        ) : null}
-
-        {p.carta ? (
-          <CartaDoDia
-            slug={slug}
-            cor={cor}
-            tx={tx}
-            cartaId={p.carta.id}
-            nome={p.carta.nome}
-            mensagem={p.carta.mensagem}
-            foto={p.carta.foto}
-          />
-        ) : null}
-
-        {/* 2 · Um canal para falar com a empresa, sempre. */}
-        <div id="atendimento" className="scroll-mt-6 space-y-3">
-          <FaleComAGente slug={slug} cor={cor} tx={tx} inicial={dados.mensagens} idioma={tag} fuso={fuso} />
-          {p.whatsapp ? (
-            <a
-              href={`https://wa.me/${p.whatsapp}`}
-              className="flex h-14 items-center justify-center gap-2 rounded-full bg-[#1f9d55] px-5 text-[16px] font-semibold text-white shadow-[0_10px_24px_-12px_rgba(31,157,85,0.8)] transition hover:brightness-110"
-              data-testid="area-whatsapp"
-            >
-              <MessageCircle className="size-5" aria-hidden />
-              {t("Falar com a gente no WhatsApp")}
-            </a>
-          ) : null}
-        </div>
+        ) : (
+          <section className={CARTAO}>
+            <p className={TEXTO_SUAVE}>{t("Quando você comprar um trabalho, ele aparece aqui, com tudo o que a gente te enviar.")}</p>
+          </section>
+        )}
 
         {dados.leitura.length > 0 ? (
           <section className={CARTAO} data-testid="area-leitura">
@@ -327,15 +330,6 @@ export function VistaDaArea(p: VistaDaAreaProps) {
           </section>
         ) : null}
 
-        {/* 3 · A conversa de WhatsApp, guardada: é onde a entrega em texto aconteceu. */}
-        {dados.conversa.length > 0 ? (
-          <ConversaGuardada
-            tx={tx}
-            empresa={titulo}
-            falas={dados.conversa.map((f) => ({ id: f.id, de: f.de, texto: f.texto, quando: dataCurta(f.quando) }))}
-          />
-        ) : null}
-
         {dados.compras.length > 1 ? (
           <section className={CARTAO} data-testid="area-compras">
             <TituloDaSecao titulo={t("Suas compras")} />
@@ -362,20 +356,42 @@ export function VistaDaArea(p: VistaDaAreaProps) {
           </section>
         ) : null}
 
-        {/* 4 · Os motivos para voltar. */}
-        <TituloDoBloco id="meu-espaco">{t("Meu espaço")}</TituloDoBloco>
-        <DiarioDoCliente
-          slug={slug}
-          cor={cor}
-          tx={tx}
-          entradas={dados.diario.map((d) => ({ id: d.id, texto: d.texto, quando: dataCurta(d.quando) }))}
-        />
-
         {/* Um pedido só por visita: guardar o acesso. Discreto, depois do que é dela. */}
         {!dados.contato.email ? <EmailDoCliente slug={slug} cor={cor} tx={tx} /> : null}
+      </div>
+    </>
+  );
 
-        {/* 5 · As ofertas, só depois de tudo o que é dela. */}
-        {temOfertas ? <TituloDoBloco id="ofertas">{t("Explorar")}</TituloDoBloco> : null}
+  const conversa = (
+    <>
+      {topo(rotulos.conversa)}
+      <div className={corpo}>
+        <FaleComAGente slug={slug} cor={cor} tx={tx} inicial={dados.mensagens} idioma={tag} fuso={fuso} />
+        {p.whatsapp ? (
+          <a
+            href={`https://wa.me/${p.whatsapp}`}
+            className="flex h-14 items-center justify-center gap-2 rounded-full bg-[#1f9d55] px-5 text-[16px] font-semibold text-white shadow-[0_10px_24px_-12px_rgba(31,157,85,0.8)] transition hover:brightness-110"
+            data-testid="area-whatsapp"
+          >
+            <MessageCircle className="size-5" aria-hidden />
+            {t("Falar com a gente no WhatsApp")}
+          </a>
+        ) : null}
+        {dados.conversa.length > 0 ? (
+          <ConversaGuardada
+            tx={tx}
+            empresa={titulo}
+            falas={dados.conversa.map((f) => ({ id: f.id, de: f.de, texto: f.texto, quando: dataCurta(f.quando) }))}
+          />
+        ) : null}
+      </div>
+    </>
+  );
+
+  const explorar = (
+    <>
+      {topo(rotulos.explorar)}
+      <div className={corpo}>
         {p.anoPessoal ? <AnoPessoalDoCliente slug={slug} cor={cor} tx={tx} to={to} {...p.anoPessoal} /> : null}
 
         {p.circulo ? <CirculoDoCliente slug={slug} cor={cor} tx={tx} {...p.circulo} /> : null}
@@ -422,19 +438,34 @@ export function VistaDaArea(p: VistaDaAreaProps) {
         {dados.contato.email && !dados.contato.nascimento ? <AniversarioDoCliente slug={slug} cor={cor} tx={tx} /> : null}
 
         <DesejoDoCliente slug={slug} cor={cor} tx={tx} />
-
-        <footer className="pt-8 text-center" data-testid="area-rodape">
-          <p className={`${SERIF} text-lg text-[#3a3347]`}>{titulo}</p>
-          <p className={`mt-1 ${DETALHE}`}>
-            {t("Área oficial de")} {p.assinatura}
-          </p>
-          <form action={`/c/${slug}/sair`} method="post" className="mt-3">
-            <button type="submit" className="text-xs text-[#8b8497] underline underline-offset-4">
-              {t("Sair deste aparelho")}
-            </button>
-          </form>
-        </footer>
       </div>
+    </>
+  );
+
+  const rodape = (
+    <footer className="mx-auto max-w-xl px-4 pt-10 text-center" data-testid="area-rodape">
+      <p className={`${SERIF} text-lg text-[#3a3347]`}>{titulo}</p>
+      <p className={`mt-1 ${DETALHE}`}>
+        {t("Área oficial de")} {p.assinatura}
+      </p>
+      <form action={`/c/${slug}/sair`} method="post" className="mt-3">
+        <button type="submit" className="text-xs text-[#8b8497] underline underline-offset-4">
+          {t("Sair deste aparelho")}
+        </button>
+      </form>
+    </footer>
+  );
+
+  return (
+    <main className={`${p.classeDaFonte} ${PAGINA} pb-32`}>
+      <AbasDaArea
+        inicial={p.abaInicial ?? "hoje"}
+        rotulos={rotulos}
+        rotuloDaBarra={t("Atalhos da sua área")}
+        cor={cor}
+        paineis={{ hoje, trabalho, conversa, explorar }}
+        rodape={rodape}
+      />
     </main>
   );
 }

@@ -19,6 +19,7 @@ import { caminhoDoPresente } from "@/lib/area-do-cliente/presente";
 import { MENSAGEM_DO_DIA, cartaDoDia } from "@/lib/area-do-cliente/carta-do-dia";
 import { DIAS_DO_AVISO_DE_RENOVACAO, assinaturaAtiva, diasRestantes, lerAssinatura, mesDoDia } from "@/lib/area-do-cliente/circulo";
 import { carregarDadosDaArea, diaNoFuso, fotoDaCarta } from "@/lib/area-do-cliente/dados";
+import { abaValida } from "@/lib/area-do-cliente/abas";
 import { COR_PADRAO_DA_AREA } from "@/lib/area-do-cliente/config";
 import { registrarEvento } from "@/lib/area-do-cliente/eventos";
 import { nomeDoCookieDaArea, orgDaArea, sessaoDoCookie } from "@/lib/area-do-cliente/sessao";
@@ -33,7 +34,7 @@ import { VistaDaArea, VistaDeEntrada } from "./_vista";
 
 export const dynamic = "force-dynamic";
 
-type Props = { params: Promise<{ org: string }>; searchParams: Promise<{ link?: string }> };
+type Props = { params: Promise<{ org: string }>; searchParams: Promise<{ link?: string; aba?: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { org: slug } = await params;
@@ -56,7 +57,7 @@ function dataCurta(iso: string, fuso: string, tag: string): string {
 
 export default async function AreaDoCliente({ params, searchParams }: Props) {
   const { org: slug } = await params;
-  const { link } = await searchParams;
+  const { link, aba } = await searchParams;
   const idioma = await idiomaDoVisitante(null);
   const t = (texto: string) => traduzir(texto, idioma);
   const tx = textosDoNavegador(t);
@@ -201,6 +202,7 @@ export default async function AreaDoCliente({ params, searchParams }: Props) {
           : null
       }
       presente={ofertaPresente ? { preco: dinheiro(ofertaPresente.preco_cents, "BRL"), presentes } : null}
+      abaInicial={abaValida(aba)}
     />
   );
 }
