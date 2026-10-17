@@ -94,13 +94,25 @@ mostrar ".env do CRM" "$ENV_CRM" "$NOVO_CRM" | sed -E 's/(=.{0,70}).*/\1/'
 [ -f "$ENV_SUPA" ] && mostrar ".env do Supabase" "$ENV_SUPA" "$NOVO_SUPA" | sed -E 's/(=.{0,70}).*/\1/'
 [ -f "$CADDY" ] && mostrar "Caddyfile" "$CADDY" "$NOVO_CADDY"
 
+# O que a INTERNET vê, não o cache desta máquina: o certificado é emitido por quem consulta o DNS
+# público. Medido em 17/10/2026: o resolvedor da hospedagem guardou por horas o registro de
+# estacionamento já apagado, e o DNS público já estava certo. `USAR_GETENT=1` (testes) usa o local.
+RESOLVEDOR="${RESOLVEDOR:-1.1.1.1}"
+enderecos_de() {
+  if [ -z "${USAR_GETENT:-}" ] && command -v dig >/dev/null 2>&1; then
+    dig +short A "$1" "@$RESOLVEDOR" 2>/dev/null | grep -E '^[0-9.]+$' || true
+  else
+    { getent ahostsv4 "$1" 2>/dev/null || true; } | awk '{print $1}'
+  fi
+}
+
 # cada endereço novo aponta SÓ para cá?
 dns_ok=1
 for par in "${PARES[@]}"; do
   novo="${par#*=}"
   hosts=("$novo"); raiz_do_dominio "$novo" && hosts+=("www.$novo")
   for h in "${hosts[@]}"; do
-    ips="$( { getent ahostsv4 "$h" 2>/dev/null || true; } | awk '{print $1}' | sort -u | tr '\n' ' ' | sed 's/ $//')"
+    ips="$(enderecos_de "$h" | sort -u | tr '\n' ' ' | sed 's/ $//')"
     if [ -n "$IP_DA_VPS" ] && [ "$ips" = "$IP_DA_VPS" ]; then echo "  DNS ok: $h → $ips"
     elif [ -z "$ips" ]; then echo "  DNS FALTA: $h → nada (precisa ser ${IP_DA_VPS:-o IP desta VPS})"; dns_ok=0
     else echo "  DNS ERRADO: $h → $ips (precisa ser só ${IP_DA_VPS:-o IP desta VPS}; apague os outros registros)"; dns_ok=0; fi

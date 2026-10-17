@@ -21,7 +21,7 @@ EOF
 printf '#!/usr/bin/env bash\nprintf 200\n' > "$T/bin/curl"
 printf '#!/usr/bin/env bash\necho "deploy $*" >> "%s/chamadas"\n' "$T" > "$T/crm/ops/vps/deploy.sh"
 chmod +x "$T/bin/"*
-export PATH="$T/bin:$PATH" IP_DA_VPS=9.9.9.9 DESKCOMM_DIR="$T/crm" ENV_SUPA="$T/supa/.env" CADDYFILE="$T/Caddyfile"
+export USAR_GETENT=1 PATH="$T/bin:$PATH" IP_DA_VPS=9.9.9.9 DESKCOMM_DIR="$T/crm" ENV_SUPA="$T/supa/.env" CADDYFILE="$T/Caddyfile"
 git init -q "$T/crm"; GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@t git -C "$T/crm" commit -q --allow-empty -m x
 
 cat > "$T/crm/.env" <<'EOF'
