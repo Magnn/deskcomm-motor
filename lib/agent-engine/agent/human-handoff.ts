@@ -106,6 +106,11 @@ export function detectAmbiguousOptOut(message: string): boolean {
  * setado no contato OU alguma conversa dele ainda está silenciada (bot_silenced_until no
  * futuro — 'infinity' sempre vale). Lido no INÍCIO do turno, antes de qualquer chamada
  * de modelo. Só o humano (via CRM) libera.
+ *
+ * Conversa de número ARQUIVADO não segura ninguém: ali o humano não tem mais por
+ * onde responder. Medido em 17/10/2026: 134 contatos silenciados em números que
+ * caíram, e quem deles escrevia para o número novo era ignorado pela IA em
+ * silêncio. Número só parado (STOPPED, não arquivado) volta a subir, então vale.
  */
 export async function isLeadInHandoff(db: pg.Pool, tenantId: string, leadId: string): Promise<boolean> {
   const { rows } = await db.query<{ handoff: boolean }>(
@@ -113,8 +118,10 @@ export async function isLeadInHandoff(db: pg.Pool, tenantId: string, leadId: str
        c.force_human
        or exists (
          select 1 from conversations v
+         left join channel_sessions s on s.id = v.channel_session_id
          where v.organization_id = $1 and v.contact_id = c.id
            and v.bot_silenced_until is not null and v.bot_silenced_until > now()
+           and s.archived_at is null
        )
      ) as handoff
      from contacts c
