@@ -50,6 +50,34 @@ describe("contarOfertas", () => {
     expect(porProduto.get("abertura-da-prosperidade")!.oferecidas.size).toBe(0);
   });
 
+  it("⭐ o código Pix SOZINHO na bolha conta como link pedido do último produto citado a ela", () => {
+    const { porProduto } = contarOfertas(
+      [
+        msg("ana", "Claudia, pra eu te mandar a *Oração dos Sonhos* é só fazer o Pix de R$ 35.", "2026-10-18T15:00:00Z"),
+        msg("ana", "00020101021226740014br.gov.bcb.pix2552pix.ebanx.com/qr/v2/2BC6", "2026-10-18T15:00:05Z"),
+        msg("bia", "00020101021226740014br.gov.bcb.pix2552pix.ebanx.com/qr/v2/XYZ", "2026-10-18T15:00:05Z"),
+      ],
+      PRODUTOS,
+      FUSO,
+    );
+    expect(porProduto.get("oracao-dos-sonhos")!.links.size).toBe(1);
+    expect(porProduto.get("oracao-dos-sonhos")!.oferecidas.size).toBe(1);
+  });
+
+  it("o link da Stripe na mesma mensagem do produto é dele; Pix dias depois não herda o produto", () => {
+    const { porProduto } = contarOfertas(
+      [
+        msg("ana", "Abertura da Prosperidade: https://checkout.stripe.com/c/pay/cs_live_x", "2026-10-18T15:00:00Z"),
+        msg("bia", "Tem a Oração dos Sonhos pra você.", "2026-10-15T15:00:00Z"),
+        msg("bia", "br.gov.bcb.pix codigo", "2026-10-18T15:00:00Z"),
+      ],
+      PRODUTOS,
+      FUSO,
+    );
+    expect(porProduto.get("abertura-da-prosperidade")!.links.size).toBe(1);
+    expect(porProduto.get("oracao-dos-sonhos")!.links.size).toBe(0);
+  });
+
   it("a mesma cliente ofertada duas vezes conta uma", () => {
     const { porProduto } = contarOfertas([msg("ana", "Oração dos Sonhos"), msg("ana", "Oração dos Sonhos de novo")], PRODUTOS, FUSO);
     expect(porProduto.get("oracao-dos-sonhos")!.oferecidas.size).toBe(1);
@@ -80,16 +108,27 @@ describe("atribuirVendas", () => {
   it("o nome do checkout com prefixo casa com o produto; estorno entra negativo e não é compra", () => {
     const v = atribuirVendas(
       [
-        { contactId: "ana", tipo: "charge", centavos: 6000, produto: "Trabalho Espiritual: Abertura da Prosperidade" },
-        { contactId: "bia", tipo: "charge", centavos: 3500, produto: "Oração dos Sonhos" },
-        { contactId: "bia", tipo: "refund", centavos: -3500, produto: "Oração dos Sonhos" },
-        { contactId: "cid", tipo: "charge", centavos: 13000, produto: "Abertura do Coração" },
-        { contactId: "dan", tipo: "charge", centavos: 500, produto: null },
+        { contactId: "ana", tipo: "charge", centavos: 6000, produto: "Trabalho Espiritual: Abertura da Prosperidade", comprasAntes: 1 },
+        { contactId: "bia", tipo: "charge", centavos: 3500, produto: "Oração dos Sonhos", comprasAntes: 1 },
+        { contactId: "bia", tipo: "refund", centavos: -3500, produto: "Oração dos Sonhos", comprasAntes: 2 },
+        { contactId: "cid", tipo: "charge", centavos: 13000, produto: "Abertura do Coração", comprasAntes: 0 },
+        { contactId: "dan", tipo: "charge", centavos: 500, produto: null, comprasAntes: 3 },
       ],
       PRODUTOS,
     );
     expect(v.get("abertura-da-prosperidade")).toEqual({ compras: 1, receitaCentavos: 6000 });
     expect(v.get("oracao-dos-sonhos")).toEqual({ compras: 1, receitaCentavos: 0 });
+  });
+
+  it("⭐ a PRIMEIRA compra não é pós-venda, mesmo sendo um produto do catálogo — nem a devolução dela", () => {
+    const v = atribuirVendas(
+      [
+        { contactId: "eva", tipo: "charge", centavos: 13099, produto: "Trabalho Espiritual: Abertura da Prosperidade", comprasAntes: 0 },
+        { contactId: "eva", tipo: "refund", centavos: -13099, produto: "Trabalho Espiritual: Abertura da Prosperidade", comprasAntes: 1 },
+      ],
+      PRODUTOS,
+    );
+    expect(v.get("abertura-da-prosperidade")).toEqual({ compras: 0, receitaCentavos: 0 });
   });
 });
 
@@ -121,7 +160,7 @@ describe("textoDoResumoSemanal", () => {
     const semana = montarPainel(
       PRODUTOS,
       [msg("ana", "Oração dos Sonhos"), msg("ana", "https://pay.ex/oracao")],
-      [{ contactId: "ana", tipo: "charge", centavos: 3500, produto: "Oração dos Sonhos" }],
+      [{ contactId: "ana", tipo: "charge", centavos: 3500, produto: "Oração dos Sonhos", comprasAntes: 1 }],
       { clientes: 2, receitaCentavos: 16500 },
       FUSO,
       false,
