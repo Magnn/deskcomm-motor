@@ -29,7 +29,7 @@ import { idiomaDoVisitante } from "@/lib/i18n/idiomaAnonimo";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 import { serifDaArea } from "./_fonte";
-import { textosDasOfertas, textosDoNavegador } from "./_textos";
+import { textosDasEtapas, textosDasOfertas, textosDoNavegador } from "./_textos";
 import { VistaDaArea, VistaDeEntrada } from "./_vista";
 
 export const dynamic = "force-dynamic";
@@ -170,6 +170,7 @@ export default async function AreaDoCliente({ params, searchParams }: Props) {
       t={t}
       tx={tx}
       to={textosDasOfertas(t)}
+      te={textosDasEtapas(t)}
       dados={dados}
       aniversarioNestaSemana={dados.contato.nascimento ? semanaDoAniversario(dados.contato.nascimento, hoje) : false}
       carta={

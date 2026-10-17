@@ -39678,3 +39678,46 @@ alter table public.channel_sessions add column if not exists meta_app_id text;
 
 comment on column public.channel_sessions.meta_app_id is
   'O app da Meta pelo qual o número foi conectado. Nulo = o app em vigor na instalação. É por ele que a renovação do token escolhe a chave certa depois de uma troca de app.';
+-- ---- Área do cliente: as etapas do trabalho e quem já fez cada uma (migration 0934) ----
+alter table public.area_servicos add column if not exists etapas jsonb not null default '[]'::jsonb;
+alter table public.area_servicos drop constraint if exists area_servicos_etapas_forma;
+alter table public.area_servicos add constraint area_servicos_etapas_forma
+  check (jsonb_typeof(etapas) = 'array' and jsonb_array_length(etapas) <= 20);
+
+comment on column public.area_servicos.etapas is
+  'As etapas do trabalho, na ordem: [{"titulo": "1ª noite", "orientacao": "vela branca às 21h"}], até 20. Vazio = o serviço não tem etapas.';
+
+create table if not exists public.area_etapas_feitas (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references public.organizations(id) on delete cascade,
+  contact_id uuid not null references public.contacts(id) on delete cascade,
+  servico_id uuid not null references public.area_servicos(id) on delete cascade,
+  indice integer not null check (indice between 0 and 19),
+  feita_em timestamptz not null default now(),
+  unique (organization_id, contact_id, servico_id, indice)
+);
+create index if not exists area_etapas_feitas_contato_idx
+  on public.area_etapas_feitas (organization_id, contact_id, servico_id);
+
+alter table public.area_etapas_feitas enable row level security;
+drop policy if exists tenant_isolation_area_etapas_feitas_select on public.area_etapas_feitas;
+create policy tenant_isolation_area_etapas_feitas_select on public.area_etapas_feitas
+  for select
+  using (organization_id in (select public.fn_user_org_ids()) or public.fn_is_platform_admin());
+revoke all on public.area_etapas_feitas from anon;
+
+comment on table public.area_etapas_feitas is
+  'Etapas do trabalho que a pessoa marcou como feitas na área do cliente (índice na lista area_servicos.etapas). Só o servidor escreve; a equipe lê pela RLS.';
+
+alter table public.area_eventos drop constraint if exists area_eventos_tipo_check;
+alter table public.area_eventos add constraint area_eventos_tipo_check check (tipo in (
+  'convite_criado', 'entrou', 'visitou', 'material_aberto',
+  'servico_visto', 'checkout_clicado', 'desejo', 'email_salvo', 'saiu',
+  'carta_do_dia', 'diario_escrito', 'aniversario_salvo',
+  'circulo_checkout', 'circulo_ativado', 'pergunta_enviada',
+  'presente_checkout', 'presente_pago', 'presente_usado',
+  'ano_pessoal_checkout', 'ano_pessoal_pago',
+  'etapa_feita'
+));
+
+do $f$ begin perform public.fn_aplicar_travas_de_suporte(); end $f$;

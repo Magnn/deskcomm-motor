@@ -3,6 +3,7 @@
  * navegador não têm o provedor de idioma da equipe.
  */
 import type { TextosDaArea } from "./_client";
+import type { TextosDasEtapas } from "./_etapas";
 import type { TextosDasOfertas } from "./_ofertas";
 
 /** Os textos das partes que rodam no navegador, já traduzidos aqui no servidor. */
@@ -81,5 +82,21 @@ export function textosDasOfertas(t: (s: string) => string): TextosDasOfertas {
     anoPessoalTitulo: t("Seu Ano Pessoal"),
     anoPessoalConvite: t("A leitura do ano que começa no seu aniversário: o tema do ano, uma orientação para cada trimestre e três intenções para você. Após a confirmação do pagamento, a leitura é preparada em texto e aparece aqui na sua área."),
     anoPessoalPreparando: t("A leitura do seu ano está sendo preparada…"),
+  };
+}
+
+/** Os textos das etapas do trabalho, já traduzidos. */
+export function textosDasEtapas(t: (s: string) => string): TextosDasEtapas {
+  return {
+    etapaDeHoje: t("Sua etapa de hoje"),
+    de: t("de"),
+    fizEstaEtapa: t("Fiz esta etapa"),
+    desfazer: t("desfazer"),
+    feitaEm: t("feita em"),
+    verTrabalho: t("Ver o trabalho inteiro"),
+    concluido: t("Você concluiu todas as etapas"),
+    etapasFeitas: t("etapas feitas"),
+    naoFoiPossivel: t("Não foi possível agora. Tente de novo."),
+    semConexao: t("Sem conexão. Confira a internet e tente de novo."),
   };
 }

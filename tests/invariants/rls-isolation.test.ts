@@ -309,6 +309,11 @@ beforeAll(() => {
           insert into public.area_assinaturas (organization_id, contact_id, valido_ate)
             values (v_org, v_contact, now() + interval '30 days');
         end if;
+        -- 0934: as etapas que a pessoa marcou (a equipe lê o progresso).
+        if not exists (select 1 from public.area_etapas_feitas where organization_id = v_org) then
+          insert into public.area_etapas_feitas (organization_id, contact_id, servico_id, indice)
+            select v_org, v_contact, sv.id, 0 from public.area_servicos sv where sv.organization_id = v_org limit 1;
+        end if;
         if not exists (select 1 from public.area_mensagens where organization_id = v_org) then
           insert into public.area_mensagens (organization_id, contact_id, autor, texto)
             values (v_org, v_contact, 'cliente', 'mensagem de invariante');
@@ -689,6 +694,8 @@ export const TABLES = [
   "area_assinaturas",
   "area_conteudos",
   "area_mensagens",
+  // migration 0934 — as etapas que a pessoa marcou.
+  "area_etapas_feitas",
 ] as const;
 
 describe("RLS tenant isolation (fn_user_org_ids pattern)", () => {

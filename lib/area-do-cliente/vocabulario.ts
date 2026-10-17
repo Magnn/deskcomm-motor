@@ -31,6 +31,7 @@ export const TIPOS_DE_EVENTO_DA_AREA = [
   "presente_usado",
   "ano_pessoal_checkout",
   "ano_pessoal_pago",
+  "etapa_feita",
 ] as const;
 export type TipoDeEventoDaArea = (typeof TIPOS_DE_EVENTO_DA_AREA)[number];
 
