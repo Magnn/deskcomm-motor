@@ -237,6 +237,9 @@ jobs:
             # inteira depende — `latest` = topo da main, `stable` = última
             # release — e fazia `latest` oscilar entre os dois.
             type=raw,value=latest,enable=${{ github.ref_type == 'branch' && github.ref_name == 'main' }}
+            # Uma tag IMUTÁVEL por commit da main (`sha-<7>`): é o que o deploy fixa
+            # (`ops/vps/deploy.sh`), para cada versão no ar ter nome e a volta ter alvo.
+            type=sha,prefix=sha-,format=short,enable=${{ github.ref_type == 'branch' && github.ref_name == 'main' }}
             # `stable` NÃO sai daqui, e a razão é a issue #488. Ele já saiu: era
             # mais um `type=raw` nesta lista, e por isso CADA imagem movia o
             # canal sozinha, ao terminar, sem saber se as irmãs conseguiram.
