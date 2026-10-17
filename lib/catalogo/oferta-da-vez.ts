@@ -15,6 +15,13 @@
  *
  * A oferta já feita e não comprada NÃO passa a vez para a seguinte: recusou, a agente não insiste nem
  * troca de produto. A sequência só anda com a compra.
+ *
+ * ─── A oferta diária (`catalogo.oferta_diaria`) ──────────────────────────────────────────────────
+ * Para quem vende a cliente todos os dias: no máximo UMA oferta por dia, e a recusa não trava. Se um
+ * produto foi oferecido nas últimas 24 h, é ele, já feito (nada novo hoje). Senão, o primeiro que ela
+ * pode receber e que não foi oferecido na última semana. Recusou hoje → amanhã vem o próximo da ordem;
+ * todos oferecidos na semana → nada até o mais antigo completar 7 dias. Só enxerga o histórico que o
+ * turno carrega: oferta mais velha que ele conta como não feita.
  */
 import { slugDoProduto, type CompraDoContato, type MensagemDoHistorico } from "@/lib/preco/pos-venda";
 
@@ -58,8 +65,28 @@ export function oQueFaltaNoProduto(p: ProdutoDoCatalogo, produtosComFluxo: reado
 
 export interface OfertaDaVez {
   produto: ProdutoDoCatalogo;
-  /** A agente já mandou o link deste produto nesta conversa. */
+  /** A agente já mandou o link deste produto nesta conversa (na oferta diária: nas últimas 24 h). */
   jaOferecida: boolean;
+  /** O catálogo está na oferta diária — o bloco do turno muda de molde. */
+  diaria?: boolean;
+}
+
+const DIA_MS = 24 * 3_600_000;
+const SEMANA_MS = 7 * DIA_MS;
+
+/**
+ * Quando a agente mandou este link pela última vez. `null` = nunca, no histórico do turno. Mensagem
+ * sem hora legível conta como AGORA: na dúvida, a oferta já foi feita hoje.
+ */
+function ultimaOfertaDoLink(link: string, mensagens: readonly MensagemDoHistorico[], agora: Date): number | null {
+  let ultima: number | null = null;
+  for (const m of mensagens) {
+    if (m.direction !== "outbound" || !(m.body ?? "").includes(link)) continue;
+    const t = m.sent_at ? Date.parse(m.sent_at) : Number.NaN;
+    const quando = Number.isNaN(t) ? agora.getTime() : t;
+    if (ultima === null || quando > ultima) ultima = quando;
+  }
+  return ultima;
 }
 
 /** `null` = o catálogo não tem o que oferecer a esta pessoa neste turno. */
@@ -78,14 +105,29 @@ export function ofertaDaVez(
   const comprados = produtosComprados(compra.tags);
   const desdeOPagamento = agora.getTime() - compra.pagoEm.getTime();
 
-  const produto = catalogo.produtos.find(
-    (p) =>
-      p.ativo &&
-      oQueFaltaNoProduto(p, produtosComFluxo) === null &&
-      !nomeCasaComCompra(p.nome, comprados) &&
-      (p.depois_de === undefined || nomeCasaComCompra(p.depois_de, comprados)) &&
-      desdeOPagamento >= p.espera_horas * 3_600_000,
-  );
+  const podeReceber = (p: ProdutoDoCatalogo) =>
+    p.ativo &&
+    oQueFaltaNoProduto(p, produtosComFluxo) === null &&
+    !nomeCasaComCompra(p.nome, comprados) &&
+    (p.depois_de === undefined || nomeCasaComCompra(p.depois_de, comprados)) &&
+    desdeOPagamento >= p.espera_horas * 3_600_000;
+
+  if (catalogo.oferta_diaria === true) {
+    const quando = (p: ProdutoDoCatalogo) => ultimaOfertaDoLink(p.link, mensagens, agora);
+    const elegiveis = catalogo.produtos.filter(podeReceber);
+    const deHoje = elegiveis.find((p) => {
+      const t = quando(p);
+      return t !== null && agora.getTime() - t < DIA_MS;
+    });
+    if (deHoje !== undefined) return { produto: deHoje, jaOferecida: true, diaria: true };
+    const proxima = elegiveis.find((p) => {
+      const t = quando(p);
+      return t === null || agora.getTime() - t >= SEMANA_MS;
+    });
+    return proxima === undefined ? null : { produto: proxima, jaOferecida: false, diaria: true };
+  }
+
+  const produto = catalogo.produtos.find(podeReceber);
   if (produto === undefined) return null;
 
   const jaOferecida = mensagens.some((m) => m.direction === "outbound" && (m.body ?? "").includes(produto.link));

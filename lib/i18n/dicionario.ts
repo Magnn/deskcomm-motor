@@ -170,6 +170,10 @@ export const DICIONARIO: Traducoes = {
   "Salvar oferta": { es: "Guardar oferta" },
   "Os produtos que o agente pode oferecer a quem já comprou. Ele oferece um por vez, na ordem dos cartões, e só o que a pessoa ainda não tem. O produto da primeira venda continua na aba Preço. Com o catálogo ligado, a oferta de pós-venda da aba Preço deixa de valer.": { es: "Los productos que el agente puede ofrecer a quien ya compró. Ofrece uno por vez, en el orden de las tarjetas, y solo lo que la persona todavía no tiene. El producto de la primera venta sigue en la pestaña Precio. Con el catálogo activado, la oferta de posventa de la pestaña Precio deja de valer." },
   "Usar este catálogo": { es: "Usar este catálogo" },
+  "Oferecer todo dia": { es: "Ofrecer todos los días" },
+  "Uma oferta por dia para quem já comprou. Se a pessoa disser não, no dia seguinte o agente oferece o próximo produto da lista, e o recusado só volta depois de uma semana. Se ela contar uma dificuldade, o agente acolhe primeiro e oferece na resposta seguinte.": {
+    es: "Una oferta por día para quien ya compró. Si la persona dice que no, al día siguiente el agente ofrece el próximo producto de la lista, y el rechazado solo vuelve después de una semana. Si cuenta una dificultad, el agente acoge primero y ofrece en la respuesta siguiente.",
+  },
   "Nenhum produto ainda. Adicione o primeiro que o agente pode oferecer depois da compra.": { es: "Todavía no hay productos. Agrega el primero que el agente puede ofrecer después de la compra." },
   "Falta o fluxo de entrega — não é oferecido": { es: "Falta el flujo de entrega: no se ofrece" },
   "O mesmo nome que ele tem no checkout": { es: "El mismo nombre que tiene en el checkout" },

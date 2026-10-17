@@ -89,6 +89,12 @@ export const catalogoSchema = z
     enabled: z.boolean(),
     /** Em ordem de prioridade: entre os que a pessoa pode receber agora, vale o primeiro. */
     produtos: z.array(produtoDoCatalogoSchema).max(MAX_PRODUTOS_DO_CATALOGO).default([]),
+    /**
+     * `true` = OFERTA DIÁRIA: no máximo uma oferta por dia, e a recusa não trava a sequência — no dia
+     * seguinte vem o próximo produto, e o recusado só volta depois de uma semana. Ausente = o padrão de
+     * sempre (oferecida e não comprada, a vez não passa). Ver `ofertaDaVez`.
+     */
+    oferta_diaria: z.boolean().optional(),
   })
   .superRefine((c, ctx) => {
     const vistos = new Set<string>();

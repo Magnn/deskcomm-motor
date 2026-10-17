@@ -64,6 +64,8 @@ interface ProdutoNaTela {
 
 interface Formulario {
   enabled: boolean;
+  /** Oferta diária: uma por dia, e a recusa passa a vez para o próximo produto no dia seguinte. */
+  diaria?: boolean;
   produtos: ProdutoNaTela[];
 }
 
@@ -79,7 +81,7 @@ const PRODUTO_VAZIO: ProdutoNaTela = {
   horas: String(ESPERA_PADRAO_DO_CATALOGO_H),
   ativo: true,
 };
-const VAZIO: Formulario = { enabled: false, produtos: [] };
+const VAZIO: Formulario = { enabled: false, diaria: false, produtos: [] };
 
 /** Item de lista que o servidor aceita: sem aspas duplas, ponto e vírgula nem quebra de linha. */
 const PROIBIDOS_NA_LISTA = ['"', ";", "\n"] as const;
@@ -105,6 +107,7 @@ function formularioInicial(config: Props["config"]): Formulario {
   if (!r.success) return VAZIO;
   return {
     enabled: r.data.enabled,
+    diaria: r.data.oferta_diaria === true,
     produtos: r.data.produtos.map((p) => ({
       nome: p.nome,
       descricao: p.descricao ?? "",
@@ -144,7 +147,7 @@ export function paraCorpo(f: Formulario): { corpo: CatalogoConfig } | { erro: st
       ativo: p.ativo,
     });
   }
-  const r = catalogoSchema.safeParse({ enabled: f.enabled, produtos });
+  const r = catalogoSchema.safeParse({ enabled: f.enabled, ...(f.diaria === true ? { oferta_diaria: true } : {}), produtos });
   if (!r.success) return { erro: r.error.issues[0]?.message ?? "Confira os campos." };
   return { corpo: r.data };
 }
@@ -193,7 +196,7 @@ export function CatalogoDoAgente({ agentId, config, readOnly }: Props) {
     if (!("corpo" in r)) return "";
     const primeiro = r.corpo.produtos.find((p) => p.ativo);
     if (!primeiro) return "";
-    return `${blocoDaOfertaDoCatalogo({ produto: primeiro, jaOferecida: false })}${blocoDaEntregaNaConversa(primeiro)}`.trim();
+    return `${blocoDaOfertaDoCatalogo({ produto: primeiro, jaOferecida: false, diaria: form.diaria === true })}${blocoDaEntregaNaConversa(primeiro)}`.trim();
   }, [form]);
 
   const salvar = async () => {
@@ -236,6 +239,23 @@ export function CatalogoDoAgente({ agentId, config, readOnly }: Props) {
               onCheckedChange={(v) => patch({ enabled: v })}
               disabled={readOnly}
               aria-label={t("Usar este catálogo")}
+            />
+          </div>
+          <div className="flex items-start justify-between gap-4 border-t border-border pt-3">
+            <div className="space-y-1">
+              <h3 className="text-sm font-medium">{t("Oferecer todo dia")}</h3>
+              <p className="max-w-2xl text-sm text-text-muted">
+                {t(
+                  "Uma oferta por dia para quem já comprou. Se a pessoa disser não, no dia seguinte o agente oferece o próximo produto da lista, e o recusado só volta depois de uma semana. Se ela contar uma dificuldade, o agente acolhe primeiro e oferece na resposta seguinte.",
+                )}
+              </p>
+            </div>
+            <Switch
+              checked={form.diaria === true}
+              onCheckedChange={(v) => patch({ diaria: v })}
+              disabled={readOnly}
+              aria-label={t("Oferecer todo dia")}
+              data-testid="catalogo-oferta-diaria"
             />
           </div>
         </Card>

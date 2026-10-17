@@ -179,6 +179,89 @@ describe("ofertaDaVez — uma oferta, e só a quem pode recebê-la", () => {
   });
 });
 
+describe("ofertaDaVez — oferta diária: uma por dia, e a recusa não trava", () => {
+  const tres = catalogo([
+    produto(),
+    produto({ nome: "Oração dos Sonhos", link: "https://pay.exemplo.com/oracao" }),
+    produto({ nome: "Abertura da Prosperidade", entrega: "conversa", preco_cents: 6000, link: "https://pay.exemplo.com/prosperidade" }),
+  ]);
+  const diario = { ...tres, oferta_diaria: true };
+  const ofertou = (link: string, h: number) => ({
+    direction: "outbound",
+    body: `Aqui está: ${link}`,
+    sent_at: horasAtras(h).toISOString(),
+  });
+
+  it("controle: sem a chave, a recusa trava a sequência como sempre", () => {
+    const o = ofertaDaVez(tres, PAGOU(200), [ofertou("https://pay.exemplo.com/sons", 30)], COM_FLUXO, AGORA);
+    expect(o).toMatchObject({ jaOferecida: true, produto: { nome: "Sons Vocálicos" } });
+  });
+
+  it("sem oferta no histórico, o primeiro da ordem, ainda não feito", () => {
+    expect(ofertaDaVez(diario, PAGOU(48), [], COM_FLUXO, AGORA)).toMatchObject({
+      produto: { nome: "Sons Vocálicos" },
+      jaOferecida: false,
+      diaria: true,
+    });
+  });
+
+  it("oferecido há menos de 24 h: é a oferta de hoje, já feita — nada novo", () => {
+    const o = ofertaDaVez(diario, PAGOU(48), [ofertou("https://pay.exemplo.com/sons", 3)], COM_FLUXO, AGORA);
+    expect(o).toMatchObject({ produto: { nome: "Sons Vocálicos" }, jaOferecida: true });
+  });
+
+  it("⭐ recusou ontem: hoje vem o PRÓXIMO da ordem", () => {
+    const o = ofertaDaVez(diario, PAGOU(200), [ofertou("https://pay.exemplo.com/sons", 30)], COM_FLUXO, AGORA);
+    expect(o).toMatchObject({ produto: { nome: "Oração dos Sonhos" }, jaOferecida: false });
+  });
+
+  it("dois recusados na semana: o terceiro", () => {
+    const o = ofertaDaVez(
+      diario,
+      PAGOU(200),
+      [ofertou("https://pay.exemplo.com/sons", 60), ofertou("https://pay.exemplo.com/oracao", 30)],
+      COM_FLUXO,
+      AGORA,
+    );
+    expect(o?.produto.nome).toBe("Abertura da Prosperidade");
+  });
+
+  it("todos oferecidos na semana: nada, até o mais antigo completar 7 dias", () => {
+    const semana = [
+      ofertou("https://pay.exemplo.com/sons", 100),
+      ofertou("https://pay.exemplo.com/oracao", 60),
+      ofertou("https://pay.exemplo.com/prosperidade", 30),
+    ];
+    expect(ofertaDaVez(diario, PAGOU(400), semana, COM_FLUXO, AGORA)).toBeNull();
+    const umaSemanaDepois = new Date(AGORA.getTime() + 70 * 3_600_000);
+    expect(ofertaDaVez(diario, PAGOU(400), semana, COM_FLUXO, umaSemanaDepois)?.produto.nome).toBe("Sons Vocálicos");
+  });
+
+  it("o já comprado sai da roda, e as regras de quem pode receber continuam valendo", () => {
+    const o = ofertaDaVez(diario, PAGOU(200, ["produto:sons-vocalicos"]), [], COM_FLUXO, AGORA);
+    expect(o?.produto.nome).toBe("Oração dos Sonhos");
+    expect(ofertaDaVez(diario, PAGOU(48, ["reembolso"]), [], COM_FLUXO, AGORA)).toBeNull();
+    expect(ofertaDaVez(diario, PAGOU(2), [], COM_FLUXO, AGORA)).toBeNull();
+  });
+
+  it("mensagem sem hora conta como de agora: na dúvida, a oferta de hoje já foi feita", () => {
+    const o = ofertaDaVez(diario, PAGOU(200), [{ direction: "outbound", body: "https://pay.exemplo.com/sons" }], COM_FLUXO, AGORA);
+    expect(o).toMatchObject({ produto: { nome: "Sons Vocálicos" }, jaOferecida: true });
+  });
+
+  it("o bloco do dia manda acolher antes quando ela conta uma dificuldade, e não repete a oferta feita", () => {
+    const novo = blocoDaOfertaDoCatalogo({ produto: produto(), jaOferecida: false, diaria: true });
+    expect(novo).toContain("A OFERTA DE HOJE é Sons Vocálicos");
+    expect(novo).toContain("ACOLHER ANTES");
+    expect(novo).toContain("R$ 45");
+    expect(novo).not.toContain("uma vez só");
+    expect(novo).toContain("https://pay.exemplo.com/sons");
+    const feita = blocoDaOfertaDoCatalogo({ produto: produto(), jaOferecida: true, diaria: true });
+    expect(feita).toContain("JÁ FOI FEITA");
+    expect(feita).not.toContain("ACOLHER ANTES");
+  });
+});
+
 describe("entregaNaConversaEmAberto — o que a agente tem de conduzir agora", () => {
   const leitura = produto({ nome: "Leitura de Tarot", entrega: "conversa", pede: ["a pergunta"], link: "https://pay.exemplo.com/tarot" });
   const c = catalogo([produto(), leitura]);

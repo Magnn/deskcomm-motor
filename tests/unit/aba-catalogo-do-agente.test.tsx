@@ -166,6 +166,28 @@ describe("aba Catálogo", () => {
     expect(corpo.produtos.map((p) => p.nome)).toEqual(["Leitura de Tarot", "Sons Vocálicos"]);
   });
 
+  it("Oferecer todo dia: abre desligado, ligar troca o molde da prévia e o servidor recebe oferta_diaria", async () => {
+    renderizar({ catalog: { enabled: true, produtos: [SONS] } });
+    const diaria = screen.getByRole("switch", { name: "Oferecer todo dia" });
+    expect(diaria).toHaveAttribute("aria-checked", "false");
+    expect(previa()).toHaveTextContent("uma vez só");
+
+    fireEvent.click(diaria);
+    expect(previa()).toHaveTextContent("A OFERTA DE HOJE é Sons Vocálicos");
+    expect(previa()).toHaveTextContent("ACOLHER ANTES");
+
+    fireEvent.click(screen.getByRole("button", { name: "Salvar catálogo" }));
+    await waitFor(() => expect(api.put).toHaveBeenCalledTimes(1));
+    const corpo = api.put.mock.calls[0]![1];
+    expect(catalogoSchema.safeParse(corpo).success).toBe(true);
+    expect(corpo).toMatchObject({ enabled: true, oferta_diaria: true });
+  });
+
+  it("catálogo salvo com oferta diária abre com o botão ligado", () => {
+    renderizar({ catalog: { enabled: true, oferta_diaria: true, produtos: [SONS] } });
+    expect(screen.getByRole("switch", { name: "Oferecer todo dia" })).toHaveAttribute("aria-checked", "true");
+  });
+
   it("o selo de falta é o que o SERVIDOR disse, no produto certo", async () => {
     api.get.mockResolvedValue({
       data: { catalog: { enabled: true, produtos: [SONS, LEITURA] }, faltas: ["sem_fluxo_de_entrega", null] },
