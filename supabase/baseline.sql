@@ -39739,3 +39739,17 @@ comment on column public.payment_gateway_connections.stripe_connect_webhook_secr
   is 'Segredo (cifrado) do aviso DA PLATAFORMA para as contas conectadas (/api/v1/webhooks/stripe-connect) — o mesmo em toda linha conectada. Separado de webhook_secret_encrypted para a empresa que troca a chave colada pelo Connect não perder o aviso das cobranças já emitidas.';
 
 do $f$ begin perform public.fn_aplicar_travas_de_suporte(); end $f$;
+
+-- ---- franquia de conversas e excedente informado (migration 0936) ----
+alter table public.organization_subscriptions
+  add column if not exists conversas_no_ciclo integer,
+  add column if not exists excedente_ciclo_inicio timestamptz,
+  add column if not exists excedente_ciclo_fim timestamptz,
+  add column if not exists excedente_informado integer not null default 0,
+  add column if not exists excedente_medido_em timestamptz;
+
+alter table public.organization_subscriptions
+  drop constraint if exists organization_subscriptions_excedente_nao_negativo;
+alter table public.organization_subscriptions
+  add constraint organization_subscriptions_excedente_nao_negativo
+  check (excedente_informado >= 0 and (conversas_no_ciclo is null or conversas_no_ciclo >= 0));

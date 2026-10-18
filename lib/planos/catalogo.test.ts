@@ -24,15 +24,22 @@ describe("catálogo declarado no .env", () => {
   it("lê id:Nome:centavos:números, com espaços e vírgula sobrando", () => {
     expect(lerCatalogoDeclarado(" basico:Básico:4990:1 , full:Plano Full:29900:20, ")).toEqual([
       // Sem o 5º campo e sem plano padrão de mesmo id: o plano não inclui IA da plataforma.
-      { id: "basico", nome: "Básico", precoMensalCentavos: 4990, numeros: 1, iaMensalCentavosUsd: 0 },
-      { id: "full", nome: "Plano Full", precoMensalCentavos: 29900, numeros: 20, iaMensalCentavosUsd: 0 },
+      { id: "basico", nome: "Básico", precoMensalCentavos: 4990, numeros: 1, iaMensalCentavosUsd: 0, conversasMensais: 0 },
+      { id: "full", nome: "Plano Full", precoMensalCentavos: 29900, numeros: 20, iaMensalCentavosUsd: 0, conversasMensais: 0 },
     ]);
   });
 
   it("o 5º campo é a IA do mês em centavos de dólar; ausente, herda do plano padrão de mesmo id", () => {
     expect(lerCatalogoDeclarado("start:Start:9700:1:800,pro:Pro:19700:3")).toEqual([
-      { id: "start", nome: "Start", precoMensalCentavos: 9700, numeros: 1, iaMensalCentavosUsd: 800 },
-      { id: "pro", nome: "Pro", precoMensalCentavos: 19700, numeros: 3, iaMensalCentavosUsd: 1200 },
+      { id: "start", nome: "Start", precoMensalCentavos: 9700, numeros: 1, iaMensalCentavosUsd: 800, conversasMensais: 0 },
+      { id: "pro", nome: "Pro", precoMensalCentavos: 19700, numeros: 3, iaMensalCentavosUsd: 1200, conversasMensais: 0 },
+    ]);
+  });
+
+  it("o 6º campo é a franquia de conversas do mês", () => {
+    expect(lerCatalogoDeclarado("start:Start:29700:1:9000:300,pro:Pro:69700:3:30000")).toEqual([
+      { id: "start", nome: "Start", precoMensalCentavos: 29700, numeros: 1, iaMensalCentavosUsd: 9000, conversasMensais: 300 },
+      { id: "pro", nome: "Pro", precoMensalCentavos: 69700, numeros: 3, iaMensalCentavosUsd: 30000, conversasMensais: 0 },
     ]);
   });
 
@@ -49,7 +56,8 @@ describe("catálogo declarado no .env", () => {
     ["id repetido", "start:Start:9700:1,start:Outro:100:2"],
     ["um item bom e um ruim", "start:Start:9700:1,pro:Pro"],
     ["IA que não é número", "start:Start:9700:1:muita"],
-    ["campo sobrando depois da IA", "start:Start:9700:1:500:x"],
+    ["franquia que não é número", "start:Start:9700:1:500:x"],
+    ["campo sobrando depois da franquia", "start:Start:9700:1:500:300:x"],
   ])("malformado (%s): o catálogo INTEIRO é recusado — nunca meio catálogo", (_caso, declarado) => {
     expect(lerCatalogoDeclarado(declarado)).toBeNull();
   });

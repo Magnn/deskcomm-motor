@@ -146,6 +146,9 @@ function PlanosDaConta({
   const ofertas = produtosDaAssinatura(env.CAKTO_SUBSCRIPTION_PRODUCTS ?? "");
   const emDia = situacao.assinatura?.status === "ativa" && situacao.plano !== null;
   const planoAtualId = emDia ? situacao.plano!.id : null;
+  // O excedente só é prometido na tela quando é cobrado de verdade: preço ligado e venda pela Stripe.
+  const excedenteCentavos = pelaStripe ? env.STRIPE_PLANS_EXCEDENTE_CENTAVOS : 0;
+  const consumo = emDia && situacao.plano!.conversasMensais > 0 ? (situacao.assinatura?.consumo ?? null) : null;
 
   return (
     <div className="flex max-w-4xl flex-col gap-6">
@@ -167,6 +170,15 @@ function PlanosDaConta({
               ? t("A assinatura desta conta não está em dia. Os números conectados pararam de responder sozinhos até a regularização — as conversas continuam chegando.")
               : t("No plano grátis você cria e importa fluxos e monta seus agentes. Para conectar um número de WhatsApp e colocar tudo no ar, escolha um plano abaixo.")}
         </p>
+        {consumo && (
+          <p className="mt-1 text-sm text-muted-foreground" data-testid="consumo-da-franquia">
+            {t("Conversas atendidas pela IA neste ciclo:")} {consumo.conversas.toLocaleString("pt-BR")} {t("de")}{" "}
+            {situacao.plano!.conversasMensais.toLocaleString("pt-BR")}
+            {consumo.conversas > situacao.plano!.conversasMensais && excedenteCentavos > 0
+              ? ` — ${(consumo.conversas - situacao.plano!.conversasMensais).toLocaleString("pt-BR")} ${t("além da franquia, a")} ${precoLegivel(excedenteCentavos)} ${t("cada, na próxima fatura.")}`
+              : "."}
+          </p>
+        )}
       </Card>
 
       <div className="grid gap-4 md:grid-cols-3">
@@ -192,7 +204,13 @@ function PlanosDaConta({
                   ? t("1 número de WhatsApp conectado (QR code ou API oficial).")
                   : `${p.numeros} ${t("números de WhatsApp conectados (QR code ou API oficial).")}`}
               </p>
-              {plataformaTemIa && p.iaMensalCentavosUsd > 0 && (
+              {p.conversasMensais > 0 && (
+                <p className="text-sm text-muted-foreground" data-testid={`plano-${p.id}-franquia`}>
+                  {p.conversasMensais.toLocaleString("pt-BR")} {t("conversas atendidas pela IA por mês.")}
+                  {excedenteCentavos > 0 && ` ${t("Passou disso,")} ${precoLegivel(excedenteCentavos)} ${t("por conversa a mais.")}`}
+                </p>
+              )}
+              {plataformaTemIa && p.iaMensalCentavosUsd > 0 && p.conversasMensais === 0 && (
                 <p className="text-sm text-muted-foreground" data-testid={`plano-${p.id}-ia`}>
                   {t("Inteligência artificial incluída: até")} {iaLegivel(p.iaMensalCentavosUsd)} {t("de uso por mês. Quem prefere usar a própria chave paga a própria IA.")}
                 </p>

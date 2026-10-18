@@ -128,6 +128,10 @@ CRONS="
 # vence nos próximos 20 dias — sem isto o número para de enviar e receber no dia
 # em que o token vence.
 23 4 * * *|60|api/v1/cron/meta-tokens
+# A FRANQUIA DE CONVERSAS DO PLANO. De hora em hora: conta as conversas da IA no
+# ciclo de cada assinatura e informa à Stripe o que passou da franquia. Sem
+# planos pela Stripe ou sem franquia no catálogo, a rodada não faz nada.
+17 * * * *|120|api/v1/cron/excedente-de-conversas
 0 12 * * *|60|api/v1/cron/lgpd-sla-watcher
 30 3 * * *|120|api/v1/cron/kb-conversations-batch
 15 4 * * *|60|api/v1/cron/sync-model-catalog

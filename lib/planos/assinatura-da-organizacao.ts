@@ -33,6 +33,11 @@ export interface Assinatura {
   referencia: string | null;
   motivo: string | null;
   atualizadaEm: string;
+  /**
+   * A última medida da franquia de conversas (cron `excedente-de-conversas`): quantas conversas a IA atendeu
+   * no ciclo e até quando o ciclo vai. `null` = ainda não medido (plano sem franquia, ou fora da Stripe).
+   */
+  consumo?: { conversas: number; cicloFim: string | null; medidoEm: string | null } | null;
 }
 
 /** A instalação cobra plano para conectar número? */
@@ -55,7 +60,7 @@ export function planosDaInstalacao(): readonly Plano[] {
   return PLANOS_PADRAO;
 }
 
-const COLUNAS = "plan_id, status, source, reference, reason, updated_at";
+const COLUNAS = "plan_id, status, source, reference, reason, updated_at, conversas_no_ciclo, excedente_ciclo_fim, excedente_medido_em";
 
 type Linha = {
   plan_id: string;
@@ -64,6 +69,9 @@ type Linha = {
   reference: string | null;
   reason: string | null;
   updated_at: string;
+  conversas_no_ciclo?: number | null;
+  excedente_ciclo_fim?: string | null;
+  excedente_medido_em?: string | null;
 };
 
 function daLinha(l: Linha): Assinatura {
@@ -74,6 +82,9 @@ function daLinha(l: Linha): Assinatura {
     referencia: l.reference,
     motivo: l.reason,
     atualizadaEm: l.updated_at,
+    ...(typeof l.conversas_no_ciclo === "number"
+      ? { consumo: { conversas: l.conversas_no_ciclo, cicloFim: l.excedente_ciclo_fim ?? null, medidoEm: l.excedente_medido_em ?? null } }
+      : {}),
   };
 }
 

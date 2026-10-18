@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { chaveDoPreco, criarStripeDosPlanos, lerAssinaturaDaStripe, nomeNoExtrato, situacaoDaAssinatura } from "./stripe-dos-planos";
 
 const ORG = "11111111-2222-4333-8444-555555555555";
-const PLANO = { id: "pro", nome: "Pro", precoMensalCentavos: 19_700, numeros: 3, iaMensalCentavosUsd: 1_200 };
+const PLANO = { id: "pro", nome: "Pro", precoMensalCentavos: 19_700, numeros: 3, iaMensalCentavosUsd: 1_200, conversasMensais: 0 };
 
 function resposta(corpo: unknown, status = 200): Response {
   return new Response(JSON.stringify(corpo), { status, headers: { "Content-Type": "application/json" } });
@@ -31,7 +31,31 @@ describe("stripe dos planos — regras puras", () => {
       items: { data: [{ id: "si_1", price: { lookup_key: "plano_pro_19700", metadata: { plan_id: "pro" } } }] },
     });
     // O preço cobrado manda sobre o metadado da assinatura (que fica velho depois de uma troca pelo portal).
-    expect(a).toEqual({ id: "sub_1", status: "active", clienteId: "cus_1", organizationId: ORG, planoId: "pro", itemId: "si_1" });
+    expect(a).toEqual({ id: "sub_1", status: "active", clienteId: "cus_1", organizationId: ORG, planoId: "pro", itemId: "si_1", itemDoExcedente: null, cicloInicio: null, cicloFim: null });
+  });
+
+  it("com o excedente na assinatura, o plano continua sendo o item do plano — em qualquer ordem", () => {
+    const a = lerAssinaturaDaStripe({
+      id: "sub_3",
+      status: "active",
+      items: {
+        data: [
+          { id: "si_exc", price: { lookup_key: "excedente_conversa_120" }, current_period_start: 1_790_000_000, current_period_end: 1_792_592_000 },
+          { id: "si_plano", price: { lookup_key: "plano_pro_69700" }, current_period_start: 1_790_000_000, current_period_end: 1_792_592_000 },
+        ],
+      },
+    });
+    expect(a?.planoId).toBe("pro");
+    expect(a?.itemId).toBe("si_plano");
+    expect(a?.itemDoExcedente).toBe("si_exc");
+    expect(a?.cicloInicio?.toISOString()).toBe(new Date(1_790_000_000_000).toISOString());
+    expect(a?.cicloFim?.getTime()).toBe(1_792_592_000_000);
+  });
+
+  it("ciclo no formato antigo da API (na assinatura) também é lido", () => {
+    const a = lerAssinaturaDaStripe({ id: "sub_4", status: "active", current_period_start: 1_790_000_000, items: { data: [{ id: "si_1", price: {} }] } });
+    expect(a?.cicloInicio?.getTime()).toBe(1_790_000_000_000);
+    expect(a?.cicloFim).toBeNull();
   });
 
   it("sem metadado no preço, o plano sai da lookup_key", () => {
