@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import { conectarComStripe } from "@/app/actions/settings/conectarComStripe";
+import { regraTemTaxa, type RegraDaTaxa } from "@/lib/pagamentos/taxa-da-plataforma";
 import { conectarStripe } from "@/app/actions/settings/conectarStripe";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -35,8 +36,8 @@ export interface EstadoDaStripe {
     pronta: boolean;
     /** `null` = não deu para perguntar à Stripe agora. */
     pixAtivo: boolean | null;
-    /** Taxa da plataforma por venda, em centavos (0 = sem taxa). Dita na tela antes de conectar. */
-    taxaCentavos: number;
+    /** A regra da taxa da plataforma por venda. Dita na tela antes de conectar. */
+    taxa: RegraDaTaxa;
   };
 }
 
@@ -91,12 +92,19 @@ function ContaConectada({ estado, idioma }: { estado: EstadoDaStripe["connect"];
             "Você cria a sua conta Stripe por aqui, sem copiar chave nenhuma. As vendas caem no seu banco, e reembolsos e contestações ficam com a sua conta.",
           )}
         </p>
-        {estado.taxaCentavos > 0 && (
+        {regraTemTaxa(estado.taxa) && (
           <p className="text-xs text-muted-foreground" data-testid="stripe-connect-taxa">
-            {t("Taxa da plataforma:")} {reais(estado.taxaCentavos)}{" "}
+            {t("Taxa da plataforma:")}{" "}
+            {[
+              estado.taxa.fixoCentavos > 0 ? reais(estado.taxa.fixoCentavos) : null,
+              estado.taxa.percentualBp > 0 ? `${(estado.taxa.percentualBp / 100).toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%` : null,
+            ]
+              .filter(Boolean)
+              .join(" + ")}{" "}
             {t(
               "por venda paga em reais, descontada pela Stripe na própria cobrança, além das tarifas da Stripe.",
             )}
+            {estado.taxa.tetoCentavos > 0 && <> {t("No máximo")} {reais(estado.taxa.tetoCentavos)} {t("por venda.")}</>}
           </p>
         )}
         <p className="text-xs font-medium" data-testid="stripe-connect-estado">

@@ -118,6 +118,28 @@ const schema = z.object({
       console.warn("[env] STRIPE_CONNECT_TAXA_CENTAVOS inválida — usando 0 (sem taxa).");
       return 0;
     }),
+  /** Parte percentual da taxa por venda, em pontos-base (150 = 1,5%). 0 ou vazio = sem percentual. */
+  STRIPE_CONNECT_TAXA_PERCENTUAL_BP: z.coerce
+    .number()
+    .int()
+    .min(0)
+    .max(5_000)
+    .default(0)
+    .catch(() => {
+      console.warn("[env] STRIPE_CONNECT_TAXA_PERCENTUAL_BP inválida — usando 0 (sem percentual).");
+      return 0;
+    }),
+  /** Teto da taxa por venda, em centavos (990 = R$ 9,90). 0 ou vazio = sem teto. */
+  STRIPE_CONNECT_TAXA_TETO_CENTAVOS: z.coerce
+    .number()
+    .int()
+    .min(0)
+    .max(1_000_000)
+    .default(0)
+    .catch(() => {
+      console.warn("[env] STRIPE_CONNECT_TAXA_TETO_CENTAVOS inválida — usando 0 (sem teto).");
+      return 0;
+    }),
   /**
    * INSTAGRAM (comentou, recebe direct). O id e o segredo são os do produto
    * "Instagram" dentro do app da Meta; o token de verificação é o que se digita ao

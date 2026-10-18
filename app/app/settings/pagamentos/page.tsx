@@ -17,6 +17,7 @@ import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
 import { lerEstadoDaCobranca } from "@/lib/pagamentos/estado-da-conexao";
 import { criarStripeConnect } from "@/lib/pagamentos/stripe-connect";
+import { regraDaTaxaDaInstalacao } from "@/lib/pagamentos/taxa-da-instalacao";
 import { configuracaoDaStripeDosPlanos } from "@/lib/planos/stripe-dos-planos";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -105,7 +106,7 @@ export default async function PagamentosPage() {
       temConta: Boolean(s?.stripe_account_id),
       pronta,
       pixAtivo,
-      taxaCentavos: env.STRIPE_CONNECT_TAXA_CENTAVOS,
+      taxa: regraDaTaxaDaInstalacao(),
     },
   };
   const t = (texto: string) => traduzir(texto, user.idioma);
