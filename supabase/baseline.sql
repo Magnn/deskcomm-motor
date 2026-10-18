@@ -39717,7 +39717,9 @@ alter table public.area_eventos add constraint area_eventos_tipo_check check (ti
   'circulo_checkout', 'circulo_ativado', 'pergunta_enviada',
   'presente_checkout', 'presente_pago', 'presente_usado',
   'ano_pessoal_checkout', 'ano_pessoal_pago',
-  'etapa_feita'
+  'etapa_feita',
+  -- migration 0937 (a Mesa de leituras): o vocabulário final mora aqui, num bloco só.
+  'leitura_checkout', 'leitura_paga', 'leitura_revelada'
 ));
 
 -- ---- A conexão com a Stripe aceita a conta conectada — Stripe Connect (migration 0935) ----
@@ -39779,14 +39781,5 @@ comment on table public.area_leituras is
 alter table public.area_leituras enable row level security;
 revoke all on public.area_leituras from anon, authenticated;
 
-alter table public.area_eventos drop constraint if exists area_eventos_tipo_check;
-alter table public.area_eventos add constraint area_eventos_tipo_check check (tipo in (
-  'convite_criado', 'entrou', 'visitou', 'material_aberto',
-  'servico_visto', 'checkout_clicado', 'desejo', 'email_salvo', 'saiu',
-  'carta_do_dia', 'diario_escrito', 'aniversario_salvo',
-  'circulo_checkout', 'circulo_ativado', 'pergunta_enviada',
-  'presente_checkout', 'presente_pago', 'presente_usado',
-  'ano_pessoal_checkout', 'ano_pessoal_pago',
-  'etapa_feita',
-  'leitura_checkout', 'leitura_paga', 'leitura_revelada'
-));
+-- area_eventos_tipo_check: os tipos `leitura_*` foram acrescentados ao bloco da migration 0934 acima
+-- (uma constraint, um bloco — tests/unit/baseline-constraint-reconstruida.test.ts).
