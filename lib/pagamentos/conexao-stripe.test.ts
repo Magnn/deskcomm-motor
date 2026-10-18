@@ -1,7 +1,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/lib/env", () => ({ env: { STRIPE_CONNECT_TAXA_CENTAVOS: 99 } }));
+vi.mock("@/lib/env", () => ({
+  env: { STRIPE_CONNECT_TAXA_CENTAVOS: 99, STRIPE_CONNECT_TAXA_PERCENTUAL_BP: 150, STRIPE_CONNECT_TAXA_TETO_CENTAVOS: 990 },
+}));
 vi.mock("@/lib/planos/stripe-dos-planos", () => ({
   configuracaoDaStripeDosPlanos: () => ({ chave: "sk_plataforma" }),
 }));
@@ -47,7 +49,7 @@ describe("credencial da cobrança e credencial do aviso são da mesma conta", ()
     expect(await lerConexaoStripe(banco(), "org-1")).toMatchObject({
       chave: "sk_plataforma",
       conta: "acct_empresa",
-      taxaCentavos: 99,
+      taxa: { fixoCentavos: 99, percentualBp: 150, tetoCentavos: 990 },
     });
     expect(filtros).toHaveBeenCalledWith("organization_id", "org-1");
   });

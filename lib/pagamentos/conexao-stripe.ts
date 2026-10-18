@@ -6,12 +6,12 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
 import { configuracaoDaStripeDosPlanos } from "@/lib/planos/stripe-dos-planos";
 import { decryptWebhookSecret } from "@/lib/webhooks/secrets";
 
 import type { CredencialStripe } from "./stripe";
+import { regraDaTaxaDaInstalacao } from "./taxa-da-instalacao";
 
 /**
  * A conexão pronta para cobrar. É uma `CredencialStripe`: quem cobra passa a conexão inteira para
@@ -19,7 +19,7 @@ import type { CredencialStripe } from "./stripe";
  *
  * Dois jeitos de existir:
  *   - CONECTAR COM STRIPE (`stripe_account_id` pronta): `chave` é a da instalação, `conta` é a da empresa e
- *     `taxaCentavos` é a taxa da plataforma. O aviso de pagamento é o da plataforma (`/webhooks/stripe-connect`).
+ *     `taxa` é a regra da taxa da plataforma. O aviso de pagamento é o da plataforma (`/webhooks/stripe-connect`).
  *   - CHAVE COLADA (o jeito antigo): `chave` é a da empresa, sem `conta` e sem taxa.
  * A conta conectada vence quando está pronta para receber.
  */
@@ -64,7 +64,7 @@ async function decifrar(
       organizationId: linha.organization_id,
       chave: daInstalacao,
       conta: linha.stripe_account_id,
-      taxaCentavos: env.STRIPE_CONNECT_TAXA_CENTAVOS,
+      taxa: regraDaTaxaDaInstalacao(),
       segredoDoAviso: segredoDoAviso ?? null,
     };
   }

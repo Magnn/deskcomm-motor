@@ -41,12 +41,12 @@ const PEDIDO = {
 
 describe("taxa da plataforma", () => {
   it("só vai com conta conectada, positiva e menor que o valor", () => {
-    expect(taxaDaPlataforma({ chave: "sk", conta: "acct_1", taxaCentavos: 99 }, 6000)).toBe(99);
-    expect(taxaDaPlataforma({ chave: "sk", taxaCentavos: 99 }, 6000)).toBeNull(); // chave colada: sem taxa
-    expect(taxaDaPlataforma({ chave: "sk", conta: "acct_1", taxaCentavos: 0 }, 6000)).toBeNull();
+    expect(taxaDaPlataforma({ chave: "sk", conta: "acct_1", taxa: { fixoCentavos: 99, percentualBp: 0, tetoCentavos: 0 } }, 6000)).toBe(99);
+    expect(taxaDaPlataforma({ chave: "sk", taxa: { fixoCentavos: 99, percentualBp: 0, tetoCentavos: 0 } }, 6000)).toBeNull(); // chave colada: sem taxa
+    expect(taxaDaPlataforma({ chave: "sk", conta: "acct_1", taxa: { fixoCentavos: 0, percentualBp: 0, tetoCentavos: 0 } }, 6000)).toBeNull();
     // A Stripe recusa taxa igual ou maior que a cobrança — e a cobrança inteira cairia.
-    expect(taxaDaPlataforma({ chave: "sk", conta: "acct_1", taxaCentavos: 99 }, 99)).toBeNull();
-    expect(taxaDaPlataforma({ chave: "sk", conta: "acct_1", taxaCentavos: 99 }, 50)).toBeNull();
+    expect(taxaDaPlataforma({ chave: "sk", conta: "acct_1", taxa: { fixoCentavos: 99, percentualBp: 0, tetoCentavos: 0 } }, 99)).toBeNull();
+    expect(taxaDaPlataforma({ chave: "sk", conta: "acct_1", taxa: { fixoCentavos: 99, percentualBp: 0, tetoCentavos: 0 } }, 50)).toBeNull();
   });
 });
 
@@ -54,7 +54,7 @@ describe("cobrança na conta conectada", () => {
   it("o Pix nasce na conta da empresa, com a taxa da plataforma", async () => {
     const { chamadas, fetch } = gravador(() => PIX);
     await criarClienteStripe(
-      { chave: "sk_live_instalacao", conta: "acct_empresa", taxaCentavos: 99 },
+      { chave: "sk_live_instalacao", conta: "acct_empresa", taxa: { fixoCentavos: 99, percentualBp: 0, tetoCentavos: 0 } },
       { fetch },
     ).criarPix(PEDIDO);
     expect(chamadas[0]!.cabecalhos["Stripe-Account"]).toBe("acct_empresa");
@@ -75,7 +75,7 @@ describe("cobrança na conta conectada", () => {
       url: "https://buy.stripe.com/x",
     }));
     await criarClienteStripe(
-      { chave: "sk", conta: "acct_empresa", taxaCentavos: 99 },
+      { chave: "sk", conta: "acct_empresa", taxa: { fixoCentavos: 99, percentualBp: 0, tetoCentavos: 0 } },
       { fetch },
     ).criarLinkDePagamento({
       valorCentavos: 2500,
@@ -96,7 +96,7 @@ describe("cobrança na conta conectada", () => {
       url: "https://buy.stripe.com/x",
     }));
     await criarClienteStripe(
-      { chave: "sk", conta: "acct_empresa", taxaCentavos: 99 },
+      { chave: "sk", conta: "acct_empresa", taxa: { fixoCentavos: 99, percentualBp: 0, tetoCentavos: 0 } },
       { fetch },
     ).criarLinkDePagamento({
       valorCentavos: 2500,
