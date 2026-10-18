@@ -15,11 +15,32 @@
  * Nada. O Pix da Stripe não pede CPF nem e-mail de quem paga: o código "copia e cola" é pago no app do
  * banco. É a razão de ele existir aqui ao lado do checkout, que pede cadastro.
  */
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 
 export interface CredencialStripe {
   /** Chave secreta ou restrita (`sk_…` / `rk_…`). */
   chave: string;
+  /**
+   * A conta conectada (`acct_…`) em nome de quem a chamada é feita — Stripe Connect. Com ela, a `chave` é a
+   * da INSTALAÇÃO e vai o cabeçalho `Stripe-Account`: a cobrança nasce na conta da empresa (dinheiro no banco
+   * dela, reembolso e contestação no saldo dela). Sem ela, a chave é a da própria empresa, colada na tela.
+   */
+  conta?: string | null;
+  /**
+   * Taxa da plataforma por cobrança, em centavos — só com `conta`. A Stripe a desconta na própria cobrança e
+   * credita na conta da instalação (`application_fee_amount`).
+   */
+  taxaCentavos?: number;
+}
+
+/**
+ * A taxa da plataforma que vai numa cobrança, ou `null` quando não vai: sem conta conectada, sem taxa, ou
+ * cobrança pequena demais para ela (a Stripe exige taxa positiva e MENOR que o valor cobrado — mandar uma
+ * taxa igual ou maior faria a Stripe recusar a cobrança inteira, e a pessoa ficaria sem como pagar).
+ */
+export function taxaDaPlataforma(cred: CredencialStripe, valorCentavos: number): number | null {
+  const taxa = cred.conta ? Math.round(cred.taxaCentavos ?? 0) : 0;
+  return taxa > 0 && taxa < valorCentavos ? taxa : null;
 }
 
 export interface PedidoDePix {
@@ -131,6 +152,7 @@ export function criarChamadaDaStripe(cred: CredencialStripe, opts: { fetch?: Fet
         method: metodo,
         headers: {
           Authorization: `Bearer ${cred.chave}`,
+          ...(cred.conta ? { "Stripe-Account": cred.conta } : {}),
           ...(campos ? { "Content-Type": "application/x-www-form-urlencoded" } : {}),
           ...(idempotencia ? { "Idempotency-Key": idempotencia } : {}),
         },
@@ -177,6 +199,8 @@ export function criarClienteStripe(cred: CredencialStripe, opts: { fetch?: Fetch
         confirm: true,
         description: pedido.descricao.slice(0, 200),
       };
+      const taxaDoPix = taxaDaPlataforma(cred, pedido.valorCentavos);
+      if (taxaDoPix !== null) campos.application_fee_amount = taxaDoPix;
       for (const [k, v] of Object.entries(pedido.metadados)) campos[`metadata[${k}]`] = v.slice(0, 480);
       const pi = await chamar("POST", "/payment_intents", campos, pedido.referencia);
       const qr = ((pi.next_action ?? {}) as { pix_display_qr_code?: { data?: string; image_url_png?: string; expires_at?: number } })
@@ -210,6 +234,8 @@ export function criarClienteStripe(cred: CredencialStripe, opts: { fetch?: Fetch
         confirm: true,
         description: pedido.descricao.slice(0, 200),
       };
+      const taxaDoBoleto = taxaDaPlataforma(cred, pedido.valorCentavos);
+      if (taxaDoBoleto !== null) campos.application_fee_amount = taxaDoBoleto;
       for (const [k, v] of Object.entries(pedido.metadados)) campos[`metadata[${k}]`] = v.slice(0, 480);
       const pi = await chamar("POST", "/payment_intents", campos, pedido.referencia);
       const detalhes = ((pi.next_action ?? {}) as { boleto_display_details?: { number?: string; hosted_voucher_url?: string } }).boleto_display_details;
@@ -233,6 +259,10 @@ export function criarClienteStripe(cred: CredencialStripe, opts: { fetch?: Fetch
         "after_completion[hosted_confirmation][custom_message]": pedido.mensagemDepoisDePagar.slice(0, 500),
         "payment_intent_data[description]": pedido.descricao.slice(0, 200),
       };
+      // A taxa configurada é em reais. Nunca reinterpretar 99 centavos como US$ 0,99 ou € 0,99.
+      // Até existir regra explícita de conversão, links em outras moedas não levam taxa da plataforma.
+      const taxaDoLink = pedido.moeda.toUpperCase() === "BRL" ? taxaDaPlataforma(cred, pedido.valorCentavos) : null;
+      if (taxaDoLink !== null) campos.application_fee_amount = taxaDoLink;
       for (const [k, v] of Object.entries(pedido.metadados)) {
         campos[`metadata[${k}]`] = v.slice(0, 480);
         campos[`payment_intent_data[metadata][${k}]`] = v.slice(0, 480);
@@ -278,6 +308,27 @@ export function criarClienteStripe(cred: CredencialStripe, opts: { fetch?: Fetch
       return { id: String(r.id ?? ""), segredo: r.secret };
     },
   };
+}
+
+/**
+ * O aviso de pagamento DA PLATAFORMA para as contas conectadas (`connect=true`): um endereço só recebe os
+ * pagamentos de todas as empresas conectadas, e o evento traz `account` — é por ela que se acha a empresa.
+ * Criado com a chave da instalação (sem `conta`). Devolve o segredo da assinatura (vem uma vez só).
+ */
+export async function criarAvisoDaPlataforma(
+  cred: CredencialStripe,
+  url: string,
+  opts: { fetch?: Fetch } = {},
+): Promise<{ id: string; segredo: string }> {
+  const r = await criarChamadaDaStripe({ chave: cred.chave }, opts)("POST", "/webhook_endpoints", {
+    url,
+    connect: true,
+    "enabled_events[0]": "payment_intent.succeeded",
+    "enabled_events[1]": "account.updated",
+    description: "Pagamentos e cadastro das contas conectadas",
+  }, `aviso-connect-${createHash("sha256").update(url).digest("hex")}`);
+  if (typeof r.secret !== "string" || r.secret === "") throw new ErroDaStripe("recusada", "a Stripe não devolveu o segredo do aviso");
+  return { id: String(r.id ?? ""), segredo: r.secret };
 }
 
 /** Tolerância do carimbo de tempo do aviso — a mesma que a biblioteca oficial usa. */

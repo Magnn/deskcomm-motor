@@ -68,11 +68,11 @@ export async function pixDoExtraNoLugarDaMarca(e: EntradaDoPixDoExtra): Promise<
     // Pix e cartão saem JUNTOS: medido em 12/10/2026, uma pessoa aceitou a cobrança, disse que só tinha cartão e
     // ficou sem como pagar. Cada um falha por conta própria; só recusa o envio se nenhum dos dois saiu.
     const [pix, link] = await Promise.all([
-      (e.criarPix ?? ((c, p) => criarClienteStripe({ chave: c.chave }).criarPix(p)))(conexao, pedido).catch((err: unknown) => {
+      (e.criarPix ?? ((c, p) => criarClienteStripe(c).criarPix(p)))(conexao, pedido).catch((err: unknown) => {
         e.log.warn('pix da cobrança avulsa não saiu', { conversation_id: e.conversationId, error: (err instanceof Error ? err.message : String(err)).slice(0, 160) });
         return null;
       }),
-      (e.criarLink ?? ((c, p) => criarClienteStripe({ chave: c.chave }).criarLinkDePagamento(p)))(conexao, {
+      (e.criarLink ?? ((c, p) => criarClienteStripe(c).criarLinkDePagamento(p)))(conexao, {
         valorCentavos: marca.extra.price_cents,
         moeda: 'BRL',
         descricao: marca.extra.name,

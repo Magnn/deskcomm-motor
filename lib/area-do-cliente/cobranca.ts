@@ -39,7 +39,7 @@ export async function criarCobrancaDaArea(
 ): Promise<CobrancaCriada> {
   const conexao = await lerConexaoStripe(admin, d.organizationId);
   if (!conexao) throw new SemPagamento();
-  const stripe = criarClienteStripe({ chave: conexao.chave });
+  const stripe = criarClienteStripe(conexao);
   const metadados = {
     organization_id: d.organizationId,
     contact_id: d.contactId,

@@ -39720,4 +39720,22 @@ alter table public.area_eventos add constraint area_eventos_tipo_check check (ti
   'etapa_feita'
 ));
 
+-- ---- A conexão com a Stripe aceita a conta conectada — Stripe Connect (migration 0935) ----
+-- Aditiva: colunas com default e índice parcial; nenhum dado existente muda.
+alter table public.payment_gateway_connections
+  add column if not exists stripe_account_id text;
+alter table public.payment_gateway_connections
+  add column if not exists stripe_pronta boolean not null default false;
+alter table public.payment_gateway_connections
+  add column if not exists stripe_connect_webhook_secret_encrypted text;
+create unique index if not exists payment_gateway_connections_stripe_account_uk
+  on public.payment_gateway_connections (stripe_account_id)
+  where stripe_account_id is not null;
+comment on column public.payment_gateway_connections.stripe_account_id
+  is 'Conta Stripe conectada (acct_…) da organização, criada pelo "Conectar com Stripe". Com ela, as cobranças usam a chave da instalação com o cabeçalho Stripe-Account.';
+comment on column public.payment_gateway_connections.stripe_pronta
+  is 'A Stripe liberou a conta conectada para receber (charges_enabled). Atualizado ao voltar do cadastro e ao abrir a tela.';
+comment on column public.payment_gateway_connections.stripe_connect_webhook_secret_encrypted
+  is 'Segredo (cifrado) do aviso DA PLATAFORMA para as contas conectadas (/api/v1/webhooks/stripe-connect) — o mesmo em toda linha conectada. Separado de webhook_secret_encrypted para a empresa que troca a chave colada pelo Connect não perder o aviso das cobranças já emitidas.';
+
 do $f$ begin perform public.fn_aplicar_travas_de_suporte(); end $f$;
