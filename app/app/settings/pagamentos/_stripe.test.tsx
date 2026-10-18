@@ -20,7 +20,7 @@ function estado(): EstadoDaStripe {
     habilitada: true,
     temChave: false,
     temAviso: false,
-    connect: { disponivel: true, temConta: true, pronta: true, pixAtivo: true, taxaCentavos: 99 },
+    connect: { disponivel: true, temConta: true, pronta: true, pixAtivo: true, taxa: { fixoCentavos: 99, percentualBp: 150, tetoCentavos: 990 } },
   };
 }
 

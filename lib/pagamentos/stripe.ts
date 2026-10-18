@@ -17,6 +17,8 @@
  */
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 
+import { calcularTaxa, type RegraDaTaxa } from "./taxa-da-plataforma";
+
 export interface CredencialStripe {
   /** Chave secreta ou restrita (`sk_…` / `rk_…`). */
   chave: string;
@@ -27,10 +29,10 @@ export interface CredencialStripe {
    */
   conta?: string | null;
   /**
-   * Taxa da plataforma por cobrança, em centavos — só com `conta`. A Stripe a desconta na própria cobrança e
-   * credita na conta da instalação (`application_fee_amount`).
+   * A regra da taxa da plataforma por cobrança — só com `conta`. A Stripe desconta a taxa na própria cobrança
+   * e credita na conta da instalação (`application_fee_amount`). Ver `lib/pagamentos/taxa-da-plataforma.ts`.
    */
-  taxaCentavos?: number;
+  taxa?: RegraDaTaxa;
 }
 
 /**
@@ -39,8 +41,8 @@ export interface CredencialStripe {
  * taxa igual ou maior faria a Stripe recusar a cobrança inteira, e a pessoa ficaria sem como pagar).
  */
 export function taxaDaPlataforma(cred: CredencialStripe, valorCentavos: number): number | null {
-  const taxa = cred.conta ? Math.round(cred.taxaCentavos ?? 0) : 0;
-  return taxa > 0 && taxa < valorCentavos ? taxa : null;
+  if (!cred.conta || !cred.taxa) return null;
+  return calcularTaxa(cred.taxa, valorCentavos);
 }
 
 export interface PedidoDePix {

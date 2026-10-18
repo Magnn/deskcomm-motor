@@ -9971,6 +9971,8 @@ export const DICIONARIO: Traducoes = {
   "A chave foi gravada, mas o aviso de pagamento não: a Stripe só avisa endereços https. Abra o sistema pelo domínio com cadeado e salve de novo.": { es: "La clave se guardó, pero el aviso de pago no: Stripe solo avisa a direcciones https. Abra el sistema por el dominio con candado y guarde de nuevo." },
   "Conectado, mas o Pix ainda não está ativo nesta conta da Stripe. Ative em Configurações › Formas de pagamento, na Stripe.": { es: "Conectado, pero Pix todavía no está activo en esta cuenta de Stripe. Actívelo en Configuración › Métodos de pago, en Stripe." },
   "Pix na conversa (Stripe)": { es: "Pix en la conversación (Stripe)" },
+  "No máximo": { es: "Como máximo" },
+  "por venda.": { es: "por venta." },
   // Conectar com Stripe (Stripe Connect)
   "Só um administrador da organização pode conectar a Stripe.": { es: "Solo un administrador de la organización puede conectar Stripe." },
   "Confirme o segundo fator para conectar.": { es: "Confirme el segundo factor para conectar." },
