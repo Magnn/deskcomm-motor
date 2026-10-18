@@ -85,7 +85,7 @@ export async function linkInternacionalNoLugarDoLink(e: EntradaDoLinkInternacion
       },
       mensagemDepoisDePagar: 'Pagamento recebido. Pode voltar à conversa: a entrega continua por lá.',
     };
-    const criado = await (e.criarLink ?? ((c, p) => criarClienteStripe({ chave: c.chave }).criarLinkDePagamento(p)))(conexao, pedido);
+    const criado = await (e.criarLink ?? ((c, p) => criarClienteStripe(c).criarLinkDePagamento(p)))(conexao, pedido);
     e.log.info('link internacional criado para a conversa', {
       conversation_id: e.conversationId,
       moeda: e.preco.moeda,

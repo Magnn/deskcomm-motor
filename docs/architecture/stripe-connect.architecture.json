@@ -1,0 +1,116 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Stripe Connect — conta da empresa e confirmação da venda",
+    "subtitle": "Conexão opcional no núcleo, cobrança direta e processamento compartilhado",
+    "output": "stripe-connect.html",
+    "quality_profile": "standard"
+  },
+  "lanes": [
+    { "id": "tela", "label": "Operador" },
+    { "id": "servidor", "label": "Servidor" },
+    { "id": "externo", "label": "Stripe" },
+    { "id": "dados", "label": "Persistência e consumidores" }
+  ],
+  "mainPath": ["pagamentos", "conectar", "stripe", "webhook", "compra"],
+  "nodes": [
+    {
+      "id": "pagamentos",
+      "lane": "tela",
+      "col": 1,
+      "type": "frontend",
+      "label": "Configurações › Pagamentos",
+      "sublabel": "Conectar, continuar cadastro e pausar; taxa visível antes da conexão"
+    },
+    {
+      "id": "conectar",
+      "lane": "servidor",
+      "col": 2,
+      "type": "service",
+      "label": "conectarComStripe",
+      "sublabel": "Admin, MFA e suporte; conta e segredo cifrado"
+    },
+    {
+      "id": "stripe",
+      "lane": "externo",
+      "col": 3,
+      "type": "service",
+      "label": "Stripe Connect",
+      "sublabel": "Cadastro hospedado, conta e cobranças diretas"
+    },
+    {
+      "id": "conexao",
+      "lane": "dados",
+      "col": 3,
+      "type": "database",
+      "label": "payment_gateway_connections",
+      "sublabel": "Por organização; deny-all para browser; conta conectada única"
+    },
+    {
+      "id": "cobrar",
+      "lane": "servidor",
+      "col": 4,
+      "type": "service",
+      "label": "lerConexaoStripe → criarClienteStripe",
+      "sublabel": "Envio do agente: Stripe-Account e taxa na cobrança"
+    },
+    {
+      "id": "webhook",
+      "lane": "servidor",
+      "col": 5,
+      "type": "api",
+      "label": "POST /api/v1/webhooks/stripe-connect",
+      "sublabel": "Assinatura + conta → organização; falha transitória pede reentrega"
+    },
+    {
+      "id": "compra",
+      "lane": "dados",
+      "col": 6,
+      "type": "service",
+      "label": "aplicarAvisoDePagamentoDaStripe",
+      "sublabel": "Compra, ledger, contato, negócio e entrega existentes"
+    },
+    {
+      "id": "audit",
+      "lane": "tela",
+      "col": 6,
+      "type": "frontend",
+      "label": "Audit Log /app/audit",
+      "sublabel": "payment_gateway_connection.updated"
+    }
+  ],
+  "edges": [
+    { "id": "e1", "from": "pagamentos", "to": "conectar", "label": "Server Action" },
+    { "id": "e2", "from": "conectar", "to": "stripe", "label": "Criar conta e Account Link" },
+    { "id": "e3", "from": "conectar", "to": "conexao", "label": "Grava conta e segredo cifrado" },
+    { "id": "e4", "from": "conexao", "to": "cobrar", "label": "Credencial da organização pronta" },
+    { "id": "e5", "from": "cobrar", "to": "stripe", "label": "Cobrança direta idempotente" },
+    {
+      "id": "e6",
+      "from": "stripe",
+      "to": "webhook",
+      "label": "account.updated / payment_intent.succeeded"
+    },
+    {
+      "id": "e7",
+      "from": "webhook",
+      "to": "conexao",
+      "label": "Atualiza prontidão para próximas cobranças"
+    },
+    {
+      "id": "e8",
+      "from": "webhook",
+      "to": "compra",
+      "label": "Pagamento autenticado, inclusive após pausa"
+    },
+    { "id": "e9", "from": "webhook", "to": "audit", "label": "Auditoria da atualização" },
+    { "id": "e10", "from": "conectar", "to": "audit", "label": "Auditoria da conexão" },
+    {
+      "id": "e11",
+      "from": "stripe",
+      "to": "pagamentos",
+      "label": "Retorno do cadastro e consulta da prontidão"
+    }
+  ]
+}

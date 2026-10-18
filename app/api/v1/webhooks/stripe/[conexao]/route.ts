@@ -24,24 +24,13 @@
  */
 import { type NextRequest, type NextResponse } from "next/server";
 
-import { audit } from "@/lib/audit";
-import { fail, ok } from "@/lib/api/wrappers";
-import { logger } from "@/lib/logger";
-import { EXTRA_DO_CIRCULO, ativarCirculo } from "@/lib/area-do-cliente/circulo";
-import { liberarCompraDaArea } from "@/lib/area-do-cliente/compras-da-area";
-import { guardarEmailDoContato } from "@/lib/area-do-cliente/email-do-contato";
-import { registrarEvento } from "@/lib/area-do-cliente/eventos";
-import { aplicarEventoDaCakto, depsReais } from "@/lib/pagamentos/compra-cakto";
-import { reportarCompraAvulsa } from "@/lib/conversoes/compra-avulsa";
+import { fail } from "@/lib/api/wrappers";
+import { aplicarAvisoDePagamentoDaStripe, eventoDaStripeSchema } from "@/lib/pagamentos/aviso-de-pagamento-da-stripe";
 import { lerConexaoStripePorId } from "@/lib/pagamentos/conexao-stripe";
-import { assinaturaDaStripeConfere, criarClienteStripe } from "@/lib/pagamentos/stripe";
+import { assinaturaDaStripeConfere } from "@/lib/pagamentos/stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
-import type { CompraDaCakto } from "@/lib/webhooks/cakto";
 
 export const dynamic = "force-dynamic";
-
-/** A moeda em que o negócio, a receita e os anúncios são contados. */
-const MOEDA_DA_CONTA = "BRL";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -58,229 +47,13 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ conexao: s
     return fail("unauthorized", "Assinatura inválida.", 401, { requestId }) as NextResponse;
   }
 
-  let evento: { id?: string; type?: string; data?: { object?: Record<string, unknown> } };
+  let corpo: unknown;
   try {
-    evento = JSON.parse(corpoCru);
+    corpo = JSON.parse(corpoCru);
   } catch {
     return fail("validation_failed", "Corpo inválido.", 400, { requestId }) as NextResponse;
   }
-  // Só o pagamento confirmado tem efeito; o resto é recebido e ignorado (a Stripe não deve reentregar).
-  if (evento.type !== "payment_intent.succeeded") return ok({ received: true, resultado: "ignorada" }, { requestId }) as NextResponse;
-
-  const pi = evento.data?.object ?? {};
-  const meta = (pi.metadata ?? {}) as Record<string, string>;
-  const contatoId = meta.contact_id;
-  const valor = typeof pi.amount_received === "number" ? pi.amount_received : typeof pi.amount === "number" ? pi.amount : null;
-  // Cobrança que não nasceu na conversa (sem os nossos metadados) ou de outra organização: não é desta casa.
-  if (!contatoId || !UUID.test(contatoId) || meta.organization_id !== conexao.organizationId || valor === null || valor <= 0) {
-    return ok({ received: true, resultado: "ignorada" }, { requestId }) as NextResponse;
-  }
-  const cobrancaId = String(pi.id ?? evento.id ?? "");
-  const pagoEm = new Date().toISOString();
-  const moedaDaCobranca = typeof pi.currency === "string" ? pi.currency.toUpperCase() : MOEDA_DA_CONTA;
-  const tipos = Array.isArray(pi.payment_method_types) ? (pi.payment_method_types as unknown[]) : [];
-  // Cobrança de uma forma só diz qual foi; o link que aceita várias (boleto e cartão) fica como cartão.
-  const metodoDaCobranca = tipos.length === 1 && tipos[0] === "pix" ? "pix" : tipos.length === 1 && tipos[0] === "boleto" ? "boleto" : "cartao";
-  // Na moeda da conta o valor é o da cobrança. Em outra moeda, é o que a Stripe converteu — ou nenhum.
-  let valorNaConta: number | null = moedaDaCobranca === MOEDA_DA_CONTA ? valor : null;
-  if (valorNaConta === null) {
-    try {
-      const convertido = await criarClienteStripe({ chave: conexao.chave }).lerValorConvertido(cobrancaId);
-      if (convertido?.moeda === MOEDA_DA_CONTA) valorNaConta = convertido.valorCentavos;
-    } catch (err) {
-      logger.warn("[stripe.aviso] conversão não lida — receita fica na moeda original", {
-        requestId,
-        error: (err instanceof Error ? err.message : String(err)).slice(0, 160),
-      });
-    }
-  }
-  // O e-mail de quem pagou (cartão e boleto têm; o Pix da conversa não) é a chave de entrada da área do
-  // cliente. Ler e guardar é melhor esforço: falhar aqui nunca impede o registro do pagamento.
-  try {
-    const email = await criarClienteStripe({ chave: conexao.chave }).lerEmailDoPagador(cobrancaId);
-    if (email !== null) await guardarEmailDoContato(admin, conexao.organizationId, contatoId, email);
-  } catch (err) {
-    logger.warn("[stripe.aviso] e-mail do pagador não lido", {
-      requestId,
-      error: (err instanceof Error ? err.message : String(err)).slice(0, 160),
-    });
-  }
-  const compra: CompraDaCakto = {
-    evento: "purchase_approved",
-    pedidoId: cobrancaId,
-    refId: null,
-    produtoId: null,
-    produtoNome: meta.produto || null,
-    ofertaNome: null,
-    valorCentavos: valorNaConta,
-    cupom: null,
-    metodo: metodoDaCobranca,
-    pagoEm,
-    status: "paid",
-    cliente: { nome: null, email: null, telefone: null },
-  };
-
-  const extra = typeof meta.extra === "string" && /^[a-z0-9-]{1,60}$/.test(meta.extra) ? meta.extra : null;
-  if (extra !== null) {
-    try {
-      const { error: erroDoLedger } = await admin.from("revenue_ledger").insert({
-        organization_id: conexao.organizationId,
-        event_type: "charge",
-        amount_cents: valorNaConta ?? valor,
-        currency: valorNaConta === null ? moedaDaCobranca : MOEDA_DA_CONTA,
-        provider: "stripe",
-        external_event_id: cobrancaId,
-        occurred_at: pagoEm,
-        contact_id: contatoId,
-        metadata: { produto: meta.produto ?? null, metodo: metodoDaCobranca, conversa: meta.conversation_id ?? null, extra },
-      });
-      // Reentrega da Stripe: a receita já está lá e a marca também.
-      if (erroDoLedger?.code === "23505") return ok({ received: true, resultado: "repetida" }, { requestId }) as NextResponse;
-      if (erroDoLedger) throw new Error(erroDoLedger.message);
-      // A área do cliente: o que cada pagamento libera (todos idempotentes pelo id do pagamento).
-      await liberarCompraDaArea(admin, conexao.organizationId, contatoId, cobrancaId, extra, meta, metodoDaCobranca);
-      if (extra === EXTRA_DO_CIRCULO) {
-        const ativado = await ativarCirculo(admin, conexao.organizationId, contatoId, cobrancaId);
-        if (!ativado.jaAplicado) {
-          await registrarEvento(admin, {
-            organizationId: conexao.organizationId,
-            contactId: contatoId,
-            tipo: "circulo_ativado",
-            props: { valido_ate: ativado.validoAte, metodo: metodoDaCobranca },
-          });
-        }
-      }
-      // ⚠️ Filtro de organização: o client é service-role.
-      const { data: contato } = await admin
-        .from("contacts")
-        .select("id, tags")
-        .eq("organization_id", conexao.organizationId)
-        .eq("id", contatoId)
-        .maybeSingle();
-      const tags = ((contato as { tags: string[] | null } | null)?.tags ?? []) as string[];
-      const marca = `extra:${extra}`;
-      if (contato && !tags.includes(marca)) {
-        await admin.from("contacts").update({ tags: [...tags, marca] }).eq("organization_id", conexao.organizationId).eq("id", contatoId);
-      }
-      // A compra avulsa vai à plataforma de anúncio que trouxe o lead (`lib/conversoes/compra-avulsa.ts`). Nunca
-      // lança: receita registrada não falha por causa do anúncio.
-      const reportada = await reportarCompraAvulsa(admin, {
-        organizationId: conexao.organizationId,
-        contactId: contatoId,
-        referencia: cobrancaId,
-        valorCentavos: valorNaConta ?? valor,
-        moeda: valorNaConta === null ? moedaDaCobranca : MOEDA_DA_CONTA,
-        ocorridaEm: new Date(pagoEm),
-        produto: typeof meta.produto === "string" ? meta.produto : null,
-      });
-      if (reportada.status === "error") logger.warn("[stripe.aviso] compra avulsa não foi reportada à plataforma de anúncio", { requestId, motivo: reportada.motivo });
-      // Quem acabou de pagar não pode esperar escrever de novo para ser atendido: pede um turno do agente sobre a
-      // última mensagem dela (o mesmo pedido que o resgate do lead sem resposta emite). Falha aqui não desfaz o
-      // registro do pagamento.
-      try {
-        const conversaId = typeof meta.conversation_id === "string" ? meta.conversation_id : null;
-        if (conversaId !== null) {
-          const { data: ultima } = await admin
-            .from("messages")
-            .select("id, channel_session_id")
-            .eq("organization_id", conexao.organizationId)
-            .eq("conversation_id", conversaId)
-            .eq("direction", "inbound")
-            .order("created_at", { ascending: false })
-            .limit(1)
-            .maybeSingle();
-          const m = ultima as { id: string; channel_session_id: string | null } | null;
-          if (m) {
-            await admin.rpc("emit_event", {
-              p_event_type: "ai_agent.dispatch_requested",
-              p_entity_kind: "message",
-              p_entity_id: m.id,
-              p_payload: {
-                organization_id: conexao.organizationId,
-                conversation_id: conversaId,
-                contact_id: contatoId,
-                channel_session_id: m.channel_session_id,
-                inbound_message_id: m.id,
-                // Sem isto o turno é pulado: a última mensagem dela quase sempre já foi respondida (com o código do Pix).
-                fato_novo: "pagamento_de_extra",
-              },
-              p_metadata: { source: "pagamento_de_extra" },
-              p_organization_id: conexao.organizationId,
-            });
-          }
-        }
-      } catch (err) {
-        logger.warn("[stripe.aviso] extra pago, mas o turno do agente não foi pedido", { requestId, error: err instanceof Error ? err.message : String(err) });
-      }
-      await audit({
-        action: "webhook.cakto_evento_aplicado",
-        organizationId: conexao.organizationId,
-        resourceType: "payment_gateway_connections",
-        resourceId: conexao.id,
-        requestId,
-        metadata: { provedor: "stripe", evento: "payment_intent.succeeded", resultado: "cobranca_avulsa", pedido: cobrancaId, valor_centavos: valorNaConta, extra },
-      });
-      return ok({ received: true, resultado: "cobranca_avulsa" }, { requestId }) as NextResponse;
-    } catch (err) {
-      logger.error("[stripe.aviso] falha ao registrar a cobrança avulsa", { requestId, error: err instanceof Error ? err.message : String(err) });
-      return fail("internal_error", "Falha ao aplicar o pagamento.", 500, { requestId }) as NextResponse;
-    }
-  }
-
-  try {
-    const base = depsReais(admin, conexao.organizationId, requestId, conexao.id);
-    const efeito = await aplicarEventoDaCakto(
-      {
-        ...base,
-        // A pessoa é a do metadado da cobrança. ⚠️ Filtro de organização: o client é service-role.
-        async acharContato() {
-          const { data } = await admin
-            .from("contacts")
-            .select("id, tags")
-            .eq("organization_id", conexao.organizationId)
-            .eq("id", contatoId)
-            .maybeSingle();
-          const c = data as { id: string; tags: string[] | null } | null;
-          return c === null ? null : { id: c.id, tags: c.tags ?? [] };
-        },
-      },
-      compra,
-    );
-
-    const { error: erroDoLedger } = await admin.from("revenue_ledger").insert({
-      organization_id: conexao.organizationId,
-      event_type: "charge",
-      amount_cents: valorNaConta ?? valor,
-      currency: valorNaConta === null ? moedaDaCobranca : MOEDA_DA_CONTA,
-      provider: "stripe",
-      external_event_id: cobrancaId,
-      occurred_at: pagoEm,
-      contact_id: "contatoId" in efeito ? efeito.contatoId : null,
-      metadata: {
-        produto: meta.produto ?? null,
-        metodo: metodoDaCobranca,
-        conversa: meta.conversation_id ?? null,
-        ...(moedaDaCobranca !== MOEDA_DA_CONTA ? { moeda_original: moedaDaCobranca, valor_original_cents: valor } : {}),
-      },
-    });
-    if (erroDoLedger && erroDoLedger.code !== "23505") {
-      logger.error("[stripe.aviso] ledger não gravou", { requestId, error: erroDoLedger.message });
-    }
-
-    if (efeito.resultado !== "ignorada") {
-      await audit({
-        action: "webhook.cakto_evento_aplicado",
-        organizationId: conexao.organizationId,
-        resourceType: "payment_gateway_connections",
-        resourceId: conexao.id,
-        requestId,
-        metadata: { provedor: "stripe", evento: "payment_intent.succeeded", resultado: efeito.resultado, pedido: cobrancaId, valor_centavos: valorNaConta, moeda_da_cobranca: moedaDaCobranca },
-      });
-    }
-    return ok({ received: true, resultado: efeito.resultado }, { requestId }) as NextResponse;
-  } catch (err) {
-    // 500 faz a Stripe reentregar: a compra não pode se perder por uma falha passageira nossa.
-    logger.error("[stripe.aviso] falha ao aplicar o pagamento", { requestId, error: err instanceof Error ? err.message : String(err) });
-    return fail("internal_error", "Falha ao aplicar o pagamento.", 500, { requestId }) as NextResponse;
-  }
+  const parsed = eventoDaStripeSchema.safeParse(corpo);
+  if (!parsed.success) return fail("validation_failed", "Corpo inválido.", 400, { requestId }) as NextResponse;
+  return aplicarAvisoDePagamentoDaStripe(admin, conexao, parsed.data, requestId);
 }

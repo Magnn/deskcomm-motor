@@ -70,7 +70,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
 
   let pix;
   try {
-    pix = await criarClienteStripe({ chave: conexao.chave }).criarPix({
+    pix = await criarClienteStripe(conexao).criarPix({
       valorCentavos: lido.data.valor_cents,
       descricao: lido.data.produto,
       // Um pedido, uma cobrança: reenviar o mesmo formulário não cria outra.

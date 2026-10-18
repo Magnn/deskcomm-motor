@@ -1309,7 +1309,7 @@ async function sendConteudoSequence(
     const referencia = `fluxo-${p.followup_enrollment_id ?? job.id}-${p.node_id ?? 'conteudo'}-${ordem}-${valorCentavos}`;
     const descricao = produto ?? 'Pagamento';
     const metadados = { organization_id: tenantId, contact_id: leadId, conversation_id: conversationId, produto: descricao };
-    const cliente = criarClienteStripe({ chave: conexao.chave });
+    const cliente = criarClienteStripe(conexao);
     const falhou = (qual: string) => (err: unknown) => {
       runLog.warn(`cobrança do fluxo: ${qual} não saiu`, { error: (err instanceof Error ? err.message : String(err)).slice(0, 160) });
       return null;

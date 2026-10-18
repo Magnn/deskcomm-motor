@@ -75,7 +75,7 @@ export async function pixDaEntradaNoLugarDaMarca(e: EntradaDoPixDaEntrada): Prom
       },
       expiraEmSegundos: VALIDADE_DO_PIX_S,
     };
-    const pix = await (e.criarPix ?? ((c, p) => criarClienteStripe({ chave: c.chave }).criarPix(p)))(conexao, pedido);
+    const pix = await (e.criarPix ?? ((c, p) => criarClienteStripe(c).criarPix(p)))(conexao, pedido);
     e.log.info('pix da entrada criado no valor que a pessoa disse', {
       conversation_id: e.conversationId,
       entrada_cents: e.entrada.entradaCents,

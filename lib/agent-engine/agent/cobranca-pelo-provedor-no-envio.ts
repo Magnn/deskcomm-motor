@@ -109,11 +109,11 @@ export async function cobrancaPeloProvedorNoLugarDoLink(e: EntradaDaCobrancaPelo
   const erro = (err: unknown): string => (err instanceof Error ? err.message : String(err)).slice(0, 160);
   const con = conexao;
   const [pix, cartao] = await Promise.all([
-    (e.criarPix ?? ((c, p) => criarClienteStripe({ chave: c.chave }).criarPix(p)))(con, pedido).catch((err: unknown) => {
+    (e.criarPix ?? ((c, p) => criarClienteStripe(c).criarPix(p)))(con, pedido).catch((err: unknown) => {
       e.log.warn('pix do provedor não saiu', { conversation_id: e.conversationId, error: erro(err) });
       return null;
     }),
-    (e.criarLink ?? ((c, p) => criarClienteStripe({ chave: c.chave }).criarLinkDePagamento(p)))(con, {
+    (e.criarLink ?? ((c, p) => criarClienteStripe(c).criarLinkDePagamento(p)))(con, {
       valorCentavos: link.valorCentavos,
       moeda: 'BRL',
       descricao: link.produto || 'Pagamento',
