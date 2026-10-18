@@ -46,6 +46,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     redirect("/acesso-revogado");
   }
 
+  // O primeiro estado, "nunca teve", também precisa do seu `redirect` — o comentário acima já nomeava
+  // `/get-started` como o caminho, mas nada levava até lá. Medido em 18/10/2026 numa conta nova cujo
+  // link de confirmação não provisionou a empresa: entrou pela senha e caiu numa casca sem menu
+  // (`/app` → Perfil), sem nenhuma pista de que faltava criar a empresa. O administrador da plataforma
+  // e a sessão de suporte ficam de fora: eles têm onde trabalhar sem organização (`/admin`).
+  if (!activeOrg && !user.support && !user.is_platform_admin) {
+    redirect("/get-started");
+  }
+
   /**
    * A cor desta organização, serializada, ou `null` quando ela não tem uma.
    *
