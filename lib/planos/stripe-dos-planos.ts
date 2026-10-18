@@ -99,7 +99,26 @@ export interface AssinaturaDaStripe {
   organizationId: string | null;
   /** O plano pelo preço cobrado (metadado do preço; senão a `lookup_key`). */
   planoId: string | null;
+  /** O item do PLANO (o preço mensal) — nunca o do excedente. */
   itemId: string | null;
+  /** O item da cobrança do excedente de conversas, quando a assinatura já o tem. */
+  itemDoExcedente: string | null;
+  /** O ciclo de cobrança em curso (onde a Stripe soma o medidor). */
+  cicloInicio: Date | null;
+  cicloFim: Date | null;
+}
+
+/** Prefixo da `lookup_key` do preço do excedente — é por ele que o item do excedente se distingue do plano. */
+export const PREFIXO_DO_EXCEDENTE = "excedente_conversa_";
+/** O nome do evento do medidor na Stripe. */
+export const EVENTO_DO_EXCEDENTE = "conversas_excedentes";
+
+function chaveDoPrecoDoItem(item: Record<string, unknown>): string | null {
+  return texto(((item.price ?? null) as Record<string, unknown> | null)?.lookup_key);
+}
+
+function instante(v: unknown): Date | null {
+  return typeof v === "number" && Number.isFinite(v) && v > 0 ? new Date(v * 1000) : null;
 }
 
 const FORMA_DO_PLANO = /^[a-z0-9][a-z0-9_-]{0,39}$/;
@@ -114,7 +133,11 @@ export function lerAssinaturaDaStripe(objeto: Record<string, unknown>): Assinatu
   if (!id || !id.startsWith("sub_")) return null;
   const metadados = (objeto.metadata ?? {}) as Record<string, unknown>;
   const itens = ((objeto.items ?? {}) as { data?: unknown }).data;
-  const item = Array.isArray(itens) ? ((itens[0] ?? null) as Record<string, unknown> | null) : null;
+  const todos = (Array.isArray(itens) ? itens : []) as Record<string, unknown>[];
+  const ehExcedente = (i: Record<string, unknown>) => chaveDoPrecoDoItem(i)?.startsWith(PREFIXO_DO_EXCEDENTE) === true;
+  // O item do plano é o que NÃO é o excedente: depois que o excedente entra, a ordem dos itens não é garantia.
+  const item = todos.find((i) => !ehExcedente(i)) ?? null;
+  const doExcedente = todos.find(ehExcedente) ?? null;
   const preco = (item?.price ?? null) as Record<string, unknown> | null;
   const doPreco = texto(((preco?.metadata ?? {}) as Record<string, unknown>).plan_id);
   const daChave = texto(preco?.lookup_key)?.match(/^plano_([a-z0-9][a-z0-9_-]{0,39})_\d+$/)?.[1] ?? null;
@@ -127,6 +150,10 @@ export function lerAssinaturaDaStripe(objeto: Record<string, unknown>): Assinatu
     organizationId: texto(metadados.organization_id),
     planoId,
     itemId: texto(item?.id),
+    itemDoExcedente: texto(doExcedente?.id),
+    // Versões novas da API põem o ciclo no item; as antigas, na assinatura.
+    cicloInicio: instante(item?.current_period_start) ?? instante(objeto.current_period_start),
+    cicloFim: instante(item?.current_period_end) ?? instante(objeto.current_period_end),
   };
 }
 
@@ -166,8 +193,84 @@ export function criarStripeDosPlanos(
     return preco.id;
   }
 
+  /**
+   * O preço do excedente: o medidor (`EVENTO_DO_EXCEDENTE`, somado por ciclo) e um preço por uso ligado a ele,
+   * reencontrados pela chave ou criados agora — ninguém cadastra nada no painel da Stripe.
+   */
+  async function precoDoExcedente(centavosPorConversa: number): Promise<string> {
+    const chave = `${PREFIXO_DO_EXCEDENTE}${centavosPorConversa}`;
+    const achados = await chamar("GET", `/prices?active=true&limit=1&lookup_keys[]=${encodeURIComponent(chave)}`);
+    const existente = Array.isArray(achados.data) ? (achados.data[0] as { id?: unknown } | undefined) : undefined;
+    if (typeof existente?.id === "string") return existente.id;
+
+    const medidores = await chamar("GET", "/billing/meters?status=active&limit=100");
+    const lista = (Array.isArray(medidores.data) ? medidores.data : []) as { id?: unknown; event_name?: unknown }[];
+    let medidor = lista.find((m) => m.event_name === EVENTO_DO_EXCEDENTE)?.id;
+    if (typeof medidor !== "string") {
+      const novo = await chamar(
+        "POST",
+        "/billing/meters",
+        {
+          display_name: "Conversas além da franquia",
+          event_name: EVENTO_DO_EXCEDENTE,
+          "default_aggregation[formula]": "sum",
+          "customer_mapping[type]": "by_id",
+          "customer_mapping[event_payload_key]": "stripe_customer_id",
+          "value_settings[event_payload_key]": "value",
+        },
+        `medidor-${EVENTO_DO_EXCEDENTE}`,
+      );
+      medidor = novo.id;
+      if (typeof medidor !== "string") throw new ErroDaStripe("recusada", "a Stripe criou o medidor sem id");
+    }
+
+    const preco = await chamar(
+      "POST",
+      "/prices",
+      {
+        currency: "brl",
+        unit_amount: centavosPorConversa,
+        "recurring[interval]": "month",
+        "recurring[usage_type]": "metered",
+        "recurring[meter]": medidor,
+        lookup_key: chave,
+        "product_data[name]": "Conversas além da franquia do plano",
+        ...(extrato ? { "product_data[statement_descriptor]": extrato } : {}),
+      },
+      `preco-${chave}`,
+    );
+    if (typeof preco.id !== "string") throw new ErroDaStripe("recusada", "a Stripe criou o preço do excedente sem id");
+    return preco.id;
+  }
+
   return {
     precoDoPlano,
+    precoDoExcedente,
+
+    /**
+     * Põe o excedente na assinatura, se ainda não está. Sem cobrança proporcional: o item por uso só cobra o que
+     * for informado, e a assinatura existente não paga nada por ganhá-lo.
+     */
+    async garantirExcedenteNaAssinatura(assinatura: AssinaturaDaStripe, centavosPorConversa: number): Promise<void> {
+      if (assinatura.itemDoExcedente) return;
+      const preco = await precoDoExcedente(centavosPorConversa);
+      await chamar(
+        "POST",
+        "/subscription_items",
+        { subscription: assinatura.id, price: preco, proration_behavior: "none" },
+        `excedente-item-${assinatura.id}-${preco}`,
+      );
+    },
+
+    /** Informa à Stripe `quantidade` conversas a mais no ciclo deste cliente. */
+    async informarExcedente(p: { clienteId: string; quantidade: number; chave: string }): Promise<void> {
+      await chamar("POST", "/billing/meter_events", {
+        event_name: EVENTO_DO_EXCEDENTE,
+        "payload[stripe_customer_id]": p.clienteId,
+        "payload[value]": p.quantidade,
+        identifier: p.chave,
+      });
+    },
 
     /** A página de pagamento da Stripe para assinar o plano. Devolve o endereço para onde mandar a pessoa. */
     async criarCheckout(p: {

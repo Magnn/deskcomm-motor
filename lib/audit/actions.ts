@@ -193,6 +193,10 @@ export const AUDIT_ACTIONS = [
   "cron.instagram_tokens",
   // A rodada que renovou (ou não conseguiu renovar) o token de 60 dias de algum número oficial.
   "cron.meta_tokens",
+  // A rodada que mediu a franquia de conversas e informou excedente à Stripe (`cron/excedente-de-conversas`).
+  "cron.excedente_de_conversas",
+  // Conversas além da franquia do plano informadas ao medidor da Stripe de uma empresa.
+  "plano.excedente_informado",
   // Lançamentos em grupos de WhatsApp (`lib/lancamentos/`).
   "lancamento.criado",
   "lancamento.atualizado",

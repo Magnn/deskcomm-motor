@@ -26,20 +26,28 @@ export interface Plano {
    * IA da plataforma (a empresa precisa trazer chave).
    */
   iaMensalCentavosUsd: number;
+  /**
+   * A franquia do plano em CONVERSAS atendidas pela IA no mês — a unidade que o cliente entende e a que o
+   * preço acompanha (o custo de IA é por conversa). Passou da franquia, o excedente é cobrado por conversa
+   * quando a instalação liga `STRIPE_PLANS_EXCEDENTE_CENTAVOS`. `0` = o plano não mede em conversas (só o
+   * teto em dólar acima vale, como antes). O teto em dólar segue como TRAVA DE SEGURANÇA: ponha-o bem acima
+   * do custo da franquia, ou a IA para antes de o excedente ser cobrado.
+   */
+  conversasMensais: number;
 }
 
 export const PLANOS_PADRAO: readonly Plano[] = [
   // IA incluída ≈ 25–30% do preço (US$ 1 ≈ R$ 5,50): margem para o resto da
   // operação. Trocar é pelo `PLANS_CATALOG`, sem deploy.
-  { id: "start", nome: "Start", precoMensalCentavos: 9_700, numeros: 1, iaMensalCentavosUsd: 500 },
-  { id: "pro", nome: "Pro", precoMensalCentavos: 19_700, numeros: 3, iaMensalCentavosUsd: 1_200 },
-  { id: "scale", nome: "Scale", precoMensalCentavos: 39_700, numeros: 10, iaMensalCentavosUsd: 2_500 },
+  { id: "start", nome: "Start", precoMensalCentavos: 9_700, numeros: 1, iaMensalCentavosUsd: 500, conversasMensais: 0 },
+  { id: "pro", nome: "Pro", precoMensalCentavos: 19_700, numeros: 3, iaMensalCentavosUsd: 1_200, conversasMensais: 0 },
+  { id: "scale", nome: "Scale", precoMensalCentavos: 39_700, numeros: 10, iaMensalCentavosUsd: 2_500, conversasMensais: 0 },
 ];
 
 const FORMA_DO_ID = /^[a-z0-9][a-z0-9_-]{0,39}$/;
 
 /**
- * O catálogo declarado no `.env`: `id:Nome:centavos:números[:iaCentavosUsd]`,
+ * O catálogo declarado no `.env`: `id:Nome:centavos:números[:iaCentavosUsd[:conversas]]`,
  * separados por vírgula (ex.: `start:Start:9700:1:500,pro:Pro:19700:3:1200`). O
  * último campo é opcional: ausente, vale o do plano padrão de mesmo id, e 0 para
  * um id que o padrão não tem (o plano não inclui IA da plataforma). `null` quando a
@@ -54,13 +62,15 @@ export function lerCatalogoDeclarado(declarado: string): Plano[] | null {
   if (itens.length === 0) return null;
   const planos: Plano[] = [];
   for (const item of itens) {
-    const [id, nome, centavos, numeros, ia, ...sobra] = item.split(":").map((p) => p.trim());
+    const [id, nome, centavos, numeros, ia, conversas, ...sobra] = item.split(":").map((p) => p.trim());
     if (!id || !nome || !centavos || !numeros || sobra.length > 0) return null;
     if (ia !== undefined && !/^\d{1,7}$/.test(ia)) return null;
+    if (conversas !== undefined && !/^\d{1,7}$/.test(conversas)) return null;
     if (!FORMA_DO_ID.test(id) || !/^\d{1,9}$/.test(centavos) || !/^\d{1,4}$/.test(numeros)) return null;
     if (planos.some((p) => p.id === id)) return null;
     const iaMensalCentavosUsd = ia !== undefined ? Number(ia) : (PLANOS_PADRAO.find((p) => p.id === id)?.iaMensalCentavosUsd ?? 0);
-    planos.push({ id, nome, precoMensalCentavos: Number(centavos), numeros: Number(numeros), iaMensalCentavosUsd });
+    const conversasMensais = conversas !== undefined ? Number(conversas) : (PLANOS_PADRAO.find((p) => p.id === id)?.conversasMensais ?? 0);
+    planos.push({ id, nome, precoMensalCentavos: Number(centavos), numeros: Number(numeros), iaMensalCentavosUsd, conversasMensais });
   }
   return planos;
 }

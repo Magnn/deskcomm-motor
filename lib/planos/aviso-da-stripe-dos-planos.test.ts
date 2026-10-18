@@ -10,8 +10,8 @@ vi.mock("@/lib/audit", () => ({ audit: vi.fn() }));
 vi.mock("@/lib/tenants/assinatura", () => ({ encerrarFluxosDaEmpresa: vi.fn(async () => 0) }));
 vi.mock("./assinatura-da-organizacao", () => ({
   planosDaInstalacao: () => [
-    { id: "start", nome: "Start", precoMensalCentavos: 9_700, numeros: 1, iaMensalCentavosUsd: 0 },
-    { id: "pro", nome: "Pro", precoMensalCentavos: 19_700, numeros: 3, iaMensalCentavosUsd: 0 },
+    { id: "start", nome: "Start", precoMensalCentavos: 9_700, numeros: 1, iaMensalCentavosUsd: 0, conversasMensais: 0 },
+    { id: "pro", nome: "Pro", precoMensalCentavos: 19_700, numeros: 3, iaMensalCentavosUsd: 0, conversasMensais: 0 },
   ],
   lerAssinatura: vi.fn(async () => estado.atual),
   ativarPlano: vi.fn(async (_a: unknown, p: unknown) => {

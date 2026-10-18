@@ -104,6 +104,20 @@ const schema = z.object({
   STRIPE_PLANS_SECRET_KEY: z.string().optional().default(""),
   STRIPE_PLANS_WEBHOOK_SECRET: z.string().optional().default(""),
   /**
+   * Preço de cada conversa além da franquia do plano, em centavos (ex.: 120 = R$ 1,20), cobrado na fatura da
+   * assinatura pela Stripe (`lib/planos/excedente.ts`). 0 ou vazio = o excedente não é cobrado. Inválido vale 0.
+   */
+  STRIPE_PLANS_EXCEDENTE_CENTAVOS: z.coerce
+    .number()
+    .int()
+    .min(0)
+    .max(100_000)
+    .default(0)
+    .catch(() => {
+      console.warn("[env] STRIPE_PLANS_EXCEDENTE_CENTAVOS inválida — usando 0 (excedente não cobrado).");
+      return 0;
+    }),
+  /**
    * Taxa da plataforma por venda das empresas que usam "Conectar com Stripe", em centavos (ex.: 99 = R$ 0,99).
    * 0 ou vazio = sem taxa. Valor inválido não derruba o app: vale 0 e o log avisa (mesma regra dos knobs de
    * retenção acima — `lib/env.ts` roda no import, e um throw aqui seria 500 em todas as telas).

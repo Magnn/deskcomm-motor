@@ -9993,6 +9993,13 @@ export const DICIONARIO: Traducoes = {
   "Para cada": { es: "Por cada" },
   "pago à plataforma, entraram": { es: "pagado a la plataforma, entraron" },
   "em vendas.": { es: "en ventas." },
+  // Franquia de conversas do plano (Billing)
+  "Conversas atendidas pela IA neste ciclo:": { es: "Conversaciones atendidas por la IA en este ciclo:" },
+  "além da franquia, a": { es: "por encima de la franquicia, a" },
+  "cada, na próxima fatura.": { es: "cada una, en la próxima factura." },
+  "conversas atendidas pela IA por mês.": { es: "conversaciones atendidas por la IA por mes." },
+  "Passou disso,": { es: "Por encima de eso," },
+  "por conversa a mais.": { es: "por conversación adicional." },
   // Conectar com Stripe (Stripe Connect)
   "Só um administrador da organização pode conectar a Stripe.": { es: "Solo un administrador de la organización puede conectar Stripe." },
   "Confirme o segundo fator para conectar.": { es: "Confirme el segundo factor para conectar." },
