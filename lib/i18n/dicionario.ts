@@ -14573,6 +14573,9 @@ export const DICIONARIO: Traducoes = {
   "conversas atendidas pela IA por mês": { es: "conversaciones atendidas por la IA por mes" },
   "números de WhatsApp": { es: "números de WhatsApp" },
   "por venda": { es: "por venta" },
+  // Área do cliente: compra direta na vitrine (app/c/[org]/_vista.tsx)
+  "Prefere tirar uma dúvida antes?": { es: "¿Prefieres resolver una duda antes?" },
+  "Fale com a gente no WhatsApp": { es: "Habla con nosotros por WhatsApp" },
 };
 
 /**
