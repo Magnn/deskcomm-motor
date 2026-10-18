@@ -61,7 +61,12 @@ import { env } from "@/lib/env";
  */
 export async function GET(request: NextRequest) {
   const url = request.nextUrl;
-  const tokenHash = url.searchParams.get("token_hash");
+  // `token` é o MESMO hash, no nome que o GoTrue usa quando o link do modelo PADRÃO aponta direto para
+  // cá (`GOTRUE_MAILER_URLPATHS_CONFIRMATION=https://<app>/auth/confirm`): o `{{ .ConfirmationURL }}` leva
+  // `?token=<hash>&type=...`, e o hash é o que `verifyOtp({ token_hash })` aceita. É o conserto de quem
+  // hospeda o próprio GoTrue — lá não há Management API para subir os modelos com `token_hash`, e o
+  // caminho `code` não fecha (ver acima). Medido em 18/10/2026: conta nova confirmava e nascia sem empresa.
+  const tokenHash = url.searchParams.get("token_hash") ?? url.searchParams.get("token");
   const code = url.searchParams.get("code");
   const type = url.searchParams.get("type") as EmailOtpType | null;
   const requestId = request.headers.get("x-request-id");
