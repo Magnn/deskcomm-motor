@@ -39717,7 +39717,9 @@ alter table public.area_eventos add constraint area_eventos_tipo_check check (ti
   'circulo_checkout', 'circulo_ativado', 'pergunta_enviada',
   'presente_checkout', 'presente_pago', 'presente_usado',
   'ano_pessoal_checkout', 'ano_pessoal_pago',
-  'etapa_feita'
+  'etapa_feita',
+  -- migration 0937 (a Mesa de leituras): o vocabulário final mora aqui, num bloco só.
+  'leitura_checkout', 'leitura_paga', 'leitura_revelada'
 ));
 
 -- ---- A conexão com a Stripe aceita a conta conectada — Stripe Connect (migration 0935) ----
@@ -39753,3 +39755,31 @@ alter table public.organization_subscriptions
 alter table public.organization_subscriptions
   add constraint organization_subscriptions_excedente_nao_negativo
   check (excedente_informado >= 0 and (conversas_no_ciclo is null or conversas_no_ciclo >= 0));
+
+-- ---- a mesa de leituras da área do cliente (migration 0937) ----
+create table if not exists public.area_leituras (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references public.organizations(id) on delete cascade,
+  contact_id uuid not null references public.contacts(id) on delete cascade,
+  modalidade text not null check (modalidade in ('tarot', 'baralho-cigano')),
+  pergunta text not null check (char_length(pergunta) between 3 and 400),
+  preco_cents integer not null check (preco_cents between 100 and 100000),
+  pagamento text,
+  pago_at timestamptz,
+  cartas jsonb,
+  texto text check (texto is null or char_length(texto) <= 12000),
+  modelo text,
+  revelada_at timestamptz,
+  created_at timestamptz not null default now()
+);
+create index if not exists area_leituras_contato_idx
+  on public.area_leituras (organization_id, contact_id, created_at desc);
+
+comment on table public.area_leituras is
+  'Leituras compradas na Mesa da área do cliente (migration 0937). Nasce ao pedir o pagamento; o aviso da Stripe marca pago_at; ao revelar, o servidor sorteia as cartas e a IA escreve o texto. Só o servidor lê e escreve.';
+
+alter table public.area_leituras enable row level security;
+revoke all on public.area_leituras from anon, authenticated;
+
+-- area_eventos_tipo_check: os tipos `leitura_*` foram acrescentados ao bloco da migration 0934 acima
+-- (uma constraint, um bloco — tests/unit/baseline-constraint-reconstruida.test.ts).

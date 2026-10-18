@@ -800,6 +800,10 @@ function AbaConfig({ inicial }: { inicial: ConfigDaArea }) {
   const [presentePreco, setPresentePreco] = useState(((inicial.presente?.preco_cents ?? 1700) / 100).toFixed(2).replace(".", ","));
   const [anoAtivo, setAnoAtivo] = useState(inicial.ano_pessoal?.ativo ?? false);
   const [anoPreco, setAnoPreco] = useState(((inicial.ano_pessoal?.preco_cents ?? 4700) / 100).toFixed(2).replace(".", ","));
+  const [mesaAtiva, setMesaAtiva] = useState(inicial.leituras?.ativo ?? false);
+  const [mesaPrimeira, setMesaPrimeira] = useState(((inicial.leituras?.preco_primeira_cents ?? 500) / 100).toFixed(2).replace(".", ","));
+  const [mesaPreco, setMesaPreco] = useState(((inicial.leituras?.preco_cents ?? 1490) / 100).toFixed(2).replace(".", ","));
+  const [mesaLimite, setMesaLimite] = useState(String(inicial.leituras?.limite_por_dia ?? 3));
   const [circuloPreco, setCirculoPreco] = useState(((inicial.circulo?.preco_cents ?? 2900) / 100).toFixed(2).replace(".", ","));
   const salvar = useMutation({
     mutationFn: () =>
@@ -808,6 +812,12 @@ function AbaConfig({ inicial }: { inicial: ConfigDaArea }) {
         carta_do_dia: cartaDoDia,
         presente: { ativo: presenteAtivo, preco_cents: centavos(presentePreco, 1700) },
         ano_pessoal: { ativo: anoAtivo, preco_cents: centavos(anoPreco, 4700) },
+        leituras: {
+          ativo: mesaAtiva,
+          preco_primeira_cents: centavos(mesaPrimeira, 500),
+          preco_cents: centavos(mesaPreco, 1490),
+          limite_por_dia: Math.min(20, Math.max(1, Math.round(Number(mesaLimite)) || 3)),
+        },
         circulo: {
           ativo: circuloAtivo,
           nome: circuloNome.trim() || "Círculo",
@@ -905,6 +915,31 @@ function AbaConfig({ inicial }: { inicial: ConfigDaArea }) {
         <div>
           <Label htmlFor="area-ano-preco">{t("Preço (R$)")}</Label>
           <Input id="area-ano-preco" inputMode="decimal" value={anoPreco} onChange={(e) => setAnoPreco(e.target.value)} />
+        </div>
+      </div>
+      <div className="space-y-2 rounded-md border border-border p-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <Label htmlFor="area-mesa">{t("Mesa de leituras")}</Label>
+            <p className="text-xs text-muted-foreground">
+              {t("Tarot e Baralho Cigano na área: a pessoa pergunta, paga ali mesmo, escolhe três cartas e a IA escreve a leitura na hora. A tela avisa que a leitura é automática.")}
+            </p>
+          </div>
+          <Switch id="area-mesa" checked={mesaAtiva} onCheckedChange={setMesaAtiva} data-testid="area-mesa-ativa" />
+        </div>
+        <div className="grid gap-2 sm:grid-cols-3">
+          <div>
+            <Label htmlFor="area-mesa-primeira">{t("Primeira de cada modalidade (R$)")}</Label>
+            <Input id="area-mesa-primeira" inputMode="decimal" value={mesaPrimeira} onChange={(e) => setMesaPrimeira(e.target.value)} />
+          </div>
+          <div>
+            <Label htmlFor="area-mesa-preco">{t("Seguintes (R$)")}</Label>
+            <Input id="area-mesa-preco" inputMode="decimal" value={mesaPreco} onChange={(e) => setMesaPreco(e.target.value)} />
+          </div>
+          <div>
+            <Label htmlFor="area-mesa-limite">{t("Leituras por dia")}</Label>
+            <Input id="area-mesa-limite" inputMode="numeric" value={mesaLimite} onChange={(e) => setMesaLimite(e.target.value)} />
+          </div>
         </div>
       </div>
       <div>

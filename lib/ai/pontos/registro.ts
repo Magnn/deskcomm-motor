@@ -360,6 +360,17 @@ export const PONTOS_DE_IA: readonly PontoDeIa[] = [
     registraEm: "llm_calls",
   },
   {
+    id: "area_leitura",
+    rotulo: "Escrever a leitura da Mesa",
+    oQueFaz:
+      "Escreve a leitura automática de Tarot ou Baralho Cigano que a cliente comprou na área: o que cada uma das três cartas sorteadas pelo sistema diz sobre a pergunta dela, uma síntese e um passo pequeno, com orientação e sem promessa.",
+    papel: "atender",
+    exige: {},
+    emissor: "lib/area-do-cliente/leituras-ia.ts",
+    sintomaDeFalha: "Quem pagou a leitura revela as cartas e vê o aviso de que a leitura está sendo preparada.",
+    registraEm: "llm_calls",
+  },
+  {
     id: "loss_reason_classify",
     rotulo: "Entender por que a venda não aconteceu",
     oQueFaz:

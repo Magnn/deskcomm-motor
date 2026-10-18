@@ -9,6 +9,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { EXTRA_DO_ANO_PESSOAL } from "./ano-pessoal";
+import { EXTRA_DA_LEITURA } from "./leituras";
 import { registrarEvento } from "./eventos";
 import { EXTRA_DO_PRESENTE } from "./presente";
 
@@ -37,6 +38,24 @@ export async function liberarCompraDaArea(
     if (error) throw new Error(error.message);
     if (data && data.length > 0) {
       await registrarEvento(admin, { organizationId, contactId, tipo: "presente_pago", props: { metodo } });
+    }
+    return;
+  }
+  if (extra === EXTRA_DA_LEITURA) {
+    const leituraId = meta.leitura_id;
+    if (!leituraId || !UUID.test(leituraId)) return;
+    const { data, error } = await admin
+      .from("area_leituras")
+      .update({ pago_at: new Date().toISOString(), pagamento: pagamentoId })
+      .eq("id", leituraId)
+      .eq("organization_id", organizationId)
+      .eq("contact_id", contactId)
+      .is("pago_at", null)
+      .select("modalidade");
+    if (error) throw new Error(error.message);
+    const paga = (data ?? [])[0] as { modalidade: string } | undefined;
+    if (paga) {
+      await registrarEvento(admin, { organizationId, contactId, tipo: "leitura_paga", props: { modalidade: paga.modalidade, metodo } });
     }
     return;
   }

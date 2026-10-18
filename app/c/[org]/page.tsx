@@ -19,6 +19,8 @@ import { caminhoDoPresente } from "@/lib/area-do-cliente/presente";
 import { MENSAGEM_DO_DIA, cartaDoDia } from "@/lib/area-do-cliente/carta-do-dia";
 import { DIAS_DO_AVISO_DE_RENOVACAO, assinaturaAtiva, diasRestantes, lerAssinatura, mesDoDia } from "@/lib/area-do-cliente/circulo";
 import { carregarDadosDaArea, diaNoFuso, fotoDaCarta } from "@/lib/area-do-cliente/dados";
+import { CARTAS_NA_MESA } from "@/lib/area-do-cliente/leituras";
+import { carregarMesa, configDasLeituras } from "@/lib/area-do-cliente/leituras-servidor";
 import { abaValida } from "@/lib/area-do-cliente/abas";
 import { COR_PADRAO_DA_AREA } from "@/lib/area-do-cliente/config";
 import { registrarEvento } from "@/lib/area-do-cliente/eventos";
@@ -29,7 +31,7 @@ import { idiomaDoVisitante } from "@/lib/i18n/idiomaAnonimo";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 import { serifDaArea } from "./_fonte";
-import { textosDasEtapas, textosDasOfertas, textosDoNavegador } from "./_textos";
+import { textosDaMesa, textosDasEtapas, textosDasOfertas, textosDoNavegador } from "./_textos";
 import { VistaDaArea, VistaDeEntrada } from "./_vista";
 
 export const dynamic = "force-dynamic";
@@ -153,6 +155,9 @@ export default async function AreaDoCliente({ params, searchParams }: Props) {
         .maybeSingle()
     : { data: null };
 
+  const cfgDasLeituras = configDasLeituras(org.config.leituras);
+  const mesa = cfgDasLeituras.ativo ? await carregarMesa(admin, { id: org.id, fuso: org.fuso }, sessao.contactId, cfgDasLeituras) : null;
+
   return (
     <VistaDaArea
       classeDaFonte={serifDaArea.variable}
@@ -203,6 +208,22 @@ export default async function AreaDoCliente({ params, searchParams }: Props) {
           : null
       }
       presente={ofertaPresente ? { preco: dinheiro(ofertaPresente.preco_cents, "BRL"), presentes } : null}
+      mesa={
+        mesa
+          ? {
+              modalidades: mesa.modalidades.map((m) => ({
+                id: m.id,
+                nome: t(m.nome),
+                preco: dinheiro(m.precoCents, "BRL"),
+                primeira: m.primeira,
+                cartasNaMesa: CARTAS_NA_MESA[m.id],
+              })),
+              restamHoje: mesa.restamHoje,
+              leituras: mesa.leituras,
+            }
+          : null
+      }
+      tm={textosDaMesa(t, titulo)}
       abaInicial={abaValida(aba)}
     />
   );
