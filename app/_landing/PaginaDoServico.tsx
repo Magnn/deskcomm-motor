@@ -153,7 +153,7 @@ function CartaoDoPlano({ plano, destaque, excedente, t }: { plano: Plano; destaq
         href="/signup"
         className={`mt-6 inline-flex min-h-11 items-center justify-center rounded-lg px-4 text-sm font-bold transition-colors ${
           destaque
-            ? "bg-accent text-accent-fg hover:bg-accent-hover"
+            ? "bg-accent text-accent-foreground hover:bg-accent-hover"
             : "border border-border-strong text-text hover:bg-surface-elevated"
         }`}
       >
@@ -180,7 +180,7 @@ export async function PaginaDoServico({ idioma }: { idioma: Idioma }) {
       <header className="sticky top-0 z-40 border-b border-border bg-bg/95 backdrop-blur-sm">
         <div className="mx-auto flex h-[68px] max-w-7xl items-center justify-between px-5 sm:px-8">
           <Link href="/" aria-label={nome} className="flex items-center gap-2.5">
-            <span className="grid size-9 place-items-center rounded-xl bg-accent text-lg font-bold text-accent-fg">
+            <span className="grid size-9 place-items-center rounded-xl bg-accent text-lg font-bold text-accent-foreground">
               {marca.initial}
             </span>
             <span className="text-base font-bold tracking-[-0.04em]">{nome}</span>
@@ -205,7 +205,7 @@ export async function PaginaDoServico({ idioma }: { idioma: Idioma }) {
             </Link>
             <Link
               href="/signup"
-              className="inline-flex min-h-10 items-center rounded-lg bg-accent px-4 text-sm font-bold text-accent-fg transition-colors hover:bg-accent-hover"
+              className="inline-flex min-h-10 items-center rounded-lg bg-accent px-4 text-sm font-bold text-accent-foreground transition-colors hover:bg-accent-hover"
             >
               {t("Criar conta")}
             </Link>
@@ -230,7 +230,7 @@ export async function PaginaDoServico({ idioma }: { idioma: Idioma }) {
             <div className="mt-8 flex flex-wrap gap-3">
               <Link
                 href="/signup"
-                className="inline-flex min-h-12 items-center rounded-lg bg-accent px-5 text-sm font-bold text-accent-fg transition-colors hover:bg-accent-hover"
+                className="inline-flex min-h-12 items-center rounded-lg bg-accent px-5 text-sm font-bold text-accent-foreground transition-colors hover:bg-accent-hover"
               >
                 {t("Criar conta grátis")}
               </Link>
@@ -376,7 +376,7 @@ export async function PaginaDoServico({ idioma }: { idioma: Idioma }) {
       </section>
 
       <section className="px-5 pb-16 sm:px-8 sm:pb-24">
-        <div className="mx-auto flex max-w-7xl flex-col items-start gap-6 rounded-xl bg-accent p-8 text-accent-fg sm:p-12 md:flex-row md:items-center md:justify-between">
+        <div className="mx-auto flex max-w-7xl flex-col items-start gap-6 rounded-xl bg-accent p-8 text-accent-foreground sm:p-12 md:flex-row md:items-center md:justify-between">
           <div>
             <h2 className="text-2xl font-bold tracking-[-0.04em] sm:text-3xl">{t("Comece hoje, pague só quando conectar.")}</h2>
             <p className="mt-2 text-sm opacity-90">{t("Monte seu agente em minutos e veja ele atender antes de decidir.")}</p>
