@@ -434,6 +434,20 @@ export function VistaDaArea(p: VistaDaAreaProps) {
                   </article>
                 ))}
               </div>
+              {/* Compra direta é o caminho principal; a conversa fica à mão, para quem quiser tirar dúvida antes. */}
+              {p.whatsapp ? (
+                <p className={`mt-4 text-center ${TEXTO_SUAVE}`}>
+                  {t("Prefere tirar uma dúvida antes?")}{" "}
+                  <a
+                    href={`https://wa.me/${p.whatsapp}`}
+                    className="font-semibold underline underline-offset-4"
+                    style={{ color: cor }}
+                    data-testid="area-vitrine-whatsapp"
+                  >
+                    {t("Fale com a gente no WhatsApp")}
+                  </a>
+                </p>
+              ) : null}
             </section>
           </VitrineObservada>
         ) : null}
