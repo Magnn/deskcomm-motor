@@ -98,5 +98,10 @@ export function textosDasEtapas(t: (s: string) => string): TextosDasEtapas {
     etapasFeitas: t("etapas feitas"),
     naoFoiPossivel: t("Não foi possível agora. Tente de novo."),
     semConexao: t("Sem conexão. Confira a internet e tente de novo."),
+    jaFizTodas: t("Já fiz todas as etapas"),
+    eAgora: t("E agora?"),
+    proximoPasso: t("Quando sentir que é hora, este pode ser o seu próximo passo:"),
+    conhecer: t("Conhecer"),
+    contarComoFoi: t("Contar como foi"),
   };
 }

@@ -14576,6 +14576,14 @@ export const DICIONARIO: Traducoes = {
   // Área do cliente: compra direta na vitrine (app/c/[org]/_vista.tsx)
   "Prefere tirar uma dúvida antes?": { es: "¿Prefieres resolver una duda antes?" },
   "Fale com a gente no WhatsApp": { es: "Habla con nosotros por WhatsApp" },
+  // Área do cliente: o trabalho agora e o recado (app/c/[org]/_etapas.tsx, _vista.tsx)
+  "Já fiz todas as etapas": { es: "Ya hice todas las etapas" },
+  "E agora?": { es: "¿Y ahora?" },
+  "Quando sentir que é hora, este pode ser o seu próximo passo:": { es: "Cuando sientas que es el momento, este puede ser tu próximo paso:" },
+  "Conhecer": { es: "Conocer" },
+  "Contar como foi": { es: "Contar cómo fue" },
+  "Estou acompanhando o seu trabalho:": { es: "Estoy acompañando tu trabajo:" },
+  "Um recado para você": { es: "Un mensaje para ti" },
 };
 
 /**
