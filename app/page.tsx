@@ -3,6 +3,9 @@ import Link from "next/link";
 import { branding } from "@/lib/branding";
 import { idiomaDoVisitante } from "@/lib/i18n/idiomaAnonimo";
 import { traduzir } from "@/lib/i18n/dicionario";
+import { planosAtivos } from "@/lib/planos/assinatura-da-organizacao";
+
+import { PaginaDoServico } from "./_landing/PaginaDoServico";
 
 const PONTOS = [
   {
@@ -42,6 +45,16 @@ function t(texto: string, idioma: Awaited<ReturnType<typeof idiomaDoVisitante>>)
 
 export async function generateMetadata() {
   const idioma = await idiomaDoVisitante(null);
+  // Quem vende a instalação como serviço (planos ligados) tem outra página — ver `PaginaDoServico`.
+  if (planosAtivos()) {
+    return {
+      title: `${branding().name} — ${t("Atendimento e vendas no WhatsApp com agentes de IA", idioma)}`,
+      description: t(
+        "Agentes de IA atendem seus clientes no WhatsApp, conduzem até o pagamento e chamam sua equipe quando precisa.",
+        idioma,
+      ),
+    };
+  }
   return {
     title: `${branding().name} — ${t("Vendas e atendimento em uma só operação", idioma)}`,
     description: t(
@@ -53,6 +66,7 @@ export async function generateMetadata() {
 
 export default async function HomePage() {
   const idioma = await idiomaDoVisitante(null);
+  if (planosAtivos()) return <PaginaDoServico idioma={idioma} />;
   const nome = branding().name;
   const marca = branding();
 
