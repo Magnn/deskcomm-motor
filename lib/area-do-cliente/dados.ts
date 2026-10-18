@@ -152,10 +152,22 @@ export interface FalaDaConversa {
  * (`sent_via = ai`), então a origem não basta — o texto decide.
  */
 const FALA_DE_COBRANCA =
-  /\b(pix|pagamento|pagar|pague|paga|acerto|cobran\w*|boleto|cart[aã]o|link|valor)\b|r\$|parar? de te procurar|que eu pare|ainda tem interesse|quer continuar/i;
+  /\b(pix|pagamento|pagar|pague|paga|pagou|pago|acerto|cobran\w*|boleto|cart[aã]o|link|valor|comprovante|transfer\w*|dep[oó]sito|parcel\w*|desconto|pre[cç]o|reais|investimento|oferta|promo\w*|vaga)\b|r\$|cair no sistema|parar? de te procurar|que eu pare|ainda tem interesse|quer continuar|https?:\/\/|br\.gov\.bcb|\d{12,}|atendente|na fila|ou n[aã]o\?|bugad/i;
 
 /** Curto demais para ser recado ("Oi", "Tudo bem?"). */
 const RECADO_MINIMO = 25;
+
+/**
+ * Bolha que continua a anterior ("Se sim, me manda…", "E aí…"): a agente fala em várias bolhas, e uma
+ * solta no meio do raciocínio não se lê sozinha.
+ */
+const COMECA_NO_MEIO = /^(se sim|se n[aã]o|e |mas |ent[aã]o |ou |porque |pois |a[ií],? )/i;
+
+/** Bolha que começa em minúscula é continuação: a agente abre o recado com maiúscula. */
+const COMECA_EM_MINUSCULA = /^[a-zà-ú]/;
+
+/** Recado de semanas atrás soa velho: só os recentes. */
+const RECADO_VALE_DIAS = 14;
 
 /**
  * Regra pura: o RECADO da empresa que a aba Hoje mostra — a fala mais recente de quem atende que é de
@@ -163,12 +175,14 @@ const RECADO_MINIMO = 25;
  * campanha. Medido em 18/10/2026: a "última mensagem" da área de um contato era a régua de cobrança de
  * 11/10, e é a primeira coisa que a pessoa lê ao entrar.
  */
-export function recadoDaEmpresa(falas: readonly FalaDaConversa[]): FalaDaConversa | null {
+export function recadoDaEmpresa(falas: readonly FalaDaConversa[], agora: Date = new Date()): FalaDaConversa | null {
+  const desde = agora.getTime() - RECADO_VALE_DIAS * 86_400_000;
   for (let i = falas.length - 1; i >= 0; i--) {
     const f = falas[i]!;
+    if (new Date(f.quando).getTime() < desde) break;
     if (f.de !== "empresa" || f.automatica) continue;
     if (f.texto.startsWith("🎤")) continue;
-    if (f.texto.length < RECADO_MINIMO || FALA_DE_COBRANCA.test(f.texto)) continue;
+    if (f.texto.length < RECADO_MINIMO || FALA_DE_COBRANCA.test(f.texto) || COMECA_NO_MEIO.test(f.texto) || COMECA_EM_MINUSCULA.test(f.texto)) continue;
     return f;
   }
   return null;
