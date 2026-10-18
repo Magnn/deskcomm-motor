@@ -102,6 +102,22 @@ describe("GET /auth/confirm", () => {
     expect(vi.mocked(ensureTenantForUser)).not.toHaveBeenCalled();
   });
 
+  it("link do modelo padrão apontado para cá (`token=`): confirma pelo hash e provisiona a empresa", async () => {
+    const supabase = stubSupabase({ verifyOtp: { data: { user: USUARIO }, error: null }, getUser: { data: { user: null } } });
+    vi.mocked(createClient).mockResolvedValue(supabase as unknown as Awaited<ReturnType<typeof createClient>>);
+    vi.mocked(decidirConviteDoSignup).mockReturnValue({ tipo: "provisionar" });
+
+    const { GET } = await import("./route");
+    const res = await GET(
+      requisicao("token=hash123&type=signup&redirect_to=https%3A%2F%2Fapp.test%2Fauth%2Fconfirm%3Ftype%3Dsignup"),
+    );
+
+    expect(supabase.auth.verifyOtp).toHaveBeenCalledWith({ type: "signup", token_hash: "hash123" });
+    expect(supabase.auth.exchangeCodeForSession).not.toHaveBeenCalled();
+    expect(vi.mocked(ensureTenantForUser)).toHaveBeenCalled();
+    expect(destino(res)).toBe("/onboarding/welcome");
+  });
+
   it("segundo clique no mesmo link: mantém quem já está logado, não manda pro login", async () => {
     comSupabase({
       verifyOtp: { data: { user: null }, error: { message: "Email link is invalid or has expired" } },
