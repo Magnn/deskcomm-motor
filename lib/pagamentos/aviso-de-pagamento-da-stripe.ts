@@ -74,6 +74,10 @@ export async function aplicarAvisoDePagamentoDaStripe(
   if (!metadata.success)
     return ok({ received: true, resultado: "ignorada" }, { requestId }) as NextResponse;
   const meta = metadata.data;
+  // A taxa da plataforma que a Stripe REALMENTE descontou desta cobrança (conta conectada). Vai para o livro de
+  // receita para a tela "o que a plataforma trouxe" mostrar o custo exato, sem recalcular regra de taxa.
+  const taxaDaPlataforma =
+    typeof pi.application_fee_amount === "number" && pi.application_fee_amount > 0 ? pi.application_fee_amount : null;
   const contatoId = meta.contact_id;
   const valor =
     typeof pi.amount_received === "number"
@@ -163,6 +167,7 @@ export async function aplicarAvisoDePagamentoDaStripe(
           metodo: metodoDaCobranca,
           conversa: meta.conversation_id ?? null,
           extra,
+          ...(taxaDaPlataforma !== null ? { taxa_da_plataforma_cents: taxaDaPlataforma } : {}),
         },
       });
       // Reentrega da Stripe: a receita já está lá e a marca também.
@@ -323,6 +328,7 @@ export async function aplicarAvisoDePagamentoDaStripe(
         produto: meta.produto ?? null,
         metodo: metodoDaCobranca,
         conversa: meta.conversation_id ?? null,
+        ...(taxaDaPlataforma !== null ? { taxa_da_plataforma_cents: taxaDaPlataforma } : {}),
         ...(moedaDaCobranca !== MOEDA_DA_CONTA
           ? { moeda_original: moedaDaCobranca, valor_original_cents: valor }
           : {}),

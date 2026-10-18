@@ -25,6 +25,7 @@ import { FunilDaConversaPainel } from "./FunilDaConversaPainel";
 import { MotivoDaPerdaPainel } from "./MotivoDaPerdaPainel";
 import { PosVendaPainel } from "./PosVendaPainel";
 import { ReceitaAtribuidaPainel } from "./ReceitaAtribuidaPainel";
+import { RetornoDaPlataformaPainel } from "./RetornoDaPlataformaPainel";
 
 /** De quanto em quanto tempo o painel se relê sozinho, com a aba visível. */
 const INTERVALO_DE_ATUALIZACAO_MS = 60_000;
@@ -1350,6 +1351,7 @@ export function DashboardClient({ orgName }: { orgName: string }) {
       )}
       {activeTab === "receita" && (
         <div className="space-y-6">
+          <RetornoDaPlataformaPainel period={period} tagDoIdioma={tagDoIdioma} />
           <ReceitaAtribuidaPainel period={period} tagDoIdioma={tagDoIdioma} />
           <PosVendaPainel period={period} tagDoIdioma={tagDoIdioma} />
           <FunilDaConversaPainel period={period} />
