@@ -10,9 +10,14 @@
 import { redirect } from "next/navigation";
 
 import { requireAuth, resolveActiveOrg } from "@/lib/auth/server";
+import { audit } from "@/lib/audit";
 import { ROLE_RANK } from "@/lib/auth/types";
 import { traduzir } from "@/lib/i18n/dicionario";
+import { env } from "@/lib/env";
+import { logger } from "@/lib/logger";
 import { lerEstadoDaCobranca } from "@/lib/pagamentos/estado-da-conexao";
+import { criarStripeConnect } from "@/lib/pagamentos/stripe-connect";
+import { configuracaoDaStripeDosPlanos } from "@/lib/planos/stripe-dos-planos";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 import { FormularioDeCobranca } from "./_form";
@@ -33,16 +38,75 @@ export default async function PagamentosPage() {
   // Só booleanos: nem a chave nem o segredo do aviso entram no que vai para a tela.
   const { data: linhaDaStripe } = await admin
     .from("payment_gateway_connections")
-    .select("enabled, api_key_encrypted, webhook_secret_encrypted")
+    .select(
+      "id, enabled, api_key_encrypted, webhook_secret_encrypted, stripe_account_id, stripe_pronta",
+    )
     .eq("organization_id", activeOrg.orgId)
     .eq("provider", "stripe")
     .maybeSingle();
-  const s = linhaDaStripe as { enabled: boolean; api_key_encrypted: string | null; webhook_secret_encrypted: string | null } | null;
+  const s = linhaDaStripe as {
+    id: string;
+    enabled: boolean;
+    api_key_encrypted: string | null;
+    webhook_secret_encrypted: string | null;
+    stripe_account_id: string | null;
+    stripe_pronta: boolean;
+  } | null;
+
+  // Conta conectada ainda em cadastro: pergunta à Stripe como ela está AGORA (a pessoa acabou de voltar do
+  // cadastro, ou a análise terminou). O aviso `account.updated` também atualiza — esta leitura é o que faz a
+  // tela não depender dele. Falha aqui nunca derruba a tela: mostra o último estado gravado.
+  const cfg = configuracaoDaStripeDosPlanos();
+  let pronta = s?.stripe_pronta ?? false;
+  let pixAtivo: boolean | null = null;
+  if (s?.stripe_account_id && cfg) {
+    try {
+      const conta = await criarStripeConnect(cfg).lerConta(s.stripe_account_id);
+      pixAtivo = conta.pixAtivo;
+      if (conta.pronta !== pronta) {
+        pronta = conta.pronta;
+        // ⚠️ Filtro de organização: o client é service-role.
+        const { error } = await admin
+          .from("payment_gateway_connections")
+          .update({ stripe_pronta: pronta })
+          .eq("organization_id", activeOrg.orgId)
+          .eq("id", s.id);
+        if (error) {
+          logger.warn("[stripe.connect] situação da conta não gravada", {
+            organizationId: activeOrg.orgId,
+            error: error.message,
+          });
+          pronta = s.stripe_pronta;
+        } else {
+          await audit({
+            action: "payment_gateway_connection.updated",
+            organizationId: activeOrg.orgId,
+            actorUserId: user.id,
+            resourceType: "payment_gateway_connections",
+            resourceId: s.id,
+            metadata: { provider: "stripe", origem: "consulta_da_conta", stripe_pronta: pronta },
+          });
+        }
+      }
+    } catch (err) {
+      logger.warn("[stripe.connect] situação da conta não lida", {
+        organizationId: activeOrg.orgId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
   const estadoDaStripe: EstadoDaStripe = {
     conectada: Boolean(s),
     temChave: Boolean(s?.api_key_encrypted),
     habilitada: s?.enabled ?? false,
     temAviso: Boolean(s?.webhook_secret_encrypted),
+    connect: {
+      disponivel: cfg !== null,
+      temConta: Boolean(s?.stripe_account_id),
+      pronta,
+      pixAtivo,
+      taxaCentavos: env.STRIPE_CONNECT_TAXA_CENTAVOS,
+    },
   };
   const t = (texto: string) => traduzir(texto, user.idioma);
 
@@ -51,7 +115,9 @@ export default async function PagamentosPage() {
       <header className="flex flex-col gap-1">
         <h1 className="text-xl font-semibold">{t("Pagamentos")}</h1>
         <p className="text-sm text-muted-foreground">
-          {t("Conecte sua conta do Asaas. A caixa Cobrança dos fluxos usa esta conexão para gerar o link de pagamento e o PIX copia e cola.")}
+          {t(
+            "Conecte sua conta do Asaas. A caixa Cobrança dos fluxos usa esta conexão para gerar o link de pagamento e o PIX copia e cola.",
+          )}
         </p>
         <p className="text-xs text-muted-foreground">
           {estado.conectada && estado.temChave

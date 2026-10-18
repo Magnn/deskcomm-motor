@@ -60,7 +60,7 @@ export async function pixNoLugarDoLink(e: EntradaDoPixNoEnvio): Promise<string> 
       },
       expiraEmSegundos: VALIDADE_DO_PIX_S,
     };
-    const pix = await (e.criarPix ?? ((c, p) => criarClienteStripe({ chave: c.chave }).criarPix(p)))(conexao, pedido);
+    const pix = await (e.criarPix ?? ((c, p) => criarClienteStripe(c).criarPix(p)))(conexao, pedido);
     e.log.info('pix criado para a conversa', {
       conversation_id: e.conversationId,
       valor_centavos: link.valorCentavos,

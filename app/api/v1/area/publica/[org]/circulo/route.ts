@@ -43,7 +43,7 @@ export async function POST(req: NextRequest, { params }: Ctx): Promise<Response>
   const conexao = await lerConexaoStripe(admin, org.id);
   if (!conexao) return ERRO(503, "pagamento_indisponivel", "O pagamento não está disponível agora. Fale com a gente.");
 
-  const stripe = criarClienteStripe({ chave: conexao.chave });
+  const stripe = criarClienteStripe(conexao);
   const metadados = { organization_id: org.id, contact_id: sessao.contactId, produto: circulo.nome, extra: EXTRA_DO_CIRCULO };
   const descricao = `${circulo.nome} — 30 dias`;
   // A referência repete dentro da mesma hora: tocar duas vezes devolve a MESMA cobrança, não duas.

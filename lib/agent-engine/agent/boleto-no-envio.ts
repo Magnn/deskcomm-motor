@@ -66,7 +66,7 @@ export async function boletoNoLugarDaMarca(e: EntradaDoBoleto): Promise<SaidaDoB
       return { recusa: SEM_BOLETO };
     }
     const agora = e.agora ?? new Date();
-    const boleto = await (e.criarBoleto ?? ((c, p) => criarClienteStripe({ chave: c.chave }).criarBoleto(p)))(conexao, {
+    const boleto = await (e.criarBoleto ?? ((c, p) => criarClienteStripe(c).criarBoleto(p)))(conexao, {
       valorCentavos: pedido.valorCents,
       descricao: e.descricaoDoValor(pedido.valorCents),
       referencia: `boleto-${e.conversationId}-${pedido.valorCents}-${Math.floor(agora.getTime() / 86_400_000)}`,

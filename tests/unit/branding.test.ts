@@ -965,6 +965,11 @@ const HOSTS_DECLARADOS: Record<string, EntradaDeHost> = {
       "endpoint padrão do canal parceiro que espelha a Cloud API (recorte do #1130), com override por DATAFY_API_BASE_URL. É o destino das chamadas de envio e de validação do token — e o canal só existe numa instalação que o liga (DATAFY_ENABLED).",
   },
   // ── painel do fornecedor: texto de tela apontando para o endereço DELE ────
+  "dashboard.stripe.com": {
+    categoria: "CONSOLE",
+    motivo:
+      "painel da própria conta Stripe da empresa: o link Abrir minha Stripe em Configurações › Pagamentos permite conferir o cadastro, os recebimentos e os reembolsos. É o console do fornecedor, não domínio da instalação ou de um cliente.",
+  },
   "platform.openai.com": {
     categoria: "CONSOLE",
     motivo:
@@ -1193,6 +1198,9 @@ describe("catraca de host de terceiro no código que embarca", () => {
       // Decisão escrita: é o painel de chaves do Jev, o mesmo caso dos outros
       // CONSOLE — o link "Onde pegar a chave" da tela de Credenciais.
       "console.typesafe.ai",
+      // Decisão escrita: o link Abrir minha Stripe leva ao Dashboard da própria
+      // empresa conectada, onde ela resolve cadastro, recebimentos e reembolsos.
+      "dashboard.stripe.com",
       "deskcomm.app",
       "elevenlabs.io",
       // Decisão escrita: a origem do aviso que a janela do Cadastro Incorporado

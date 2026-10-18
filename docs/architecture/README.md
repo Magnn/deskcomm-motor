@@ -1,5 +1,7 @@
 # Mapas de arquitetura
 
+`stripe-connect.architecture.json`: cadastro da conta da empresa, cobranças diretas, confirmação compartilhada e retorno da prontidão. Contrato em `../specs/stripe-connect.md`.
+
 ## Regra única deste diretório: o JSON é a FONTE; o HTML é DERIVADO
 
 Cada mapa tem um `*.json` (fonte) e pode ter um `*.html` (render).
