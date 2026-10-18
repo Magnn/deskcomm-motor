@@ -33,7 +33,15 @@ const MAX_FALAS = 400;
  * fica de fora — "[áudio]" solto não diz nada a quem lê).
  */
 export function falasDaConversa(
-  linhas: ReadonlyArray<{ id: string; direction: string; type: string; body: string | null; media_derived_text: string | null; created_at: string }>,
+  linhas: ReadonlyArray<{
+    id: string;
+    direction: string;
+    type: string;
+    body: string | null;
+    media_derived_text: string | null;
+    created_at: string;
+    sent_via?: string | null;
+  }>,
 ): FalaDaConversa[] {
   const falas: FalaDaConversa[] = [];
   for (const l of linhas) {
@@ -44,6 +52,7 @@ export function falasDaConversa(
       de: l.direction === "inbound" ? "voce" : "empresa",
       texto: l.type === "audio" ? `🎤 ${texto}` : texto,
       quando: l.created_at,
+      automatica: l.sent_via === "automation",
     });
   }
   falas.sort((a, b) => (a.quando < b.quando ? -1 : 1));
@@ -134,6 +143,35 @@ export interface FalaDaConversa {
   de: "voce" | "empresa";
   texto: string;
   quando: string;
+  /** Saiu de campanha ou automação, não de quem atende. */
+  automatica?: boolean;
+}
+
+/**
+ * O que é cobrança ou insistência, e não cuidado: a régua de retomada sai como fala da própria agente
+ * (`sent_via = ai`), então a origem não basta — o texto decide.
+ */
+const FALA_DE_COBRANCA =
+  /\b(pix|pagamento|pagar|pague|paga|acerto|cobran\w*|boleto|cart[aã]o|link|valor)\b|r\$|parar? de te procurar|que eu pare|ainda tem interesse|quer continuar/i;
+
+/** Curto demais para ser recado ("Oi", "Tudo bem?"). */
+const RECADO_MINIMO = 25;
+
+/**
+ * Regra pura: o RECADO da empresa que a aba Hoje mostra — a fala mais recente de quem atende que é de
+ * cuidado, nunca uma cobrança, uma retomada ("prefere que eu pare de te procurar?") ou um disparo de
+ * campanha. Medido em 18/10/2026: a "última mensagem" da área de um contato era a régua de cobrança de
+ * 11/10, e é a primeira coisa que a pessoa lê ao entrar.
+ */
+export function recadoDaEmpresa(falas: readonly FalaDaConversa[]): FalaDaConversa | null {
+  for (let i = falas.length - 1; i >= 0; i--) {
+    const f = falas[i]!;
+    if (f.de !== "empresa" || f.automatica) continue;
+    if (f.texto.startsWith("🎤")) continue;
+    if (f.texto.length < RECADO_MINIMO || FALA_DE_COBRANCA.test(f.texto)) continue;
+    return f;
+  }
+  return null;
 }
 
 export interface MensagemDaArea {
@@ -299,7 +337,7 @@ export async function carregarDadosDaArea(
       .limit(10),
     admin
       .from("messages")
-      .select("id, direction, type, body, media_derived_text, created_at")
+      .select("id, direction, type, body, media_derived_text, created_at, sent_via")
       .eq("organization_id", org.id)
       .eq("contact_id", contactId)
       .in("type", ["text", "audio"])
@@ -399,6 +437,7 @@ export async function carregarDadosDaArea(
       body: string | null;
       media_derived_text: string | null;
       created_at: string;
+      sent_via: string | null;
     }>,
   );
   const mensagens = ((mensagensR.data ?? []) as Array<{ id: string; autor: "cliente" | "equipe"; texto: string; created_at: string }>).map(

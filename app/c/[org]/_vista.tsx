@@ -8,7 +8,7 @@
 import type { CSSProperties } from "react";
 import { Check, FileText, Film, Headphones, MessageCircle, Receipt } from "lucide-react";
 
-import type { DadosDaArea } from "@/lib/area-do-cliente/dados";
+import { recadoDaEmpresa, type DadosDaArea } from "@/lib/area-do-cliente/dados";
 import { faseDaLua, proximaLua } from "@/lib/area-do-cliente/lua";
 
 import {
@@ -150,7 +150,11 @@ export function VistaDaArea(p: VistaDaAreaProps) {
   const ola = dados.contato.primeiroNome ? `${t("Olá")}, ${dados.contato.primeiroNome}` : t("Olá");
   const vitrine = dados.servicos.filter((s) => !s.ja_comprado);
   const ultimaCompra = dados.compras.find((c) => !c.estornada) ?? null;
-  const ultimaDaEmpresa = [...dados.conversa].reverse().find((f) => f.de === "empresa") ?? null;
+  // O recado, não a "última mensagem": a fala mais recente da empresa pode ser a régua de cobrança.
+  const recado = recadoDaEmpresa(dados.conversa);
+  const trabalhoAtual = dados.trabalhos.at(0) ?? null;
+  // Quem terminou o trabalho vê um próximo passo; o primeiro da vitrine que ela ainda não tem.
+  const proximo = vitrine[0] ? { nome: vitrine[0].nome, descricao: vitrine[0].descricao ?? null } : null;
   const rotulos = { hoje: t("Hoje"), trabalho: t("Meu trabalho"), conversa: t("Conversa"), explorar: t("Explorar") };
 
   /** O topo das abas que não são a Hoje: o mesmo céu, mais baixo, com o nome da aba. */
@@ -175,7 +179,9 @@ export function VistaDaArea(p: VistaDaAreaProps) {
             {ola}
           </h1>
           <p className="mt-3 max-w-md text-[16px] leading-relaxed text-[#d9d0e6]">
-            {p.boasVindas || t("Sua conversa, seus conteúdos e suas reflexões em um só lugar.")}
+            {trabalhoAtual
+              ? `${t("Estou acompanhando o seu trabalho:")} ${trabalhoAtual.nome}.`
+              : p.boasVindas || t("Sua conversa, seus conteúdos e suas reflexões em um só lugar.")}
           </p>
 
           <div className="mt-7 flex items-center gap-4 rounded-3xl border border-white/10 bg-white/[0.06] p-4 backdrop-blur-sm" data-testid="area-lua">
@@ -207,20 +213,20 @@ export function VistaDaArea(p: VistaDaAreaProps) {
           </section>
         ) : null}
 
-        <EtapaDeHoje />
+        <EtapaDeHoje proximo={proximo} />
 
         {p.carta ? (
           <CartaDoDia slug={slug} cor={cor} tx={tx} cartaId={p.carta.id} nome={p.carta.nome} mensagem={p.carta.mensagem} foto={p.carta.foto} />
         ) : null}
 
         {/* A continuidade: a última palavra da empresa, com o caminho para responder. */}
-        {ultimaDaEmpresa ? (
+        {recado ? (
           <section className={CARTAO} data-testid="area-ultima-mensagem">
             <p className={SOBRETITULO}>
-              {t("Última mensagem")} · {dataCurta(ultimaDaEmpresa.quando)}
+              {t("Um recado para você")} · {dataCurta(recado.quando)}
             </p>
             <p className={`${SERIF} mt-3 line-clamp-5 whitespace-pre-line text-[18px] leading-relaxed text-[#3a3347]`}>
-              {ultimaDaEmpresa.texto}
+              {recado.texto}
             </p>
             <p className="mt-2 text-sm font-semibold text-[#a8842f]">— {titulo}</p>
             <BotaoIrParaAba

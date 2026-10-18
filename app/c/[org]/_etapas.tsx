@@ -26,6 +26,11 @@ export interface TextosDasEtapas {
   etapasFeitas: string;
   naoFoiPossivel: string;
   semConexao: string;
+  jaFizTodas: string;
+  eAgora: string;
+  proximoPasso: string;
+  conhecer: string;
+  contarComoFoi: string;
 }
 
 export interface TrabalhoInicial {
@@ -141,21 +146,69 @@ function Progresso({ feitas, total }: { feitas: number; total: number }) {
   );
 }
 
-/** Aba Hoje: a etapa da vez do trabalho mais recente, com o "Fiz esta etapa". */
-export function EtapaDeHoje() {
+/** Um trabalho da vitrine que a pessoa ainda não tem, para o "e agora?" de quem terminou. */
+export interface ProximoPasso {
+  nome: string;
+  descricao: string | null;
+}
+
+/**
+ * Aba Hoje: a etapa da vez do trabalho mais recente, com o "Fiz esta etapa".
+ *
+ * Duas lacunas medidas em 18/10/2026, pensando em quem está lá dentro:
+ *  - quem comprou antes da área existir fez as noites pela conversa e nunca marcou nada; abria a área dez
+ *    dias depois e via "Noite 1" como se o trabalho nem tivesse começado. "Já fiz todas as etapas" resolve
+ *    num toque;
+ *  - quem terminava via só "Você concluiu", e a área acabava ali. Agora o fim tem um "e agora?": contar
+ *    como foi (a conversa) e, sem pressa, o próximo trabalho que ela ainda não tem.
+ */
+export function EtapaDeHoje({ proximo = null }: { proximo?: ProximoPasso | null }) {
   const { trabalhos, marcar, erro, te, cor } = useEtapas();
+  const [marcandoTodas, setMarcandoTodas] = React.useState(false);
   const t = trabalhos.at(0);
   if (!t) return null;
   const linha = linhaDoTempo(t.etapas, t.feitas);
   const vez = etapaDaVez(linha);
   const feitas = linha.filter((e) => e.estado === "feita").length;
 
+  const marcarTodas = async () => {
+    setMarcandoTodas(true);
+    // Em sequência, não em paralelo: cada marcação é otimista e a rota tem limite por pessoa.
+    for (const e of linha) if (e.estado !== "feita") await marcar(t.servicoId, e.indice, true);
+    setMarcandoTodas(false);
+  };
+
   if (!vez) {
     return (
-      <section className={`${CARTAO} text-center`} data-testid="area-etapas-concluidas">
-        <Sparkles className="mx-auto size-7 text-[#a8842f]" strokeWidth={1.5} aria-hidden />
-        <p className={`${SERIF} mt-2 text-[22px] leading-snug`}>{te.concluido}</p>
-        <p className={`mt-1 ${TEXTO_SUAVE}`}>{t.nome}</p>
+      <section className={CARTAO} data-testid="area-etapas-concluidas">
+        <div className="text-center">
+          <Sparkles className="mx-auto size-7 text-[#a8842f]" strokeWidth={1.5} aria-hidden />
+          <p className={`${SERIF} mt-2 text-[22px] leading-snug`}>{te.concluido}</p>
+          <p className={`mt-1 ${TEXTO_SUAVE}`}>{t.nome}</p>
+        </div>
+        <div className="mt-6 border-t border-[#efe7d6] pt-5">
+          <p className={SOBRETITULO}>{te.eAgora}</p>
+          <BotaoIrParaAba
+            aba="conversa"
+            className="mt-3 inline-flex h-11 items-center rounded-full px-5 text-[15px] font-semibold text-white"
+            style={{ background: cor }}
+          >
+            {te.contarComoFoi}
+          </BotaoIrParaAba>
+          {proximo ? (
+            <div className="mt-5" data-testid="area-proximo-passo">
+              <p className={TEXTO_SUAVE}>{te.proximoPasso}</p>
+              <p className={`${SERIF} mt-2 text-[20px] leading-snug`}>{proximo.nome}</p>
+              {proximo.descricao ? <p className={`mt-1 ${TEXTO_SUAVE}`}>{proximo.descricao}</p> : null}
+              <BotaoIrParaAba
+                aba="explorar"
+                className="mt-3 text-sm font-semibold text-[#8a6b22] underline decoration-[#e2c47a] decoration-2 underline-offset-4"
+              >
+                {te.conhecer}
+              </BotaoIrParaAba>
+            </div>
+          ) : null}
+        </div>
       </section>
     );
   }
@@ -183,6 +236,17 @@ export function EtapaDeHoje() {
           {te.verTrabalho}
         </BotaoIrParaAba>
       </div>
+      {feitas < linha.length - 1 ? (
+        <button
+          type="button"
+          onClick={() => void marcarTodas()}
+          disabled={marcandoTodas}
+          className="mt-4 text-sm text-[#6f6880] underline underline-offset-4 disabled:opacity-60"
+          data-testid="area-ja-fiz-todas"
+        >
+          {te.jaFizTodas}
+        </button>
+      ) : null}
       {erro ? (
         <p role="alert" className="mt-3 text-sm text-[#a5361f]">
           {erro}
