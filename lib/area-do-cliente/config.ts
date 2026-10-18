@@ -55,6 +55,19 @@ export const configDaAreaSchema = z.strictObject({
       preco_cents: z.number().int().min(100).max(1_000_000).default(4700),
     })
     .optional(),
+  /**
+   * A Mesa de leituras (`lib/area-do-cliente/leituras.ts`): leitura automática paga na área. A primeira de
+   * cada modalidade sai por `preco_primeira_cents`; as seguintes por `preco_cents`. `limite_por_dia` conta as
+   * pagas no dia. Desligada por padrão.
+   */
+  leituras: z
+    .strictObject({
+      ativo: z.boolean().default(false),
+      preco_primeira_cents: z.number().int().min(100).max(1_000_000).default(500),
+      preco_cents: z.number().int().min(100).max(1_000_000).default(1490),
+      limite_por_dia: z.number().int().min(1).max(20).default(3),
+    })
+    .optional(),
   /** Cor principal da área, em hex. Vazio = a cor do produto. */
   cor: z
     .string()

@@ -27,9 +27,10 @@ import {
 import { AbasDaArea, BotaoIrParaAba, type AbaDaArea } from "./_abas";
 import { CirculoDoCliente } from "./_circulo";
 import { EtapaDeHoje, EtapasDaArea, LinhasDoTempo, type TextosDasEtapas } from "./_etapas";
+import { MesaDeLeituras, type MesaInicial, type TextosDaMesa } from "./_mesa";
 import { LuaDeHoje } from "./_lua";
 import { AnoPessoalDoCliente, PresenteDoCliente, type TextosDasOfertas } from "./_ofertas";
-import { CARTAO, CEU, DETALHE, PAGINA, SERIF, SOBRETITULO, SOBRETITULO_NOTURNO, TEXTO_SUAVE } from "./_tema";
+import { CARTAO, CARTAO_NOTURNO, CEU, DETALHE, PAGINA, SERIF, SOBRETITULO, SOBRETITULO_NOTURNO, TEXTO_SUAVE } from "./_tema";
 
 type Traduzir = (texto: string) => string;
 
@@ -120,6 +121,9 @@ export interface VistaDaAreaProps {
   } | null;
   presente: { preco: string; presentes: Array<{ id: string; para: string | null; link: string; usado: boolean }> } | null;
   te: TextosDasEtapas;
+  /** A Mesa de leituras; `null` quando a empresa não ligou. */
+  mesa: MesaInicial | null;
+  tm: TextosDaMesa;
   /** A aba que abre primeiro (do endereço, `?aba=`); sem ela, Hoje. */
   abaInicial?: AbaDaArea;
 }
@@ -214,6 +218,22 @@ export function VistaDaArea(p: VistaDaAreaProps) {
         ) : null}
 
         <EtapaDeHoje proximo={proximo} />
+
+        {/* O convite para a Mesa: no Hoje só a porta; o ritual mora no Explorar. */}
+        {p.mesa ? (
+          <section className={CARTAO_NOTURNO} data-testid="area-convite-mesa">
+            <p className={SOBRETITULO_NOTURNO}>✦ {p.tm.titulo}</p>
+            <p className={`${SERIF} mt-2 text-[22px] leading-snug`}>{t("Faça uma pergunta às cartas e veja a leitura na hora.")}</p>
+            <p className="mt-1 text-xs text-[#b7aecb]">{p.tm.automatica}</p>
+            <BotaoIrParaAba
+              aba="explorar"
+              className="mt-4 inline-flex h-11 items-center rounded-full px-5 text-[15px] font-semibold"
+              style={{ background: "#c9a54e", color: "#1b1433" }}
+            >
+              {t("Ir para a mesa")}
+            </BotaoIrParaAba>
+          </section>
+        ) : null}
 
         {p.carta ? (
           <CartaDoDia slug={slug} cor={cor} tx={tx} cartaId={p.carta.id} nome={p.carta.nome} mensagem={p.carta.mensagem} foto={p.carta.foto} />
@@ -404,6 +424,8 @@ export function VistaDaArea(p: VistaDaAreaProps) {
     <>
       {topo(rotulos.explorar)}
       <div className={corpo}>
+        {p.mesa ? <MesaDeLeituras slug={slug} cor={cor} tx={tx} tm={p.tm} inicial={p.mesa} whatsapp={p.whatsapp} tag={tag} /> : null}
+
         {p.anoPessoal ? <AnoPessoalDoCliente slug={slug} cor={cor} tx={tx} to={to} {...p.anoPessoal} /> : null}
 
         {p.circulo ? <CirculoDoCliente slug={slug} cor={cor} tx={tx} {...p.circulo} /> : null}

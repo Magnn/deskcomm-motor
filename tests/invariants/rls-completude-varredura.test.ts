@@ -76,6 +76,7 @@ interface Excecao {
  */
 const PROVA_PROPRIA: readonly Excecao[] = [
   { tabela: "area_presentes", razao: "tests/invariants/area-do-cliente-rls.test.ts — tabela só do servidor: com linhas gravadas, o admin da própria organização lê zero e nem anon nem authenticated têm grant." },
+  { tabela: "area_leituras", razao: "tests/invariants/area-do-cliente-rls.test.ts — tabela só do servidor: com linhas gravadas, o admin da própria organização lê zero e nem anon nem authenticated têm grant." },
   { tabela: "area_ano_pessoal", razao: "tests/invariants/area-do-cliente-rls.test.ts — tabela só do servidor: com linhas gravadas, o admin da própria organização lê zero e nem anon nem authenticated têm grant." },
   { tabela: "area_codigos", razao: "tests/invariants/area-do-cliente-rls.test.ts — tabela só do servidor: com linhas gravadas, o admin da própria organização lê zero e nem anon nem authenticated têm grant." },
   { tabela: "area_diario", razao: "tests/invariants/area-do-cliente-rls.test.ts — tabela só do servidor: com linhas gravadas, o admin da própria organização lê zero e nem anon nem authenticated têm grant." },

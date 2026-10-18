@@ -4,6 +4,7 @@
  */
 import type { TextosDaArea } from "./_client";
 import type { TextosDasEtapas } from "./_etapas";
+import type { TextosDaMesa } from "./_mesa";
 import type { TextosDasOfertas } from "./_ofertas";
 
 /** Os textos das partes que rodam no navegador, já traduzidos aqui no servidor. */
@@ -103,5 +104,41 @@ export function textosDasEtapas(t: (s: string) => string): TextosDasEtapas {
     proximoPasso: t("Quando sentir que é hora, este pode ser o seu próximo passo:"),
     conhecer: t("Conhecer"),
     contarComoFoi: t("Contar como foi"),
+  };
+}
+
+/** Os textos da Mesa de leituras, já traduzidos. `empresa` entra no aviso de que a leitura é automática. */
+export function textosDaMesa(t: (s: string) => string, empresa: string): TextosDaMesa {
+  return {
+    titulo: t("A Mesa"),
+    automatica: `${t("Leitura automática, nos métodos de")} ${empresa}`,
+    primeiraPor: t("Primeira leitura por"),
+    leituraPor: t("Leitura por"),
+    restamHoje: t("Leituras que ainda cabem hoje:"),
+    limiteDoDia: t("Por hoje a mesa já fez as suas leituras. Amanhã ela abre de novo para você."),
+    suaPergunta: t("Sua pergunta"),
+    dicaDaPergunta: t("Uma pergunta só, do seu jeito. Quanto mais clara, mais clara a leitura."),
+    pagarComPix: t("Pagar com Pix"),
+    pagarComCartao: t("Pagar com cartão"),
+    esperandoPagamento: t("Esperando o pagamento"),
+    copiarCodigo: t("Copiar o código Pix"),
+    codigoCopiado: t("Código copiado"),
+    embaralhando: t("Embaralhando as cartas"),
+    escolhaTres: t("Concentre-se na sua pergunta e toque em três cartas."),
+    escolhidas: t("escolhidas"),
+    revelar: t("Revelar as cartas"),
+    digitando: t("Lendo as suas cartas"),
+    sintese: t("O que as cartas dizem juntas"),
+    passo: t("Um passo para os próximos dias"),
+    preparando: t("A leitura está sendo preparada. Toque abaixo em instantes."),
+    tentarDeNovo: t("Tentar de novo"),
+    voltarAMesa: t("Voltar para a mesa"),
+    ciganaDeVerdade: t("Quer conversar sobre isso com uma cigana de verdade?"),
+    falarComCigana: t("Falar com uma cigana no WhatsApp"),
+    minhasLeituras: t("Minhas leituras"),
+    esperandoVoce: t("Uma leitura paga está esperando você"),
+    abrirAMesa: t("Abrir a mesa"),
+    voltar: t("Voltar"),
+    posicoes: [t("O que pesa"), t("O que está em movimento"), t("O conselho das cartas")],
   };
 }
