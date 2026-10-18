@@ -151,7 +151,7 @@ export function VistaDaArea(p: VistaDaAreaProps) {
   const vitrine = dados.servicos.filter((s) => !s.ja_comprado);
   const ultimaCompra = dados.compras.find((c) => !c.estornada) ?? null;
   // O recado, não a "última mensagem": a fala mais recente da empresa pode ser a régua de cobrança.
-  const recado = recadoDaEmpresa(dados.conversa);
+  const recado = recadoDaEmpresa(dados.conversa, p.agora);
   const trabalhoAtual = dados.trabalhos.at(0) ?? null;
   // Quem terminou o trabalho vê um próximo passo; o primeiro da vitrine que ela ainda não tem.
   const proximo = vitrine[0] ? { nome: vitrine[0].nome, descricao: vitrine[0].descricao ?? null } : null;
