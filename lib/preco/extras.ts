@@ -135,7 +135,10 @@ export function blocoDosExtras(extras: readonly Extra[], pagos: readonly ExtraPa
     "- O que está abaixo NÃO faz parte do que é gratuito nem do trabalho principal. Quando a situação descrita acontecer, NÃO atenda de graça: diga o valor e cobre.",
   ];
   for (const e of extras) {
-    linhas.push(`- *${e.name}* — ${reais(e.price_cents)}. Quando cobrar: ${e.when} Para cobrar, escreva sozinho num balão: ${marcaDoExtra(e.name)}`);
+    // O valor vai dito como É DESTA cobrança: em 19/10/2026 a agente trocou o da pergunta (R$ 5) pelo do trabalho (R$ 130).
+    linhas.push(
+      `- *${e.name}* — ${reais(e.price_cents)} (o valor DESTA cobrança; não é o valor do trabalho principal). Quando cobrar: ${e.when} Para cobrar, escreva sozinho num balão: ${marcaDoExtra(e.name)}`,
+    );
   }
   linhas.push(
     "- COMO COBRAR, numa resposta só: 1º um balão curto dizendo o que é e o valor; 2º a marca sozinha no balão seguinte (o sistema troca a marca pelo código do Pix e pelo link de cartão de crédito); 3º um balão final: \"Assim que o pagamento cair eu vejo aqui e já te atendo. Conseguiu copiar o código?\"",
