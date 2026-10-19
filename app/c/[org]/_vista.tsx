@@ -25,6 +25,7 @@ import {
   type TextosDaArea,
 } from "./_client";
 import { AbasDaArea, BotaoIrParaAba, type AbaDaArea } from "./_abas";
+import { CarteiraDeCreditos, type CarteiraInicial, type TextosDaCarteira } from "./_carteira";
 import { CirculoDoCliente } from "./_circulo";
 import { EtapaDeHoje, EtapasDaArea, LinhasDoTempo, type TextosDasEtapas } from "./_etapas";
 import { MesaDeLeituras, type MesaInicial, type TextosDaMesa } from "./_mesa";
@@ -124,6 +125,10 @@ export interface VistaDaAreaProps {
   /** A Mesa de leituras; `null` quando a empresa não ligou. */
   mesa: MesaInicial | null;
   tm: TextosDaMesa;
+  /** Os créditos (`_carteira.tsx`); `null` = desligados. */
+  carteira: CarteiraInicial | null;
+  creditosDoCirculo: number | null;
+  tc: TextosDaCarteira;
   /** A aba que abre primeiro (do endereço, `?aba=`); sem ela, Hoje. */
   abaInicial?: AbaDaArea;
 }
@@ -424,11 +429,20 @@ export function VistaDaArea(p: VistaDaAreaProps) {
     <>
       {topo(rotulos.explorar)}
       <div className={corpo}>
+        {p.carteira ? <CarteiraDeCreditos slug={slug} cor={cor} tx={tx} tc={p.tc} inicial={p.carteira} tag={tag} /> : null}
         {p.mesa ? <MesaDeLeituras slug={slug} cor={cor} tx={tx} tm={p.tm} inicial={p.mesa} whatsapp={p.whatsapp} tag={tag} /> : null}
 
         {p.anoPessoal ? <AnoPessoalDoCliente slug={slug} cor={cor} tx={tx} to={to} {...p.anoPessoal} /> : null}
 
-        {p.circulo ? <CirculoDoCliente slug={slug} cor={cor} tx={tx} {...p.circulo} /> : null}
+        {p.circulo ? (
+          <CirculoDoCliente
+            slug={slug}
+            cor={cor}
+            tx={tx}
+            {...p.circulo}
+            creditosPorMes={p.creditosDoCirculo ? `${t("Todo mês:")} +${p.creditosDoCirculo} ${t("créditos para usar nas leituras")}` : null}
+          />
+        ) : null}
 
         {vitrine.length > 0 ? (
           <VitrineObservada slug={slug}>

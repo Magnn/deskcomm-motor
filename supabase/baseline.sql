@@ -37842,6 +37842,62 @@ create index if not exists channel_sessions_meta_token_vence_idx
 comment on column public.channel_sessions.meta_token_expires_at is
   'Quando vence o token do canal oficial (Meta). Nulo = não vence ou desconhecido. Renovado pelo cron meta-tokens.';
 
+-- ---- os créditos da área do cliente (migration 0938) ----
+create table if not exists public.area_creditos (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references public.organizations(id) on delete cascade,
+  contact_id uuid not null references public.contacts(id) on delete cascade,
+  delta integer not null check (delta <> 0 and delta between -100000 and 100000),
+  motivo text not null check (motivo in ('pacote', 'circulo', 'leitura', 'devolucao', 'ajuste')),
+  referencia text not null check (char_length(referencia) between 1 and 200),
+  created_at timestamptz not null default clock_timestamp(),
+  constraint area_creditos_referencia_unica unique (organization_id, referencia)
+);
+create index if not exists area_creditos_contato_idx
+  on public.area_creditos (organization_id, contact_id, created_at desc);
+
+comment on table public.area_creditos is
+  'Extrato dos créditos da área do cliente (migration 0938): uma linha por movimento; o saldo é a soma de delta (não há coluna de saldo). Escrita só por fn_area_creditos_mover; referencia única por organização (idempotência).';
+
+alter table public.area_creditos enable row level security;
+revoke all on public.area_creditos from anon, authenticated;
+
+create or replace function public.fn_area_creditos_mover(
+  p_org uuid,
+  p_contact uuid,
+  p_delta integer,
+  p_motivo text,
+  p_referencia text
+) returns table (resultado text, saldo integer)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_atual integer;
+begin
+  perform pg_advisory_xact_lock(hashtextextended(p_org::text || ':' || p_contact::text || ':area_creditos', 0));
+  select coalesce(sum(c.delta), 0)::integer into v_atual
+    from public.area_creditos c
+   where c.organization_id = p_org and c.contact_id = p_contact;
+  if exists (select 1 from public.area_creditos c where c.organization_id = p_org and c.referencia = p_referencia) then
+    return query select 'repetido'::text, v_atual;
+    return;
+  end if;
+  if v_atual + p_delta < 0 then
+    return query select 'sem_saldo'::text, v_atual;
+    return;
+  end if;
+  insert into public.area_creditos (organization_id, contact_id, delta, motivo, referencia)
+  values (p_org, p_contact, p_delta, p_motivo, p_referencia);
+  return query select 'aplicado'::text, v_atual + p_delta;
+end;
+$$;
+revoke execute on function public.fn_area_creditos_mover(uuid, uuid, integer, text, text) from public, anon, authenticated;
+grant execute on function public.fn_area_creditos_mover(uuid, uuid, integer, text, text) to service_role;
+
+-- area_eventos_tipo_check: os tipos `creditos_*` foram acrescentados ao bloco da migration 0934 acima.
+
 -- ---- VARREDURA anon: função nova nasce exposta em quem ATUALIZA (migration 0116) ----
 --
 -- ⚠️ DE PROPÓSITO, NENHUMA FUNÇÃO É CRIADA DEPOIS DESTE BLOCO. Apêndice que cria
@@ -39719,7 +39775,9 @@ alter table public.area_eventos add constraint area_eventos_tipo_check check (ti
   'ano_pessoal_checkout', 'ano_pessoal_pago',
   'etapa_feita',
   -- migration 0937 (a Mesa de leituras): o vocabulário final mora aqui, num bloco só.
-  'leitura_checkout', 'leitura_paga', 'leitura_revelada'
+  'leitura_checkout', 'leitura_paga', 'leitura_revelada',
+  -- migration 0938 (os créditos da área).
+  'creditos_checkout', 'creditos_pagos'
 ));
 
 -- ---- A conexão com a Stripe aceita a conta conectada — Stripe Connect (migration 0935) ----

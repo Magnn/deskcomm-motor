@@ -804,6 +804,15 @@ function AbaConfig({ inicial }: { inicial: ConfigDaArea }) {
   const [mesaPrimeira, setMesaPrimeira] = useState(((inicial.leituras?.preco_primeira_cents ?? 500) / 100).toFixed(2).replace(".", ","));
   const [mesaPreco, setMesaPreco] = useState(((inicial.leituras?.preco_cents ?? 1490) / 100).toFixed(2).replace(".", ","));
   const [mesaLimite, setMesaLimite] = useState(String(inicial.leituras?.limite_por_dia ?? 3));
+  const [creditosAtivos, setCreditosAtivos] = useState(inicial.creditos?.ativo ?? false);
+  const [pacotes, setPacotes] = useState(
+    (inicial.creditos?.pacotes ?? [
+      { creditos: 30, preco_cents: 3000 },
+      { creditos: 70, preco_cents: 6000 },
+      { creditos: 130, preco_cents: 10000 },
+    ]).map((p) => ({ creditos: String(p.creditos), preco: (p.preco_cents / 100).toFixed(2).replace(".", ",") })),
+  );
+  const [creditosDoCirculo, setCreditosDoCirculo] = useState(String(inicial.creditos?.circulo_mensal ?? 30));
   const [circuloPreco, setCirculoPreco] = useState(((inicial.circulo?.preco_cents ?? 2900) / 100).toFixed(2).replace(".", ","));
   const salvar = useMutation({
     mutationFn: () =>
@@ -817,6 +826,13 @@ function AbaConfig({ inicial }: { inicial: ConfigDaArea }) {
           preco_primeira_cents: centavos(mesaPrimeira, 500),
           preco_cents: centavos(mesaPreco, 1490),
           limite_por_dia: Math.min(20, Math.max(1, Math.round(Number(mesaLimite)) || 3)),
+        },
+        creditos: {
+          ativo: creditosAtivos,
+          pacotes: pacotes
+            .map((p) => ({ creditos: Math.round(Number(p.creditos)), preco_cents: centavos(p.preco, 0) }))
+            .filter((p) => Number.isInteger(p.creditos) && p.creditos >= 1 && p.creditos <= 10_000 && p.preco_cents >= 100),
+          circulo_mensal: Math.min(1000, Math.max(0, Math.round(Number(creditosDoCirculo)) || 0)),
         },
         circulo: {
           ativo: circuloAtivo,
@@ -940,6 +956,45 @@ function AbaConfig({ inicial }: { inicial: ConfigDaArea }) {
             <Label htmlFor="area-mesa-limite">{t("Leituras por dia")}</Label>
             <Input id="area-mesa-limite" inputMode="numeric" value={mesaLimite} onChange={(e) => setMesaLimite(e.target.value)} />
           </div>
+        </div>
+      </div>
+      <div className="space-y-2 rounded-md border border-border p-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <Label htmlFor="area-creditos">{t("Créditos")}</Label>
+            <p className="text-xs text-muted-foreground">
+              {t("Uma carteira para tudo na área: a pessoa compra um pacote e paga as leituras com um toque (1 crédito = R$ 1 do preço). Os créditos não vencem; devolução do saldo só a pedido, pela equipe.")}
+            </p>
+          </div>
+          <Switch id="area-creditos" checked={creditosAtivos} onCheckedChange={setCreditosAtivos} data-testid="area-creditos-ativos" />
+        </div>
+        {pacotes.map((p, i) => (
+          <div key={i} className="grid grid-cols-2 gap-2">
+            <div>
+              <Label htmlFor={`area-pacote-${i}-creditos`}>
+                {t("Pacote")} {i + 1}: {t("créditos")}
+              </Label>
+              <Input
+                id={`area-pacote-${i}-creditos`}
+                inputMode="numeric"
+                value={p.creditos}
+                onChange={(e) => setPacotes((ps) => ps.map((x, j) => (j === i ? { ...x, creditos: e.target.value } : x)))}
+              />
+            </div>
+            <div>
+              <Label htmlFor={`area-pacote-${i}-preco`}>{t("Preço (R$)")}</Label>
+              <Input
+                id={`area-pacote-${i}-preco`}
+                inputMode="decimal"
+                value={p.preco}
+                onChange={(e) => setPacotes((ps) => ps.map((x, j) => (j === i ? { ...x, preco: e.target.value } : x)))}
+              />
+            </div>
+          </div>
+        ))}
+        <div>
+          <Label htmlFor="area-creditos-circulo">{t("Créditos que o Círculo dá por mês")}</Label>
+          <Input id="area-creditos-circulo" inputMode="numeric" value={creditosDoCirculo} onChange={(e) => setCreditosDoCirculo(e.target.value)} />
         </div>
       </div>
       <div>
