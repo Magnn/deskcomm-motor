@@ -327,6 +327,14 @@ const schema = z.object({
   // tiver capacidade para isso. Entra como texto: valor inválido não pode
   // derrubar o app no import — quem interpreta (e cai para 1) é o worker.
   TRANSCRIPTION_MAX_CONCURRENCY: z.string().optional().default(""),
+  // A VOZ DO PRÓPRIO SERVIDOR (`lib/voz/servidor-proprio.ts`): síntese de fala num serviço aberto
+  // compatível com a API de fala da OpenAI (`POST <base>/v1/audio/speech`) — por exemplo o mesmo
+  // `speaches` da transcrição, com o Kokoro. Vazio é ausente: sem endereço, nada é narrado.
+  // Quem lê: a narração da Mesa de leituras da área do cliente.
+  VOZ_PROPRIA_BASE_URL: z.string().optional().default(""),
+  VOZ_PROPRIA_API_KEY: z.string().optional().default(""),
+  VOZ_PROPRIA_MODELO: z.string().optional().default(""),
+  VOZ_PROPRIA_VOZ: z.string().optional().default(""),
   // Endereço da API do Jev (TypeSafe AI). Vazio é ausente: vale
   // https://api.typesafe.ai. Existe para o dublê do e2e — a CHAVE nunca vem
   // daqui, é por organização (BYOK). Quem lê é `baseDaApiDoJev()`, em

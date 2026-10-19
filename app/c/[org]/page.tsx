@@ -31,6 +31,7 @@ import { tagDeIdioma } from "@/lib/i18n/datas";
 import { traduzir } from "@/lib/i18n/dicionario";
 import { idiomaDoVisitante } from "@/lib/i18n/idiomaAnonimo";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { vozPropriaConfigurada } from "@/lib/voz/servidor-proprio";
 
 import { serifDaArea } from "./_fonte";
 import { textosDaCarteira, textosDaMesa, textosDasEtapas, textosDasOfertas, textosDoNavegador } from "./_textos";
@@ -226,6 +227,7 @@ export default async function AreaDoCliente({ params, searchParams }: Props) {
               })),
               restamHoje: mesa.restamHoje,
               saldo: carteira ? carteira.saldo : null,
+              narrar: Boolean(org.config.leituras?.narrar) && vozPropriaConfigurada(),
               leituras: mesa.leituras,
             }
           : null

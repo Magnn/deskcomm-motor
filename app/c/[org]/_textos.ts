@@ -173,6 +173,10 @@ export function textosDaMesa(t: (s: string) => string, empresa: string): TextosD
     seusCreditos: t("Seus créditos"),
     comprarCreditos: t("Comprar créditos"),
     ouPagueSoEsta: t("ou pague só esta leitura:"),
+    ouvirLeitura: t("Ouvir a leitura"),
+    pausar: t("Pausar"),
+    preparandoVoz: t("Preparando a voz…"),
+    vozIndisponivel: t("A voz não está disponível agora. A leitura escrita continua aqui."),
     posicoes: [t("O que pesa"), t("O que está em movimento"), t("O conselho das cartas")],
   };
 }
