@@ -25,6 +25,7 @@ import {
   type TextosDaArea,
 } from "./_client";
 import { AbasDaArea, BotaoIrParaAba, type AbaDaArea } from "./_abas";
+import { AvisoDiario, type TextosDoAviso } from "./_aviso";
 import { CarteiraDeCreditos, type CarteiraInicial, type TextosDaCarteira } from "./_carteira";
 import { CirculoDoCliente } from "./_circulo";
 import { EtapaDeHoje, EtapasDaArea, LinhasDoTempo, type TextosDasEtapas } from "./_etapas";
@@ -128,6 +129,9 @@ export interface VistaDaAreaProps {
   /** Os créditos (`_carteira.tsx`); `null` = desligados. */
   carteira: CarteiraInicial | null;
   creditosDoCirculo: number | null;
+  /** O aviso diário no celular (`_aviso.tsx`); `null` = desligado na empresa. */
+  avisos: { hora: number } | null;
+  ta: TextosDoAviso;
   tc: TextosDaCarteira;
   /** A aba que abre primeiro (do endereço, `?aba=`); sem ela, Hoje. */
   abaInicial?: AbaDaArea;
@@ -243,6 +247,8 @@ export function VistaDaArea(p: VistaDaAreaProps) {
         {p.carta ? (
           <CartaDoDia slug={slug} cor={cor} tx={tx} cartaId={p.carta.id} nome={p.carta.nome} mensagem={p.carta.mensagem} foto={p.carta.foto} />
         ) : null}
+
+        {p.avisos ? <AvisoDiario slug={slug} ta={p.ta} hora={p.avisos.hora} /> : null}
 
         {/* A continuidade: a última palavra da empresa, com o caminho para responder. */}
         {recado ? (

@@ -14681,6 +14681,19 @@ export const DICIONARIO: Traducoes = {
   "Com a voz de": { es: "Con la voz de" },
   "Voz padrão do serviço": { es: "Voz predeterminada del servicio" },
   "As vozes gravadas no Voice Studio (No servidor) aparecem aqui.": { es: "Las voces grabadas en el Voice Studio (En el servidor) aparecen aquí." },
+  "A sua carta, todo dia": { es: "Tu carta, todos los días" },
+  "Receba um aviso às {hora} quando a sua carta do dia abrir.": { es: "Recibe un aviso a las {hora} cuando se abra tu carta del día." },
+  "Um aviso por dia, só isso. Desligue quando quiser.": { es: "Un aviso por día, nada más. Desactívalo cuando quieras." },
+  "Ativar aviso": { es: "Activar aviso" },
+  "Instalar o app": { es: "Instalar la app" },
+  "Agora não": { es: "Ahora no" },
+  "Aviso diário ligado às {hora}": { es: "Aviso diario activado a las {hora}" },
+  "Os avisos deste site estão bloqueados no seu navegador. Para receber, libere as notificações nas configurações do navegador.": { es: "Los avisos de este sitio están bloqueados en tu navegador. Para recibirlos, habilita las notificaciones en la configuración del navegador." },
+  "No iPhone: toque em Compartilhar, depois em Adicionar à Tela de Início. Abra a área pelo ícone novo e ative o aviso aqui.": { es: "En iPhone: toca Compartir y luego Agregar a la pantalla de inicio. Abre el área desde el ícono nuevo y activa el aviso aquí." },
+  "Não foi possível ativar agora. Tente de novo em instantes.": { es: "No fue posible activarlo ahora. Inténtalo de nuevo en unos instantes." },
+  "App e aviso diário no celular": { es: "App y aviso diario en el celular" },
+  "A pessoa instala a área como app no celular e, se quiser, recebe um aviso por dia — a carta do dia abriu. No iPhone, só com a área instalada.": { es: "La persona instala el área como app en el celular y, si quiere, recibe un aviso por día: se abrió la carta del día. En iPhone, solo con el área instalada." },
+  "Hora do aviso": { es: "Hora del aviso" },
 };
 
 /**
