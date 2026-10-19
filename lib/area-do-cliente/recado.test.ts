@@ -72,6 +72,27 @@ describe("recadoDaEmpresa", () => {
     expect(recadoDaEmpresa([velho], AGORA)).toBeNull();
   });
 
+  it("⭐ bastidor de entrega não é recado (medido na área do dono em 19/10/2026)", () => {
+    const falas = [
+      cuidado,
+      fala("empresa", "Agora vou te enviar os bónus!!"),
+      fala("empresa", "Segue o seu PDF com a oração completa para você ler com calma, meu bem."),
+      fala("empresa", "Já te mando o áudio da meditação guiada que preparei para esta noite."),
+      fala("empresa", "Antes de abrirmos a mesa sagrada, já salva meu contato aqui no zap pra você conseguir receber as fotos das cartas."),
+      fala("empresa", "Mostra sim, meu bem. Me manda aqui o print. Assim eu vejo com os meus olhos o que te falaram."),
+    ];
+    expect(recadoDaEmpresa(falas, AGORA)?.id).toBe(cuidado.id);
+  });
+
+  it("cuidado que usa as mesmas palavras em outro sentido continua sendo recado", () => {
+    const f = fala("empresa", "Segue firme, você não está sozinha nessa caminhada. Estou aqui com você.");
+    expect(recadoDaEmpresa([f], AGORA)?.id).toBe(f.id);
+  });
+
+  it("curto demais para recado fica de fora", () => {
+    expect(recadoDaEmpresa([fala("empresa", "Já já te respondo, meu bem!")], AGORA)).toBeNull();
+  });
+
   it("sem recado de cuidado, não mostra nada", () => {
     expect(recadoDaEmpresa([], AGORA)).toBeNull();
   });
