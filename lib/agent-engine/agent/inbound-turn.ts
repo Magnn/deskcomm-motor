@@ -90,6 +90,7 @@ import { blocoDoPrecoInternacional, precoInternacionalDoContato } from '@/lib/pr
 import { blocoDaChavePix, pixPelaChaveNoLugarDaMarca, temMarcaDeChavePix } from '@/lib/preco/chave-pix';
 import { blocoDoBoletoPronto, temMarcaDeBoleto } from '@/lib/preco/boleto-pronto';
 import { blocoDosExtras, extrasDaConfig, janelaDeLeituraDosExtras, slugDoExtra, type ExtraPago } from '@/lib/preco/extras';
+import { valorErradoDeExtra } from '@/lib/preco/valor-do-extra';
 import { destinoDaProva, legendaDaProva, provasParaEnviar } from '@/lib/preco/prova-social';
 import { classificarPerdaDoAtendimento } from '@/lib/resultado/motivo-da-perda-do-agente';
 import { insertInboxItem } from '../db/repository';
@@ -3868,6 +3869,16 @@ async function executarTurnoDoAgente(
             return { ok: false, error: { code: 'area_do_cliente_indisponivel', message: comArea.recusa } };
           }
           body = comArea.corpo;
+        }
+        // O VALOR DITO DE UMA COBRANÇA AVULSA É O CADASTRADO (`lib/preco/valor-do-extra.ts`): em 19/10/2026 a agente
+        // cobrou "R$ 130 por pergunta" (o preço do trabalho) por uma pergunta de R$ 5 e depois "corrigiu" o Pix certo.
+        // Vale para toda cobrança cadastrada, esteja ou não no bloco deste turno: o valor é sempre o valor.
+        {
+          const valorErrado = valorErradoDeExtra(body, extrasDaConfig(agentConfig?.pricing));
+          if (valorErrado) {
+            runLog.warn('valor de cobrança avulsa diferente do cadastrado — envio recusado', {});
+            return { ok: false, error: { code: 'valor_do_extra_errado', message: valorErrado } };
+          }
         }
         // COBRANÇA AVULSA: a marca `[[PIX: nome]]` vira a instrução e o código do Pix. Marca que o turno não pode
         // cobrar, ou cobrança que não saiu, recusa o envio: marca crua não chega à pessoa.
