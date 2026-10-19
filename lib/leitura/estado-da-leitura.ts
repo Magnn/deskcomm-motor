@@ -110,10 +110,12 @@ export function recusaDaCartaForaDoSorteio(corpo: string, passo: PassoDaLeitura 
  * números válidos DEPOIS de a agente oferecer o baralho. `encerrada` = as 3 cartas e a causa raiz
  * já saíram; o bloco só lembra que não existe carta 4.
  */
-export function passoDaLeitura(contatoId: string, mensagens: readonly Mensagem[]): PassoDaLeitura | null {
+export function passoDaLeitura(contatoId: string, mensagens: readonly Mensagem[], desde?: Date): PassoDaLeitura | null {
   // O painel de Teste roda UMA mensagem: um histórico colado ali ("Lead: …" / "Esmeralda: …") vira
   // várias, como já vale para a escada de preço. Na produção nenhuma mensagem tem esse formato.
-  const conversa = expandirHistoricoColado(mensagens) as Mensagem[];
+  // `desde`: uma RODADA nova da leitura (a pergunta paga) conta só o que veio depois do pagamento.
+  const todas = expandirHistoricoColado(mensagens) as Mensagem[];
+  const conversa = desde ? todas.filter((m) => m.sent_at != null && new Date(m.sent_at).getTime() >= desde.getTime()) : todas;
 
   const pedido = conversa.findIndex((m) => m.direction === "outbound" && PEDIDO_DO_BARALHO.test(m.body ?? ""));
   if (pedido < 0) return null;

@@ -147,6 +147,12 @@ export const extraSchema = z.object({
    */
   delivery: z.string().trim().min(5).max(600).optional(),
   /**
+   * A entrega é uma NOVA LEITURA DE 3 CARTAS pelo motor da leitura (`lib/leitura/estado-da-leitura.ts`): depois do
+   * pagamento, a pessoa escolhe 3 números, o código sorteia, a agente revela uma carta por vez (com a foto) e
+   * responde a pergunta. Ausente = vale para a cobrança com "pergunta" no nome (`abreLeitura`).
+   */
+  opens_reading: z.boolean().optional(),
+  /**
    * A entrega é um relatório em PDF gerado sob medida depois do pagamento (`lib/preco/relatorio-pronto.ts`).
    * `sinastria` calcula os dois mapas a partir das datas de nascimento; `leitura` escreve a partir do que a
    * pessoa contou. Com isto, o `delivery` é montado pelo sistema.
