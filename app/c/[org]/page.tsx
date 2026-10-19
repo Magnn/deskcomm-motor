@@ -21,8 +21,10 @@ import { DIAS_DO_AVISO_DE_RENOVACAO, assinaturaAtiva, diasRestantes, lerAssinatu
 import { carregarDadosDaArea, diaNoFuso, fotoDaCarta } from "@/lib/area-do-cliente/dados";
 import { CARTAS_NA_MESA } from "@/lib/area-do-cliente/leituras";
 import { configDosAvisos, convidarParaOAviso } from "@/lib/area-do-cliente/avisos";
+import { ceuDoNascimento } from "@/lib/area-do-cliente/ceu";
 import { bonusDoPacote, creditosDoPreco, pacoteEmDestaque } from "@/lib/area-do-cliente/creditos";
 import { carregarCarteira, configDosCreditos } from "@/lib/area-do-cliente/creditos-servidor";
+import { ehFoco, type Foco } from "@/lib/area-do-cliente/perfil";
 import { carregarMesa, configDasLeituras } from "@/lib/area-do-cliente/leituras-servidor";
 import { abaValida } from "@/lib/area-do-cliente/abas";
 import { COR_PADRAO_DA_AREA } from "@/lib/area-do-cliente/config";
@@ -36,7 +38,7 @@ import { vapidPronto } from "@/lib/notifications/vapid";
 import { vozPropriaConfigurada } from "@/lib/voz/servidor-proprio";
 
 import { serifDaArea } from "./_fonte";
-import { textosDaCarteira, textosDaMesa, textosDoAviso, textosDasEtapas, textosDasOfertas, textosDoNavegador } from "./_textos";
+import { textosDaCarteira, textosDaEntrada, textosDaMesa, textosDoAviso, textosDasEtapas, textosDasOfertas, textosDoNavegador } from "./_textos";
 import { VistaDaArea, VistaDeEntrada } from "./_vista";
 
 export const dynamic = "force-dynamic";
@@ -188,6 +190,14 @@ export default async function AreaDoCliente({ params, searchParams }: Props) {
   const mesa = cfgDasLeituras.ativo ? await carregarMesa(admin, { id: org.id, fuso: org.fuso }, sessao.contactId, cfgDasLeituras) : null;
   const cfgDosCreditos = configDosCreditos(org.config.creditos);
   const cfgDosAvisos = configDosAvisos(org.config.avisos);
+  // A entrada com 3 perguntas (migration 0940): a linha existir = feita ou pulada.
+  const { data: perfilR } = await admin
+    .from("area_perfis")
+    .select("foco")
+    .eq("organization_id", org.id)
+    .eq("contact_id", sessao.contactId)
+    .maybeSingle();
+  const foco = ehFoco((perfilR as { foco: string | null } | null)?.foco) ? ((perfilR as { foco: Foco }).foco) : null;
   const convidarJa = cfgDosAvisos.ativo ? await jaMereceConvite(admin, { id: org.id, fuso: org.fuso }, sessao.contactId) : false;
   const carteira = cfgDosCreditos.ativo ? await carregarCarteira(admin, org.id, sessao.contactId) : null;
   const destaque = pacoteEmDestaque(cfgDosCreditos.pacotes);
@@ -280,6 +290,9 @@ export default async function AreaDoCliente({ params, searchParams }: Props) {
       tc={textosDaCarteira(t)}
       avisos={cfgDosAvisos.ativo && vapidPronto() ? { hora: cfgDosAvisos.hora, convidarJa } : null}
       ta={textosDoAviso(t)}
+      perfil={{ feito: perfilR !== null, foco }}
+      ceu={ceuDoNascimento(dados.contato.nascimento)}
+      tp={textosDaEntrada(t)}
       abaInicial={abaValida(aba)}
     />
   );

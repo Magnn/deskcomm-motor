@@ -2,9 +2,12 @@
  * Os textos da área do cliente, já traduzidos no servidor: as partes do
  * navegador não têm o provedor de idioma da equipe.
  */
+import { FOCOS, NOME_DO_FOCO } from "@/lib/area-do-cliente/perfil";
+
 import type { TextosDoAviso } from "./_aviso";
 import type { TextosDaCarteira } from "./_carteira";
 import type { TextosDaArea } from "./_client";
+import type { TextosDaEntrada } from "./_entrada";
 import type { TextosDasEtapas } from "./_etapas";
 import type { TextosDaMesa } from "./_mesa";
 import type { TextosDasOfertas } from "./_ofertas";
@@ -110,6 +113,30 @@ export function textosDasEtapas(t: (s: string) => string): TextosDasEtapas {
 }
 
 /** Os textos da Mesa de leituras, já traduzidos. `empresa` entra no aviso de que a leitura é automática. */
+export function textosDaEntrada(t: (s: string) => string): TextosDaEntrada {
+  const focos = Object.fromEntries(
+    FOCOS.map((f) => [f, { nome: t(NOME_DO_FOCO[f].nome), tema: t(NOME_DO_FOCO[f].tema), simbolo: NOME_DO_FOCO[f].simbolo }]),
+  ) as TextosDaEntrada["focos"];
+  return {
+    passo: t("{n} de {total}"),
+    perguntaDoFoco: t("o que mais pede cuidado na sua vida agora?"),
+    perguntaDoPeso: t("Em uma frase, o que está pesando?"),
+    dicaDoPeso: t("Só você e a sua área leem isto. Pode deixar em branco."),
+    perguntaDoNascimento: t("Quando você nasceu?"),
+    dicaDoNascimento: t("Para eu te mostrar o céu do dia em que você chegou. Pode pular."),
+    continuar: t("Continuar"),
+    pular: t("Pular"),
+    preparando: t("Preparando a sua área…"),
+    pronta: t("A sua área está pronta"),
+    solEm: t("Sol em"),
+    luaEm: t("Lua em"),
+    ou: t("ou"),
+    paraCuidarDe: t("Ela foi preparada para cuidar de"),
+    entrar: t("Entrar na minha área"),
+    focos,
+  };
+}
+
 export function textosDoAviso(t: (s: string) => string): TextosDoAviso {
   return {
     titulo: t("A sua carta, todo dia"),
