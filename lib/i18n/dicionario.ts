@@ -14648,6 +14648,11 @@ export const DICIONARIO: Traducoes = {
   "Uma carteira para tudo na área: a pessoa compra um pacote e paga as leituras com um toque (1 crédito = R$ 1 do preço). Os créditos não vencem; devolução do saldo só a pedido, pela equipe.": { es: "Una billetera para todo en el área: la persona compra un paquete y paga las lecturas con un toque (1 crédito = R$ 1 del precio). Los créditos no vencen; la devolución del saldo solo a pedido, por el equipo." },
   "Pacote": { es: "Paquete" },
   "Créditos que o Círculo dá por mês": { es: "Créditos que el Círculo da por mes" },
+  "Ouvir a leitura": { es: "Escuchar la lectura" },
+  "Preparando a voz…": { es: "Preparando la voz…" },
+  "A voz não está disponível agora. A leitura escrita continua aqui.": { es: "La voz no está disponible ahora. La lectura escrita sigue aquí." },
+  "Leitura narrada em voz": { es: "Lectura narrada en voz" },
+  "A pessoa toca em Ouvir e escuta a leitura numa voz gerada pelo próprio servidor, sem custo por uso. Exige a voz própria configurada na instalação.": { es: "La persona toca Escuchar y oye la lectura en una voz generada por el propio servidor, sin costo por uso. Requiere la voz propia configurada en la instalación." },
 };
 
 /**

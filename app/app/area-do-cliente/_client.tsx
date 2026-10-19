@@ -803,6 +803,7 @@ function AbaConfig({ inicial }: { inicial: ConfigDaArea }) {
   const [mesaAtiva, setMesaAtiva] = useState(inicial.leituras?.ativo ?? false);
   const [mesaPrimeira, setMesaPrimeira] = useState(((inicial.leituras?.preco_primeira_cents ?? 500) / 100).toFixed(2).replace(".", ","));
   const [mesaPreco, setMesaPreco] = useState(((inicial.leituras?.preco_cents ?? 1490) / 100).toFixed(2).replace(".", ","));
+  const [mesaNarrar, setMesaNarrar] = useState(inicial.leituras?.narrar ?? false);
   const [mesaLimite, setMesaLimite] = useState(String(inicial.leituras?.limite_por_dia ?? 3));
   const [creditosAtivos, setCreditosAtivos] = useState(inicial.creditos?.ativo ?? false);
   const [pacotes, setPacotes] = useState(
@@ -826,6 +827,7 @@ function AbaConfig({ inicial }: { inicial: ConfigDaArea }) {
           preco_primeira_cents: centavos(mesaPrimeira, 500),
           preco_cents: centavos(mesaPreco, 1490),
           limite_por_dia: Math.min(20, Math.max(1, Math.round(Number(mesaLimite)) || 3)),
+          narrar: mesaNarrar,
         },
         creditos: {
           ativo: creditosAtivos,
@@ -956,6 +958,15 @@ function AbaConfig({ inicial }: { inicial: ConfigDaArea }) {
             <Label htmlFor="area-mesa-limite">{t("Leituras por dia")}</Label>
             <Input id="area-mesa-limite" inputMode="numeric" value={mesaLimite} onChange={(e) => setMesaLimite(e.target.value)} />
           </div>
+        </div>
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <Label htmlFor="area-mesa-narrar">{t("Leitura narrada em voz")}</Label>
+            <p className="text-xs text-muted-foreground">
+              {t("A pessoa toca em Ouvir e escuta a leitura numa voz gerada pelo próprio servidor, sem custo por uso. Exige a voz própria configurada na instalação.")}
+            </p>
+          </div>
+          <Switch id="area-mesa-narrar" checked={mesaNarrar} onCheckedChange={setMesaNarrar} />
         </div>
       </div>
       <div className="space-y-2 rounded-md border border-border p-3">

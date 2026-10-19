@@ -15,7 +15,7 @@
  */
 import * as React from "react";
 
-import { Check, Copy, CreditCard, MessageCircle, QrCode, Sparkles, WalletCards } from "lucide-react";
+import { Check, Copy, CreditCard, Loader2, MessageCircle, Pause, Play, QrCode, Sparkles, WalletCards } from "lucide-react";
 
 import { copyToClipboard } from "@/lib/clipboard";
 
@@ -59,6 +59,10 @@ export interface TextosDaMesa {
   seusCreditos: string;
   comprarCreditos: string;
   ouPagueSoEsta: string;
+  ouvirLeitura: string;
+  pausar: string;
+  preparandoVoz: string;
+  vozIndisponivel: string;
   posicoes: readonly string[];
 }
 
@@ -85,6 +89,8 @@ export interface MesaInicial {
   restamHoje: number;
   /** Com os créditos ligados: o saldo de partida. `null` = só Pix e cartão. */
   saldo: number | null;
+  /** A leitura pode ser ouvida (voz do próprio servidor). */
+  narrar: boolean;
   leituras: LeituraNaMesa[];
 }
 
@@ -180,8 +186,60 @@ function Digitando({ ate, texto }: { ate: number; texto: string }) {
   );
 }
 
+/**
+ * Ouvir a leitura: o áudio é pedido assim que a leitura aparece (gerar pode levar alguns segundos), e o
+ * toque só toca — o navegador do celular só deixa tocar som dentro do toque, não depois de uma espera.
+ */
+function OuvirLeitura({ url, tm }: { url: string; tm: TextosDaMesa }) {
+  const [link, setLink] = React.useState<string | null>(null);
+  const [falhou, setFalhou] = React.useState(false);
+  const [tocando, setTocando] = React.useState(false);
+  const audio = React.useRef<HTMLAudioElement | null>(null);
+  React.useEffect(() => {
+    let vivo = true;
+    void fetch(url, { method: "POST", credentials: "same-origin" })
+      .then((r) => r.json())
+      .then((j: { data?: { url: string } }) => {
+        if (!vivo) return;
+        if (j.data?.url) setLink(j.data.url);
+        else setFalhou(true);
+      })
+      .catch(() => vivo && setFalhou(true));
+    return () => {
+      vivo = false;
+      audio.current?.pause();
+    };
+  }, [url]);
+  if (falhou) return <p className="text-xs text-[#8b8497]">{tm.vozIndisponivel}</p>;
+  const alternar = () => {
+    if (!link) return;
+    if (!audio.current) {
+      audio.current = new Audio(link);
+      audio.current.onended = () => setTocando(false);
+    }
+    if (tocando) {
+      audio.current.pause();
+      setTocando(false);
+    } else {
+      void audio.current.play().then(() => setTocando(true)).catch(() => setFalhou(true));
+    }
+  };
+  return (
+    <button
+      type="button"
+      onClick={alternar}
+      disabled={!link}
+      className="inline-flex items-center gap-2 rounded-full border border-[#c9a54e]/60 bg-[#1b1433] px-4 py-2 text-sm font-semibold text-[#f0dca8] shadow-sm transition active:scale-[0.97] disabled:opacity-70 motion-reduce:transition-none"
+      data-testid="mesa-ouvir"
+    >
+      {!link ? <Loader2 className="size-4 animate-spin" aria-hidden /> : tocando ? <Pause className="size-4" aria-hidden /> : <Play className="size-4" aria-hidden />}
+      {!link ? tm.preparandoVoz : tocando ? tm.pausar : tm.ouvirLeitura}
+    </button>
+  );
+}
+
 /** A leitura no chat: as cartas viram uma a uma, e as bolhas chegam em sequência. */
-function LeituraNoChat({ l, tm, animar }: { l: LeituraNaMesa; tm: TextosDaMesa; animar: boolean }) {
+function LeituraNoChat({ l, tm, animar, vozUrl }: { l: LeituraNaMesa; tm: TextosDaMesa; animar: boolean; vozUrl: string | null }) {
   const [viradas, setViradas] = React.useState(animar ? 0 : 3);
   React.useEffect(() => {
     if (!animar) return;
@@ -217,6 +275,11 @@ function LeituraNoChat({ l, tm, animar }: { l: LeituraNaMesa; tm: TextosDaMesa; 
   return (
     <div className="space-y-4">
       <p className={`${SERIF} text-[19px] leading-snug text-[#3a3347]`}>“{l.pergunta}”</p>
+      {vozUrl && l.leitura ? (
+        <div className="flex justify-center">
+          <OuvirLeitura url={vozUrl} tm={tm} />
+        </div>
+      ) : null}
       <div className="flex justify-center gap-3">
         {l.cartas.map((c, i) => (
           <div key={i} className="flex flex-col items-center gap-1.5">
@@ -505,7 +568,7 @@ export function MesaDeLeituras({
     const l = etapa.leitura;
     conteudo = (
       <div className="space-y-5 rounded-2xl bg-white p-4 text-[#241f31]">
-        <LeituraNoChat l={l} tm={tm} animar />
+        <LeituraNoChat l={l} tm={tm} animar vozUrl={inicial.narrar ? `${base}/${l.id}/voz` : null} />
         {!l.leitura ? (
           <div className="space-y-2">
             <p className={TEXTO_SUAVE}>{tm.preparando}</p>
@@ -612,7 +675,7 @@ export function MesaDeLeituras({
                 </button>
                 {aberta === l.id ? (
                   <div className="mt-3">
-                    <LeituraNoChat l={l} tm={tm} animar={false} />
+                    <LeituraNoChat l={l} tm={tm} animar={false} vozUrl={inicial.narrar ? `${base}/${l.id}/voz` : null} />
                   </div>
                 ) : null}
               </li>

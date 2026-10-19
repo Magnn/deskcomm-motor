@@ -66,6 +66,8 @@ export const configDaAreaSchema = z.strictObject({
       preco_primeira_cents: z.number().int().min(100).max(1_000_000).default(500),
       preco_cents: z.number().int().min(100).max(1_000_000).default(1490),
       limite_por_dia: z.number().int().min(1).max(20).default(3),
+      /** Narrar a leitura pela voz do próprio servidor (`VOZ_PROPRIA_*` no `.env`). */
+      narrar: z.boolean().default(false),
     })
     .optional(),
   /**
