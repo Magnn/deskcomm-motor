@@ -24,7 +24,7 @@ import { z } from "zod";
 import { ehProvedorSuportado } from "@/lib/ai/pontos/provedores";
 
 export interface ProvedorDeVoz {
-  id: "openai" | "elevenlabs";
+  id: "openai" | "elevenlabs" | "servidor";
   rotulo: string;
   /** Uma frase sobre quando escolher, para quem não acompanha o mercado. */
   quandoUsar: string;
@@ -34,6 +34,11 @@ export interface ProvedorDeVoz {
   ondePegarAChave: string;
   /** Como a chave começa — vira placeholder do campo. */
   prefixoDaChave: string;
+  /**
+   * A organização cadastra uma chave? `false` = quem configura é a instalação (`.env`), como a voz
+   * do próprio servidor — e a tela de Credenciais não a oferece.
+   */
+  precisaDeChave: boolean;
 }
 
 export const PROVEDORES_DE_VOZ = [
@@ -45,6 +50,7 @@ export const PROVEDORES_DE_VOZ = [
     clona: false,
     ondePegarAChave: "https://platform.openai.com/api-keys",
     prefixoDaChave: "sk-…",
+    precisaDeChave: true,
   },
   {
     id: "elevenlabs",
@@ -54,6 +60,17 @@ export const PROVEDORES_DE_VOZ = [
     clona: true,
     ondePegarAChave: "https://elevenlabs.io/app/settings/api-keys",
     prefixoDaChave: "sk_…",
+    precisaDeChave: true,
+  },
+  {
+    id: "servidor",
+    rotulo: "Voz do servidor",
+    quandoUsar:
+      "Voz gerada por um modelo aberto rodando na própria instalação: sem custo por uso. Vozes prontas em português do Brasil, sem clonagem. Quem administra a instalação liga em VOZ_PROPRIA_*.",
+    clona: false,
+    ondePegarAChave: "",
+    prefixoDaChave: "",
+    precisaDeChave: false,
   },
 ] as const satisfies readonly ProvedorDeVoz[];
 
@@ -65,9 +82,15 @@ export type IdDeProvedorDeVoz = (typeof PROVEDORES_DE_VOZ)[number]["id"];
  * somar a lista de voz inteira a mostraria duas vezes. Enquanto a tela não somava nada, a rota
  * aceitava a chave da ElevenLabs e a tela não a oferecia nem a listava depois de cadastrada.
  */
-export const PROVEDORES_SO_DE_VOZ = PROVEDORES_DE_VOZ.filter((p) => !ehProvedorSuportado(p.id));
+export const PROVEDORES_SO_DE_VOZ = PROVEDORES_DE_VOZ.filter((p) => p.precisaDeChave && !ehProvedorSuportado(p.id));
 
 export const IDS_DE_PROVEDOR_DE_VOZ = PROVEDORES_DE_VOZ.map((p) => p.id) as unknown as readonly [
+  IdDeProvedorDeVoz,
+  ...IdDeProvedorDeVoz[],
+];
+
+/** Os provedores de voz cuja chave a ORGANIZAÇÃO cadastra (a rota de credenciais só aceita estes). */
+export const IDS_DE_PROVEDOR_DE_VOZ_COM_CHAVE = PROVEDORES_DE_VOZ.filter((p) => p.precisaDeChave).map((p) => p.id) as unknown as readonly [
   IdDeProvedorDeVoz,
   ...IdDeProvedorDeVoz[],
 ];

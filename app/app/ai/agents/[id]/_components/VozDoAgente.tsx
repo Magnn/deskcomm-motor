@@ -275,7 +275,13 @@ export function VozDoAgente({ agentId, config, active, readOnly }: Props) {
                 <span className="flex items-center justify-between gap-2">
                   <span className="font-medium">{p.rotulo}</span>
                   <Badge variant={info?.configurado ? "default" : "outline"}>
-                    {info?.configurado ? t("Chave pronta") : t("Sem chave")}
+                    {p.precisaDeChave
+                      ? info?.configurado
+                        ? t("Chave pronta")
+                        : t("Sem chave")
+                      : info?.configurado
+                        ? t("Pronta, sem custo por uso")
+                        : t("Não configurada")}
                   </Badge>
                 </span>
                 <span className="text-sm text-muted-foreground">{t(p.quandoUsar)}</span>
@@ -288,6 +294,12 @@ export function VozDoAgente({ agentId, config, active, readOnly }: Props) {
         {provedorAtual === "openai" && infoDoProvedor("openai")?.configurado === false ? (
           <p className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
             {t("Cadastre uma chave da OpenAI em IA › Credenciais. É a mesma que transcreve os áudios que a pessoa manda.")}
+          </p>
+        ) : null}
+
+        {provedorAtual === "servidor" && infoDoProvedor("servidor")?.configurado === false ? (
+          <p className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
+            {t("A voz do servidor não está ligada nesta instalação. Quem administra a instalação configura VOZ_PROPRIA_BASE_URL (um serviço de voz aberto, como o que já transcreve os áudios).")}
           </p>
         ) : null}
 
