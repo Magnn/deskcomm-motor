@@ -68,6 +68,10 @@ export const configDaAreaSchema = z.strictObject({
       limite_por_dia: z.number().int().min(1).max(20).default(3),
       /** Narrar a leitura pela voz do próprio servidor (`VOZ_PROPRIA_*` no `.env`). */
       narrar: z.boolean().default(false),
+      /** Com que voz: `rapida` (Kokoro, na hora) ou `humana` (Chatterbox, em fila, alguns minutos). */
+      narrar_com: z.enum(["rapida", "humana"]).default("rapida"),
+      /** A voz humana: uma voz clonada no servidor (`clone_…`); vazia = a voz padrão do serviço. */
+      voz_humana: z.string().trim().max(80).regex(/^(clone_[A-Za-z0-9]+)?$/).optional(),
     })
     .optional(),
   /**

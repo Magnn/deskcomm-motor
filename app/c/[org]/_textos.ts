@@ -177,6 +177,7 @@ export function textosDaMesa(t: (s: string) => string, empresa: string): TextosD
     pausar: t("Pausar"),
     preparandoVoz: t("Preparando a voz…"),
     vozIndisponivel: t("A voz não está disponível agora. A leitura escrita continua aqui."),
+    vozSendoPreparada: t("A sua leitura em áudio está sendo preparada com carinho. Fica pronta em alguns minutos — pode continuar por aqui."),
     posicoes: [t("O que pesa"), t("O que está em movimento"), t("O conselho das cartas")],
   };
 }

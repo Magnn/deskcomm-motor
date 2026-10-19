@@ -63,6 +63,7 @@ export interface TextosDaMesa {
   pausar: string;
   preparandoVoz: string;
   vozIndisponivel: string;
+  vozSendoPreparada: string;
   posicoes: readonly string[];
 }
 
@@ -193,24 +194,44 @@ function Digitando({ ate, texto }: { ate: number; texto: string }) {
 function OuvirLeitura({ url, tm }: { url: string; tm: TextosDaMesa }) {
   const [link, setLink] = React.useState<string | null>(null);
   const [falhou, setFalhou] = React.useState(false);
+  const [preparando, setPreparando] = React.useState(false);
   const [tocando, setTocando] = React.useState(false);
   const audio = React.useRef<HTMLAudioElement | null>(null);
   React.useEffect(() => {
     let vivo = true;
-    void fetch(url, { method: "POST", credentials: "same-origin" })
-      .then((r) => r.json())
-      .then((j: { data?: { url: string } }) => {
-        if (!vivo) return;
-        if (j.data?.url) setLink(j.data.url);
-        else setFalhou(true);
-      })
-      .catch(() => vivo && setFalhou(true));
+    let espera: number | undefined;
+    // A voz humana fica numa fila: enquanto a resposta for "preparando", pergunta de novo a cada 20 s.
+    const pedir = (tentativa: number) => {
+      void fetch(url, { method: "POST", credentials: "same-origin" })
+        .then((r) => r.json())
+        .then((j: { data?: { url?: string; preparando?: boolean } }) => {
+          if (!vivo) return;
+          if (j.data?.url) {
+            setPreparando(false);
+            setLink(j.data.url);
+          } else if (j.data?.preparando && tentativa < 90) {
+            setPreparando(true);
+            espera = window.setTimeout(() => pedir(tentativa + 1), 20_000);
+          } else setFalhou(true);
+        })
+        .catch(() => vivo && setFalhou(true));
+    };
+    pedir(0);
     return () => {
       vivo = false;
+      window.clearTimeout(espera);
       audio.current?.pause();
     };
   }, [url]);
   if (falhou) return <p className="text-xs text-[#8b8497]">{tm.vozIndisponivel}</p>;
+  if (preparando) {
+    return (
+      <p className="flex items-center gap-2 text-xs text-[#8b8497]" aria-live="polite" data-testid="mesa-voz-preparando">
+        <Loader2 className="size-3.5 animate-spin" aria-hidden />
+        {tm.vozSendoPreparada}
+      </p>
+    );
+  }
   const alternar = () => {
     if (!link) return;
     if (!audio.current) {

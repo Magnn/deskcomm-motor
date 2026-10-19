@@ -1,0 +1,26 @@
+# Voz humana do próprio servidor (Chatterbox) — instalada em 19/10/2026. Ver app.py.
+# Rede do host, escuta só em 127.0.0.1:8013; quem chega é o Caddy, pelo caminho
+# https://<domínio>/_humana/ (restrito ao próprio servidor e com a chave). Lê as gravações do
+# serviço voz-clonada (volume dele, só leitura). Para remover: tirar VOZ_HUMANA_* do .env do app,
+# recriar app e worker, apagar o bloco "_humana" do Caddyfile e "docker compose down" aqui.
+services:
+  voz-humana:
+    build: .
+    image: acassia-voz-humana:local
+    container_name: acassia-voz-humana
+    restart: unless-stopped
+    network_mode: host
+    env_file: .env
+    volumes:
+      - dados:/dados
+      - vozes_clonadas:/vozes:ro
+    deploy:
+      resources:
+        limits:
+          cpus: "4"
+          memory: 8g
+volumes:
+  dados:
+  vozes_clonadas:
+    external: true
+    name: voz-clonada_dados
