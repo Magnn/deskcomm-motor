@@ -27,6 +27,10 @@ import { extrairNumerosEscolhidos, numerosNaMensagem, sortearCartas, type Carta 
 /** O marcador que abre a mensagem de cada carta revelada. Exportado para o envio da imagem da carta. */
 export const MARCA_CARTA = /^CARTA\s+([123]):/m;
 
+/** A agente interpretando "as cartas" — o que só pode vir depois de a carta sorteada sair no formato `CARTA N:`. */
+export const LEITURA_SEM_CARTA =
+  /\b(?:as|a|essas?|estas?|suas?)\s+cartas?\s+(?:mostra|mostram|diz|dizem|fala|falam|revela|revelam|aponta|apontam|indica|indicam|trazem|traz)\b|\bo\s+que\s+as\s+cartas\b/i;
+
 /** O pedido da agente para a pessoa escolher no baralho fechado (o molde do prompt cai em qualquer um dos três). */
 export const PEDIDO_DO_BARALHO = /\b22\s+cartas\b|\b1\s*(?:a|à|até)\s*22\b|\b(?:3|três)\s+números\b/i;
 
@@ -85,9 +89,24 @@ function escolhaDepoisDoPedido(
  * modelo no lugar do envio. Sem isto, quando a escolha não era reconhecida o modelo abria "CARTA 1:" com
  * uma carta inventada, sem a foto (medido em produção em 11/10/2026: uma em cada quatro revelações).
  */
-export function recusaDaCartaForaDoSorteio(corpo: string, passo: PassoDaLeitura | null): string | null {
+export function recusaDaCartaForaDoSorteio(
+  corpo: string,
+  passo: PassoDaLeitura | null,
+  cartaJaSaiuNoTurno = false,
+): string | null {
   const marca = MARCA_CARTA.exec(corpo);
-  if (!marca) return null;
+  if (!marca) {
+    // LEITURA SEM A CARTA: com carta a revelar e nenhuma revelada ainda neste turno, a agente não interpreta "as
+    // cartas" de cabeça. Medido em 19/10/2026 (Adilson, pergunta paga): o motor mandava revelar A Torre e ela
+    // respondeu "o que as cartas mostram aqui é…" sem carta nem foto, seguindo o roteiro e não o bloco.
+    if (passo?.passo === "revelar_carta" && !cartaJaSaiuNoTurno && LEITURA_SEM_CARTA.test(corpo)) {
+      return (
+        `Há uma carta sorteada esperando: revele agora a CARTA ${passo.indice} ("${passo.carta.nome}"), começando a mensagem por ` +
+        `"CARTA ${passo.indice}: ${passo.carta.nome}" — o sistema manda a foto dela. Não interprete as cartas antes de revelá-la.`
+      );
+    }
+    return null;
+  }
   const pedida = Number(marca[1]);
   if (passo === null) {
     return (
