@@ -20,6 +20,13 @@ export async function GET(_req: NextRequest, { params }: Ctx): Promise<Response>
   if (!org) return new NextResponse("não encontrada", { status: 404 });
   const titulo = org.config.titulo || org.nome;
   const base = `/c/${org.slug}`;
+  // `finalidade` é o campo `purpose` do manifesto (ícone recortável), não um ponto de IA.
+  const icone = (lado: 192 | 512, finalidade?: "maskable") => ({
+    src: `${base}/icone?t=${lado}`,
+    sizes: `${lado}x${lado}`,
+    type: "image/png",
+    ...(finalidade ? { purpose: finalidade } : {}),
+  });
   return NextResponse.json(
     {
       id: base,
@@ -30,11 +37,7 @@ export async function GET(_req: NextRequest, { params }: Ctx): Promise<Response>
       display: "standalone",
       background_color: "#1b1433",
       theme_color: org.config.cor || COR_PADRAO_DA_AREA,
-      icons: [
-        { src: `${base}/icone?t=192`, sizes: "192x192", type: "image/png" },
-        { src: `${base}/icone?t=512`, sizes: "512x512", type: "image/png" },
-        { src: `${base}/icone?t=512`, sizes: "512x512", type: "image/png", purpose: "maskable" },
-      ],
+      icons: [icone(192), icone(512), icone(512, "maskable")],
     },
     { headers: { "Content-Type": "application/manifest+json", "Cache-Control": "public, max-age=300" } },
   );
