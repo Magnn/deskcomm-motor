@@ -14653,6 +14653,10 @@ export const DICIONARIO: Traducoes = {
   "A voz não está disponível agora. A leitura escrita continua aqui.": { es: "La voz no está disponible ahora. La lectura escrita sigue aquí." },
   "Leitura narrada em voz": { es: "Lectura narrada en voz" },
   "A pessoa toca em Ouvir e escuta a leitura numa voz gerada pelo próprio servidor, sem custo por uso. Exige a voz própria configurada na instalação.": { es: "La persona toca Escuchar y oye la lectura en una voz generada por el propio servidor, sin costo por uso. Requiere la voz propia configurada en la instalación." },
+  "Pronta, sem custo por uso": { es: "Lista, sin costo por uso" },
+  "Não configurada": { es: "No configurada" },
+  "A voz do servidor não está ligada nesta instalação. Quem administra a instalação configura VOZ_PROPRIA_BASE_URL (um serviço de voz aberto, como o que já transcreve os áudios).": { es: "La voz del servidor no está activada en esta instalación. Quien administra la instalación configura VOZ_PROPRIA_BASE_URL (un servicio de voz abierto, como el que ya transcribe los audios)." },
+  "Voz gerada por um modelo aberto rodando na própria instalação: sem custo por uso. Vozes prontas em português do Brasil, sem clonagem. Quem administra a instalação liga em VOZ_PROPRIA_*.": { es: "Voz generada por un modelo abierto que corre en la propia instalación: sin costo por uso. Voces listas en portugués de Brasil, sin clonación. Quien administra la instalación la activa en VOZ_PROPRIA_*." },
 };
 
 /**

@@ -18,7 +18,7 @@ import { ok, fail } from "@/lib/api/wrappers";
 import { requireRole } from "@/lib/auth/require-role";
 import { guardarCredencial } from "@/lib/ai/credenciais/guardar";
 import { IDS_COM_CHAVE, type ProvedorComChave } from "@/lib/ai/pontos/provedores";
-import { IDS_DE_PROVEDOR_DE_VOZ, type IdDeProvedorDeVoz } from "@/lib/voz/tipos";
+import { IDS_DE_PROVEDOR_DE_VOZ_COM_CHAVE, type IdDeProvedorDeVoz } from "@/lib/voz/tipos";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { traduzir } from "@/lib/i18n/dicionario";
@@ -35,7 +35,7 @@ const createSchema = z.object({
   // e não tinha onde cadastrar a chave. A UNIÃO, e não só quem conversa: a
   // chave do Jev (que só decide, `IDS_COM_CHAVE`) e a da ElevenLabs (que só fala,
   // `lib/voz/tipos.ts`) se cadastram na mesma tela, mesma tabela cifrada.
-  provider: z.enum([...IDS_COM_CHAVE, ...IDS_DE_PROVEDOR_DE_VOZ]),
+  provider: z.enum([...IDS_COM_CHAVE, ...IDS_DE_PROVEDOR_DE_VOZ_COM_CHAVE]),
   label: z.string().trim().min(1).max(80),
   api_key: z.string().trim().min(8).max(2048),
 });

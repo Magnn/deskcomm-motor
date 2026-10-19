@@ -14,11 +14,14 @@
 import { byteaToBuffer, decryptKey } from "@/lib/crypto/aes_gcm";
 import { createAdminClient } from "@/lib/supabase/admin";
 
+import { vozPropriaConfigurada } from "./servidor-proprio";
+
 import type { IdDeProvedorDeVoz } from "./tipos";
 
 const VARIAVEL_DE_AMBIENTE: Record<IdDeProvedorDeVoz, string> = {
   openai: "OPENAI_API_KEY",
   elevenlabs: "ELEVENLABS_API_KEY",
+  servidor: "VOZ_PROPRIA_API_KEY",
 };
 
 /** A credencial ATIVA e VALIDADA mais antiga da organização para o provedor, ou `null`. Nunca lança. */
@@ -51,6 +54,9 @@ export async function resolverChaveDeVoz(
   organizationId: string,
   provedor: IdDeProvedorDeVoz,
 ): Promise<string | null> {
+  // A voz do servidor é da INSTALAÇÃO: não há chave da organização. Configurada, devolve um marcador
+  // (o serviço lê a sua própria chave do `.env`); sem configuração, `null` como qualquer provedor.
+  if (provedor === "servidor") return vozPropriaConfigurada() ? "servidor" : null;
   const daOrganizacao = await chaveDaOrganizacao(organizationId, provedor);
   if (daOrganizacao) return daOrganizacao;
   const doAmbiente = process.env[VARIAVEL_DE_AMBIENTE[provedor]];

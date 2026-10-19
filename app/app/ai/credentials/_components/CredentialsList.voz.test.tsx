@@ -74,11 +74,11 @@ describe("tela de Credenciais — chave de voz", () => {
     const dialogo = readFileSync(join(__dirname, "AddCredentialDialog.tsx"), "utf8");
     expect(dialogo).toContain("const OPCOES_DE_PROVEDOR = [...PROVEDORES_COM_CHAVE, ...PROVEDORES_SO_DE_VOZ];");
     expect(dialogo).toContain("{OPCOES_DE_PROVEDOR.map((p) => (");
-    expect(dialogo).toContain("provider: z.enum([...IDS_COM_CHAVE, ...IDS_DE_PROVEDOR_DE_VOZ]),");
+    expect(dialogo).toContain("provider: z.enum([...IDS_COM_CHAVE, ...IDS_DE_PROVEDOR_DE_VOZ_COM_CHAVE]),");
     const rota = readFileSync(
       join(__dirname, "..", "..", "..", "..", "api", "v1", "ai", "credentials", "route.ts"),
       "utf8",
     );
-    expect(rota).toContain("provider: z.enum([...IDS_COM_CHAVE, ...IDS_DE_PROVEDOR_DE_VOZ]),");
+    expect(rota).toContain("provider: z.enum([...IDS_COM_CHAVE, ...IDS_DE_PROVEDOR_DE_VOZ_COM_CHAVE]),");
   });
 });

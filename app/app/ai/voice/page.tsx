@@ -34,7 +34,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { TEXTO_DO_CONSENTIMENTO } from "@/lib/voz/consentimento";
-import type { GeneroDaVoz, VozDisponivel } from "@/lib/voz/tipos";
+import type { GeneroDaVoz, IdDeProvedorDeVoz, VozDisponivel } from "@/lib/voz/tipos";
 
 interface ProvedorNaResposta {
   id: string;
@@ -79,7 +79,7 @@ export default function VoiceStudioPage() {
     genero?: string;
     categoria: "pronta" | "clonada";
     iniciais?: string;
-    provedor?: "elevenlabs" | "openai";
+    provedor?: IdDeProvedorDeVoz;
   } | null>(null);
 
   const [texto, setTexto] = React.useState("");
