@@ -154,8 +154,17 @@ export interface FalaDaConversa {
 const FALA_DE_COBRANCA =
   /\b(pix|pagamento|pagar|pague|paga|pagou|pago|acerto|cobran\w*|boleto|cart[aã]o|link|valor|comprovante|transfer\w*|dep[oó]sito|parcel\w*|desconto|pre[cç]o|reais|investimento|oferta|promo\w*|vaga)\b|r\$|cair no sistema|parar? de te procurar|que eu pare|ainda tem interesse|quer continuar|https?:\/\/|br\.gov\.bcb|\d{12,}|atendente|na fila|ou n[aã]o\?|bugad/i;
 
-/** Curto demais para ser recado ("Oi", "Tudo bem?"). */
-const RECADO_MINIMO = 25;
+/**
+ * O que é bastidor de entrega, e não recado: "Agora vou te enviar os bônus!!", "segue o PDF", "já te
+ * mando o áudio", "salva meu contato pra receber as fotos", "me manda o print". Na conversa faz sentido; solto na área, como a primeira coisa que a pessoa lê, soa
+ * como mensagem perdida (medido em 19/10/2026 na área do dono). Na dúvida, sem recado é melhor que
+ * bastidor.
+ */
+const FALA_DE_BASTIDOR =
+  /\b(b[oôó]nus|pdf|arquivo|anexo|baixar|download|material|link|v[ií]deo|[aá]udio|fotos?|print)\b|vou te (enviar|mandar|passar)|j[aá] te (envio|mando|passo)|te (envio|mando) (agora|j[aá]|aqui)|acabei de (te )?(enviar|mandar)|segue[m]? (o|a|os|as|seu|sua)\b|salv[ae]r? (o |a )?meu (contato|n[uú]mero)|aqui est[aá] (o|a|seu|sua)\b/i;
+
+/** Curto demais para ser recado ("Oi", "Tudo bem?", "Já já te respondo"). */
+const RECADO_MINIMO = 40;
 
 /**
  * Bolha que continua a anterior ("Se sim, me manda…", "E aí…"): a agente fala em várias bolhas, e uma
@@ -182,7 +191,8 @@ export function recadoDaEmpresa(falas: readonly FalaDaConversa[], agora: Date = 
     if (new Date(f.quando).getTime() < desde) break;
     if (f.de !== "empresa" || f.automatica) continue;
     if (f.texto.startsWith("🎤")) continue;
-    if (f.texto.length < RECADO_MINIMO || FALA_DE_COBRANCA.test(f.texto) || COMECA_NO_MEIO.test(f.texto) || COMECA_EM_MINUSCULA.test(f.texto)) continue;
+    if (f.texto.length < RECADO_MINIMO || FALA_DE_COBRANCA.test(f.texto) || FALA_DE_BASTIDOR.test(f.texto)) continue;
+    if (COMECA_NO_MEIO.test(f.texto) || COMECA_EM_MINUSCULA.test(f.texto)) continue;
     return f;
   }
   return null;
