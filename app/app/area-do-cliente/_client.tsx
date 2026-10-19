@@ -780,6 +780,7 @@ function AbaCompradores({ ativa }: { ativa: boolean }) {
 // ─── Configuração ───────────────────────────────────────────────────────────
 
 /** "29,90" → 2990; vazio ou lixo → o padrão. */
+const HORAS_DO_AVISO = Array.from({ length: 16 }, (_, i) => i + 6);
 const NARRAR_COM = ["rapida", "humana"] as const;
 
 function centavos(texto: string, padrao: number): number {
@@ -817,6 +818,8 @@ function AbaConfig({ inicial }: { inicial: ConfigDaArea }) {
   });
   const clonadasNoServidor = (vozesClonadas.data ?? []).filter((v) => v.provedor === "servidor" && v.categoria === "clonada");
   const [mesaLimite, setMesaLimite] = useState(String(inicial.leituras?.limite_por_dia ?? 3));
+  const [avisosAtivos, setAvisosAtivos] = useState(inicial.avisos?.ativo ?? false);
+  const [horaDoAviso, setHoraDoAviso] = useState(inicial.avisos?.hora ?? 8);
   const [creditosAtivos, setCreditosAtivos] = useState(inicial.creditos?.ativo ?? false);
   const [pacotes, setPacotes] = useState(
     (inicial.creditos?.pacotes ?? [
@@ -843,6 +846,7 @@ function AbaConfig({ inicial }: { inicial: ConfigDaArea }) {
           narrar_com: narrarCom,
           ...(narrarCom === "humana" ? { voz_humana: vozHumana } : {}),
         },
+        avisos: { ativo: avisosAtivos, hora: horaDoAviso },
         creditos: {
           ativo: creditosAtivos,
           pacotes: pacotes
@@ -1056,6 +1060,32 @@ function AbaConfig({ inicial }: { inicial: ConfigDaArea }) {
         <div>
           <Label htmlFor="area-creditos-circulo">{t("Créditos que o Círculo dá por mês")}</Label>
           <Input id="area-creditos-circulo" inputMode="numeric" value={creditosDoCirculo} onChange={(e) => setCreditosDoCirculo(e.target.value)} />
+        </div>
+      </div>
+      <div className="space-y-2 rounded-md border border-border p-3">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <Label htmlFor="area-avisos">{t("App e aviso diário no celular")}</Label>
+            <p className="text-xs text-muted-foreground">
+              {t("A pessoa instala a área como app no celular e, se quiser, recebe um aviso por dia — a carta do dia abriu. No iPhone, só com a área instalada.")}
+            </p>
+          </div>
+          <Switch id="area-avisos" checked={avisosAtivos} onCheckedChange={setAvisosAtivos} />
+        </div>
+        <div className="max-w-xs">
+          <Label htmlFor="area-hora-do-aviso">{t("Hora do aviso")}</Label>
+          <select
+            id="area-hora-do-aviso"
+            className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
+            value={horaDoAviso}
+            onChange={(e) => setHoraDoAviso(Number(e.target.value))}
+          >
+            {HORAS_DO_AVISO.map((h) => (
+              <option key={h} value={h}>
+                {`${h}h`}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
       <div>

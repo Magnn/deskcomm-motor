@@ -39777,7 +39777,9 @@ alter table public.area_eventos add constraint area_eventos_tipo_check check (ti
   -- migration 0937 (a Mesa de leituras): o vocabulário final mora aqui, num bloco só.
   'leitura_checkout', 'leitura_paga', 'leitura_revelada',
   -- migration 0938 (os créditos da área).
-  'creditos_checkout', 'creditos_pagos'
+  'creditos_checkout', 'creditos_pagos',
+  -- migration 0939 (os avisos da área).
+  'aviso_ligado', 'aviso_desligado'
 ));
 
 -- ---- A conexão com a Stripe aceita a conta conectada — Stripe Connect (migration 0935) ----
@@ -39841,3 +39843,25 @@ revoke all on public.area_leituras from anon, authenticated;
 
 -- area_eventos_tipo_check: os tipos `leitura_*` foram acrescentados ao bloco da migration 0934 acima
 -- (uma constraint, um bloco — tests/unit/baseline-constraint-reconstruida.test.ts).
+
+-- ---- os avisos da área do cliente (migration 0939) ----
+create table if not exists public.area_avisos (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references public.organizations(id) on delete cascade,
+  contact_id uuid not null references public.contacts(id) on delete cascade,
+  endpoint text not null check (char_length(endpoint) between 10 and 1000),
+  p256dh text not null check (char_length(p256dh) between 10 and 200),
+  auth text not null check (char_length(auth) between 8 and 100),
+  ultimo_aviso_dia date,
+  created_at timestamptz not null default now(),
+  constraint area_avisos_endpoint_unico unique (organization_id, endpoint)
+);
+create index if not exists area_avisos_contato_idx on public.area_avisos (organization_id, contact_id);
+
+comment on table public.area_avisos is
+  'Aparelhos inscritos no aviso diário da área do cliente (migration 0939): inscrição de push do navegador. No máximo um aviso por dia (ultimo_aviso_dia, no fuso da empresa). Só o servidor lê e escreve.';
+
+alter table public.area_avisos enable row level security;
+revoke all on public.area_avisos from anon, authenticated;
+
+-- area_eventos_tipo_check: os tipos `aviso_*` foram acrescentados ao bloco da migration 0934 acima.

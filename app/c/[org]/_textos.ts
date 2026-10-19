@@ -2,6 +2,7 @@
  * Os textos da área do cliente, já traduzidos no servidor: as partes do
  * navegador não têm o provedor de idioma da equipe.
  */
+import type { TextosDoAviso } from "./_aviso";
 import type { TextosDaCarteira } from "./_carteira";
 import type { TextosDaArea } from "./_client";
 import type { TextosDasEtapas } from "./_etapas";
@@ -109,6 +110,23 @@ export function textosDasEtapas(t: (s: string) => string): TextosDasEtapas {
 }
 
 /** Os textos da Mesa de leituras, já traduzidos. `empresa` entra no aviso de que a leitura é automática. */
+export function textosDoAviso(t: (s: string) => string): TextosDoAviso {
+  return {
+    titulo: t("A sua carta, todo dia"),
+    convite: t("Receba um aviso às {hora} quando a sua carta do dia abrir."),
+    contencao: t("Um aviso por dia, só isso. Desligue quando quiser."),
+    ativar: t("Ativar aviso"),
+    ativando: t("Ativando…"),
+    instalar: t("Instalar o app"),
+    agoraNao: t("Agora não"),
+    ligado: t("Aviso diário ligado às {hora}"),
+    desligar: t("Desligar"),
+    bloqueado: t("Os avisos deste site estão bloqueados no seu navegador. Para receber, libere as notificações nas configurações do navegador."),
+    iphone: t("No iPhone: toque em Compartilhar, depois em Adicionar à Tela de Início. Abra a área pelo ícone novo e ative o aviso aqui."),
+    falhou: t("Não foi possível ativar agora. Tente de novo em instantes."),
+  };
+}
+
 export function textosDaCarteira(t: (s: string) => string): TextosDaCarteira {
   return {
     titulo: t("Seus créditos"),

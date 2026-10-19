@@ -20,6 +20,7 @@ import { MENSAGEM_DO_DIA, cartaDoDia } from "@/lib/area-do-cliente/carta-do-dia"
 import { DIAS_DO_AVISO_DE_RENOVACAO, assinaturaAtiva, diasRestantes, lerAssinatura, mesDoDia } from "@/lib/area-do-cliente/circulo";
 import { carregarDadosDaArea, diaNoFuso, fotoDaCarta } from "@/lib/area-do-cliente/dados";
 import { CARTAS_NA_MESA } from "@/lib/area-do-cliente/leituras";
+import { configDosAvisos } from "@/lib/area-do-cliente/avisos";
 import { bonusDoPacote, creditosDoPreco, pacoteEmDestaque } from "@/lib/area-do-cliente/creditos";
 import { carregarCarteira, configDosCreditos } from "@/lib/area-do-cliente/creditos-servidor";
 import { carregarMesa, configDasLeituras } from "@/lib/area-do-cliente/leituras-servidor";
@@ -31,15 +32,16 @@ import { tagDeIdioma } from "@/lib/i18n/datas";
 import { traduzir } from "@/lib/i18n/dicionario";
 import { idiomaDoVisitante } from "@/lib/i18n/idiomaAnonimo";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { vapidPronto } from "@/lib/notifications/vapid";
 import { vozPropriaConfigurada } from "@/lib/voz/servidor-proprio";
 
 import { serifDaArea } from "./_fonte";
-import { textosDaCarteira, textosDaMesa, textosDasEtapas, textosDasOfertas, textosDoNavegador } from "./_textos";
+import { textosDaCarteira, textosDaMesa, textosDoAviso, textosDasEtapas, textosDasOfertas, textosDoNavegador } from "./_textos";
 import { VistaDaArea, VistaDeEntrada } from "./_vista";
 
 export const dynamic = "force-dynamic";
 
-type Props = { params: Promise<{ org: string }>; searchParams: Promise<{ link?: string; aba?: string }> };
+type Props = { params: Promise<{ org: string }>; searchParams: Promise<{ link?: string; aba?: string; de?: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { org: slug } = await params;
@@ -49,6 +51,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title: { absolute: org ? org.config.titulo || org.nome : traduzir("Área do cliente", idioma) },
     robots: { index: false, follow: false },
+    // O app da área: instalar no celular abre aqui, com o nome e o ícone da empresa (`manifest/route.ts`).
+    ...(org
+      ? {
+          manifest: `/c/${org.slug}/manifest`,
+          appleWebApp: { capable: true, title: org.config.titulo || org.nome, statusBarStyle: "black-translucent" as const },
+          icons: { apple: `/c/${org.slug}/icone?t=192` },
+        }
+      : {}),
   };
 }
 
@@ -62,7 +72,7 @@ function dataCurta(iso: string, fuso: string, tag: string): string {
 
 export default async function AreaDoCliente({ params, searchParams }: Props) {
   const { org: slug } = await params;
-  const { link, aba } = await searchParams;
+  const { link, aba, de } = await searchParams;
   const idioma = await idiomaDoVisitante(null);
   const t = (texto: string) => traduzir(texto, idioma);
   const tx = textosDoNavegador(t);
@@ -96,7 +106,8 @@ export default async function AreaDoCliente({ params, searchParams }: Props) {
     contactId: sessao.contactId,
     tipo: "visitou",
     sessaoId: sessao.sessaoId,
-    ref: "inicio",
+    // De onde veio: do aviso no celular, do ícone do app, ou do jeito de sempre.
+    ref: de === "aviso" ? "aviso" : de === "app" ? "app" : "inicio",
   });
   // Abrir a área é ler as respostas da equipe que estão no "Fale com a gente".
   await admin
@@ -161,6 +172,7 @@ export default async function AreaDoCliente({ params, searchParams }: Props) {
   const cfgDasLeituras = configDasLeituras(org.config.leituras);
   const mesa = cfgDasLeituras.ativo ? await carregarMesa(admin, { id: org.id, fuso: org.fuso }, sessao.contactId, cfgDasLeituras) : null;
   const cfgDosCreditos = configDosCreditos(org.config.creditos);
+  const cfgDosAvisos = configDosAvisos(org.config.avisos);
   const carteira = cfgDosCreditos.ativo ? await carregarCarteira(admin, org.id, sessao.contactId) : null;
   const destaque = pacoteEmDestaque(cfgDosCreditos.pacotes);
 
@@ -250,6 +262,8 @@ export default async function AreaDoCliente({ params, searchParams }: Props) {
       }
       creditosDoCirculo={carteira && cfgDosCreditos.circulo_mensal > 0 ? cfgDosCreditos.circulo_mensal : null}
       tc={textosDaCarteira(t)}
+      avisos={cfgDosAvisos.ativo && vapidPronto() ? { hora: cfgDosAvisos.hora } : null}
+      ta={textosDoAviso(t)}
       abaInicial={abaValida(aba)}
     />
   );

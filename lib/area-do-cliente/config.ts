@@ -99,6 +99,16 @@ export const configDaAreaSchema = z.strictObject({
       circulo_mensal: z.number().int().min(0).max(1000).default(30),
     })
     .optional(),
+  /**
+   * O aviso diário no celular (`lib/area-do-cliente/avisos.ts`): quem instalar a área e permitir recebe UM
+   * aviso por dia, na `hora` do relógio da empresa. Desligado por padrão.
+   */
+  avisos: z
+    .strictObject({
+      ativo: z.boolean().default(false),
+      hora: z.number().int().min(6).max(21).default(8),
+    })
+    .optional(),
   /** Cor principal da área, em hex. Vazio = a cor do produto. */
   cor: z
     .string()

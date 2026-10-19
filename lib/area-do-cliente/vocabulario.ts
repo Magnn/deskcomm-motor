@@ -37,6 +37,8 @@ export const TIPOS_DE_EVENTO_DA_AREA = [
   "leitura_revelada",
   "creditos_checkout",
   "creditos_pagos",
+  "aviso_ligado",
+  "aviso_desligado",
 ] as const;
 export type TipoDeEventoDaArea = (typeof TIPOS_DE_EVENTO_DA_AREA)[number];
 
