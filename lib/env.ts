@@ -335,6 +335,11 @@ const schema = z.object({
   VOZ_PROPRIA_API_KEY: z.string().optional().default(""),
   VOZ_PROPRIA_MODELO: z.string().optional().default(""),
   VOZ_PROPRIA_VOZ: z.string().optional().default(""),
+  // A VOZ CLONADA DO PRÓPRIO SERVIDOR (`lib/voz/servidor-clonada.ts`, serviço em
+  // `ops/vps/voz-clonada`): guarda o timbre de uma gravação e fala com ele, sem custo por
+  // caractere. Vazio é ausente: sem endereço, quem clona é só a ElevenLabs.
+  VOZ_CLONADA_BASE_URL: z.string().optional().default(""),
+  VOZ_CLONADA_API_KEY: z.string().optional().default(""),
   // Endereço da API do Jev (TypeSafe AI). Vazio é ausente: vale
   // https://api.typesafe.ai. Existe para o dublê do e2e — a CHAVE nunca vem
   // daqui, é por organização (BYOK). Quem lê é `baseDaApiDoJev()`, em

@@ -28,7 +28,7 @@ import { TEXTO_DO_CONSENTIMENTO, VERSAO_DO_CONSENTIMENTO } from "@/lib/voz/conse
 import { ErroDeVoz, explicarErroDeVoz } from "@/lib/voz/erros";
 import { implementacaoDeVoz } from "@/lib/voz/provedores";
 import type { AmostraDeVoz } from "@/lib/voz/provedores/tipos";
-import type { GeneroDaVoz } from "@/lib/voz/tipos";
+import { PROVEDORES_DE_VOZ, type GeneroDaVoz, type IdDeProvedorDeVoz } from "@/lib/voz/tipos";
 
 export const dynamic = "force-dynamic";
 
@@ -65,12 +65,18 @@ export async function POST(req: NextRequest): Promise<Response> {
     return fail("invalid_request", t("Corpo multipart inválido."), 400, { requestId });
   }
 
+  // Onde criar a voz: a ElevenLabs (padrão de sempre) ou o próprio servidor.
+  const provedorPedido = String(form.get("provider") ?? "elevenlabs");
+  const provedor: IdDeProvedorDeVoz | undefined = PROVEDORES_DE_VOZ.find((p) => p.id === provedorPedido && p.clona)?.id;
   const nome = String(form.get("name") ?? "").trim();
   const generoBruto = String(form.get("gender") ?? "");
   const genero = GENEROS.find((g) => g === generoBruto);
   const consentimento = String(form.get("consent") ?? "") === "true";
   const arquivos = form.getAll("samples").filter((f): f is File => f instanceof File && f.size > 0);
 
+  if (provedor === undefined) {
+    return fail("voice_clone_unsupported", t("Este provedor não clona vozes."), 422, { requestId });
+  }
   if (nome.length < 2 || nome.length > 60 || genero === undefined) {
     return fail("validation_failed", t("Informe um nome (2 a 60 letras) e o gênero da voz."), 422, { requestId });
   }
@@ -103,12 +109,12 @@ export async function POST(req: NextRequest): Promise<Response> {
     });
   }
 
-  const apiKey = await resolverChaveDeVoz(org.orgId, "elevenlabs");
+  const apiKey = await resolverChaveDeVoz(org.orgId, provedor);
   if (!apiKey) {
     return fail("voice_key_missing", t(explicarErroDeVoz(new ErroDeVoz("sem_chave"))), 409, { requestId });
   }
 
-  const impl = implementacaoDeVoz("elevenlabs");
+  const impl = implementacaoDeVoz(provedor);
   if (!impl.clonar) {
     return fail("voice_clone_unsupported", t("Este provedor não clona vozes."), 422, { requestId });
   }
@@ -142,7 +148,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     resourceId: voz.id,
     requestId,
     metadata: {
-      provider: "elevenlabs",
+      provider: provedor,
       voice_name: voz.nome,
       gender: voz.genero,
       samples: amostras.length,

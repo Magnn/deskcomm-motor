@@ -40,6 +40,7 @@ interface ProvedorNaResposta {
   id: string;
   rotulo: string;
   configurado: boolean;
+  clona?: boolean;
   erro?: string;
 }
 
@@ -589,6 +590,7 @@ export default function VoiceStudioPage() {
 
       {/* MODAL: Adicionar nova voz (Fidelidade ao Print 2) */}
       <AdicionarNovaVozModal
+        ondeCriar={(vozesQuery.data?.provedores ?? []).filter((p) => p.clona && p.configurado).map((p) => ({ id: p.id, rotulo: p.rotulo }))}
         open={modalNovaVozOpen}
         onOpenChange={setModalNovaVozOpen}
         onSuccess={() => {
@@ -602,10 +604,13 @@ export default function VoiceStudioPage() {
 // ── MODAL: ADICIONAR NOVA VOZ (Print 2 AcassIA) ──────────────────────────
 
 function AdicionarNovaVozModal({
+  ondeCriar,
   open,
   onOpenChange,
   onSuccess,
 }: {
+  /** Os serviços que clonam e estão prontos; a voz do servidor vem primeiro (sem custo por uso). */
+  ondeCriar: Array<{ id: string; rotulo: string }>;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
@@ -615,6 +620,9 @@ function AdicionarNovaVozModal({
 
   const [nome, setNome] = React.useState("");
   const [genero, setGenero] = React.useState<GeneroDaVoz>("neutra");
+  const opcoesDeServico = [...ondeCriar].sort((a, b) => (a.id === "servidor" ? -1 : b.id === "servidor" ? 1 : 0));
+  const [servico, setServico] = React.useState<string | null>(null);
+  const servicoEscolhido = servico ?? opcoesDeServico[0]?.id ?? "elevenlabs";
   const [removerRuido, setRemoverRuido] = React.useState(true);
   const [consentimento, setConsentimento] = React.useState(false);
 
@@ -708,6 +716,7 @@ function AdicionarNovaVozModal({
     setSalvando(true);
     try {
       const fd = new FormData();
+      fd.append("provider", servicoEscolhido);
       fd.append("name", nome.trim());
       fd.append("gender", genero);
       fd.append("consent", "true");
@@ -780,6 +789,33 @@ function AdicionarNovaVozModal({
               className="w-full h-10 rounded-xl border border-border bg-surface px-3.5 text-xs text-text placeholder:text-text-subtle focus:outline-hidden focus:border-accent transition-colors shadow-2xs"
             />
           </div>
+
+          {/* Onde criar a voz */}
+          {opcoesDeServico.length > 1 ? (
+            <div className="space-y-1.5">
+              <label className="block font-bold text-text">{t("Onde criar a voz")}</label>
+              <div className="grid grid-cols-2 gap-2">
+                {opcoesDeServico.map((o) => (
+                  <button
+                    key={o.id}
+                    type="button"
+                    onClick={() => setServico(o.id)}
+                    className={cn(
+                      "rounded-xl border px-3 py-2 text-left text-xs transition-all cursor-pointer",
+                      servicoEscolhido === o.id
+                        ? "border-accent bg-accent-soft text-accent shadow-2xs"
+                        : "border-border bg-surface text-text-muted hover:bg-surface-elevated"
+                    )}
+                  >
+                    <span className="block font-semibold">{o.id === "servidor" ? t("No servidor") : o.rotulo}</span>
+                    <span className="block text-[10.5px] text-text-subtle">
+                      {o.id === "servidor" ? t("Sem custo por uso. Pronta em segundos para o WhatsApp.") : t("Cobrado por caractere pelo provedor.")}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
 
           {/* Gênero da voz */}
           <div className="space-y-1.5">

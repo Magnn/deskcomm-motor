@@ -14657,6 +14657,11 @@ export const DICIONARIO: Traducoes = {
   "Não configurada": { es: "No configurada" },
   "A voz do servidor não está ligada nesta instalação. Quem administra a instalação configura VOZ_PROPRIA_BASE_URL (um serviço de voz aberto, como o que já transcreve os áudios).": { es: "La voz del servidor no está activada en esta instalación. Quien administra la instalación configura VOZ_PROPRIA_BASE_URL (un servicio de voz abierto, como el que ya transcribe los audios)." },
   "Voz gerada por um modelo aberto rodando na própria instalação: sem custo por uso. Vozes prontas em português do Brasil, sem clonagem. Quem administra a instalação liga em VOZ_PROPRIA_*.": { es: "Voz generada por un modelo abierto que corre en la propia instalación: sin costo por uso. Voces listas en portugués de Brasil, sin clonación. Quien administra la instalación la activa en VOZ_PROPRIA_*." },
+  "Onde criar a voz": { es: "Dónde crear la voz" },
+  "No servidor": { es: "En el servidor" },
+  "Sem custo por uso. Pronta em segundos para o WhatsApp.": { es: "Sin costo por uso. Lista en segundos para WhatsApp." },
+  "Cobrado por caractere pelo provedor.": { es: "El proveedor cobra por carácter." },
+  "Voz gerada por um modelo aberto rodando na própria instalação: sem custo por uso. Vozes prontas em português do Brasil e, com o serviço de clonagem ligado, a sua voz gravada no Voice Studio. Quem administra a instalação liga em VOZ_PROPRIA_* e VOZ_CLONADA_*.": { es: "Voz generada por un modelo abierto que corre en la propia instalación: sin costo por uso. Voces listas en portugués de Brasil y, con el servicio de clonación activado, tu voz grabada en el Voice Studio. Quien administra la instalación la activa en VOZ_PROPRIA_* y VOZ_CLONADA_*." },
 };
 
 /**

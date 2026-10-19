@@ -8,10 +8,18 @@
  *    `resolverChaveDeVoz` devolve um marcador quando está configurado;
  *  - o serviço só devolve mp3 (medido em 19/10/2026: aceita mp3, flac, wav e pcm), então a nota de
  *    voz passa pela conversão para Ogg/Opus (`converterParaNotaDeVoz`, ffmpeg do worker);
- *  - as vozes são as do português do Brasil do Kokoro, numa lista fixa.
+ *  - as vozes são as do português do Brasil do Kokoro, numa lista fixa, MAIS as clonadas no serviço
+ *    de voz clonada da instalação (`lib/voz/servidor-clonada.ts`), quando ele está configurado.
  */
 import { converterParaNotaDeVoz } from "../converter";
 import { ErroDeVoz } from "../erros";
+import {
+  apagarVozClonada,
+  clonarNoServidor,
+  ehVozClonadaDoServidor,
+  falarComVozClonada,
+  listarVozesClonadas,
+} from "../servidor-clonada";
 import { VozPropriaIndisponivel, falarNaVozPropria, vozPropriaConfigurada } from "../servidor-proprio";
 import type { AudioGerado, VozDisponivel } from "../tipos";
 import type { ImplementacaoDeVoz } from "./tipos";
@@ -26,13 +34,18 @@ export const servidorVoz: ImplementacaoDeVoz = {
   id: "servidor",
 
   async listarVozes() {
-    return [...VOZES_DO_SERVIDOR];
+    // O serviço de clonagem fora do ar não esconde as vozes prontas.
+    const clonadas = await listarVozesClonadas().catch(() => []);
+    return [...clonadas, ...VOZES_DO_SERVIDOR];
   },
 
   async sintetizar(p): Promise<AudioGerado> {
     let mp3: Buffer;
+    const velocidade = p.ajustes?.speed !== undefined ? { velocidade: p.ajustes.speed } : {};
     try {
-      mp3 = await falarNaVozPropria(p.texto, { voz: p.vozId, ...(p.ajustes?.speed !== undefined ? { velocidade: p.ajustes.speed } : {}) });
+      mp3 = ehVozClonadaDoServidor(p.vozId)
+        ? await falarComVozClonada(p.texto, p.vozId, velocidade)
+        : await falarNaVozPropria(p.texto, { voz: p.vozId, ...velocidade });
     } catch (err) {
       if (err instanceof VozPropriaIndisponivel) throw new ErroDeVoz(vozPropriaConfigurada() ? "provedor_fora_do_ar" : "sem_chave");
       throw err;
@@ -43,5 +56,13 @@ export const servidorVoz: ImplementacaoDeVoz = {
 
   async validarChave() {
     return vozPropriaConfigurada() ? { ok: true } : { ok: false, error: "not_configured" };
+  },
+
+  async clonar(p) {
+    return clonarNoServidor({ nome: p.nome, genero: p.genero, amostras: p.amostras });
+  },
+
+  async apagarVoz(_apiKey, vozId) {
+    await apagarVozClonada(vozId);
   },
 };

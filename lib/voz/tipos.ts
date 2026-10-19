@@ -66,8 +66,8 @@ export const PROVEDORES_DE_VOZ = [
     id: "servidor",
     rotulo: "Voz do servidor",
     quandoUsar:
-      "Voz gerada por um modelo aberto rodando na própria instalação: sem custo por uso. Vozes prontas em português do Brasil, sem clonagem. Quem administra a instalação liga em VOZ_PROPRIA_*.",
-    clona: false,
+      "Voz gerada por um modelo aberto rodando na própria instalação: sem custo por uso. Vozes prontas em português do Brasil e, com o serviço de clonagem ligado, a sua voz gravada no Voice Studio. Quem administra a instalação liga em VOZ_PROPRIA_* e VOZ_CLONADA_*.",
+    clona: true,
     ondePegarAChave: "",
     prefixoDaChave: "",
     precisaDeChave: false,

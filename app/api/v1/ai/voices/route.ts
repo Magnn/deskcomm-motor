@@ -16,6 +16,7 @@ import { requireRole } from "@/lib/auth/require-role";
 import { resolverChaveDeVoz } from "@/lib/voz/chaves";
 import { explicarErroDeVoz } from "@/lib/voz/erros";
 import { implementacaoDeVoz } from "@/lib/voz/provedores";
+import { vozClonadaConfigurada } from "@/lib/voz/servidor-clonada";
 import {
   PROVEDORES_DE_VOZ,
   type GeneroDaVoz,
@@ -47,7 +48,8 @@ export async function GET(req: NextRequest): Promise<Response> {
         id: p.id,
         rotulo: p.rotulo,
         quandoUsar: p.quandoUsar,
-        clona: p.clona,
+        // A voz do servidor só clona com o serviço de clonagem da instalação ligado.
+        clona: p.id === "servidor" ? p.clona && vozClonadaConfigurada() : p.clona,
         ondePegarAChave: p.ondePegarAChave,
         prefixoDaChave: p.prefixoDaChave,
         configurado: chave !== null,
