@@ -61,6 +61,8 @@ export const AUDIT_ACTIONS = [
   "contact.merge_pending",
   "contact.merged",
   "contact.aniversario_emitido",
+  /** A rodada do aviso diário da área do cliente mandou avisos (ou removeu aparelhos que cancelaram). */
+  "area.avisos_enviados",
   /**
    * A varredura de data do funil (#989) emitiu o aviso de "faltam N dias". A
    * trilha guarda a RODADA (quantos negócios, quantos pulados), e não um evento

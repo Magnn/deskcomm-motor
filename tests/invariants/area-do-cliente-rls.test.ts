@@ -16,7 +16,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 
 import { GOV_ADMIN, GOV_ORG, countAs, seedGov, sql } from "./gov-helpers";
 
-const SO_DO_SERVIDOR = ["area_codigos", "area_diario", "area_perguntas", "area_presentes", "area_ano_pessoal", "area_leituras", "area_creditos"] as const;
+const SO_DO_SERVIDOR = ["area_codigos", "area_diario", "area_perguntas", "area_presentes", "area_ano_pessoal", "area_leituras", "area_creditos", "area_avisos"] as const;
 
 beforeAll(() => {
   seedGov();
@@ -37,6 +37,8 @@ beforeAll(() => {
       values ('${GOV_ORG}', '${contato}', 'tarot', 'minha pergunta às cartas', 500);
     insert into public.area_creditos (organization_id, contact_id, delta, motivo, referencia)
       values ('${GOV_ORG}', '${contato}', 30, 'pacote', 'pagamento-rls-${contato}');
+    insert into public.area_avisos (organization_id, contact_id, endpoint, p256dh, auth)
+      values ('${GOV_ORG}', '${contato}', 'https://push.test/${contato}', repeat('p', 20), repeat('a', 12));
   `);
 });
 

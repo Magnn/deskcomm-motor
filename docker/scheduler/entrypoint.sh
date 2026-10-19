@@ -116,6 +116,9 @@ CRONS="
 # a rodada só age naquela que marca a hora da varredura. Minuto diferente do
 # aniversário para as duas não disputarem a mesma batida num self-host pequeno.
 23 * * * *|60|api/v1/cron/lead-date-field-due
+# O AVISO DIÁRIO DA ÁREA DO CLIENTE ("a sua carta de hoje abriu"). De hora em hora pelo mesmo motivo do
+# aniversário: a rodada só age na empresa cujo relógio marca a hora do aviso. Minuto 2, longe das outras.
+2 * * * *|60|api/v1/cron/area-avisos
 # O canal mudo (doc 11, decisão B): varredura de banco, sem rede, com régua em
 # DIAS. Diária e de madrugada porque o estado que ela lê muda em dias — de 5 em
 # 5 minutos seriam 288 varreduras para nada, e o aviso chegaria na mesma hora.
