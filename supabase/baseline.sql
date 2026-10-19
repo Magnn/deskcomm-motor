@@ -39954,3 +39954,6 @@ revoke all on public.area_simpatias_pedidos from anon;
 revoke insert, update, delete, truncate on public.area_simpatias_pedidos from authenticated;
 
 -- area_eventos_tipo_check: os tipos `simpatia_*` e `contribuicao_*` foram acrescentados ao bloco da migration 0934 acima.
+
+-- `area_simpatias` é gravável pela sessão: as travas de suporte entram depois dela.
+do $f$ begin perform public.fn_aplicar_travas_de_suporte(); end $f$;

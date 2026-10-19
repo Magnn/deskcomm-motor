@@ -11,6 +11,8 @@
 -- `area_eventos.tipo` ganha `simpatia_checkout`, `simpatia_paga`, `simpatia_feita`, `contribuicao_checkout` e
 -- `contribuicao_paga` (o CHECK só acrescenta).
 --
+-- `area_simpatias` é gravável pela sessão (manager+): a chamada final aplica as travas de suporte a ela.
+--
 -- Aditiva e idempotente.
 
 create table if not exists public.area_simpatias (
@@ -90,3 +92,5 @@ alter table public.area_eventos add constraint area_eventos_tipo_check check (ti
   'simpatia_checkout', 'simpatia_paga', 'simpatia_feita',
   'contribuicao_checkout', 'contribuicao_paga'
 ));
+
+do $f$ begin perform public.fn_aplicar_travas_de_suporte(); end $f$;
