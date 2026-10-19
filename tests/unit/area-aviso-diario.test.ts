@@ -36,7 +36,7 @@ vi.mock("@/lib/area-do-cliente/http", () => ({
   }),
 }));
 
-import { avisoDoDia, deveAvisarAgora } from "@/lib/area-do-cliente/avisos";
+import { avisoDoDia, convidarParaOAviso, deveAvisarAgora } from "@/lib/area-do-cliente/avisos";
 import { enviarAvisosDoDia } from "@/lib/area-do-cliente/avisos-servidor";
 
 beforeEach(() => {
@@ -53,6 +53,12 @@ describe("regras do aviso", () => {
     expect(deveAvisarAgora({ ...base, horaLocal: 8, ultimoAvisoDia: "2026-10-18" })).toBe(true);
     expect(deveAvisarAgora({ ...base, horaLocal: 8, ultimoAvisoDia: "2026-10-19" })).toBe(false);
     expect(deveAvisarAgora({ ...base, horaLocal: 9, ultimoAvisoDia: null })).toBe(false);
+  });
+
+  it("⭐ o convite vem depois do valor: nunca na primeira visita sem ter visto nada", () => {
+    expect(convidarParaOAviso({ diasDeVisita: 1, jaViuValor: false })).toBe(false);
+    expect(convidarParaOAviso({ diasDeVisita: 2, jaViuValor: false })).toBe(true);
+    expect(convidarParaOAviso({ diasDeVisita: 1, jaViuValor: true })).toBe(true);
   });
 
   it("o texto convida e volta para a área marcando que veio do aviso", () => {

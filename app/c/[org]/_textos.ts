@@ -113,6 +113,8 @@ export function textosDasEtapas(t: (s: string) => string): TextosDasEtapas {
 export function textosDoAviso(t: (s: string) => string): TextosDoAviso {
   return {
     titulo: t("A sua carta, todo dia"),
+    gostou: t("Gostou?"),
+    queroReceber: t("Quero receber"),
     convite: t("Receba um aviso às {hora} quando a sua carta do dia abrir."),
     contencao: t("Um aviso por dia, só isso. Desligue quando quiser."),
     ativar: t("Ativar aviso"),

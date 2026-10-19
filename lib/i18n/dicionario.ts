@@ -14694,6 +14694,8 @@ export const DICIONARIO: Traducoes = {
   "App e aviso diário no celular": { es: "App y aviso diario en el celular" },
   "A pessoa instala a área como app no celular e, se quiser, recebe um aviso por dia — a carta do dia abriu. No iPhone, só com a área instalada.": { es: "La persona instala el área como app en el celular y, si quiere, recibe un aviso por día: se abrió la carta del día. En iPhone, solo con el área instalada." },
   "Hora do aviso": { es: "Hora del aviso" },
+  "Gostou?": { es: "¿Te gustó?" },
+  "Quero receber": { es: "Quiero recibirlo" },
 };
 
 /**

@@ -19,6 +19,8 @@ import { Check, Copy, CreditCard, Loader2, MessageCircle, Pause, Play, QrCode, S
 
 import { copyToClipboard } from "@/lib/clipboard";
 
+import { EVENTO_DE_VALOR } from "@/lib/area-do-cliente/avisos";
+
 import { anunciarSaldo, useSaldo } from "./_carteira";
 import { postarJson } from "./_circulo";
 import { type TextosDaArea } from "./_client";
@@ -423,6 +425,7 @@ export function MesaDeLeituras({
     };
     setLeituras((ls) => [pronta, ...ls.filter((l) => l.id !== leituraId)]);
     setEtapa({ tipo: "leitura", leitura: pronta });
+    window.dispatchEvent(new Event(EVENTO_DE_VALOR));
   };
 
   const topo = (

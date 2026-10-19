@@ -20,7 +20,7 @@ import { MENSAGEM_DO_DIA, cartaDoDia } from "@/lib/area-do-cliente/carta-do-dia"
 import { DIAS_DO_AVISO_DE_RENOVACAO, assinaturaAtiva, diasRestantes, lerAssinatura, mesDoDia } from "@/lib/area-do-cliente/circulo";
 import { carregarDadosDaArea, diaNoFuso, fotoDaCarta } from "@/lib/area-do-cliente/dados";
 import { CARTAS_NA_MESA } from "@/lib/area-do-cliente/leituras";
-import { configDosAvisos } from "@/lib/area-do-cliente/avisos";
+import { configDosAvisos, convidarParaOAviso } from "@/lib/area-do-cliente/avisos";
 import { bonusDoPacote, creditosDoPreco, pacoteEmDestaque } from "@/lib/area-do-cliente/creditos";
 import { carregarCarteira, configDosCreditos } from "@/lib/area-do-cliente/creditos-servidor";
 import { carregarMesa, configDasLeituras } from "@/lib/area-do-cliente/leituras-servidor";
@@ -60,6 +60,21 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         }
       : {}),
   };
+}
+
+/** Já é hora de convidar para o aviso? Dias distintos de visita e se já revelou carta ou leitura. */
+async function jaMereceConvite(admin: ReturnType<typeof createAdminClient>, org: { id: string; fuso: string }, contactId: string): Promise<boolean> {
+  const { data } = await admin
+    .from("area_eventos")
+    .select("tipo, created_at")
+    .eq("organization_id", org.id)
+    .eq("contact_id", contactId)
+    .in("tipo", ["visitou", "carta_do_dia", "leitura_revelada"])
+    .order("created_at", { ascending: false })
+    .limit(200);
+  const eventos = (data ?? []) as Array<{ tipo: string; created_at: string }>;
+  const dias = new Set(eventos.filter((e) => e.tipo === "visitou").map((e) => diaNoFuso(e.created_at, org.fuso)));
+  return convidarParaOAviso({ diasDeVisita: dias.size, jaViuValor: eventos.some((e) => e.tipo !== "visitou") });
 }
 
 function dinheiro(cents: number, currency: string): string {
@@ -173,6 +188,7 @@ export default async function AreaDoCliente({ params, searchParams }: Props) {
   const mesa = cfgDasLeituras.ativo ? await carregarMesa(admin, { id: org.id, fuso: org.fuso }, sessao.contactId, cfgDasLeituras) : null;
   const cfgDosCreditos = configDosCreditos(org.config.creditos);
   const cfgDosAvisos = configDosAvisos(org.config.avisos);
+  const convidarJa = cfgDosAvisos.ativo ? await jaMereceConvite(admin, { id: org.id, fuso: org.fuso }, sessao.contactId) : false;
   const carteira = cfgDosCreditos.ativo ? await carregarCarteira(admin, org.id, sessao.contactId) : null;
   const destaque = pacoteEmDestaque(cfgDosCreditos.pacotes);
 
@@ -262,7 +278,7 @@ export default async function AreaDoCliente({ params, searchParams }: Props) {
       }
       creditosDoCirculo={carteira && cfgDosCreditos.circulo_mensal > 0 ? cfgDosCreditos.circulo_mensal : null}
       tc={textosDaCarteira(t)}
-      avisos={cfgDosAvisos.ativo && vapidPronto() ? { hora: cfgDosAvisos.hora } : null}
+      avisos={cfgDosAvisos.ativo && vapidPronto() ? { hora: cfgDosAvisos.hora, convidarJa } : null}
       ta={textosDoAviso(t)}
       abaInicial={abaValida(aba)}
     />
