@@ -8,7 +8,7 @@ import { abreLeitura, perguntaPagaRecente } from "@/lib/preco/extras";
 import type { Extra } from "@/lib/preco/tipos";
 
 import { blocoDaLeitura } from "./bloco-do-prompt";
-import { passoDaLeitura } from "./estado-da-leitura";
+import { passoDaLeitura, recusaDaCartaForaDoSorteio } from "./estado-da-leitura";
 
 const sai = (body: string, sent_at: string) => ({ direction: "outbound", body, sent_at });
 const chega = (body: string, sent_at: string) => ({ direction: "inbound", body, sent_at });
@@ -95,5 +95,32 @@ describe("pergunta paga: rodada própria da leitura", () => {
     expect(r!.pagoEm.getTime()).toBe(agora.getTime() - 18 * 60_000);
     expect(perguntaPagaRecente(EXTRAS, [{ slug: "pergunta-nova", hora: "10:00", dia: "18/10", minutosAtras: 1700, diasAtras: 1 }], agora)).toBeNull();
     expect(perguntaPagaRecente(EXTRAS, [{ slug: "sinastria-amorosa", hora: "15:13", minutosAtras: 5, diasAtras: 0 }], agora)).toBeNull();
+  });
+});
+
+describe("trava: leitura sem a carta sorteada (Adilson, 19/10/2026)", () => {
+  const passo = () => passoDaLeitura("org:lead:paga", [...LEITURA_GRATIS, ...DEPOIS_DO_PAGAMENTO], PAGOU_AS);
+  const DO_ADILSON = "O que as cartas mostram aqui é um homem com a vida em pausa. Tudo o que você faz passa pelo filtro dela.";
+
+  it("⭐ interpretar as cartas antes de revelar a sorteada é recusado, com a ordem de revelar ela", () => {
+    const p = passo();
+    const recusa = recusaDaCartaForaDoSorteio(DO_ADILSON, p);
+    expect(recusa).toContain(`CARTA 1: ${p?.passo === "revelar_carta" ? p.carta.nome : ""}`);
+    expect(recusaDaCartaForaDoSorteio("As cartas dizem que é hora de soltar.", p)).not.toBeNull();
+  });
+
+  it("confirmar o recebimento ou falar da mesa passa", () => {
+    expect(recusaDaCartaForaDoSorteio("Recebi, Adilson. Números 5, 7 e 22. Vou abrir a mesa só pra essa pergunta.", passo())).toBeNull();
+    expect(recusaDaCartaForaDoSorteio("Vou abrir as cartas pra você agora.", passo())).toBeNull();
+  });
+
+  it("depois que uma carta saiu neste turno, o balão seguinte pode comentá-la", () => {
+    expect(recusaDaCartaForaDoSorteio("A carta mostra que você já sabe a resposta.", passo(), true)).toBeNull();
+  });
+
+  it("fora de uma rodada com carta a revelar, nada muda", () => {
+    expect(recusaDaCartaForaDoSorteio(DO_ADILSON, null)).toBeNull();
+    const encerrada = passoDaLeitura("org:lead", [...LEITURA_GRATIS, ...DEPOIS_DO_PAGAMENTO]);
+    expect(recusaDaCartaForaDoSorteio(DO_ADILSON, encerrada)).toBeNull();
   });
 });

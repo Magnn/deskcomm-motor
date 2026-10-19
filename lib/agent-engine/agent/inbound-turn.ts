@@ -138,7 +138,7 @@ import { resolverConscienciaDoAnuncio } from '@/lib/consciencia/ad-briefs';
 import { blocoDeLimites } from '@/lib/limites/bloco-do-prompt';
 import { blocoDeObjecoes } from '@/lib/objecoes/bloco-do-prompt';
 import { blocoDeOferta } from '@/lib/oferta/bloco-do-prompt';
-import { passoDaLeitura, recusaDaCartaForaDoSorteio } from '@/lib/leitura/estado-da-leitura';
+import { MARCA_CARTA, passoDaLeitura, recusaDaCartaForaDoSorteio } from '@/lib/leitura/estado-da-leitura';
 import { destinoNaConversa, fotoDaLeitura, imagemDaLeitura, mesaJaMostrada } from '@/lib/leitura/imagens';
 import {
   combinadoEmVigor,
@@ -2771,6 +2771,8 @@ async function executarTurnoDoAgente(
     ? passoDaLeitura(`${tenantId}:${leadId}:${perguntaPagaNoTurno.chave}`, openingContext.context.messages, perguntaPagaNoTurno.pagoEm)
     : passoDaLeitura(`${tenantId}:${leadId}`, openingContext.context.messages);
   const blocoDaLeituraDoTurno = blocoDaLeitura(passoDaLeituraNoTurno, perguntaPagaNoTurno ? { nome: perguntaPagaNoTurno.extra.name } : null);
+  // Depois que uma carta sai neste turno, os balões seguintes podem comentá-la (`recusaDaCartaForaDoSorteio`).
+  let cartaReveladaNoTurno = false;
   if (perguntaPagaNoTurno) {
     runLog.info('pergunta paga — rodada própria da leitura', { passo: passoDaLeituraNoTurno?.passo ?? 'aguardando_numeros' });
   }
@@ -3986,11 +3988,12 @@ async function executarTurnoDoAgente(
         }
         // CARTA SÓ A SORTEADA: sem os 3 números reconhecidos, ou fora da ordem, a revelação não sai.
         if (!preview) {
-          const recusa = recusaDaCartaForaDoSorteio(body, passoDaLeituraNoTurno);
+          const recusa = recusaDaCartaForaDoSorteio(body, passoDaLeituraNoTurno, cartaReveladaNoTurno);
           if (recusa !== null) {
             runLog.info('carta fora do sorteio — revelação recusada', { conversation_id: input.conversationId });
             return { ok: false, error: { code: 'carta_fora_do_sorteio', message: recusa } };
           }
+          if (MARCA_CARTA.test(body)) cartaReveladaNoTurno = true;
         }
         // CORPO VAZIO NÃO SAI. Medido ao vivo (2026-09-19): o `gpt-4o-mini`
         // chamou `send_message` várias vezes com corpo que virou vazio e o
