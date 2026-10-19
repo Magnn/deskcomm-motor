@@ -38,6 +38,18 @@ export function avisoDoDia(p: { titulo: string; slug: string; temCartaDoDia: boo
   };
 }
 
+/**
+ * O convite para o aviso vem DEPOIS do valor, nunca na primeira tela: a partir do segundo dia de visita,
+ * ou depois de a pessoa já ter revelado a carta do dia ou terminado uma leitura. (Na mesma visita, a tela
+ * também convida logo depois de ela revelar — `EVENTO_DE_VALOR`.)
+ */
+export function convidarParaOAviso(p: { diasDeVisita: number; jaViuValor: boolean }): boolean {
+  return p.diasDeVisita >= 2 || p.jaViuValor;
+}
+
+/** O evento da janela que a área dispara quando a pessoa acaba de ver valor (revelou a carta, leu a mesa). */
+export const EVENTO_DE_VALOR = "area-viu-valor";
+
 export function configDosAvisos(bruto: Partial<ConfigDosAvisos> | undefined): ConfigDosAvisos {
   return { ativo: bruto?.ativo ?? false, hora: bruto?.hora ?? HORA_PADRAO_DO_AVISO };
 }

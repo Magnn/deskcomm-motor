@@ -9,16 +9,24 @@
  *    pelo Compartilhar › Adicionar à Tela de Início; aberta pelo ícone, liga o aviso normalmente.
  *
  * Convida, nunca cobra: "Agora não" esconde o cartão neste aparelho, e desligar é um toque.
+ *
+ * E convida DEPOIS do valor: na primeira visita o cartão não aparece; aparece a partir do segundo dia
+ * (`convidarJa`, decidido no servidor) ou logo depois de a pessoa revelar a carta ou terminar uma leitura
+ * (`EVENTO_DE_VALOR`). No iPhone, a instrução de instalar só aparece quando ela toca em "Quero receber".
  */
 import * as React from "react";
 
 import { Bell, BellOff, Download, Share } from "lucide-react";
 
+import { EVENTO_DE_VALOR } from "@/lib/area-do-cliente/avisos";
+
 import { CARTAO_NOTURNO, SOBRETITULO_NOTURNO } from "./_tema";
 
 export interface TextosDoAviso {
   titulo: string;
+  gostou: string;
   convite: string;
+  queroReceber: string;
   contencao: string;
   ativar: string;
   ativando: string;
@@ -45,8 +53,11 @@ interface PedidoDeInstalacao extends Event {
 
 const OCULTO = (slug: string) => `area-aviso-oculto:${slug}`;
 
-export function AvisoDiario({ slug, ta, hora }: { slug: string; ta: TextosDoAviso; hora: number }) {
+export function AvisoDiario({ slug, ta, hora, convidarJa }: { slug: string; ta: TextosDoAviso; hora: number; convidarJa: boolean }) {
   const [estado, setEstado] = React.useState<Estado>("carregando");
+  const [convidar, setConvidar] = React.useState(convidarJa);
+  const [acabouDeVer, setAcabouDeVer] = React.useState(false);
+  const [mostrarComoInstalar, setMostrarComoInstalar] = React.useState(false);
   const [oculto, setOculto] = React.useState(false);
   const [ocupado, setOcupado] = React.useState(false);
   const [erro, setErro] = React.useState(false);
@@ -65,6 +76,11 @@ export function AvisoDiario({ slug, ta, hora }: { slug: string; ta: TextosDoAvis
       setInstalacao(e as PedidoDeInstalacao);
     };
     window.addEventListener("beforeinstallprompt", guardar);
+    const viuValor = () => {
+      setConvidar(true);
+      setAcabouDeVer(true);
+    };
+    window.addEventListener(EVENTO_DE_VALOR, viuValor);
     void (async () => {
       const suporta = "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
       const ehIphone = /iphone|ipad|ipod/i.test(navigator.userAgent);
@@ -76,7 +92,10 @@ export function AvisoDiario({ slug, ta, hora }: { slug: string; ta: TextosDoAvis
       const inscricao = await registro?.pushManager.getSubscription().catch(() => null);
       setEstado(inscricao ? "ligado" : "disponivel");
     })();
-    return () => window.removeEventListener("beforeinstallprompt", guardar);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", guardar);
+      window.removeEventListener(EVENTO_DE_VALOR, viuValor);
+    };
   }, [slug, escopo]);
 
   const ativar = async () => {
@@ -153,18 +172,32 @@ export function AvisoDiario({ slug, ta, hora }: { slug: string; ta: TextosDoAvis
       </p>
     );
   }
-  if (oculto) return null;
+  if (oculto || !convidar) return null;
 
   return (
     <section className={`${CARTAO_NOTURNO} p-5`} data-testid="aviso-convite">
       <p className={SOBRETITULO_NOTURNO}>✦ {ta.titulo}</p>
-      <p className="mt-2 text-[15px] leading-relaxed text-[#ece4f7]">{ta.convite.replace("{hora}", `${hora}h`)}</p>
+      <p className="mt-2 text-[15px] leading-relaxed text-[#ece4f7]">
+        {acabouDeVer ? `${ta.gostou} ` : ""}
+        {ta.convite.replace("{hora}", `${hora}h`)}
+      </p>
       <p className="mt-1 text-xs text-[#b7aecb]">{ta.contencao}</p>
       {estado === "iphone_instalar" ? (
-        <p className="mt-3 flex items-start gap-2 rounded-xl bg-white/5 p-3 text-sm text-[#e7def3]">
-          <Share className="mt-0.5 size-4 shrink-0 text-[#e2c47a]" aria-hidden />
-          {ta.iphone}
-        </p>
+        mostrarComoInstalar ? (
+          <p className="mt-3 flex items-start gap-2 rounded-xl bg-white/5 p-3 text-sm text-[#e7def3]">
+            <Share className="mt-0.5 size-4 shrink-0 text-[#e2c47a]" aria-hidden />
+            {ta.iphone}
+          </p>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setMostrarComoInstalar(true)}
+            className="mt-4 inline-flex h-11 items-center gap-2 rounded-full bg-[#c9a54e] px-5 text-sm font-semibold text-[#1b1433]"
+          >
+            <Bell className="size-4" aria-hidden />
+            {ta.queroReceber}
+          </button>
+        )
       ) : estado === "bloqueado" ? (
         <p className="mt-3 flex items-start gap-2 rounded-xl bg-white/5 p-3 text-sm text-[#e7def3]">
           <BellOff className="mt-0.5 size-4 shrink-0 text-[#e2c47a]" aria-hidden />

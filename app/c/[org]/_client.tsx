@@ -9,6 +9,8 @@
 import * as React from "react";
 import { ArrowUp, BookOpen, Cake, Check, KeyRound, Mail, MessagesSquare, Sparkles } from "lucide-react";
 
+import { EVENTO_DE_VALOR } from "@/lib/area-do-cliente/avisos";
+
 import { BOTAO, CAMPO, CARTAO, DETALHE, SERIF, SOBRETITULO, TEXTO_SUAVE } from "./_tema";
 
 export { CAMPO };
@@ -378,6 +380,8 @@ export function CartaDoDia({
     if (revelada) return;
     setRevelada(true);
     void postar(`/api/v1/area/publica/${slug}/eventos`, { tipo: "carta_do_dia", carta: cartaId }, tx);
+    // Acabou de ver valor: é a hora de convidar para o aviso diário (depois de a carta virar).
+    window.setTimeout(() => window.dispatchEvent(new Event(EVENTO_DE_VALOR)), 2500);
   };
   return (
     <section className={CARTAO} data-testid="area-carta-do-dia">

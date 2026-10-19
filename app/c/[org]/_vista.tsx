@@ -130,7 +130,7 @@ export interface VistaDaAreaProps {
   carteira: CarteiraInicial | null;
   creditosDoCirculo: number | null;
   /** O aviso diário no celular (`_aviso.tsx`); `null` = desligado na empresa. */
-  avisos: { hora: number } | null;
+  avisos: { hora: number; convidarJa: boolean } | null;
   ta: TextosDoAviso;
   tc: TextosDaCarteira;
   /** A aba que abre primeiro (do endereço, `?aba=`); sem ela, Hoje. */
@@ -248,7 +248,7 @@ export function VistaDaArea(p: VistaDaAreaProps) {
           <CartaDoDia slug={slug} cor={cor} tx={tx} cartaId={p.carta.id} nome={p.carta.nome} mensagem={p.carta.mensagem} foto={p.carta.foto} />
         ) : null}
 
-        {p.avisos ? <AvisoDiario slug={slug} ta={p.ta} hora={p.avisos.hora} /> : null}
+        {p.avisos ? <AvisoDiario slug={slug} ta={p.ta} hora={p.avisos.hora} convidarJa={p.avisos.convidarJa} /> : null}
 
         {/* A continuidade: a última palavra da empresa, com o caminho para responder. */}
         {recado ? (
