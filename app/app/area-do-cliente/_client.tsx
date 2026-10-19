@@ -780,6 +780,8 @@ function AbaCompradores({ ativa }: { ativa: boolean }) {
 // ─── Configuração ───────────────────────────────────────────────────────────
 
 /** "29,90" → 2990; vazio ou lixo → o padrão. */
+const NARRAR_COM = ["rapida", "humana"] as const;
+
 function centavos(texto: string, padrao: number): number {
   const n = Math.round(Number(texto.replace(/\./g, "").replace(",", ".")) * 100);
   return Number.isFinite(n) && n >= 100 ? n : padrao;
@@ -804,6 +806,16 @@ function AbaConfig({ inicial }: { inicial: ConfigDaArea }) {
   const [mesaPrimeira, setMesaPrimeira] = useState(((inicial.leituras?.preco_primeira_cents ?? 500) / 100).toFixed(2).replace(".", ","));
   const [mesaPreco, setMesaPreco] = useState(((inicial.leituras?.preco_cents ?? 1490) / 100).toFixed(2).replace(".", ","));
   const [mesaNarrar, setMesaNarrar] = useState(inicial.leituras?.narrar ?? false);
+  const [narrarCom, setNarrarCom] = useState<"rapida" | "humana">(inicial.leituras?.narrar_com ?? "rapida");
+  const [vozHumana, setVozHumana] = useState(inicial.leituras?.voz_humana ?? "");
+  // As vozes clonadas no servidor: a narração humana fala com uma delas (ou com a voz padrão do serviço).
+  const vozesClonadas = useQuery({
+    queryKey: ["ai", "voices"],
+    queryFn: async () =>
+      (await apiClient.get<{ data: { vozes: Array<{ provedor: string; id: string; nome: string; categoria: string }> } }>("/api/v1/ai/voices")).data.vozes,
+    staleTime: 30_000,
+  });
+  const clonadasNoServidor = (vozesClonadas.data ?? []).filter((v) => v.provedor === "servidor" && v.categoria === "clonada");
   const [mesaLimite, setMesaLimite] = useState(String(inicial.leituras?.limite_por_dia ?? 3));
   const [creditosAtivos, setCreditosAtivos] = useState(inicial.creditos?.ativo ?? false);
   const [pacotes, setPacotes] = useState(
@@ -828,6 +840,8 @@ function AbaConfig({ inicial }: { inicial: ConfigDaArea }) {
           preco_cents: centavos(mesaPreco, 1490),
           limite_por_dia: Math.min(20, Math.max(1, Math.round(Number(mesaLimite)) || 3)),
           narrar: mesaNarrar,
+          narrar_com: narrarCom,
+          ...(narrarCom === "humana" ? { voz_humana: vozHumana } : {}),
         },
         creditos: {
           ativo: creditosAtivos,
@@ -968,6 +982,42 @@ function AbaConfig({ inicial }: { inicial: ConfigDaArea }) {
           </div>
           <Switch id="area-mesa-narrar" checked={mesaNarrar} onCheckedChange={setMesaNarrar} />
         </div>
+        {mesaNarrar ? (
+          <div className="space-y-2 rounded-md bg-muted/40 p-3">
+            {NARRAR_COM.map((valor) => (
+              <label key={valor} className="flex cursor-pointer items-start gap-2 text-sm">
+                <input type="radio" name="narrar_com" className="mt-1" checked={narrarCom === valor} onChange={() => setNarrarCom(valor)} />
+                <span>
+                  <span className="block font-medium">{valor === "rapida" ? t("Voz rápida — pronta na hora") : t("Voz humana — pronta em alguns minutos")}</span>
+                  <span className="block text-xs text-muted-foreground">
+                    {valor === "rapida"
+                      ? t("A pessoa ouve assim que a leitura aparece.")
+                      : t("Mais expressiva, com emoção. A leitura aparece escrita na hora e o áudio chega minutos depois. Se a voz humana falhar, sai a rápida.")}
+                  </span>
+                </span>
+              </label>
+            ))}
+            {narrarCom === "humana" ? (
+              <div className="space-y-1">
+                <Label htmlFor="area-voz-humana">{t("Com a voz de")}</Label>
+                <select
+                  id="area-voz-humana"
+                  className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
+                  value={vozHumana}
+                  onChange={(e) => setVozHumana(e.target.value)}
+                >
+                  <option value="">{t("Voz padrão do serviço")}</option>
+                  {clonadasNoServidor.map((v) => (
+                    <option key={v.id} value={v.id}>
+                      {v.nome}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-muted-foreground">{t("As vozes gravadas no Voice Studio (No servidor) aparecem aqui.")}</p>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
       </div>
       <div className="space-y-2 rounded-md border border-border p-3">
         <div className="flex items-center justify-between">

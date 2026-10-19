@@ -3,6 +3,9 @@
  *
  * Devolve um link assinado do áudio. A primeira chamada gera e guarda (pode levar até um minuto numa leitura
  * longa); as seguintes devolvem o mesmo arquivo. Só com a narração ligada na área.
+ *
+ * Com a voz HUMANA (`narrar_com: "humana"`), a leitura entra numa fila: a resposta é 202 com o lugar na
+ * fila até ficar pronta, e a tela pergunta de novo.
  */
 import { NextResponse, type NextRequest } from "next/server";
 
@@ -45,7 +48,11 @@ export async function POST(req: NextRequest, { params }: Ctx): Promise<Response>
     sessao.contactId,
     id,
     primeiroNome(nomeDoContato((contato ?? {}) as { name: string | null; display_name: string | null })),
+    { humana: org.config.leituras?.narrar_com === "humana" ? { voz: org.config.leituras.voz_humana } : null },
   );
+  if (!r.ok && r.motivo === "preparando") {
+    return NextResponse.json({ data: { preparando: true, posicao: r.posicao } }, { status: 202, headers: { "Cache-Control": "no-store" } });
+  }
   if (!r.ok) {
     if (r.motivo === "nao_encontrada") return NAO_ENCONTRADA();
     return ERRO(503, r.motivo, "A voz não está disponível agora. A leitura escrita continua aqui.");

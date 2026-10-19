@@ -340,6 +340,11 @@ const schema = z.object({
   // caractere. Vazio é ausente: sem endereço, quem clona é só a ElevenLabs.
   VOZ_CLONADA_BASE_URL: z.string().optional().default(""),
   VOZ_CLONADA_API_KEY: z.string().optional().default(""),
+  // A VOZ HUMANA DO PRÓPRIO SERVIDOR (`lib/voz/servidor-humana.ts`, serviço em `ops/vps/voz-humana`):
+  // o Chatterbox, mais expressivo e lento — fila para o que não tem pressa (a leitura narrada). Vazio é
+  // ausente: sem endereço, a narração usa a voz rápida.
+  VOZ_HUMANA_BASE_URL: z.string().optional().default(""),
+  VOZ_HUMANA_API_KEY: z.string().optional().default(""),
   // Endereço da API do Jev (TypeSafe AI). Vazio é ausente: vale
   // https://api.typesafe.ai. Existe para o dublê do e2e — a CHAVE nunca vem
   // daqui, é por organização (BYOK). Quem lê é `baseDaApiDoJev()`, em

@@ -14673,6 +14673,14 @@ export const DICIONARIO: Traducoes = {
   "Voz de reserva": { es: "Voz de reserva" },
   "Tirar": { es: "Quitar" },
   "Adicionar reserva": { es: "Agregar reserva" },
+  "A sua leitura em áudio está sendo preparada com carinho. Fica pronta em alguns minutos — pode continuar por aqui.": { es: "Tu lectura en audio se está preparando con cariño. Estará lista en unos minutos; puedes seguir por aquí." },
+  "Voz rápida — pronta na hora": { es: "Voz rápida: lista al instante" },
+  "Voz humana — pronta em alguns minutos": { es: "Voz humana: lista en unos minutos" },
+  "A pessoa ouve assim que a leitura aparece.": { es: "La persona escucha en cuanto aparece la lectura." },
+  "Mais expressiva, com emoção. A leitura aparece escrita na hora e o áudio chega minutos depois. Se a voz humana falhar, sai a rápida.": { es: "Más expresiva, con emoción. La lectura aparece escrita al instante y el audio llega minutos después. Si la voz humana falla, sale la rápida." },
+  "Com a voz de": { es: "Con la voz de" },
+  "Voz padrão do serviço": { es: "Voz predeterminada del servicio" },
+  "As vozes gravadas no Voice Studio (No servidor) aparecem aqui.": { es: "Las voces grabadas en el Voice Studio (En el servidor) aparecen aquí." },
 };
 
 /**
