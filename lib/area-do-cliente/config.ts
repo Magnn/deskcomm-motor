@@ -109,6 +109,28 @@ export const configDaAreaSchema = z.strictObject({
       hora: z.number().int().min(6).max(21).default(8),
     })
     .optional(),
+  /**
+   * As SIMPATIAS (`lib/area-do-cliente/simpatias.ts`, migration 0941): o passo a passo de cada uma, para fazer em
+   * casa, e o serviço "o templo faz por mim", pago à parte por `preco_feita_cents`. `so_assinantes`: com o Círculo
+   * ligado, o passo a passo é de quem está no Círculo; os outros veem o título e o convite. Desligado por padrão.
+   */
+  simpatias: z
+    .strictObject({
+      ativo: z.boolean().default(false),
+      preco_feita_cents: z.number().int().min(100).max(1_000_000).default(2700),
+      so_assinantes: z.boolean().default(true),
+    })
+    .optional(),
+  /**
+   * A CONTRIBUIÇÃO VOLUNTÁRIA: valor livre, a partir de `minimo_cents`. Não libera nada nem muda o atendimento —
+   * por isso é separada do serviço pago (que tem preço e entrega). Desligada por padrão.
+   */
+  contribuicao: z
+    .strictObject({
+      ativo: z.boolean().default(false),
+      minimo_cents: z.number().int().min(100).max(100_000).default(500),
+    })
+    .optional(),
   /** Cor principal da área, em hex. Vazio = a cor do produto. */
   cor: z
     .string()

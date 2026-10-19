@@ -656,6 +656,11 @@ export const AUDIT_ACTIONS = [
   "area.servico_criado",
   "area.servico_alterado",
   "area.servico_removido",
+  /** As simpatias da área (migration 0941): o catálogo e o pedido "o templo faz por mim" marcado como feito. */
+  "area.simpatia_criada",
+  "area.simpatia_alterada",
+  "area.simpatia_removida",
+  "area.simpatia_feita",
   "area.convite_criado",
   "area.mensagem_respondida",
   "comanda.aberta",

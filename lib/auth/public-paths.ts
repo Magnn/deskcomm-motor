@@ -64,7 +64,7 @@ export const PUBLIC_PATHS: RegExp[] = [
   // responde 404. "Público" aqui é "o proxy não decide", nunca "sem
   // autenticação". Ancorado no slug da organização.
   /^\/c\/[a-z0-9][a-z0-9-]{1,62}(\/.*)?$/,
-  /^\/api\/v1\/area\/publica\/[a-z0-9][a-z0-9-]{1,62}\/(codigo|codigo\/confirmar|eventos|email|diario|aniversario|circulo|circulo\/conteudo|circulo\/pergunta|presente|ano-pessoal|ano-pessoal\/gerar|mensagens|etapas|leituras|creditos|avisos|perfil)$/,
+  /^\/api\/v1\/area\/publica\/[a-z0-9][a-z0-9-]{1,62}\/(codigo|codigo\/confirmar|eventos|email|diario|aniversario|circulo|circulo\/conteudo|circulo\/pergunta|presente|ano-pessoal|ano-pessoal\/gerar|mensagens|etapas|leituras|creditos|avisos|perfil|simpatias|contribuicao)$/,
   // A Mesa de leituras (0937): uma leitura pelo id (UUID), revelar e ouvir. Faltava aqui desde o PR #335
   // e o proxy respondia 401 antes da rota — comprar leitura e créditos falhava em produção (achado em
   // 19/10/2026). `area-publica-atravessa-o-proxy.test.ts` cobra que TODA rota da área esteja liberada.

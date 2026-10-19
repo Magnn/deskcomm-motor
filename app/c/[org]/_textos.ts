@@ -11,6 +11,7 @@ import type { TextosDaEntrada } from "./_entrada";
 import type { TextosDasEtapas } from "./_etapas";
 import type { TextosDaMesa } from "./_mesa";
 import type { TextosDasOfertas } from "./_ofertas";
+import type { TextosDasSimpatias } from "./_simpatias";
 
 /** Os textos das partes que rodam no navegador, já traduzidos aqui no servidor. */
 export function textosDoNavegador(t: (s: string) => string): TextosDaArea {
@@ -88,6 +89,31 @@ export function textosDasOfertas(t: (s: string) => string): TextosDasOfertas {
     anoPessoalTitulo: t("Seu Ano Pessoal"),
     anoPessoalConvite: t("A leitura do ano que começa no seu aniversário: o tema do ano, uma orientação para cada trimestre e três intenções para você. Após a confirmação do pagamento, a leitura é preparada em texto e aparece aqui na sua área."),
     anoPessoalPreparando: t("A leitura do seu ano está sendo preparada…"),
+  };
+}
+
+/** Os textos das simpatias e da contribuição, já traduzidos. Nenhum promete resultado. */
+export function textosDasSimpatias(t: (s: string) => string): TextosDasSimpatias {
+  return {
+    titulo: t("Simpatias"),
+    convite: t("Simpatias para cuidar da sua intenção. Faça em casa, no seu tempo, ou peça para o templo fazer por você."),
+    fazerEmCasa: t("Fazer em casa"),
+    materiais: t("Você vai precisar de"),
+    passoAPasso: t("Passo a passo"),
+    cuidado: t("Cuidado"),
+    soNoCirculo: t("O passo a passo é de quem está no Círculo. Entre no Círculo para receber todas as simpatias."),
+    temploFaz: t("O templo faz por mim"),
+    temploFazExplica: t("O templo faz esta simpatia por você e avisa aqui na sua área quando for feita."),
+    paraQuem: t("Para quem é, ou qual é a sua intenção? (opcional)"),
+    paraQuemExemplo: t("Ex.: harmonia em casa"),
+    seusPedidos: t("Feitas pelo templo"),
+    vaiFazer: t("o templo vai fazer"),
+    feitaEm: t("feita em"),
+    semPromessa: t("Simpatia é um cuidado com a sua intenção, não uma promessa de resultado."),
+    contribuicaoTitulo: t("Contribua com o templo"),
+    contribuicaoTexto: t("Uma contribuição voluntária, no valor que você quiser, para manter o templo. Ela não muda o seu atendimento nem promete nada em troca."),
+    contribuicaoValor: t("Valor (R$)"),
+    contribuicaoMinimo: t("A partir de"),
   };
 }
 

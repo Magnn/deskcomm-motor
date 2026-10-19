@@ -25,6 +25,7 @@ import { ceuDoNascimento } from "@/lib/area-do-cliente/ceu";
 import { bonusDoPacote, creditosDoPreco, pacoteEmDestaque } from "@/lib/area-do-cliente/creditos";
 import { carregarCarteira, configDosCreditos } from "@/lib/area-do-cliente/creditos-servidor";
 import { ehFoco, type Foco } from "@/lib/area-do-cliente/perfil";
+import { vePassoAPasso } from "@/lib/area-do-cliente/simpatias";
 import { carregarMesa, configDasLeituras } from "@/lib/area-do-cliente/leituras-servidor";
 import { abaValida } from "@/lib/area-do-cliente/abas";
 import { COR_PADRAO_DA_AREA } from "@/lib/area-do-cliente/config";
@@ -38,7 +39,7 @@ import { vapidPronto } from "@/lib/notifications/vapid";
 import { vozPropriaConfigurada } from "@/lib/voz/servidor-proprio";
 
 import { serifDaArea } from "./_fonte";
-import { textosDaCarteira, textosDaEntrada, textosDaMesa, textosDoAviso, textosDasEtapas, textosDasOfertas, textosDoNavegador } from "./_textos";
+import { textosDaCarteira, textosDaEntrada, textosDaMesa, textosDoAviso, textosDasEtapas, textosDasOfertas, textosDasSimpatias, textosDoNavegador } from "./_textos";
 import { VistaDaArea, VistaDeEntrada } from "./_vista";
 
 export const dynamic = "force-dynamic";
@@ -198,6 +199,30 @@ export default async function AreaDoCliente({ params, searchParams }: Props) {
     .eq("contact_id", sessao.contactId)
     .maybeSingle();
   const foco = ehFoco((perfilR as { foco: string | null } | null)?.foco) ? ((perfilR as { foco: Foco }).foco) : null;
+  // As simpatias (migration 0941): o passo a passo só para quem o vê (`vePassoAPasso`), e os pedidos PAGOS dela.
+  const cfgDasSimpatias = org.config.simpatias?.ativo ? org.config.simpatias : null;
+  const [simpatiasR, pedidosR] = cfgDasSimpatias
+    ? await Promise.all([
+        admin
+          .from("area_simpatias")
+          .select("id, titulo, intencao, materiais, passos, cuidado")
+          .eq("organization_id", org.id)
+          .eq("publicada", true)
+          .order("posicao", { ascending: true })
+          .order("created_at", { ascending: true })
+          .limit(50),
+        admin
+          .from("area_simpatias_pedidos")
+          .select("id, titulo, feita_at, nota")
+          .eq("organization_id", org.id)
+          .eq("contact_id", sessao.contactId)
+          .not("pago_at", "is", null)
+          .order("pago_at", { ascending: false })
+          .limit(10),
+      ])
+    : [{ data: null }, { data: null }];
+  const vePassos = cfgDasSimpatias ? vePassoAPasso(cfgDasSimpatias, circulo !== null, noCirculo) : false;
+  const cfgDaContribuicao = org.config.contribuicao?.ativo ? org.config.contribuicao : null;
   const convidarJa = cfgDosAvisos.ativo ? await jaMereceConvite(admin, { id: org.id, fuso: org.fuso }, sessao.contactId) : false;
   const carteira = cfgDosCreditos.ativo ? await carregarCarteira(admin, org.id, sessao.contactId) : null;
   const destaque = pacoteEmDestaque(cfgDosCreditos.pacotes);
@@ -290,6 +315,37 @@ export default async function AreaDoCliente({ params, searchParams }: Props) {
       tc={textosDaCarteira(t)}
       avisos={cfgDosAvisos.ativo && vapidPronto() ? { hora: cfgDosAvisos.hora, convidarJa } : null}
       ta={textosDoAviso(t)}
+      simpatias={
+        cfgDasSimpatias
+          ? {
+              preco: dinheiro(cfgDasSimpatias.preco_feita_cents, "BRL"),
+              simpatias: (
+                (simpatiasR.data ?? []) as Array<{
+                  id: string;
+                  titulo: string;
+                  intencao: string;
+                  materiais: string | null;
+                  passos: string;
+                  cuidado: string | null;
+                }>
+              ).map((s) => ({
+                id: s.id,
+                titulo: s.titulo,
+                intencao: s.intencao,
+                materiais: vePassos ? s.materiais : null,
+                passos: vePassos ? s.passos : null,
+                cuidado: vePassos ? s.cuidado : null,
+              })),
+              pedidos: ((pedidosR.data ?? []) as Array<{ id: string; titulo: string; feita_at: string | null; nota: string | null }>).map(
+                (p) => ({ id: p.id, titulo: p.titulo, feitaEm: p.feita_at ? dataCurta(p.feita_at, org.fuso, tag) : null, nota: p.nota }),
+              ),
+            }
+          : null
+      }
+      contribuicao={
+        cfgDaContribuicao ? { minimoCents: cfgDaContribuicao.minimo_cents, minimo: dinheiro(cfgDaContribuicao.minimo_cents, "BRL") } : null
+      }
+      ts={textosDasSimpatias(t)}
       perfil={{ feito: perfilR !== null, foco }}
       ceu={ceuDoNascimento(dados.contato.nascimento)}
       tp={textosDaEntrada(t)}
