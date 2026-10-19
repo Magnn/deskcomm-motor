@@ -50,9 +50,41 @@ function blocoDaLeituraEncerrada(cartas: readonly [Carta, Carta, Carta]): string
   ].join("\n");
 }
 
-/** O bloco pra ESTE turno. `""` quando não há leitura na conversa. */
-export function blocoDaLeitura(passo: PassoDaLeitura | null): string {
+/** A pergunta paga: o mesmo formato das cartas (com a foto), e no fim a resposta à pergunta, não o trabalho. */
+function blocoDaPerguntaPaga(passo: PassoDaLeitura, nome: string): string {
+  const nomes = passo.cartas.map((c) => c.nome).join(", ");
+  if (passo.passo === "revelar_carta") {
+    return (
+      blocoDaCartaRevelada(passo.indice, passo.carta).replace(
+        "LEITURA — REVELE A CARTA",
+        `PERGUNTA PAGA (*${nome}*) — REVELE A CARTA`,
+      ) +
+      `\nEsta leitura é a pergunta que ela PAGOU: use este formato "CARTA ${passo.indice}:" (o sistema manda a foto da carta), mesmo que o roteiro diga que esse formato é só da leitura gratuita. Ligue a carta à pergunta paga.`
+    );
+  }
+  if (passo.passo === "causa_raiz") {
+    return [
+      "",
+      "",
+      `PERGUNTA PAGA (*${nome}*) — A RESPOSTA (as 3 cartas já foram reveladas: ${nomes})`,
+      "Agora una as 3 cartas e RESPONDA a pergunta que ela pagou, em 2 a 4 balões curtos, em português simples: o que as cartas mostram para essa pergunta e uma orientação prática para os próximos dias. Fale em tendência, sem prometer resultado nem data, e sem dizer o que outra pessoa sente ou vai fazer como certeza. NÃO ofereça trabalho nem outra cobrança neste turno. Feche perguntando se faz sentido para ela.",
+    ].join("\n");
+  }
+  return [
+    "",
+    "",
+    `PERGUNTA PAGA (*${nome}*) — JÁ RESPONDIDA (cartas: ${nomes})`,
+    'A pergunta que ela pagou já foi respondida com estas 3 cartas. NÃO revele outra carta. Se ela quiser perguntar outra coisa às cartas, é uma pergunta NOVA: cobre de novo, como está em COBRANÇAS À PARTE.',
+  ].join("\n");
+}
+
+/**
+ * O bloco pra ESTE turno. `""` quando não há leitura na conversa. `pergunta`: esta é a rodada de uma pergunta
+ * PAGA (`perguntaPagaRecente`), com o nome da cobrança.
+ */
+export function blocoDaLeitura(passo: PassoDaLeitura | null, pergunta?: { nome: string } | null): string {
   if (passo === null) return "";
+  if (pergunta) return blocoDaPerguntaPaga(passo, pergunta.nome);
   if (passo.passo === "revelar_carta") return blocoDaCartaRevelada(passo.indice, passo.carta);
   if (passo.passo === "encerrada") return blocoDaLeituraEncerrada(passo.cartas);
   return blocoDaCausaRaiz(passo.cartas);

@@ -281,7 +281,9 @@ describe("a fiação no turno", () => {
     const { readFileSync } = await import("node:fs");
     const turno = readFileSync("lib/agent-engine/agent/inbound-turn.ts", "utf8");
     expect(turno).toContain("passoDaLeitura(`${tenantId}:${leadId}`, openingContext.context.messages)");
-    expect(turno).toContain("blocoDaLeitura(passoDaLeituraNoTurno)");
+    expect(turno).toContain("blocoDaLeitura(passoDaLeituraNoTurno, perguntaPagaNoTurno ?");
+    // A pergunta paga roda a leitura de novo, contada a partir do pagamento (`lib/leitura/pergunta-paga.test.ts`).
+    expect(turno).toContain("openingContext.context.messages, perguntaPagaNoTurno.pagoEm)");
     // O contexto do anúncio (informativo) vem antes dos DIRETIVOS, e os três seguem na mesma
     // ordem — leitura, depois preço, depois entrega.
     expect(BLOCOS_DO_TURNO.indexOf("anuncio")).toBeLessThan(BLOCOS_DO_TURNO.indexOf("leitura"));

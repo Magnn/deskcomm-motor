@@ -93,6 +93,7 @@ import {
   blocoDaEntregaPendente,
   blocoDosExtras,
   entregaPendente,
+  perguntaPagaRecente,
   extrasDaConfig,
   janelaDeLeituraDosExtras,
   slugDoExtra,
@@ -2761,8 +2762,18 @@ async function executarTurnoDoAgente(
   // agente oferecê-lo) → o código sorteia de verdade (nunca o modelo) e revela uma carta por turno;
   // depois das 3, a causa raiz. Sem escolha na janela, ou com a causa raiz já dita, `passoDaLeitura`
   // devolve null e o bloco some.
-  const passoDaLeituraNoTurno = passoDaLeitura(`${tenantId}:${leadId}`, openingContext.context.messages);
-  const blocoDaLeituraDoTurno = blocoDaLeitura(passoDaLeituraNoTurno);
+  // A PERGUNTA PAGA abre uma rodada NOVA da leitura, contada a partir do pagamento (`perguntaPagaRecente`): sem
+  // isto, o passo da leitura grátis dizia "terminou, NUNCA revele outra carta" enquanto a cobrança paga mandava abrir
+  // as cartas (medido em 19/10/2026: a agente se perdia com quem tinha pago). Com a rodada paga em andamento, a foto
+  // e a trava das cartas seguem ELA; antes de ela escolher os números, nenhum bloco de leitura atrapalha o pedido.
+  const perguntaPagaNoTurno = preview ? null : perguntaPagaRecente(extrasDoTurno, extrasPagosNoTurno, new Date());
+  const passoDaLeituraNoTurno = perguntaPagaNoTurno
+    ? passoDaLeitura(`${tenantId}:${leadId}:${perguntaPagaNoTurno.chave}`, openingContext.context.messages, perguntaPagaNoTurno.pagoEm)
+    : passoDaLeitura(`${tenantId}:${leadId}`, openingContext.context.messages);
+  const blocoDaLeituraDoTurno = blocoDaLeitura(passoDaLeituraNoTurno, perguntaPagaNoTurno ? { nome: perguntaPagaNoTurno.extra.name } : null);
+  if (perguntaPagaNoTurno) {
+    runLog.info('pergunta paga — rodada própria da leitura', { passo: passoDaLeituraNoTurno?.passo ?? 'aguardando_numeros' });
+  }
   // A mesa vai uma vez por conversa: já oferecida antes, ou já enviada neste turno.
   let mesaDaLeituraJaFoi = mesaJaMostrada(openingContext.context.messages);
   // Contexto do anúncio: quem chegou por um anúncio (atribuição de 1º toque em `contacts.source_metadata`)

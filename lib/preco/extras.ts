@@ -208,3 +208,28 @@ export function blocoDaEntregaPendente(pendente: { extra: Extra; minutos: number
     "- Não fale de outro assunto antes da entrega, não cobre de novo e não repita o código do Pix.",
   ].join("\n");
 }
+
+/**
+ * A cobrança avulsa abre uma nova leitura de 3 cartas? Explícito em `opens_reading`; sem ele, a "pergunta" do nome
+ * (a pergunta nova de quem já recebeu a leitura grátis). Medido em 19/10/2026: sem rodada própria, o motor da
+ * leitura dizia "a leitura terminou, NUNCA revele outra carta" enquanto a cobrança paga mandava abrir as cartas.
+ */
+export function abreLeitura(extra: Pick<Extra, "name" | "opens_reading">): boolean {
+  return extra.opens_reading ?? /pergunta/i.test(extra.name);
+}
+
+/** A pergunta paga mais recente que abre leitura e ainda vale (um dia), com o instante aproximado do pagamento. */
+export function perguntaPagaRecente(
+  extras: readonly Extra[],
+  pagos: readonly ExtraPago[],
+  agora: Date,
+): { extra: Extra; pagoEm: Date; chave: string } | null {
+  for (const p of pagos) {
+    const extra = extras.find((e) => slugDoExtra(e.name) === p.slug);
+    if (!extra || !abreLeitura(extra) || (p.diasAtras ?? 0) >= 1 || p.minutosAtras === undefined) continue;
+    // Um minuto de folga: o registro é por minuto e o pedido dos números pode sair no mesmo minuto do pagamento.
+    const pagoEm = new Date(agora.getTime() - (p.minutosAtras + 1) * 60_000);
+    return { extra, pagoEm, chave: `${p.slug}:${p.dia ?? ""}:${p.hora}` };
+  }
+  return null;
+}
