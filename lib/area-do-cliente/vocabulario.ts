@@ -40,6 +40,11 @@ export const TIPOS_DE_EVENTO_DA_AREA = [
   "aviso_ligado",
   "aviso_desligado",
   "perfil_salvo",
+  "simpatia_checkout",
+  "simpatia_paga",
+  "simpatia_feita",
+  "contribuicao_checkout",
+  "contribuicao_paga",
 ] as const;
 export type TipoDeEventoDaArea = (typeof TIPOS_DE_EVENTO_DA_AREA)[number];
 

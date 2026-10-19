@@ -322,6 +322,15 @@ beforeAll(() => {
           insert into public.area_conteudos (organization_id, mes, titulo, texto)
             values (v_org, date_trunc('month', now())::date, 'Conteúdo de invariante', 'texto');
         end if;
+        -- 0941: as simpatias (catálogo) e os pedidos "o templo faz por mim" — a equipe lê os dois.
+        if not exists (select 1 from public.area_simpatias where organization_id = v_org) then
+          insert into public.area_simpatias (organization_id, titulo, intencao, passos)
+            values (v_org, 'Simpatia de invariante', 'intenção', 'passo');
+        end if;
+        if not exists (select 1 from public.area_simpatias_pedidos where organization_id = v_org) then
+          insert into public.area_simpatias_pedidos (organization_id, contact_id, titulo, valor_cents, pago_at)
+            values (v_org, v_contact, 'Simpatia de invariante', 2700, now());
+        end if;
 
         if not exists (select 1 from public.catalog_products where organization_id = v_org) then
           insert into public.catalog_products
@@ -696,6 +705,9 @@ export const TABLES = [
   "area_mensagens",
   // migration 0934 — as etapas que a pessoa marcou.
   "area_etapas_feitas",
+  // migration 0941 — as simpatias e os pedidos "o templo faz por mim".
+  "area_simpatias",
+  "area_simpatias_pedidos",
 ] as const;
 
 describe("RLS tenant isolation (fn_user_org_ids pattern)", () => {

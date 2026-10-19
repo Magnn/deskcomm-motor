@@ -2,7 +2,8 @@
  * O QUE UM PAGAMENTO DA ÁREA LIBERA — chamado pelo aviso de pagamento da Stripe
  * depois de registrar a receita. O Círculo tem o seu próprio passo
  * (`ativarCirculo`); aqui ficam o presente, o Ano Pessoal, a leitura da Mesa,
- * o pacote de créditos e os créditos mensais do Círculo.
+ * o pacote de créditos, os créditos mensais do Círculo, o pedido de simpatia
+ * ("o templo faz por mim") e a contribuição voluntária.
  *
  * Idempotente: o aviso reentregue não libera duas vezes (o presente só marca o
  * que ainda não foi pago; o Ano Pessoal é um por pessoa por ano; os créditos
@@ -17,6 +18,7 @@ import { creditarCirculo, moverCreditos } from "./creditos-servidor";
 import { EXTRA_DA_LEITURA } from "./leituras";
 import { registrarEvento } from "./eventos";
 import { EXTRA_DO_PRESENTE } from "./presente";
+import { EXTRA_DA_CONTRIBUICAO, EXTRA_DA_SIMPATIA } from "./simpatias";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -77,6 +79,30 @@ export async function liberarCompraDaArea(
     if (movido.resultado === "aplicado") {
       await registrarEvento(admin, { organizationId, contactId, tipo: "creditos_pagos", props: { creditos, saldo: movido.saldo, metodo } });
     }
+    return;
+  }
+  if (extra === EXTRA_DA_SIMPATIA) {
+    const pedidoId = meta.pedido_id;
+    if (!pedidoId || !UUID.test(pedidoId)) return;
+    const { data, error } = await admin
+      .from("area_simpatias_pedidos")
+      .update({ pago_at: new Date().toISOString(), pagamento: pagamentoId })
+      .eq("id", pedidoId)
+      .eq("organization_id", organizationId)
+      .eq("contact_id", contactId)
+      .is("pago_at", null)
+      .select("titulo");
+    if (error) throw new Error(error.message);
+    const pago = (data ?? [])[0] as { titulo: string } | undefined;
+    if (pago) {
+      await registrarEvento(admin, { organizationId, contactId, tipo: "simpatia_paga", props: { titulo: pago.titulo, metodo } });
+    }
+    return;
+  }
+  if (extra === EXTRA_DA_CONTRIBUICAO) {
+    // Não libera nada: a receita já está no ledger. O evento é o rastro no painel (idempotente pelo ledger, que
+    // recusa o mesmo pagamento duas vezes antes de chegar aqui).
+    await registrarEvento(admin, { organizationId, contactId, tipo: "contribuicao_paga", props: { metodo } });
     return;
   }
   if (extra === EXTRA_DO_CIRCULO) {

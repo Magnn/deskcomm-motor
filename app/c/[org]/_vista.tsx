@@ -35,6 +35,7 @@ import { EtapaDeHoje, EtapasDaArea, LinhasDoTempo, type TextosDasEtapas } from "
 import { MesaDeLeituras, type MesaInicial, type TextosDaMesa } from "./_mesa";
 import { LuaDeHoje } from "./_lua";
 import { AnoPessoalDoCliente, PresenteDoCliente, type TextosDasOfertas } from "./_ofertas";
+import { ContribuicaoDoCliente, SimpatiasDoCliente, type PedidoNaArea, type SimpatiaNaArea, type TextosDasSimpatias } from "./_simpatias";
 import { CARTAO, CARTAO_NOTURNO, CEU, DETALHE, PAGINA, SERIF, SOBRETITULO, SOBRETITULO_NOTURNO, TEXTO_SUAVE } from "./_tema";
 
 type Traduzir = (texto: string) => string;
@@ -135,6 +136,11 @@ export interface VistaDaAreaProps {
   /** O aviso diário no celular (`_aviso.tsx`); `null` = desligado na empresa. */
   avisos: { hora: number; convidarJa: boolean } | null;
   ta: TextosDoAviso;
+  /** As simpatias (`_simpatias.tsx`); `null` = desligadas na empresa. Sem o passo a passo para quem não o vê. */
+  simpatias: { preco: string; simpatias: SimpatiaNaArea[]; pedidos: PedidoNaArea[] } | null;
+  /** A contribuição voluntária; `null` = desligada. */
+  contribuicao: { minimoCents: number; minimo: string } | null;
+  ts: TextosDasSimpatias;
   /** A entrada com 3 perguntas (`_entrada.tsx`): `feito` = respondida ou pulada. */
   perfil: { feito: boolean; foco: Foco | null };
   /** O Sol e a Lua do nascimento, quando a área sabe a data. */
@@ -474,6 +480,10 @@ export function VistaDaArea(p: VistaDaAreaProps) {
           />
         ) : null}
 
+        {p.simpatias ? (
+          <SimpatiasDoCliente slug={slug} cor={cor} tx={tx} ts={p.ts} preco={p.simpatias.preco} simpatias={p.simpatias.simpatias} pedidos={p.simpatias.pedidos} />
+        ) : null}
+
         {vitrine.length > 0 ? (
           <VitrineObservada slug={slug}>
             <section className={CARTAO} data-testid="area-vitrine">
@@ -530,6 +540,10 @@ export function VistaDaArea(p: VistaDaAreaProps) {
         {dados.contato.email && !dados.contato.nascimento ? <AniversarioDoCliente slug={slug} cor={cor} tx={tx} /> : null}
 
         <DesejoDoCliente slug={slug} cor={cor} tx={tx} />
+
+        {p.contribuicao ? (
+          <ContribuicaoDoCliente slug={slug} cor={cor} tx={tx} ts={p.ts} minimoCents={p.contribuicao.minimoCents} minimo={p.contribuicao.minimo} />
+        ) : null}
       </div>
     </>
   );

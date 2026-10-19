@@ -28,6 +28,8 @@ import { MAXIMO_DE_ETAPAS } from "@/lib/area-do-cliente/etapas";
 import type { Painel } from "@/lib/area-do-cliente/metricas";
 import { Copy, PencilSimple, Plus, Trash, WhatsappLogo } from "@/lib/ui/icons";
 
+import { AbaSimpatias, useFilaDeSimpatias } from "./_simpatias";
+
 interface Servico {
   id: string;
   nome: string;
@@ -88,6 +90,9 @@ export function PainelDaAreaDoCliente() {
     refetchInterval: 30_000,
   });
   const pendentes = (conversas.data?.data ?? []).reduce((n, c) => n + c.pendentes, 0);
+  const simpatiasLigadas = config.data?.data.config.simpatias?.ativo ?? false;
+  const fila = useFilaDeSimpatias();
+  const simpatiasAFazer = fila.data?.data.a_fazer.length ?? 0;
 
   return (
     <div className="space-y-4 p-6">
@@ -120,6 +125,16 @@ export function PainelDaAreaDoCliente() {
               </span>
             ) : null}
           </TabsTrigger>
+          {simpatiasLigadas || simpatiasAFazer > 0 ? (
+            <TabsTrigger value="simpatias">
+              {t("Simpatias")}
+              {simpatiasAFazer > 0 ? (
+                <span className="ml-1.5 rounded-full bg-error-bg px-1.5 text-xs font-semibold text-error-fg" data-testid="area-simpatias-a-fazer">
+                  {simpatiasAFazer}
+                </span>
+              ) : null}
+            </TabsTrigger>
+          ) : null}
           <TabsTrigger value="compradores">{t("Compradores")}</TabsTrigger>
           <TabsTrigger value="config">{t("Configuração")}</TabsTrigger>
         </TabsList>
@@ -131,6 +146,9 @@ export function PainelDaAreaDoCliente() {
         </TabsContent>
         <TabsContent value="mensagens">
           <AbaMensagens />
+        </TabsContent>
+        <TabsContent value="simpatias">
+          <AbaSimpatias />
         </TabsContent>
         <TabsContent value="compradores">
           <AbaCompradores ativa={ativa} />
@@ -802,6 +820,11 @@ function AbaConfig({ inicial }: { inicial: ConfigDaArea }) {
   const [presenteAtivo, setPresenteAtivo] = useState(inicial.presente?.ativo ?? false);
   const [presentePreco, setPresentePreco] = useState(((inicial.presente?.preco_cents ?? 1700) / 100).toFixed(2).replace(".", ","));
   const [anoAtivo, setAnoAtivo] = useState(inicial.ano_pessoal?.ativo ?? false);
+  const [simpatiasAtivas, setSimpatiasAtivas] = useState(inicial.simpatias?.ativo ?? false);
+  const [simpatiaPreco, setSimpatiaPreco] = useState(((inicial.simpatias?.preco_feita_cents ?? 2700) / 100).toFixed(2).replace(".", ","));
+  const [simpatiasSoAssinantes, setSimpatiasSoAssinantes] = useState(inicial.simpatias?.so_assinantes ?? true);
+  const [contribuicaoAtiva, setContribuicaoAtiva] = useState(inicial.contribuicao?.ativo ?? false);
+  const [contribuicaoMinimo, setContribuicaoMinimo] = useState(((inicial.contribuicao?.minimo_cents ?? 500) / 100).toFixed(2).replace(".", ","));
   const [anoPreco, setAnoPreco] = useState(((inicial.ano_pessoal?.preco_cents ?? 4700) / 100).toFixed(2).replace(".", ","));
   const [mesaAtiva, setMesaAtiva] = useState(inicial.leituras?.ativo ?? false);
   const [mesaPrimeira, setMesaPrimeira] = useState(((inicial.leituras?.preco_primeira_cents ?? 500) / 100).toFixed(2).replace(".", ","));
@@ -837,6 +860,8 @@ function AbaConfig({ inicial }: { inicial: ConfigDaArea }) {
         carta_do_dia: cartaDoDia,
         presente: { ativo: presenteAtivo, preco_cents: centavos(presentePreco, 1700) },
         ano_pessoal: { ativo: anoAtivo, preco_cents: centavos(anoPreco, 4700) },
+        simpatias: { ativo: simpatiasAtivas, preco_feita_cents: centavos(simpatiaPreco, 2700), so_assinantes: simpatiasSoAssinantes },
+        contribuicao: { ativo: contribuicaoAtiva, minimo_cents: Math.min(100_000, centavos(contribuicaoMinimo, 500)) },
         leituras: {
           ativo: mesaAtiva,
           preco_primeira_cents: centavos(mesaPrimeira, 500),
@@ -951,6 +976,40 @@ function AbaConfig({ inicial }: { inicial: ConfigDaArea }) {
         <div>
           <Label htmlFor="area-ano-preco">{t("Preço (R$)")}</Label>
           <Input id="area-ano-preco" inputMode="decimal" value={anoPreco} onChange={(e) => setAnoPreco(e.target.value)} />
+        </div>
+      </div>
+      <div className="space-y-2 rounded-md border border-border p-3" data-testid="area-config-simpatias">
+        <div className="flex items-center justify-between">
+          <div>
+            <Label htmlFor="area-simpatias">{t("Simpatias")}</Label>
+            <p className="text-xs text-muted-foreground">
+              {t("Cada simpatia tem o passo a passo para fazer em casa e o serviço \"o templo faz por mim\", pago à parte. Os pedidos pagos aparecem na aba Simpatias.")}
+            </p>
+          </div>
+          <Switch id="area-simpatias" checked={simpatiasAtivas} onCheckedChange={setSimpatiasAtivas} />
+        </div>
+        <div>
+          <Label htmlFor="area-simpatia-preco">{t("Preço de \"o templo faz por mim\" (R$)")}</Label>
+          <Input id="area-simpatia-preco" inputMode="decimal" value={simpatiaPreco} onChange={(e) => setSimpatiaPreco(e.target.value)} />
+        </div>
+        <div className="flex items-center justify-between">
+          <Label htmlFor="area-simpatias-circulo">{t("Passo a passo só para quem está no Círculo")}</Label>
+          <Switch id="area-simpatias-circulo" checked={simpatiasSoAssinantes} onCheckedChange={setSimpatiasSoAssinantes} />
+        </div>
+      </div>
+      <div className="space-y-2 rounded-md border border-border p-3" data-testid="area-config-contribuicao">
+        <div className="flex items-center justify-between">
+          <div>
+            <Label htmlFor="area-contribuicao">{t("Contribuição voluntária")}</Label>
+            <p className="text-xs text-muted-foreground">
+              {t("A pessoa contribui com o valor que quiser. Não libera nada nem muda o atendimento; a área avisa isso.")}
+            </p>
+          </div>
+          <Switch id="area-contribuicao" checked={contribuicaoAtiva} onCheckedChange={setContribuicaoAtiva} />
+        </div>
+        <div>
+          <Label htmlFor="area-contribuicao-minimo">{t("Valor mínimo (R$)")}</Label>
+          <Input id="area-contribuicao-minimo" inputMode="decimal" value={contribuicaoMinimo} onChange={(e) => setContribuicaoMinimo(e.target.value)} />
         </div>
       </div>
       <div className="space-y-2 rounded-md border border-border p-3">
