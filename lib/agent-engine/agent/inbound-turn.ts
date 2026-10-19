@@ -89,7 +89,15 @@ import { linkDePagamentoNoCorpo, linksDePagamentoDaConfig } from '@/lib/pagament
 import { blocoDoPrecoInternacional, precoInternacionalDoContato } from '@/lib/preco/preco-internacional';
 import { blocoDaChavePix, pixPelaChaveNoLugarDaMarca, temMarcaDeChavePix } from '@/lib/preco/chave-pix';
 import { blocoDoBoletoPronto, temMarcaDeBoleto } from '@/lib/preco/boleto-pronto';
-import { blocoDosExtras, extrasDaConfig, janelaDeLeituraDosExtras, slugDoExtra, type ExtraPago } from '@/lib/preco/extras';
+import {
+  blocoDaEntregaPendente,
+  blocoDosExtras,
+  entregaPendente,
+  extrasDaConfig,
+  janelaDeLeituraDosExtras,
+  slugDoExtra,
+  type ExtraPago,
+} from '@/lib/preco/extras';
 import { valorErradoDeExtra } from '@/lib/preco/valor-do-extra';
 import { destinoDaProva, legendaDaProva, provasParaEnviar } from '@/lib/preco/prova-social';
 import { classificarPerdaDoAtendimento } from '@/lib/resultado/motivo-da-perda-do-agente';
@@ -2846,11 +2854,21 @@ async function executarTurnoDoAgente(
   // A ORDEM dos blocos mora em `blocos-do-turno.ts` (é dado lá, com o porquê): aqui só se diz qual
   // texto é de qual bloco. Bloco novo = um nome na fila lá + uma chave aqui; o typecheck cobra os dois.
   // A pessoa escreveu de novo sem ter lido a resposta anterior: este turno não repete o que já saiu.
-  const atropeladaNoTurno = !preview && respostaAtropelada(openingContext.context.messages);
+  // Um pagamento de cobrança avulsa acabou de cair e a entrega ainda não começou: este turno é a entrega, e nem o
+  // modo "atropelada" nem o da confirmação curta o encolhem (`entregaPendente`, em `lib/preco/extras.ts`).
+  const entregaPendenteDoTurno = preview
+    ? null
+    : entregaPendente(extrasDoTurno, extrasPagosNoTurno, openingContext.context.messages, new Date());
+  if (entregaPendenteDoTurno) {
+    runLog.info('pagamento de cobrança avulsa acabou de cair — este turno é a entrega', { extra: entregaPendenteDoTurno.extra.name });
+  }
+  const atropeladaNoTurno = !preview && entregaPendenteDoTurno === null && respostaAtropelada(openingContext.context.messages);
   // "Ok", "👍", figurinha: o turno não repete a instrução que acabou de dar. Fora da leitura, onde o "sim" é o
   // gatilho do passo seguinte e quem conduz é o código.
-  const soConfirmouNoTurno = !preview && blocoDaLeituraDoTurno === '' && rodadaSoDeConfirmacao(openingContext.context.messages);
+  const soConfirmouNoTurno =
+    !preview && entregaPendenteDoTurno === null && blocoDaLeituraDoTurno === '' && rodadaSoDeConfirmacao(openingContext.context.messages);
   const blocoDoAtropeloDoTurno =
+    blocoDaEntregaPendente(entregaPendenteDoTurno) +
     blocoDaRespostaAtropelada(atropeladaNoTurno) +
     blocoDaConfirmacaoCurta(soConfirmouNoTurno) +
     blocoDaConversaGratuitaEsgotada(gratuitaEsgotadaNoTurno, ['o trabalho', ...extrasDoTurno.map((e) => e.name)]);
