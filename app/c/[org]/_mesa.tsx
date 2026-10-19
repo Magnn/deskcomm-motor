@@ -7,15 +7,19 @@
  * pagamento da Stripe. A leitura é automática e a tela diz isso no topo — a cigana de verdade é outro caminho,
  * pelo WhatsApp, oferecido ao fim da leitura.
  *
+ * Com os créditos ligados (`_carteira.tsx`), a leitura sai com um toque pelo saldo; Pix e cartão continuam
+ * para quem não quer pacote.
+ *
  * Contenção combinada com o dono: há limite de leituras por dia, e o fim de uma leitura não oferece "mais uma"
  * — só voltar à mesa ou conversar com uma cigana.
  */
 import * as React from "react";
 
-import { Check, Copy, CreditCard, MessageCircle, QrCode, Sparkles } from "lucide-react";
+import { Check, Copy, CreditCard, MessageCircle, QrCode, Sparkles, WalletCards } from "lucide-react";
 
 import { copyToClipboard } from "@/lib/clipboard";
 
+import { anunciarSaldo, useSaldo } from "./_carteira";
 import { postarJson } from "./_circulo";
 import { type TextosDaArea } from "./_client";
 import { BOTAO, BOTAO_CONTORNO, CAMPO, CARTAO, CARTAO_NOTURNO, DETALHE, SERIF, SOBRETITULO, SOBRETITULO_NOTURNO, TEXTO_SUAVE } from "./_tema";
@@ -50,6 +54,11 @@ export interface TextosDaMesa {
   esperandoVoce: string;
   abrirAMesa: string;
   voltar: string;
+  usarCreditos: string;
+  creditos: string;
+  seusCreditos: string;
+  comprarCreditos: string;
+  ouPagueSoEsta: string;
   posicoes: readonly string[];
 }
 
@@ -72,8 +81,10 @@ export interface LeituraNaMesa {
 }
 
 export interface MesaInicial {
-  modalidades: Array<{ id: string; nome: string; preco: string; primeira: boolean; cartasNaMesa: number }>;
+  modalidades: Array<{ id: string; nome: string; preco: string; primeira: boolean; cartasNaMesa: number; creditos: number }>;
   restamHoje: number;
+  /** Com os créditos ligados: o saldo de partida. `null` = só Pix e cartão. */
+  saldo: number | null;
   leituras: LeituraNaMesa[];
 }
 
@@ -247,6 +258,8 @@ export function MesaDeLeituras({
   const [copiado, setCopiado] = React.useState(false);
   const [leituras, setLeituras] = React.useState(inicial.leituras);
   const [aberta, setAberta] = React.useState<string | null>(null);
+  const saldo = useSaldo(inicial.saldo ?? 0);
+  const comCreditos = inicial.saldo !== null;
   const base = `/api/v1/area/publica/${slug}/leituras`;
   const modalidade = (id: string) => inicial.modalidades.find((m) => m.id === id);
 
@@ -273,10 +286,15 @@ export function MesaDeLeituras({
     return () => window.clearTimeout(t);
   }, [etapa]);
 
-  const pedir = async (forma: "pix" | "cartao", mod: string) => {
+  const pedir = async (forma: "pix" | "cartao" | "creditos", mod: string) => {
     setEnviando(true);
     setErro(null);
-    const r = await postarJson<{ leitura_id: string; cobranca: { forma: string; copiaECola?: string; qrPng?: string | null; url?: string } }>(
+    const r = await postarJson<{
+      leitura_id: string;
+      paga?: boolean;
+      saldo?: number;
+      cobranca?: { forma: string; copiaECola?: string; qrPng?: string | null; url?: string };
+    }>(
       base,
       { modalidade: mod, pergunta, forma },
       tx,
@@ -286,12 +304,18 @@ export function MesaDeLeituras({
       setErro(r.mensagem);
       return;
     }
-    if (r.data.cobranca.url) {
+    if (r.data.cobranca?.url) {
       window.location.href = r.data.cobranca.url;
       return;
     }
     setLeituras((ls) => [{ id: r.data.leitura_id, modalidade: mod, pergunta, quando: new Date().toISOString(), revelada: false, cartas: [], leitura: null }, ...ls.filter((l) => l.id !== r.data.leitura_id)]);
-    setEtapa({ tipo: "pix", leituraId: r.data.leitura_id, copiaECola: r.data.cobranca.copiaECola ?? "", qrPng: r.data.cobranca.qrPng ?? null });
+    if (r.data.paga) {
+      // Pago com créditos: direto para o embaralhar.
+      if (typeof r.data.saldo === "number") anunciarSaldo(r.data.saldo);
+      setEtapa({ tipo: "embaralhando", leituraId: r.data.leitura_id, modalidade: mod });
+      return;
+    }
+    setEtapa({ tipo: "pix", leituraId: r.data.leitura_id, copiaECola: r.data.cobranca?.copiaECola ?? "", qrPng: r.data.cobranca?.qrPng ?? null });
   };
 
   const revelar = async (leituraId: string, mod: string, escolhidas: number[]) => {
@@ -342,13 +366,42 @@ export function MesaDeLeituras({
         </label>
         <p className="text-xs leading-relaxed text-[#b7aecb]">{tm.dicaDaPergunta}</p>
         <p className="text-sm text-[#f0dca8]">{m?.primeira ? `${tm.primeiraPor} ${m.preco}` : `${tm.leituraPor} ${m?.preco}`}</p>
+        {comCreditos && m ? (
+          <div className="space-y-2">
+            {saldo >= m.creditos ? (
+              <button
+                type="button"
+                disabled={enviando || pergunta.trim().length < 3}
+                onClick={() => void pedir("creditos", etapa.modalidade)}
+                className={`${BOTAO} w-full`}
+                style={{ background: "#c9a54e", color: "#1b1433" }}
+                data-testid="mesa-usar-creditos"
+              >
+                <WalletCards className="size-4" aria-hidden />
+                {tm.usarCreditos} {m.creditos} {tm.creditos}
+              </button>
+            ) : (
+              <a href="#carteira" className={`${BOTAO} w-full`} style={{ background: "#c9a54e", color: "#1b1433" }} data-testid="mesa-comprar-creditos">
+                <WalletCards className="size-4" aria-hidden />
+                {tm.comprarCreditos}
+              </a>
+            )}
+            <p className="text-center text-xs text-[#b7aecb]">
+              {tm.seusCreditos}: {saldo} · {tm.ouPagueSoEsta}
+            </p>
+          </div>
+        ) : null}
         <div className="flex flex-col gap-2 sm:flex-row">
           <button
             type="button"
             disabled={enviando || pergunta.trim().length < 3}
             onClick={() => void pedir("pix", etapa.modalidade)}
-            className={`${BOTAO} w-full sm:flex-1`}
-            style={{ background: "#c9a54e", color: "#1b1433" }}
+            className={
+              comCreditos
+                ? "inline-flex h-12 w-full items-center justify-center gap-2 rounded-full border border-[#c9a54e]/60 px-6 text-[15px] font-semibold text-[#f0dca8] transition hover:bg-white/5 disabled:opacity-45 sm:flex-1"
+                : `${BOTAO} w-full sm:flex-1`
+            }
+            style={comCreditos ? undefined : { background: "#c9a54e", color: "#1b1433" }}
             data-testid="mesa-pagar-pix"
           >
             <QrCode className="size-4" aria-hidden />
@@ -517,6 +570,11 @@ export function MesaDeLeituras({
                 <span>
                   <span className={`${SERIF} block text-[20px] leading-tight text-[#f6f0e4]`}>{m.nome}</span>
                   <span className="mt-0.5 block text-sm text-[#e2c47a]">{m.primeira ? `${tm.primeiraPor} ${m.preco}` : `${tm.leituraPor} ${m.preco}`}</span>
+                  {comCreditos ? (
+                    <span className="block text-xs text-[#b7aecb]">
+                      {m.creditos} {tm.creditos}
+                    </span>
+                  ) : null}
                 </span>
               </span>
             </button>

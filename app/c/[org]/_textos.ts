@@ -2,6 +2,7 @@
  * Os textos da área do cliente, já traduzidos no servidor: as partes do
  * navegador não têm o provedor de idioma da equipe.
  */
+import type { TextosDaCarteira } from "./_carteira";
 import type { TextosDaArea } from "./_client";
 import type { TextosDasEtapas } from "./_etapas";
 import type { TextosDaMesa } from "./_mesa";
@@ -108,6 +109,34 @@ export function textosDasEtapas(t: (s: string) => string): TextosDasEtapas {
 }
 
 /** Os textos da Mesa de leituras, já traduzidos. `empresa` entra no aviso de que a leitura é automática. */
+export function textosDaCarteira(t: (s: string) => string): TextosDaCarteira {
+  return {
+    titulo: t("Seus créditos"),
+    seusCreditos: t("Saldo para usar em toda a sua área"),
+    creditos: t("créditos"),
+    umCreditoUmReal: t("Cada crédito vale R$ 1 nas leituras. Os créditos não vencem."),
+    escolhaPacote: t("Escolha um pacote"),
+    bonus: t("de bônus"),
+    maisEscolhido: t("Mais escolhido"),
+    pagarComPix: t("Pagar com Pix"),
+    pagarComCartao: t("Pagar com cartão"),
+    esperandoPagamento: t("Assim que o Pix cair, os créditos aparecem aqui sozinhos."),
+    copiarCodigo: t("Copiar código Pix"),
+    codigoCopiado: t("Código copiado"),
+    chegaram: t("créditos chegaram"),
+    extrato: t("Ver extrato"),
+    semMovimento: t("Nenhum movimento ainda."),
+    voltar: t("Voltar"),
+    motivos: {
+      pacote: t("Pacote de créditos"),
+      circulo: t("Créditos do mês do Círculo"),
+      leitura: t("Leitura na mesa"),
+      devolucao: t("Devolução"),
+      ajuste: t("Ajuste"),
+    },
+  };
+}
+
 export function textosDaMesa(t: (s: string) => string, empresa: string): TextosDaMesa {
   return {
     titulo: t("A Mesa"),
@@ -139,6 +168,11 @@ export function textosDaMesa(t: (s: string) => string, empresa: string): TextosD
     esperandoVoce: t("Uma leitura paga está esperando você"),
     abrirAMesa: t("Abrir a mesa"),
     voltar: t("Voltar"),
+    usarCreditos: t("Usar"),
+    creditos: t("créditos"),
+    seusCreditos: t("Seus créditos"),
+    comprarCreditos: t("Comprar créditos"),
+    ouPagueSoEsta: t("ou pague só esta leitura:"),
     posicoes: [t("O que pesa"), t("O que está em movimento"), t("O conselho das cartas")],
   };
 }

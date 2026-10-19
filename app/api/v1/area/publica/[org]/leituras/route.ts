@@ -5,12 +5,18 @@
  * O preço é o de entrada se é a primeira leitura PAGA da pessoa nesta modalidade; senão o normal
  * (`precoDaLeitura`). Respeita o limite de leituras pagas no dia (`cabeHoje`). É o aviso de pagamento da
  * Stripe que marca a leitura como paga (`liberarCompraDaArea`), não esta rota.
+ *
+ * `forma: "creditos"` (com os créditos ligados): paga ali mesmo com o saldo da carteira, 1 crédito por real do
+ * preço (`creditosDoPreco`). O débito é da função do banco, que recusa saldo insuficiente; a leitura já volta
+ * paga e a pessoa vai direto para a mesa.
  */
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 
 import { checkRateLimit } from "@/lib/ai/dispatcher/rate-limit";
 import { SemPagamento, criarCobrancaDaArea } from "@/lib/area-do-cliente/cobranca";
+import { creditosDoPreco } from "@/lib/area-do-cliente/creditos";
+import { configDosCreditos, moverCreditos } from "@/lib/area-do-cliente/creditos-servidor";
 import { registrarEvento } from "@/lib/area-do-cliente/eventos";
 import { NAO_ENCONTRADA, contextoDaArea } from "@/lib/area-do-cliente/http";
 import { EXTRA_DA_LEITURA, MODALIDADES, NOME_DA_MODALIDADE, cabeHoje, precoDaLeitura } from "@/lib/area-do-cliente/leituras";
@@ -23,7 +29,7 @@ export const runtime = "nodejs";
 const corpo = z.strictObject({
   modalidade: z.enum(MODALIDADES),
   pergunta: z.string().trim().min(3).max(400),
-  forma: z.enum(["pix", "cartao"]),
+  forma: z.enum(["pix", "cartao", "creditos"]),
 });
 type Ctx = { params: Promise<{ org: string }> };
 
@@ -48,6 +54,9 @@ export async function POST(req: NextRequest, { params }: Ctx): Promise<Response>
     return ERRO(429, "limite_do_dia", "Por hoje a mesa já fez as suas leituras. Amanhã ela abre de novo para você.");
   }
   const preco = precoDaLeitura(cfg, await jaPagouNaModalidade(admin, org.id, sessao.contactId, modalidade));
+  if (forma === "creditos" && !configDosCreditos(org.config.creditos).ativo) {
+    return ERRO(422, "validation_failed", "Escolha Pix ou cartão.");
+  }
 
   const { data: criada, error } = await admin
     .from("area_leituras")
@@ -59,6 +68,49 @@ export async function POST(req: NextRequest, { params }: Ctx): Promise<Response>
     return ERRO(500, "internal_error", "Não foi possível abrir a mesa agora. Tente de novo.");
   }
   const leituraId = (criada as { id: string }).id;
+
+  if (forma === "creditos") {
+    const custo = creditosDoPreco(preco);
+    const movido = await moverCreditos(admin, {
+      organizationId: org.id,
+      contactId: sessao.contactId,
+      delta: -custo,
+      motivo: "leitura",
+      referencia: `leitura-${leituraId}`,
+    }).catch((err: unknown) => {
+      logger.error("[area.leitura] débito de créditos falhou", {
+        organization_id: org.id,
+        motivo: (err instanceof Error ? err.message : String(err)).slice(0, 200),
+      });
+      return null;
+    });
+    if (!movido || movido.resultado === "sem_saldo") {
+      // A leitura não paga não fica para trás como pedido abandonado.
+      await admin.from("area_leituras").delete().eq("id", leituraId).eq("organization_id", org.id).is("pago_at", null);
+      return movido
+        ? NextResponse.json(
+            { error: { code: "sem_saldo", message: "Os seus créditos não bastam para esta leitura.", details: { saldo: movido.saldo, custo } } },
+            { status: 402 },
+          )
+        : ERRO(500, "internal_error", "Não foi possível usar os créditos agora. Tente de novo.");
+    }
+    await admin
+      .from("area_leituras")
+      .update({ pago_at: new Date().toISOString(), pagamento: "creditos" })
+      .eq("id", leituraId)
+      .eq("organization_id", org.id);
+    await registrarEvento(admin, {
+      organizationId: org.id,
+      contactId: sessao.contactId,
+      tipo: "leitura_paga",
+      sessaoId: sessao.sessaoId,
+      props: { modalidade, metodo: "creditos", creditos: custo },
+    });
+    return NextResponse.json(
+      { data: { leitura_id: leituraId, preco_cents: preco, paga: true, creditos: custo, saldo: movido.saldo } },
+      { headers: { "Cache-Control": "no-store" } },
+    );
+  }
 
   try {
     const nome = NOME_DA_MODALIDADE[modalidade];

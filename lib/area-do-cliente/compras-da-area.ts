@@ -1,14 +1,19 @@
 /**
  * O QUE UM PAGAMENTO DA ÁREA LIBERA — chamado pelo aviso de pagamento da Stripe
  * depois de registrar a receita. O Círculo tem o seu próprio passo
- * (`ativarCirculo`); aqui ficam o presente e o Ano Pessoal.
+ * (`ativarCirculo`); aqui ficam o presente, o Ano Pessoal, a leitura da Mesa,
+ * o pacote de créditos e os créditos mensais do Círculo.
  *
  * Idempotente: o aviso reentregue não libera duas vezes (o presente só marca o
- * que ainda não foi pago; o Ano Pessoal é um por pessoa por ano).
+ * que ainda não foi pago; o Ano Pessoal é um por pessoa por ano; os créditos
+ * têm referência única por pagamento).
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { EXTRA_DO_ANO_PESSOAL } from "./ano-pessoal";
+import { EXTRA_DO_CIRCULO } from "./circulo";
+import { EXTRA_DOS_CREDITOS } from "./creditos";
+import { creditarCirculo, moverCreditos } from "./creditos-servidor";
 import { EXTRA_DA_LEITURA } from "./leituras";
 import { registrarEvento } from "./eventos";
 import { EXTRA_DO_PRESENTE } from "./presente";
@@ -57,6 +62,26 @@ export async function liberarCompraDaArea(
     if (paga) {
       await registrarEvento(admin, { organizationId, contactId, tipo: "leitura_paga", props: { modalidade: paga.modalidade, metodo } });
     }
+    return;
+  }
+  if (extra === EXTRA_DOS_CREDITOS) {
+    const creditos = Number(meta.creditos);
+    if (!Number.isInteger(creditos) || creditos < 1 || creditos > 10_000) return;
+    const movido = await moverCreditos(admin, {
+      organizationId,
+      contactId,
+      delta: creditos,
+      motivo: "pacote",
+      referencia: `pagamento-${pagamentoId}`,
+    });
+    if (movido.resultado === "aplicado") {
+      await registrarEvento(admin, { organizationId, contactId, tipo: "creditos_pagos", props: { creditos, saldo: movido.saldo, metodo } });
+    }
+    return;
+  }
+  if (extra === EXTRA_DO_CIRCULO) {
+    // O acesso do mês é do `ativarCirculo` (no aviso); aqui só os créditos mensais, se a empresa os ligou.
+    await creditarCirculo(admin, organizationId, contactId, pagamentoId);
     return;
   }
   if (extra === EXTRA_DO_ANO_PESSOAL) {

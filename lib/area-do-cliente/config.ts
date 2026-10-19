@@ -68,6 +68,31 @@ export const configDaAreaSchema = z.strictObject({
       limite_por_dia: z.number().int().min(1).max(20).default(3),
     })
     .optional(),
+  /**
+   * Os créditos (`lib/area-do-cliente/creditos.ts`): uma carteira para tudo na área. A pessoa compra um dos
+   * `pacotes` e paga as leituras com créditos; o Círculo dá `circulo_mensal` créditos a cada mês pago.
+   * Desligados por padrão.
+   */
+  creditos: z
+    .strictObject({
+      ativo: z.boolean().default(false),
+      pacotes: z
+        .array(
+          z.strictObject({
+            creditos: z.number().int().min(1).max(10_000),
+            preco_cents: z.number().int().min(100).max(1_000_000),
+          }),
+        )
+        .min(1)
+        .max(4)
+        .default([
+          { creditos: 30, preco_cents: 3000 },
+          { creditos: 70, preco_cents: 6000 },
+          { creditos: 130, preco_cents: 10000 },
+        ]),
+      circulo_mensal: z.number().int().min(0).max(1000).default(30),
+    })
+    .optional(),
   /** Cor principal da área, em hex. Vazio = a cor do produto. */
   cor: z
     .string()

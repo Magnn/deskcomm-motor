@@ -141,6 +141,7 @@ export function CirculoDoCliente({
   renovarJa,
   conteudo,
   pergunta,
+  creditosPorMes = null,
 }: {
   slug: string;
   cor: string;
@@ -152,6 +153,8 @@ export function CirculoDoCliente({
   renovarJa: boolean;
   conteudo: { titulo: string; texto: string } | null;
   pergunta: { pergunta: string; resposta: string | null } | null;
+  /** Com os créditos ligados: a frase dos créditos que cada mês do Círculo dá. */
+  creditosPorMes?: string | null;
 }) {
   const [doMes, setDoMes] = React.useState(conteudo);
   const [aPergunta, setAPergunta] = React.useState(pergunta);
@@ -197,6 +200,11 @@ export function CirculoDoCliente({
           <span className={`${SERIF} text-3xl text-[#f0dca8]`}>{preco}</span>
           <span className="text-sm text-[#b7aecb]">{tx.por30Dias}</span>
         </p>
+        {creditosPorMes ? (
+          <p className="mt-2 inline-flex rounded-full bg-[#c9a54e]/20 px-3 py-1 text-sm font-semibold text-[#f0dca8]" data-testid="circulo-creditos">
+            ✦ {creditosPorMes}
+          </p>
+        ) : null}
         <PagarNaArea endpoint={`/api/v1/area/publica/${slug}/circulo`} cor={cor} tx={tx} escuro />
       </section>
     );
