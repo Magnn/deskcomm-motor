@@ -146,7 +146,23 @@ export const MIME_DA_NOTA_DE_VOZ = "audio/ogg;codecs=opus";
  *
  * `reserva`: o provedor que assume quando o principal acusa cota esgotada
  * (`limite_do_provedor`). Sem ela, a resposta cai para texto, como sempre caiu.
+ *
+ * `reservas` (desde 19/10/2026): a LISTA ordenada de quem assume, até três. Com `reserva_em:
+ * "qualquer_falha"`, elas assumem em qualquer falha da principal — e também quando a principal
+ * demora mais que `espera_maxima_s` —, que é o que a voz do próprio servidor precisa: quando ela cai,
+ * a causa é a máquina, não a conta. Com `"cota"` (o padrão), só na cota esgotada, como sempre.
+ * Sem `reservas`, vale a `reserva` única de antes.
  */
+const reservaDeVozSchema = z.object({
+  provider: z.enum(IDS_DE_PROVEDOR_DE_VOZ),
+  voice_id: z.string().trim().min(1).max(120),
+  voice_name: z.string().trim().max(120).optional(),
+  model: z.string().trim().max(80).optional(),
+  speed: z.number().min(0.7).max(1.2).optional(),
+  style_instructions: z.string().trim().max(400).optional(),
+});
+export type ReservaDeVoz = z.infer<typeof reservaDeVozSchema>;
+
 export const voiceReplySchema = z.object({
   enabled: z.boolean().default(false),
   mode: z.enum(["mirror", "moments", "mirror_long", "on_request"]).default("mirror"),
@@ -170,17 +186,14 @@ export const voiceReplySchema = z.object({
   style_instructions: z.string().trim().max(400).optional(),
   /** Acima disto o texto vira mais de uma nota — nota longa demais ninguém ouve. */
   max_chars_per_note: z.number().int().min(100).max(1500).default(700),
-  /** Quem fala quando o provedor principal fica sem cota. */
-  reserva: z
-    .object({
-      provider: z.enum(IDS_DE_PROVEDOR_DE_VOZ),
-      voice_id: z.string().trim().min(1).max(120),
-      voice_name: z.string().trim().max(120).optional(),
-      model: z.string().trim().max(80).optional(),
-      speed: z.number().min(0.7).max(1.2).optional(),
-      style_instructions: z.string().trim().max(400).optional(),
-    })
-    .optional(),
+  /** Quem fala quando o provedor principal fica sem cota (legado: vale quando não há `reservas`). */
+  reserva: reservaDeVozSchema.optional(),
+  /** Quem assume, em ordem, quando a principal falha. Até três. */
+  reservas: z.array(reservaDeVozSchema).max(3).optional(),
+  /** Quando as reservas assumem: só na cota esgotada, ou em qualquer falha (e demora) da principal. */
+  reserva_em: z.enum(["cota", "qualquer_falha"]).default("cota"),
+  /** Com `qualquer_falha`: quantos segundos esperar a voz principal antes de chamar a reserva. */
+  espera_maxima_s: z.number().int().min(5).max(120).default(30),
 });
 export type VoiceReplyConfig = z.infer<typeof voiceReplySchema>;
 

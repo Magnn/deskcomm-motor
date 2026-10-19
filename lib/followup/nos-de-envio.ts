@@ -121,6 +121,8 @@ export function configDeVozDoItem(item: ItemDeVoz): VoiceReplyConfig {
     ...(item.similarity_boost !== undefined ? { similarity_boost: item.similarity_boost } : {}),
     ...(item.style !== undefined ? { style: item.style } : {}),
     max_chars_per_note: 700,
+    reserva_em: "cota",
+    espera_maxima_s: 30,
   };
 }
 
