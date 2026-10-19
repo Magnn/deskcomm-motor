@@ -14662,6 +14662,17 @@ export const DICIONARIO: Traducoes = {
   "Sem custo por uso. Pronta em segundos para o WhatsApp.": { es: "Sin costo por uso. Lista en segundos para WhatsApp." },
   "Cobrado por caractere pelo provedor.": { es: "El proveedor cobra por carácter." },
   "Voz gerada por um modelo aberto rodando na própria instalação: sem custo por uso. Vozes prontas em português do Brasil e, com o serviço de clonagem ligado, a sua voz gravada no Voice Studio. Quem administra a instalação liga em VOZ_PROPRIA_* e VOZ_CLONADA_*.": { es: "Voz generada por un modelo abierto que corre en la propia instalación: sin costo por uso. Voces listas en portugués de Brasil y, con el servicio de clonación activado, tu voz grabada en el Voice Studio. Quien administra la instalación la activa en VOZ_PROPRIA_* y VOZ_CLONADA_*." },
+  "Se a voz principal falhar": { es: "Si la voz principal falla" },
+  "Quem fala no lugar dela, nesta ordem. Se nenhuma funcionar, a resposta sai em texto — a pessoa nunca fica sem resposta.": { es: "Quién habla en su lugar, en este orden. Si ninguna funciona, la respuesta sale en texto: la persona nunca se queda sin respuesta." },
+  "Quando usar a reserva": { es: "Cuándo usar la reserva" },
+  "Em qualquer falha ou demora da voz principal": { es: "Ante cualquier falla o demora de la voz principal" },
+  "Recomendado para a voz do servidor e para vozes clonadas: se ela cair ou passar do tempo, a reserva fala.": { es: "Recomendado para la voz del servidor y para voces clonadas: si se cae o se pasa del tiempo, habla la reserva." },
+  "Só quando acabar a cota do provedor": { es: "Solo cuando se agote la cuota del proveedor" },
+  "Chave recusada ou voz apagada continuam caindo para texto, para o defeito aparecer e ser consertado.": { es: "Una clave rechazada o una voz borrada siguen cayendo a texto, para que el defecto aparezca y se corrija." },
+  "Esperar a voz principal até (segundos)": { es: "Esperar la voz principal hasta (segundos)" },
+  "Voz de reserva": { es: "Voz de reserva" },
+  "Tirar": { es: "Quitar" },
+  "Adicionar reserva": { es: "Agregar reserva" },
 };
 
 /**

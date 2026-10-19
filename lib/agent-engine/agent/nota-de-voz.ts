@@ -25,7 +25,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { resolverChaveDeVoz } from '@/lib/voz/chaves';
 import { ErroDeVoz } from '@/lib/voz/erros';
 import { dividirEmNotas, sintetizarNota, textoParaFala } from '@/lib/voz/sintetizar';
-import type { IdDeProvedorDeVoz, VoiceReplyConfig } from '@/lib/voz/tipos';
+import type { IdDeProvedorDeVoz, ReservaDeVoz, VoiceReplyConfig } from '@/lib/voz/tipos';
 
 import type { Queryable } from '../queue/queue';
 import { OK_KINDS, type BubbleOutcome } from './split-message';
@@ -139,36 +139,69 @@ export async function prepararNotasDeVoz(
     );
   };
 
+  const emQualquerFalha = input.config.reserva_em === 'qualquer_falha';
+  let motivo: string;
   try {
-    const notas = await gerar(input.config);
-    if (notas === 'sem_chave') return { ok: false, motivo: 'sem_chave' };
-    return { ok: true, notas, links };
+    // Com `qualquer_falha`, a principal tem prazo: a voz do servidor ocupada não pode segurar o turno.
+    const notas = emQualquerFalha
+      ? await comPrazo(gerar(input.config), input.config.espera_maxima_s * 1000)
+      : await gerar(input.config);
+    if (notas !== 'sem_chave') return { ok: true, notas, links };
+    motivo = 'sem_chave';
   } catch (err) {
-    const motivo = err instanceof ErroDeVoz ? err.codigo : 'erro_inesperado';
-    const reserva = configDaReserva(input.config);
-    // Só a cota esgotada chama a reserva: chave recusada ou voz apagada são defeitos de
-    // configuração do principal, e escondê-los atrás de outra voz adia o conserto.
-    if (motivo === 'limite_do_provedor' && reserva !== null) {
+    motivo = err instanceof ErroDeVoz ? err.codigo : 'erro_inesperado';
+  }
+
+  // Padrão: só a cota esgotada chama a reserva — chave recusada ou voz apagada são defeitos de
+  // configuração do principal, e escondê-los atrás de outra voz adia o conserto. Com `qualquer_falha`,
+  // quem configurou escolheu que a pessoa ouça a reserva em vez de ler o texto.
+  const reservas = configsDasReservas(input.config);
+  if ((emQualquerFalha || motivo === 'limite_do_provedor') && reservas.length > 0) {
+    for (const reserva of reservas) {
       try {
         const notas = await gerar(reserva);
         if (notas !== 'sem_chave') {
-          deps.log.warn('provedor de voz sem cota — a resposta saiu pela reserva', {
+          deps.log.warn('voz principal falhou — a resposta saiu pela reserva', {
             principal: input.config.provider,
             reserva: reserva.provider,
+            motivo,
           });
           return { ok: true, notas, links };
         }
-        deps.log.warn('provedor de voz sem cota e a reserva não tem chave cadastrada', { reserva: reserva.provider });
+        deps.log.warn('reserva de voz sem chave cadastrada', { reserva: reserva.provider });
       } catch (erroDaReserva) {
-        deps.log.warn('provedor de voz sem cota e a reserva também falhou', {
+        deps.log.warn('reserva de voz também falhou', {
           reserva: reserva.provider,
           motivo: erroDaReserva instanceof ErroDeVoz ? erroDaReserva.codigo : 'erro_inesperado',
         });
       }
     }
-    deps.log.warn('resposta em áudio caiu para texto', { motivo });
-    return { ok: false, motivo };
   }
+  if (motivo !== 'sem_chave') deps.log.warn('resposta em áudio caiu para texto', { motivo });
+  return { ok: false, motivo };
+}
+
+/** A promessa, ou `ErroDeVoz('provedor_fora_do_ar')` se passar do prazo. */
+function comPrazo<T>(p: Promise<T>, ms: number): Promise<T> {
+  let relogio: ReturnType<typeof setTimeout> | undefined;
+  const prazo = new Promise<never>((_, rejeitar) => {
+    relogio = setTimeout(() => rejeitar(new ErroDeVoz('provedor_fora_do_ar', null, 'tempo_esgotado')), ms);
+  });
+  return Promise.race([p, prazo]).finally(() => clearTimeout(relogio));
+}
+
+/**
+ * As configurações com que as RESERVAS falam, em ordem: `reservas` quando existe, senão a `reserva`
+ * única de antes. Uma reserva igual à principal (mesmo provedor e mesma voz) não é reserva.
+ */
+export function configsDasReservas(config: VoiceReplyConfig): VoiceReplyConfig[] {
+  if (!config.reservas) {
+    const unica = configDaReserva(config);
+    return unica ? [unica] : [];
+  }
+  return config.reservas
+    .filter((r) => !(r.provider === config.provider && r.voice_id === config.voice_id))
+    .map((r) => comoConfig(config, r));
 }
 
 /**
@@ -178,6 +211,10 @@ export async function prepararNotasDeVoz(
 export function configDaReserva(config: VoiceReplyConfig): VoiceReplyConfig | null {
   const r = config.reserva;
   if (!r || r.provider === config.provider) return null;
+  return comoConfig(config, r);
+}
+
+function comoConfig(config: VoiceReplyConfig, r: ReservaDeVoz): VoiceReplyConfig {
   return {
     enabled: config.enabled,
     mode: config.mode,
@@ -189,6 +226,8 @@ export function configDaReserva(config: VoiceReplyConfig): VoiceReplyConfig | nu
     ...(r.model !== undefined ? { model: r.model } : {}),
     ...(r.speed !== undefined ? { speed: r.speed } : {}),
     ...(r.style_instructions !== undefined ? { style_instructions: r.style_instructions } : {}),
+    reserva_em: config.reserva_em,
+    espera_maxima_s: config.espera_maxima_s,
   };
 }
 
