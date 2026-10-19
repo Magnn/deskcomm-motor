@@ -18,9 +18,9 @@ import { roteiroDaNarracao } from "@/lib/area-do-cliente/leituras-voz";
 import { VozPropriaIndisponivel, falarNaVozPropria, vozPropriaConfigurada } from "@/lib/voz/servidor-proprio";
 
 const cartas = [
-  { id: 17, nome: "A Estrela", posicao: "O que pesa" },
-  { id: 10, nome: "A Roda da Fortuna", posicao: "O que está em movimento" },
-  { id: 6, nome: "Os Enamorados", posicao: "O conselho das cartas" },
+  { id: 17, nome: "A Estrela", posicao: "O que pesa", sentido: "esperança" },
+  { id: 10, nome: "A Roda da Fortuna", posicao: "O que está em movimento", sentido: "ciclo" },
+  { id: 6, nome: "Os Enamorados", posicao: "O conselho das cartas", sentido: "escolha" },
 ];
 const leitura = { cartas: ["**Cansaço** de esperar ✨", "Algo já se move.", "Escolha por você."], sintese: "Junta tudo.", passo: "Um passo pequeno." };
 
