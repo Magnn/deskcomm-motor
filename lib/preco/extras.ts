@@ -167,3 +167,44 @@ export function blocoDosExtras(extras: readonly Extra[], pagos: readonly ExtraPa
   }
   return linhas.join("\n");
 }
+
+/** Até quantos minutos depois do pagamento a entrega ainda conta como "acabou de cair". */
+const MINUTOS_DA_ENTREGA_PENDENTE = 30;
+
+/**
+ * A ENTREGA QUE AINDA NÃO COMEÇOU: uma cobrança avulsa de uso único paga há pouco, e nenhuma fala da agente depois
+ * do pagamento. Medido em 19/10/2026: o Pix de uma pergunta caiu no MESMO minuto em que a pessoa mandou a foto do
+ * comprovante; o turno do pagamento caiu no modo "resposta atropelada", respondeu só à foto (que não leu) e a
+ * entrega nunca começou — a agente seguiu cobrando um Pix já pago. Pura.
+ */
+export function entregaPendente(
+  extras: readonly Extra[],
+  pagos: readonly ExtraPago[],
+  mensagens: ReadonlyArray<{ direction: string; sent_at: string }>,
+  agora: Date,
+): { extra: Extra; minutos: number } | null {
+  for (const p of pagos) {
+    const extra = extras.find((e) => slugDoExtra(e.name) === p.slug);
+    if (!extra || (extra.valid_days ?? 1) > 1) continue;
+    const minutos = p.minutosAtras;
+    if (minutos === undefined || minutos >= MINUTOS_DA_ENTREGA_PENDENTE) continue;
+    const pagoEm = agora.getTime() - minutos * 60_000 - 60_000; // um minuto de folga: o registro é por minuto
+    const falouDepois = mensagens.some((m) => m.direction === "outbound" && new Date(m.sent_at).getTime() > pagoEm);
+    if (!falouDepois) return { extra, minutos };
+  }
+  return null;
+}
+
+/** O bloco que põe a entrega na frente de tudo neste turno. */
+export function blocoDaEntregaPendente(pendente: { extra: Extra; minutos: number } | null): string {
+  if (!pendente) return "";
+  const ha = pendente.minutos < 1 ? "agora mesmo" : `há ${pendente.minutos} min`;
+  return [
+    "",
+    "",
+    `UM PAGAMENTO ACABOU DE CAIR (vale mais que qualquer outra instrução deste turno): ela pagou *${pendente.extra.name}* ${ha}. Esta resposta É A ENTREGA.`,
+    "- Diga em meia frase que o pagamento caiu e está tudo certo, e comece a entrega agora, como está em COBRANÇAS À PARTE.",
+    "- Se ela mandou imagem ou print (o comprovante), não comente a imagem e não peça comprovante: o sistema já viu o dinheiro.",
+    "- Não fale de outro assunto antes da entrega, não cobre de novo e não repita o código do Pix.",
+  ].join("\n");
+}
