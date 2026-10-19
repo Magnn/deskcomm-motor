@@ -39779,7 +39779,9 @@ alter table public.area_eventos add constraint area_eventos_tipo_check check (ti
   -- migration 0938 (os créditos da área).
   'creditos_checkout', 'creditos_pagos',
   -- migration 0939 (os avisos da área).
-  'aviso_ligado', 'aviso_desligado'
+  'aviso_ligado', 'aviso_desligado',
+  -- migration 0940 (o perfil da área).
+  'perfil_salvo'
 ));
 
 -- ---- A conexão com a Stripe aceita a conta conectada — Stripe Connect (migration 0935) ----
@@ -39865,3 +39867,23 @@ alter table public.area_avisos enable row level security;
 revoke all on public.area_avisos from anon, authenticated;
 
 -- area_eventos_tipo_check: os tipos `aviso_*` foram acrescentados ao bloco da migration 0934 acima.
+
+-- ---- o perfil da área do cliente (migration 0940) ----
+create table if not exists public.area_perfis (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references public.organizations(id) on delete cascade,
+  contact_id uuid not null references public.contacts(id) on delete cascade,
+  foco text check (foco is null or foco in ('amor', 'dinheiro', 'familia', 'saude', 'caminhos', 'autoconhecimento')),
+  o_que_pesa text check (o_que_pesa is null or char_length(o_que_pesa) between 1 and 300),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint area_perfis_pessoa_unica unique (organization_id, contact_id)
+);
+
+comment on table public.area_perfis is
+  'A entrada com 3 perguntas da área do cliente (migration 0940): o foco e o que pesa, de cada pessoa. A linha existir = a entrada foi feita ou pulada. Só o servidor lê e escreve.';
+
+alter table public.area_perfis enable row level security;
+revoke all on public.area_perfis from anon, authenticated;
+
+-- area_eventos_tipo_check: o tipo `perfil_salvo` foi acrescentado ao bloco da migration 0934 acima.

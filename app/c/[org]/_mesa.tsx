@@ -327,6 +327,7 @@ export function MesaDeLeituras({
   inicial,
   whatsapp,
   tag,
+  sugestoes = [],
 }: {
   slug: string;
   cor: string;
@@ -336,6 +337,8 @@ export function MesaDeLeituras({
   whatsapp?: string;
   /** A tag de idioma das datas (`pt-BR`, `es`…). */
   tag: string;
+  /** Perguntas prontas no tema do foco da pessoa (entrada com 3 perguntas): um toque preenche. */
+  sugestoes?: readonly string[];
 }) {
   const [etapa, setEtapa] = React.useState<Etapa>({ tipo: "inicio" });
   const [pergunta, setPergunta] = React.useState("");
@@ -451,6 +454,20 @@ export function MesaDeLeituras({
             data-testid="mesa-pergunta"
           />
         </label>
+        {sugestoes.length > 0 && pergunta.trim() === "" ? (
+          <div className="flex flex-wrap gap-2" data-testid="mesa-sugestoes">
+            {sugestoes.map((q) => (
+              <button
+                key={q}
+                type="button"
+                onClick={() => setPergunta(q)}
+                className="rounded-full border border-[#c9a54e]/40 bg-white/[0.05] px-3 py-1.5 text-left text-[13px] text-[#f0dca8] transition hover:bg-white/10"
+              >
+                {q}
+              </button>
+            ))}
+          </div>
+        ) : null}
         <p className="text-xs leading-relaxed text-[#b7aecb]">{tm.dicaDaPergunta}</p>
         <p className="text-sm text-[#f0dca8]">{m?.primeira ? `${tm.primeiraPor} ${m.preco}` : `${tm.leituraPor} ${m?.preco}`}</p>
         {comCreditos && m ? (

@@ -9,7 +9,9 @@ import type { CSSProperties } from "react";
 import { Check, FileText, Film, Headphones, MessageCircle, Receipt } from "lucide-react";
 
 import { recadoDaEmpresa, type DadosDaArea } from "@/lib/area-do-cliente/dados";
+import type { CeuDoNascimento } from "@/lib/area-do-cliente/ceu";
 import { faseDaLua, proximaLua } from "@/lib/area-do-cliente/lua";
+import { PERGUNTAS_DO_FOCO, type Foco } from "@/lib/area-do-cliente/perfil";
 
 import {
   AniversarioDoCliente,
@@ -28,6 +30,7 @@ import { AbasDaArea, BotaoIrParaAba, type AbaDaArea } from "./_abas";
 import { AvisoDiario, type TextosDoAviso } from "./_aviso";
 import { CarteiraDeCreditos, type CarteiraInicial, type TextosDaCarteira } from "./_carteira";
 import { CirculoDoCliente } from "./_circulo";
+import { EntradaDaArea, type TextosDaEntrada } from "./_entrada";
 import { EtapaDeHoje, EtapasDaArea, LinhasDoTempo, type TextosDasEtapas } from "./_etapas";
 import { MesaDeLeituras, type MesaInicial, type TextosDaMesa } from "./_mesa";
 import { LuaDeHoje } from "./_lua";
@@ -132,6 +135,11 @@ export interface VistaDaAreaProps {
   /** O aviso diário no celular (`_aviso.tsx`); `null` = desligado na empresa. */
   avisos: { hora: number; convidarJa: boolean } | null;
   ta: TextosDoAviso;
+  /** A entrada com 3 perguntas (`_entrada.tsx`): `feito` = respondida ou pulada. */
+  perfil: { feito: boolean; foco: Foco | null };
+  /** O Sol e a Lua do nascimento, quando a área sabe a data. */
+  ceu: CeuDoNascimento | null;
+  tp: TextosDaEntrada;
   tc: TextosDaCarteira;
   /** A aba que abre primeiro (do endereço, `?aba=`); sem ela, Hoje. */
   abaInicial?: AbaDaArea;
@@ -196,6 +204,18 @@ export function VistaDaArea(p: VistaDaAreaProps) {
               ? `${t("Estou acompanhando o seu trabalho:")} ${trabalhoAtual.nome}.`
               : p.boasVindas || t("Sua conversa, seus conteúdos e suas reflexões em um só lugar.")}
           </p>
+          {p.ceu ? (
+            <p className="mt-3 inline-flex flex-wrap items-center gap-x-2 rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 text-sm text-[#f0dca8]" data-testid="area-ceu">
+              <span>
+                ☉ {p.tp.solEm} {p.ceu.sol}
+              </span>
+              <span aria-hidden>·</span>
+              <span>
+                ☾ {p.tp.luaEm} {p.ceu.lua}
+                {p.ceu.luaOutra ? ` ${p.tp.ou} ${p.ceu.luaOutra}` : ""}
+              </span>
+            </p>
+          ) : null}
 
           <div className="mt-7 flex items-center gap-4 rounded-3xl border border-white/10 bg-white/[0.06] p-4 backdrop-blur-sm" data-testid="area-lua">
             <LuaDeHoje quando={p.agora} />
@@ -232,7 +252,11 @@ export function VistaDaArea(p: VistaDaAreaProps) {
         {p.mesa ? (
           <section className={CARTAO_NOTURNO} data-testid="area-convite-mesa">
             <p className={SOBRETITULO_NOTURNO}>✦ {p.tm.titulo}</p>
-            <p className={`${SERIF} mt-2 text-[22px] leading-snug`}>{t("Faça uma pergunta às cartas e veja a leitura na hora.")}</p>
+            <p className={`${SERIF} mt-2 text-[22px] leading-snug`}>
+              {p.perfil.foco
+                ? `${t("Faça uma pergunta às cartas sobre")} ${p.tp.focos[p.perfil.foco].tema}.`
+                : t("Faça uma pergunta às cartas e veja a leitura na hora.")}
+            </p>
             <p className="mt-1 text-xs text-[#b7aecb]">{p.tm.automatica}</p>
             <BotaoIrParaAba
               aba="explorar"
@@ -436,7 +460,7 @@ export function VistaDaArea(p: VistaDaAreaProps) {
       {topo(rotulos.explorar)}
       <div className={corpo}>
         {p.carteira ? <CarteiraDeCreditos slug={slug} cor={cor} tx={tx} tc={p.tc} inicial={p.carteira} tag={tag} /> : null}
-        {p.mesa ? <MesaDeLeituras slug={slug} cor={cor} tx={tx} tm={p.tm} inicial={p.mesa} whatsapp={p.whatsapp} tag={tag} /> : null}
+        {p.mesa ? <MesaDeLeituras slug={slug} cor={cor} tx={tx} tm={p.tm} inicial={p.mesa} sugestoes={p.perfil.foco ? PERGUNTAS_DO_FOCO[p.perfil.foco].map((q) => t(q)) : []} whatsapp={p.whatsapp} tag={tag} /> : null}
 
         {p.anoPessoal ? <AnoPessoalDoCliente slug={slug} cor={cor} tx={tx} to={to} {...p.anoPessoal} /> : null}
 
@@ -536,6 +560,9 @@ export function VistaDaArea(p: VistaDaAreaProps) {
           rodape={rodape}
         />
       </EtapasDaArea>
+      {!p.perfil.feito ? (
+        <EntradaDaArea slug={slug} nome={dados.contato.primeiroNome} jaSabeONascimento={Boolean(dados.contato.nascimento)} tx={tx} te={p.tp} />
+      ) : null}
     </main>
   );
 }
