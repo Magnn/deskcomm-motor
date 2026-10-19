@@ -9,7 +9,9 @@ Chatterbox leva ~4x o tempo da própria fala (15,6 s de fala em 66 s com 6 núcl
 com prioridade baixa (nice), e quem pediu volta para buscar.
 
 A voz: a MESMA gravação que o Voice Studio mandou para o serviço `voz-clonada` (o volume dele é
-montado aqui só para leitura, em /vozes). `voice` vazio = a voz padrão do Chatterbox.
+montado aqui só para leitura, em /clonada; as gravações ficam em /clonada/vozes/<id>). `voice` vazio =
+a voz padrão do Chatterbox — que é de uma falante de inglês e fala português com sotaque estrangeiro:
+para soar brasileira, a referência tem de ser uma gravação de brasileira.
 
 API (só em 127.0.0.1:8013; quem chega é o Caddy, pelo caminho /_humana/, com a chave):
   POST /v1/trabalhos           JSON {id, input, voice?, exaggeration?} -> {id, status, posicao}
@@ -42,7 +44,7 @@ from chatterbox.mtl_tts import ChatterboxMultilingualTTS  # noqa: E402
 DADOS = Path(os.environ.get("VOZ_DADOS", "/dados"))
 SAIDAS = DADOS / "saidas"
 SAIDAS.mkdir(parents=True, exist_ok=True)
-VOZES = Path(os.environ.get("VOZES_CLONADAS", "/vozes"))
+VOZES = Path(os.environ.get("VOZES_CLONADAS", "/clonada/vozes"))
 CHAVE = os.environ.get("VOZ_HUMANA_API_KEY", "")
 MAX_ENTRADA = 6000
 # Trechos curtos soam melhor no Chatterbox e não estouram a memória: frases agrupadas até isto.

@@ -13,7 +13,7 @@ services:
     env_file: .env
     volumes:
       - dados:/dados
-      - vozes_clonadas:/vozes:ro
+      - vozes_clonadas:/clonada:ro
     deploy:
       resources:
         limits:
