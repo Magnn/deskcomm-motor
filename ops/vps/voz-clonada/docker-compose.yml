@@ -1,0 +1,22 @@
+# Voz clonada do próprio servidor — instalada em 19/10/2026. Ver app.py.
+# Rede do host: o serviço fala com o Kokoro em 127.0.0.1:8011 e escuta só em 127.0.0.1:8012; quem
+# chega nele é o Caddy, pelo caminho https://<domínio>/_clonar/ (restrito ao próprio servidor e com a
+# chave). Para remover: tirar VOZ_CLONADA_* do .env do app, recriar app e worker, apagar o bloco
+# "_clonar" do Caddyfile e "docker compose down" aqui (as vozes ficam no volume "dados").
+services:
+  voz-clonada:
+    build: .
+    image: acassia-voz-clonada:local
+    container_name: acassia-voz-clonada
+    restart: unless-stopped
+    network_mode: host
+    env_file: .env
+    volumes:
+      - dados:/dados
+    deploy:
+      resources:
+        limits:
+          cpus: "4"
+          memory: 6g
+volumes:
+  dados:
