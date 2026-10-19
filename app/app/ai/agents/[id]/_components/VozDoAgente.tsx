@@ -35,6 +35,7 @@ import {
   voiceReplySchema,
   type GeneroDaVoz,
   type IdDeProvedorDeVoz,
+  type ReservaDeVoz,
   type VoiceReplyConfig,
   type VozDisponivel,
 } from "@/lib/voz/tipos";
@@ -70,7 +71,8 @@ const vozesQueryKey = ["ai", "voices"] as const;
 function formularioInicial(config: Props["config"]): Formulario {
   const bruto = (config as { voice_reply?: unknown } | null | undefined)?.voice_reply;
   const r = voiceReplySchema.safeParse(bruto);
-  if (r.success) return r.data;
+  // A lista de reservas nasce da `reserva` única de antes, para a tela mostrar o que já vale.
+  if (r.success) return { ...r.data, reservas: r.data.reservas ?? (r.data.reserva ? [r.data.reserva] : []) };
   return { enabled: false };
 }
 
@@ -168,11 +170,15 @@ export function VozDoAgente({ agentId, config, active, readOnly }: Props) {
     }
     setSalvando(true);
     try {
+      const reservas = (form.reservas ?? []).filter((r) => !(r.provider === form.provider && r.voice_id === form.voice_id));
       const corpo = form.provider && form.voice_id
         ? {
             ...form,
             mode: form.mode ?? ("mirror" as const),
             voice_name: vozEscolhida?.nome ?? form.voice_name,
+            reservas,
+            // A `reserva` única segue gravada para quem ainda lê só ela (imagem anterior).
+            reserva: reservas.find((r) => r.provider !== form.provider),
           }
         : { enabled: false, mode: "mirror" as const };
       await apiClient.patch(`/api/v1/ai/agents/${agentId}`, { config: { voice_reply: corpo } });
@@ -569,6 +575,18 @@ export function VozDoAgente({ agentId, config, active, readOnly }: Props) {
         />
       ) : null}
 
+      {provedorAtual && form.voice_id ? (
+        <ReservasDeVoz
+          principal={{ provider: provedorAtual, voice_id: form.voice_id }}
+          vozes={vozes.data?.vozes ?? []}
+          reservas={form.reservas ?? []}
+          reservaEm={form.reserva_em ?? "cota"}
+          esperaMaxima={form.espera_maxima_s ?? 30}
+          readOnly={readOnly}
+          onChange={(p) => patch(p)}
+        />
+      ) : null}
+
       {!readOnly ? (
         <div className="flex justify-end">
           <Button type="button" onClick={() => void salvar()} disabled={salvando}>
@@ -577,6 +595,157 @@ export function VozDoAgente({ agentId, config, active, readOnly }: Props) {
         </div>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * SE A VOZ PRINCIPAL FALHAR: quem fala no lugar dela, em ordem, e quando. Com "qualquer falha ou
+ * demora", a principal tem um prazo — é o que a voz do próprio servidor precisa (quando ela cai, a
+ * causa é a máquina). Sem reserva que funcione, a resposta sai em texto, como sempre.
+ */
+const QUANDO_A_RESERVA_FALA = ["qualquer_falha", "cota"] as const;
+
+function ReservasDeVoz(props: {
+  principal: { provider: IdDeProvedorDeVoz; voice_id: string };
+  vozes: VozDisponivel[];
+  reservas: ReservaDeVoz[];
+  reservaEm: "cota" | "qualquer_falha";
+  esperaMaxima: number;
+  readOnly?: boolean;
+  onChange: (p: Partial<Formulario>) => void;
+}) {
+  const t = useT();
+  const chave = (v: { provider: string; voice_id: string }) => `${v.provider}::${v.voice_id}`;
+  const opcoes = props.vozes.filter((v) => !(v.provedor === props.principal.provider && v.id === props.principal.voice_id));
+  const rotuloDoProvedor = (id: string) => PROVEDORES_DE_VOZ.find((p) => p.id === id)?.rotulo ?? id;
+  const trocar = (i: number, valor: string) => {
+    const voz = opcoes.find((v) => `${v.provedor}::${v.id}` === valor);
+    if (!voz) return;
+    props.onChange({
+      reservas: props.reservas.map((r, j) => (j === i ? { provider: voz.provedor, voice_id: voz.id, voice_name: voz.nome } : r)),
+    });
+  };
+  const mover = (i: number, d: -1 | 1) => {
+    const lista = [...props.reservas];
+    const [item] = lista.splice(i, 1);
+    lista.splice(i + d, 0, item!);
+    props.onChange({ reservas: lista });
+  };
+  return (
+    <Card className="flex flex-col gap-3 p-4" data-testid="voz-reservas">
+      <div className="space-y-1">
+        <h2 className="text-base font-medium">{t("Se a voz principal falhar")}</h2>
+        <p className="max-w-2xl text-sm text-muted-foreground">
+          {t("Quem fala no lugar dela, nesta ordem. Se nenhuma funcionar, a resposta sai em texto — a pessoa nunca fica sem resposta.")}
+        </p>
+      </div>
+      <div className="flex flex-col gap-2" role="radiogroup" aria-label={t("Quando usar a reserva")}>
+        {QUANDO_A_RESERVA_FALA.map((valor) => {
+          const [rotulo, dica] =
+            valor === "qualquer_falha"
+              ? [
+                  t("Em qualquer falha ou demora da voz principal"),
+                  t("Recomendado para a voz do servidor e para vozes clonadas: se ela cair ou passar do tempo, a reserva fala."),
+                ]
+              : [
+                  t("Só quando acabar a cota do provedor"),
+                  t("Chave recusada ou voz apagada continuam caindo para texto, para o defeito aparecer e ser consertado."),
+                ];
+          return (
+          <label key={valor} className="flex cursor-pointer items-start gap-2 rounded-md border border-border p-3 text-sm">
+            <input
+              type="radio"
+              name="reserva_em"
+              className="mt-1"
+              checked={props.reservaEm === valor}
+              disabled={props.readOnly}
+              onChange={() => props.onChange({ reserva_em: valor })}
+            />
+            <span>
+              <span className="block font-medium">{rotulo}</span>
+              <span className="block text-muted-foreground">{dica}</span>
+            </span>
+          </label>
+          );
+        })}
+      </div>
+      {props.reservaEm === "qualquer_falha" ? (
+        <div className="flex max-w-xs flex-col gap-1">
+          <Label htmlFor="voz-espera-maxima">{t("Esperar a voz principal até (segundos)")}</Label>
+          <Input
+            id="voz-espera-maxima"
+            type="number"
+            min={5}
+            max={120}
+            value={props.esperaMaxima}
+            disabled={props.readOnly}
+            onChange={(e) => props.onChange({ espera_maxima_s: Math.min(120, Math.max(5, Math.round(Number(e.target.value)) || 30)) })}
+          />
+        </div>
+      ) : null}
+      <ol className="flex flex-col gap-2">
+        {props.reservas.map((r, i) => (
+          <li key={`${chave(r)}-${i}`} className="flex flex-wrap items-center gap-2">
+            <span className="w-6 text-sm tabular-nums text-muted-foreground">{i + 1}.</span>
+            <select
+              className="h-9 min-w-56 flex-1 rounded-md border border-input bg-background px-2 text-sm"
+              value={chave(r)}
+              disabled={props.readOnly}
+              aria-label={t("Voz de reserva")}
+              onChange={(e) => trocar(i, e.target.value)}
+            >
+              {opcoes.some((v) => `${v.provedor}::${v.id}` === chave(r)) ? null : (
+                <option value={chave(r)}>
+                  {rotuloDoProvedor(r.provider)} · {r.voice_name ?? r.voice_id}
+                </option>
+              )}
+              {opcoes.map((v) => (
+                <option key={`${v.provedor}::${v.id}`} value={`${v.provedor}::${v.id}`}>
+                  {rotuloDoProvedor(v.provedor)} · {v.nome}
+                </option>
+              ))}
+            </select>
+            <Button type="button" size="sm" variant="outline" disabled={props.readOnly || i === 0} onClick={() => mover(i, -1)} aria-label={t("Subir")}>
+              ↑
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={props.readOnly || i === props.reservas.length - 1}
+              onClick={() => mover(i, 1)}
+              aria-label={t("Descer")}
+            >
+              ↓
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              disabled={props.readOnly}
+              onClick={() => props.onChange({ reservas: props.reservas.filter((_, j) => j !== i) })}
+            >
+              {t("Tirar")}
+            </Button>
+          </li>
+        ))}
+      </ol>
+      {props.reservas.length < 3 && opcoes.length > 0 && !props.readOnly ? (
+        <div>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              const livre = opcoes.find((v) => !props.reservas.some((r) => r.provider === v.provedor && r.voice_id === v.id)) ?? opcoes[0]!;
+              props.onChange({ reservas: [...props.reservas, { provider: livre.provedor, voice_id: livre.id, voice_name: livre.nome }] });
+            }}
+          >
+            {t("Adicionar reserva")}
+          </Button>
+        </div>
+      ) : null}
+    </Card>
   );
 }
 
