@@ -25,6 +25,7 @@ import { ceuDoNascimento } from "@/lib/area-do-cliente/ceu";
 import { bonusDoPacote, creditosDoPreco, pacoteEmDestaque } from "@/lib/area-do-cliente/creditos";
 import { carregarCarteira, configDosCreditos } from "@/lib/area-do-cliente/creditos-servidor";
 import { destaqueDeHoje, fraseDoDia, lembrancaDaMesa } from "@/lib/area-do-cliente/hoje";
+import { resumoDaLuaDoMes, temLuaDoMes } from "@/lib/area-do-cliente/lua-do-mes";
 import { ehFoco, type Foco } from "@/lib/area-do-cliente/perfil";
 import { vePassoAPasso } from "@/lib/area-do-cliente/simpatias";
 import { carregarGrimorio, carregarMesa, configDasLeituras } from "@/lib/area-do-cliente/leituras-servidor";
@@ -40,7 +41,7 @@ import { vapidPronto } from "@/lib/notifications/vapid";
 import { vozPropriaConfigurada } from "@/lib/voz/servidor-proprio";
 
 import { serifDaArea } from "./_fonte";
-import { textosDaCarteira, textosDaEntrada, textosDaMesa, textosDoAviso, textosDasEtapas, textosDasOfertas, textosDasSimpatias, textosDoGrimorio, textosDoNavegador } from "./_textos";
+import { textosDaCarteira, textosDaEntrada, textosDaMesa, textosDoAviso, textosDasEtapas, textosDasOfertas, textosDasSimpatias, textosDoGrimorio, textosDaLuaDoMes, textosDoNavegador } from "./_textos";
 import { VistaDaArea, VistaDeEntrada } from "./_vista";
 
 export const dynamic = "force-dynamic";
@@ -192,6 +193,16 @@ export default async function AreaDoCliente({ params, searchParams }: Props) {
   const mesa = cfgDasLeituras.ativo ? await carregarMesa(admin, { id: org.id, fuso: org.fuso }, sessao.contactId, cfgDasLeituras) : null;
   // O Grimório só existe com a Mesa ligada: são as cartas das leituras dela.
   const grimorio = mesa ? await carregarGrimorio(admin, org.id, sessao.contactId) : [];
+  // "Sua lua do mês": aparece quando o mês já tem uma leitura ou uma página de diário. A conta exata (todas as
+  // leituras do mês) é a da imagem; aqui basta saber se há alguma coisa, com o que a página já carregou.
+  const luaDoMes = temLuaDoMes(
+    resumoDaLuaDoMes({
+      mes: hoje.slice(0, 7),
+      leituras: (mesa?.leituras ?? []).filter((l) => l.revelada).map((l) => ({ quando: l.quando, cartas: l.cartas })),
+      diario: dados.diario.map((d) => ({ quando: d.quando })),
+      diaDe: (iso) => diaNoFuso(iso, org.fuso),
+    }),
+  );
   const cfgDosCreditos = configDosCreditos(org.config.creditos);
   const cfgDosAvisos = configDosAvisos(org.config.avisos);
   // A entrada com 3 perguntas (migration 0940): a linha existir = feita ou pulada.
@@ -371,6 +382,8 @@ export default async function AreaDoCliente({ params, searchParams }: Props) {
         foto: c.foto,
       }))}
       tg={textosDoGrimorio(t)}
+      luaDoMes={luaDoMes ? { versao: hoje } : null}
+      tl={textosDaLuaDoMes(t)}
       perfil={{ feito: perfilR !== null, foco }}
       ceu={ceuDoNascimento(dados.contato.nascimento)}
       tp={textosDaEntrada(t)}
