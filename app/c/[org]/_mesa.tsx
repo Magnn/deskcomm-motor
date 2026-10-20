@@ -41,6 +41,9 @@ export interface TextosDaMesa {
   copiarCodigo: string;
   codigoCopiado: string;
   embaralhando: string;
+  respire: string;
+  respireDica: string;
+  pularRitual: string;
   escolhaTres: string;
   escolhidas: string;
   revelar: string;
@@ -101,6 +104,7 @@ type Etapa =
   | { tipo: "inicio" }
   | { tipo: "pergunta"; modalidade: string }
   | { tipo: "pix"; leituraId: string; copiaECola: string; qrPng: string | null }
+  | { tipo: "respirando"; leituraId: string; modalidade: string }
   | { tipo: "embaralhando"; leituraId: string; modalidade: string }
   | { tipo: "escolhendo"; leituraId: string; modalidade: string; escolhidas: number[] }
   | { tipo: "revelando"; leituraId: string; modalidade: string; escolhidas: number[] }
@@ -110,12 +114,14 @@ const ANIMACOES = `
 @keyframes mesa-embaralha { 0%,100% { transform: translateX(0) rotate(0) } 25% { transform: translateX(-38px) rotate(-8deg) } 75% { transform: translateX(38px) rotate(8deg) } }
 @keyframes mesa-entra { from { opacity: 0; transform: translateY(14px) scale(.96) } to { opacity: 1; transform: none } }
 @keyframes mesa-pulsa { 0%,100% { opacity: .35 } 50% { opacity: 1 } }
+@keyframes mesa-respira { 0%,100% { transform: scale(.55); opacity: .55 } 50% { transform: scale(1); opacity: 1 } }
+.mesa-respira { animation: mesa-respira 8s ease-in-out infinite }
 .mesa-embaralha { animation: mesa-embaralha .55s ease-in-out infinite }
 .mesa-entra { animation: mesa-entra .45s ease-out both }
 .mesa-ponto { animation: mesa-pulsa 1.1s ease-in-out infinite }
 .mesa-virar { transition: transform .7s cubic-bezier(.2,.7,.2,1); transform-style: preserve-3d }
 .mesa-face { backface-visibility: hidden }
-@media (prefers-reduced-motion: reduce) { .mesa-embaralha, .mesa-entra, .mesa-ponto { animation: none } .mesa-virar { transition: none } }
+@media (prefers-reduced-motion: reduce) { .mesa-embaralha, .mesa-entra, .mesa-ponto, .mesa-respira { animation: none } .mesa-virar { transition: none } }
 `;
 
 function Verso({ ativa = false, numero }: { ativa?: boolean; numero?: number }) {
@@ -362,11 +368,19 @@ export function MesaDeLeituras({
       if (j?.data?.paga) {
         window.clearInterval(t);
         const m = leituras.find((l) => l.id === id)?.modalidade ?? (etapa as { modalidade?: string }).modalidade ?? "tarot";
-        setEtapa({ tipo: "embaralhando", leituraId: id, modalidade: m });
+        setEtapa({ tipo: "respirando", leituraId: id, modalidade: m });
       }
     }, 3000);
     return () => window.clearInterval(t);
   }, [etapa, base, leituras]);
+
+  // O RITUAL antes das cartas (o modelo Headspace): uma respiração inteira — 4 s inspirando, 4 s soltando — com a
+  // pergunta na cabeça. O mesmo texto vale mais depois de um momento de pausa. Dá para pular.
+  React.useEffect(() => {
+    if (etapa.tipo !== "respirando") return;
+    const t = window.setTimeout(() => setEtapa({ tipo: "embaralhando", leituraId: etapa.leituraId, modalidade: etapa.modalidade }), 8000);
+    return () => window.clearTimeout(t);
+  }, [etapa]);
 
   // Embaralhar dura um pouco e abre a mesa.
   React.useEffect(() => {
@@ -401,7 +415,7 @@ export function MesaDeLeituras({
     if (r.data.paga) {
       // Pago com créditos: direto para o embaralhar.
       if (typeof r.data.saldo === "number") anunciarSaldo(r.data.saldo);
-      setEtapa({ tipo: "embaralhando", leituraId: r.data.leitura_id, modalidade: mod });
+      setEtapa({ tipo: "respirando", leituraId: r.data.leitura_id, modalidade: mod });
       return;
     }
     setEtapa({ tipo: "pix", leituraId: r.data.leitura_id, copiaECola: r.data.cobranca?.copiaECola ?? "", qrPng: r.data.cobranca?.qrPng ?? null });
@@ -546,6 +560,30 @@ export function MesaDeLeituras({
         </p>
       </div>
     );
+  } else if (etapa.tipo === "respirando") {
+    // A leitura recém-paga ainda não está na lista: a pergunta é a que ela acabou de escrever.
+    const naMente = leituras.find((l) => l.id === etapa.leituraId)?.pergunta || pergunta.trim() || null;
+    conteudo = (
+      <div className="flex flex-col items-center gap-5 py-6 text-center" aria-live="polite" data-testid="area-mesa-respirando">
+        <div className="relative flex size-40 items-center justify-center">
+          <span className="mesa-respira absolute inset-0 rounded-full" style={{ background: "radial-gradient(circle, rgba(240,220,168,.55) 0%, rgba(201,165,78,.18) 55%, transparent 72%)" }} />
+          <span className="relative text-3xl text-[#f0dca8]" aria-hidden>
+            ✦
+          </span>
+        </div>
+        <p className={`${SERIF} text-[22px] leading-snug`}>{tm.respire}</p>
+        {naMente ? <p className="max-w-xs text-[15px] italic text-[#d9d0e6]">“{naMente}”</p> : null}
+        <p className="max-w-xs text-sm text-[#b7aecb]">{tm.respireDica}</p>
+        <button
+          type="button"
+          onClick={() => setEtapa({ tipo: "embaralhando", leituraId: etapa.leituraId, modalidade: etapa.modalidade })}
+          className="text-sm font-semibold text-[#f0dca8] underline underline-offset-4"
+          data-testid="area-mesa-pular-ritual"
+        >
+          {tm.pularRitual}
+        </button>
+      </div>
+    );
   } else if (etapa.tipo === "embaralhando") {
     conteudo = (
       <div className="flex flex-col items-center gap-5 py-6" aria-live="polite">
@@ -645,7 +683,7 @@ export function MesaDeLeituras({
             <p className="mt-1 text-sm text-[#d9d0e6]">“{l.pergunta}”</p>
             <button
               type="button"
-              onClick={() => setEtapa({ tipo: "embaralhando", leituraId: l.id, modalidade: l.modalidade })}
+              onClick={() => setEtapa({ tipo: "respirando", leituraId: l.id, modalidade: l.modalidade })}
               className={`${BOTAO} mt-3`}
               style={{ background: "#c9a54e", color: "#1b1433" }}
             >

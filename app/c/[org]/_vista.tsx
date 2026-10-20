@@ -10,6 +10,7 @@ import { Check, FileText, Film, Headphones, MessageCircle, Receipt } from "lucid
 
 import { recadoDaEmpresa, type DadosDaArea } from "@/lib/area-do-cliente/dados";
 import type { CeuDoNascimento } from "@/lib/area-do-cliente/ceu";
+import type { DestaqueDeHoje } from "@/lib/area-do-cliente/hoje";
 import { faseDaLua, proximaLua } from "@/lib/area-do-cliente/lua";
 import { PERGUNTAS_DO_FOCO, type Foco } from "@/lib/area-do-cliente/perfil";
 
@@ -114,6 +115,12 @@ export interface VistaDaAreaProps {
   to: TextosDasOfertas;
   dados: DadosDaArea;
   aniversarioNestaSemana: boolean;
+  /** A aba Hoje com hierarquia (`lib/area-do-cliente/hoje.ts`): a frase dela, a lembrança e o destaque único. */
+  hojeTela: {
+    frase: string;
+    lembranca: { pergunta: string; quando: string } | null;
+    destaque: DestaqueDeHoje;
+  };
   carta: { id: number; nome: string; mensagem: string; foto: string | null } | null;
   anoPessoal: { ano: number; numero: number; preco: string; pago: boolean; texto: string | null } | null;
   circulo: {
@@ -205,11 +212,15 @@ export function VistaDaArea(p: VistaDaAreaProps) {
           <h1 className={`${SERIF} mt-3 text-[40px] leading-[1.05] tracking-tight`} data-testid="area-ola">
             {ola}
           </h1>
-          <p className="mt-3 max-w-md text-[16px] leading-relaxed text-[#d9d0e6]">
-            {trabalhoAtual
-              ? `${t("Estou acompanhando o seu trabalho:")} ${trabalhoAtual.nome}.`
-              : p.boasVindas || t("Sua conversa, seus conteúdos e suas reflexões em um só lugar.")}
+          {/* A frase de hoje (o modelo Co-Star): curta, no tema dela, a mesma o dia todo. */}
+          <p className={`${SERIF} mt-4 max-w-md text-[22px] italic leading-snug text-[#f6f0e4]`} data-testid="area-frase-do-dia">
+            “{p.hojeTela.frase}”
           </p>
+          {trabalhoAtual ? (
+            <p className="mt-2 max-w-md text-[14px] leading-relaxed text-[#b7aecb]">
+              {`${t("Estou acompanhando o seu trabalho:")} ${trabalhoAtual.nome}.`}
+            </p>
+          ) : null}
           {p.ceu ? (
             <p className="mt-3 inline-flex flex-wrap items-center gap-x-2 rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 text-sm text-[#f0dca8]" data-testid="area-ceu">
               <span>
@@ -241,7 +252,8 @@ export function VistaDaArea(p: VistaDaAreaProps) {
       </header>
 
       <div className="relative mx-auto -mt-20 max-w-xl space-y-5 px-4">
-        {p.aniversarioNestaSemana ? (
+        {/* UM destaque por dia (`destaqueDeHoje`): o aniversário, a lembrança da última pergunta ou a Mesa. */}
+        {p.hojeTela.destaque === "aniversario" ? (
           <section className={`${CARTAO} text-center`} data-testid="area-feliz-aniversario">
             <p className={SOBRETITULO}>✦ ✦ ✦</p>
             <h2 className={`${SERIF} mt-2 text-[28px]`}>
@@ -254,8 +266,28 @@ export function VistaDaArea(p: VistaDaAreaProps) {
 
         <EtapaDeHoje proximo={proximo} />
 
+        {/* A lembrança (sem culpa): a última pergunta que ela fez às cartas, e o convite a contar como foi. */}
+        {p.hojeTela.destaque === "lembranca" && p.hojeTela.lembranca ? (
+          <section className={CARTAO_NOTURNO} data-testid="area-lembranca">
+            <p className={SOBRETITULO_NOTURNO}>
+              ✦ {p.hojeTela.lembranca.quando} {t("você perguntou às cartas")}
+            </p>
+            <p className={`${SERIF} mt-2 text-[22px] leading-snug`}>“{p.hojeTela.lembranca.pergunta}”</p>
+            <p className="mt-2 text-[15px] leading-relaxed text-[#d9d0e6]">
+              {t("Como foi desde então? Anote no seu diário aqui embaixo, ou leve uma nova pergunta à mesa.")}
+            </p>
+            <BotaoIrParaAba
+              aba="explorar"
+              className="mt-4 inline-flex h-11 items-center rounded-full px-5 text-[15px] font-semibold"
+              style={{ background: "#c9a54e", color: "#1b1433" }}
+            >
+              {t("Voltar à mesa")}
+            </BotaoIrParaAba>
+          </section>
+        ) : null}
+
         {/* O convite para a Mesa: no Hoje só a porta; o ritual mora no Explorar. */}
-        {p.mesa ? (
+        {p.mesa && p.hojeTela.destaque === "mesa" ? (
           <section className={CARTAO_NOTURNO} data-testid="area-convite-mesa">
             <p className={SOBRETITULO_NOTURNO}>✦ {p.tm.titulo}</p>
             <p className={`${SERIF} mt-2 text-[22px] leading-snug`}>
@@ -278,8 +310,6 @@ export function VistaDaArea(p: VistaDaAreaProps) {
           <CartaDoDia slug={slug} cor={cor} tx={tx} cartaId={p.carta.id} nome={p.carta.nome} mensagem={p.carta.mensagem} foto={p.carta.foto} />
         ) : null}
 
-        {p.avisos ? <AvisoDiario slug={slug} ta={p.ta} hora={p.avisos.hora} convidarJa={p.avisos.convidarJa} /> : null}
-
         {/* A continuidade: a última palavra da empresa, com o caminho para responder. */}
         {recado ? (
           <section className={CARTAO} data-testid="area-ultima-mensagem">
@@ -301,12 +331,24 @@ export function VistaDaArea(p: VistaDaAreaProps) {
           </section>
         ) : null}
 
-        <DiarioDoCliente
-          slug={slug}
-          cor={cor}
-          tx={tx}
-          entradas={dados.diario.map((d) => ({ id: d.id, texto: d.texto, quando: dataCurta(d.quando) }))}
-        />
+        {/* O resto, recolhido: um herói por tela. Com a lembrança em destaque, o diário já vem aberto. */}
+        <details className="group rounded-3xl" open={p.hojeTela.destaque === "lembranca"} data-testid="area-mais-para-hoje">
+          <summary className="flex cursor-pointer list-none items-center justify-between rounded-3xl border border-[#ebe3d3] bg-white/80 px-5 py-4 text-[15px] font-semibold text-[#3a3347]">
+            {t("Mais para hoje")}
+            <span aria-hidden className="text-[#a8842f] transition-transform group-open:rotate-180">
+              ▾
+            </span>
+          </summary>
+          <div className="mt-4 space-y-5">
+            {p.avisos ? <AvisoDiario slug={slug} ta={p.ta} hora={p.avisos.hora} convidarJa={p.avisos.convidarJa} /> : null}
+            <DiarioDoCliente
+              slug={slug}
+              cor={cor}
+              tx={tx}
+              entradas={dados.diario.map((d) => ({ id: d.id, texto: d.texto, quando: dataCurta(d.quando) }))}
+            />
+          </div>
+        </details>
       </div>
     </>
   );

@@ -24,6 +24,7 @@ import { configDosAvisos, convidarParaOAviso } from "@/lib/area-do-cliente/aviso
 import { ceuDoNascimento } from "@/lib/area-do-cliente/ceu";
 import { bonusDoPacote, creditosDoPreco, pacoteEmDestaque } from "@/lib/area-do-cliente/creditos";
 import { carregarCarteira, configDosCreditos } from "@/lib/area-do-cliente/creditos-servidor";
+import { destaqueDeHoje, fraseDoDia, lembrancaDaMesa } from "@/lib/area-do-cliente/hoje";
 import { ehFoco, type Foco } from "@/lib/area-do-cliente/perfil";
 import { vePassoAPasso } from "@/lib/area-do-cliente/simpatias";
 import { carregarMesa, configDasLeituras } from "@/lib/area-do-cliente/leituras-servidor";
@@ -223,6 +224,10 @@ export default async function AreaDoCliente({ params, searchParams }: Props) {
     : [{ data: null }, { data: null }];
   const vePassos = cfgDasSimpatias ? vePassoAPasso(cfgDasSimpatias, circulo !== null, noCirculo) : false;
   const cfgDaContribuicao = org.config.contribuicao?.ativo ? org.config.contribuicao : null;
+  // A aba Hoje com hierarquia (`lib/area-do-cliente/hoje.ts`): a frase dela, a lembrança da última pergunta e um
+  // destaque só.
+  const lembranca = mesa ? lembrancaDaMesa(mesa.leituras, hoje, (iso) => diaNoFuso(iso, org.fuso)) : null;
+  const aniversarioNestaSemana = dados.contato.nascimento ? semanaDoAniversario(dados.contato.nascimento, hoje) : false;
   const convidarJa = cfgDosAvisos.ativo ? await jaMereceConvite(admin, { id: org.id, fuso: org.fuso }, sessao.contactId) : false;
   const carteira = cfgDosCreditos.ativo ? await carregarCarteira(admin, org.id, sessao.contactId) : null;
   const destaque = pacoteEmDestaque(cfgDosCreditos.pacotes);
@@ -246,7 +251,14 @@ export default async function AreaDoCliente({ params, searchParams }: Props) {
       to={textosDasOfertas(t)}
       te={textosDasEtapas(t)}
       dados={dados}
-      aniversarioNestaSemana={dados.contato.nascimento ? semanaDoAniversario(dados.contato.nascimento, hoje) : false}
+      aniversarioNestaSemana={aniversarioNestaSemana}
+      hojeTela={{
+        frase: t(fraseDoDia(sessao.contactId, hoje, foco)),
+        lembranca: lembranca
+          ? { pergunta: lembranca.pergunta, quando: lembranca.diasAtras === 1 ? t("Ontem") : `${t("Há")} ${lembranca.diasAtras} ${t("dias")}` }
+          : null,
+        destaque: destaqueDeHoje({ aniversario: aniversarioNestaSemana, lembranca, mesa: mesa !== null }),
+      }}
       carta={
         carta
           ? { id: carta.id, nome: t(carta.nome), mensagem: t(MENSAGEM_DO_DIA[carta.id] ?? ""), foto: fotoDaCartaDeHoje }
