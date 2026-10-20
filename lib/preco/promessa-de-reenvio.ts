@@ -12,10 +12,15 @@
  * Pura.
  */
 
-/** Verbo de enviar + "de novo / novamente / outra vez / agora", ou o próprio "reenviar". */
-const PROMESSA = /\b(?:(?:mand|envi|pass)\w*(?:\s+\S+){0,3}?\s+(?:de\s+novo|novamente|outra\s+vez)|reenvi\w*)\b/i;
+/**
+ * A promessa: enviar "de novo / novamente / outra vez", "reenviar", ou o futuro de quem promete a cobrança ("vou
+ * preparar o pagamento", "já te mando o boleto") — medido na mesma tarde: "Vou preparar o pagamento da entrada no seu
+ * nome agora", e nada saiu.
+ */
+const PROMESSA =
+  /\b(?:(?:mand|envi|pass)\w*(?:\s+\S+){0,3}?\s+(?:de\s+novo|novamente|outra\s+vez)|reenvi\w*|(?:vou|j[áa])\s+(?:te\s+|lhe\s+)?(?:preparar|gerar|emitir|mandar|mando|enviar|envio|passar|passo)(?:\s+\S+){0,3}?\s+(?:pagamento|pix|c[óo]digo|link|boleto|cobran[çc]a|qr))/i;
 /** Do que a promessa fala: o pagamento, e não outra coisa ("te mando de novo a oração"). */
-const DO_PAGAMENTO = /\b(?:pix|c[óo]digo|link|pagamento|qr|cobran[çc]a|chave)\b/i;
+const DO_PAGAMENTO = /\b(?:pix|c[óo]digo|link|pagamento|qr|cobran[çc]a|chave|boleto)\b/i;
 /** A cobrança de fato: a marca que o sistema troca pelo Pix, ou um link. */
 const COBRANCA = /\[\[\s*(?:PIX|COBRAR)\s*:|https?:\/\//i;
 

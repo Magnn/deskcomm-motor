@@ -18,6 +18,10 @@ describe("promessa de reenviar o pagamento", () => {
       "Te reenvio o código do Pix já já.",
       "Já te mando o link novamente, meu bem.",
       "Vou te passar o pix outra vez, tá?",
+      // 20/10/2026, mesma tarde: prometeu o pagamento e não mandou nada.
+      "Perfeito, Maria. Tenho tudo aqui: nome completo, CPF e o CEP. Vou preparar o pagamento da entrada no seu nome agora.",
+      "Claro, meu bem. Vou te mandar o pagamento do jeito certo agora.",
+      "Já te mando o boleto, meu bem.",
     ]) {
       expect(promessaDeReenvioSemCobranca(t), t).not.toBeNull();
     }
@@ -33,5 +37,8 @@ describe("promessa de reenviar o pagamento", () => {
     expect(promessaDeReenvioSemCobranca("O valor é R$ 5. Quando o pagamento cair eu vejo aqui.")).toBeNull();
     expect(promessaDeReenvioSemCobranca("Te mando de novo a oração amanhã cedo, meu bem.")).toBeNull();
     expect(promessaDeReenvioSemCobranca("Conseguiu copiar o código?")).toBeNull();
+    expect(promessaDeReenvioSemCobranca("Assim que o pagamento cair eu vejo aqui e já abro as cartas.")).toBeNull();
+    expect(promessaDeReenvioSemCobranca("Vou fazer a sua leitura agora, meu bem.")).toBeNull();
+    expect(promessaDeReenvioSemCobranca("Quando você pagar, me manda o comprovante aqui.")).toBeNull();
   });
 });
