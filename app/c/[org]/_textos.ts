@@ -10,6 +10,7 @@ import type { TextosDaArea } from "./_client";
 import type { TextosDaEntrada } from "./_entrada";
 import type { TextosDasEtapas } from "./_etapas";
 import type { TextosDoGrimorio } from "./_grimorio";
+import type { TextosDaLuaDoMes } from "./_lua-do-mes";
 import type { TextosDaMesa } from "./_mesa";
 import type { TextosDasOfertas } from "./_ofertas";
 import type { TextosDasSimpatias } from "./_simpatias";
@@ -90,6 +91,19 @@ export function textosDasOfertas(t: (s: string) => string): TextosDasOfertas {
     anoPessoalTitulo: t("Seu Ano Pessoal"),
     anoPessoalConvite: t("A leitura do ano que começa no seu aniversário: o tema do ano, uma orientação para cada trimestre e três intenções para você. Após a confirmação do pagamento, a leitura é preparada em texto e aparece aqui na sua área."),
     anoPessoalPreparando: t("A leitura do seu ano está sendo preparada…"),
+  };
+}
+
+/** Os textos de "Sua lua do mês", já traduzidos. */
+export function textosDaLuaDoMes(t: (s: string) => string): TextosDaLuaDoMes {
+  return {
+    titulo: t("Sua lua do mês"),
+    convite: t("O seu mês com as cartas num cartão para guardar ou mandar para quem você quiser. Suas perguntas e o seu diário não aparecem."),
+    compartilhar: t("Compartilhar"),
+    preparando: t("Preparando…"),
+    baixada: t("Imagem salva no seu aparelho."),
+    naoDeu: t("Não foi possível preparar a imagem agora. Tente de novo em instantes."),
+    textoDoCompartilhar: t("A minha lua do mês ✨"),
   };
 }
 
