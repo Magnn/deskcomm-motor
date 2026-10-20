@@ -111,13 +111,14 @@ export function Gaveta({ titulo, fechar, children }: { titulo: string; fechar: (
       <button type="button" aria-label="Fechar" onClick={fechar} className="absolute inset-0 bg-black/60 backdrop-blur-[2px]" />
       <div className="relative max-h-[88vh] w-full max-w-xl overflow-y-auto rounded-t-[28px] border-t border-[#c9a54e]/25 bg-[#110c20] px-4 pb-[calc(env(safe-area-inset-bottom)+24px)] pt-3 shadow-[0_-24px_60px_-20px_rgba(0,0,0,0.9)] [animation:gaveta-sobe_.28s_ease-out] motion-reduce:[animation:none]">
         <style>{"@keyframes gaveta-sobe{from{transform:translateY(40px);opacity:.6}to{transform:none;opacity:1}}"}</style>
-        <div className="sticky top-0 z-10 -mx-4 flex items-center justify-between bg-[#110c20]/95 px-4 pb-2 pt-1 backdrop-blur">
-          <span aria-hidden className="mx-auto h-1.5 w-10 rounded-full bg-white/15" />
+        {/* O topo da gaveta tem altura própria: o X não pode cair por cima do cartão que vem embaixo. */}
+        <div className="sticky top-0 z-10 -mx-4 flex h-12 items-center justify-center bg-[#110c20]/95 px-4 backdrop-blur">
+          <span aria-hidden className="h-1.5 w-10 rounded-full bg-white/15" />
           <button
             type="button"
             onClick={fechar}
             aria-label="Fechar"
-            className="absolute right-3 top-0 flex size-9 items-center justify-center rounded-full bg-white/[0.06] text-[#c3bad3]"
+            className="absolute right-3 top-1.5 flex size-9 items-center justify-center rounded-full bg-white/[0.06] text-[#c3bad3]"
           >
             <X className="size-4" aria-hidden />
           </button>
