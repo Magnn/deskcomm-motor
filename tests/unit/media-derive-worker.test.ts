@@ -78,6 +78,7 @@ vi.mock("@/lib/messaging/media/derive", () => ({
 // resolveOrgLlmConfig e generateText mockados: o worker precisa de credencial p/
 // montar as deps, mas o teste não exercita rede.
 vi.mock("@/lib/agent-engine/edge/llm/credentials", () => ({
+  LlmNotConfiguredError: class LlmNotConfiguredError extends Error {},
   resolveOrgLlmConfig: vi.fn(async () => ({
     provider: "openai",
     apiKey: "sk-test",
@@ -91,6 +92,7 @@ vi.mock("@/lib/agent-engine/edge/llm/credentials", () => ({
 
 import { deriveMessageMedia, MARCADOR_NAO_LIDA } from "@/workers/media-derive-worker";
 import { deriveMediaText } from "@/lib/messaging/media/derive";
+import { LlmNotConfiguredError, resolveOrgLlmConfig } from "@/lib/agent-engine/edge/llm/credentials";
 import { DETALHE_TECNICO } from "@/lib/event-log/aviso-de-evento-morto";
 
 function eventRow(attempts = 0) {
@@ -123,6 +125,23 @@ describe("deriveMessageMedia", () => {
     expect(updateEqMock).toHaveBeenCalledWith(
       expect.objectContaining({ media_derived_text: "transcrição do áudio real", media_derived_status: "ready" }),
     );
+  });
+
+  it("⭐ empresa SEM chave de chat: o áudio ainda é transcrito (o transcritor tem caminho próprio)", async () => {
+    // Medido em 20/10: o áudio de uma empresa sem chave nenhuma morria em 5 tentativas com o Whisper
+    // da VPS de pé — a falta da chave de chat lançava antes de o transcritor ser montado.
+    vi.mocked(resolveOrgLlmConfig).mockRejectedValueOnce(new LlmNotConfiguredError());
+    const r = await deriveMessageMedia(eventRow());
+    expect(r.status).toBe("ok");
+    expect(deriveMediaText).toHaveBeenCalled();
+  });
+
+  it("empresa sem chave de chat e IMAGEM: segue exigindo a chave (a visão é do modelo de chat)", async () => {
+    messageRow.type = "image";
+    vi.mocked(resolveOrgLlmConfig).mockRejectedValueOnce(new LlmNotConfiguredError());
+    const r = await deriveMessageMedia(eventRow());
+    expect(r.status).not.toBe("ok");
+    expect(deriveMediaText).not.toHaveBeenCalled();
   });
 
   it("pula se já derivado (idempotência)", async () => {
