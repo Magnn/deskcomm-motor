@@ -9,7 +9,12 @@ import type pg from "pg";
 
 import { extractPdfText } from "@/lib/ai/rag/extractors/pdf";
 import { visaoEmVigor } from "@/lib/ai/pontos/capacidade-em-vigor";
-import { resolveOrgLlmConfig, type LlmEdgeConfig } from "@/lib/agent-engine/edge/llm/credentials";
+import {
+  LlmNotConfiguredError,
+  resolveOrgLlmConfig,
+  type LlmEdgeConfig,
+  type OrgLlmConfig,
+} from "@/lib/agent-engine/edge/llm/credentials";
 import { createDefaultRegistry } from "@/lib/agent-engine/edge/llm/providers";
 import { createPool } from "@/lib/agent-engine/db/pool";
 import { env } from "@/lib/env";
@@ -133,7 +138,18 @@ export async function deriveMessageMedia(row: EventRow): Promise<HandlerResult> 
       openrouterApiKey: process.env.OPENROUTER_API_KEY,
       cacheTtl: "1h",
     };
-    let llm = await resolveOrgLlmConfig(derivePool(), llmCfg, row.organization_id);
+    // Sem chave de CHAT a organização ainda pode ter o áudio lido: a transcrição tem caminho próprio
+    // (o serviço da instalação, a chave da OpenAI do `.env`, as reservas de voz). Antes, a falta da
+    // chave de chat lançava AQUI, antes de qualquer transcritor ser montado — medido em 20/10: o áudio
+    // de uma empresa sem chave nenhuma morreu em 5 tentativas com o Whisper da VPS de pé. Só o tipo
+    // que precisa do modelo de chat (imagem, vídeo) segue exigindo a chave.
+    let llm: OrgLlmConfig | null;
+    try {
+      llm = await resolveOrgLlmConfig(derivePool(), llmCfg, row.organization_id);
+    } catch (err) {
+      if (!(err instanceof LlmNotConfiguredError) || !DISPENSAM_O_MODELO_DE_CHAT.has(msg.type)) throw err;
+      llm = null;
+    }
 
     // ─── O painel de provedores manda AQUI também ────────────────────────────
     //
@@ -188,7 +204,7 @@ export async function deriveMessageMedia(row: EventRow): Promise<HandlerResult> 
     // (visto nesta VPS: media.derive_requested preso com transcription_401,
     // e o cliente ouvindo "não consigo ouvir áudio" com a chave certa no .env).
     let openaiKey: string | null = null;
-    if (llm.provider === "openai") {
+    if (llm?.provider === "openai") {
       openaiKey = llm.apiKey;
     } else {
       try {
@@ -223,7 +239,7 @@ export async function deriveMessageMedia(row: EventRow): Promise<HandlerResult> 
     // escolheu a chave. Até aqui ela era deduzida comparando o plaintext com as
     // chaves do `.env` — uma segunda cópia da escada, que o chat não tinha e que
     // divergiria no primeiro degrau novo.
-    const chaveEhDaInstalacao = llm.origemDaChave === "chave_da_instalacao";
+    const chaveEhDaInstalacao = llm?.origemDaChave === "chave_da_instalacao";
 
     // O 5º argumento é a `base_url` do binding: o factory precisa dela para não
     // cair no endpoint padrão do provedor (ver o comentário lá em cima).
@@ -328,8 +344,12 @@ async function lerBindingDoPonto(
   );
 }
 
+/** Os tipos que se leem sem o modelo de chat: o áudio (transcrição) e o PDF (extração local). */
+const DISPENSAM_O_MODELO_DE_CHAT: ReadonlySet<string> = new Set(["audio", "document"]);
+
 function buildDeriveDeps(
-  llm: { provider: string; apiKey: string; defaultModel: string | null },
+  // `null` = a organização não tem chave de chat: só a imagem fica sem leitura, com aviso.
+  llm: { provider: string; apiKey: string; defaultModel: string | null } | null,
   openaiKey: string | null,
   orgId: string,
   admin: ReturnType<typeof createAdminClient>,
@@ -351,6 +371,7 @@ function buildDeriveDeps(
   // torna o helper uma armadilha que só aparece no CI. O que precisava ser único
   // é a REGRA, e ela é: `visaoEmVigor` decide, aqui e em `media-parts.ts`.
   const catalogo = async (): Promise<boolean | null> => {
+    if (!llm) return null;
     const { data } = await admin
       .from("ai_models")
       .select("supports_vision")
@@ -366,6 +387,10 @@ function buildDeriveDeps(
     // a pergunta ia direto ao registro, que num roteador responde pelo prefixo
     // do fabricante: `openai/gpt-3.5-turbo` era dado como capaz de ver, a
     // chamada de visão saía e o aviso ao operador nunca abria.
+    if (!llm) {
+      await avisarMidiaNaoLida(orgId, "imagem", "falta uma chave de IA para ler imagens — cadastre em Agente de IA → Provedores");
+      return MARCADOR_NAO_LIDA;
+    }
     const visao = await visaoEmVigor({
       provider: llm.provider,
       modelId: llm.defaultModel ?? "",
