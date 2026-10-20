@@ -35,7 +35,6 @@ import {
   decidirPasso,
   motivoDeManterJanela,
   motivoDoPasso,
-  motivoDoPassoNoFunil,
   ofereceSaida,
 } from '@/lib/recuperacao/decisao';
 
@@ -79,7 +78,6 @@ interface Candidata {
   /** A pessoa já comprou, e já ouviu algum valor nesta conversa: é o que decide se o passo oferece valor. */
   ja_pagou?: boolean | null;
   /** A pessoa está parada numa pergunta de um funil de entrada: o lembrete repete a pergunta e não oferece nada. */
-  parada_em_pergunta?: boolean | null;
   ouviu_preco?: boolean | null;
   ultima_em: string | null;
   silence_since: string | null;
@@ -98,14 +96,6 @@ export const CONSULTA_DE_SILENCIOSAS = `
          t.feitas, t.ultima_em, t.silence_since, t.janela_enviada,
          r.retorno_em,
          ('pago' = any(coalesce(c.tags, '{}'::text[]))) as ja_pagou,
-         exists (
-      select 1 from followup_enrollments e
-      join followup_flow_pointers fp on fp.id = e.pointer_id and fp.organization_id = e.organization_id
-      join followup_flow_versions fv on fv.id = fp.active_version_id
-      where e.organization_id = v.organization_id and e.contact_id = v.contact_id
-        and e.status = 'waiting_reply'
-        and exists (select 1 from jsonb_array_elements(fv.graph->'nodes') n
-                     where n->>'type' = 'trigger' and n->'config'->>'event' in ('keyword', 'inicio_conversa'))) as parada_em_pergunta,
          exists (select 1 from messages mp
                   where mp.organization_id = v.organization_id and mp.conversation_id = v.id
                     and mp.direction = 'outbound' and mp.body ~ 'R[$] ?[0-9]') as ouviu_preco
@@ -166,26 +156,13 @@ export const CONSULTA_DE_SILENCIOSAS = `
       select 1 from job_queue q
       where q.organization_id = v.organization_id and q.contact_id = v.contact_id
         and q.status in ('pending', 'running'))
-    -- Quem está dentro de um fluxo não é chamado — com UMA exceção: a inscrição PARADA NUMA PERGUNTA de um funil
-    -- de entrada (início por palavra-chave ou primeiro contato). Ali a pessoa travou no meio do funil, e o lembrete
-    -- é o que a traz de volta: a resposta dela cai na pergunta e o fluxo segue de onde parou.
+    -- Quem está dentro de um fluxo não é chamado pela agente, nem quando parou numa pergunta do funil: desde
+    -- 20/10/2026 o fluxo é isolado da agente (decisão do dono), e o lembrete de quem travou é a saída "Sem resposta"
+    -- do próprio fluxo. Pausa por humano também não: a conversa é da equipe.
     and not exists (
       select 1 from followup_enrollments e
       where e.organization_id = v.organization_id and e.contact_id = v.contact_id
-        and e.status in ('active', 'paused_handoff'))
-    and (
-      not exists (
-        select 1 from followup_enrollments e
-        where e.organization_id = v.organization_id and e.contact_id = v.contact_id and e.status = 'waiting_reply')
-      or exists (
-      select 1 from followup_enrollments e
-      join followup_flow_pointers fp on fp.id = e.pointer_id and fp.organization_id = e.organization_id
-      join followup_flow_versions fv on fv.id = fp.active_version_id
-      where e.organization_id = v.organization_id and e.contact_id = v.contact_id
-        and e.status = 'waiting_reply'
-        and exists (select 1 from jsonb_array_elements(fv.graph->'nodes') n
-                     where n->>'type' = 'trigger' and n->'config'->>'event' in ('keyword', 'inicio_conversa')))
-    )
+        and e.status in ('active', 'waiting_reply', 'paused_handoff'))
   order by ui.created_at
   limit ${LOTE}`;
 
@@ -276,14 +253,10 @@ export function decidirChamada(c: Candidata, agora: Date, temPrazo: boolean): Ch
   return {
     kind: 'step',
     step: passo,
-    // Parada numa pergunta do funil: o lembrete só traz a pessoa de volta à pergunta, sem valor e sem convite a parar.
-    // Fora disso, o passo oferece valor só a quem já ouviu o preço e não pagou; nesse caso também não convida a parar.
-    motivo:
-      c.parada_em_pergunta === true
-        ? motivoDoPassoNoFunil(passo, r.steps_minutes.length, silencioMs)
-        : motivoDoPasso(passo, r.steps_minutes.length, silencioMs, c.ouviu_preco === true && c.ja_pagou !== true ? ofertaDoPasso(r, passo) : null),
+    // O passo oferece valor só a quem já ouviu o preço e não pagou; nesse caso também não convida a parar.
+    motivo: motivoDoPasso(passo, r.steps_minutes.length, silencioMs, c.ouviu_preco === true && c.ja_pagou !== true ? ofertaDoPasso(r, passo) : null),
     ofereceSaida:
-      c.parada_em_pergunta === true || (c.ouviu_preco === true && c.ja_pagou !== true && ofertaDoPasso(r, passo) !== null)
+      c.ouviu_preco === true && c.ja_pagou !== true && ofertaDoPasso(r, passo) !== null
         ? false
         : ofereceSaida(passo, r.steps_minutes.length, silencioMs),
   };

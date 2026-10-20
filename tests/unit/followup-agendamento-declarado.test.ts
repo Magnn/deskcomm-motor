@@ -78,6 +78,10 @@ const ESCRITORES: Record<string, { agenda: "agora" | "futuro" | "nenhum"; nota: 
     agenda: "agora",
     nota: "mesmo caso do gatilho de etapa: nasce vencido, insert omite a coluna.",
   },
+  "fluxo-no-comando.ts": {
+    agenda: "nenhum",
+    nota: "Só LÊ `next_eval_at` (fluxo com passo em até 1 dia cala a agente); nunca escreve a coluna.",
+  },
   "gatilho-caso.ts": {
     agenda: "nenhum",
     nota:
