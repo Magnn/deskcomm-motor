@@ -124,8 +124,12 @@ export const precoInternacionalSchema = z.object({
 });
 export type PrecoInternacional = z.infer<typeof precoInternacionalSchema>;
 
-/** Quantas cobranças avulsas um agente pode ter. */
-export const MAX_EXTRAS = 6;
+/**
+ * Quantas cobranças avulsas um agente pode ter. Era 6; em 20/10/2026 o dono pediu uma simpatia para cada dor que a
+ * conversa traz (amor novo, corte de laços, prosperidade, proteção, caminhos, paz em casa, amor-próprio), além da
+ * pergunta, da sinastria e do acompanhamento. Cada uma custa uma linha no bloco do turno, não mais.
+ */
+export const MAX_EXTRAS = 12;
 
 /**
  * COBRANÇA AVULSA: algo que o agente vende à parte do produto principal, por um valor próprio — uma pergunta
