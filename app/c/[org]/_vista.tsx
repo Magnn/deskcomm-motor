@@ -153,6 +153,8 @@ export interface VistaDaAreaProps {
   /** O Grimório (`_grimorio.tsx`): as cartas que já saíram nas leituras pagas dela. Vazio = não aparece. */
   grimorio: CartaNoGrimorio[];
   tg: TextosDoGrimorio;
+  /** O horóscopo do dia do signo solar (`lib/area-do-cliente/horoscopo.ts`); `null` = sem data de nascimento. */
+  horoscopo: { signo: string; texto: string } | null;
   /** "Sua lua do mês" (`_lua-do-mes.tsx`); `null` = o mês ainda não tem leitura nem diário. `versao` renova a imagem. */
   luaDoMes: { versao: string } | null;
   tl: TextosDaLuaDoMes;
@@ -316,6 +318,17 @@ export function VistaDaArea(p: VistaDaAreaProps) {
 
         {p.carta ? (
           <CartaDoDia slug={slug} cor={cor} tx={tx} cartaId={p.carta.id} nome={p.carta.nome} mensagem={p.carta.mensagem} foto={p.carta.foto} />
+        ) : null}
+
+        {/* O horóscopo do signo, ao lado da carta do dia: o segundo motivo para abrir a área todo dia. */}
+        {p.horoscopo ? (
+          <section className={CARTAO} data-testid="area-horoscopo">
+            <p className={SOBRETITULO}>
+              ☉ {t("Hoje para")} {p.horoscopo.signo}
+            </p>
+            <p className={`${SERIF} mt-2 text-[19px] leading-snug text-[#3a3347]`}>{p.horoscopo.texto}</p>
+            <p className="mt-2 text-xs text-[#8b8497]">{t("O mesmo para todo mundo do seu signo hoje.")}</p>
+          </section>
         ) : null}
 
         {/* A continuidade: a última palavra da empresa, com o caminho para responder. */}

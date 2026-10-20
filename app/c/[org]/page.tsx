@@ -25,6 +25,7 @@ import { ceuDoNascimento } from "@/lib/area-do-cliente/ceu";
 import { bonusDoPacote, creditosDoPreco, pacoteEmDestaque } from "@/lib/area-do-cliente/creditos";
 import { carregarCarteira, configDosCreditos } from "@/lib/area-do-cliente/creditos-servidor";
 import { destaqueDeHoje, fraseDoDia, lembrancaDaMesa } from "@/lib/area-do-cliente/hoje";
+import { ehSigno, horoscopoDoDia } from "@/lib/area-do-cliente/horoscopo";
 import { resumoDaLuaDoMes, temLuaDoMes } from "@/lib/area-do-cliente/lua-do-mes";
 import { ehFoco, type Foco } from "@/lib/area-do-cliente/perfil";
 import { vePassoAPasso } from "@/lib/area-do-cliente/simpatias";
@@ -382,10 +383,19 @@ export default async function AreaDoCliente({ params, searchParams }: Props) {
         foto: c.foto,
       }))}
       tg={textosDoGrimorio(t)}
+      horoscopo={(() => {
+        // O horóscopo do signo solar (`horoscopo.ts`): só para quem contou a data de nascimento.
+        const sol = ceuDoNascimento(dados.contato.nascimento)?.sol;
+        return ehSigno(sol) ? { signo: t(sol), texto: t(horoscopoDoDia(sol, hoje)) } : null;
+      })()}
       luaDoMes={luaDoMes ? { versao: hoje } : null}
       tl={textosDaLuaDoMes(t)}
       perfil={{ feito: perfilR !== null, foco }}
-      ceu={ceuDoNascimento(dados.contato.nascimento)}
+      ceu={(() => {
+        // Os signos vão traduzidos (o cálculo devolve o nome em português).
+        const c = ceuDoNascimento(dados.contato.nascimento);
+        return c ? { ...c, sol: t(c.sol), lua: t(c.lua), luaOutra: c.luaOutra ? t(c.luaOutra) : c.luaOutra } : null;
+      })()}
       tp={textosDaEntrada(t)}
       abaInicial={abaValida(aba)}
     />
