@@ -5,7 +5,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { Extra } from "./tipos";
-import { palavrasDoExtra, valorErradoDeExtra, valoresDitos } from "./valor-do-extra";
+import { palavrasDoExtra, quantidadesDitas, valorErradoDeExtra, valoresDitos } from "./valor-do-extra";
 
 const EXTRAS = [
   { name: "Pergunta nova", when: "x", price_cents: 500 },
@@ -51,5 +51,42 @@ describe("valor dito de cobrança avulsa", () => {
     expect(palavrasDoExtra("Pergunta nova")).toEqual(["pergunta"]);
     expect(palavrasDoExtra("Acompanhamento do mês")).toEqual(["acompanhamento"]);
     expect(valoresDitos("R$ 130, R$5,50, R$ 1.300 e 15 reais")).toEqual([13000, 550, 130000, 1500]);
+  });
+
+  describe("a conta fecha com a quantidade (20/10/2026: 6 perguntas cobradas como R$ 35)", () => {
+    it("⭐ o texto real é recusado, com a conta certa no motivo", () => {
+      const real =
+        "São as 6 perguntas: 5 sobre o Almerindo e 1 sobre o Alan. Fica em R$ 35 o pacote, pagamento num código só.\n[[PIX: Pergunta nova x7]]";
+      const motivo = valorErradoDeExtra(real, EXTRAS);
+      expect(motivo).toContain("6");
+      expect(motivo).toContain("x6");
+    });
+
+    it("⭐ marca certa e valor do pacote errado: recusa com o total certo", () => {
+      const motivo = valorErradoDeExtra("São as 6 perguntas. Fica em R$ 35 o pacote.\n[[PIX: Pergunta nova x6]]", EXTRAS);
+      expect(motivo).toContain("R$ 30");
+      expect(motivo).toContain("R$ 35");
+    });
+
+    it("quantidade dita e valor na mesma frase: só a conta exata passa", () => {
+      expect(valorErradoDeExtra("As três perguntas ficam R$ 20.", EXTRAS)).toContain("R$ 15");
+      expect(valorErradoDeExtra("As três perguntas ficam R$ 15.", EXTRAS)).toBeNull();
+      expect(valorErradoDeExtra("São 6 perguntas, R$ 5 cada, R$ 30 no total.", EXTRAS)).toBeNull();
+    });
+
+    it("a resposta certa com a marca passa inteira", () => {
+      const certa = "Anotei as 6 perguntas. Fica R$ 30 no total, tudo num Pix só.\n[[PIX: Pergunta nova x6]]\nAssim que o pagamento cair eu vejo aqui.";
+      expect(valorErradoDeExtra(certa, EXTRAS)).toBeNull();
+    });
+
+    it("comparar com o trabalho principal segue permitido", () => {
+      expect(valorErradoDeExtra("O trabalho é R$ 130 e as 2 perguntas ficam R$ 10.\n[[PIX: Pergunta nova x2]]", EXTRAS)).toBeNull();
+    });
+
+    it("lê quantidade em número e por extenso", () => {
+      expect(quantidadesDitas("as 6 perguntas", "pergunta")).toEqual([6]);
+      expect(quantidadesDitas("três novas perguntas", "pergunta")).toEqual([3]);
+      expect(quantidadesDitas("uma pergunta", "pergunta")).toEqual([1]);
+    });
   });
 });
