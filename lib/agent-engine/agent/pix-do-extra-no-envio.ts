@@ -11,7 +11,14 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { lerConexaoStripe, type ConexaoStripe } from '@/lib/pagamentos/conexao-stripe';
 import { VALIDADE_DO_PIX_S } from '@/lib/pagamentos/pix-na-conversa';
 import { ErroDaStripe, criarClienteStripe, type LinkCriado, type PedidoDeLink, type PedidoDePix, type PixCriado } from '@/lib/pagamentos/stripe';
-import { corpoComPixDoExtra, marcaDeExtraNoCorpo, referenciaDoExtra, slugDoExtra } from '@/lib/preco/extras';
+import {
+  corpoComPixDoExtra,
+  descricaoDaCobranca,
+  marcaDeExtraNoCorpo,
+  referenciaDoExtra,
+  slugDoExtra,
+  valorDaCobranca,
+} from '@/lib/preco/extras';
 import type { Extra } from '@/lib/preco/tipos';
 
 interface Registro {
@@ -51,10 +58,11 @@ export async function pixDoExtraNoLugarDaMarca(e: EntradaDoPixDoExtra): Promise<
       e.log.warn('cobrança avulsa não saiu — nenhuma conta de Pix conectada', { conversation_id: e.conversationId });
       return { recusa: SEM_COBRANCA };
     }
+    const valorCentavos = valorDaCobranca(marca.extra, marca.quantidade);
     const pedido: PedidoDePix = {
-      valorCentavos: marca.extra.price_cents,
-      descricao: marca.extra.name,
-      referencia: referenciaDoExtra(e.conversationId, marca.extra, e.agora ?? new Date()),
+      valorCentavos,
+      descricao: descricaoDaCobranca(marca.extra, marca.quantidade),
+      referencia: referenciaDoExtra(e.conversationId, marca.extra, e.agora ?? new Date(), marca.quantidade),
       metadados: {
         organization_id: e.organizationId,
         contact_id: e.contactId,
@@ -62,6 +70,8 @@ export async function pixDoExtraNoLugarDaMarca(e: EntradaDoPixDoExtra): Promise<
         produto: marca.extra.name,
         // É o que faz o aviso de pagamento NÃO tratar isto como a compra do produto principal.
         extra: slugDoExtra(marca.extra.name),
+        // Várias unidades num Pix só (`[[PIX: nome x3]]`): o aviso guarda a quantidade, e o turno entrega todas.
+        ...(marca.quantidade > 1 ? { quantidade: String(marca.quantidade) } : {}),
       },
       expiraEmSegundos: VALIDADE_DO_PIX_S,
     };
@@ -73,9 +83,9 @@ export async function pixDoExtraNoLugarDaMarca(e: EntradaDoPixDoExtra): Promise<
         return null;
       }),
       (e.criarLink ?? ((c, p) => criarClienteStripe(c).criarLinkDePagamento(p)))(conexao, {
-        valorCentavos: marca.extra.price_cents,
+        valorCentavos,
         moeda: 'BRL',
-        descricao: marca.extra.name,
+        descricao: pedido.descricao,
         referencia: `${pedido.referencia}-cartao`,
         metadados: pedido.metadados,
         mensagemDepoisDePagar: 'Pagamento recebido. Pode voltar à conversa: a entrega continua por lá.',
@@ -88,7 +98,8 @@ export async function pixDoExtraNoLugarDaMarca(e: EntradaDoPixDoExtra): Promise<
     e.log.info('pix de cobrança avulsa criado', {
       conversation_id: e.conversationId,
       extra: pedido.metadados.extra,
-      valor_centavos: marca.extra.price_cents,
+      valor_centavos: valorCentavos,
+      quantidade: marca.quantidade,
       cobranca: pix?.id ?? null,
       link_de_cartao: link?.id ?? null,
     });

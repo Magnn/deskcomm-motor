@@ -50,8 +50,16 @@ function blocoDaLeituraEncerrada(cartas: readonly [Carta, Carta, Carta]): string
   ].join("\n");
 }
 
+/**
+ * Como a resposta paga fala da OUTRA pessoa. Decisão do dono em 20/10/2026: quem paga a pergunta quer saber dela, e
+ * quem fala é o tarô — a resposta pode dizer o que as cartas mostram sobre o outro, sempre como leitura das cartas,
+ * nunca como certeza nem como promessa de volta, resultado ou data.
+ */
+const SOBRE_A_OUTRA_PESSOA =
+  'Se a pergunta for sobre outra pessoa, diga o que as CARTAS mostram dela ("as cartas mostram que ele…", "aqui aparece nele…"): o momento dela, o que ela tende a sentir e a fazer. É a leitura das cartas, não uma certeza: não afirme como fato, não prometa volta, resultado nem data.';
+
 /** A pergunta paga: o mesmo formato das cartas (com a foto), e no fim a resposta à pergunta, não o trabalho. */
-function blocoDaPerguntaPaga(passo: PassoDaLeitura, nome: string): string {
+function blocoDaPerguntaPaga(passo: PassoDaLeitura, nome: string, quantidade = 1): string {
   const nomes = passo.cartas.map((c) => c.nome).join(", ");
   if (passo.passo === "revelar_carta") {
     return (
@@ -66,8 +74,12 @@ function blocoDaPerguntaPaga(passo: PassoDaLeitura, nome: string): string {
     return [
       "",
       "",
-      `PERGUNTA PAGA (*${nome}*) — A RESPOSTA (as 3 cartas já foram reveladas: ${nomes})`,
-      "Agora una as 3 cartas e RESPONDA a pergunta que ela pagou, em 2 a 4 balões curtos, em português simples: o que as cartas mostram para essa pergunta e uma orientação prática para os próximos dias. Fale em tendência, sem prometer resultado nem data, e sem dizer o que outra pessoa sente ou vai fazer como certeza. NÃO ofereça trabalho nem outra cobrança neste turno. Feche perguntando se faz sentido para ela.",
+      `PERGUNTA PAGA (*${nome}*${quantidade > 1 ? `, ${quantidade} perguntas` : ""}) — A RESPOSTA (as 3 cartas já foram reveladas: ${nomes})`,
+      quantidade > 1
+        ? `Ela pagou ${quantidade} perguntas, e as 3 cartas são a mesa de todas elas. Responda AS ${quantidade}, uma por uma, na ordem em que ela listou, cada uma em 1 ou 2 balões curtos começando pela pergunta ("Sobre [a pergunta]: …"): o que as cartas mostram para ela e uma orientação prática. Fale em português simples e em tendência.`
+        : "Agora una as 3 cartas e RESPONDA a pergunta que ela pagou, em 2 a 4 balões curtos, em português simples: o que as cartas mostram para essa pergunta e uma orientação prática para os próximos dias. Fale em tendência.",
+      SOBRE_A_OUTRA_PESSOA,
+      "Depois da resposta, num balão final, SUGIRA UMA pergunta nova que nasce do que as cartas mostraram e que ela vai querer saber (curiosidade, nunca medo), e pergunte se ela quer que você abra a mesa pra ela. Não mande cobrança neste turno: só se ela disser que quer.",
     ].join("\n");
   }
   return [
@@ -82,9 +94,9 @@ function blocoDaPerguntaPaga(passo: PassoDaLeitura, nome: string): string {
  * O bloco pra ESTE turno. `""` quando não há leitura na conversa. `pergunta`: esta é a rodada de uma pergunta
  * PAGA (`perguntaPagaRecente`), com o nome da cobrança.
  */
-export function blocoDaLeitura(passo: PassoDaLeitura | null, pergunta?: { nome: string } | null): string {
+export function blocoDaLeitura(passo: PassoDaLeitura | null, pergunta?: { nome: string; quantidade?: number } | null): string {
   if (passo === null) return "";
-  if (pergunta) return blocoDaPerguntaPaga(passo, pergunta.nome);
+  if (pergunta) return blocoDaPerguntaPaga(passo, pergunta.nome, pergunta.quantidade ?? 1);
   if (passo.passo === "revelar_carta") return blocoDaCartaRevelada(passo.indice, passo.carta);
   if (passo.passo === "encerrada") return blocoDaLeituraEncerrada(passo.cartas);
   return blocoDaCausaRaiz(passo.cartas);
