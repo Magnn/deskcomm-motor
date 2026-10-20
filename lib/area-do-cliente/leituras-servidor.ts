@@ -15,6 +15,7 @@ import { logger } from "@/lib/logger";
 
 import { diaNoFuso, fotoDaCarta } from "./dados";
 import { registrarEvento } from "./eventos";
+import { montarGrimorio, type CartaDoGrimorio } from "./grimorio";
 import {
   LIMITE_POR_DIA_PADRAO,
   MODALIDADES,
@@ -116,6 +117,30 @@ export async function jaPagouNaModalidade(
     .eq("modalidade", modalidade)
     .not("pago_at", "is", null);
   return (count ?? 0) > 0;
+}
+
+/** Uma carta do Grimório já com a foto (só o Tarot tem foto por carta). */
+export type CartaDoGrimorioNaTela = CartaDoGrimorio & { foto: string | null };
+
+/**
+ * O Grimório (`grimorio.ts`): todas as leituras PAGAS e reveladas dela, não só as 12 que a Mesa lista. Teto de 300
+ * leituras para a página não pesar; as fotos só das cartas que aparecem.
+ */
+export async function carregarGrimorio(admin: SupabaseClient, orgId: string, contactId: string): Promise<CartaDoGrimorioNaTela[]> {
+  const { data } = await admin
+    .from("area_leituras")
+    .select("modalidade, pergunta, cartas, created_at")
+    .eq("organization_id", orgId)
+    .eq("contact_id", contactId)
+    .not("pago_at", "is", null)
+    .order("created_at", { ascending: false })
+    .limit(300);
+  const leituras = ((data ?? []) as Array<Pick<Linha, "modalidade" | "pergunta" | "cartas" | "created_at">>)
+    .filter((l) => ehModalidade(l.modalidade))
+    .map((l) => ({ modalidade: l.modalidade as Modalidade, pergunta: l.pergunta, quando: l.created_at, cartas: lerCartas(l.cartas) }))
+    .filter((l) => l.cartas.length > 0);
+  const cartas = montarGrimorio(leituras);
+  return Promise.all(cartas.map(async (c) => ({ ...c, foto: c.modalidade === "tarot" ? await fotoDaCarta(admin, orgId, c.id) : null })));
 }
 
 export async function carregarMesa(
