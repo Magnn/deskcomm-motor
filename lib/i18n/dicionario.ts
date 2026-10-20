@@ -14908,6 +14908,10 @@ export const DICIONARIO: Traducoes = {
   "Capricórnio": { es: "Capricornio" },
   "Aquário": { es: "Acuario" },
   "Peixes": { es: "Piscis" },
+  // A área do cliente na noite: os textos que deixaram de falar como sistema.
+  "Escreva para a gente. A resposta chega aqui mesmo.": { es: "Escríbenos. La respuesta llega aquí mismo." },
+  "As cartas abrem na hora, com a leitura escrita para você, nos métodos de": { es: "Las cartas se abren al momento, con la lectura escrita para ti, según los métodos de" },
+  "Leituras que você ainda pode abrir hoje:": { es: "Lecturas que todavía puedes abrir hoy:" },
 };
 
 /**

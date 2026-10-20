@@ -95,6 +95,15 @@ export const CONSULTA_DE_CANDIDATAS = `
         and e.event_type = 'ai_agent.dispatch_requested'
         and e.entity_id = u.id
         and e.status in ('pending', 'processing'))
+    -- A pessoa está DENTRO de um fluxo que espera a resposta dela: quem responde é o fluxo, no relógio dele.
+    -- Medido em 20/10/2026: o resgate acordou a agente para uma lead no meio do fluxo de entrada, e as duas
+    -- vozes falaram ao mesmo tempo. Fluxo ESTACIONADO (o próximo passo só daqui a dias) não conta: ali o fluxo
+    -- desistiu, e a agente é a rede que sobra.
+    and not exists (
+      select 1 from followup_enrollments f
+      where f.organization_id = u.organization_id and f.contact_id = u.contact_id
+        and f.status in ('active', 'waiting_reply')
+        and f.next_eval_at < now() + interval '1 day')
     -- Silêncio de propósito: o turno que viu esta mensagem terminou sem responder porque a conversa gratuita
     -- acabou (conversa-gratuita.ts). Reemitir o atendimento ou chamar uma pessoa desfaria a regra.
     and not exists (
