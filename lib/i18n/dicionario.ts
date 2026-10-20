@@ -14835,6 +14835,12 @@ export const DICIONARIO: Traducoes = {
   "saiu {n} vezes": { es: "salió {n} veces" },
   "Última vez, na pergunta:": { es: "Última vez, en la pregunta:" },
   "Ver todas": { es: "Ver todas" },
+  // O que você recebe, antes de pagar a leitura da Mesa.
+  "Você recebe": { es: "Recibes" },
+  "As cartas tiradas para a sua pergunta, reveladas uma a uma": { es: "Las cartas sacadas para tu pregunta, reveladas una a una" },
+  "A leitura escrita na hora, só para você": { es: "La lectura escrita al momento, solo para ti" },
+  "A leitura em voz, para ouvir quando quiser": { es: "La lectura en voz, para escuchar cuando quieras" },
+  "Tudo guardado aqui na sua área e no seu grimório": { es: "Todo guardado aquí en tu área y en tu grimorio" },
   // Sua lua do mês.
   "A lua de": { es: "La luna de" },
   "Minha lua": { es: "Mi luna" },

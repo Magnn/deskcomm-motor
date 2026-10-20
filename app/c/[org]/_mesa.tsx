@@ -41,6 +41,11 @@ export interface TextosDaMesa {
   copiarCodigo: string;
   codigoCopiado: string;
   embaralhando: string;
+  recebeTitulo: string;
+  recebeCartas: string;
+  recebeLeitura: string;
+  recebeVoz: string;
+  recebeGuardada: string;
   respire: string;
   respireDica: string;
   pularRitual: string;
@@ -483,6 +488,18 @@ export function MesaDeLeituras({
           </div>
         ) : null}
         <p className="text-xs leading-relaxed text-[#b7aecb]">{tm.dicaDaPergunta}</p>
+        {/* O QUE ELA RECEBE antes do preço (o modelo Airbnb): o valor vem antes de pedir o pagamento. */}
+        <div className="rounded-2xl border border-white/10 bg-white/[0.05] p-4" data-testid="mesa-o-que-recebe">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#c9a54e]">{tm.recebeTitulo}</p>
+          <ul className="mt-2 space-y-1.5 text-[14px] leading-snug text-[#f6f0e4]">
+            {[tm.recebeCartas, tm.recebeLeitura, ...(inicial.narrar ? [tm.recebeVoz] : []), tm.recebeGuardada].map((item) => (
+              <li key={item} className="flex gap-2">
+                <Check className="mt-0.5 size-4 shrink-0 text-[#c9a54e]" aria-hidden />
+                <span>{item}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
         <p className="text-sm text-[#f0dca8]">{m?.primeira ? `${tm.primeiraPor} ${m.preco}` : `${tm.leituraPor} ${m?.preco}`}</p>
         {comCreditos && m ? (
           <div className="space-y-2">
