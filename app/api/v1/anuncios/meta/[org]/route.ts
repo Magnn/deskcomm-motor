@@ -69,7 +69,7 @@ async function leadPeloServidor(
   admin: ReturnType<typeof createAdminClient>,
   organizationId: string,
   parametros: URLSearchParams,
-  cliente: { ip: string | null; ua: string | null; pagina: string | null },
+  cliente: { ip: string | null; ua: string | null; pagina: string | null; origem: string },
 ): Promise<void> {
   const eventoId = parametros.get("_eid");
   // Sem o id do navegador, mandar daria duas contagens para o mesmo clique: melhor não mandar.
@@ -87,7 +87,7 @@ async function leadPeloServidor(
       cliqueDeOrigem: "",
       telefone: null,
       pixelDoSite: true,
-      paginaDoSite: cliente.pagina?.slice(0, 500) || "https://acassia.tech/",
+      paginaDoSite: cliente.pagina?.slice(0, 500) || cliente.origem,
       fbc: fbcDoClique(query, new Date().toISOString()),
       fbp: typeof query._fbp === "string" && /^[\w.-]{8,300}$/.test(query._fbp) ? query._fbp : null,
       cliente: { ip: cliente.ip, ua: cliente.ua },
@@ -171,7 +171,7 @@ export async function GET(req: NextRequest, ctx: RouteContext): Promise<Response
   });
   // O LEAD PELO SERVIDOR, com o MESMO id do evento do navegador (`_eid`, gerado pela página): o que o bloqueador
   // ou o iPhone cortou do pixel chega por aqui, e a Meta deduplica o que vier pelos dois.
-  await leadPeloServidor(admin, organizationId, parametros, { ip, ua, pagina: req.headers.get("referer") });
+  await leadPeloServidor(admin, organizationId, parametros, { ip, ua, pagina: req.headers.get("referer"), origem: new URL(req.url).origin });
   if (!criado) {
     // Falha ao gravar: mesma régua — a pessoa não paga o preço de um erro
     // nosso, só a atribuição é que se perde.
