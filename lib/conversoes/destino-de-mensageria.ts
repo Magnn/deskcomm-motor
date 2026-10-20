@@ -78,6 +78,7 @@ export type DestinoDaConversao =
       /** No pixel do site: o clique (`fbc`) e o navegador (`fbp`) da landing, quando a pessoa veio por ela. */
       fbc?: string | null;
       fbp?: string | null;
+      cliente?: { ip: string | null; ua: string | null } | null;
     }
   | { ok: false; motivo: "conjunto_de_dados_indisponivel"; detalhe?: string };
 
@@ -102,7 +103,7 @@ async function cliqueDaLanding(
   admin: SupabaseClient,
   organizationId: string,
   contactId: string,
-): Promise<{ fbc: string | null; fbp: string | null }> {
+): Promise<{ fbc: string | null; fbp: string | null; cliente: { ip: string | null; ua: string | null } | null }> {
   const { data } = await admin
     .from("meta_ads_click_refs")
     .select("query_raw, created_at")
@@ -112,9 +113,12 @@ async function cliqueDaLanding(
     .limit(1)
     .maybeSingle();
   const linha = data as { query_raw: Record<string, unknown> | null; created_at: string } | null;
-  if (!linha) return { fbc: null, fbp: null };
+  if (!linha) return { fbc: null, fbp: null, cliente: null };
   const query = linha.query_raw ?? {};
-  return { fbc: fbcDoClique(query, linha.created_at), fbp: parametroSeguro(query._fbp) };
+  // `__ip`/`__ua` não vêm da página: a rota de captura os grava ao receber o clique (ver a rota).
+  const ip = typeof query.__ip === "string" ? query.__ip.slice(0, 64) : null;
+  const ua = typeof query.__ua === "string" ? query.__ua.slice(0, 400) : null;
+  return { fbc: fbcDoClique(query, linha.created_at), fbp: parametroSeguro(query._fbp), cliente: ip || ua ? { ip, ua } : null };
 }
 
 /**
@@ -146,7 +150,7 @@ export async function destinoDaConversaoMeta(
   if (mensageria.motivo === "conjunto_de_dados_indisponivel") {
     return { ok: false, motivo: "conjunto_de_dados_indisponivel", detalhe: mensageria.detalhe };
   }
-  const clique = await cliqueDaLanding(admin, organizationId, contactId).catch(() => ({ fbc: null, fbp: null }));
+  const clique = await cliqueDaLanding(admin, organizationId, contactId).catch(() => ({ fbc: null, fbp: null, cliente: null }));
   return { ok: true, credencial: daTela, contaDoWhatsApp: null, pixelDoSite: true, ...clique };
 }
 

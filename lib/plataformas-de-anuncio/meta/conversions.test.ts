@@ -55,6 +55,26 @@ describe("transporteMeta", () => {
     expect(ev.custom_data).toEqual({ value: 130, currency: "BRL" });
   });
 
+  it("⭐ o Lead da página pelo servidor: website, com a página, IP, navegador, fbc e o mesmo id do navegador", async () => {
+    const f = vi.fn(async () => new Response("{}", { status: 200 }));
+    vi.stubGlobal("fetch", f);
+    await transporteMeta.enviar(CRED, {
+      ...BASE,
+      evento: "Lead",
+      eventoId: "eid-1234-abcd",
+      telefone: null,
+      valorCentavos: null,
+      pixelDoSite: true,
+      paginaDoSite: "https://acassia.tech/presel/",
+      fbc: "fb.1.1760000000000.IwAR0abc",
+      cliente: { ip: "200.1.2.3", ua: "Mozilla/5.0" },
+    });
+    const ev = corpoEnviado(f).data[0]!;
+    expect(ev).toMatchObject({ event_name: "Lead", event_id: "eid-1234-abcd", action_source: "website", event_source_url: "https://acassia.tech/presel/" });
+    expect(ev).not.toHaveProperty("custom_data");
+    expect(ev.user_data).toMatchObject({ client_ip_address: "200.1.2.3", client_user_agent: "Mozilla/5.0", fbc: "fb.1.1760000000000.IwAR0abc" });
+  });
+
   it("⭐ pixel do site com o clique da landing: fbc e fbp vão em claro, ligando a venda ao anúncio", async () => {
     const f = vi.fn(async () => new Response("{}", { status: 200 }));
     vi.stubGlobal("fetch", f);
