@@ -104,6 +104,8 @@ export async function reportarEventoDaConversa(
 
   let contaDoWhatsApp: string | null = null;
   let pixelDoSite = false;
+  let fbc: string | null = null;
+  let fbp: string | null = null;
   let credencialDoEnvio = credencial.credencial;
   if (plataforma === "meta_ads") {
     // Fora de número oficial, o passo vai para o pixel do site (`destinoDaConversaoMeta`).
@@ -111,6 +113,8 @@ export async function reportarEventoDaConversa(
     if (!destino.ok) return { status: "skipped", motivo: destino.motivo };
     contaDoWhatsApp = destino.contaDoWhatsApp;
     pixelDoSite = destino.pixelDoSite;
+    fbc = destino.fbc ?? null;
+    fbp = destino.fbp ?? null;
     credencialDoEnvio = destino.credencial;
   }
 
@@ -124,6 +128,8 @@ export async function reportarEventoDaConversa(
     telefone,
     contaDoWhatsApp,
     pixelDoSite,
+    fbc,
+    fbp,
     moeda: "BRL",
     valorCentavos: null,
   };

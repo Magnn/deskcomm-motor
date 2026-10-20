@@ -93,6 +93,8 @@ export async function reportarCompraAvulsa(
     }
     let contaDoWhatsApp: string | null = null;
     let pixelDoSite = false;
+  let fbc: string | null = null;
+  let fbp: string | null = null;
     let credencialDoEnvio = credencial.credencial;
     if (plataforma === "meta_ads") {
       // Fora de número oficial, a venda vai para o pixel do site (`destinoDaConversaoMeta`).
@@ -103,6 +105,8 @@ export async function reportarCompraAvulsa(
       }
       contaDoWhatsApp = destino.contaDoWhatsApp;
       pixelDoSite = destino.pixelDoSite;
+      fbc = destino.fbc ?? null;
+      fbp = destino.fbp ?? null;
       credencialDoEnvio = destino.credencial;
     }
 
@@ -116,6 +120,8 @@ export async function reportarCompraAvulsa(
       telefone,
       contaDoWhatsApp,
       pixelDoSite,
+      fbc,
+      fbp,
       moeda: compra.moeda,
       valorCentavos: compra.valorCentavos,
     };

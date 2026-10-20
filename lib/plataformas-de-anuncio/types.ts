@@ -100,6 +100,12 @@ export interface ConversaoOffline {
    * pessoa pelo telefone e serve para a plataforma conhecer quem compra (público de compradores, semelhantes).
    */
   pixelDoSite?: boolean;
+  /**
+   * O clique e o navegador capturados na landing (`_fbc`/`fbclid` e `_fbp`, guardados no `[ref:]` do botão de
+   * WhatsApp). No pixel do site, são eles que ligam a venda ao anúncio — o telefone sozinho só diz quem comprou.
+   */
+  fbc?: string | null;
+  fbp?: string | null;
   /** `null` = evento sem valor (só `Purchase` o exige — e quem o monta recusa antes de chegar aqui). */
   valorCentavos: number | null;
   moeda: string;

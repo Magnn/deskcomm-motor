@@ -104,6 +104,9 @@ async function enviar(
   // string crua onde ele espera lista é aceito com aviso e ignorado no match.
   if (conversao.telefone) userData.ph = [hash(conversao.telefone)];
   if (conversao.pixelDoSite && conversao.telefone?.startsWith("55")) userData.country = [hash("br")];
+  // Clique e navegador da landing: vão EM CLARO (a plataforma não aceita hash nestes dois campos).
+  if (conversao.pixelDoSite && conversao.fbc) userData.fbc = conversao.fbc;
+  if (conversao.pixelDoSite && conversao.fbp) userData.fbp = conversao.fbp;
 
   const corpo: Record<string, unknown> = {
     data: [

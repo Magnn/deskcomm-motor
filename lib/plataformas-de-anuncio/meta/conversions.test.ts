@@ -54,4 +54,13 @@ describe("transporteMeta", () => {
     expect((ud.country as string[])[0]).toMatch(/^[0-9a-f]{64}$/);
     expect(ev.custom_data).toEqual({ value: 130, currency: "BRL" });
   });
+
+  it("⭐ pixel do site com o clique da landing: fbc e fbp vão em claro, ligando a venda ao anúncio", async () => {
+    const f = vi.fn(async () => new Response("{}", { status: 200 }));
+    vi.stubGlobal("fetch", f);
+    await transporteMeta.enviar(CRED, { ...BASE, pixelDoSite: true, fbc: "fb.1.1760000000000.IwAR0abc", fbp: "fb.1.1760000000000.123456789" });
+    const ud = corpoEnviado(f).data[0]!.user_data as Record<string, unknown>;
+    expect(ud.fbc).toBe("fb.1.1760000000000.IwAR0abc");
+    expect(ud.fbp).toBe("fb.1.1760000000000.123456789");
+  });
 });
