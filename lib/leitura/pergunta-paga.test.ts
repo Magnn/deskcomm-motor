@@ -81,6 +81,29 @@ describe("pergunta paga: rodada própria da leitura", () => {
     expect(blocoDaLeitura(fim, { nome: "Pergunta nova" })).toContain("cobre de novo");
   });
 
+  it("⭐ três perguntas pagas num Pix só: a mesma mesa responde as três, uma por uma, e a quantidade chega ao bloco", () => {
+    const agora = new Date("2026-10-19T20:30:00Z");
+    const pagas = perguntaPagaRecente(EXTRAS, [{ slug: "pergunta-nova", hora: "20:10", dia: "19/10", minutosAtras: 20, diasAtras: 0, quantidade: 3 }], agora);
+    expect(pagas?.quantidade).toBe(3);
+    const cartasPagas = [
+      sai("CARTA 1: A Estrela\n…", "2026-10-19T20:16:00Z"),
+      chega("ok", "2026-10-19T20:17:00Z"),
+      sai("CARTA 2: A Torre\n…", "2026-10-19T20:18:00Z"),
+      chega("ok", "2026-10-19T20:19:00Z"),
+      sai("CARTA 3: O Mundo\n…", "2026-10-19T20:20:00Z"),
+      chega("e então?", "2026-10-19T20:21:00Z"),
+    ];
+    const resposta = passoDaLeitura("org:lead:paga", [...LEITURA_GRATIS, ...DEPOIS_DO_PAGAMENTO, ...cartasPagas], PAGOU_AS);
+    const bloco = blocoDaLeitura(resposta, { nome: "Pergunta nova", quantidade: 3 });
+    expect(bloco).toContain("Pergunta nova*, 3 perguntas");
+    expect(bloco).toContain("Responda AS 3, uma por uma");
+    // Decisão do dono (20/10): o tarô pode falar da outra pessoa — como leitura das cartas, sem promessa.
+    expect(bloco).toContain("diga o que as CARTAS mostram dela");
+    expect(bloco).toContain("não prometa volta, resultado nem data");
+    // E a resposta já planta a próxima pergunta, sem cobrar no mesmo turno.
+    expect(bloco).toContain("SUGIRA UMA pergunta nova");
+  });
+
   it("quem abre leitura: a pergunta (pelo nome ou explícito); sinastria e acompanhamento não", () => {
     expect(abreLeitura({ name: "Pergunta nova" })).toBe(true);
     expect(abreLeitura({ name: "Sinastria Amorosa" })).toBe(false);

@@ -127,6 +127,7 @@ import {
   INSTRUCAO_DE_MENSAGEM_UNICA,
   ultimoTipoDeCobrancaDoContato,
 } from './economia-de-mensagem-cobrada';
+import { blocoDoAcompanhamentoIncluso } from '@/lib/entrega/acompanhamento-incluso';
 import { blocoDaCompraConfirmadaSemGuia, carregarGuiaDeEntrega, trabalhoPagoDasTags } from '@/lib/entrega/guia-de-entrega';
 import { blocoDaLeitura } from '@/lib/leitura/bloco-do-prompt';
 import { blocoDoAnuncio, carregarAnuncioDoContato } from '@/lib/anuncio/contexto-do-anuncio';
@@ -2603,8 +2604,9 @@ async function executarTurnoDoAgente(
   if (extrasDoTurno.length > 0) {
     try {
       // Lê até o maior período pago entre os extras (um acompanhamento de 30 dias vale 30 dias, não 24 horas).
-      const { rows } = await pool.query<{ slug: string; hora: string; dia: string; dias_atras: number; minutos_atras: number }>(
+      const { rows } = await pool.query<{ slug: string; hora: string; dia: string; dias_atras: number; minutos_atras: number; quantidade: number }>(
         `select metadata->>'extra' as slug, to_char(occurred_at at time zone $3, 'HH24:MI') as hora,
+                case when metadata->>'quantidade' ~ '^[0-9]{1,2}$' then (metadata->>'quantidade')::int else 1 end as quantidade,
                 to_char(occurred_at at time zone $3, 'DD/MM') as dia,
                 floor(extract(epoch from (now() - occurred_at)) / 86400)::int as dias_atras,
                 floor(extract(epoch from (now() - occurred_at)) / 60)::int as minutos_atras
@@ -2614,14 +2616,37 @@ async function executarTurnoDoAgente(
           order by occurred_at desc limit 8`,
         [tenantId, leadId, fusoDaOrg, janelaDeLeituraDosExtras(extrasDoTurno)],
       );
-      extrasPagosNoTurno = rows.map((r) => ({ slug: r.slug, hora: r.hora, dia: r.dia, diasAtras: r.dias_atras, minutosAtras: r.minutos_atras }));
+      extrasPagosNoTurno = rows.map((r) => ({ slug: r.slug, hora: r.hora, dia: r.dia, diasAtras: r.dias_atras, minutosAtras: r.minutos_atras, quantidade: r.quantidade }));
     } catch (err) {
       runLog.warn('não consegui ler as cobranças avulsas pagas — o turno segue sem elas', {
         error: (err instanceof Error ? err.message : String(err)).slice(0, 120),
       });
     }
   }
-  const blocoDosExtrasDoTurno = blocoDosExtras(extrasDoTurno, extrasPagosNoTurno);
+  // O ACOMPANHAMENTO INCLUSO (`lib/entrega/acompanhamento-incluso.ts`): 7 dias depois da compra do trabalho, a conversa
+  // diária vira o Acompanhamento pago. A data é a da última compra do trabalho (receita sem `extra`); sem receita
+  // (compra antiga, marcada à mão), a idade do contato.
+  let diasDesdeACompra: number | null = null;
+  if (!preview && tagsDoContato.includes('pago') && extrasDoTurno.length > 0) {
+    try {
+      const { rows } = await pool.query<{ dias: number | null }>(
+        `select coalesce(
+                  (select floor(extract(epoch from (now() - max(l.occurred_at))) / 86400)::int from revenue_ledger l
+                    where l.organization_id = $1 and l.contact_id = $2 and l.event_type = 'charge' and not (l.metadata ? 'extra')),
+                  (select floor(extract(epoch from (now() - c.created_at)) / 86400)::int from contacts c
+                    where c.organization_id = $1 and c.id = $2)) as dias`,
+        [tenantId, leadId],
+      );
+      diasDesdeACompra = rows[0]?.dias ?? null;
+    } catch (err) {
+      runLog.warn('não consegui ler a data da compra — o acompanhamento incluso segue sem prazo neste turno', {
+        error: (err instanceof Error ? err.message : String(err)).slice(0, 120),
+      });
+    }
+  }
+  const blocoDosExtrasDoTurno =
+    blocoDosExtras(extrasDoTurno, extrasPagosNoTurno) +
+    blocoDoAcompanhamentoIncluso({ comprou: tagsDoContato.includes('pago'), diasDesdeACompra, extras: extrasDoTurno, pagos: extrasPagosNoTurno });
   // O LIMITE DA CONVERSA GRATUITA (`conversa-gratuita.ts`): quem ouviu a oferta, não comprou e não tem nada pago
   // valendo recebe um número de respostas de graça; depois disso, uma resposta curta com os caminhos pagos.
   const temExtraValendo = extrasPagosNoTurno.some((p) => {
@@ -2770,7 +2795,10 @@ async function executarTurnoDoAgente(
   const passoDaLeituraNoTurno = perguntaPagaNoTurno
     ? passoDaLeitura(`${tenantId}:${leadId}:${perguntaPagaNoTurno.chave}`, openingContext.context.messages, perguntaPagaNoTurno.pagoEm)
     : passoDaLeitura(`${tenantId}:${leadId}`, openingContext.context.messages);
-  const blocoDaLeituraDoTurno = blocoDaLeitura(passoDaLeituraNoTurno, perguntaPagaNoTurno ? { nome: perguntaPagaNoTurno.extra.name } : null);
+  const blocoDaLeituraDoTurno = blocoDaLeitura(
+    passoDaLeituraNoTurno,
+    perguntaPagaNoTurno ? { nome: perguntaPagaNoTurno.extra.name, quantidade: perguntaPagaNoTurno.quantidade } : null,
+  );
   // Depois que uma carta sai neste turno, os balões seguintes podem comentá-la (`recusaDaCartaForaDoSorteio`).
   let cartaReveladaNoTurno = false;
   if (perguntaPagaNoTurno) {
