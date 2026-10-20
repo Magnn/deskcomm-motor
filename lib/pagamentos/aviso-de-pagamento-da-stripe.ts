@@ -167,6 +167,8 @@ export async function aplicarAvisoDePagamentoDaStripe(
           metodo: metodoDaCobranca,
           conversa: meta.conversation_id ?? null,
           extra,
+          // Várias unidades num Pix só (`[[PIX: nome x3]]`, `lib/preco/extras.ts`).
+          ...(typeof meta.quantidade === "string" && /^(?:[2-9]|10)$/.test(meta.quantidade) ? { quantidade: Number(meta.quantidade) } : {}),
           ...(taxaDaPlataforma !== null ? { taxa_da_plataforma_cents: taxaDaPlataforma } : {}),
         },
       });

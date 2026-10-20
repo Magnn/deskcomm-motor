@@ -121,6 +121,37 @@ describe("pixDoExtraNoLugarDaMarca", () => {
     expect("corpo" in soCartao && soCartao.corpo).not.toContain("[[");
   });
 
+  it("⭐ várias perguntas num Pix só: [[PIX: Pergunta nova x3]] cobra 3 vezes o valor, com a quantidade nos metadados", async () => {
+    const criarPix = vi.fn(async (_c: unknown, _p: unknown) => pix);
+    const criarLink = vi.fn(async (_c: unknown, _p: unknown) => ({ id: "plink_1", url: "https://buy.exemplo.com/cartao" }));
+    const saida = await pixDoExtraNoLugarDaMarca({ ...base, corpo: "Anotei as três.\n\n[[PIX: Pergunta nova x3]]", criarPix, criarLink });
+    const corpo = "corpo" in saida ? saida.corpo : "";
+    expect(corpo).toContain("Valor: *R$ 45* (3× Pergunta nova).");
+    expect(corpo).not.toContain("[[");
+    expect(criarPix.mock.calls[0]![1]).toMatchObject({
+      valorCentavos: 4500,
+      descricao: "3× Pergunta nova",
+      metadados: { extra: "pergunta-nova", quantidade: "3" },
+    });
+    expect(criarLink.mock.calls[0]![1]).toMatchObject({ valorCentavos: 4500, metadados: { quantidade: "3" } });
+    // Uma unidade continua sem `quantidade`: o aviso de pagamento lê a ausência como uma.
+    const uma = vi.fn(async (_c: unknown, _p: unknown) => pix);
+    await pixDoExtraNoLugarDaMarca({ ...base, corpo: "[[PIX: Pergunta nova x1]]", criarPix: uma });
+    expect((uma.mock.calls[0]![1] as { metadados: Record<string, string> }).metadados.quantidade).toBeUndefined();
+  });
+
+  it("a quantidade tem teto e não vale para cobrança de período", async () => {
+    const onze = await pixDoExtraNoLugarDaMarca({ ...base, corpo: "[[PIX: Pergunta nova x11]]", criarPix: vi.fn() });
+    const periodo = await pixDoExtraNoLugarDaMarca({
+      ...base,
+      extras: [{ ...ACOMPANHAMENTO, valid_days: 30 }],
+      corpo: "[[PIX: Acompanhamento próximo x2]]",
+      criarPix: vi.fn(),
+    });
+    expect("recusa" in onze && onze.recusa).toContain("de 1 a 10");
+    expect("recusa" in periodo && periodo.recusa).toContain("não se cobra em quantidade");
+  });
+
   it("sem marca, o corpo passa intacto e ninguém é chamado", async () => {
     const criarPix = vi.fn();
     expect(await pixDoExtraNoLugarDaMarca({ ...base, corpo: "Me conta mais.", criarPix })).toEqual({ corpo: "Me conta mais." });
@@ -172,6 +203,24 @@ describe("extra com período (acompanhamento de 30 dias)", () => {
     const { blocoDosExtras: bloco } = await import("./extras");
     expect(bloco([MENSAL], [{ slug: "acompanhamento-do-mes", hora: "10:00", dia: "01/09", diasAtras: 30 }])).not.toContain("ATIVO");
     expect(bloco([PERGUNTA, MENSAL], [{ slug: "pergunta-nova", hora: "10:00", dia: "10/10", diasAtras: 2 }])).not.toContain("PAGAMENTO CONFIRMADO PELO SISTEMA");
+  });
+});
+
+describe("várias unidades pagas", () => {
+  it("⭐ o bloco ensina a cobrar tudo de uma vez e, pago, diz quantas entregar", () => {
+    const antes = blocoDosExtras([PERGUNTA]);
+    expect(antes).toContain("[[PIX: nome x3]]");
+    expect(antes).toContain("Nunca cobre uma, responda, e cobre a próxima");
+    const pago = blocoDosExtras([PERGUNTA], [{ slug: "pergunta-nova", hora: "10:00", minutosAtras: 3, quantidade: 3 }]);
+    expect(pago).toContain("ela pagou *3× Pergunta nova* há 3 min. São 3: entregue as 3");
+  });
+
+  it("a referência de uma unidade não muda; a de várias é outra", () => {
+    const agora = new Date("2026-10-20T12:00:00Z");
+    const extra = { ...PERGUNTA };
+    expect(referenciaDoExtra("c", extra, agora)).toBe(referenciaDoExtra("c", extra, agora, 1));
+    expect(referenciaDoExtra("c", extra, agora, 3)).not.toBe(referenciaDoExtra("c", extra, agora));
+    expect(marcaDeExtraNoCorpo("[[PIX: Pergunta nova × 2]]", [extra])).toMatchObject({ tipo: "uma", quantidade: 2 });
   });
 });
 
