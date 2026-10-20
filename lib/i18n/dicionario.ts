@@ -14829,6 +14829,12 @@ export const DICIONARIO: Traducoes = {
   "Como foi desde então? Anote no seu diário aqui embaixo, ou leve uma nova pergunta à mesa.": { es: "¿Cómo te fue desde entonces? Anótalo en tu diario aquí abajo, o lleva una nueva pregunta a la mesa." },
   "Voltar à mesa": { es: "Volver a la mesa" },
   "Mais para hoje": { es: "Más para hoy" },
+  // O Grimório da área.
+  "Seu grimório": { es: "Tu grimorio" },
+  "As cartas que já saíram para você. Toque numa para lembrar o que ela disse.": { es: "Las cartas que ya salieron para ti. Toca una para recordar lo que dijo." },
+  "saiu {n} vezes": { es: "salió {n} veces" },
+  "Última vez, na pergunta:": { es: "Última vez, en la pregunta:" },
+  "Ver todas": { es: "Ver todas" },
 };
 
 /**

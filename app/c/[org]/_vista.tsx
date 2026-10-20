@@ -32,6 +32,7 @@ import { AvisoDiario, type TextosDoAviso } from "./_aviso";
 import { CarteiraDeCreditos, type CarteiraInicial, type TextosDaCarteira } from "./_carteira";
 import { CirculoDoCliente } from "./_circulo";
 import { EntradaDaArea, type TextosDaEntrada } from "./_entrada";
+import { GrimorioDaArea, type CartaNoGrimorio, type TextosDoGrimorio } from "./_grimorio";
 import { EtapaDeHoje, EtapasDaArea, LinhasDoTempo, type TextosDasEtapas } from "./_etapas";
 import { MesaDeLeituras, type MesaInicial, type TextosDaMesa } from "./_mesa";
 import { LuaDeHoje } from "./_lua";
@@ -148,6 +149,9 @@ export interface VistaDaAreaProps {
   /** A contribuição voluntária; `null` = desligada. */
   contribuicao: { minimoCents: number; minimo: string } | null;
   ts: TextosDasSimpatias;
+  /** O Grimório (`_grimorio.tsx`): as cartas que já saíram nas leituras pagas dela. Vazio = não aparece. */
+  grimorio: CartaNoGrimorio[];
+  tg: TextosDoGrimorio;
   /** A entrada com 3 perguntas (`_entrada.tsx`): `feito` = respondida ou pulada. */
   perfil: { feito: boolean; foco: Foco | null };
   /** O Sol e a Lua do nascimento, quando a área sabe a data. */
@@ -509,6 +513,8 @@ export function VistaDaArea(p: VistaDaAreaProps) {
       <div className={corpo}>
         {p.carteira ? <CarteiraDeCreditos slug={slug} cor={cor} tx={tx} tc={p.tc} inicial={p.carteira} tag={tag} /> : null}
         {p.mesa ? <MesaDeLeituras slug={slug} cor={cor} tx={tx} tm={p.tm} inicial={p.mesa} sugestoes={p.perfil.foco ? PERGUNTAS_DO_FOCO[p.perfil.foco].map((q) => t(q)) : []} whatsapp={p.whatsapp} tag={tag} /> : null}
+
+        <GrimorioDaArea cartas={p.grimorio} tg={p.tg} />
 
         {p.anoPessoal ? <AnoPessoalDoCliente slug={slug} cor={cor} tx={tx} to={to} {...p.anoPessoal} /> : null}
 

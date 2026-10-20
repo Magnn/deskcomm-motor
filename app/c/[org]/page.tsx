@@ -19,7 +19,7 @@ import { caminhoDoPresente } from "@/lib/area-do-cliente/presente";
 import { MENSAGEM_DO_DIA, cartaDoDia } from "@/lib/area-do-cliente/carta-do-dia";
 import { DIAS_DO_AVISO_DE_RENOVACAO, assinaturaAtiva, diasRestantes, lerAssinatura, mesDoDia } from "@/lib/area-do-cliente/circulo";
 import { carregarDadosDaArea, diaNoFuso, fotoDaCarta } from "@/lib/area-do-cliente/dados";
-import { CARTAS_NA_MESA } from "@/lib/area-do-cliente/leituras";
+import { CARTAS_NA_MESA, NOME_DA_MODALIDADE } from "@/lib/area-do-cliente/leituras";
 import { configDosAvisos, convidarParaOAviso } from "@/lib/area-do-cliente/avisos";
 import { ceuDoNascimento } from "@/lib/area-do-cliente/ceu";
 import { bonusDoPacote, creditosDoPreco, pacoteEmDestaque } from "@/lib/area-do-cliente/creditos";
@@ -27,7 +27,7 @@ import { carregarCarteira, configDosCreditos } from "@/lib/area-do-cliente/credi
 import { destaqueDeHoje, fraseDoDia, lembrancaDaMesa } from "@/lib/area-do-cliente/hoje";
 import { ehFoco, type Foco } from "@/lib/area-do-cliente/perfil";
 import { vePassoAPasso } from "@/lib/area-do-cliente/simpatias";
-import { carregarMesa, configDasLeituras } from "@/lib/area-do-cliente/leituras-servidor";
+import { carregarGrimorio, carregarMesa, configDasLeituras } from "@/lib/area-do-cliente/leituras-servidor";
 import { abaValida } from "@/lib/area-do-cliente/abas";
 import { COR_PADRAO_DA_AREA } from "@/lib/area-do-cliente/config";
 import { registrarEvento } from "@/lib/area-do-cliente/eventos";
@@ -40,7 +40,7 @@ import { vapidPronto } from "@/lib/notifications/vapid";
 import { vozPropriaConfigurada } from "@/lib/voz/servidor-proprio";
 
 import { serifDaArea } from "./_fonte";
-import { textosDaCarteira, textosDaEntrada, textosDaMesa, textosDoAviso, textosDasEtapas, textosDasOfertas, textosDasSimpatias, textosDoNavegador } from "./_textos";
+import { textosDaCarteira, textosDaEntrada, textosDaMesa, textosDoAviso, textosDasEtapas, textosDasOfertas, textosDasSimpatias, textosDoGrimorio, textosDoNavegador } from "./_textos";
 import { VistaDaArea, VistaDeEntrada } from "./_vista";
 
 export const dynamic = "force-dynamic";
@@ -190,6 +190,8 @@ export default async function AreaDoCliente({ params, searchParams }: Props) {
 
   const cfgDasLeituras = configDasLeituras(org.config.leituras);
   const mesa = cfgDasLeituras.ativo ? await carregarMesa(admin, { id: org.id, fuso: org.fuso }, sessao.contactId, cfgDasLeituras) : null;
+  // O Grimório só existe com a Mesa ligada: são as cartas das leituras dela.
+  const grimorio = mesa ? await carregarGrimorio(admin, org.id, sessao.contactId) : [];
   const cfgDosCreditos = configDosCreditos(org.config.creditos);
   const cfgDosAvisos = configDosAvisos(org.config.avisos);
   // A entrada com 3 perguntas (migration 0940): a linha existir = feita ou pulada.
@@ -358,6 +360,17 @@ export default async function AreaDoCliente({ params, searchParams }: Props) {
         cfgDaContribuicao ? { minimoCents: cfgDaContribuicao.minimo_cents, minimo: dinheiro(cfgDaContribuicao.minimo_cents, "BRL") } : null
       }
       ts={textosDasSimpatias(t)}
+      grimorio={grimorio.map((c) => ({
+        chave: `${c.modalidade}:${c.id}`,
+        nome: t(c.nome),
+        modalidade: t(NOME_DA_MODALIDADE[c.modalidade]),
+        sentido: t(c.sentido),
+        vezes: c.vezes,
+        ultimaPergunta: c.ultimaPergunta,
+        ultimaVez: dataCurta(c.ultimaVez, org.fuso, tag),
+        foto: c.foto,
+      }))}
+      tg={textosDoGrimorio(t)}
       perfil={{ feito: perfilR !== null, foco }}
       ceu={ceuDoNascimento(dados.contato.nascimento)}
       tp={textosDaEntrada(t)}

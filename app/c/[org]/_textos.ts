@@ -9,6 +9,7 @@ import type { TextosDaCarteira } from "./_carteira";
 import type { TextosDaArea } from "./_client";
 import type { TextosDaEntrada } from "./_entrada";
 import type { TextosDasEtapas } from "./_etapas";
+import type { TextosDoGrimorio } from "./_grimorio";
 import type { TextosDaMesa } from "./_mesa";
 import type { TextosDasOfertas } from "./_ofertas";
 import type { TextosDasSimpatias } from "./_simpatias";
@@ -89,6 +90,18 @@ export function textosDasOfertas(t: (s: string) => string): TextosDasOfertas {
     anoPessoalTitulo: t("Seu Ano Pessoal"),
     anoPessoalConvite: t("A leitura do ano que começa no seu aniversário: o tema do ano, uma orientação para cada trimestre e três intenções para você. Após a confirmação do pagamento, a leitura é preparada em texto e aparece aqui na sua área."),
     anoPessoalPreparando: t("A leitura do seu ano está sendo preparada…"),
+  };
+}
+
+/** Os textos do Grimório, já traduzidos. `{n}` é o número de vezes. */
+export function textosDoGrimorio(t: (s: string) => string): TextosDoGrimorio {
+  return {
+    titulo: t("Seu grimório"),
+    convite: t("As cartas que já saíram para você. Toque numa para lembrar o que ela disse."),
+    saiuVezes: t("saiu {n} vezes"),
+    ultimaPergunta: t("Última vez, na pergunta:"),
+    verTodas: t("Ver todas"),
+    verMenos: t("Ver menos"),
   };
 }
 
