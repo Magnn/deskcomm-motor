@@ -59,15 +59,15 @@ export function LuaDoMes({ slug, cor, versao, tl }: { slug: string; cor: string;
         onClick={() => void compartilhar()}
         disabled={estado === "preparando"}
         className={`${BOTAO} mt-4 w-full`}
-        style={{ background: cor }}
+        style={{ background: cor, color: "#1b1433" }}
         data-testid="area-lua-compartilhar"
       >
         <Share2 className="size-4" aria-hidden />
         {estado === "preparando" ? tl.preparando : tl.compartilhar}
       </button>
-      {estado === "baixada" ? <p className="mt-2 text-center text-sm text-[#2f7a4f]">{tl.baixada}</p> : null}
+      {estado === "baixada" ? <p className="mt-2 text-center text-sm text-[#8fd6a8]">{tl.baixada}</p> : null}
       {estado === "erro" ? (
-        <p role="alert" className="mt-2 text-center text-sm text-[#a5361f]">
+        <p role="alert" className="mt-2 text-center text-sm text-[#f3a493]">
           {tl.naoDeu}
         </p>
       ) : null}

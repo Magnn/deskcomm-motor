@@ -140,7 +140,7 @@ function quando(iso: string, tag: string, fuso: string): string {
 
 function Progresso({ feitas, total }: { feitas: number; total: number }) {
   return (
-    <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[#efe7d6]" aria-hidden>
+    <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/10" aria-hidden>
       <div className="h-full rounded-full bg-[#c9a54e] transition-[width] duration-500" style={{ width: `${(feitas / total) * 100}%` }} />
     </div>
   );
@@ -182,16 +182,16 @@ export function EtapaDeHoje({ proximo = null }: { proximo?: ProximoPasso | null 
     return (
       <section className={CARTAO} data-testid="area-etapas-concluidas">
         <div className="text-center">
-          <Sparkles className="mx-auto size-7 text-[#a8842f]" strokeWidth={1.5} aria-hidden />
+          <Sparkles className="mx-auto size-7 text-[#e2c47a]" strokeWidth={1.5} aria-hidden />
           <p className={`${SERIF} mt-2 text-[22px] leading-snug`}>{te.concluido}</p>
           <p className={`mt-1 ${TEXTO_SUAVE}`}>{t.nome}</p>
         </div>
-        <div className="mt-6 border-t border-[#efe7d6] pt-5">
+        <div className="mt-6 border-t border-white/10 pt-5">
           <p className={SOBRETITULO}>{te.eAgora}</p>
           <BotaoIrParaAba
             aba="conversa"
             className="mt-3 inline-flex h-11 items-center rounded-full px-5 text-[15px] font-semibold text-white"
-            style={{ background: cor }}
+            style={{ background: cor, color: "#1b1433" }}
           >
             {te.contarComoFoi}
           </BotaoIrParaAba>
@@ -202,7 +202,7 @@ export function EtapaDeHoje({ proximo = null }: { proximo?: ProximoPasso | null 
               {proximo.descricao ? <p className={`mt-1 ${TEXTO_SUAVE}`}>{proximo.descricao}</p> : null}
               <BotaoIrParaAba
                 aba="explorar"
-                className="mt-3 text-sm font-semibold text-[#8a6b22] underline decoration-[#e2c47a] decoration-2 underline-offset-4"
+                className="mt-3 text-sm font-semibold text-[#e2c47a] underline decoration-[#e2c47a] decoration-2 underline-offset-4"
               >
                 {te.conhecer}
               </BotaoIrParaAba>
@@ -226,13 +226,13 @@ export function EtapaDeHoje({ proximo = null }: { proximo?: ProximoPasso | null 
           type="button"
           onClick={() => void marcar(t.servicoId, vez.indice, true)}
           className="inline-flex h-12 items-center gap-2 rounded-full px-6 text-[15px] font-semibold text-white shadow-[0_8px_20px_-10px_rgba(36,31,49,0.6)] transition hover:brightness-110 active:scale-[0.98]"
-          style={{ background: cor }}
+          style={{ background: cor, color: "#1b1433" }}
           data-testid="area-fiz-etapa-hoje"
         >
           <Check className="size-4" strokeWidth={2.5} aria-hidden />
           {te.fizEstaEtapa}
         </button>
-        <BotaoIrParaAba aba="trabalho" className="text-sm font-semibold text-[#8a6b22] underline decoration-[#e2c47a] decoration-2 underline-offset-4">
+        <BotaoIrParaAba aba="trabalho" className="text-sm font-semibold text-[#e2c47a] underline decoration-[#e2c47a] decoration-2 underline-offset-4">
           {te.verTrabalho}
         </BotaoIrParaAba>
       </div>
@@ -241,14 +241,14 @@ export function EtapaDeHoje({ proximo = null }: { proximo?: ProximoPasso | null 
           type="button"
           onClick={() => void marcarTodas()}
           disabled={marcandoTodas}
-          className="mt-4 text-sm text-[#6f6880] underline underline-offset-4 disabled:opacity-60"
+          className="mt-4 text-sm text-[#c3bad3] underline underline-offset-4 disabled:opacity-60"
           data-testid="area-ja-fiz-todas"
         >
           {te.jaFizTodas}
         </button>
       ) : null}
       {erro ? (
-        <p role="alert" className="mt-3 text-sm text-[#a5361f]">
+        <p role="alert" className="mt-3 text-sm text-[#f3a493]">
           {erro}
         </p>
       ) : null}
@@ -279,7 +279,7 @@ export function LinhasDoTempo() {
                   <li key={e.indice} className="relative flex gap-4 pb-5 last:pb-0" data-estado={e.estado}>
                     {!ultima ? (
                       <span
-                        className={`absolute left-[15px] top-8 h-[calc(100%-2rem)] w-0.5 ${e.estado === "feita" ? "bg-[#c9a54e]" : "bg-[#efe7d6]"}`}
+                        className={`absolute left-[15px] top-8 h-[calc(100%-2rem)] w-0.5 ${e.estado === "feita" ? "bg-[#c9a54e]" : "bg-white/10"}`}
                         aria-hidden
                       />
                     ) : null}
@@ -288,8 +288,8 @@ export function LinhasDoTempo() {
                         e.estado === "feita"
                           ? "relative z-10 flex size-8 shrink-0 items-center justify-center rounded-full bg-[#c9a54e] text-white"
                           : e.estado === "agora"
-                            ? "relative z-10 flex size-8 shrink-0 items-center justify-center rounded-full border-2 bg-white text-sm font-bold"
-                            : "relative z-10 flex size-8 shrink-0 items-center justify-center rounded-full border border-[#e4dccb] bg-[#fdfbf7] text-sm text-[#a59eb0]"
+                            ? "relative z-10 flex size-8 shrink-0 items-center justify-center rounded-full border-2 bg-[#1d1638] text-sm font-bold"
+                            : "relative z-10 flex size-8 shrink-0 items-center justify-center rounded-full border border-white/15 bg-white/[0.05] text-sm text-[#9d94b2]"
                       }
                       style={e.estado === "agora" ? { borderColor: cor, color: cor, boxShadow: `0 0 0 4px ${cor}1f` } : undefined}
                       aria-hidden
@@ -297,8 +297,8 @@ export function LinhasDoTempo() {
                       {e.estado === "feita" ? <Check className="size-4" strokeWidth={3} /> : e.indice + 1}
                     </span>
                     <div className="min-w-0 pt-1">
-                      <p className={e.estado === "depois" ? "text-[15px] text-[#8b8497]" : "text-[15px] font-semibold"}>{e.titulo}</p>
-                      {e.orientacao && e.estado !== "depois" ? <p className="mt-1 text-sm leading-relaxed text-[#5f586c]">{e.orientacao}</p> : null}
+                      <p className={e.estado === "depois" ? "text-[15px] text-[#9d94b2]" : "text-[15px] font-semibold"}>{e.titulo}</p>
+                      {e.orientacao && e.estado !== "depois" ? <p className="mt-1 text-sm leading-relaxed text-[#c3bad3]">{e.orientacao}</p> : null}
                       {e.estado === "feita" && e.feitaEm ? (
                         <p className={`mt-1 ${DETALHE}`}>
                           {te.feitaEm} {quando(e.feitaEm, tag, fuso)} ·{" "}
@@ -312,7 +312,7 @@ export function LinhasDoTempo() {
                           type="button"
                           onClick={() => void marcar(t.servicoId, e.indice, true)}
                           className="mt-3 inline-flex h-10 items-center gap-2 rounded-full px-4 text-sm font-semibold text-white"
-                          style={{ background: cor }}
+                          style={{ background: cor, color: "#1b1433" }}
                           data-testid="area-fiz-etapa"
                         >
                           <Check className="size-4" strokeWidth={2.5} aria-hidden />
@@ -325,7 +325,7 @@ export function LinhasDoTempo() {
               })}
             </ol>
             {erro ? (
-              <p role="alert" className="mt-3 text-sm text-[#a5361f]">
+              <p role="alert" className="mt-3 text-sm text-[#f3a493]">
                 {erro}
               </p>
             ) : null}

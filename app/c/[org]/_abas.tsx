@@ -91,7 +91,7 @@ export function AbasDaArea({
 
       <nav
         aria-label={rotuloDaBarra}
-        className="fixed inset-x-0 bottom-0 z-40 border-t border-[#ebe3d3] bg-white/92 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_24px_-16px_rgba(36,31,49,0.35)] backdrop-blur-md"
+        className="fixed inset-x-0 bottom-0 z-40 border-t border-[#c9a54e]/15 bg-[#110c20]/92 pb-[env(safe-area-inset-bottom)] shadow-[0_-12px_30px_-18px_rgba(0,0,0,0.9)] backdrop-blur-md"
       >
         <div role="tablist" className="mx-auto grid max-w-xl grid-cols-4">
           {ABAS_DA_AREA.map((a) => {
@@ -107,7 +107,7 @@ export function AbasDaArea({
                 aria-controls={`aba-${a}`}
                 onClick={() => ir(a)}
                 className="flex flex-col items-center gap-1 pb-2.5 pt-2 text-[11.5px] font-semibold transition focus-visible:outline-2 focus-visible:-outline-offset-4"
-                style={{ color: ativa ? cor : "#8b8497" }}
+                style={{ color: ativa ? cor : "#9d94b2" }}
                 data-testid={`area-botao-aba-${a}`}
               >
                 <span

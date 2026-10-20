@@ -103,8 +103,8 @@ export function TituloDaSecao({
   return (
     <div>
       {sobre ? <p className={SOBRETITULO}>{sobre}</p> : null}
-      <h2 id={id} className={`${SERIF} mt-1 flex items-center gap-2 text-[22px] leading-tight text-[#241f31]`}>
-        {icone ? <span className="text-[#a8842f]" aria-hidden>{icone}</span> : null}
+      <h2 id={id} className={`${SERIF} mt-1 flex items-center gap-2 text-[22px] leading-tight text-[#f6f0e4]`}>
+        {icone ? <span className="text-[#e2c47a]" aria-hidden>{icone}</span> : null}
         {titulo}
       </h2>
     </div>
@@ -113,7 +113,7 @@ export function TituloDaSecao({
 
 function Erro({ children }: { children: React.ReactNode }) {
   return (
-    <p role="alert" className="mt-3 rounded-2xl bg-[#fdf1ef] px-4 py-2.5 text-sm text-[#a5361f]">
+    <p role="alert" className="mt-3 rounded-2xl bg-[#f3a493]/10 px-4 py-2.5 text-sm text-[#f3a493]">
       {children}
     </p>
   );
@@ -152,7 +152,7 @@ export function EntrarNaArea({ slug, cor, tx }: { slug: string; cor: string; tx:
         <form onSubmit={pedirCodigo} className="space-y-4" data-testid="area-entrar-email">
           <label className="block">
             <span className="flex items-center gap-2 text-sm font-semibold">
-              <Mail className="size-4 text-[#a8842f]" aria-hidden />
+              <Mail className="size-4 text-[#e2c47a]" aria-hidden />
               {tx.seuEmail}
             </span>
             <input
@@ -166,17 +166,17 @@ export function EntrarNaArea({ slug, cor, tx }: { slug: string; cor: string; tx:
               placeholder="voce@email.com"
             />
           </label>
-          <button type="submit" disabled={enviando} className={`${BOTAO} w-full`} style={{ background: cor }}>
+          <button type="submit" disabled={enviando} className={`${BOTAO} w-full`} style={{ background: cor, color: "#1b1433" }}>
             {enviando ? tx.enviando : tx.receberCodigo}
           </button>
         </form>
       ) : (
         <form onSubmit={confirmar} className="space-y-4" data-testid="area-entrar-codigo">
           <p className={TEXTO_SUAVE}>{tx.codigoEnviadoAntes}</p>
-          <p className="rounded-2xl bg-[#f6f1e6] px-4 py-2.5 text-sm font-semibold">{email}</p>
+          <p className="rounded-2xl bg-white/[0.06] px-4 py-2.5 text-sm font-semibold">{email}</p>
           <label className="block">
             <span className="flex items-center gap-2 text-sm font-semibold">
-              <KeyRound className="size-4 text-[#a8842f]" aria-hidden />
+              <KeyRound className="size-4 text-[#e2c47a]" aria-hidden />
               {tx.codigo}
             </span>
             <input
@@ -194,11 +194,11 @@ export function EntrarNaArea({ slug, cor, tx }: { slug: string; cor: string; tx:
             type="submit"
             disabled={enviando || codigo.length !== 6}
             className={`${BOTAO} w-full`}
-            style={{ background: cor }}
+            style={{ background: cor, color: "#1b1433" }}
           >
             {enviando ? tx.entrando : tx.entrar}
           </button>
-          <button type="button" onClick={() => setEtapa("email")} className="w-full text-sm text-[#6f6880] underline underline-offset-4">
+          <button type="button" onClick={() => setEtapa("email")} className="w-full text-sm text-[#c3bad3] underline underline-offset-4">
             {tx.usarOutroEmail}
           </button>
         </form>
@@ -256,7 +256,7 @@ export function DesejoDoCliente({ slug, cor, tx }: { slug: string; cor: string; 
     <section className={CARTAO} data-testid="area-desejo">
       <TituloDaSecao titulo={tx.desejoTitulo} icone={<Sparkles className="size-5" />} />
       {estado === "enviado" ? (
-        <p role="status" className="mt-4 flex items-center gap-2 text-[15px] text-[#2f7a4f]">
+        <p role="status" className="mt-4 flex items-center gap-2 text-[15px] text-[#8fd6a8]">
           <Check className="size-4" aria-hidden />
           {tx.desejoObrigada}
         </p>
@@ -276,7 +276,7 @@ export function DesejoDoCliente({ slug, cor, tx }: { slug: string; cor: string; 
             type="submit"
             disabled={estado === "enviando" || texto.trim() === ""}
             className={BOTAO}
-            style={{ background: cor }}
+            style={{ background: cor, color: "#1b1433" }}
           >
             {estado === "enviando" ? tx.enviando : tx.enviar}
           </button>
@@ -307,7 +307,7 @@ export function EmailDoCliente({ slug, cor, tx }: { slug: string; cor: string; t
 
   if (estado === "salvo") {
     return (
-      <p role="status" className="flex items-center gap-2 rounded-3xl border border-[#cfe6d6] bg-[#f2faf4] px-5 py-4 text-[15px] text-[#2f7a4f]">
+      <p role="status" className="flex items-center gap-2 rounded-3xl border border-[#2f6b4a] bg-[#1e3a2c] px-5 py-4 text-[15px] text-[#8fd6a8]">
         <Check className="size-4 shrink-0" aria-hidden />
         <span>
           {tx.prontoEntreCom} <strong>{email}</strong>
@@ -316,12 +316,12 @@ export function EmailDoCliente({ slug, cor, tx }: { slug: string; cor: string; t
     );
   }
   return (
-    <section className="rounded-3xl border border-dashed border-[#d8cdb6] bg-[#fbf8f1] px-5 py-5" data-testid="area-email">
+    <section className="rounded-3xl border border-dashed border-white/15 bg-white/[0.05] px-5 py-5" data-testid="area-email">
       <p className="flex items-center gap-2 text-[15px] font-semibold">
-        <KeyRound className="size-4 text-[#a8842f]" aria-hidden />
+        <KeyRound className="size-4 text-[#e2c47a]" aria-hidden />
         {tx.guardeSeuAcesso}
       </p>
-      <p className="mt-1 text-sm leading-relaxed text-[#6f6880]">{tx.comSeuEmail}</p>
+      <p className="mt-1 text-sm leading-relaxed text-[#c3bad3]">{tx.comSeuEmail}</p>
       <form onSubmit={salvar} className="mt-3 flex flex-col gap-2 sm:flex-row">
         <input
           type="email"
@@ -334,7 +334,7 @@ export function EmailDoCliente({ slug, cor, tx }: { slug: string; cor: string; t
           className={CAMPO}
           placeholder="voce@email.com"
         />
-        <button type="submit" disabled={estado === "enviando"} className={`${BOTAO} shrink-0`} style={{ background: cor }}>
+        <button type="submit" disabled={estado === "enviando"} className={`${BOTAO} shrink-0`} style={{ background: cor, color: "#1b1433" }}>
           {estado === "enviando" ? tx.enviando : tx.salvar}
         </button>
       </form>
@@ -384,16 +384,16 @@ export function CartaDoDia({
     window.setTimeout(() => window.dispatchEvent(new Event(EVENTO_DE_VALOR)), 2500);
   };
   return (
-    <section className={CARTAO} data-testid="area-carta-do-dia">
-      <TituloDaSecao titulo={tx.cartaDoDia} />
-      <div className="mt-5 flex items-start gap-5">
+    <section className={`${CARTAO} text-center`} data-testid="area-carta-do-dia">
+      <p className={SOBRETITULO}>✦ {tx.cartaDoDia}</p>
+      <div className="mt-5 flex flex-col items-center gap-5">
         <button
           type="button"
           onClick={revelar}
           disabled={revelada}
           aria-label={tx.revelar}
           data-testid="area-revelar-carta"
-          className="relative aspect-[3/5] w-28 shrink-0 [perspective:900px] focus-visible:outline-2 focus-visible:outline-offset-4 disabled:cursor-default sm:w-32"
+          className="relative aspect-[3/5] w-44 shrink-0 [perspective:900px] focus-visible:outline-2 focus-visible:outline-offset-4 disabled:cursor-default"
           style={{ outlineColor: cor }}
         >
           <span
@@ -412,10 +412,10 @@ export function CartaDoDia({
             </span>
           </span>
         </button>
-        <div className="min-w-0 pt-1" aria-live="polite">
+        <div className="min-w-0 max-w-sm" aria-live="polite">
           {revelada ? (
             <>
-              <p className={`${SERIF} text-xl leading-snug`} data-testid="area-carta-nome">
+              <p className={`${SERIF} text-[26px] leading-snug`} data-testid="area-carta-nome">
                 {nome}
               </p>
               <p className={`mt-2 ${TEXTO_SUAVE}`}>{mensagem}</p>
@@ -480,21 +480,21 @@ export function DiarioDoCliente({
           maxLength={2000}
           rows={4}
           required
-          className={`${CAMPO} bg-[repeating-linear-gradient(transparent,transparent_31px,#efe7d6_31px,#efe7d6_32px)] [background-position:0_12px] leading-8`}
+          className={`${CAMPO} bg-[repeating-linear-gradient(transparent,transparent_31px,rgba(201,165,78,0.12)_31px,rgba(201,165,78,0.12)_32px)] [background-position:0_12px] leading-8`}
           placeholder={tx.diarioExemplo}
           aria-label={tx.seuDiario}
         />
-        <button type="submit" disabled={enviando || texto.trim() === ""} className={BOTAO} style={{ background: cor }}>
+        <button type="submit" disabled={enviando || texto.trim() === ""} className={BOTAO} style={{ background: cor, color: "#1b1433" }}>
           {enviando ? tx.enviando : tx.salvar}
         </button>
         {erro ? <Erro>{erro}</Erro> : null}
       </form>
       {lista.length > 0 ? (
-        <ul className="mt-5 space-y-4 border-t border-[#efe7d6] pt-4">
+        <ul className="mt-5 space-y-4 border-t border-white/10 pt-4">
           {lista.map((d) => (
             <li key={d.id} className="border-l-2 border-[#e2c47a] pl-4">
               {d.quando ? <span className={`block ${DETALHE}`}>{d.quando}</span> : null}
-              <span className={`${SERIF} mt-0.5 block whitespace-pre-line text-[16px] leading-relaxed text-[#3a3347]`}>{d.texto}</span>
+              <span className={`${SERIF} mt-0.5 block whitespace-pre-line text-[16px] leading-relaxed text-[#efe7f7]`}>{d.texto}</span>
             </li>
           ))}
         </ul>
@@ -522,7 +522,7 @@ export function AniversarioDoCliente({ slug, cor, tx }: { slug: string; cor: str
 
   if (estado === "salvo") {
     return (
-      <p role="status" className="flex items-center gap-2 rounded-3xl border border-[#cfe6d6] bg-[#f2faf4] px-5 py-4 text-[15px] text-[#2f7a4f]">
+      <p role="status" className="flex items-center gap-2 rounded-3xl border border-[#2f6b4a] bg-[#1e3a2c] px-5 py-4 text-[15px] text-[#8fd6a8]">
         <Check className="size-4 shrink-0" aria-hidden />
         {tx.aniversarioObrigada}
       </p>
@@ -534,7 +534,7 @@ export function AniversarioDoCliente({ slug, cor, tx }: { slug: string; cor: str
       <p className={`mt-2 ${TEXTO_SUAVE}`}>{tx.aniversarioConvite}</p>
       <form onSubmit={salvar} className="mt-4 flex flex-col gap-2 sm:flex-row">
         <input type="date" required value={data} onChange={(e) => setData(e.target.value)} className={CAMPO} aria-label={tx.aniversarioTitulo} />
-        <button type="submit" disabled={estado === "enviando" || data === ""} className={`${BOTAO} shrink-0`} style={{ background: cor }}>
+        <button type="submit" disabled={estado === "enviando" || data === ""} className={`${BOTAO} shrink-0`} style={{ background: cor, color: "#1b1433" }}>
           {tx.salvar}
         </button>
       </form>
@@ -627,7 +627,7 @@ export function FaleComAGente({
       {mensagens.length > 0 ? (
         <ul
           ref={lista}
-          className="mt-4 max-h-80 space-y-2 overflow-y-auto rounded-2xl bg-[#f8f4ec] p-3"
+          className="mt-4 max-h-80 space-y-2 overflow-y-auto rounded-2xl bg-[#110c20] p-3"
           aria-label={tx.conversaGuardada}
         >
           {mensagens.map((m) => (
@@ -636,7 +636,7 @@ export function FaleComAGente({
                 className={
                   m.autor === "cliente"
                     ? "max-w-[85%] whitespace-pre-line rounded-2xl rounded-br-md px-3.5 py-2 text-[15px] text-white shadow-sm"
-                    : "max-w-[85%] whitespace-pre-line rounded-2xl rounded-bl-md border border-[#ebe3d3] bg-white px-3.5 py-2 text-[15px] shadow-sm"
+                    : "max-w-[85%] whitespace-pre-line rounded-2xl rounded-bl-md border border-white/10 bg-[#1d1638] px-3.5 py-2 text-[15px] shadow-sm"
                 }
                 style={m.autor === "cliente" ? { background: cor } : undefined}
               >
@@ -651,7 +651,7 @@ export function FaleComAGente({
         </ul>
       ) : null}
       <form onSubmit={enviar} className="mt-4">
-        <div className="flex items-end gap-2 rounded-3xl border border-[#e4dccb] bg-[#fdfbf7] p-1.5 pl-4 transition focus-within:border-[#a8842f] focus-within:bg-white focus-within:ring-4 focus-within:ring-[#c9a54e]/15">
+        <div className="flex items-end gap-2 rounded-3xl border border-white/15 bg-white/[0.05] p-1.5 pl-4 transition focus-within:border-[#a8842f] focus-within:bg-[#1d1638] focus-within:ring-4 focus-within:ring-[#c9a54e]/15">
           <textarea
             value={texto}
             onChange={(e) => setTexto(e.target.value)}
@@ -664,7 +664,7 @@ export function FaleComAGente({
             maxLength={2000}
             rows={1}
             required
-            className="max-h-40 min-h-[2.75rem] flex-1 resize-none bg-transparent py-2.5 text-base text-[#241f31] placeholder:text-[#a59eb0] outline-hidden [field-sizing:content]"
+            className="max-h-40 min-h-[2.75rem] flex-1 resize-none bg-transparent py-2.5 text-base text-[#f6f0e4] placeholder:text-[#7d7494] outline-hidden [field-sizing:content]"
             placeholder={tx.escrevaAqui}
             aria-label={tx.escrevaAqui}
             data-testid="area-fale-texto"
@@ -675,14 +675,14 @@ export function FaleComAGente({
             aria-label={tx.enviar}
             title={tx.enviar}
             className="flex size-11 shrink-0 items-center justify-center rounded-full text-white transition hover:brightness-110 active:scale-95 disabled:cursor-not-allowed disabled:opacity-35 motion-reduce:transition-none"
-            style={{ background: cor }}
+            style={{ background: cor, color: "#1b1433" }}
           >
             <ArrowUp className="size-5" strokeWidth={2.5} aria-hidden />
           </button>
         </div>
         {enviando ? <p className={`mt-2 ${DETALHE}`}>{tx.enviando}</p> : null}
         {enviada ? (
-          <p role="status" className="mt-2 text-sm text-[#2f7a4f]">
+          <p role="status" className="mt-2 text-sm text-[#8fd6a8]">
             {tx.enviada}
           </p>
         ) : null}
@@ -715,7 +715,7 @@ export function ConversaGuardada({
       <p className={`mt-2 ${TEXTO_SUAVE}`}>{tx.conversaGuardadaConvite}</p>
       <div className="relative mt-4">
         <ul
-          className={`space-y-2 rounded-2xl bg-[#f8f4ec] p-3 ${inteira ? "max-h-[70vh] overflow-y-auto" : ""}`}
+          className={`space-y-2 rounded-2xl bg-[#110c20] p-3 ${inteira ? "max-h-[70vh] overflow-y-auto" : ""}`}
         >
           {visiveis.map((f, i) => {
             const anterior = visiveis[i - 1];
@@ -725,12 +725,12 @@ export function ConversaGuardada({
                 <span
                   className={
                     f.de === "voce"
-                      ? "max-w-[85%] whitespace-pre-line rounded-2xl rounded-br-md bg-[#e9f6dd] px-3.5 py-2 text-[15px] leading-relaxed text-[#203018]"
-                      : "max-w-[85%] whitespace-pre-line rounded-2xl rounded-bl-md border border-[#ebe3d3] bg-white px-3.5 py-2 text-[15px] leading-relaxed"
+                      ? "max-w-[85%] whitespace-pre-line rounded-2xl rounded-br-md bg-[#1e3a2c] px-3.5 py-2 text-[15px] leading-relaxed text-[#8fd6a8]"
+                      : "max-w-[85%] whitespace-pre-line rounded-2xl rounded-bl-md border border-white/10 bg-[#1d1638] px-3.5 py-2 text-[15px] leading-relaxed"
                   }
                 >
                   {mesmoAutor ? null : (
-                    <span className={`mb-0.5 block text-[11px] font-semibold ${f.de === "voce" ? "text-[#4f7a3a]" : "text-[#a8842f]"}`}>
+                    <span className={`mb-0.5 block text-[11px] font-semibold ${f.de === "voce" ? "text-[#8fd6a8]" : "text-[#e2c47a]"}`}>
                       {f.de === "voce" ? tx.voce : empresa} <span className="font-normal opacity-70">· {f.quando}</span>
                     </span>
                   )}
@@ -741,14 +741,14 @@ export function ConversaGuardada({
           })}
         </ul>
         {!inteira && falas.length > FALAS_INICIAIS ? (
-          <span className="pointer-events-none absolute inset-x-0 top-0 h-12 rounded-t-2xl bg-gradient-to-b from-[#f8f4ec] to-transparent" />
+          <span className="pointer-events-none absolute inset-x-0 top-0 h-12 rounded-t-2xl bg-gradient-to-b from-[#110c20] to-transparent" />
         ) : null}
       </div>
       {falas.length > FALAS_INICIAIS ? (
         <button
           type="button"
           onClick={() => setInteira((v) => !v)}
-          className="mt-3 text-sm font-semibold text-[#8a6b22] underline decoration-[#e2c47a] decoration-2 underline-offset-4"
+          className="mt-3 text-sm font-semibold text-[#e2c47a] underline decoration-[#e2c47a] decoration-2 underline-offset-4"
         >
           {inteira ? tx.mostrarMenos : `${tx.verConversaInteira} (${falas.length})`}
         </button>

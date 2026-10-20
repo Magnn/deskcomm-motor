@@ -52,7 +52,7 @@ export function GrimorioDaArea({ cartas, tg }: { cartas: CartaNoGrimorio[]; tg: 
               onClick={() => setAberta(aberta === c.chave ? null : c.chave)}
               aria-expanded={aberta === c.chave}
               className={`flex w-full flex-col items-center gap-1.5 rounded-2xl border p-2 text-center transition ${
-                aberta === c.chave ? "border-[#c9a54e] bg-[#fdf9ef]" : "border-[#ebe3d3] bg-[#fdfbf7]"
+                aberta === c.chave ? "border-[#c9a54e] bg-[#c9a54e]/[0.08]" : "border-white/10 bg-white/[0.05]"
               }`}
               data-testid="area-grimorio-carta"
             >
@@ -64,9 +64,9 @@ export function GrimorioDaArea({ cartas, tg }: { cartas: CartaNoGrimorio[]; tg: 
                   ✦
                 </span>
               )}
-              <span className="text-[13px] font-semibold leading-tight text-[#241f31]">{c.nome}</span>
+              <span className="text-[13px] font-semibold leading-tight text-[#f6f0e4]">{c.nome}</span>
               {c.vezes > 1 ? (
-                <span className="text-[11px] text-[#a8842f]">
+                <span className="text-[11px] text-[#e2c47a]">
                   {tg.saiuVezes.replace("{n}", String(c.vezes))}
                 </span>
               ) : null}
@@ -76,18 +76,18 @@ export function GrimorioDaArea({ cartas, tg }: { cartas: CartaNoGrimorio[]; tg: 
       </ul>
 
       {escolhida ? (
-        <div className="mt-4 rounded-2xl bg-[#fdf9ef] p-4" data-testid="area-grimorio-detalhe">
+        <div className="mt-4 rounded-2xl bg-[#c9a54e]/[0.08] p-4" data-testid="area-grimorio-detalhe">
           <p className={`${SERIF} text-[20px] leading-snug`}>{escolhida.nome}</p>
-          <p className="text-xs uppercase tracking-[0.18em] text-[#a8842f]">{escolhida.modalidade}</p>
+          <p className="text-xs uppercase tracking-[0.18em] text-[#e2c47a]">{escolhida.modalidade}</p>
           <p className={`mt-2 ${TEXTO_SUAVE}`}>{escolhida.sentido}</p>
-          <p className="mt-3 text-sm text-[#6f6880]">
+          <p className="mt-3 text-sm text-[#c3bad3]">
             <span className="font-semibold">{tg.ultimaPergunta}</span> “{escolhida.ultimaPergunta}” · {escolhida.ultimaVez}
           </p>
         </div>
       ) : null}
 
       {cartas.length > VISIVEIS ? (
-        <button type="button" onClick={() => setTodas((v) => !v)} className="mt-4 text-sm font-semibold text-[#a8842f] underline underline-offset-4">
+        <button type="button" onClick={() => setTodas((v) => !v)} className="mt-4 text-sm font-semibold text-[#e2c47a] underline underline-offset-4">
           {todas ? tg.verMenos : `${tg.verTodas} (${cartas.length})`}
         </button>
       ) : null}

@@ -54,7 +54,7 @@ export function PresenteDoCliente({
     <section className={CARTAO} data-testid="area-presente">
       <TituloDaSecao titulo={to.presenteTitulo} icone={<Gift className="size-5" />} />
       <p className={`mt-2 ${TEXTO_SUAVE}`}>{to.presenteConvite}</p>
-      <p className={`${SERIF} mt-4 text-3xl text-[#241f31]`}>{preco}</p>
+      <p className={`${SERIF} mt-4 text-3xl text-[#f6f0e4]`}>{preco}</p>
       <label className="mt-4 block">
         <span className="text-sm font-semibold">{to.presenteParaQuem}</span>
         <input
@@ -73,17 +73,17 @@ export function PresenteDoCliente({
       />
 
       {presentes.length > 0 ? (
-        <div className="mt-6 border-t border-[#efe7d6] pt-5">
-          <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-[#a8842f]">{to.seusPresentes}</h3>
+        <div className="mt-6 border-t border-white/10 pt-5">
+          <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-[#e2c47a]">{to.seusPresentes}</h3>
           <ul className="mt-3 space-y-3">
             {presentes.map((p) => (
-              <li key={p.id} className="rounded-2xl border border-[#ebe3d3] bg-[#fdfbf7] p-4 text-sm">
+              <li key={p.id} className="rounded-2xl border border-white/10 bg-white/[0.05] p-4 text-sm">
                 <div className="flex items-center justify-between gap-2">
                   <span className="flex items-center gap-2 font-semibold">
-                    <Gift className="size-4 text-[#a8842f]" aria-hidden />
+                    <Gift className="size-4 text-[#e2c47a]" aria-hidden />
                     {p.para ?? to.presenteTitulo}
                   </span>
-                  <span className={p.usado ? "text-xs font-semibold text-[#2f7a4f]" : "text-xs text-[#8b8497]"}>
+                  <span className={p.usado ? "text-xs font-semibold text-[#8fd6a8]" : "text-xs text-[#9d94b2]"}>
                     {p.usado ? to.presenteUsado : to.presenteNaoUsado}
                   </span>
                 </div>
@@ -94,7 +94,7 @@ export function PresenteDoCliente({
                       onClick={async () => {
                         if (await copyToClipboard(p.link)) setCopiado(p.id);
                       }}
-                      className="inline-flex h-10 w-full sm:flex-1 items-center justify-center gap-2 rounded-full border-2 bg-white px-4 text-xs font-semibold"
+                      className="inline-flex h-10 w-full sm:flex-1 items-center justify-center gap-2 rounded-full border-2 bg-[#1d1638] px-4 text-xs font-semibold"
                       style={{ borderColor: cor, color: cor }}
                     >
                       {copiado === p.id ? <Check className="size-4" aria-hidden /> : <Copy className="size-4" aria-hidden />}
@@ -222,9 +222,9 @@ export function PerguntaDoPresente({
   if (estado.pergunta) {
     return (
       <div className="space-y-4">
-        <p className={`${SERIF} text-xl italic leading-snug text-[#3a3347]`}>{estado.pergunta}</p>
+        <p className={`${SERIF} text-xl italic leading-snug text-[#efe7f7]`}>{estado.pergunta}</p>
         {estado.resposta ? (
-          <p className="whitespace-pre-line text-[15px] leading-relaxed text-[#3a3347]" data-testid="presente-resposta">
+          <p className="whitespace-pre-line text-[15px] leading-relaxed text-[#efe7f7]" data-testid="presente-resposta">
             {estado.resposta}
           </p>
         ) : (
@@ -238,7 +238,7 @@ export function PerguntaDoPresente({
           </>
         )}
         {erro ? (
-          <p role="alert" className="text-sm text-[#a5361f]">
+          <p role="alert" className="text-sm text-[#f3a493]">
             {erro}
           </p>
         ) : null}
@@ -267,12 +267,12 @@ export function PerguntaDoPresente({
         type="submit"
         disabled={consultando || texto.trim().length < 3}
         className={`${BOTAO} w-full`}
-        style={{ background: cor }}
+        style={{ background: cor, color: "#1b1433" }}
       >
         {consultando ? tx.consultando : tx.perguntar}
       </button>
       {erro ? (
-        <p role="alert" className="text-sm text-[#a5361f]">
+        <p role="alert" className="text-sm text-[#f3a493]">
           {erro}
         </p>
       ) : null}
