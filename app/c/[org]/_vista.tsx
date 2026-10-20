@@ -40,6 +40,7 @@ import { LuaDeHoje } from "./_lua";
 import { AnoPessoalDoCliente, PresenteDoCliente, type TextosDasOfertas } from "./_ofertas";
 import { ContribuicaoDoCliente, SimpatiasDoCliente, type PedidoNaArea, type SimpatiaNaArea, type TextosDasSimpatias } from "./_simpatias";
 import { CARTAO, CARTAO_NOTURNO, CEU, DETALHE, OURO, PAGINA, SERIF, SOBRETITULO, SOBRETITULO_NOTURNO, TEXTO_SUAVE } from "./_tema";
+import { temaDaIlustracao } from "./_ilustracoes";
 import { CartaoDaVitrine, LinhaDaVitrine, Prateleira } from "./_vitrine";
 
 type Traduzir = (texto: string) => string;
@@ -527,7 +528,7 @@ export function VistaDaArea(p: VistaDaAreaProps) {
         {p.simpatias && p.simpatias.simpatias.length > 0 ? (
           <Prateleira titulo={t("Simpatias")} testId="area-prateleira-simpatias">
             {p.simpatias.simpatias.map((sp) => (
-              <CartaoDaVitrine key={sp.id} Icone={Flame} tom="rosa" titulo={sp.titulo} linha={sp.intencao} preco={p.simpatias!.preco} testId="area-cartao-simpatia">
+              <CartaoDaVitrine key={sp.id} Icone={Flame} tema={temaDaIlustracao(sp.titulo)} tom="rosa" titulo={sp.titulo} linha={sp.intencao} preco={p.simpatias!.preco} testId="area-cartao-simpatia">
                 <SimpatiasDoCliente
                   slug={slug}
                   cor={cor}
@@ -550,6 +551,7 @@ export function VistaDaArea(p: VistaDaAreaProps) {
                   <CartaoDaVitrine
                     key={sv.id}
                     Icone={Sparkles}
+                    tema={temaDaIlustracao(sv.nome)}
                     tom={sv.destaque ? "ouro" : "azul"}
                     sobretitulo={sv.destaque ? t("Para você") : null}
                     titulo={sv.nome}
@@ -598,6 +600,7 @@ export function VistaDaArea(p: VistaDaAreaProps) {
             {p.circulo ? (
               <CartaoDaVitrine
                 Icone={Moon}
+                tema="lua"
                 tom="lilas"
                 sobretitulo={p.circulo.ativo ? t("Ativo") : null}
                 titulo={p.circulo.nome}
@@ -616,6 +619,7 @@ export function VistaDaArea(p: VistaDaAreaProps) {
             {p.anoPessoal ? (
               <CartaoDaVitrine
                 Icone={Star}
+                tema="estrela"
                 tom="ouro"
                 sobretitulo={`${p.anoPessoal.ano} · ${p.anoPessoal.numero}`}
                 titulo={t("Seu Ano Pessoal")}
@@ -626,7 +630,7 @@ export function VistaDaArea(p: VistaDaAreaProps) {
               </CartaoDaVitrine>
             ) : null}
             {p.presente ? (
-              <CartaoDaVitrine Icone={Gift} tom="verde" titulo={t("Dê uma pergunta de presente")} linha={t("Alguém que você ama ganha uma pergunta para as cartas.")} preco={p.presente.preco}>
+              <CartaoDaVitrine Icone={Gift} tema="presente" tom="verde" titulo={t("Dê uma pergunta de presente")} linha={t("Alguém que você ama ganha uma pergunta para as cartas.")} preco={p.presente.preco}>
                 <PresenteDoCliente slug={slug} cor={cor} tx={tx} to={to} preco={p.presente.preco} presentes={p.presente.presentes} />
               </CartaoDaVitrine>
             ) : null}
@@ -636,12 +640,12 @@ export function VistaDaArea(p: VistaDaAreaProps) {
         {temCaminho ? (
           <Prateleira titulo={t("Seu caminho")} testId="area-prateleira-caminho">
             {p.grimorio.length > 0 ? (
-              <CartaoDaVitrine Icone={BookOpen} tom="lilas" titulo={t("Seu grimório")} linha={`${p.grimorio.length} ${t("cartas que já saíram para você")}`}>
+              <CartaoDaVitrine Icone={BookOpen} tema="livro" tom="lilas" titulo={t("Seu grimório")} linha={`${p.grimorio.length} ${t("cartas que já saíram para você")}`}>
                 <GrimorioDaArea cartas={p.grimorio} tg={p.tg} />
               </CartaoDaVitrine>
             ) : null}
             {p.luaDoMes ? (
-              <CartaoDaVitrine Icone={Moon} tom="azul" titulo={t("Sua lua do mês")} linha={t("O seu mês com as cartas, para guardar ou compartilhar.")}>
+              <CartaoDaVitrine Icone={Moon} tema="fases" tom="azul" titulo={t("Sua lua do mês")} linha={t("O seu mês com as cartas, para guardar ou compartilhar.")}>
                 <LuaDoMes slug={slug} cor={cor} versao={p.luaDoMes.versao} tl={p.tl} />
               </CartaoDaVitrine>
             ) : null}
