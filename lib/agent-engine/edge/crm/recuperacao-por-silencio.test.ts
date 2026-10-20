@@ -122,16 +122,10 @@ describe("decidirChamada", () => {
     expect(decidirChamada(silenciosa(naHora), AGORA, true)).toMatchObject({ kind: "step", step: 4 });
   });
 
-  it("⭐ parada numa pergunta do funil: o lembrete traz de volta à pergunta, sem valor e sem convite a parar", () => {
-    const comOferta = { recovery: { enabled: true, steps_minutes: [3, 15, 180], keep_window: { enabled: false, hours_before_close: 3 }, step_offers_cents: [null, null, 10000] } };
-    const parada = { followup: comOferta, parada_em_pergunta: true, ouviu_preco: true, ja_pagou: false, feitas: 2, ultima_em: ha(170), silence_since: ha(185), last_outbound_at: ha(185), last_inbound_at: ha(190) };
-    const chamada = decidirChamada(silenciosa(parada), AGORA, true);
-    expect(chamada).toMatchObject({ kind: "step", step: 3, ofereceSaida: false });
-    expect(chamada?.motivo).toContain("ÚLTIMA PERGUNTA");
-    expect(chamada?.motivo).toContain("NÃO fale de valor");
-    expect(chamada?.motivo).not.toContain("R$ 100");
-    // Fora do funil, o mesmo passo oferece o valor.
-    expect(decidirChamada(silenciosa({ ...parada, parada_em_pergunta: false }), AGORA, true)?.motivo).toContain("R$ 100");
+  it("⭐ quem está num fluxo não é chamado pela agente — nem parado numa pergunta do funil (fluxo isolado, 20/10/2026)", () => {
+    const filtro = CONSULTA_DE_SILENCIOSAS.slice(CONSULTA_DE_SILENCIOSAS.indexOf("where v.status"));
+    expect(filtro).toContain("e.status in ('active', 'waiting_reply', 'paused_handoff')");
+    expect(CONSULTA_DE_SILENCIOSAS).not.toContain("parada_em_pergunta");
   });
 
   it("silêncio que começou antes de a recuperação ser ligada não inicia a régua; régua já iniciada continua", () => {

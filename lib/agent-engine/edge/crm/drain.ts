@@ -24,6 +24,7 @@ import { avisoDeEventoMorto, IA_QUE_NAO_RESPONDEU } from '@/lib/event-log/aviso-
 import { TIPOS_DERIVAVEIS, DERIVACAO_TERMINADA } from '@/lib/messaging/media/derivable';
 import { decidirElegibilidadeDaConversa } from '@/lib/ai/elegibilidade/consulta-pg';
 import { deveCederTurnoAoRetorno } from '@/lib/followup/ceder-turno-ao-retorno';
+import { fluxoNoComando } from '@/lib/followup/fluxo-no-comando';
 
 const DRAIN_CONSUMER = 'agent-engine';
 
@@ -359,6 +360,16 @@ async function processEvent(
     })
   ) {
     log.info('drain: turno cedido ao follow-up de retorno — inbound_turn pulado', {
+      event_id: event.id,
+      contact_id: p.contact_id,
+    });
+    return 'processado';
+  }
+
+  // O FLUXO NO COMANDO: a pessoa está dentro de um fluxo que conduz a conversa (pergunta esperando resposta, ou
+  // sequência em curso). A mensagem é do fluxo; a agente não fala por cima. Ver `fluxo-no-comando.ts`.
+  if (await fluxoNoComando(pool, event.organization_id, p.contact_id)) {
+    log.info('drain: contato com fluxo no comando — inbound_turn pulado', {
       event_id: event.id,
       contact_id: p.contact_id,
     });

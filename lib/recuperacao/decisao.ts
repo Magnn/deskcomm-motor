@@ -127,20 +127,6 @@ export function motivoDoPasso(passo: number, total: number, silencioMs: number, 
   );
 }
 
-/**
- * O que o agente lê quando a pessoa PAROU NUMA PERGUNTA de um funil de mensagens prontas. O funil continua dono da
- * conversa: a resposta dela cai na pergunta e ele segue. O lembrete só a traz de volta.
- */
-export function motivoDoPassoNoFunil(passo: number, total: number, silencioMs: number): string {
-  return (
-    `recuperação de silêncio, chamada ${passo} de ${total}: a pessoa está no meio de um atendimento em etapas e não respondeu à ` +
-    `ÚLTIMA PERGUNTA que você fez, há ${duracao(silencioMs)}. Escreva UMA mensagem curta, pelo nome, que a traga de volta: ` +
-    "retome essa mesma pergunta com outras palavras, de um jeito fácil de responder. NÃO responda a pergunta por ela, NÃO pule " +
-    "para o próximo assunto, NÃO fale de valor, pagamento ou oferta, NÃO se despeça e NÃO pergunte se ela quer parar. Se o " +
-    "cliente pediu para não ser procurado, não envie nada"
-  );
-}
-
 /** O que o agente lê ao ser acordado para manter a conversa aberta até a data combinada. */
 export function motivoDeManterJanela(retornoEm: Date, restanteMs: number): string {
   return (
