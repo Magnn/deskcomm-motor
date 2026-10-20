@@ -14,6 +14,7 @@ import * as React from "react";
 import type { LucideIcon } from "lucide-react";
 import { ChevronRight, X } from "lucide-react";
 
+import { Ilustracao, type TemaDaIlustracao } from "./_ilustracoes";
 import { SERIF } from "./_tema";
 
 export function Prateleira({ titulo, children, testId }: { titulo: string; children: React.ReactNode; testId?: string }) {
@@ -44,6 +45,7 @@ export function CartaoDaVitrine({
   preco,
   sobretitulo,
   Icone,
+  tema,
   tom = "lilas",
   largo = false,
   testId,
@@ -54,6 +56,8 @@ export function CartaoDaVitrine({
   preco?: string | null;
   sobretitulo?: string | null;
   Icone: LucideIcon;
+  /** A ilustração do cartão (`_ilustracoes.tsx`). Sem ela, o ícone. */
+  tema?: TemaDaIlustracao;
   tom?: TomDoCartao;
   /** Cartão de prateleira com um item só: ocupa a largura toda. */
   largo?: boolean;
@@ -72,12 +76,18 @@ export function CartaoDaVitrine({
           largo ? "min-h-[150px] w-full" : "min-h-[178px] w-[72%] max-w-[280px]"
         }`}
       >
-        {/* O símbolo grande, apagado, no canto: a "ilustração" enquanto as imagens próprias não chegam. */}
-        <Icone aria-hidden className="pointer-events-none absolute -right-4 -top-4 size-28 text-[#e2c47a]/[0.09]" strokeWidth={1} />
-        <span className="relative flex size-10 items-center justify-center rounded-2xl border border-[#c9a54e]/30 bg-[#c9a54e]/10 text-[#e2c47a]">
-          <Icone className="size-5" aria-hidden />
-        </span>
-        <span className="relative mt-5 block">
+        {tema ? (
+          // A ilustração no alto do cartão: é ela que diz o que o produto é antes de ler o nome.
+          <Ilustracao tema={tema} classe="pointer-events-none -ml-2 -mt-2 size-24 drop-shadow-[0_0_18px_rgba(226,196,122,0.25)]" />
+        ) : (
+          <>
+            <Icone aria-hidden className="pointer-events-none absolute -right-4 -top-4 size-28 text-[#e2c47a]/[0.09]" strokeWidth={1} />
+            <span className="relative flex size-10 items-center justify-center rounded-2xl border border-[#c9a54e]/30 bg-[#c9a54e]/10 text-[#e2c47a]">
+              <Icone className="size-5" aria-hidden />
+            </span>
+          </>
+        )}
+        <span className={`relative block ${tema ? "mt-1" : "mt-5"}`}>
           {sobretitulo ? <span className="block text-[10.5px] font-semibold uppercase tracking-[0.2em] text-[#e2c47a]">{sobretitulo}</span> : null}
           <span className={`${SERIF} mt-1 block text-[21px] leading-snug text-[#f6f0e4]`}>{titulo}</span>
           {linha ? <span className="mt-1 line-clamp-2 block text-[13.5px] leading-snug text-[#c3bad3]">{linha}</span> : null}
