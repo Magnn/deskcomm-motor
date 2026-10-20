@@ -99,6 +99,7 @@ import {
   slugDoExtra,
   type ExtraPago,
 } from '@/lib/preco/extras';
+import { promessaDeReenvioSemCobranca } from '@/lib/preco/promessa-de-reenvio';
 import { valorErradoDeExtra } from '@/lib/preco/valor-do-extra';
 import { destinoDaProva, legendaDaProva, provasParaEnviar } from '@/lib/preco/prova-social';
 import { classificarPerdaDoAtendimento } from '@/lib/resultado/motivo-da-perda-do-agente';
@@ -3937,6 +3938,13 @@ async function executarTurnoDoAgente(
           if (valorErrado) {
             runLog.warn('valor de cobrança avulsa diferente do cadastrado — envio recusado', {});
             return { ok: false, error: { code: 'valor_do_extra_errado', message: valorErrado } };
+          }
+          // QUEM PROMETE REENVIAR O PAGAMENTO, REENVIA (`lib/preco/promessa-de-reenvio.ts`): em 20/10/2026 a agente
+          // disse "vou te mandar de novo" e não mandou o código; a cliente ficou esperando e a venda parou.
+          const reenvioSemCobranca = promessaDeReenvioSemCobranca(body);
+          if (reenvioSemCobranca) {
+            runLog.warn('promessa de reenviar o pagamento sem a cobrança — envio recusado', {});
+            return { ok: false, error: { code: 'reenvio_sem_cobranca', message: reenvioSemCobranca } };
           }
         }
         // COBRANÇA AVULSA: a marca `[[PIX: nome]]` vira a instrução e o código do Pix. Marca que o turno não pode
