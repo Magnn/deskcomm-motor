@@ -146,12 +146,12 @@ function Frente({ carta }: { carta: CartaNaMesa }) {
     return <img src={carta.foto} alt={carta.nome} className="h-full w-full rounded-xl object-cover shadow-md" />;
   }
   return (
-    <span className="flex h-full w-full flex-col items-center justify-center gap-1 rounded-xl border border-[#c9a54e]/60 bg-[#fdf9ef] p-1 text-center shadow-md">
-      <span className="text-[11px] font-semibold text-[#a8842f]">{carta.id}</span>
+    <span className="flex h-full w-full flex-col items-center justify-center gap-1 rounded-xl border border-[#c9a54e]/60 bg-[#c9a54e]/[0.08] p-1 text-center shadow-md">
+      <span className="text-[11px] font-semibold text-[#e2c47a]">{carta.id}</span>
       <span className="text-3xl" aria-hidden>
         {carta.simbolo ?? "✦"}
       </span>
-      <span className="text-[11px] font-semibold leading-tight text-[#3a3347]">{carta.nome}</span>
+      <span className="text-[11px] font-semibold leading-tight text-[#efe7f7]">{carta.nome}</span>
     </span>
   );
 }
@@ -180,7 +180,7 @@ function Bolha({ children, atraso }: { children: React.ReactNode; atraso: number
     return () => window.clearTimeout(t);
   }, [atraso]);
   if (!visivel) return null;
-  return <div className="mesa-entra w-fit max-w-[92%] rounded-2xl rounded-tl-sm bg-[#f3eefb] px-4 py-3 text-[15px] leading-relaxed text-[#2e2840]">{children}</div>;
+  return <div className="mesa-entra w-fit max-w-[92%] rounded-2xl rounded-tl-sm bg-white/[0.06] px-4 py-3 text-[15px] leading-relaxed text-[#efe7f7]">{children}</div>;
 }
 
 function Digitando({ ate, texto }: { ate: number; texto: string }) {
@@ -191,7 +191,7 @@ function Digitando({ ate, texto }: { ate: number; texto: string }) {
   }, [ate]);
   if (!ativo) return null;
   return (
-    <p className="flex items-center gap-1 text-xs text-[#8b8497]" aria-live="polite">
+    <p className="flex items-center gap-1 text-xs text-[#9d94b2]" aria-live="polite">
       {texto}
       <span className="mesa-ponto">•</span>
       <span className="mesa-ponto [animation-delay:.2s]">•</span>
@@ -236,10 +236,10 @@ function OuvirLeitura({ url, tm }: { url: string; tm: TextosDaMesa }) {
       audio.current?.pause();
     };
   }, [url]);
-  if (falhou) return <p className="text-xs text-[#8b8497]">{tm.vozIndisponivel}</p>;
+  if (falhou) return <p className="text-xs text-[#9d94b2]">{tm.vozIndisponivel}</p>;
   if (preparando) {
     return (
-      <p className="flex items-center gap-2 text-xs text-[#8b8497]" aria-live="polite" data-testid="mesa-voz-preparando">
+      <p className="flex items-center gap-2 text-xs text-[#9d94b2]" aria-live="polite" data-testid="mesa-voz-preparando">
         <Loader2 className="size-3.5 animate-spin" aria-hidden />
         {tm.vozSendoPreparada}
       </p>
@@ -286,7 +286,7 @@ function LeituraNoChat({ l, tm, animar, vozUrl }: { l: LeituraNaMesa; tm: Textos
     l.cartas.forEach((c, i) => {
       bolhas.push(
         <Bolha key={`c${i}`} atraso={animar ? 3200 + i * passo : 0}>
-          <span className="block text-xs font-semibold uppercase tracking-wide text-[#a8842f]">
+          <span className="block text-xs font-semibold uppercase tracking-wide text-[#e2c47a]">
             {c.posicao} · {c.nome}
           </span>
           <span className="mt-1 block whitespace-pre-line">{l.leitura?.cartas[i]}</span>
@@ -295,20 +295,20 @@ function LeituraNoChat({ l, tm, animar, vozUrl }: { l: LeituraNaMesa; tm: Textos
     });
     bolhas.push(
       <Bolha key="s" atraso={animar ? 3200 + 3 * passo : 0}>
-        <span className="block text-xs font-semibold uppercase tracking-wide text-[#a8842f]">{tm.sintese}</span>
+        <span className="block text-xs font-semibold uppercase tracking-wide text-[#e2c47a]">{tm.sintese}</span>
         <span className="mt-1 block whitespace-pre-line">{l.leitura.sintese}</span>
       </Bolha>,
     );
     bolhas.push(
       <Bolha key="p" atraso={animar ? 3200 + 4 * passo : 0}>
-        <span className="block text-xs font-semibold uppercase tracking-wide text-[#a8842f]">{tm.passo}</span>
+        <span className="block text-xs font-semibold uppercase tracking-wide text-[#e2c47a]">{tm.passo}</span>
         <span className="mt-1 block whitespace-pre-line">{l.leitura.passo}</span>
       </Bolha>,
     );
   }
   return (
     <div className="space-y-4">
-      <p className={`${SERIF} text-[19px] leading-snug text-[#3a3347]`}>“{l.pergunta}”</p>
+      <p className={`${SERIF} text-[19px] leading-snug text-[#efe7f7]`}>“{l.pergunta}”</p>
       {vozUrl && l.leitura ? (
         <div className="flex justify-center">
           <OuvirLeitura url={vozUrl} tm={tm} />
@@ -318,7 +318,7 @@ function LeituraNoChat({ l, tm, animar, vozUrl }: { l: LeituraNaMesa; tm: Textos
         {l.cartas.map((c, i) => (
           <div key={i} className="flex flex-col items-center gap-1.5">
             <CartaQueVira carta={c} virada={viradas > i} />
-            <span className="max-w-24 text-center text-[11px] leading-tight text-[#8b8497]">{c.posicao}</span>
+            <span className="max-w-24 text-center text-[11px] leading-tight text-[#9d94b2]">{c.posicao}</span>
           </div>
         ))}
       </div>
@@ -559,17 +559,17 @@ export function MesaDeLeituras({
     );
   } else if (etapa.tipo === "pix") {
     conteudo = (
-      <div className="mesa-entra space-y-3 rounded-2xl bg-white p-4 text-[#241f31]" data-testid="mesa-pix">
+      <div className="mesa-entra space-y-3 rounded-2xl bg-[#1d1638] p-4 text-[#f6f0e4]" data-testid="mesa-pix">
         {etapa.qrPng ? (
           // eslint-disable-next-line @next/next/no-img-element -- QR hospedado pela Stripe
           <img src={etapa.qrPng} alt="QR Pix" className="mx-auto size-44" />
         ) : null}
-        <p className="break-all rounded-xl bg-[#f6f1e6] p-3 font-mono text-xs leading-relaxed">{etapa.copiaECola}</p>
-        <button type="button" onClick={async () => setCopiado(await copyToClipboard(etapa.copiaECola))} className={`${BOTAO} w-full`} style={{ background: cor }}>
+        <p className="break-all rounded-xl bg-white/[0.06] p-3 font-mono text-xs leading-relaxed">{etapa.copiaECola}</p>
+        <button type="button" onClick={async () => setCopiado(await copyToClipboard(etapa.copiaECola))} className={`${BOTAO} w-full`} style={{ background: cor, color: "#1b1433" }}>
           {copiado ? <Check className="size-4" aria-hidden /> : <Copy className="size-4" aria-hidden />}
           {copiado ? tm.codigoCopiado : tm.copiarCodigo}
         </button>
-        <p className="flex items-center justify-center gap-1 text-sm text-[#6f6880]">
+        <p className="flex items-center justify-center gap-1 text-sm text-[#c3bad3]">
           {tm.esperandoPagamento}
           <span className="mesa-ponto">•</span>
           <span className="mesa-ponto [animation-delay:.2s]">•</span>
@@ -663,7 +663,7 @@ export function MesaDeLeituras({
   } else if (etapa.tipo === "leitura") {
     const l = etapa.leitura;
     conteudo = (
-      <div className="space-y-5 rounded-2xl bg-white p-4 text-[#241f31]">
+      <div className="space-y-5 rounded-2xl bg-[#1d1638] p-4 text-[#f6f0e4]">
         <LeituraNoChat l={l} tm={tm} animar vozUrl={inicial.narrar ? `${base}/${l.id}/voz` : null} />
         {!l.leitura ? (
           <div className="space-y-2">
@@ -673,7 +673,7 @@ export function MesaDeLeituras({
             </button>
           </div>
         ) : null}
-        <div className="space-y-3 border-t border-[#efe7d6] pt-4">
+        <div className="space-y-3 border-t border-white/10 pt-4">
           {whatsapp ? (
             <div>
               <p className={TEXTO_SUAVE}>{tm.ciganaDeVerdade}</p>
@@ -683,7 +683,7 @@ export function MesaDeLeituras({
               </a>
             </div>
           ) : null}
-          <button type="button" onClick={() => setEtapa({ tipo: "inicio" })} className="text-sm text-[#6f6880] underline underline-offset-4">
+          <button type="button" onClick={() => setEtapa({ tipo: "inicio" })} className="text-sm text-[#c3bad3] underline underline-offset-4">
             {tm.voltarAMesa}
           </button>
         </div>
@@ -760,7 +760,7 @@ export function MesaDeLeituras({
       {reveladas.length > 0 && etapa.tipo === "inicio" ? (
         <section className={CARTAO} data-testid="area-minhas-leituras">
           <p className={SOBRETITULO}>{tm.minhasLeituras}</p>
-          <ul className="mt-3 divide-y divide-[#efe7d6]">
+          <ul className="mt-3 divide-y divide-white/10">
             {reveladas.map((l) => (
               <li key={l.id} className="py-3">
                 <button type="button" onClick={() => setAberta(aberta === l.id ? null : l.id)} className="w-full text-left">

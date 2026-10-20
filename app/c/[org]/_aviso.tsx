@@ -163,7 +163,7 @@ export function AvisoDiario({ slug, ta, hora, convidarJa }: { slug: string; ta: 
   if (estado === "carregando" || estado === "sem_suporte") return null;
   if (estado === "ligado") {
     return (
-      <p className="flex items-center justify-center gap-2 text-xs text-[#8b8497]" data-testid="aviso-ligado">
+      <p className="flex items-center justify-center gap-2 text-xs text-[#9d94b2]" data-testid="aviso-ligado">
         <Bell className="size-3.5" aria-hidden />
         {ta.ligado.replace("{hora}", `${hora}h`)} ·{" "}
         <button type="button" onClick={() => void desligar()} disabled={ocupado} className="underline underline-offset-4">
