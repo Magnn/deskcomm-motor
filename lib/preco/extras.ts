@@ -176,12 +176,18 @@ export function blocoDosExtras(extras: readonly Extra[], pagos: readonly ExtraPa
     linhas.push(
       `- *${e.name}* — ${reais(e.price_cents)} (o valor DESTA cobrança; não é o valor do trabalho principal). Quando cobrar: ${e.when} Para cobrar, escreva sozinho num balão: ${marcaDoExtra(e.name)}`,
     );
+    // A conta pronta: em 20/10/2026 a agente somou 6 perguntas de R$ 5 como "R$ 35 o pacote" e defendeu o erro.
+    if ((e.valid_days ?? 1) <= 1) {
+      const tabela = Array.from({ length: MAXIMO_DE_UNIDADES - 1 }, (_, i) => `${i + 2} = ${reais((i + 2) * e.price_cents)}`).join(", ");
+      linhas.push(`  Total de *${e.name}* (NÃO faça conta de cabeça, use esta tabela): ${tabela}. Não existe pacote nem desconto: o total é sempre o da tabela, e a quantidade da marca é a quantidade combinada.`);
+    }
   }
   linhas.push(
     `- VÁRIAS DE UMA VEZ: se ela tem mais de uma pergunta (ou quer mais de uma unidade da mesma cobrança), ANOTE todas, confirme a lista com ela em um balão e cobre TUDO num Pix só, escrevendo a quantidade na marca: ${marcaDoExtraEmLote("nome", 3)} (até ${MAXIMO_DE_UNIDADES}). O valor é o da cobrança vezes a quantidade. Nunca cobre uma, responda, e cobre a próxima.`,
     "- COMO COBRAR, numa resposta só: 1º um balão curto dizendo o que é e o valor; 2º a marca sozinha no balão seguinte (o sistema troca a marca pelo código do Pix e pelo link de cartão de crédito); 3º um balão final: \"Assim que o pagamento cair eu vejo aqui e já te atendo. Conseguiu copiar o código?\"",
     "- Se ela disser que não tem Pix, que só tem cartão ou pedir o link do cartão: o link de cartão vai junto com o Pix. Mande a marca de novo, sozinha no balão, e diga que o link do cartão está logo abaixo do código. NUNCA peça nem aceite foto ou número de cartão na conversa: os dados do cartão são digitados só na página do pagamento.",
     "- NÃO chame atendimento humano para cobrar isto, NÃO peça comprovante e NÃO entregue antes de o pagamento aparecer neste bloco como PAGAMENTO CONFIRMADO.",
+    "- Foto ou comprovante enviado pela pessoa NÃO é pagamento confirmado: NUNCA diga que o pagamento caiu nem cite um valor de comprovante. Diga que está conferindo e que abre assim que o sistema confirmar.",
     "- Dúvida sobre o trabalho principal, sobre o pagamento ou sobre o que você já leu para ela NÃO é cobrança à parte: responda normalmente.",
   );
   for (const p of pagos) {
