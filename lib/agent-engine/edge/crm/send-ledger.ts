@@ -1,4 +1,5 @@
 import { ApiError } from "@/lib/api/types";
+import { SEM_ENVIO_DO_PASSO } from "@/lib/followup/sem-envio";
 import { createHash } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Queryable } from "../../queue/queue";
@@ -219,7 +220,7 @@ export async function resultadoDoEnvioDoFollowup(
   if (!rows.length)
     return {
       kind: "skipped",
-      reason: "O assistente concluiu este passo sem enviar uma mensagem. Revise o próximo passo.",
+      reason: SEM_ENVIO_DO_PASSO,
     };
   if (rows.every((row) => row.status === "vetoed"))
     return { kind: "skipped", reason: "O envio foi recusado pelas regras do atendimento." };

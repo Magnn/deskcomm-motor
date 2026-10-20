@@ -26,6 +26,7 @@ import { coletarEsperasAdaptativas, montarTimingPlan, type PropostaDeEspera } fr
 import { persistirRespostaFollowupPg } from "./persistir-resposta";
 import { textoDaRespostaDoLead } from "./resposta-do-lead";
 import { SQL_DEVOLVER_A_VEZ } from "./devolver-a-vez";
+import { ESPERA_DA_NOVA_TENTATIVA_MS, EVENTO_NOVA_TENTATIVA, SEM_ENVIO_DO_PASSO } from "./sem-envio";
 
 /** Superset de AdminClient: a ponte precisa do snapshot COMPLETO do enrollment
  *  (current_node_id/version_id/steps_taken) pra montar o passo de conclusão —
@@ -163,6 +164,22 @@ export async function completeTurnForEnrollment(
     );
 
   if(result.kind === "skipped"){
+    // UMA SEGUNDA CHANCE para o passo de IA que terminou sem enviar (`SEM_ENVIO_DO_PASSO`). Medido em 20/10/2026: a
+    // ENTREGA de quem tinha acabado de pagar rodou no mesmo segundo em que chegou a foto do comprovante, o modelo não
+    // enviou nada e o fluxo de entrega inteiro foi cancelado — a cliente pagou e não recebeu. Envio VETADO pelas
+    // regras continua terminal; só o "não enviou" ganha uma nova tentativa (a próxima ocupação do mesmo nó).
+    if (result.reason === SEM_ENVIO_DO_PASSO && node.type === "action" && node.config.mode === "ai_message") {
+      const eventos = await db.loadEnrollmentEvents(enrollmentId);
+      const jaTentou = eventos.some((e) => e.node_id === node.id && e.event_type === EVENTO_NOVA_TENTATIVA);
+      if (!jaTentou) {
+        await applyStep(EVENTO_NOVA_TENTATIVA, { reason: result.reason }, {
+          status: "active",
+          current_node_id: node.id,
+          next_eval_at: new Date(now.getTime() + ESPERA_DA_NOVA_TENTATIVA_MS).toISOString(),
+        });
+        return;
+      }
+    }
     await applyStep("turn_skipped",{reason:result.reason},{status:"cancelled",cancel_reason:result.reason,completed_at:now.toISOString(),next_eval_at:null});
     return;
   }

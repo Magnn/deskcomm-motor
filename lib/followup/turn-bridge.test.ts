@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 
 import { completeTurnForEnrollment, createPgAdminClient, type TurnBridgeAdminClient } from "./turn-bridge";
+import { EVENTO_NOVA_TENTATIVA, SEM_ENVIO_DO_PASSO } from "./sem-envio";
 import type { EnrollmentRow } from "./node-handlers";
 import type { FlowGraph } from "./graph-schema";
 
@@ -502,5 +503,31 @@ describe("completeTurnForEnrollment — 'generic_ai_done' (nó GPT)", () => {
     expect(insertEnrollmentEvent).toHaveBeenCalledWith(
       expect.objectContaining({ payload: expect.objectContaining({ envio: "deferred", modelo: "gpt-4o" }) }),
     );
+  });
+});
+
+describe("completeTurnForEnrollment — passo de IA que terminou sem enviar (20/10/2026: a entrega de quem pagou morria)", () => {
+  it("⭐ 1ª vez: uma nova tentativa no mesmo nó, daqui a 2 min — o fluxo NÃO é cancelado", async () => {
+    const { db, updateEnrollment, insertEnrollmentEvent } = fakeDb({ enrollment: enrollment(), graph: ACTION_GRAPH });
+    await completeTurnForEnrollment(db, "org-1", "enr-1", "a1", { kind: "skipped", reason: SEM_ENVIO_DO_PASSO }, clock);
+    expect(insertEnrollmentEvent).toHaveBeenCalledWith(expect.objectContaining({ event_type: EVENTO_NOVA_TENTATIVA, node_id: "a1" }));
+    expect(updateEnrollment).toHaveBeenCalledWith(
+      "enr-1",
+      "org-1",
+      expect.objectContaining({ status: "active", current_node_id: "a1", steps_taken: 5, next_eval_at: new Date(NOW.getTime() + 120_000).toISOString() }),
+    );
+  });
+
+  it("2ª vez no mesmo nó: aí sim cancela (não vira laço)", async () => {
+    const { db, updateEnrollment } = fakeDb({ enrollment: enrollment(), graph: ACTION_GRAPH });
+    db.loadEnrollmentEvents = async () => [{ node_id: "a1", idempotency_key: "a1:3", event_type: EVENTO_NOVA_TENTATIVA, payload: {} }];
+    await completeTurnForEnrollment(db, "org-1", "enr-1", "a1", { kind: "skipped", reason: SEM_ENVIO_DO_PASSO }, clock);
+    expect(updateEnrollment).toHaveBeenCalledWith("enr-1", "org-1", expect.objectContaining({ status: "cancelled" }));
+  });
+
+  it("envio VETADO pelas regras continua terminal", async () => {
+    const { db, updateEnrollment } = fakeDb({ enrollment: enrollment(), graph: ACTION_GRAPH });
+    await completeTurnForEnrollment(db, "org-1", "enr-1", "a1", { kind: "skipped", reason: "O envio foi recusado pelas regras do atendimento." }, clock);
+    expect(updateEnrollment).toHaveBeenCalledWith("enr-1", "org-1", expect.objectContaining({ status: "cancelled" }));
   });
 });

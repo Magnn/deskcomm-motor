@@ -67,6 +67,7 @@ import {
 import { interpolarDestino, persistirRespostaFollowupSupabase } from "./persistir-resposta";
 import { PERGUNTA_SEM_PRAZO_MS, prazoDaPerguntaMs } from "./graph-schema";
 import { JANELA_DA_DEVOLUCAO_MINUTOS, ORIGEM_DA_DEVOLUCAO } from "./devolver-a-vez";
+import { EVENTO_NOVA_TENTATIVA } from "./sem-envio";
 
 // Teto de passos de uma inscrição (protege contra ciclo no grafo). Cada caixa custa de 2 a 3 passos (medido: um
 // fluxo de 14 caixas chegou a 28, um de 5 a 16): 60 caixas no caminho mais longo (`MAX_PATH_STEPS`) pedem folga.
@@ -908,7 +909,16 @@ async function processEnrollment(
       wokeEarly = events.some((e) => e.node_id === node.id && e.idempotency_key === wakeKey);
     }
     if (node.type === "action" || node.type === "ai_generic" || node.type === "menu" || node.type === "collect") {
-      actionEnqueued = waitElapsed;
+      // A nova tentativa (`turn-bridge.ts`, passo de IA que terminou sem enviar) ocupa a chave do passo anterior, mas
+      // NÃO é um envio enfileirado: sem esta exceção o motor só "reconferia" e a tentativa nunca saía.
+      actionEnqueued =
+        waitElapsed &&
+        !events.some(
+          (e) =>
+            e.node_id === node.id &&
+            e.idempotency_key === `${node.id}:${enrollment.steps_taken - 1}` &&
+            e.event_type === EVENTO_NOVA_TENTATIVA,
+        );
       // NÃO é `occupancyEventCount`: o dead-man mede ociosidade DESDE A ÚLTIMA
       // prova de vida do turno, e um adiamento de janela é prova de vida. Ver
       // `rechecksOciososDaAcao` / `EVENTO_ACAO_ADIADA` em node-handlers.ts.
