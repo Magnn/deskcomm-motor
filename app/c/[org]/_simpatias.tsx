@@ -154,13 +154,14 @@ function CartaoDaSimpatia({
           <button
             type="button"
             onClick={() => setPedindo(true)}
-            className="inline-flex h-11 w-full items-center justify-between gap-3 rounded-full border-2 bg-transparent px-5 text-[15px] font-semibold"
+            className="inline-flex min-h-11 w-full items-center justify-between gap-3 rounded-full border-2 bg-transparent px-5 py-2 text-left text-[15px] font-semibold leading-tight"
             style={{ borderColor: cor, color: cor }}
             data-testid="area-simpatia-templo-faz"
           >
             <span className="inline-flex min-w-0 items-center gap-2">
               <Flame className="size-4 shrink-0" aria-hidden />
-              <span className="truncate">{ts.temploFaz}</span>
+              {/* Sem corte: dentro da gaveta a largura é menor, e "O templo faz po…" escondia o que se compra. */}
+              <span>{ts.temploFaz}</span>
             </span>
             {/* O preço do lado, numa linha só: dentro do texto ele quebrava em duas linhas no celular. */}
             <span className="shrink-0 whitespace-nowrap">{preco}</span>

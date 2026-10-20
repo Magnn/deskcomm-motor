@@ -6,7 +6,7 @@
  * banco nem sessão: é assim que a tela é provada antes de ir ao ar.
  */
 import type { CSSProperties } from "react";
-import { Check, FileText, Film, Headphones, MessageCircle, Receipt } from "lucide-react";
+import { BookOpen, Check, FileText, Film, Flame, Gift, HandHeart, Headphones, Heart, MessageCircle, Moon, Receipt, Sparkles, Star } from "lucide-react";
 
 import { recadoDaEmpresa, type DadosDaArea } from "@/lib/area-do-cliente/dados";
 import type { CeuDoNascimento } from "@/lib/area-do-cliente/ceu";
@@ -40,6 +40,7 @@ import { LuaDeHoje } from "./_lua";
 import { AnoPessoalDoCliente, PresenteDoCliente, type TextosDasOfertas } from "./_ofertas";
 import { ContribuicaoDoCliente, SimpatiasDoCliente, type PedidoNaArea, type SimpatiaNaArea, type TextosDasSimpatias } from "./_simpatias";
 import { CARTAO, CARTAO_NOTURNO, CEU, DETALHE, OURO, PAGINA, SERIF, SOBRETITULO, SOBRETITULO_NOTURNO, TEXTO_SUAVE } from "./_tema";
+import { CartaoDaVitrine, LinhaDaVitrine, Prateleira } from "./_vitrine";
 
 type Traduzir = (texto: string) => string;
 
@@ -511,93 +512,155 @@ export function VistaDaArea(p: VistaDaAreaProps) {
     </>
   );
 
+  // O EXPLORAR É VITRINE (`_vitrine.tsx`): prateleiras de cartões, e o conteúdo e o pagamento só na gaveta, depois
+  // do toque. Era uma coluna de onze blocos e cinco mil pixels, com "Pagar com Pix" aparecendo antes do desejo.
+  const temCaminho = p.grimorio.length > 0 || p.luaDoMes !== null;
+  const temSoParaVoce = p.anoPessoal !== null || p.circulo !== null || p.presente !== null;
   const explorar = (
     <>
       {topo(rotulos.explorar)}
-      <div className={corpo}>
+      <div className={`${corpo} [&>*+*]:!mt-8`}>
         {p.carteira ? <CarteiraDeCreditos slug={slug} cor={cor} tx={tx} tc={p.tc} inicial={p.carteira} tag={tag} /> : null}
+        {/* A Mesa fica inteira, no alto: é o ritual da área, não um produto da prateleira. */}
         {p.mesa ? <MesaDeLeituras slug={slug} cor={cor} tx={tx} tm={p.tm} inicial={p.mesa} sugestoes={p.perfil.foco ? PERGUNTAS_DO_FOCO[p.perfil.foco].map((q) => t(q)) : []} whatsapp={p.whatsapp} tag={tag} /> : null}
 
-        <GrimorioDaArea cartas={p.grimorio} tg={p.tg} />
-
-        {p.luaDoMes ? <LuaDoMes slug={slug} cor={cor} versao={p.luaDoMes.versao} tl={p.tl} /> : null}
-
-        {p.anoPessoal ? <AnoPessoalDoCliente slug={slug} cor={cor} tx={tx} to={to} {...p.anoPessoal} /> : null}
-
-        {p.circulo ? (
-          <CirculoDoCliente
-            slug={slug}
-            cor={cor}
-            tx={tx}
-            {...p.circulo}
-            creditosPorMes={p.creditosDoCirculo ? `${t("Todo mês:")} +${p.creditosDoCirculo} ${t("créditos para usar nas leituras")}` : null}
-          />
-        ) : null}
-
-        {p.simpatias ? (
-          <SimpatiasDoCliente slug={slug} cor={cor} tx={tx} ts={p.ts} preco={p.simpatias.preco} simpatias={p.simpatias.simpatias} pedidos={p.simpatias.pedidos} />
+        {p.simpatias && p.simpatias.simpatias.length > 0 ? (
+          <Prateleira titulo={t("Simpatias")} testId="area-prateleira-simpatias">
+            {p.simpatias.simpatias.map((sp) => (
+              <CartaoDaVitrine key={sp.id} Icone={Flame} tom="rosa" titulo={sp.titulo} linha={sp.intencao} preco={p.simpatias!.preco} testId="area-cartao-simpatia">
+                <SimpatiasDoCliente
+                  slug={slug}
+                  cor={cor}
+                  tx={tx}
+                  ts={p.ts}
+                  preco={p.simpatias!.preco}
+                  simpatias={[sp]}
+                  pedidos={p.simpatias!.pedidos.filter((pd) => pd.titulo === sp.titulo)}
+                />
+              </CartaoDaVitrine>
+            ))}
+          </Prateleira>
         ) : null}
 
         {vitrine.length > 0 ? (
           <VitrineObservada slug={slug}>
-            <section className={CARTAO} data-testid="area-vitrine">
-              <TituloDaSecao titulo={t("Para você")} />
-              <div className="mt-4 space-y-3">
-                {vitrine.map((s) => (
-                  <article
-                    key={s.id}
-                    data-servico-id={s.id}
-                    className={s.destaque ? "rounded-2xl border-2 border-[#c9a54e] bg-[#c9a54e]/[0.08] p-5" : "rounded-2xl border border-white/10 bg-white/[0.05] p-5"}
+            <div data-testid="area-vitrine">
+              <Prateleira titulo={t("Trabalhos")}>
+                {vitrine.map((sv) => (
+                  <CartaoDaVitrine
+                    key={sv.id}
+                    Icone={Sparkles}
+                    tom={sv.destaque ? "ouro" : "azul"}
+                    sobretitulo={sv.destaque ? t("Para você") : null}
+                    titulo={sv.nome}
+                    linha={sv.descricao}
+                    preco={dinheiro(sv.preco_cents, sv.currency)}
+                    largo={vitrine.length === 1}
                   >
-                    <h3 className={`${SERIF} text-xl leading-snug`}>{s.nome}</h3>
-                    {s.descricao ? <p className={`mt-1.5 ${TEXTO_SUAVE}`}>{s.descricao}</p> : null}
-                    {s.recebe ? (
-                      <p className="mt-2 text-sm text-[#c3bad3]">
-                        <span className="font-semibold">{t("Você recebe:")}</span> {s.recebe}
-                      </p>
-                    ) : null}
-                    <div className="mt-4 flex items-center justify-between gap-3">
-                      <span className={`${SERIF} text-2xl`}>{dinheiro(s.preco_cents, s.currency)}</span>
-                      <a
-                        href={`/c/${slug}/comprar/${s.id}`}
-                        className="inline-flex h-11 items-center rounded-full px-5 text-[15px] font-semibold text-white"
-                        style={{ background: cor, color: "#1b1433" }}
-                        data-testid="area-comprar"
-                      >
-                        {t("Quero este")}
-                      </a>
-                    </div>
-                  </article>
+                    <article data-servico-id={sv.id} className="rounded-3xl border border-[#c9a54e]/20 bg-[#1a1430] p-6">
+                      <h3 className={`${SERIF} text-2xl leading-snug`}>{sv.nome}</h3>
+                      {sv.descricao ? <p className={`mt-2 ${TEXTO_SUAVE}`}>{sv.descricao}</p> : null}
+                      {sv.recebe ? (
+                        <p className="mt-3 text-sm text-[#c3bad3]">
+                          <span className="font-semibold text-[#efe7f7]">{t("Você recebe:")}</span> {sv.recebe}
+                        </p>
+                      ) : null}
+                      <div className="mt-5 flex items-center justify-between gap-3">
+                        <span className={`${SERIF} text-[28px]`}>{dinheiro(sv.preco_cents, sv.currency)}</span>
+                        <a
+                          href={`/c/${slug}/comprar/${sv.id}`}
+                          className="inline-flex h-12 items-center rounded-full px-6 text-[15px] font-semibold"
+                          style={{ background: cor, color: "#1b1433" }}
+                          data-testid="area-comprar"
+                        >
+                          {t("Quero este")}
+                        </a>
+                      </div>
+                      {/* Compra direta é o caminho principal; a conversa fica à mão, para quem quiser tirar dúvida antes. */}
+                      {p.whatsapp ? (
+                        <p className={`mt-4 ${TEXTO_SUAVE}`}>
+                          {t("Prefere tirar uma dúvida antes?")}{" "}
+                          <a href={`https://wa.me/${p.whatsapp}`} className="font-semibold underline underline-offset-4" style={{ color: cor }} data-testid="area-vitrine-whatsapp">
+                            {t("Fale com a gente no WhatsApp")}
+                          </a>
+                        </p>
+                      ) : null}
+                    </article>
+                  </CartaoDaVitrine>
                 ))}
-              </div>
-              {/* Compra direta é o caminho principal; a conversa fica à mão, para quem quiser tirar dúvida antes. */}
-              {p.whatsapp ? (
-                <p className={`mt-4 text-center ${TEXTO_SUAVE}`}>
-                  {t("Prefere tirar uma dúvida antes?")}{" "}
-                  <a
-                    href={`https://wa.me/${p.whatsapp}`}
-                    className="font-semibold underline underline-offset-4"
-                    style={{ color: cor }}
-                    data-testid="area-vitrine-whatsapp"
-                  >
-                    {t("Fale com a gente no WhatsApp")}
-                  </a>
-                </p>
-              ) : null}
-            </section>
+              </Prateleira>
+            </div>
           </VitrineObservada>
         ) : null}
 
-        {p.presente ? <PresenteDoCliente slug={slug} cor={cor} tx={tx} to={to} preco={p.presente.preco} presentes={p.presente.presentes} /> : null}
+        {temSoParaVoce ? (
+          <Prateleira titulo={t("Só para você")} testId="area-prateleira-so-para-voce">
+            {p.circulo ? (
+              <CartaoDaVitrine
+                Icone={Moon}
+                tom="lilas"
+                sobretitulo={p.circulo.ativo ? t("Ativo") : null}
+                titulo={p.circulo.nome}
+                linha={t("Todo mês, um ritual simples e uma pergunta respondida com uma carta.")}
+                preco={p.circulo.preco}
+              >
+                <CirculoDoCliente
+                  slug={slug}
+                  cor={cor}
+                  tx={tx}
+                  {...p.circulo}
+                  creditosPorMes={p.creditosDoCirculo ? `${t("Todo mês:")} +${p.creditosDoCirculo} ${t("créditos para usar nas leituras")}` : null}
+                />
+              </CartaoDaVitrine>
+            ) : null}
+            {p.anoPessoal ? (
+              <CartaoDaVitrine
+                Icone={Star}
+                tom="ouro"
+                sobretitulo={`${p.anoPessoal.ano} · ${p.anoPessoal.numero}`}
+                titulo={t("Seu Ano Pessoal")}
+                linha={t("A leitura do ano que começa no seu aniversário.")}
+                preco={p.anoPessoal.pago ? t("Liberado") : p.anoPessoal.preco}
+              >
+                <AnoPessoalDoCliente slug={slug} cor={cor} tx={tx} to={to} {...p.anoPessoal} />
+              </CartaoDaVitrine>
+            ) : null}
+            {p.presente ? (
+              <CartaoDaVitrine Icone={Gift} tom="verde" titulo={t("Dê uma pergunta de presente")} linha={t("Alguém que você ama ganha uma pergunta para as cartas.")} preco={p.presente.preco}>
+                <PresenteDoCliente slug={slug} cor={cor} tx={tx} to={to} preco={p.presente.preco} presentes={p.presente.presentes} />
+              </CartaoDaVitrine>
+            ) : null}
+          </Prateleira>
+        ) : null}
+
+        {temCaminho ? (
+          <Prateleira titulo={t("Seu caminho")} testId="area-prateleira-caminho">
+            {p.grimorio.length > 0 ? (
+              <CartaoDaVitrine Icone={BookOpen} tom="lilas" titulo={t("Seu grimório")} linha={`${p.grimorio.length} ${t("cartas que já saíram para você")}`}>
+                <GrimorioDaArea cartas={p.grimorio} tg={p.tg} />
+              </CartaoDaVitrine>
+            ) : null}
+            {p.luaDoMes ? (
+              <CartaoDaVitrine Icone={Moon} tom="azul" titulo={t("Sua lua do mês")} linha={t("O seu mês com as cartas, para guardar ou compartilhar.")}>
+                <LuaDoMes slug={slug} cor={cor} versao={p.luaDoMes.versao} tl={p.tl} />
+              </CartaoDaVitrine>
+            ) : null}
+          </Prateleira>
+        ) : null}
 
         {/* O segundo pedido (aniversário) só depois de o primeiro (e-mail) estar resolvido. */}
         {dados.contato.email && !dados.contato.nascimento ? <AniversarioDoCliente slug={slug} cor={cor} tx={tx} /> : null}
 
-        <DesejoDoCliente slug={slug} cor={cor} tx={tx} />
-
-        {p.contribuicao ? (
-          <ContribuicaoDoCliente slug={slug} cor={cor} tx={tx} ts={p.ts} minimoCents={p.contribuicao.minimoCents} minimo={p.contribuicao.minimo} />
-        ) : null}
+        <div className="space-y-2">
+          <LinhaDaVitrine Icone={Heart} titulo={t("O que você gostaria de receber de nós?")} testId="area-linha-desejo">
+            <DesejoDoCliente slug={slug} cor={cor} tx={tx} />
+          </LinhaDaVitrine>
+          {p.contribuicao ? (
+            <LinhaDaVitrine Icone={HandHeart} titulo={t("Contribua com o templo")} testId="area-linha-contribuicao">
+              <ContribuicaoDoCliente slug={slug} cor={cor} tx={tx} ts={p.ts} minimoCents={p.contribuicao.minimoCents} minimo={p.contribuicao.minimo} />
+            </LinhaDaVitrine>
+          ) : null}
+        </div>
       </div>
     </>
   );
