@@ -16,12 +16,25 @@ import { createAdminClient } from "@/lib/supabase/admin";
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: vi.fn() }));
 // O destino de mensageria (conta, conjunto de dados e token do canal oficial) tem teste próprio em
 // `conversao-de-mensageria-vai-para-a-conta-do-whatsapp.test.ts`; aqui ele é um canal que existe.
-vi.mock("@/lib/conversoes/destino-de-mensageria", () => ({
-  lerDestinoDeMensageria: vi.fn(async () => ({
+const { destinoSobre } = vi.hoisted(() => {
+  // O destino real (`destinoDaConversaoMeta`) sobre o `lerDestinoDeMensageria` simulado: mensageria quando há
+  // canal oficial; senão, o pixel do site da tela.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- o dublê devolve a forma livre de cada caso
+  const destinoSobre = (ler: () => Promise<any>) => async (_a: unknown, _o: unknown, _c: unknown, daTela: Record<string, unknown>) => {
+    const d = await ler();
+    if (d.ok) return { ok: true, credencial: { ...daTela, datasetId: d.destino.datasetId, accessToken: d.destino.accessToken }, contaDoWhatsApp: d.destino.contaDoWhatsApp, pixelDoSite: false };
+    if (d.motivo === "conjunto_de_dados_indisponivel") return d;
+    return { ok: true, credencial: daTela, contaDoWhatsApp: null, pixelDoSite: true };
+  };
+  return { destinoSobre };
+});
+vi.mock("@/lib/conversoes/destino-de-mensageria", () => {
+  const ler = vi.fn(async () => ({
     ok: true,
     destino: { contaDoWhatsApp: "conta-do-whatsapp", datasetId: "conjunto-da-conta", accessToken: "token-do-canal" },
-  })),
-}));
+  }));
+  return { lerDestinoDeMensageria: ler, destinoDaConversaoMeta: destinoSobre(ler) };
+});
 
 const ORG = "11111111-1111-1111-1111-111111111111";
 const LEAD = "22222222-2222-2222-2222-222222222222";

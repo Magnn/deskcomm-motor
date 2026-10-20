@@ -18,7 +18,22 @@ const enviar = vi.fn();
 
 vi.mock("@/lib/conversoes/leitura-da-atribuicao", () => ({ lerAtribuicao: (...a: unknown[]) => lerAtribuicao(...a) }));
 vi.mock("@/lib/plataformas-de-anuncio/credenciais", () => ({ lerCredencial: (...a: unknown[]) => lerCredencial(...a) }));
-vi.mock("@/lib/conversoes/destino-de-mensageria", () => ({ lerDestinoDeMensageria: (...a: unknown[]) => lerDestinoDeMensageria(...a) }));
+const { destinoSobre } = vi.hoisted(() => {
+  // O destino real (`destinoDaConversaoMeta`) sobre o `lerDestinoDeMensageria` simulado: mensageria quando há
+  // canal oficial; senão, o pixel do site da tela.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- o dublê devolve a forma livre de cada caso
+  const destinoSobre = (ler: () => Promise<any>) => async (_a: unknown, _o: unknown, _c: unknown, daTela: Record<string, unknown>) => {
+    const d = await ler();
+    if (d.ok) return { ok: true, credencial: { ...daTela, datasetId: d.destino.datasetId, accessToken: d.destino.accessToken }, contaDoWhatsApp: d.destino.contaDoWhatsApp, pixelDoSite: false };
+    if (d.motivo === "conjunto_de_dados_indisponivel") return d;
+    return { ok: true, credencial: daTela, contaDoWhatsApp: null, pixelDoSite: true };
+  };
+  return { destinoSobre };
+});
+vi.mock("@/lib/conversoes/destino-de-mensageria", () => ({
+  lerDestinoDeMensageria: (...a: unknown[]) => lerDestinoDeMensageria(...a),
+  destinoDaConversaoMeta: destinoSobre(() => lerDestinoDeMensageria()),
+}));
 vi.mock("@/lib/conversoes/registro-de-envio", () => ({
   jaFoiEnviada: (...a: unknown[]) => jaFoiEnviada(...a),
   registraEnvio: (...a: unknown[]) => registraEnvio(...a),
