@@ -10,7 +10,6 @@ import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 
-import { COR_PADRAO_DA_AREA } from "@/lib/area-do-cliente/config";
 import { nomeDoCookieDaArea, orgDaArea, sessaoDoCookie } from "@/lib/area-do-cliente/sessao";
 import { caminhoDaArea } from "@/lib/area-do-cliente/vocabulario";
 import { tagDeIdioma } from "@/lib/i18n/datas";
@@ -61,7 +60,6 @@ export default async function Recibo({ params }: Props) {
   const idioma = await idiomaDoVisitante(null);
   const t = (texto: string) => traduzir(texto, idioma);
   const tag = tagDeIdioma(idioma);
-  const cor = org.config.cor || COR_PADRAO_DA_AREA;
   const metodo = typeof c.metadata?.metodo === "string" ? c.metadata.metodo : null;
   const produto = typeof c.metadata?.produto === "string" && c.metadata.produto.trim() ? c.metadata.produto.trim() : null;
   const quando = new Intl.DateTimeFormat(tag, {
@@ -76,52 +74,52 @@ export default async function Recibo({ params }: Props) {
 
   return (
     <main className={`${serifDaArea.variable} ${PAGINA} px-4 py-10 print:bg-white print:py-0`}>
-      <div className={`${CARTAO} mx-auto max-w-md print:border-0 print:shadow-none`} data-testid="area-recibo">
+      <div className={`${CARTAO} mx-auto max-w-md print:border-0 print:bg-white print:text-[#241f31] print:shadow-none`} data-testid="area-recibo">
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className={SOBRETITULO}>{org.config.titulo || org.nome}</p>
             <h1 className={`${SERIF} mt-1 text-[30px] leading-tight`}>{t("Recibo")}</h1>
           </div>
-          <span className="mt-1 rotate-[-6deg] rounded-full border-2 border-[#2f7a4f] px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-[#2f7a4f]">
+          <span className="mt-1 rotate-[-6deg] rounded-full border-2 border-[#8fd6a8] print:border-[#2f7a4f] px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-[#8fd6a8] print:text-[#2f7a4f]">
             {t("pago ✓")}
           </span>
         </div>
         <p className={`${SERIF} mt-6 text-[36px] leading-none`}>{valor}</p>
-        <dl className="mt-6 space-y-3 border-t border-dashed border-[#e4dccb] pt-5 text-[15px]">
+        <dl className="mt-6 space-y-3 border-t border-dashed border-white/15 print:border-[#e4dccb] pt-5 text-[15px]">
           <div className="flex justify-between gap-4">
-            <dt className="text-[#8b8497]">{t("Produto")}</dt>
+            <dt className="text-[#9d94b2] print:text-[#8b8497]">{t("Produto")}</dt>
             <dd className="text-right font-medium">{produto ?? t("Compra")}</dd>
           </div>
           <div className="flex justify-between gap-4">
-            <dt className="text-[#8b8497]">{t("Valor")}</dt>
+            <dt className="text-[#9d94b2] print:text-[#8b8497]">{t("Valor")}</dt>
             <dd className="font-medium">{valor}</dd>
           </div>
           <div className="flex justify-between gap-4">
-            <dt className="text-[#8b8497]">{t("Data")}</dt>
+            <dt className="text-[#9d94b2] print:text-[#8b8497]">{t("Data")}</dt>
             <dd>{quando}</dd>
           </div>
           {metodo ? (
             <div className="flex justify-between gap-4">
-              <dt className="text-[#8b8497]">{t("Forma de pagamento")}</dt>
+              <dt className="text-[#9d94b2] print:text-[#8b8497]">{t("Forma de pagamento")}</dt>
               <dd>{metodo === "pix" ? "Pix" : metodo === "boleto" ? t("Boleto") : t("Cartão")}</dd>
             </div>
           ) : null}
           <div className="flex justify-between gap-4">
-            <dt className="text-[#8b8497]">{t("Situação")}</dt>
-            <dd className="font-semibold text-[#2f7a4f]">{t("pago ✓")}</dd>
+            <dt className="text-[#9d94b2] print:text-[#8b8497]">{t("Situação")}</dt>
+            <dd className="font-semibold text-[#8fd6a8] print:text-[#2f7a4f]">{t("pago ✓")}</dd>
           </div>
           {c.external_event_id && c.provider !== "manual" ? (
             <div className="flex justify-between gap-4">
-              <dt className="text-[#8b8497]">{t("Código do pagamento")}</dt>
+              <dt className="text-[#9d94b2] print:text-[#8b8497]">{t("Código do pagamento")}</dt>
               <dd className="break-all text-right font-mono text-xs">{c.external_event_id}</dd>
             </div>
           ) : null}
         </dl>
-        <p className="mt-6 border-t border-dashed border-[#e4dccb] pt-4 text-xs text-[#8b8497]">
+        <p className="mt-6 border-t border-dashed border-white/15 print:border-[#e4dccb] pt-4 text-xs text-[#9d94b2] print:text-[#8b8497]">
           {org.razaoSocial || org.nome}
           {org.cnpj ? ` · CNPJ ${org.cnpj}` : ""}
         </p>
-        <a href={caminhoDaArea(org.slug)} className="mt-5 inline-block text-sm font-semibold underline underline-offset-4 print:hidden" style={{ color: cor }}>
+        <a href={caminhoDaArea(org.slug)} className="mt-5 inline-block text-sm font-semibold underline underline-offset-4 print:hidden" style={{ color: "#e2c47a" }}>
           {t("Voltar para a sua área")}
         </a>
       </div>
