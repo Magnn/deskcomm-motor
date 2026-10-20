@@ -104,10 +104,10 @@ describe("a fiação no envio", () => {
   it("⭐ para a Meta, o destino (conjunto de dados e token) é o do CANAL, e a tela segue como interruptor", () => {
     const trecho = handler.slice(handler.indexOf("const credencial = await lerCredencial("));
     // A tela decide primeiro (ligada/desligada)…
-    expect(trecho.indexOf("lerCredencial(")).toBeLessThan(trecho.indexOf("lerDestinoDeMensageria("));
-    // …e o envio sai com o destino do canal.
-    expect(trecho).toContain("datasetId: destino.destino.datasetId");
-    expect(trecho).toContain("accessToken: destino.destino.accessToken");
+    expect(trecho.indexOf("lerCredencial(")).toBeLessThan(trecho.indexOf("destinoDaConversaoMeta("));
+    // …e o envio sai com o destino escolhido: o do canal oficial, ou o pixel do site da tela (20/10/2026).
+    expect(trecho).toContain("credencialDoEnvio = destino.credencial");
+    expect(trecho).toContain("pixelDoSite = destino.pixelDoSite");
     expect(trecho).toContain("transporte.enviar(credencialDoEnvio, conversao)");
   });
 
