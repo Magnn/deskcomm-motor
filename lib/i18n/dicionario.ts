@@ -14912,6 +14912,17 @@ export const DICIONARIO: Traducoes = {
   "Escreva para a gente. A resposta chega aqui mesmo.": { es: "Escríbenos. La respuesta llega aquí mismo." },
   "As cartas abrem na hora, com a leitura escrita para você, nos métodos de": { es: "Las cartas se abren al momento, con la lectura escrita para ti, según los métodos de" },
   "Leituras que você ainda pode abrir hoje:": { es: "Lecturas que todavía puedes abrir hoy:" },
+  // O Explorar como vitrine.
+  "Seu caminho": { es: "Tu camino" },
+  "Trabalhos": { es: "Trabajos" },
+  "Só para você": { es: "Solo para ti" },
+  "Liberado": { es: "Liberado" },
+  "Dê uma pergunta de presente": { es: "Regala una pregunta" },
+  "Alguém que você ama ganha uma pergunta para as cartas.": { es: "Alguien a quien quieres recibe una pregunta para las cartas." },
+  "Todo mês, um ritual simples e uma pergunta respondida com uma carta.": { es: "Cada mes, un ritual sencillo y una pregunta respondida con una carta." },
+  "A leitura do ano que começa no seu aniversário.": { es: "La lectura del año que empieza en tu cumpleaños." },
+  "cartas que já saíram para você": { es: "cartas que ya salieron para ti" },
+  "O seu mês com as cartas, para guardar ou compartilhar.": { es: "Tu mes con las cartas, para guardar o compartir." },
 };
 
 /**
