@@ -95,6 +95,7 @@ export async function reportarCompraAvulsa(
     let pixelDoSite = false;
   let fbc: string | null = null;
   let fbp: string | null = null;
+  let cliente: { ip: string | null; ua: string | null } | null = null;
     let credencialDoEnvio = credencial.credencial;
     if (plataforma === "meta_ads") {
       // Fora de número oficial, a venda vai para o pixel do site (`destinoDaConversaoMeta`).
@@ -107,6 +108,7 @@ export async function reportarCompraAvulsa(
       pixelDoSite = destino.pixelDoSite;
       fbc = destino.fbc ?? null;
       fbp = destino.fbp ?? null;
+      cliente = destino.cliente ?? null;
       credencialDoEnvio = destino.credencial;
     }
 
@@ -122,6 +124,7 @@ export async function reportarCompraAvulsa(
       pixelDoSite,
       fbc,
       fbp,
+      cliente,
       moeda: compra.moeda,
       valorCentavos: compra.valorCentavos,
     };

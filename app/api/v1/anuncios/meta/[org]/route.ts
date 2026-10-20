@@ -41,7 +41,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 import { checkRateLimit } from "@/lib/ai/dispatcher/rate-limit";
+import { fbcDoClique } from "@/lib/conversoes/destino-de-mensageria";
 import { normalizarUtm } from "@/lib/leads/origem-do-site";
+import { lerCredencial } from "@/lib/plataformas-de-anuncio/credenciais";
+import { transporteMeta } from "@/lib/plataformas-de-anuncio/meta/conversions";
 import { criarClickRef } from "@/lib/plataformas-de-anuncio/captura-de-clique";
 import { lerConfigDaLanding } from "@/lib/plataformas-de-anuncio/landing-config";
 import {
@@ -54,6 +57,51 @@ import { logger } from "@/lib/logger";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
+
+/** O teto de espera do Lead pelo servidor: a pessoa está indo para o WhatsApp e não pode ficar presa aqui. */
+const TETO_DO_LEAD_MS = 1500;
+
+/**
+ * Manda o Lead do botão à Meta pela API de Conversões, no conjunto da tela de Conversões. Nunca lança e nunca
+ * segura a pessoa mais que `TETO_DO_LEAD_MS`: perder este evento é aceitável, perder o lead não.
+ */
+async function leadPeloServidor(
+  admin: ReturnType<typeof createAdminClient>,
+  organizationId: string,
+  parametros: URLSearchParams,
+  cliente: { ip: string | null; ua: string | null; pagina: string | null; origem: string },
+): Promise<void> {
+  const eventoId = parametros.get("_eid");
+  // Sem o id do navegador, mandar daria duas contagens para o mesmo clique: melhor não mandar.
+  if (!eventoId || !/^[\w-]{8,80}$/.test(eventoId)) return;
+  try {
+    const credencial = await lerCredencial(admin, organizationId, "meta_ads");
+    if (!credencial.ok) return;
+    const query = Object.fromEntries(parametros.entries());
+    const envio = transporteMeta.enviar(credencial.credencial, {
+      organizationId,
+      leadId: eventoId,
+      evento: "Lead",
+      eventoId,
+      ocorridoEm: new Date(),
+      cliqueDeOrigem: "",
+      telefone: null,
+      pixelDoSite: true,
+      paginaDoSite: cliente.pagina?.slice(0, 500) || cliente.origem,
+      fbc: fbcDoClique(query, new Date().toISOString()),
+      fbp: typeof query._fbp === "string" && /^[\w.-]{8,300}$/.test(query._fbp) ? query._fbp : null,
+      cliente: { ip: cliente.ip, ua: cliente.ua },
+      moeda: "BRL",
+      valorCentavos: null,
+    });
+    const resultado = await Promise.race([envio, new Promise<null>((ok) => setTimeout(() => ok(null), TETO_DO_LEAD_MS))]);
+    if (resultado && resultado.tipo !== "ok") {
+      logger.warn("[anuncios.meta.landing] Lead pelo servidor recusado", { detalhe: resultado.detalhe?.slice(0, 200) });
+    }
+  } catch (err) {
+    logger.warn("[anuncios.meta.landing] Lead pelo servidor falhou", { erro: err instanceof Error ? err.message : String(err) });
+  }
+}
 
 interface RouteContext {
   params: Promise<{ org: string }>;
@@ -109,11 +157,21 @@ export async function GET(req: NextRequest, ctx: RouteContext): Promise<Response
     return paginaDeSaida(whatsAppUrl(config.whatsappE164, textoSemRef(config.messageTemplate)));
   }
 
-  const queryRaw = Object.fromEntries(parametros.entries());
+  // `__ip`/`__ua` não vêm da página: são do pedido. Ficam junto da query para a VENDA, dias depois, sair com o
+  // mesmo navegador e IP do clique — é o que sobe a qualidade da correspondência na Meta (20/10/2026).
+  const ua = req.headers.get("user-agent")?.slice(0, 400) ?? null;
+  const queryRaw: Record<string, string> = {
+    ...Object.fromEntries(parametros.entries()),
+    ...(ip ? { __ip: ip.slice(0, 64) } : {}),
+    ...(ua ? { __ua: ua } : {}),
+  };
   const criado = await criarClickRef(admin, "meta_ads_click_refs", organizationId, {
     utm,
     query_raw: queryRaw,
   });
+  // O LEAD PELO SERVIDOR, com o MESMO id do evento do navegador (`_eid`, gerado pela página): o que o bloqueador
+  // ou o iPhone cortou do pixel chega por aqui, e a Meta deduplica o que vier pelos dois.
+  await leadPeloServidor(admin, organizationId, parametros, { ip, ua, pagina: req.headers.get("referer"), origem: new URL(req.url).origin });
   if (!criado) {
     // Falha ao gravar: mesma régua — a pessoa não paga o preço de um erro
     // nosso, só a atribuição é que se perde.
