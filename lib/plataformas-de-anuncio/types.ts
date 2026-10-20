@@ -94,6 +94,18 @@ export interface ConversaoOffline {
    * tem de ser a que está vinculada ao conjunto de dados. Ausente = canal sem conta oficial.
    */
   contaDoWhatsApp?: string | null;
+  /**
+   * A venda vai para o PIXEL DO SITE (o conjunto da tela de Conversões), não para o de mensageria: a conversa não
+   * passou por um número oficial com conta do WhatsApp Business. Sem atribuição ao clique — o evento identifica a
+   * pessoa pelo telefone e serve para a plataforma conhecer quem compra (público de compradores, semelhantes).
+   */
+  pixelDoSite?: boolean;
+  /**
+   * O clique e o navegador capturados na landing (`_fbc`/`fbclid` e `_fbp`, guardados no `[ref:]` do botão de
+   * WhatsApp). No pixel do site, são eles que ligam a venda ao anúncio — o telefone sozinho só diz quem comprou.
+   */
+  fbc?: string | null;
+  fbp?: string | null;
   /** `null` = evento sem valor (só `Purchase` o exige — e quem o monta recusa antes de chegar aqui). */
   valorCentavos: number | null;
   moeda: string;

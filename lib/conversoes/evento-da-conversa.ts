@@ -26,7 +26,7 @@ import { lerCredencial } from "@/lib/plataformas-de-anuncio/credenciais";
 import { transporteDe } from "@/lib/plataformas-de-anuncio/registry";
 import type { ConversaoOffline, NomeDoEvento } from "@/lib/plataformas-de-anuncio/types";
 
-import { lerDestinoDeMensageria } from "./destino-de-mensageria";
+import { destinoDaConversaoMeta } from "./destino-de-mensageria";
 import { lerAtribuicao } from "./leitura-da-atribuicao";
 import { jaFoiEnviada, registraEnvio, type StatusDeEnvio } from "./registro-de-envio";
 
@@ -103,18 +103,19 @@ export async function reportarEventoDaConversa(
   if (!transporte) return { status: "skipped", motivo: "plataforma_sem_transporte" };
 
   let contaDoWhatsApp: string | null = null;
+  let pixelDoSite = false;
+  let fbc: string | null = null;
+  let fbp: string | null = null;
   let credencialDoEnvio = credencial.credencial;
   if (plataforma === "meta_ads") {
-    const destino = await lerDestinoDeMensageria(admin, org, contactId);
-    // Conversa fora de canal oficial não tem destino na Meta. É o caso comum de quem atende por QR:
-    // não é pendência a mostrar por conversa.
+    // Fora de número oficial, o passo vai para o pixel do site (`destinoDaConversaoMeta`).
+    const destino = await destinoDaConversaoMeta(admin, org, contactId, credencial.credencial);
     if (!destino.ok) return { status: "skipped", motivo: destino.motivo };
-    contaDoWhatsApp = destino.destino.contaDoWhatsApp;
-    credencialDoEnvio = {
-      ...credencial.credencial,
-      datasetId: destino.destino.datasetId,
-      accessToken: destino.destino.accessToken,
-    };
+    contaDoWhatsApp = destino.contaDoWhatsApp;
+    pixelDoSite = destino.pixelDoSite;
+    fbc = destino.fbc ?? null;
+    fbp = destino.fbp ?? null;
+    credencialDoEnvio = destino.credencial;
   }
 
   const conversao: ConversaoOffline = {
@@ -126,6 +127,9 @@ export async function reportarEventoDaConversa(
     cliqueDeOrigem,
     telefone,
     contaDoWhatsApp,
+    pixelDoSite,
+    fbc,
+    fbp,
     moeda: "BRL",
     valorCentavos: null,
   };

@@ -27,6 +27,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { conjuntoDeDadosDaConta } from "@/lib/channels/meta/conjunto-de-dados-da-conta";
 import { resolveMetaCreds } from "@/lib/channels/meta/credentials";
 import { logger } from "@/lib/logger";
+import type { CredencialDeConversao } from "@/lib/plataformas-de-anuncio/types";
 
 const CHAVE_NO_CANAL = "conversions_dataset_id";
 
@@ -66,6 +67,87 @@ async function canalOficialDoContato(
   if (!linha) return null;
   const canal = Array.isArray(linha.channel_sessions) ? linha.channel_sessions[0] : linha.channel_sessions;
   return canal && canal.meta_waba_id && canal.meta_phone_number_id ? canal : null;
+}
+
+export type DestinoDaConversao =
+  | {
+      ok: true;
+      credencial: CredencialDeConversao;
+      contaDoWhatsApp: string | null;
+      pixelDoSite: boolean;
+      /** No pixel do site: o clique (`fbc`) e o navegador (`fbp`) da landing, quando a pessoa veio por ela. */
+      fbc?: string | null;
+      fbp?: string | null;
+    }
+  | { ok: false; motivo: "conjunto_de_dados_indisponivel"; detalhe?: string };
+
+/** O valor de um parâmetro da landing que tem forma de identificador da Meta (sem espaço, tamanho razoável). */
+function parametroSeguro(valor: unknown): string | null {
+  return typeof valor === "string" && /^[\w.-]{8,300}$/.test(valor) ? valor : null;
+}
+
+/**
+ * O CLIQUE DA LANDING DESTE CONTATO: o `[ref:]` mais recente que casou com ele (`meta_ads_click_refs`), com o que a
+ * página repassou na query — `_fbc`/`fbclid` e `_fbp`. É o que liga a venda feita na conversa ao anúncio de site.
+ * Pura na regra (`fbcDoClique`), uma leitura no banco.
+ */
+export function fbcDoClique(query: Record<string, unknown>, criadoEm: string): string | null {
+  const pronto = parametroSeguro(query._fbc);
+  if (pronto) return pronto;
+  const fbclid = parametroSeguro(query.fbclid);
+  return fbclid ? `fb.1.${new Date(criadoEm).getTime()}.${fbclid}` : null;
+}
+
+async function cliqueDaLanding(
+  admin: SupabaseClient,
+  organizationId: string,
+  contactId: string,
+): Promise<{ fbc: string | null; fbp: string | null }> {
+  const { data } = await admin
+    .from("meta_ads_click_refs")
+    .select("query_raw, created_at")
+    .eq("organization_id", organizationId)
+    .eq("contact_id", contactId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const linha = data as { query_raw: Record<string, unknown> | null; created_at: string } | null;
+  if (!linha) return { fbc: null, fbp: null };
+  const query = linha.query_raw ?? {};
+  return { fbc: fbcDoClique(query, linha.created_at), fbp: parametroSeguro(query._fbp) };
+}
+
+/**
+ * PARA ONDE VAI A VENDA NA META: o conjunto de mensageria da conta do WhatsApp, quando a conversa passou por um
+ * número oficial; senão, o PIXEL DO SITE da tela de Conversões.
+ *
+ * Medido em 20/10/2026: o número oficial foi banido em 15/10 e o atendimento seguiu num número por QR. O conjunto
+ * de mensageria era da conta banida (não dá mais para gerar token para ele), e toda venda era pulada
+ * (`sem_conta_do_whatsapp` / `canal_sem_credencial`): a Meta deixou de saber quem compra. No pixel do site a venda
+ * não é atribuída ao clique, mas a plataforma volta a conhecer as compradoras pelo telefone — público de quem
+ * comprou, para excluir e para buscar semelhantes.
+ */
+export async function destinoDaConversaoMeta(
+  admin: SupabaseClient,
+  organizationId: string,
+  contactId: string,
+  daTela: CredencialDeConversao,
+  fetchImpl: typeof fetch = fetch,
+): Promise<DestinoDaConversao> {
+  const mensageria = await lerDestinoDeMensageria(admin, organizationId, contactId, fetchImpl);
+  if (mensageria.ok) {
+    return {
+      ok: true,
+      credencial: { ...daTela, datasetId: mensageria.destino.datasetId, accessToken: mensageria.destino.accessToken },
+      contaDoWhatsApp: mensageria.destino.contaDoWhatsApp,
+      pixelDoSite: false,
+    };
+  }
+  if (mensageria.motivo === "conjunto_de_dados_indisponivel") {
+    return { ok: false, motivo: "conjunto_de_dados_indisponivel", detalhe: mensageria.detalhe };
+  }
+  const clique = await cliqueDaLanding(admin, organizationId, contactId).catch(() => ({ fbc: null, fbp: null }));
+  return { ok: true, credencial: daTela, contaDoWhatsApp: null, pixelDoSite: true, ...clique };
 }
 
 export async function lerDestinoDeMensageria(

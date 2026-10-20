@@ -7,7 +7,14 @@ const lerAtribuicao = vi.fn();
 
 vi.mock("@/lib/plataformas-de-anuncio/credenciais", () => ({ lerCredencial: vi.fn(async () => ({ ok: true, credencial: { accessToken: "x", datasetId: "da-tela" } })) }));
 vi.mock("@/lib/plataformas-de-anuncio/registry", () => ({ transporteDe: () => ({ enviar }) }));
-vi.mock("./destino-de-mensageria", () => ({ lerDestinoDeMensageria: vi.fn(async () => ({ ok: true, destino: { contaDoWhatsApp: "waba-1", datasetId: "do-canal", accessToken: "y" } })) }));
+vi.mock("./destino-de-mensageria", () => ({
+  destinoDaConversaoMeta: vi.fn(async (_a: unknown, _o: unknown, _c: unknown, daTela: Record<string, unknown>) => ({
+    ok: true,
+    credencial: { ...daTela, datasetId: "do-canal", accessToken: "y" },
+    contaDoWhatsApp: "waba-1",
+    pixelDoSite: false,
+  })),
+}));
 vi.mock("./leitura-da-atribuicao", () => ({ lerAtribuicao: (...a: unknown[]) => lerAtribuicao(...a) }));
 vi.mock("./registro-de-envio", () => ({ jaFoiEnviada: (...a: unknown[]) => jaFoiEnviada(...(a as [])), registraEnvio: (...a: unknown[]) => registraEnvio(...(a as [])) }));
 
