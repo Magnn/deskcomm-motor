@@ -56,7 +56,16 @@ export async function lerAtribuicao(
       ? (linha.source_metadata as Record<string, unknown>)
       : {};
 
+  const telefone = linha.phone_number ? linha.phone_number.replace(/\D/g, "") || null : null;
   const clique = typeof meta.ad_source_id === "string" ? meta.ad_source_id.trim() : "";
+  // QUEM VEIO PELA PÁGINA DE UM ANÚNCIO DA META: o contato nasce com `origem: site` e o `fbclid` que o anúncio pôs no
+  // endereço, sem `ad_source_id` (não houve referral de mensageria). É clique da Meta do mesmo jeito — e a venda vai
+  // para o pixel do site, com `fbc`/`fbp`/IP/navegador do clique (`destinoDaConversaoMeta`). Medido em 20/10/2026: as
+  // duas vendas do dia vindas da página de pré-venda foram puladas sem registro, e o Gerenciador não marcou nenhuma.
+  const fbclid = typeof meta.fbclid === "string" ? meta.fbclid.trim() : "";
+  if (!clique && fbclid) {
+    return { temAtribuicao: true, atribuicao: { plataforma: "meta_ads", cliqueDeOrigem: fbclid, telefone } };
+  }
   // Sem o clique não há atribuição utilizável: é ele que liga a venda ao anúncio.
   // Ter `ad_platform` sem `ad_source_id` acontece quando o payload trouxe o
   // referral sem o identificador — a 0164 grava os dois como vieram.
@@ -76,7 +85,7 @@ export async function lerAtribuicao(
       cliqueDeOrigem: clique,
       // Só dígitos: a plataforma exige E.164 sem `+` nem separadores ANTES do
       // hash. Normalizar depois do hash seria tarde — o hash já estaria errado.
-      telefone: linha.phone_number ? linha.phone_number.replace(/\D/g, "") || null : null,
+      telefone,
     },
   };
 }
