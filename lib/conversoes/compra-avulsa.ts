@@ -19,7 +19,7 @@ import { transporteDe } from "@/lib/plataformas-de-anuncio/registry";
 import type { ConversaoOffline, NomeDoEvento } from "@/lib/plataformas-de-anuncio/types";
 import type { createAdminClient } from "@/lib/supabase/admin";
 
-import { lerDestinoDeMensageria } from "./destino-de-mensageria";
+import { destinoDaConversaoMeta } from "./destino-de-mensageria";
 import { lerAtribuicao } from "./leitura-da-atribuicao";
 import { jaFoiEnviada, registraEnvio } from "./registro-de-envio";
 
@@ -92,15 +92,18 @@ export async function reportarCompraAvulsa(
       return { status: "skipped", motivo: credencial.motivo };
     }
     let contaDoWhatsApp: string | null = null;
+    let pixelDoSite = false;
     let credencialDoEnvio = credencial.credencial;
     if (plataforma === "meta_ads") {
-      const destino = await lerDestinoDeMensageria(admin, compra.organizationId, compra.contactId);
+      // Fora de número oficial, a venda vai para o pixel do site (`destinoDaConversaoMeta`).
+      const destino = await destinoDaConversaoMeta(admin, compra.organizationId, compra.contactId, credencial.credencial);
       if (!destino.ok) {
         await registra("skipped", destino.motivo, destino.detalhe);
         return { status: "skipped", motivo: destino.motivo };
       }
-      contaDoWhatsApp = destino.destino.contaDoWhatsApp;
-      credencialDoEnvio = { ...credencial.credencial, datasetId: destino.destino.datasetId, accessToken: destino.destino.accessToken };
+      contaDoWhatsApp = destino.contaDoWhatsApp;
+      pixelDoSite = destino.pixelDoSite;
+      credencialDoEnvio = destino.credencial;
     }
 
     const conversao: ConversaoOffline = {
@@ -112,6 +115,7 @@ export async function reportarCompraAvulsa(
       cliqueDeOrigem,
       telefone,
       contaDoWhatsApp,
+      pixelDoSite,
       moeda: compra.moeda,
       valorCentavos: compra.valorCentavos,
     };

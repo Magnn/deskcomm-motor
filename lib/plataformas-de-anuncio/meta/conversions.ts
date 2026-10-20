@@ -90,15 +90,20 @@ async function enviar(
     };
   }
 
-  const userData: Record<string, unknown> = {
-    ctwa_clid: conversao.cliqueDeOrigem,
-    // Obrigatório em `business_messaging`: sem a conta do WhatsApp Business (ou a Página) a
-    // plataforma devolve 400 / subcódigo 2804116. Tem de ser a conta vinculada ao conjunto de dados.
-    ...(conversao.contaDoWhatsApp ? { whatsapp_business_account_id: conversao.contaDoWhatsApp } : {}),
-  };
+  // PIXEL DO SITE (conversa fora de número oficial): `ctwa_clid` e a conta do WhatsApp só valem em
+  // `business_messaging`; aqui a identidade é o telefone, e o país reforça o casamento.
+  const userData: Record<string, unknown> = conversao.pixelDoSite
+    ? {}
+    : {
+        ctwa_clid: conversao.cliqueDeOrigem,
+        // Obrigatório em `business_messaging`: sem a conta do WhatsApp Business (ou a Página) a
+        // plataforma devolve 400 / subcódigo 2804116. Tem de ser a conta vinculada ao conjunto de dados.
+        ...(conversao.contaDoWhatsApp ? { whatsapp_business_account_id: conversao.contaDoWhatsApp } : {}),
+      };
   // Array de propósito: o formato aceita múltiplos valores por campo, e mandar
   // string crua onde ele espera lista é aceito com aviso e ignorado no match.
   if (conversao.telefone) userData.ph = [hash(conversao.telefone)];
+  if (conversao.pixelDoSite && conversao.telefone?.startsWith("55")) userData.country = [hash("br")];
 
   const corpo: Record<string, unknown> = {
     data: [
@@ -108,8 +113,8 @@ async function enviar(
         // futuro, e a resposta é 200 — some sem erro.
         event_time: Math.floor(conversao.ocorridoEm.getTime() / 1000),
         event_id: conversao.eventoId,
-        action_source: "business_messaging",
-        messaging_channel: "whatsapp",
+        // A venda fechada numa conversa que não é de número oficial: `chat`, sem canal de mensageria.
+        ...(conversao.pixelDoSite ? { action_source: "chat" } : { action_source: "business_messaging", messaging_channel: "whatsapp" }),
         user_data: userData,
         // Sem valor, sem custom_data: mandar `value: 0` seria ACEITO e ensinaria ao otimizador que o evento não vale nada.
         ...(conversao.valorCentavos !== null

@@ -45,7 +45,7 @@ import { lerCredencial } from "@/lib/plataformas-de-anuncio/credenciais";
 import { transporteDe } from "@/lib/plataformas-de-anuncio/registry";
 import type { ConversaoOffline, NomeDoEvento } from "@/lib/plataformas-de-anuncio/types";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { lerDestinoDeMensageria } from "./destino-de-mensageria";
+import { destinoDaConversaoMeta } from "./destino-de-mensageria";
 import { lerAtribuicao } from "./leitura-da-atribuicao";
 import { jaFoiEnviada, registraEnvio } from "./registro-de-envio";
 
@@ -158,19 +158,18 @@ async function handle(row: EventRow): Promise<HandlerResult> {
   // que ensinaram isso. Conversa que não passou por um canal oficial não tem destino: pendência com
   // nome próprio, em vez de uma recusa da plataforma que pareceria defeito do envio.
   let contaDoWhatsApp: string | null = null;
+  let pixelDoSite = false;
   let credencialDoEnvio = credencial.credencial;
   if (plataforma === "meta_ads") {
-    const destino = await lerDestinoDeMensageria(admin, row.organization_id, lead.contact_id as string);
+    // Fora de número oficial, a venda vai para o pixel do site (`destinoDaConversaoMeta`).
+    const destino = await destinoDaConversaoMeta(admin, row.organization_id, lead.contact_id as string, credencial.credencial);
     if (!destino.ok) {
       await registra("skipped", destino.motivo, destino.detalhe);
       return ok("skipped", destino.motivo);
     }
-    contaDoWhatsApp = destino.destino.contaDoWhatsApp;
-    credencialDoEnvio = {
-      ...credencial.credencial,
-      datasetId: destino.destino.datasetId,
-      accessToken: destino.destino.accessToken,
-    };
+    contaDoWhatsApp = destino.contaDoWhatsApp;
+    pixelDoSite = destino.pixelDoSite;
+    credencialDoEnvio = destino.credencial;
   }
 
   const conversao: ConversaoOffline = {
@@ -186,6 +185,7 @@ async function handle(row: EventRow): Promise<HandlerResult> {
     cliqueDeOrigem,
     telefone,
     contaDoWhatsApp,
+    pixelDoSite,
     // A coluna tem `DEFAULT 'BRL'` e um CHECK de ISO-4217; o fallback só cobre a
     // linha que teve a moeda apagada à mão.
     moeda: lead.currency ?? "BRL",

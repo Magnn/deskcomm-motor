@@ -27,7 +27,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { conjuntoDeDadosDaConta } from "@/lib/channels/meta/conjunto-de-dados-da-conta";
 import { resolveMetaCreds } from "@/lib/channels/meta/credentials";
 import { logger } from "@/lib/logger";
-import { lerCredencial } from "@/lib/plataformas-de-anuncio/credenciais";
+import type { CredencialDeConversao } from "@/lib/plataformas-de-anuncio/types";
 
 const CHAVE_NO_CANAL = "conversions_dataset_id";
 
@@ -69,36 +69,40 @@ async function canalOficialDoContato(
   return canal && canal.meta_waba_id && canal.meta_phone_number_id ? canal : null;
 }
 
-/**
- * O CONJUNTO DE DADOS DA EMPRESA, para a conversa que não passou por canal oficial.
- *
- * Medido em 20/10/2026: o número oficial foi banido em 15/10 e arquivado (o token saiu com ele); o atendimento
- * passou para um número por QR, e as duas campanhas ativas seguiram apontando para o MESMO conjunto de dados da
- * conta do WhatsApp. Daí em diante toda venda foi pulada — `sem_conta_do_whatsapp` para quem chegou pelo número
- * novo, `canal_sem_credencial` para quem tinha conversado no antigo — e as campanhas otimizavam por compra sem
- * receber compra nenhuma.
- *
- * A regra: o canal oficial mais recente da empresa que tem conjunto de dados guardado — arquivado ou não, porque
- * o conjunto continua sendo o destino das campanhas. A conta e o conjunto vêm dele; o token, quando o do canal
- * não existe mais, é o da tela de Conversões (que precisa ter a permissão de eventos de mensageria).
- */
-async function canalOficialDaEmpresa(admin: SupabaseClient, organizationId: string): Promise<CanalDoContato | null> {
-  const { data } = await admin
-    .from("channel_sessions")
-    .select("id, meta_waba_id, meta_phone_number_id, metadata, created_at")
-    .eq("organization_id", organizationId)
-    .not("meta_waba_id", "is", null)
-    .not(`metadata->>${CHAVE_NO_CANAL}`, "is", null)
-    .order("created_at", { ascending: false })
-    .limit(1);
-  const canal = ((data ?? []) as unknown as CanalDoContato[])[0];
-  return canal && canal.meta_waba_id ? canal : null;
-}
+export type DestinoDaConversao =
+  | { ok: true; credencial: CredencialDeConversao; contaDoWhatsApp: string | null; pixelDoSite: boolean }
+  | { ok: false; motivo: "conjunto_de_dados_indisponivel"; detalhe?: string };
 
-/** O token da tela de Conversões: o que sobra quando o canal oficial não tem mais o dele. */
-async function tokenDaTelaDeConversoes(admin: SupabaseClient, organizationId: string): Promise<string | null> {
-  const lida = await lerCredencial(admin, organizationId, "meta_ads");
-  return lida.ok && lida.credencial.accessToken ? lida.credencial.accessToken : null;
+/**
+ * PARA ONDE VAI A VENDA NA META: o conjunto de mensageria da conta do WhatsApp, quando a conversa passou por um
+ * número oficial; senão, o PIXEL DO SITE da tela de Conversões.
+ *
+ * Medido em 20/10/2026: o número oficial foi banido em 15/10 e o atendimento seguiu num número por QR. O conjunto
+ * de mensageria era da conta banida (não dá mais para gerar token para ele), e toda venda era pulada
+ * (`sem_conta_do_whatsapp` / `canal_sem_credencial`): a Meta deixou de saber quem compra. No pixel do site a venda
+ * não é atribuída ao clique, mas a plataforma volta a conhecer as compradoras pelo telefone — público de quem
+ * comprou, para excluir e para buscar semelhantes.
+ */
+export async function destinoDaConversaoMeta(
+  admin: SupabaseClient,
+  organizationId: string,
+  contactId: string,
+  daTela: CredencialDeConversao,
+  fetchImpl: typeof fetch = fetch,
+): Promise<DestinoDaConversao> {
+  const mensageria = await lerDestinoDeMensageria(admin, organizationId, contactId, fetchImpl);
+  if (mensageria.ok) {
+    return {
+      ok: true,
+      credencial: { ...daTela, datasetId: mensageria.destino.datasetId, accessToken: mensageria.destino.accessToken },
+      contaDoWhatsApp: mensageria.destino.contaDoWhatsApp,
+      pixelDoSite: false,
+    };
+  }
+  if (mensageria.motivo === "conjunto_de_dados_indisponivel") {
+    return { ok: false, motivo: "conjunto_de_dados_indisponivel", detalhe: mensageria.detalhe };
+  }
+  return { ok: true, credencial: daTela, contaDoWhatsApp: null, pixelDoSite: true };
 }
 
 export async function lerDestinoDeMensageria(
@@ -107,16 +111,11 @@ export async function lerDestinoDeMensageria(
   contactId: string,
   fetchImpl: typeof fetch = fetch,
 ): Promise<LeituraDoDestino> {
-  const doContato = await canalOficialDoContato(admin, organizationId, contactId);
-  const canal = doContato ?? (await canalOficialDaEmpresa(admin, organizationId));
+  const canal = await canalOficialDoContato(admin, organizationId, contactId);
   if (canal === null) return { ok: false, motivo: "sem_conta_do_whatsapp" };
 
-  const doCanal = canal.meta_phone_number_id
-    ? await resolveMetaCreds(admin, { organizationId, phoneNumberId: canal.meta_phone_number_id })
-    : null;
-  const token = doCanal?.token ?? (await tokenDaTelaDeConversoes(admin, organizationId));
-  if (!token) return { ok: false, motivo: "canal_sem_credencial" };
-  const credenciais = { token };
+  const credenciais = await resolveMetaCreds(admin, { organizationId, phoneNumberId: canal.meta_phone_number_id });
+  if (!credenciais?.token) return { ok: false, motivo: "canal_sem_credencial" };
 
   const guardado = canal.metadata?.[CHAVE_NO_CANAL];
   if (typeof guardado === "string" && guardado.trim() !== "") {
