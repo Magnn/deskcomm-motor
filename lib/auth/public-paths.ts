@@ -39,6 +39,9 @@ export const PUBLIC_PATHS: RegExp[] = [
   // redirect pro WhatsApp. Âncorado num segmento só (`[^/]+$`): um sub-path
   // futuro sob `/google/` não nasce público de carona.
   /^\/api\/v1\/anuncios\/google\/[^/]+$/,
+  // A irmã do Meta (UTMs + fbclid → WhatsApp com `[ref:]`). Ficou de fora quando a rota nasceu: medido em
+  // 20/10/2026, o botão de landing apontado para ela recebia 401 do proxy e o lead nem chegava ao WhatsApp.
+  /^\/api\/v1\/anuncios\/meta\/[^/]+$/,
   // Heartbeat do agente do host (bearer INTERNAL_SECRET/INTERNAL_CRON_SECRET,
   // checado dentro da própria rota) — sem cookie de sessão, igual /cron/.
   /^\/api\/v1\/system\/agent$/,
