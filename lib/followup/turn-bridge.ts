@@ -25,6 +25,7 @@ import { EVENTO_ACAO_ADIADA, arestaDaClasse, selectEdge, type EnrollmentRow } fr
 import { coletarEsperasAdaptativas, montarTimingPlan, type PropostaDeEspera } from "./timing-plan";
 import { persistirRespostaFollowupPg } from "./persistir-resposta";
 import { textoDaRespostaDoLead } from "./resposta-do-lead";
+import { SQL_DEVOLVER_A_VEZ } from "./devolver-a-vez";
 
 /** Superset de AdminClient: a ponte precisa do snapshot COMPLETO do enrollment
  *  (current_node_id/version_id/steps_taken) pra montar o passo de conclusão —
@@ -503,6 +504,9 @@ export function createPgAdminClient(pool: pg.Pool): TurnBridgeAdminClient {
         [orgId, pointerId],
       );
       return rows[0]?.name ?? null;
+    },
+    async devolverAVezAoAgente(orgId, contactId) {
+      await pool.query(SQL_DEVOLVER_A_VEZ, [orgId, contactId]);
     },
     async insertDeadInboxItem(item) {
       await pool.query(

@@ -66,6 +66,7 @@ import {
 } from "./no-show-recuperacao-esgotada";
 import { interpolarDestino, persistirRespostaFollowupSupabase } from "./persistir-resposta";
 import { PERGUNTA_SEM_PRAZO_MS, prazoDaPerguntaMs } from "./graph-schema";
+import { JANELA_DA_DEVOLUCAO_MINUTOS, ORIGEM_DA_DEVOLUCAO } from "./devolver-a-vez";
 
 // Teto de passos de uma inscrição (protege contra ciclo no grafo). Cada caixa custa de 2 a 3 passos (medido: um
 // fluxo de 14 caixas chegou a 28, um de 5 a 16): 60 caixas no caminho mais longo (`MAX_PATH_STEPS`) pedem folga.
@@ -178,6 +179,11 @@ export interface AdminClient {
    * `no-show-recuperacao-esgotada.ts`.
    */
   abrirAvisoRecuperacaoEsgotada?(item: AvisoRecuperacaoEsgotada): Promise<void>;
+  /**
+   * A inscrição terminou: se a última palavra da conversa é da pessoa, acorda a agente para ela
+   * (`devolver-a-vez.ts`). Opcional e best-effort, como os de cima.
+   */
+  devolverAVezAoAgente?(orgId: string, contactId: string): Promise<void>;
   persistirRespostaFollowup(input: {
     organization_id: string;
     contact_id: string;
@@ -578,6 +584,19 @@ async function applyResult(
   }
 
   await db.updateEnrollment(enrollment.id, enrollment.organization_id, patch);
+
+  // O fluxo terminou: a mensagem da pessoa que ele consumiu por último não fica sem resposta
+  // (o turno da agente foi pulado enquanto o fluxo estava no comando). Ver `devolver-a-vez.ts`.
+  if (patch.status === "completed" && !isReplay) {
+    try {
+      await db.devolverAVezAoAgente?.(enrollment.organization_id, enrollment.contact_id);
+    } catch (err) {
+      logger.warn("followup: fluxo terminou, mas a vez não voltou para a agente (o resgate cobre)", {
+        error: err instanceof Error ? err.message : String(err),
+        enrollment_id: enrollment.id,
+      });
+    }
+  }
 
   // Lote 1 (aditivo) — efeitos colaterais de `notify_agent`/`add_note`/`api_call`.
   // Best-effort e DEPOIS do avanço, mesma doutrina do bloco de
@@ -1189,6 +1208,36 @@ export function createSupabaseAdminClient(admin: SupabaseClient): AdminClient {
         .maybeSingle();
       if (error) throw new Error(error.message);
       return data?.name ?? null;
+    },
+    async devolverAVezAoAgente(orgId, contactId) {
+      // REST não roda SQL solto: a mesma regra de `SQL_DEVOLVER_A_VEZ` em duas leituras e o `emit_event`.
+      const { data } = await admin
+        .from("messages")
+        .select("id, conversation_id, contact_id, channel_session_id, direction, sent_at, created_at")
+        .eq("organization_id", orgId)
+        .eq("contact_id", contactId)
+        .order("sent_at", { ascending: false })
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const m = data as { id: string; conversation_id: string; contact_id: string; channel_session_id: string; direction: string; sent_at: string | null; created_at: string } | null;
+      if (!m || m.direction !== "inbound") return;
+      if (Date.now() - Date.parse(m.sent_at ?? m.created_at) > JANELA_DA_DEVOLUCAO_MINUTOS * 60_000) return;
+      const { error } = await admin.rpc("emit_event", {
+        p_event_type: "ai_agent.dispatch_requested",
+        p_entity_kind: "message",
+        p_entity_id: m.id,
+        p_payload: {
+          organization_id: orgId,
+          conversation_id: m.conversation_id,
+          contact_id: m.contact_id,
+          channel_session_id: m.channel_session_id,
+          inbound_message_id: m.id,
+        },
+        p_metadata: { source: ORIGEM_DA_DEVOLUCAO },
+        p_organization_id: orgId,
+      });
+      if (error) throw new Error(error.message);
     },
     async insertDeadInboxItem(item) {
       const { error } = await admin.from("agent_inbox_items").insert({
