@@ -337,6 +337,11 @@ const RETORNO_DE_PAGAMENTO = /R\$|\blink\b|\bpag|\breceb|\bpix\b|\bvalor\b|combi
  * degrau liberado. Quem diz "só recebo dia 20" ouviria na data o valor cheio que já recusou.
  * Aqui o agendamento de PAGAMENTO é recusado até a agente dizer um valor da escada; retorno que
  * não fala de pagamento ("volto amanhã para saber como você passou") segue livre.
+ *
+ * ⚠️ DATA DITA PELA PESSOA, SEM VALOR MENOR, NÃO PEDE DEGRAU (decisão do dono em 20/10/2026): quem
+ * diz "só recebo dia 7" ao ouvir o preço não está pedindo desconto — o combinado é pelo valor de
+ * venda. Medido naquele dia: "só lá pelo dia 7 de novembro recebo" recebeu R$ 100 na hora, e o
+ * desconto não trouxe o pagamento para antes. A escada segue para quem diz que está caro ou quanto tem.
  */
 export function degrauQueFaltaOferecerAntesDeAgendar(
   c: Pick<PricingConfig, "list_price_cents" | "steps">,
@@ -346,6 +351,7 @@ export function degrauQueFaltaOferecerAntesDeAgendar(
 ): number | null {
   if (!RETORNO_DE_PAGAMENTO.test(textoDoRetorno)) return null;
   if (estado.combinadoCents !== null) return null;
+  if (estado.valorQueTemCents === null && deuDataParaPagar(mensagens)) return null;
   const i = degrauDoTurno(c, estado.reclamacoes, estado.valorQueTemCents);
   if (i === -1) return null;
   if (valorCombinadoNaConversa(c, mensagens) !== null) return null;

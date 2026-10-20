@@ -2534,7 +2534,9 @@ async function executarTurnoDoAgente(
     // Ela deu a data e o degrau já foi oferecido: o turno fecha o combinado (data + valor + retorno).
     dataParaOValorCents:
       agentConfig?.pricing && deuDataParaPagar(openingContext.context.messages)
-        ? valorCombinadoNaConversa(agentConfig.pricing, openingContext.context.messages)
+        ? // Sem degrau oferecido, o combinado é o valor de venda (decisão do dono, 20/10/2026): "só recebo
+          // dia 7", dito ao ouvir o preço cheio, não é pedido de desconto.
+          (valorCombinadoNaConversa(agentConfig.pricing, openingContext.context.messages) ?? agentConfig.pricing.list_price_cents)
         : null,
     posVenda: posVendaDoTurno,
     combinadoCents: combinadoDoTurno,

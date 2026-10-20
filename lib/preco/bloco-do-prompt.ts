@@ -83,10 +83,11 @@ const RECUO_PELO_ESSENCIAL =
 function instrucaoDeFecharADataCombinada(valorCents: number): string {
   const valor = reais(valorCents);
   return [
-    `- NEGOCIAÇÃO: ela disse que só consegue pagar em outra data, e você já ofereceu ${valor}. NÃO ofereça outro valor e NÃO diga "me chama quando receber" nem "quando o dinheiro entrar": quem volta é VOCÊ, na data. Faça as DUAS coisas neste turno:`,
+    `- NEGOCIAÇÃO: ela disse que só consegue pagar em outra data, e o valor dela é ${valor}. NÃO ofereça outro valor e NÃO diga "me chama quando receber" nem "quando o dinheiro entrar": quem volta é VOCÊ, na data. Faça as DUAS coisas neste turno:`,
     "  1) chame a ferramenta de agendar retorno (schedule_followup) com a data que ela disse;",
     `  2) responda com ESTE molde e nenhum outro: "Combinado, então: no dia [a data que ela disse] eu te chamo aqui com o link, e o seu valor fica em ${valor}. Se conseguir antes, é só me avisar."`,
     `- Se ela não disse um dia que dê para marcar ("quando eu receber", sem dia), NÃO agende ainda: pergunte só "Qual dia cai o seu pagamento? Eu já deixo combinado por ${valor}."`,
+    "- Pergunte o dia UMA vez só. Depois de combinar, se o bloco COBRANÇAS À PARTE aparecer, ofereça UMA vez a pergunta nova como o que cabe hoje; se ela disser não, não insista.",
     "- Se ela disser que falta para o essencial (comida, remédio, aluguel, conta atrasada), NÃO insista em valor nenhum nem use o molde: acolha, e diga que a porta fica aberta quando ela puder.",
   ].join("\n");
 }
@@ -257,7 +258,10 @@ export function blocoDePreco(
     const combinado = combinadoEmVigor(c, estado.combinadoCents);
     // Fechar a data: só com um degrau JÁ oferecido (e ainda em vigor), sem combinado anterior e sem
     // ela ter dito quanto tem — quem diz um valor ainda está negociando o de hoje.
-    const dataPara = combinadoEmVigor(c, estado.dataParaOValorCents);
+    // O valor de venda também fecha a data (decisão do dono, 20/10/2026): quem diz "recebo dia 7" ao
+    // ouvir o preço cheio não está pedindo desconto.
+    const dataPara =
+      estado.dataParaOValorCents === c.list_price_cents ? c.list_price_cents : combinadoEmVigor(c, estado.dataParaOValorCents);
     const fechaAData = combinado === null && dataPara !== null && (estado.valorQueTemCents ?? null) === null;
     linhas.push(
       estado.faltaParaOEssencial === true

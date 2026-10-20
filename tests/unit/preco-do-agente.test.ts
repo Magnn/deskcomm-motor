@@ -430,7 +430,7 @@ describe("ela deu a data para pagar: o turno fecha o combinado com o valor já o
   it("a fiação: o turno só fecha a data com o último degrau que a agente DISSE", () => {
     const turno = readFileSync("lib/agent-engine/agent/inbound-turn.ts", "utf8");
     expect(turno).toContain("deuDataParaPagar(openingContext.context.messages)");
-    expect(turno).toContain("? valorCombinadoNaConversa(agentConfig.pricing, openingContext.context.messages)");
+    expect(turno).toContain("(valorCombinadoNaConversa(agentConfig.pricing, openingContext.context.messages) ?? agentConfig.pricing.list_price_cents)");
   });
 });
 
@@ -443,8 +443,20 @@ describe("retorno de pagamento só é agendado depois de o degrau ser oferecido"
   const estado = { reclamacoes: 2, valorQueTemCents: null, combinadoCents: null };
   const promessa = "Voltar no dia 20 para enviar o link de R$ 130 do trabalho";
 
-  it("⭐ ela reclamou do valor e a agente ainda não ofereceu o degrau: falta oferecer R$ 110", () => {
-    expect(degrauQueFaltaOferecerAntesDeAgendar(cfg, estado, semOferta, promessa)).toBe(11_000);
+  it("⭐ ela reclamou do valor (sem dar data) e a agente ainda não ofereceu o degrau: falta oferecer R$ 110", () => {
+    const caro = [nossa("O trabalho custa R$ 130."), dela("tá caro demais")];
+    expect(degrauQueFaltaOferecerAntesDeAgendar(cfg, estado, caro, promessa)).toBe(11_000);
+  });
+
+  it("⭐ ela deu a data ao ouvir o preço cheio, sem dizer valor menor: agenda pelo valor de venda, sem degrau (20/10/2026)", () => {
+    expect(degrauQueFaltaOferecerAntesDeAgendar(cfg, estado, semOferta, promessa)).toBeNull();
+    const real = [nossa("O trabalho custa R$ 130."), dela("Olha eu neste momento não consigo. Estou sem dinheiro só lá pelo dia 7 de novembro recebo.")];
+    expect(degrauQueFaltaOferecerAntesDeAgendar(cfg, estado, real, promessa)).toBeNull();
+  });
+
+  it("quem diz quanto tem segue na escada mesmo dando data", () => {
+    const comValor = [nossa("O trabalho custa R$ 130."), dela("só tenho 50, o resto só recebo dia 20")];
+    expect(degrauQueFaltaOferecerAntesDeAgendar(cfg, { ...estado, valorQueTemCents: 5_000 }, comValor, promessa)).not.toBeNull();
   });
 
   it("degrau já oferecido, combinado anterior, ou sem reclamação: o agendamento segue", () => {
