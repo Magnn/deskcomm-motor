@@ -106,6 +106,13 @@ export interface ConversaoOffline {
    */
   fbc?: string | null;
   fbp?: string | null;
+  /** IP e navegador de quem clicou na landing (guardados no `[ref:]`). Sobem a qualidade da correspondência. */
+  cliente?: { ip: string | null; ua: string | null } | null;
+  /**
+   * O evento aconteceu NA PÁGINA (o Lead do botão de WhatsApp, mandado pelo servidor junto com o do navegador):
+   * `action_source: website` com o endereço da página. Ausente = evento da conversa (`chat`).
+   */
+  paginaDoSite?: string | null;
   /** `null` = evento sem valor (só `Purchase` o exige — e quem o monta recusa antes de chegar aqui). */
   valorCentavos: number | null;
   moeda: string;

@@ -161,6 +161,7 @@ async function handle(row: EventRow): Promise<HandlerResult> {
   let pixelDoSite = false;
   let fbc: string | null = null;
   let fbp: string | null = null;
+  let cliente: { ip: string | null; ua: string | null } | null = null;
   let credencialDoEnvio = credencial.credencial;
   if (plataforma === "meta_ads") {
     // Fora de número oficial, a venda vai para o pixel do site (`destinoDaConversaoMeta`).
@@ -173,6 +174,7 @@ async function handle(row: EventRow): Promise<HandlerResult> {
     pixelDoSite = destino.pixelDoSite;
     fbc = destino.fbc ?? null;
     fbp = destino.fbp ?? null;
+    cliente = destino.cliente ?? null;
     credencialDoEnvio = destino.credencial;
   }
 
@@ -192,6 +194,7 @@ async function handle(row: EventRow): Promise<HandlerResult> {
     pixelDoSite,
     fbc,
     fbp,
+    cliente,
     // A coluna tem `DEFAULT 'BRL'` e um CHECK de ISO-4217; o fallback só cobre a
     // linha que teve a moeda apagada à mão.
     moeda: lead.currency ?? "BRL",

@@ -92,7 +92,9 @@ async function enviar(
 
   // PIXEL DO SITE (conversa fora de número oficial): `ctwa_clid` e a conta do WhatsApp só valem em
   // `business_messaging`; aqui a identidade é o telefone, e o país reforça o casamento.
-  const userData: Record<string, unknown> = conversao.pixelDoSite
+  // Evento do site (o Lead da página) segue a mesma identidade do pixel do site.
+  const doSite = Boolean(conversao.pixelDoSite || conversao.paginaDoSite);
+  const userData: Record<string, unknown> = doSite
     ? {}
     : {
         ctwa_clid: conversao.cliqueDeOrigem,
@@ -103,10 +105,12 @@ async function enviar(
   // Array de propósito: o formato aceita múltiplos valores por campo, e mandar
   // string crua onde ele espera lista é aceito com aviso e ignorado no match.
   if (conversao.telefone) userData.ph = [hash(conversao.telefone)];
-  if (conversao.pixelDoSite && conversao.telefone?.startsWith("55")) userData.country = [hash("br")];
-  // Clique e navegador da landing: vão EM CLARO (a plataforma não aceita hash nestes dois campos).
-  if (conversao.pixelDoSite && conversao.fbc) userData.fbc = conversao.fbc;
-  if (conversao.pixelDoSite && conversao.fbp) userData.fbp = conversao.fbp;
+  if (doSite && conversao.telefone?.startsWith("55")) userData.country = [hash("br")];
+  // Clique, navegador, IP e agente da landing: vão EM CLARO (a plataforma não aceita hash nestes campos).
+  if (doSite && conversao.fbc) userData.fbc = conversao.fbc;
+  if (doSite && conversao.fbp) userData.fbp = conversao.fbp;
+  if (doSite && conversao.cliente?.ip) userData.client_ip_address = conversao.cliente.ip;
+  if (doSite && conversao.cliente?.ua) userData.client_user_agent = conversao.cliente.ua;
 
   const corpo: Record<string, unknown> = {
     data: [
@@ -117,7 +121,11 @@ async function enviar(
         event_time: Math.floor(conversao.ocorridoEm.getTime() / 1000),
         event_id: conversao.eventoId,
         // A venda fechada numa conversa que não é de número oficial: `chat`, sem canal de mensageria.
-        ...(conversao.pixelDoSite ? { action_source: "chat" } : { action_source: "business_messaging", messaging_channel: "whatsapp" }),
+        ...(conversao.paginaDoSite
+          ? { action_source: "website", event_source_url: conversao.paginaDoSite }
+          : conversao.pixelDoSite
+            ? { action_source: "chat" }
+            : { action_source: "business_messaging", messaging_channel: "whatsapp" }),
         user_data: userData,
         // Sem valor, sem custom_data: mandar `value: 0` seria ACEITO e ensinaria ao otimizador que o evento não vale nada.
         ...(conversao.valorCentavos !== null
