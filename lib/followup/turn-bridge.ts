@@ -24,6 +24,7 @@ import { baixarNosDeEnvio } from "./nos-de-envio";
 import { EVENTO_ACAO_ADIADA, arestaDaClasse, selectEdge, type EnrollmentRow } from "./node-handlers";
 import { coletarEsperasAdaptativas, montarTimingPlan, type PropostaDeEspera } from "./timing-plan";
 import { persistirRespostaFollowupPg } from "./persistir-resposta";
+import { textoDaRespostaDoLead } from "./resposta-do-lead";
 
 /** Superset de AdminClient: a ponte precisa do snapshot COMPLETO do enrollment
  *  (current_node_id/version_id/steps_taken) pra montar o passo de conclusão —
@@ -453,14 +454,14 @@ export function createPgAdminClient(pool: pg.Pool): TurnBridgeAdminClient {
       const params: unknown[] = [orgId, contactId, conversationId ?? null];
       const desde = naoAntesDe ? "and sent_at >= $4" : "";
       if (naoAntesDe) params.push(naoAntesDe);
-      const { rows } = await pool.query<{ body: string | null }>(
-        `select body from messages
+      const { rows } = await pool.query<{ body: string | null; media_derived_text: string | null; type: string | null }>(
+        `select body, media_derived_text, type from messages
          where organization_id = $1 and contact_id = $2 and ($3::uuid is null or conversation_id=$3) and direction = 'inbound' ${desde}
          order by sent_at desc limit 1`,
         params,
       );
-      const body = rows[0]?.body;
-      return typeof body === "string" ? body : null;
+      // Áudio e foto chegam com `body` vazio: a resposta em mídia também é resposta (`resposta-do-lead.ts`).
+      return textoDaRespostaDoLead(rows[0]);
     },
     async loadEnrollmentEvents(enrollmentId) {
       const { rows } = await pool.query(

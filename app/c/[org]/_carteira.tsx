@@ -156,18 +156,18 @@ export function CarteiraDeCreditos({
       <p className="mt-1 text-xs text-[#b7aecb]">{tc.umCreditoUmReal}</p>
 
       {pix ? (
-        <div className="mt-4 space-y-3 rounded-2xl bg-white p-4 text-[#241f31]" data-testid="carteira-pix">
+        <div className="mt-4 space-y-3 rounded-2xl bg-[#1d1638] p-4 text-[#f6f0e4]" data-testid="carteira-pix">
           {pix.qrPng ? (
             // eslint-disable-next-line @next/next/no-img-element -- QR hospedado pela Stripe
             <img src={pix.qrPng} alt="QR Pix" className="mx-auto size-44" />
           ) : null}
-          <p className="break-all rounded-xl bg-[#f6f1e6] p-3 font-mono text-xs leading-relaxed">{pix.copiaECola}</p>
-          <button type="button" onClick={async () => setCopiado(await copyToClipboard(pix.copiaECola))} className={`${BOTAO} w-full`} style={{ background: cor }}>
+          <p className="break-all rounded-xl bg-white/[0.06] p-3 font-mono text-xs leading-relaxed">{pix.copiaECola}</p>
+          <button type="button" onClick={async () => setCopiado(await copyToClipboard(pix.copiaECola))} className={`${BOTAO} w-full`} style={{ background: cor, color: "#1b1433" }}>
             {copiado ? <Check className="size-4" aria-hidden /> : <Copy className="size-4" aria-hidden />}
             {copiado ? tc.codigoCopiado : tc.copiarCodigo}
           </button>
-          <p className="text-center text-sm text-[#6f6880]">{tc.esperandoPagamento}</p>
-          <button type="button" onClick={() => setPix(null)} className="block w-full text-center text-sm text-[#6f6880] underline underline-offset-4">
+          <p className="text-center text-sm text-[#c3bad3]">{tc.esperandoPagamento}</p>
+          <button type="button" onClick={() => setPix(null)} className="block w-full text-center text-sm text-[#c3bad3] underline underline-offset-4">
             {tc.voltar}
           </button>
         </div>
@@ -244,7 +244,7 @@ export function CarteiraDeCreditos({
           {extrato.map((m, i) => (
             <li key={`${m.quando}-${i}`} className="flex items-center justify-between py-2">
               <span className="text-[#d9d0e6]">
-                <span className="mr-2 text-xs text-[#8f86a3]">{data(m.quando)}</span>
+                <span className="mr-2 text-xs text-[#9d94b2]">{data(m.quando)}</span>
                 {tc.motivos[m.motivo] ?? m.motivo}
               </span>
               <span className={m.delta > 0 ? "font-semibold text-[#9fd8b0]" : "font-semibold text-[#f0dca8]"}>

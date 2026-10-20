@@ -11,7 +11,7 @@ import { Check, FileText, Film, Headphones, MessageCircle, Receipt } from "lucid
 import { recadoDaEmpresa, type DadosDaArea } from "@/lib/area-do-cliente/dados";
 import type { CeuDoNascimento } from "@/lib/area-do-cliente/ceu";
 import type { DestaqueDeHoje } from "@/lib/area-do-cliente/hoje";
-import { faseDaLua, proximaLua } from "@/lib/area-do-cliente/lua";
+import { faseDaLua } from "@/lib/area-do-cliente/lua";
 import { PERGUNTAS_DO_FOCO, type Foco } from "@/lib/area-do-cliente/perfil";
 
 import {
@@ -39,7 +39,7 @@ import { MesaDeLeituras, type MesaInicial, type TextosDaMesa } from "./_mesa";
 import { LuaDeHoje } from "./_lua";
 import { AnoPessoalDoCliente, PresenteDoCliente, type TextosDasOfertas } from "./_ofertas";
 import { ContribuicaoDoCliente, SimpatiasDoCliente, type PedidoNaArea, type SimpatiaNaArea, type TextosDasSimpatias } from "./_simpatias";
-import { CARTAO, CARTAO_NOTURNO, CEU, DETALHE, PAGINA, SERIF, SOBRETITULO, SOBRETITULO_NOTURNO, TEXTO_SUAVE } from "./_tema";
+import { CARTAO, CARTAO_NOTURNO, CEU, DETALHE, OURO, PAGINA, SERIF, SOBRETITULO, SOBRETITULO_NOTURNO, TEXTO_SUAVE } from "./_tema";
 
 type Traduzir = (texto: string) => string;
 
@@ -77,19 +77,19 @@ export function VistaDeEntrada({ classeDaFonte, slug, cor, titulo, t, tx, link, 
       </header>
       <div className="relative mx-auto -mt-16 max-w-md px-4 pb-16">
         {link === "vencido" || link === "invalido" ? (
-          <p className="mb-4 rounded-3xl border border-[#f0dfb5] bg-[#fdf6e4] px-5 py-4 text-[15px] text-[#7a5a12]" data-testid="area-link-recusado">
+          <p className="mb-4 rounded-3xl border border-[#c9a54e]/40 bg-[#c9a54e]/10 px-5 py-4 text-[15px] text-[#f0d79a]" data-testid="area-link-recusado">
             {link === "vencido"
               ? t("Este link de acesso venceu. Entre com o seu e-mail abaixo, ou peça um link novo para a gente.")
               : t("Este link de acesso não vale mais. Entre com o seu e-mail abaixo, ou peça um link novo para a gente.")}
           </p>
         ) : null}
         <div className="[&>div]:mt-0">
-          <EntrarNaArea slug={slug} cor={cor} tx={tx} />
+          <EntrarNaArea slug={slug} cor={OURO} tx={tx} />
         </div>
         {whatsapp ? (
-          <p className="mt-8 text-center text-[15px] text-[#6f6880]">
+          <p className="mt-8 text-center text-[15px] text-[#c3bad3]">
             {t("Não cadastrou e-mail?")}{" "}
-            <a className="font-semibold underline underline-offset-4" style={{ color: cor }} href={`https://wa.me/${whatsapp}`}>
+            <a className="font-semibold underline underline-offset-4" style={{ color: OURO }} href={`https://wa.me/${whatsapp}`}>
               {t("Peça seu link pelo WhatsApp")}
             </a>
           </p>
@@ -168,18 +168,24 @@ export interface VistaDaAreaProps {
   abaInicial?: AbaDaArea;
 }
 
+/** "tempo de agir…" → "Tempo de agir…": a frase da lua perde o começo ("Lua crescente:") e não pode começar em minúscula. */
+function maiuscula(texto: string): string {
+  return texto.charAt(0).toLocaleUpperCase("pt-BR") + texto.slice(1);
+}
+
 function dinheiro(cents: number, currency: string): string {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency }).format(cents / 100);
 }
 
 export function VistaDaArea(p: VistaDaAreaProps) {
-  const { slug, fuso, tag, cor, titulo, t, tx, to, dados } = p;
+  const { slug, fuso, tag, titulo, t, tx, to, dados } = p;
+  // A cor de AÇÃO da área é o dourado (`_tema.ts`); a da empresa vive no brilho do céu.
+  const cor = OURO;
+  const corDaEmpresa = p.cor;
   const dataCurta = (iso: string, z = fuso) =>
     new Intl.DateTimeFormat(tag, { timeZone: z, day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(iso));
-  const dataLonga = (iso: string) => new Intl.DateTimeFormat(tag, { timeZone: fuso, day: "numeric", month: "long" }).format(new Date(iso));
 
   const fase = faseDaLua(p.agora);
-  const proximaCheia = proximaLua(p.agora, "cheia");
   const nomeDaFase =
     fase === "nova" ? t("Lua nova") : fase === "crescente" ? t("Lua crescente") : fase === "cheia" ? t("Lua cheia") : t("Lua minguante");
   const fraseDaLua =
@@ -196,7 +202,6 @@ export function VistaDaArea(p: VistaDaAreaProps) {
   const ultimaCompra = dados.compras.find((c) => !c.estornada) ?? null;
   // O recado, não a "última mensagem": a fala mais recente da empresa pode ser a régua de cobrança.
   const recado = recadoDaEmpresa(dados.conversa, p.agora);
-  const trabalhoAtual = dados.trabalhos.at(0) ?? null;
   // Quem terminou o trabalho vê um próximo passo; o primeiro da vitrine que ela ainda não tem.
   const proximo = vitrine[0] ? { nome: vitrine[0].nome, descricao: vitrine[0].descricao ?? null } : null;
   const rotulos = { hoje: t("Hoje"), trabalho: t("Meu trabalho"), conversa: t("Conversa"), explorar: t("Explorar") };
@@ -204,7 +209,7 @@ export function VistaDaArea(p: VistaDaAreaProps) {
   /** O topo das abas que não são a Hoje: o mesmo céu, mais baixo, com o nome da aba. */
   const topo = (nome: string) => (
     <header className={`${CEU} px-5 pb-20 pt-9`}>
-      <div className="pointer-events-none absolute inset-0" style={brilho(cor)} />
+      <div className="pointer-events-none absolute inset-0" style={brilho(corDaEmpresa)} />
       <div className="relative mx-auto max-w-xl">
         <p className={SOBRETITULO_NOTURNO}>{titulo}</p>
         <h1 className={`${SERIF} mt-2 text-[34px] leading-tight`}>{nome}</h1>
@@ -215,54 +220,36 @@ export function VistaDaArea(p: VistaDaAreaProps) {
 
   const hoje = (
     <>
-      <header className={`${CEU} px-5 pb-28 pt-10`}>
-        <div className="pointer-events-none absolute inset-0" style={brilho(cor)} />
+      {/* O topo do Hoje é CURTO: o nome dela, a frase do dia e o céu numa linha. O herói é a carta, logo abaixo. */}
+      <header className={`${CEU} px-5 pb-24 pt-10`}>
+        <div className="pointer-events-none absolute inset-0" style={brilho(corDaEmpresa)} />
         <div className="relative mx-auto max-w-xl">
           <p className={SOBRETITULO_NOTURNO}>{titulo}</p>
-          <h1 className={`${SERIF} mt-3 text-[40px] leading-[1.05] tracking-tight`} data-testid="area-ola">
+          <h1 className={`${SERIF} mt-3 text-[38px] leading-[1.05] tracking-tight`} data-testid="area-ola">
             {ola}
           </h1>
           {/* A frase de hoje (o modelo Co-Star): curta, no tema dela, a mesma o dia todo. */}
-          <p className={`${SERIF} mt-4 max-w-md text-[22px] italic leading-snug text-[#f6f0e4]`} data-testid="area-frase-do-dia">
+          <p className={`${SERIF} mt-3 max-w-md text-[20px] italic leading-snug text-[#e9e1f3]`} data-testid="area-frase-do-dia">
             “{p.hojeTela.frase}”
           </p>
-          {trabalhoAtual ? (
-            <p className="mt-2 max-w-md text-[14px] leading-relaxed text-[#b7aecb]">
-              {`${t("Estou acompanhando o seu trabalho:")} ${trabalhoAtual.nome}.`}
-            </p>
-          ) : null}
-          {p.ceu ? (
-            <p className="mt-3 inline-flex flex-wrap items-center gap-x-2 rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 text-sm text-[#f0dca8]" data-testid="area-ceu">
-              <span>
-                ☉ {p.tp.solEm} {p.ceu.sol}
-              </span>
-              <span aria-hidden>·</span>
-              <span>
-                ☾ {p.tp.luaEm} {p.ceu.lua}
-                {p.ceu.luaOutra ? ` ${p.tp.ou} ${p.ceu.luaOutra}` : ""}
-              </span>
-            </p>
-          ) : null}
-
-          <div className="mt-7 flex items-center gap-4 rounded-3xl border border-white/10 bg-white/[0.06] p-4 backdrop-blur-sm" data-testid="area-lua">
-            <LuaDeHoje quando={p.agora} />
-            <div className="min-w-0">
-              <p className={SOBRETITULO_NOTURNO}>
-                {t("Hoje no céu")} · {nomeDaFase}
-              </p>
-              <p className="mt-1 text-[15px] leading-snug text-[#f6f0e4]">{fraseDaLua.replace(/^[^:]+:\s*/, "")}</p>
-              {fase !== "cheia" ? (
-                <p className="mt-1 text-xs text-[#b7aecb]">
-                  {t("Próxima lua cheia:")} {dataLonga(proximaCheia.toISOString())}
-                </p>
+          <div className="mt-5 flex items-center gap-3" data-testid="area-lua">
+            <LuaDeHoje quando={p.agora} tamanho={34} />
+            <p className="min-w-0 text-[13px] leading-snug text-[#c3bad3]">
+              <span className="font-semibold text-[#f0dca8]">{nomeDaFase}</span>
+              {" · "}
+              {maiuscula(fraseDaLua.replace(/^[^:]+:\s*/, ""))}
+              {p.ceu ? (
+                <span className="block text-[#9d94b2]" data-testid="area-ceu">
+                  ☉ {p.tp.solEm} {p.ceu.sol} · ☾ {p.tp.luaEm} {p.ceu.lua}
+                  {p.ceu.luaOutra ? ` ${p.tp.ou} ${p.ceu.luaOutra}` : ""}
+                </span>
               ) : null}
-            </div>
+            </p>
           </div>
         </div>
       </header>
 
-      <div className="relative mx-auto -mt-20 max-w-xl space-y-5 px-4">
-        {/* UM destaque por dia (`destaqueDeHoje`): o aniversário, a lembrança da última pergunta ou a Mesa. */}
+      <div className="relative mx-auto -mt-16 max-w-xl space-y-5 px-4">
         {p.hojeTela.destaque === "aniversario" ? (
           <section className={`${CARTAO} text-center`} data-testid="area-feliz-aniversario">
             <p className={SOBRETITULO}>✦ ✦ ✦</p>
@@ -272,6 +259,11 @@ export function VistaDaArea(p: VistaDaAreaProps) {
             </h2>
             <p className={`mt-2 ${TEXTO_SUAVE}`}>{t("Um ano novo começa para você. Que ele venha leve e cheio de bons encontros.")}</p>
           </section>
+        ) : null}
+
+        {/* O HERÓI: a carta do dia, o motivo de abrir a área todo dia. */}
+        {p.carta ? (
+          <CartaDoDia slug={slug} cor={cor} tx={tx} cartaId={p.carta.id} nome={p.carta.nome} mensagem={p.carta.mensagem} foto={p.carta.foto} />
         ) : null}
 
         <EtapaDeHoje proximo={proximo} />
@@ -305,7 +297,6 @@ export function VistaDaArea(p: VistaDaAreaProps) {
                 ? `${t("Faça uma pergunta às cartas sobre")} ${p.tp.focos[p.perfil.foco].tema}.`
                 : t("Faça uma pergunta às cartas e veja a leitura na hora.")}
             </p>
-            <p className="mt-1 text-xs text-[#b7aecb]">{p.tm.automatica}</p>
             <BotaoIrParaAba
               aba="explorar"
               className="mt-4 inline-flex h-11 items-center rounded-full px-5 text-[15px] font-semibold"
@@ -316,18 +307,14 @@ export function VistaDaArea(p: VistaDaAreaProps) {
           </section>
         ) : null}
 
-        {p.carta ? (
-          <CartaDoDia slug={slug} cor={cor} tx={tx} cartaId={p.carta.id} nome={p.carta.nome} mensagem={p.carta.mensagem} foto={p.carta.foto} />
-        ) : null}
-
-        {/* O horóscopo do signo, ao lado da carta do dia: o segundo motivo para abrir a área todo dia. */}
+        {/* O horóscopo do signo: o segundo motivo para abrir a área todo dia, pequeno, depois da carta. */}
         {p.horoscopo ? (
           <section className={CARTAO} data-testid="area-horoscopo">
             <p className={SOBRETITULO}>
               ☉ {t("Hoje para")} {p.horoscopo.signo}
             </p>
-            <p className={`${SERIF} mt-2 text-[19px] leading-snug text-[#3a3347]`}>{p.horoscopo.texto}</p>
-            <p className="mt-2 text-xs text-[#8b8497]">{t("O mesmo para todo mundo do seu signo hoje.")}</p>
+            <p className={`${SERIF} mt-2 text-[19px] leading-snug text-[#efe7f7]`}>{p.horoscopo.texto}</p>
+            <p className={`mt-2 ${DETALHE}`}>{t("O mesmo para todo mundo do seu signo hoje.")}</p>
           </section>
         ) : null}
 
@@ -337,14 +324,14 @@ export function VistaDaArea(p: VistaDaAreaProps) {
             <p className={SOBRETITULO}>
               {t("Um recado para você")} · {dataCurta(recado.quando)}
             </p>
-            <p className={`${SERIF} mt-3 line-clamp-5 whitespace-pre-line text-[18px] leading-relaxed text-[#3a3347]`}>
+            <p className={`${SERIF} mt-3 line-clamp-5 whitespace-pre-line text-[18px] leading-relaxed text-[#efe7f7]`}>
               {recado.texto}
             </p>
-            <p className="mt-2 text-sm font-semibold text-[#a8842f]">— {titulo}</p>
+            <p className="mt-2 text-sm font-semibold text-[#e2c47a]">— {titulo}</p>
             <BotaoIrParaAba
               aba="conversa"
               className="mt-4 inline-flex h-11 items-center gap-2 rounded-full px-5 text-[15px] font-semibold text-white"
-              style={{ background: cor }}
+              style={{ background: cor, color: "#1b1433" }}
             >
               <MessageCircle className="size-4" aria-hidden />
               {t("Responder")}
@@ -354,9 +341,9 @@ export function VistaDaArea(p: VistaDaAreaProps) {
 
         {/* O resto, recolhido: um herói por tela. Com a lembrança em destaque, o diário já vem aberto. */}
         <details className="group rounded-3xl" open={p.hojeTela.destaque === "lembranca"} data-testid="area-mais-para-hoje">
-          <summary className="flex cursor-pointer list-none items-center justify-between rounded-3xl border border-[#ebe3d3] bg-white/80 px-5 py-4 text-[15px] font-semibold text-[#3a3347]">
+          <summary className="flex cursor-pointer list-none items-center justify-between rounded-3xl border border-[#c9a54e]/15 bg-[#1a1430] px-5 py-4 text-[15px] font-semibold text-[#efe7f7]">
             {t("Mais para hoje")}
-            <span aria-hidden className="text-[#a8842f] transition-transform group-open:rotate-180">
+            <span aria-hidden className="text-[#e2c47a] transition-transform group-open:rotate-180">
               ▾
             </span>
           </summary>
@@ -381,11 +368,11 @@ export function VistaDaArea(p: VistaDaAreaProps) {
         {ultimaCompra ? (
           <section className={CARTAO} data-testid="area-compra-confirmada">
             <div className="flex items-start gap-4">
-              <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-[#e8f5ec] text-[#2f7a4f] ring-4 ring-[#f3faf5]">
+              <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-[#1e3a2c] text-[#8fd6a8] ring-4 ring-[#1e3a2c]/50">
                 <Check className="size-5" strokeWidth={2.5} aria-hidden />
               </span>
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-[#2f7a4f]">{t("Sua compra está confirmada")}</p>
+                <p className="text-sm font-semibold text-[#8fd6a8]">{t("Sua compra está confirmada")}</p>
                 <p className={`${SERIF} mt-1 text-[24px] leading-tight`}>{ultimaCompra.produto ?? t("Compra")}</p>
                 <p className={`mt-1 ${DETALHE} text-sm`}>
                   {dinheiro(ultimaCompra.valor_cents, ultimaCompra.currency)} · {dataCurta(ultimaCompra.quando)}
@@ -440,13 +427,13 @@ export function VistaDaArea(p: VistaDaAreaProps) {
         {dados.materiais.length > 0 ? (
           <section className={CARTAO} data-testid="area-materiais">
             <TituloDaSecao titulo={t("Seus materiais")} />
-            <ul className="mt-3 divide-y divide-[#efe7d6]">
+            <ul className="mt-3 divide-y divide-white/10">
               {dados.materiais.map((m) => {
                 const Icone = ICONE_DO_MATERIAL[m.tipo];
                 return (
                   <li key={m.id} className="flex items-center justify-between gap-3 py-3.5">
                     <span className="flex min-w-0 items-center gap-3">
-                      <span className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-[#f6f1e6] text-[#a8842f]">
+                      <span className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-white/[0.06] text-[#e2c47a]">
                         <Icone className="size-5" aria-hidden />
                       </span>
                       <span className="min-w-0">
@@ -456,7 +443,7 @@ export function VistaDaArea(p: VistaDaAreaProps) {
                         <span className={DETALHE}>{dataCurta(m.quando)}</span>
                       </span>
                     </span>
-                    <a href={`/c/${slug}/material/${m.id}`} className="shrink-0 rounded-full px-4 py-2 text-sm font-semibold text-white" style={{ background: cor }}>
+                    <a href={`/c/${slug}/material/${m.id}`} className="shrink-0 rounded-full px-4 py-2 text-sm font-semibold text-white" style={{ background: cor, color: "#1b1433" }}>
                       {t("Abrir")}
                     </a>
                   </li>
@@ -469,7 +456,7 @@ export function VistaDaArea(p: VistaDaAreaProps) {
         {dados.compras.length > 1 ? (
           <section className={CARTAO} data-testid="area-compras">
             <TituloDaSecao titulo={t("Suas compras")} />
-            <ul className="mt-3 divide-y divide-[#efe7d6]">
+            <ul className="mt-3 divide-y divide-white/10">
               {dados.compras.map((c) => (
                 <li key={c.id} className="flex items-center justify-between gap-3 py-3.5 text-[15px]">
                   <span className="min-w-0">
@@ -479,7 +466,7 @@ export function VistaDaArea(p: VistaDaAreaProps) {
                   <span className="shrink-0 text-right">
                     <span className="block font-semibold">{dinheiro(c.valor_cents, c.currency)}</span>
                     {c.estornada ? (
-                      <span className="text-xs text-[#a5611b]">{t("devolvido")}</span>
+                      <span className="text-xs text-[#f0b070]">{t("devolvido")}</span>
                     ) : (
                       <a href={`/c/${slug}/recibo/${c.id}`} className="text-xs font-semibold underline underline-offset-2" style={{ color: cor }}>
                         {t("recibo")}
@@ -560,12 +547,12 @@ export function VistaDaArea(p: VistaDaAreaProps) {
                   <article
                     key={s.id}
                     data-servico-id={s.id}
-                    className={s.destaque ? "rounded-2xl border-2 border-[#c9a54e] bg-[#fdf9ef] p-5" : "rounded-2xl border border-[#ebe3d3] bg-[#fdfbf7] p-5"}
+                    className={s.destaque ? "rounded-2xl border-2 border-[#c9a54e] bg-[#c9a54e]/[0.08] p-5" : "rounded-2xl border border-white/10 bg-white/[0.05] p-5"}
                   >
                     <h3 className={`${SERIF} text-xl leading-snug`}>{s.nome}</h3>
                     {s.descricao ? <p className={`mt-1.5 ${TEXTO_SUAVE}`}>{s.descricao}</p> : null}
                     {s.recebe ? (
-                      <p className="mt-2 text-sm text-[#6f6880]">
+                      <p className="mt-2 text-sm text-[#c3bad3]">
                         <span className="font-semibold">{t("Você recebe:")}</span> {s.recebe}
                       </p>
                     ) : null}
@@ -574,7 +561,7 @@ export function VistaDaArea(p: VistaDaAreaProps) {
                       <a
                         href={`/c/${slug}/comprar/${s.id}`}
                         className="inline-flex h-11 items-center rounded-full px-5 text-[15px] font-semibold text-white"
-                        style={{ background: cor }}
+                        style={{ background: cor, color: "#1b1433" }}
                         data-testid="area-comprar"
                       >
                         {t("Quero este")}
@@ -617,12 +604,12 @@ export function VistaDaArea(p: VistaDaAreaProps) {
 
   const rodape = (
     <footer className="mx-auto max-w-xl px-4 pt-10 text-center" data-testid="area-rodape">
-      <p className={`${SERIF} text-lg text-[#3a3347]`}>{titulo}</p>
+      <p className={`${SERIF} text-lg text-[#efe7f7]`}>{titulo}</p>
       <p className={`mt-1 ${DETALHE}`}>
         {t("Área oficial de")} {p.assinatura}
       </p>
       <form action={`/c/${slug}/sair`} method="post" className="mt-3">
-        <button type="submit" className="text-xs text-[#8b8497] underline underline-offset-4">
+        <button type="submit" className="text-xs text-[#9d94b2] underline underline-offset-4">
           {t("Sair deste aparelho")}
         </button>
       </form>

@@ -37,7 +37,7 @@ export function textosDoNavegador(t: (s: string) => string): TextosDaArea {
     salvar: t("Salvar"),
     prontoEntreCom: t("Pronto! Da próxima vez, entre com este e-mail:"),
     faleComAGente: t("Fale com a gente"),
-    faleComAGenteConvite: t("Escreva sua dúvida. A equipe responde nesta conversa; volte a esta página para acompanhar. As respostas aparecem automaticamente enquanto ela está aberta."),
+    faleComAGenteConvite: t("Escreva para a gente. A resposta chega aqui mesmo."),
     escrevaAqui: t("Escreva sua mensagem…"),
     voce: t("Você"),
     nos: t("Nós"),
@@ -240,10 +240,10 @@ export function textosDaCarteira(t: (s: string) => string): TextosDaCarteira {
 export function textosDaMesa(t: (s: string) => string, empresa: string): TextosDaMesa {
   return {
     titulo: t("A Mesa"),
-    automatica: `${t("Leitura automática, nos métodos de")} ${empresa}`,
+    automatica: `${t("As cartas abrem na hora, com a leitura escrita para você, nos métodos de")} ${empresa}.`,
     primeiraPor: t("Primeira leitura por"),
     leituraPor: t("Leitura por"),
-    restamHoje: t("Leituras que ainda cabem hoje:"),
+    restamHoje: t("Leituras que você ainda pode abrir hoje:"),
     limiteDoDia: t("Por hoje a mesa já fez as suas leituras. Amanhã ela abre de novo para você."),
     suaPergunta: t("Sua pergunta"),
     dicaDaPergunta: t("Uma pergunta só, do seu jeito. Quanto mais clara, mais clara a leitura."),

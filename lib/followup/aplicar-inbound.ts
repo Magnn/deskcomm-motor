@@ -8,6 +8,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { idsDoContatoEGemeos } from "@/lib/channels/contato-por-telefone";
 
 import { enviarTextoFixoPendente } from "./enviar-texto-fixo";
+import { textoDaRespostaDoLead, type MensagemDoLead } from "./resposta-do-lead";
 import {
   aplicarRespostaInbound,
   avancarEnrollmentAtivo,
@@ -66,7 +67,7 @@ async function ultimoInboundDoContato(
 ): Promise<InboundResolvido> {
   const { data, error } = await admin
     .from("messages")
-    .select("body, sent_at")
+    .select("body, media_derived_text, type, sent_at")
     .eq("organization_id", orgId)
     .in("contact_id", contactIds)
     .eq("direction", "inbound")
@@ -74,7 +75,8 @@ async function ultimoInboundDoContato(
     .limit(1)
     .maybeSingle();
   if (error) throw new Error(error.message);
-  const texto = typeof data?.body === "string" ? data.body.trim() : "";
+  // Áudio e foto chegam com `body` vazio: a resposta em mídia também é resposta (`resposta-do-lead.ts`).
+  const texto = textoDaRespostaDoLead(data as MensagemDoLead | null) ?? "";
   const enviadaEm = typeof data?.sent_at === "string" ? data.sent_at : null;
   return { texto, enviadaEm };
 }

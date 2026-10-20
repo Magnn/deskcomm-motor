@@ -29,6 +29,7 @@ import { logger } from "@/lib/logger";
 
 import { flowGraphSchema, type ConteudoItem, type FlowGraph, type FlowNode, type ReplySaveTo } from "./graph-schema";
 import { baixarNosDeEnvio } from "./nos-de-envio";
+import { textoDaRespostaDoLead, type MensagemDoLead } from "./resposta-do-lead";
 import { reportarEventoDoPixel, type PedidoDePixel } from "@/lib/conversoes/evento-do-pixel";
 import {
   ACTION_RECHECK_MS,
@@ -1071,7 +1072,7 @@ export function createSupabaseAdminClient(admin: SupabaseClient): AdminClient {
       const ids = await idsDoContatoEGemeos(admin, orgId, contactId);
       let q = admin
         .from("messages")
-        .select("body")
+        .select("body, media_derived_text, type")
         .eq("organization_id", orgId)
         .in("contact_id", ids)
         .eq("direction", "inbound");
@@ -1079,7 +1080,8 @@ export function createSupabaseAdminClient(admin: SupabaseClient): AdminClient {
       if (naoAntesDe) q = q.gte("sent_at", naoAntesDe);
       const { data, error } = await q.order("sent_at", { ascending: false }).limit(1).maybeSingle();
       if (error) throw new Error(error.message);
-      return typeof data?.body === "string" ? data.body : null;
+      // Áudio e foto chegam com `body` vazio: a resposta em mídia também é resposta (`resposta-do-lead.ts`).
+      return textoDaRespostaDoLead(data as MensagemDoLead | null);
     },
     async ensureAttendantRouting({ organizationId, contactId, conversationId, allowNewAssignment, now }) {
       const { data: conversation, error: conversationError } = await admin

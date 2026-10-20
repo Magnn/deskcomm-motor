@@ -72,22 +72,22 @@ export function PagarNaArea({
 
   if (pix) {
     return (
-      <div className="mt-4 space-y-3 rounded-2xl bg-white p-4 text-[#241f31]" data-testid="area-circulo-pix">
+      <div className="mt-4 space-y-3 rounded-2xl bg-[#1d1638] p-4 text-[#f6f0e4]" data-testid="area-circulo-pix">
         {pix.qrPng ? (
           // eslint-disable-next-line @next/next/no-img-element -- QR hospedado pela Stripe
           <img src={pix.qrPng} alt="QR Pix" className="mx-auto size-44" />
         ) : null}
-        <p className="break-all rounded-xl bg-[#f6f1e6] p-3 font-mono text-xs leading-relaxed">{pix.copiaECola}</p>
+        <p className="break-all rounded-xl bg-white/[0.06] p-3 font-mono text-xs leading-relaxed">{pix.copiaECola}</p>
         <button
           type="button"
           onClick={async () => setCopiado(await copyToClipboard(pix.copiaECola))}
           className={`${BOTAO} w-full`}
-          style={{ background: cor }}
+          style={{ background: cor, color: "#1b1433" }}
         >
           {copiado ? <Check className="size-4" aria-hidden /> : <Copy className="size-4" aria-hidden />}
           {copiado ? tx.codigoCopiado : tx.copiarCodigo}
         </button>
-        <p className="text-xs leading-relaxed text-[#6f6880]">{tx.depoisDePagar}</p>
+        <p className="text-xs leading-relaxed text-[#c3bad3]">{tx.depoisDePagar}</p>
       </div>
     );
   }
@@ -122,7 +122,7 @@ export function PagarNaArea({
         </button>
       </div>
       {erro ? (
-        <p role="alert" className={escuro ? "text-sm text-[#f3b2a4]" : "text-sm text-[#a5361f]"}>
+        <p role="alert" className={escuro ? "text-sm text-[#f3b2a4]" : "text-sm text-[#f3a493]"}>
           {erro}
         </p>
       ) : null}
