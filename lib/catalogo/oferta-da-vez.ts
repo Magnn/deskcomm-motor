@@ -31,6 +31,20 @@ const MARCA_DE_PAGO = "pago";
 const MARCAS_DE_DEVOLUCAO = ["reembolso", "chargeback"] as const;
 const PREFIXO_DO_PRODUTO = "produto:";
 
+/**
+ * Pagou alguma coisa: o produto principal (`pago`) ou uma cobrança avulsa (`extra:<id>`, ex.: pergunta nova).
+ * Quem tem devolução fica de fora. Pura.
+ */
+export function pagouAlgo(tags: readonly string[]): boolean {
+  if (MARCAS_DE_DEVOLUCAO.some((m) => tags.includes(m))) return false;
+  return tags.includes(MARCA_DE_PAGO) || tags.some((t) => t.startsWith("extra:"));
+}
+
+/** As marcas com `pago` acrescentado para quem só pagou cobrança avulsa — o que a oferta da vez exige. */
+export function comMarcaDePago(tags: readonly string[]): string[] {
+  return pagouAlgo(tags) && !tags.includes(MARCA_DE_PAGO) ? [...tags, MARCA_DE_PAGO] : [...tags];
+}
+
 /** Os produtos já comprados, como a compra aprovada os marca no contato (`produto:<slug>`). */
 export function produtosComprados(tags: readonly string[]): string[] {
   return tags
