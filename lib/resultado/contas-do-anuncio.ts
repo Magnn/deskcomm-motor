@@ -7,7 +7,7 @@
  */
 export type GastoDoPeriodo =
   | { estado: "ok"; centavos: number; moeda: string }
-  | { estado: "sem_conexao" | "sem_conta" | "indisponivel" | "restrito" };
+  | { estado: "sem_conexao" | "sem_conta" | "indisponivel" | "autorizacao_vencida" | "restrito" };
 
 export interface ContasDoAnuncio {
   /** O gasto na moeda da conta, em unidades (não centavos). `null` = desconhecido. */

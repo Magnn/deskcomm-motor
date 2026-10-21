@@ -14287,6 +14287,7 @@ export const DICIONARIO: Traducoes = {
   "Lucro (sem descontar IA)": { es: "Ganancia (sin descontar IA)" },
   "Lucro (sem descontar anúncio nem IA)": { es: "Ganancia (sin descontar anuncios ni IA)" },
   "em reais pela PTAX de": { es: "en reales por la PTAX del" },
+  "A autorização da Meta venceu: reconecte": { es: "La autorización de Meta venció: vuelve a conectar" },
   "Conecte o Meta Ads para ver o gasto": { es: "Conecte Meta Ads para ver el gasto" },
   "Escolha a conta de anúncios": { es: "Elija la cuenta de anuncios" },
   "A Meta não respondeu agora": { es: "Meta no respondió ahora" },
