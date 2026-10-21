@@ -4088,7 +4088,16 @@ async function executarTurnoDoAgente(
         // segue (degradar para só texto). Ver `agent/fotos-do-produto.ts`.
         let fotosDoProduto: FotoParaEnvio[] = [];
         let fotosQueFaltaram = 0;
-        if (produto_codigo !== undefined && produto_codigo.trim() !== '' && !preview) {
+        // A CARTA É DA CARTA (21/10/2026): a mensagem "CARTA 3: O Carro" saiu com a arte da sinastria no lugar da
+        // carta sorteada, porque a foto do produto vence a imagem da leitura. Na revelação de uma carta, ou enquanto a
+        // leitura ainda está revelando, a foto do produto é descartada e a carta sai com a imagem dela.
+        const fotoDoProdutoNaLeitura =
+          produto_codigo !== undefined && produto_codigo.trim() !== '' &&
+          (MARCA_CARTA.test(body) || passoDaLeituraNoTurno?.passo === 'revelar_carta');
+        if (fotoDoProdutoNaLeitura) {
+          runLog.warn('foto de produto pedida na revelação de carta — descartada, a carta sai com a imagem dela', {});
+        }
+        if (produto_codigo !== undefined && produto_codigo.trim() !== '' && !preview && !fotoDoProdutoNaLeitura) {
           const preparadas = await prepararFotosDoProduto(pool, copiarFotoNoStorage(runLog), {
             tenantId,
             conversationId: input.conversationId,
