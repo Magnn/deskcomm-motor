@@ -9,7 +9,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 import { lerConexaoStripe, type ConexaoStripe } from '@/lib/pagamentos/conexao-stripe';
-import { VALIDADE_DO_PIX_S } from '@/lib/pagamentos/pix-na-conversa';
+import { VALIDADE_DO_PIX_S, pagamentosRecentesDoContato } from '@/lib/pagamentos/pix-na-conversa';
 import { ErroDaStripe, criarClienteStripe, type LinkCriado, type PedidoDeLink, type PedidoDePix, type PixCriado } from '@/lib/pagamentos/stripe';
 import {
   corpoComPixDoExtra,
@@ -62,7 +62,13 @@ export async function pixDoExtraNoLugarDaMarca(e: EntradaDoPixDoExtra): Promise<
     const pedido: PedidoDePix = {
       valorCentavos,
       descricao: descricaoDaCobranca(marca.extra, marca.quantidade),
-      referencia: referenciaDoExtra(e.conversationId, marca.extra, e.agora ?? new Date(), marca.quantidade),
+      referencia: referenciaDoExtra(
+        e.conversationId,
+        marca.extra,
+        e.agora ?? new Date(),
+        marca.quantidade,
+        await pagamentosRecentesDoContato(e.supabase, e.organizationId, e.contactId, e.agora ?? new Date()),
+      ),
       metadados: {
         organization_id: e.organizationId,
         contact_id: e.contactId,

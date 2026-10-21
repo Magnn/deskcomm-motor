@@ -138,10 +138,12 @@ export function corpoComPixDoExtra(
 }
 
 /** A referência da cobrança: a mesma conversa pedindo o mesmo extra na mesma hora recebe o MESMO Pix. */
-export function referenciaDoExtra(conversaId: string, extra: Extra, agora: Date, quantidade = 1): string {
-  // A unidade sozinha mantém a referência de antes: um Pix já criado nesta hora segue sendo o mesmo.
+export function referenciaDoExtra(conversaId: string, extra: Extra, agora: Date, quantidade = 1, pagamentosAntes = 0): string {
+  // A unidade sozinha mantém a referência de antes: um Pix já criado nesta hora segue sendo o mesmo. Depois de um
+  // pagamento, a cobrança seguinte é OUTRA (`pagamentosAntes`, ver `pagamentosRecentesDoContato`).
   const lote = quantidade > 1 ? `-x${quantidade}` : "";
-  return `extra-${conversaId}-${slugDoExtra(extra.name)}-${extra.price_cents}${lote}-${Math.floor(agora.getTime() / 3_600_000)}`;
+  const depois = pagamentosAntes > 0 ? `-p${pagamentosAntes}` : "";
+  return `extra-${conversaId}-${slugDoExtra(extra.name)}-${extra.price_cents}${lote}-${Math.floor(agora.getTime() / 3_600_000)}${depois}`;
 }
 
 /** Um extra pago há pouco, lido do livro de receita. */
