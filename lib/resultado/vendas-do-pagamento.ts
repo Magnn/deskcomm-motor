@@ -22,6 +22,8 @@ export interface VendaDoPainel {
   created_at: string;
   attendant_user_id: string | null;
   notes: string | null;
+  /** A conversa da cobrança (vendas do gateway). Ausente na comanda. */
+  conversation_id?: string | null;
 }
 
 export interface LinhaDoLedger {
@@ -31,6 +33,8 @@ export interface LinhaDoLedger {
   occurred_at: string;
   contact_id: string | null;
   external_event_id: string;
+  /** O que o pagamento registrou: `produto` (nome) e `conversa` (de onde veio a cobrança). */
+  metadata?: { produto?: unknown; conversa?: unknown } | null;
 }
 
 const ESTORNOS = ["refund", "chargeback"];
@@ -47,7 +51,9 @@ export function vendasDoLedger(cobrancas: readonly LinhaDoLedger[], pedidosEstor
       total_cents: Number(l.amount_cents) || 0,
       created_at: l.occurred_at,
       attendant_user_id: null,
-      notes: null,
+      // O nome do produto que o pagamento registrou: é ele que o histórico e a performance de produtos mostram.
+      notes: typeof l.metadata?.produto === "string" && l.metadata.produto.trim() !== "" ? l.metadata.produto.trim() : null,
+      conversation_id: typeof l.metadata?.conversa === "string" ? l.metadata.conversa : null,
     }));
 }
 
@@ -62,7 +68,7 @@ export async function lerVendasDoPagamento(
 ): Promise<VendaDoPainel[]> {
   const { data, error } = await db
     .from("revenue_ledger")
-    .select("id, event_type, amount_cents, occurred_at, contact_id, external_event_id")
+    .select("id, event_type, amount_cents, occurred_at, contact_id, external_event_id, metadata")
     .eq("organization_id", organizationId)
     .eq("event_type", "charge")
     .gte("occurred_at", de.toISOString())

@@ -31,7 +31,7 @@ describe("vendasDoLedger", () => {
       new Set(["p2"]),
     );
     expect(vendas).toEqual([
-      { id: "a", number: null, contact_id: "c1", status: "paid", total_cents: 13000, created_at: "2026-10-02T10:00:00Z", attendant_user_id: null, notes: null },
+      { id: "a", number: null, contact_id: "c1", status: "paid", total_cents: 13000, created_at: "2026-10-02T10:00:00Z", attendant_user_id: null, notes: null, conversation_id: null },
     ]);
   });
 });
@@ -90,7 +90,12 @@ describe("gasto de anúncios", () => {
       await ler(deps({ lerCredencial: vi.fn(async () => ({ ok: true as const, credencial: { accessToken: "t", contaPadrao: null } })) })),
     ).toEqual({ estado: "sem_conta" });
     limparCacheDoGasto();
+    // Token recusado é autorização vencida (só reconectar resolve); outra falha é instabilidade.
     expect(await ler(deps({ lerInsights: vi.fn(async () => ({ ok: false as const, falha: "token_invalido" as never, detalhe: "" })) }))).toEqual({
+      estado: "autorizacao_vencida",
+    });
+    limparCacheDoGasto();
+    expect(await ler(deps({ lerInsights: vi.fn(async () => ({ ok: false as const, falha: "transitorio" as never, detalhe: "" })) }))).toEqual({
       estado: "indisponivel",
     });
   });

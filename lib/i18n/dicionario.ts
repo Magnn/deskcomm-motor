@@ -14283,6 +14283,7 @@ export const DICIONARIO: Traducoes = {
   // Dashboard: gasto de anúncio lido da conta, ROAS e lucro (lib/resultado/contas-do-anuncio.ts).
   "Sem gasto de anúncio conhecido no período, não há ROAS.": { es: "Sin gasto de anuncios conocido en el período, no hay ROAS." },
   "Lucro (sem descontar anúncio)": { es: "Ganancia (sin descontar anuncios)" },
+  "A autorização da Meta venceu: reconecte": { es: "La autorización de Meta venció: vuelve a conectar" },
   "Conecte o Meta Ads para ver o gasto": { es: "Conecte Meta Ads para ver el gasto" },
   "Escolha a conta de anúncios": { es: "Elija la cuenta de anuncios" },
   "A Meta não respondeu agora": { es: "Meta no respondió ahora" },

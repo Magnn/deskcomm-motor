@@ -38,7 +38,7 @@ import { lerInsights, listarContas, type LinhaDeInsightCrua } from "./insights";
 
 export type GastoDeAnuncios =
   | { estado: "ok"; centavos: number; moeda: string }
-  | { estado: "sem_conexao" | "sem_conta" | "indisponivel" };
+  | { estado: "sem_conexao" | "sem_conta" | "indisponivel" | "autorizacao_vencida" };
 
 /** A soma do `spend` das campanhas, em centavos. Linha sem número conta zero. Pura. */
 export function somarGastoEmCentavos(linhas: readonly LinhaDeInsightCrua[]): number {
@@ -92,7 +92,9 @@ export async function lerGastoDeAnuncios(
   const [insights, contas] = await Promise.all([deps.lerInsights(token, conta, inicio, fim), deps.listarContas(token)]);
   let valor: GastoDeAnuncios;
   if (!insights.ok) {
-    valor = { estado: "indisponivel" };
+    // Token recusado não é instabilidade: a autorização venceu e só reconectar resolve. A tela diz isso e leva
+    // para onde se reconecta, em vez de "a Meta não respondeu agora" (medido em 21/10/2026: código 190 o dia todo).
+    valor = { estado: insights.falha === "token_invalido" ? "autorizacao_vencida" : "indisponivel" };
   } else {
     // Sem a lista de contas a moeda é desconhecida, e gasto sem moeda não entra em conta nenhuma: a moeda
     // "?" faz ROAS e lucro ficarem de fora, mas o valor gasto continua visível.
