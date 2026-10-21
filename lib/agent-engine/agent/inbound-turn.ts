@@ -179,7 +179,7 @@ import {
 } from '@/lib/area-do-cliente/link-na-conversa';
 import { produtosComFluxoDeEntrega } from '@/lib/catalogo/fluxos-de-entrega';
 import { valorErradoDeProduto } from '@/lib/catalogo/valor-do-produto';
-import { entregaNaConversaEmAberto, ofertaDaVez, produtoDaUltimaCompra } from '@/lib/catalogo/oferta-da-vez';
+import { comMarcaDePago, entregaNaConversaEmAberto, ofertaDaVez, pagouAlgo, produtoDaUltimaCompra } from '@/lib/catalogo/oferta-da-vez';
 import { estadoDoPosVenda, horaDoPagamento } from '@/lib/preco/pos-venda';
 import { deveResponderEmAudio, pediuAudio } from '@/lib/voz/decisao';
 import { enqueueJob, rescheduleJob, type JobRow, type Queryable } from '../queue/queue';
@@ -2429,7 +2429,11 @@ async function executarTurnoDoAgente(
   // encerramento — `lib/contacts/encerrar-acompanhamento.ts`) não recebe oferta de pós-venda. Lido para
   // todo pagante: o mesmo dado decide se o bloco que ensina a marca entra no turno.
   let recusouOfertasNoTurno = false;
-  if (!preview && tagsDoContato.includes('pago')) {
+  // Quem pagou só uma cobrança avulsa (`extra:<id>`, ex.: pergunta nova) também é cliente: entra na oferta do
+  // catálogo (`pagouAlgo`). Medido em 21/10/2026: sem o bloco, a agente ofereceu a Oração dos Sonhos (R$ 35) a quem
+  // tinha pago uma pergunta e inventou o valor — R$ 130, depois R$ 27 —, e depois não conseguia mais dizer o certo.
+  const pagouNoTurno = pagouAlgo(tagsDoContato);
+  if (!preview && pagouNoTurno) {
     try {
       const { rows } = await pool.query<{ recusou: string | null }>(
         `select consent->'marketing'->>'declined_at' as recusou from contacts where organization_id = $1 and id = $2`,
@@ -2441,21 +2445,27 @@ async function executarTurnoDoAgente(
       recusouOfertasNoTurno = true;
     }
   }
-  if (!preview && temPosVenda && tagsDoContato.includes('pago') && !recusouOfertasNoTurno) {
+  if (!preview && temPosVenda && pagouNoTurno && !recusouOfertasNoTurno) {
     try {
-      const { rows } = await pool.query<{ ultima_compra: unknown }>(
-        `select source_metadata->'ultima_compra' as ultima_compra
-           from contacts
-          where organization_id = $1 and id = $2
+      const { rows } = await pool.query<{ ultima_compra: unknown; ultimo_pagamento: string | null }>(
+        `select c.source_metadata->'ultima_compra' as ultima_compra,
+                (select max(l.occurred_at)::text from revenue_ledger l
+                  where l.organization_id = c.organization_id and l.contact_id = c.id
+                    and l.event_type = 'charge' and l.amount_cents > 0) as ultimo_pagamento
+           from contacts c
+          where c.organization_id = $1 and c.id = $2
           limit 1`,
         [tenantId, leadId],
       );
-      const pagoEm = horaDoPagamento(rows[0]?.ultima_compra);
+      // Quem só pagou cobrança avulsa não tem `ultima_compra`: a hora vem do livro de receita.
+      const pagoEm =
+        horaDoPagamento(rows[0]?.ultima_compra) ??
+        (rows[0]?.ultimo_pagamento ? new Date(rows[0].ultimo_pagamento) : null);
       const agora = new Date();
       if (catalogoDoAgente !== null) {
         ofertaDoCatalogoNoTurno = ofertaDaVez(
           catalogoDoAgente,
-          { tags: tagsDoContato, pagoEm },
+          { tags: comMarcaDePago(tagsDoContato), pagoEm },
           openingContext.context.messages,
           await produtosComFluxoDeEntrega(pool, tenantId),
           agora,
