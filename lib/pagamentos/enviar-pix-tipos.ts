@@ -9,6 +9,8 @@ export const enviarPixSchema = z.strictObject({
   /** Em centavos. De R$ 1,00 a R$ 100.000,00. */
   valor_cents: z.number().int().min(100).max(10_000_000),
   produto: z.string().trim().min(1).max(120),
+  /** Cobrança avulsa (`SugestaoDePagamento.extra`): o pagamento vira a cobrança avulsa e a entrega dela começa sozinha. */
+  extra: z.string().regex(/^[a-z0-9-]{1,60}$/).optional(),
 });
 export type EnviarPix = z.infer<typeof enviarPixSchema>;
 

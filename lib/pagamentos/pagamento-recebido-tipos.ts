@@ -41,4 +41,6 @@ export type ResultadoDoPagamento =
 export interface SugestaoDePagamento {
   produto: string;
   valor_cents: number;
+  /** Cobrança avulsa (`pricing.extras`): o slug que a cobrança leva, para o pagamento abrir a mesa sozinho. */
+  extra?: string;
 }

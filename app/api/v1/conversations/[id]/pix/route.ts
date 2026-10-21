@@ -75,7 +75,14 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       descricao: lido.data.produto,
       // Um pedido, uma cobrança: reenviar o mesmo formulário não cria outra.
       referencia: `pix-manual-${requestId}`,
-      metadados: { organization_id: org.orgId, contact_id: conv.contact_id, conversation_id: conv.id, produto: lido.data.produto },
+      metadados: {
+        organization_id: org.orgId,
+        contact_id: conv.contact_id,
+        conversation_id: conv.id,
+        produto: lido.data.produto,
+        // Cobrança avulsa: o aviso de pagamento lê `extra` (receita própria, marca `extra:<id>`, mesa da pergunta).
+        ...(lido.data.extra ? { extra: lido.data.extra } : {}),
+      },
       expiraEmSegundos: VALIDADE_DO_PIX_S,
     });
   } catch (err) {
