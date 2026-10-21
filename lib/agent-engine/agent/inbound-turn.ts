@@ -2916,6 +2916,16 @@ async function executarTurnoDoAgente(
       if (!extra || (extra.valid_days ?? 1) > 1 || p.minutosAtras === undefined) continue;
       if (melhor === null || p.minutosAtras < melhor.minutos) melhor = { extra: { name: extra.name }, minutos: p.minutosAtras };
     }
+    // Uma cobrança NOVA saiu depois desse pagamento (código do Pix ou link): agora quem está em aberto é a nova, e o
+    // comprovante da anterior não paga a nova. A trava sai do caminho — senão a agente não poderia dizer que a
+    // pergunta nova ainda não foi paga e seria enganada pelo comprovante velho.
+    if (melhor !== null) {
+      const pagoEm = Date.now() - melhor.minutos * 60_000 - 60_000;
+      const cobrouDepois = openingContext.context.messages.some(
+        (m) => m.direction === 'outbound' && /(^|\s)000201|buy\.stripe\.com\//.test(m.body ?? '') && new Date(m.sent_at).getTime() > pagoEm,
+      );
+      if (cobrouDepois) return null;
+    }
     return melhor;
   })();
   const atropeladaNoTurno = !preview && entregaPendenteDoTurno === null && respostaAtropelada(openingContext.context.messages);
