@@ -2,6 +2,7 @@ import type { EventHandler, EventRow, HandlerResult } from "@/lib/event-log/disp
 import { marcaDaSaida } from "@/lib/branding/saida";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { montarPayloadDeInbound, truncar } from "./push_payload";
+import { previaDaMidia } from "./previa-da-midia";
 import { enviarPushAoUsuario, enviarPushDaOrg } from "./web_push";
 import { vapidPronto } from "./vapid";
 import type { PushPayload } from "./push_payload";
@@ -9,13 +10,53 @@ import { rotuloDoContato, SEM_NOME } from "@/lib/contacts/rotulo-do-contato";
 
 export const WEB_PUSH_INBOUND_KEY = "web-push-inbound.v1";
 
+/** Lê a mensagem e se a conversa espera um pagamento. Nunca lança: na falha, o tipo sozinho já diz o essencial. */
+async function previaDaMensagem(
+  organizationId: string,
+  payload: Record<string, unknown>,
+  tipo: string,
+  conversationId: string | null,
+): Promise<string> {
+  try {
+    const admin = createAdminClient();
+    const messageId = typeof payload.message_id === "string" ? payload.message_id : null;
+    const [msg, pix] = await Promise.all([
+      messageId
+        ? admin.from("messages").select("body, media_mime").eq("id", messageId).eq("organization_id", organizationId).maybeSingle()
+        : Promise.resolve({ data: null }),
+      conversationId && (tipo === "image" || tipo === "document")
+        ? admin
+            .from("messages")
+            .select("id")
+            .eq("organization_id", organizationId)
+            .eq("conversation_id", conversationId)
+            .eq("direction", "outbound")
+            .like("body", "000201%")
+            .gte("created_at", new Date(Date.now() - 24 * 3_600_000).toISOString())
+            .limit(1)
+        : Promise.resolve({ data: [] }),
+    ]);
+    const m = (msg.data ?? null) as { body?: string | null; media_mime?: string | null } | null;
+    return previaDaMidia({
+      tipo,
+      mime: m?.media_mime ?? null,
+      legenda: m?.body ?? null,
+      aguardandoPagamento: Array.isArray(pix.data) && pix.data.length > 0,
+    });
+  } catch {
+    return previaDaMidia({ tipo });
+  }
+}
+
 async function handleInbound(row: EventRow): Promise<HandlerResult> {
   const conversationId =
     (typeof row.payload.conversation_id === "string" ? row.payload.conversation_id : null) ?? null;
   const previewRaw = row.payload.body_preview;
   const preview = typeof previewRaw === "string" && previewRaw.trim() ? previewRaw : "Nova mensagem";
   const type = typeof row.payload.type === "string" ? row.payload.type : "text";
-  const body = type === "text" ? preview : "Mídia";
+  // Mídia como no WhatsApp ("🎤 Áudio", "📷 Foto", "📄 PDF"), e a foto/documento depois de um Pix enviado
+  // anunciado como possível comprovante (`previa-da-midia.ts`).
+  const body = type === "text" ? preview : await previaDaMensagem(row.organization_id, row.payload, type, conversationId);
 
   const marca = await marcaDaSaida(row.organization_id);
   const contactId = typeof row.payload.contact_id === "string" ? row.payload.contact_id : null;
