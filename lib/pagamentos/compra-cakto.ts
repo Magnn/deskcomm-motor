@@ -21,6 +21,7 @@
  * 24h e da cadeia de guardrails. Compra de quem NUNCA falou no WhatsApp (`contato_nao_encontrado`)
  * fica para uma pessoa: não há janela aberta, e mensagem fora dela exige template aprovado.
  */
+import { encerraDemanda } from "@/lib/leads/encerramento";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logger } from "@/lib/logger";
 import { conversaoDeVendaHandler } from "@/lib/conversoes/envio.handler";
@@ -311,6 +312,16 @@ export function depsReais(admin: SupabaseClient, organizationId: string, request
         // venda foi pulado por `sem_valor`. Ninguém vai emitir o evento de novo — o envio é refeito
         // aqui, pelo mesmo consumidor (ele relê o negócio e não repete venda já enviada). Negócio
         // ainda aberto não precisa: quando fechar, o evento encontra o valor.
+        // Negócio ABERTO: o pagamento aprovado É a venda — o negócio fecha como ganho aqui, e o fechamento leva a venda
+        // à plataforma de anúncio (`envio.handler.ts`). Medido em 21/10/2026: a 2ª compra da mesma cliente (Oração dos
+        // Sonhos, R$ 35) caiu no negócio aberto que nasce depois do ganho, e ninguém o fechou — a venda nunca foi à Meta.
+        if (!alvo.jaGanho) {
+          await encerraDemanda(
+            admin,
+            { organization_id: organizationId, actor: { type: "webhook_source", id: "pagamento-aprovado" }, requestId },
+            { leadId: alvo.id, desfecho: "won", razaoNaTimeline: "Ganho — pagamento aprovado" },
+          );
+        }
         if (alvo.jaGanho) {
           await conversaoDeVendaHandler.handle({
             id: requestId,
