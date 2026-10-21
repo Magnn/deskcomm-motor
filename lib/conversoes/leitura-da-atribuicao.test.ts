@@ -40,3 +40,13 @@ describe("lerAtribuicao", () => {
     expect(r).toEqual({ temAtribuicao: false, motivo: "sem_atribuicao" });
   });
 });
+
+describe("fbclidDoFbc", () => {
+  it("tira o fbclid de dentro do cookie _fbc; recusa o que não é _fbc", async () => {
+    const { fbclidDoFbc } = await import("./leitura-da-atribuicao");
+    expect(fbclidDoFbc("fb.1.1761060000000.IwZXh0bgNhZW0BMABkZmlk.aem_x")).toBe("IwZXh0bgNhZW0BMABkZmlk.aem_x");
+    expect(fbclidDoFbc("fb.1.17")).toBeNull();
+    expect(fbclidDoFbc("abc.1.2.IwZXh0bgNhZW0")).toBeNull();
+    expect(fbclidDoFbc(null)).toBeNull();
+  });
+});

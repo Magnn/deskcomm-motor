@@ -66,6 +66,15 @@ export async function lerAtribuicao(
   if (!clique && fbclid) {
     return { temAtribuicao: true, atribuicao: { plataforma: "meta_ads", cliqueDeOrigem: fbclid, telefone } };
   }
+  // QUEM VEIO PELA PÁGINA SEM `fbclid` NA URL, MAS COM O COOKIE DE CLIQUE DA META: o navegador traz `_fbc`
+  // (`fb.1.<instante>.<fbclid>`) de um clique em anúncio feito antes, e a página o guarda em `meta_ads_click_refs`.
+  // Medido em 21/10/2026: uma venda de R$ 130 vinda da pré-venda ficou "sem_atribuicao" com o `_fbc` guardado.
+  if (!clique && meta.origem === "site") {
+    const doCookie = await fbclidDoCookieDoClique(admin, organizationId, contactId);
+    if (doCookie) {
+      return { temAtribuicao: true, atribuicao: { plataforma: "meta_ads", cliqueDeOrigem: doCookie, telefone } };
+    }
+  }
   // Sem o clique não há atribuição utilizável: é ele que liga a venda ao anúncio.
   // Ter `ad_platform` sem `ad_source_id` acontece quando o payload trouxe o
   // referral sem o identificador — a 0164 grava os dois como vieram.
@@ -88,4 +97,33 @@ export async function lerAtribuicao(
       telefone,
     },
   };
+}
+
+/** O `fbclid` de dentro do cookie `_fbc` (`fb.<sub>.<instante>.<fbclid>`). `null` = não é um `_fbc`. Pura. */
+export function fbclidDoFbc(fbc: unknown): string | null {
+  if (typeof fbc !== "string") return null;
+  const partes = fbc.trim().split(".");
+  if (partes.length < 4 || partes[0] !== "fb") return null;
+  const fbclid = partes.slice(3).join(".");
+  return fbclid.length >= 10 ? fbclid : null;
+}
+
+/** O clique mais recente guardado pela página para este contato: `fbclid` da URL ou o de dentro do `_fbc`. */
+async function fbclidDoCookieDoClique(admin: SupabaseClient, organizationId: string, contactId: string): Promise<string | null> {
+  try {
+    const { data } = await admin
+      .from("meta_ads_click_refs")
+      .select("query_raw")
+      .eq("organization_id", organizationId)
+      .eq("contact_id", contactId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const q = (data as { query_raw: Record<string, unknown> | null } | null)?.query_raw ?? null;
+    if (!q) return null;
+    if (typeof q.fbclid === "string" && q.fbclid.trim() !== "") return q.fbclid.trim();
+    return fbclidDoFbc(q._fbc);
+  } catch {
+    return null;
+  }
 }
