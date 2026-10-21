@@ -94,6 +94,7 @@ import {
 import { runDrainLoop } from "@/lib/agent-engine/edge/crm/drain";
 import { resgatarLeadsSemResposta } from "@/lib/agent-engine/edge/crm/resgate-de-lead-sem-resposta";
 import { recuperarSilenciosos } from "@/lib/agent-engine/edge/crm/recuperacao-por-silencio";
+import { oferecerAQuemCabe } from "@/lib/agent-engine/edge/crm/oferta-proativa";
 import { runEventLogDrainLoop, prontidaoDoLacoDeEventLog } from "@/lib/event-log/drain-loop";
 import { crmEdgeConfigFromEnv } from "@/lib/agent-engine/edge/crm/mcp-client";
 import { enforceHolds, sessionHealthMetrics } from "@/lib/agent-engine/edge/crm/session-watchdog";
@@ -333,6 +334,13 @@ export async function startWorker(
         if (r.chamadas + r.janelas > 0) log.info("recuperação de silêncio", { ...r });
       })
       .catch((err: unknown) => log.error("recuperação de silêncio falhou", { error: errMsg(err) }));
+    // A oferta proativa: quem já conversou e esfriou recebe, no máximo uma vez por dia, a oferta que cabe nela
+    // (`followup.oferta_proativa` do agente). Uma por agente por rodada, no ritmo que a organização escolheu.
+    oferecerAQuemCabe(pool, log)
+      .then((r) => {
+        if (r.ofertas > 0) log.info("oferta proativa", { ...r });
+      })
+      .catch((err: unknown) => log.error("oferta proativa falhou", { error: errMsg(err) }));
   }, env.QUEUE_REAPER_INTERVAL_MS);
 
   // Holds de sessão/saúde: retém jobs de envio de número fora do ar (WORKING é a
