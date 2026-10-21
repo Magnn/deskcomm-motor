@@ -29,6 +29,7 @@ import { readCurrentServiceBoundary } from '@/lib/atendimento/fronteira-server';
 import { capabilitiesOf } from '@/lib/channels/capabilities';
 import type { ChannelProvider } from '@/lib/channels/types';
 import { lerRecuperacao, ofertaDoPasso } from '@/lib/recuperacao/config';
+import { anunciouPausa } from '@/lib/recuperacao/pausa-anunciada';
 import {
   FOLGA_DO_FECHAMENTO_MS,
   decidirManterJanela,
@@ -72,6 +73,8 @@ interface Candidata {
    */
   published_at: string | null;
   anchor_message_id: string;
+  /** O que a pessoa escreveu na última hora antes de calar: é onde ela avisa que vai sair e volta depois. */
+  falas_finais?: string | null;
   last_inbound_at: string;
   last_outbound_at: string;
   feitas: number | null;
@@ -93,6 +96,9 @@ export const CONSULTA_DE_SILENCIOSAS = `
   select v.id as conversation_id, v.organization_id, v.contact_id,
          cs.provider, o.timezone, ag.followup, coalesce(lig.ligada_em, ag.published_at) as published_at,
          ui.id as anchor_message_id, ui.created_at as last_inbound_at, uo.created_at as last_outbound_at,
+         (select string_agg(coalesce(mf.body, mf.media_derived_text, ''), ' / ' order by mf.created_at) from messages mf
+           where mf.organization_id = v.organization_id and mf.conversation_id = v.id and mf.direction = 'inbound'
+             and mf.created_at >= ui.created_at - interval '60 minutes') as falas_finais,
          t.feitas, t.ultima_em, t.silence_since, t.janela_enviada,
          r.retorno_em,
          ('pago' = any(coalesce(c.tags, '{}'::text[]))) as ja_pagou,
@@ -250,13 +256,17 @@ export function decidirChamada(c: Candidata, agora: Date, temPrazo: boolean): Ch
   // A régua que já começou tolera um atraso de worker (3 h); mais que isso, o passo perdeu a hora.
   // Só para a régua em curso: a que ainda não começou tem a sua própria régua de atraso, logo acima.
   if ((c.feitas ?? 0) > 0 && devidoHaMs > ATRASO_MAXIMO_DE_UM_PASSO_MS) return null;
+  // O passo oferece valor só a quem já ouviu o preço, não pagou e calou SEM avisar que voltava: quem disse
+  // "tô indo pra casa, depois a gente se fala" parou por outro motivo, e baixar o preço dela é dar desconto
+  // a quem não pediu (lib/recuperacao/pausa-anunciada.ts).
+  const ofereceValor = c.ouviu_preco === true && c.ja_pagou !== true && !anunciouPausa(c.falas_finais);
   return {
     kind: 'step',
     step: passo,
-    // O passo oferece valor só a quem já ouviu o preço e não pagou; nesse caso também não convida a parar.
-    motivo: motivoDoPasso(passo, r.steps_minutes.length, silencioMs, c.ouviu_preco === true && c.ja_pagou !== true ? ofertaDoPasso(r, passo) : null),
+    // Quando oferece valor, também não convida a parar.
+    motivo: motivoDoPasso(passo, r.steps_minutes.length, silencioMs, ofereceValor ? ofertaDoPasso(r, passo) : null),
     ofereceSaida:
-      c.ouviu_preco === true && c.ja_pagou !== true && ofertaDoPasso(r, passo) !== null
+      ofereceValor && ofertaDoPasso(r, passo) !== null
         ? false
         : ofereceSaida(passo, r.steps_minutes.length, silencioMs),
   };
