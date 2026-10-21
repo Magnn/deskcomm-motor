@@ -22,7 +22,7 @@
 import type { Extra, PricingConfig } from "./tipos";
 import { reais } from "./tipos";
 import { comoEntregarRelatorio } from "./relatorio-pronto";
-import { instrucaoDoPixCopiaECola } from "@/lib/pagamentos/como-pagar-pix";
+import { instrucaoDoPixCopiaECola, linhaDoLinkDePagamento } from "@/lib/pagamentos/como-pagar-pix";
 
 /** "Pergunta nova" → "pergunta-nova": é o que vai na marca, nos metadados da cobrança e no registro da receita. */
 export function slugDoExtra(nome: string): string {
@@ -129,7 +129,7 @@ export function corpoComPixDoExtra(
   if (linkDoCartao) {
     novos.push(
       copiaECola
-        ? `Se preferir cartão de crédito, é por este link: ${linkDoCartao}`
+        ? linhaDoLinkDePagamento(linkDoCartao)
         : `Pra pagar no cartão de crédito, valor ${valor}, é por este link: ${linkDoCartao}`,
     );
   }

@@ -179,6 +179,7 @@ import {
 } from '@/lib/area-do-cliente/link-na-conversa';
 import { produtosComFluxoDeEntrega } from '@/lib/catalogo/fluxos-de-entrega';
 import { valorErradoDeProduto } from '@/lib/catalogo/valor-do-produto';
+import { blocoDoPixQueNaoColou } from '@/lib/pagamentos/pix-que-nao-colou';
 import { entregaNaConversaEmAberto, ofertaDaVez, produtoDaUltimaCompra } from '@/lib/catalogo/oferta-da-vez';
 import { estadoDoPosVenda, horaDoPagamento } from '@/lib/preco/pos-venda';
 import { deveResponderEmAudio, pediuAudio } from '@/lib/voz/decisao';
@@ -2773,6 +2774,9 @@ async function executarTurnoDoAgente(
   // Produto do catálogo entregue NA CONVERSA: o que ela pagou e o que pedir antes entram no bloco de
   // entrega, depois do guia (se houver).
   blocoDaEntrega += blocoDaEntregaNaConversa(entregaNaConversaNoTurno);
+  // Quem quer pagar e o Pix não funcionou: código novo + o link que tem o Pix com botão de copiar
+  // (`lib/pagamentos/pix-que-nao-colou.ts`).
+  if (!preview) blocoDaEntrega += blocoDoPixQueNaoColou(openingContext.context.messages, new Date());
   if (!preview && (openingContext.context.contact.tags ?? []).includes('pago') && !recusouOfertasNoTurno) {
     blocoDaEntrega += blocoDoEncerramento();
   }

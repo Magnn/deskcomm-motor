@@ -18,3 +18,12 @@ export function instrucaoDoPixCopiaECola(valor: string, noBancoAparece?: string)
     `3. Cole o código, confira o valor *${valor}* e confirme.${noBancoAparece ? ` No banco aparece ${noBancoAparece}, é assim mesmo.` : ""}`,
   ].join("\n");
 }
+
+/**
+ * A linha do link que vai depois do código. O link da Stripe tem o Pix com botão de copiar, além do cartão e do
+ * boleto — e quem não conseguiu colar o código só ia para ele se soubesse disso (medido em 21/10/2026: a linha
+ * dizia "Se preferir cartão de crédito", e quem travou no Pix desistiu).
+ */
+export function linhaDoLinkDePagamento(url: string): string {
+  return `Se o código não colar, ou se preferir cartão, abre este link: lá tem o Pix com botão de copiar e o cartão. ${url}`;
+}

@@ -17,7 +17,7 @@
  *
  * A parte de cima é pura; quem fala com o provedor chega por parâmetro.
  */
-import { instrucaoDoPixCopiaECola } from "@/lib/pagamentos/como-pagar-pix";
+import { instrucaoDoPixCopiaECola, linhaDoLinkDePagamento } from "@/lib/pagamentos/como-pagar-pix";
 const MARCA = /\[\[\s*COBRAR\s*:\s*(\d{1,5})(?:[.,](\d{2}))?\s*(?:\|\s*([^\]]{1,80}?))?\s*\]\]/i;
 
 export interface MarcaDeCobranca {
@@ -62,7 +62,7 @@ export function itensDaCobranca(texto: string, marca: MarcaDeCobranca, c: Cobran
     itens.push({ type: "text", body: instrucaoDoPixCopiaECola(valor) });
     itens.push({ type: "text", body: c.copiaECola });
     if (c.qrCodeUrl !== null) itens.push({ type: "image", url: c.qrCodeUrl, caption: `Ou aponte a câmera do app do banco para este QR code (${valor}).` });
-    if (c.urlDoCartao !== null) itens.push({ type: "text", body: `Se preferir cartão de crédito, é por este link: ${c.urlDoCartao}` });
+    if (c.urlDoCartao !== null) itens.push({ type: "text", body: linhaDoLinkDePagamento(c.urlDoCartao) });
   } else if (c.urlDoCartao !== null) {
     itens.push({ type: "text", body: `O pagamento de *${valor}* é por este link, no cartão de crédito: ${c.urlDoCartao}` });
   }

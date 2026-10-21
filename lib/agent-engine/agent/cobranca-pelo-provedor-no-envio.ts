@@ -21,7 +21,7 @@ import { VALIDADE_DO_PIX_S, linksDePagamentoDaConfig, pagamentosRecentesDoContat
 import { codigoPixEstatico } from '@/lib/pagamentos/pix-estatico';
 import { criarClienteStripe, type LinkCriado, type PedidoDeLink, type PedidoDePix, type PixCriado } from '@/lib/pagamentos/stripe';
 import { reais, type PricingConfig } from '@/lib/preco/tipos';
-import { instrucaoDoPixCopiaECola } from "@/lib/pagamentos/como-pagar-pix";
+import { instrucaoDoPixCopiaECola, linhaDoLinkDePagamento } from "@/lib/pagamentos/como-pagar-pix";
 
 interface Registro {
   info(msg: string, dados?: Record<string, unknown>): void;
@@ -58,7 +58,7 @@ export function baloesDaCobranca(
     return [
       instrucaoDoPixCopiaECola(valor),
       meios.copiaECola,
-      ...(meios.urlDoCartao !== null ? [`Se preferir cartão de crédito, é por este link: ${meios.urlDoCartao}`] : []),
+      ...(meios.urlDoCartao !== null ? [linhaDoLinkDePagamento(meios.urlDoCartao)] : []),
     ];
   }
   if (meios.urlDoCartao !== null) return [`O pagamento de *${valor}* é por este link, no cartão de crédito: ${meios.urlDoCartao}`];

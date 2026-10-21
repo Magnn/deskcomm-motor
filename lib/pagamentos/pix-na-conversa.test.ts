@@ -62,7 +62,7 @@ describe("corpoComPix", () => {
     expect(baloes[1]).toContain("Pix Copia e Cola");
     expect(baloes[1]).toMatch(/R\$\s?100/);
     expect(baloes[2]).toBe(CODIGO);
-    expect(baloes[3]).toBe(`Se preferir cartão, é por este link: ${CEM}`);
+    expect(baloes[3]).toBe(`Se o código não colar, ou se preferir cartão, abre este link: lá tem o Pix com botão de copiar e o cartão. ${CEM}`);
     expect(baloes[4]).toBe("Conseguiu abrir o link?");
   });
 
