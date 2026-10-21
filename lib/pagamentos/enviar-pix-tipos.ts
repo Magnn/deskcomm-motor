@@ -3,6 +3,7 @@
  * Sem dependência de servidor: o diálogo (navegador) e a rota usam a mesma régua.
  */
 import { z } from "zod";
+import { instrucaoDoPixCopiaECola } from "@/lib/pagamentos/como-pagar-pix";
 
 export const enviarPixSchema = z.strictObject({
   /** Em centavos. De R$ 1,00 a R$ 100.000,00. */
@@ -25,7 +26,7 @@ const reais = (cents: number): string => `R$ ${(cents / 100).toFixed(2).replace(
  */
 export function mensagensDoPix(valorCents: number, copiaECola: string): [string, string] {
   return [
-    `Pra pagar no Pix é só copiar o código abaixo e colar no app do seu banco, na opção *Pix Copia e Cola*. Valor: *${reais(valorCents)}*. No banco aparece o nome da empresa de pagamentos, é assim mesmo.`,
+    instrucaoDoPixCopiaECola(reais(valorCents), "o nome da empresa de pagamentos"),
     copiaECola,
   ];
 }
