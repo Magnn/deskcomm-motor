@@ -178,6 +178,7 @@ import {
   temMarcaDaArea,
 } from '@/lib/area-do-cliente/link-na-conversa';
 import { produtosComFluxoDeEntrega } from '@/lib/catalogo/fluxos-de-entrega';
+import { valorErradoDeProduto } from '@/lib/catalogo/valor-do-produto';
 import { entregaNaConversaEmAberto, ofertaDaVez, produtoDaUltimaCompra } from '@/lib/catalogo/oferta-da-vez';
 import { estadoDoPosVenda, horaDoPagamento } from '@/lib/preco/pos-venda';
 import { deveResponderEmAudio, pediuAudio } from '@/lib/voz/decisao';
@@ -3962,6 +3963,13 @@ async function executarTurnoDoAgente(
           if (valorErrado) {
             runLog.warn('valor de cobrança avulsa diferente do cadastrado — envio recusado', {});
             return { ok: false, error: { code: 'valor_do_extra_errado', message: valorErrado } };
+          }
+          // O PRODUTO DO CATÁLOGO pelo valor do catálogo (`lib/catalogo/valor-do-produto.ts`): em 21/10/2026 a Oração
+          // dos Sonhos (R$ 35) saiu como "Fica R$ 130" para quem só tinha comprado uma pergunta.
+          const valorDoProduto = valorErradoDeProduto(body, catalogoDoAgente);
+          if (valorDoProduto) {
+            runLog.warn('valor de produto do catálogo diferente do cadastrado — envio recusado', {});
+            return { ok: false, error: { code: 'valor_do_produto_errado', message: valorDoProduto } };
           }
           // QUEM PROMETE REENVIAR O PAGAMENTO, REENVIA (`lib/preco/promessa-de-reenvio.ts`): em 20/10/2026 a agente
           // disse "vou te mandar de novo" e não mandou o código; a cliente ficou esperando e a venda parou.
