@@ -146,6 +146,19 @@ interface ConsumoDeIaDoPainel {
   chamadas: number;
   chamadasSemPreco: number;
   porVendaUsd: number | null;
+  /** O mesmo custo em real, pela PTAX do Banco Central — o que saiu do lucro. `null` = sem cotação. */
+  custoReais?: number | null;
+  cotacao?: { reais: number; dia: string } | null;
+}
+
+/** O que o lucro do cartão já descontou: anúncio e IA. Pura. */
+function rotuloDoLucro(lucro: { descontaAnuncio?: boolean; descontaIa?: boolean } | undefined): string {
+  const anuncio = lucro?.descontaAnuncio !== false;
+  const ia = lucro?.descontaIa === true;
+  if (anuncio && ia) return "Lucro (anúncio e IA descontados)";
+  if (!anuncio && ia) return "Lucro (sem descontar anúncio)";
+  if (anuncio && !ia) return "Lucro (sem descontar IA)";
+  return "Lucro (sem descontar anúncio nem IA)";
 }
 
 const emDolar = (valor: number): string => valor.toLocaleString("pt-BR", { style: "currency", currency: "USD" });
@@ -165,7 +178,7 @@ interface DashboardData {
     roas?: KPIOpcional;
     taxaConversao?: KPI;
     ticketMedio?: KPI;
-    lucro?: KPI & { descontaAnuncio?: boolean };
+    lucro?: KPI & { descontaAnuncio?: boolean; descontaIa?: boolean };
     gastoMeta?: KPIDeGasto;
     consumoDeIa?: ConsumoDeIaDoPainel | null;
     leadsAtendidos?: KPI;
@@ -621,7 +634,7 @@ export function DashboardClient({ orgName }: { orgName: string }) {
                   {formatBRL(data?.kpis.lucro?.valor)}
                 </div>
                 <div className="text-xs text-text-muted flex items-center justify-between mt-1">
-                  <span>{data?.kpis.lucro?.descontaAnuncio === false ? t("Lucro (sem descontar anúncio)") : "Lucro"}</span>
+                  <span>{t(rotuloDoLucro(data?.kpis.lucro))}</span>
                   <Info size={14} className="text-text-subtle" />
                 </div>
               </div>
@@ -684,6 +697,13 @@ export function DashboardClient({ orgName }: { orgName: string }) {
                     <span>{t("Custo de IA")}</span>
                     <Variacao delta={data.kpis.consumoDeIa.delta} />
                   </div>
+                  {data.kpis.consumoDeIa.custoReais != null && data.kpis.consumoDeIa.cotacao ? (
+                    <div className="text-xs text-text-muted" data-testid="kpi-custo-de-ia-em-reais">
+                      {formatBRL(data.kpis.consumoDeIa.custoReais)} {t("em reais pela PTAX de")}{" "}
+                      {data.kpis.consumoDeIa.cotacao.dia.split("-").reverse().join("/")} (
+                      {data.kpis.consumoDeIa.cotacao.reais.toLocaleString("pt-BR", { minimumFractionDigits: 4 })})
+                    </div>
+                  ) : null}
                 </div>
                 <div>
                   <div className="text-2xl font-bold text-text" data-testid="kpi-custo-de-ia-por-venda">
