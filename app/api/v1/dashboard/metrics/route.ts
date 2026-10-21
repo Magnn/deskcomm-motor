@@ -3,6 +3,7 @@ import { requireAuth, resolveActiveOrg } from "@/lib/auth/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ok, fail } from "@/lib/api/wrappers";
 import { lerGastoDeAnuncios } from "@/lib/plataformas-de-anuncio/meta/gasto-do-periodo";
+import { nomeDoContato } from "@/lib/contacts/rotulo-do-contato";
 import { roleAtLeast } from "@/lib/auth/types";
 import { contasDoAnuncio, type GastoDoPeriodo } from "@/lib/resultado/contas-do-anuncio";
 import { calcularDelta, calcularIntervalo, gastoTemComparacao, lerFusoDaOrganizacao, paraParede } from "@/lib/resultado/periodo";
@@ -242,7 +243,7 @@ export async function GET(req: NextRequest) {
 
         for (const c of contactsData ?? []) {
           contactsMap.set(c.id, {
-            name: c.display_name || c.name,
+            name: nomeDoContato(c),
             phone: c.phone_number,
             channelSessionId: convByContact.get(c.id) ?? null,
           });
