@@ -8,6 +8,7 @@ import { useRealtimeChannel } from "@/hooks/realtime/useRealtimeChannel";
 import { nomeDoContato } from "@/lib/contacts/rotulo-do-contato";
 import { avatarUrlServivel } from "@/lib/notifications/avatar_url";
 import { entregarAviso } from "@/lib/notifications/deliver";
+import { previaDaMidia } from "@/lib/notifications/previa-da-midia";
 import { shouldNotifyInbound } from "@/lib/notifications/policy";
 import { syncPushSubscription } from "@/lib/notifications/push_client";
 
@@ -31,8 +32,15 @@ function rowFromRealtime(payload: unknown): Record<string, unknown> | null {
   return raw as Record<string, unknown>;
 }
 
-function previewFromMessage(row: { type?: unknown; body?: unknown }): string {
-  if (row.type !== "text") return "Mídia";
+function previewFromMessage(row: { type?: unknown; body?: unknown; media_mime?: unknown }): string {
+  // Mídia como no WhatsApp ("🎤 Áudio", "📷 Foto", "📄 PDF") — `lib/notifications/previa-da-midia.ts`.
+  if (row.type !== "text") {
+    return previaDaMidia({
+      tipo: typeof row.type === "string" ? row.type : "",
+      mime: typeof row.media_mime === "string" ? row.media_mime : null,
+      legenda: typeof row.body === "string" ? row.body : null,
+    });
+  }
   const body = typeof row.body === "string" ? row.body.trim() : "";
   return body || "Nova mensagem";
 }
