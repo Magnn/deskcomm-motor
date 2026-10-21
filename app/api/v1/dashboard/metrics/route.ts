@@ -7,6 +7,7 @@ import { roleAtLeast } from "@/lib/auth/types";
 import { contasDoAnuncio, type GastoDoPeriodo } from "@/lib/resultado/contas-do-anuncio";
 import { calcularDelta, calcularIntervalo, gastoTemComparacao, lerFusoDaOrganizacao, paraParede } from "@/lib/resultado/periodo";
 import { custoDeIaPorVenda, lerConsumoDeIa } from "@/lib/resultado/custo-de-ia";
+import { descontarIa, lerCotacaoDoDolar } from "@/lib/resultado/cotacao-do-dolar";
 import { lerVendasDoPagamento, type VendaDoPainel } from "@/lib/resultado/vendas-do-pagamento";
 
 export const dynamic = "force-dynamic";
@@ -172,8 +173,14 @@ export async function GET(req: NextRequest) {
       // Variação desconhecida é `null`, nunca zero: "não mudou" e "não dá para comparar" são respostas
       // diferentes. O lucro só compara quando os dois lados descontam (ou não) o anúncio do mesmo jeito.
       const gastoComparavel = gastoTemComparacao(period);
+      // A IA também é custo da venda: o lucro desconta o consumo do período convertido pela PTAX do Banco Central
+      // (`cotacao-do-dolar.ts`). Sem consumo lido ou sem cotação, não desconta — e o painel diz isso.
+      const cotacao = consumoDeIa === null ? null : await lerCotacaoDoDolar();
+      const comIa = descontarIa(contas.lucro, consumoDeIa?.custoCents ?? null, cotacao);
+      const comIaAntes = descontarIa(contasAntes.lucro, consumoDeIaAntes?.custoCents ?? null, cotacao);
       const lucroComparavel =
-        contas.gastoNaConta === contasAntes.gastoNaConta && (gastoComparavel || !contas.gastoNaConta);
+        contas.gastoNaConta === contasAntes.gastoNaConta && (gastoComparavel || !contas.gastoNaConta) &&
+        comIa.descontaIa === comIaAntes.descontaIa;
 
       // 3. Vendas por período (série temporal para o gráfico)
       const vendasPorPeriodoMap = new Map<string, { label: string; valor: number; qtd: number }>();
@@ -354,20 +361,28 @@ export async function GET(req: NextRequest) {
           },
           taxaConversao: { valor: taxaConversao, delta: calcularDelta(taxaConversao, prevTaxaConversao) },
           ticketMedio: { valor: ticketMedio, delta: calcularDelta(ticketMedio, prevTicketMedio) },
-          lucro: { valor: contas.lucro, delta: lucroComparavel ? calcularDelta(contas.lucro, contasAntes.lucro) : null, descontaAnuncio: contas.gastoNaConta },
+          lucro: {
+            valor: comIa.lucro,
+            delta: lucroComparavel ? calcularDelta(comIa.lucro, comIaAntes.lucro) : null,
+            descontaAnuncio: contas.gastoNaConta,
+            descontaIa: comIa.descontaIa,
+          },
           gastoMeta: {
             valor: contas.gasto,
             delta: gastoComparavel && contas.gasto !== null && contasAntes.gasto !== null ? calcularDelta(contas.gasto, contasAntes.gasto) : null,
             estado: contas.estado,
             moeda: contas.moeda,
           },
-          // Em DÓLAR e fora do lucro: ver `lib/resultado/custo-de-ia.ts`. `null` = sem permissão ou
+          // Em DÓLAR, e também em real pela PTAX (é esse que sai do lucro). `null` = sem permissão ou
           // leitura indisponível — nunca zero.
           consumoDeIa:
             consumoDeIa === null
               ? null
               : {
                   custoUsd: consumoDeIa.custoCents / 100,
+                  // O mesmo custo em real, pela PTAX — o que entrou no lucro. `null` = sem cotação.
+                  custoReais: comIa.custoIaReais,
+                  cotacao: cotacao === null ? null : { reais: cotacao.reais, dia: cotacao.dia },
                   delta: consumoDeIaAntes === null ? null : calcularDelta(consumoDeIa.custoCents, consumoDeIaAntes.custoCents),
                   tokensLidos: consumoDeIa.tokensLidos,
                   tokensEscritos: consumoDeIa.tokensEscritos,

@@ -100,6 +100,7 @@ import {
   type ExtraPago,
 } from '@/lib/preco/extras';
 import { promessaDeReenvioSemCobranca } from '@/lib/preco/promessa-de-reenvio';
+import { recusaDeQuemJaPagou } from '@/lib/preco/pago-mas-cobrando';
 import { valorErradoDeExtra } from '@/lib/preco/valor-do-extra';
 import { destinoDaProva, legendaDaProva, provasParaEnviar } from '@/lib/preco/prova-social';
 import { classificarPerdaDoAtendimento } from '@/lib/resultado/motivo-da-perda-do-agente';
@@ -3948,6 +3949,13 @@ async function executarTurnoDoAgente(
             runLog.warn('promessa de reenviar o pagamento sem a cobrança — envio recusado', {});
             return { ok: false, error: { code: 'reenvio_sem_cobranca', message: reenvioSemCobranca } };
           }
+          // PAGOU, MAS A AGENTE CONTINUA COBRANDO (`lib/preco/pago-mas-cobrando.ts`): em 21/10/2026, com o Pix da pergunta
+          // já pago, a agente seguiu ensinando a copiar o código e dizendo "ainda não caiu".
+          const jaPagou = recusaDeQuemJaPagou(body, entregaPendenteDoTurno);
+          if (jaPagou) {
+            runLog.warn('cobrança avulsa já paga, mas a mensagem ainda cobra — envio recusado', {});
+            return { ok: false, error: { code: 'cobrando_o_que_ja_caiu', message: jaPagou } };
+          }
         }
         // COBRANÇA AVULSA: a marca `[[PIX: nome]]` vira a instrução e o código do Pix. Marca que o turno não pode
         // cobrar, ou cobrança que não saiu, recusa o envio: marca crua não chega à pessoa.
@@ -4088,7 +4096,16 @@ async function executarTurnoDoAgente(
         // segue (degradar para só texto). Ver `agent/fotos-do-produto.ts`.
         let fotosDoProduto: FotoParaEnvio[] = [];
         let fotosQueFaltaram = 0;
-        if (produto_codigo !== undefined && produto_codigo.trim() !== '' && !preview) {
+        // A CARTA É DA CARTA (21/10/2026): a mensagem "CARTA 3: O Carro" saiu com a arte da sinastria no lugar da
+        // carta sorteada, porque a foto do produto vence a imagem da leitura. Na revelação de uma carta, ou enquanto a
+        // leitura ainda está revelando, a foto do produto é descartada e a carta sai com a imagem dela.
+        const fotoDoProdutoNaLeitura =
+          produto_codigo !== undefined && produto_codigo.trim() !== '' &&
+          (MARCA_CARTA.test(body) || passoDaLeituraNoTurno?.passo === 'revelar_carta');
+        if (fotoDoProdutoNaLeitura) {
+          runLog.warn('foto de produto pedida na revelação de carta — descartada, a carta sai com a imagem dela', {});
+        }
+        if (produto_codigo !== undefined && produto_codigo.trim() !== '' && !preview && !fotoDoProdutoNaLeitura) {
           const preparadas = await prepararFotosDoProduto(pool, copiarFotoNoStorage(runLog), {
             tenantId,
             conversationId: input.conversationId,
