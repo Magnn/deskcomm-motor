@@ -21,6 +21,7 @@ import { VALIDADE_DO_PIX_S, linksDePagamentoDaConfig, referenciaDoPix, type Link
 import { codigoPixEstatico } from '@/lib/pagamentos/pix-estatico';
 import { criarClienteStripe, type LinkCriado, type PedidoDeLink, type PedidoDePix, type PixCriado } from '@/lib/pagamentos/stripe';
 import { reais, type PricingConfig } from '@/lib/preco/tipos';
+import { instrucaoDoPixCopiaECola } from "@/lib/pagamentos/como-pagar-pix";
 
 interface Registro {
   info(msg: string, dados?: Record<string, unknown>): void;
@@ -55,7 +56,7 @@ export function baloesDaCobranca(
   const valor = reais(link.valorCentavos);
   if (meios.copiaECola !== null) {
     return [
-      `Pra pagar no Pix é só copiar o código abaixo e colar no app do seu banco, na opção *Pix Copia e Cola*. Valor: *${valor}*.`,
+      instrucaoDoPixCopiaECola(valor),
       meios.copiaECola,
       ...(meios.urlDoCartao !== null ? [`Se preferir cartão de crédito, é por este link: ${meios.urlDoCartao}`] : []),
     ];
@@ -63,7 +64,7 @@ export function baloesDaCobranca(
   if (meios.urlDoCartao !== null) return [`O pagamento de *${valor}* é por este link, no cartão de crédito: ${meios.urlDoCartao}`];
   if (meios.pixDaChave !== null) {
     return [
-      `Pra pagar no Pix é só copiar o código abaixo e colar no app do seu banco, na opção *Pix Copia e Cola*. Valor: *${valor}*. No banco aparece ${meios.pixDaChave.titular}.`,
+      instrucaoDoPixCopiaECola(valor, meios.pixDaChave.titular),
       meios.pixDaChave.codigo,
       `Assim que fizer, me manda o comprovante aqui, que esse eu confiro à mão.`,
     ];

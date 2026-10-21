@@ -88,7 +88,7 @@ import { blocoDaEntrada, blocoDaEntradaImediata, blocoDaPropostaDeEntrada, bloco
 import { linkDePagamentoNoCorpo, linksDePagamentoDaConfig } from '@/lib/pagamentos/pix-na-conversa';
 import { blocoDoPrecoInternacional, precoInternacionalDoContato } from '@/lib/preco/preco-internacional';
 import { blocoDaChavePix, pixPelaChaveNoLugarDaMarca, temMarcaDeChavePix } from '@/lib/preco/chave-pix';
-import { blocoDoBoletoPronto, temMarcaDeBoleto } from '@/lib/preco/boleto-pronto';
+import { blocoDoBoletoPronto, temMarcaDeBoleto, valoresDoBoleto } from '@/lib/preco/boleto-pronto';
 import {
   blocoDaEntregaPendente,
   blocoDosExtras,
@@ -3795,7 +3795,7 @@ async function executarTurnoDoAgente(
           const extraDoValor = (cents: number) => extrasDoTurno.find((x) => x.price_cents === cents && !valoresDoProdutoPrincipal.includes(cents));
           const comBoleto = await boletoNoLugarDaMarca({
             corpo: body,
-            valoresPermitidosCents: valoresCobraveisNoTurno,
+            valoresPermitidosCents: valoresDoBoleto(valoresCobraveisNoTurno),
             metadadosDoValor: (cents) => {
               const extra = extraDoValor(cents);
               return {

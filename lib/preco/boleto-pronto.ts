@@ -97,8 +97,21 @@ export function corpoComBoleto(corpo: string, pedido: PedidoDeBoletoNaMarca, bol
 }
 
 /** O bloco do turno. '' quando não há valor liberado. */
+/**
+ * O menor valor que vira boleto. Boleto pede nome, CPF e CEP, leva até um dia útil para confirmar e custa
+ * tarifa: para valor pequeno ele espanta quem ia pagar. Medido em 21/10/2026: a agente ofereceu boleto de
+ * R$ 5 (pedindo CPF) a uma cliente que só tinha errado o lugar de colar o Pix. Abaixo disto, é Pix copia e
+ * cola ou cartão.
+ */
+export const BOLETO_MINIMO_CENTS = 2000;
+
+/** Os valores que podem virar boleto: os liberados, a partir do mínimo. */
+export function valoresDoBoleto(valoresPermitidosCents: readonly number[]): number[] {
+  return [...new Set(valoresPermitidosCents)].filter((v) => v >= BOLETO_MINIMO_CENTS).sort((a, b) => b - a);
+}
+
 export function blocoDoBoletoPronto(valoresPermitidosCents: readonly number[]): string {
-  const valores = [...new Set(valoresPermitidosCents)].sort((a, b) => b - a);
+  const valores = valoresDoBoleto(valoresPermitidosCents);
   if (valores.length === 0) return "";
   return [
     "",
@@ -108,5 +121,6 @@ export function blocoDoBoletoPronto(valoresPermitidosCents: readonly number[]): 
     `- Quando ela mandar os três, escreva sozinha num balão a marca, com o valor em reais na frente: [[BOLETO: ${Math.round(valores[0]! / 100)} | Nome Completo | CPF | CEP]]. Valores liberados para esta pessoa agora: ${valores.map(reais).join(", ")}. O sistema emite o boleto e troca a marca pelo link e pela linha digitável.`,
     "- NÃO repita o CPF nem o CEP dela em nenhuma outra mensagem. NÃO invente dado que ela não mandou. Se faltar um dos três, peça só o que falta.",
     "- O boleto leva até 1 dia útil para confirmar depois de pago. NÃO diga que o pagamento caiu e NÃO entregue nada antes de o sistema confirmar.",
+    `- Boleto só a partir de ${reais(BOLETO_MINIMO_CENTS)}. Valor menor que isso (uma pergunta nova, por exemplo) NÃO tem boleto: é Pix copia e cola ou cartão. NÃO ofereça, NÃO peça CPF para isso.`,
   ].join("\n");
 }

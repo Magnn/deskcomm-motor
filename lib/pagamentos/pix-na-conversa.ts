@@ -18,6 +18,7 @@
  */
 import type { PricingConfig } from "@/lib/preco/tipos";
 import { reais } from "@/lib/preco/tipos";
+import { instrucaoDoPixCopiaECola } from "@/lib/pagamentos/como-pagar-pix";
 
 export interface LinkDePagamentoConhecido {
   url: string;
@@ -65,7 +66,7 @@ export function corpoComPix(corpo: string, link: LinkDePagamentoConhecido, copia
   const i = baloes.findIndex((b) => b.includes(link.url));
   if (i < 0) return corpo;
   const novos = [
-    `Pra pagar no Pix é só copiar o código abaixo e colar no app do seu banco, na opção *Pix Copia e Cola*. Valor: *${reais(link.valorCentavos)}*.`,
+    instrucaoDoPixCopiaECola(reais(link.valorCentavos)),
     copiaECola,
     `Se preferir cartão, é por este link: ${link.url}`,
   ];

@@ -17,7 +17,8 @@ describe("cobrança por pessoa no conteúdo do fluxo", () => {
     const itens = itensDaCobranca(texto, marcaDeCobrancaNoTexto(texto)!, COBRANCA);
     expect(itens.map((i) => i.type)).toEqual(["text", "text", "text", "image", "text", "text"]);
     expect(itens[0]).toEqual({ type: "text", body: "Estou colocando aqui os meios de pagamento." });
-    expect((itens[1] as { body: string }).body).toContain("Valor: *R$ 60*");
+    expect((itens[1] as { body: string }).body).toContain("Pix Copia e Cola");
+    expect((itens[1] as { body: string }).body).toContain("*R$ 60*");
     expect(itens[2]).toEqual({ type: "text", body: COBRANCA.copiaECola });
     expect(itens[3]).toMatchObject({ type: "image", url: COBRANCA.qrCodeUrl });
     expect((itens[4] as { body: string }).body).toContain(COBRANCA.urlDoCartao);
