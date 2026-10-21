@@ -50,7 +50,8 @@ describe("a recusa gravada é a que o produto já respeita", () => {
   it("o turno não monta pós-venda para quem recusou, e o bloco da marca só entra para quem não recusou", () => {
     const fonte = readFileSync(join(process.cwd(), "lib/agent-engine/agent/inbound-turn.ts"), "utf8");
     expect(fonte).toMatch(/consent->'marketing'->>'declined_at' as recusou/);
-    expect(fonte).toMatch(/if \(!preview && temPosVenda && tagsDoContato\.includes\('pago'\) && !recusouOfertasNoTurno\)/);
+    // `pagouNoTurno` = `pagouAlgo(tags)`: quem pagou o principal OU uma cobrança avulsa (#391).
+    expect(fonte).toMatch(/if \(!preview && temPosVenda && pagouNoTurno && !recusouOfertasNoTurno\)/);
     expect(fonte).toMatch(/includes\('pago'\) && !recusouOfertasNoTurno\) \{\s*blocoDaEntrega \+= blocoDoEncerramento\(\);/);
     // Falha de leitura vira NÃO oferecer.
     expect(fonte).toMatch(/catch \{\s*\/\/ Na dúvida, NÃO oferece[^\n]*\n\s*recusouOfertasNoTurno = true;/);
