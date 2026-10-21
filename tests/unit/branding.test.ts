@@ -879,6 +879,11 @@ const HOSTS_DECLARADOS: Record<string, EntradaDeHost> = {
     motivo:
       "base pública de CEP (`lib/pagamentos/cep.ts`): é de onde vem o endereço de quem paga quando o agente emite um boleto na conversa — o banco exige o endereço, e a pessoa informa só o CEP. Só é chamado nesse momento, sem chave e sem dado além do CEP; organização que não emite boleto nunca o chama.",
   },
+  "olinda.bcb.gov.br": {
+    categoria: "FORNECEDOR",
+    motivo:
+      "serviço público da PTAX do Banco Central (`lib/resultado/cotacao-do-dolar.ts`): é de onde vem a cotação do dólar que converte o custo de IA para o lucro do painel de vendas. Sem chave e sem dado nenhum da organização (só o intervalo de datas); a resposta fica 6 h em memória. Falha vira `null` e o lucro não desconta a IA.",
+  },
   "api.stripe.com": {
     categoria: "FORNECEDOR",
     motivo:
