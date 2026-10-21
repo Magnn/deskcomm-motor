@@ -12,6 +12,7 @@ import { z } from "zod";
 import { VALID_TOOL_IDS } from "@/lib/mcp/tools/catalog";
 import { TETO_TOOLS_POR_AGENTE } from "@/lib/mcp/tools/selecao-por-pacote";
 import { IDS_DE_PROVEDOR } from "@/lib/ai/pontos/provedores";
+import { ofertaProativaSchema } from "@/lib/oferta-proativa/config";
 import { recuperacaoSchema } from "@/lib/recuperacao/config";
 
 /**
@@ -87,6 +88,8 @@ const followupConfigObjectSchema = z
     // Recuperação de silêncio (lib/recuperacao/config.ts). Sem default de propósito: versão antiga
     // continua sem a chave, e ausente = desligada.
     recovery: recuperacaoSchema.nullable().optional(),
+    // Oferta proativa (lib/oferta-proativa/config.ts). Mesma regra: ausente = desligada.
+    oferta_proativa: ofertaProativaSchema.nullable().optional(),
   })
   .strict();
 
