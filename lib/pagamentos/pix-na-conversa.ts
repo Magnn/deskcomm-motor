@@ -18,7 +18,7 @@
  */
 import type { PricingConfig } from "@/lib/preco/tipos";
 import { reais } from "@/lib/preco/tipos";
-import { instrucaoDoPixCopiaECola } from "@/lib/pagamentos/como-pagar-pix";
+import { instrucaoDoPixCopiaECola, linhaDoLinkDePagamento } from "@/lib/pagamentos/como-pagar-pix";
 
 export interface LinkDePagamentoConhecido {
   url: string;
@@ -68,7 +68,7 @@ export function corpoComPix(corpo: string, link: LinkDePagamentoConhecido, copia
   const novos = [
     instrucaoDoPixCopiaECola(reais(link.valorCentavos)),
     copiaECola,
-    `Se preferir cartão, é por este link: ${link.url}`,
+    linhaDoLinkDePagamento(link.url),
   ];
   // O texto que vinha no mesmo balão do link (raro: o roteiro manda o link isolado) é preservado antes.
   const resto = baloes[i]!.replace(link.url, "").trim();
