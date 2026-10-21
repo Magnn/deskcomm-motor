@@ -76,8 +76,38 @@ export function corpoComPix(corpo: string, link: LinkDePagamentoConhecido, copia
 }
 
 /** A referência da cobrança: a mesma conversa pedindo o mesmo valor na mesma hora recebe o MESMO Pix. */
-export function referenciaDoPix(conversaId: string, valorCentavos: number, agora: Date): string {
-  return `pix-${conversaId}-${valorCentavos}-${Math.floor(agora.getTime() / 3_600_000)}`;
+export function referenciaDoPix(conversaId: string, valorCentavos: number, agora: Date, pagamentosAntes = 0): string {
+  return `pix-${conversaId}-${valorCentavos}-${Math.floor(agora.getTime() / 3_600_000)}${pagamentosAntes > 0 ? `-p${pagamentosAntes}` : ""}`;
+}
+
+/**
+ * Quantas cobranças esta pessoa já PAGOU nas últimas 24 h. Entra na referência da cobrança nova: a referência é a
+ * chave de idempotência na Stripe, e sem isto uma segunda cobrança do mesmo valor na mesma hora devolvia o Pix já
+ * pago e o link já usado — que a Stripe mostra como "The link is no longer active" (medido em 21/10/2026, depois
+ * de uma pergunta paga a cliente pediu outra e recebeu o link fechado). Falha de leitura = 0 (a referência de antes).
+ */
+export async function pagamentosRecentesDoContato(
+  supabase: { from: (t: string) => unknown },
+  organizationId: string,
+  contactId: string,
+  agora: Date,
+): Promise<number> {
+  try {
+    const consulta = (supabase.from("revenue_ledger") as {
+      select: (c: string, o: { count: "exact"; head: true }) => {
+        eq: (k: string, v: string) => { eq: (k: string, v: string) => { eq: (k: string, v: string) => { gte: (k: string, v: string) => PromiseLike<{ count: number | null; error: unknown }> } } };
+      };
+    })
+      .select("id", { count: "exact", head: true })
+      .eq("organization_id", organizationId)
+      .eq("contact_id", contactId)
+      .eq("event_type", "charge")
+      .gte("occurred_at", new Date(agora.getTime() - 86_400_000).toISOString());
+    const { count, error } = await consulta;
+    return error || typeof count !== "number" ? 0 : count;
+  } catch {
+    return 0;
+  }
 }
 
 /** Validade do código: uma hora. Depois disso a pessoa pede de novo, e o valor é o da negociação daquele momento. */

@@ -17,7 +17,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 import { lerConexaoStripe, type ConexaoStripe } from '@/lib/pagamentos/conexao-stripe';
-import { VALIDADE_DO_PIX_S, linksDePagamentoDaConfig, referenciaDoPix, type LinkDePagamentoConhecido } from '@/lib/pagamentos/pix-na-conversa';
+import { VALIDADE_DO_PIX_S, linksDePagamentoDaConfig, pagamentosRecentesDoContato, referenciaDoPix, type LinkDePagamentoConhecido } from '@/lib/pagamentos/pix-na-conversa';
 import { codigoPixEstatico } from '@/lib/pagamentos/pix-estatico';
 import { criarClienteStripe, type LinkCriado, type PedidoDeLink, type PedidoDePix, type PixCriado } from '@/lib/pagamentos/stripe';
 import { reais, type PricingConfig } from '@/lib/preco/tipos';
@@ -103,7 +103,7 @@ export async function cobrancaPeloProvedorNoLugarDoLink(e: EntradaDaCobrancaPelo
   const pedido: PedidoDePix = {
     valorCentavos: link.valorCentavos,
     descricao: link.produto || 'Pagamento',
-    referencia: referenciaDoPix(e.conversationId, link.valorCentavos, agora),
+    referencia: referenciaDoPix(e.conversationId, link.valorCentavos, agora, await pagamentosRecentesDoContato(e.supabase, e.organizationId, e.contactId, agora)),
     metadados: { organization_id: e.organizationId, contact_id: e.contactId, conversation_id: e.conversationId, produto: link.produto },
     expiraEmSegundos: VALIDADE_DO_PIX_S,
   };
