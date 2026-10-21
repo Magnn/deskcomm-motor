@@ -22,6 +22,7 @@
 import type { Extra, PricingConfig } from "./tipos";
 import { reais } from "./tipos";
 import { comoEntregarRelatorio } from "./relatorio-pronto";
+import { instrucaoDoPixCopiaECola } from "@/lib/pagamentos/como-pagar-pix";
 
 /** "Pergunta nova" → "pergunta-nova": é o que vai na marca, nos metadados da cobrança e no registro da receita. */
 export function slugDoExtra(nome: string): string {
@@ -116,7 +117,12 @@ export function corpoComPixDoExtra(
   const novos: string[] = [];
   if (copiaECola) {
     novos.push(
-      `Pra pagar no Pix é só copiar o código abaixo e colar no app do seu banco, na opção *Pix Copia e Cola*. Valor: ${valor}. No banco aparece o nome da empresa de pagamentos, é assim mesmo.`,
+      instrucaoDoPixCopiaECola(
+        quantidade > 1
+          ? `${reais(valorDaCobranca(marca.extra, quantidade))} (${descricaoDaCobranca(marca.extra, quantidade)})`
+          : reais(marca.extra.price_cents),
+        "o nome da empresa de pagamentos",
+      ),
       copiaECola,
     );
   }
@@ -132,10 +138,12 @@ export function corpoComPixDoExtra(
 }
 
 /** A referência da cobrança: a mesma conversa pedindo o mesmo extra na mesma hora recebe o MESMO Pix. */
-export function referenciaDoExtra(conversaId: string, extra: Extra, agora: Date, quantidade = 1): string {
-  // A unidade sozinha mantém a referência de antes: um Pix já criado nesta hora segue sendo o mesmo.
+export function referenciaDoExtra(conversaId: string, extra: Extra, agora: Date, quantidade = 1, pagamentosAntes = 0): string {
+  // A unidade sozinha mantém a referência de antes: um Pix já criado nesta hora segue sendo o mesmo. Depois de um
+  // pagamento, a cobrança seguinte é OUTRA (`pagamentosAntes`, ver `pagamentosRecentesDoContato`).
   const lote = quantidade > 1 ? `-x${quantidade}` : "";
-  return `extra-${conversaId}-${slugDoExtra(extra.name)}-${extra.price_cents}${lote}-${Math.floor(agora.getTime() / 3_600_000)}`;
+  const depois = pagamentosAntes > 0 ? `-p${pagamentosAntes}` : "";
+  return `extra-${conversaId}-${slugDoExtra(extra.name)}-${extra.price_cents}${lote}-${Math.floor(agora.getTime() / 3_600_000)}${depois}`;
 }
 
 /** Um extra pago há pouco, lido do livro de receita. */

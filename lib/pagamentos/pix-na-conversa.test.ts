@@ -231,3 +231,19 @@ describe("mensagem única (economia de mensagem cobrada) com código do Pix", ()
     expect(splitForSend("Oi.\n\nTudo bem?", false, 250)).toEqual(["Oi.\n\nTudo bem?"]);
   });
 });
+
+describe("cobrança nova depois de um pagamento", () => {
+  it("a referência muda quando já houve pagamento: o Pix e o link novos não são os já usados", async () => {
+    const { pagamentosRecentesDoContato } = await import("./pix-na-conversa");
+    const agora = new Date("2026-10-21T16:05:00Z");
+    expect(referenciaDoPix("c", 500, agora, 1)).not.toBe(referenciaDoPix("c", 500, agora));
+    expect(referenciaDoPix("c", 500, agora, 0)).toBe(referenciaDoPix("c", 500, agora));
+    const banco = {
+      from: () => ({
+        select: () => ({ eq: () => ({ eq: () => ({ eq: () => ({ gte: () => Promise.resolve({ count: 2, error: null }) }) }) }) }),
+      }),
+    };
+    expect(await pagamentosRecentesDoContato(banco, "o", "c", agora)).toBe(2);
+    expect(await pagamentosRecentesDoContato({ from: () => { throw new Error("x"); } }, "o", "c", agora)).toBe(0);
+  });
+});

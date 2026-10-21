@@ -14,6 +14,7 @@ import {
   corpoComPix,
   linkDePagamentoNoCorpo,
   linksDePagamentoDaConfig,
+  pagamentosRecentesDoContato,
   referenciaDoPix,
 } from '@/lib/pagamentos/pix-na-conversa';
 import { ErroDaStripe, criarClienteStripe, type PixCriado, type PedidoDePix } from '@/lib/pagamentos/stripe';
@@ -51,7 +52,7 @@ export async function pixNoLugarDoLink(e: EntradaDoPixNoEnvio): Promise<string> 
     const pedido: PedidoDePix = {
       valorCentavos: link.valorCentavos,
       descricao: link.produto || 'Pagamento',
-      referencia: referenciaDoPix(e.conversationId, link.valorCentavos, agora),
+      referencia: referenciaDoPix(e.conversationId, link.valorCentavos, agora, await pagamentosRecentesDoContato(e.supabase, e.organizationId, e.contactId, agora)),
       metadados: {
         organization_id: e.organizationId,
         contact_id: e.contactId,

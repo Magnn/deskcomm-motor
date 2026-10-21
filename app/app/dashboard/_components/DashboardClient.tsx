@@ -41,7 +41,7 @@ interface KPIOpcional {
   delta: number | null;
 }
 
-type EstadoDoGasto = "ok" | "sem_conexao" | "sem_conta" | "indisponivel" | "restrito";
+type EstadoDoGasto = "ok" | "sem_conexao" | "sem_conta" | "indisponivel" | "autorizacao_vencida" | "restrito";
 
 interface KPIDeGasto extends KPIOpcional {
   estado: EstadoDoGasto;
@@ -53,6 +53,7 @@ const AVISO_DO_GASTO: Record<Exclude<EstadoDoGasto, "ok">, { texto: string; href
   sem_conexao: { texto: "Conecte o Meta Ads para ver o gasto", href: "/app/settings/meta-ads" },
   sem_conta: { texto: "Escolha a conta de anúncios", href: "/app/settings/meta-ads" },
   indisponivel: { texto: "A Meta não respondeu agora", href: "/app/ads/meta" },
+  autorizacao_vencida: { texto: "A autorização da Meta venceu: reconecte", href: "/app/settings/meta-ads" },
   restrito: { texto: "Visível para gestores", href: null },
 };
 

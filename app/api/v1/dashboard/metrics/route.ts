@@ -3,6 +3,7 @@ import { requireAuth, resolveActiveOrg } from "@/lib/auth/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ok, fail } from "@/lib/api/wrappers";
 import { lerGastoDeAnuncios } from "@/lib/plataformas-de-anuncio/meta/gasto-do-periodo";
+import { nomeDoContato } from "@/lib/contacts/rotulo-do-contato";
 import { roleAtLeast } from "@/lib/auth/types";
 import { contasDoAnuncio, type GastoDoPeriodo } from "@/lib/resultado/contas-do-anuncio";
 import { calcularDelta, calcularIntervalo, gastoTemComparacao, lerFusoDaOrganizacao, paraParede } from "@/lib/resultado/periodo";
@@ -217,24 +218,32 @@ export async function GET(req: NextRequest) {
       // Carregar dados de contatos das vendas para enriquecer a tabela e o mapa de UF
       const contactIds = Array.from(new Set(sales.map((s) => s.contact_id).filter(Boolean))) as string[];
       const contactsMap = new Map<string, { name: string | null; phone: string | null; channelSessionId: string | null }>();
+      // A conexão de cada conversa: a venda do gateway sabe de qual conversa veio a cobrança.
+      const canalDaConversa = new Map<string, string | null>();
+      const canalDaVenda = (s: VendaDoPainel): string | null =>
+        (s.conversation_id ? canalDaConversa.get(s.conversation_id) : undefined) ??
+        (s.contact_id ? contactsMap.get(s.contact_id)?.channelSessionId ?? null : null);
 
       if (contactIds.length > 0) {
         const { data: contactsData } = await admin
           .from("contacts")
-          .select("id, name, phone_number")
+          .select("id, name, display_name, phone_number")
           .in("id", contactIds);
 
         // Buscar conversas para vincular o channel_session_id
         const { data: convData } = await admin
           .from("conversations")
-          .select("contact_id, channel_session_id")
-          .in("contact_id", contactIds);
+          .select("id, contact_id, channel_session_id, updated_at")
+          .in("contact_id", contactIds)
+          // A MAIS RECENTE vence (o Map fica com a última): quem trocou de número aparece na conexão de hoje.
+          .order("updated_at", { ascending: true });
 
         const convByContact = new Map(convData?.map((c) => [c.contact_id, c.channel_session_id]) ?? []);
+        for (const c of convData ?? []) canalDaConversa.set(c.id, c.channel_session_id);
 
         for (const c of contactsData ?? []) {
           contactsMap.set(c.id, {
-            name: c.name,
+            name: nomeDoContato(c),
             phone: c.phone_number,
             channelSessionId: convByContact.get(c.id) ?? null,
           });
@@ -282,8 +291,7 @@ export async function GET(req: NextRequest) {
       const vendasPorInstanciaMap = new Map<string, { id: string; name: string; phone: string; vendas: number; faturamento: number }>();
 
       for (const s of sales) {
-        const contato = s.contact_id ? contactsMap.get(s.contact_id) : null;
-        const canalId = contato?.channelSessionId ?? "desconhecido";
+        const canalId = canalDaVenda(s) ?? "desconhecido";
         const canal = canaisMap.get(canalId);
         const nome = canal?.name || "Canal Padrão";
         const phone = canal?.phone_number || "Sem número";
@@ -298,7 +306,8 @@ export async function GET(req: NextRequest) {
       // 4. Histórico detalhado de vendas
       const historicoVendas = sales.slice(0, 20).map((s) => {
         const contato = s.contact_id ? contactsMap.get(s.contact_id) : null;
-        const canal = contato?.channelSessionId ? canaisMap.get(contato.channelSessionId) : null;
+        const canalId = canalDaVenda(s);
+        const canal = canalId ? canaisMap.get(canalId) : null;
         return {
           id: s.id,
           number: s.number,
@@ -321,13 +330,16 @@ export async function GET(req: NextRequest) {
       if (saleIds.length > 0) {
         const { data: items } = await admin
           .from("sale_items")
-          .select("description, quantity, total_cents")
+          .select("sale_id, description, quantity, total_cents")
           .in("sale_id", saleIds);
 
         const prodMap = new Map<string, { name: string; valor: number; qtd: number }>();
         let totalItensValor = 0;
+        // As vendas do gateway não têm `sale_items`: o produto é o que o pagamento registrou (`notes`).
+        const comItens = new Set<string>();
 
         for (const item of items ?? []) {
+          comItens.add(item.sale_id);
           const nome = item.description || "Produto Geral";
           const val = (Number(item.total_cents) || 0) / 100;
           const qtd = item.quantity || 1;
@@ -337,6 +349,16 @@ export async function GET(req: NextRequest) {
           p.valor += val;
           p.qtd += qtd;
           prodMap.set(nome, p);
+        }
+
+        for (const venda of sales) {
+          if (comItens.has(venda.id) || !venda.notes) continue;
+          const val = (Number(venda.total_cents) || 0) / 100;
+          totalItensValor += val;
+          const p = prodMap.get(venda.notes) ?? { name: venda.notes, valor: 0, qtd: 0 };
+          p.valor += val;
+          p.qtd += 1;
+          prodMap.set(venda.notes, p);
         }
 
         performanceProdutos = Array.from(prodMap.values())

@@ -28,4 +28,22 @@ describe("pagou, mas a agente continua cobrando", () => {
   it("sem pagamento pendente, não trava nada", () => {
     expect(recusaDeQuemJaPagou("É só copiar o código do Pix", null)).toBeNull();
   });
+
+  it.each([
+    "Ainda não, Maria Aparecida. Primeiro eu preciso ver o pagamento cair aqui.",
+    "A confirmação do Pix chega sozinha aqui. E o que falta é só a mesa abrir pra sua pergunta.",
+    "Assim que a confirmação do seu Pix aparecer aqui, eu abro a mesa na hora pra essa pergunta.",
+    "O que aconteceu é que a confirmação ainda não apareceu aqui do meu lado.",
+  ])("depois da 1ª mensagem, ainda recusa dizer que não caiu: %j", (t) => {
+    expect(recusaDeQuemJaPagou(t, null, { extra: { name: "Pergunta nova" }, minutos: 12 })).toMatch(/JÁ CAIU/);
+  });
+
+  it("uma cobrança nova (outra pergunta) depois da entrega continua permitida", () => {
+    const t = "Se quiser fazer outra pergunta, é R$ 5. [[PIX: Pergunta nova]]";
+    expect(recusaDeQuemJaPagou(t, null, { extra: { name: "Pergunta nova" }, minutos: 12 })).toBeNull();
+  });
+
+  it("pagamento de mais de 2 h já não trava", () => {
+    expect(recusaDeQuemJaPagou("Ainda não apareceu o pagamento", null, { extra: { name: "Pergunta nova" }, minutos: 200 })).toBeNull();
+  });
 });
