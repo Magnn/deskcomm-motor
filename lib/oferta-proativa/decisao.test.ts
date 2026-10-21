@@ -127,3 +127,13 @@ describe("ritmo e faixa", () => {
     expect(motivoDaOferta(cfg.ofertas[1]!)).toMatch(/não envie nada/);
   });
 });
+
+describe("crise escrita abreviada fica fora da oferta", () => {
+  it("reconhece a frase real de 21/10", async () => {
+    const { NAO_OFERECER_PADRAO } = await import("./config");
+    const r = new RegExp(NAO_OFERECER_PADRAO, "i");
+    expect(r.test("Ate minha vd ja pensei em tirar")).toBe(true);
+    expect(r.test("já pensei em me matar")).toBe(true);
+    expect(r.test("quero fazer outra pergunta")).toBe(false);
+  });
+});
