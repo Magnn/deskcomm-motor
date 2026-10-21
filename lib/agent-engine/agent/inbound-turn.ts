@@ -2907,6 +2907,17 @@ async function executarTurnoDoAgente(
   if (entregaPendenteDoTurno) {
     runLog.info('pagamento de cobrança avulsa acabou de cair — este turno é a entrega', { extra: entregaPendenteDoTurno.extra.name });
   }
+  // A cobrança avulsa de uso único paga mais recente: enquanto ela é recente, a agente não pode dizer que o pagamento
+  // ainda não caiu (`recusaDeQuemJaPagou`, em `lib/preco/pago-mas-cobrando.ts`).
+  const pagoRecenteDoTurno = (() => {
+    let melhor: { extra: { name: string }; minutos: number } | null = null;
+    for (const p of extrasPagosNoTurno) {
+      const extra = extrasDoTurno.find((e) => slugDoExtra(e.name) === p.slug);
+      if (!extra || (extra.valid_days ?? 1) > 1 || p.minutosAtras === undefined) continue;
+      if (melhor === null || p.minutosAtras < melhor.minutos) melhor = { extra: { name: extra.name }, minutos: p.minutosAtras };
+    }
+    return melhor;
+  })();
   const atropeladaNoTurno = !preview && entregaPendenteDoTurno === null && respostaAtropelada(openingContext.context.messages);
   // "Ok", "👍", figurinha: o turno não repete a instrução que acabou de dar. Fora da leitura, onde o "sim" é o
   // gatilho do passo seguinte e quem conduz é o código.
@@ -3951,7 +3962,7 @@ async function executarTurnoDoAgente(
           }
           // PAGOU, MAS A AGENTE CONTINUA COBRANDO (`lib/preco/pago-mas-cobrando.ts`): em 21/10/2026, com o Pix da pergunta
           // já pago, a agente seguiu ensinando a copiar o código e dizendo "ainda não caiu".
-          const jaPagou = recusaDeQuemJaPagou(body, entregaPendenteDoTurno);
+          const jaPagou = recusaDeQuemJaPagou(body, entregaPendenteDoTurno, pagoRecenteDoTurno);
           if (jaPagou) {
             runLog.warn('cobrança avulsa já paga, mas a mensagem ainda cobra — envio recusado', {});
             return { ok: false, error: { code: 'cobrando_o_que_ja_caiu', message: jaPagou } };
