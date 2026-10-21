@@ -42,6 +42,7 @@ import { aplicarEventoDaCakto, depsReais } from "@/lib/pagamentos/compra-cakto";
 import { reportarCompraAvulsa } from "@/lib/conversoes/compra-avulsa";
 import type { ConexaoStripe } from "@/lib/pagamentos/conexao-stripe";
 import { criarClienteStripe } from "@/lib/pagamentos/stripe";
+import { agendarProximaDaSequencia } from "@/lib/catalogo/agendar-proxima-da-sequencia";
 import type { CompraDaCakto } from "@/lib/webhooks/cakto";
 
 /** A moeda em que o negócio, a receita e os anúncios são contados. */
@@ -338,6 +339,25 @@ export async function aplicarAvisoDePagamentoDaStripe(
     });
     if (erroDoLedger && erroDoLedger.code !== "23505") {
       logger.error("[stripe.aviso] ledger não gravou", { requestId, error: erroDoLedger.message });
+    }
+
+    // A PRÓXIMA DA SEQUÊNCIA (`lib/catalogo/proxima-da-sequencia.ts`): a compra de um produto que abre outro agenda o
+    // turno da oferta do seguinte. Best-effort: a compra já está aplicada.
+    if (efeito.resultado === "entrega_iniciada" || efeito.resultado === "compra_registrada_sem_fluxo") {
+      try {
+        const desfecho = await agendarProximaDaSequencia(
+          admin,
+          conexao.organizationId,
+          efeito.contatoId,
+          typeof meta.produto === "string" ? meta.produto : null,
+        );
+        if (desfecho === "agendada") logger.info("[stripe.aviso] oferta da sequência agendada", { requestId });
+      } catch (err) {
+        logger.warn("[stripe.aviso] oferta da sequência não agendada", {
+          requestId,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
     }
 
     if (efeito.resultado !== "ignorada") {

@@ -14283,6 +14283,10 @@ export const DICIONARIO: Traducoes = {
   // Dashboard: gasto de anúncio lido da conta, ROAS e lucro (lib/resultado/contas-do-anuncio.ts).
   "Sem gasto de anúncio conhecido no período, não há ROAS.": { es: "Sin gasto de anuncios conocido en el período, no hay ROAS." },
   "Lucro (sem descontar anúncio)": { es: "Ganancia (sin descontar anuncios)" },
+  "Lucro (anúncio e IA descontados)": { es: "Ganancia (anuncios e IA descontados)" },
+  "Lucro (sem descontar IA)": { es: "Ganancia (sin descontar IA)" },
+  "Lucro (sem descontar anúncio nem IA)": { es: "Ganancia (sin descontar anuncios ni IA)" },
+  "em reais pela PTAX de": { es: "en reales por la PTAX del" },
   "Conecte o Meta Ads para ver o gasto": { es: "Conecte Meta Ads para ver el gasto" },
   "Escolha a conta de anúncios": { es: "Elija la cuenta de anuncios" },
   "A Meta não respondeu agora": { es: "Meta no respondió ahora" },
