@@ -34,6 +34,21 @@ export function slugDoExtra(nome: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
+/**
+ * A conversa JÁ falou de uma cobrança avulsa pelo nome ("pergunta nova", "sinastria amorosa") numa mensagem nossa.
+ * É o que libera a cobrança para quem ainda não ouviu o preço do trabalho: medido em 21/10/2026, a agente ofereceu
+ * a pergunta nova (oferta proativa, ou a própria pessoa pediu), a pessoa disse "Pergunta", e a marca de cobrança era
+ * recusada porque o turno só liberava os avulsos depois do preço do trabalho — a agente passava para um humano. Pura.
+ */
+export function conversaFalouDeExtra(
+  mensagens: readonly { direction: string; body?: string | null }[],
+  extras: readonly Pick<Extra, "name">[],
+): boolean {
+  const semAcento = (t: string) => t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+  const nomes = extras.map((e) => semAcento(e.name)).filter((n) => n.length >= 6);
+  return mensagens.some((m) => m.direction === "outbound" && nomes.some((n) => semAcento(m.body ?? "").includes(n)));
+}
+
 export function extrasDaConfig(pricing: Pick<PricingConfig, "enabled" | "extras"> | null | undefined): Extra[] {
   return pricing?.enabled ? (pricing.extras ?? []) : [];
 }

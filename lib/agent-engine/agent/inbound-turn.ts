@@ -94,6 +94,7 @@ import {
   blocoDosExtras,
   entregaPendente,
   perguntaPagaRecente,
+  conversaFalouDeExtra,
   extrasDaConfig,
   janelaDeLeituraDosExtras,
   slugDoExtra,
@@ -2613,7 +2614,10 @@ async function executarTurnoDoAgente(
   // comprou — antes disso, cobrar uma pergunta atropelaria a venda do produto principal.
   const extrasDoTurno =
     !preview && internacionalDoTurno === null &&
-    (tagsDoContato.includes('pago') || openingContext.context.messages.some((m) => m.direction === 'outbound' && PRECO_DITO.test(m.body ?? '')))
+    (tagsDoContato.includes('pago') ||
+      openingContext.context.messages.some((m) => m.direction === 'outbound' && PRECO_DITO.test(m.body ?? '')) ||
+      // A conversa já ofereceu a cobrança avulsa pelo nome (oferta proativa, ou a pessoa pediu outra pergunta).
+      conversaFalouDeExtra(openingContext.context.messages, extrasDaConfig(agentConfig?.pricing)))
       ? extrasDaConfig(agentConfig?.pricing)
       : [];
   let extrasPagosNoTurno: ExtraPago[] = [];
