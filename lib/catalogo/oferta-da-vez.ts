@@ -75,13 +75,21 @@ const DIA_MS = 24 * 3_600_000;
 const SEMANA_MS = 7 * DIA_MS;
 
 /**
- * Quando a agente mandou este link pela última vez. `null` = nunca, no histórico do turno. Mensagem
- * sem hora legível conta como AGORA: na dúvida, a oferta já foi feita hoje.
+ * Quando a agente ofereceu este produto pela última vez: pelo link OU pela fala com o nome e o valor. `null` =
+ * nunca, no histórico do turno. Mensagem sem hora legível conta como AGORA: na dúvida, a oferta já foi feita hoje.
+ *
+ * O link do catálogo é trocado no envio pelo Pix e pelo link do provedor (`pix-na-conversa.ts`), então procurar só
+ * o link deixava toda oferta "nunca feita" — e a oferta diária nunca sabia que já tinha oferecido hoje.
  */
-function ultimaOfertaDoLink(link: string, mensagens: readonly MensagemDoHistorico[], agora: Date): number | null {
+function ultimaOferta(p: ProdutoDoCatalogo, mensagens: readonly MensagemDoHistorico[], agora: Date): number | null {
+  const valor = new RegExp("R\\$\\s?" + Math.floor(p.preco_cents / 100) + "(?![0-9])");
+  const nome = p.nome.toLowerCase();
   let ultima: number | null = null;
   for (const m of mensagens) {
-    if (m.direction !== "outbound" || !(m.body ?? "").includes(link)) continue;
+    if (m.direction !== "outbound") continue;
+    const corpo = m.body ?? "";
+    const ofereceu = corpo.includes(p.link) || (corpo.toLowerCase().includes(nome) && valor.test(corpo));
+    if (!ofereceu) continue;
     const t = m.sent_at ? Date.parse(m.sent_at) : Number.NaN;
     const quando = Number.isNaN(t) ? agora.getTime() : t;
     if (ultima === null || quando > ultima) ultima = quando;
@@ -113,7 +121,7 @@ export function ofertaDaVez(
     desdeOPagamento >= p.espera_horas * 3_600_000;
 
   if (catalogo.oferta_diaria === true) {
-    const quando = (p: ProdutoDoCatalogo) => ultimaOfertaDoLink(p.link, mensagens, agora);
+    const quando = (p: ProdutoDoCatalogo) => ultimaOferta(p, mensagens, agora);
     const elegiveis = catalogo.produtos.filter(podeReceber);
     const deHoje = elegiveis.find((p) => {
       const t = quando(p);
@@ -130,7 +138,7 @@ export function ofertaDaVez(
   const produto = catalogo.produtos.find(podeReceber);
   if (produto === undefined) return null;
 
-  const jaOferecida = mensagens.some((m) => m.direction === "outbound" && (m.body ?? "").includes(produto.link));
+  const jaOferecida = ultimaOferta(produto, mensagens, agora) !== null;
   return { produto, jaOferecida };
 }
 
