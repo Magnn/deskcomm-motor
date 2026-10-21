@@ -126,7 +126,7 @@ describe("pixDoExtraNoLugarDaMarca", () => {
     const criarLink = vi.fn(async (_c: unknown, _p: unknown) => ({ id: "plink_1", url: "https://buy.exemplo.com/cartao" }));
     const saida = await pixDoExtraNoLugarDaMarca({ ...base, corpo: "Anotei as três.\n\n[[PIX: Pergunta nova x3]]", criarPix, criarLink });
     const corpo = "corpo" in saida ? saida.corpo : "";
-    expect(corpo).toContain("Valor: *R$ 45* (3× Pergunta nova).");
+    expect(corpo).toContain("*R$ 45 (3× Pergunta nova)*"); expect(corpo).toContain("Pix Copia e Cola");
     expect(corpo).not.toContain("[[");
     expect(criarPix.mock.calls[0]![1]).toMatchObject({
       valorCentavos: 4500,
