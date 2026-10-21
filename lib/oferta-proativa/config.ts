@@ -84,8 +84,9 @@ export type OfertaProativa = z.infer<typeof ofertaProativaSchema>;
  * oferta, mesmo sem a organização ter escrito a sua. Somada à da organização, nunca trocada por ela.
  * O pedido de parar tem detector próprio (`lib/opt-out/deteccao.ts`), aplicado à parte.
  */
+// Crise escrita abreviada também conta: em 21/10/2026 "Ate minha vd ja pensei em tirar" passou pela regra antiga.
 export const NAO_OFERECER_PADRAO =
-  "sem dinheiro|n[ãa]o tenho (dinheiro|condi)|desempregad|sem condi|passando fome|n[ãa]o quero mais|para de me|n[ãa]o me mand|parar atendimento|golpe|golpista|denunci|vou bloque|suic[ií]d|me matar|quero morrer|tirar minha vida";
+  "sem dinheiro|n[ãa]o tenho (dinheiro|condi)|desempregad|sem condi|passando fome|n[ãa]o quero mais|para de me|n[ãa]o me mand|parar atendimento|golpe|golpista|denunci|vou bloque|suic[ií]d|me matar|quero morrer|tirar minha vida|pensei em (me )?(tirar|matar|sumir)|(minha )?(vida|vd) j[áa] pensei|tirar a (minha )?(vida|vd)|acabar com (a minha vida|tudo)|n[ãa]o (quero|aguento) mais viver";
 
 /**
  * Lê `followup.oferta_proativa` da versão publicada. `null` = desligada, ausente ou shape inválido — nos três
