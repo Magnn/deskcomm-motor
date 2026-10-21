@@ -240,3 +240,13 @@ describe('extra pago: confirmação firme e como entregar', () => {
   });
 });
 
+
+describe("conversaFalouDeExtra", () => {
+  it("libera quando uma mensagem nossa citou a cobrança pelo nome (caso de 21/10)", async () => {
+    const { conversaFalouDeExtra } = await import("./extras");
+    const extras = [{ name: "Pergunta nova" }, { name: "Sinastria Amorosa" }];
+    expect(conversaFalouDeExtra([{ direction: "outbound", body: "Essa é uma pergunta nova, sobre o Fernando." }], extras)).toBe(true);
+    expect(conversaFalouDeExtra([{ direction: "inbound", body: "quero uma pergunta nova" }], extras)).toBe(false);
+    expect(conversaFalouDeExtra([{ direction: "outbound", body: "CARTA 1: O Diabo" }], extras)).toBe(false);
+  });
+});
