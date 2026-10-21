@@ -57,7 +57,11 @@ export function EnviarPixDialog({ conversationId, open, onOpenChange }: Props) {
   const mandar = () => {
     if (!pronto || cents === null) return;
     enviar.mutate(
-      { conversation_id: conversationId, pix: { produto: produto.trim(), valor_cents: cents } },
+      {
+        conversation_id: conversationId,
+        // A cobrança avulsa só vale no valor da lista: valor mexido vira um Pix comum.
+        pix: { produto: produto.trim(), valor_cents: cents, ...(sugerido?.extra && cents === sugerido.valor_cents ? { extra: sugerido.extra } : {}) },
+      },
       {
         onSuccess: () => {
           toast.success(t("Pix enviado na conversa. O pagamento é confirmado sozinho."));

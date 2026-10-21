@@ -27,6 +27,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { lerCatalogo } from "@/lib/catalogo/tipos";
 import { emitLeadActivity } from "@/lib/leads/activity-emitter";
+import { extrasDaConfig, slugDoExtra } from "@/lib/preco/extras";
 import { lerPricing } from "@/lib/preco/tipos";
 import { slugDoProduto } from "@/lib/preco/pos-venda";
 
@@ -220,6 +221,16 @@ export function sugestoesDePagamento(configs: readonly unknown[]): SugestaoDePag
       }
     }
     for (const p of lerCatalogo(config)?.produtos ?? []) por(p.nome, p.preco_cents);
+  }
+  // As cobranças avulsas (pergunta nova, sinastria…) por último. Medido em 21/10/2026: o atendente quis mandar o Pix
+  // de uma pergunta nova e o diálogo só listava trabalhos e produtos do catálogo.
+  for (const config of configs) {
+    for (const e of extrasDaConfig(lerPricing(config))) {
+      const nome = e.name.trim();
+      const chave = slugDoProduto(nome);
+      if (nome === "" || chave === "" || vistos.has(chave)) continue;
+      vistos.set(chave, { produto: nome, valor_cents: e.price_cents, extra: slugDoExtra(nome) });
+    }
   }
   return [...vistos.values()];
 }
