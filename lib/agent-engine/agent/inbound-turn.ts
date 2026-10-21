@@ -100,6 +100,7 @@ import {
   type ExtraPago,
 } from '@/lib/preco/extras';
 import { promessaDeReenvioSemCobranca } from '@/lib/preco/promessa-de-reenvio';
+import { recusaDeQuemJaPagou } from '@/lib/preco/pago-mas-cobrando';
 import { valorErradoDeExtra } from '@/lib/preco/valor-do-extra';
 import { destinoDaProva, legendaDaProva, provasParaEnviar } from '@/lib/preco/prova-social';
 import { classificarPerdaDoAtendimento } from '@/lib/resultado/motivo-da-perda-do-agente';
@@ -3947,6 +3948,13 @@ async function executarTurnoDoAgente(
           if (reenvioSemCobranca) {
             runLog.warn('promessa de reenviar o pagamento sem a cobrança — envio recusado', {});
             return { ok: false, error: { code: 'reenvio_sem_cobranca', message: reenvioSemCobranca } };
+          }
+          // PAGOU, MAS A AGENTE CONTINUA COBRANDO (`lib/preco/pago-mas-cobrando.ts`): em 21/10/2026, com o Pix da pergunta
+          // já pago, a agente seguiu ensinando a copiar o código e dizendo "ainda não caiu".
+          const jaPagou = recusaDeQuemJaPagou(body, entregaPendenteDoTurno);
+          if (jaPagou) {
+            runLog.warn('cobrança avulsa já paga, mas a mensagem ainda cobra — envio recusado', {});
+            return { ok: false, error: { code: 'cobrando_o_que_ja_caiu', message: jaPagou } };
           }
         }
         // COBRANÇA AVULSA: a marca `[[PIX: nome]]` vira a instrução e o código do Pix. Marca que o turno não pode
