@@ -13270,6 +13270,11 @@ export const DICIONARIO: Traducoes = {
   "Área do cliente": { es: "Área del cliente" },
   "Onde quem já comprou vê o que é seu e compra outro serviço, fora do WhatsApp. Aqui você mede onde as pessoas param, o que abrem e o que desejam.": { es: "Donde quien ya compró ve lo que es suyo y compra otro servicio, fuera de WhatsApp. Aquí usted mide dónde se detienen las personas, qué abren y qué desean." },
   "Endereço:": { es: "Dirección:" },
+  "Endereço público": { es: "Dirección pública" },
+  "ex.: cigana-esmeralda": { es: "ej.: gitana-esmeralda" },
+  "O nome que vai nos anúncios e nos links novos. O endereço antigo continua funcionando para quem já recebeu.": {
+    es: "El nombre que va en los anuncios y en los enlaces nuevos. La dirección anterior sigue funcionando para quien ya la recibió.",
+  },
   "Painel": { es: "Panel" },
   "Serviços": { es: "Servicios" },
   "Compradores": { es: "Compradores" },
