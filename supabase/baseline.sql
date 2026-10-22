@@ -40090,3 +40090,11 @@ create policy tenant_isolation_area_quiz_passos_select on public.area_quiz_passo
   using (organization_id in (select public.fn_user_org_ids()) or public.fn_is_platform_admin());
 revoke all on public.area_quiz_passos from anon;
 revoke insert, update, delete, truncate on public.area_quiz_passos from authenticated;
+
+-- ---- o quarto quiz: o Retrato do Par (migration 0945) ----
+alter table public.area_quiz_pedidos drop constraint if exists area_quiz_pedidos_tipo_check;
+alter table public.area_quiz_pedidos add constraint area_quiz_pedidos_tipo_check check (tipo in ('prosperidade', 'caminhos', 'par'));
+alter table public.area_quiz_visitas drop constraint if exists area_quiz_visitas_quiz_check;
+alter table public.area_quiz_visitas add constraint area_quiz_visitas_quiz_check check (quiz in ('sinastria', 'prosperidade', 'caminhos', 'par'));
+alter table public.area_quiz_passos drop constraint if exists area_quiz_passos_quiz_check;
+alter table public.area_quiz_passos add constraint area_quiz_passos_quiz_check check (quiz in ('sinastria', 'prosperidade', 'caminhos', 'par'));
