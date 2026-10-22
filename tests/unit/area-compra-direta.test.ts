@@ -29,7 +29,7 @@ vi.mock("@/lib/area-do-cliente/http", () => ({
   NAO_ENCONTRADA: () => new Response("não", { status: 404 }),
   irPara: (caminho: string) => new Response(null, { status: 303, headers: { location: caminho } }),
   contextoDaArea: async () => ({
-    org: { id: "org-1", slug: "magno", fuso: "America/Rio_Branco" },
+    org: { id: "org-1", slug: "magno", fuso: "America/Rio_Branco", config: { ativo: true } },
     sessao: h.sessao,
     admin: {
       from: () => {
