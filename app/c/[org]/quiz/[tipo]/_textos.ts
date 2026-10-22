@@ -26,7 +26,7 @@ export function textosDoQuizDePessoa(t: (texto: string) => string, tipo: "prospe
     continuar: t("Continuar"),
     paraOnde: t("Para onde mando o seu resultado?"),
     seuEmail: t("Seu melhor e-mail"),
-    semSpam: t("Usamos só para guardar a sua leitura. Nada de spam."),
+    semSpam: t("Guardamos o seu e-mail para mandar o seu resultado e, de vez em quando, conteúdos nossos. Nada de spam: você sai quando quiser."),
     verResultado: t("Ver o meu resultado"),
     pagamentoUnico: t("Pagamento único. Você lê aqui mesmo, logo depois de pagar."),
     pagarPix: t("Pagar com Pix"),

@@ -11,7 +11,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { moedaDaOferta, precoDaOferta, valorNaMoedaDaPagina, type MoedaDaPagina } from "@/lib/area-do-cliente/moeda-do-visitante";
 import { copyToClipboard } from "@/lib/clipboard";
 
-import { idDaVisita, manterVivo, marcarPasso } from "../_passos";
+import { enviarLead, idDaVisita, manterVivo, marcarPasso } from "../_passos";
 
 import { CARTAO, SERIF, SOBRETITULO } from "../_tema";
 import type { TextosDoQuiz } from "./_textos";
@@ -247,6 +247,14 @@ export function QuizDaSinastria(props: {
   function mostrarPrevia() {
     setErro(null);
     pixel("Lead", { content_name: "quiz-sinastria" });
+    enviarLead(slug, "sinastria", {
+      nome: nomeDela.trim(),
+      email: email.trim(),
+      nascimento: isoDaData(dataDela),
+      nomeDele: nomeDele.trim(),
+      nascimentoDele: isoDaData(dataDele),
+      respostas,
+    });
     setFase("previa");
   }
 

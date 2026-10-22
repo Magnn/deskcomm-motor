@@ -86,6 +86,40 @@ export function marcarPasso(slug: string, quiz: QuizDaPagina, passo: PassoDoQuiz
   }
 }
 
+/**
+ * O LEAD: no momento em que a pessoa dá o e-mail para ver a prévia, ele vai para o servidor e vira contato
+ * (`lib/area-do-cliente/lead-do-quiz.ts`). Não espera nem mostra erro: a prévia aparece de qualquer jeito.
+ */
+export function enviarLead(
+  slug: string,
+  quiz: QuizDaPagina,
+  d: { nome: string; email: string; nascimento?: string | null; nomeDele?: string; nascimentoDele?: string | null; respostas?: Record<string, string> },
+): void {
+  try {
+    const visita = visitaDo(quiz, slug);
+    void fetch(`/api/v1/area/publica/${slug}/lead`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      keepalive: true,
+      body: JSON.stringify({
+        visita: visita.id,
+        quiz,
+        nome: d.nome.slice(0, 80),
+        email: d.email,
+        ...(d.nascimento ? { nascimento: d.nascimento } : {}),
+        ...(d.nomeDele ? { nome_dele: d.nomeDele.slice(0, 80) } : {}),
+        ...(d.nascimentoDele ? { nascimento_dele: d.nascimentoDele } : {}),
+        respostas: d.respostas ?? {},
+        ...(visita.campanha ? { campanha: visita.campanha } : {}),
+      }),
+    }).catch(() => {
+      /* a prévia não depende disto */
+    });
+  } catch {
+    /* idem */
+  }
+}
+
 /** O id desta visita, para o pedido de pagamento ligar a visita ao contato (o "quem é" do painel ao vivo). */
 export function idDaVisita(slug: string, quiz: QuizDaPagina): string | undefined {
   try {

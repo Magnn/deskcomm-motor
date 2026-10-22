@@ -18,7 +18,7 @@ export function textosDoQuiz(t: (texto: string) => string) {
     continuar: t("Continuar"),
     paraOnde: t("Para onde mando o seu resultado?"),
     seuEmail: t("Seu melhor e-mail"),
-    semSpam: t("Usamos só para guardar a sua leitura. Nada de spam."),
+    semSpam: t("Guardamos o seu e-mail para mandar o seu resultado e, de vez em quando, conteúdos nossos. Nada de spam: você sai quando quiser."),
     verResultado: t("Ver o meu resultado"),
     codigo: t("O Código da Conexão"),
     completa: t("A leitura completa de vocês dois"),
