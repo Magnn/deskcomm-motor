@@ -153,6 +153,8 @@ export function textosDoQuizDePessoa(t: (texto: string) => string, tipo: "prospe
     escrevendo: t("Escrevendo a sua leitura…"),
     menosDeUmMinuto: t("Leva menos de um minuto. Não feche a página."),
     guarde: t("Guarde esta página: o endereço abre a sua leitura neste aparelho."),
+    outrasTitulo: t("Outras leituras para você"),
+    outrasBotao: t("Começar de graça"),
     seuResultado: t("O seu resultado"),
     naoFoiPossivel: t("Não foi possível continuar agora. Tente de novo."),
     semConexao: t("Sem conexão. Confira a internet e tente de novo."),

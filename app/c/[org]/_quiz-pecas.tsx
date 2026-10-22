@@ -42,6 +42,41 @@ export function VideoDaGuia(props: { url: string | null; capa?: string | null })
   );
 }
 
+/** Um depoimento real de cliente, já com a URL do vídeo montada (ou `null`). */
+export interface Depoimento {
+  nome: string;
+  texto: string;
+  cidade?: string;
+  video: string | null;
+}
+
+/** Outro quiz ativo da mesma área, para quem acabou de comprar continuar (o "upsell" dos funis que escalam). */
+export interface OutraLeitura {
+  titulo: string;
+  chamada: string;
+  href: string;
+}
+
+export function OutrasLeituras(props: { titulo: string; botao: string; itens: OutraLeitura[]; cor: string }) {
+  if (props.itens.length === 0) return null;
+  return (
+    <section className={`${CARTAO} mt-5`}>
+      <p className={SOBRETITULO}>{props.titulo}</p>
+      <div className="mt-4 space-y-3">
+        {props.itens.map((o) => (
+          <a key={o.href} href={o.href} className="block rounded-2xl border border-[#c9a54e]/20 bg-[#120d22] p-4 hover:border-[#e2c47a]">
+            <span className={`${SERIF} block text-lg text-[#f6e3a8]`}>{o.titulo}</span>
+            <span className="mt-1 block text-[14px] text-[#c3bad3]">{o.chamada}</span>
+            <span className="mt-3 inline-block rounded-full px-4 py-2 text-sm font-semibold text-white" style={{ background: props.cor }}>
+              {props.botao} →
+            </span>
+          </a>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export function Progresso(props: { atual: number; total: number; cor: string }) {
   const pct = Math.max(4, Math.min(100, Math.round((props.atual / Math.max(1, props.total)) * 100)));
   return (

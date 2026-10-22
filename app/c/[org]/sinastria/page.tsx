@@ -18,6 +18,7 @@ import { idiomaDoVisitante } from "@/lib/i18n/idiomaAnonimo";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 import { serifDaArea } from "../_fonte";
+import { depoimentosDoQuiz, outrasLeituras } from "../_outras-leituras";
 import { FotoDaGuia } from "../_quiz-pecas";
 import { CEU, PAGINA, SERIF, SOBRETITULO_NOTURNO } from "../_tema";
 import { QuizDaSinastria } from "./_quiz";
@@ -72,6 +73,8 @@ export default async function PaginaDoQuiz({ params }: Props) {
         guia={{ nome: org.config.guia?.nome ?? null, foto: fotoDaGuia }}
         videoMeio={urlDaMidiaDaArea(oferta.video_meio, base)}
         videoPrevia={urlDaMidiaDaArea(oferta.video_previa, base)}
+        depoimentos={depoimentosDoQuiz(org.config, "sinastria", base)}
+        outras={outrasLeituras(org.config, org.slug, "sinastria", (texto) => traduzir(texto, idioma))}
       />
       <footer className="px-5 pb-10 text-center text-xs leading-relaxed text-[#9d94b2]">
         {tx.rodape}

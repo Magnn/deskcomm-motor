@@ -82,6 +82,8 @@ export const PERGUNTAS_DO_QUIZ = [
   { id: "aperta", capitulo: "O que se repete", texto: "O que mais aperta o seu coração nessa história?", opcoes: ["Não entendo o que a outra pessoa sente", "Brigamos sempre pelo mesmo motivo", "Um se aproxima e o outro se afasta", "Medo de investir e me frustrar"] },
   { id: "briga", capitulo: "O que se repete", texto: "Quando vocês se desentendem, quase sempre é por…", opcoes: ["Tempo e atenção", "Ciúme e confiança", "Planos e dinheiro", "O jeito de falar", "Quase não brigamos"] },
   { id: "carinho", capitulo: "O que se repete", texto: "Como você mais sente o carinho de alguém?", opcoes: ["Palavras", "Presença e tempo junto", "Toque e gestos", "Cuidado no dia a dia"] },
+  { id: "falta", capitulo: "O que ficou", texto: "Do que você mais sente falta nessa história?", opcoes: ["Carinho", "Ser ouvida", "Ser prioridade", "Conversa de verdade", "Fazer planos a dois"] },
+  { id: "pesa", capitulo: "O que ficou", texto: "Qual dessas frases mais pesa hoje?", opcoes: ["Será que vale a pena?", "Sempre sou eu que cedo", "A gente se ama, mas não se entende", "Tenho medo de me iludir"] },
   { id: "deseja", capitulo: "O que você quer", texto: "O que você mais quer entender agora?", opcoes: ["O que nos une de verdade", "Onde a gente se desencontra", "Se vale a pena investir", "Como conversar melhor"] },
 ] as const;
 export type IdDaPergunta = (typeof PERGUNTAS_DO_QUIZ)[number]["id"];
@@ -93,6 +95,8 @@ export const ROTULO_DA_RESPOSTA: Record<IdDaPergunta, string> = {
   aperta: "O que mais aperta",
   briga: "Por que se desentendem",
   carinho: "Como sente o carinho",
+  falta: "Do que sente falta",
+  pesa: "A frase que mais pesa",
   deseja: "O que quer entender",
 };
 

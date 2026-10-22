@@ -18,7 +18,7 @@ import { copyToClipboard } from "@/lib/clipboard";
 import { enviarLead, idDaVisita, manterVivo, marcarPasso } from "../../_passos";
 
 import { PaginaFinal } from "../../_pagina-final";
-import { Interludio, Progresso, SeletorDeData, TelaDeCalculo, VideoDaGuia } from "../../_quiz-pecas";
+import { Interludio, OutrasLeituras, Progresso, SeletorDeData, TelaDeCalculo, VideoDaGuia, type Depoimento, type OutraLeitura } from "../../_quiz-pecas";
 import { CARTAO, SERIF, SOBRETITULO } from "../../_tema";
 import type { TextosDoQuizDePessoa } from "./_textos";
 
@@ -67,6 +67,15 @@ function pixel(evento: string, dados?: Record<string, unknown>, id?: string) {
   }
 }
 
+/** Evento próprio do funil (não padrão da Meta): o pixel aceita, e a otimização ganha sinal no meio do caminho. */
+function pixelProprio(evento: string, dados?: Record<string, unknown>) {
+  try {
+    window.fbq?.("trackCustom", evento, dados ?? {});
+  } catch {
+    /* o pixel nunca derruba a página */
+  }
+}
+
 export function QuizDePessoa(props: {
   slug: string;
   tipo: "prosperidade" | "caminhos" | "par";
@@ -81,8 +90,11 @@ export function QuizDePessoa(props: {
   guia: { nome: string | null; foto: string | null };
   videoMeio: string | null;
   videoPrevia: string | null;
+  /** Depoimentos reais (configuração) e os outros quizzes ligados, para depois da compra. */
+  depoimentos: Depoimento[];
+  outras: OutraLeitura[];
 }) {
-  const { slug, tipo, cor, precoCents, precosInternacionais, pixelId, perguntas, tx, guia, videoMeio, videoPrevia } = props;
+  const { slug, tipo, cor, precoCents, precosInternacionais, pixelId, perguntas, tx, guia, videoMeio, videoPrevia, depoimentos, outras } = props;
   const chave = `quiz-${tipo}:${slug}`;
   const base = `/api/v1/area/publica/${slug}/quiz/${tipo}`;
   const [fase, setFase] = useState<Fase>("quiz");
@@ -184,7 +196,10 @@ export function QuizDePessoa(props: {
     if (fase === "quiz") {
       if (tela === 0) marcarPasso(slug, QUIZ, "abriu", moeda);
       if (atual?.tipo === "mecanismo") marcarPasso(slug, QUIZ, "perguntas", moeda);
-      if (atual?.tipo === "calculo") marcarPasso(slug, QUIZ, "dados", moeda);
+      if (atual?.tipo === "calculo") {
+        marcarPasso(slug, QUIZ, "dados", moeda);
+        pixelProprio("QuizComplete", { content_name: `quiz-${tipo}` });
+      }
       if (atual?.tipo === "email") marcarPasso(slug, QUIZ, "email", moeda);
     }
     if (fase === "previa") marcarPasso(slug, QUIZ, "previa", moeda);
@@ -303,6 +318,7 @@ export function QuizDePessoa(props: {
   function verPrevia() {
     setErro(null);
     pixel("Lead", { content_name: `quiz-${tipo}` });
+    pixel("ViewContent", { content_name: `quiz-${tipo}`, value: preco / 100, currency: moeda });
     enviarLead(slug, tipo, { nome: nome.trim(), email: email.trim(), nascimento: data || null, respostas });
     setPrevia(previaDoQuiz(tipo, { nascimento: data || null, respostas }));
     setFase("previa");
@@ -460,6 +476,7 @@ export function QuizDePessoa(props: {
           subtitulo={tx.calculadoDe}
           video={videoPrevia}
           capaDoVideo={guia.foto}
+          depoimentos={depoimentos}
           dados={
             prosperidade
               ? [
@@ -613,6 +630,7 @@ export function QuizDePessoa(props: {
           <p className="mt-6 text-xs text-[#9d94b2]">{tx.guarde}</p>
         </article>
       )}
+      {fase === "pronto" && texto && <OutrasLeituras titulo={tx.outrasTitulo} botao={tx.outrasBotao} itens={outras} cor={cor} />}
     </section>
   );
 }
