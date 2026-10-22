@@ -8,8 +8,22 @@
  */
 import { z } from "zod";
 
+import { FORMA_DO_SLUG_DA_AREA } from "./vocabulario";
+
 export const configDaAreaSchema = z.strictObject({
   ativo: z.boolean().default(false),
+  /**
+   * O ENDEREÇO PÚBLICO da área: `/c/<apelido>` abre a mesma área que `/c/<slug>`. O slug da organização
+   * costuma ser o nome de quem criou a conta, e não se troca (é a chave do cookie, do app instalado e dos
+   * links já enviados); o apelido é o nome que vai em anúncio e em link novo. Único na instalação —
+   * conferido no PUT contra os slugs e os apelidos das outras organizações.
+   */
+  apelido: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .regex(FORMA_DO_SLUG_DA_AREA, "só letras minúsculas, números e hífen (ex.: cigana-esmeralda)")
+    .optional(),
   /** Título no topo da área. Vazio = o nome de exibição da organização. */
   titulo: z.string().trim().max(60).optional(),
   /** A frase abaixo do "Olá". */

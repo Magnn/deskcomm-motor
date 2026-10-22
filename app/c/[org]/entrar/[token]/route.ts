@@ -12,7 +12,7 @@ import { registrarEvento } from "@/lib/area-do-cliente/eventos";
 import { NAO_ENCONTRADA, contextoDaArea, dentroDoLimite, irPara, paginaSimples } from "@/lib/area-do-cliente/http";
 import { criarSessao, nomeDoCookieDaArea, opcoesDoCookie } from "@/lib/area-do-cliente/sessao";
 import { FORMA_DO_TOKEN, hashDoToken } from "@/lib/area-do-cliente/token";
-import { caminhoDaArea } from "@/lib/area-do-cliente/vocabulario";
+import { caminhoPublicoDaArea } from "@/lib/area-do-cliente/vocabulario";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -27,7 +27,7 @@ export async function GET(req: NextRequest, { params }: Ctx): Promise<Response> 
   const ctx = await contextoDaArea(req, slug);
   if (!ctx) return NAO_ENCONTRADA();
   const { admin, org } = ctx;
-  const destino = caminhoDaArea(org.slug);
+  const destino = caminhoPublicoDaArea(org.slug, org.config.apelido);
 
   if (!FORMA_DO_TOKEN.test(token)) {
     return irPara(destino, { link: "invalido" });

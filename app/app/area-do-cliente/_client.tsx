@@ -813,6 +813,7 @@ function AbaConfig({ inicial }: { inicial: ConfigDaArea }) {
   const [titulo, setTitulo] = useState(inicial.titulo ?? "");
   const [boasVindas, setBoasVindas] = useState(inicial.boas_vindas ?? "");
   const [whatsapp, setWhatsapp] = useState(inicial.whatsapp ?? "");
+  const [apelido, setApelido] = useState(inicial.apelido ?? "");
   const [cor, setCor] = useState(inicial.cor ?? "");
   const [cartaDoDia, setCartaDoDia] = useState(inicial.carta_do_dia ?? false);
   const [circuloAtivo, setCirculoAtivo] = useState(inicial.circulo?.ativo ?? false);
@@ -856,6 +857,9 @@ function AbaConfig({ inicial }: { inicial: ConfigDaArea }) {
   const salvar = useMutation({
     mutationFn: () =>
       apiClient.put("/api/v1/area/config", {
+        // O PUT grava a área INTEIRA: o que esta tela não edita (os quizzes da página, por exemplo) vai de volta
+        // como veio. Sem isto, salvar aqui apagava `sinastria_quiz`, `quiz_prosperidade` e `quiz_caminhos`.
+        ...inicial,
         ativo,
         carta_do_dia: cartaDoDia,
         presente: { ativo: presenteAtivo, preco_cents: centavos(presentePreco, 1700) },
@@ -884,10 +888,12 @@ function AbaConfig({ inicial }: { inicial: ConfigDaArea }) {
           nome: circuloNome.trim() || "Círculo",
           preco_cents: Math.round(Number(circuloPreco.replace(/\./g, "").replace(",", ".")) * 100) || 2900,
         },
-        ...(titulo.trim() ? { titulo: titulo.trim() } : {}),
-        ...(boasVindas.trim() ? { boas_vindas: boasVindas.trim() } : {}),
-        ...(whatsapp.replace(/\D/g, "") ? { whatsapp: whatsapp.replace(/\D/g, "") } : {}),
-        ...(cor.trim() ? { cor: cor.trim() } : {}),
+        // Campo vazio = sem o campo (`undefined` some do JSON), e não o valor que estava salvo.
+        titulo: titulo.trim() || undefined,
+        boas_vindas: boasVindas.trim() || undefined,
+        whatsapp: whatsapp.replace(/\D/g, "") || undefined,
+        cor: cor.trim() || undefined,
+        apelido: apelido.trim().toLowerCase() || undefined,
       }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["area"] });
@@ -908,6 +914,22 @@ function AbaConfig({ inicial }: { inicial: ConfigDaArea }) {
       <div>
         <Label htmlFor="area-titulo">{t("Título")}</Label>
         <Input id="area-titulo" value={titulo} maxLength={60} placeholder={t("Vazio = o nome da empresa")} onChange={(e) => setTitulo(e.target.value)} />
+      </div>
+      <div>
+        <Label htmlFor="area-apelido">{t("Endereço público")}</Label>
+        <div className="flex items-center gap-1">
+          <span className="font-mono text-sm text-muted-foreground">/c/</span>
+          <Input
+            id="area-apelido"
+            value={apelido}
+            maxLength={63}
+            placeholder={t("ex.: cigana-esmeralda")}
+            onChange={(e) => setApelido(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
+          />
+        </div>
+        <p className="mt-1 text-xs text-muted-foreground">
+          {t("O nome que vai nos anúncios e nos links novos. O endereço antigo continua funcionando para quem já recebeu.")}
+        </p>
       </div>
       <div>
         <Label htmlFor="area-boas-vindas">{t("Frase de boas-vindas")}</Label>

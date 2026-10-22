@@ -13,10 +13,11 @@ import type { NextRequest } from "next/server";
 import { z } from "zod";
 
 import { ok, fail } from "@/lib/api/wrappers";
+import { lerConfigDaArea } from "@/lib/area-do-cliente/config";
 import { registrarEvento } from "@/lib/area-do-cliente/eventos";
 import { origemPublica } from "@/lib/area-do-cliente/http";
 import { gerarToken, hashDoToken } from "@/lib/area-do-cliente/token";
-import { VALIDADE_DO_CONVITE_DIAS, caminhoDaArea } from "@/lib/area-do-cliente/vocabulario";
+import { VALIDADE_DO_CONVITE_DIAS, caminhoPublicoDaArea } from "@/lib/area-do-cliente/vocabulario";
 import { audit } from "@/lib/audit";
 import { requireRole } from "@/lib/auth/require-role";
 import { rotuloDoContato } from "@/lib/contacts/rotulo-do-contato";
@@ -54,13 +55,14 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (ids.length === 0) return ok({ links: [] }, { requestId });
 
   const [{ data: orgRow }, { data: contatos }] = await Promise.all([
-    supabase.from("organizations").select("slug").eq("id", org).maybeSingle(),
+    supabase.from("organizations").select("slug, settings").eq("id", org).maybeSingle(),
     supabase.from("contacts").select("id, name, display_name, phone_number").eq("organization_id", org).in("id", ids),
   ]);
   const slug = (orgRow as { slug: string } | null)?.slug;
   if (!slug) return fail("not_found", "Organização não encontrada.", 404, { requestId });
 
-  const base = `${origemPublica(req)}${caminhoDaArea(slug)}/entrar/`;
+  const apelido = lerConfigDaArea((orgRow as { settings?: unknown } | null)?.settings).apelido;
+  const base = `${origemPublica(req)}${caminhoPublicoDaArea(slug, apelido)}/entrar/`;
   const expira = new Date(Date.now() + VALIDADE_DO_CONVITE_DIAS * 86_400_000).toISOString();
   const admin = createAdminClient();
   const linhas = ((contatos ?? []) as Array<{ id: string; name: string | null; display_name: string | null; phone_number: string | null }>).map(
