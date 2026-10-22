@@ -11,6 +11,8 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { nomeDoContato } from "@/lib/contacts/rotulo-do-contato";
+
 import type { PassoDoQuiz, QuizDaPagina } from "./passos-do-quiz";
 
 const JANELA_AO_VIVO_MS = 60_000;
@@ -71,7 +73,7 @@ async function pessoas(db: SupabaseClient, orgId: string, ids: string[]): Promis
   return new Map(
     ((data ?? []) as Array<{ id: string; name: string | null; display_name: string | null; email: string | null }>).map((c) => [
       c.id,
-      { nome: c.display_name || c.name, email: c.email },
+      { nome: nomeDoContato(c), email: c.email },
     ]),
   );
 }

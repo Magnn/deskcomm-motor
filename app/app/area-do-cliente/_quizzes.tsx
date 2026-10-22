@@ -12,6 +12,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useTagDeIdioma } from "@/hooks/i18n/useLocaleDeData";
 import { useT } from "@/hooks/i18n/useT";
 import { apiClient } from "@/lib/api/client";
 import type { AoVivoDosQuizzes } from "@/lib/area-do-cliente/ao-vivo-dos-quizzes";
@@ -166,6 +167,7 @@ function PainelAoVivo(props: {
   nomeDoPasso: Record<PassoDoQuiz, string>;
 }) {
   const t = useT();
+  const tag = useTagDeIdioma();
   const { v, nomeDoQuiz, nomeDoPasso } = props;
   if (props.carregando) return <Skeleton className="h-40 w-full" />;
   if (props.erro || !v) return <Card className="p-4 text-sm text-error-fg">{t("Erro ao carregar o painel ao vivo.")}</Card>;
@@ -289,7 +291,7 @@ function PainelAoVivo(props: {
                     <td className="py-1.5 pr-3">{x.regiao ?? "—"}</td>
                     <td className="py-1.5 pr-3 font-mono text-xs">{x.campanha ?? "—"}</td>
                     <td className="py-1.5 tabular-nums">
-                      {new Date(x.vistoEm).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                      {new Date(x.vistoEm).toLocaleString(tag, { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
                     </td>
                   </tr>
                 ))}
