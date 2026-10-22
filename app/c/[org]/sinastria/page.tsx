@@ -54,6 +54,7 @@ export default async function PaginaDoQuiz({ params }: Props) {
         slug={org.slug}
         cor={cor}
         precoCents={oferta.preco_cents}
+        precosInternacionais={oferta.precos_internacionais ?? []}
         pixelId={oferta.pixel_id ?? null}
         perguntas={PERGUNTAS_DO_QUIZ.map((p) => ({ id: p.id, texto: p.texto, opcoes: [...p.opcoes] }))}
         tx={tx}

@@ -47,7 +47,9 @@ export default async function PaginaDoQuizDePessoa({ params }: Props) {
         <h1 className={`${SERIF} mx-auto mt-3 max-w-xl text-4xl leading-tight text-[#f6e3a8]`}>{tx.titulo}</h1>
         <p className="mx-auto mt-3 max-w-md text-[15px] leading-relaxed text-[#c3bad3]">{tx.chamada}</p>
       </section>
-      <QuizDePessoa slug={org.slug} tipo={tipo} cor={cor} precoCents={oferta.preco_cents} pixelId={oferta.pixel_id ?? null} perguntas={perguntas} tx={tx} />
+      <QuizDePessoa slug={org.slug} tipo={tipo} cor={cor} precoCents={oferta.preco_cents}
+        precosInternacionais={oferta.precos_internacionais ?? []}
+        pixelId={oferta.pixel_id ?? null} perguntas={perguntas} tx={tx} />
       <footer className="px-5 pb-10 text-center text-xs leading-relaxed text-[#9d94b2]">{tx.rodape}</footer>
     </main>
   );

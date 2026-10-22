@@ -8,6 +8,7 @@
 import Script from "next/script";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { moedaDaOferta, precoDaOferta, valorNaMoedaDaPagina, type MoedaDaPagina } from "@/lib/area-do-cliente/moeda-do-visitante";
 import { copyToClipboard } from "@/lib/clipboard";
 
 import { CARTAO, SERIF, SOBRETITULO } from "../_tema";
@@ -38,7 +39,6 @@ declare global {
   }
 }
 
-const reais = (cents: number) => `R$ ${(cents / 100).toFixed(2).replace(".", ",")}`;
 const CHAVE = (slug: string) => `quiz-sinastria:${slug}`;
 
 /** "07/02/1984" → "1984-02-07". `null` quando não é uma data. */
@@ -65,8 +65,17 @@ function pixel(evento: string, dados?: Record<string, unknown>, id?: string) {
   }
 }
 
-export function QuizDaSinastria(props: { slug: string; cor: string; precoCents: number; pixelId: string | null; perguntas: Pergunta[]; tx: TextosDoQuiz }) {
-  const { slug, cor, precoCents, pixelId, perguntas, tx } = props;
+export function QuizDaSinastria(props: {
+  slug: string;
+  cor: string;
+  precoCents: number;
+  /** Preço para quem abre a página fora do Brasil; a moeda vem do fuso do aparelho. */
+  precosInternacionais: { currency: "EUR" | "USD"; price_cents: number }[];
+  pixelId: string | null;
+  perguntas: Pergunta[];
+  tx: TextosDoQuiz;
+}) {
+  const { slug, cor, precoCents, precosInternacionais, pixelId, perguntas, tx } = props;
   const [fase, setFase] = useState<Fase>("dados");
   const [nomeDela, setNomeDela] = useState("");
   const [dataDela, setDataDela] = useState("");
@@ -84,6 +93,18 @@ export function QuizDaSinastria(props: { slug: string; cor: string; precoCents: 
   const [copiado, setCopiado] = useState(false);
   const gerandoRef = useRef(false);
   const compraMarcada = useRef(false);
+  // Reais até o navegador dizer o fuso: o servidor renderiza em reais, e a troca acontece só no aparelho.
+  const [moeda, setMoeda] = useState<MoedaDaPagina>("BRL");
+  useEffect(() => {
+    let fuso: string | null = null;
+    try {
+      fuso = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    } catch {
+      /* sem fuso: reais */
+    }
+    setMoeda(moedaDaOferta({ preco_cents: precoCents, precos_internacionais: precosInternacionais }, fuso));
+  }, [precoCents, precosInternacionais]);
+  const preco = precoDaOferta({ preco_cents: precoCents, precos_internacionais: precosInternacionais }, moeda) ?? precoCents;
 
   // Quem volta para a página continua de onde parou.
   useEffect(() => {
@@ -125,7 +146,7 @@ export function QuizDaSinastria(props: { slug: string; cor: string; precoCents: 
     if (data.pago) {
       if (!compraMarcada.current) {
         compraMarcada.current = true;
-        pixel("Purchase", { value: precoCents / 100, currency: "BRL", content_name: "O Código da Conexão" }, `sinastria-${pedido.id}`);
+        pixel("Purchase", { value: preco / 100, currency: moeda, content_name: "O Código da Conexão" }, `sinastria-${pedido.id}`);
       }
       setFase("gerando");
       if (gerandoRef.current) return;
@@ -138,7 +159,7 @@ export function QuizDaSinastria(props: { slug: string; cor: string; precoCents: 
         setFase("pronto");
       }
     }
-  }, [pedido, slug, precoCents]);
+  }, [pedido, slug, preco, moeda]);
 
   // Enquanto espera o pagamento (ou a escrita), pergunta a cada 4 s.
   useEffect(() => {
@@ -168,6 +189,7 @@ export function QuizDaSinastria(props: { slug: string; cor: string; precoCents: 
           email: email.trim(),
           respostas,
           forma,
+          moeda,
         }),
       });
       const corpo = (await r.json().catch(() => null)) as
@@ -187,7 +209,7 @@ export function QuizDaSinastria(props: { slug: string; cor: string; precoCents: 
       setPrevia(corpo.data.previa);
       setCobranca(corpo.data.cobranca);
       setFase("pagar");
-      pixel("InitiateCheckout", { value: precoCents / 100, currency: "BRL" }, `checkout-${p.id}`);
+      pixel("InitiateCheckout", { value: preco / 100, currency: moeda }, `checkout-${p.id}`);
       if (corpo.data.cobranca.forma === "cartao") window.open(corpo.data.cobranca.url, "_blank", "noopener");
     } catch {
       setErro(tx.semConexao);
@@ -280,16 +302,25 @@ export function QuizDaSinastria(props: { slug: string; cor: string; precoCents: 
               <li>• {tx.item4}</li>
               <li>• {tx.item5}</li>
             </ul>
-            <p className="mt-4 text-3xl font-semibold text-[#f6e3a8]">{reais(precoCents)}</p>
+            <p className="mt-4 text-3xl font-semibold text-[#f6e3a8]">{valorNaMoedaDaPagina(preco, moeda)}</p>
             <p className="text-xs text-[#9d94b2]">{tx.pagamentoUnico}</p>
             {erro && <p className="mt-3 text-sm text-[#f3a3c0]">{erro}</p>}
-            <button className={`${botao} mt-5`} style={{ background: cor }} disabled={enviando} onClick={() => void pagar("pix")}>
-              {enviando ? tx.gerando : tx.pagarPix}
-            </button>
-            <button className="mt-3 w-full text-sm text-[#e2c47a] underline disabled:opacity-50" disabled={enviando} onClick={() => void pagar("cartao")}>
-              {tx.prefiroCartao}
-            </button>
-            <p className="mt-3 text-center text-[11px] text-[#9d94b2]">{tx.noBanco}</p>
+            {moeda === "BRL" ? (
+              <>
+                <button className={`${botao} mt-5`} style={{ background: cor }} disabled={enviando} onClick={() => void pagar("pix")}>
+                  {enviando ? tx.gerando : tx.pagarPix}
+                </button>
+                <button className="mt-3 w-full text-sm text-[#e2c47a] underline disabled:opacity-50" disabled={enviando} onClick={() => void pagar("cartao")}>
+                  {tx.prefiroCartao}
+                </button>
+                <p className="mt-3 text-center text-[11px] text-[#9d94b2]">{tx.noBanco}</p>
+              </>
+            ) : (
+              // Fora do Brasil não há Pix: o cartão é o caminho, na moeda da pessoa.
+              <button className={`${botao} mt-5`} style={{ background: cor }} disabled={enviando} onClick={() => void pagar("cartao")}>
+                {enviando ? tx.gerando : tx.pagarCartao}
+              </button>
+            )}
           </div>
         </PreviaLocal>
       )}
@@ -303,7 +334,7 @@ export function QuizDaSinastria(props: { slug: string; cor: string; precoCents: 
               <ol className="mt-3 list-decimal space-y-1 pl-5 text-[15px] text-[#c3bad3]">
                 <li>{tx.pixPasso1}</li>
                 <li>{tx.pixPasso2}</li>
-                <li>{tx.pixPasso3} ({reais(precoCents)})</li>
+                <li>{tx.pixPasso3} ({valorNaMoedaDaPagina(preco, moeda)})</li>
               </ol>
               {cobranca.qrPng ? (
                 // eslint-disable-next-line @next/next/no-img-element -- QR em data URI, gerado na hora

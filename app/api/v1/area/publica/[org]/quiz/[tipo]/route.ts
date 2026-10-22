@@ -11,6 +11,7 @@ import { registrarEvento } from "@/lib/area-do-cliente/eventos";
 import { NAO_ENCONTRADA, contextoDaArea, dentroDoLimite } from "@/lib/area-do-cliente/http";
 import { EXTRA_DO_QUIZ, TIPOS_DE_QUIZ, pedidoDeQuizSchema, previaDoQuiz, type TipoDeQuiz } from "@/lib/area-do-cliente/quizzes";
 import { gerarToken, hashDoToken } from "@/lib/area-do-cliente/token";
+import { precoDaOferta } from "@/lib/area-do-cliente/moeda-do-visitante";
 import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
@@ -39,6 +40,10 @@ export async function POST(req: NextRequest, { params }: Ctx): Promise<Response>
   if (!lido.success) return ERRO(422, "validation_failed", "Confira o nome, a data e o e-mail.");
   const p = lido.data;
   if (tipo === "prosperidade" && !p.nascimento) return ERRO(422, "validation_failed", "Confira a data de nascimento.");
+  // O valor sai da oferta, nunca do navegador; moeda sem preço configurado é recusada, e Pix é só em reais.
+  const valor = precoDaOferta(oferta, p.moeda);
+  if (valor === null) return ERRO(422, "validation_failed", "Esta leitura não é vendida nesta moeda.");
+  if (p.moeda !== "BRL" && p.forma === "pix") return ERRO(422, "validation_failed", "Fora do Brasil o pagamento é no cartão.");
   const previa = previaDoQuiz(tipo, { nascimento: p.nascimento ?? null, respostas: p.respostas });
   if (!previa) return ERRO(422, "validation_failed", "Confira as respostas.");
 
@@ -81,6 +86,8 @@ export async function POST(req: NextRequest, { params }: Ctx): Promise<Response>
       nascimento: p.nascimento ?? null,
       respostas: p.respostas,
       segredo_hash: hashDoToken(segredo),
+      // Preço de tabela em reais. A cobrança em euro ou dólar leva a moeda nos metadados, e a receita entra
+      // em reais pelo valor que a Stripe converteu (aviso da Stripe).
       preco_cents: oferta.preco_cents,
     })
     .select("id")
@@ -96,15 +103,16 @@ export async function POST(req: NextRequest, { params }: Ctx): Promise<Response>
       organizationId: org.id,
       contactId,
       forma: p.forma,
-      valorCentavos: oferta.preco_cents,
+      valorCentavos: valor,
+      moeda: p.moeda,
       descricao: PRODUTO[tipo],
       produto: PRODUTO[tipo],
       extra: EXTRA_DO_QUIZ(tipo),
       referencia: `quiz-${pedidoId}`,
-      metadados: { quiz_id: pedidoId },
+      metadados: { quiz_id: pedidoId, moeda: p.moeda },
       mensagemDepoisDePagar: "Pagamento confirmado. Volte para a página: a sua leitura já está sendo escrita.",
     });
-    await registrarEvento(admin, { organizationId: org.id, contactId, tipo: "quiz_checkout", props: { quiz: tipo, forma: p.forma } });
+    await registrarEvento(admin, { organizationId: org.id, contactId, tipo: "quiz_checkout", props: { quiz: tipo, forma: p.forma, moeda: p.moeda } });
     return NextResponse.json({ data: { id: pedidoId, segredo, cobranca, previa } }, { headers: { "Cache-Control": "no-store" } });
   } catch (err) {
     if (err instanceof SemPagamento) return ERRO(503, "sem_pagamento", "O pagamento não está disponível agora.");

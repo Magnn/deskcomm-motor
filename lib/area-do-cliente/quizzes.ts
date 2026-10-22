@@ -98,6 +98,8 @@ export const pedidoDeQuizSchema = z.strictObject({
   email: z.string().trim().toLowerCase().email().max(200),
   respostas: z.record(z.string().max(20), z.string().max(80)).default({}),
   forma: z.enum(["pix", "cartao"]),
+  /** A moeda que a página propôs pelo fuso; o valor sai da oferta, no servidor (`moeda-do-visitante.ts`). */
+  moeda: z.enum(["BRL", "EUR", "USD"]).default("BRL"),
 });
 export type PedidoDeQuiz = z.infer<typeof pedidoDeQuizSchema>;
 

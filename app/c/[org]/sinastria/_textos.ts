@@ -29,6 +29,7 @@ export function textosDoQuiz(t: (texto: string) => string) {
     item5: t("Uma prática para os próximos dias"),
     pagamentoUnico: t("Pagamento único. Você lê aqui mesmo, logo depois de pagar."),
     pagarPix: t("Pagar com Pix"),
+    pagarCartao: t("Pagar com cartão"),
     gerando: t("Gerando…"),
     prefiroCartao: t("Prefiro pagar com cartão"),
     noBanco: t("No banco aparece Stripe Brasil, a empresa de pagamentos."),

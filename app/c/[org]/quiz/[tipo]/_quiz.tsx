@@ -8,6 +8,7 @@
 import Script from "next/script";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { moedaDaOferta, precoDaOferta, valorNaMoedaDaPagina, type MoedaDaPagina } from "@/lib/area-do-cliente/moeda-do-visitante";
 import { copyToClipboard } from "@/lib/clipboard";
 
 import { CARTAO, SERIF, SOBRETITULO } from "../../_tema";
@@ -34,7 +35,6 @@ declare global {
   }
 }
 
-const reais = (cents: number) => `R$ ${(cents / 100).toFixed(2).replace(".", ",")}`;
 
 function isoDaData(texto: string): string | null {
   const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(texto.trim());
@@ -64,11 +64,13 @@ export function QuizDePessoa(props: {
   tipo: "prosperidade" | "caminhos";
   cor: string;
   precoCents: number;
+  /** Preço para quem abre a página fora do Brasil; a moeda vem do fuso do aparelho. */
+  precosInternacionais: { currency: "EUR" | "USD"; price_cents: number }[];
   pixelId: string | null;
   perguntas: Pergunta[];
   tx: TextosDoQuizDePessoa;
 }) {
-  const { slug, tipo, cor, precoCents, pixelId, perguntas, tx } = props;
+  const { slug, tipo, cor, precoCents, precosInternacionais, pixelId, perguntas, tx } = props;
   const chave = `quiz-${tipo}:${slug}`;
   const base = `/api/v1/area/publica/${slug}/quiz/${tipo}`;
   const [fase, setFase] = useState<Fase>("dados");
@@ -86,6 +88,18 @@ export function QuizDePessoa(props: {
   const [copiado, setCopiado] = useState(false);
   const gerandoRef = useRef(false);
   const compraMarcada = useRef(false);
+  // Reais até o navegador dizer o fuso: o servidor renderiza em reais, e a troca acontece só no aparelho.
+  const [moeda, setMoeda] = useState<MoedaDaPagina>("BRL");
+  useEffect(() => {
+    let fuso: string | null = null;
+    try {
+      fuso = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    } catch {
+      /* sem fuso: reais */
+    }
+    setMoeda(moedaDaOferta({ preco_cents: precoCents, precos_internacionais: precosInternacionais }, fuso));
+  }, [precoCents, precosInternacionais]);
+  const preco = precoDaOferta({ preco_cents: precoCents, precos_internacionais: precosInternacionais }, moeda) ?? precoCents;
 
   useEffect(() => {
     try {
@@ -126,7 +140,7 @@ export function QuizDePessoa(props: {
     if (d.pago) {
       if (!compraMarcada.current) {
         compraMarcada.current = true;
-        pixel("Purchase", { value: precoCents / 100, currency: "BRL", content_name: tx.produto }, `quiz-${pedido.id}`);
+        pixel("Purchase", { value: preco / 100, currency: moeda, content_name: tx.produto }, `quiz-${pedido.id}`);
       }
       setFase("gerando");
       if (gerandoRef.current) return;
@@ -139,7 +153,7 @@ export function QuizDePessoa(props: {
         setFase("pronto");
       }
     }
-  }, [pedido, base, chave, precoCents, tx.produto]);
+  }, [pedido, base, chave, preco, moeda, tx.produto]);
 
   useEffect(() => {
     if (!pedido || (fase !== "pagar" && fase !== "gerando")) return;
@@ -163,6 +177,7 @@ export function QuizDePessoa(props: {
           email: email.trim(),
           respostas,
           forma,
+          moeda,
         }),
       });
       const corpo = (await r.json().catch(() => null)) as
@@ -182,7 +197,7 @@ export function QuizDePessoa(props: {
       setPrevia(corpo.data.previa);
       setCobranca(corpo.data.cobranca);
       setFase("pagar");
-      pixel("InitiateCheckout", { value: precoCents / 100, currency: "BRL" }, `checkout-${p.id}`);
+      pixel("InitiateCheckout", { value: preco / 100, currency: moeda }, `checkout-${p.id}`);
       if (corpo.data.cobranca.forma === "cartao") window.open(corpo.data.cobranca.url, "_blank", "noopener");
     } catch {
       setErro(tx.semConexao);
@@ -283,16 +298,25 @@ export function QuizDePessoa(props: {
                 <li key={i}>• {i}</li>
               ))}
             </ul>
-            <p className="mt-4 text-3xl font-semibold text-[#f6e3a8]">{reais(precoCents)}</p>
+            <p className="mt-4 text-3xl font-semibold text-[#f6e3a8]">{valorNaMoedaDaPagina(preco, moeda)}</p>
             <p className="text-xs text-[#9d94b2]">{tx.pagamentoUnico}</p>
             {erro && <p className="mt-3 text-sm text-[#f3a3c0]">{erro}</p>}
-            <button className={`${botao} mt-5`} style={{ background: cor }} disabled={enviando} onClick={() => void pagar("pix")}>
-              {enviando ? tx.gerando : tx.pagarPix}
-            </button>
-            <button className="mt-3 w-full text-sm text-[#e2c47a] underline disabled:opacity-50" disabled={enviando} onClick={() => void pagar("cartao")}>
-              {tx.prefiroCartao}
-            </button>
-            <p className="mt-3 text-center text-[11px] text-[#9d94b2]">{tx.noBanco}</p>
+            {moeda === "BRL" ? (
+              <>
+                <button className={`${botao} mt-5`} style={{ background: cor }} disabled={enviando} onClick={() => void pagar("pix")}>
+                  {enviando ? tx.gerando : tx.pagarPix}
+                </button>
+                <button className="mt-3 w-full text-sm text-[#e2c47a] underline disabled:opacity-50" disabled={enviando} onClick={() => void pagar("cartao")}>
+                  {tx.prefiroCartao}
+                </button>
+                <p className="mt-3 text-center text-[11px] text-[#9d94b2]">{tx.noBanco}</p>
+              </>
+            ) : (
+              // Fora do Brasil não há Pix: o cartão é o caminho, na moeda da pessoa.
+              <button className={`${botao} mt-5`} style={{ background: cor }} disabled={enviando} onClick={() => void pagar("cartao")}>
+                {enviando ? tx.gerando : tx.pagarCartao}
+              </button>
+            )}
           </div>
         </>
       )}
@@ -307,7 +331,7 @@ export function QuizDePessoa(props: {
                 <li>{tx.pixPasso1}</li>
                 <li>{tx.pixPasso2}</li>
                 <li>
-                  {tx.pixPasso3} ({reais(precoCents)})
+                  {tx.pixPasso3} ({valorNaMoedaDaPagina(preco, moeda)})
                 </li>
               </ol>
               {cobranca.qrPng ? (
