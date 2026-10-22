@@ -16,6 +16,7 @@ import { registrarEvento } from "@/lib/area-do-cliente/eventos";
 import { NAO_ENCONTRADA, contextoDaArea, dentroDoLimite } from "@/lib/area-do-cliente/http";
 import { EXTRA_DA_SINASTRIA, pedidoDoQuizSchema, previaDaSinastria } from "@/lib/area-do-cliente/sinastria";
 import { gerarToken, hashDoToken } from "@/lib/area-do-cliente/token";
+import { ligarVisitaAoContato } from "@/lib/area-do-cliente/funil-dos-quizzes";
 import { precoDaOferta } from "@/lib/area-do-cliente/moeda-do-visitante";
 import { logger } from "@/lib/logger";
 
@@ -72,6 +73,8 @@ export async function POST(req: NextRequest, { params }: Ctx): Promise<Response>
     }
     contactId = (novo as { id: string }).id;
   }
+
+  await ligarVisitaAoContato(admin, { organizationId: org.id, visita: p.visita, quiz: "sinastria", contactId });
 
   const segredo = gerarToken();
   const { data: pedido, error: erroDoPedido } = await admin

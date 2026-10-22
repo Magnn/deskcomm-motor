@@ -11,6 +11,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { moedaDaOferta, precoDaOferta, valorNaMoedaDaPagina, type MoedaDaPagina } from "@/lib/area-do-cliente/moeda-do-visitante";
 import { copyToClipboard } from "@/lib/clipboard";
 
+import { idDaVisita, manterVivo, marcarPasso } from "../_passos";
+
 import { CARTAO, SERIF, SOBRETITULO } from "../_tema";
 import type { TextosDoQuiz } from "./_textos";
 
@@ -95,6 +97,7 @@ export function QuizDaSinastria(props: {
   const compraMarcada = useRef(false);
   // Reais até o navegador dizer o fuso: o servidor renderiza em reais, e a troca acontece só no aparelho.
   const [moeda, setMoeda] = useState<MoedaDaPagina>("BRL");
+  const [moedaLida, setMoedaLida] = useState(false);
   useEffect(() => {
     let fuso: string | null = null;
     try {
@@ -103,8 +106,27 @@ export function QuizDaSinastria(props: {
       /* sem fuso: reais */
     }
     setMoeda(moedaDaOferta({ preco_cents: precoCents, precos_internacionais: precosInternacionais }, fuso));
+    setMoedaLida(true);
   }, [precoCents, precosInternacionais]);
   const preco = precoDaOferta({ preco_cents: precoCents, precos_internacionais: precosInternacionais }, moeda) ?? precoCents;
+  const QUIZ = "sinastria" as const;
+  const TEM_PERGUNTAS = true;
+
+  // O "ao vivo" (0944): enquanto a aba está visível, a visita segue aparecendo no painel.
+  useEffect(() => manterVivo(slug, "sinastria"), [slug]);
+  // O funil no nosso banco (0944): cada tela a que a pessoa chega vira um passo.
+  useEffect(() => {
+    if (!moedaLida) return;
+    if (fase === "dados") marcarPasso(slug, QUIZ, "abriu", moeda);
+    if (fase === "perguntas") marcarPasso(slug, QUIZ, "dados", moeda);
+    if (fase === "email") {
+      marcarPasso(slug, QUIZ, "dados", moeda);
+      if (TEM_PERGUNTAS) marcarPasso(slug, QUIZ, "perguntas", moeda);
+      marcarPasso(slug, QUIZ, "email", moeda);
+    }
+    if (fase === "previa") marcarPasso(slug, QUIZ, "previa", moeda);
+    if (fase === "pronto") marcarPasso(slug, QUIZ, "leitura", moeda);
+  }, [fase, slug, moeda, moedaLida]);
 
   // Quem volta para a página continua de onde parou.
   useEffect(() => {
@@ -147,6 +169,7 @@ export function QuizDaSinastria(props: {
       if (!compraMarcada.current) {
         compraMarcada.current = true;
         pixel("Purchase", { value: preco / 100, currency: moeda, content_name: "O Código da Conexão" }, `sinastria-${pedido.id}`);
+        marcarPasso(slug, "sinastria", "pago", moeda);
       }
       setFase("gerando");
       if (gerandoRef.current) return;
@@ -175,6 +198,7 @@ export function QuizDaSinastria(props: {
   );
 
   async function pagar(forma: "pix" | "cartao") {
+    marcarPasso(slug, "sinastria", "pagar", moeda);
     setErro(null);
     setEnviando(true);
     try {
@@ -190,6 +214,7 @@ export function QuizDaSinastria(props: {
           respostas,
           forma,
           moeda,
+          visita: idDaVisita(slug, "sinastria"),
         }),
       });
       const corpo = (await r.json().catch(() => null)) as
@@ -210,6 +235,7 @@ export function QuizDaSinastria(props: {
       setCobranca(corpo.data.cobranca);
       setFase("pagar");
       pixel("InitiateCheckout", { value: preco / 100, currency: moeda }, `checkout-${p.id}`);
+      marcarPasso(slug, "sinastria", "cobranca", moeda);
       if (corpo.data.cobranca.forma === "cartao") window.open(corpo.data.cobranca.url, "_blank", "noopener");
     } catch {
       setErro(tx.semConexao);

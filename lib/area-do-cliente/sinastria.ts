@@ -88,6 +88,8 @@ export const pedidoDoQuizSchema = z.strictObject({
   forma: z.enum(["pix", "cartao"]),
   /** A moeda que a página propôs pelo fuso; o valor sai da oferta, no servidor (`moeda-do-visitante.ts`). */
   moeda: z.enum(["BRL", "EUR", "USD"]).default("BRL"),
+  /** A visita anônima do funil (0944): liga a visita ao contato no painel ao vivo. */
+  visita: z.string().uuid().optional(),
 });
 export type PedidoDoQuiz = z.infer<typeof pedidoDoQuizSchema>;
 

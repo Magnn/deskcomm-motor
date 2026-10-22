@@ -49,6 +49,31 @@ const PARES: Array<{
   simbolo: string;
 }> = [
   {
+    tabela: "area_quiz_passos",
+    coluna: "passo",
+    // O funil dos quizzes da página (0944): passo novo só num lado seria passo que a tela não mostra ou o banco recusa.
+    arquivo: "lib/area-do-cliente/passos-do-quiz.ts",
+    simbolo: "PASSOS_DO_QUIZ",
+  },
+  {
+    tabela: "area_quiz_visitas",
+    coluna: "passo",
+    arquivo: "lib/area-do-cliente/passos-do-quiz.ts",
+    simbolo: "PASSOS_DO_QUIZ",
+  },
+  {
+    tabela: "area_quiz_visitas",
+    coluna: "quiz",
+    arquivo: "lib/area-do-cliente/passos-do-quiz.ts",
+    simbolo: "QUIZZES_DA_PAGINA",
+  },
+  {
+    tabela: "area_quiz_passos",
+    coluna: "quiz",
+    arquivo: "lib/area-do-cliente/passos-do-quiz.ts",
+    simbolo: "QUIZZES_DA_PAGINA",
+  },
+  {
     tabela: "area_eventos",
     coluna: "tipo",
     // O rastro da área do cliente (0928): tipo novo só no banco seria evento que o painel não conta.

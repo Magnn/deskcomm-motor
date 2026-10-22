@@ -28,6 +28,7 @@ import { MAXIMO_DE_ETAPAS } from "@/lib/area-do-cliente/etapas";
 import type { Painel } from "@/lib/area-do-cliente/metricas";
 import { Copy, PencilSimple, Plus, Trash, WhatsappLogo } from "@/lib/ui/icons";
 
+import { AbaQuizzes } from "./_quizzes";
 import { AbaSimpatias, useFilaDeSimpatias } from "./_simpatias";
 
 interface Servico {
@@ -116,6 +117,7 @@ export function PainelDaAreaDoCliente() {
       <Tabs defaultValue="painel">
         <TabsList>
           <TabsTrigger value="painel">{t("Painel")}</TabsTrigger>
+          <TabsTrigger value="quizzes">{t("Quizzes")}</TabsTrigger>
           <TabsTrigger value="servicos">{t("Serviços")}</TabsTrigger>
           <TabsTrigger value="mensagens">
             {t("Mensagens")}
@@ -140,6 +142,9 @@ export function PainelDaAreaDoCliente() {
         </TabsList>
         <TabsContent value="painel">
           <AbaPainel />
+        </TabsContent>
+        <TabsContent value="quizzes">
+          <AbaQuizzes />
         </TabsContent>
         <TabsContent value="servicos">
           <AbaServicos />

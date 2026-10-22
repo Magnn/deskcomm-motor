@@ -11,6 +11,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { moedaDaOferta, precoDaOferta, valorNaMoedaDaPagina, type MoedaDaPagina } from "@/lib/area-do-cliente/moeda-do-visitante";
 import { copyToClipboard } from "@/lib/clipboard";
 
+import { idDaVisita, manterVivo, marcarPasso } from "../../_passos";
+
 import { CARTAO, SERIF, SOBRETITULO } from "../../_tema";
 import type { TextosDoQuizDePessoa } from "./_textos";
 
@@ -90,6 +92,7 @@ export function QuizDePessoa(props: {
   const compraMarcada = useRef(false);
   // Reais até o navegador dizer o fuso: o servidor renderiza em reais, e a troca acontece só no aparelho.
   const [moeda, setMoeda] = useState<MoedaDaPagina>("BRL");
+  const [moedaLida, setMoedaLida] = useState(false);
   useEffect(() => {
     let fuso: string | null = null;
     try {
@@ -98,8 +101,27 @@ export function QuizDePessoa(props: {
       /* sem fuso: reais */
     }
     setMoeda(moedaDaOferta({ preco_cents: precoCents, precos_internacionais: precosInternacionais }, fuso));
+    setMoedaLida(true);
   }, [precoCents, precosInternacionais]);
   const preco = precoDaOferta({ preco_cents: precoCents, precos_internacionais: precosInternacionais }, moeda) ?? precoCents;
+  const QUIZ = tipo;
+  const TEM_PERGUNTAS = perguntas.length > 0;
+
+  // O "ao vivo" (0944): enquanto a aba está visível, a visita segue aparecendo no painel.
+  useEffect(() => manterVivo(slug, tipo), [slug, tipo]);
+  // O funil no nosso banco (0944): cada tela a que a pessoa chega vira um passo.
+  useEffect(() => {
+    if (!moedaLida) return;
+    if (fase === "dados") marcarPasso(slug, QUIZ, "abriu", moeda);
+    if (fase === "perguntas") marcarPasso(slug, QUIZ, "dados", moeda);
+    if (fase === "email") {
+      marcarPasso(slug, QUIZ, "dados", moeda);
+      if (TEM_PERGUNTAS) marcarPasso(slug, QUIZ, "perguntas", moeda);
+      marcarPasso(slug, QUIZ, "email", moeda);
+    }
+    if (fase === "previa") marcarPasso(slug, QUIZ, "previa", moeda);
+    if (fase === "pronto") marcarPasso(slug, QUIZ, "leitura", moeda);
+  }, [fase, slug, moeda, moedaLida, QUIZ, TEM_PERGUNTAS]);
 
   useEffect(() => {
     try {
@@ -141,6 +163,7 @@ export function QuizDePessoa(props: {
       if (!compraMarcada.current) {
         compraMarcada.current = true;
         pixel("Purchase", { value: preco / 100, currency: moeda, content_name: tx.produto }, `quiz-${pedido.id}`);
+        marcarPasso(slug, tipo, "pago", moeda);
       }
       setFase("gerando");
       if (gerandoRef.current) return;
@@ -153,7 +176,7 @@ export function QuizDePessoa(props: {
         setFase("pronto");
       }
     }
-  }, [pedido, base, chave, preco, moeda, tx.produto]);
+  }, [pedido, base, chave, preco, moeda, tx.produto, slug, tipo]);
 
   useEffect(() => {
     if (!pedido || (fase !== "pagar" && fase !== "gerando")) return;
@@ -165,6 +188,7 @@ export function QuizDePessoa(props: {
   const dadosOk = nome.trim().length > 0 && (tipo === "caminhos" || isoDaData(data) !== null);
 
   async function pagar(forma: "pix" | "cartao") {
+    marcarPasso(slug, tipo, "pagar", moeda);
     setErro(null);
     setEnviando(true);
     try {
@@ -178,6 +202,7 @@ export function QuizDePessoa(props: {
           respostas,
           forma,
           moeda,
+          visita: idDaVisita(slug, tipo),
         }),
       });
       const corpo = (await r.json().catch(() => null)) as
@@ -198,6 +223,7 @@ export function QuizDePessoa(props: {
       setCobranca(corpo.data.cobranca);
       setFase("pagar");
       pixel("InitiateCheckout", { value: preco / 100, currency: moeda }, `checkout-${p.id}`);
+      marcarPasso(slug, tipo, "cobranca", moeda);
       if (corpo.data.cobranca.forma === "cartao") window.open(corpo.data.cobranca.url, "_blank", "noopener");
     } catch {
       setErro(tx.semConexao);
