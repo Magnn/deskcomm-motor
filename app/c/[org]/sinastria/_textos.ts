@@ -2,8 +2,30 @@
  * Os textos do quiz da sinastria, passados pelo dicionário no servidor (`page.tsx`) e entregues prontos ao
  * navegador (`_quiz.tsx`).
  */
+import { textosDaPaginaFinal } from "../_pagina-final-textos";
+
 export function textosDoQuiz(t: (texto: string) => string) {
   return {
+    final: textosDaPaginaFinal(t, t("O Código da Conexão"), t("A leitura completa de vocês dois")),
+    previaPronta: t("a prévia de vocês está pronta"),
+    calculadaDe: t("Calculada a partir das duas datas de nascimento, agora."),
+    signoDe: t("Signo de"),
+    elementos: t("Elementos"),
+    combinacao: t("A combinação"),
+    parte1: t("A energia de cada um no amor"),
+    parte2: t("O que une vocês"),
+    parte3: t("Onde vocês se desencontram"),
+    parte4: t("O padrão que se repete"),
+    parte5: t("Como conversar com a outra pessoa"),
+    parte6: t("Uma prática para os próximos 7 dias"),
+    ligadoA: t("ligado ao que você contou:"),
+    doJeito: t("do jeito que você sente o carinho:"),
+    paraResponder: t("para responder ao que você quer entender:"),
+    entrega1: [t("Seis partes"), t("escritas para vocês dois, a partir dos dois mapas")] as [string, string],
+    entrega2: [t("O padrão que se repete"), t("entre vocês, e de onde ele vem")] as [string, string],
+    entrega3: [t("Como conversar"), t("do jeito que cada um sente o carinho")] as [string, string],
+    entrega4: [t("Uma prática de 7 dias"), t("para fazer a partir de amanhã")] as [string, string],
+    entrega5: [t("Leitura na hora"), t("aqui mesmo, logo depois de pagar, para reler quando quiser")] as [string, string],
     titulo: t("Vocês combinam?"),
     chamada: t("Seis toques, as duas datas e a prévia calculada na hora: onde os mapas de vocês se encontram e onde se desencontram."),
     tempoDoQuiz: t("Grátis · cerca de 2 minutos · resultado na hora"),
