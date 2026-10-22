@@ -8,7 +8,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { COR_PADRAO_DA_AREA } from "@/lib/area-do-cliente/config";
-import { PERGUNTAS_DOS_CAMINHOS, TIPOS_DE_QUIZ, type TipoDeQuiz } from "@/lib/area-do-cliente/quizzes";
+import { PERGUNTAS_DA_PROSPERIDADE, PERGUNTAS_DOS_CAMINHOS, TIPOS_DE_QUIZ, type TipoDeQuiz } from "@/lib/area-do-cliente/quizzes";
 import { orgDaArea } from "@/lib/area-do-cliente/sessao";
 import { traduzir } from "@/lib/i18n/dicionario";
 import { idiomaDoVisitante } from "@/lib/i18n/idiomaAnonimo";
@@ -38,7 +38,9 @@ export default async function PaginaDoQuizDePessoa({ params }: Props) {
   const idioma = await idiomaDoVisitante(null);
   const tx = textosDoQuizDePessoa((texto) => traduzir(texto, idioma), tipo);
   const perguntas =
-    tipo === "caminhos" ? PERGUNTAS_DOS_CAMINHOS.map((p) => ({ id: p.id, texto: p.texto, opcoes: p.opcoes.map(([o]) => o) })) : [];
+    tipo === "caminhos"
+      ? PERGUNTAS_DOS_CAMINHOS.map((p) => ({ id: p.id, capitulo: p.capitulo, texto: p.texto, opcoes: p.opcoes.map(([o]) => o) }))
+      : PERGUNTAS_DA_PROSPERIDADE.map((p) => ({ id: p.id, capitulo: p.capitulo, texto: p.texto, opcoes: [...p.opcoes] }));
 
   return (
     <main className={`${PAGINA} ${serifDaArea.variable}`}>
@@ -46,6 +48,7 @@ export default async function PaginaDoQuizDePessoa({ params }: Props) {
         <p className={SOBRETITULO_NOTURNO}>{org.config.titulo || org.nome}</p>
         <h1 className={`${SERIF} mx-auto mt-3 max-w-xl text-4xl leading-tight text-[#f6e3a8]`}>{tx.titulo}</h1>
         <p className="mx-auto mt-3 max-w-md text-[15px] leading-relaxed text-[#c3bad3]">{tx.chamada}</p>
+        <p className="mx-auto mt-2 max-w-md text-xs text-[#9d94b2]">{tx.tempoDoQuiz}</p>
       </section>
       <QuizDePessoa slug={org.slug} tipo={tipo} cor={cor} precoCents={oferta.preco_cents}
         precosInternacionais={oferta.precos_internacionais ?? []}

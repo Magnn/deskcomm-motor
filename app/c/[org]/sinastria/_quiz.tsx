@@ -4,20 +4,28 @@
  * O quiz "Vocês combinam?" no navegador: as perguntas, a prévia calculada, o pagamento (Pix na própria página ou
  * cartão pela Stripe) e a leitura, que aparece aqui quando o aviso de pagamento marca o pedido. O pedido e o seu
  * segredo ficam no navegador: quem fecha a página e volta encontra a leitura onde parou.
+ *
+ * O caminho até a prévia (22/10/2026) segue a forma dos quizzes que escalam: começa só com TOQUES (seis perguntas
+ * em três capítulos, com a frase da Cigana entre eles), explica o mecanismo numa tela, e só então pede os nomes e
+ * as duas datas — por toque, sem teclado. A tela de cálculo mostra a conta real (signo e elemento de cada um), e
+ * a prévia repete o que a pessoa contou. Sem timer e sem escassez: o que segura é a prévia ser dela.
  */
 import Script from "next/script";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { moedaDaOferta, precoDaOferta, valorNaMoedaDaPagina, type MoedaDaPagina } from "@/lib/area-do-cliente/moeda-do-visitante";
+import { previaDaSinastria } from "@/lib/area-do-cliente/sinastria";
 import { copyToClipboard } from "@/lib/clipboard";
 
 import { enviarLead, idDaVisita, manterVivo, marcarPasso } from "../_passos";
 
+import { Interludio, Progresso, SeletorDeData, TelaDeCalculo } from "../_quiz-pecas";
 import { CARTAO, SERIF, SOBRETITULO } from "../_tema";
 import type { TextosDoQuiz } from "./_textos";
 
 interface Pergunta {
-  id: "momento" | "aperta" | "deseja";
+  id: string;
+  capitulo: string;
   texto: string;
   opcoes: string[];
 }
@@ -28,12 +36,25 @@ interface Previa {
   elementoDela: string;
   elementoDele: string;
   titulo: string;
+  forte: string;
+  atencao: string;
   texto: string;
 }
 
 type Cobranca = { forma: "pix"; copiaECola: string; qrPng: string | null } | { forma: "cartao"; url: string };
 
-type Fase = "dados" | "perguntas" | "email" | "previa" | "pagar" | "gerando" | "pronto";
+type Fase = "quiz" | "previa" | "pagar" | "gerando" | "pronto";
+
+/** Uma tela do caminho até a prévia, na ordem em que aparece. */
+type Tela =
+  | { tipo: "pergunta"; i: number }
+  | { tipo: "frase"; frase: string }
+  | { tipo: "mecanismo" }
+  | { tipo: "nomes" }
+  | { tipo: "dataDela" }
+  | { tipo: "dataDele" }
+  | { tipo: "calculo" }
+  | { tipo: "email" };
 
 declare global {
   interface Window {
@@ -42,22 +63,6 @@ declare global {
 }
 
 const CHAVE = (slug: string) => `quiz-sinastria:${slug}`;
-
-/** "07/02/1984" → "1984-02-07". `null` quando não é uma data. */
-function isoDaData(texto: string): string | null {
-  const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(texto.trim());
-  if (!m) return null;
-  const [d, mm, a] = [Number(m[1]), Number(m[2]), Number(m[3])];
-  if (mm < 1 || mm > 12 || d < 1 || d > 31) return null;
-  return `${a}-${String(mm).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-}
-
-function mascaraDeData(v: string): string {
-  const d = v.replace(/\D/g, "").slice(0, 8);
-  if (d.length <= 2) return d;
-  if (d.length <= 4) return `${d.slice(0, 2)}/${d.slice(2)}`;
-  return `${d.slice(0, 2)}/${d.slice(2, 4)}/${d.slice(4)}`;
-}
 
 function pixel(evento: string, dados?: Record<string, unknown>, id?: string) {
   try {
@@ -78,13 +83,13 @@ export function QuizDaSinastria(props: {
   tx: TextosDoQuiz;
 }) {
   const { slug, cor, precoCents, precosInternacionais, pixelId, perguntas, tx } = props;
-  const [fase, setFase] = useState<Fase>("dados");
+  const [fase, setFase] = useState<Fase>("quiz");
+  const [tela, setTela] = useState(0);
   const [nomeDela, setNomeDela] = useState("");
   const [dataDela, setDataDela] = useState("");
   const [nomeDele, setNomeDele] = useState("");
   const [dataDele, setDataDele] = useState("");
   const [respostas, setRespostas] = useState<Record<string, string>>({});
-  const [passo, setPasso] = useState(0);
   const [email, setEmail] = useState("");
   const [erro, setErro] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
@@ -110,23 +115,36 @@ export function QuizDaSinastria(props: {
   }, [precoCents, precosInternacionais]);
   const preco = precoDaOferta({ preco_cents: precoCents, precos_internacionais: precosInternacionais }, moeda) ?? precoCents;
   const QUIZ = "sinastria" as const;
-  const TEM_PERGUNTAS = true;
+
+  // O roteiro: as perguntas, com a frase da Cigana a cada troca de capítulo, e depois os dados.
+  const telas = useMemo<Tela[]>(() => {
+    const frases = [tx.fraseCapitulo1, tx.fraseCapitulo2];
+    const r: Tela[] = [];
+    perguntas.forEach((p, i) => {
+      if (i > 0 && p.capitulo !== perguntas[i - 1]!.capitulo && frases.length > 0) r.push({ tipo: "frase", frase: frases.shift()! });
+      r.push({ tipo: "pergunta", i });
+    });
+    r.push({ tipo: "mecanismo" }, { tipo: "nomes" }, { tipo: "dataDela" }, { tipo: "dataDele" }, { tipo: "calculo" }, { tipo: "email" });
+    return r;
+  }, [perguntas, tx.fraseCapitulo1, tx.fraseCapitulo2]);
+  const atual = telas[tela];
+  const avancar = useCallback(() => setTela((t) => Math.min(t + 1, telas.length - 1)), [telas.length]);
+  const previaCalculada = useMemo(() => (dataDela && dataDele ? previaDaSinastria(dataDela, dataDele) : null), [dataDela, dataDele]);
 
   // O "ao vivo" (0944): enquanto a aba está visível, a visita segue aparecendo no painel.
   useEffect(() => manterVivo(slug, "sinastria"), [slug]);
   // O funil no nosso banco (0944): cada tela a que a pessoa chega vira um passo.
   useEffect(() => {
     if (!moedaLida) return;
-    if (fase === "dados") marcarPasso(slug, QUIZ, "abriu", moeda);
-    if (fase === "perguntas") marcarPasso(slug, QUIZ, "dados", moeda);
-    if (fase === "email") {
-      marcarPasso(slug, QUIZ, "dados", moeda);
-      if (TEM_PERGUNTAS) marcarPasso(slug, QUIZ, "perguntas", moeda);
-      marcarPasso(slug, QUIZ, "email", moeda);
+    if (fase === "quiz") {
+      if (tela === 0) marcarPasso(slug, QUIZ, "abriu", moeda);
+      if (atual?.tipo === "mecanismo") marcarPasso(slug, QUIZ, "perguntas", moeda);
+      if (atual?.tipo === "calculo") marcarPasso(slug, QUIZ, "dados", moeda);
+      if (atual?.tipo === "email") marcarPasso(slug, QUIZ, "email", moeda);
     }
     if (fase === "previa") marcarPasso(slug, QUIZ, "previa", moeda);
     if (fase === "pronto") marcarPasso(slug, QUIZ, "leitura", moeda);
-  }, [fase, slug, moeda, moedaLida]);
+  }, [fase, tela, atual?.tipo, slug, moeda, moedaLida]);
 
   // Quem volta para a página continua de onde parou.
   useEffect(() => {
@@ -154,7 +172,8 @@ export function QuizDaSinastria(props: {
         /* nada */
       }
       setPedido(null);
-      setFase("dados");
+      setFase("quiz");
+      setTela(0);
       return;
     }
     if (!r.ok) return;
@@ -192,10 +211,7 @@ export function QuizDaSinastria(props: {
     return () => clearInterval(t);
   }, [pedido, fase, consultar]);
 
-  const dadosOk = useMemo(
-    () => nomeDela.trim().length > 0 && nomeDele.trim().length > 0 && isoDaData(dataDela) !== null && isoDaData(dataDele) !== null,
-    [nomeDela, nomeDele, dataDela, dataDele],
-  );
+  const nomesOk = nomeDela.trim().length > 0 && nomeDele.trim().length > 0;
 
   async function pagar(forma: "pix" | "cartao") {
     marcarPasso(slug, "sinastria", "pagar", moeda);
@@ -207,9 +223,9 @@ export function QuizDaSinastria(props: {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           nome_dela: nomeDela.trim(),
-          nascimento_dela: isoDaData(dataDela),
+          nascimento_dela: dataDela,
           nome_dele: nomeDele.trim(),
-          nascimento_dele: isoDaData(dataDele),
+          nascimento_dele: dataDele,
           email: email.trim(),
           respostas,
           forma,
@@ -250,9 +266,9 @@ export function QuizDaSinastria(props: {
     enviarLead(slug, "sinastria", {
       nome: nomeDela.trim(),
       email: email.trim(),
-      nascimento: isoDaData(dataDela),
+      nascimento: dataDela,
       nomeDele: nomeDele.trim(),
-      nascimentoDele: isoDaData(dataDele),
+      nascimentoDele: dataDele,
       respostas,
     });
     setFase("previa");
@@ -269,48 +285,107 @@ export function QuizDaSinastria(props: {
         </Script>
       ) : null}
 
-      {fase === "dados" && (
-        <div className={CARTAO}>
-          <p className={SOBRETITULO}>{tx.passo1}</p>
-          <h2 className={`${SERIF} mt-2 text-2xl text-[#f6e3a8]`}>{tx.voces}</h2>
-          <div className="mt-5 space-y-3">
-            <input className={campo} placeholder={tx.seuNome} value={nomeDela} maxLength={80} onChange={(e) => setNomeDela(e.target.value)} />
-            <input className={campo} placeholder={tx.suaData} inputMode="numeric" value={dataDela} onChange={(e) => setDataDela(mascaraDeData(e.target.value))} />
-            <input className={campo} placeholder={tx.nomeDele} value={nomeDele} maxLength={80} onChange={(e) => setNomeDele(e.target.value)} />
-            <input className={campo} placeholder={tx.dataDele} inputMode="numeric" value={dataDele} onChange={(e) => setDataDele(mascaraDeData(e.target.value))} />
-          </div>
-          <button className={`${botao} mt-6`} style={{ background: cor }} disabled={!dadosOk} onClick={() => setFase("perguntas")}>
-            {tx.continuar}
-          </button>
-        </div>
+      {fase === "quiz" && atual && atual.tipo !== "frase" && atual.tipo !== "calculo" && (
+        <Progresso atual={tela + 1} total={telas.length} cor={cor} />
       )}
 
-      {fase === "perguntas" && perguntas[passo] && (
+      {fase === "quiz" && atual?.tipo === "pergunta" && perguntas[atual.i] && (
         <div className={CARTAO}>
-          <p className={SOBRETITULO}>{tx.passo2} · {passo + 1}/{perguntas.length}</p>
-          <h2 className={`${SERIF} mt-2 text-2xl text-[#f6e3a8]`}>{perguntas[passo]!.texto}</h2>
+          <p className={SOBRETITULO}>{perguntas[atual.i]!.capitulo}</p>
+          <h2 className={`${SERIF} mt-2 text-2xl text-[#f6e3a8]`}>{perguntas[atual.i]!.texto}</h2>
           <div className="mt-5 space-y-3">
-            {perguntas[passo]!.opcoes.map((o) => (
+            {perguntas[atual.i]!.opcoes.map((o) => (
               <button
                 key={o}
                 className="w-full rounded-2xl border border-[#c9a54e]/25 bg-[#120d22] px-4 py-3 text-left text-base text-[#f6f0e4] hover:border-[#e2c47a]"
                 onClick={() => {
-                  setRespostas((r) => ({ ...r, [perguntas[passo]!.id]: o }));
-                  if (passo + 1 < perguntas.length) setPasso(passo + 1);
-                  else setFase("email");
+                  setRespostas((r) => ({ ...r, [perguntas[atual.i]!.id]: o }));
+                  avancar();
                 }}
               >
                 {o}
               </button>
             ))}
           </div>
+          {tela > 0 && (
+            <button className="mt-4 text-sm text-[#9d94b2] underline" onClick={() => setTela(tela - 1)}>
+              ← {tx.voltar}
+            </button>
+          )}
         </div>
       )}
 
-      {fase === "email" && (
+      {fase === "quiz" && atual?.tipo === "frase" && (
+        <Interludio frase={atual.frase} assinatura={tx.assinatura} botao={tx.continuar} cor={cor} aoContinuar={avancar} />
+      )}
+
+      {fase === "quiz" && atual?.tipo === "mecanismo" && (
         <div className={CARTAO}>
-          <p className={SOBRETITULO}>{tx.passo3}</p>
-          <h2 className={`${SERIF} mt-2 text-2xl text-[#f6e3a8]`}>{tx.paraOnde}</h2>
+          <p className={SOBRETITULO}>{tx.comoFunciona}</p>
+          <p className="mt-3 text-[16px] leading-relaxed text-[#f6f0e4]">{tx.mecanismo}</p>
+          <button className={`${botao} mt-6`} style={{ background: cor }} onClick={avancar}>
+            {tx.continuar}
+          </button>
+        </div>
+      )}
+
+      {fase === "quiz" && atual?.tipo === "nomes" && (
+        <div className={CARTAO}>
+          <h2 className={`${SERIF} text-2xl text-[#f6e3a8]`}>{tx.voces}</h2>
+          <div className="mt-5 space-y-3">
+            <input className={campo} placeholder={tx.seuNome} value={nomeDela} maxLength={80} onChange={(e) => setNomeDela(e.target.value)} />
+            <input className={campo} placeholder={tx.nomeDele} value={nomeDele} maxLength={80} onChange={(e) => setNomeDele(e.target.value)} />
+          </div>
+          <button className={`${botao} mt-6`} style={{ background: cor }} disabled={!nomesOk} onClick={avancar}>
+            {tx.continuar}
+          </button>
+        </div>
+      )}
+
+      {fase === "quiz" && atual?.tipo === "dataDela" && (
+        <div className={CARTAO}>
+          <SeletorDeData
+            key="dela"
+            titulo={tx.quandoVoceNasceu}
+            tx={{ mes: tx.dataMes, dia: tx.dataDia, decada: tx.dataDecada, ano: tx.dataAno, meses: tx.meses }}
+            aoEscolher={(iso) => {
+              setDataDela(iso);
+              avancar();
+            }}
+          />
+        </div>
+      )}
+
+      {fase === "quiz" && atual?.tipo === "dataDele" && (
+        <div className={CARTAO}>
+          <SeletorDeData
+            key="dele"
+            titulo={`${tx.quandoOutraNasceu} ${nomeDele.trim()}?`}
+            tx={{ mes: tx.dataMes, dia: tx.dataDia, decada: tx.dataDecada, ano: tx.dataAno, meses: tx.meses }}
+            aoEscolher={(iso) => {
+              setDataDele(iso);
+              avancar();
+            }}
+          />
+        </div>
+      )}
+
+      {fase === "quiz" && atual?.tipo === "calculo" && previaCalculada && (
+        <TelaDeCalculo
+          titulo={tx.lendoOsMapas}
+          linhas={[
+            `${tx.solDe} ${nomeDela.trim()} ${tx.em} ${previaCalculada.signoDela} · ${tx.elemento} ${previaCalculada.elementoDela}`,
+            `${tx.solDe} ${nomeDele.trim()} ${tx.em} ${previaCalculada.signoDele} · ${tx.elemento} ${previaCalculada.elementoDele}`,
+            `${tx.cruzandoElementos}: ${previaCalculada.elementoDela} + ${previaCalculada.elementoDele} = ${previaCalculada.titulo}`,
+            ...(respostas.briga ? [`${tx.juntandoRespostas} ${respostas.briga.toLowerCase()}`] : []),
+          ]}
+          aoTerminar={avancar}
+        />
+      )}
+
+      {fase === "quiz" && atual?.tipo === "email" && (
+        <div className={CARTAO}>
+          <h2 className={`${SERIF} text-2xl text-[#f6e3a8]`}>{tx.paraOnde}</h2>
           <input className={`${campo} mt-5`} type="email" placeholder={tx.seuEmail} value={email} maxLength={200} onChange={(e) => setEmail(e.target.value)} />
           <p className="mt-2 text-xs text-[#9d94b2]">{tx.semSpam}</p>
           <button
@@ -325,7 +400,32 @@ export function QuizDaSinastria(props: {
       )}
 
       {fase === "previa" && (
-        <PreviaLocal tx={tx} nomeDela={nomeDela} nomeDele={nomeDele} dataDela={isoDaData(dataDela)} dataDele={isoDaData(dataDele)}>
+        <>
+          {previaCalculada ? (
+            <div className={CARTAO}>
+              <p className={SOBRETITULO}>{tx.seuResultado}</p>
+              <h2 className={`${SERIF} mt-2 text-2xl text-[#f6e3a8]`}>
+                {nomeDela.trim()} ({previaCalculada.signoDela}) e {nomeDele.trim()} ({previaCalculada.signoDele})
+              </h2>
+              <p className="mt-2 text-sm text-[#e2c47a]">
+                {previaCalculada.elementoDela} + {previaCalculada.elementoDele} · {previaCalculada.titulo}
+              </p>
+              <p className="mt-4 text-xs uppercase tracking-wide text-[#7fd1a0]">{tx.pontoForte}</p>
+              <p className="mt-1 text-[16px] leading-relaxed text-[#f6f0e4]">{previaCalculada.forte}</p>
+              <p className="mt-4 text-xs uppercase tracking-wide text-[#f3a3c0]">{tx.pontoDeAtencao}</p>
+              <p className="mt-1 text-[16px] leading-relaxed text-[#f6f0e4]">{previaCalculada.atencao}</p>
+              {respostas.aperta ? (
+                <p className="mt-4 border-l-2 border-[#c9a54e]/40 pl-3 text-[15px] leading-relaxed text-[#c3bad3]">
+                  {tx.voceContou}{" "}
+                  {respostas.briga && respostas.briga !== "Quase não brigamos"
+                    ? `${tx.seDesentendemPor} ${respostas.briga.toLowerCase()} ${tx.eQueAperta}`
+                    : tx.oQueMaisAperta}{" "}
+                  “{respostas.aperta.toLowerCase()}”.
+                </p>
+              ) : null}
+              <p className="mt-4 text-[15px] leading-relaxed text-[#c3bad3]">{tx.ponte}</p>
+            </div>
+          ) : null}
           <div className={`${CARTAO} mt-5`}>
             <p className={SOBRETITULO}>{tx.codigo}</p>
             <h3 className={`${SERIF} mt-2 text-xl text-[#f6e3a8]`}>{tx.completa}</h3>
@@ -338,6 +438,7 @@ export function QuizDaSinastria(props: {
             </ul>
             <p className="mt-4 text-3xl font-semibold text-[#f6e3a8]">{valorNaMoedaDaPagina(preco, moeda)}</p>
             <p className="text-xs text-[#9d94b2]">{tx.pagamentoUnico}</p>
+            <p className="mt-1 text-xs text-[#9d94b2]">{tx.garantia}</p>
             {erro && <p className="mt-3 text-sm text-[#f3a3c0]">{erro}</p>}
             {moeda === "BRL" ? (
               <>
@@ -356,7 +457,7 @@ export function QuizDaSinastria(props: {
               </button>
             )}
           </div>
-        </PreviaLocal>
+        </>
       )}
 
       {fase === "pagar" && (
@@ -419,43 +520,5 @@ export function QuizDaSinastria(props: {
         </article>
       )}
     </section>
-  );
-}
-
-/** A prévia grátis, calculada no navegador pelas mesmas regras do servidor (`lib/area-do-cliente/sinastria.ts`). */
-function PreviaLocal(props: { tx: TextosDoQuiz; nomeDela: string; nomeDele: string; dataDela: string | null; dataDele: string | null; children: React.ReactNode }) {
-  const [p, setP] = useState<Previa | null>(null);
-  useEffect(() => {
-    let vivo = true;
-    void import("@/lib/area-do-cliente/sinastria").then((m) => {
-      if (vivo && props.dataDela && props.dataDele) setP(m.previaDaSinastria(props.dataDela, props.dataDele));
-    });
-    return () => {
-      vivo = false;
-    };
-  }, [props.dataDela, props.dataDele]);
-  return (
-    <>
-      <div className={CARTAO}>
-        <p className={SOBRETITULO}>{props.tx.seuResultado}</p>
-        {p ? (
-          <>
-            <h2 className={`${SERIF} mt-2 text-2xl text-[#f6e3a8]`}>
-              {props.nomeDela.trim()} ({p.signoDela}) e {props.nomeDele.trim()} ({p.signoDele})
-            </h2>
-            <p className="mt-2 text-sm text-[#e2c47a]">
-              {p.elementoDela} + {p.elementoDele} · {p.titulo}
-            </p>
-            <p className="mt-3 text-[16px] leading-relaxed text-[#f6f0e4]">{p.texto}</p>
-            <p className="mt-3 text-[15px] leading-relaxed text-[#c3bad3]">
-              {props.tx.soOComeco}
-            </p>
-          </>
-        ) : (
-          <p className="mt-2 text-[15px] text-[#c3bad3]">{props.tx.calculando}</p>
-        )}
-      </div>
-      {props.children}
-    </>
   );
 }
