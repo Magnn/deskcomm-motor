@@ -210,14 +210,20 @@ describe("o bucket público é UM, e é o dos logos", () => {
     expect(linha).toBe("true|524288|image/png,image/jpeg");
   });
 
-  it("NENHUM outro bucket é público — a exceção continua sendo exceção", () => {
+  it("NENHUM outro bucket é público — as exceções são nomeadas, uma a uma", () => {
     // Sem este caso, "o bucket público é só o de logos" é prosa. Com ele, tornar
     // `whatsapp-media` público (que exporia o histórico de todos os clientes)
     // reprova o CI.
+    //
+    // A segunda exceção, desde 22/10/2026: `area-midia` (migration 0946) guarda
+    // SÓ mídia feita para a página pública dos quizzes — a foto da guia e os
+    // vídeos dela —, que tocam sem sessão. Nada de cliente entra ali, e a escrita
+    // segue só do service_role (o caso de baixo). Exceção nova pede a mesma
+    // justificativa escrita aqui, nunca o afrouxamento da lista.
     const publicos = lastLine(
       sql(`select coalesce(string_agg(id, ',' order by id), 'NENHUM') from storage.buckets where public;`),
     );
-    expect(publicos).toBe("brand-logos");
+    expect(publicos).toBe("area-midia,brand-logos");
   });
 
   it("NENHUMA policy de `storage.objects` nomeia o bucket — escrita só por service_role", () => {
@@ -228,7 +234,8 @@ describe("o bucket público é UM, e é o dos logos", () => {
       sql(`select coalesce(string_agg(policyname, ',' order by policyname), 'NENHUMA')
              from pg_policies
             where schemaname = 'storage' and tablename = 'objects'
-              and (coalesce(qual, '') || coalesce(with_check, '')) like '%brand-logos%';`),
+              and ((coalesce(qual, '') || coalesce(with_check, '')) like '%brand-logos%'
+                or (coalesce(qual, '') || coalesce(with_check, '')) like '%area-midia%');`),
     );
     expect(policies).toBe("NENHUMA");
   });

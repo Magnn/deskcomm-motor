@@ -10,6 +10,7 @@ import { z } from "zod";
 
 import { MOEDAS_INTERNACIONAIS, precoInternacionalSchema } from "@/lib/preco/tipos";
 
+import { caminhoDaMidiaSchema } from "./midia";
 import { FORMA_DO_SLUG_DA_AREA } from "./vocabulario";
 
 export const configDaAreaSchema = z.strictObject({
@@ -76,6 +77,9 @@ export const configDaAreaSchema = z.strictObject({
       pixel_id: z.string().regex(/^\d{8,20}$/).optional(),
       /** Preço para quem abre a página fora do Brasil (`moeda-do-visitante.ts`). Sem ele, só reais. */
       precos_internacionais: z.array(precoInternacionalSchema).max(MOEDAS_INTERNACIONAIS.length).optional(),
+      /** Vídeos da guia (`midia.ts`, 0946): no meio do quiz (o mecanismo) e na prévia (a oferta). */
+      video_meio: caminhoDaMidiaSchema.optional(),
+      video_previa: caminhoDaMidiaSchema.optional(),
     })
     .optional(),
   /**
@@ -89,6 +93,9 @@ export const configDaAreaSchema = z.strictObject({
       pixel_id: z.string().regex(/^\d{8,20}$/).optional(),
       /** Preço para quem abre a página fora do Brasil (`moeda-do-visitante.ts`). Sem ele, só reais. */
       precos_internacionais: z.array(precoInternacionalSchema).max(MOEDAS_INTERNACIONAIS.length).optional(),
+      /** Vídeos da guia (`midia.ts`, 0946): no meio do quiz (o mecanismo) e na prévia (a oferta). */
+      video_meio: caminhoDaMidiaSchema.optional(),
+      video_previa: caminhoDaMidiaSchema.optional(),
     })
     .optional(),
   quiz_caminhos: z
@@ -98,6 +105,9 @@ export const configDaAreaSchema = z.strictObject({
       pixel_id: z.string().regex(/^\d{8,20}$/).optional(),
       /** Preço para quem abre a página fora do Brasil (`moeda-do-visitante.ts`). Sem ele, só reais. */
       precos_internacionais: z.array(precoInternacionalSchema).max(MOEDAS_INTERNACIONAIS.length).optional(),
+      /** Vídeos da guia (`midia.ts`, 0946): no meio do quiz (o mecanismo) e na prévia (a oferta). */
+      video_meio: caminhoDaMidiaSchema.optional(),
+      video_previa: caminhoDaMidiaSchema.optional(),
     })
     .optional(),
   /** O Retrato do Par (`lib/area-do-cliente/retrato-do-par.ts`, migration 0945): Vênus + Descendente. */
@@ -108,6 +118,19 @@ export const configDaAreaSchema = z.strictObject({
       pixel_id: z.string().regex(/^\d{8,20}$/).optional(),
       /** Preço para quem abre a página fora do Brasil (`moeda-do-visitante.ts`). Sem ele, só reais. */
       precos_internacionais: z.array(precoInternacionalSchema).max(MOEDAS_INTERNACIONAIS.length).optional(),
+      /** Vídeos da guia (`midia.ts`, 0946): no meio do quiz (o mecanismo) e na prévia (a oferta). */
+      video_meio: caminhoDaMidiaSchema.optional(),
+      video_previa: caminhoDaMidiaSchema.optional(),
+    })
+    .optional(),
+  /**
+   * A GUIA dos quizzes (a personagem que conduz): nome e foto (caminho no bucket `area-midia`, 0946). A foto aparece
+   * no topo do quiz, nas frases entre capítulos e na tela de cálculo — como nos funis de quiz que escalam.
+   */
+  guia: z
+    .strictObject({
+      nome: z.string().trim().max(40).optional(),
+      foto: caminhoDaMidiaSchema.optional(),
     })
     .optional(),
   /** O Ano Pessoal: a leitura do ano, oferecida na janela do aniversário. */
