@@ -18,7 +18,7 @@ import { copyToClipboard } from "@/lib/clipboard";
 import { enviarLead, idDaVisita, manterVivo, marcarPasso } from "../../_passos";
 
 import { PaginaFinal } from "../../_pagina-final";
-import { Interludio, Progresso, SeletorDeData, TelaDeCalculo } from "../../_quiz-pecas";
+import { Interludio, Progresso, SeletorDeData, TelaDeCalculo, VideoDaGuia } from "../../_quiz-pecas";
 import { CARTAO, SERIF, SOBRETITULO } from "../../_tema";
 import type { TextosDoQuizDePessoa } from "./_textos";
 
@@ -77,8 +77,12 @@ export function QuizDePessoa(props: {
   pixelId: string | null;
   perguntas: Pergunta[];
   tx: TextosDoQuizDePessoa;
+  /** A guia (nome e foto) e os vídeos dela no meio do quiz e na prévia (`midia.ts`, 0946); `null` = não mostra. */
+  guia: { nome: string | null; foto: string | null };
+  videoMeio: string | null;
+  videoPrevia: string | null;
 }) {
-  const { slug, tipo, cor, precoCents, precosInternacionais, pixelId, perguntas, tx } = props;
+  const { slug, tipo, cor, precoCents, precosInternacionais, pixelId, perguntas, tx, guia, videoMeio, videoPrevia } = props;
   const chave = `quiz-${tipo}:${slug}`;
   const base = `/api/v1/area/publica/${slug}/quiz/${tipo}`;
   const [fase, setFase] = useState<Fase>("quiz");
@@ -346,11 +350,12 @@ export function QuizDePessoa(props: {
       )}
 
       {fase === "quiz" && atual?.tipo === "frase" && (
-        <Interludio frase={atual.frase} assinatura={tx.assinatura} botao={tx.continuar} cor={cor} aoContinuar={avancar} />
+        <Interludio frase={atual.frase} assinatura={guia.nome ?? tx.assinatura} botao={tx.continuar} cor={cor} aoContinuar={avancar} foto={guia.foto} />
       )}
 
       {fase === "quiz" && atual?.tipo === "mecanismo" && (
         <div className={CARTAO}>
+          <VideoDaGuia url={videoMeio} capa={guia.foto} />
           <p className={SOBRETITULO}>{tx.comoFunciona}</p>
           <p className="mt-3 text-[16px] leading-relaxed text-[#f6f0e4]">{tx.mecanismo}</p>
           <button className={`${botao} mt-6`} style={{ background: cor }} onClick={avancar}>
@@ -433,7 +438,7 @@ export function QuizDePessoa(props: {
       )}
 
       {fase === "quiz" && atual?.tipo === "calculo" && linhasDoCalculo.length > 0 && (
-        <TelaDeCalculo titulo={tx.calculando} linhas={linhasDoCalculo} aoTerminar={avancar} />
+        <TelaDeCalculo titulo={tx.calculando} linhas={linhasDoCalculo} aoTerminar={avancar} foto={guia.foto} />
       )}
 
       {fase === "quiz" && atual?.tipo === "email" && (
@@ -453,6 +458,8 @@ export function QuizDePessoa(props: {
           sobretitulo={tx.seuResultado}
           titulo={`${nome.trim()}, ${tx.resultadoPronto}`}
           subtitulo={tx.calculadoDe}
+          video={videoPrevia}
+          capaDoVideo={guia.foto}
           dados={
             prosperidade
               ? [

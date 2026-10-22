@@ -9,12 +9,15 @@ import { notFound } from "next/navigation";
 
 import { COR_PADRAO_DA_AREA } from "@/lib/area-do-cliente/config";
 import { PERGUNTAS_DA_PROSPERIDADE, PERGUNTAS_DO_PAR, PERGUNTAS_DOS_CAMINHOS, TIPOS_DE_QUIZ, type TipoDeQuiz } from "@/lib/area-do-cliente/quizzes";
+import { urlDaMidiaDaArea } from "@/lib/area-do-cliente/midia";
 import { orgDaArea } from "@/lib/area-do-cliente/sessao";
 import { traduzir } from "@/lib/i18n/dicionario";
+import { baseDoStorage } from "@/lib/branding/logo";
 import { idiomaDoVisitante } from "@/lib/i18n/idiomaAnonimo";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 import { serifDaArea } from "../../_fonte";
+import { FotoDaGuia } from "../../_quiz-pecas";
 import { CEU, PAGINA, SERIF, SOBRETITULO_NOTURNO } from "../../_tema";
 import { QuizDePessoa } from "./_quiz";
 import { textosDoQuizDePessoa } from "./_textos";
@@ -37,6 +40,8 @@ export default async function PaginaDoQuizDePessoa({ params }: Props) {
   const cor = org.config.cor || COR_PADRAO_DA_AREA;
   const idioma = await idiomaDoVisitante(null);
   const tx = textosDoQuizDePessoa((texto) => traduzir(texto, idioma), tipo);
+  const base = baseDoStorage();
+  const fotoDaGuia = urlDaMidiaDaArea(org.config.guia?.foto, base);
   const perguntas =
     tipo === "caminhos"
       ? PERGUNTAS_DOS_CAMINHOS.map((p) => ({ id: p.id, capitulo: p.capitulo, texto: p.texto, opcoes: p.opcoes.map(([o]) => o) }))
@@ -45,6 +50,11 @@ export default async function PaginaDoQuizDePessoa({ params }: Props) {
   return (
     <main className={`${PAGINA} ${serifDaArea.variable}`}>
       <section className={`${CEU} px-5 pb-10 pt-12 text-center`}>
+        {fotoDaGuia ? (
+          <div className="mb-4 flex justify-center">
+            <FotoDaGuia url={fotoDaGuia} nome={org.config.guia?.nome} tamanho={96} />
+          </div>
+        ) : null}
         <p className={SOBRETITULO_NOTURNO}>{org.config.titulo || org.nome}</p>
         <h1 className={`${SERIF} mx-auto mt-3 max-w-xl text-4xl leading-tight text-[#f6e3a8]`}>{tx.titulo}</h1>
         <p className="mx-auto mt-3 max-w-md text-[15px] leading-relaxed text-[#c3bad3]">{tx.chamada}</p>
@@ -52,7 +62,10 @@ export default async function PaginaDoQuizDePessoa({ params }: Props) {
       </section>
       <QuizDePessoa slug={org.slug} tipo={tipo} cor={cor} precoCents={oferta.preco_cents}
         precosInternacionais={oferta.precos_internacionais ?? []}
-        pixelId={oferta.pixel_id ?? null} perguntas={perguntas} tx={tx} />
+        pixelId={oferta.pixel_id ?? null} perguntas={perguntas} tx={tx}
+        guia={{ nome: org.config.guia?.nome ?? null, foto: fotoDaGuia }}
+        videoMeio={urlDaMidiaDaArea(oferta.video_meio, base)}
+        videoPrevia={urlDaMidiaDaArea(oferta.video_previa, base)} />
       <footer className="px-5 pb-10 text-center text-xs leading-relaxed text-[#9d94b2]">{tx.rodape}</footer>
     </main>
   );

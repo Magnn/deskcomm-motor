@@ -10,11 +10,37 @@
  * - `TelaDeCalculo`: o "calculando" que mostra a conta REAL, linha a linha. Cada linha é um passo que de fato
  *   aconteceu (o signo saiu da data, a soma foi feita); nenhuma é teatro.
  *
+ * - `FotoDaGuia` e `VideoDaGuia`: a guia (a personagem que conduz) em várias telas, e os vídeos dela no meio do
+ *   quiz e na prévia — a forma dos funis que escalam. Sem foto ou sem vídeo configurado, nada aparece.
+ *
  * Os textos chegam prontos do servidor (passados pelo dicionário); aqui não há string de tela.
  */
 import { useEffect, useState } from "react";
 
 import { CARTAO, SERIF, SOBRETITULO } from "./_tema";
+
+/** A foto redonda da guia, com o fio dourado; `pulsando` na tela de cálculo. */
+export function FotoDaGuia(props: { url: string | null; nome?: string | null; tamanho?: number; pulsando?: boolean }) {
+  if (!props.url) return null;
+  const t = props.tamanho ?? 64;
+  return (
+    <span className="relative inline-block shrink-0" style={{ width: t, height: t }}>
+      {props.pulsando ? <span className="absolute inset-0 animate-ping rounded-full bg-[#e2c47a]/30" /> : null}
+      {/* eslint-disable-next-line @next/next/no-img-element -- imagem do Storage da instalação, tamanho fixo */}
+      <img src={props.url} alt={props.nome ?? ""} width={t} height={t} className="relative h-full w-full rounded-full object-cover ring-2 ring-[#e2c47a]/70" />
+    </span>
+  );
+}
+
+/** O vídeo vertical da guia, tocando na própria página (sem tela cheia no celular), com a foto como capa. */
+export function VideoDaGuia(props: { url: string | null; capa?: string | null }) {
+  if (!props.url) return null;
+  return (
+    <div className="mx-auto mb-4 w-full max-w-[280px] overflow-hidden rounded-2xl border border-[#c9a54e]/25 bg-black shadow-[0_18px_40px_-24px_rgba(0,0,0,0.8)]">
+      <video src={props.url} poster={props.capa ?? undefined} controls playsInline preload="metadata" className="aspect-[9/16] w-full object-cover" />
+    </div>
+  );
+}
 
 export function Progresso(props: { atual: number; total: number; cor: string }) {
   const pct = Math.max(4, Math.min(100, Math.round((props.atual / Math.max(1, props.total)) * 100)));
@@ -119,9 +145,14 @@ export function SeletorDeData(props: { titulo: string; tx: TextosDaData; aoEscol
   );
 }
 
-export function Interludio(props: { frase: string; assinatura: string; botao: string; cor: string; aoContinuar: () => void }) {
+export function Interludio(props: { frase: string; assinatura: string; botao: string; cor: string; aoContinuar: () => void; foto?: string | null }) {
   return (
     <div className={`${CARTAO} text-center`}>
+      {props.foto ? (
+        <div className="mb-4 flex justify-center">
+          <FotoDaGuia url={props.foto} nome={props.assinatura} tamanho={72} />
+        </div>
+      ) : null}
       <p className={`${SERIF} text-xl leading-relaxed text-[#f6e3a8]`}>“{props.frase}”</p>
       <p className="mt-3 text-sm text-[#c9a54e]">— {props.assinatura}</p>
       <button className="mt-6 w-full rounded-full px-6 py-4 text-base font-semibold text-white shadow-lg" style={{ background: props.cor }} onClick={props.aoContinuar}>
@@ -135,7 +166,7 @@ export function Interludio(props: { frase: string; assinatura: string; botao: st
  * Mostra as linhas uma a uma (~0,9 s cada) e chama `aoTerminar` depois da última. As linhas são o cálculo
  * que já foi feito — a espera é só o ritmo de leitura, para a pessoa VER o que foi cruzado.
  */
-export function TelaDeCalculo(props: { titulo: string; linhas: string[]; aoTerminar: () => void }) {
+export function TelaDeCalculo(props: { titulo: string; linhas: string[]; aoTerminar: () => void; foto?: string | null }) {
   const [vistas, setVistas] = useState(0);
   const { linhas, aoTerminar } = props;
   useEffect(() => {
@@ -148,6 +179,11 @@ export function TelaDeCalculo(props: { titulo: string; linhas: string[]; aoTermi
   }, [vistas, linhas.length, aoTerminar]);
   return (
     <div className={CARTAO}>
+      {props.foto ? (
+        <div className="mb-4 flex justify-center">
+          <FotoDaGuia url={props.foto} tamanho={84} pulsando />
+        </div>
+      ) : null}
       <p className={SOBRETITULO}>{props.titulo}</p>
       <ul className="mt-4 space-y-3">
         {linhas.slice(0, vistas).map((l) => (

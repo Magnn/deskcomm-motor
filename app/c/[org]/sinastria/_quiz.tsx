@@ -20,7 +20,7 @@ import { copyToClipboard } from "@/lib/clipboard";
 import { enviarLead, idDaVisita, manterVivo, marcarPasso } from "../_passos";
 
 import { PaginaFinal } from "../_pagina-final";
-import { Interludio, Progresso, SeletorDeData, TelaDeCalculo } from "../_quiz-pecas";
+import { Interludio, Progresso, SeletorDeData, TelaDeCalculo, VideoDaGuia } from "../_quiz-pecas";
 import { CARTAO, SERIF, SOBRETITULO } from "../_tema";
 import type { TextosDoQuiz } from "./_textos";
 
@@ -82,8 +82,12 @@ export function QuizDaSinastria(props: {
   pixelId: string | null;
   perguntas: Pergunta[];
   tx: TextosDoQuiz;
+  /** A guia (nome e foto) e os vídeos dela no meio do quiz e na prévia (`midia.ts`, 0946); `null` = não mostra. */
+  guia: { nome: string | null; foto: string | null };
+  videoMeio: string | null;
+  videoPrevia: string | null;
 }) {
-  const { slug, cor, precoCents, precosInternacionais, pixelId, perguntas, tx } = props;
+  const { slug, cor, precoCents, precosInternacionais, pixelId, perguntas, tx, guia, videoMeio, videoPrevia } = props;
   const [fase, setFase] = useState<Fase>("quiz");
   const [tela, setTela] = useState(0);
   const [nomeDela, setNomeDela] = useState("");
@@ -317,11 +321,12 @@ export function QuizDaSinastria(props: {
       )}
 
       {fase === "quiz" && atual?.tipo === "frase" && (
-        <Interludio frase={atual.frase} assinatura={tx.assinatura} botao={tx.continuar} cor={cor} aoContinuar={avancar} />
+        <Interludio frase={atual.frase} assinatura={guia.nome ?? tx.assinatura} botao={tx.continuar} cor={cor} aoContinuar={avancar} foto={guia.foto} />
       )}
 
       {fase === "quiz" && atual?.tipo === "mecanismo" && (
         <div className={CARTAO}>
+          <VideoDaGuia url={videoMeio} capa={guia.foto} />
           <p className={SOBRETITULO}>{tx.comoFunciona}</p>
           <p className="mt-3 text-[16px] leading-relaxed text-[#f6f0e4]">{tx.mecanismo}</p>
           <button className={`${botao} mt-6`} style={{ background: cor }} onClick={avancar}>
@@ -374,6 +379,7 @@ export function QuizDaSinastria(props: {
       {fase === "quiz" && atual?.tipo === "calculo" && previaCalculada && (
         <TelaDeCalculo
           titulo={tx.lendoOsMapas}
+          foto={guia.foto}
           linhas={[
             `${tx.solDe} ${nomeDela.trim()} ${tx.em} ${previaCalculada.signoDela} · ${tx.elemento} ${previaCalculada.elementoDela}`,
             `${tx.solDe} ${nomeDele.trim()} ${tx.em} ${previaCalculada.signoDele} · ${tx.elemento} ${previaCalculada.elementoDele}`,
@@ -406,6 +412,8 @@ export function QuizDaSinastria(props: {
           sobretitulo={tx.seuResultado}
           titulo={`${nomeDela.trim()}, ${tx.previaPronta}`}
           subtitulo={tx.calculadaDe}
+          video={videoPrevia}
+          capaDoVideo={guia.foto}
           dados={[
             { rotulo: `${tx.signoDe} ${nomeDela.trim()}`, valor: previaCalculada.signoDela },
             { rotulo: `${tx.signoDe} ${nomeDele.trim()}`, valor: previaCalculada.signoDele },

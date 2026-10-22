@@ -14,6 +14,7 @@
  */
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
+import { VideoDaGuia } from "./_quiz-pecas";
 import { CARTAO, SERIF, SOBRETITULO } from "./_tema";
 
 export interface DadoDaPessoa {
@@ -60,6 +61,9 @@ export function PaginaFinal(props: {
   dados: DadoDaPessoa[];
   /** O cartão do resultado (ponto forte, atenção, espelho, ponte), montado por cada quiz. */
   resultado: ReactNode;
+  /** O vídeo da guia na prévia (a ponte para a oferta) e a foto dela como capa; `null` = sem vídeo. */
+  video?: string | null;
+  capaDoVideo?: string | null;
   partes: ParteDaLeitura[];
   /** Entregáveis: [palavra-chave em negrito, resto da frase]. */
   itens: [string, string][];
@@ -110,6 +114,8 @@ export function PaginaFinal(props: {
         <h2 className={`${SERIF} mt-2 text-[28px] leading-tight text-[#f6e3a8]`}>{props.titulo}</h2>
         <p className="mt-2 text-[15px] text-[#c3bad3]">{props.subtitulo}</p>
       </header>
+
+      <VideoDaGuia url={props.video ?? null} capa={props.capaDoVideo ?? null} />
 
       {props.dados.length > 0 && (
         <div className={`${CARTAO} grid grid-cols-2 gap-px overflow-hidden p-0`}>
