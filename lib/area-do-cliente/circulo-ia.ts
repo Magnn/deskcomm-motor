@@ -165,6 +165,51 @@ export async function gerarSinastria(
   return texto ? { texto: texto.slice(0, 16000), modelo: chamada.model ?? null } : null;
 }
 
+export function pedidoDoQuiz(
+  empresa: string,
+  d: { tipo: "prosperidade" | "caminhos"; nome: string; titulo: string; detalhe: string; respostas: Record<string, string> },
+): string {
+  const contexto = Object.values(d.respostas).filter(Boolean).map((v) => `- ${v}`).join("\n");
+  const comum = [
+    `Regras:\n- ${REGRAS_DE_TOM}\n- Nunca prometa dinheiro, emprego, cura, volta de alguém ou prazo. Não dê conselho financeiro: fale de atitude, organização e intenção.\n- Não fale em "bloqueio", "energia ruim", "carga" nem "trabalho feito".`,
+    "Entre 600 e 900 palavras. Use o nome dela no máximo três vezes.",
+    "Responda só com o texto, com uma linha em branco entre as partes, cada parte com um título curto em linha própria.",
+  ];
+  if (d.tipo === "prosperidade") {
+    return [
+      `Você escreve "Seu Mapa da Prosperidade", uma leitura de numerologia para ${d.nome}, cliente de ${empresa}.`,
+      `Pela numerologia popular, o número do destino dela é ${d.detalhe.replace(/\D/g, "")} (${d.titulo}).`,
+      contexto ? `O que ela contou no quiz:\n${contexto}` : "",
+      `Escreva em cinco partes: (1) O que o ${d.detalhe} diz sobre a forma dela de prosperar, (2) Os talentos que ela pode usar, (3) O padrão que costuma atrapalhar, (4) Três atitudes práticas para as próximas semanas, (5) Uma intenção para escrever e guardar.`,
+      ...comum,
+    ].filter(Boolean).join("\n\n");
+  }
+  return [
+    `Você escreve "Seu Ritual de Abertura de Caminhos", um ritual guiado de 7 dias para ${d.nome}, cliente de ${empresa}.`,
+    `Pelo quiz, o perfil dela é ${d.titulo}.`,
+    contexto ? `O que ela respondeu:\n${contexto}` : "",
+    `Escreva em quatro partes: (1) O que o perfil ${d.titulo} mostra sobre o momento dela, (2) O que separar (coisas simples de casa: uma vela branca, um copo de água, papel e caneta), (3) O ritual de 7 dias, um parágrafo curto por dia, cada dia com uma reflexão e um gesto pequeno, (4) Como encerrar e o que observar depois.`,
+    "Segurança: vela sempre num pratinho firme, longe de cortina e de criança, e apagada antes de sair ou dormir.",
+    ...comum,
+  ].filter(Boolean).join("\n\n");
+}
+
+export async function gerarQuiz(
+  pool: pg.Pool,
+  cfg: LlmEdgeConfig,
+  d: Parameters<typeof pedidoDoQuiz>[1] & { organizationId: string; contactId: string; empresa: string },
+): Promise<{ texto: string; modelo: string | null } | null> {
+  const chamada = await runModelCall(pool, cfg, {
+    tenantId: d.organizationId,
+    leadId: d.contactId,
+    jobId: null,
+    purpose: d.tipo === "prosperidade" ? "area_quiz_prosperidade" : "area_quiz_caminhos",
+    messages: [{ role: "user", content: pedidoDoQuiz(d.empresa, d) }],
+  });
+  const texto = (chamada.result.text ?? "").trim();
+  return texto ? { texto: texto.slice(0, 16000), modelo: chamada.model ?? null } : null;
+}
+
 export async function gerarAnoPessoal(
   pool: pg.Pool,
   cfg: LlmEdgeConfig,

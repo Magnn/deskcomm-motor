@@ -32,6 +32,8 @@ function urlDaRota(arquivo: string): string {
   const exemplo: Record<string, string> = {
     "[id]": "11111111-1111-4111-8111-111111111111",
     "[codigo]": "A".repeat(32),
+    // Os quizzes de uma pessoa (0943): um exemplo real de tipo.
+    "[tipo]": "prosperidade",
   };
   return ["/api/v1/area/publica/magno", ...partes.map((p) => exemplo[p] ?? p)].join("/");
 }

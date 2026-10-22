@@ -68,6 +68,8 @@ export const PUBLIC_PATHS: RegExp[] = [
   // autenticação". Ancorado no slug da organização.
   /^\/c\/[a-z0-9][a-z0-9-]{1,62}(\/.*)?$/,
   /^\/api\/v1\/area\/publica\/[a-z0-9][a-z0-9-]{1,62}\/(codigo|codigo\/confirmar|eventos|email|diario|aniversario|circulo|circulo\/conteudo|circulo\/pergunta|presente|ano-pessoal|ano-pessoal\/gerar|mensagens|etapas|leituras|creditos|avisos|perfil|simpatias|contribuicao|sinastria)$/,
+  // Os quizzes de uma pessoa (0943): o pedido e o pedido pelo id; o direito é o segredo do pedido, conferido na rota.
+  /^\/api\/v1\/area\/publica\/[a-z0-9][a-z0-9-]{1,62}\/quiz\/(prosperidade|caminhos)(\/[0-9a-f-]{36})?$/,
   // O quiz da sinastria (0942): o pedido pelo id (UUID); quem prova o direito é o segredo do pedido, conferido na rota.
   /^\/api\/v1\/area\/publica\/[a-z0-9][a-z0-9-]{1,62}\/sinastria\/[0-9a-f-]{36}$/,
   // A Mesa de leituras (0937): uma leitura pelo id (UUID), revelar e ouvir. Faltava aqui desde o PR #335

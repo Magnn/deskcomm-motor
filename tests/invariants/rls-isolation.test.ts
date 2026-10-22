@@ -336,6 +336,11 @@ beforeAll(() => {
           insert into public.area_sinastrias (organization_id, contact_id, nome_dela, nascimento_dela, nome_dele, nascimento_dele, segredo_hash, preco_cents)
             values (v_org, v_contact, 'Ana', '1990-05-01', 'João', '1988-09-30', repeat('b', 64), 3700);
         end if;
+        -- 0943: os quizzes de uma pessoa — a equipe lê.
+        if not exists (select 1 from public.area_quiz_pedidos where organization_id = v_org) then
+          insert into public.area_quiz_pedidos (organization_id, contact_id, tipo, nome, nascimento, segredo_hash, preco_cents)
+            values (v_org, v_contact, 'prosperidade', 'Ana', '1990-05-01', repeat('c', 64), 2700);
+        end if;
 
         if not exists (select 1 from public.catalog_products where organization_id = v_org) then
           insert into public.catalog_products
@@ -715,6 +720,8 @@ export const TABLES = [
   "area_simpatias_pedidos",
   // migration 0942 — a sinastria vendida pelo quiz da página.
   "area_sinastrias",
+  // migration 0943 — os quizzes de uma pessoa.
+  "area_quiz_pedidos",
 ] as const;
 
 describe("RLS tenant isolation (fn_user_org_ids pattern)", () => {

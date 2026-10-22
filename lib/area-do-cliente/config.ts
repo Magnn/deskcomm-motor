@@ -60,6 +60,24 @@ export const configDaAreaSchema = z.strictObject({
       pixel_id: z.string().regex(/^\d{8,20}$/).optional(),
     })
     .optional(),
+  /**
+   * Os QUIZZES de uma pessoa (`lib/area-do-cliente/quizzes.ts`, migration 0943), vendidos na página como a
+   * sinastria, cada um com o seu preço e o seu conjunto de dados da Meta.
+   */
+  quiz_prosperidade: z
+    .strictObject({
+      ativo: z.boolean().default(false),
+      preco_cents: z.number().int().min(100).max(1_000_000).default(2700),
+      pixel_id: z.string().regex(/^\d{8,20}$/).optional(),
+    })
+    .optional(),
+  quiz_caminhos: z
+    .strictObject({
+      ativo: z.boolean().default(false),
+      preco_cents: z.number().int().min(100).max(1_000_000).default(1900),
+      pixel_id: z.string().regex(/^\d{8,20}$/).optional(),
+    })
+    .optional(),
   /** O Ano Pessoal: a leitura do ano, oferecida na janela do aniversário. */
   ano_pessoal: z
     .strictObject({

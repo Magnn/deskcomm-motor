@@ -360,6 +360,28 @@ export const PONTOS_DE_IA: readonly PontoDeIa[] = [
     registraEm: "llm_calls",
   },
   {
+    id: "area_quiz_prosperidade",
+    rotulo: "Escrever o Mapa da Prosperidade do quiz",
+    oQueFaz:
+      "Escreve \"Seu Mapa da Prosperidade\" de quem comprou pelo quiz da página: a leitura do número do destino calculado pela data de nascimento, com talentos, padrões e atitudes práticas, sem promessa de dinheiro.",
+    papel: "atender",
+    exige: {},
+    emissor: "lib/area-do-cliente/circulo-ia.ts",
+    sintomaDeFalha: "Quem pagou o Mapa da Prosperidade vê o aviso de que a leitura está sendo preparada.",
+    registraEm: "llm_calls",
+  },
+  {
+    id: "area_quiz_caminhos",
+    rotulo: "Escrever o Ritual de Abertura de Caminhos do quiz",
+    oQueFaz:
+      "Escreve \"Seu Ritual de Abertura de Caminhos\" de quem comprou pelo quiz da página: um ritual guiado de sete dias para o perfil calculado pelas respostas, com cuidados de segurança e sem promessa de resultado.",
+    papel: "atender",
+    exige: {},
+    emissor: "lib/area-do-cliente/circulo-ia.ts",
+    sintomaDeFalha: "Quem pagou o Ritual de Abertura de Caminhos vê o aviso de que a leitura está sendo preparada.",
+    registraEm: "llm_calls",
+  },
+  {
     id: "area_sinastria",
     rotulo: "Escrever a sinastria do quiz",
     oQueFaz:
