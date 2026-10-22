@@ -17,6 +17,7 @@ import { useT } from "@/hooks/i18n/useT";
 import { apiClient } from "@/lib/api/client";
 import type { AoVivoDosQuizzes } from "@/lib/area-do-cliente/ao-vivo-dos-quizzes";
 import type { CampanhaDoQuiz, FunilDeUmQuiz } from "@/lib/area-do-cliente/funil-dos-quizzes";
+import { csvDosLeads, type LeadDeQuiz } from "@/lib/area-do-cliente/leads-dos-quizzes";
 import type { PassoDoQuiz, QuizDaPagina } from "@/lib/area-do-cliente/passos-do-quiz";
 import { copyToClipboard } from "@/lib/clipboard";
 
@@ -155,7 +156,99 @@ export function AbaQuizzes() {
           </Card>
         </>
       )}
+
+      <LeadsDosQuizzes nomeDoQuiz={nomeDoQuiz} nomeDoPasso={nomeDoPasso} />
     </div>
+  );
+}
+
+function LeadsDosQuizzes(props: { nomeDoQuiz: Record<QuizDaPagina, string>; nomeDoPasso: Record<PassoDoQuiz, string> }) {
+  const t = useT();
+  const tag = useTagDeIdioma();
+  const [dias, setDias] = useState(30);
+  const q = useQuery({
+    queryKey: ["area", "quizzes", "leads", dias],
+    queryFn: () => apiClient.get<{ data: { dias: number; leads: LeadDeQuiz[]; truncado: boolean } }>(`/api/v1/area/quizzes/leads?dias=${dias}`),
+    refetchInterval: 30_000,
+  });
+  const leads = q.data?.data.leads ?? [];
+  function exportar() {
+    const csv = csvDosLeads(leads, (p) => props.nomeDoPasso[p]);
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `leads-dos-quizzes-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+  return (
+    <Card className="p-4" data-testid="area-quizzes-leads">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h2 className="font-semibold">
+            {t("Leads dos quizzes")} {q.data ? <span className="text-muted-foreground tabular-nums">({leads.length})</span> : null}
+          </h2>
+          <p className="text-xs text-muted-foreground">{t("Quem deu o e-mail para ver a prévia ou pediu o pagamento. Também ficam em Contatos, com origem quiz.")}</p>
+        </div>
+        <div className="flex gap-2">
+          {[7, 30, 90].map((n) => (
+            <Button key={n} size="sm" variant={dias === n ? "default" : "outline"} onClick={() => setDias(n)}>
+              {n} {t("dias")}
+            </Button>
+          ))}
+          <Button size="sm" variant="outline" disabled={leads.length === 0} onClick={exportar}>
+            {t("Exportar CSV")}
+          </Button>
+        </div>
+      </div>
+      {q.isLoading ? (
+        <Skeleton className="mt-3 h-32 w-full" />
+      ) : q.isError ? (
+        <p className="mt-3 text-sm text-error-fg">{t("Erro ao carregar os leads dos quizzes.")}</p>
+      ) : leads.length === 0 ? (
+        <p className="mt-3 text-sm text-muted-foreground">{t("Nenhum lead no período.")}</p>
+      ) : (
+        <div className="mt-3 overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="text-left text-xs text-muted-foreground">
+              <tr>
+                <th className="py-1 pr-3 font-medium">{t("Nome")}</th>
+                <th className="py-1 pr-3 font-medium">{t("E-mail")}</th>
+                <th className="py-1 pr-3 font-medium">{t("Quiz")}</th>
+                <th className="py-1 pr-3 font-medium">{t("Até onde chegou")}</th>
+                <th className="py-1 pr-3 font-medium">{t("Campanha")}</th>
+                <th className="py-1 pr-3 font-medium">{t("Região")}</th>
+                <th className="py-1 font-medium">{t("Quando")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {leads.map((l) => (
+                <tr key={`${l.contactId}|${l.quiz}`} className="border-t border-border">
+                  <td className="py-1.5 pr-3">{l.nome ?? "—"}</td>
+                  <td className="py-1.5 pr-3">
+                    {l.email ? (
+                      <button className="underline underline-offset-2" onClick={() => void copyToClipboard(l.email!)} title={t("Copiar")}>
+                        {l.email}
+                      </button>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
+                  <td className="py-1.5 pr-3">{props.nomeDoQuiz[l.quiz]}</td>
+                  <td className="py-1.5 pr-3">{props.nomeDoPasso[l.ateOnde]}</td>
+                  <td className="py-1.5 pr-3 font-mono text-xs">{l.campanha ?? "—"}</td>
+                  <td className="py-1.5 pr-3">{l.regiao ?? "—"}</td>
+                  <td className="py-1.5 tabular-nums">
+                    {new Date(l.chegouEm).toLocaleString(tag, { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {q.data?.data.truncado ? <p className="mt-2 text-xs text-warning-fg">{t("Mostrando os 500 mais recentes. Escolha um período menor.")}</p> : null}
+    </Card>
   );
 }
 

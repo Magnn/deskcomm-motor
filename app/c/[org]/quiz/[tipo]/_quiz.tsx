@@ -11,7 +11,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { moedaDaOferta, precoDaOferta, valorNaMoedaDaPagina, type MoedaDaPagina } from "@/lib/area-do-cliente/moeda-do-visitante";
 import { copyToClipboard } from "@/lib/clipboard";
 
-import { idDaVisita, manterVivo, marcarPasso } from "../../_passos";
+import { enviarLead, idDaVisita, manterVivo, marcarPasso } from "../../_passos";
 
 import { CARTAO, SERIF, SOBRETITULO } from "../../_tema";
 import type { TextosDoQuizDePessoa } from "./_textos";
@@ -235,6 +235,7 @@ export function QuizDePessoa(props: {
   async function verPrevia() {
     setErro(null);
     pixel("Lead", { content_name: `quiz-${tipo}` });
+    enviarLead(slug, tipo, { nome: nome.trim(), email: email.trim(), nascimento: isoDaData(data), respostas });
     const m = await import("@/lib/area-do-cliente/quizzes");
     setPrevia(m.previaDoQuiz(tipo, { nascimento: isoDaData(data), respostas }));
     setFase("previa");
