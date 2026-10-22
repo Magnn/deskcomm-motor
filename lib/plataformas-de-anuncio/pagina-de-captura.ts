@@ -35,6 +35,19 @@ export function textoSemRef(template: string): string {
     .trim();
 }
 
+/**
+ * A FRASE DA PÁGINA: uma página de oferta diferente (ex.: a pergunta de R$ 5) manda a sua própria frase no lugar do
+ * texto do modelo, e o `[ref:]` continua no fim. É a frase que o fluxo de palavra-chave reconhece para começar a
+ * conversa certa (`lib/followup/fluxo-por-palavra-chave.ts`). Só letras, números, espaço e pontuação simples, até
+ * 80 caracteres: o resto é ignorado e vale o modelo. Pura.
+ */
+export function modeloComFrase(template: string, frase: string | null | undefined): string {
+  const limpa = (frase ?? "").replace(/\s+/g, " ").trim();
+  if (limpa.length < 3 || limpa.length > 80 || !/^[\p{L}\p{N} ,.!?$%()-]+$/u.test(limpa)) return template;
+  const ref = template.match(/\[[^[\]]*\{token\}[^[\]]*\]/);
+  return ref ? `${limpa} ${ref[0]}` : limpa;
+}
+
 export function whatsAppUrl(whatsappE164: string, mensagem: string): string {
   const digitos = whatsappE164.replace(/\D/g, "");
   return `https://wa.me/${digitos}?text=${encodeURIComponent(mensagem)}`;
