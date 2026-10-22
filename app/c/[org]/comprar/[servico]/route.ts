@@ -17,7 +17,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { diaNoFuso } from "@/lib/area-do-cliente/dados";
 import { registrarEvento } from "@/lib/area-do-cliente/eventos";
 import { NAO_ENCONTRADA, contextoDaArea, irPara } from "@/lib/area-do-cliente/http";
-import { caminhoDaArea } from "@/lib/area-do-cliente/vocabulario";
+import { caminhoPublicoDaArea } from "@/lib/area-do-cliente/vocabulario";
 import { logger } from "@/lib/logger";
 import { lerConexaoStripe } from "@/lib/pagamentos/conexao-stripe";
 import { criarClienteStripe } from "@/lib/pagamentos/stripe";
@@ -41,7 +41,7 @@ export async function GET(req: NextRequest, { params }: Ctx): Promise<Response> 
   const ctx = await contextoDaArea(req, slug);
   if (!ctx) return NAO_ENCONTRADA();
   const { admin, org, sessao } = ctx;
-  const voltar = irPara(caminhoDaArea(org.slug));
+  const voltar = irPara(caminhoPublicoDaArea(org.slug, org.config.apelido));
   if (!sessao || !UUID.test(servico)) return voltar;
 
   const { data } = await admin

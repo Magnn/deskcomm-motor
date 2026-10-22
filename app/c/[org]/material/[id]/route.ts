@@ -10,7 +10,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { linkDoMaterial } from "@/lib/area-do-cliente/dados";
 import { registrarEvento } from "@/lib/area-do-cliente/eventos";
 import { NAO_ENCONTRADA, contextoDaArea, irPara, paginaSimples } from "@/lib/area-do-cliente/http";
-import { caminhoDaArea } from "@/lib/area-do-cliente/vocabulario";
+import { caminhoPublicoDaArea } from "@/lib/area-do-cliente/vocabulario";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -23,7 +23,7 @@ export async function GET(req: NextRequest, { params }: Ctx): Promise<Response> 
   const ctx = await contextoDaArea(req, slug);
   if (!ctx) return NAO_ENCONTRADA();
   const { admin, org, sessao } = ctx;
-  if (!sessao) return irPara(caminhoDaArea(org.slug));
+  if (!sessao) return irPara(caminhoPublicoDaArea(org.slug, org.config.apelido));
   const naoAchou = () => paginaSimples(404, "Material não encontrado", "Volte para a sua área e tente de novo.");
   if (!UUID.test(id)) return naoAchou();
 

@@ -85,3 +85,8 @@ export const FORMA_DO_SLUG_DA_AREA = /^[a-z0-9][a-z0-9-]{1,62}$/;
 export function caminhoDaArea(slugDaOrganizacao: string): string {
   return `/c/${slugDaOrganizacao}`;
 }
+
+/** O endereço que se MOSTRA e se divulga: o apelido público quando há, senão o slug. */
+export function caminhoPublicoDaArea(slugDaOrganizacao: string, apelido?: string | null): string {
+  return caminhoDaArea(apelido || slugDaOrganizacao);
+}

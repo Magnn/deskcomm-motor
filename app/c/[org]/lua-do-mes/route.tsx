@@ -11,7 +11,7 @@ import { diaNoFuso, primeiroNome } from "@/lib/area-do-cliente/dados";
 import { NAO_ENCONTRADA, contextoDaArea, origemPublica } from "@/lib/area-do-cliente/http";
 import { lerCartas } from "@/lib/area-do-cliente/leituras";
 import { nomeDoMes, resumoDaLuaDoMes, temLuaDoMes } from "@/lib/area-do-cliente/lua-do-mes";
-import { caminhoDaArea } from "@/lib/area-do-cliente/vocabulario";
+import { caminhoPublicoDaArea } from "@/lib/area-do-cliente/vocabulario";
 import { nomeDoContato } from "@/lib/contacts/rotulo-do-contato";
 import { traduzir } from "@/lib/i18n/dicionario";
 import { idiomaDoVisitante } from "@/lib/i18n/idiomaAnonimo";
@@ -68,7 +68,7 @@ export async function GET(req: NextRequest, { params }: Ctx): Promise<Response> 
   const nome = primeiroNome(nomeDoContato(contatoR.data as { name: string | null; display_name: string | null } | null));
   const cor = org.config.cor || COR_PADRAO_DA_AREA;
   const titulo = org.config.titulo || org.nome;
-  const endereco = `${origemPublica(req)}${caminhoDaArea(org.slug)}`.replace(/^https?:\/\//, "");
+  const endereco = `${origemPublica(req)}${caminhoPublicoDaArea(org.slug, org.config.apelido)}`.replace(/^https?:\/\//, "");
   const cabecalho = nome ? `${t("A lua de")} ${nome}` : t("Minha lua");
 
   return new ImageResponse(

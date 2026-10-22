@@ -9,7 +9,7 @@ import type { NextRequest } from "next/server";
 import { registrarEvento } from "@/lib/area-do-cliente/eventos";
 import { NAO_ENCONTRADA, contextoDaArea, irPara } from "@/lib/area-do-cliente/http";
 import { nomeDoCookieDaArea } from "@/lib/area-do-cliente/sessao";
-import { caminhoDaArea } from "@/lib/area-do-cliente/vocabulario";
+import { caminhoPublicoDaArea } from "@/lib/area-do-cliente/vocabulario";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -25,7 +25,7 @@ export async function POST(req: NextRequest, { params }: Ctx): Promise<Response>
     await admin.from("area_sessoes").update({ revoked_at: new Date().toISOString() }).eq("id", sessao.sessaoId);
     await registrarEvento(admin, { organizationId: org.id, contactId: sessao.contactId, tipo: "saiu", sessaoId: sessao.sessaoId });
   }
-  const resposta = irPara(caminhoDaArea(org.slug));
+  const resposta = irPara(caminhoPublicoDaArea(org.slug, org.config.apelido));
   resposta.cookies.delete(nomeDoCookieDaArea(org.slug));
   return resposta;
 }

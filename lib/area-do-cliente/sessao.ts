@@ -42,10 +42,13 @@ export interface SessaoDaArea {
 /** A organização da URL, só se a área dela estiver LIGADA. */
 export async function orgDaArea(admin: SupabaseClient, slug: string): Promise<OrgDaArea | null> {
   if (!FORMA_DO_SLUG_DA_AREA.test(slug)) return null;
+  // O slug OU o apelido público (`settings.area.apelido`). A forma já foi conferida acima, então o valor
+  // não carrega nada que quebre o filtro; o PUT da config garante que um apelido não colide com ninguém.
   const { data } = await admin
     .from("organizations")
     .select("id, slug, display_name, legal_name, cnpj, timezone, settings, suspended_at, redacted_at")
-    .eq("slug", slug)
+    .or(`slug.eq.${slug},settings->area->>apelido.eq.${slug}`)
+    .limit(1)
     .maybeSingle();
   const org = data as {
     id: string;

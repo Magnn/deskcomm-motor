@@ -175,7 +175,7 @@ export default async function AreaDoCliente({ params, searchParams }: Props) {
     : { data: null };
   const origem = (await headers()).get("host") ? `https://${(await headers()).get("host")}` : "";
   const presentes = ((presentesData ?? []) as Array<{ id: string; codigo: string; para_nome: string | null; pergunta: string | null }>).map(
-    (p) => ({ id: p.id, para: p.para_nome, link: `${origem}${caminhoDoPresente(org.slug, p.codigo)}`, usado: p.pergunta !== null }),
+    (p) => ({ id: p.id, para: p.para_nome, link: `${origem}${caminhoDoPresente(org.config.apelido || org.slug, p.codigo)}`, usado: p.pergunta !== null }),
   );
 
   const ofertaAno = org.config.ano_pessoal?.ativo && dados.contato.nascimento ? org.config.ano_pessoal : null;

@@ -2,8 +2,8 @@
  * GET /api/v1/area/config (viewer+) — a configuração da área do cliente e o
  *   endereço público dela.
  * PUT /api/v1/area/config (manager+) — liga/desliga e ajusta título, frase,
- *   WhatsApp do botão e cor. Grava em `organizations.settings.area`, sem tocar
- *   no resto de `settings`.
+ *   WhatsApp do botão, cor e o endereço público (apelido, único na instalação).
+ *   Grava em `organizations.settings.area`, sem tocar no resto de `settings`.
  */
 import { randomUUID } from "node:crypto";
 
@@ -12,7 +12,7 @@ import type { NextRequest } from "next/server";
 import { ok, fail } from "@/lib/api/wrappers";
 import { configDaAreaSchema, lerConfigDaArea } from "@/lib/area-do-cliente/config";
 import { origemPublica } from "@/lib/area-do-cliente/http";
-import { caminhoDaArea } from "@/lib/area-do-cliente/vocabulario";
+import { caminhoPublicoDaArea } from "@/lib/area-do-cliente/vocabulario";
 import { audit } from "@/lib/audit";
 import { requireRole } from "@/lib/auth/require-role";
 import { requireSupportWrite } from "@/lib/impersonate/support";
@@ -34,8 +34,9 @@ export async function GET(req: NextRequest): Promise<Response> {
   if (error) return fail("internal_error", error.message, 500, { requestId });
   const org = data as { slug: string; settings: unknown } | null;
   if (!org) return fail("not_found", "Organização não encontrada.", 404, { requestId });
+  const config = lerConfigDaArea(org.settings);
   return ok(
-    { config: lerConfigDaArea(org.settings), endereco: `${origemPublica(req)}${caminhoDaArea(org.slug)}` },
+    { config, endereco: `${origemPublica(req)}${caminhoPublicoDaArea(org.slug, config.apelido)}` },
     { requestId },
   );
 }
@@ -54,6 +55,20 @@ export async function PUT(req: NextRequest): Promise<Response> {
   // Mescla no `settings` atual pelo cliente de serviço: a escrita em `organizations`
   // é de admin pela RLS, e a decisão de papel (manager+) já foi tomada acima.
   const admin = createAdminClient();
+  const apelido = lido.data.apelido;
+  if (apelido) {
+    // O apelido abre `/c/<apelido>`: não pode ser o slug nem o apelido de OUTRA organização da instalação.
+    const { data: dono, error: erroDono } = await admin
+      .from("organizations")
+      .select("id")
+      .or(`slug.eq.${apelido},settings->area->>apelido.eq.${apelido}`)
+      .neq("id", authz.org.orgId)
+      .limit(1);
+    if (erroDono) return fail("internal_error", erroDono.message, 500, { requestId });
+    if ((dono ?? []).length > 0) {
+      return fail("state_conflict", "Esse endereço já é usado por outra empresa. Escolha outro.", 409, { requestId });
+    }
+  }
   const { data: atual, error: erroLeitura } = await admin
     .from("organizations")
     .select("settings")
@@ -74,7 +89,7 @@ export async function PUT(req: NextRequest): Promise<Response> {
     resourceType: "organization",
     resourceId: authz.org.orgId,
     requestId,
-    metadata: { ativo: lido.data.ativo, tem_whatsapp: Boolean(lido.data.whatsapp) },
+    metadata: { ativo: lido.data.ativo, tem_whatsapp: Boolean(lido.data.whatsapp), apelido: apelido ?? null },
   });
   return ok({ config: lido.data }, { requestId });
 }

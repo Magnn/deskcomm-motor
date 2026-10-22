@@ -11,7 +11,7 @@ import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 
 import { nomeDoCookieDaArea, orgDaArea, sessaoDoCookie } from "@/lib/area-do-cliente/sessao";
-import { caminhoDaArea } from "@/lib/area-do-cliente/vocabulario";
+import { caminhoPublicoDaArea } from "@/lib/area-do-cliente/vocabulario";
 import { tagDeIdioma } from "@/lib/i18n/datas";
 import { traduzir } from "@/lib/i18n/dicionario";
 import { idiomaDoVisitante } from "@/lib/i18n/idiomaAnonimo";
@@ -36,7 +36,7 @@ export default async function Recibo({ params }: Props) {
   const org = await orgDaArea(admin, slug);
   if (!org || !UUID.test(id)) notFound();
   const sessao = await sessaoDoCookie(admin, org, (await cookies()).get(nomeDoCookieDaArea(org.slug))?.value);
-  if (!sessao) redirect(caminhoDaArea(org.slug));
+  if (!sessao) redirect(caminhoPublicoDaArea(org.slug, org.config.apelido));
 
   const { data } = await admin
     .from("revenue_ledger")
@@ -119,7 +119,7 @@ export default async function Recibo({ params }: Props) {
           {org.razaoSocial || org.nome}
           {org.cnpj ? ` · CNPJ ${org.cnpj}` : ""}
         </p>
-        <a href={caminhoDaArea(org.slug)} className="mt-5 inline-block text-sm font-semibold underline underline-offset-4 print:hidden" style={{ color: "#e2c47a" }}>
+        <a href={caminhoPublicoDaArea(org.slug, org.config.apelido)} className="mt-5 inline-block text-sm font-semibold underline underline-offset-4 print:hidden" style={{ color: "#e2c47a" }}>
           {t("Voltar para a sua área")}
         </a>
       </div>
