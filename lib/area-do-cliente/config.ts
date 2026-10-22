@@ -8,6 +8,8 @@
  */
 import { z } from "zod";
 
+import { MOEDAS_INTERNACIONAIS, precoInternacionalSchema } from "@/lib/preco/tipos";
+
 import { FORMA_DO_SLUG_DA_AREA } from "./vocabulario";
 
 export const configDaAreaSchema = z.strictObject({
@@ -72,6 +74,8 @@ export const configDaAreaSchema = z.strictObject({
       ativo: z.boolean().default(false),
       preco_cents: z.number().int().min(100).max(1_000_000).default(3700),
       pixel_id: z.string().regex(/^\d{8,20}$/).optional(),
+      /** Preço para quem abre a página fora do Brasil (`moeda-do-visitante.ts`). Sem ele, só reais. */
+      precos_internacionais: z.array(precoInternacionalSchema).max(MOEDAS_INTERNACIONAIS.length).optional(),
     })
     .optional(),
   /**
@@ -83,6 +87,8 @@ export const configDaAreaSchema = z.strictObject({
       ativo: z.boolean().default(false),
       preco_cents: z.number().int().min(100).max(1_000_000).default(2700),
       pixel_id: z.string().regex(/^\d{8,20}$/).optional(),
+      /** Preço para quem abre a página fora do Brasil (`moeda-do-visitante.ts`). Sem ele, só reais. */
+      precos_internacionais: z.array(precoInternacionalSchema).max(MOEDAS_INTERNACIONAIS.length).optional(),
     })
     .optional(),
   quiz_caminhos: z
@@ -90,6 +96,8 @@ export const configDaAreaSchema = z.strictObject({
       ativo: z.boolean().default(false),
       preco_cents: z.number().int().min(100).max(1_000_000).default(1900),
       pixel_id: z.string().regex(/^\d{8,20}$/).optional(),
+      /** Preço para quem abre a página fora do Brasil (`moeda-do-visitante.ts`). Sem ele, só reais. */
+      precos_internacionais: z.array(precoInternacionalSchema).max(MOEDAS_INTERNACIONAIS.length).optional(),
     })
     .optional(),
   /** O Ano Pessoal: a leitura do ano, oferecida na janela do aniversário. */

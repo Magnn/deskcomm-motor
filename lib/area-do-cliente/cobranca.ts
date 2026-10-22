@@ -28,6 +28,8 @@ export async function criarCobrancaDaArea(
     contactId: string;
     forma: FormaDePagamento;
     valorCentavos: number;
+    /** Em centavos DESTA moeda. Fora do real só há cartão (`moeda-do-visitante.ts`). Padrão: reais. */
+    moeda?: "BRL" | "EUR" | "USD";
     descricao: string;
     produto: string;
     extra: string;
@@ -47,7 +49,9 @@ export async function criarCobrancaDaArea(
     extra: d.extra,
     ...(d.metadados ?? {}),
   };
+  const moeda = d.moeda ?? "BRL";
   if (d.forma === "pix") {
+    if (moeda !== "BRL") throw new Error("Pix é só em reais");
     const pix = await stripe.criarPix({
       valorCentavos: d.valorCentavos,
       descricao: d.descricao,
@@ -59,7 +63,7 @@ export async function criarCobrancaDaArea(
   }
   const link = await stripe.criarLinkDePagamento({
     valorCentavos: d.valorCentavos,
-    moeda: "BRL",
+    moeda,
     descricao: d.descricao,
     referencia: `${d.referencia}-link`,
     metadados,

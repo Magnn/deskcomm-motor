@@ -16,6 +16,7 @@ import { registrarEvento } from "@/lib/area-do-cliente/eventos";
 import { NAO_ENCONTRADA, contextoDaArea, dentroDoLimite } from "@/lib/area-do-cliente/http";
 import { EXTRA_DA_SINASTRIA, pedidoDoQuizSchema, previaDaSinastria } from "@/lib/area-do-cliente/sinastria";
 import { gerarToken, hashDoToken } from "@/lib/area-do-cliente/token";
+import { precoDaOferta } from "@/lib/area-do-cliente/moeda-do-visitante";
 import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
@@ -36,6 +37,10 @@ export async function POST(req: NextRequest, { params }: Ctx): Promise<Response>
   const lido = pedidoDoQuizSchema.safeParse(await req.json().catch(() => null));
   if (!lido.success) return ERRO(422, "validation_failed", "Confira os nomes, as datas e o e-mail.");
   const p = lido.data;
+  // O valor sai da oferta, nunca do navegador; moeda sem preço configurado é recusada, e Pix é só em reais.
+  const valor = precoDaOferta(oferta, p.moeda);
+  if (valor === null) return ERRO(422, "validation_failed", "Esta leitura não é vendida nesta moeda.");
+  if (p.moeda !== "BRL" && p.forma === "pix") return ERRO(422, "validation_failed", "Fora do Brasil o pagamento é no cartão.");
   const previa = previaDaSinastria(p.nascimento_dela, p.nascimento_dele);
   if (!previa) return ERRO(422, "validation_failed", "Confira as datas de nascimento.");
 
@@ -80,6 +85,8 @@ export async function POST(req: NextRequest, { params }: Ctx): Promise<Response>
       nascimento_dele: p.nascimento_dele,
       respostas: p.respostas,
       segredo_hash: hashDoToken(segredo),
+      // Preço de tabela em reais. A cobrança em euro ou dólar leva a moeda nos metadados, e a receita entra
+      // em reais pelo valor que a Stripe converteu (aviso da Stripe).
       preco_cents: oferta.preco_cents,
     })
     .select("id")
@@ -95,17 +102,18 @@ export async function POST(req: NextRequest, { params }: Ctx): Promise<Response>
       organizationId: org.id,
       contactId,
       forma: p.forma,
-      valorCentavos: oferta.preco_cents,
+      valorCentavos: valor,
+      moeda: p.moeda,
       descricao: "O Código da Conexão (sinastria)",
       produto: "O Código da Conexão",
       extra: EXTRA_DA_SINASTRIA,
       referencia: `sinastria-${sinastriaId}`,
-      metadados: { sinastria_id: sinastriaId },
+      metadados: { sinastria_id: sinastriaId, moeda: p.moeda },
       mensagemDepoisDePagar: "Pagamento confirmado. Volte para a página: a sua leitura já está sendo escrita.",
     });
-    await registrarEvento(admin, { organizationId: org.id, contactId, tipo: "sinastria_checkout", props: { forma: p.forma } });
+    await registrarEvento(admin, { organizationId: org.id, contactId, tipo: "sinastria_checkout", props: { forma: p.forma, moeda: p.moeda } });
     return NextResponse.json(
-      { data: { id: sinastriaId, segredo, cobranca, preco_cents: oferta.preco_cents, previa } },
+      { data: { id: sinastriaId, segredo, cobranca, preco_cents: valor, moeda: p.moeda, previa } },
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (err) {
