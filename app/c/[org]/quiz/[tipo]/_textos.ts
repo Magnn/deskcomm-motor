@@ -2,9 +2,42 @@
  * Os textos dos quizzes de uma pessoa, passados pelo dicionário no servidor (`page.tsx`) e entregues prontos ao
  * navegador (`_quiz.tsx`). O que é igual ao quiz da sinastria usa a mesma frase do dicionário.
  */
+import { textosDaPaginaFinal } from "../../_pagina-final-textos";
+
 export function textosDoQuizDePessoa(t: (texto: string) => string, tipo: "prosperidade" | "caminhos") {
   const prosperidade = tipo === "prosperidade";
   return {
+    final: prosperidade
+      ? textosDaPaginaFinal(t, t("Seu Mapa da Prosperidade"), t("O mapa completo do seu número"))
+      : textosDaPaginaFinal(t, t("Seu Ritual de Abertura de Caminhos"), t("O ritual completo do seu momento")),
+    resultadoPronto: t("o seu resultado está pronto"),
+    calculadoDe: prosperidade ? t("Calculado a partir da sua data de nascimento, agora.") : t("Calculado a partir das suas respostas, agora."),
+    rotuloNumero: t("Número do destino"),
+    rotuloArquetipo: t("O seu arquétipo"),
+    rotuloAno: t("Ano pessoal de"),
+    rotuloEstilo: t("Com dinheiro"),
+    rotuloPerfil: t("O seu perfil"),
+    rotuloCarta: t("Carta-chave"),
+    rotuloArea: t("Onde está travado"),
+    ligadoA: t("ligado ao que você contou:"),
+    partes: prosperidade
+      ? [t("O que o seu número diz sobre como você prospera"), t("Os talentos que você pode usar"), t("O padrão que costuma atrapalhar"), t("O que o seu ano pessoal pede"), t("Três atitudes práticas e uma intenção")]
+      : [t("O que o seu perfil e a sua carta-chave mostram"), t("O que separar em casa"), t("O ritual de 7 dias, um passo por dia"), t("Como encerrar e o que observar depois")],
+    entregas: (prosperidade
+      ? [
+          [t("O seu número inteiro"), t("explicado: como você prospera e o que trava")],
+          [t("O ano pessoal"), t("e o que ele pede de você neste ciclo")],
+          [t("Três atitudes práticas"), t("para as próximas semanas")],
+          [t("Uma intenção"), t("para escrever e guardar")],
+          [t("Leitura na hora"), t("aqui mesmo, logo depois de pagar, para reler quando quiser")],
+        ]
+      : [
+          [t("A sua carta-chave"), t("explicada para o seu momento")],
+          [t("Um ritual de 7 dias"), t("um passo simples por dia, para fazer em casa")],
+          [t("O que separar"), t("só coisas que você já tem")],
+          [t("Como encerrar"), t("e o que observar depois")],
+          [t("Leitura na hora"), t("aqui mesmo, logo depois de pagar, para reler quando quiser")],
+        ]) as [string, string][],
     titulo: prosperidade ? t("Qual é o seu número da prosperidade?") : t("O que abre os seus caminhos?"),
     chamada: prosperidade
       ? t("A numerologia soma os algarismos da data de nascimento até um único número. Veja a conta feita na hora e o que o seu número diz sobre como você prospera.")
