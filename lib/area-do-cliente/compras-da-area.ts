@@ -18,6 +18,7 @@ import { creditarCirculo, moverCreditos } from "./creditos-servidor";
 import { EXTRA_DA_LEITURA } from "./leituras";
 import { registrarEvento } from "./eventos";
 import { EXTRA_DO_PRESENTE } from "./presente";
+import { tipoDoExtra } from "./quizzes";
 import { EXTRA_DA_SINASTRIA } from "./sinastria";
 import { EXTRA_DA_CONTRIBUICAO, EXTRA_DA_SIMPATIA } from "./simpatias";
 
@@ -116,6 +117,23 @@ export async function liberarCompraDaArea(
     if (data && data.length > 0) {
       await registrarEvento(admin, { organizationId, contactId, tipo: "sinastria_paga", props: { metodo } });
     }
+    return;
+  }
+  if (tipoDoExtra(extra) !== null) {
+    // Os quizzes de uma pessoa (0943): como a sinastria, o texto é escrito depois, pela página.
+    const pedidoId = meta.quiz_id;
+    if (!pedidoId || !UUID.test(pedidoId)) return;
+    const { data, error } = await admin
+      .from("area_quiz_pedidos")
+      .update({ pago_at: new Date().toISOString(), pagamento: pagamentoId })
+      .eq("id", pedidoId)
+      .eq("organization_id", organizationId)
+      .eq("contact_id", contactId)
+      .is("pago_at", null)
+      .select("tipo");
+    if (error) throw new Error(error.message);
+    const pago = (data ?? [])[0] as { tipo: string } | undefined;
+    if (pago) await registrarEvento(admin, { organizationId, contactId, tipo: "quiz_pago", props: { quiz: pago.tipo, metodo } });
     return;
   }
   if (extra === EXTRA_DA_CONTRIBUICAO) {
