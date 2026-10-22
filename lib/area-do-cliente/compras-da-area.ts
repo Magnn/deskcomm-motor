@@ -18,6 +18,7 @@ import { creditarCirculo, moverCreditos } from "./creditos-servidor";
 import { EXTRA_DA_LEITURA } from "./leituras";
 import { registrarEvento } from "./eventos";
 import { EXTRA_DO_PRESENTE } from "./presente";
+import { EXTRA_DA_SINASTRIA } from "./sinastria";
 import { EXTRA_DA_CONTRIBUICAO, EXTRA_DA_SIMPATIA } from "./simpatias";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -96,6 +97,24 @@ export async function liberarCompraDaArea(
     const pago = (data ?? [])[0] as { titulo: string } | undefined;
     if (pago) {
       await registrarEvento(admin, { organizationId, contactId, tipo: "simpatia_paga", props: { titulo: pago.titulo, metodo } });
+    }
+    return;
+  }
+  if (extra === EXTRA_DA_SINASTRIA) {
+    // O texto é escrito depois, pela página (`/sinastria/[id]/gerar`): o aviso da Stripe não espera a IA.
+    const sinastriaId = meta.sinastria_id;
+    if (!sinastriaId || !UUID.test(sinastriaId)) return;
+    const { data, error } = await admin
+      .from("area_sinastrias")
+      .update({ pago_at: new Date().toISOString(), pagamento: pagamentoId })
+      .eq("id", sinastriaId)
+      .eq("organization_id", organizationId)
+      .eq("contact_id", contactId)
+      .is("pago_at", null)
+      .select("id");
+    if (error) throw new Error(error.message);
+    if (data && data.length > 0) {
+      await registrarEvento(admin, { organizationId, contactId, tipo: "sinastria_paga", props: { metodo } });
     }
     return;
   }

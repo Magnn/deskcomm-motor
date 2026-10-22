@@ -45,6 +45,8 @@ export const TIPOS_DE_EVENTO_DA_AREA = [
   "simpatia_feita",
   "contribuicao_checkout",
   "contribuicao_paga",
+  "sinastria_checkout",
+  "sinastria_paga",
 ] as const;
 export type TipoDeEventoDaArea = (typeof TIPOS_DE_EVENTO_DA_AREA)[number];
 
@@ -57,7 +59,7 @@ export const AUTORES_DA_MENSAGEM = ["cliente", "equipe"] as const;
 export type AutorDaMensagem = (typeof AUTORES_DA_MENSAGEM)[number];
 
 /** Mesmo conjunto do CHECK de `area_sessoes.origem`. */
-export const ORIGENS_DE_SESSAO_DA_AREA = ["convite", "codigo"] as const;
+export const ORIGENS_DE_SESSAO_DA_AREA = ["convite", "codigo", "quiz"] as const;
 export type OrigemDeSessaoDaArea = (typeof ORIGENS_DE_SESSAO_DA_AREA)[number];
 
 /** O link de acesso vale 30 dias: dá tempo de a pessoa abrir quando puder, em mais de um aparelho. */

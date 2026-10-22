@@ -48,6 +48,18 @@ export const configDaAreaSchema = z.strictObject({
       preco_cents: z.number().int().min(100).max(1_000_000).default(1700),
     })
     .optional(),
+  /**
+   * O QUIZ DA SINASTRIA ("Vocês combinam?", `lib/area-do-cliente/sinastria.ts`, migration 0942): vendido direto na
+   * página, sem WhatsApp. `pixel_id`: o conjunto de dados da Meta só desta página, para as vendas dela não se
+   * misturarem às do atendimento.
+   */
+  sinastria_quiz: z
+    .strictObject({
+      ativo: z.boolean().default(false),
+      preco_cents: z.number().int().min(100).max(1_000_000).default(3700),
+      pixel_id: z.string().regex(/^\d{8,20}$/).optional(),
+    })
+    .optional(),
   /** O Ano Pessoal: a leitura do ano, oferecida na janela do aniversário. */
   ano_pessoal: z
     .strictObject({

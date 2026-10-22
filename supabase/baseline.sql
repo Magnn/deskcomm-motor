@@ -38731,7 +38731,7 @@ create table if not exists public.area_sessoes (
   organization_id uuid not null references public.organizations(id) on delete cascade,
   contact_id uuid not null references public.contacts(id) on delete cascade,
   token_hash text not null unique,
-  origem text not null check (origem in ('convite', 'codigo')),
+  origem text not null check (origem in ('convite', 'codigo', 'quiz')),
   expires_at timestamptz not null,
   revoked_at timestamptz,
   last_seen_at timestamptz not null default now(),
@@ -39784,7 +39784,9 @@ alter table public.area_eventos add constraint area_eventos_tipo_check check (ti
   'perfil_salvo',
   -- migration 0941 (as simpatias e a contribuição).
   'simpatia_checkout', 'simpatia_paga', 'simpatia_feita',
-  'contribuicao_checkout', 'contribuicao_paga'
+  'contribuicao_checkout', 'contribuicao_paga',
+  -- migration 0942 (a sinastria vendida pelo quiz da página).
+  'sinastria_checkout', 'sinastria_paga'
 ));
 
 -- ---- A conexão com a Stripe aceita a conta conectada — Stripe Connect (migration 0935) ----
@@ -39957,3 +39959,40 @@ revoke insert, update, delete, truncate on public.area_simpatias_pedidos from au
 
 -- `area_simpatias` é gravável pela sessão: as travas de suporte entram depois dela.
 do $f$ begin perform public.fn_aplicar_travas_de_suporte(); end $f$;
+
+-- ---- a sinastria vendida direto na página — o quiz "Vocês combinam?" (migration 0942) ----
+-- Aditiva: tabela nova (só o servidor escreve, a equipe lê) e a origem `quiz` da sessão da área. Os tipos de evento
+-- `sinastria_*` foram acrescentados ao bloco único do vocabulário de `area_eventos`, acima.
+create table if not exists public.area_sinastrias (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references public.organizations(id) on delete cascade,
+  contact_id uuid not null references public.contacts(id) on delete cascade,
+  nome_dela text not null check (char_length(nome_dela) between 1 and 80),
+  nascimento_dela date not null,
+  nome_dele text not null check (char_length(nome_dele) between 1 and 80),
+  nascimento_dele date not null,
+  respostas jsonb not null default '{}'::jsonb,
+  -- O acesso ao resultado: o hash do segredo devolvido só a quem fez o pedido (não abre a área de ninguém).
+  segredo_hash text not null check (char_length(segredo_hash) = 64),
+  preco_cents integer not null check (preco_cents between 100 and 100000),
+  pagamento text,
+  pago_at timestamptz,
+  texto text check (texto is null or char_length(texto) <= 16000),
+  modelo text,
+  created_at timestamptz not null default now()
+);
+create index if not exists area_sinastrias_pessoa_idx on public.area_sinastrias (organization_id, contact_id, created_at desc);
+
+comment on table public.area_sinastrias is
+  'A sinastria vendida pelo quiz da página (migration 0942): nasce antes do pagamento, o aviso da Stripe marca pago_at, a IA escreve o texto. A equipe lê; só o servidor escreve.';
+
+alter table public.area_sinastrias enable row level security;
+drop policy if exists tenant_isolation_area_sinastrias_select on public.area_sinastrias;
+create policy tenant_isolation_area_sinastrias_select on public.area_sinastrias
+  for select
+  using (organization_id in (select public.fn_user_org_ids()) or public.fn_is_platform_admin());
+revoke all on public.area_sinastrias from anon;
+revoke insert, update, delete, truncate on public.area_sinastrias from authenticated;
+
+alter table public.area_sessoes drop constraint if exists area_sessoes_origem_check;
+alter table public.area_sessoes add constraint area_sessoes_origem_check check (origem in ('convite', 'codigo', 'quiz'));
