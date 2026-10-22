@@ -19,6 +19,7 @@ import { copyToClipboard } from "@/lib/clipboard";
 
 import { enviarLead, idDaVisita, manterVivo, marcarPasso } from "../_passos";
 
+import { PaginaFinal } from "../_pagina-final";
 import { Interludio, Progresso, SeletorDeData, TelaDeCalculo } from "../_quiz-pecas";
 import { CARTAO, SERIF, SOBRETITULO } from "../_tema";
 import type { TextosDoQuiz } from "./_textos";
@@ -399,18 +400,21 @@ export function QuizDaSinastria(props: {
         </div>
       )}
 
-      {fase === "previa" && (
-        <>
-          {previaCalculada ? (
+      {fase === "previa" && previaCalculada && (
+        <PaginaFinal
+          cor={cor}
+          sobretitulo={tx.seuResultado}
+          titulo={`${nomeDela.trim()}, ${tx.previaPronta}`}
+          subtitulo={tx.calculadaDe}
+          dados={[
+            { rotulo: `${tx.signoDe} ${nomeDela.trim()}`, valor: previaCalculada.signoDela },
+            { rotulo: `${tx.signoDe} ${nomeDele.trim()}`, valor: previaCalculada.signoDele },
+            { rotulo: tx.elementos, valor: `${previaCalculada.elementoDela} + ${previaCalculada.elementoDele}` },
+            { rotulo: tx.combinacao, valor: previaCalculada.titulo },
+          ]}
+          resultado={
             <div className={CARTAO}>
-              <p className={SOBRETITULO}>{tx.seuResultado}</p>
-              <h2 className={`${SERIF} mt-2 text-2xl text-[#f6e3a8]`}>
-                {nomeDela.trim()} ({previaCalculada.signoDela}) e {nomeDele.trim()} ({previaCalculada.signoDele})
-              </h2>
-              <p className="mt-2 text-sm text-[#e2c47a]">
-                {previaCalculada.elementoDela} + {previaCalculada.elementoDele} · {previaCalculada.titulo}
-              </p>
-              <p className="mt-4 text-xs uppercase tracking-wide text-[#7fd1a0]">{tx.pontoForte}</p>
+              <p className="text-xs uppercase tracking-wide text-[#7fd1a0]">{tx.pontoForte}</p>
               <p className="mt-1 text-[16px] leading-relaxed text-[#f6f0e4]">{previaCalculada.forte}</p>
               <p className="mt-4 text-xs uppercase tracking-wide text-[#f3a3c0]">{tx.pontoDeAtencao}</p>
               <p className="mt-1 text-[16px] leading-relaxed text-[#f6f0e4]">{previaCalculada.atencao}</p>
@@ -425,39 +429,23 @@ export function QuizDaSinastria(props: {
               ) : null}
               <p className="mt-4 text-[15px] leading-relaxed text-[#c3bad3]">{tx.ponte}</p>
             </div>
-          ) : null}
-          <div className={`${CARTAO} mt-5`}>
-            <p className={SOBRETITULO}>{tx.codigo}</p>
-            <h3 className={`${SERIF} mt-2 text-xl text-[#f6e3a8]`}>{tx.completa}</h3>
-            <ul className="mt-3 space-y-1.5 text-[15px] text-[#c3bad3]">
-              <li>• {tx.item1}</li>
-              <li>• {tx.item2}</li>
-              <li>• {tx.item3}</li>
-              <li>• {tx.item4}</li>
-              <li>• {tx.item5}</li>
-            </ul>
-            <p className="mt-4 text-3xl font-semibold text-[#f6e3a8]">{valorNaMoedaDaPagina(preco, moeda)}</p>
-            <p className="text-xs text-[#9d94b2]">{tx.pagamentoUnico}</p>
-            <p className="mt-1 text-xs text-[#9d94b2]">{tx.garantia}</p>
-            {erro && <p className="mt-3 text-sm text-[#f3a3c0]">{erro}</p>}
-            {moeda === "BRL" ? (
-              <>
-                <button className={`${botao} mt-5`} style={{ background: cor }} disabled={enviando} onClick={() => void pagar("pix")}>
-                  {enviando ? tx.gerando : tx.pagarPix}
-                </button>
-                <button className="mt-3 w-full text-sm text-[#e2c47a] underline disabled:opacity-50" disabled={enviando} onClick={() => void pagar("cartao")}>
-                  {tx.prefiroCartao}
-                </button>
-                <p className="mt-3 text-center text-[11px] text-[#9d94b2]">{tx.noBanco}</p>
-              </>
-            ) : (
-              // Fora do Brasil não há Pix: o cartão é o caminho, na moeda da pessoa.
-              <button className={`${botao} mt-5`} style={{ background: cor }} disabled={enviando} onClick={() => void pagar("cartao")}>
-                {enviando ? tx.gerando : tx.pagarCartao}
-              </button>
-            )}
-          </div>
-        </>
+          }
+          partes={[
+            { titulo: tx.parte1, gancho: `${previaCalculada.signoDela} e ${previaCalculada.signoDele}` },
+            { titulo: tx.parte2, gancho: previaCalculada.titulo },
+            { titulo: tx.parte3 },
+            { titulo: tx.parte4, gancho: respostas.briga && respostas.briga !== "Quase não brigamos" ? `${tx.ligadoA} ${respostas.briga.toLowerCase()}` : undefined },
+            { titulo: tx.parte5, gancho: respostas.carinho ? `${tx.doJeito} ${respostas.carinho.toLowerCase()}` : undefined },
+            { titulo: tx.parte6, gancho: respostas.deseja ? `${tx.paraResponder} ${respostas.deseja.toLowerCase()}` : undefined },
+          ]}
+          itens={[tx.entrega1, tx.entrega2, tx.entrega3, tx.entrega4, tx.entrega5]}
+          preco={valorNaMoedaDaPagina(preco, moeda)}
+          brasil={moeda === "BRL"}
+          enviando={enviando}
+          erro={erro}
+          aoPagar={(forma) => void pagar(forma)}
+          tx={tx.final}
+        />
       )}
 
       {fase === "pagar" && (

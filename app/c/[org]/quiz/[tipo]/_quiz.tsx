@@ -16,6 +16,7 @@ import { copyToClipboard } from "@/lib/clipboard";
 
 import { enviarLead, idDaVisita, manterVivo, marcarPasso } from "../../_passos";
 
+import { PaginaFinal } from "../../_pagina-final";
 import { Interludio, Progresso, SeletorDeData, TelaDeCalculo } from "../../_quiz-pecas";
 import { CARTAO, SERIF, SOBRETITULO } from "../../_tema";
 import type { TextosDoQuizDePessoa } from "./_textos";
@@ -371,80 +372,77 @@ export function QuizDePessoa(props: {
         </div>
       )}
 
-      {fase === "previa" && (
-        <>
-          <div className={CARTAO}>
-            <p className={SOBRETITULO}>{tx.seuResultado}</p>
-            {tipo === "prosperidade" && prosperidade ? (
-              <>
-                <p className={`${SERIF} mt-2 text-5xl text-[#f6e3a8]`}>{prosperidade.numero}</p>
-                <h2 className={`${SERIF} mt-1 text-2xl text-[#f6e3a8]`}>
-                  {nome.trim()}: {prosperidade.titulo}
-                </h2>
-                <p className="mt-3 text-[16px] leading-relaxed text-[#f6f0e4]">{prosperidade.texto}</p>
-                <div className="mt-4 rounded-2xl border border-[#c9a54e]/25 bg-[#120d22] p-4">
-                  <p className="text-sm text-[#e2c47a]">
-                    {tx.seuAnoPessoal} {prosperidade.ano}: <span className="text-xl font-semibold">{prosperidade.anoPessoal}</span>
-                  </p>
-                  <p className="mt-1 text-[14px] text-[#c3bad3]">{tx.oQueEleAnoPede}</p>
-                </div>
-                {respostas.estilo && respostas.pesa ? (
-                  <p className="mt-4 border-l-2 border-[#c9a54e]/40 pl-3 text-[15px] leading-relaxed text-[#c3bad3]">
-                    {tx.comDinheiroE} {respostas.estilo.toLowerCase()} {tx.eQuePesa} “{respostas.pesa.toLowerCase()}”.
-                  </p>
-                ) : null}
-              </>
-            ) : null}
-            {tipo === "caminhos" && caminhos ? (
-              <>
-                <h2 className={`${SERIF} mt-2 text-2xl text-[#f6e3a8]`}>
-                  {nome.trim()}: {caminhos.titulo}
-                </h2>
-                <div className="mt-4 rounded-2xl border border-[#c9a54e]/25 bg-[#120d22] p-4">
+      {fase === "previa" && (prosperidade || caminhos) && (
+        <PaginaFinal
+          cor={cor}
+          sobretitulo={tx.seuResultado}
+          titulo={`${nome.trim()}, ${tx.resultadoPronto}`}
+          subtitulo={tx.calculadoDe}
+          dados={
+            prosperidade
+              ? [
+                  { rotulo: tx.rotuloNumero, valor: String(prosperidade.numero) },
+                  { rotulo: tx.rotuloArquetipo, valor: prosperidade.titulo },
+                  { rotulo: `${tx.rotuloAno} ${prosperidade.ano}`, valor: String(prosperidade.anoPessoal) },
+                  ...(respostas.estilo ? [{ rotulo: tx.rotuloEstilo, valor: respostas.estilo }] : []),
+                ]
+              : caminhos
+                ? [
+                    { rotulo: tx.rotuloPerfil, valor: caminhos.titulo },
+                    { rotulo: tx.rotuloCarta, valor: caminhos.carta },
+                    ...(respostas.area ? [{ rotulo: tx.rotuloArea, valor: respostas.area }] : []),
+                  ]
+                : []
+          }
+          resultado={
+            <div className={CARTAO}>
+              {prosperidade ? (
+                <>
+                  <p className="text-[16px] leading-relaxed text-[#f6f0e4]">{prosperidade.texto}</p>
+                  <p className="mt-4 text-[14px] text-[#c3bad3]">{tx.oQueEleAnoPede}</p>
+                  {respostas.estilo && respostas.pesa ? (
+                    <p className="mt-4 border-l-2 border-[#c9a54e]/40 pl-3 text-[15px] leading-relaxed text-[#c3bad3]">
+                      {tx.comDinheiroE} {respostas.estilo.toLowerCase()} {tx.eQuePesa} “{respostas.pesa.toLowerCase()}”.
+                    </p>
+                  ) : null}
+                </>
+              ) : null}
+              {caminhos ? (
+                <>
                   <p className="text-sm text-[#e2c47a]">
                     {tx.cartaChave}: <span className="font-semibold">{caminhos.carta}</span>
                   </p>
                   <p className="mt-1 text-[15px] leading-relaxed text-[#f6f0e4]">{caminhos.sentidoDaCarta}</p>
-                </div>
-                <p className="mt-4 text-[16px] leading-relaxed text-[#f6f0e4]">{caminhos.texto}</p>
-                {respostas.precisa ? (
-                  <p className="mt-4 border-l-2 border-[#c9a54e]/40 pl-3 text-[15px] leading-relaxed text-[#c3bad3]">
-                    {tx.voceContou} {tx.quePrecisaDe} “{respostas.precisa.toLowerCase()}”.
-                  </p>
-                ) : null}
-              </>
-            ) : null}
-            <p className="mt-4 text-[15px] leading-relaxed text-[#c3bad3]">{tx.ponte}</p>
-          </div>
-          <div className={`${CARTAO} mt-5`}>
-            <p className={SOBRETITULO}>{tx.produto}</p>
-            <ul className="mt-3 space-y-1.5 text-[15px] text-[#c3bad3]">
-              {tx.itens.map((i) => (
-                <li key={i}>• {i}</li>
-              ))}
-            </ul>
-            <p className="mt-4 text-3xl font-semibold text-[#f6e3a8]">{valorNaMoedaDaPagina(preco, moeda)}</p>
-            <p className="text-xs text-[#9d94b2]">{tx.pagamentoUnico}</p>
-            <p className="mt-1 text-xs text-[#9d94b2]">{tx.garantia}</p>
-            {erro && <p className="mt-3 text-sm text-[#f3a3c0]">{erro}</p>}
-            {moeda === "BRL" ? (
-              <>
-                <button className={`${botao} mt-5`} style={{ background: cor }} disabled={enviando} onClick={() => void pagar("pix")}>
-                  {enviando ? tx.gerando : tx.pagarPix}
-                </button>
-                <button className="mt-3 w-full text-sm text-[#e2c47a] underline disabled:opacity-50" disabled={enviando} onClick={() => void pagar("cartao")}>
-                  {tx.prefiroCartao}
-                </button>
-                <p className="mt-3 text-center text-[11px] text-[#9d94b2]">{tx.noBanco}</p>
-              </>
-            ) : (
-              // Fora do Brasil não há Pix: o cartão é o caminho, na moeda da pessoa.
-              <button className={`${botao} mt-5`} style={{ background: cor }} disabled={enviando} onClick={() => void pagar("cartao")}>
-                {enviando ? tx.gerando : tx.pagarCartao}
-              </button>
-            )}
-          </div>
-        </>
+                  <p className="mt-4 text-[16px] leading-relaxed text-[#f6f0e4]">{caminhos.texto}</p>
+                  {respostas.precisa ? (
+                    <p className="mt-4 border-l-2 border-[#c9a54e]/40 pl-3 text-[15px] leading-relaxed text-[#c3bad3]">
+                      {tx.voceContou} {tx.quePrecisaDe} “{respostas.precisa.toLowerCase()}”.
+                    </p>
+                  ) : null}
+                </>
+              ) : null}
+              <p className="mt-4 text-[15px] leading-relaxed text-[#c3bad3]">{tx.ponte}</p>
+            </div>
+          }
+          partes={tx.partes.map((titulo, i) => ({
+            titulo,
+            gancho:
+              i === 2 && prosperidade && respostas.pesa
+                ? `${tx.ligadoA} ${respostas.pesa.toLowerCase()}`
+                : i === 3 && prosperidade
+                  ? `${tx.rotuloAno} ${prosperidade.ano}: ${prosperidade.anoPessoal}`
+                  : i === 0 && caminhos
+                    ? `${caminhos.titulo} · ${caminhos.carta}`
+                    : undefined,
+          }))}
+          itens={tx.entregas}
+          preco={valorNaMoedaDaPagina(preco, moeda)}
+          brasil={moeda === "BRL"}
+          enviando={enviando}
+          erro={erro}
+          aoPagar={(forma) => void pagar(forma)}
+          tx={tx.final}
+        />
       )}
 
       {fase === "pagar" && (
