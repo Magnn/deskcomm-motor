@@ -360,6 +360,17 @@ export const PONTOS_DE_IA: readonly PontoDeIa[] = [
     registraEm: "llm_calls",
   },
   {
+    id: "area_sinastria",
+    rotulo: "Escrever a sinastria do quiz",
+    oQueFaz:
+      "Escreve \"O Código da Conexão\" de quem comprou pelo quiz da página: a sinastria do casal em seis partes, a partir dos signos solares calculados pelas datas e das respostas do quiz, como tendência e sem promessa.",
+    papel: "atender",
+    exige: {},
+    emissor: "lib/area-do-cliente/circulo-ia.ts",
+    sintomaDeFalha: "Quem pagou a sinastria do quiz vê o aviso de que a leitura está sendo preparada.",
+    registraEm: "llm_calls",
+  },
+  {
     id: "area_leitura",
     rotulo: "Escrever a leitura da Mesa",
     oQueFaz:

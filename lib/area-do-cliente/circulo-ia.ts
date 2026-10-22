@@ -120,6 +120,51 @@ export function pedidoDoAnoPessoal(empresa: string, d: { numero: number; ano: nu
   ].join("\n\n");
 }
 
+export function pedidoDaSinastria(
+  empresa: string,
+  d: {
+    nomeDela: string;
+    nomeDele: string;
+    signoDela: string;
+    signoDele: string;
+    elementoDela: string;
+    elementoDele: string;
+    respostas: Record<string, string>;
+  },
+): string {
+  const contexto = Object.entries(d.respostas)
+    .filter(([, v]) => v)
+    .map(([k, v]) => `- ${k === "momento" ? "Como está a relação" : k === "aperta" ? "O que mais aperta" : "O que ela deseja"}: ${v}`)
+    .join("\n");
+  return [
+    `Você escreve "O Código da Conexão", a sinastria de um casal, para uma cliente de ${empresa}.`,
+    `Ela: ${d.nomeDela}, signo solar ${d.signoDela} (elemento ${d.elementoDela}). Ele: ${d.nomeDele}, signo solar ${d.signoDele} (elemento ${d.elementoDele}).`,
+    contexto ? `O que ela contou no quiz:\n${contexto}` : "",
+    "Escreva em seis partes, cada uma com um título curto em linha própria: (1) A energia de cada um no amor, (2) O que une vocês, (3) Onde vocês se desencontram, (4) O padrão que se repete, (5) Como conversar com ele, (6) Uma prática para os próximos dias.",
+    `Regras:\n- ${REGRAS_DE_TOM}\n- Fale do que os signos e os elementos indicam como TENDÊNCIA, nunca como certeza. Nunca diga o que ele sente, pensa ou vai fazer, nem prometa que vão ficar juntos.\n- Se ela contou que estão separados ou que ele some, acolha sem alimentar espera: o foco é ela entender e escolher.`,
+    "Entre 700 e 1.000 palavras. Use o nome dela no máximo três vezes e o dele no máximo três.",
+    "Responda só com o texto, com uma linha em branco entre as partes.",
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+export async function gerarSinastria(
+  pool: pg.Pool,
+  cfg: LlmEdgeConfig,
+  d: Parameters<typeof pedidoDaSinastria>[1] & { organizationId: string; contactId: string; empresa: string },
+): Promise<{ texto: string; modelo: string | null } | null> {
+  const chamada = await runModelCall(pool, cfg, {
+    tenantId: d.organizationId,
+    leadId: d.contactId,
+    jobId: null,
+    purpose: "area_sinastria",
+    messages: [{ role: "user", content: pedidoDaSinastria(d.empresa, d) }],
+  });
+  const texto = (chamada.result.text ?? "").trim();
+  return texto ? { texto: texto.slice(0, 16000), modelo: chamada.model ?? null } : null;
+}
+
 export async function gerarAnoPessoal(
   pool: pg.Pool,
   cfg: LlmEdgeConfig,
