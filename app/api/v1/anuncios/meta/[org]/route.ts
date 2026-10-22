@@ -49,6 +49,7 @@ import { criarClickRef } from "@/lib/plataformas-de-anuncio/captura-de-clique";
 import { lerConfigDaLanding } from "@/lib/plataformas-de-anuncio/landing-config";
 import {
   clientIp,
+  modeloComFrase,
   paginaDeSaida,
   textoSemRef,
   whatsAppUrl,
@@ -146,8 +147,10 @@ export async function GET(req: NextRequest, ctx: RouteContext): Promise<Response
   const organizationId = (organizacao as { id: string } | null)?.id ?? null;
   if (!organizationId) return paginaDeSaida(null);
 
-  const config = await lerConfigDaLanding(admin, "meta_ads_landing_pages", organizationId);
-  if (!config) return paginaDeSaida(null);
+  const lida = await lerConfigDaLanding(admin, "meta_ads_landing_pages", organizationId);
+  if (!lida) return paginaDeSaida(null);
+  // A página de outra oferta manda a própria frase (`frase=`), e o fluxo de palavra-chave começa a conversa certa.
+  const config = { ...lida, messageTemplate: modeloComFrase(lida.messageTemplate, parametros.get("frase")) };
 
   // Sem UTM nenhuma não há o que guardar, e um ref que não aponta para origem
   // alguma só suja a mensagem do lead. A pessoa vai para o WhatsApp do mesmo
