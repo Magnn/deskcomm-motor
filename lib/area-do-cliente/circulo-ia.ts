@@ -169,14 +169,29 @@ export async function gerarSinastria(
 
 export function pedidoDoQuiz(
   empresa: string,
-  d: { tipo: "prosperidade" | "caminhos"; nome: string; titulo: string; detalhe: string; fato?: string; respostas: Record<string, string> },
+  d: { tipo: "prosperidade" | "caminhos" | "par"; nome: string; titulo: string; detalhe: string; fato?: string; respostas: Record<string, string> },
 ): string {
-  const contexto = Object.values(d.respostas).filter(Boolean).map((v) => `- ${v}`).join("\n");
+  // A hora e o lugar de nascimento (Retrato do Par) já viraram o `fato` calculado: não entram como "resposta".
+  const contexto = Object.entries(d.respostas)
+    .filter(([k, v]) => v && k !== "hora" && k !== "lugar")
+    .map(([, v]) => `- ${v}`)
+    .join("\n");
   const comum = [
     `Regras:\n- ${REGRAS_DE_TOM}\n- Nunca prometa dinheiro, emprego, cura, volta de alguém ou prazo. Não dê conselho financeiro: fale de atitude, organização e intenção.\n- Não fale em "bloqueio", "energia ruim", "carga" nem "trabalho feito".`,
     "Entre 600 e 900 palavras. Use o nome dela no máximo três vezes.",
     "Responda só com o texto, com uma linha em branco entre as partes, cada parte com um título curto em linha própria.",
   ];
+  if (d.tipo === "par") {
+    return [
+      `Você escreve "O Retrato do Par", uma leitura de astrologia para ${d.nome}, cliente de ${empresa}: o perfil de pessoa que combina com ela.`,
+      `Calculado do mapa dela (posições reais): ${d.fato ?? d.detalhe}.`,
+      "Vênus descreve o que a ATRAI; o Descendente (casa 7) descreve o que lhe FAZ BEM numa relação. Quando os dois estão em elementos que não conversam, ela tende a se apaixonar pelo que não a faz bem, e o padrão se repete.",
+      contexto ? `O que ela contou no quiz:\n${contexto}` : "",
+      "Escreva em cinco partes: (1) O que te atrai (Vênus), (2) O que te faz bem (o Descendente; sem a hora, diga com clareza que esta parte precisa da hora e fale do que Vênus pede), (3) O padrão que se repete, ligado ao que ela contou, (4) O perfil que combina com você: os signos e elementos listados e os traços desse perfil, (5) O sinal de alerta: o tipo que repete o padrão, e uma prática para os próximos 7 dias.",
+      "Fale de PERFIL e de TENDÊNCIA, nunca de uma pessoa específica: não invente nome, inicial, aparência nem data de encontro, e não prometa que alguém vai aparecer.",
+      ...comum,
+    ].filter(Boolean).join("\n\n");
+  }
   if (d.tipo === "prosperidade") {
     return [
       `Você escreve "Seu Mapa da Prosperidade", uma leitura de numerologia para ${d.nome}, cliente de ${empresa}.`,
@@ -206,7 +221,7 @@ export async function gerarQuiz(
     tenantId: d.organizationId,
     leadId: d.contactId,
     jobId: null,
-    purpose: d.tipo === "prosperidade" ? "area_quiz_prosperidade" : "area_quiz_caminhos",
+    purpose: d.tipo === "prosperidade" ? "area_quiz_prosperidade" : d.tipo === "par" ? "area_quiz_par" : "area_quiz_caminhos",
     messages: [{ role: "user", content: pedidoDoQuiz(d.empresa, d) }],
   });
   const texto = (chamada.result.text ?? "").trim();

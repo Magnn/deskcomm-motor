@@ -11,7 +11,10 @@
  */
 import { z } from "zod";
 
-export const TIPOS_DE_QUIZ = ["prosperidade", "caminhos"] as const;
+import { retratoDoPar } from "./retrato-do-par";
+
+/** Os quizzes de uma pessoa; o mesmo conjunto do CHECK de `area_quiz_pedidos.tipo` (0943, 0945). */
+export const TIPOS_DE_QUIZ = ["prosperidade", "caminhos", "par"] as const;
 export type TipoDeQuiz = (typeof TIPOS_DE_QUIZ)[number];
 export const EXTRA_DO_QUIZ = (tipo: TipoDeQuiz) => `quiz-${tipo}`;
 export const tipoDoExtra = (extra: string): TipoDeQuiz | null =>
@@ -157,6 +160,42 @@ export function previaDosCaminhos(respostas: Record<string, string>) {
   return { perfil, ...PERFIS_DOS_CAMINHOS[perfil] };
 }
 
+// ─── O RETRATO DO PAR ─────────────────────────────────────────────────────────────────────
+
+/**
+ * As perguntas do Retrato do Par, antes da data. A hora e o lugar de nascimento entram nas respostas (`hora`,
+ * `lugar`), porque o pedido já guarda as respostas como texto curto — o Descendente sai delas.
+ */
+export const PERGUNTAS_DO_PAR = [
+  { id: "momento", capitulo: "O seu momento", texto: "Como está o seu coração hoje?", opcoes: ["Sozinha e querendo alguém", "Com alguém, mas em dúvida", "Saindo de uma história", "Bem, só quero me entender"] },
+  { id: "repete", capitulo: "O que se repete", texto: "Você sente que escolhe sempre o mesmo tipo de pessoa?", opcoes: ["Sim, sempre o mesmo tipo", "Às vezes", "Não, cada um foi diferente"] },
+  { id: "atrai", capitulo: "O que se repete", texto: "O que mais te atrai em alguém, logo de cara?", opcoes: ["Confiança e atitude", "Mistério e intensidade", "Conversa e humor", "Carinho e cuidado"] },
+  { id: "termina", capitulo: "O que se repete", texto: "Quando uma história acaba, quase sempre é porque…", opcoes: ["A pessoa não estava disponível", "Eu dei mais do que recebi", "A paixão esfriou", "Faltou conversa"] },
+  { id: "quer", capitulo: "O que você quer", texto: "O que você mais quer entender agora?", opcoes: ["Quem combina comigo de verdade", "Por que repito o mesmo padrão", "O que eu preciso numa relação", "Se a pessoa de agora combina comigo"] },
+] as const;
+
+/**
+ * A prévia do Retrato do Par: Vênus sempre; Descendente e o encontro dos dois quando há hora e lugar. `detalhe`
+ * guarda os signos para o pedido da leitura; `fato` é a frase calculada que a leitura completa precisa desenvolver.
+ */
+export function previaDoPar(nascimento: string, respostas: Record<string, string>) {
+  const r = retratoDoPar({ nascimento, hora: respostas.hora ?? null, lugar: respostas.lugar ?? null });
+  if (!r) return null;
+  const titulo = r.descendente ? `Vênus em ${r.venus.signo}, Descendente em ${r.descendente.signo}` : `Vênus em ${r.venus.signo}`;
+  const texto = r.descendente
+    ? `O que te atrai: ${r.venus.atrai}. O que te faz bem: ${r.descendente.fazBem}.`
+    : `O que te atrai: ${r.venus.atrai}. Com a hora de nascimento, a leitura mostra também o que te faz bem.`;
+  const fato = [
+    `Vênus em ${r.venus.signo} (${r.venus.elemento})`,
+    r.descendente ? `Descendente em ${r.descendente.signo} (${r.descendente.elemento}), Ascendente em ${r.descendente.ascendente}` : "sem hora de nascimento: Descendente não calculado",
+    r.encontro === "conversam" ? "Vênus e Descendente em elementos que conversam" : r.encontro === "desencontram" ? "Vênus e Descendente em elementos que se desencontram (atração e bem-estar apontam para lados diferentes)" : "",
+    `signos do perfil que combina: ${r.combinam.join(", ")}`,
+  ]
+    .filter(Boolean)
+    .join("; ");
+  return { titulo, texto, detalhe: titulo, fato, retrato: r };
+}
+
 // ─── O PEDIDO ─────────────────────────────────────────────────────────────────────────────
 
 const data = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((v) => v >= "1920-01-01" && v <= "2012-12-31" && numeroDoDestino(v) !== null, "data inválida");
@@ -184,6 +223,10 @@ export function previaDoQuiz(
   d: { nascimento?: string | null; respostas: Record<string, string> },
   hoje: Date = new Date(),
 ): { titulo: string; texto: string; detalhe: string; fato: string } | null {
+  if (tipo === "par") {
+    const p = d.nascimento ? previaDoPar(d.nascimento, d.respostas) : null;
+    return p ? { titulo: p.titulo, texto: p.texto, detalhe: p.detalhe, fato: p.fato } : null;
+  }
   if (tipo === "prosperidade") {
     const p = d.nascimento ? previaDaProsperidade(d.nascimento, hoje) : null;
     return p ? { titulo: p.titulo, texto: p.texto, detalhe: `Número ${p.numero}`, fato: `Ano pessoal de ${p.ano}: ${p.anoPessoal} (${p.tomDoAno})` } : null;

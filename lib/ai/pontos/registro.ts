@@ -371,6 +371,17 @@ export const PONTOS_DE_IA: readonly PontoDeIa[] = [
     registraEm: "llm_calls",
   },
   {
+    id: "area_quiz_par",
+    rotulo: "Escrever o Retrato do Par do quiz",
+    oQueFaz:
+      "Escreve \"O Retrato do Par\" de quem comprou pelo quiz da página: o que a atrai (Vênus) e o que lhe faz bem (Descendente), calculados do mapa, o padrão que se repete e o perfil que combina, sem descrever pessoa real nem prometer encontro.",
+    papel: "atender",
+    exige: {},
+    emissor: "lib/area-do-cliente/circulo-ia.ts",
+    sintomaDeFalha: "Quem pagou o Retrato do Par vê o aviso de que a leitura está sendo preparada.",
+    registraEm: "llm_calls",
+  },
+  {
     id: "area_quiz_caminhos",
     rotulo: "Escrever o Ritual de Abertura de Caminhos do quiz",
     oQueFaz:

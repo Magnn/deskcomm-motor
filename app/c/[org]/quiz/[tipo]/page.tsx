@@ -8,7 +8,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { COR_PADRAO_DA_AREA } from "@/lib/area-do-cliente/config";
-import { PERGUNTAS_DA_PROSPERIDADE, PERGUNTAS_DOS_CAMINHOS, TIPOS_DE_QUIZ, type TipoDeQuiz } from "@/lib/area-do-cliente/quizzes";
+import { PERGUNTAS_DA_PROSPERIDADE, PERGUNTAS_DO_PAR, PERGUNTAS_DOS_CAMINHOS, TIPOS_DE_QUIZ, type TipoDeQuiz } from "@/lib/area-do-cliente/quizzes";
 import { orgDaArea } from "@/lib/area-do-cliente/sessao";
 import { traduzir } from "@/lib/i18n/dicionario";
 import { idiomaDoVisitante } from "@/lib/i18n/idiomaAnonimo";
@@ -32,7 +32,7 @@ export default async function PaginaDoQuizDePessoa({ params }: Props) {
   if (!(TIPOS_DE_QUIZ as readonly string[]).includes(bruto)) notFound();
   const tipo = bruto as TipoDeQuiz;
   const org = await orgDaArea(createAdminClient(), slug);
-  const oferta = tipo === "prosperidade" ? org?.config.quiz_prosperidade : org?.config.quiz_caminhos;
+  const oferta = org ? { prosperidade: org.config.quiz_prosperidade, caminhos: org.config.quiz_caminhos, par: org.config.quiz_par }[tipo] : undefined;
   if (!org || !oferta?.ativo) notFound();
   const cor = org.config.cor || COR_PADRAO_DA_AREA;
   const idioma = await idiomaDoVisitante(null);
@@ -40,7 +40,7 @@ export default async function PaginaDoQuizDePessoa({ params }: Props) {
   const perguntas =
     tipo === "caminhos"
       ? PERGUNTAS_DOS_CAMINHOS.map((p) => ({ id: p.id, capitulo: p.capitulo, texto: p.texto, opcoes: p.opcoes.map(([o]) => o) }))
-      : PERGUNTAS_DA_PROSPERIDADE.map((p) => ({ id: p.id, capitulo: p.capitulo, texto: p.texto, opcoes: [...p.opcoes] }));
+      : (tipo === "par" ? PERGUNTAS_DO_PAR : PERGUNTAS_DA_PROSPERIDADE).map((p) => ({ id: p.id, capitulo: p.capitulo, texto: p.texto, opcoes: [...p.opcoes] }));
 
   return (
     <main className={`${PAGINA} ${serifDaArea.variable}`}>
