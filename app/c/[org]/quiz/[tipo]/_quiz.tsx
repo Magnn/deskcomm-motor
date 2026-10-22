@@ -11,7 +11,8 @@ import Script from "next/script";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { moedaDaOferta, precoDaOferta, valorNaMoedaDaPagina, type MoedaDaPagina } from "@/lib/area-do-cliente/moeda-do-visitante";
-import { PERFIS_DOS_CAMINHOS, previaDaProsperidade, previaDoQuiz, previaDosCaminhos, votosDosCaminhos } from "@/lib/area-do-cliente/quizzes";
+import { PERFIS_DOS_CAMINHOS, previaDaProsperidade, previaDoPar, previaDoQuiz, previaDosCaminhos, votosDosCaminhos } from "@/lib/area-do-cliente/quizzes";
+import { LUGARES_DE_NASCIMENTO, lugarPorId } from "@/lib/area-do-cliente/retrato-do-par";
 import { copyToClipboard } from "@/lib/clipboard";
 
 import { enviarLead, idDaVisita, manterVivo, marcarPasso } from "../../_passos";
@@ -44,6 +45,8 @@ type Tela =
   | { tipo: "mecanismo" }
   | { tipo: "nome" }
   | { tipo: "data" }
+  | { tipo: "hora" }
+  | { tipo: "lugar" }
   | { tipo: "calculo" }
   | { tipo: "email" };
 
@@ -53,6 +56,8 @@ declare global {
   }
 }
 
+
+const maiuscula = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 function pixel(evento: string, dados?: Record<string, unknown>, id?: string) {
   try {
@@ -64,7 +69,7 @@ function pixel(evento: string, dados?: Record<string, unknown>, id?: string) {
 
 export function QuizDePessoa(props: {
   slug: string;
-  tipo: "prosperidade" | "caminhos";
+  tipo: "prosperidade" | "caminhos" | "par";
   cor: string;
   precoCents: number;
   /** Preço para quem abre a página fora do Brasil; a moeda vem do fuso do aparelho. */
@@ -117,6 +122,8 @@ export function QuizDePessoa(props: {
     });
     r.push({ tipo: "mecanismo" }, { tipo: "nome" });
     if (tipo === "prosperidade") r.push({ tipo: "data" });
+    // O Retrato do Par pede também a hora e o lugar (o Descendente depende dos dois).
+    if (tipo === "par") r.push({ tipo: "data" }, { tipo: "hora" }, { tipo: "lugar" });
     r.push({ tipo: "calculo" }, { tipo: "email" });
     return r;
   }, [perguntas, tipo, tx.frases]);
@@ -124,6 +131,8 @@ export function QuizDePessoa(props: {
   const avancar = useCallback(() => setTela((t) => Math.min(t + 1, telas.length - 1)), [telas.length]);
   const prosperidade = useMemo(() => (tipo === "prosperidade" && data ? previaDaProsperidade(data) : null), [tipo, data]);
   const caminhos = useMemo(() => (tipo === "caminhos" ? previaDosCaminhos(respostas) : null), [tipo, respostas]);
+  const par = useMemo(() => (tipo === "par" && data ? previaDoPar(data, respostas) : null), [tipo, data, respostas]);
+  const irPara = useCallback((alvo: Tela["tipo"]) => setTela(telas.findIndex((t) => t.tipo === alvo)), [telas]);
   // A conta que a tela de cálculo mostra — a MESMA que deu o resultado.
   const linhasDoCalculo = useMemo(() => {
     if (prosperidade) {
@@ -144,8 +153,24 @@ export function QuizDePessoa(props: {
         `${tx.cartaChave}: ${caminhos.carta}`,
       ];
     }
+    if (par) {
+      const r = par.retrato;
+      const lugar = lugarPorId(respostas.lugar);
+      const [a, m, d] = data.split("-");
+      return [
+        `${tx.horaLocal}: ${d}/${m}/${a}${respostas.hora && lugar ? ` · ${respostas.hora} · ${lugar.nome}` : ""}`,
+        `${tx.posicaoDeVenus}: ${r.venus.signo} ${r.venus.grau}° · ${r.venus.elemento}`,
+        ...(r.descendente
+          ? [
+              `${tx.ascendenteCalculado}: ${r.descendente.ascendente}`,
+              `${tx.descendenteCalculado}: ${r.descendente.signo} ${r.descendente.grau}° · ${r.descendente.elemento}`,
+              `${tx.cruzando}: ${r.venus.elemento} + ${r.descendente.elemento}`,
+            ]
+          : []),
+      ];
+    }
     return [];
-  }, [prosperidade, caminhos, respostas, tx]);
+  }, [prosperidade, caminhos, par, data, respostas, tx]);
 
   // O "ao vivo" (0944): enquanto a aba está visível, a visita segue aparecendo no painel.
   useEffect(() => manterVivo(slug, tipo), [slug, tipo]);
@@ -236,7 +261,7 @@ export function QuizDePessoa(props: {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           nome: nome.trim(),
-          ...(tipo === "prosperidade" ? { nascimento: data } : {}),
+          ...(tipo === "prosperidade" || tipo === "par" ? { nascimento: data } : {}),
           email: email.trim(),
           respostas,
           forma,
@@ -357,6 +382,56 @@ export function QuizDePessoa(props: {
         </div>
       )}
 
+      {fase === "quiz" && atual?.tipo === "hora" && (
+        <div className={CARTAO}>
+          <h2 className={`${SERIF} text-2xl text-[#f6e3a8]`}>{tx.horaTitulo}</h2>
+          <p className="mt-2 text-sm text-[#c3bad3]">{tx.horaAjuda}</p>
+          <input
+            type="time"
+            className={`${campo} mt-5 text-center text-2xl`}
+            value={respostas.hora ?? ""}
+            onChange={(e) => setRespostas((r) => ({ ...r, hora: e.target.value }))}
+          />
+          <button className={`${botao} mt-6`} style={{ background: cor }} disabled={!/^\d{2}:\d{2}$/.test(respostas.hora ?? "")} onClick={avancar}>
+            {tx.continuar}
+          </button>
+          <button
+            className="mt-4 w-full text-sm text-[#e2c47a] underline"
+            onClick={() => {
+              setRespostas(({ hora: _h, lugar: _l, ...resto }) => resto);
+              irPara("calculo");
+            }}
+          >
+            {tx.horaNaoSei}
+          </button>
+          <p className="mt-2 text-center text-xs text-[#9d94b2]">{tx.horaSemEla}</p>
+        </div>
+      )}
+
+      {fase === "quiz" && atual?.tipo === "lugar" && (
+        <div className={CARTAO}>
+          <h2 className={`${SERIF} text-2xl text-[#f6e3a8]`}>{tx.lugarTitulo}</h2>
+          <p className="mt-2 text-sm text-[#c3bad3]">{tx.lugarAjuda}</p>
+          <select
+            className={`${campo} mt-5`}
+            value={respostas.lugar ?? ""}
+            onChange={(e) => setRespostas((r) => ({ ...r, lugar: e.target.value }))}
+          >
+            <option value="" disabled>
+              —
+            </option>
+            {LUGARES_DE_NASCIMENTO.map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.nome}
+              </option>
+            ))}
+          </select>
+          <button className={`${botao} mt-6`} style={{ background: cor }} disabled={!lugarPorId(respostas.lugar)} onClick={avancar}>
+            {tx.continuar}
+          </button>
+        </div>
+      )}
+
       {fase === "quiz" && atual?.tipo === "calculo" && linhasDoCalculo.length > 0 && (
         <TelaDeCalculo titulo={tx.calculando} linhas={linhasDoCalculo} aoTerminar={avancar} />
       )}
@@ -372,7 +447,7 @@ export function QuizDePessoa(props: {
         </div>
       )}
 
-      {fase === "previa" && (prosperidade || caminhos) && (
+      {fase === "previa" && (prosperidade || caminhos || par) && (
         <PaginaFinal
           cor={cor}
           sobretitulo={tx.seuResultado}
@@ -392,7 +467,14 @@ export function QuizDePessoa(props: {
                     { rotulo: tx.rotuloCarta, valor: caminhos.carta },
                     ...(respostas.area ? [{ rotulo: tx.rotuloArea, valor: respostas.area }] : []),
                   ]
-                : []
+                : par
+                  ? [
+                      { rotulo: tx.rotuloVenus, valor: par.retrato.venus.signo },
+                      { rotulo: tx.rotuloDescendente, valor: par.retrato.descendente?.signo ?? tx.precisaDaHora },
+                      ...(par.retrato.descendente ? [{ rotulo: tx.rotuloAscendente, valor: par.retrato.descendente.ascendente }] : []),
+                      { rotulo: tx.rotuloCombinam, valor: par.retrato.combinam.join(", ") },
+                    ]
+                  : []
           }
           resultado={
             <div className={CARTAO}>
@@ -403,6 +485,26 @@ export function QuizDePessoa(props: {
                   {respostas.estilo && respostas.pesa ? (
                     <p className="mt-4 border-l-2 border-[#c9a54e]/40 pl-3 text-[15px] leading-relaxed text-[#c3bad3]">
                       {tx.comDinheiroE} {respostas.estilo.toLowerCase()} {tx.eQuePesa} “{respostas.pesa.toLowerCase()}”.
+                    </p>
+                  ) : null}
+                </>
+              ) : null}
+              {par ? (
+                <>
+                  <p className="text-xs uppercase tracking-wide text-[#f3a3c0]">{tx.oQueTeAtrai}</p>
+                  <p className="mt-1 text-[16px] leading-relaxed text-[#f6f0e4]">{maiuscula(par.retrato.venus.atrai)}.</p>
+                  <p className="mt-4 text-xs uppercase tracking-wide text-[#7fd1a0]">{tx.oQueTeFazBem}</p>
+                  <p className="mt-1 text-[16px] leading-relaxed text-[#f6f0e4]">
+                    {par.retrato.descendente ? `${maiuscula(par.retrato.descendente.fazBem)}.` : tx.encontroSemHora}
+                  </p>
+                  {par.retrato.encontro !== "sem_hora" ? (
+                    <p className="mt-4 rounded-2xl border border-[#c9a54e]/25 bg-[#120d22] p-4 text-[15px] leading-relaxed text-[#f6f0e4]">
+                      {par.retrato.encontro === "conversam" ? tx.encontroConversam : tx.encontroDesencontram}
+                    </p>
+                  ) : null}
+                  {respostas.termina ? (
+                    <p className="mt-4 border-l-2 border-[#c9a54e]/40 pl-3 text-[15px] leading-relaxed text-[#c3bad3]">
+                      {tx.voceContouRepete} “{respostas.termina.toLowerCase()}”.
                     </p>
                   ) : null}
                 </>
@@ -433,7 +535,15 @@ export function QuizDePessoa(props: {
                   ? `${tx.rotuloAno} ${prosperidade.ano}: ${prosperidade.anoPessoal}`
                   : i === 0 && caminhos
                     ? `${caminhos.titulo} · ${caminhos.carta}`
-                    : undefined,
+                    : par
+                      ? [
+                          `Vênus em ${par.retrato.venus.signo}`,
+                          par.retrato.descendente ? `Descendente em ${par.retrato.descendente.signo}` : tx.precisaDaHora,
+                          respostas.termina ? `${tx.ligadoA} ${respostas.termina.toLowerCase()}` : undefined,
+                          par.retrato.combinam.join(", "),
+                          undefined,
+                        ][i]
+                      : undefined,
           }))}
           itens={tx.entregas}
           preco={valorNaMoedaDaPagina(preco, moeda)}

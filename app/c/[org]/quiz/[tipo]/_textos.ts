@@ -4,14 +4,21 @@
  */
 import { textosDaPaginaFinal } from "../../_pagina-final-textos";
 
-export function textosDoQuizDePessoa(t: (texto: string) => string, tipo: "prosperidade" | "caminhos") {
-  const prosperidade = tipo === "prosperidade";
+export function textosDoQuizDePessoa(t: (texto: string) => string, tipo: "prosperidade" | "caminhos" | "par") {
+  /** O texto de cada quiz: prosperidade, caminhos, Retrato do Par. */
+  const por = <T,>(p: T, c: T, r: T): T => (tipo === "prosperidade" ? p : tipo === "caminhos" ? c : r);
   return {
-    final: prosperidade
-      ? textosDaPaginaFinal(t, t("Seu Mapa da Prosperidade"), t("O mapa completo do seu número"))
-      : textosDaPaginaFinal(t, t("Seu Ritual de Abertura de Caminhos"), t("O ritual completo do seu momento")),
+    final: por(
+      textosDaPaginaFinal(t, t("Seu Mapa da Prosperidade"), t("O mapa completo do seu número")),
+      textosDaPaginaFinal(t, t("Seu Ritual de Abertura de Caminhos"), t("O ritual completo do seu momento")),
+      textosDaPaginaFinal(t, t("O Retrato do Par"), t("O perfil que combina com você, inteiro")),
+    ),
     resultadoPronto: t("o seu resultado está pronto"),
-    calculadoDe: prosperidade ? t("Calculado a partir da sua data de nascimento, agora.") : t("Calculado a partir das suas respostas, agora."),
+    calculadoDe: por(
+      t("Calculado a partir da sua data de nascimento, agora."),
+      t("Calculado a partir das suas respostas, agora."),
+      t("Calculado a partir do seu mapa de nascimento, agora."),
+    ),
     rotuloNumero: t("Número do destino"),
     rotuloArquetipo: t("O seu arquétipo"),
     rotuloAno: t("Ano pessoal de"),
@@ -19,36 +26,57 @@ export function textosDoQuizDePessoa(t: (texto: string) => string, tipo: "prospe
     rotuloPerfil: t("O seu perfil"),
     rotuloCarta: t("Carta-chave"),
     rotuloArea: t("Onde está travado"),
+    rotuloVenus: t("Vênus · o que te atrai"),
+    rotuloDescendente: t("Descendente · o que te faz bem"),
+    rotuloAscendente: t("Ascendente"),
+    rotuloCombinam: t("Signos que combinam"),
+    precisaDaHora: t("precisa da hora"),
     ligadoA: t("ligado ao que você contou:"),
-    partes: prosperidade
-      ? [t("O que o seu número diz sobre como você prospera"), t("Os talentos que você pode usar"), t("O padrão que costuma atrapalhar"), t("O que o seu ano pessoal pede"), t("Três atitudes práticas e uma intenção")]
-      : [t("O que o seu perfil e a sua carta-chave mostram"), t("O que separar em casa"), t("O ritual de 7 dias, um passo por dia"), t("Como encerrar e o que observar depois")],
-    entregas: (prosperidade
-      ? [
-          [t("O seu número inteiro"), t("explicado: como você prospera e o que trava")],
-          [t("O ano pessoal"), t("e o que ele pede de você neste ciclo")],
-          [t("Três atitudes práticas"), t("para as próximas semanas")],
-          [t("Uma intenção"), t("para escrever e guardar")],
-          [t("Leitura na hora"), t("aqui mesmo, logo depois de pagar, para reler quando quiser")],
-        ]
-      : [
-          [t("A sua carta-chave"), t("explicada para o seu momento")],
-          [t("Um ritual de 7 dias"), t("um passo simples por dia, para fazer em casa")],
-          [t("O que separar"), t("só coisas que você já tem")],
-          [t("Como encerrar"), t("e o que observar depois")],
-          [t("Leitura na hora"), t("aqui mesmo, logo depois de pagar, para reler quando quiser")],
-        ]) as [string, string][],
-    titulo: prosperidade ? t("Qual é o seu número da prosperidade?") : t("O que abre os seus caminhos?"),
-    chamada: prosperidade
-      ? t("A numerologia soma os algarismos da data de nascimento até um único número. Veja a conta feita na hora e o que o seu número diz sobre como você prospera.")
-      : t("Quatro toques e uma carta-chave do tarô para o momento: o que ele pede para os caminhos se abrirem."),
-    tempoDoQuiz: prosperidade ? t("Grátis · cerca de 2 minutos · conta feita à vista") : t("Grátis · cerca de 1 minuto · resultado na hora"),
-    mecanismo: prosperidade
-      ? t("Na numerologia, a data de nascimento se reduz a um único número, somando os algarismos até sobrar um de 1 a 9. O 11 e o 22 são números mestres e não se reduzem. Cada número descreve um jeito de lidar com escolhas, trabalho e dinheiro.")
-      : t("Cada resposta aponta um de quatro perfis: Recomeço, Clareza, Coragem ou Paz interior. O perfil que aparecer mais vezes é o seu, e cada perfil tem uma carta-chave do tarô. Você vai ver a conta na próxima tela."),
-    frases: prosperidade
-      ? [t("Dinheiro é um dos lugares onde a gente mais se repete. A numerologia ajuda a ver o padrão."), t("Agora, a sua data. É dela que sai o seu número.")]
-      : [t("Caminho travado quase sempre é uma decisão parada. Vamos ver qual."), t("Mais uma, e a sua carta aparece.")],
+    partes: por(
+      [t("O que o seu número diz sobre como você prospera"), t("Os talentos que você pode usar"), t("O padrão que costuma atrapalhar"), t("O que o seu ano pessoal pede"), t("Três atitudes práticas e uma intenção")],
+      [t("O que o seu perfil e a sua carta-chave mostram"), t("O que separar em casa"), t("O ritual de 7 dias, um passo por dia"), t("Como encerrar e o que observar depois")],
+      [t("O que te atrai"), t("O que te faz bem"), t("O padrão que se repete"), t("O perfil que combina com você"), t("O sinal de alerta e uma prática de 7 dias")],
+    ),
+    entregas: por(
+      [
+        [t("O seu número inteiro"), t("explicado: como você prospera e o que trava")],
+        [t("O ano pessoal"), t("e o que ele pede de você neste ciclo")],
+        [t("Três atitudes práticas"), t("para as próximas semanas")],
+        [t("Uma intenção"), t("para escrever e guardar")],
+        [t("Leitura na hora"), t("aqui mesmo, logo depois de pagar, para reler quando quiser")],
+      ],
+      [
+        [t("A sua carta-chave"), t("explicada para o seu momento")],
+        [t("Um ritual de 7 dias"), t("um passo simples por dia, para fazer em casa")],
+        [t("O que separar"), t("só coisas que você já tem")],
+        [t("Como encerrar"), t("e o que observar depois")],
+        [t("Leitura na hora"), t("aqui mesmo, logo depois de pagar, para reler quando quiser")],
+      ],
+      [
+        [t("O que te atrai"), t("e por quê, pela posição de Vênus no seu mapa")],
+        [t("O que te faz bem"), t("o tipo de parceria que o seu Descendente pede")],
+        [t("O padrão que se repete"), t("nas suas escolhas, e de onde ele vem")],
+        [t("O perfil que combina"), t("os signos, os elementos e os traços")],
+        [t("O sinal de alerta"), t("o tipo que repete o padrão, e uma prática de 7 dias")],
+      ],
+    ) as [string, string][],
+    titulo: por(t("Qual é o seu número da prosperidade?"), t("O que abre os seus caminhos?"), t("Com quem você combina de verdade?")),
+    chamada: por(
+      t("A numerologia soma os algarismos da data de nascimento até um único número. Veja a conta feita na hora e o que o seu número diz sobre como você prospera."),
+      t("Quatro toques e uma carta-chave do tarô para o momento: o que ele pede para os caminhos se abrirem."),
+      t("Não é falta de sorte: o que te atrai e o que te faz bem nem sempre moram no mesmo lugar. O seu mapa mostra onde os dois se encontram."),
+    ),
+    tempoDoQuiz: por(t("Grátis · cerca de 2 minutos · conta feita à vista"), t("Grátis · cerca de 1 minuto · resultado na hora"), t("Grátis · cerca de 2 minutos · calculado com o seu mapa")),
+    mecanismo: por(
+      t("Na numerologia, a data de nascimento se reduz a um único número, somando os algarismos até sobrar um de 1 a 9. O 11 e o 22 são números mestres e não se reduzem. Cada número descreve um jeito de lidar com escolhas, trabalho e dinheiro."),
+      t("Cada resposta aponta um de quatro perfis: Recomeço, Clareza, Coragem ou Paz interior. O perfil que aparecer mais vezes é o seu, e cada perfil tem uma carta-chave do tarô. Você vai ver a conta na próxima tela."),
+      t("No mapa astral, Vênus mostra o que te ATRAI. O Descendente, a porta da casa 7, mostra o que te FAZ BEM numa relação. Quando os dois apontam para lados diferentes, a gente se apaixona sempre pelo mesmo tipo errado. Para achar o seu Descendente, preciso da data, da hora e do lugar em que você nasceu."),
+    ),
+    frases: por(
+      [t("Dinheiro é um dos lugares onde a gente mais se repete. A numerologia ajuda a ver o padrão."), t("Agora, a sua data. É dela que sai o seu número.")],
+      [t("Caminho travado quase sempre é uma decisão parada. Vamos ver qual."), t("Mais uma, e a sua carta aparece.")],
+      [t("Escolher sempre o mesmo tipo não é azar. Quase sempre é um desenho, e ele aparece no mapa."), t("Última pergunta antes do seu mapa.")],
+    ),
     comoFunciona: t("Como a leitura funciona"),
     assinatura: t("A Cigana"),
     voltar: t("Voltar"),
@@ -58,7 +86,13 @@ export function textosDoQuizDePessoa(t: (texto: string) => string, tipo: "prospe
     dataDecada: t("A década"),
     dataAno: t("E o ano"),
     meses: [t("Jan"), t("Fev"), t("Mar"), t("Abr"), t("Mai"), t("Jun"), t("Jul"), t("Ago"), t("Set"), t("Out"), t("Nov"), t("Dez")],
-    calculando: prosperidade ? t("Fazendo a conta") : t("Lendo as suas respostas"),
+    horaTitulo: t("A que horas você nasceu?"),
+    horaAjuda: t("Está na certidão de nascimento. Se não souber o minuto exato, a hora aproximada já ajuda."),
+    horaNaoSei: t("Não sei a hora"),
+    horaSemEla: t("Sem a hora, eu calculo Vênus, mas o Descendente fica de fora."),
+    lugarTitulo: t("Onde você nasceu?"),
+    lugarAjuda: t("Uso a capital do estado: a diferença para a sua cidade muda o cálculo em poucos graus."),
+    calculando: por(t("Fazendo a conta"), t("Lendo as suas respostas"), t("Montando o seu mapa")),
     somando: t("Somando os algarismos"),
     reduzindo: t("Reduzindo"),
     numeroDoDestino: t("Número do destino"),
@@ -66,23 +100,30 @@ export function textosDoQuizDePessoa(t: (texto: string) => string, tipo: "prospe
     maioria: t("O perfil que apareceu mais"),
     cartaChave: t("Carta-chave"),
     vezes: t("de"),
+    horaLocal: t("Nascimento"),
+    posicaoDeVenus: t("Posição de Vênus"),
+    ascendenteCalculado: t("Ascendente pelo horário e lugar"),
+    descendenteCalculado: t("Descendente (casa 7)"),
+    cruzando: t("Cruzando atração e bem-estar"),
+    encontroConversam: t("O que te atrai e o que te faz bem estão em elementos que conversam. O seu desafio não é o tipo: é o ritmo e a escolha."),
+    encontroDesencontram: t("O que te atrai e o que te faz bem estão em elementos que se desencontram. É por isso que o mesmo padrão se repete: a atração puxa para um lado, e o que te faz bem está no outro."),
+    encontroSemHora: t("Com a hora de nascimento, a leitura completa mostra também o seu Descendente: o que te faz bem."),
+    oQueTeAtrai: t("O que te atrai"),
+    oQueTeFazBem: t("O que te faz bem"),
+    voceContouRepete: t("Você contou que, quando uma história acaba, quase sempre é porque"),
     seuAnoPessoal: t("O seu ano pessoal de"),
     oQueEleAnoPede: t("O que esse ano pede, e como usar o seu número nele, está na leitura completa."),
     voceContou: t("Você contou que"),
     comDinheiroE: t("Você contou que, com dinheiro, é mais de"),
     eQuePesa: t("e que o que mais pesa é"),
     quePrecisaDe: t("o que mais precisa agora é"),
-    ponte: prosperidade
-      ? t("O número explica o padrão. O que fazer com ele nas próximas semanas está no mapa completo.")
-      : t("A carta diz qual porta. O ritual diz como passar por ela, um passo por dia, durante 7 dias."),
+    ponte: por(
+      t("O número explica o padrão. O que fazer com ele nas próximas semanas está no mapa completo."),
+      t("A carta diz qual porta. O ritual diz como passar por ela, um passo por dia, durante 7 dias."),
+      t("A prévia mostra onde atração e bem-estar estão. O perfil inteiro que combina com você, e o sinal do tipo que repete o padrão, estão no retrato completo."),
+    ),
     garantia: t("Se não fizer sentido para você, peça o reembolso em até 7 dias. Basta uma mensagem."),
-    produto: prosperidade ? t("Seu Mapa da Prosperidade") : t("Seu Ritual de Abertura de Caminhos"),
-    itens: prosperidade
-      ? [t("O que o seu número diz sobre como você prospera"), t("Os talentos que você pode usar"), t("O padrão que costuma atrapalhar"), t("O que o seu ano pessoal pede, com três atitudes práticas"), t("Uma intenção para escrever e guardar")]
-      : [t("O que o seu perfil e a sua carta-chave mostram sobre o momento"), t("O que separar em casa"), t("O ritual de 7 dias, um passo por dia"), t("Como encerrar e o que observar depois")],
-    soOComeco: prosperidade
-      ? t("Isso é só o começo. O mapa completo mostra os seus talentos e três atitudes práticas para as próximas semanas.")
-      : t("Isso é só o começo. O ritual completo traz um passo por dia, durante 7 dias, para você fazer em casa."),
+    produto: por(t("Seu Mapa da Prosperidade"), t("Seu Ritual de Abertura de Caminhos"), t("O Retrato do Par")),
     rodape: t("Orientação espiritual e de autoconhecimento. Não substitui ajuda médica, psicológica ou jurídica, e não há promessa de resultado."),
     sobreVoce: t("Sobre você"),
     seuNome: t("Seu primeiro nome"),

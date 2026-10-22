@@ -45,6 +45,7 @@ export function AbaQuizzes() {
     sinastria: t("Vocês combinam? (sinastria)"),
     prosperidade: t("Número da prosperidade"),
     caminhos: t("O que abre os seus caminhos"),
+    par: t("O Retrato do Par"),
   };
   const nomeDoPasso: Record<PassoDoQuiz, string> = {
     abriu: t("Abriu a página"),

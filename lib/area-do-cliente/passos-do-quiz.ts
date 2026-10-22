@@ -10,7 +10,7 @@
  */
 import { z } from "zod";
 
-export const QUIZZES_DA_PAGINA = ["sinastria", "prosperidade", "caminhos"] as const;
+export const QUIZZES_DA_PAGINA = ["sinastria", "prosperidade", "caminhos", "par"] as const;
 export type QuizDaPagina = (typeof QUIZZES_DA_PAGINA)[number];
 
 export const PASSOS_DO_QUIZ = [

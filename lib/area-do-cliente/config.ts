@@ -100,6 +100,16 @@ export const configDaAreaSchema = z.strictObject({
       precos_internacionais: z.array(precoInternacionalSchema).max(MOEDAS_INTERNACIONAIS.length).optional(),
     })
     .optional(),
+  /** O Retrato do Par (`lib/area-do-cliente/retrato-do-par.ts`, migration 0945): Vênus + Descendente. */
+  quiz_par: z
+    .strictObject({
+      ativo: z.boolean().default(false),
+      preco_cents: z.number().int().min(100).max(1_000_000).default(2700),
+      pixel_id: z.string().regex(/^\d{8,20}$/).optional(),
+      /** Preço para quem abre a página fora do Brasil (`moeda-do-visitante.ts`). Sem ele, só reais. */
+      precos_internacionais: z.array(precoInternacionalSchema).max(MOEDAS_INTERNACIONAIS.length).optional(),
+    })
+    .optional(),
   /** O Ano Pessoal: a leitura do ano, oferecida na janela do aniversário. */
   ano_pessoal: z
     .strictObject({

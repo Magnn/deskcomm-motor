@@ -24,6 +24,7 @@ const ERRO = (status: number, code: string, message: string) => NextResponse.jso
 const PRODUTO: Record<TipoDeQuiz, string> = {
   prosperidade: "Seu Mapa da Prosperidade",
   caminhos: "Seu Ritual de Abertura de Caminhos",
+  par: "O Retrato do Par",
 };
 
 export async function POST(req: NextRequest, { params }: Ctx): Promise<Response> {
@@ -34,13 +35,13 @@ export async function POST(req: NextRequest, { params }: Ctx): Promise<Response>
   const ctx = await contextoDaArea(req, slug);
   if (!ctx) return NAO_ENCONTRADA();
   const { admin, org } = ctx;
-  const oferta = tipo === "prosperidade" ? org.config.quiz_prosperidade : org.config.quiz_caminhos;
+  const oferta = { prosperidade: org.config.quiz_prosperidade, caminhos: org.config.quiz_caminhos, par: org.config.quiz_par }[tipo];
   if (!oferta?.ativo) return ERRO(404, "not_found", "Esta leitura não está disponível.");
 
   const lido = pedidoDeQuizSchema.safeParse(await req.json().catch(() => null));
   if (!lido.success) return ERRO(422, "validation_failed", "Confira o nome, a data e o e-mail.");
   const p = lido.data;
-  if (tipo === "prosperidade" && !p.nascimento) return ERRO(422, "validation_failed", "Confira a data de nascimento.");
+  if ((tipo === "prosperidade" || tipo === "par") && !p.nascimento) return ERRO(422, "validation_failed", "Confira a data de nascimento.");
   // O valor sai da oferta, nunca do navegador; moeda sem preço configurado é recusada, e Pix é só em reais.
   const valor = precoDaOferta(oferta, p.moeda);
   if (valor === null) return ERRO(422, "validation_failed", "Esta leitura não é vendida nesta moeda.");

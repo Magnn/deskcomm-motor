@@ -44,7 +44,7 @@ export function textosDaPaginaFinal(t: (texto: string) => string, ofertaSobretit
       },
     ],
     fecharTitulo: t("“E se eu fechar a página agora?”"),
-    fecharTexto: t("A prévia fica salva neste aparelho. Mas o caminho para o ponto de atenção, e o que fazer com ele nos próximos dias, está só na leitura completa."),
+    fecharTexto: t("A prévia fica salva neste aparelho. Mas o que fazer com o seu resultado, nos próximos dias, está só na leitura completa."),
     pagarPix: t("Quero a leitura completa"),
     prefiroCartao: t("Prefiro pagar com cartão"),
     pagarCartao: t("Quero a leitura completa"),

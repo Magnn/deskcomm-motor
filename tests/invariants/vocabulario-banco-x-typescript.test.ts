@@ -74,6 +74,13 @@ const PARES: Array<{
     simbolo: "QUIZZES_DA_PAGINA",
   },
   {
+    tabela: "area_quiz_pedidos",
+    coluna: "tipo",
+    // Os quizzes de uma pessoa (0943, 0945): tipo novo só num lado seria pedido que o banco recusa.
+    arquivo: "lib/area-do-cliente/quizzes.ts",
+    simbolo: "TIPOS_DE_QUIZ",
+  },
+  {
     tabela: "area_eventos",
     coluna: "tipo",
     // O rastro da área do cliente (0928): tipo novo só no banco seria evento que o painel não conta.
