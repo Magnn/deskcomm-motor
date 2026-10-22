@@ -8,7 +8,10 @@
 import Script from "next/script";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { copyToClipboard } from "@/lib/clipboard";
+
 import { CARTAO, SERIF, SOBRETITULO } from "../_tema";
+import type { TextosDoQuiz } from "./_textos";
 
 interface Pergunta {
   id: "momento" | "aperta" | "deseja";
@@ -62,8 +65,8 @@ function pixel(evento: string, dados?: Record<string, unknown>, id?: string) {
   }
 }
 
-export function QuizDaSinastria(props: { slug: string; cor: string; precoCents: number; pixelId: string | null; perguntas: Pergunta[] }) {
-  const { slug, cor, precoCents, pixelId, perguntas } = props;
+export function QuizDaSinastria(props: { slug: string; cor: string; precoCents: number; pixelId: string | null; perguntas: Pergunta[]; tx: TextosDoQuiz }) {
+  const { slug, cor, precoCents, pixelId, perguntas, tx } = props;
   const [fase, setFase] = useState<Fase>("dados");
   const [nomeDela, setNomeDela] = useState("");
   const [dataDela, setDataDela] = useState("");
@@ -171,7 +174,7 @@ export function QuizDaSinastria(props: { slug: string; cor: string; precoCents: 
         | { data?: { id: string; segredo: string; cobranca: Cobranca; previa: Previa }; error?: { message: string } }
         | null;
       if (!r.ok || !corpo?.data) {
-        setErro(corpo?.error?.message ?? "Não foi possível continuar agora. Tente de novo.");
+        setErro(corpo?.error?.message ?? tx.naoFoiPossivel);
         return;
       }
       const p = { id: corpo.data.id, segredo: corpo.data.segredo };
@@ -187,7 +190,7 @@ export function QuizDaSinastria(props: { slug: string; cor: string; precoCents: 
       pixel("InitiateCheckout", { value: precoCents / 100, currency: "BRL" }, `checkout-${p.id}`);
       if (corpo.data.cobranca.forma === "cartao") window.open(corpo.data.cobranca.url, "_blank", "noopener");
     } catch {
-      setErro("Sem conexão. Confira a internet e tente de novo.");
+      setErro(tx.semConexao);
     } finally {
       setEnviando(false);
     }
@@ -200,7 +203,7 @@ export function QuizDaSinastria(props: { slug: string; cor: string; precoCents: 
   }
 
   const botao = "w-full rounded-full px-6 py-4 text-base font-semibold text-white shadow-lg disabled:opacity-50";
-  const campo = "w-full rounded-2xl border border-[#c9a54e]/25 bg-[#120d22] px-4 py-3 text-base text-[#f6f0e4] placeholder:text-[#7d7495] focus:outline-none focus:ring-2";
+  const campo = "w-full rounded-2xl border border-[#c9a54e]/25 bg-[#120d22] px-4 py-3 text-base text-[#f6f0e4] placeholder:text-[#7d7495] focus:outline-hidden focus:ring-2";
 
   return (
     <section className="mx-auto max-w-md px-5 py-8">
@@ -212,23 +215,23 @@ export function QuizDaSinastria(props: { slug: string; cor: string; precoCents: 
 
       {fase === "dados" && (
         <div className={CARTAO}>
-          <p className={SOBRETITULO}>Passo 1 de 3</p>
-          <h2 className={`${SERIF} mt-2 text-2xl text-[#f6e3a8]`}>Vocês dois</h2>
+          <p className={SOBRETITULO}>{tx.passo1}</p>
+          <h2 className={`${SERIF} mt-2 text-2xl text-[#f6e3a8]`}>{tx.voces}</h2>
           <div className="mt-5 space-y-3">
-            <input className={campo} placeholder="Seu primeiro nome" value={nomeDela} maxLength={80} onChange={(e) => setNomeDela(e.target.value)} />
-            <input className={campo} placeholder="Sua data de nascimento (dd/mm/aaaa)" inputMode="numeric" value={dataDela} onChange={(e) => setDataDela(mascaraDeData(e.target.value))} />
-            <input className={campo} placeholder="O primeiro nome dele" value={nomeDele} maxLength={80} onChange={(e) => setNomeDele(e.target.value)} />
-            <input className={campo} placeholder="A data de nascimento dele (dd/mm/aaaa)" inputMode="numeric" value={dataDele} onChange={(e) => setDataDele(mascaraDeData(e.target.value))} />
+            <input className={campo} placeholder={tx.seuNome} value={nomeDela} maxLength={80} onChange={(e) => setNomeDela(e.target.value)} />
+            <input className={campo} placeholder={tx.suaData} inputMode="numeric" value={dataDela} onChange={(e) => setDataDela(mascaraDeData(e.target.value))} />
+            <input className={campo} placeholder={tx.nomeDele} value={nomeDele} maxLength={80} onChange={(e) => setNomeDele(e.target.value)} />
+            <input className={campo} placeholder={tx.dataDele} inputMode="numeric" value={dataDele} onChange={(e) => setDataDele(mascaraDeData(e.target.value))} />
           </div>
           <button className={`${botao} mt-6`} style={{ background: cor }} disabled={!dadosOk} onClick={() => setFase("perguntas")}>
-            Continuar
+            {tx.continuar}
           </button>
         </div>
       )}
 
       {fase === "perguntas" && perguntas[passo] && (
         <div className={CARTAO}>
-          <p className={SOBRETITULO}>Passo 2 de 3 · {passo + 1}/{perguntas.length}</p>
+          <p className={SOBRETITULO}>{tx.passo2} · {passo + 1}/{perguntas.length}</p>
           <h2 className={`${SERIF} mt-2 text-2xl text-[#f6e3a8]`}>{perguntas[passo]!.texto}</h2>
           <div className="mt-5 space-y-3">
             {perguntas[passo]!.opcoes.map((o) => (
@@ -250,57 +253,57 @@ export function QuizDaSinastria(props: { slug: string; cor: string; precoCents: 
 
       {fase === "email" && (
         <div className={CARTAO}>
-          <p className={SOBRETITULO}>Passo 3 de 3</p>
-          <h2 className={`${SERIF} mt-2 text-2xl text-[#f6e3a8]`}>Para onde mando o seu resultado?</h2>
-          <input className={`${campo} mt-5`} type="email" placeholder="Seu melhor e-mail" value={email} maxLength={200} onChange={(e) => setEmail(e.target.value)} />
-          <p className="mt-2 text-xs text-[#9d94b2]">Usamos só para guardar a sua leitura. Nada de spam.</p>
+          <p className={SOBRETITULO}>{tx.passo3}</p>
+          <h2 className={`${SERIF} mt-2 text-2xl text-[#f6e3a8]`}>{tx.paraOnde}</h2>
+          <input className={`${campo} mt-5`} type="email" placeholder={tx.seuEmail} value={email} maxLength={200} onChange={(e) => setEmail(e.target.value)} />
+          <p className="mt-2 text-xs text-[#9d94b2]">{tx.semSpam}</p>
           <button
             className={`${botao} mt-6`}
             style={{ background: cor }}
             disabled={!/^\S+@\S+\.\S+$/.test(email.trim())}
             onClick={mostrarPrevia}
           >
-            Ver o meu resultado
+            {tx.verResultado}
           </button>
         </div>
       )}
 
       {fase === "previa" && (
-        <PreviaLocal nomeDela={nomeDela} nomeDele={nomeDele} dataDela={isoDaData(dataDela)} dataDele={isoDaData(dataDele)}>
+        <PreviaLocal tx={tx} nomeDela={nomeDela} nomeDele={nomeDele} dataDela={isoDaData(dataDela)} dataDele={isoDaData(dataDele)}>
           <div className={`${CARTAO} mt-5`}>
-            <p className={SOBRETITULO}>O Código da Conexão</p>
-            <h3 className={`${SERIF} mt-2 text-xl text-[#f6e3a8]`}>A leitura completa de vocês dois</h3>
+            <p className={SOBRETITULO}>{tx.codigo}</p>
+            <h3 className={`${SERIF} mt-2 text-xl text-[#f6e3a8]`}>{tx.completa}</h3>
             <ul className="mt-3 space-y-1.5 text-[15px] text-[#c3bad3]">
-              <li>• A energia de cada um no amor</li>
-              <li>• O que une vocês e onde se desencontram</li>
-              <li>• O padrão que se repete</li>
-              <li>• Como conversar com ele</li>
-              <li>• Uma prática para os próximos dias</li>
+              <li>• {tx.item1}</li>
+              <li>• {tx.item2}</li>
+              <li>• {tx.item3}</li>
+              <li>• {tx.item4}</li>
+              <li>• {tx.item5}</li>
             </ul>
             <p className="mt-4 text-3xl font-semibold text-[#f6e3a8]">{reais(precoCents)}</p>
-            <p className="text-xs text-[#9d94b2]">Pagamento único. Você lê aqui mesmo, logo depois de pagar.</p>
+            <p className="text-xs text-[#9d94b2]">{tx.pagamentoUnico}</p>
             {erro && <p className="mt-3 text-sm text-[#f3a3c0]">{erro}</p>}
             <button className={`${botao} mt-5`} style={{ background: cor }} disabled={enviando} onClick={() => void pagar("pix")}>
-              {enviando ? "Gerando…" : "Pagar com Pix"}
+              {enviando ? tx.gerando : tx.pagarPix}
             </button>
             <button className="mt-3 w-full text-sm text-[#e2c47a] underline disabled:opacity-50" disabled={enviando} onClick={() => void pagar("cartao")}>
-              Prefiro pagar com cartão
+              {tx.prefiroCartao}
             </button>
-            <p className="mt-3 text-center text-[11px] text-[#9d94b2]">No banco aparece Stripe Brasil, a empresa de pagamentos.</p>
+            <p className="mt-3 text-center text-[11px] text-[#9d94b2]">{tx.noBanco}</p>
           </div>
         </PreviaLocal>
       )}
 
       {fase === "pagar" && (
         <div className={CARTAO}>
-          <p className={SOBRETITULO}>Quase lá</p>
+          <p className={SOBRETITULO}>{tx.quaseLa}</p>
           {cobranca?.forma === "pix" ? (
             <>
-              <h2 className={`${SERIF} mt-2 text-2xl text-[#f6e3a8]`}>Pague com Pix Copia e Cola</h2>
+              <h2 className={`${SERIF} mt-2 text-2xl text-[#f6e3a8]`}>{tx.pagueComPix}</h2>
               <ol className="mt-3 list-decimal space-y-1 pl-5 text-[15px] text-[#c3bad3]">
-                <li>Toque em “Copiar código”.</li>
-                <li>No app do seu banco, entre em Pix e escolha <b>Pix Copia e Cola</b>.</li>
-                <li>Cole, confira {reais(precoCents)} e confirme.</li>
+                <li>{tx.pixPasso1}</li>
+                <li>{tx.pixPasso2}</li>
+                <li>{tx.pixPasso3} ({reais(precoCents)})</li>
               </ol>
               {cobranca.qrPng ? (
                 // eslint-disable-next-line @next/next/no-img-element -- QR em data URI, gerado na hora
@@ -310,44 +313,44 @@ export function QuizDaSinastria(props: { slug: string; cor: string; precoCents: 
                 className={`${botao} mt-4`}
                 style={{ background: cor }}
                 onClick={() => {
-                  void navigator.clipboard?.writeText(cobranca.copiaECola).then(() => setCopiado(true));
+                  void copyToClipboard(cobranca.copiaECola).then((ok) => setCopiado(ok));
                 }}
               >
-                {copiado ? "Código copiado ✓" : "Copiar código"}
+                {copiado ? tx.copiado : tx.copiar}
               </button>
             </>
           ) : cobranca?.forma === "cartao" ? (
             <>
-              <h2 className={`${SERIF} mt-2 text-2xl text-[#f6e3a8]`}>Pague no cartão</h2>
+              <h2 className={`${SERIF} mt-2 text-2xl text-[#f6e3a8]`}>{tx.pagueNoCartao}</h2>
               <a className={`${botao} mt-4 block text-center`} style={{ background: cor }} href={cobranca.url} target="_blank" rel="noopener noreferrer">
-                Abrir o pagamento
+                {tx.abrirPagamento}
               </a>
             </>
           ) : (
-            <h2 className={`${SERIF} mt-2 text-2xl text-[#f6e3a8]`}>Esperando a confirmação do pagamento</h2>
+            <h2 className={`${SERIF} mt-2 text-2xl text-[#f6e3a8]`}>{tx.esperando}</h2>
           )}
-          <p className="mt-4 text-center text-sm text-[#c3bad3]">Assim que o pagamento cair, a sua leitura aparece aqui. Pode deixar esta página aberta.</p>
+          <p className="mt-4 text-center text-sm text-[#c3bad3]">{tx.assimQueCair}</p>
         </div>
       )}
 
       {fase === "gerando" && (
         <div className={`${CARTAO} text-center`}>
-          <p className={SOBRETITULO}>Pagamento confirmado</p>
-          <h2 className={`${SERIF} mt-2 text-2xl text-[#f6e3a8]`}>Escrevendo a leitura de vocês…</h2>
-          <p className="mt-3 text-[15px] text-[#c3bad3]">Leva menos de um minuto. Não feche a página.</p>
+          <p className={SOBRETITULO}>{tx.confirmado}</p>
+          <h2 className={`${SERIF} mt-2 text-2xl text-[#f6e3a8]`}>{tx.escrevendo}</h2>
+          <p className="mt-3 text-[15px] text-[#c3bad3]">{tx.menosDeUmMinuto}</p>
         </div>
       )}
 
       {fase === "pronto" && texto && (
         <article className={CARTAO}>
-          <p className={SOBRETITULO}>O Código da Conexão</p>
+          <p className={SOBRETITULO}>{tx.codigo}</p>
           {previa ? (
             <h2 className={`${SERIF} mt-2 text-2xl text-[#f6e3a8]`}>
               {previa.signoDela} e {previa.signoDele}
             </h2>
           ) : null}
           <div className="mt-4 space-y-4 whitespace-pre-line text-[16px] leading-relaxed text-[#f6f0e4]">{texto}</div>
-          <p className="mt-6 text-xs text-[#9d94b2]">Guarde esta página: o endereço abre a sua leitura neste aparelho.</p>
+          <p className="mt-6 text-xs text-[#9d94b2]">{tx.guarde}</p>
         </article>
       )}
     </section>
@@ -355,7 +358,7 @@ export function QuizDaSinastria(props: { slug: string; cor: string; precoCents: 
 }
 
 /** A prévia grátis, calculada no navegador pelas mesmas regras do servidor (`lib/area-do-cliente/sinastria.ts`). */
-function PreviaLocal(props: { nomeDela: string; nomeDele: string; dataDela: string | null; dataDele: string | null; children: React.ReactNode }) {
+function PreviaLocal(props: { tx: TextosDoQuiz; nomeDela: string; nomeDele: string; dataDela: string | null; dataDele: string | null; children: React.ReactNode }) {
   const [p, setP] = useState<Previa | null>(null);
   useEffect(() => {
     let vivo = true;
@@ -369,7 +372,7 @@ function PreviaLocal(props: { nomeDela: string; nomeDele: string; dataDela: stri
   return (
     <>
       <div className={CARTAO}>
-        <p className={SOBRETITULO}>O seu resultado</p>
+        <p className={SOBRETITULO}>{props.tx.seuResultado}</p>
         {p ? (
           <>
             <h2 className={`${SERIF} mt-2 text-2xl text-[#f6e3a8]`}>
@@ -380,11 +383,11 @@ function PreviaLocal(props: { nomeDela: string; nomeDele: string; dataDela: stri
             </p>
             <p className="mt-3 text-[16px] leading-relaxed text-[#f6f0e4]">{p.texto}</p>
             <p className="mt-3 text-[15px] leading-relaxed text-[#c3bad3]">
-              Isso é só o começo. A leitura completa mostra o padrão que se repete entre vocês e como conversar com ele.
+              {props.tx.soOComeco}
             </p>
           </>
         ) : (
-          <p className="mt-2 text-[15px] text-[#c3bad3]">Calculando…</p>
+          <p className="mt-2 text-[15px] text-[#c3bad3]">{props.tx.calculando}</p>
         )}
       </div>
       {props.children}

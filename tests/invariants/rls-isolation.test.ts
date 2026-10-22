@@ -331,6 +331,11 @@ beforeAll(() => {
           insert into public.area_simpatias_pedidos (organization_id, contact_id, titulo, valor_cents, pago_at)
             values (v_org, v_contact, 'Simpatia de invariante', 2700, now());
         end if;
+        -- 0942: a sinastria do quiz — a equipe lê.
+        if not exists (select 1 from public.area_sinastrias where organization_id = v_org) then
+          insert into public.area_sinastrias (organization_id, contact_id, nome_dela, nascimento_dela, nome_dele, nascimento_dele, segredo_hash, preco_cents)
+            values (v_org, v_contact, 'Ana', '1990-05-01', 'João', '1988-09-30', repeat('b', 64), 3700);
+        end if;
 
         if not exists (select 1 from public.catalog_products where organization_id = v_org) then
           insert into public.catalog_products
@@ -708,6 +713,8 @@ export const TABLES = [
   // migration 0941 — as simpatias e os pedidos "o templo faz por mim".
   "area_simpatias",
   "area_simpatias_pedidos",
+  // migration 0942 — a sinastria vendida pelo quiz da página.
+  "area_sinastrias",
 ] as const;
 
 describe("RLS tenant isolation (fn_user_org_ids pattern)", () => {

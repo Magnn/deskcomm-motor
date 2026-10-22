@@ -1,0 +1,58 @@
+/**
+ * Os textos do quiz da sinastria, passados pelo dicionário no servidor (`page.tsx`) e entregues prontos ao
+ * navegador (`_quiz.tsx`).
+ */
+export function textosDoQuiz(t: (texto: string) => string) {
+  return {
+    titulo: t("Vocês combinam?"),
+    chamada: t("Responda em 1 minuto e veja o que os signos de vocês dois mostram sobre a relação."),
+    rodape: t("Orientação espiritual e de autoconhecimento. Não substitui ajuda médica, psicológica ou jurídica, e não há promessa de resultado."),
+    passo1: t("Passo 1 de 3"),
+    passo2: t("Passo 2 de 3"),
+    passo3: t("Passo 3 de 3"),
+    voces: t("Vocês dois"),
+    seuNome: t("Seu primeiro nome"),
+    suaData: t("Sua data de nascimento (dd/mm/aaaa)"),
+    nomeDele: t("O primeiro nome dele"),
+    dataDele: t("A data de nascimento dele (dd/mm/aaaa)"),
+    continuar: t("Continuar"),
+    paraOnde: t("Para onde mando o seu resultado?"),
+    seuEmail: t("Seu melhor e-mail"),
+    semSpam: t("Usamos só para guardar a sua leitura. Nada de spam."),
+    verResultado: t("Ver o meu resultado"),
+    codigo: t("O Código da Conexão"),
+    completa: t("A leitura completa de vocês dois"),
+    item1: t("A energia de cada um no amor"),
+    item2: t("O que une vocês e onde se desencontram"),
+    item3: t("O padrão que se repete"),
+    item4: t("Como conversar com ele"),
+    item5: t("Uma prática para os próximos dias"),
+    pagamentoUnico: t("Pagamento único. Você lê aqui mesmo, logo depois de pagar."),
+    pagarPix: t("Pagar com Pix"),
+    gerando: t("Gerando…"),
+    prefiroCartao: t("Prefiro pagar com cartão"),
+    noBanco: t("No banco aparece Stripe Brasil, a empresa de pagamentos."),
+    quaseLa: t("Quase lá"),
+    pagueComPix: t("Pague com Pix Copia e Cola"),
+    pixPasso1: t("Toque em “Copiar código”."),
+    pixPasso2: t("No app do seu banco, entre em Pix e escolha Pix Copia e Cola."),
+    pixPasso3: t("Cole, confira o valor e confirme."),
+    copiado: t("Código copiado ✓"),
+    copiar: t("Copiar código"),
+    pagueNoCartao: t("Pague no cartão"),
+    abrirPagamento: t("Abrir o pagamento"),
+    esperando: t("Esperando a confirmação do pagamento"),
+    assimQueCair: t("Assim que o pagamento cair, a sua leitura aparece aqui. Pode deixar esta página aberta."),
+    confirmado: t("Pagamento confirmado"),
+    escrevendo: t("Escrevendo a leitura de vocês…"),
+    menosDeUmMinuto: t("Leva menos de um minuto. Não feche a página."),
+    guarde: t("Guarde esta página: o endereço abre a sua leitura neste aparelho."),
+    seuResultado: t("O seu resultado"),
+    calculando: t("Calculando…"),
+    soOComeco: t("Isso é só o começo. A leitura completa mostra o padrão que se repete entre vocês e como conversar com ele."),
+    naoFoiPossivel: t("Não foi possível continuar agora. Tente de novo."),
+    semConexao: t("Sem conexão. Confira a internet e tente de novo."),
+  };
+}
+
+export type TextosDoQuiz = ReturnType<typeof textosDoQuiz>;
