@@ -92,6 +92,7 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<Response> {
       nome: pedido.nome,
       titulo: previa.titulo,
       detalhe: previa.detalhe,
+      fato: previa.fato,
       respostas: pedido.respostas ?? {},
     });
     if (gerado) {

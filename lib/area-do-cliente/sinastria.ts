@@ -50,30 +50,51 @@ export function signoDe(iso: string): Signo | null {
 
 export const elementoDe = (s: Signo): Elemento => ELEMENTO[s];
 
-/** O tom da combinação de dois elementos — a prévia grátis, curta e sem promessa. */
-export function tomDaCombinacao(a: Elemento, b: Elemento): { titulo: string; texto: string } {
+/**
+ * O tom da combinação de dois elementos — a prévia grátis, curta e sem promessa: um PONTO FORTE e um PONTO DE
+ * ATENÇÃO com nome. `texto` junta os dois, para quem ainda lê o formato antigo.
+ */
+export function tomDaCombinacao(a: Elemento, b: Elemento): { titulo: string; forte: string; atencao: string; texto: string } {
   const par = [a, b].sort().join("+");
-  const tons: Record<string, { titulo: string; texto: string }> = {
-    "fogo+fogo": { titulo: "Duas chamas", texto: "Vocês se acendem rápido e se reconhecem na coragem. O desafio é quando os dois querem a última palavra." },
-    "terra+terra": { titulo: "Chão firme", texto: "Vocês buscam o que é concreto e duradouro. O desafio é não deixar a rotina apagar o carinho." },
-    "ar+ar": { titulo: "Conversa sem fim", texto: "Vocês se conectam pela mente e pelas palavras. O desafio é sair da conversa e chegar ao sentimento." },
-    "água+água": { titulo: "Mar profundo", texto: "Vocês sentem tudo com intensidade e se entendem sem falar. O desafio é não se afogarem nas mágoas." },
-    "ar+fogo": { titulo: "Vento que aviva", texto: "Um inspira o outro e a relação ganha movimento. O desafio é manter a constância depois da empolgação." },
-    "fogo+terra": { titulo: "Fogo e chão", texto: "Um traz a paixão, o outro traz a segurança. O desafio é o ritmo: um quer agora, o outro quer certeza." },
-    "água+fogo": { titulo: "Vapor", texto: "Uma atração forte, feita de opostos. O desafio é a emoção de um não apagar o entusiasmo do outro." },
-    "ar+terra": { titulo: "Ideias e raízes", texto: "Um sonha, o outro constrói. O desafio é um não achar o outro frio, nem o outro achar o um distante." },
-    "terra+água": { titulo: "Terra fértil", texto: "Uma das combinações que mais acolhem: um dá forma, o outro dá sentimento. O desafio é falar do que dói." },
-    "ar+água": { titulo: "Névoa", texto: "Encantamento de um lado, sensibilidade do outro. O desafio é a razão de um encontrar o coração do outro." },
+  const tons: Record<string, { titulo: string; forte: string; atencao: string }> = {
+    "fogo+fogo": { titulo: "Duas chamas", forte: "Vocês se acendem rápido e se reconhecem na coragem.", atencao: "Quando os dois querem a última palavra." },
+    "terra+terra": { titulo: "Chão firme", forte: "Vocês buscam o que é concreto e duradouro.", atencao: "A rotina apagar o carinho sem ninguém perceber." },
+    "ar+ar": { titulo: "Conversa sem fim", forte: "Vocês se conectam pela mente e pelas palavras.", atencao: "Ficar na conversa e não chegar ao sentimento." },
+    "água+água": { titulo: "Mar profundo", forte: "Vocês sentem tudo com intensidade e se entendem sem falar.", atencao: "Guardar mágoa em vez de dizer o que doeu." },
+    "ar+fogo": { titulo: "Vento que aviva", forte: "Um inspira o outro e a relação ganha movimento.", atencao: "Manter a constância depois da empolgação." },
+    "fogo+terra": { titulo: "Fogo e chão", forte: "Um traz a paixão, o outro traz a segurança.", atencao: "O ritmo: um quer agora, o outro quer certeza." },
+    "fogo+água": { titulo: "Vapor", forte: "Uma atração forte, feita de opostos.", atencao: "A emoção de um apagar o entusiasmo do outro." },
+    "ar+terra": { titulo: "Ideias e raízes", forte: "Um sonha, o outro constrói.", atencao: "Um achar o outro frio, e o outro achar o um distante." },
+    "terra+água": { titulo: "Terra fértil", forte: "Uma das combinações que mais acolhem: um dá forma, o outro dá sentimento.", atencao: "Evitar falar do que dói para não balançar o que está firme." },
+    "ar+água": { titulo: "Névoa", forte: "Encantamento de um lado, sensibilidade do outro.", atencao: "A razão de um encontrar o coração do outro." },
   };
-  return tons[par] ?? { titulo: "Um encontro único", texto: "O encontro de vocês tem um desenho próprio." };
+  const t = tons[par] ?? { titulo: "Um encontro único", forte: "O encontro de vocês tem um desenho próprio.", atencao: "Entender o ritmo de cada um." };
+  return { ...t, texto: `${t.forte} O ponto de atenção: ${t.atencao.charAt(0).toLowerCase()}${t.atencao.slice(1)}` };
 }
 
-/** As perguntas do quiz (além dos nomes e datas). As respostas viram contexto da leitura, não do preço. */
+/**
+ * As perguntas do quiz, em capítulos, ANTES dos nomes e datas: começar tocando é mais leve que começar digitando.
+ * As respostas viram contexto da leitura (e a prévia as repete), nunca mudam o preço.
+ */
 export const PERGUNTAS_DO_QUIZ = [
-  { id: "momento", texto: "Como está a relação de vocês hoje?", opcoes: ["Juntos e felizes", "Juntos, mas distantes", "Separados", "Ainda não começou"] },
-  { id: "aperta", texto: "O que mais aperta o seu coração?", opcoes: ["Não sei o que ele sente", "Brigamos pelo mesmo motivo", "Ele some e volta", "Medo de perder"] },
-  { id: "deseja", texto: "O que você mais deseja agora?", opcoes: ["Entender o que nos une", "Saber se vale insistir", "Ter paz, seja qual for o caminho", "Que a gente se acerte"] },
+  { id: "momento", capitulo: "A história de vocês", texto: "Como está a história de vocês hoje?", opcoes: ["Juntos e bem", "Juntos, mas distantes", "Nos conhecendo", "Gosto de alguém", "Separados"] },
+  { id: "tempo", capitulo: "A história de vocês", texto: "Há quanto tempo vocês se conhecem?", opcoes: ["Menos de 6 meses", "De 6 meses a 2 anos", "De 2 a 5 anos", "Mais de 5 anos"] },
+  { id: "aperta", capitulo: "O que se repete", texto: "O que mais aperta o seu coração nessa história?", opcoes: ["Não entendo o que a outra pessoa sente", "Brigamos sempre pelo mesmo motivo", "Um se aproxima e o outro se afasta", "Medo de investir e me frustrar"] },
+  { id: "briga", capitulo: "O que se repete", texto: "Quando vocês se desentendem, quase sempre é por…", opcoes: ["Tempo e atenção", "Ciúme e confiança", "Planos e dinheiro", "O jeito de falar", "Quase não brigamos"] },
+  { id: "carinho", capitulo: "O que se repete", texto: "Como você mais sente o carinho de alguém?", opcoes: ["Palavras", "Presença e tempo junto", "Toque e gestos", "Cuidado no dia a dia"] },
+  { id: "deseja", capitulo: "O que você quer", texto: "O que você mais quer entender agora?", opcoes: ["O que nos une de verdade", "Onde a gente se desencontra", "Se vale a pena investir", "Como conversar melhor"] },
 ] as const;
+export type IdDaPergunta = (typeof PERGUNTAS_DO_QUIZ)[number]["id"];
+
+/** O nome curto de cada resposta, no pedido da leitura à IA e no painel. */
+export const ROTULO_DA_RESPOSTA: Record<IdDaPergunta, string> = {
+  momento: "Como está a história",
+  tempo: "Há quanto tempo se conhecem",
+  aperta: "O que mais aperta",
+  briga: "Por que se desentendem",
+  carinho: "Como sente o carinho",
+  deseja: "O que quer entender",
+};
 
 const data = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((v) => signoDe(v) !== null && v >= "1920-01-01" && v <= "2012-12-31", "data inválida");
 const nome = z.string().trim().min(1).max(80);
@@ -84,7 +105,9 @@ export const pedidoDoQuizSchema = z.strictObject({
   nome_dele: nome,
   nascimento_dele: data,
   email: z.string().trim().toLowerCase().email().max(200),
-  respostas: z.strictObject({ momento: z.string().max(80).optional(), aperta: z.string().max(80).optional(), deseja: z.string().max(80).optional() }).default({}),
+  respostas: z
+    .strictObject(Object.fromEntries(PERGUNTAS_DO_QUIZ.map((p) => [p.id, z.string().max(80).optional()])) as Record<IdDaPergunta, z.ZodOptional<z.ZodString>>)
+    .default({}),
   forma: z.enum(["pix", "cartao"]),
   /** A moeda que a página propôs pelo fuso; o valor sai da oferta, no servidor (`moeda-do-visitante.ts`). */
   moeda: z.enum(["BRL", "EUR", "USD"]).default("BRL"),

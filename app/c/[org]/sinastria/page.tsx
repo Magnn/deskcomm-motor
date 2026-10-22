@@ -49,6 +49,7 @@ export default async function PaginaDoQuiz({ params }: Props) {
         <p className="mx-auto mt-3 max-w-md text-[15px] leading-relaxed text-[#c3bad3]">
           {tx.chamada}
         </p>
+        <p className="mx-auto mt-2 max-w-md text-xs text-[#9d94b2]">{tx.tempoDoQuiz}</p>
       </section>
       <QuizDaSinastria
         slug={org.slug}
@@ -56,7 +57,7 @@ export default async function PaginaDoQuiz({ params }: Props) {
         precoCents={oferta.preco_cents}
         precosInternacionais={oferta.precos_internacionais ?? []}
         pixelId={oferta.pixel_id ?? null}
-        perguntas={PERGUNTAS_DO_QUIZ.map((p) => ({ id: p.id, texto: p.texto, opcoes: [...p.opcoes] }))}
+        perguntas={PERGUNTAS_DO_QUIZ.map((p) => ({ id: p.id, capitulo: p.capitulo, texto: p.texto, opcoes: [...p.opcoes] }))}
         tx={tx}
       />
       <footer className="px-5 pb-10 text-center text-xs leading-relaxed text-[#9d94b2]">

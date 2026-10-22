@@ -17,6 +17,8 @@ import type pg from "pg";
 import { runModelCall, type LlmEdgeConfig } from "@/lib/agent-engine/edge/llm/run-model-call";
 import { BARALHO, type Carta } from "@/lib/leitura/baralho";
 
+import { ROTULO_DA_RESPOSTA, type IdDaPergunta } from "./sinastria";
+
 export const REGRAS_DE_TOM = [
   "Escreva em português do Brasil, com acolhimento e simplicidade.",
   "É orientação e reflexão, nunca previsão certa: não prometa resultado, não dê prazo, não fale em cura.",
@@ -134,13 +136,13 @@ export function pedidoDaSinastria(
 ): string {
   const contexto = Object.entries(d.respostas)
     .filter(([, v]) => v)
-    .map(([k, v]) => `- ${k === "momento" ? "Como está a relação" : k === "aperta" ? "O que mais aperta" : "O que ela deseja"}: ${v}`)
+    .map(([k, v]) => `- ${ROTULO_DA_RESPOSTA[k as IdDaPergunta] ?? k}: ${v}`)
     .join("\n");
   return [
     `Você escreve "O Código da Conexão", a sinastria de um casal, para uma cliente de ${empresa}.`,
     `Ela: ${d.nomeDela}, signo solar ${d.signoDela} (elemento ${d.elementoDela}). Ele: ${d.nomeDele}, signo solar ${d.signoDele} (elemento ${d.elementoDele}).`,
     contexto ? `O que ela contou no quiz:\n${contexto}` : "",
-    "Escreva em seis partes, cada uma com um título curto em linha própria: (1) A energia de cada um no amor, (2) O que une vocês, (3) Onde vocês se desencontram, (4) O padrão que se repete, (5) Como conversar com ele, (6) Uma prática para os próximos dias.",
+    "Escreva em seis partes, cada uma com um título curto em linha própria: (1) A energia de cada um no amor, (2) O que une vocês, (3) Onde vocês se desencontram, (4) O padrão que se repete — ligue-o ao motivo dos desentendimentos que ela contou, (5) Como conversar com a outra pessoa — use o jeito como ela sente o carinho, (6) Uma prática para os próximos 7 dias, que responda ao que ela quer entender.",
     `Regras:\n- ${REGRAS_DE_TOM}\n- Fale do que os signos e os elementos indicam como TENDÊNCIA, nunca como certeza. Nunca diga o que ele sente, pensa ou vai fazer, nem prometa que vão ficar juntos.\n- Se ela contou que estão separados ou que ele some, acolha sem alimentar espera: o foco é ela entender e escolher.`,
     "Entre 700 e 1.000 palavras. Use o nome dela no máximo três vezes e o dele no máximo três.",
     "Responda só com o texto, com uma linha em branco entre as partes.",
@@ -167,7 +169,7 @@ export async function gerarSinastria(
 
 export function pedidoDoQuiz(
   empresa: string,
-  d: { tipo: "prosperidade" | "caminhos"; nome: string; titulo: string; detalhe: string; respostas: Record<string, string> },
+  d: { tipo: "prosperidade" | "caminhos"; nome: string; titulo: string; detalhe: string; fato?: string; respostas: Record<string, string> },
 ): string {
   const contexto = Object.values(d.respostas).filter(Boolean).map((v) => `- ${v}`).join("\n");
   const comum = [
@@ -179,16 +181,17 @@ export function pedidoDoQuiz(
     return [
       `Você escreve "Seu Mapa da Prosperidade", uma leitura de numerologia para ${d.nome}, cliente de ${empresa}.`,
       `Pela numerologia popular, o número do destino dela é ${d.detalhe.replace(/\D/g, "")} (${d.titulo}).`,
+      d.fato ? `${d.fato}. A prévia grátis mostrou esse número; a leitura completa explica o que ele pede.` : "",
       contexto ? `O que ela contou no quiz:\n${contexto}` : "",
-      `Escreva em cinco partes: (1) O que o ${d.detalhe} diz sobre a forma dela de prosperar, (2) Os talentos que ela pode usar, (3) O padrão que costuma atrapalhar, (4) Três atitudes práticas para as próximas semanas, (5) Uma intenção para escrever e guardar.`,
+      `Escreva em cinco partes: (1) O que o ${d.detalhe} diz sobre a forma dela de prosperar, (2) Os talentos que ela pode usar, (3) O padrão que costuma atrapalhar, ligado ao que ela disse que mais pesa, (4) ${d.fato ? "O que o ano pessoal pede e " : ""}três atitudes práticas para as próximas semanas, (5) Uma intenção para escrever e guardar.`,
       ...comum,
     ].filter(Boolean).join("\n\n");
   }
   return [
     `Você escreve "Seu Ritual de Abertura de Caminhos", um ritual guiado de 7 dias para ${d.nome}, cliente de ${empresa}.`,
-    `Pelo quiz, o perfil dela é ${d.titulo}.`,
+    `Pelo quiz, o perfil dela é ${d.titulo}.${d.fato ? ` ${d.fato}` : ""}`,
     contexto ? `O que ela respondeu:\n${contexto}` : "",
-    `Escreva em quatro partes: (1) O que o perfil ${d.titulo} mostra sobre o momento dela, (2) O que separar (coisas simples de casa: uma vela branca, um copo de água, papel e caneta), (3) O ritual de 7 dias, um parágrafo curto por dia, cada dia com uma reflexão e um gesto pequeno, (4) Como encerrar e o que observar depois.`,
+    `Escreva em quatro partes: (1) O que o perfil ${d.titulo} e a carta-chave mostram sobre o momento dela, (2) O que separar (coisas simples de casa: uma vela branca, um copo de água, papel e caneta), (3) O ritual de 7 dias, um parágrafo curto por dia, cada dia com uma reflexão e um gesto pequeno, (4) Como encerrar e o que observar depois.`,
     "Segurança: vela sempre num pratinho firme, longe de cortina e de criança, e apagada antes de sair ou dormir.",
     ...comum,
   ].filter(Boolean).join("\n\n");

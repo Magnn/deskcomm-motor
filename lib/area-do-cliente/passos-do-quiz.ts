@@ -15,8 +15,8 @@ export type QuizDaPagina = (typeof QUIZZES_DA_PAGINA)[number];
 
 export const PASSOS_DO_QUIZ = [
   "abriu", // a página carregou
+  "perguntas", // respondeu as perguntas — vêm ANTES dos dados desde 22/10/2026 (começar tocando é mais leve)
   "dados", // passou dos nomes e datas
-  "perguntas", // respondeu as perguntas (o quiz que não tem perguntas pula este)
   "email", // chegou à tela do e-mail
   "previa", // viu a prévia calculada
   "pagar", // clicou num botão de pagar
@@ -109,8 +109,9 @@ export interface LinhaDoFunil {
  * O funil de um quiz a partir das contagens por passo. Os passos sem ninguém entram com zero, para a tela
  * mostrar onde a fila acaba. `perguntas` some do funil do quiz que não pergunta nada (prosperidade).
  */
-export function funilDoQuiz(quiz: QuizDaPagina, contagens: Partial<Record<PassoDoQuiz, number>>): LinhaDoFunil[] {
-  const passos = PASSOS_DO_QUIZ.filter((p) => !(p === "perguntas" && quiz === "prosperidade"));
+export function funilDoQuiz(_quiz: QuizDaPagina, contagens: Partial<Record<PassoDoQuiz, number>>): LinhaDoFunil[] {
+  // Desde 22/10/2026 os três quizzes têm perguntas (a prosperidade não tinha): o funil é o mesmo para todos.
+  const passos = PASSOS_DO_QUIZ;
   const topo = contagens.abriu ?? 0;
   let anterior: number | null = null;
   return passos.map((passo) => {

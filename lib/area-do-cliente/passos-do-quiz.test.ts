@@ -5,15 +5,15 @@ import { funilDoQuiz, maiorPerda, ordemDoPasso, passoDoQuizSchema, regiaoPeloFus
 
 describe("funil dos quizzes da página", () => {
   it("o funil conta pessoas por passo, com a fração do total e do passo anterior", () => {
-    const f = funilDoQuiz("caminhos", { abriu: 100, dados: 60, perguntas: 50, email: 40, previa: 40, pagar: 10, cobranca: 8, pago: 2, leitura: 2 });
-    expect(f.map((l) => l.passo)).toEqual(["abriu", "dados", "perguntas", "email", "previa", "pagar", "cobranca", "pago", "leitura"]);
+    const f = funilDoQuiz("caminhos", { abriu: 100, perguntas: 60, dados: 50, email: 40, previa: 40, pagar: 10, cobranca: 8, pago: 2, leitura: 2 });
+    expect(f.map((l) => l.passo)).toEqual(["abriu", "perguntas", "dados", "email", "previa", "pagar", "cobranca", "pago", "leitura"]);
     expect(f[1]).toMatchObject({ pessoas: 60, doTotal: 0.6, doAnterior: 0.6 });
     expect(f[0]!.doAnterior).toBeNull();
-    expect(maiorPerda(f)).toEqual({ de: "abriu", para: "dados", perdidos: 40 });
+    expect(maiorPerda(f)).toEqual({ de: "abriu", para: "perguntas", perdidos: 40 });
   });
 
-  it("a prosperidade não tem perguntas: o passo some do funil dela", () => {
-    expect(funilDoQuiz("prosperidade", { abriu: 3 }).map((l) => l.passo)).not.toContain("perguntas");
+  it("os três quizzes têm perguntas, antes dos dados", () => {
+    expect(funilDoQuiz("prosperidade", { abriu: 3 }).map((l) => l.passo).slice(0, 3)).toEqual(["abriu", "perguntas", "dados"]);
   });
 
   it("sem ninguém, o funil é de zeros e não há maior perda", () => {

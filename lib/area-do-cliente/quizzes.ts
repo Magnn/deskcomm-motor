@@ -21,13 +21,65 @@ export const tipoDoExtra = (extra: string): TipoDeQuiz | null =>
 
 // ─── PROSPERIDADE ─────────────────────────────────────────────────────────────────────────
 
+/** Soma os algarismos de `n`. */
+const somaDosAlgarismos = (n: number | string) => String(n).split("").reduce((s, d) => s + Number(d), 0);
+
+/**
+ * A CONTA do número do destino, passo a passo, como a tela de cálculo mostra: "1+5+0+5+1+9+9+0 = 30", "3+0 = 3".
+ * Para em 1–9, ou em 11 e 22 (números mestres, que não se reduzem).
+ */
+export function contaDoDestino(iso: string): { passos: string[]; numero: number } | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return null;
+  const digitos = iso.replace(/\D/g, "").split("");
+  let n = somaDosAlgarismos(digitos.join(""));
+  const passos = [`${digitos.join("+")} = ${n}`];
+  while (n > 9 && n !== 11 && n !== 22) {
+    const prox = somaDosAlgarismos(n);
+    passos.push(`${String(n).split("").join("+")} = ${prox}`);
+    n = prox;
+  }
+  return { passos, numero: n };
+}
+
 /** O número do destino de quem nasceu em `iso` (AAAA-MM-DD): 1–9, ou 11 e 22 (números mestres). */
 export function numeroDoDestino(iso: string): number | null {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return null;
-  let n = iso.replace(/\D/g, "").split("").reduce((s, d) => s + Number(d), 0);
-  while (n > 9 && n !== 11 && n !== 22) n = String(n).split("").reduce((s, d) => s + Number(d), 0);
+  return contaDoDestino(iso)?.numero ?? null;
+}
+
+/**
+ * O ANO PESSOAL: dia + mês de nascimento + o ano que se quer ler, reduzidos a 1–9 (aqui sem mestres, como na
+ * numerologia popular do ano pessoal). De outubro em diante a prévia lê o ano que vem: é o que a pessoa planeja.
+ */
+export function anoPessoal(iso: string, ano: number): number | null {
+  const m = /^\d{4}-(\d{2})-(\d{2})$/.exec(iso);
+  if (!m) return null;
+  let n = somaDosAlgarismos(`${m[2]}${m[1]}${ano}`);
+  while (n > 9) n = somaDosAlgarismos(n);
   return n;
 }
+
+export const anoDaLeitura = (hoje: Date = new Date()) => (hoje.getMonth() >= 9 ? hoje.getFullYear() + 1 : hoje.getFullYear());
+
+/** O que cada ano pessoal pede, numa frase — a prévia mostra o número; a leitura completa desenvolve. */
+export const TOM_DO_ANO_PESSOAL: Record<number, string> = {
+  1: "ano de começar: plantar o que vai crescer nos próximos nove",
+  2: "ano de parceria e paciência: o que se constrói junto",
+  3: "ano de se mostrar: comunicar, criar, aparecer",
+  4: "ano de base: organizar, trabalhar com método",
+  5: "ano de mudança: movimento, escolhas e novidade",
+  6: "ano de casa e responsabilidade: cuidar do que importa",
+  7: "ano de estudo e recolhimento: entender antes de agir",
+  8: "ano de colheita e decisões práticas, inclusive com dinheiro",
+  9: "ano de fechar ciclos: soltar o que terminou",
+};
+
+/** As perguntas da prosperidade, ANTES da data: o jeito de lidar com dinheiro e o que pesa hoje. Sem renda nem dívida. */
+export const PERGUNTAS_DA_PROSPERIDADE = [
+  { id: "estilo", capitulo: "Você e o dinheiro", texto: "Com dinheiro, você é mais de…", opcoes: ["Guardar", "Gastar com o que dá prazer", "Investir em ideias", "Deixar para depois"] },
+  { id: "pesa", capitulo: "Você e o dinheiro", texto: "O que mais pesa hoje?", opcoes: ["Decidir o próximo passo", "Cobrar o quanto valho", "Ter constância", "Começar algo novo"] },
+  { id: "trabalho", capitulo: "O seu momento", texto: "Como está o seu trabalho hoje?", opcoes: ["Crescendo", "Estável", "Parado", "Recomeçando"] },
+  { id: "quando", capitulo: "O seu momento", texto: "Para quando você quer clareza?", opcoes: ["Para este mês", "Para a virada do ano"] },
+] as const;
 
 const TOM_DO_NUMERO: Record<number, { titulo: string; texto: string }> = {
   1: { titulo: "O Iniciador", texto: "A sua prosperidade nasce quando você toma a frente. O seu desafio é não esperar a permissão de ninguém para começar." },
@@ -43,28 +95,45 @@ const TOM_DO_NUMERO: Record<number, { titulo: string; texto: string }> = {
   22: { titulo: "O Mestre Construtor", texto: "Número mestre: você tem visão grande e mão firme. O seu desafio é não carregar tudo sozinho." },
 };
 
-export function previaDaProsperidade(nascimento: string) {
-  const numero = numeroDoDestino(nascimento);
-  if (numero === null) return null;
-  const tom = TOM_DO_NUMERO[numero]!;
-  return { numero, ...tom };
+export function previaDaProsperidade(nascimento: string, hoje: Date = new Date()) {
+  const conta = contaDoDestino(nascimento);
+  if (!conta) return null;
+  const ano = anoDaLeitura(hoje);
+  const pessoal = anoPessoal(nascimento, ano)!;
+  return { numero: conta.numero, passos: conta.passos, ano, anoPessoal: pessoal, tomDoAno: TOM_DO_ANO_PESSOAL[pessoal]!, ...TOM_DO_NUMERO[conta.numero]! };
 }
 
 // ─── CAMINHOS ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Os quatro perfis, cada um com uma CARTA-CHAVE do tarô (os Arcanos Maiores de `lib/leitura/baralho.ts`). A carta
+ * sai do perfil por regra fixa e declarada na tela — não é sorteio. Escolhidas para nomear o que o momento pede,
+ * sem cartas de medo.
+ */
 export const PERFIS_DOS_CAMINHOS = {
-  recomeco: { titulo: "Recomeço", texto: "Você está numa fase de fechar um ciclo e abrir outro. O seu caminho se abre quando você solta o que já terminou." },
-  clareza: { titulo: "Clareza", texto: "Você tem muitas portas e pouca certeza. O seu caminho se abre quando você escolhe uma direção e dá o primeiro passo." },
-  coragem: { titulo: "Coragem", texto: "Você já sabe o que quer, mas algo segura o passo. O seu caminho se abre quando você age antes de estar pronto." },
-  paz: { titulo: "Paz interior", texto: "Você carrega cansaço e preocupação. O seu caminho se abre quando você recupera o seu centro antes de correr atrás." },
+  recomeco: { titulo: "Recomeço", texto: "Você está numa fase de fechar um ciclo e abrir outro. O seu caminho se abre quando você solta o que já terminou.", carta: "A Estrela", sentidoDaCarta: "A Estrela vem depois da tempestade: é a esperança que volta e o primeiro passo de um ciclo novo." },
+  clareza: { titulo: "Clareza", texto: "Você tem muitas portas e pouca certeza. O seu caminho se abre quando você escolhe uma direção e dá o primeiro passo.", carta: "Os Enamorados", sentidoDaCarta: "Os Enamorados são a carta da escolha: o caminho abre quando uma porta é escolhida de coração." },
+  coragem: { titulo: "Coragem", texto: "Você já sabe o que quer, mas algo segura o passo. O seu caminho se abre quando você age antes de estar pronto.", carta: "O Carro", sentidoDaCarta: "O Carro é a vontade em movimento: a direção já existe, falta segurar as rédeas e ir." },
+  paz: { titulo: "Paz interior", texto: "Você carrega cansaço e preocupação. O seu caminho se abre quando você recupera o seu centro antes de correr atrás.", carta: "A Temperança", sentidoDaCarta: "A Temperança é o equilíbrio: misturar descanso e ação na medida, sem pressa e sem parar." },
 } as const;
 export type PerfilDosCaminhos = keyof typeof PERFIS_DOS_CAMINHOS;
 
 export const PERGUNTAS_DOS_CAMINHOS = [
-  { id: "area", texto: "Em que área você mais quer ver o caminho se abrir?", opcoes: [["Trabalho e dinheiro", "coragem"], ["Amor", "recomeco"], ["Família e casa", "paz"], ["Não sei, tudo ao mesmo tempo", "clareza"]] },
-  { id: "sente", texto: "Como você se sente hoje?", opcoes: [["Cansada de tentar", "paz"], ["Perdida, sem saber por onde ir", "clareza"], ["Pronta, mas com medo", "coragem"], ["Querendo deixar o passado para trás", "recomeco"]] },
-  { id: "precisa", texto: "O que você mais precisa agora?", opcoes: [["Um sinal de qual é o caminho", "clareza"], ["Força para agir", "coragem"], ["Fechar um ciclo", "recomeco"], ["Calma para respirar", "paz"]] },
-] as const satisfies ReadonlyArray<{ id: string; texto: string; opcoes: ReadonlyArray<readonly [string, PerfilDosCaminhos]> }>;
+  { id: "area", capitulo: "Onde está travado", texto: "Em que área você mais quer ver o caminho se abrir?", opcoes: [["Trabalho e dinheiro", "coragem"], ["Amor", "recomeco"], ["Família e casa", "paz"], ["Não sei, tudo ao mesmo tempo", "clareza"]] },
+  { id: "sente", capitulo: "Onde está travado", texto: "Como você se sente hoje?", opcoes: [["Cansada de tentar", "paz"], ["Perdida, sem saber por onde ir", "clareza"], ["Pronta, mas com medo", "coragem"], ["Querendo deixar o passado para trás", "recomeco"]] },
+  { id: "decide", capitulo: "O seu jeito", texto: "Diante de uma escolha, você costuma…", opcoes: [["Esperar até ter certeza", "coragem"], ["Ficar entre duas opções", "clareza"], ["Pensar no que já passou", "recomeco"], ["Ir no impulso e depois se cansar", "paz"]] },
+  { id: "precisa", capitulo: "O que você quer", texto: "O que você mais precisa agora?", opcoes: [["Um sinal de qual é o caminho", "clareza"], ["Força para agir", "coragem"], ["Fechar um ciclo", "recomeco"], ["Calma para respirar", "paz"]] },
+] as const satisfies ReadonlyArray<{ id: string; capitulo: string; texto: string; opcoes: ReadonlyArray<readonly [string, PerfilDosCaminhos]> }>;
+
+/** Para a tela de cálculo: o perfil que CADA resposta apontou, na ordem das perguntas. */
+export function votosDosCaminhos(respostas: Record<string, string>): { resposta: string; perfil: PerfilDosCaminhos }[] {
+  const votos: { resposta: string; perfil: PerfilDosCaminhos }[] = [];
+  for (const p of PERGUNTAS_DOS_CAMINHOS) {
+    const escolhida = p.opcoes.find(([texto]) => texto === respostas[p.id]);
+    if (escolhida) votos.push({ resposta: escolhida[0], perfil: escolhida[1] });
+  }
+  return votos;
+}
 
 /** O perfil pela maioria das respostas; empate fica com a ordem das perguntas (a última resposta desempata). */
 export function perfilDosCaminhos(respostas: Record<string, string>): PerfilDosCaminhos {
@@ -105,12 +174,20 @@ export const pedidoDeQuizSchema = z.strictObject({
 });
 export type PedidoDeQuiz = z.infer<typeof pedidoDeQuizSchema>;
 
-/** A prévia de cada quiz, ou `null` quando falta o dado de que ela depende. */
-export function previaDoQuiz(tipo: TipoDeQuiz, d: { nascimento?: string | null; respostas: Record<string, string> }): { titulo: string; texto: string; detalhe: string } | null {
+/**
+ * A prévia de cada quiz, ou `null` quando falta o dado de que ela depende. `fato` é o dado calculado a mais que a
+ * prévia mostra (o ano pessoal; a carta-chave) — ele vai também para o pedido da leitura, para a leitura completa
+ * entregar o que a prévia anunciou.
+ */
+export function previaDoQuiz(
+  tipo: TipoDeQuiz,
+  d: { nascimento?: string | null; respostas: Record<string, string> },
+  hoje: Date = new Date(),
+): { titulo: string; texto: string; detalhe: string; fato: string } | null {
   if (tipo === "prosperidade") {
-    const p = d.nascimento ? previaDaProsperidade(d.nascimento) : null;
-    return p ? { titulo: p.titulo, texto: p.texto, detalhe: `Número ${p.numero}` } : null;
+    const p = d.nascimento ? previaDaProsperidade(d.nascimento, hoje) : null;
+    return p ? { titulo: p.titulo, texto: p.texto, detalhe: `Número ${p.numero}`, fato: `Ano pessoal de ${p.ano}: ${p.anoPessoal} (${p.tomDoAno})` } : null;
   }
   const c = previaDosCaminhos(d.respostas);
-  return { titulo: c.titulo, texto: c.texto, detalhe: c.perfil };
+  return { titulo: c.titulo, texto: c.texto, detalhe: c.perfil, fato: `Carta-chave: ${c.carta}. ${c.sentidoDaCarta}` };
 }

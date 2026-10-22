@@ -1,23 +1,28 @@
 "use client";
 
 /**
- * Os quizzes de uma pessoa no navegador: o nome (e a data, na prosperidade), as perguntas (nos caminhos), o
- * e-mail, a prévia calculada, o pagamento e a leitura. O pedido e o segredo ficam no navegador: quem volta para a
- * página encontra a leitura onde parou. Mesmo desenho do quiz da sinastria (`../../sinastria/_quiz.tsx`).
+ * Os quizzes de uma pessoa no navegador: as perguntas, o nome (e a data, na prosperidade), o e-mail, a prévia
+ * calculada, o pagamento e a leitura. O pedido e o segredo ficam no navegador: quem volta para a página encontra a
+ * leitura onde parou. Mesmo desenho do quiz da sinastria (`../../sinastria/_quiz.tsx`): começa com toques, explica
+ * o mecanismo, pede os dados por último e MOSTRA a conta — a soma da data na prosperidade, o voto de cada resposta
+ * e a carta-chave nos caminhos.
  */
 import Script from "next/script";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { moedaDaOferta, precoDaOferta, valorNaMoedaDaPagina, type MoedaDaPagina } from "@/lib/area-do-cliente/moeda-do-visitante";
+import { PERFIS_DOS_CAMINHOS, previaDaProsperidade, previaDoQuiz, previaDosCaminhos, votosDosCaminhos } from "@/lib/area-do-cliente/quizzes";
 import { copyToClipboard } from "@/lib/clipboard";
 
 import { enviarLead, idDaVisita, manterVivo, marcarPasso } from "../../_passos";
 
+import { Interludio, Progresso, SeletorDeData, TelaDeCalculo } from "../../_quiz-pecas";
 import { CARTAO, SERIF, SOBRETITULO } from "../../_tema";
 import type { TextosDoQuizDePessoa } from "./_textos";
 
 interface Pergunta {
   id: string;
+  capitulo: string;
   texto: string;
   opcoes: string[];
 }
@@ -29,7 +34,17 @@ interface Previa {
 }
 
 type Cobranca = { forma: "pix"; copiaECola: string; qrPng: string | null } | { forma: "cartao"; url: string };
-type Fase = "dados" | "perguntas" | "email" | "previa" | "pagar" | "gerando" | "pronto";
+type Fase = "quiz" | "previa" | "pagar" | "gerando" | "pronto";
+
+/** Uma tela do caminho até a prévia, na ordem em que aparece. */
+type Tela =
+  | { tipo: "pergunta"; i: number }
+  | { tipo: "frase"; frase: string }
+  | { tipo: "mecanismo" }
+  | { tipo: "nome" }
+  | { tipo: "data" }
+  | { tipo: "calculo" }
+  | { tipo: "email" };
 
 declare global {
   interface Window {
@@ -37,21 +52,6 @@ declare global {
   }
 }
 
-
-function isoDaData(texto: string): string | null {
-  const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(texto.trim());
-  if (!m) return null;
-  const [d, mm, a] = [Number(m[1]), Number(m[2]), Number(m[3])];
-  if (mm < 1 || mm > 12 || d < 1 || d > 31) return null;
-  return `${a}-${String(mm).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-}
-
-function mascaraDeData(v: string): string {
-  const d = v.replace(/\D/g, "").slice(0, 8);
-  if (d.length <= 2) return d;
-  if (d.length <= 4) return `${d.slice(0, 2)}/${d.slice(2)}`;
-  return `${d.slice(0, 2)}/${d.slice(2, 4)}/${d.slice(4)}`;
-}
 
 function pixel(evento: string, dados?: Record<string, unknown>, id?: string) {
   try {
@@ -75,11 +75,11 @@ export function QuizDePessoa(props: {
   const { slug, tipo, cor, precoCents, precosInternacionais, pixelId, perguntas, tx } = props;
   const chave = `quiz-${tipo}:${slug}`;
   const base = `/api/v1/area/publica/${slug}/quiz/${tipo}`;
-  const [fase, setFase] = useState<Fase>("dados");
+  const [fase, setFase] = useState<Fase>("quiz");
+  const [tela, setTela] = useState(0);
   const [nome, setNome] = useState("");
   const [data, setData] = useState("");
   const [respostas, setRespostas] = useState<Record<string, string>>({});
-  const [passo, setPasso] = useState(0);
   const [email, setEmail] = useState("");
   const [erro, setErro] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
@@ -105,23 +105,61 @@ export function QuizDePessoa(props: {
   }, [precoCents, precosInternacionais]);
   const preco = precoDaOferta({ preco_cents: precoCents, precos_internacionais: precosInternacionais }, moeda) ?? precoCents;
   const QUIZ = tipo;
-  const TEM_PERGUNTAS = perguntas.length > 0;
+
+  // O roteiro: as perguntas, com a frase da Cigana a cada troca de capítulo, o mecanismo e os dados.
+  const telas = useMemo<Tela[]>(() => {
+    const frases = [...tx.frases];
+    const r: Tela[] = [];
+    perguntas.forEach((p, i) => {
+      if (i > 0 && p.capitulo !== perguntas[i - 1]!.capitulo && frases.length > 0) r.push({ tipo: "frase", frase: frases.shift()! });
+      r.push({ tipo: "pergunta", i });
+    });
+    r.push({ tipo: "mecanismo" }, { tipo: "nome" });
+    if (tipo === "prosperidade") r.push({ tipo: "data" });
+    r.push({ tipo: "calculo" }, { tipo: "email" });
+    return r;
+  }, [perguntas, tipo, tx.frases]);
+  const atual = telas[tela];
+  const avancar = useCallback(() => setTela((t) => Math.min(t + 1, telas.length - 1)), [telas.length]);
+  const prosperidade = useMemo(() => (tipo === "prosperidade" && data ? previaDaProsperidade(data) : null), [tipo, data]);
+  const caminhos = useMemo(() => (tipo === "caminhos" ? previaDosCaminhos(respostas) : null), [tipo, respostas]);
+  // A conta que a tela de cálculo mostra — a MESMA que deu o resultado.
+  const linhasDoCalculo = useMemo(() => {
+    if (prosperidade) {
+      const [primeiro, ...resto] = prosperidade.passos;
+      return [
+        `${tx.somando}: ${primeiro}`,
+        ...resto.map((p) => `${tx.reduzindo}: ${p}`),
+        `${tx.numeroDoDestino}: ${prosperidade.numero} · ${prosperidade.titulo}`,
+        `${tx.anoPessoalDe} ${prosperidade.ano}: ${prosperidade.anoPessoal}`,
+      ];
+    }
+    if (caminhos) {
+      const votos = votosDosCaminhos(respostas);
+      const vezes = votos.filter((v) => v.perfil === caminhos.perfil).length;
+      return [
+        ...votos.map((v) => `“${v.resposta}” → ${PERFIS_DOS_CAMINHOS[v.perfil].titulo}`),
+        `${tx.maioria}: ${caminhos.titulo} (${vezes} ${tx.vezes} ${votos.length})`,
+        `${tx.cartaChave}: ${caminhos.carta}`,
+      ];
+    }
+    return [];
+  }, [prosperidade, caminhos, respostas, tx]);
 
   // O "ao vivo" (0944): enquanto a aba está visível, a visita segue aparecendo no painel.
   useEffect(() => manterVivo(slug, tipo), [slug, tipo]);
   // O funil no nosso banco (0944): cada tela a que a pessoa chega vira um passo.
   useEffect(() => {
     if (!moedaLida) return;
-    if (fase === "dados") marcarPasso(slug, QUIZ, "abriu", moeda);
-    if (fase === "perguntas") marcarPasso(slug, QUIZ, "dados", moeda);
-    if (fase === "email") {
-      marcarPasso(slug, QUIZ, "dados", moeda);
-      if (TEM_PERGUNTAS) marcarPasso(slug, QUIZ, "perguntas", moeda);
-      marcarPasso(slug, QUIZ, "email", moeda);
+    if (fase === "quiz") {
+      if (tela === 0) marcarPasso(slug, QUIZ, "abriu", moeda);
+      if (atual?.tipo === "mecanismo") marcarPasso(slug, QUIZ, "perguntas", moeda);
+      if (atual?.tipo === "calculo") marcarPasso(slug, QUIZ, "dados", moeda);
+      if (atual?.tipo === "email") marcarPasso(slug, QUIZ, "email", moeda);
     }
     if (fase === "previa") marcarPasso(slug, QUIZ, "previa", moeda);
     if (fase === "pronto") marcarPasso(slug, QUIZ, "leitura", moeda);
-  }, [fase, slug, moeda, moedaLida, QUIZ, TEM_PERGUNTAS]);
+  }, [fase, tela, atual?.tipo, slug, moeda, moedaLida, QUIZ]);
 
   useEffect(() => {
     try {
@@ -148,7 +186,8 @@ export function QuizDePessoa(props: {
         /* nada */
       }
       setPedido(null);
-      setFase("dados");
+      setFase("quiz");
+      setTela(0);
       return;
     }
     if (!r.ok) return;
@@ -185,7 +224,6 @@ export function QuizDePessoa(props: {
     return () => clearInterval(t);
   }, [pedido, fase, consultar]);
 
-  const dadosOk = nome.trim().length > 0 && (tipo === "caminhos" || isoDaData(data) !== null);
 
   async function pagar(forma: "pix" | "cartao") {
     marcarPasso(slug, tipo, "pagar", moeda);
@@ -197,7 +235,7 @@ export function QuizDePessoa(props: {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           nome: nome.trim(),
-          ...(tipo === "prosperidade" ? { nascimento: isoDaData(data) } : {}),
+          ...(tipo === "prosperidade" ? { nascimento: data } : {}),
           email: email.trim(),
           respostas,
           forma,
@@ -232,12 +270,11 @@ export function QuizDePessoa(props: {
     }
   }
 
-  async function verPrevia() {
+  function verPrevia() {
     setErro(null);
     pixel("Lead", { content_name: `quiz-${tipo}` });
-    enviarLead(slug, tipo, { nome: nome.trim(), email: email.trim(), nascimento: isoDaData(data), respostas });
-    const m = await import("@/lib/area-do-cliente/quizzes");
-    setPrevia(m.previaDoQuiz(tipo, { nascimento: isoDaData(data), respostas }));
+    enviarLead(slug, tipo, { nome: nome.trim(), email: email.trim(), nascimento: data || null, respostas });
+    setPrevia(previaDoQuiz(tipo, { nascimento: data || null, respostas }));
     setFase("previa");
   }
 
@@ -252,53 +289,83 @@ export function QuizDePessoa(props: {
         </Script>
       ) : null}
 
-      {fase === "dados" && (
-        <div className={CARTAO}>
-          <p className={SOBRETITULO}>{tx.passo1}</p>
-          <h2 className={`${SERIF} mt-2 text-2xl text-[#f6e3a8]`}>{tx.sobreVoce}</h2>
-          <div className="mt-5 space-y-3">
-            <input className={campo} placeholder={tx.seuNome} value={nome} maxLength={80} onChange={(e) => setNome(e.target.value)} />
-            {tipo === "prosperidade" ? (
-              <input className={campo} placeholder={tx.suaData} inputMode="numeric" value={data} onChange={(e) => setData(mascaraDeData(e.target.value))} />
-            ) : null}
-          </div>
-          <button className={`${botao} mt-6`} style={{ background: cor }} disabled={!dadosOk} onClick={() => setFase(perguntas.length > 0 ? "perguntas" : "email")}>
-            {tx.continuar}
-          </button>
-        </div>
+      {fase === "quiz" && atual && atual.tipo !== "frase" && atual.tipo !== "calculo" && (
+        <Progresso atual={tela + 1} total={telas.length} cor={cor} />
       )}
 
-      {fase === "perguntas" && perguntas[passo] && (
+      {fase === "quiz" && atual?.tipo === "pergunta" && perguntas[atual.i] && (
         <div className={CARTAO}>
-          <p className={SOBRETITULO}>
-            {tx.passo2} · {passo + 1}/{perguntas.length}
-          </p>
-          <h2 className={`${SERIF} mt-2 text-2xl text-[#f6e3a8]`}>{perguntas[passo]!.texto}</h2>
+          <p className={SOBRETITULO}>{perguntas[atual.i]!.capitulo}</p>
+          <h2 className={`${SERIF} mt-2 text-2xl text-[#f6e3a8]`}>{perguntas[atual.i]!.texto}</h2>
           <div className="mt-5 space-y-3">
-            {perguntas[passo]!.opcoes.map((o) => (
+            {perguntas[atual.i]!.opcoes.map((o) => (
               <button
                 key={o}
                 className="w-full rounded-2xl border border-[#c9a54e]/25 bg-[#120d22] px-4 py-3 text-left text-base text-[#f6f0e4] hover:border-[#e2c47a]"
                 onClick={() => {
-                  setRespostas((r) => ({ ...r, [perguntas[passo]!.id]: o }));
-                  if (passo + 1 < perguntas.length) setPasso(passo + 1);
-                  else setFase("email");
+                  setRespostas((r) => ({ ...r, [perguntas[atual.i]!.id]: o }));
+                  avancar();
                 }}
               >
                 {o}
               </button>
             ))}
           </div>
+          {tela > 0 && (
+            <button className="mt-4 text-sm text-[#9d94b2] underline" onClick={() => setTela(tela - 1)}>
+              ← {tx.voltar}
+            </button>
+          )}
         </div>
       )}
 
-      {fase === "email" && (
+      {fase === "quiz" && atual?.tipo === "frase" && (
+        <Interludio frase={atual.frase} assinatura={tx.assinatura} botao={tx.continuar} cor={cor} aoContinuar={avancar} />
+      )}
+
+      {fase === "quiz" && atual?.tipo === "mecanismo" && (
         <div className={CARTAO}>
-          <p className={SOBRETITULO}>{tx.passo3}</p>
-          <h2 className={`${SERIF} mt-2 text-2xl text-[#f6e3a8]`}>{tx.paraOnde}</h2>
+          <p className={SOBRETITULO}>{tx.comoFunciona}</p>
+          <p className="mt-3 text-[16px] leading-relaxed text-[#f6f0e4]">{tx.mecanismo}</p>
+          <button className={`${botao} mt-6`} style={{ background: cor }} onClick={avancar}>
+            {tx.continuar}
+          </button>
+        </div>
+      )}
+
+      {fase === "quiz" && atual?.tipo === "nome" && (
+        <div className={CARTAO}>
+          <h2 className={`${SERIF} text-2xl text-[#f6e3a8]`}>{tx.sobreVoce}</h2>
+          <input className={`${campo} mt-5`} placeholder={tx.seuNome} value={nome} maxLength={80} onChange={(e) => setNome(e.target.value)} />
+          <button className={`${botao} mt-6`} style={{ background: cor }} disabled={nome.trim().length === 0} onClick={avancar}>
+            {tx.continuar}
+          </button>
+        </div>
+      )}
+
+      {fase === "quiz" && atual?.tipo === "data" && (
+        <div className={CARTAO}>
+          <SeletorDeData
+            titulo={tx.quandoVoceNasceu}
+            tx={{ mes: tx.dataMes, dia: tx.dataDia, decada: tx.dataDecada, ano: tx.dataAno, meses: tx.meses }}
+            aoEscolher={(iso) => {
+              setData(iso);
+              avancar();
+            }}
+          />
+        </div>
+      )}
+
+      {fase === "quiz" && atual?.tipo === "calculo" && linhasDoCalculo.length > 0 && (
+        <TelaDeCalculo titulo={tx.calculando} linhas={linhasDoCalculo} aoTerminar={avancar} />
+      )}
+
+      {fase === "quiz" && atual?.tipo === "email" && (
+        <div className={CARTAO}>
+          <h2 className={`${SERIF} text-2xl text-[#f6e3a8]`}>{tx.paraOnde}</h2>
           <input className={`${campo} mt-5`} type="email" placeholder={tx.seuEmail} value={email} maxLength={200} onChange={(e) => setEmail(e.target.value)} />
           <p className="mt-2 text-xs text-[#9d94b2]">{tx.semSpam}</p>
-          <button className={`${botao} mt-6`} style={{ background: cor }} disabled={!/^\S+@\S+\.\S+$/.test(email.trim())} onClick={() => void verPrevia()}>
+          <button className={`${botao} mt-6`} style={{ background: cor }} disabled={!/^\S+@\S+\.\S+$/.test(email.trim())} onClick={verPrevia}>
             {tx.verResultado}
           </button>
         </div>
@@ -308,15 +375,46 @@ export function QuizDePessoa(props: {
         <>
           <div className={CARTAO}>
             <p className={SOBRETITULO}>{tx.seuResultado}</p>
-            {previa ? (
+            {tipo === "prosperidade" && prosperidade ? (
               <>
-                <h2 className={`${SERIF} mt-2 text-2xl text-[#f6e3a8]`}>
-                  {nome.trim()}: {previa.titulo}
+                <p className={`${SERIF} mt-2 text-5xl text-[#f6e3a8]`}>{prosperidade.numero}</p>
+                <h2 className={`${SERIF} mt-1 text-2xl text-[#f6e3a8]`}>
+                  {nome.trim()}: {prosperidade.titulo}
                 </h2>
-                <p className="mt-3 text-[16px] leading-relaxed text-[#f6f0e4]">{previa.texto}</p>
-                <p className="mt-3 text-[15px] leading-relaxed text-[#c3bad3]">{tx.soOComeco}</p>
+                <p className="mt-3 text-[16px] leading-relaxed text-[#f6f0e4]">{prosperidade.texto}</p>
+                <div className="mt-4 rounded-2xl border border-[#c9a54e]/25 bg-[#120d22] p-4">
+                  <p className="text-sm text-[#e2c47a]">
+                    {tx.seuAnoPessoal} {prosperidade.ano}: <span className="text-xl font-semibold">{prosperidade.anoPessoal}</span>
+                  </p>
+                  <p className="mt-1 text-[14px] text-[#c3bad3]">{tx.oQueEleAnoPede}</p>
+                </div>
+                {respostas.estilo && respostas.pesa ? (
+                  <p className="mt-4 border-l-2 border-[#c9a54e]/40 pl-3 text-[15px] leading-relaxed text-[#c3bad3]">
+                    {tx.comDinheiroE} {respostas.estilo.toLowerCase()} {tx.eQuePesa} “{respostas.pesa.toLowerCase()}”.
+                  </p>
+                ) : null}
               </>
             ) : null}
+            {tipo === "caminhos" && caminhos ? (
+              <>
+                <h2 className={`${SERIF} mt-2 text-2xl text-[#f6e3a8]`}>
+                  {nome.trim()}: {caminhos.titulo}
+                </h2>
+                <div className="mt-4 rounded-2xl border border-[#c9a54e]/25 bg-[#120d22] p-4">
+                  <p className="text-sm text-[#e2c47a]">
+                    {tx.cartaChave}: <span className="font-semibold">{caminhos.carta}</span>
+                  </p>
+                  <p className="mt-1 text-[15px] leading-relaxed text-[#f6f0e4]">{caminhos.sentidoDaCarta}</p>
+                </div>
+                <p className="mt-4 text-[16px] leading-relaxed text-[#f6f0e4]">{caminhos.texto}</p>
+                {respostas.precisa ? (
+                  <p className="mt-4 border-l-2 border-[#c9a54e]/40 pl-3 text-[15px] leading-relaxed text-[#c3bad3]">
+                    {tx.voceContou} {tx.quePrecisaDe} “{respostas.precisa.toLowerCase()}”.
+                  </p>
+                ) : null}
+              </>
+            ) : null}
+            <p className="mt-4 text-[15px] leading-relaxed text-[#c3bad3]">{tx.ponte}</p>
           </div>
           <div className={`${CARTAO} mt-5`}>
             <p className={SOBRETITULO}>{tx.produto}</p>
@@ -327,6 +425,7 @@ export function QuizDePessoa(props: {
             </ul>
             <p className="mt-4 text-3xl font-semibold text-[#f6e3a8]">{valorNaMoedaDaPagina(preco, moeda)}</p>
             <p className="text-xs text-[#9d94b2]">{tx.pagamentoUnico}</p>
+            <p className="mt-1 text-xs text-[#9d94b2]">{tx.garantia}</p>
             {erro && <p className="mt-3 text-sm text-[#f3a3c0]">{erro}</p>}
             {moeda === "BRL" ? (
               <>
