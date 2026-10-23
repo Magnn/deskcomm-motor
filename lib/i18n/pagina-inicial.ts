@@ -46,4 +46,8 @@ export const TRADUCOES_PAGINA_INICIAL: Record<string, { es: string }> = {
   "Não. O agente segue as regras configuradas e pode encaminhar a conversa para uma pessoa com o contexto do atendimento.": { es: "No. El agente sigue las reglas configuradas y puede transferir la conversación a una persona junto con el contexto de la atención." },
   "Termos": { es: "Términos" },
   "Privacidade": { es: "Privacidad" },
+  "Guias": { es: "Guías" },
+  "Ler o guia": { es: "Leer la guía" },
+  "Resposta curta": { es: "Respuesta corta" },
+  "Respostas diretas sobre atendimento e vendas no WhatsApp com inteligência artificial.": { es: "Respuestas directas sobre atención y ventas por WhatsApp con inteligencia artificial." },
 };

@@ -81,6 +81,8 @@ export async function generateMetadata(): Promise<Metadata> {
   const { marca } = await marcaResolvida();
   const { name } = marca;
   return {
+    // Base dos endereços absolutos (canonical, Open Graph) — sem ela o Next monta com localhost.
+    metadataBase: new URL(env.NEXT_PUBLIC_APP_URL),
     title: {
       default: `${name} — atendimento e vendas por WhatsApp com agentes de IA`,
       template: `%s · ${name}`,

@@ -813,6 +813,11 @@ const HOSTS_DECLARADOS: Record<string, EntradaDeHost> = {
       "endpoint da plataforma que roda o crawler do Google Places (`lib/prospecting/provider.ts`). É o destino do request, com a chave da PRÓPRIA organização — trocar pelo domínio do revendedor quebraria a chamada, e esconder o nome não esconde para onde o dado vai.",
   },
   // ── identificador de fio: NÃO é destino de chamada nem texto de tela ──────
+  "schema.org": {
+    categoria: "PROTOCOLO",
+    motivo:
+      "o `@context` dos dados estruturados (JSON-LD) do site público (`lib/site-publico/dados-estruturados.ts`). É o identificador do vocabulário que buscadores e assistentes de IA reconhecem — o código não chama o host, e trocá-lo pela marca do revendedor faria o Google ignorar o bloco inteiro.",
+  },
   "s.whatsapp.net": {
     categoria: "PROTOCOLO",
     motivo:
@@ -1234,6 +1239,10 @@ describe("catraca de host de terceiro no código que embarca", () => {
       // protocolo manda. Entrou aqui porque a régua nova do #914 passou a
       // enxergá-lo, e não porque o produto ganhou host novo.
       "s.whatsapp.net",
+      // Decisão escrita: o `@context` do JSON-LD do site público
+      // (`lib/site-publico/dados-estruturados.ts`). O produto não fala com esse
+      // host — é o nome do vocabulário que o buscador reconhece.
+      "schema.org",
       "tusitio.com",
       // Exemplo de link do WhatsApp gerado pela tela de Conversões (#924). Está
       // aqui, e não em FORNECEDOR, porque o produto NÃO fala com esse host: quem

@@ -4,6 +4,7 @@ import { branding } from "@/lib/branding";
 import { idiomaDoVisitante } from "@/lib/i18n/idiomaAnonimo";
 import { traduzir } from "@/lib/i18n/dicionario";
 import { planosAtivos } from "@/lib/planos/assinatura-da-organizacao";
+import { robotsDaPaginaPublica } from "@/lib/site-publico/site";
 
 import { PaginaDoServico } from "./_landing/PaginaDoServico";
 
@@ -47,12 +48,35 @@ export async function generateMetadata() {
   const idioma = await idiomaDoVisitante(null);
   // Quem vende a instalação como serviço (planos ligados) tem outra página — ver `PaginaDoServico`.
   if (planosAtivos()) {
+    const titulo = `${branding().name} — ${t("Atendimento e vendas no WhatsApp com agentes de IA", idioma)}`;
+    const descricao = t(
+      "Agentes de IA atendem seus clientes no WhatsApp, conduzem até o pagamento e chamam sua equipe quando precisa.",
+      idioma,
+    );
+    // `absolute`: o título já traz a marca, e o `template` do layout a repetiria.
     return {
-      title: `${branding().name} — ${t("Atendimento e vendas no WhatsApp com agentes de IA", idioma)}`,
-      description: t(
-        "Agentes de IA atendem seus clientes no WhatsApp, conduzem até o pagamento e chamam sua equipe quando precisa.",
-        idioma,
-      ),
+      title: { absolute: titulo },
+      description: descricao,
+      alternates: { canonical: "/" },
+      robots: robotsDaPaginaPublica(),
+      keywords: [
+        "agente de IA no WhatsApp",
+        "atendimento com IA",
+        "vendas pelo WhatsApp",
+        "CRM para WhatsApp",
+        "chatbot com inteligência artificial",
+        "WhatsApp API oficial",
+        "automação de WhatsApp",
+      ],
+      openGraph: {
+        type: "website",
+        locale: "pt_BR",
+        url: "/",
+        siteName: branding().name,
+        title: titulo,
+        description: descricao,
+      },
+      twitter: { card: "summary_large_image", title: titulo, description: descricao },
     };
   }
   return {

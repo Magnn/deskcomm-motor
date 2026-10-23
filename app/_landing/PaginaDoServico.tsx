@@ -9,6 +9,10 @@ import { regraDaTaxaDaInstalacao } from "@/lib/pagamentos/taxa-da-instalacao";
 import { regraTemTaxa } from "@/lib/pagamentos/taxa-da-plataforma";
 import { planosDaInstalacao } from "@/lib/planos/assinatura-da-organizacao";
 import { precoLegivel, type Plano } from "@/lib/planos/catalogo";
+import { jsonLdDaPaginaInicial } from "@/lib/site-publico/dados-estruturados";
+import { fatosDoServico, siteIndexavel } from "@/lib/site-publico/site";
+
+import { JsonLd } from "./JsonLd";
 
 /**
  * A PÁGINA PRINCIPAL DE QUEM VENDE A INSTALAÇÃO COMO SERVIÇO.
@@ -175,8 +179,17 @@ export async function PaginaDoServico({ idioma }: { idioma: Idioma }) {
   const razaoSocial = (await valorDaInstalacao("OPERADOR_RAZAO_SOCIAL")).valor?.trim() || null;
   const cnpj = (await valorDaInstalacao("OPERADOR_CNPJ")).valor?.trim() || null;
 
+  // O JSON-LD leva as perguntas em português, como a página que o buscador lê (sem `Accept-Language`).
+  const dadosEstruturados = siteIndexavel()
+    ? jsonLdDaPaginaInicial(
+        fatosDoServico(),
+        PERGUNTAS.map((q) => ({ pergunta: q.pergunta, resposta: q.resposta })),
+      )
+    : null;
+
   return (
     <main className="min-h-screen bg-bg text-text">
+      {dadosEstruturados ? <JsonLd dado={dadosEstruturados} /> : null}
       <header className="sticky top-0 z-40 border-b border-border bg-bg/95 backdrop-blur-sm">
         <div className="mx-auto flex h-[68px] max-w-7xl items-center justify-between px-5 sm:px-8">
           <Link href="/" aria-label={nome} className="flex items-center gap-2.5">
@@ -192,6 +205,7 @@ export async function PaginaDoServico({ idioma }: { idioma: Idioma }) {
                 ["#como-funciona", t("Como funciona")],
                 ["#planos", t("Planos")],
                 ["#perguntas", t("Perguntas")],
+                ["/guias", t("Guias")],
               ] as const
             ).map(([href, rotulo]) => (
               <Link key={href} href={href} className="text-sm text-text-muted hover:text-text">
@@ -402,6 +416,9 @@ export async function PaginaDoServico({ idioma }: { idioma: Idioma }) {
             ) : null}
           </div>
           <nav className="flex flex-wrap gap-x-6 gap-y-2" aria-label={t("Links legais")}>
+            <Link href="/guias" className="hover:text-text">
+              {t("Guias")}
+            </Link>
             <Link href="/legal/terms" className="hover:text-text">
               {t("Termos de uso")}
             </Link>
