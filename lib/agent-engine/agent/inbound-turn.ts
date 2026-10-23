@@ -3977,7 +3977,11 @@ async function executarTurnoDoAgente(
         // cobrou "R$ 130 por pergunta" (o preço do trabalho) por uma pergunta de R$ 5 e depois "corrigiu" o Pix certo.
         // Vale para toda cobrança cadastrada, esteja ou não no bloco deste turno: o valor é sempre o valor.
         {
-          const valorErrado = valorErradoDeExtra(body, extrasDaConfig(agentConfig?.pricing));
+          const valorErrado = valorErradoDeExtra(
+            body,
+            extrasDaConfig(agentConfig?.pricing),
+            (agentConfig?.pricing?.list_product_links ?? []).map((l) => l.name),
+          );
           if (valorErrado) {
             runLog.warn('valor de cobrança avulsa diferente do cadastrado — envio recusado', {});
             return { ok: false, error: { code: 'valor_do_extra_errado', message: valorErrado } };
