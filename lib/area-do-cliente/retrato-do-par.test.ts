@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { PERGUNTAS_DO_PAR, previaDoPar, previaDoQuiz } from "./quizzes";
-import { elementosConversam, instanteDoNascimento, longitudeDeVenus, longitudeDoAscendente, retratoDoPar, SIGNOS_DO_ZODIACO } from "./retrato-do-par";
+import { elementosConversam, instanteDoNascimento, longitudeDeVenus, longitudeDoAscendente, letrasQueVibram, numeroDaAlma, retratoDoPar, SIGNOS_DO_ZODIACO } from "./retrato-do-par";
 
 const signoEGrau = (g: number) => ({ signo: SIGNOS_DO_ZODIACO[Math.floor(g / 30)], grau: g % 30 });
 
@@ -65,5 +65,28 @@ describe("Retrato do Par — o retrato", () => {
     expect(p?.fato).toContain("signos do perfil que combina: Câncer, Escorpião, Peixes");
     expect(previaDoQuiz("par", { respostas: {} })).toBeNull();
     for (const q of PERGUNTAS_DO_PAR) for (const o of q.opcoes) expect(o.length).toBeLessThanOrEqual(80);
+  });
+
+  it("número da alma: vogais do nome (acento conta como a vogal), guardando os mestres", () => {
+    expect(numeroDaAlma("Maria")).toBe(11); // A1 + I9 + A1 = 11
+    expect(numeroDaAlma("Ana Silva")).toBe(3); // A1 + A1 + I9 + A1 = 12 → 3
+    expect(numeroDaAlma("Zoé")).toBe(11); // O6 + E5 = 11
+    expect(numeroDaAlma("Brr")).toBeNull();
+  });
+
+  it("o quiz tem o vídeo no meio (uma pergunta marcada) e os três tipos de pergunta", () => {
+    expect(PERGUNTAS_DO_PAR.filter((q) => q.mecanismoAntes)).toHaveLength(1);
+    expect(PERGUNTAS_DO_PAR.some((q) => q.tipo === "multipla")).toBe(true);
+    expect(PERGUNTAS_DO_PAR.find((q) => q.tipo === "escala")?.rotulos).toEqual(["Pouco", "Demais"]);
+    const ids = PERGUNTAS_DO_PAR.map((q) => q.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    for (const id of ids) expect(id.length).toBeLessThanOrEqual(20);
+  });
+
+  it("letras que vibram: a tabela pitagórica, com os mestres pela redução", () => {
+    expect(letrasQueVibram(1)).toEqual(["A", "J", "S"]);
+    expect(letrasQueVibram(9)).toEqual(["I", "R"]);
+    expect(letrasQueVibram(11)).toEqual(["B", "K", "T"]); // 11 → 2
+    expect(previaDoPar("1992-08-10", {}, "Maria")?.letras).toEqual(["B", "K", "T"]);
   });
 });

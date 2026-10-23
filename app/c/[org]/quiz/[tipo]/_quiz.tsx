@@ -18,16 +18,11 @@ import { copyToClipboard } from "@/lib/clipboard";
 import { enviarLead, idDaVisita, manterVivo, marcarPasso } from "../../_passos";
 
 import { PaginaFinal } from "../../_pagina-final";
-import { Interludio, OutrasLeituras, Progresso, SeletorDeData, TelaDeCalculo, VideoDaGuia, type Depoimento, type OutraLeitura } from "../../_quiz-pecas";
+import { Interludio, OutrasLeituras, PerguntaDoQuiz, Progresso, SeletorDeData, TelaDeCalculo, VideoDaGuia, type Depoimento, type OutraLeitura, type PerguntaNaTela } from "../../_quiz-pecas";
 import { CARTAO, SERIF, SOBRETITULO } from "../../_tema";
 import type { TextosDoQuizDePessoa } from "./_textos";
 
-interface Pergunta {
-  id: string;
-  capitulo: string;
-  texto: string;
-  opcoes: string[];
-}
+type Pergunta = PerguntaNaTela;
 
 interface Previa {
   titulo: string;
@@ -133,10 +128,15 @@ export function QuizDePessoa(props: {
     const frases = [...tx.frases];
     const r: Tela[] = [];
     perguntas.forEach((p, i) => {
-      if (i > 0 && p.capitulo !== perguntas[i - 1]!.capitulo && frases.length > 0) r.push({ tipo: "frase", frase: frases.shift()! });
+      // O vídeo da guia no meio (a pergunta marcada com `mecanismoAntes`) ocupa o lugar da fala daquela troca de bloco.
+      if (i > 0 && p.mecanismoAntes) r.push({ tipo: "mecanismo" });
+      else if (i > 0 && p.capitulo !== perguntas[i - 1]!.capitulo && frases.length > 0) r.push({ tipo: "frase", frase: frases.shift()! });
       r.push({ tipo: "pergunta", i });
     });
-    r.push({ tipo: "mecanismo" }, { tipo: "nome" });
+    if (!perguntas.some((p) => p.mecanismoAntes)) r.push({ tipo: "mecanismo" });
+    // A fala que sobrar é a que pede os dados ("agora eu preciso do seu nome…").
+    if (frases.length > 0) r.push({ tipo: "frase", frase: frases.shift()! });
+    r.push({ tipo: "nome" });
     if (tipo === "prosperidade") r.push({ tipo: "data" });
     // O Retrato do Par pede também a hora e o lugar (o Descendente depende dos dois).
     if (tipo === "par") r.push({ tipo: "data" }, { tipo: "hora" }, { tipo: "lugar" });
@@ -147,7 +147,7 @@ export function QuizDePessoa(props: {
   const avancar = useCallback(() => setTela((t) => Math.min(t + 1, telas.length - 1)), [telas.length]);
   const prosperidade = useMemo(() => (tipo === "prosperidade" && data ? previaDaProsperidade(data) : null), [tipo, data]);
   const caminhos = useMemo(() => (tipo === "caminhos" ? previaDosCaminhos(respostas) : null), [tipo, respostas]);
-  const par = useMemo(() => (tipo === "par" && data ? previaDoPar(data, respostas) : null), [tipo, data, respostas]);
+  const par = useMemo(() => (tipo === "par" && data ? previaDoPar(data, respostas, nome) : null), [tipo, data, respostas, nome]);
   const irPara = useCallback((alvo: Tela["tipo"]) => setTela(telas.findIndex((t) => t.tipo === alvo)), [telas]);
   // A conta que a tela de cálculo mostra — a MESMA que deu o resultado.
   const linhasDoCalculo = useMemo(() => {
@@ -195,7 +195,7 @@ export function QuizDePessoa(props: {
     if (!moedaLida) return;
     if (fase === "quiz") {
       if (tela === 0) marcarPasso(slug, QUIZ, "abriu", moeda);
-      if (atual?.tipo === "mecanismo") marcarPasso(slug, QUIZ, "perguntas", moeda);
+      if (atual?.tipo === "nome") marcarPasso(slug, QUIZ, "perguntas", moeda);
       if (atual?.tipo === "calculo") {
         marcarPasso(slug, QUIZ, "dados", moeda);
         pixelProprio("QuizComplete", { content_name: `quiz-${tipo}` });
@@ -343,20 +343,17 @@ export function QuizDePessoa(props: {
         <div className={CARTAO}>
           <p className={SOBRETITULO}>{perguntas[atual.i]!.capitulo}</p>
           <h2 className={`${SERIF} mt-2 text-2xl text-[#f6e3a8]`}>{perguntas[atual.i]!.texto}</h2>
-          <div className="mt-5 space-y-3">
-            {perguntas[atual.i]!.opcoes.map((o) => (
-              <button
-                key={o}
-                className="w-full rounded-2xl border border-[#c9a54e]/25 bg-[#120d22] px-4 py-3 text-left text-base text-[#f6f0e4] hover:border-[#e2c47a]"
-                onClick={() => {
-                  setRespostas((r) => ({ ...r, [perguntas[atual.i]!.id]: o }));
-                  avancar();
-                }}
-              >
-                {o}
-              </button>
-            ))}
-          </div>
+          {perguntas[atual.i]!.apoio ? <p className="mt-2 text-sm text-[#9d94b2]">{perguntas[atual.i]!.apoio}</p> : null}
+          <PerguntaDoQuiz
+            key={perguntas[atual.i]!.id}
+            p={perguntas[atual.i]!}
+            cor={cor}
+            continuar={tx.continuar}
+            aoResponder={(valor) => {
+              setRespostas((r) => ({ ...r, [perguntas[atual.i]!.id]: valor }));
+              avancar();
+            }}
+          />
           {tela > 0 && (
             <button className="mt-4 text-sm text-[#9d94b2] underline" onClick={() => setTela(tela - 1)}>
               ← {tx.voltar}
@@ -383,7 +380,8 @@ export function QuizDePessoa(props: {
       {fase === "quiz" && atual?.tipo === "nome" && (
         <div className={CARTAO}>
           <h2 className={`${SERIF} text-2xl text-[#f6e3a8]`}>{tx.sobreVoce}</h2>
-          <input className={`${campo} mt-5`} placeholder={tx.seuNome} value={nome} maxLength={80} onChange={(e) => setNome(e.target.value)} />
+          {tipo === "par" ? <p className="mt-2 text-sm text-[#9d94b2]">{tx.nomeCompletoAjuda}</p> : null}
+          <input className={`${campo} mt-5`} placeholder={tipo === "par" ? tx.seuNomeCompleto : tx.seuNome} value={nome} maxLength={80} onChange={(e) => setNome(e.target.value)} />
           <button className={`${botao} mt-6`} style={{ background: cor }} disabled={nome.trim().length === 0} onClick={avancar}>
             {tx.continuar}
           </button>
@@ -472,7 +470,7 @@ export function QuizDePessoa(props: {
         <PaginaFinal
           cor={cor}
           sobretitulo={tx.seuResultado}
-          titulo={`${nome.trim()}, ${tx.resultadoPronto}`}
+          titulo={`${nome.trim().split(/\s+/)[0]}, ${tx.resultadoPronto}`}
           subtitulo={tx.calculadoDe}
           video={videoPrevia}
           capaDoVideo={guia.foto}
@@ -497,6 +495,8 @@ export function QuizDePessoa(props: {
                       { rotulo: tx.rotuloDescendente, valor: par.retrato.descendente?.signo ?? tx.precisaDaHora },
                       ...(par.retrato.descendente ? [{ rotulo: tx.rotuloAscendente, valor: par.retrato.descendente.ascendente }] : []),
                       { rotulo: tx.rotuloCombinam, valor: par.retrato.combinam.join(", ") },
+                      ...(par.alma ? [{ rotulo: tx.rotuloAlma, valor: String(par.alma) }] : []),
+                      ...(par.letras.length ? [{ rotulo: tx.rotuloLetras, valor: par.letras.join(" · ") }] : []),
                     ]
                   : []
           }
@@ -525,6 +525,18 @@ export function QuizDePessoa(props: {
                     <p className="mt-4 rounded-2xl border border-[#c9a54e]/25 bg-[#120d22] p-4 text-[15px] leading-relaxed text-[#f6f0e4]">
                       {par.retrato.encontro === "conversam" ? tx.encontroConversam : tx.encontroDesencontram}
                     </p>
+                  ) : null}
+                  {par.almaNoAmor ? (
+                    <p className="mt-4 text-[15px] leading-relaxed text-[#f6f0e4]">
+                      <span className="text-[#e2c47a]">{tx.rotuloAlma} {par.alma}.</span> {par.almaNoAmor}
+                    </p>
+                  ) : null}
+                  {par.letras.length ? (
+                    <div className="mt-4 rounded-2xl border border-[#c9a54e]/25 bg-[#120d22] p-4 text-center">
+                      <p className="text-xs uppercase tracking-[0.18em] text-[#9d94b2]">{tx.rotuloLetras}</p>
+                      <p className="mt-2 font-[family-name:var(--font-area-serif)] text-4xl tracking-[0.3em] text-[#f6e3a8]">{par.letras.join(" ")}</p>
+                      <p className="mt-2 text-[13px] text-[#c3bad3]">{tx.letrasExplica}</p>
+                    </div>
                   ) : null}
                   {respostas.termina ? (
                     <p className="mt-4 border-l-2 border-[#c9a54e]/40 pl-3 text-[15px] leading-relaxed text-[#c3bad3]">

@@ -145,6 +145,47 @@ const O_QUE_FAZ_BEM: Record<SignoDoZodiaco, string> = {
   Peixes: "alguém sensível e compassivo, que entenda sem você explicar",
 };
 
+/**
+ * O NÚMERO DA ALMA pela numerologia pitagórica: a soma das VOGAIS do nome completo (A=1, E=5, I=9, O=6, U=3; acento
+ * conta como a vogal), reduzida a 1–9, guardando 11, 22 e 33. `null` sem vogal nenhuma.
+ */
+export function numeroDaAlma(nome: string): number | null {
+  const VALOR: Record<string, number> = { A: 1, E: 5, I: 9, O: 6, U: 3 };
+  const letras = nome.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/[^A-Z]/g, "");
+  let n = [...letras].reduce((s, l) => s + (VALOR[l] ?? 0), 0);
+  if (n === 0) return null;
+  const soma = (x: number) => [...String(x)].reduce((s, d) => s + Number(d), 0);
+  while (n > 9 && n !== 11 && n !== 22 && n !== 33) n = soma(n);
+  return n;
+}
+
+/** O que cada número da alma pede no amor — tendência, uma frase. */
+export const ALMA_NO_AMOR: Record<number, string> = {
+  1: "Alma de iniciativa: você ama com coragem e precisa de alguém que admire a sua força.",
+  2: "Alma de parceria: você nasceu para amar a dois e sente mais do que diz.",
+  3: "Alma de alegria: o seu amor precisa de leveza, conversa e riso.",
+  4: "Alma de construção: você ama com lealdade e precisa de alguém em quem confiar.",
+  5: "Alma livre: você precisa de um amor que não prenda, mas que fique.",
+  6: "Alma de cuidado: você cuida de todo mundo e precisa de alguém que cuide de você.",
+  7: "Alma profunda: você não se contenta com pouco e procura uma ligação que vá além do comum.",
+  8: "Alma forte: você carregou muita coisa sozinha e precisa de alguém à sua altura.",
+  9: "Alma que doa: você já deu muito amor e precisa aprender a receber.",
+  11: "Número mestre, alma intuitiva: você sente as coisas antes de acontecerem.",
+  22: "Número mestre, alma construtora: o seu amor é feito para durar.",
+  33: "Número mestre, alma de amor: você ama de um jeito raro e precisa ser amada assim.",
+};
+
+/**
+ * As LETRAS QUE VIBRAM com um número, pela tabela pitagórica (1 = A J S, 2 = B K T, … 9 = I R). Os números mestres
+ * vibram como a sua redução (11 → 2, 22 → 4, 33 → 6). É a "inicial" que o público procura, pelo mecanismo da
+ * própria numerologia: as letras que ressoam com o número da alma dela, nunca o nome de uma pessoa.
+ */
+export function letrasQueVibram(numero: number): string[] {
+  const TABELA = ["AJS", "BKT", "CLU", "DMV", "ENW", "FOX", "GPY", "HQZ", "IR"];
+  const base = numero > 9 ? [...String(numero)].reduce((s, d) => s + Number(d), 0) : numero;
+  return [...(TABELA[base - 1] ?? "")];
+}
+
 export interface RetratoDoPar {
   venus: { signo: SignoDoZodiaco; grau: number; elemento: ElementoDoSigno; atrai: string };
   /** `null` quando falta a hora ou o lugar. */

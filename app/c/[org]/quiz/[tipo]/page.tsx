@@ -46,7 +46,9 @@ export default async function PaginaDoQuizDePessoa({ params }: Props) {
   const perguntas =
     tipo === "caminhos"
       ? PERGUNTAS_DOS_CAMINHOS.map((p) => ({ id: p.id, capitulo: p.capitulo, texto: p.texto, opcoes: p.opcoes.map(([o]) => o) }))
-      : (tipo === "par" ? PERGUNTAS_DO_PAR : PERGUNTAS_DA_PROSPERIDADE).map((p) => ({ id: p.id, capitulo: p.capitulo, texto: p.texto, opcoes: [...p.opcoes] }));
+      : tipo === "par"
+        ? PERGUNTAS_DO_PAR.map((p) => ({ ...p, opcoes: [...p.opcoes], rotulos: p.rotulos ? ([...p.rotulos] as [string, string]) : undefined }))
+        : PERGUNTAS_DA_PROSPERIDADE.map((p) => ({ id: p.id, capitulo: p.capitulo, texto: p.texto, opcoes: [...p.opcoes] }));
 
   return (
     <main className={`${PAGINA} ${serifDaArea.variable}`}>

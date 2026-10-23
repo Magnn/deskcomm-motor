@@ -187,6 +187,7 @@ export function pedidoDoQuiz(
       `Calculado do mapa dela (posições reais): ${d.fato ?? d.detalhe}.`,
       "Vênus descreve o que a ATRAI; o Descendente (casa 7) descreve o que lhe FAZ BEM numa relação. Quando os dois estão em elementos que não conversam, ela tende a se apaixonar pelo que não a faz bem, e o padrão se repete.",
       contexto ? `O que ela contou no quiz:\n${contexto}` : "",
+      "Se houver letras que vibram com o número da alma, apresente-as como a tradição numerológica as lê: iniciais que tendem a ressoar com ela — um sinal para reparar, nunca o nome de uma pessoa nem a promessa de que alguém com essa letra vai aparecer.",
       "Escreva em cinco partes: (1) O que te atrai (Vênus), (2) O que te faz bem (o Descendente; sem a hora, diga com clareza que esta parte precisa da hora e fale do que Vênus pede), (3) O padrão que se repete, ligado ao que ela contou, (4) O perfil que combina com você: os signos e elementos listados e os traços desse perfil, (5) O sinal de alerta: o tipo que repete o padrão, e uma prática para os próximos 7 dias.",
       "Fale de PERFIL e de TENDÊNCIA, nunca de uma pessoa específica: não invente nome, inicial, aparência nem data de encontro, e não prometa que alguém vai aparecer.",
       ...comum,

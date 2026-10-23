@@ -77,6 +77,79 @@ export function OutrasLeituras(props: { titulo: string; botao: string; itens: Ou
   );
 }
 
+/** Uma pergunta de quiz (`PerguntaDeQuiz` em `lib/area-do-cliente/quizzes.ts`), na forma que a tela recebe. */
+export interface PerguntaNaTela {
+  id: string;
+  capitulo: string;
+  texto: string;
+  opcoes: string[];
+  tipo?: "unica" | "multipla" | "escala";
+  apoio?: string;
+  rotulos?: [string, string];
+  mecanismoAntes?: boolean;
+}
+
+const OPCAO = "w-full rounded-2xl border px-4 py-3 text-left text-base text-[#f6f0e4] transition";
+
+/**
+ * A pergunta nos três tipos: `unica` responde no toque; `multipla` marca várias (a opção "Nenhuma…" desmarca as
+ * outras) e confirma no botão; `escala` são cinco toques de 1 a 5 com o rótulo das pontas. A resposta vai como
+ * TEXTO — as opções marcadas juntas por "; " na múltipla, "N de 5" na escala —, porque é texto que a leitura lê.
+ */
+export function PerguntaDoQuiz(props: { p: PerguntaNaTela; cor: string; continuar: string; aoResponder: (valor: string) => void }) {
+  const { p } = props;
+  const [marcadas, setMarcadas] = useState<string[]>([]);
+  if (p.tipo === "escala") {
+    return (
+      <div className="mt-6">
+        <div className="grid grid-cols-5 gap-2">
+          {p.opcoes.map((o) => (
+            <button key={o} className={`${OPCAO} border-[#c9a54e]/25 bg-[#120d22] py-4 text-center text-xl hover:border-[#e2c47a]`} onClick={() => props.aoResponder(`${o} de ${p.opcoes.length}`)}>
+              {o}
+            </button>
+          ))}
+        </div>
+        {p.rotulos ? (
+          <div className="mt-2 flex justify-between text-xs text-[#9d94b2]">
+            <span>{p.rotulos[0]}</span>
+            <span>{p.rotulos[1]}</span>
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+  if (p.tipo === "multipla") {
+    const nenhuma = p.opcoes[p.opcoes.length - 1]!;
+    const alternar = (o: string) =>
+      setMarcadas((m) => (o === nenhuma ? (m.includes(o) ? [] : [o]) : m.includes(o) ? m.filter((x) => x !== o) : [...m.filter((x) => x !== nenhuma), o]));
+    return (
+      <div className="mt-5 space-y-3">
+        {p.opcoes.map((o) => {
+          const on = marcadas.includes(o);
+          return (
+            <button key={o} className={`${OPCAO} flex items-center justify-between gap-3 ${on ? "border-[#e2c47a] bg-[#2a1f3d]" : "border-[#c9a54e]/25 bg-[#120d22]"}`} onClick={() => alternar(o)} aria-pressed={on}>
+              <span>{o}</span>
+              <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border text-xs ${on ? "border-[#e2c47a] bg-[#e2c47a] text-[#1a1430]" : "border-[#9d94b2]"}`}>{on ? "✓" : ""}</span>
+            </button>
+          );
+        })}
+        <button className="mt-2 w-full rounded-full px-6 py-4 text-base font-semibold text-white disabled:opacity-50" style={{ background: props.cor }} disabled={marcadas.length === 0} onClick={() => props.aoResponder(marcadas.join("; "))}>
+          {props.continuar}
+        </button>
+      </div>
+    );
+  }
+  return (
+    <div className="mt-5 space-y-3">
+      {p.opcoes.map((o) => (
+        <button key={o} className={`${OPCAO} border-[#c9a54e]/25 bg-[#120d22] hover:border-[#e2c47a]`} onClick={() => props.aoResponder(o)}>
+          {o}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function Progresso(props: { atual: number; total: number; cor: string }) {
   const pct = Math.max(4, Math.min(100, Math.round((props.atual / Math.max(1, props.total)) * 100)));
   return (
