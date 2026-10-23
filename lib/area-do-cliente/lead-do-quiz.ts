@@ -20,7 +20,7 @@ export const leadDoQuizSchema = z.strictObject({
   /** A sinastria: a outra pessoa. Vai só para a origem do contato, não vira contato. */
   nome_dele: z.string().trim().max(80).optional(),
   nascimento_dele: data.optional(),
-  respostas: z.record(z.string().max(20), z.string().max(80)).default({}),
+  respostas: z.record(z.string().max(20), z.string().max(200)).default({}),
   campanha: z.string().trim().max(80).optional(),
 });
 export type LeadDoQuiz = z.infer<typeof leadDoQuizSchema>;

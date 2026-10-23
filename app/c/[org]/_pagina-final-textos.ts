@@ -21,6 +21,7 @@ export function textosDaPaginaFinal(t: (texto: string) => string, ofertaSobretit
       t("O endereço fica salvo neste aparelho: você volta e relê quando quiser."),
     ],
     perguntas: t("Perguntas que nos fazem"),
+    depoimentosTitulo: t("Quem já fez a leitura"),
     faq: [
       {
         p: t("Isso é contra a minha fé?"),

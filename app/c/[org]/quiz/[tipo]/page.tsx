@@ -17,6 +17,7 @@ import { idiomaDoVisitante } from "@/lib/i18n/idiomaAnonimo";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 import { serifDaArea } from "../../_fonte";
+import { depoimentosDoQuiz, outrasLeituras } from "../../_outras-leituras";
 import { FotoDaGuia } from "../../_quiz-pecas";
 import { CEU, PAGINA, SERIF, SOBRETITULO_NOTURNO } from "../../_tema";
 import { QuizDePessoa } from "./_quiz";
@@ -45,7 +46,9 @@ export default async function PaginaDoQuizDePessoa({ params }: Props) {
   const perguntas =
     tipo === "caminhos"
       ? PERGUNTAS_DOS_CAMINHOS.map((p) => ({ id: p.id, capitulo: p.capitulo, texto: p.texto, opcoes: p.opcoes.map(([o]) => o) }))
-      : (tipo === "par" ? PERGUNTAS_DO_PAR : PERGUNTAS_DA_PROSPERIDADE).map((p) => ({ id: p.id, capitulo: p.capitulo, texto: p.texto, opcoes: [...p.opcoes] }));
+      : tipo === "par"
+        ? PERGUNTAS_DO_PAR.map((p) => ({ ...p, opcoes: [...p.opcoes], rotulos: p.rotulos ? ([...p.rotulos] as [string, string]) : undefined }))
+        : PERGUNTAS_DA_PROSPERIDADE.map((p) => ({ id: p.id, capitulo: p.capitulo, texto: p.texto, opcoes: [...p.opcoes] }));
 
   return (
     <main className={`${PAGINA} ${serifDaArea.variable}`}>
@@ -65,7 +68,9 @@ export default async function PaginaDoQuizDePessoa({ params }: Props) {
         pixelId={oferta.pixel_id ?? null} perguntas={perguntas} tx={tx}
         guia={{ nome: org.config.guia?.nome ?? null, foto: fotoDaGuia }}
         videoMeio={urlDaMidiaDaArea(oferta.video_meio, base)}
-        videoPrevia={urlDaMidiaDaArea(oferta.video_previa, base)} />
+        videoPrevia={urlDaMidiaDaArea(oferta.video_previa, base)}
+        depoimentos={depoimentosDoQuiz(org.config, tipo, base)}
+        outras={outrasLeituras(org.config, org.slug, tipo, (texto) => traduzir(texto, idioma))} />
       <footer className="px-5 pb-10 text-center text-xs leading-relaxed text-[#9d94b2]">{tx.rodape}</footer>
     </main>
   );

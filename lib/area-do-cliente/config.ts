@@ -133,6 +133,23 @@ export const configDaAreaSchema = z.strictObject({
       foto: caminhoDaMidiaSchema.optional(),
     })
     .optional(),
+  /**
+   * DEPOIMENTOS de clientes, mostrados abaixo da oferta dos quizzes (como nos funis que escalam). Só de clientes
+   * reais e com autorização — a tela não inventa nenhum. `quiz` limita o depoimento a um quiz; sem ele, vale para
+   * todos. `video` é um caminho no bucket `area-midia` (0946).
+   */
+  depoimentos: z
+    .array(
+      z.strictObject({
+        nome: z.string().trim().min(1).max(40),
+        texto: z.string().trim().min(1).max(400),
+        cidade: z.string().trim().max(40).optional(),
+        quiz: z.enum(["sinastria", "prosperidade", "caminhos", "par"]).optional(),
+        video: caminhoDaMidiaSchema.optional(),
+      }),
+    )
+    .max(12)
+    .optional(),
   /** O Ano Pessoal: a leitura do ano, oferecida na janela do aniversário. */
   ano_pessoal: z
     .strictObject({

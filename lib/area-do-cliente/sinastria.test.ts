@@ -49,4 +49,11 @@ describe("sinastria do quiz", () => {
       for (const o of p.opcoes) expect(o.length).toBeLessThanOrEqual(80);
     }
   });
+
+  it("o capítulo O que ficou entra entre o que se repete e o que ela quer, com rótulo no pedido", () => {
+    const caps = PERGUNTAS_DO_QUIZ.map((p) => p.capitulo);
+    expect(caps.indexOf("O que ficou")).toBeGreaterThan(caps.lastIndexOf("O que se repete"));
+    expect(caps.indexOf("O que você quer")).toBeGreaterThan(caps.lastIndexOf("O que ficou"));
+    expect(ROTULO_DA_RESPOSTA.falta).toBe("Do que sente falta");
+  });
 });

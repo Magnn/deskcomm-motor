@@ -11,7 +11,7 @@
  */
 import { z } from "zod";
 
-import { retratoDoPar } from "./retrato-do-par";
+import { ALMA_NO_AMOR, letrasQueVibram, numeroDaAlma, retratoDoPar } from "./retrato-do-par";
 
 /** Os quizzes de uma pessoa; o mesmo conjunto do CHECK de `area_quiz_pedidos.tipo` (0943, 0945). */
 export const TIPOS_DE_QUIZ = ["prosperidade", "caminhos", "par"] as const;
@@ -166,21 +166,72 @@ export function previaDosCaminhos(respostas: Record<string, string>) {
  * As perguntas do Retrato do Par, antes da data. A hora e o lugar de nascimento entram nas respostas (`hora`,
  * `lugar`), porque o pedido já guarda as respostas como texto curto — o Descendente sai delas.
  */
-export const PERGUNTAS_DO_PAR = [
-  { id: "momento", capitulo: "O seu momento", texto: "Como está o seu coração hoje?", opcoes: ["Sozinha e querendo alguém", "Com alguém, mas em dúvida", "Saindo de uma história", "Bem, só quero me entender"] },
-  { id: "repete", capitulo: "O que se repete", texto: "Você sente que escolhe sempre o mesmo tipo de pessoa?", opcoes: ["Sim, sempre o mesmo tipo", "Às vezes", "Não, cada um foi diferente"] },
-  { id: "atrai", capitulo: "O que se repete", texto: "O que mais te atrai em alguém, logo de cara?", opcoes: ["Confiança e atitude", "Mistério e intensidade", "Conversa e humor", "Carinho e cuidado"] },
-  { id: "termina", capitulo: "O que se repete", texto: "Quando uma história acaba, quase sempre é porque…", opcoes: ["A pessoa não estava disponível", "Eu dei mais do que recebi", "A paixão esfriou", "Faltou conversa"] },
-  { id: "quer", capitulo: "O que você quer", texto: "O que você mais quer entender agora?", opcoes: ["Quem combina comigo de verdade", "Por que repito o mesmo padrão", "O que eu preciso numa relação", "Se a pessoa de agora combina comigo"] },
-] as const;
+/**
+ * Uma pergunta de quiz. `tipo`: `unica` (avança no toque, o padrão), `multipla` (marca várias e confirma) ou `escala`
+ * (1 a 5, com `rotulos` nas pontas). `apoio` é a linha pequena abaixo do título. `mecanismoAntes` põe a tela do
+ * mecanismo (com o vídeo da guia) ANTES desta pergunta — como o "break" no meio do quiz dos funis que escalam; sem
+ * nenhuma marcada, o mecanismo vem depois da última.
+ */
+export interface PerguntaDeQuiz {
+  id: string;
+  capitulo: string;
+  texto: string;
+  opcoes: readonly string[];
+  tipo?: "unica" | "multipla" | "escala";
+  apoio?: string;
+  rotulos?: readonly [string, string];
+  mecanismoAntes?: boolean;
+}
+
+/**
+ * O Retrato do Par, modelado tela a tela no quiz de relacionamento que mais escala no Meta (5 blocos, ~27 toques,
+ * a fala da guia entre os blocos e o vídeo depois de "O que ficou"). As perguntas são do mesmo tipo; o que muda é o
+ * mecanismo do resultado — Vênus e o Descendente calculados, nunca uma "pessoa destinada". A hora e o lugar de
+ * nascimento entram nas respostas (`hora`, `lugar`); o nome completo, no pedido.
+ */
+export const PERGUNTAS_DO_PAR: readonly PerguntaDeQuiz[] = [
+  // Sobre você
+  { id: "gen", capitulo: "Sobre você", texto: "Para começar, como você se identifica?", apoio: "O mapa fala de amor de um jeito diferente para cada pessoa.", opcoes: ["Mulher", "Homem", "Prefiro não dizer"] },
+  { id: "idade", capitulo: "Sobre você", texto: "Qual é a sua faixa de idade?", opcoes: ["18 a 29 anos", "30 a 39 anos", "40 a 49 anos", "50 a 59 anos", "60 anos ou mais"] },
+  { id: "momento", capitulo: "Sobre você", texto: "Como está o seu coração hoje?", opcoes: ["Estou só e quero encontrar a pessoa certa", "Tenho alguém, mas não sei se é a pessoa certa", "Vivo uma relação e quero entender o que me faz bem", "Saí de uma relação e quero recomeçar"] },
+  { id: "tempo", capitulo: "Sobre você", texto: "Há quanto tempo você sente que o amor não flui na sua vida?", opcoes: ["Menos de 1 ano", "De 1 a 3 anos", "De 3 a 10 anos", "Mais de 10 anos", "Sinto que nunca fluiu de verdade"] },
+  { id: "frequencia", capitulo: "Sobre você", texto: "Com que frequência você pensa na sua vida amorosa?", opcoes: ["Todos os dias", "Algumas vezes por semana", "Raramente, tento não pensar"] },
+  // A sua história
+  { id: "amou", capitulo: "A sua história", texto: "Quantas vezes você já amou de verdade?", opcoes: ["Acho que nunca", "Uma vez", "Duas ou três vezes", "Mais do que isso"] },
+  { id: "termina", capitulo: "A sua história", texto: "Como terminou o seu último relacionamento importante?", opcoes: ["A outra pessoa foi embora", "Eu fui embora", "Houve traição", "Foi se apagando aos poucos", "Ainda estou nele"] },
+  { id: "repete", capitulo: "A sua história", texto: "Você sente que os seus relacionamentos repetem a mesma história?", opcoes: ["Sim, sempre a mesma história", "Às vezes", "Não, cada um foi diferente"] },
+  { id: "marcas", capitulo: "A sua história", tipo: "multipla", texto: "O que já aconteceu com você no amor?", apoio: "Pode marcar mais de uma.", opcoes: ["Dei muito mais do que recebi", "Fui traída ou enganada", "Me senti invisível ao lado de alguém", "Fui cobrada o tempo todo", "Me afastei por medo de sofrer", "Nenhuma dessas"] },
+  { id: "errada", capitulo: "A sua história", texto: "Você já ficou com alguém sabendo, lá no fundo, que não era a pessoa certa?", opcoes: ["Sim", "Não", "Prefiro não responder"] },
+  // O que ficou
+  { id: "dor", capitulo: "O que ficou", texto: "Qual dessas frases mais pesa em você?", opcoes: ["“Será que o amor não é pra mim?”", "“Perdi tempo demais com a pessoa errada.”", "“Tenho medo de passar o resto da vida só.”", "“Já não consigo confiar em ninguém.”"] },
+  { id: "chorou", capitulo: "O que ficou", texto: "Você já chorou por alguém que não merecia?", opcoes: ["Muitas vezes", "Algumas vezes", "Nunca"] },
+  { id: "coracao", capitulo: "O que ficou", texto: "Depois da última desilusão, o seu coração ficou…", opcoes: ["Fechado", "Cansado", "Esperançoso, apesar de tudo", "Com raiva"] },
+  { id: "desistir", capitulo: "O que ficou", texto: "Você já pensou em desistir do amor?", opcoes: ["Já desisti", "Pensei várias vezes", "Nunca"] },
+  { id: "falta", capitulo: "O que ficou", tipo: "escala", texto: "De 1 a 5, quanto você sente falta de alguém que te entenda de verdade?", rotulos: ["Pouco", "Demais"], opcoes: ["1", "2", "3", "4", "5"] },
+  { id: "passado", capitulo: "O que ficou", texto: "Existe alguém do passado que você ainda não esqueceu?", opcoes: ["Sim", "Não sei dizer", "Não"] },
+  { id: "saudade", capitulo: "O que ficou", texto: "Do que você mais sente falta?", opcoes: ["Carinho", "Companheirismo", "Ser a escolha de alguém", "Conversa de verdade", "Fazer planos a dois"] },
+  // Os sinais (o vídeo da guia vem antes)
+  { id: "acredita", capitulo: "Os sinais", mecanismoAntes: true, texto: "Você acredita que existe alguém que combina de verdade com você?", opcoes: ["Acredito muito", "Quero acreditar", "Tenho dúvidas"] },
+  { id: "ligacao", capitulo: "Os sinais", texto: "Já sentiu uma ligação sem explicação com alguém que tinha acabado de conhecer?", opcoes: ["Sim, muito forte", "Uma vez", "Nunca"] },
+  { id: "sonho", capitulo: "Os sinais", texto: "Você já sonhou com alguém que não conhecia?", opcoes: ["Sim, e parecia real", "Às vezes, não tenho certeza", "Nunca"] },
+  { id: "sente", capitulo: "Os sinais", texto: "Você já sentiu alguém pensando em você, sem motivo nenhum?", opcoes: ["Sim, várias vezes", "Uma ou duas vezes", "Nunca percebi"] },
+  { id: "numeros", capitulo: "Os sinais", texto: "Você costuma ver números repetidos, como 11:11 ou 22:22?", opcoes: ["Sempre", "Às vezes", "Nunca reparei"] },
+  { id: "consultou", capitulo: "Os sinais", texto: "Você já buscou respostas no tarô, na astrologia ou com uma sensitiva?", opcoes: ["Sim, várias vezes", "Uma vez", "Nunca, esta é a primeira vez"] },
+  // O que você quer
+  { id: "atrai", capitulo: "O que você quer", texto: "O que mais te atrai em alguém, logo de cara?", opcoes: ["Confiança e atitude", "Mistério e intensidade", "Conversa e humor", "Carinho e cuidado"] },
+  { id: "busca", capitulo: "O que você quer", texto: "O que você mais busca no amor?", opcoes: ["Estabilidade e segurança", "Uma conexão profunda", "Crescer junto com alguém", "Alguém que me complete"] },
+  { id: "quer", capitulo: "O que você quer", tipo: "multipla", texto: "O que você mais quer entender?", apoio: "Pode marcar mais de uma.", opcoes: ["Quem combina comigo de verdade", "Por que repito o mesmo padrão", "O que eu preciso numa relação", "Como reconhecer quem me faz bem", "Se a pessoa de agora combina comigo"] },
+  { id: "pronta", capitulo: "O que você quer", texto: "Você quer mesmo saber, mesmo que isso mude o que você pensa sobre o amor?", opcoes: ["Sim, quero saber", "Tenho medo, mas quero"] },
+];
 
 /**
  * A prévia do Retrato do Par: Vênus sempre; Descendente e o encontro dos dois quando há hora e lugar. `detalhe`
  * guarda os signos para o pedido da leitura; `fato` é a frase calculada que a leitura completa precisa desenvolver.
  */
-export function previaDoPar(nascimento: string, respostas: Record<string, string>) {
+export function previaDoPar(nascimento: string, respostas: Record<string, string>, nome?: string | null) {
   const r = retratoDoPar({ nascimento, hora: respostas.hora ?? null, lugar: respostas.lugar ?? null });
   if (!r) return null;
+  const alma = nome ? numeroDaAlma(nome) : null;
   const titulo = r.descendente ? `Vênus em ${r.venus.signo}, Descendente em ${r.descendente.signo}` : `Vênus em ${r.venus.signo}`;
   const texto = r.descendente
     ? `O que te atrai: ${r.venus.atrai}. O que te faz bem: ${r.descendente.fazBem}.`
@@ -190,10 +241,12 @@ export function previaDoPar(nascimento: string, respostas: Record<string, string
     r.descendente ? `Descendente em ${r.descendente.signo} (${r.descendente.elemento}), Ascendente em ${r.descendente.ascendente}` : "sem hora de nascimento: Descendente não calculado",
     r.encontro === "conversam" ? "Vênus e Descendente em elementos que conversam" : r.encontro === "desencontram" ? "Vênus e Descendente em elementos que se desencontram (atração e bem-estar apontam para lados diferentes)" : "",
     `signos do perfil que combina: ${r.combinam.join(", ")}`,
+    alma ? `número da alma ${alma} (${ALMA_NO_AMOR[alma]})` : "",
+    alma ? `letras que vibram com o número da alma, pela tabela pitagórica: ${letrasQueVibram(alma).join(", ")}` : "",
   ]
     .filter(Boolean)
     .join("; ");
-  return { titulo, texto, detalhe: titulo, fato, retrato: r };
+  return { titulo, texto, detalhe: titulo, fato, retrato: r, alma, almaNoAmor: alma ? ALMA_NO_AMOR[alma]! : null, letras: alma ? letrasQueVibram(alma) : [] };
 }
 
 // ─── O PEDIDO ─────────────────────────────────────────────────────────────────────────────
@@ -204,7 +257,8 @@ export const pedidoDeQuizSchema = z.strictObject({
   nome: z.string().trim().min(1).max(80),
   nascimento: data.optional(),
   email: z.string().trim().toLowerCase().email().max(200),
-  respostas: z.record(z.string().max(20), z.string().max(80)).default({}),
+  // 200: a resposta de uma pergunta de múltipla escolha são as opções marcadas, juntas.
+  respostas: z.record(z.string().max(20), z.string().max(200)).default({}),
   forma: z.enum(["pix", "cartao"]),
   /** A moeda que a página propôs pelo fuso; o valor sai da oferta, no servidor (`moeda-do-visitante.ts`). */
   moeda: z.enum(["BRL", "EUR", "USD"]).default("BRL"),
@@ -220,11 +274,11 @@ export type PedidoDeQuiz = z.infer<typeof pedidoDeQuizSchema>;
  */
 export function previaDoQuiz(
   tipo: TipoDeQuiz,
-  d: { nascimento?: string | null; respostas: Record<string, string> },
+  d: { nascimento?: string | null; respostas: Record<string, string>; nome?: string | null },
   hoje: Date = new Date(),
 ): { titulo: string; texto: string; detalhe: string; fato: string } | null {
   if (tipo === "par") {
-    const p = d.nascimento ? previaDoPar(d.nascimento, d.respostas) : null;
+    const p = d.nascimento ? previaDoPar(d.nascimento, d.respostas, d.nome) : null;
     return p ? { titulo: p.titulo, texto: p.texto, detalhe: p.detalhe, fato: p.fato } : null;
   }
   if (tipo === "prosperidade") {

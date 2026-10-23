@@ -64,7 +64,7 @@ export async function GET(req: NextRequest, ctx: Ctx): Promise<Response> {
       data: {
         pago: pedido.pago_at !== null,
         texto: pedido.texto,
-        previa: previaDoQuiz(pedido.tipo, { nascimento: pedido.nascimento, respostas: pedido.respostas ?? {} }),
+        previa: previaDoQuiz(pedido.tipo, { nascimento: pedido.nascimento, respostas: pedido.respostas ?? {}, nome: pedido.nome }),
         nome: pedido.nome,
       },
     },
@@ -81,7 +81,7 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<Response> {
 
   const limite = await checkRateLimit(`area:quiz-gerar:${pedido.id}`, 4, 600);
   if (!limite.allowed) return ERRO(429, "rate_limited", "A leitura está sendo preparada. Volte em alguns minutos.");
-  const previa = previaDoQuiz(pedido.tipo, { nascimento: pedido.nascimento, respostas: pedido.respostas ?? {} });
+  const previa = previaDoQuiz(pedido.tipo, { nascimento: pedido.nascimento, respostas: pedido.respostas ?? {}, nome: pedido.nome });
   if (!previa) return ERRO(422, "validation_failed", "Dados inválidos.");
   try {
     const gerado = await gerarQuiz(getRequestPool(), llmEdgeConfigFromEnv(env), {

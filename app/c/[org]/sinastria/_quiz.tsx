@@ -20,7 +20,7 @@ import { copyToClipboard } from "@/lib/clipboard";
 import { enviarLead, idDaVisita, manterVivo, marcarPasso } from "../_passos";
 
 import { PaginaFinal } from "../_pagina-final";
-import { Interludio, Progresso, SeletorDeData, TelaDeCalculo, VideoDaGuia } from "../_quiz-pecas";
+import { Interludio, OutrasLeituras, Progresso, SeletorDeData, TelaDeCalculo, VideoDaGuia, type Depoimento, type OutraLeitura } from "../_quiz-pecas";
 import { CARTAO, SERIF, SOBRETITULO } from "../_tema";
 import type { TextosDoQuiz } from "./_textos";
 
@@ -73,6 +73,15 @@ function pixel(evento: string, dados?: Record<string, unknown>, id?: string) {
   }
 }
 
+/** Evento próprio do funil (não padrão da Meta): o pixel aceita, e a otimização ganha sinal no meio do caminho. */
+function pixelProprio(evento: string, dados?: Record<string, unknown>) {
+  try {
+    window.fbq?.("trackCustom", evento, dados ?? {});
+  } catch {
+    /* o pixel nunca derruba a página */
+  }
+}
+
 export function QuizDaSinastria(props: {
   slug: string;
   cor: string;
@@ -86,8 +95,11 @@ export function QuizDaSinastria(props: {
   guia: { nome: string | null; foto: string | null };
   videoMeio: string | null;
   videoPrevia: string | null;
+  /** Depoimentos reais (configuração) e os outros quizzes ligados, para depois da compra. */
+  depoimentos: Depoimento[];
+  outras: OutraLeitura[];
 }) {
-  const { slug, cor, precoCents, precosInternacionais, pixelId, perguntas, tx, guia, videoMeio, videoPrevia } = props;
+  const { slug, cor, precoCents, precosInternacionais, pixelId, perguntas, tx, guia, videoMeio, videoPrevia, depoimentos, outras } = props;
   const [fase, setFase] = useState<Fase>("quiz");
   const [tela, setTela] = useState(0);
   const [nomeDela, setNomeDela] = useState("");
@@ -123,7 +135,7 @@ export function QuizDaSinastria(props: {
 
   // O roteiro: as perguntas, com a frase da Cigana a cada troca de capítulo, e depois os dados.
   const telas = useMemo<Tela[]>(() => {
-    const frases = [tx.fraseCapitulo1, tx.fraseCapitulo2];
+    const frases = [tx.fraseCapitulo1, tx.fraseCapitulo2, tx.fraseCapitulo3];
     const r: Tela[] = [];
     perguntas.forEach((p, i) => {
       if (i > 0 && p.capitulo !== perguntas[i - 1]!.capitulo && frases.length > 0) r.push({ tipo: "frase", frase: frases.shift()! });
@@ -131,7 +143,7 @@ export function QuizDaSinastria(props: {
     });
     r.push({ tipo: "mecanismo" }, { tipo: "nomes" }, { tipo: "dataDela" }, { tipo: "dataDele" }, { tipo: "calculo" }, { tipo: "email" });
     return r;
-  }, [perguntas, tx.fraseCapitulo1, tx.fraseCapitulo2]);
+  }, [perguntas, tx.fraseCapitulo1, tx.fraseCapitulo2, tx.fraseCapitulo3]);
   const atual = telas[tela];
   const avancar = useCallback(() => setTela((t) => Math.min(t + 1, telas.length - 1)), [telas.length]);
   const previaCalculada = useMemo(() => (dataDela && dataDele ? previaDaSinastria(dataDela, dataDele) : null), [dataDela, dataDele]);
@@ -144,7 +156,10 @@ export function QuizDaSinastria(props: {
     if (fase === "quiz") {
       if (tela === 0) marcarPasso(slug, QUIZ, "abriu", moeda);
       if (atual?.tipo === "mecanismo") marcarPasso(slug, QUIZ, "perguntas", moeda);
-      if (atual?.tipo === "calculo") marcarPasso(slug, QUIZ, "dados", moeda);
+      if (atual?.tipo === "calculo") {
+        marcarPasso(slug, QUIZ, "dados", moeda);
+        pixelProprio("QuizComplete", { content_name: "quiz-sinastria" });
+      }
       if (atual?.tipo === "email") marcarPasso(slug, QUIZ, "email", moeda);
     }
     if (fase === "previa") marcarPasso(slug, QUIZ, "previa", moeda);
@@ -268,6 +283,7 @@ export function QuizDaSinastria(props: {
   function mostrarPrevia() {
     setErro(null);
     pixel("Lead", { content_name: "quiz-sinastria" });
+    pixel("ViewContent", { content_name: "quiz-sinastria", value: preco / 100, currency: moeda });
     enviarLead(slug, "sinastria", {
       nome: nomeDela.trim(),
       email: email.trim(),
@@ -414,6 +430,7 @@ export function QuizDaSinastria(props: {
           subtitulo={tx.calculadaDe}
           video={videoPrevia}
           capaDoVideo={guia.foto}
+          depoimentos={depoimentos}
           dados={[
             { rotulo: `${tx.signoDe} ${nomeDela.trim()}`, valor: previaCalculada.signoDela },
             { rotulo: `${tx.signoDe} ${nomeDele.trim()}`, valor: previaCalculada.signoDele },
@@ -433,6 +450,7 @@ export function QuizDaSinastria(props: {
                     ? `${tx.seDesentendemPor} ${respostas.briga.toLowerCase()} ${tx.eQueAperta}`
                     : tx.oQueMaisAperta}{" "}
                   “{respostas.aperta.toLowerCase()}”.
+                  {respostas.falta ? ` ${tx.eQueSenteFaltaDe} ${respostas.falta.toLowerCase()}.` : ""}
                 </p>
               ) : null}
               <p className="mt-4 text-[15px] leading-relaxed text-[#c3bad3]">{tx.ponte}</p>
@@ -515,6 +533,7 @@ export function QuizDaSinastria(props: {
           <p className="mt-6 text-xs text-[#9d94b2]">{tx.guarde}</p>
         </article>
       )}
+      {fase === "pronto" && texto && <OutrasLeituras titulo={tx.outrasTitulo} botao={tx.outrasBotao} itens={outras} cor={cor} />}
     </section>
   );
 }

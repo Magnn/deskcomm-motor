@@ -46,7 +46,7 @@ export async function POST(req: NextRequest, { params }: Ctx): Promise<Response>
   const valor = precoDaOferta(oferta, p.moeda);
   if (valor === null) return ERRO(422, "validation_failed", "Esta leitura não é vendida nesta moeda.");
   if (p.moeda !== "BRL" && p.forma === "pix") return ERRO(422, "validation_failed", "Fora do Brasil o pagamento é no cartão.");
-  const previa = previaDoQuiz(tipo, { nascimento: p.nascimento ?? null, respostas: p.respostas });
+  const previa = previaDoQuiz(tipo, { nascimento: p.nascimento ?? null, respostas: p.respostas, nome: p.nome });
   if (!previa) return ERRO(422, "validation_failed", "Confira as respostas.");
 
   const { data: existente } = await admin

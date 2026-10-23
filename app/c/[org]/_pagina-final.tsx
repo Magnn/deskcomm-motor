@@ -14,7 +14,7 @@
  */
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
-import { VideoDaGuia } from "./_quiz-pecas";
+import { VideoDaGuia, type Depoimento } from "./_quiz-pecas";
 import { CARTAO, SERIF, SOBRETITULO } from "./_tema";
 
 export interface DadoDaPessoa {
@@ -40,6 +40,7 @@ export interface TextosDaPaginaFinal {
   comoFunciona: string;
   passos: string[];
   perguntas: string;
+  depoimentosTitulo: string;
   faq: { p: string; r: string }[];
   fecharTitulo: string;
   fecharTexto: string;
@@ -64,6 +65,8 @@ export function PaginaFinal(props: {
   /** O vídeo da guia na prévia (a ponte para a oferta) e a foto dela como capa; `null` = sem vídeo. */
   video?: string | null;
   capaDoVideo?: string | null;
+  /** Depoimentos reais (da configuração); sem nenhum, a seção não aparece. */
+  depoimentos?: Depoimento[];
   partes: ParteDaLeitura[];
   /** Entregáveis: [palavra-chave em negrito, resto da frase]. */
   itens: [string, string][];
@@ -183,6 +186,24 @@ export function PaginaFinal(props: {
           </div>
         </div>
       </section>
+
+      {props.depoimentos && props.depoimentos.length > 0 ? (
+        <section className={CARTAO}>
+          <p className={SOBRETITULO}>{tx.depoimentosTitulo}</p>
+          <div className="mt-4 space-y-4">
+            {props.depoimentos.map((d) => (
+              <figure key={`${d.nome}-${d.texto.slice(0, 20)}`} className="rounded-2xl border border-[#c9a54e]/15 bg-[#120d22] p-4">
+                {d.video ? <VideoDaGuia url={d.video} /> : null}
+                <blockquote className="text-[15px] leading-relaxed text-[#f6f0e4]">“{d.texto}”</blockquote>
+                <figcaption className="mt-2 text-[13px] text-[#9d94b2]">
+                  — {d.nome}
+                  {d.cidade ? `, ${d.cidade}` : ""}
+                </figcaption>
+              </figure>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <section className={CARTAO}>
         <p className={SOBRETITULO}>{tx.comoFunciona}</p>
