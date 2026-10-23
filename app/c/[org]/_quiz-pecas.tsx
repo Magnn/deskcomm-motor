@@ -129,7 +129,7 @@ export function PerguntaDoQuiz(props: { p: PerguntaNaTela; cor: string; continua
           return (
             <button key={o} className={`${OPCAO} flex items-center justify-between gap-3 ${on ? "border-[#e2c47a] bg-[#2a1f3d]" : "border-[#c9a54e]/25 bg-[#120d22]"}`} onClick={() => alternar(o)} aria-pressed={on}>
               <span>{o}</span>
-              <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border text-xs ${on ? "border-[#e2c47a] bg-[#e2c47a] text-[#1a1430]" : "border-[#9d94b2]"}`}>{on ? "✓" : ""}</span>
+              <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border text-xs ${on ? "border-[#e2c47a] bg-[#e2c47a] text-[#1a1430]" : "border-[#9d94b2]"}`}>{on ? "✓" : ""}</span>
             </button>
           );
         })}
