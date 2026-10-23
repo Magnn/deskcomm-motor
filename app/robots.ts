@@ -31,6 +31,11 @@ const ROBOS_DE_IA = [
 
 const FECHADO = ["/app", "/admin", "/api/", "/c/", "/auth", "/onboarding", "/team", "/g/", "/webchat", "/login", "/design", "/vitrine-agenda"];
 
+// Lido em runtime: a imagem é pré-buildada, e no `next build` não há `PLANS_ENFORCED` — sem esta linha
+// o arquivo congela "instalação que não vende" (medido em 23/10/2026: robots `Disallow: /` e sitemap
+// vazio em produção, com a página inicial já `index, follow`).
+export const dynamic = "force-dynamic";
+
 export default function robots(): MetadataRoute.Robots {
   if (!siteIndexavel()) return { rules: [{ userAgent: "*", disallow: "/" }] };
   const url = urlDoSite();

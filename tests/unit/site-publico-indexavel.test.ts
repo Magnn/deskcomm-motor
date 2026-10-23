@@ -7,8 +7,8 @@ const envFalso = vi.hoisted(() => ({
 }));
 vi.mock("@/lib/env", () => ({ env: envFalso }));
 
-import robots from "@/app/robots";
-import sitemap from "@/app/sitemap";
+import robots, { dynamic as dinamicoDoRobots } from "@/app/robots";
+import sitemap, { dynamic as dinamicoDoSitemap } from "@/app/sitemap";
 import { jsonLdDoGuia, serializarJsonLd } from "@/lib/site-publico/dados-estruturados";
 import { guias } from "@/lib/site-publico/guias";
 import { textoDoLlms } from "@/lib/site-publico/llms";
@@ -52,6 +52,12 @@ describe("site público", () => {
     expect(robots().rules).toEqual([{ userAgent: "*", disallow: "/" }]);
     expect(sitemap()).toEqual([]);
     expect(textoDoLlms(false)).toBeNull();
+  });
+
+  it("robots e sitemap são lidos em runtime, nunca congelados no build", () => {
+    // A imagem é pré-buildada sem `PLANS_ENFORCED`: estático congelaria "não vende" (produção, 23/10/2026).
+    expect(dinamicoDoRobots).toBe("force-dynamic");
+    expect(dinamicoDoSitemap).toBe("force-dynamic");
   });
 
   it("JSON-LD escapa `<` para não fechar o <script>", () => {
