@@ -184,6 +184,14 @@ export const PUBLIC_PATHS: RegExp[] = [
   // nascer público de carona. `data-deletion` é a terceira: a Meta exige a URL
   // de instruções de exclusão no app, e o revisor a abre sem sessão.
   /^\/legal\/(terms|privacy|data-deletion)$/,
+  // O SITE PÚBLICO de quem vende o serviço (`lib/site-publico/site.ts`): os guias, o resumo para
+  // assistentes de IA (llms.txt) e a imagem de compartilhamento. Quem lê é buscador e robô de IA, que
+  // nunca têm sessão — sem estas linhas o proxy devolvia 307 para o login (medido em 23/10/2026 no
+  // `/llms.txt`). As páginas respondem 404 onde a instalação não vende o serviço. `robots.txt` e
+  // `sitemap.xml` já passam pelo matcher do `proxy.ts`.
+  /^\/guias(\/[a-z0-9-]+)?$/,
+  /^\/llms(-full)?\.txt$/,
+  /^\/opengraph-image$/,
 ];
 
 export function isPublicPath(pathname: string): boolean {
