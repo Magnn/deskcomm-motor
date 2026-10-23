@@ -33,6 +33,30 @@ describe("valor dito de cobrança avulsa", () => {
     expect(valorErradoDeExtra("O acompanhamento do mês sai por 60 reais.", EXTRAS)).toBeNull();
   });
 
+  it("⭐ 23/10/2026: o produto principal com palavra em comum com uma simpatia não é recusado", () => {
+    const extras = [
+      ...EXTRAS,
+      { name: "Simpatia de Abertura de Caminhos", when: "x", price_cents: 2700 },
+      { name: "Simpatia da Prosperidade", when: "x", price_cents: 2700 },
+      { name: "Simpatia de Proteção da Casa", when: "x", price_cents: 2700 },
+    ] as unknown as Extra[];
+    const principais = ["Abertura do Coração", "Abertura da Prosperidade", "Limpeza e Proteção", "Desbloqueio dos Caminhos"];
+    for (const texto of [
+      "A Abertura do Coração é R$ 130, um valor único.",
+      "É pra isso que existe a Abertura da Prosperidade: são R$ 130, pagamento único.",
+      "A abertura fica R$ 130 no Pix.",
+      "O Desbloqueio dos Caminhos sai por R$ 130.",
+      "Com a proteção firmada, são R$ 130.",
+    ]) {
+      expect(valorErradoDeExtra(texto, extras, principais), texto).toBeNull();
+    }
+    // A simpatia continua conferida pela palavra que é só dela.
+    expect(valorErradoDeExtra("A simpatia sai por R$ 130.", extras, principais)).toContain("R$ 27");
+    expect(valorErradoDeExtra("A simpatia sai por R$ 27.", extras, principais)).toBeNull();
+    // E a pergunta, o caso que originou a trava, segue recusada.
+    expect(valorErradoDeExtra("Cada pergunta nova custa R$ 130.", extras, principais)).toContain("R$ 5");
+  });
+
   it("frase que compara com o trabalho principal não é cobrança da avulsa", () => {
     expect(valorErradoDeExtra("O trabalho completo é R$ 130, e uma pergunta nova é R$ 5.", EXTRAS)).toBeNull();
   });

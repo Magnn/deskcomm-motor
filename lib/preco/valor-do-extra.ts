@@ -76,22 +76,45 @@ function frases(corpo: string): string[] {
 }
 
 /**
- * O motivo da recusa quando a mensagem diz um valor errado para uma cobrança avulsa; `null` quando está tudo certo.
- * O motivo volta ao modelo, que reescreve.
+ * ─── O produto principal tem nome próprio (23/10/2026) ─────────────────────────────────────────────────────────────
+ * Medido em produção: 32 mensagens de 17 leads recusadas num dia. A "Simpatia de Abertura de Caminhos" (R$ 27) era
+ * identificada pela palavra "abertura" — e toda frase "a Abertura do Coração é R$ 130", o produto principal, virava
+ * "simpatia com valor errado". O mesmo com "prosperidade", "caminhos" e "proteção". A agente reescrevia fugindo do
+ * preço ("prefere Pix ou cartão?") e o lead que perguntou o valor esperava minutos. Agora:
+ *   • palavra que está no nome de um produto principal não identifica uma cobrança avulsa;
+ *   • frase que cita um produto principal pelo nome inteiro é do produto principal, como "trabalho".
  */
-export function valorErradoDeExtra(corpo: string, extras: readonly Extra[]): string | null {
+function produtoPrincipalCitado(normalizada: string, nomes: readonly string[]): boolean {
+  return nomes.some((nome) => {
+    const n = semAcento(nome).trim();
+    return n.length >= 4 && normalizada.includes(n);
+  });
+}
+
+/**
+ * O motivo da recusa quando a mensagem diz um valor errado para uma cobrança avulsa; `null` quando está tudo certo.
+ * O motivo volta ao modelo, que reescreve. `produtosPrincipais`: os nomes do que o agente vende como trabalho
+ * (`pricing.list_product_links`).
+ */
+export function valorErradoDeExtra(
+  corpo: string,
+  extras: readonly Extra[],
+  produtosPrincipais: readonly string[] = [],
+): string | null {
   const marca = marcaDeExtraNoCorpo(corpo, extras);
   if (marca.tipo === "uma") {
     const erro = contaDaMarcaErrada(corpo, marca.extra, marca.quantidade);
     if (erro) return erro;
   }
+  const palavrasDoPrincipal = new Set(produtosPrincipais.flatMap((nome) => palavrasDoExtra(nome)));
   for (const frase of frases(corpo)) {
     if (PRODUTO_PRINCIPAL.test(frase)) continue;
     const valores = valoresDitos(frase);
     if (valores.length === 0) continue;
     const normalizada = semAcento(frase);
+    if (produtoPrincipalCitado(normalizada, produtosPrincipais)) continue;
     for (const extra of extras) {
-      const palavras = palavrasDoExtra(extra.name);
+      const palavras = palavrasDoExtra(extra.name).filter((p) => !palavrasDoPrincipal.has(p));
       if (palavras.length === 0 || !palavras.some((p) => new RegExp(`\\b${p}`).test(normalizada))) continue;
       const ditas = palavras.flatMap((p) => quantidadesDitas(frase, p));
       // Disse QUANTAS: o valor é o unitário ou exatamente aquela quantidade × o unitário.
