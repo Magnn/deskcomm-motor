@@ -20,6 +20,9 @@ const LIMITE = 1000;
 
 export interface VisitaAoVivo {
   quiz: QuizDaPagina;
+  /** O slug da página de vendas quando `quiz = 'pagina'` (0947). */
+  pagina: string | null;
+  anuncio: string | null;
   passo: PassoDoQuiz;
   regiao: string | null;
   celular: boolean | null;
@@ -53,6 +56,8 @@ export interface AoVivoDosQuizzes {
 type Linha = {
   visita: string;
   quiz: QuizDaPagina;
+  pagina: string | null;
+  anuncio: string | null;
   passo: PassoDoQuiz;
   regiao: string | null;
   celular: boolean | null;
@@ -112,7 +117,7 @@ export function medianaAtePrevia(aberturas: readonly Marca[], previas: readonly 
 export async function lerAoVivo(db: SupabaseClient, orgId: string, desde: Date, fuso: string): Promise<AoVivoDosQuizzes> {
   const agoraMs = Date.now();
   const desdeIso = desde.toISOString();
-  const colunas = "visita, quiz, passo, regiao, celular, campanha, moeda, contact_id, primeiro_em, visto_em";
+  const colunas = "visita, quiz, pagina, anuncio, passo, regiao, celular, campanha, moeda, contact_id, primeiro_em, visto_em";
 
   const [vivas, periodo, aberturas, previas] = await Promise.all([
     db
@@ -166,6 +171,8 @@ export async function lerAoVivo(db: SupabaseClient, orgId: string, desde: Date, 
     agora: agoraLinhas.length,
     visitas: agoraLinhas.map((v) => ({
       quiz: v.quiz,
+      pagina: v.pagina,
+      anuncio: v.anuncio,
       passo: v.passo,
       regiao: v.regiao,
       celular: v.celular,

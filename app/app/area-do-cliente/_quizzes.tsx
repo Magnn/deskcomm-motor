@@ -6,7 +6,7 @@
  *  - de onde vêm as visitas, a que horas abrem e quanto tempo levam até a prévia;
  *  - o funil de cada quiz e o resultado por campanha (`utm_campaign` do anúncio).
  */
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
@@ -16,9 +16,9 @@ import { useTagDeIdioma } from "@/hooks/i18n/useLocaleDeData";
 import { useT } from "@/hooks/i18n/useT";
 import { apiClient } from "@/lib/api/client";
 import type { AoVivoDosQuizzes } from "@/lib/area-do-cliente/ao-vivo-dos-quizzes";
-import type { CampanhaDoQuiz, FunilDeUmQuiz } from "@/lib/area-do-cliente/funil-dos-quizzes";
+import type { AnuncioDaPagina, CampanhaDoQuiz, FunilDeUmQuiz, FunilDeUmaPagina } from "@/lib/area-do-cliente/funil-dos-quizzes";
 import { csvDosLeads, type LeadDeQuiz } from "@/lib/area-do-cliente/leads-dos-quizzes";
-import type { PassoDoQuiz, QuizDaPagina } from "@/lib/area-do-cliente/passos-do-quiz";
+import type { LinhaDoFunil, PassoDoQuiz, QuizDaPagina } from "@/lib/area-do-cliente/passos-do-quiz";
 import { copyToClipboard } from "@/lib/clipboard";
 
 const pct = (v: number) => `${Math.round(v * 100)}%`;
@@ -32,7 +32,7 @@ export function AbaQuizzes() {
   const [dias, setDias] = useState(1);
   const q = useQuery({
     queryKey: ["area", "quizzes", dias],
-    queryFn: () => apiClient.get<{ data: { dias: number; quizzes: FunilDeUmQuiz[]; campanhas: CampanhaDoQuiz[] } }>(`/api/v1/area/quizzes?dias=${dias}`),
+    queryFn: () => apiClient.get<{ data: { dias: number; quizzes: FunilDeUmQuiz[]; campanhas: CampanhaDoQuiz[]; paginas: FunilDeUmaPagina[]; anuncios: AnuncioDaPagina[] } }>(`/api/v1/area/quizzes?dias=${dias}`),
     refetchInterval: 60_000,
   });
   const vivo = useQuery({
@@ -46,6 +46,7 @@ export function AbaQuizzes() {
     prosperidade: t("Número da prosperidade"),
     caminhos: t("O que abre os seus caminhos"),
     par: t("O Retrato do Par"),
+    pagina: t("Página de vendas"),
   };
   const nomeDoPasso: Record<PassoDoQuiz, string> = {
     abriu: t("Abriu a página"),
@@ -57,6 +58,10 @@ export function AbaQuizzes() {
     cobranca: t("Recebeu o Pix ou o link do cartão"),
     pago: t("Pagou"),
     leitura: t("Viu a leitura"),
+    meio: t("Leu até o meio"),
+    oferta: t("Viu a oferta"),
+    comprar: t("Clicou em comprar"),
+    whatsapp: t("Chamou no WhatsApp"),
   };
 
   return (
@@ -86,39 +91,16 @@ export function AbaQuizzes() {
         <>
           <div className="grid gap-4 xl:grid-cols-3">
             {d.quizzes.map((z) => (
-              <Card key={z.quiz} className="p-4" data-testid={`area-quiz-${z.quiz}`}>
-                <h2 className="font-semibold">{nomeDoQuiz[z.quiz]}</h2>
-                {z.funil[0]?.pessoas === 0 ? (
-                  <p className="mt-3 text-sm text-muted-foreground">{t("Ninguém abriu este quiz no período.")}</p>
-                ) : (
-                  <>
-                    <ol className="mt-3 space-y-2">
-                      {z.funil.map((e) => (
-                        <li key={e.passo}>
-                          <div className="flex justify-between gap-2 text-sm">
-                            <span>{nomeDoPasso[e.passo]}</span>
-                            <span className="shrink-0 tabular-nums">
-                              {e.pessoas}
-                              {e.doAnterior !== null ? <span className="ml-2 text-xs text-muted-foreground">{pct(e.doAnterior)}</span> : null}
-                            </span>
-                          </div>
-                          <div className="mt-1 h-2 rounded-full bg-surface-elevated">
-                            <div className="h-2 rounded-full bg-accent" style={{ width: `${Math.max(2, Math.round(e.doTotal * 100))}%` }} />
-                          </div>
-                        </li>
-                      ))}
-                    </ol>
-                    {z.maiorPerda ? (
-                      <p className="mt-3 rounded-md bg-warning-bg p-2 text-xs text-warning-fg">
-                        {t("Onde mais gente para:")} {nomeDoPasso[z.maiorPerda.de]} → {nomeDoPasso[z.maiorPerda.para]} ({z.maiorPerda.perdidos} {t("pessoas")})
-                      </p>
-                    ) : null}
-                    <p className="mt-2 text-xs text-muted-foreground">
-                      {t("No celular:")} {z.celular.abriu} {t("abriram")}, {z.celular.pago} {t("pagaram")}
-                    </p>
-                  </>
-                )}
-              </Card>
+              <CartaoDoFunil
+                key={z.quiz}
+                testId={`area-quiz-${z.quiz}`}
+                titulo={nomeDoQuiz[z.quiz]}
+                vazio={t("Ninguém abriu este quiz no período.")}
+                funil={z.funil}
+                maiorPerda={z.maiorPerda}
+                celular={z.celular}
+                nomeDoPasso={nomeDoPasso}
+              />
             ))}
           </div>
 
@@ -155,11 +137,125 @@ export function AbaQuizzes() {
               </div>
             )}
           </Card>
+
+          <PaginasDeVendas paginas={d.paginas} anuncios={d.anuncios} nomeDoPasso={nomeDoPasso} />
         </>
       )}
 
       <LeadsDosQuizzes nomeDoQuiz={nomeDoQuiz} nomeDoPasso={nomeDoPasso} />
     </div>
+  );
+}
+
+function CartaoDoFunil(props: {
+  testId: string;
+  titulo: string;
+  vazio: string;
+  funil: LinhaDoFunil[];
+  maiorPerda: { de: PassoDoQuiz; para: PassoDoQuiz; perdidos: number } | null;
+  celular: { abriu: number; pago: number };
+  nomeDoPasso: Record<PassoDoQuiz, string>;
+  extra?: ReactNode;
+}) {
+  const t = useT();
+  const { nomeDoPasso } = props;
+  return (
+    <Card className="p-4" data-testid={props.testId}>
+      <h2 className="font-semibold">{props.titulo}</h2>
+      {props.funil[0]?.pessoas === 0 ? (
+        <p className="mt-3 text-sm text-muted-foreground">{props.vazio}</p>
+      ) : (
+        <>
+          <ol className="mt-3 space-y-2">
+            {props.funil.map((e) => (
+              <li key={e.passo}>
+                <div className="flex justify-between gap-2 text-sm">
+                  <span>{nomeDoPasso[e.passo]}</span>
+                  <span className="shrink-0 tabular-nums">
+                    {e.pessoas}
+                    {e.doAnterior !== null ? <span className="ml-2 text-xs text-muted-foreground">{pct(e.doAnterior)}</span> : null}
+                  </span>
+                </div>
+                <div className="mt-1 h-2 rounded-full bg-surface-elevated">
+                  <div className="h-2 rounded-full bg-accent" style={{ width: `${Math.max(2, Math.round(e.doTotal * 100))}%` }} />
+                </div>
+              </li>
+            ))}
+          </ol>
+          {props.maiorPerda ? (
+            <p className="mt-3 rounded-md bg-warning-bg p-2 text-xs text-warning-fg">
+              {t("Onde mais gente para:")} {nomeDoPasso[props.maiorPerda.de]} → {nomeDoPasso[props.maiorPerda.para]} ({props.maiorPerda.perdidos} {t("pessoas")})
+            </p>
+          ) : null}
+          {props.extra}
+          <p className="mt-2 text-xs text-muted-foreground">
+            {t("No celular:")} {props.celular.abriu} {t("abriram")}, {props.celular.pago} {t("pagaram")}
+          </p>
+        </>
+      )}
+    </Card>
+  );
+}
+
+/** As páginas de vendas (0947): o funil de cada uma e o resultado por anúncio (`utm_content`). */
+function PaginasDeVendas(props: { paginas: FunilDeUmaPagina[]; anuncios: AnuncioDaPagina[]; nomeDoPasso: Record<PassoDoQuiz, string> }) {
+  const t = useT();
+  if (props.paginas.length === 0) return null;
+  return (
+    <>
+      <div className="grid gap-4 xl:grid-cols-3">
+        {props.paginas.map((p) => (
+          <CartaoDoFunil
+            key={p.pagina}
+            testId={`area-pagina-${p.pagina}`}
+            titulo={`${t("Página de vendas")} · ${p.pagina}`}
+            vazio={t("Ninguém abriu esta página no período.")}
+            funil={p.funil}
+            maiorPerda={p.maiorPerda}
+            celular={p.celular}
+            nomeDoPasso={props.nomeDoPasso}
+            extra={
+              <p className="mt-2 text-xs text-muted-foreground">
+                {t("Chamaram no WhatsApp:")} {p.whatsapp}
+              </p>
+            }
+          />
+        ))}
+      </div>
+      <Card className="p-4" data-testid="area-paginas-anuncios">
+        <h2 className="font-semibold">{t("Página de vendas por anúncio")}</h2>
+        <div className="mt-3 overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="text-left text-xs text-muted-foreground">
+              <tr>
+                <th className="py-1 pr-3 font-medium">{t("Anúncio")}</th>
+                <th className="py-1 pr-3 font-medium">{t("Campanha")}</th>
+                <th className="py-1 pr-3 font-medium">{t("Página")}</th>
+                <th className="py-1 pr-3 text-right font-medium">{t("Abriram")}</th>
+                <th className="py-1 pr-3 text-right font-medium">{t("Viram a oferta")}</th>
+                <th className="py-1 pr-3 text-right font-medium">{t("Clicaram em comprar")}</th>
+                <th className="py-1 pr-3 text-right font-medium">{t("WhatsApp")}</th>
+                <th className="py-1 text-right font-medium">{t("Pagaram")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {props.anuncios.map((a) => (
+                <tr key={`${a.pagina}|${a.campanha}|${a.anuncio}`} className="border-t border-border">
+                  <td className="py-1.5 pr-3 font-mono text-xs">{a.anuncio}</td>
+                  <td className="py-1.5 pr-3 font-mono text-xs">{a.campanha}</td>
+                  <td className="py-1.5 pr-3">{a.pagina}</td>
+                  <td className="py-1.5 pr-3 text-right tabular-nums">{a.abriu}</td>
+                  <td className="py-1.5 pr-3 text-right tabular-nums">{a.oferta}</td>
+                  <td className="py-1.5 pr-3 text-right tabular-nums">{a.comprar}</td>
+                  <td className="py-1.5 pr-3 text-right tabular-nums">{a.whatsapp}</td>
+                  <td className="py-1.5 text-right tabular-nums">{a.pago}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+    </>
   );
 }
 
@@ -298,11 +394,11 @@ function PainelAoVivo(props: {
               <tbody>
                 {v.visitas.map((x, i) => (
                   <tr key={i} className="border-t border-border">
-                    <td className="py-1.5 pr-3">{nomeDoQuiz[x.quiz]}</td>
+                    <td className="py-1.5 pr-3">{x.pagina ? `${nomeDoQuiz[x.quiz]} · ${x.pagina}` : nomeDoQuiz[x.quiz]}</td>
                     <td className="py-1.5 pr-3">{nomeDoPasso[x.passo]}</td>
                     <td className="py-1.5 pr-3">{x.regiao ?? "—"}</td>
                     <td className="py-1.5 pr-3">{x.celular === null ? "—" : x.celular ? t("Celular") : t("Computador")}</td>
-                    <td className="py-1.5 pr-3 font-mono text-xs">{x.campanha ?? "—"}</td>
+                    <td className="py-1.5 pr-3 font-mono text-xs">{x.anuncio ? `${x.campanha ?? "—"} · ${x.anuncio}` : (x.campanha ?? "—")}</td>
                     <td className="py-1.5 pr-3 tabular-nums">{duracao(x.naPaginaHaS)}</td>
                     <td className="py-1.5">
                       {x.pessoa ? (

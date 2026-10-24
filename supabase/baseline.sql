@@ -40094,10 +40094,7 @@ revoke insert, update, delete, truncate on public.area_quiz_passos from authenti
 -- ---- o quarto quiz: o Retrato do Par (migration 0945) ----
 alter table public.area_quiz_pedidos drop constraint if exists area_quiz_pedidos_tipo_check;
 alter table public.area_quiz_pedidos add constraint area_quiz_pedidos_tipo_check check (tipo in ('prosperidade', 'caminhos', 'par'));
-alter table public.area_quiz_visitas drop constraint if exists area_quiz_visitas_quiz_check;
-alter table public.area_quiz_visitas add constraint area_quiz_visitas_quiz_check check (quiz in ('sinastria', 'prosperidade', 'caminhos', 'par'));
-alter table public.area_quiz_passos drop constraint if exists area_quiz_passos_quiz_check;
-alter table public.area_quiz_passos add constraint area_quiz_passos_quiz_check check (quiz in ('sinastria', 'prosperidade', 'caminhos', 'par'));
+-- area_quiz_visitas.quiz e area_quiz_passos.quiz: o vocabulário final (com 'par' e 'pagina') está no bloco da 0947.
 
 -- ---- a mídia da área: foto da guia e vídeos dos quizzes (migration 0946) ----
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
@@ -40106,3 +40103,17 @@ on conflict (id) do update
   set public             = excluded.public,
       file_size_limit    = excluded.file_size_limit,
       allowed_mime_types = excluded.allowed_mime_types;
+
+-- ---- o funil da página de vendas (migration 0947) ----
+alter table public.area_quiz_visitas drop constraint if exists area_quiz_visitas_quiz_check;
+alter table public.area_quiz_visitas add constraint area_quiz_visitas_quiz_check check (quiz in ('sinastria', 'prosperidade', 'caminhos', 'par', 'pagina'));
+alter table public.area_quiz_passos drop constraint if exists area_quiz_passos_quiz_check;
+alter table public.area_quiz_passos add constraint area_quiz_passos_quiz_check check (quiz in ('sinastria', 'prosperidade', 'caminhos', 'par', 'pagina'));
+alter table public.area_quiz_visitas drop constraint if exists area_quiz_visitas_passo_check;
+alter table public.area_quiz_visitas add constraint area_quiz_visitas_passo_check check (passo in ('abriu', 'dados', 'perguntas', 'email', 'previa', 'pagar', 'cobranca', 'pago', 'leitura', 'meio', 'oferta', 'comprar', 'whatsapp'));
+alter table public.area_quiz_passos drop constraint if exists area_quiz_passos_passo_check;
+alter table public.area_quiz_passos add constraint area_quiz_passos_passo_check check (passo in ('abriu', 'dados', 'perguntas', 'email', 'previa', 'pagar', 'cobranca', 'pago', 'leitura', 'meio', 'oferta', 'comprar', 'whatsapp'));
+alter table public.area_quiz_visitas add column if not exists pagina text check (pagina is null or pagina ~ '^[a-z0-9-]{1,40}$');
+alter table public.area_quiz_visitas add column if not exists anuncio text check (anuncio is null or char_length(anuncio) <= 80);
+alter table public.area_quiz_passos add column if not exists pagina text check (pagina is null or pagina ~ '^[a-z0-9-]{1,40}$');
+alter table public.area_quiz_passos add column if not exists anuncio text check (anuncio is null or char_length(anuncio) <= 80);
