@@ -102,7 +102,7 @@ export async function lerFunilDosQuizzes(
     .eq("organization_id", orgId)
     .gte("created_at", iso)
     .eq("passo", "abriu")
-    .neq("quiz", "pagina")
+    .in("quiz", [...QUIZZES])
     .order("created_at", { ascending: false })
     .limit(1000);
   if (error) throw new Error(error.message);
@@ -123,12 +123,13 @@ export async function lerFunilDosQuizzes(
 
 /** As páginas de vendas: as que tiveram visita no período, cada uma com o seu funil e os seus anúncios. */
 async function lerFunilDasPaginas(db: SupabaseClient, orgId: string, iso: string): Promise<{ paginas: FunilDeUmaPagina[]; anuncios: AnuncioDaPagina[] }> {
+  const quiz = "pagina" as const;
   const { data, error } = await db
     .from("area_quiz_passos")
     .select("pagina, campanha, anuncio")
     .eq("organization_id", orgId)
     .gte("created_at", iso)
-    .eq("quiz", "pagina")
+    .eq("quiz", quiz)
     .eq("passo", "abriu")
     .order("created_at", { ascending: false })
     .limit(1000);
@@ -136,7 +137,6 @@ async function lerFunilDasPaginas(db: SupabaseClient, orgId: string, iso: string
   const chegadas = ((data ?? []) as Array<{ pagina: string | null; campanha: string | null; anuncio: string | null }>).filter(
     (c): c is { pagina: string; campanha: string | null; anuncio: string | null } => c.pagina !== null,
   );
-  const quiz = "pagina" as const;
 
   const paginas = await Promise.all(
     [...new Set(chegadas.map((c) => c.pagina))].slice(0, 10).map(async (pagina) => {

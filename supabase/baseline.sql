@@ -40094,10 +40094,7 @@ revoke insert, update, delete, truncate on public.area_quiz_passos from authenti
 -- ---- o quarto quiz: o Retrato do Par (migration 0945) ----
 alter table public.area_quiz_pedidos drop constraint if exists area_quiz_pedidos_tipo_check;
 alter table public.area_quiz_pedidos add constraint area_quiz_pedidos_tipo_check check (tipo in ('prosperidade', 'caminhos', 'par'));
-alter table public.area_quiz_visitas drop constraint if exists area_quiz_visitas_quiz_check;
-alter table public.area_quiz_visitas add constraint area_quiz_visitas_quiz_check check (quiz in ('sinastria', 'prosperidade', 'caminhos', 'par'));
-alter table public.area_quiz_passos drop constraint if exists area_quiz_passos_quiz_check;
-alter table public.area_quiz_passos add constraint area_quiz_passos_quiz_check check (quiz in ('sinastria', 'prosperidade', 'caminhos', 'par'));
+-- area_quiz_visitas.quiz e area_quiz_passos.quiz: o vocabulário final (com 'par' e 'pagina') está no bloco da 0947.
 
 -- ---- a mídia da área: foto da guia e vídeos dos quizzes (migration 0946) ----
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
