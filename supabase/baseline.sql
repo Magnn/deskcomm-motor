@@ -40117,3 +40117,8 @@ alter table public.area_quiz_visitas add column if not exists pagina text check 
 alter table public.area_quiz_visitas add column if not exists anuncio text check (anuncio is null or char_length(anuncio) <= 80);
 alter table public.area_quiz_passos add column if not exists pagina text check (pagina is null or pagina ~ '^[a-z0-9-]{1,40}$');
 alter table public.area_quiz_passos add column if not exists anuncio text check (anuncio is null or char_length(anuncio) <= 80);
+
+-- ---- a fonte da Cakto "só registro", das páginas de vendas (migration 0948) ----
+alter table public.webhook_sources add column if not exists cakto_somente_registro boolean not null default false;
+comment on column public.webhook_sources.cakto_somente_registro is
+  'Aviso da Cakto só é registrado (arquivo + receita), sem contato/tag/fluxo; e só estas fontes aparecem no aviso público de compras recentes (0948).';
