@@ -89,7 +89,7 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<NextRespons
   const admin = createAdminClient();
   const { data: source, error: srcErr } = await admin
     .from("webhook_sources")
-    .select("id, name, organization_id, secret_encrypted, default_pipeline_id, default_stage_id, field_map, redirect_to, is_active")
+    .select("id, name, organization_id, secret_encrypted, default_pipeline_id, default_stage_id, field_map, redirect_to, is_active, cakto_somente_registro")
     .eq("path_token", token)
     .maybeSingle();
   if (srcErr) return fail("internal_error", srcErr.message, 500, { requestId });
@@ -158,9 +158,14 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<NextRespons
     const semSegredo = { ...(payload as Record<string, unknown>), secret: "[omitido]" };
     let efeito: Awaited<ReturnType<typeof aplicarEventoDaCakto>> | null = null;
     try {
-      efeito = compra
-        ? await aplicarEventoDaCakto(depsDaCompra(admin, source.organization_id, requestId, source.id), compra)
-        : { resultado: "ignorada", evento: "payload_incompleto" };
+      // Fonte "só registro" (0948): a venda de uma página de vendas que não é do atendimento. Grava o aviso e
+      // a receita, mas não procura contato nem mexe em tag ou fluxo — a cliente do WhatsApp que compra outro
+      // produto não pode cair na entrega do atendimento.
+      efeito = !compra
+        ? { resultado: "ignorada", evento: "payload_incompleto" }
+        : source.cakto_somente_registro === true
+          ? { resultado: "ignorada", evento: "somente_registro" }
+          : await aplicarEventoDaCakto(depsDaCompra(admin, source.organization_id, requestId, source.id), compra);
     } catch (err) {
       logger.error("[webhooks.inbound] aviso da Cakto falhou", {
         webhookSourceId: source.id,
