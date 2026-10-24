@@ -29,6 +29,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { CampoDeChave } from "@/components/ui/campo-de-chave";
 import { Label } from "@/components/ui/label";
 import { apiClient } from "@/lib/api/client";
 import { showApiError } from "@/components/feedback/ApiErrorToast";
@@ -172,15 +173,13 @@ export function ChaveDeConhecimento({ estado, onChaveCadastrada }: Props) {
           </div>
           <div className="space-y-1">
             <Label htmlFor="chave-valor">{t("Chave da OpenAI")}</Label>
-            <Input
+            <CampoDeChave
               id="chave-valor"
               data-testid="conhecimento-chave-input"
-              type="password"
               placeholder="sk-…"
               value={chave}
               onChange={(e) => setChave(e.target.value)}
               disabled={enviando}
-              autoComplete="off"
             />
             <p className="text-xs text-text-muted">
               {t("Você pega em")}{" "}
