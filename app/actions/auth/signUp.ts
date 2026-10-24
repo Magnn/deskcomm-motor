@@ -1,6 +1,7 @@
 "use server";
 
 import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -14,6 +15,7 @@ import { modoDeCadastro } from "@/lib/auth/politica-de-cadastro";
 import { audit, hashEmail } from "@/lib/audit";
 import { authRateLimited, AUTH_LIMITS } from "@/lib/auth/rate-limit";
 import { env } from "@/lib/env";
+import { campoDeTexto, errosDeCampo, type ErrosDeCampo } from "@/lib/auth/formulario-de-acesso";
 
 export type SignUpResult =
   | {
@@ -222,3 +224,60 @@ export async function signUp(
   // desligada (ou já resolvida) e o GoTrue devolveu tokens junto do usuário.
   return { ok: true, sessao_ativa: data.session !== null };
 }
+
+/**
+ * O que a tela de cadastro guarda entre um envio e outro. As SENHAS nunca voltam
+ * (iriam para o HTML no envio sem JavaScript); os demais campos voltam para não
+ * esvaziarem na falha.
+ */
+export type EstadoDoCadastro =
+  | { ok: true; enviadoPara: string }
+  | {
+      ok: false;
+      error: Extract<SignUpResult, { ok: false }>["error"];
+      campos?: ErrosDeCampo;
+      valores: { full_name: string; org_name: string; email: string };
+    }
+  | null;
+
+/**
+ * A mesma ação, no formato do `<form action>` (com o token do convite preso por
+ * `bind`). Funciona antes de o JavaScript carregar, como os demais formulários
+ * de acesso.
+ *
+ * O desvio de quem JÁ SAI autenticado (provedor com confirmação de e-mail
+ * desligada — `sessao_ativa`) mora aqui agora, com `redirect`, que serve aos
+ * dois caminhos: quem veio de um convite vai ACEITAR o convite; quem se cadastrou
+ * por conta própria vai à recuperação (`/get-started`). Ver o par de testes em
+ * `tests/unit/cadastro-sem-confirmacao-nao-manda-esperar-email.test.tsx`.
+ *
+ * No convite, o e-mail vem do campo travado da tela — e travado no cliente não
+ * vale nada: quem confere contra o token é a `signUp` (`email_divergente`).
+ */
+export async function cadastrarPeloFormulario(
+  conviteToken: string | null,
+  _anterior: EstadoDoCadastro,
+  dados: FormData,
+): Promise<EstadoDoCadastro> {
+  const valores = {
+    full_name: campoDeTexto(dados, "full_name").trim(),
+    org_name: campoDeTexto(dados, "org_name").trim(),
+    email: campoDeTexto(dados, "email").trim(),
+  };
+  const senhas = {
+    password: campoDeTexto(dados, "password"),
+    password_confirm: campoDeTexto(dados, "password_confirm"),
+  };
+  const token = conviteToken ?? undefined;
+  const entrada: SignupInput | SignupComConviteInput = token
+    ? { full_name: valores.full_name, email: valores.email, ...senhas }
+    : { org_name: valores.org_name, email: valores.email, ...senhas };
+
+  const res = await signUp(entrada, token);
+  if (res.ok) {
+    if (res.sessao_ativa) redirect(token ? `/team/accept-invite/${token}` : "/get-started");
+    return { ok: true, enviadoPara: valores.email };
+  }
+  return { ok: false, error: res.error, campos: errosDeCampo(res.details), valores };
+}
+

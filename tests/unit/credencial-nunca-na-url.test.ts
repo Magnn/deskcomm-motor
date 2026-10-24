@@ -70,6 +70,25 @@ describe("formulários de autenticação", () => {
     ).toEqual([]);
   });
 
+  it("nenhum deles depende do JavaScript para ENVIAR — a ação do servidor é o `action`", () => {
+    // O primeiro caso acima impede a credencial de ir para a URL; este impede o
+    // clique de se PERDER. Com o envio só no `onSubmit`, o clique dado antes de
+    // a página carregar vira o POST nativo para a própria página, que volta em
+    // branco — medido no "esqueci a senha" em produção (2026-10-02), e os
+    // outros cinco formulários tinham o mesmo vão. `method="post"` sozinho não
+    // basta: ele é a cerca contra o GET, não o envio.
+    const dependemDoJs = FORMULARIOS.filter((arquivo) => {
+      const fonte = readFileSync(resolve(DIR, arquivo), "utf8");
+      return /<form\b/.test(fonte) && !postPelaAcaoDoServidor(fonte);
+    });
+
+    expect(
+      dependemDoJs,
+      "formulário de acesso com o envio só no `onSubmit` perde o clique dado antes " +
+        "de o JavaScript carregar — use a ação do servidor no `action` via `useActionState`",
+    ).toEqual([]);
+  });
+
   it("a forma pela ação do servidor só vale com a ação vinda do servidor", () => {
     const comAcao = (origem: string) =>
       `import { pedir } from "${origem}";\n` +
@@ -83,5 +102,17 @@ describe("formulários de autenticação", () => {
     expect(
       postPelaAcaoDoServidor(comAcao("@/app/actions/auth/pedir").replace("action={enviar}", "")),
     ).toBe(false);
+    // Com argumento preso por `bind` (o `next`, o token do convite) continua valendo.
+    expect(
+      postPelaAcaoDoServidor(
+        comAcao("@/app/actions/auth/pedir").replace("(pedir, null)", "(pedir.bind(null, next), null)"),
+      ),
+    ).toBe(true);
+    // Import multilinha, como o formatador escreve quando a lista é longa.
+    expect(
+      postPelaAcaoDoServidor(
+        comAcao("@/app/actions/auth/pedir").replace("{ pedir }", "{\n  pedir,\n  type E,\n}"),
+      ),
+    ).toBe(true);
   });
 });

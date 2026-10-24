@@ -1,22 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useForm, type Resolver } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useTransition, useState } from "react";
+import { useActionState } from "react";
 
 import { useT } from "@/hooks/i18n/useT";
-import {
-  signupSchema,
-  signupComConviteSchema,
-  type SignupInput,
-  type SignupComConviteInput,
-} from "@/lib/auth/schemas";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { signUp } from "@/app/actions/auth/signUp";
+import { cadastrarPeloFormulario, type EstadoDoCadastro } from "@/app/actions/auth/signUp";
 
 /**
  * Convite em curso: a conta está sendo criada para ACEITAR um convite, não para
@@ -29,104 +20,42 @@ export interface ConviteDoSignup {
   email: string;
 }
 
+/**
+ * A ação do servidor vai DIRETO no `action` do formulário (o token do convite
+ * preso por `bind`): o envio funciona antes de o JavaScript carregar. Ver
+ * `tests/unit/credencial-nunca-na-url.test.ts`.
+ *
+ * ⚠️ QUEM JÁ SAI AUTENTICADO NÃO PODE FICAR ESPERANDO E-MAIL. Com "Confirm
+ * email" desligado no provedor de auth, não existe link para clicar; a tela de
+ * "abra o e-mail" vira instrução impossível e a pessoa fica parada — logada, sem
+ * organização. O desvio (convite → aceitar o convite; cadastro próprio →
+ * `/get-started`) é `redirect` dentro de `cadastrarPeloFormulario`. Achado de
+ * @KIRAzinx566, com um cliente real travado.
+ */
 export function SignupForm({ convite }: { convite?: ConviteDoSignup }) {
   const t = useT();
-  const router = useRouter();
-  const [isPending, startTransition] = useTransition();
-  const [serverError, setServerError] = useState<string | null>(null);
-  const [contaExistente, setContaExistente] = useState(false);
-  const [sentTo, setSentTo] = useState<string | null>(null);
+  const [estado, enviar, isPending] = useActionState<EstadoDoCadastro, FormData>(
+    cadastrarPeloFormulario.bind(null, convite?.token ?? null),
+    null,
+  );
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<SignupInput & { full_name: string }>({
-    // O formulário tem UM tipo e DOIS contratos, e agora os dois contratos têm
-    // um campo que o outro não tem: `org_name` só no caminho de quem abre
-    // empresa, `full_name` só no de quem foi convidado. O resolver troca; o
-    // tipo do form é a união larga dos dois, e cada campo só é renderizado —
-    // e só é enviado — no modo a que pertence. O `as unknown as` existe porque
-    // os dois contratos deixaram de se sobrepor o bastante para o TypeScript
-    // aceitar a conversão direta.
-    resolver: (convite
-      ? zodResolver(signupComConviteSchema)
-      : zodResolver(signupSchema)) as unknown as Resolver<SignupInput & { full_name: string }>,
-    defaultValues: {
-      full_name: "",
-      org_name: "",
-      email: convite?.email ?? "",
-      password: "",
-      password_confirm: "",
-    },
-  });
-
-  const onSubmit = (values: SignupInput & { full_name: string }) => {
-    setServerError(null);
-    startTransition(async () => {
-      // No modo convite o e-mail do formulário é readonly, e readonly no
-      // cliente não vale nada: quem confere de novo é o servidor.
-      const entrada: SignupInput | SignupComConviteInput = convite
-        ? {
-            full_name: values.full_name,
-            email: convite.email,
-            password: values.password,
-            password_confirm: values.password_confirm,
-          }
-        : values;
-      const res = await signUp(entrada, convite?.token);
-      if (res.ok) {
-        /**
-         * ⚠️ O PROVEDOR JÁ DEIXOU A PESSOA ENTRAR — não existe e-mail para ela
-         * esperar. Acontece quando "Confirm email" está desligado no provedor
-         * de auth, que é uma escolha do operador da instalação e não um defeito
-         * dele; o defeito é a tela abaixo, que manda "abra o e-mail e clique no
-         * link" para quem já está autenticado. Sem este desvio a pessoa fica
-         * parada nessa instrução para sempre: logada, sem organização, e sem
-         * motivo nenhum para descobrir sozinha que a saída existe em
-         * `/get-started`. Medido com um cliente real travado — achado de
-         * @KIRAzinx566.
-         *
-         * O destino separa as duas naturezas de cadastro, com o dado que esta
-         * tela já tem em mãos: quem veio de um convite vai ACEITAR o convite
-         * (dar organização própria a essa pessoa é o erro que
-         * `decidirConviteDoSignup` existe para evitar); quem se cadastrou por
-         * conta própria vai à recuperação, que é o caminho auditado e com teto
-         * de tentativas — e não uma segunda porta de provisionamento.
-         */
-        if (res.sessao_ativa) {
-          router.replace(
-            convite ? `/team/accept-invite/${convite.token}` : "/get-started",
-          );
-          return;
-        }
-        setSentTo(values.email);
-        return;
-      }
-      if (res.error === "rate_limited") {
-        setServerError(t("Muitas tentativas. Aguarde alguns minutos."));
-      } else if (res.error === "validation_error") {
-        setServerError(t("Dados inválidos. Confira os campos."));
-      } else if (res.error === "conta_ja_existe" && convite) {
-        // Ramo próprio porque o `else` mandava "Tente novamente" — e tentar de
-        // novo nunca funciona quando a conta já existe. Em vez da mensagem,
-        // a SAÍDA: entrar levando o convite pendurado, para cair no aceite e
-        // não na tela inicial (que, para quem foi revogado, é a tela de acesso
-        // revogado, com um botão Sair e mais nada).
-        setContaExistente(true);
-      } else if (res.error === "somente_convite") {
-        // Ramo próprio porque o `else` diria "Tente novamente", e aqui tentar
-        // de novo nunca vai funcionar — é política, não falha transitória.
-        setServerError(
-          t(
-            "Esta instalação aceita cadastro apenas por convite. Se você foi convidado, use o link que chegou no seu e-mail.",
-          ),
-        );
-      } else {
-        setServerError(t("Não foi possível criar a conta. Tente novamente."));
-      }
-    });
-  };
+  const falha = estado?.ok === false ? estado : null;
+  const errors = falha?.campos ?? {};
+  const valores = falha?.valores;
+  const contaExistente = falha?.error === "conta_ja_existe";
+  const sentTo = estado?.ok ? estado.enviadoPara : null;
+  const serverError = !falha || (contaExistente && convite)
+    ? null
+    : falha.error === "rate_limited"
+      ? t("Muitas tentativas. Aguarde alguns minutos.")
+      : falha.error === "validation_error"
+        ? t("Dados inválidos. Confira os campos.")
+        : falha.error === "somente_convite"
+          ? // Política, não falha transitória: "tente novamente" nunca funcionaria.
+            t(
+              "Esta instalação aceita cadastro apenas por convite. Se você foi convidado, use o link que chegou no seu e-mail.",
+            )
+          : t("Não foi possível criar a conta. Tente novamente.");
 
   if (contaExistente && convite) {
     const destino = `/login?next=${encodeURIComponent(`/team/accept-invite/${convite.token}`)}`;
@@ -159,7 +88,7 @@ export function SignupForm({ convite }: { convite?: ConviteDoSignup }) {
   }
 
   return (
-    <form method="post" onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
+    <form action={enviar} className="space-y-4" noValidate>
       {/*
         Só no modo CONVITE. Quem abre a própria empresa dá o nome no onboarding;
         quem é convidado pula o onboarding e ficava sem nome para sempre —
@@ -174,12 +103,11 @@ export function SignupForm({ convite }: { convite?: ConviteDoSignup }) {
           type="text"
           autoComplete="name"
           autoFocus
+          name="full_name"
+          defaultValue={valores?.full_name ?? ""}
           aria-invalid={errors.full_name ? true : undefined}
-          {...register("full_name")}
         />
-        {errors.full_name && (
-          <p className="text-xs text-destructive">{t(errors.full_name.message ?? "")}</p>
-        )}
+        {errors.full_name && <p className="text-xs text-destructive">{t(errors.full_name)}</p>}
       </div>
       )}
       {!convite && (
@@ -190,12 +118,11 @@ export function SignupForm({ convite }: { convite?: ConviteDoSignup }) {
           type="text"
           autoComplete="organization"
           autoFocus
+          name="org_name"
+          defaultValue={valores?.org_name ?? ""}
           aria-invalid={errors.org_name ? true : undefined}
-          {...register("org_name")}
         />
-        {errors.org_name && (
-          <p className="text-xs text-destructive">{t(errors.org_name.message ?? "")}</p>
-        )}
+        {errors.org_name && <p className="text-xs text-destructive">{t(errors.org_name)}</p>}
       </div>
       )}
       <div className="space-y-1.5">
@@ -207,12 +134,11 @@ export function SignupForm({ convite }: { convite?: ConviteDoSignup }) {
           // O convite vale para UM endereço. Deixar editável convidaria a
           // trocar e receber "email_divergente" depois de preencher tudo.
           readOnly={Boolean(convite)}
+          name="email"
+          defaultValue={convite?.email ?? valores?.email ?? ""}
           aria-invalid={errors.email ? true : undefined}
-          {...register("email")}
         />
-        {errors.email && (
-          <p className="text-xs text-destructive">{t(errors.email.message ?? "")}</p>
-        )}
+        {errors.email && <p className="text-xs text-destructive">{t(errors.email)}</p>}
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="password">{t("Senha")}</Label>
@@ -220,12 +146,10 @@ export function SignupForm({ convite }: { convite?: ConviteDoSignup }) {
           id="password"
           type="password"
           autoComplete="new-password"
+          name="password"
           aria-invalid={errors.password ? true : undefined}
-          {...register("password")}
         />
-        {errors.password && (
-          <p className="text-xs text-destructive">{t(errors.password.message ?? "")}</p>
-        )}
+        {errors.password && <p className="text-xs text-destructive">{t(errors.password)}</p>}
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="password_confirm">{t("Confirmar senha")}</Label>
@@ -233,11 +157,11 @@ export function SignupForm({ convite }: { convite?: ConviteDoSignup }) {
           id="password_confirm"
           type="password"
           autoComplete="new-password"
+          name="password_confirm"
           aria-invalid={errors.password_confirm ? true : undefined}
-          {...register("password_confirm")}
         />
         {errors.password_confirm && (
-          <p className="text-xs text-destructive">{t(errors.password_confirm.message ?? "")}</p>
+          <p className="text-xs text-destructive">{t(errors.password_confirm)}</p>
         )}
       </div>
       {serverError && (

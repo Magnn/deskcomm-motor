@@ -1,95 +1,93 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import Link from "next/link";
 
 import { useT } from "@/hooks/i18n/useT";
 import { TOTPInput } from "@/components/auth/TOTPInput";
 import { Button } from "@/components/ui/button";
-import { verifyMfa } from "@/app/actions/auth/verifyMfa";
+import {
+  verificarMfaPeloFormulario,
+  type EstadoDaVerificacaoMfa,
+} from "@/app/actions/auth/verifyMfa";
 
 interface MfaFormProps {
   next?: string;
 }
 
+/**
+ * A ação do servidor vai DIRETO no `action` do formulário — o envio é POST para
+ * ela já no HTML do servidor (ver `tests/unit/credencial-nunca-na-url.test.ts`).
+ * Os seis quadradinhos do `TOTPInput` não têm `name`; quem leva o código é o
+ * campo oculto `code`, e completar os seis dígitos envia o formulário pelo
+ * caminho normal (`requestSubmit`).
+ */
 export function MfaForm({ next }: MfaFormProps) {
   const t = useT();
+  const formRef = useRef<HTMLFormElement>(null);
   const [code, setCode] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [locked, setLocked] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState(0);
-  const [isPending, startTransition] = useTransition();
+  const [estado, enviar, isPending] = useActionState<EstadoDaVerificacaoMfa, FormData>(
+    verificarMfaPeloFormulario.bind(null, next ?? null),
+    null,
+  );
+
+  // A cada resposta de erro: limpa o código e, se bloqueou, começa a contagem.
+  // Ajuste durante a renderização (padrão do React para "estado que reage a uma
+  // mudança"), não efeito: `tentativa` faz cada resposta ser uma mudança nova.
+  const [respostaVista, setRespostaVista] = useState(estado);
+  if (estado !== respostaVista) {
+    setRespostaVista(estado);
+    if (estado) {
+      setCode("");
+      setSecondsLeft(estado.error === "mfa_locked" ? (estado.retry_in_seconds ?? 60) : 0);
+    }
+  }
 
   useEffect(() => {
-    if (!locked || secondsLeft <= 0) return;
-    const t = setInterval(() => {
-      setSecondsLeft((s) => {
-        if (s <= 1) {
-          setLocked(false);
-          setError(null);
-          return 0;
-        }
-        return s - 1;
-      });
-    }, 1000);
-    return () => clearInterval(t);
-  }, [locked, secondsLeft]);
+    if (secondsLeft <= 0) return;
+    const timer = setTimeout(() => setSecondsLeft((s) => s - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [secondsLeft]);
 
-  const submit = (codeArg?: string) => {
-    const finalCode = codeArg ?? code;
-    if (finalCode.length !== 6 || locked) return;
-    setError(null);
-    startTransition(async () => {
-      const res = await verifyMfa(finalCode, next);
-      if (!res) return; // server-side redirect on success
-      if (res.error === "mfa_locked") {
-        setLocked(true);
-        setSecondsLeft(res.retry_in_seconds ?? 60);
-        setError(
-          `${t("Muitas tentativas. Aguarde")} ${res.retry_in_seconds ?? 60}s ${t("e tente novamente.")}`,
-        );
-        setCode("");
-      } else {
-        setError(t("Código inválido. Tente novamente."));
-        setCode("");
-      }
-    });
-  };
+  const locked = estado?.error === "mfa_locked" && secondsLeft > 0;
+  const mensagem = !estado
+    ? null
+    : estado.error === "mfa_locked"
+      ? secondsLeft > 0
+        ? `${t("Muitas tentativas. Tente novamente em")} ${secondsLeft}s.`
+        : null
+      : t("Código inválido. Tente novamente.");
 
   const recoveryHref = next
     ? `/login/recovery?next=${encodeURIComponent(next)}`
     : "/login/recovery";
 
   return (
-    <form
-      // Ver a nota nos outros formulários de autenticação: sem JavaScript o
-      // submit nativo é GET, e o código de verificação iria para a query
-      // string — histórico, log do servidor e Referer.
-      method="post"
-      onSubmit={(e) => {
-        e.preventDefault();
-        submit();
-      }}
-      className="space-y-6"
-      noValidate
-    >
+    <form ref={formRef} action={enviar} className="space-y-6" noValidate>
+      <input type="hidden" name="code" value={code} />
       <TOTPInput
         value={code}
         onChange={setCode}
-        onComplete={(c) => submit(c)}
+        onComplete={(completo) => {
+          if (locked || isPending) return;
+          // O `onComplete` chega de dentro do `onChange`, antes de o sexto dígito
+          // virar estado: sem o `flushSync`, o campo oculto iria com cinco.
+          flushSync(() => setCode(completo));
+          formRef.current?.requestSubmit();
+        }}
         disabled={isPending || locked}
         autoFocus
-        hasError={!!error}
+        hasError={!!mensagem}
       />
 
-      {error && (
+      {mensagem && (
         <div
           role="alert"
           className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-center text-sm text-destructive"
         >
-          {locked && secondsLeft > 0
-            ? `${t("Muitas tentativas. Tente novamente em")} ${secondsLeft}s.`
-            : error}
+          {mensagem}
         </div>
       )}
 

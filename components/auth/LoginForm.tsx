@@ -1,97 +1,70 @@
 "use client";
 
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useTransition, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useActionState } from "react";
 
 import { useT } from "@/hooks/i18n/useT";
-import { loginSchema, type LoginInput } from "@/lib/auth/schemas";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { signInWithPassword } from "@/app/actions/auth/signInWithPassword";
+import { entrarPeloFormulario, type EstadoDoLogin } from "@/app/actions/auth/signInWithPassword";
 
+/**
+ * A ação do servidor vai DIRETO no `action` do formulário: o envio funciona antes
+ * de o JavaScript carregar (e com ele bloqueado). Sucesso e desvio para a
+ * verificação em duas etapas são `redirect` no servidor. Ver
+ * `tests/unit/credencial-nunca-na-url.test.ts`.
+ */
 export function LoginForm({ next }: { next?: string }) {
   const t = useT();
-  const router = useRouter();
-  const [isPending, startTransition] = useTransition();
-  const [serverError, setServerError] = useState<string | null>(null);
+  const [estado, enviar, isPending] = useActionState<EstadoDoLogin, FormData>(
+    entrarPeloFormulario.bind(null, next ?? null),
+    null,
+  );
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<LoginInput>({
-    resolver: zodResolver(loginSchema),
-    defaultValues: { email: "", password: "" },
-  });
-
-  const onSubmit = (values: LoginInput) => {
-    setServerError(null);
-    startTransition(async () => {
-      // Server Action redirects on success — no return value reaches here.
-      // On failure, an error discriminator is returned and rendered inline.
-      const res = await signInWithPassword(values, next);
-      if (!res) {
-        // Should be unreachable (redirect throws), but guard anyway.
-        router.replace(next || "/app");
-        return;
-      }
-      if (res.error === "mfa_required") {
-        const params = new URLSearchParams();
-        if (next) params.set("next", next);
-        if (res.challengeId) params.set("factor", res.challengeId);
-        router.replace(`/login/mfa${params.toString() ? `?${params}` : ""}`);
-        return;
-      }
-      if (res.error === "invalid_credentials") {
-        setServerError(t("Email ou senha incorretos."));
-      } else if (res.error === "rate_limited") {
-        setServerError(t("Muitas tentativas. Aguarde alguns minutos."));
-      } else if (res.error === "validation_error") {
-        setServerError(t("Dados inválidos. Confira os campos."));
-      } else {
-        setServerError(t("Erro inesperado. Tente novamente."));
-      }
-    });
-  };
+  const mensagem =
+    estado?.error === "invalid_credentials"
+      ? t("Email ou senha incorretos.")
+      : estado?.error === "rate_limited"
+        ? t("Muitas tentativas. Aguarde alguns minutos.")
+        : estado?.error === "validation_error"
+          ? t("Dados inválidos. Confira os campos.")
+          : estado
+            ? t("Erro inesperado. Tente novamente.")
+            : null;
+  const campos = estado?.campos;
 
   return (
-    <form method="post" onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
+    <form action={enviar} className="space-y-4" noValidate>
       <div className="space-y-1.5">
         <Label htmlFor="email">{t("Email")}</Label>
         <Input
           id="email"
+          name="email"
           type="email"
           autoComplete="email"
           autoFocus
-          aria-invalid={errors.email ? true : undefined}
-          {...register("email")}
+          defaultValue={estado?.email ?? ""}
+          aria-invalid={campos?.email ? true : undefined}
         />
-        {errors.email && (
-          <p className="text-xs text-destructive">{t(errors.email.message ?? "")}</p>
-        )}
+        {campos?.email && <p className="text-xs text-destructive">{t(campos.email)}</p>}
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="password">{t("Senha")}</Label>
         <Input
           id="password"
+          name="password"
           type="password"
           autoComplete="current-password"
-          aria-invalid={errors.password ? true : undefined}
-          {...register("password")}
+          aria-invalid={campos?.password ? true : undefined}
         />
-        {errors.password && (
-          <p className="text-xs text-destructive">{t(errors.password.message ?? "")}</p>
-        )}
+        {campos?.password && <p className="text-xs text-destructive">{t(campos.password)}</p>}
       </div>
-      {serverError && (
+      {mensagem && (
         <div
           className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
           role="alert"
         >
-          {serverError}
+          {mensagem}
         </div>
       )}
       <Button type="submit" className="w-full" disabled={isPending}>

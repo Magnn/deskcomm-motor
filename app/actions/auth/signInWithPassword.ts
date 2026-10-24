@@ -7,6 +7,7 @@ import { safeNext } from "@/lib/auth/safe-next";
 
 import { createClient } from "@/lib/supabase/server";
 import { loginSchema, type LoginInput } from "@/lib/auth/schemas";
+import { campoDeTexto, errosDeCampo, type ErrosDeCampo } from "@/lib/auth/formulario-de-acesso";
 import { audit, hashEmail } from "@/lib/audit";
 import {
   authRateLimited,
@@ -105,4 +106,42 @@ export async function signInWithPassword(input: LoginInput, next?: string): Prom
 
   // Server-side redirect ensures fresh session cookie is sent to browser.
   redirect(safeNext(next, "/app"));
+}
+
+/**
+ * O que a tela de login guarda entre um envio e outro. A SENHA nunca volta:
+ * ela iria parar no HTML da resposta quando o envio é o POST nativo (sem
+ * JavaScript). O e-mail volta para o campo não esvaziar.
+ */
+export type EstadoDoLogin = {
+  ok: false;
+  error: Exclude<SignInResult["error"], "mfa_required">;
+  email: string;
+  campos?: ErrosDeCampo;
+} | null;
+
+/**
+ * A mesma ação, no formato do `<form action>` (com o `next` preso por `bind`).
+ *
+ * É o que faz o login funcionar ANTES de o JavaScript carregar — o clique nesse
+ * intervalo era o POST nativo para a própria página, que voltava em branco (o
+ * mesmo defeito do "esqueci a senha", medido em produção em 2026-10-02). O
+ * desvio para a verificação em duas etapas, que a tela fazia com `router`, mora
+ * aqui agora: `redirect` serve aos dois caminhos, com e sem JavaScript.
+ */
+export async function entrarPeloFormulario(
+  next: string | null,
+  _anterior: EstadoDoLogin,
+  dados: FormData,
+): Promise<EstadoDoLogin> {
+  const email = campoDeTexto(dados, "email").trim();
+  const destino = next ?? undefined;
+  const res = await signInWithPassword({ email, password: campoDeTexto(dados, "password") }, destino);
+  if (res.error === "mfa_required") {
+    const params = new URLSearchParams();
+    if (destino) params.set("next", destino);
+    if (res.challengeId) params.set("factor", res.challengeId);
+    redirect(`/login/mfa${params.toString() ? `?${params}` : ""}`);
+  }
+  return { ok: false, error: res.error, email, campos: errosDeCampo(res.details) };
 }

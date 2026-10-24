@@ -1,9 +1,12 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useActionState, useState } from "react";
 
 import { useT } from "@/hooks/i18n/useT";
-import { recoverOrganization } from "@/app/actions/auth/recoverOrganization";
+import {
+  recuperarOrganizacaoPeloFormulario,
+  type EstadoDaRecuperacaoDeOrganizacao,
+} from "@/app/actions/auth/recoverOrganization";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -50,26 +53,22 @@ export function RecoverOrganizationForm({
 }) {
   const t = useT();
   const [name, setName] = useState(nomeSugerido ?? "");
-  const [error, setError] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
-
-  function submit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setError(null);
-    startTransition(async () => {
-      const result = await recoverOrganization(name);
-      // O caminho de sucesso não volta: a action redireciona (onboarding, ou a
-      // própria tela mostrando o pedido enviado).
-      if (!result.ok) setError(t(MENSAGENS[result.error] ?? MENSAGENS.provision_failed!));
-    });
-  }
+  // A ação do servidor vai DIRETO no `action`: o envio funciona antes de o
+  // JavaScript carregar. O caminho de sucesso não volta — a ação redireciona
+  // (onboarding, ou a própria tela mostrando o pedido enviado).
+  const [estado, enviar, isPending] = useActionState<EstadoDaRecuperacaoDeOrganizacao, FormData>(
+    recuperarOrganizacaoPeloFormulario,
+    null,
+  );
+  const error = estado ? t(MENSAGENS[estado.error] ?? MENSAGENS.provision_failed!) : null;
 
   return (
-    <form method="post" className="space-y-4" onSubmit={submit} noValidate>
+    <form action={enviar} className="space-y-4" noValidate>
       <div className="space-y-1.5">
         <Label htmlFor="recovery-org-name">{t("Nome da empresa")}</Label>
         <Input
           id="recovery-org-name"
+          name="name"
           value={name}
           onChange={(event) => setName(event.target.value)}
           autoComplete="organization"

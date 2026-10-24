@@ -110,3 +110,26 @@ export async function verifyMfa(code: string, next?: string): Promise<VerifyMfaR
 
   redirect(safeNext(next, "/app"));
 }
+
+/**
+ * O que a tela do código de 6 dígitos guarda entre um envio e outro. `tentativa`
+ * muda a cada resposta para a tela reagir mesmo quando o erro se repete igual
+ * (limpar o código, recomeçar a contagem do bloqueio).
+ */
+export type EstadoDaVerificacaoMfa = (VerifyMfaResult & { tentativa: number }) | null;
+
+/**
+ * A mesma ação, no formato do `<form action>` (com o `next` preso por `bind`).
+ * Com ela no `action`, o envio vira POST para a ação já no HTML do servidor — o
+ * `onSubmit` de antes não existia até o JavaScript carregar.
+ */
+export async function verificarMfaPeloFormulario(
+  next: string | null,
+  anterior: EstadoDaVerificacaoMfa,
+  dados: FormData,
+): Promise<EstadoDaVerificacaoMfa> {
+  const codigo = String(dados.get("code") ?? "").replace(/\D/g, "");
+  const res = await verifyMfa(codigo, next ?? undefined);
+  return { ...res, tentativa: (anterior?.tentativa ?? 0) + 1 };
+}
+
