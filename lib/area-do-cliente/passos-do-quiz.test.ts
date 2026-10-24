@@ -24,7 +24,25 @@ describe("funil dos quizzes da página", () => {
 
   it("a ordem dos passos só avança: pagar vem depois da prévia", () => {
     expect(ordemDoPasso("abriu")).toBe(0);
-    expect(ordemDoPasso("pagar")).toBeGreaterThan(ordemDoPasso("previa"));
+    expect(ordemDoPasso("pagar")).toBeGreaterThan(ordemDoPasso("previa")!);
+  });
+
+  it("a página de vendas tem o seu funil, e o WhatsApp é desvio: não avança a visita", () => {
+    const f = funilDoQuiz("pagina", { abriu: 100, meio: 60, oferta: 50, comprar: 8, pago: 2, whatsapp: 5 });
+    expect(f.map((l) => l.passo)).toEqual(["abriu", "meio", "oferta", "comprar", "pago"]);
+    expect(maiorPerda(f)).toEqual({ de: "oferta", para: "comprar", perdidos: 42 });
+    expect(ordemDoPasso("comprar", "pagina")).toBeGreaterThan(ordemDoPasso("oferta", "pagina")!);
+    expect(ordemDoPasso("pago", "pagina")).toBeGreaterThan(ordemDoPasso("comprar", "pagina")!);
+    expect(ordemDoPasso("whatsapp", "pagina")).toBeNull();
+    expect(ordemDoPasso("meio", "caminhos")).toBeNull();
+  });
+
+  it("a página manda o slug; o quiz não pode mandar", () => {
+    const visita = "11111111-1111-4111-8111-111111111111";
+    expect(passoDoQuizSchema.safeParse({ visita, quiz: "pagina", pagina: "mandalas", passo: "oferta", anuncio: "D — dia bonito" }).success).toBe(true);
+    expect(passoDoQuizSchema.safeParse({ visita, quiz: "pagina", passo: "abriu" }).success).toBe(false);
+    expect(passoDoQuizSchema.safeParse({ visita, quiz: "caminhos", pagina: "mandalas" }).success).toBe(false);
+    expect(passoDoQuizSchema.safeParse({ visita, quiz: "pagina", pagina: "Mandalas!" }).success).toBe(false);
   });
 
   it("o sinal sem passo é válido (o ao vivo), e a visita precisa ser UUID", () => {

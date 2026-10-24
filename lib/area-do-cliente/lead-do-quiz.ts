@@ -7,13 +7,13 @@
  */
 import { z } from "zod";
 
-import { QUIZZES_DA_PAGINA } from "./passos-do-quiz";
+import { QUIZZES } from "./passos-do-quiz";
 
 const data = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 
 export const leadDoQuizSchema = z.strictObject({
   visita: z.string().uuid(),
-  quiz: z.enum(QUIZZES_DA_PAGINA),
+  quiz: z.enum(QUIZZES),
   nome: z.string().trim().min(1).max(80),
   email: z.string().trim().toLowerCase().email().max(200),
   nascimento: data.optional(),

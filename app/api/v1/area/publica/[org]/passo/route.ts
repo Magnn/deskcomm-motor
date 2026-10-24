@@ -8,6 +8,8 @@
  *
  * - `area_quiz_visitas`: a visita nasce no primeiro sinal; `visto_em` é renovado a cada um; o passo só AVANÇA.
  * - `area_quiz_passos`: uma linha por passo, e a repetição é ignorada.
+ * - A página de vendas (0947) usa a mesma rota com `quiz: "pagina"` e o slug em `pagina`; o `whatsapp` dela é
+ *   gravado como passo mas não avança a visita.
  *
  * Responde 204 sempre que a forma é válida: a página nunca espera nem mostra erro por causa da medição, e um
  * passo perdido não pode travar a venda.
@@ -45,7 +47,9 @@ export async function POST(req: NextRequest, { params }: Ctx): Promise<Response>
       .maybeSingle();
     if (erroLeitura) throw new Error(erroLeitura.message);
     const passo = p.passo ?? "abriu";
-    const ordem = ordemDoPasso(passo);
+    const ordem = ordemDoPasso(passo, p.quiz);
+    const pagina = p.pagina ?? null;
+    const anuncio = p.anuncio ?? null;
     if (!atual) {
       const { error } = await admin.from("area_quiz_visitas").upsert(
         {
@@ -53,7 +57,9 @@ export async function POST(req: NextRequest, { params }: Ctx): Promise<Response>
           visita: p.visita,
           quiz: p.quiz,
           passo,
-          passo_ordem: ordem,
+          passo_ordem: ordem ?? 0,
+          pagina,
+          anuncio,
           fuso: p.fuso ?? null,
           regiao: regiaoPeloFuso(p.fuso),
           idioma: p.idioma ?? null,
@@ -67,7 +73,7 @@ export async function POST(req: NextRequest, { params }: Ctx): Promise<Response>
       );
       if (error) throw new Error(error.message);
     } else {
-      const avanca = p.passo !== undefined && ordem > (atual as { passo_ordem: number }).passo_ordem;
+      const avanca = p.passo !== undefined && ordem !== null && ordem > (atual as { passo_ordem: number }).passo_ordem;
       const { error } = await admin
         .from("area_quiz_visitas")
         .update({ visto_em: agora, ...(avanca ? { passo, passo_ordem: ordem } : {}), ...(p.moeda ? { moeda: p.moeda } : {}) })
@@ -81,6 +87,8 @@ export async function POST(req: NextRequest, { params }: Ctx): Promise<Response>
           visita: p.visita,
           quiz: p.quiz,
           passo: p.passo,
+          pagina,
+          anuncio,
           campanha: p.campanha ?? null,
           origem: p.origem ?? null,
           moeda: p.moeda ?? null,

@@ -10,8 +10,16 @@
  */
 import { z } from "zod";
 
-export const QUIZZES_DA_PAGINA = ["sinastria", "prosperidade", "caminhos", "par"] as const;
+export const QUIZZES_DA_PAGINA = ["sinastria", "prosperidade", "caminhos", "par", "pagina"] as const;
 export type QuizDaPagina = (typeof QUIZZES_DA_PAGINA)[number];
+
+/**
+ * Os quizzes de verdade — sem `pagina`, que é a PÁGINA DE VENDAS medida pelas mesmas tabelas (0947): uma página
+ * estática (ex.: acassia.tech/mandalas) manda `quiz: "pagina"` e o slug em `pagina`. O lead do quiz e o pedido só
+ * existem para estes.
+ */
+export const QUIZZES = ["sinastria", "prosperidade", "caminhos", "par"] as const satisfies readonly QuizDaPagina[];
+export type Quiz = (typeof QUIZZES)[number];
 
 export const PASSOS_DO_QUIZ = [
   "abriu", // a página carregou
@@ -23,29 +31,51 @@ export const PASSOS_DO_QUIZ = [
   "cobranca", // a cobrança foi criada (Pix na tela ou link de cartão aberto)
   "pago", // o pagamento foi confirmado
   "leitura", // a leitura completa apareceu
+  "meio", // página de vendas: rolou até o meio
+  "oferta", // página de vendas: o preço apareceu na tela
+  "comprar", // página de vendas: clicou no botão do checkout
+  "whatsapp", // página de vendas: chamou no WhatsApp (lateral — não avança o funil)
 ] as const;
 export type PassoDoQuiz = (typeof PASSOS_DO_QUIZ)[number];
 
-/** A posição do passo no funil (0 = abriu). Guardada na visita para ela só AVANÇAR. */
-export function ordemDoPasso(passo: PassoDoQuiz): number {
-  return PASSOS_DO_QUIZ.indexOf(passo);
+/** O funil de um quiz, em ordem. */
+export const FUNIL_DO_QUIZ = ["abriu", "perguntas", "dados", "email", "previa", "pagar", "cobranca", "pago", "leitura"] as const satisfies readonly PassoDoQuiz[];
+/** O funil da página de vendas, em ordem. `whatsapp` fica de fora: é um desvio, contado à parte. */
+export const FUNIL_DA_PAGINA = ["abriu", "meio", "oferta", "comprar", "pago"] as const satisfies readonly PassoDoQuiz[];
+
+export function passosDoFunil(quiz: QuizDaPagina): readonly PassoDoQuiz[] {
+  return quiz === "pagina" ? FUNIL_DA_PAGINA : FUNIL_DO_QUIZ;
+}
+
+/**
+ * A posição do passo no funil (0 = abriu). Guardada na visita para ela só AVANÇAR. `null` = passo que não avança
+ * (o `whatsapp` da página, ou um passo que não é deste funil).
+ */
+export function ordemDoPasso(passo: PassoDoQuiz, quiz: QuizDaPagina = "caminhos"): number | null {
+  const i = passosDoFunil(quiz).indexOf(passo);
+  return i < 0 ? null : i;
 }
 
 /**
  * O que a página manda. `visita` é um UUID gerado no navegador. Sem `passo`, é só o sinal de "ainda estou aqui"
- * (renova o ao vivo). O resto é contexto curto, opcional.
+ * (renova o ao vivo). O resto é contexto curto, opcional. A página de vendas manda `quiz: "pagina"` com o slug
+ * em `pagina` (obrigatório nela, proibido nos quizzes) e o anúncio (`utm_content`) em `anuncio`.
  */
-export const passoDoQuizSchema = z.strictObject({
-  visita: z.string().uuid(),
-  quiz: z.enum(QUIZZES_DA_PAGINA),
-  passo: z.enum(PASSOS_DO_QUIZ).optional(),
-  campanha: z.string().trim().max(80).optional(),
-  origem: z.string().trim().max(40).optional(),
-  moeda: z.enum(["BRL", "EUR", "USD"]).optional(),
-  celular: z.boolean().optional(),
-  fuso: z.string().trim().max(60).optional(),
-  idioma: z.string().trim().max(20).optional(),
-});
+export const passoDoQuizSchema = z
+  .strictObject({
+    visita: z.string().uuid(),
+    quiz: z.enum(QUIZZES_DA_PAGINA),
+    pagina: z.string().regex(/^[a-z0-9-]{1,40}$/).optional(),
+    passo: z.enum(PASSOS_DO_QUIZ).optional(),
+    campanha: z.string().trim().max(80).optional(),
+    anuncio: z.string().trim().max(80).optional(),
+    origem: z.string().trim().max(40).optional(),
+    moeda: z.enum(["BRL", "EUR", "USD"]).optional(),
+    celular: z.boolean().optional(),
+    fuso: z.string().trim().max(60).optional(),
+    idioma: z.string().trim().max(20).optional(),
+  })
+  .refine((p) => (p.quiz === "pagina") === (p.pagina !== undefined), { message: "pagina vai só com quiz = pagina", path: ["pagina"] });
 
 /**
  * A REGIÃO pelo fuso do aparelho — sem IP e sem serviço de fora. No Brasil vários fusos são de um estado só
@@ -106,12 +136,11 @@ export interface LinhaDoFunil {
 }
 
 /**
- * O funil de um quiz a partir das contagens por passo. Os passos sem ninguém entram com zero, para a tela
- * mostrar onde a fila acaba. `perguntas` some do funil do quiz que não pergunta nada (prosperidade).
+ * O funil de um quiz (ou da página de vendas) a partir das contagens por passo. Os passos sem ninguém entram com
+ * zero, para a tela mostrar onde a fila acaba.
  */
-export function funilDoQuiz(_quiz: QuizDaPagina, contagens: Partial<Record<PassoDoQuiz, number>>): LinhaDoFunil[] {
-  // Desde 22/10/2026 os três quizzes têm perguntas (a prosperidade não tinha): o funil é o mesmo para todos.
-  const passos = PASSOS_DO_QUIZ;
+export function funilDoQuiz(quiz: QuizDaPagina, contagens: Partial<Record<PassoDoQuiz, number>>): LinhaDoFunil[] {
+  const passos = passosDoFunil(quiz);
   const topo = contagens.abriu ?? 0;
   let anterior: number | null = null;
   return passos.map((passo) => {
