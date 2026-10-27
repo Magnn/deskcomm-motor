@@ -6,8 +6,8 @@
  * Pix — "meu código não cola", "sua chave não dá certo", "não abriu", "não vai o pix, diz que é fraude". Duas
  * causas: copiar exige tocar e segurar no balão (quem não sabe não acha o "Copiar"), e o código vale uma hora,
  * enquanto um terço das respostas é "pago quando receber" — quem volta depois cola um código morto. No número
- * conectado por QR não existe botão de copiar no WhatsApp (o WAHA marca os botões como descontinuados), então o
- * botão mora numa página nossa.
+ * conectado por QR não existe botão de copiar no WhatsApp (o conector marca os botões como descontinuados), então
+ * o botão mora numa página nossa.
  *
  * ─── Como funciona ────────────────────────────────────────────────────────────────────
  * O link carrega a organização e o id da cobrança da Stripe (`/pix/<org>/<pi_…>`); não há tabela nova. A cada
