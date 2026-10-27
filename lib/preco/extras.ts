@@ -118,6 +118,8 @@ export function corpoComPixDoExtra(
   copiaECola: string | null,
   /** Link de cartão do mesmo valor, para quem não tem saldo no Pix. Ausente = só o Pix. */
   linkDoCartao?: string | null,
+  /** A página do Pix com o botão de copiar (`lib/pagamentos/pagina-do-pix.ts`). */
+  paginaDoPix?: string | null,
 ): string {
   const baloes = corpo.split(/\n{2,}/);
   const i = baloes.findIndex((b) => b.includes(marca.texto));
@@ -137,6 +139,7 @@ export function corpoComPixDoExtra(
           ? `${reais(valorDaCobranca(marca.extra, quantidade))} (${descricaoDaCobranca(marca.extra, quantidade)})`
           : reais(marca.extra.price_cents),
         "o nome da empresa de pagamentos",
+        paginaDoPix,
       ),
       copiaECola,
     );

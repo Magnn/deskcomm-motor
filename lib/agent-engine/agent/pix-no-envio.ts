@@ -9,6 +9,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 import { lerConexaoStripe, type ConexaoStripe } from '@/lib/pagamentos/conexao-stripe';
+import { paginaDoPixDaConexao } from '@/lib/pagamentos/pagina-do-pix';
 import {
   VALIDADE_DO_PIX_S,
   corpoComPix,
@@ -67,7 +68,7 @@ export async function pixNoLugarDoLink(e: EntradaDoPixNoEnvio): Promise<string> 
       valor_centavos: link.valorCentavos,
       cobranca: pix.id,
     });
-    return corpoComPix(e.corpo, link, pix.copiaECola);
+    return corpoComPix(e.corpo, link, pix.copiaECola, paginaDoPixDaConexao(conexao, pix.id));
   } catch (err) {
     e.log.warn('pix não saiu — a pessoa recebe o link de pagamento', {
       conversation_id: e.conversationId,
