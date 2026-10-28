@@ -65,6 +65,21 @@ export interface PixCriado {
   expiraEm: string | null;
 }
 
+export interface PixLido {
+  id: string;
+  /** O `status` da Stripe: `requires_action` (esperando o pagamento), `succeeded`, `processing`, `canceled`… */
+  estado: string;
+  valorCentavos: number;
+  moeda: string;
+  descricao: string;
+  metadados: Record<string, string>;
+  /** É mesmo uma cobrança por Pix (e não um cartão ou boleto com o mesmo formato de id). */
+  ehPix: boolean;
+  copiaECola: string | null;
+  qrPng: string | null;
+  expiraEm: string | null;
+}
+
 export interface PedidoDeLink {
   valorCentavos: number;
   /** ISO-4217 (`EUR`, `USD`). */
@@ -214,6 +229,37 @@ export function criarClienteStripe(cred: CredencialStripe, opts: { fetch?: Fetch
         qrPng: qr.image_url_png ?? null,
         expiraEm: typeof qr.expires_at === "number" ? new Date(qr.expires_at * 1000).toISOString() : null,
       };
+    },
+
+    /**
+     * Lê uma cobrança por Pix já criada: em que estado está, quanto cobra e, se ainda vale, o código. É o que a
+     * página do Pix (`lib/pagamentos/pagina-do-pix.ts`) consulta toda vez que abre.
+     */
+    async lerPix(id: string): Promise<PixLido> {
+      const pi = await chamar("GET", `/payment_intents/${encodeURIComponent(id)}`);
+      const qr = ((pi.next_action ?? {}) as { pix_display_qr_code?: { data?: string; image_url_png?: string; expires_at?: number } })
+        .pix_display_qr_code;
+      const metadados: Record<string, string> = {};
+      for (const [k, v] of Object.entries((pi.metadata ?? {}) as Record<string, unknown>)) if (typeof v === "string") metadados[k] = v;
+      return {
+        id: String(pi.id ?? ""),
+        estado: String(pi.status ?? ""),
+        valorCentavos: Number(pi.amount ?? 0),
+        moeda: String(pi.currency ?? "").toUpperCase(),
+        descricao: typeof pi.description === "string" ? pi.description : "",
+        metadados,
+        ehPix: Array.isArray(pi.payment_method_types) && (pi.payment_method_types as unknown[]).includes("pix"),
+        copiaECola: qr?.data ?? null,
+        qrPng: qr?.image_url_png ?? null,
+        expiraEm: typeof qr?.expires_at === "number" ? new Date(qr.expires_at * 1000).toISOString() : null,
+      };
+    },
+
+    /** Alguma cobrança com este metadado já foi paga? (A busca da Stripe tem atraso de até um minuto.) */
+    async haPagamentoComMetadado(chave: string, valor: string): Promise<boolean> {
+      const consulta = `metadata['${chave}']:'${valor.replace(/'/g, "")}' AND status:'succeeded'`;
+      const r = await chamar("GET", `/payment_intents/search?limit=1&query=${encodeURIComponent(consulta)}`);
+      return Array.isArray(r.data) && r.data.length > 0;
     },
 
     /** Emite (ou reencontra, pela referência) um boleto e devolve a página dele e a linha digitável. */

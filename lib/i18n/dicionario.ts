@@ -15270,6 +15270,20 @@ export const DICIONARIO: Traducoes = {
   "Escrever o Ritual de Abertura de Caminhos do quiz": { es: "Escribir el Ritual de Apertura de Caminos del quiz" },
   "Escreve \"Seu Ritual de Abertura de Caminhos\" de quem comprou pelo quiz da página: um ritual guiado de sete dias para o perfil calculado pelas respostas, com cuidados de segurança e sem promessa de resultado.": { es: "Escribe \"Tu Ritual de Apertura de Caminos\" de quien compró por el quiz de la página: un ritual guiado de siete días para el perfil calculado por las respuestas, con cuidados de seguridad y sin promesa de resultado." },
   "Quem pagou o Ritual de Abertura de Caminhos vê o aviso de que a leitura está sendo preparada.": { es: "Quien pagó el Ritual de Apertura de Caminos ve el aviso de que la lectura se está preparando." },
+  "Pagamento por Pix": { es: "Pago por Pix" },
+  "Agora é só colar no app do banco, em Pix Copia e Cola.": { es: "Ahora solo pégalo en la app del banco, en Pix Copia e Cola." },
+  "Não deu para copiar sozinho: segure o código abaixo e escolha Copiar.": { es: "No se pudo copiar solo: mantén presionado el código de abajo y elige Copiar." },
+  "1. Toque em Copiar código Pix.": { es: "1. Toca en Copiar código Pix." },
+  "2. Abra o app do seu banco, entre em Pix e escolha Pix Copia e Cola (às vezes aparece como \"Colar código\"). Não é em \"Pagar com chave\" nem em \"Transferir\".": { es: "2. Abre la app de tu banco, entra en Pix y elige Pix Copia e Cola (a veces aparece como \"Colar código\"). No es en \"Pagar com chave\" ni en \"Transferir\"." },
+  "3. Cole, confira o valor e confirme:": { es: "3. Pega, revisa el valor y confirma:" },
+  "Vai pagar por outro celular? Mostrar QR Code": { es: "¿Vas a pagar desde otro celular? Mostrar código QR" },
+  "QR Code do Pix": { es: "Código QR del Pix" },
+  "Este link vale sempre: se o código passar da validade, é só abrir de novo que vem outro, no mesmo valor. Depois de pagar, volte para a conversa.": { es: "Este enlace vale siempre: si el código vence, solo ábrelo de nuevo y aparece otro, por el mismo valor. Después de pagar, vuelve a la conversación." },
+  "Pode voltar para a conversa: a continuação segue por lá.": { es: "Puedes volver a la conversación: todo sigue por allí." },
+  "Pagamento em processamento": { es: "Pago en procesamiento" },
+  "O banco ainda está confirmando. Em alguns minutos chega a confirmação na conversa.": { es: "El banco aún está confirmando. En unos minutos llega la confirmación a la conversación." },
+  "Este pagamento não está disponível": { es: "Este pago no está disponible" },
+  "Volte para a conversa e peça um novo código.": { es: "Vuelve a la conversación y pide un código nuevo." },
 };
 
 /**

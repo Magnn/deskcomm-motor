@@ -9,6 +9,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 import { lerConexaoStripe, type ConexaoStripe } from '@/lib/pagamentos/conexao-stripe';
+import { paginaDoPixDaConexao } from '@/lib/pagamentos/pagina-do-pix';
 import { VALIDADE_DO_PIX_S, pagamentosRecentesDoContato } from '@/lib/pagamentos/pix-na-conversa';
 import { ErroDaStripe, criarClienteStripe, type LinkCriado, type PedidoDeLink, type PedidoDePix, type PixCriado } from '@/lib/pagamentos/stripe';
 import {
@@ -109,7 +110,7 @@ export async function pixDoExtraNoLugarDaMarca(e: EntradaDoPixDoExtra): Promise<
       cobranca: pix?.id ?? null,
       link_de_cartao: link?.id ?? null,
     });
-    return { corpo: corpoComPixDoExtra(e.corpo, marca, pix?.copiaECola ?? null, link?.url ?? null) };
+    return { corpo: corpoComPixDoExtra(e.corpo, marca, pix?.copiaECola ?? null, link?.url ?? null, pix ? paginaDoPixDaConexao(conexao, pix.id) : null) };
   } catch (err) {
     e.log.warn('cobrança avulsa não saiu — envio recusado para a marca não chegar à pessoa', {
       conversation_id: e.conversationId,

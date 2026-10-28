@@ -22,6 +22,7 @@ import { codigoPixEstatico } from '@/lib/pagamentos/pix-estatico';
 import { criarClienteStripe, type LinkCriado, type PedidoDeLink, type PedidoDePix, type PixCriado } from '@/lib/pagamentos/stripe';
 import { reais, type PricingConfig } from '@/lib/preco/tipos';
 import { instrucaoDoPixCopiaECola, linhaDoLinkDePagamento } from "@/lib/pagamentos/como-pagar-pix";
+import { paginaDoPixDaConexao } from "@/lib/pagamentos/pagina-do-pix";
 
 interface Registro {
   info(msg: string, dados?: Record<string, unknown>): void;
@@ -51,12 +52,12 @@ const noCorpo = (corpo: string, url: string): boolean => new RegExp(`${escapar(u
 /** Os balões que entram no lugar do link. Pura. */
 export function baloesDaCobranca(
   link: LinkDePagamentoConhecido,
-  meios: { copiaECola: string | null; urlDoCartao: string | null; pixDaChave: { codigo: string; titular: string } | null },
+  meios: { copiaECola: string | null; urlDoCartao: string | null; pixDaChave: { codigo: string; titular: string } | null; paginaDoPix?: string | null },
 ): string[] {
   const valor = reais(link.valorCentavos);
   if (meios.copiaECola !== null) {
     return [
-      instrucaoDoPixCopiaECola(valor),
+      instrucaoDoPixCopiaECola(valor, undefined, meios.paginaDoPix),
       meios.copiaECola,
       ...(meios.urlDoCartao !== null ? [linhaDoLinkDePagamento(meios.urlDoCartao)] : []),
     ];
@@ -138,7 +139,12 @@ export async function cobrancaPeloProvedorNoLugarDoLink(e: EntradaDaCobrancaPelo
     });
     if (codigo !== null) pixDaChave = { codigo, titular: e.pricing.pix_key.holder };
   }
-  const baloes = baloesDaCobranca(link, { copiaECola: pix?.copiaECola ?? null, urlDoCartao: cartao?.url ?? null, pixDaChave });
+  const baloes = baloesDaCobranca(link, {
+    copiaECola: pix?.copiaECola ?? null,
+    urlDoCartao: cartao?.url ?? null,
+    pixDaChave,
+    paginaDoPix: pix ? paginaDoPixDaConexao(con, pix.id) : null,
+  });
   if (baloes.length === 0) {
     return { recusa: 'O pagamento não pôde ser gerado agora. NÃO envie link nem chave: diga em uma frase que o sistema de pagamento está instável e que você manda o código em alguns minutos.' };
   }

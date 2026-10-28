@@ -26,9 +26,9 @@ const reais = (cents: number): string => `R$ ${(cents / 100).toFixed(2).replace(
  * As duas mensagens que a pessoa recebe: a instrução (com o valor e o nome que aparece no banco) e o código
  * sozinho, para copiar com um toque. Pura.
  */
-export function mensagensDoPix(valorCents: number, copiaECola: string): [string, string] {
+export function mensagensDoPix(valorCents: number, copiaECola: string, paginaDoPix?: string | null): [string, string] {
   return [
-    instrucaoDoPixCopiaECola(reais(valorCents), "o nome da empresa de pagamentos"),
+    instrucaoDoPixCopiaECola(reais(valorCents), "o nome da empresa de pagamentos", paginaDoPix),
     copiaECola,
   ];
 }

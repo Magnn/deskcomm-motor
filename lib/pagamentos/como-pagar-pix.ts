@@ -9,13 +9,25 @@
  * Folha pura: usada por todo caminho que manda um código copia e cola para a pessoa.
  */
 
-/** A instrução, com o valor já formatado ("R$ 5,00") e, se houver, quem aparece no banco. */
-export function instrucaoDoPixCopiaECola(valor: string, noBancoAparece?: string): string {
+/**
+ * A instrução, com o valor já formatado ("R$ 5,00") e, se houver, quem aparece no banco. Com a página do Pix
+ * (`lib/pagamentos/pagina-do-pix.ts`), o caminho principal vira o botão "Copiar código Pix" da página — copiar
+ * do balão exige tocar e segurar, e muita gente não acha o "Copiar" — e o código no balão seguinte fica de reserva.
+ */
+export function instrucaoDoPixCopiaECola(valor: string, noBancoAparece?: string, paginaDoPix?: string | null): string {
+  const noBanco = noBancoAparece ? ` No banco aparece ${noBancoAparece}, é assim mesmo.` : "";
+  if (paginaDoPix) {
+    return [
+      `Pra pagar no Pix (*${valor}*), toque neste link e aperte o botão *Copiar código Pix*: ${paginaDoPix}`,
+      `Depois, no app do seu banco: *Pix* › *Pix Copia e Cola*, cole, confira *${valor}* e confirme.${noBanco}`,
+      "O código também vai na próxima mensagem, se preferir copiar daqui (toque e segure nele).",
+    ].join("\n");
+  }
   return [
     `Pra pagar no Pix (*${valor}*):`,
     "1. Toque e segure no código da próxima mensagem e escolha *Copiar*.",
     "2. No app do seu banco, entre em *Pix* e escolha *Pix Copia e Cola*. Não é em \"Pagar com chave\" nem em \"Transferir\": lá o banco não acha o código.",
-    `3. Cole o código, confira o valor *${valor}* e confirme.${noBancoAparece ? ` No banco aparece ${noBancoAparece}, é assim mesmo.` : ""}`,
+    `3. Cole o código, confira o valor *${valor}* e confirme.${noBanco}`,
   ].join("\n");
 }
 

@@ -67,6 +67,10 @@ export const PUBLIC_PATHS: RegExp[] = [
   // responde 404. "Público" aqui é "o proxy não decide", nunca "sem
   // autenticação". Ancorado no slug da organização.
   /^\/c\/[a-z0-9][a-z0-9-]{1,62}(\/.*)?$/,
+  // A PÁGINA DO PIX que vai na conversa (`lib/pagamentos/pagina-do-pix.ts`): quem abre é quem vai pagar,
+  // sem conta. O direito é saber o id da cobrança; a página lê a cobrança com a chave da organização do
+  // caminho e só mostra o que a própria Stripe mostraria. Ancorado nos dois segmentos.
+  /^\/pix\/[0-9a-f-]{36}\/pi_[A-Za-z0-9]{8,64}$/,
   /^\/api\/v1\/area\/publica\/[a-z0-9][a-z0-9-]{1,62}\/(codigo|codigo\/confirmar|eventos|email|diario|aniversario|circulo|circulo\/conteudo|circulo\/pergunta|presente|ano-pessoal|ano-pessoal\/gerar|mensagens|etapas|leituras|creditos|avisos|perfil|simpatias|contribuicao|sinastria|passo|lead|compras-recentes)$/,
   // Os quizzes de uma pessoa (0943): o pedido e o pedido pelo id; o direito é o segredo do pedido, conferido na rota.
   /^\/api\/v1\/area\/publica\/[a-z0-9][a-z0-9-]{1,62}\/quiz\/(prosperidade|caminhos)(\/[0-9a-f-]{36})?$/,
