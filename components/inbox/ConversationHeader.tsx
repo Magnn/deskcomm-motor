@@ -27,6 +27,7 @@ import {
 } from "@/hooks/inbox/useCloseConversation";
 import { useResumeAiAttendance } from "@/hooks/inbox/useResumeAiAttendance";
 import { usePauseAiAttendance } from "@/hooks/inbox/usePauseAiAttendance";
+import { useBloqueioDoContato } from "@/hooks/inbox/useBloqueioDoContato";
 import { useAutomaticoAtivo } from "@/hooks/ai/useAutomaticoAtivo";
 import { OwnerBadge } from "@/components/kanban/OwnerBadge";
 import { comandoDaConversa, ROTULO_DO_MOTIVO } from "@/lib/inbox/comando-da-conversa";
@@ -93,6 +94,8 @@ export function ConversationHeader({ conversation, onAbrirConversa, onSair }: Pr
   const [pixOpen, setPixOpen] = useState(false);
   const [confirmFecharOpen, setConfirmFecharOpen] = useState(false);
   const [confirmArquivarOpen, setConfirmArquivarOpen] = useState(false);
+  const [confirmBloqueioOpen, setConfirmBloqueioOpen] = useState(false);
+  const bloqueio = useBloqueioDoContato();
 
   const c = conversation.contacts ?? null;
   const displayName = rotuloDoContato(c, t);
@@ -336,6 +339,28 @@ export function ConversationHeader({ conversation, onAbrirConversa, onSair }: Pr
             {t("Enviar Pix")}
           </Button>
         )}
+        {/* BLOQUEIO, verificação manual. O automático bloqueia sozinho quem pede para sair, e erra:
+            "parar de insistir" (a cliente falando do homem dela) bloqueou uma venda em 29/10/2026.
+            Um botão, dois rótulos — os estados são exclusivos. Desbloquear não religa o automático:
+            se a conversa estiver pausada, o "Devolver ao automático" aparece em seguida. */}
+        {c?.id && (
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={bloqueio.isPending}
+            data-testid={c.is_blocked ? "desbloquear-contato" : "bloquear-contato"}
+            title={
+              c.is_blocked
+                ? c.blocked_reason === "stop_keyword"
+                  ? t("O automático bloqueou porque leu um pedido para sair. Confira a conversa: se foi engano, desbloqueie.")
+                  : t("Bloqueado por alguém da equipe. Desbloquear volta a permitir mensagens para este cliente.")
+                : t("O cliente pediu para não receber mais mensagens? Bloqueie: nada mais sai para ele, de nenhum envio.")
+            }
+            onClick={() => setConfirmBloqueioOpen(true)}
+          >
+            {c.is_blocked ? t("Desbloquear") : t("Bloquear")}
+          </Button>
+        )}
         {!encerrada && (
           <SnoozeButton
             conversationId={conversation.id}
@@ -429,6 +454,28 @@ export function ConversationHeader({ conversation, onAbrirConversa, onSair }: Pr
             : undefined
         }
       />
+      <AlertDialog open={confirmBloqueioOpen} onOpenChange={setConfirmBloqueioOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {c?.is_blocked ? t("Desbloquear este cliente?") : t("Bloquear este cliente?")}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {c?.is_blocked
+                ? t("Ele volta a poder receber mensagens, campanhas e retornos. Se o atendimento automático estiver pausado, use \"Devolver ao automático\" em seguida.")
+                : t("Nenhuma mensagem sai mais para ele: nem do atendimento automático, nem de campanhas ou retornos. Só faça isso se ele pediu para parar.")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("Cancelar")}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => bloqueio.mutate({ conversation_id: conversation.id, bloquear: !c?.is_blocked })}
+            >
+              {c?.is_blocked ? t("Desbloquear") : t("Bloquear")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <AlertDialog open={confirmFecharOpen} onOpenChange={setConfirmFecharOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>

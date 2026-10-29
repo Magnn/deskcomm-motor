@@ -1025,6 +1025,9 @@ export const AUDIT_ACTIONS = [
   // muda `followup_flow_pointers` nem cria enrollment; audita porque consome
   // crédito do provider (mesmo racional do "ai_agent.tested" do Testar Agente).
   "followup_flow.simulated",
+  // Bloquear/desbloquear o contato à mão, pelo chat (`/api/v1/conversations/[id]/bloqueio`).
+  "contact.bloqueado_manual",
+  "contact.desbloqueado_manual",
 ] as const;
 
 /** Um código de auditoria. Derivado de `AUDIT_ACTIONS` — não redigite a lista. */

@@ -6220,6 +6220,27 @@ export const DICIONARIO: Traducoes = {
   },
   "Pausando...": { es: "Pausando..." },
   "Fechar esta conversa?": { es: "¿Cerrar esta conversación?" },
+  "Bloquear": { es: "Bloquear" },
+  "Desbloquear": { es: "Desbloquear" },
+  "Bloquear este cliente?": { es: "¿Bloquear a este cliente?" },
+  "Desbloquear este cliente?": { es: "¿Desbloquear a este cliente?" },
+  "O automático bloqueou porque leu um pedido para sair. Confira a conversa: se foi engano, desbloqueie.": {
+    es: "El automático bloqueó porque leyó un pedido para salir. Revisa la conversación: si fue un error, desbloquea.",
+  },
+  "Bloqueado por alguém da equipe. Desbloquear volta a permitir mensagens para este cliente.": {
+    es: "Bloqueado por alguien del equipo. Desbloquear vuelve a permitir mensajes para este cliente.",
+  },
+  "O cliente pediu para não receber mais mensagens? Bloqueie: nada mais sai para ele, de nenhum envio.": {
+    es: "¿El cliente pidió no recibir más mensajes? Bloquea: no le sale nada más, de ningún envío.",
+  },
+  "Ele volta a poder receber mensagens, campanhas e retornos. Se o atendimento automático estiver pausado, use \"Devolver ao automático\" em seguida.": {
+    es: "Vuelve a poder recibir mensajes, campañas y seguimientos. Si la atención automática está en pausa, usa \"Devolver al automático\" después.",
+  },
+  "Nenhuma mensagem sai mais para ele: nem do atendimento automático, nem de campanhas ou retornos. Só faça isso se ele pediu para parar.": {
+    es: "No le sale ningún mensaje más: ni de la atención automática, ni de campañas o seguimientos. Hazlo solo si pidió parar.",
+  },
+  "Diga se é para bloquear ou desbloquear.": { es: "Indica si es para bloquear o desbloquear." },
+  "Esta conversa não tem um contato.": { es: "Esta conversación no tiene un contacto." },
   "Arquivar esta conversa?": { es: "¿Archivar esta conversación?" },
   "O atendimento é encerrado. Se o cliente escrever de novo, você pode reabrir.": {
     es: "La atención se cierra. Si el cliente vuelve a escribir, puedes reabrirla.",
