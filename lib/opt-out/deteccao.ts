@@ -112,7 +112,10 @@ export const PALAVRAS_DE_OPT_OUT: ReadonlySet<string> = new Set([
  */
 const VERBOS_DE_COMUNICACAO =
   "mandar|manda|mande|mandem|enviar|envia|envie|enviem|receber|recebe|escrever|escreve|" +
-  "chamar|chama|ligar|liga|perturbar|perturba|encher|enche|insistir|insiste|" +
+  "chamar|chama|ligar|liga|perturbar|perturba|encher|enche|" +
+  // `insistir` saiu em 29/10/2026: "tirar ele do pensamento e parar de insistir" (a cliente
+  // falando do homem dela) gravou `is_blocked` numa conversa de venda. Insistir não nomeia a
+  // MENSAGEM; quem pede para a empresa parar diz "parar de me mandar".
   // espanhol — mesma âncora, outra língua. Sem eles "no quiero recibir mas
   // mensajes" não casa nenhum padrão e o pedido se perde.
   "recibir|recibe|escribir|escribe|escriban|molestar|molesta|llamar|llama|mandes|envien|" +
@@ -273,8 +276,6 @@ const FRASES_DE_OPT_OUT: readonly RegExp[] = [
  */
 const FRASES_AMBIGUAS_DE_OPT_OUT: readonly RegExp[] = [
   /\bme\s+deixa?\s+(?:em\s+paz|quieto|quieta)\b/u,
-  /\bja\s+(?:disse|falei)\s+que\s+nao\s+(?:quero|tenho\s+interesse)\b/u,
-  /\bnao\s+(?:me\s+)?interessa\s+mais\b/u,
   /\bpara\s+com\s+isso\b/u,
   // ── "não quero mais ser atendida" — parar O ATENDIMENTO, dito por extenso ──
   //
@@ -292,7 +293,6 @@ const FRASES_AMBIGUAS_DE_OPT_OUT: readonly RegExp[] = [
   /\bnao\s+quero\s+mais\s+(?:falar|conversar|papo|conversa)\s+(?:com\s+(?:voce|voces|vc|vcs|tu|ti)|contigo)(?![\s,]+(?:mae|pai|filh[oa]|amig[oa]|irma|irmao)\b)\b/u,
   /\bnao\s+quero\s+(?:mais\s+)?(?:continuar|seguir|prosseguir)\s+(?:com\s+)?(?:o\s+|a\s+|esse\s+|essa\s+|este\s+|esta\s+)?(?:atendimento|conversa)\b/u,
   /(?<!\bnao\s+(?:(?:quero|queria|vou|pretendo|precisa|precisam)\s+)?)(?<!\bcomo\s)\b(?:parar|pare|encerrar|encerra|encerre|finalizar|finaliza|finalize|cancelar|cancela|cancele)\s+(?:o\s+|esse\s+|este\s+|meu\s+|com\s+o\s+)?atendimento\b/u,
-  /\bnao\s+tenho\s+mais\s+interesse\b/u,
   // ── espanhol ──────────────────────────────────────────────────────────────
   //
   // Esta lista tinha ZERO entradas em espanhol. Não por decisão: o ambíguo é
@@ -304,24 +304,39 @@ const FRASES_AMBIGUAS_DE_OPT_OUT: readonly RegExp[] = [
   // `detectAmbiguousOptOut` (o runtime do agente) nunca escala um cliente de
   // fala espanhola, por mais claro que o sinal seja.
   /\b(?:dejame|dejenme)\s+en\s+paz\b/u,
-  /\bya\s+(?:te\s+)?dije\s+que\s+no\s+(?:quiero|me\s+interesa)\b/u,
-  // "ya no me interesa" / "no me interesa mas" — e NÃO "no me interesa" nu.
-  //
-  // O que faz desta frase um sinal de opt-out não é a recusa: é a marca de
-  // REPETIÇÃO. "No me interesa" sozinho é a objeção comercial mais comum do
-  // funil — "no me interesa ese plan, pero sí el otro", "no me interesa,
-  // gracias" —, e o agente precisa seguir vendendo ali, não parar e escalar.
-  // Com os dois trechos opcionais, sete frases de objeção medidas passavam a
-  // escalar; com um dos dois marcadores exigido, nenhuma. E as 89 frases do
-  // corpus deste arquivo não mudam de veredito: as duas formas que ele testa
-  // ("ya no me interesa", "ya te dije que no me interesa") têm marcador.
-  //
-  // É o espelho exato do português, que sempre exigiu o "mais":
-  // `/\bnao\s+(?:me\s+)?interessa\s+mais\b/` — a assimetria era o defeito.
-  /\b(?:ya\s+no\s+me\s+interesa|no\s+me\s+interesa\s+mas)\b/u,
   /\b(?:ya\s+basta|basta\s+ya)\b/u,
   /\bno\s+me\s+molest(?:e|en|es)\b/u,
 ];
+
+/**
+ * ═══ RECUSA DA OFERTA não é pedido para parar ═══
+ *
+ * "Não tenho mais interesse", "não me interessa mais", "já disse que não quero": a pessoa recusa
+ * o que foi oferecido, não a conversa. Até 29/10/2026 estas frases estavam nas ambíguas, e o
+ * ambíguo silencia o agente para sempre. Medido em produção: a cliente escreveu "não tenho mais
+ * interesse a fazer o trabalho" no meio de um relato de 84 palavras, recebeu "Encerro os envios
+ * automáticos deste canal", e quatro minutos depois respondeu "não precisa me cancelar, quero
+ * continuar fazendo consultas" — para o vazio. Decisão do dono: recusa nunca encerra.
+ *
+ * O turno segue com um bloco que proíbe repetir a oferta recusada (`blocoDaRecusa`), e a régua
+ * de silêncio não chama quem recusou por último — insistir depois de um não é o que vira
+ * denúncia de spam.
+ */
+const FRASES_DE_RECUSA: readonly RegExp[] = [
+  /\bja\s+(?:disse|falei)\s+que\s+nao\s+(?:quero|tenho\s+interesse)\b/u,
+  /\bnao\s+(?:me\s+)?interessa\s+mais\b/u,
+  /\bnao\s+tenho\s+mais\s+interesse\b/u,
+  /\bya\s+(?:te\s+)?dije\s+que\s+no\s+(?:quiero|me\s+interesa)\b/u,
+  // "ya no me interesa" / "no me interesa mas" — e NÃO "no me interesa" nu, a objeção comercial
+  // mais comum do funil.
+  /\b(?:ya\s+no\s+me\s+interesa|no\s+me\s+interesa\s+mas)\b/u,
+];
+
+/** A pessoa recusou a oferta — não pediu para parar a conversa. Pura. */
+export function ehRecusaDaOferta(texto: string | null | undefined): boolean {
+  if (!texto) return false;
+  return FRASES_DE_RECUSA.some((re) => re.test(normalizarTexto(texto.trim())));
+}
 
 /** A mensagem inteira é a palavra-chave (ignorando pontuação e emoji de borda). */
 function ehPalavraIsolada(normalizado: string): boolean {

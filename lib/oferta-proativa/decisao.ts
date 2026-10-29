@@ -8,7 +8,7 @@
  * para o básico ou que está em sofrimento — a lista padrão (`NAO_OFERECER_PADRAO`) mais a da organização,
  * e o detector de pedido de parar do produto.
  */
-import { ehOptOutProvavel } from "@/lib/opt-out/deteccao";
+import { ehOptOutProvavel, ehRecusaDaOferta } from "@/lib/opt-out/deteccao";
 
 import { NAO_OFERECER_PADRAO, type Oferta, type OfertaProativa } from "./config";
 
@@ -46,7 +46,7 @@ function casa(padrao: string | undefined, textos: readonly string[]): boolean {
 export function naoOferecer(cfg: Pick<OfertaProativa, "nao_oferecer_se_cliente_disse">, falas: readonly string[]): boolean {
   const padrao = new RegExp(NAO_OFERECER_PADRAO, "i");
   const daOrg = cfg.nao_oferecer_se_cliente_disse === undefined ? null : new RegExp(cfg.nao_oferecer_se_cliente_disse, "i");
-  return falas.some((f) => padrao.test(f) || (daOrg?.test(f) ?? false) || ehOptOutProvavel(f));
+  return falas.some((f) => padrao.test(f) || (daOrg?.test(f) ?? false) || ehOptOutProvavel(f) || ehRecusaDaOferta(f));
 }
 
 export function escolherOferta(p: PessoaParaOferta, cfg: OfertaProativa, agora: Date): Escolha {
