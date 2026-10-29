@@ -22,7 +22,7 @@ import { requireRole } from "@/lib/auth/require-role";
 import { lerCatalogo, menorPrecoDoCatalogo } from "@/lib/catalogo/tipos";
 import { traduzir } from "@/lib/i18n/dicionario";
 import { sincronizarPiso } from "@/lib/preco/sincronizar-piso";
-import { pisoEmCentavos, pricingSchema } from "@/lib/preco/tipos";
+import { pisoEmCentavos, pricingSchema, pricingTolerante } from "@/lib/preco/tipos";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
@@ -49,9 +49,9 @@ export async function GET(_req: NextRequest, ctx: Ctx): Promise<Response> {
   if (!agente) return fail("not_found", t("Agent não encontrado."), 404, { requestId });
 
   const bruto = (agente.config as { pricing?: unknown } | null)?.pricing ?? null;
-  const lido = pricingSchema.safeParse(bruto);
+  const lido = pricingTolerante(bruto)?.pricing ?? null;
   return ok(
-    { pricing: lido.success ? lido.data : null, floor_cents: lido.success ? pisoEmCentavos(lido.data) : null },
+    { pricing: lido, floor_cents: lido ? pisoEmCentavos(lido) : null },
     { requestId },
   );
 }
