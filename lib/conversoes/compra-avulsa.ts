@@ -21,6 +21,7 @@ import type { createAdminClient } from "@/lib/supabase/admin";
 
 import { destinoDaConversaoMeta } from "./destino-de-mensageria";
 import { lerAtribuicao } from "./leitura-da-atribuicao";
+import { lerIdentidade } from "./identidade-do-cliente";
 import { jaFoiEnviada, registraEnvio } from "./registro-de-envio";
 
 const EVENTO: NomeDoEvento = "Purchase";
@@ -120,6 +121,7 @@ export async function reportarCompraAvulsa(
       ocorridoEm: compra.ocorridaEm,
       cliqueDeOrigem,
       telefone,
+      identidade: await lerIdentidade(admin, compra.organizationId, compra.contactId),
       contaDoWhatsApp,
       pixelDoSite,
       fbc,

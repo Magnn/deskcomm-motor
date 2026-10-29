@@ -47,6 +47,7 @@ import type { ConversaoOffline, NomeDoEvento } from "@/lib/plataformas-de-anunci
 import { createAdminClient } from "@/lib/supabase/admin";
 import { destinoDaConversaoMeta } from "./destino-de-mensageria";
 import { lerAtribuicao } from "./leitura-da-atribuicao";
+import { lerIdentidade } from "./identidade-do-cliente";
 import { jaFoiEnviada, registraEnvio } from "./registro-de-envio";
 
 const CONSUMER_KEY = "conversoes.venda";
@@ -190,6 +191,7 @@ async function handle(row: EventRow): Promise<HandlerResult> {
     ocorridoEm: new Date(lead.closed_at ?? row.created_at ?? Date.now()),
     cliqueDeOrigem,
     telefone,
+    identidade: await lerIdentidade(admin, row.organization_id, lead.contact_id as string),
     contaDoWhatsApp,
     pixelDoSite,
     fbc,

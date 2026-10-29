@@ -35,6 +35,7 @@ import type { ConversaoOffline } from "@/lib/plataformas-de-anuncio/types";
 import { valorEmCentavos } from "@/lib/moeda/valor-em-centavos";
 import { lerDestinoDeMensageria } from "./destino-de-mensageria";
 import { lerAtribuicao } from "./leitura-da-atribuicao";
+import { lerIdentidade } from "./identidade-do-cliente";
 import { jaFoiEnviada, registraEnvio, type StatusDeEnvio } from "./registro-de-envio";
 
 export interface PedidoDePixel {
@@ -144,6 +145,7 @@ export async function reportarEventoDoPixel(
     ocorridoEm: new Date(),
     cliqueDeOrigem: leitura.atribuicao.cliqueDeOrigem,
     telefone: leitura.atribuicao.telefone,
+    identidade: await lerIdentidade(admin, org, contactId),
     contaDoWhatsApp: destino.destino.contaDoWhatsApp,
     moeda,
     valorCentavos: valor,

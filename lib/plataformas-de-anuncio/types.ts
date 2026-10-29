@@ -65,6 +65,15 @@ export type NomeDoEvento = (typeof EVENTOS_DE_CONVERSAO)[number];
  * Quem monta isto (`lib/conversoes/`) não sabe que campo vira o quê no fio. Quem
  * traduz (o transporte) não sabe de onde veio nem por que foi decidido enviar.
  */
+/** O cliente para a correspondência do evento. Tudo opcional menos o id; `nascimento` em AAAA-MM-DD. */
+export interface IdentidadeDoCliente {
+  idExterno: string;
+  email?: string | null;
+  primeiroNome?: string | null;
+  sobrenome?: string | null;
+  nascimento?: string | null;
+}
+
 export interface ConversaoOffline {
   organizationId: string;
   leadId: string;
@@ -113,6 +122,11 @@ export interface ConversaoOffline {
    * `action_source: website` com o endereço da página. Ausente = evento da conversa (`chat`).
    */
   paginaDoSite?: string | null;
+  /**
+   * Quem é o cliente, ainda EM CLARO (o hash é do transporte): e-mail, nome, nascimento e o id do contato.
+   * Cada dado a mais sobe a "qualidade da correspondência" do evento (`lib/conversoes/identidade-do-cliente.ts`).
+   */
+  identidade?: IdentidadeDoCliente;
   /** `null` = evento sem valor (só `Purchase` o exige — e quem o monta recusa antes de chegar aqui). */
   valorCentavos: number | null;
   moeda: string;

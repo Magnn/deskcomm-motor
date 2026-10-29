@@ -28,6 +28,7 @@ import type { ConversaoOffline, NomeDoEvento } from "@/lib/plataformas-de-anunci
 
 import { destinoDaConversaoMeta } from "./destino-de-mensageria";
 import { lerAtribuicao } from "./leitura-da-atribuicao";
+import { lerIdentidade } from "./identidade-do-cliente";
 import { jaFoiEnviada, registraEnvio, type StatusDeEnvio } from "./registro-de-envio";
 
 /** O evento que o link de pagamento enviado reporta. */
@@ -128,6 +129,7 @@ export async function reportarEventoDaConversa(
     ocorridoEm: passo.ocorridoEm,
     cliqueDeOrigem,
     telefone,
+    identidade: await lerIdentidade(admin, org, contactId),
     contaDoWhatsApp,
     pixelDoSite,
     fbc,
