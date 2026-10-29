@@ -10,19 +10,12 @@
  */
 
 /**
- * A instrução, com o valor já formatado ("R$ 5,00") e, se houver, quem aparece no banco. Com a página do Pix
- * (`lib/pagamentos/pagina-do-pix.ts`), o caminho principal vira o botão "Copiar código Pix" da página — copiar
- * do balão exige tocar e segurar, e muita gente não acha o "Copiar" — e o código no balão seguinte fica de reserva.
+ * A instrução, com o valor já formatado ("R$ 5,00") e, se houver, quem aparece no banco. Só o passo a passo:
+ * decisão do dono em 29/10/2026 — a página com o botão "Copiar código Pix" (#415) era mais um link na conversa,
+ * e mais um link atrapalha quem já tem dificuldade. O código vai sozinho no balão seguinte.
  */
-export function instrucaoDoPixCopiaECola(valor: string, noBancoAparece?: string, paginaDoPix?: string | null): string {
+export function instrucaoDoPixCopiaECola(valor: string, noBancoAparece?: string): string {
   const noBanco = noBancoAparece ? ` No banco aparece ${noBancoAparece}, é assim mesmo.` : "";
-  if (paginaDoPix) {
-    return [
-      `Pra pagar no Pix (*${valor}*), toque neste link e aperte o botão *Copiar código Pix*: ${paginaDoPix}`,
-      `Depois, no app do seu banco: *Pix* › *Pix Copia e Cola*, cole, confira *${valor}* e confirme.${noBanco}`,
-      "O código também vai na próxima mensagem, se preferir copiar daqui (toque e segure nele).",
-    ].join("\n");
-  }
   return [
     `Pra pagar no Pix (*${valor}*):`,
     "1. Toque e segure no código da próxima mensagem e escolha *Copiar*.",
@@ -32,10 +25,9 @@ export function instrucaoDoPixCopiaECola(valor: string, noBancoAparece?: string,
 }
 
 /**
- * A linha do link que vai depois do código. O link da Stripe tem o Pix com botão de copiar, além do cartão e do
- * boleto — e quem não conseguiu colar o código só ia para ele se soubesse disso (medido em 21/10/2026: a linha
- * dizia "Se preferir cartão de crédito", e quem travou no Pix desistiu).
+ * A linha do link de cartão que vai depois do código. Só cartão (decisão do dono em 29/10/2026): o Pix já foi no
+ * balão de cima, e oferecer outro caminho de Pix aqui confundia quem tentava pagar.
  */
 export function linhaDoLinkDePagamento(url: string): string {
-  return `Se o código não colar, ou se preferir cartão, abre este link: lá tem o Pix com botão de copiar e o cartão. ${url}`;
+  return `Se preferir pagar no cartão, é por este link: ${url}`;
 }

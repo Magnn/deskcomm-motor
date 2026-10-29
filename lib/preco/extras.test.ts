@@ -114,7 +114,7 @@ describe("pixDoExtraNoLugarDaMarca", () => {
     const juntos = await pixDoExtraNoLugarDaMarca({ ...base, corpo: "[[PIX: Pergunta nova]]", criarPix: async () => pix, criarLink });
     const corpo = "corpo" in juntos ? juntos.corpo : "";
     expect(corpo).toContain(CODIGO);
-    expect(corpo).toContain("abre este link: lá tem o Pix com botão de copiar e o cartão. https://buy.exemplo.com/cartao");
+    expect(corpo).toContain("Se preferir pagar no cartão, é por este link: https://buy.exemplo.com/cartao");
     expect(criarLink.mock.calls[0]![1]).toMatchObject({ valorCentavos: 1500, moeda: "BRL", metadados: { extra: "pergunta-nova", contact_id: "contato" } });
     const soCartao = await pixDoExtraNoLugarDaMarca({ ...base, corpo: "[[PIX: Pergunta nova]]", criarPix: semLink, criarLink });
     expect("corpo" in soCartao && soCartao.corpo).toContain("Pra pagar no cartão de crédito, valor *R$ 15*");

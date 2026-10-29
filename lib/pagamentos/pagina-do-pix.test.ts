@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { instrucaoDoPixCopiaECola } from "./como-pagar-pix";
+import { instrucaoDoPixCopiaECola, linhaDoLinkDePagamento } from "./como-pagar-pix";
 import { estadoDaPaginaDoPix, precisaRenovar, urlDaPaginaDoPix } from "./pagina-do-pix";
 import type { PixLido } from "./stripe";
 
@@ -92,13 +92,14 @@ describe("estadoDaPaginaDoPix", () => {
   });
 });
 
-describe("instrucaoDoPixCopiaECola com a página", () => {
-  it("com a página, o botão de copiar vem primeiro e o código fica de reserva", () => {
-    const t = instrucaoDoPixCopiaECola("R$ 45,00", undefined, "https://x.com/pix/a/pi_1");
-    expect(t).toContain("*Copiar código Pix*: https://x.com/pix/a/pi_1");
+describe("a mensagem do Pix", () => {
+  it("⭐ só o passo a passo, sem link nenhum — decisão do dono em 29/10", () => {
+    const t = instrucaoDoPixCopiaECola("R$ 45,00");
+    expect(t).toContain("1. Toque e segure no código");
     expect(t).toContain("Pix Copia e Cola");
+    expect(t).not.toMatch(/https?:\/\//);
   });
-  it("sem a página, segue o passo a passo de sempre", () => {
-    expect(instrucaoDoPixCopiaECola("R$ 45,00")).toContain("1. Toque e segure no código");
+  it("⭐ o link da Stripe vai só como cartão", () => {
+    expect(linhaDoLinkDePagamento("https://buy.stripe.com/x")).toBe("Se preferir pagar no cartão, é por este link: https://buy.stripe.com/x");
   });
 });
