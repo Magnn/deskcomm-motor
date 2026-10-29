@@ -20,6 +20,8 @@
  *     janela de 50 minutos: reabrir a página dentro dela devolve a mesma renovação, não uma por clique.
  * O valor nunca vem do link: vem da cobrança original, que o turno criou no valor que a negociação liberou.
  */
+import { urlPublicaUsavel } from "@/lib/escalacao/url-publica";
+import { env } from "@/lib/env";
 import { lerConexaoStripe, type ConexaoStripe } from "@/lib/pagamentos/conexao-stripe";
 import { criarClienteStripe, type PixLido } from "@/lib/pagamentos/stripe";
 
@@ -41,8 +43,15 @@ export function urlDaPaginaDoPix(origem: string | null | undefined, organization
 }
 
 /** O link da página para um Pix recém-criado com esta conexão. */
+/**
+ * `env.*` e NÃO `process.env.NEXT_PUBLIC_APP_URL`: no app a variável é substituída no BUILD, e a imagem é construída
+ * com `https://placeholder.invalid`. Medido em 29/10/2026: o Pix enviado pelo botão do chat (rota do app) levou o
+ * link `https://placeholder.invalid/pix/…`, enquanto o do worker saía certo. Endereço que não abre fora daqui não
+ * vai na mensagem: sem página, a pessoa ainda recebe o código.
+ */
 export function paginaDoPixDaConexao(conexao: Pick<ConexaoStripe, "organizationId">, cobrancaId: string): string | null {
-  return urlDaPaginaDoPix(process.env.NEXT_PUBLIC_APP_URL, conexao.organizationId, cobrancaId);
+  const origem = env.NEXT_PUBLIC_APP_URL;
+  return urlPublicaUsavel(origem) ? urlDaPaginaDoPix(origem, conexao.organizationId, cobrancaId) : null;
 }
 
 export function caminhoValido(organizationId: string, cobrancaId: string): boolean {

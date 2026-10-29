@@ -102,3 +102,25 @@ describe("instrucaoDoPixCopiaECola com a página", () => {
     expect(instrucaoDoPixCopiaECola("R$ 45,00")).toContain("1. Toque e segure no código");
   });
 });
+
+describe("paginaDoPixDaConexao", () => {
+  const org = "b6113ac6-a884-4fab-a595-d5f05cebc729";
+  const lerCom = async (origem: string) => {
+    vi.resetModules();
+    vi.stubEnv("NEXT_PUBLIC_APP_URL", origem);
+    try {
+      const { paginaDoPixDaConexao } = await import("./pagina-do-pix");
+      return paginaDoPixDaConexao({ organizationId: org }, "pi_3UVsXHPsvXKQWQTs0WiWiNC9");
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  };
+
+  it("⭐ o endereço do build (placeholder) não vai na mensagem — medido em 29/10 no botão do chat", async () => {
+    expect(await lerCom("https://placeholder.invalid")).toBeNull();
+  });
+
+  it("com o endereço público da instalação, monta o link da página", async () => {
+    expect(await lerCom("https://crm.exemplo.com/")).toBe(`https://crm.exemplo.com/pix/${org}/pi_3UVsXHPsvXKQWQTs0WiWiNC9`);
+  });
+});
