@@ -40122,3 +40122,67 @@ alter table public.area_quiz_passos add column if not exists anuncio text check 
 alter table public.webhook_sources add column if not exists cakto_somente_registro boolean not null default false;
 comment on column public.webhook_sources.cakto_somente_registro is
   'Aviso da Cakto só é registrado (arquivo + receita), sem contato/tag/fluxo; e só estas fontes aparecem no aviso público de compras recentes (0948).';
+
+-- ---- o ritmo de envio herda do mesmo telefone ao reconectar (migration 0949) ----
+create or replace function public.fn_ritmo_herda_do_numero()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if new.phone_number is null or new.phone_number = '' then
+    return new;
+  end if;
+  if tg_op = 'UPDATE' and new.phone_number is not distinct from old.phone_number then
+    return new;
+  end if;
+
+  insert into channel_knobs (
+    organization_id, channel_session_id, throttle_ms, jitter_max_ms, window_start_hour, window_end_hour,
+    allow_sunday, timezone, warmup_daily_caps, spinning_knobs, health_knobs, number_activated_at
+  )
+  select k.organization_id, new.id, k.throttle_ms, k.jitter_max_ms, k.window_start_hour, k.window_end_hour,
+         k.allow_sunday, k.timezone, k.warmup_daily_caps, k.spinning_knobs, k.health_knobs,
+         (select min(k2.number_activated_at)
+            from channel_knobs k2
+            join channel_sessions s2 on s2.id = k2.channel_session_id
+           where s2.organization_id = new.organization_id
+             and s2.phone_number = new.phone_number
+             and s2.id <> new.id)
+    from channel_knobs k
+    join channel_sessions s on s.id = k.channel_session_id
+   where s.organization_id = new.organization_id
+     and s.phone_number = new.phone_number
+     and s.id <> new.id
+   order by k.updated_at desc
+   limit 1
+  on conflict (organization_id, channel_session_id) do nothing;
+
+  return new;
+end;
+$$;
+
+revoke all on function public.fn_ritmo_herda_do_numero() from public, anon, authenticated;
+
+drop trigger if exists trg_ritmo_herda_do_numero on public.channel_sessions;
+create trigger trg_ritmo_herda_do_numero
+  after insert or update of phone_number on public.channel_sessions
+  for each row execute function public.fn_ritmo_herda_do_numero();
+
+insert into channel_knobs (
+  organization_id, channel_session_id, throttle_ms, jitter_max_ms, window_start_hour, window_end_hour,
+  allow_sunday, timezone, warmup_daily_caps, spinning_knobs, health_knobs, number_activated_at
+)
+select distinct on (novo.id)
+       novo.organization_id, novo.id, k.throttle_ms, k.jitter_max_ms, k.window_start_hour, k.window_end_hour,
+       k.allow_sunday, k.timezone, k.warmup_daily_caps, k.spinning_knobs, k.health_knobs,
+       min(k.number_activated_at) over (partition by novo.id)
+  from channel_sessions novo
+  join channel_sessions irma
+    on irma.organization_id = novo.organization_id and irma.phone_number = novo.phone_number and irma.id <> novo.id
+  join channel_knobs k on k.channel_session_id = irma.id
+ where novo.phone_number is not null and novo.phone_number <> ''
+   and not exists (select 1 from channel_knobs ja where ja.channel_session_id = novo.id)
+ order by novo.id, k.updated_at desc
+on conflict (organization_id, channel_session_id) do nothing;
