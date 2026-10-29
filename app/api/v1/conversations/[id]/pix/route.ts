@@ -23,7 +23,6 @@ import { requireRole } from "@/lib/auth/require-role";
 import { traduzir } from "@/lib/i18n/dicionario";
 import { logger } from "@/lib/logger";
 import { lerConexaoStripe } from "@/lib/pagamentos/conexao-stripe";
-import { paginaDoPixDaConexao } from "@/lib/pagamentos/pagina-do-pix";
 import { enviarPixSchema, mensagensDoPix } from "@/lib/pagamentos/enviar-pix-tipos";
 import { VALIDADE_DO_PIX_S } from "@/lib/pagamentos/pix-na-conversa";
 import { ErroDaStripe, criarClienteStripe } from "@/lib/pagamentos/stripe";
@@ -100,7 +99,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   }
 
   try {
-    for (const body of mensagensDoPix(lido.data.valor_cents, pix.copiaECola, paginaDoPixDaConexao(conexao, pix.id))) {
+    for (const body of mensagensDoPix(lido.data.valor_cents, pix.copiaECola)) {
       await sendMessageHandler(
         supabase,
         { organization_id: org.orgId, actor: { type: "user", id: user.id }, requestId, idioma: user.idioma },

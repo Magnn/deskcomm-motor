@@ -61,12 +61,12 @@ export const INICIO_DO_CODIGO_PIX = "000201";
  * Reescreve o corpo: o balão que traz o link vira três — a instrução, o código sozinho (para copiar com um
  * toque) e o link para quem prefere cartão. Os outros balões do agente ficam como estão. Pura.
  */
-export function corpoComPix(corpo: string, link: LinkDePagamentoConhecido, copiaECola: string, paginaDoPix?: string | null): string {
+export function corpoComPix(corpo: string, link: LinkDePagamentoConhecido, copiaECola: string): string {
   const baloes = corpo.split(/\n{2,}/);
   const i = baloes.findIndex((b) => b.includes(link.url));
   if (i < 0) return corpo;
   const novos = [
-    instrucaoDoPixCopiaECola(reais(link.valorCentavos), undefined, paginaDoPix),
+    instrucaoDoPixCopiaECola(reais(link.valorCentavos)),
     copiaECola,
     linhaDoLinkDePagamento(link.url),
   ];

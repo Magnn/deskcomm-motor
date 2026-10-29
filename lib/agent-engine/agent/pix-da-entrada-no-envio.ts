@@ -14,7 +14,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 import { lerConexaoStripe, type ConexaoStripe } from '@/lib/pagamentos/conexao-stripe';
-import { paginaDoPixDaConexao } from '@/lib/pagamentos/pagina-do-pix';
 import { VALIDADE_DO_PIX_S } from '@/lib/pagamentos/pix-na-conversa';
 import { ErroDaStripe, criarClienteStripe, type PedidoDePix, type PixCriado } from '@/lib/pagamentos/stripe';
 import { MARCA_DA_ENTRADA } from '@/lib/preco/bloco-da-entrada';
@@ -84,7 +83,7 @@ export async function pixDaEntradaNoLugarDaMarca(e: EntradaDoPixDaEntrada): Prom
       cobranca: pix.id,
     });
     const marca = { extra: { name: MARCA_DA_ENTRADA, price_cents: e.entrada.entradaCents, when: '' }, texto: achada[0] };
-    return { corpo: corpoComPixDoExtra(e.corpo, marca, pix.copiaECola, null, paginaDoPixDaConexao(conexao, pix.id)) };
+    return { corpo: corpoComPixDoExtra(e.corpo, marca, pix.copiaECola, null) };
   } catch (err) {
     e.log.warn('pix da entrada não saiu — envio recusado para a marca não chegar à pessoa', {
       conversation_id: e.conversationId,

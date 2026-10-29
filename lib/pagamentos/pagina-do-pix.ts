@@ -40,11 +40,6 @@ export function urlDaPaginaDoPix(origem: string | null | undefined, organization
   return `${base}/pix/${organizationId.toLowerCase()}/${cobrancaId}`;
 }
 
-/** O link da página para um Pix recém-criado com esta conexão. */
-export function paginaDoPixDaConexao(conexao: Pick<ConexaoStripe, "organizationId">, cobrancaId: string): string | null {
-  return urlDaPaginaDoPix(process.env.NEXT_PUBLIC_APP_URL, conexao.organizationId, cobrancaId);
-}
-
 export function caminhoValido(organizationId: string, cobrancaId: string): boolean {
   return UUID.test(organizationId) && ID_DA_COBRANCA.test(cobrancaId);
 }
