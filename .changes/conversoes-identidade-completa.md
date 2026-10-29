@@ -1,6 +1,6 @@
 ---
 impacto: nada_mudou
-secao: melhorado
+secao: adicionado
 titulo: Eventos de conversão levam e-mail, nome, nascimento e id do cliente
 ---
 
