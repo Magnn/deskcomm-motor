@@ -15,6 +15,8 @@ export interface ContactSummary {
   phone_number: string | null;
   tags: string[];
   is_blocked: boolean;
+  /** Por que está bloqueado: `stop_keyword` (o automático leu um pedido de sair) ou `manual`. */
+  blocked_reason?: string | null;
   is_anonymized: boolean;
   /** Caminho da foto no bucket privado. A tela nunca usa este valor como src —
    *  só para saber SE existe foto; a imagem vem de /api/v1/contacts/{id}/avatar,

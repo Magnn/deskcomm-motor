@@ -16,6 +16,7 @@ import type { ConversationWithContact } from "@/hooks/inbox/useConversationsReal
 const closeMutate = vi.hoisted(() => vi.fn());
 const arquivarMutate = vi.hoisted(() => vi.fn());
 const marcadas = vi.hoisted(() => [] as string[]);
+const bloqueioMutate = vi.hoisted(() => vi.fn());
 
 vi.mock("@/hooks/auth/AuthProvider", () => ({
   useAuth: () => ({ user: { id: "u1", support: null } }),
@@ -46,6 +47,9 @@ vi.mock("@/hooks/inbox/useResumeAiAttendance", () => ({
 }));
 vi.mock("@/hooks/inbox/usePauseAiAttendance", () => ({
   usePauseAiAttendance: () => ({ mutate: vi.fn(), isPending: false }),
+}));
+vi.mock("@/hooks/inbox/useBloqueioDoContato", () => ({
+  useBloqueioDoContato: () => ({ mutate: bloqueioMutate, isPending: false }),
 }));
 vi.mock("@/hooks/ai/useAutomaticoAtivo", () => ({
   useAutomaticoAtivo: () => ({ data: false }),
@@ -88,6 +92,54 @@ function conversa(status: string): ConversationWithContact {
 beforeEach(() => {
   closeMutate.mockReset();
   arquivarMutate.mockReset();
+  bloqueioMutate.mockReset();
+});
+
+function comContato(bloqueado: boolean, motivo: string | null): ConversationWithContact {
+  return {
+    ...conversa("open"),
+    contacts: {
+      id: "contato-1",
+      display_name: "Cliente",
+      name: null,
+      phone_number: null,
+      tags: [],
+      is_blocked: bloqueado,
+      blocked_reason: motivo,
+      is_anonymized: false,
+    },
+  } as unknown as ConversationWithContact;
+}
+
+/**
+ * VERIFICAÇÃO MANUAL DO BLOQUEIO (29/10/2026): o automático bloqueou uma cliente por "parar de
+ * insistir" e não havia botão para desfazer. O botão abre a confirmação; só o clique de dentro grava.
+ */
+describe("ConversationHeader — bloquear e desbloquear pelo chat", () => {
+  it("contato bloqueado pelo automático: Desbloquear confirma e grava bloquear=false", async () => {
+    const user = userEvent.setup();
+    render(<ConversationHeader conversation={comContato(true, "stop_keyword")} />);
+
+    const botao = screen.getByRole("button", { name: "Desbloquear" });
+    expect(botao.getAttribute("title")).toMatch(/leu um pedido para sair/);
+    await user.click(botao);
+    const dialogo = await screen.findByRole("alertdialog");
+    expect(within(dialogo).getByText("Desbloquear este cliente?")).toBeTruthy();
+    expect(bloqueioMutate).not.toHaveBeenCalled();
+
+    await user.click(within(dialogo).getByRole("button", { name: "Desbloquear" }));
+    await waitFor(() => expect(bloqueioMutate).toHaveBeenCalledWith({ conversation_id: "conv-1", bloquear: false }));
+  });
+
+  it("contato livre: Bloquear confirma e grava bloquear=true", async () => {
+    const user = userEvent.setup();
+    render(<ConversationHeader conversation={comContato(false, null)} />);
+
+    await user.click(screen.getByRole("button", { name: "Bloquear" }));
+    const dialogo = await screen.findByRole("alertdialog");
+    await user.click(within(dialogo).getByRole("button", { name: "Bloquear" }));
+    await waitFor(() => expect(bloqueioMutate).toHaveBeenCalledWith({ conversation_id: "conv-1", bloquear: true }));
+  });
 });
 
 describe("ConversationHeader — Fechar e Arquivar por AlertDialog", () => {
