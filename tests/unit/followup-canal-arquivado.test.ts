@@ -76,6 +76,8 @@ function fakePool(opts: PoolOpts = {}) {
   const query = vi.fn(async (sql: string): Promise<{ rows: Array<Record<string, unknown>> }> => {
     consultas.push(sql);
     if (sql.includes("d.fechada_em::text")) return { rows: [{ ...boundary, status: "open", demanda_fechada_em: null }] };
+    // Nenhum outro retorno rodou agora há pouco (a trava de retorno repetido não entra aqui).
+    if (sql.includes("from messages m")) return { rows: [] };
     // Regra do Postgres: referência DIRETA a coluna inexistente é 42703. A
     // expressão `to_jsonb(cs) ->> 'archived_at'` não referencia coluna nenhuma —
     // lê uma chave de um json, e chave ausente é NULL.
