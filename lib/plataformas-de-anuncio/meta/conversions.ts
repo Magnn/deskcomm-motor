@@ -105,7 +105,16 @@ async function enviar(
   // Array de propósito: o formato aceita múltiplos valores por campo, e mandar
   // string crua onde ele espera lista é aceito com aviso e ignorado no match.
   if (conversao.telefone) userData.ph = [hash(conversao.telefone)];
-  if (doSite && conversao.telefone?.startsWith("55")) userData.country = [hash("br")];
+  if (conversao.telefone?.startsWith("55")) userData.country = [hash("br")];
+  // Quem é o cliente, além do telefone: cada campo sobe a nota de correspondência do evento (medido em
+  // 29/10/2026: a Compra com só telefone/país/clique/IP/navegador tinha 7,2/10). Todos com hash; nome em
+  // minúsculas e só letras, nascimento AAAAMMDD, como a plataforma pede antes do hash.
+  const id = conversao.identidade;
+  if (id?.idExterno) userData.external_id = [hash(id.idExterno)];
+  if (id?.email) userData.em = [hash(id.email)];
+  if (id?.primeiroNome) userData.fn = [hash(id.primeiroNome)];
+  if (id?.sobrenome) userData.ln = [hash(id.sobrenome)];
+  if (id?.nascimento && /^\d{4}-\d{2}-\d{2}$/.test(id.nascimento)) userData.db = [hash(id.nascimento.replace(/-/g, ""))];
   // Clique, navegador, IP e agente da landing: vão EM CLARO (a plataforma não aceita hash nestes campos).
   if (doSite && conversao.fbc) userData.fbc = conversao.fbc;
   if (doSite && conversao.fbp) userData.fbp = conversao.fbp;
