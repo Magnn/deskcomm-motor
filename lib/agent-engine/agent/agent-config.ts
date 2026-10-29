@@ -21,6 +21,7 @@ import { lerLimites, type LimitesConfig } from '@/lib/limites/tipos';
 import { lerObjecoes, type ObjecoesConfig } from '@/lib/objecoes/tipos';
 import { lerCatalogo, type CatalogoConfig } from '@/lib/catalogo/tipos';
 import { lerOferta, type OfertaConfig } from '@/lib/oferta/tipos';
+import { logger } from '@/lib/logger';
 import { lerPricing, type PricingConfig } from '@/lib/preco/tipos';
 import { lerRitmo, type Ritmo } from '@/lib/ritmo/tipos';
 import { lerVoiceReply, type VoiceReplyConfig } from '@/lib/voz/tipos';
@@ -280,7 +281,10 @@ function mapAgentConfigRow(r: Row): PublishedAgentConfig {
     // Leitura defensiva: `config` é jsonb livre, e shape estranho vira
     // "desligada" — a direção segura é continuar respondendo em texto.
     voiceReply: lerVoiceReply(r.config),
-    pricing: lerPricing(r.config),
+    // Extra inválido é descartado sozinho, com aviso — antes ele apagava o preço inteiro em silêncio.
+    pricing: lerPricing(r.config, (extras) =>
+      logger.warn('extra de preço inválido descartado — corrija na aba Preço', { agent_id: r.agent_id, extras }),
+    ),
     ritmo: lerRitmo(r.config),
     identity: lerIdentidade(r.config),
     offer: lerOferta(r.config),

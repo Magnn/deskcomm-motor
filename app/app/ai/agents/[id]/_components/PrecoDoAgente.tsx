@@ -31,6 +31,7 @@ import {
   MAX_DEGRAUS,
   pisoEmCentavos,
   pricingSchema,
+  pricingTolerante,
   reais,
   type PricingConfig,
 } from "@/lib/preco/tipos";
@@ -107,11 +108,12 @@ const emTexto = (centavos: number | undefined): string =>
 
 function formularioInicial(config: Props["config"]): Formulario {
   const bruto = (config as { pricing?: unknown } | null | undefined)?.pricing;
-  const r = pricingSchema.safeParse(bruto);
-  if (!r.success) {
+  // Tolerante como o atendimento: um extra inválido não pode apagar a configuração inteira da tela.
+  const lido = pricingTolerante(bruto);
+  if (lido === null) {
     return { enabled: false, venda: "", referencia: "", referenciaReal: false, degraus: [], posVenda: POS_VENDA_VAZIO, linksDaVenda: "", euro: "", dolar: "", extras: "", respostasGratuitas: "", chavePix: "", nomeDaChavePix: "" };
   }
-  const c = r.data;
+  const c = lido.pricing;
   return {
     enabled: c.enabled,
     venda: emTexto(c.list_price_cents),

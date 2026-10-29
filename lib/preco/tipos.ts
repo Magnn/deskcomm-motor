@@ -311,14 +311,36 @@ export function reais(cents: number): string {
 }
 
 /**
+ * `config.pricing` validado, descartando só o EXTRA inválido. Medido em 29/10/2026: um extra com o `when` acima de
+ * 400 caracteres, gravado em 26/10, reprovava a configuração inteira — e por três dias a agente ficou sem preço:
+ * sem Pix (o link do checkout externo saía cru), sem escada, sem entrada + restante e sem trava de valor.
+ * Um extra não pode desligar o resto. Qualquer outro campo inválido continua reprovando tudo.
+ */
+export function pricingTolerante(bruto: unknown): { pricing: PricingConfig; extrasDescartados: string[] } | null {
+  const r = pricingSchema.safeParse(bruto);
+  if (r.success) return { pricing: r.data, extrasDescartados: [] };
+  const extras = (bruto as { extras?: unknown } | null)?.extras;
+  if (!Array.isArray(extras)) return null;
+  const validos = extras.filter((e) => extraSchema.safeParse(e).success);
+  if (validos.length === extras.length) return null;
+  const sem = pricingSchema.safeParse({ ...(bruto as Record<string, unknown>), extras: validos });
+  if (!sem.success) return null;
+  const extrasDescartados = extras
+    .filter((e) => !validos.includes(e))
+    .map((e) => String((e as { name?: unknown } | null)?.name ?? "(sem nome)"));
+  return { pricing: sem.data, extrasDescartados };
+}
+
+/**
  * Lê `config.pricing` de um jsonb solto SEM lançar. Shape estranho ou desligado vira `null`
  * — e sem configuração de preço o turno segue como sempre: a agente NÃO negocia.
  */
-export function lerPricing(config: unknown): PricingConfig | null {
+export function lerPricing(config: unknown, aoDescartar?: (extras: string[]) => void): PricingConfig | null {
   if (config === null || typeof config !== "object") return null;
   const bruto = (config as Record<string, unknown>).pricing;
   if (bruto === undefined || bruto === null) return null;
-  const r = pricingSchema.safeParse(bruto);
-  if (!r.success || !r.data.enabled) return null;
-  return r.data;
+  const r = pricingTolerante(bruto);
+  if (r === null || !r.pricing.enabled) return null;
+  if (r.extrasDescartados.length > 0) aoDescartar?.(r.extrasDescartados);
+  return r.pricing;
 }
