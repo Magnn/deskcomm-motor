@@ -6221,6 +6221,11 @@ export const DICIONARIO: Traducoes = {
   "Pausando...": { es: "Pausando..." },
   "Fechar esta conversa?": { es: "¿Cerrar esta conversación?" },
   "Bloquear": { es: "Bloquear" },
+  "PDF com as fotos": { es: "PDF con las fotos" },
+  "Texto (.txt)": { es: "Texto (.txt)" },
+  "Baixa a conversa inteira, do começo ao fim, em texto ou em PDF com as fotos.": {
+    es: "Descarga la conversación entera, de principio a fin, en texto o en PDF con las fotos.",
+  },
   "Desbloquear": { es: "Desbloquear" },
   "Bloquear este cliente?": { es: "¿Bloquear a este cliente?" },
   "Desbloquear este cliente?": { es: "¿Desbloquear a este cliente?" },
