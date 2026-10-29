@@ -512,6 +512,20 @@ export function createFollowupTurnHandler(deps: FollowupTurnDeps) {
       return;
     }
 
+    // Um retorno por vez. Retornos que o limite diário do número (ou a janela) adiou saem TODOS na
+    // mesma abertura, um atrás do outro, porque a fila só serializa por contato. Medido em 29/10/2026:
+    // 119 contatos em 3 dias receberam 2+ retornos do agente em 15 min; uma cliente que não comprou
+    // recebeu às 07:10, 07:13 e 07:16 três "como tá o seu coração?".
+    if (await retornoFicouVelho(pool, { tenantId, conversationId: target.conversationId, marcadoPara: new Date(job.run_after) })) {
+      deps.log?.info('retorno do agente descartado: o agente já falou depois da hora marcada e o cliente não respondeu', {
+        job_id: job.id,
+        tenant_id: tenantId,
+        lead_id: leadId,
+        conversation_id: target.conversationId,
+      });
+      return;
+    }
+
     // F3-04: caminho determinístico ($0) — envia o template versionado direto pela
     // cadeia de guardrails, sem chamar o modelo. É um CAMINHO ADICIONAL: o run do
     // agente (abaixo) segue intocado quando o modo não é 'template'.
@@ -540,6 +554,31 @@ export function createFollowupTurnHandler(deps: FollowupTurnDeps) {
       },
     });
   };
+}
+
+/**
+ * Desde a hora em que este retorno estava marcado (`run_after`, que o adiamento empurra junto), o
+ * agente já falou nesta conversa e o cliente não escreveu nada? Então o retorno ficou velho: outro
+ * retorno, que saiu antes na fila, já retomou o contato. Não se usa uma janela de minutos porque a
+ * fila atrasa: os três retornos medidos estavam marcados para 07:00 e só rodaram às 07:10, 07:13 e
+ * 07:16. A recuperação de silêncio não é afetada: cada chamada é marcada DEPOIS da última fala do agente.
+ */
+async function retornoFicouVelho(
+  pool: pg.Pool,
+  args: { tenantId: string; conversationId: string; marcadoPara: Date },
+): Promise<boolean> {
+  const { rows } = await pool.query(
+    `select 1 from messages m
+      where m.organization_id = $1 and m.conversation_id = $2
+        and m.direction = 'outbound' and m.sent_via = 'ai' and m.created_at > $3
+        and not exists (
+          select 1 from messages i
+           where i.organization_id = $1 and i.conversation_id = $2
+             and i.direction = 'inbound' and i.created_at > $3)
+      limit 1`,
+    [args.tenantId, args.conversationId, args.marcadoPara],
+  );
+  return rows.length > 0;
 }
 
 /**
