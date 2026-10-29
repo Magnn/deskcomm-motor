@@ -97,7 +97,7 @@ describe("editor de instruções do agente", () => {
     // ele não cabe, em vez de descobrir no salvamento — ou nunca.
     const prompt = montar();
     fireEvent.change(prompt, { target: { value: "a".repeat(MAX_CARACTERES_DO_ROTEIRO + 500) } });
-    expect(screen.getByTestId("contador-do-prompt")).toHaveTextContent("60.500/60.000");
+    expect(screen.getByTestId("contador-do-prompt")).toHaveTextContent("120.500/120.000");
   });
 
   it("recusa o salvamento dizendo quanto passou", () => {
@@ -116,7 +116,7 @@ describe("editor de instruções do agente", () => {
     // aceita, e o autor ficaria preso sem entender o motivo.
     const prompt = montar();
     fireEvent.change(prompt, { target: { value: "a".repeat(MAX_CARACTERES_DO_ROTEIRO) + "\n\n   " } });
-    expect(screen.getByTestId("contador-do-prompt")).toHaveTextContent("60.000/60.000");
+    expect(screen.getByTestId("contador-do-prompt")).toHaveTextContent("120.000/120.000");
     fireEvent.click(screen.getByRole("button", { name: /salvar|criar/i }));
     expect(screen.queryByText(/conseguir salvar/i)).not.toBeInTheDocument();
   });
@@ -128,7 +128,7 @@ describe("o limite do roteiro é um número só", () => {
     // deixava salvar edição nenhuma, porque o teto era 20.000 escrito em cinco lugares.
     const { MAX_CARACTERES_DO_ROTEIRO: max } = await import("@/lib/ai/agents/limite-do-roteiro");
     const fonte = (await import("node:fs")).readFileSync("lib/ai/agents/validation.ts", "utf8");
-    expect(max).toBe(60_000);
+    expect(max).toBe(120_000);
     expect(fonte).toContain(".max(MAX_CARACTERES_DO_ROTEIRO)");
     expect(fonte).not.toMatch(/system_prompt: z\.string\(\)\.trim\(\)\.min\(10\)\.max\(\d/);
   });
