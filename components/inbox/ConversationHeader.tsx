@@ -13,6 +13,12 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { JanelaSelo } from "@/components/inbox/JanelaSelo";
 import { ChannelLogo } from "@/components/inbox/ChannelLogo";
@@ -361,6 +367,33 @@ export function ConversationHeader({ conversation, onAbrirConversa, onSair }: Pr
             {c.is_blocked ? t("Desbloquear") : t("Bloquear")}
           </Button>
         )}
+        {/* EXPORTAR a conversa inteira (29/10/2026): a tela pagina de 50 em 50 e não havia como guardar
+            ou mandar a outra pessoa o atendimento completo. Texto baixa; PDF abre a página com as fotos
+            e o botão "Salvar como PDF" (montagem em lib/inbox/exportar-conversa.ts). */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              size="sm"
+              variant="ghost"
+              data-testid="exportar-conversa"
+              title={t("Baixa a conversa inteira, do começo ao fim, em texto ou em PDF com as fotos.")}
+            >
+              {t("Exportar")}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem asChild>
+              <a href={`/api/v1/conversations/${conversation.id}/exportar?formato=pdf`} target="_blank" rel="noopener">
+                {t("PDF com as fotos")}
+              </a>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <a href={`/api/v1/conversations/${conversation.id}/exportar?formato=texto`} download>
+                {t("Texto (.txt)")}
+              </a>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
         {!encerrada && (
           <SnoozeButton
             conversationId={conversation.id}

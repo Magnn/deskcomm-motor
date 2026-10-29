@@ -1028,6 +1028,8 @@ export const AUDIT_ACTIONS = [
   // Bloquear/desbloquear o contato à mão, pelo chat (`/api/v1/conversations/[id]/bloqueio`).
   "contact.bloqueado_manual",
   "contact.desbloqueado_manual",
+  // A conversa inteira baixada em texto ou PDF (`/api/v1/conversations/[id]/exportar`): dado pessoal saindo.
+  "conversation.exportada",
 ] as const;
 
 /** Um código de auditoria. Derivado de `AUDIT_ACTIONS` — não redigite a lista. */
