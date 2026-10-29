@@ -110,26 +110,31 @@ export function motivoDoAviso(reason: string): MotivoDoAviso {
 /** Aberturas por motivo. O índice sai do hash do lead — ver o bloco acima. */
 const ABERTURAS: Record<MotivoDoAviso, readonly string[]> = {
   // Quem pediu para parar não quer ouvir sobre atendente. Confirma o que ele
-  // pediu, diz que uma pessoa vai conferir, e para. Responder ao pedido de
-  // parada é padrão de mensageria (a confirmação de opt-out), não insistência.
+  // pediu e para. Responder ao pedido de parada é padrão de mensageria (a
+  // confirmação de opt-out), não insistência.
+  //
+  // Sem "automático", "envios" e "equipe confirmar" — decisão do dono em
+  // 29/10/2026: a frase antiga ("Encerro os envios automáticos deste canal")
+  // anunciava à cliente que ela falava com uma máquina, e saiu para quem só
+  // tinha recusado uma oferta. A confirmação fala como a própria atendente.
   suspeita_de_opt_out: [
-    "Entendi. Vou parar de te enviar mensagens automáticas por aqui.",
-    "Certo, anotado: não mando mais nada automático para este número.",
-    "Ok! Encerro os envios automáticos deste canal agora mesmo.",
+    "Tudo bem, respeito o seu pedido e não te mando mais mensagens por aqui.",
+    "Certo, entendi: vou parar de te escrever por este número.",
+    "Combinado. Daqui pra frente não mando mais nada para você.",
   ],
   pediu_humano: [
     "Claro! Já estou chamando alguém da equipe para falar com você.",
     "Sem problema — acabei de acionar uma pessoa do time para continuar daqui.",
-    "Perfeito. Passei sua conversa para um atendente humano agora.",
+    "Perfeito. Passei sua conversa para alguém da equipe agora.",
   ],
   orcamento_de_ia: [
     "Vou passar seu atendimento para uma pessoa da equipe.",
     "A partir daqui quem continua com você é alguém do time.",
-    "Estou transferindo esta conversa para um atendente humano.",
+    "Estou passando esta conversa para alguém da equipe.",
   ],
   outro: [
-    "Esse caso é melhor resolvido por uma pessoa. Já acionei o time.",
-    "Prefiro não arriscar aqui: passei seu pedido para um atendente humano.",
+    "Quero que alguém da equipe veja isso com você. Já acionei o time.",
+    "Prefiro não arriscar aqui: passei seu pedido para alguém da equipe.",
     "Vou pedir ajuda de alguém da equipe para cuidar disso com você.",
   ],
 };
@@ -193,7 +198,7 @@ export function textoDoAviso(
     // Sem fecho de expediente: quem pediu para parar não está esperando
     // atendimento, então "aguarde um instante" seria a resposta errada à
     // pergunta que ele fez.
-    return `${abertura} Encaminhei seu pedido para uma pessoa da equipe confirmar.`;
+    return `${abertura} Se um dia quiser voltar, é só me chamar.`;
   }
 
   const fecho =

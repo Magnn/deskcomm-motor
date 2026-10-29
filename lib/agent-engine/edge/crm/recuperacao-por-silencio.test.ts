@@ -135,6 +135,13 @@ describe("decidirChamada", () => {
     expect(decidirChamada(silenciosa(jaIniciada), AGORA, true)).toMatchObject({ kind: "step", step: 2 });
   });
 
+  it("⭐ quem recusou por último não é chamado; recusa que ficou para trás não segura a régua (29/10/2026)", () => {
+    const recusou = silenciosa({ falas_finais: "oi / eu estou lhe dizendo que não tenho mais interesse a fazer o trabalho" });
+    expect(decidirChamada(recusou, AGORA, true)).toBeNull();
+    const voltou = silenciosa({ falas_finais: "não tenho mais interesse / na verdade quero sim, me manda o Pix" });
+    expect(decidirChamada(voltou, AGORA, true)).toMatchObject({ kind: "step", step: 1 });
+  });
+
   it("quem combinou retorno não é cobrado pela régua", () => {
     const comRetorno = silenciosa({ retorno_em: daqui(60), last_outbound_at: ha(30), last_inbound_at: ha(40) });
     expect(decidirChamada(comRetorno, AGORA, true)).toBeNull();
