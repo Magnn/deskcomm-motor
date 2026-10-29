@@ -250,13 +250,8 @@ describe("espanhol — o ambíguo, que não existia", () => {
   it.each([
     "déjame en paz",
     "déjenme en paz",
-    "ya te dije que no me interesa",
-    "ya no me interesa",
-    // CONTROLE do lado positivo: o marcador de repetição é o que separa o
-    // sinal da objeção. "ya" numa, "mas" na outra — sem nenhum dos dois, a
-    // frase está em `ESPANHOL_NAO_PEDE`, acima.
-    "no me interesa mas",
-    "ya no me interesa nada de esto",
+    // "ya no me interesa" e "ya te dije que no me interesa" saíram em 29/10/2026: são RECUSA da
+    // oferta (`ehRecusaDaOferta`), não pedido para parar — ver `opt-out-parar-atendimento.test.ts`.
     "basta ya",
     "ya basta con esto",
     "no me molesten",
@@ -305,7 +300,7 @@ describe("ehOptOutProvavel — soma o ambíguo, para parar de responder e escala
     }
   });
 
-  it.each(["me deixa em paz", "já disse que não quero", "para com isso"])(
+  it.each(["me deixa em paz", "para com isso"])(
     "reconhece o sinal ambíguo: %s",
     (texto) => {
       expect(ehOptOutProvavel(texto)).toBe(true);

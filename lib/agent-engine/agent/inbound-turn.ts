@@ -77,6 +77,7 @@ import { temMarcaDeRelatorio } from '@/lib/preco/relatorio-pronto';
 import { pixNoLugarDoLink } from './pix-no-envio';
 import { cobrancaPeloProvedorNoLugarDoLink } from './cobranca-pelo-provedor-no-envio';
 import { blocoDaConfirmacaoCurta, rodadaSoDeConfirmacao } from './confirmacao-curta';
+import { blocoDaRecusa, recusouNoTurno } from './recusa-da-oferta';
 import {
   TAMANHO_DA_RESPOSTA_LIMITADA,
   blocoDaConversaGratuitaEsgotada,
@@ -2952,16 +2953,22 @@ async function executarTurnoDoAgente(
   // gatilho do passo seguinte e quem conduz é o código.
   const soConfirmouNoTurno =
     !preview && entregaPendenteDoTurno === null && blocoDaLeituraDoTurno === '' && rodadaSoDeConfirmacao(openingContext.context.messages);
+  // "Não tenho mais interesse": recusa da oferta, não pedido para parar — o turno segue sem repetir a oferta.
+  const recusouNaRodada = !preview && recusouNoTurno(inboundsNaoRespondidos(openingContext.context.messages));
   const blocoDoAtropeloDoTurno =
     blocoDaEntregaPendente(entregaPendenteDoTurno) +
     blocoDaRespostaAtropelada(atropeladaNoTurno) +
     blocoDaConfirmacaoCurta(soConfirmouNoTurno) +
+    blocoDaRecusa(recusouNaRodada) +
     blocoDaConversaGratuitaEsgotada(gratuitaEsgotadaNoTurno, ['o trabalho', ...extrasDoTurno.map((e) => e.name)]);
   if (atropeladaNoTurno) {
     runLog.info('resposta atropelada — este turno responde só ao que a mensagem nova acrescenta', {});
   }
   if (soConfirmouNoTurno) {
     runLog.info('confirmação curta — este turno não repete o que já foi dito', {});
+  }
+  if (recusouNaRodada) {
+    runLog.info('recusa da oferta — o turno segue sem repetir a oferta e sem anunciar parada', {});
   }
   const systemDoTurno = comporSystemDoTurno(system, {
     identidade: blocoDeIdentidadeDoTurno,

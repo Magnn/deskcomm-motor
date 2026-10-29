@@ -8,7 +8,7 @@
  */
 import { describe, expect, it } from "vitest";
 
-import { ehOptOutProvavel, ehPedidoDeOptOut } from "@/lib/opt-out/deteccao";
+import { ehOptOutProvavel, ehPedidoDeOptOut, ehRecusaDaOferta } from "@/lib/opt-out/deteccao";
 
 const PEDE_PARA_PARAR = [
   "não quero mais ser atendida",
@@ -20,7 +20,6 @@ const PEDE_PARA_PARAR = [
   "Parar atendimento",
   "não quero continuar a conversa",
   "não quero mais conversar com vc",
-  "não tenho mais interesse",
   "nao quero atendimento",
 ];
 
@@ -47,6 +46,22 @@ const ESTA_CONVERSANDO = [
   "como parar o atendimento depois?",
   "tem como parar a dor?",
   "não tenho interesse nesse plano",
+  // 29/10/2026, conversas reais: a cliente falava do homem dela — e a segunda frase gravou `is_blocked`.
+  "Mas eu preciso tirar o Gustavo do meu pensamento e parar de insistir no fundo do meu coração",
+  "para de insistir nele, amiga",
+];
+
+/**
+ * RECUSA DA OFERTA — 29/10/2026. "Não tenho mais interesse" estava na lista de cima e silenciou a
+ * cliente com "Encerro os envios automáticos deste canal"; quatro minutos depois ela escreveu "não
+ * precisa me cancelar, quero continuar fazendo consultas". Recusar o trabalho não é pedir para parar.
+ */
+const RECUSA_DA_OFERTA = [
+  "não tenho mais interesse",
+  "eu estou lhe dizendo que não tenho mais interesse a fazer o trabalho",
+  "não me interessa mais",
+  "já disse que não quero",
+  "ya no me interesa",
 ];
 
 describe("pedido de parar o atendimento, por extenso", () => {
@@ -56,6 +71,17 @@ describe("pedido de parar o atendimento, por extenso", () => {
 
   it.each(PEDE_PARA_PARAR)("não BLOQUEIA sozinho — quem silencia para sempre é a pessoa: %s", (frase) => {
     expect(ehPedidoDeOptOut(frase)).toBe(false);
+  });
+
+  it.each(RECUSA_DA_OFERTA)("⭐ recusa não encerra a conversa nem bloqueia: %s", (frase) => {
+    expect(ehRecusaDaOferta(frase)).toBe(true);
+    expect(ehOptOutProvavel(frase)).toBe(false);
+    expect(ehPedidoDeOptOut(frase)).toBe(false);
+  });
+
+  it("pedido de parar continua parando — recusa não engole opt-out", () => {
+    expect(ehOptOutProvavel("não tenho mais interesse, pare de me mandar mensagem")).toBe(true);
+    expect(ehPedidoDeOptOut("não tenho mais interesse, pare de me mandar mensagem")).toBe(true);
   });
 
   it.each(ESTA_CONVERSANDO)("⭐ segue a conversa — a palavra é o assunto, não um pedido: %s", (frase) => {

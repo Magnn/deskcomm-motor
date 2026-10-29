@@ -28,6 +28,7 @@ import type pg from 'pg';
 import { readCurrentServiceBoundary } from '@/lib/atendimento/fronteira-server';
 import { capabilitiesOf } from '@/lib/channels/capabilities';
 import type { ChannelProvider } from '@/lib/channels/types';
+import { ehRecusaDaOferta } from '@/lib/opt-out/deteccao';
 import { lerRecuperacao, ofertaDoPasso } from '@/lib/recuperacao/config';
 import { anunciouPausa } from '@/lib/recuperacao/pausa-anunciada';
 import {
@@ -201,6 +202,10 @@ export function canalTemPrazo(provider: string | null): boolean {
 export function decidirChamada(c: Candidata, agora: Date, temPrazo: boolean): Chamada | null {
   const r = lerRecuperacao(c.followup);
   if (r === null) return null;
+  // Quem recusou por último ("não tenho mais interesse") já teve a resposta do turno; chamar de novo em
+  // 3 minutos é a insistência que vira denúncia de spam. A conversa segue aberta: se ela voltar, o agente
+  // responde (lib/agent-engine/agent/recusa-da-oferta.ts).
+  if (ehRecusaDaOferta(c.falas_finais?.split(' / ').at(-1))) return null;
 
   const fechaEm = new Date(new Date(c.last_inbound_at).getTime() + WINDOW_MS);
   const proximaAbertura = (instante: Date) => proximaAberturaDoFollowup(c.followup, c.timezone ?? 'UTC', instante);

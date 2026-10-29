@@ -109,9 +109,22 @@ describe("quem pediu para PARAR não recebe oferta de atendimento", () => {
   it("confirma a parada e não fala em atendente, fila nem espera", () => {
     for (const estado of ESTADOS) {
       const t = textoDoAviso("suspeita_de_opt_out", estado.quem, LEAD);
-      expect(t, estado.rotulo).toMatch(/parar|encerro|não mando/i);
+      expect(t, estado.rotulo).toMatch(/parar|não (?:te )?mando/i);
       expect(t, estado.rotulo).not.toMatch(/atendente/i);
       expect(t, estado.rotulo).not.toMatch(/aguard|fila/i);
+    }
+  });
+
+  it("nenhuma frase, de nenhum motivo, anuncia robô ou envio automático (decisão do dono, 29/10/2026)", () => {
+    // "Ok! Encerro os envios automáticos deste canal" contou à cliente que ela falava com uma máquina.
+    const motivos = ["suspeita_de_opt_out", "pediu_humano", "orcamento_de_ia", "outro"] as const;
+    for (let i = 0; i < 60; i++) {
+      for (const motivo of motivos) {
+        for (const estado of ESTADOS) {
+          const t = textoDoAviso(motivo, estado.quem, `lead-${i}`);
+          expect(t, `${motivo}/${estado.rotulo}`).not.toMatch(/autom[aá]tic|rob[oô]|IA|humano|envios/i);
+        }
+      }
     }
   });
 
