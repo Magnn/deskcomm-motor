@@ -116,6 +116,8 @@ describe("engine — Pergunta", () => {
     expect(ouvindo).toMatchObject({ current_node_id: "p1", status: "waiting_reply" });
     // Ouvindo COM relógio — sem ele o banco recusa a linha.
     expect(typeof ouvindo!.next_eval_at).toBe("string");
-    expect(Date.parse(String(ouvindo!.next_eval_at))).toBeGreaterThan(Date.now());
+    // Contra o relógio DO TESTE (`NOW`), não o do processo: a comparação com `Date.now()` virou bomba-relógio e
+    // reprovou o CI em 30/10/2026, exatamente 30 dias (a janela de escuta) depois de `NOW`.
+    expect(Date.parse(String(ouvindo!.next_eval_at))).toBeGreaterThan(NOW.getTime());
   });
 });
