@@ -280,6 +280,15 @@ const NAO_E_DINHEIRO = /^\s*(?:x\b|vezes|anos?\b|dias?\b|meses|m[êe]s\b|horas?\
 const NEGADO = /(?:n[ãa]o|nem|sem)\s+(?:\S+\s+){0,2}$/i;
 
 /**
+ * O NÚMERO SOZINHO que responde à pergunta de quanto ela tem. Medido em 30/10/2026: a agente perguntou "quanto caberia
+ * de verdade pra você?", a cliente respondeu só "80", e nada reconheceu o valor — a agente defendeu os R$ 130 e
+ * ofereceu uma pergunta de R$ 5; o dono fechou a entrada de 80 à mão. Só vale logo depois de a agente perguntar o valor.
+ */
+const SO_O_NUMERO = /^\s*(?:R\$\s?)?(\d{2,3})(?:[.,]\d{2})?\s*(?:reais)?\s*[.!]?\s*$/i;
+const PERGUNTOU_QUANTO =
+  /\bquanto\s+(?:(?:que\s+)?(?:caberia|cabe|daria|d[áa]|consegue|conseguiria|pode|poderia|tem)|voc[êe]\s+(?:tem|consegue|conseguiria|pode|poderia))\b/i;
+
+/**
  * QUANTO A PESSOA DISSE QUE TEM, em centavos — a última vez que ela disse, depois do preço.
  * `null` = não disse (ou disse só o que NÃO tem: "não tenho 100" é reclamação, não proposta).
  *
@@ -302,6 +311,10 @@ export function valorQueAPessoaTem(mensagens: readonly MensagemParaContar[]): nu
       if (NAO_E_DINHEIRO.test(corpo.slice(inicio + a[0].length))) continue;
       if (NEGADO.test(corpo.slice(0, inicio))) continue;
       achado = Number(numero) * 100;
+    }
+    if (achado === null && SO_O_NUMERO.test(corpo)) {
+      const fala = msgs.slice(0, i).reverse().find((x) => x.direction === "outbound");
+      if (fala && PERGUNTOU_QUANTO.test(fala.body ?? "")) achado = Number(SO_O_NUMERO.exec(corpo)![1]) * 100;
     }
     if (achado !== null) return achado;
   }
@@ -604,23 +617,32 @@ const NAO_CONSEGUE_MAIS =
  */
 function rodadasDeValor(msgs: readonly MensagemParaContar[], primeiroPreco: number) {
   const rodadas: MensagemParaContar[][] = [];
+  /** A última fala da agente antes de cada rodada: é ela que diz se um número sozinho responde "quanto você tem". */
+  const falaAntes: MensagemParaContar[] = [];
   let aberta: MensagemParaContar[] | null = null;
+  let ultimaFala = msgs[primeiroPreco]!;
   for (const m of msgs.slice(primeiroPreco + 1)) {
     if (m.direction === "inbound") {
-      if (aberta === null) rodadas.push((aberta = []));
+      if (aberta === null) {
+        rodadas.push((aberta = []));
+        falaAntes.push(ultimaFala);
+      }
       aberta.push(m);
-    } else if (m.direction === "outbound") aberta = null;
+    } else if (m.direction === "outbound") {
+      aberta = null;
+      ultimaFala = m;
+    }
   }
   if (aberta === null || rodadas.length === 0) return null;
-  const valorDa = (r: MensagemParaContar[]) => valorQueAPessoaTem([msgs[primeiroPreco]!, ...r]);
+  const valorDa = (i: number) => valorQueAPessoaTem([msgs[primeiroPreco]!, falaAntes[i]!, ...rodadas[i]!]);
   const atual = rodadas[rodadas.length - 1]!;
   return {
-    atual: valorDa(atual),
+    atual: valorDa(rodadas.length - 1),
     textoDaRodada: atual.map((m) => m.body ?? "").join("\n"),
     /** O último valor abaixo de `piso` dito numa rodada ANTERIOR (a agente já respondeu a ele), ou `null`. */
     anterioresAbaixoDe: (piso: number): number | null => {
       for (let i = rodadas.length - 2; i >= 0; i -= 1) {
-        const v = valorDa(rodadas[i]!);
+        const v = valorDa(i);
         if (v !== null && v < piso) return v;
       }
       return null;

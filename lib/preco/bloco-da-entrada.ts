@@ -120,6 +120,7 @@ export function blocoDaEntradaImediata(entrada: { entradaCents: number; restante
     `2. Sozinha no balão seguinte, a marca: [[PIX: ${MARCA_DA_ENTRADA}]] (o sistema troca a marca pelo código do Pix de ${e}).`,
     `3. Um balão final: "Conseguiu copiar o código? Assim que cair eu já começo o seu trabalho. E me diz que dia fica bom pra acertar o restante."`,
     `Quando ela disser o dia do restante, chame a ferramenta de agendar retorno para essa data, com a promessa "Enviar o pagamento do restante de ${r}".`,
+    `NÃO ofereça pergunta nova, simpatia nem outro produto neste turno: ela está fechando o trabalho, e outra oferta agora confunde o que ela está pagando.`,
     `NÃO chame a equipe humana por causa disto.`,
   ].join("\n");
 }
