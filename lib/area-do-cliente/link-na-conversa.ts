@@ -7,9 +7,9 @@
  * campanha (o mesmo texto para todas) não serve.
  *
  * ─── Como ────────────────────────────────────────────────────────────────────────────────────────
- * Quem já pagou e ainda não recebeu o link pela conversa ganha no turno o bloco `blocoDaAreaNaConversa`:
- * a agente escreve a marca `[[AREA_DO_CLIENTE]]`, e só NA HORA DO ENVIO `linkDaAreaNoLugarDaMarca` cria
- * o convite (o mesmo da rota `POST /api/v1/area/convites`: token novo, o banco guarda só o hash) e troca
+ * Quem já comprou e ainda não recebeu o link pela conversa recebe o link no fim da PRIMEIRA resposta da
+ * agente depois da compra: o código anexa `paragrafoDoLinkDaArea` (com a marca `[[AREA_DO_CLIENTE]]`), e só NA
+ * HORA DO ENVIO `linkDaAreaNoLugarDaMarca` cria o convite (o mesmo da rota `POST /api/v1/area/convites`: token novo, o banco guarda só o hash) e troca
  * a marca pelo link. Link que não sai não é criado. O envio fica registrado como `convite_criado` com
  * `ref = 'conversa'`, e é esse registro que faz o bloco sumir dos turnos seguintes: uma vez por pessoa.
  *
@@ -31,17 +31,32 @@ export function temMarcaDaArea(texto: string): boolean {
   return texto.includes(MARCA_DA_AREA);
 }
 
-/** O bloco do turno para quem pode receber o link. Puro. */
-export function blocoDaAreaNaConversa(): string {
-  return [
-    "",
-    "",
-    "ÁREA DA CLIENTE (vale mais que qualquer instrução anterior sobre links)",
-    "- Esta pessoa já comprou e ainda NÃO recebeu o link do cantinho dela: uma página só dela, com o trabalho que fez, as etapas para marcar como feitas e o histórico do que ela comprou.",
-    "- Mande o link UMA vez, numa resposta em que a conversa estiver tranquila: NÃO no mesmo turno em que ela contou uma dificuldade ou algo grave, e NÃO junto de uma oferta ou de um pagamento.",
-    `- Como: 1 balão de contexto, por exemplo "Separei um cantinho só seu, com o seu trabalho e cada etapa pra você ir marcando.", e no balão seguinte a marca ${MARCA_DA_AREA} SOZINHA. O sistema troca a marca pelo link pessoal dela. Termine com uma pergunta.`,
-    `- NUNCA escreva um link da área por conta própria nem invente endereço: só a marca ${MARCA_DA_AREA}.`,
-  ].join("\n");
+/**
+ * JÁ COMPROU — o produto principal (`pago`) ou qualquer cobrança avulsa (`extra:<nome>`, ex. "Corte de Laços",
+ * "Pergunta nova"). Até 30/10/2026 só `pago` contava: medido em 10 dias, 17 de 43 compradoras (todas de avulsos
+ * pela Stripe) nunca podiam receber o link, embora a área mostre o que elas compraram. Pura.
+ */
+export function jaComprou(tags: readonly string[]): boolean {
+  return tags.includes("pago") || tags.some((t) => t.startsWith("extra:"));
+}
+
+/**
+ * O LINK SAI PELO CÓDIGO, não pelo juízo do modelo. Até 30/10/2026 a agente recebia a instrução de mandar o
+ * link "numa resposta em que a conversa estiver tranquila" — e a conversa de quem compra quase nunca está:
+ * medido em 10 dias, 1 de 26 compradoras elegíveis recebeu o link. Agora o parágrafo vai anexado ao fim da
+ * primeira resposta depois da compra. Texto fixo, curto, sem oferta. Puro.
+ */
+export function paragrafoDoLinkDaArea(): string {
+  return `Separei um cantinho só seu, com o que você comprou e cada etapa pra ir acompanhando: ${MARCA_DA_AREA}`;
+}
+
+/**
+ * A resposta pode levar o link no fim? Não quando ela cobra (código Pix, link de pagamento ou valor): o link da
+ * área ao lado de uma cobrança confunde qual dos dois tocar. Também não quando a agente já escreveu a marca. Pura.
+ */
+export function respostaAceitaOLinkDaArea(corpo: string): boolean {
+  if (temMarcaDaArea(corpo)) return false;
+  return !/(^|\s)000201|buy\.stripe\.com|checkout|\bpix\b|R\$\s?\d/i.test(corpo);
 }
 
 /**
@@ -52,7 +67,7 @@ export async function podeReceberOLinkDaArea(
   admin: SupabaseClient,
   args: { organizationId: string; contactId: string; tags: readonly string[] },
 ): Promise<boolean> {
-  if (!args.tags.includes("pago")) return false;
+  if (!jaComprou(args.tags)) return false;
   try {
     const [{ data: org }, { data: jaEnviado }] = await Promise.all([
       admin.from("organizations").select("settings").eq("id", args.organizationId).maybeSingle(),
@@ -86,7 +101,7 @@ export async function linkDaAreaNoLugarDaMarca(args: {
   const recusa = (motivo: string) => ({
     recusa: `${motivo} Reescreva a mensagem SEM a marca ${MARCA_DA_AREA}.`,
   });
-  if (!args.tags.includes("pago")) return recusa("O link da área é só de quem já comprou.");
+  if (!jaComprou(args.tags)) return recusa("O link da área é só de quem já comprou.");
   const origem = (args.origem ?? "").replace(/\/+$/, "");
   if (!/^https:\/\//.test(origem)) return recusa("A instalação não tem endereço público para o link.");
 
