@@ -4,9 +4,11 @@ import { describe, expect, it } from "vitest";
 import {
   MARCA_DA_AREA,
   REF_DA_CONVERSA,
-  blocoDaAreaNaConversa,
+  jaComprou,
   linkDaAreaNoLugarDaMarca,
+  paragrafoDoLinkDaArea,
   podeReceberOLinkDaArea,
+  respostaAceitaOLinkDaArea,
   temMarcaDaArea,
 } from "@/lib/area-do-cliente/link-na-conversa";
 import { FORMA_DO_TOKEN } from "@/lib/area-do-cliente/token";
@@ -87,12 +89,45 @@ describe("quem recebe o bloco", () => {
     expect(await podeReceberOLinkDaArea(bancoFalso(naTela), { organizationId: ORG, contactId: ANA, tags: PAGOU })).toBe(true);
   });
 
-  it("o bloco ensina a marca, uma vez, e não junto de dificuldade ou pagamento", () => {
-    const b = blocoDaAreaNaConversa();
-    expect(b).toContain(MARCA_DA_AREA);
-    expect(b).toContain("UMA vez");
-    expect(b).toContain("dificuldade");
-    expect(b).toContain("NUNCA escreva um link da área por conta própria");
+  it("⭐ compra avulsa pela Stripe (extra:corte-de-lacos) também dá direito ao link (30/10/2026)", async () => {
+    expect(jaComprou(["extra:corte-de-lacos"])).toBe(true);
+    expect(jaComprou(["pago"])).toBe(true);
+    expect(jaComprou(["produto:x", "lead"])).toBe(false);
+    expect(await podeReceberOLinkDaArea(bancoFalso(estado()), { organizationId: ORG, contactId: ANA, tags: ["extra:pergunta-nova"] })).toBe(true);
+  });
+});
+
+/**
+ * O LINK SAI PELO CÓDIGO (30/10/2026): dependendo do juízo do modelo ("quando a conversa estiver tranquila"),
+ * 1 de 26 compradoras recebeu o link em 10 dias. O parágrafo é anexado ao fim da primeira resposta que não cobra.
+ */
+describe("o parágrafo anexado pelo código", () => {
+  it("leva a marca, que o envio troca pelo link", () => {
+    expect(paragrafoDoLinkDaArea()).toContain(MARCA_DA_AREA);
+  });
+
+  it("não vai junto de cobrança nem duplica a marca", () => {
+    expect(respostaAceitaOLinkDaArea("Que bom que deu certo! Já começo seu trabalho hoje.")).toBe(true);
+    expect(respostaAceitaOLinkDaArea("São R$ 37, no Pix ou cartão.")).toBe(false);
+    expect(respostaAceitaOLinkDaArea("Toque no link: https://buy.stripe.com/abc")).toBe(false);
+    expect(respostaAceitaOLinkDaArea("00020101021226740014br.gov.bcb.pix2552")).toBe(false);
+    expect(respostaAceitaOLinkDaArea(`Olha aqui: ${MARCA_DA_AREA}`)).toBe(false);
+  });
+
+  it("o anexo vira link pessoal pelo mesmo caminho da marca", async () => {
+    const r = await linkDaAreaNoLugarDaMarca({
+      corpo: `Recebi seu pagamento, obrigada!
+
+${paragrafoDoLinkDaArea()}`,
+      admin: bancoFalso(estado()),
+      organizationId: ORG,
+      contactId: ANA,
+      tags: ["extra:corte-de-lacos"],
+      origem: ORIGEM,
+    });
+    if (!("corpo" in r)) throw new Error(r.recusa);
+    expect(r.corpo).not.toContain(MARCA_DA_AREA);
+    expect(r.corpo).toMatch(/cantinho só seu.*https:\/\//);
   });
 });
 

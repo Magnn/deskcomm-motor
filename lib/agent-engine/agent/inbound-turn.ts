@@ -174,9 +174,10 @@ import {
   temMarcaDeEncerramento,
 } from '@/lib/contacts/encerrar-acompanhamento';
 import {
-  blocoDaAreaNaConversa,
   linkDaAreaNoLugarDaMarca,
+  paragrafoDoLinkDaArea,
   podeReceberOLinkDaArea,
+  respostaAceitaOLinkDaArea,
   temMarcaDaArea,
 } from '@/lib/area-do-cliente/link-na-conversa';
 import { produtosComFluxoDeEntrega } from '@/lib/catalogo/fluxos-de-entrega';
@@ -2795,18 +2796,16 @@ async function executarTurnoDoAgente(
   if (!preview && (openingContext.context.contact.tags ?? []).includes('pago') && !recusouOfertasNoTurno) {
     blocoDaEntrega += blocoDoEncerramento();
   }
-  // Área do cliente: quem pagou e ainda não recebeu o link pela conversa ganha a marca que vira o link
-  // pessoal no envio (`lib/area-do-cliente/link-na-conversa.ts`). Uma vez por pessoa.
-  if (
+  // Área do cliente: quem comprou e ainda não recebeu o link pela conversa recebe o link no fim da primeira
+  // resposta deste turno que não cobra nada — anexado pelo CÓDIGO no envio, não pedido ao modelo
+  // (`lib/area-do-cliente/link-na-conversa.ts`, 1 de 26 recebia quando dependia dele). Uma vez por pessoa.
+  let linkDaAreaPendente =
     !preview &&
     (await podeReceberOLinkDaArea(deps.crmCfg.supabase, {
       organizationId: tenantId,
       contactId: leadId,
       tags: openingContext.context.contact.tags ?? [],
-    }))
-  ) {
-    blocoDaEntrega += blocoDaAreaNaConversa();
-  }
+    }));
   // Leitura de tarot: a pessoa escolheu 3 números do baralho fechado (achado no histórico, DEPOIS de a
   // agente oferecê-lo) → o código sorteia de verdade (nunca o modelo) e revela uma carta por turno;
   // depois das 3, a causa raiz. Sem escolha na janela, ou com a causa raiz já dita, `passoDaLeitura`
@@ -3966,6 +3965,25 @@ async function executarTurnoDoAgente(
         }
         // ÁREA DO CLIENTE: a marca `[[AREA_DO_CLIENTE]]` vira o link pessoal, com o convite criado agora.
         // Área desligada, quem não pagou ou convite que não grava recusa o envio: a marca crua não sai.
+        // O link anexado pelo código vai no fim da primeira resposta que não cobra. Se o convite não puder ser
+        // criado, o parágrafo sai e a resposta da agente segue sem ele — o anexo nunca derruba a fala dela.
+        if (linkDaAreaPendente && respostaAceitaOLinkDaArea(body)) {
+          linkDaAreaPendente = false;
+          const comArea = await linkDaAreaNoLugarDaMarca({
+            corpo: `${body}\n\n${paragrafoDoLinkDaArea()}`,
+            admin: deps.crmCfg.supabase,
+            organizationId: tenantId,
+            contactId: leadId,
+            tags: openingContext.context.contact.tags ?? [],
+            origem: process.env.NEXT_PUBLIC_APP_URL,
+          });
+          if ('corpo' in comArea) {
+            body = comArea.corpo;
+            runLog.info('link da área do cliente anexado à resposta', {});
+          } else {
+            runLog.warn('link da área do cliente não anexado', { motivo: comArea.recusa.slice(0, 120) });
+          }
+        }
         if (!preview && temMarcaDaArea(body)) {
           const comArea = await linkDaAreaNoLugarDaMarca({
             corpo: body,
