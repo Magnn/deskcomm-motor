@@ -11,14 +11,14 @@
  * "voltar" do celular não tira a pessoa da área.
  */
 import * as React from "react";
-import { Compass, MessagesSquare, Moon, ScrollText } from "lucide-react";
+import { MessagesSquare, Moon, ScrollText, ShoppingBag } from "lucide-react";
 
 import { ABAS_DA_AREA, abaValida, type AbaDaArea } from "@/lib/area-do-cliente/abas";
 
 export type { AbaDaArea };
 
 
-const ICONE = { hoje: Moon, trabalho: ScrollText, conversa: MessagesSquare, explorar: Compass } as const;
+const ICONE = { hoje: Moon, trabalho: ScrollText, conversa: MessagesSquare, explorar: ShoppingBag } as const;
 
 /** Um link ou botão de dentro de uma aba que leva para outra (ex.: "Responder" na aba Hoje). */
 export const IrParaAba = React.createContext<(aba: AbaDaArea) => void>(() => {});

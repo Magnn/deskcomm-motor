@@ -65,6 +65,7 @@ export function CartaoDaVitrine({
   tema,
   tom = "lilas",
   largo = false,
+  formato = "padrao",
   testId,
   children,
 }: {
@@ -78,12 +79,47 @@ export function CartaoDaVitrine({
   tom?: TomDoCartao;
   /** Cartão de prateleira com um item só: ocupa a largura toda. */
   largo?: boolean;
+  /**
+   * `poster`: o cartão em pé da Loja (o desenho das prateleiras de streaming), estreito para caberem dois e meio na
+   * tela do celular — a ponta do terceiro é o convite para deslizar. `padrao`: o cartão deitado de antes.
+   */
+  formato?: "padrao" | "poster";
   testId?: string;
   /** O que a gaveta mostra ao tocar. */
   children: React.ReactNode;
 }) {
   const [aberta, setAberta] = React.useState(false);
   const Icone = ICONES[icone];
+  if (formato === "poster") {
+    return (
+      <>
+        <button
+          type="button"
+          onClick={() => setAberta(true)}
+          data-testid={testId}
+          className={`group relative flex aspect-[2/3] w-[40%] max-w-[176px] shrink-0 snap-start flex-col overflow-hidden rounded-2xl border border-[#c9a54e]/20 bg-gradient-to-b ${TONS[tom]} text-left shadow-[0_18px_40px_-24px_rgba(0,0,0,0.9)] transition active:scale-[0.97] motion-reduce:transition-none`}
+        >
+          <span className="pointer-events-none flex flex-1 items-center justify-center pt-3">
+            {tema ? (
+              <Ilustracao tema={tema} classe="size-[92px] drop-shadow-[0_0_22px_rgba(226,196,122,0.35)] transition group-hover:scale-105 motion-reduce:transition-none" />
+            ) : (
+              <Icone className="size-14 text-[#e2c47a]/70" strokeWidth={1.25} aria-hidden />
+            )}
+          </span>
+          {sobretitulo ? (
+            <span className="absolute left-2 top-2 rounded-full bg-[#c9a54e] px-2 py-0.5 text-[9.5px] font-bold uppercase tracking-[0.12em] text-[#1b1433]">
+              {sobretitulo}
+            </span>
+          ) : null}
+          <span className="relative block bg-gradient-to-t from-[#0d0919] via-[#0d0919]/85 to-transparent px-3 pb-3 pt-6">
+            <span className={`${SERIF} line-clamp-2 text-[16px] leading-tight text-[#f6f0e4]`}>{titulo}</span>
+            {preco ? <span className="mt-1 block text-[13px] font-semibold text-[#f0dca8]">{preco}</span> : null}
+          </span>
+        </button>
+        {aberta ? <Gaveta titulo={titulo} fechar={() => setAberta(false)}>{children}</Gaveta> : null}
+      </>
+    );
+  }
   return (
     <>
       <button
@@ -117,6 +153,68 @@ export function CartaoDaVitrine({
       </button>
       {aberta ? <Gaveta titulo={titulo} fechar={() => setAberta(false)}>{children}</Gaveta> : null}
     </>
+  );
+}
+
+/**
+ * O DESTAQUE no alto da Loja: um produto só, grande, com o comprar à mão — a capa das lojas de streaming. O
+ * "Ver detalhes" abre a mesma gaveta dos cartões; o "comprar" é um link comum, como no cartão.
+ */
+export function DestaqueDaLoja({
+  sobretitulo,
+  titulo,
+  linha,
+  preco,
+  tema,
+  comprar,
+  detalhes,
+  testId,
+  children,
+}: {
+  sobretitulo: string;
+  titulo: string;
+  linha?: string | null;
+  preco: string;
+  tema: TemaDaIlustracao;
+  comprar: { href: string; rotulo: string };
+  detalhes: string;
+  testId?: string;
+  children: React.ReactNode;
+}) {
+  const [aberta, setAberta] = React.useState(false);
+  return (
+    <section
+      data-testid={testId}
+      className="relative overflow-hidden rounded-3xl border border-[#c9a54e]/25 bg-gradient-to-br from-[#3a2c12] via-[#1d1638] to-[#140f26] p-5 shadow-[0_24px_50px_-28px_rgba(0,0,0,0.95)]"
+    >
+      <Ilustracao tema={tema} classe="pointer-events-none absolute -right-6 -top-4 size-48 opacity-90 drop-shadow-[0_0_30px_rgba(226,196,122,0.35)]" />
+      <div className="relative max-w-[70%]">
+        <span className="inline-flex items-center rounded-full border border-[#c9a54e]/40 bg-[#c9a54e]/10 px-3 py-1 text-[10.5px] font-semibold uppercase tracking-[0.2em] text-[#e2c47a]">
+          {sobretitulo}
+        </span>
+        <h2 className={`${SERIF} mt-3 text-[30px] leading-[1.05] text-[#f6f0e4]`}>{titulo}</h2>
+        {linha ? <p className="mt-2 line-clamp-3 text-[14px] leading-snug text-[#d9d0e6]">{linha}</p> : null}
+        <p className={`${SERIF} mt-3 text-[24px] text-[#f0dca8]`}>{preco}</p>
+      </div>
+      <div className="relative mt-4 flex flex-wrap gap-2">
+        <a
+          href={comprar.href}
+          className="inline-flex h-12 items-center rounded-full bg-[#c9a54e] px-6 text-[15px] font-semibold text-[#1b1433] transition hover:brightness-110"
+          data-testid="area-destaque-comprar"
+        >
+          {comprar.rotulo}
+        </a>
+        <button
+          type="button"
+          onClick={() => setAberta(true)}
+          className="inline-flex h-12 items-center rounded-full border border-white/20 bg-white/[0.06] px-5 text-[15px] font-semibold text-[#efe7f7] transition hover:bg-white/[0.1]"
+          data-testid="area-destaque-detalhes"
+        >
+          {detalhes}
+        </button>
+      </div>
+      {aberta ? <Gaveta titulo={titulo} fechar={() => setAberta(false)}>{children}</Gaveta> : null}
+    </section>
   );
 }
 
