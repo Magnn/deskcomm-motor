@@ -5,7 +5,14 @@
 import { describe, expect, it } from "vitest";
 
 import type { Extra } from "./tipos";
-import { palavrasDoExtra, quantidadesDitas, valorErradoDeExtra, valoresDitos } from "./valor-do-extra";
+import {
+  falasDesdeAUltimaCobranca,
+  palavrasDoExtra,
+  quantidadeMenorQueACombinada,
+  quantidadesDitas,
+  valorErradoDeExtra,
+  valoresDitos,
+} from "./valor-do-extra";
 
 const EXTRAS = [
   { name: "Pergunta nova", when: "x", price_cents: 500 },
@@ -112,5 +119,51 @@ describe("valor dito de cobrança avulsa", () => {
       expect(quantidadesDitas("três novas perguntas", "pergunta")).toEqual([3]);
       expect(quantidadesDitas("uma pergunta", "pergunta")).toEqual([1]);
     });
+  });
+});
+
+describe("a quantidade combinada antes vale para a marca (30/10/2026)", () => {
+  const ela = (body: string) => ({ direction: "inbound" as const, body });
+  const nos = (body: string) => ({ direction: "outbound" as const, body });
+
+  // O caso real: duas perguntas anotadas de manhã, Pix de uma à tarde.
+  const conversaDoMarcio = [
+    ela("quero saber se ela pensa em voltar e se já está com outra pessoa"),
+    nos("Duas perguntas boas, Márcio. Anotei as duas aqui."),
+    nos("As duas perguntas continuam anotadas aqui comigo."),
+    ela("pode mandar o pix"),
+  ];
+
+  it("recusa a marca de uma quando a conversa combinou duas, com o total certo", () => {
+    const motivo = quantidadeMenorQueACombinada("[[PIX: Pergunta nova]]", EXTRAS, conversaDoMarcio);
+    expect(motivo).toContain("[[PIX: Pergunta nova x2]]");
+    expect(motivo).toContain("R$ 10");
+  });
+
+  it("aceita a marca com a quantidade combinada", () => {
+    expect(quantidadeMenorQueACombinada("[[PIX: Pergunta nova x2]]", EXTRAS, conversaDoMarcio)).toBeNull();
+  });
+
+  it("aceita uma quando a resposta diz que cobra só uma agora — no próprio balão ou no anterior do turno", () => {
+    expect(quantidadeMenorQueACombinada("Cobro só uma agora, a outra fica guardada. [[PIX: Pergunta nova]]", EXTRAS, conversaDoMarcio)).toBeNull();
+    expect(
+      quantidadeMenorQueACombinada("[[PIX: Pergunta nova]]", EXTRAS, [...conversaDoMarcio, nos("Então a gente começa por uma, como você pediu.")]),
+    ).toBeNull();
+  });
+
+  it("o 'só uma' de turnos passados não libera a cobrança de agora", () => {
+    const conversa = [nos("Por enquanto só uma, tudo bem."), ...conversaDoMarcio];
+    expect(quantidadeMenorQueACombinada("[[PIX: Pergunta nova]]", EXTRAS, conversa)).not.toBeNull();
+  });
+
+  it("a quantidade de uma cobrança anterior não conta: lê só desde a última mensagem que cobrou", () => {
+    const mensagens = [nos("Suas três perguntas ficam R$ 15."), nos("Pra pagar no Pix (*R$ 15*): 000201..."), ela("e agora quero fazer mais uma pergunta")];
+    const falas = falasDesdeAUltimaCobranca(mensagens);
+    expect(falas.map((f) => f.body)).toEqual(["e agora quero fazer mais uma pergunta"]);
+    expect(quantidadeMenorQueACombinada("[[PIX: Pergunta nova]]", EXTRAS, falas)).toBeNull();
+  });
+
+  it("cobrança que vale por período não entra na conta", () => {
+    expect(quantidadeMenorQueACombinada("[[PIX: Acompanhamento do mês]]", EXTRAS, [nos("são dois acompanhamentos")])).toBeNull();
   });
 });

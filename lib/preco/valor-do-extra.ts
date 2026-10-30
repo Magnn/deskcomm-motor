@@ -174,3 +174,54 @@ function contaDaMarcaErrada(corpo: string, extra: Extra, quantidade: number): st
   }
   return null;
 }
+
+/**
+ * ─── A quantidade combinada antes (30/10/2026) ─────────────────────────────────────────────────────────────────────
+ * Medido em produção: o cliente tinha DUAS perguntas — a própria agente escreveu "as suas duas perguntas" três vezes no
+ * dia —, e na hora de cobrar a resposta só dizia "a pergunta nova é R$ 5" com `[[PIX: Pergunta nova]]`. O Pix saiu de
+ * R$ 5, ele pagou, e a agente abriu a mesa "para as suas duas perguntas". A conferência de cima só lê a resposta; a
+ * quantidade estava nas mensagens de antes. Decisão do dono: R$ 5 dá direito a UMA pergunta — duas são R$ 10.
+ *
+ * Agora: a quantidade dita na conversa DESDE A ÚLTIMA COBRANÇA (pelas duas pontas) vale para a marca. Se a conversa
+ * diz N e a marca cobra menos, o envio volta com a marca certa. A saída é dizer, na própria resposta, que cobra só uma
+ * agora ("só uma por enquanto", "começa por uma") — aí a pessoa sabe o que está pagando.
+ */
+const COBRA_MENOS_DE_PROPOSITO = /\b(?:so|apenas|somente)\s+(?:uma|1)\b|\buma\s+(?:de\s+cada\s+vez|por\s+vez)\b|\bcomec\w*\s+por\s+uma\b/;
+/** Mensagem nossa que já levou uma cobrança: dali para trás a quantidade é de outro pagamento. */
+const JA_COBROU = /(?:^|\s)000201|\[\[PIX:|pra pagar no pix|buy\.stripe\.com/i;
+
+type Fala = { direction: "inbound" | "outbound"; body: string };
+
+/** As falas da conversa (as duas pontas) desde a última mensagem nossa que levou uma cobrança. Pura. */
+export function falasDesdeAUltimaCobranca(mensagens: readonly Fala[]): Fala[] {
+  const falas: Fala[] = [];
+  for (let i = mensagens.length - 1; i >= 0; i -= 1) {
+    const m = mensagens[i]!;
+    if (m.direction === "outbound" && JA_COBROU.test(m.body ?? "")) break;
+    if ((m.body ?? "").trim() !== "") falas.unshift(m);
+  }
+  return falas;
+}
+
+/**
+ * O motivo da recusa quando a marca cobra MENOS unidades do que a conversa combinou; `null` quando está certo.
+ * `conversa`: as falas desde a última cobrança (`falasDesdeAUltimaCobranca`), com os balões já enviados neste turno no
+ * fim — o "cobro só uma agora" pode ter ido no balão de antes da marca.
+ */
+export function quantidadeMenorQueACombinada(corpo: string, extras: readonly Extra[], conversa: readonly Fala[]): string | null {
+  const marca = marcaDeExtraNoCorpo(corpo, extras);
+  if (marca.tipo !== "uma" || (marca.extra.valid_days ?? 1) > 1) return null;
+  const ultimaDela = conversa.map((f) => f.direction).lastIndexOf("inbound");
+  const desteTurno = [...conversa.slice(ultimaDela + 1).map((f) => f.body), corpo];
+  if (desteTurno.some((texto) => COBRA_MENOS_DE_PROPOSITO.test(semAcento(texto)))) return null;
+  const palavras = palavrasDoExtra(marca.extra.name);
+  const combinada = Math.max(0, ...[...conversa.map((f) => f.body), corpo].flatMap((texto) => palavras.flatMap((p) => quantidadesDitas(texto, p))));
+  if (combinada <= marca.quantidade) return null;
+  const nome = marca.extra.name;
+  return (
+    `A conversa combinou ${combinada} ${nome.toLowerCase()}, e cada uma é ${reais(marca.extra.price_cents)}: ` +
+    `o total é ${combinada} × ${reais(marca.extra.price_cents)} = ${reais(combinada * marca.extra.price_cents)}, mas a marca cobra ${marca.quantidade}. ` +
+    `Reescreva dizendo o total e use [[PIX: ${nome} x${combinada}]]. ` +
+    `Só cobre menos se a pessoa escolheu pagar uma agora — e então diga isso na resposta ("cobro só uma agora").`
+  );
+}
