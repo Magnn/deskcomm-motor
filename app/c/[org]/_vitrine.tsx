@@ -11,8 +11,7 @@
  * não mudou, só o momento em que ela aparece.
  */
 import * as React from "react";
-import type { LucideIcon } from "lucide-react";
-import { ChevronRight, X } from "lucide-react";
+import { BookOpen, ChevronRight, Flame, Gift, HandHeart, Heart, Moon, Sparkles, Star, X, type LucideIcon } from "lucide-react";
 
 import { Ilustracao, type TemaDaIlustracao } from "./_ilustracoes";
 import { SERIF } from "./_tema";
@@ -29,6 +28,24 @@ export function Prateleira({ titulo, children, testId }: { titulo: string; child
   );
 }
 
+/**
+ * Os ícones vão pelo NOME, não pelo componente. Quem monta a vitrine é a página (componente de servidor), e o
+ * que ela passa a um componente de cliente atravessa a rede serializado: o ícone do lucide é um `forwardRef` com
+ * uma função dentro, e o React recusa ("Functions cannot be passed directly to Client Components"). De 20/10 a
+ * 30/10/2026 isso derrubou a área inteira de quem tinha algo na vitrine — a pessoa abria o link e via a tela de erro.
+ */
+const ICONES = {
+  chama: Flame,
+  brilho: Sparkles,
+  lua: Moon,
+  estrela: Star,
+  presente: Gift,
+  livro: BookOpen,
+  coracao: Heart,
+  "mao-com-coracao": HandHeart,
+} as const satisfies Record<string, LucideIcon>;
+export type NomeDoIcone = keyof typeof ICONES;
+
 /** Os tons dos cartões: noite com uma luz de cor diferente, para a prateleira não ser uma fila de iguais. */
 const TONS = {
   ouro: "from-[#3a2c12] via-[#1d1638] to-[#140f26]",
@@ -44,7 +61,7 @@ export function CartaoDaVitrine({
   linha,
   preco,
   sobretitulo,
-  Icone,
+  icone,
   tema,
   tom = "lilas",
   largo = false,
@@ -55,7 +72,7 @@ export function CartaoDaVitrine({
   linha?: string | null;
   preco?: string | null;
   sobretitulo?: string | null;
-  Icone: LucideIcon;
+  icone: NomeDoIcone;
   /** A ilustração do cartão (`_ilustracoes.tsx`). Sem ela, o ícone. */
   tema?: TemaDaIlustracao;
   tom?: TomDoCartao;
@@ -66,6 +83,7 @@ export function CartaoDaVitrine({
   children: React.ReactNode;
 }) {
   const [aberta, setAberta] = React.useState(false);
+  const Icone = ICONES[icone];
   return (
     <>
       <button
@@ -140,8 +158,9 @@ export function Gaveta({ titulo, fechar, children }: { titulo: string; fechar: (
 }
 
 /** Uma linha discreta de ação, para o que não é vitrine (pedir algo, contribuir). */
-export function LinhaDaVitrine({ titulo, linha, Icone, testId, children }: { titulo: string; linha?: string; Icone: LucideIcon; testId?: string; children: React.ReactNode }) {
+export function LinhaDaVitrine({ titulo, linha, icone, testId, children }: { titulo: string; linha?: string; icone: NomeDoIcone; testId?: string; children: React.ReactNode }) {
   const [aberta, setAberta] = React.useState(false);
+  const Icone = ICONES[icone];
   return (
     <>
       <button
