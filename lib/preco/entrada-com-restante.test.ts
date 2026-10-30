@@ -214,3 +214,31 @@ describe("valor abaixo do menor valor — a agente segura antes de aceitar entra
     expect(valorAbaixoDoPisoAgora(PRICING, [PRECO, m("inbound", "só tenho 90")])).toBeNull();
   });
 });
+
+describe("o número sozinho que responde 'quanto caberia pra você?' (30/10/2026)", () => {
+  const PERGUNTOU = m("outbound", "Eu sei que não está fácil, Carla. Me diz uma coisa, sem aperto: hoje, pro trabalho que a gente viu, quanto caberia de verdade pra você sem tirar o que é da casa?");
+
+  it("⭐ o caso medido: 'estou sem recursos' → a agente pergunta quanto cabe → '80' vira entrada de 80 e restante de 50", async () => {
+    const { entradaImediata } = await import("./estado-da-negociacao");
+    const conversa = [PRECO, m("inbound", "Esmeralda estou sem recursos para fazer agora"), PERGUNTOU, m("inbound", "80")];
+    expect(entradaImediata(PRICING, conversa)).toEqual({ entradaCents: 8000, restanteCents: 5000 });
+  });
+
+  it("aceita 'R$ 80', '80,00' e '80 reais' sozinhos", async () => {
+    const { valorQueAPessoaTem } = await import("./estado-da-negociacao");
+    for (const resposta of ["R$ 80", "80,00", "80 reais", "80."]) {
+      expect(valorQueAPessoaTem([PRECO, PERGUNTOU, m("inbound", resposta)])).toBe(8000);
+    }
+  });
+
+  it("número sozinho sem a pergunta do valor não é dinheiro (data, idade, número das cartas)", async () => {
+    const { valorQueAPessoaTem } = await import("./estado-da-negociacao");
+    expect(valorQueAPessoaTem([PRECO, m("outbound", "Escolha um número de 1 a 22."), m("inbound", "20")])).toBeNull();
+    expect(valorQueAPessoaTem([PRECO, m("outbound", "Quantos anos ele tem?"), m("inbound", "75")])).toBeNull();
+  });
+
+  it("o bloco da entrada proíbe oferecer pergunta nova no mesmo turno", async () => {
+    const { blocoDaEntradaImediata } = await import("./bloco-da-entrada");
+    expect(blocoDaEntradaImediata({ entradaCents: 8000, restanteCents: 5000 })).toMatch(/NÃO ofereça pergunta nova/);
+  });
+});
