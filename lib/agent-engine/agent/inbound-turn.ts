@@ -103,7 +103,7 @@ import {
 } from '@/lib/preco/extras';
 import { promessaDeReenvioSemCobranca } from '@/lib/preco/promessa-de-reenvio';
 import { recusaDeQuemJaPagou } from '@/lib/preco/pago-mas-cobrando';
-import { valorErradoDeExtra } from '@/lib/preco/valor-do-extra';
+import { falasDesdeAUltimaCobranca, quantidadeMenorQueACombinada, valorErradoDeExtra } from '@/lib/preco/valor-do-extra';
 import { destinoDaProva, legendaDaProva, provasParaEnviar } from '@/lib/preco/prova-social';
 import { classificarPerdaDoAtendimento } from '@/lib/resultado/motivo-da-perda-do-agente';
 import { insertInboxItem } from '../db/repository';
@@ -4010,6 +4010,21 @@ async function executarTurnoDoAgente(
           if (valorErrado) {
             runLog.warn('valor de cobrança avulsa diferente do cadastrado — envio recusado', {});
             return { ok: false, error: { code: 'valor_do_extra_errado', message: valorErrado } };
+          }
+          // A QUANTIDADE COMBINADA ANTES VALE PARA A MARCA (`quantidadeMenorQueACombinada`): em 30/10/2026 o cliente tinha
+          // duas perguntas anotadas e o Pix saiu de uma (R$ 5 em vez de R$ 10).
+          const menosQueOCombinado = quantidadeMenorQueACombinada(
+            body,
+            extrasDaConfig(agentConfig?.pricing),
+            falasDesdeAUltimaCobranca([
+              ...openingContext.context.messages,
+              // Os balões já enviados neste turno: o valor costuma ir num balão e a marca, sozinha, no seguinte.
+              ...corposEnviados.map((b) => ({ direction: 'outbound' as const, body: b })),
+            ]),
+          );
+          if (menosQueOCombinado) {
+            runLog.warn('cobrança avulsa com menos unidades que as combinadas — envio recusado', {});
+            return { ok: false, error: { code: 'quantidade_do_extra_menor', message: menosQueOCombinado } };
           }
           // O PRODUTO DO CATÁLOGO pelo valor do catálogo (`lib/catalogo/valor-do-produto.ts`): em 21/10/2026 a Oração
           // dos Sonhos (R$ 35) saiu como "Fica R$ 130" para quem só tinha comprado uma pergunta.
