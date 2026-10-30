@@ -12208,6 +12208,7 @@ export const DICIONARIO: Traducoes = {
   "Conexão bem-sucedida.": { es: "Conexión exitosa." },
   "Conexão removida.": { es: "Conexión eliminada." },
   "Explorar": { es: "Explorar" },
+  "Em destaque": { es: "Destacado" },
   "Testar": { es: "Probar" },
   "Remover esta conexão?": { es: "¿Eliminar esta conexión?" },
   "A senha guardada é apagada e o agente deixa de enxergar esse banco. O banco de origem não é tocado — só a conexão daqui.": {

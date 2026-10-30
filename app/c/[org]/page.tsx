@@ -33,7 +33,9 @@ import { carregarGrimorio, carregarMesa, configDasLeituras } from "@/lib/area-do
 import { abaValida } from "@/lib/area-do-cliente/abas";
 import { COR_PADRAO_DA_AREA } from "@/lib/area-do-cliente/config";
 import { registrarEvento } from "@/lib/area-do-cliente/eventos";
+import { urlDaMidiaDaArea } from "@/lib/area-do-cliente/midia";
 import { nomeDoCookieDaArea, orgDaArea, sessaoDoCookie } from "@/lib/area-do-cliente/sessao";
+import { baseDoStorage } from "@/lib/branding/logo";
 import { tagDeIdioma } from "@/lib/i18n/datas";
 import { traduzir } from "@/lib/i18n/dicionario";
 import { idiomaDoVisitante } from "@/lib/i18n/idiomaAnonimo";
@@ -397,6 +399,7 @@ export default async function AreaDoCliente({ params, searchParams }: Props) {
         return c ? { ...c, sol: t(c.sol), lua: t(c.lua), luaOutra: c.luaOutra ? t(c.luaOutra) : c.luaOutra } : null;
       })()}
       tp={textosDaEntrada(t)}
+      guia={{ foto: urlDaMidiaDaArea(org.config.guia?.foto, baseDoStorage()), nome: org.config.guia?.nome ?? null }}
       abaInicial={abaValida(aba)}
     />
   );
