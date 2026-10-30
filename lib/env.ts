@@ -345,6 +345,11 @@ const schema = z.object({
   // ausente: sem endereço, a narração usa a voz rápida.
   VOZ_HUMANA_BASE_URL: z.string().optional().default(""),
   VOZ_HUMANA_API_KEY: z.string().optional().default(""),
+  // A VOZ DA MICROSOFT DO PRÓPRIO SERVIDOR (`lib/voz/servidor-microsoft.ts`, serviço em
+  // `ops/vps/voz-microsoft`): as vozes neurais do Edge, sem custo por caractere e sem garantia. Vazio é
+  // ausente: sem endereço, estas vozes não aparecem.
+  VOZ_MICROSOFT_BASE_URL: z.string().optional().default(""),
+  VOZ_MICROSOFT_API_KEY: z.string().optional().default(""),
   // Endereço da API do Jev (TypeSafe AI). Vazio é ausente: vale
   // https://api.typesafe.ai. Existe para o dublê do e2e — a CHAVE nunca vem
   // daqui, é por organização (BYOK). Quem lê é `baseDaApiDoJev()`, em

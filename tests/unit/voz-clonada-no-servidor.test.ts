@@ -12,7 +12,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const h = vi.hoisted(() => ({
-  env: { VOZ_CLONADA_BASE_URL: "https://voz.test/_clonar", VOZ_CLONADA_API_KEY: "k", VOZ_PROPRIA_BASE_URL: "https://voz.test/_ouvir", VOZ_PROPRIA_API_KEY: "", VOZ_PROPRIA_MODELO: "", VOZ_PROPRIA_VOZ: "" },
+  env: { VOZ_MICROSOFT_BASE_URL: "", VOZ_CLONADA_BASE_URL: "https://voz.test/_clonar", VOZ_CLONADA_API_KEY: "k", VOZ_PROPRIA_BASE_URL: "https://voz.test/_ouvir", VOZ_PROPRIA_API_KEY: "", VOZ_PROPRIA_MODELO: "", VOZ_PROPRIA_VOZ: "" },
   fetch: vi.fn(),
   converter: vi.fn(),
 }));

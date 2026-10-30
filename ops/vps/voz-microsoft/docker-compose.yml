@@ -1,0 +1,18 @@
+# Voz da Microsoft do próprio servidor — instalada em 30/10/2026. Ver app.py.
+# Rede do host: escuta só em 127.0.0.1:8014; quem chega nele é o Caddy, pelo caminho
+# https://<domínio>/_microsoft/ (restrito ao próprio servidor e com a chave). Para remover: tirar
+# VOZ_MICROSOFT_* do .env do app, recriar app e worker, apagar o bloco "_microsoft" do Caddyfile e
+# "docker compose down" aqui.
+services:
+  voz-microsoft:
+    build: .
+    image: acassia-voz-microsoft:local
+    container_name: acassia-voz-microsoft
+    restart: unless-stopped
+    network_mode: host
+    env_file: .env
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 256m
