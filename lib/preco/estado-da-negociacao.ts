@@ -177,6 +177,42 @@ export function reclamacoesComOfertaPorSilencio(
   return Math.max(reclamacoes ?? 0, i + 2);
 }
 
+/**
+ * O LEMBRETE SÓ OFERECE VALOR MENOR DO QUE A PESSOA JÁ OUVIU. A régua (`recovery.step_offers_cents`) tem valores fixos
+ * por passo e não sabia o que a conversa já tinha dito. Medido em 31/10/2026: quem tinha ouvido R$ 60 de manhã recebeu
+ * "consegui deixar o seu trabalho por R$ 100" à tarde, em nome de um desconto que era um aumento.
+ *
+ * Só conta valor da escada: o texto também cita pergunta de R$ 5, referência de R$ 380 e parcela. Pura.
+ */
+export function ofertaAindaDesce(
+  c: Pick<PricingConfig, "steps">,
+  ofertaCents: number,
+  falasDaAgente: readonly string[],
+): boolean {
+  const degraus = new Set(c.steps.map((s) => s.price_cents));
+  for (const fala of falasDaAgente) {
+    for (const achado of fala.matchAll(VALORES_EM_REAIS)) {
+      const cents = Number(achado[1]!.replace(/\./g, "")) * 100 + Number(achado[2] ?? "0");
+      if (degraus.has(cents) && cents <= ofertaCents) return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * O passo da régua só vale como oferta se o valor foi escrito na conversa: um passo que saiu sem oferta (quem já ouviu
+ * valor menor, quem avisou a pausa) também fica registrado, e sem esta conferência liberaria um valor que ninguém disse.
+ */
+export function ofertaFoiDita(ofertaCents: number, mensagens: readonly MensagemParaContar[]): boolean {
+  return mensagens.some(
+    (m) =>
+      m.direction === "outbound" &&
+      [...(m.body ?? "").matchAll(VALORES_EM_REAIS)].some(
+        (a) => Number(a[1]!.replace(/\./g, "")) * 100 + Number(a[2] ?? "0") === ofertaCents,
+      ),
+  );
+}
+
 export function precoPermitidoAgora(
   c: Pick<PricingConfig, "list_price_cents" | "steps">,
   reclamacoes: number | null,

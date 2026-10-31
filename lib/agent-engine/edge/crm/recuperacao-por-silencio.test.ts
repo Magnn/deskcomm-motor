@@ -12,6 +12,7 @@ const RECUPERACAO_PADRAO = { ...PADRAO_DO_PRODUTO, steps_minutes: [3, 15, 180] }
 
 import {
   CONSULTA_DE_SILENCIOSAS,
+  FALAS_COM_VALOR,
   MAXIMO_DE_CHAMADAS_POR_RODADA,
   REGISTRO_DA_CHAMADA,
   decidirChamada,
@@ -57,13 +58,14 @@ const FRONTEIRA = {
   demanda_fechada_em: null,
 };
 
-function poolCom(linhas: object[], opcoes: { registra?: boolean; fila?: "ok" | "falha" } = {}) {
+function poolCom(linhas: object[], opcoes: { registra?: boolean; fila?: "ok" | "falha"; falas?: string[] } = {}) {
   const chamadas: Array<{ sql: string; params: unknown[] }> = [];
   return {
     chamadas,
     query: vi.fn(async (sql: string, params: unknown[] = []) => {
       chamadas.push({ sql, params });
       if (sql === CONSULTA_DE_SILENCIOSAS) return { rows: linhas };
+      if (sql === FALAS_COM_VALOR) return { rows: (opcoes.falas ?? []).map((body) => ({ body })) };
       if (sql === REGISTRO_DA_CHAMADA) return { rows: opcoes.registra === false ? [] : [{ id: "registro-1" }] };
       if (sql.includes("insert into job_queue")) {
         if (opcoes.fila === "falha") throw new Error("fila fora");
@@ -74,6 +76,39 @@ function poolCom(linhas: object[], opcoes: { registra?: boolean; fila?: "ok" | "
     }),
   };
 }
+
+describe("a oferta do passo olha o que a conversa já disse", () => {
+  const tresHoras = 181;
+  const comOferta = silenciosa({
+    followup: { recovery: { ...RECUPERACAO_PADRAO, steps_minutes: [3, 15, 180], step_offers_cents: [null, null, 10000] } },
+    pricing: { steps: [{ price_cents: 10000 }, { price_cents: 6000 }] },
+    ouviu_preco: true,
+    feitas: 2,
+    last_inbound_at: ha(tresHoras + 10),
+    last_outbound_at: ha(tresHoras),
+  });
+  const motivoEnfileirado = (pool: ReturnType<typeof poolCom>) =>
+    JSON.stringify(pool.chamadas.find((c) => c.sql.includes("insert into job_queue"))?.params);
+
+  it("⭐ o caso de 31/10: quem ouviu R$ 60 recebe a retomada comum, não 'consegui deixar por R$ 100'", async () => {
+    const pool = poolCom([comOferta], { falas: ["É R$ 60, uma vez só."] });
+    const r = await recuperarSilenciosos(pool as never, log, { agora: AGORA });
+    expect(r.chamadas).toBe(1);
+    expect(motivoEnfileirado(pool)).not.toContain("R$ 100");
+  });
+
+  it("quem só ouviu o valor cheio recebe a oferta", async () => {
+    const pool = poolCom([comOferta], { falas: ["Pra você fica R$ 130."] });
+    await recuperarSilenciosos(pool as never, log, { agora: AGORA });
+    expect(motivoEnfileirado(pool)).toContain("R$ 100");
+  });
+
+  it("passo sem oferta não gasta a consulta das falas", async () => {
+    const pool = poolCom([silenciosa()]);
+    await recuperarSilenciosos(pool as never, log, { agora: AGORA });
+    expect(pool.chamadas.some((c) => c.sql === FALAS_COM_VALOR)).toBe(false);
+  });
+});
 
 describe("decidirChamada", () => {
   it("régua padrão: 4 min de silêncio dispara a 1ª; com a 1ª feita, só aos 15 min sai a 2ª", () => {

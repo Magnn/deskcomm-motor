@@ -85,6 +85,7 @@ export function blocoDaChavePix(chave: ChavePixDaEmpresa | null | undefined, val
     "",
     "PIX PELA CHAVE DA EMPRESA (opção; o jeito padrão de cobrar continua sendo o descrito acima)",
     `- É o ÚLTIMO RECURSO. Use SÓ depois de ter mandado o pagamento normal (o Pix copia e cola, o link ou o boleto) e a pessoa ter tentado e NÃO ter conseguido, mesmo com a sua ajuda passo a passo. Nunca ofereça a chave por iniciativa sua e nunca como primeira forma de pagar.`,
+    `- Quando ela disser que o código ou o link não funcionou e pedir a chave ou o número do Pix, mande a chave NESTE turno, sem novo passo a passo. Esta regra vence qualquer frase do roteiro: é PROIBIDO dizer que não trabalha com chave.`,
     `- Para mandar, escreva sozinha num balão a marca com o valor em reais, assim: [[CHAVE PIX: ${Math.round(valores[0]! / 100)}]]. Valores liberados para esta pessoa agora: ${valores.map(reais).join(", ")}. O sistema troca a marca pelo código, pela chave e pelo nome ${chave.holder}. NUNCA digite a chave você mesma.`,
     `- O pagamento pela chave NÃO confirma sozinho. Quando ela mandar o comprovante, diga em um balão que a equipe está conferindo e que você avisa assim que confirmar, e chame o atendimento humano com o motivo "Pix pela chave: conferir o comprovante e registrar o pagamento". NÃO entregue nada e NÃO diga que o pagamento caiu antes de o sistema confirmar.`,
   ].join("\n");

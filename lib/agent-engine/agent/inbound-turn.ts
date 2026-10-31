@@ -89,6 +89,7 @@ import { blocoDaEntrada, blocoDaEntradaImediata, blocoDaPropostaDeEntrada, bloco
 import { linkDePagamentoNoCorpo, linksDePagamentoDaConfig } from '@/lib/pagamentos/pix-na-conversa';
 import { blocoDoPrecoInternacional, precoInternacionalDoContato } from '@/lib/preco/preco-internacional';
 import { blocoDaChavePix, pixPelaChaveNoLugarDaMarca, temMarcaDeChavePix } from '@/lib/preco/chave-pix';
+import { RECUSA_DA_PERGUNTA_DO_PIX, jaPerguntouDoPix, repetePerguntaDoPix } from '@/lib/preco/pergunta-do-pix';
 import { blocoDoBoletoPronto, temMarcaDeBoleto, valoresDoBoleto } from '@/lib/preco/boleto-pronto';
 import {
   blocoDaEntregaPendente,
@@ -153,6 +154,7 @@ import {
   deuDataParaPagar,
   entradaAPropor,
   entradaImediata,
+  ofertaFoiDita,
   reclamacoesComOfertaPorSilencio,
   valorAbaixoDoPisoAgora,
   valorOferecidoParaPagarAgora,
@@ -2408,7 +2410,8 @@ async function executarTurnoDoAgente(
             and jsonb_typeof(pv.followup->'recovery'->'step_offers_cents'->(s.step - 1)) = 'number'`,
         [tenantId, input.conversationId, agentConfig.agentId ?? null],
       );
-      ofertaPorSilencioCents = rows[0]?.oferta ?? null;
+      const oferta = rows[0]?.oferta ?? null;
+      ofertaPorSilencioCents = oferta !== null && ofertaFoiDita(oferta, openingContext.context.messages) ? oferta : null;
     } catch (err) {
       runLog.warn('não consegui ler a oferta feita pelo lembrete de silêncio — o turno segue sem ela', {
         error: (err instanceof Error ? err.message : String(err)).slice(0, 120),
@@ -2550,6 +2553,7 @@ async function executarTurnoDoAgente(
     valorQueTemCents: valorQueTemNoTurno,
     // A oferta de degrau é do turno em que ela reclama — não de toda resposta depois da reclamação.
     reclamouAgora: negociacaoDoTurno.reclamouAgora,
+    jaPerguntouDoPix: jaPerguntouDoPix(openingContext.context.messages),
     // Ela deu a data e o degrau já foi oferecido: o turno fecha o combinado (data + valor + retorno).
     dataParaOValorCents:
       agentConfig?.pricing && deuDataParaPagar(openingContext.context.messages)
@@ -3881,6 +3885,10 @@ async function executarTurnoDoAgente(
             return { ok: false, error: { code: 'boleto_indisponivel', message: comBoleto.recusa } };
           }
           body = comBoleto.corpo;
+        }
+        // A PERGUNTA DO PIX: quem já perguntou cobra. A recusa volta ao modelo, que reescreve no mesmo turno.
+        if (!preview && repetePerguntaDoPix(body, openingContext.context.messages)) {
+          return { ok: false, error: { code: 'pergunta_do_pix_repetida', message: RECUSA_DA_PERGUNTA_DO_PIX } };
         }
         // A CHAVE PIX DA EMPRESA: a marca `[[CHAVE PIX: valor]]` vira o código, a chave e o nome. Marca sem chave
         // configurada, com valor não liberado ou mal escrita recusa o envio: marca crua não chega à pessoa.
