@@ -78,6 +78,7 @@ import { criarClienteAsaas } from '@/lib/pagamentos/asaas';
 import { lerConexaoStripe } from '@/lib/pagamentos/conexao-stripe';
 import { criarClienteStripe } from '@/lib/pagamentos/stripe';
 import { expandirCobrancas } from '@/lib/followup/cobranca-no-conteudo';
+import { dentroDaJanela } from '@/lib/followup/retorno-da-passagem';
 import { lerCredencialDeCobranca, MOTIVO_DA_COBRANCA } from '@/lib/pagamentos/credencial-de-cobranca';
 import { missingSlots } from '@/lib/channels/meta/build-components';
 import { renderTemplateBody } from '@/lib/channels/meta/render-template';
@@ -207,6 +208,8 @@ export const followupTurnPayloadSchema = z
     promise: z.string().optional(),
     promised_at: z.string().optional(),
     context_snapshot: z.string().nullable().optional(),
+    // Retorno religado depois da passagem (`lib/followup/retorno-da-passagem.ts`): só sai com a janela aberta.
+    so_dentro_da_janela: z.boolean().optional(),
     // F3-04: 'template' = re-entrada DETERMINÍSTICA — envia a variante versionada
     // direto pela cadeia de guardrails, sem LLM (custo $0, blueprint). Ausente/'agent'
     // = run normal do agente (comportamento F3-03 intocado).
@@ -524,6 +527,23 @@ export function createFollowupTurnHandler(deps: FollowupTurnDeps) {
         conversation_id: target.conversationId,
       });
       return;
+    }
+
+    if (payload.so_dentro_da_janela) {
+      const { rows } = await pool.query<{ ultima: Date | null }>(
+        `select max(created_at) as ultima from messages
+          where organization_id = $1 and conversation_id = $2 and direction = 'inbound'`,
+        [tenantId, target.conversationId],
+      );
+      if (!dentroDaJanela(rows[0]?.ultima ?? null, clock())) {
+        deps.log?.info('retorno religado descartado: a pessoa não escreveu nas últimas 24 h', {
+          job_id: job.id,
+          tenant_id: tenantId,
+          lead_id: leadId,
+          conversation_id: target.conversationId,
+        });
+        return;
+      }
     }
 
     // F3-04: caminho determinístico ($0) — envia o template versionado direto pela

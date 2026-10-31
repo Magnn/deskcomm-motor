@@ -174,7 +174,7 @@ describe("a escolta do orçamento", () => {
 
     // (c) follow-ups agendados do lead não disparam depois da passagem
     const crons = chamadas.find((c) => c.sql.includes("update cron_jobs"));
-    expect(crons?.params).toEqual([ORG, LEAD]);
+    expect(crons?.params).toEqual([ORG, LEAD, "passagem_para_humano"]);
 
     // (d) a Central recebe o item de escalação, com o título desta causa
     const inbox = chamadas.find((c) => c.sql.includes("agent_inbox_items"));

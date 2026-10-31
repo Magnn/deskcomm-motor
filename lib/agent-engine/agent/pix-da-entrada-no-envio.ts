@@ -17,6 +17,7 @@ import { lerConexaoStripe, type ConexaoStripe } from '@/lib/pagamentos/conexao-s
 import { VALIDADE_DO_PIX_S } from '@/lib/pagamentos/pix-na-conversa';
 import { ErroDaStripe, criarClienteStripe, type PedidoDePix, type PixCriado } from '@/lib/pagamentos/stripe';
 import { MARCA_DA_ENTRADA } from '@/lib/preco/bloco-da-entrada';
+import { EXTRA_DO_RESTANTE, MARCA_DO_RESTANTE } from '@/lib/preco/restante';
 import { corpoComPixDoExtra } from '@/lib/preco/extras';
 
 interface Registro {
@@ -47,6 +48,54 @@ const NA_MARCA = /\[\[\s*PIX\s*:\s*entrada\s*\]\]/i;
 const SEM_COBRANCA =
   'Não foi possível gerar o Pix da entrada agora. NÃO envie a marca [[PIX: Entrada]] nem chave Pix. Diga à pessoa, numa ' +
   'mensagem curta, que o código do Pix chega em instantes, e chame atendimento humano para enviá-lo.';
+
+const NA_MARCA_DO_RESTANTE = /\[\[\s*PIX\s*:\s*restante\s*\]\]/i;
+
+const SEM_COBRANCA_DO_RESTANTE =
+  'Não foi possível gerar o Pix do restante agora. NÃO envie a marca [[PIX: Restante]], chave Pix nem link. Diga à pessoa, numa ' +
+  'mensagem curta, que o código chega em instantes, e chame atendimento humano para enviá-lo.';
+
+/**
+ * A marca `[[PIX: Restante]]` vira o Pix do valor que falta. Vai como cobrança avulsa (`metadata.extra`): o aviso de
+ * pagamento registra a receita e não inicia outra entrega, porque o trabalho já começou com a entrada.
+ */
+export async function pixDoRestanteNoLugarDaMarca(
+  e: Omit<EntradaDoPixDaEntrada, 'entrada'> & { restanteCents: number },
+): Promise<SaidaDoPixDaEntrada> {
+  const achada = NA_MARCA_DO_RESTANTE.exec(e.corpo);
+  if (achada === null) return { corpo: e.corpo };
+  try {
+    const conexao = await (e.lerConexao ?? lerConexaoStripe)(e.supabase, e.organizationId);
+    if (conexao === null) {
+      e.log.warn('pix do restante não saiu — nenhuma conta de Pix conectada', { conversation_id: e.conversationId });
+      return { recusa: SEM_COBRANCA_DO_RESTANTE };
+    }
+    const agora = e.agora ?? new Date();
+    const pix = await (e.criarPix ?? ((c, p) => criarClienteStripe(c).criarPix(p)))(conexao, {
+      valorCentavos: e.restanteCents,
+      descricao: `${e.produto || 'Pagamento'} (restante)`,
+      referencia: `restante-${e.conversationId}-${e.restanteCents}-${Math.floor(agora.getTime() / 3_600_000)}`,
+      metadados: {
+        organization_id: e.organizationId,
+        contact_id: e.contactId,
+        conversation_id: e.conversationId,
+        produto: e.produto,
+        extra: EXTRA_DO_RESTANTE,
+      },
+      expiraEmSegundos: VALIDADE_DO_PIX_S,
+    });
+    e.log.info('pix do restante criado', { conversation_id: e.conversationId, restante_cents: e.restanteCents, cobranca: pix.id });
+    const marca = { extra: { name: MARCA_DO_RESTANTE, price_cents: e.restanteCents, when: '' }, texto: achada[0] };
+    return { corpo: corpoComPixDoExtra(e.corpo, marca, pix.copiaECola, null) };
+  } catch (err) {
+    e.log.warn('pix do restante não saiu — envio recusado para a marca não chegar à pessoa', {
+      conversation_id: e.conversationId,
+      motivo: err instanceof ErroDaStripe ? err.codigo : 'falha',
+      error: (err instanceof Error ? err.message : String(err)).slice(0, 160),
+    });
+    return { recusa: SEM_COBRANCA_DO_RESTANTE };
+  }
+}
 
 /** O corpo traz a marca da entrada? Quem chama usa para não tocar no envio que não é de entrada. */
 export const temMarcaDaEntrada = (corpo: string): boolean => NA_MARCA.test(corpo);

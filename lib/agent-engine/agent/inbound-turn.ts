@@ -70,7 +70,7 @@ import { ERRO_DE_TEXTO_JA_ENVIADO, semBaloesJaEnviados } from './balao-ja-enviad
 import { linkInternacionalNoLugarDoLink } from './link-internacional-no-envio';
 import { linkDoValorPrometido } from '@/lib/preco/link-do-valor';
 import { boletoNoLugarDaMarca } from './boleto-no-envio';
-import { pixDaEntradaNoLugarDaMarca, temMarcaDaEntrada } from './pix-da-entrada-no-envio';
+import { pixDoRestanteNoLugarDaMarca, pixDaEntradaNoLugarDaMarca, temMarcaDaEntrada } from './pix-da-entrada-no-envio';
 import { pixDoExtraNoLugarDaMarca } from './pix-do-extra-no-envio';
 import { relatorioNoLugarDaMarca, type DocumentoDoTurno } from './relatorio-no-envio';
 import { temMarcaDeRelatorio } from '@/lib/preco/relatorio-pronto';
@@ -166,7 +166,8 @@ import {
 import { reais } from '@/lib/preco/tipos';
 import { blocoDoCombinado } from '@/lib/followup/bloco-do-combinado';
 import { PAUSA_ANTES_DA_PRIMEIRA, RITMO_PADRAO, pausaEntreBolhas, sinalizaDigitandoEntreBolhas, type Ritmo } from '@/lib/ritmo/tipos';
-import { buscaValorCombinado, criaRetornoDbPg } from '@/lib/followup/retorno-pg';
+import { buscaRestanteCombinado, buscaValorCombinado, criaRetornoDbPg } from '@/lib/followup/retorno-pg';
+import { MARCA_DO_RESTANTE, blocoDoRestante, temMarcaDoRestante } from '@/lib/preco/restante';
 import { blocoDaEntregaNaConversa, blocoDaOfertaDoCatalogo } from '@/lib/catalogo/bloco-do-prompt';
 import {
   blocoDoEncerramento,
@@ -2604,7 +2605,16 @@ async function executarTurnoDoAgente(
     ofertaDoCatalogoNoTurno === null && posVendaDoTurno === null && !faltaParaOEssencialNoTurno
       ? valorAbaixoDoPisoAgora(agentConfig.pricing, openingContext.context.messages)
       : null;
+  // O RESTANTE DE QUEM JÁ PAGOU A ENTRADA (`lib/preco/restante.ts`): com ele, o link do produto cobraria o valor cheio.
+  const restanteDoTurno =
+    !preview && agentConfig?.pricing?.enabled && internacionalDoTurno === null && entradaDoTurno === null && entradaImediataDoTurno === null
+      ? await buscaRestanteCombinado(pool, tenantId, leadId, agentConfig.pricing.list_price_cents).catch((err: unknown) => {
+          runLog.warn('restante não lido — o turno segue sem ele', { error: err instanceof Error ? err.message : String(err) });
+          return null;
+        })
+      : null;
   const blocoDaEntradaDoTurno =
+    blocoDoRestante(restanteDoTurno) +
     blocoDoValorAbaixoDoPiso(abaixoDoPisoNoTurno) +
     blocoDaEntrada(agentConfig?.pricing, entradaDoTurno) +
     blocoDaPropostaDeEntrada(propostaDeEntradaDoTurno) +
@@ -2703,6 +2713,7 @@ async function executarTurnoDoAgente(
           ...(entradaDoTurno !== null ? [entradaDoTurno.entradaCents] : []),
           ...(entradaImediataDoTurno !== null ? [entradaImediataDoTurno.entradaCents] : []),
           ...(valorAceitoDoTurno !== null ? [valorAceitoDoTurno] : []),
+          ...(restanteDoTurno !== null ? [restanteDoTurno] : []),
           ...extrasDoTurno.map((e) => e.price_cents),
         ];
   const valoresDaChavePix = agentConfig?.pricing?.pix_key ? valoresCobraveisNoTurno : [];
@@ -2738,6 +2749,8 @@ async function executarTurnoDoAgente(
       ? Math.min(promiseMinPriceCentsDaEscada, (entradaDoTurno ?? propostaDeEntradaDoTurno)!.entradaCents)
       : valorAceitoDoTurno !== null && promiseMinPriceCentsDaEscada !== undefined
       ? Math.min(promiseMinPriceCentsDaEscada, valorAceitoDoTurno)
+      : restanteDoTurno !== null && promiseMinPriceCentsDaEscada !== undefined
+      ? Math.min(promiseMinPriceCentsDaEscada, restanteDoTurno)
       : promiseMinPriceCentsDaEscada;
   // Entrega personalizada: quem PAGOU (tags `pago` + `produto:<trabalho>`, postas pela compra
   // aprovada na Cakto) recebe, neste turno, o guia do trabalho certo e as regras gerais — buscados
@@ -3884,6 +3897,35 @@ async function executarTurnoDoAgente(
           }
           runLog.info('pix pela chave da empresa enviado', { conversation_id: input.conversationId });
           body = comChave.corpo;
+        }
+        // O RESTANTE: o valor sai da marca, e link de outro valor é recusado para o modelo reescrever.
+        if (!preview && restanteDoTurno !== null) {
+          const linkDoCorpo = linkDePagamentoNoCorpo(body, linksDePagamentoDaConfig(agentConfig?.pricing));
+          if (linkDoCorpo !== null && linkDoCorpo.valorCentavos !== restanteDoTurno) {
+            return {
+              ok: false,
+              error: {
+                code: 'restante_com_link_do_valor_cheio',
+                message: `Esta pessoa deve só o restante. Tire o link de pagamento e escreva sozinha em um balão a marca [[PIX: ${MARCA_DO_RESTANTE}]].`,
+              },
+            };
+          }
+          if (temMarcaDoRestante(body)) {
+            const comRestante = await pixDoRestanteNoLugarDaMarca({
+              corpo: body,
+              restanteCents: restanteDoTurno,
+              produto: produtoIndicadoNoTurno,
+              organizationId: tenantId,
+              contactId: leadId,
+              conversationId: input.conversationId,
+              supabase: deps.crmCfg.supabase,
+              log: runLog,
+            });
+            if ('recusa' in comRestante) {
+              return { ok: false, error: { code: 'pix_do_restante_indisponivel', message: comRestante.recusa } };
+            }
+            body = comRestante.corpo;
+          }
         }
         // A ENTRADA NO VALOR QUE A PESSOA DISSE: a marca `[[PIX: Entrada]]` vira o Pix desse valor. Só no turno que
         // autorizou a entrada; fora dele a marca cai na conferência das cobranças avulsas e o envio é recusado.

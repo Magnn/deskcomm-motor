@@ -50,6 +50,7 @@ import type { DesfechoDoAviso } from './aviso-de-escalacao';
 
 import type { Logger } from '../obs/logger';
 import { cancelPendingCronsForLead } from '../cron/scheduler';
+import { MOTIVO_DA_PASSAGEM, linhaDoRetornoNaPassagem } from '@/lib/followup/retorno-da-passagem';
 import { findForbiddenKey, zodIssuesSummary } from './lead-state';
 import type { DeclaracaoDoTurno } from './declaracao';
 
@@ -211,8 +212,19 @@ export async function performHumanHandoff(
 
   // (c) Cancela os crons PENDENTES do lead (follow-ups agendados — F3-01/02). Idempotente,
   // via o cancel compartilhado (mesma garantia que o opt-out irrevogável usa — F4-07).
+  // Lê antes de desligar: quem assume precisa saber o que estava combinado. Falha de leitura não trava a passagem.
+  const { rows: retornosVivos } = await db
+    .query<{ promessa: string | null; quando: Date }>(
+      `select coalesce(payload->>'promise', payload->>'reason') as promessa, next_run_at as quando
+         from cron_jobs
+        where organization_id = $1 and contact_id = $2 and enabled = true
+          and kind = 'at' and job_kind = 'followup_turn'
+        order by next_run_at limit 3`,
+      [ids.tenantId, ids.leadId],
+    )
+    .catch(() => ({ rows: [] as { promessa: string | null; quando: Date }[] }));
   await guardServiceEffect();
-  await cancelPendingCronsForLead(db, ids.tenantId, ids.leadId);
+  await cancelPendingCronsForLead(db, ids.tenantId, ids.leadId, MOTIVO_DA_PASSAGEM);
 
   // (c2) A LINHA DE FATO. Vem antes do aviso porque o aviso REMETE a ela: o
   // corpo da Central diz "abra a conversa para ver o contexto", e o contexto é
@@ -231,7 +243,15 @@ export async function performHumanHandoff(
       motor: 'engine',
       origem: opts.passagem.origem,
       motivoCodigo: opts.passagem.motivoCodigo,
-      briefing: opts.passagem.briefing,
+      briefing: {
+        ...opts.passagem.briefing,
+        body: [
+          opts.passagem.briefing.body,
+          ...retornosVivos
+            .filter((r) => r.promessa)
+            .map((r) => linhaDoRetornoNaPassagem(r.promessa!, new Date(r.quando).toISOString(), opts.passagem!.idioma ?? 'pt-BR')),
+        ].join('\n\n'),
+      },
       ...(opts.avisoAoLead !== undefined ? { aviso: desfechoDaPassagem(opts.avisoAoLead) } : {}),
     });
     // Falhar fechado na AÇÃO, aberto na INFORMAÇÃO: a passagem já aconteceu
