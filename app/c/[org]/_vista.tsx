@@ -505,22 +505,25 @@ export function VistaDaArea(p: VistaDaAreaProps) {
       {topo(rotulos.conversa)}
       <div className={corpo}>
         <FaleComAGente slug={slug} cor={cor} tx={tx} inicial={dados.mensagens} idioma={tag} fuso={fuso} />
-        {p.whatsapp ? (
-          <a
-            href={`https://wa.me/${p.whatsapp}`}
-            className="flex h-14 items-center justify-center gap-2 rounded-full bg-[#1f9d55] px-5 text-[16px] font-semibold text-white shadow-[0_10px_24px_-12px_rgba(31,157,85,0.8)] transition hover:brightness-110"
-            data-testid="area-whatsapp"
-          >
-            <MessageCircle className="size-5" aria-hidden />
-            {t("Falar com a gente no WhatsApp")}
-          </a>
-        ) : null}
         {dados.conversa.length > 0 ? (
           <ConversaGuardada
             tx={tx}
             empresa={titulo}
             falas={dados.conversa.map((f) => ({ id: f.id, de: f.de, texto: f.texto, quando: dataCurta(f.quando) }))}
           />
+        ) : null}
+        {/* O WhatsApp fica pequeno e no fim: a conversa é aqui dentro, e o zap é só a saída para quem prefere. */}
+        {p.whatsapp ? (
+          <div className="flex justify-center pt-2">
+            <a
+              href={`https://wa.me/${p.whatsapp}`}
+              className="inline-flex h-9 items-center gap-1.5 rounded-full border border-[#1f9d55]/50 px-4 text-[13px] font-medium text-[#7fd6a4] transition hover:bg-[#1f9d55]/10"
+              data-testid="area-whatsapp"
+            >
+              <MessageCircle className="size-4" aria-hidden />
+              {t("Falar com a gente no WhatsApp")}
+            </a>
+          </div>
         ) : null}
       </div>
     </>
