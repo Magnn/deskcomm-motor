@@ -104,11 +104,12 @@ export function criarDepsDoAlerta(admin: SupabaseClient): DepsDoAlerta {
     async nomeDoContato(orgId, contactId) {
       const { data } = await admin
         .from("contacts")
-        .select("name")
+        .select("display_name, name")
         .eq("organization_id", orgId)
         .eq("id", contactId)
         .maybeSingle();
-      return (data as { name?: string | null } | null)?.name ?? null;
+      const contato = data as { display_name?: string | null; name?: string | null } | null;
+      return contato?.display_name || contato?.name || null;
     },
 
     async idiomaDaOrganizacao(orgId) {
