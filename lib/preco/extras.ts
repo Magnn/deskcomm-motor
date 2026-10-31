@@ -49,6 +49,20 @@ export function conversaFalouDeExtra(
   return mensagens.some((m) => m.direction === "outbound" && nomes.some((n) => semAcento(m.body ?? "").includes(n)));
 }
 
+/**
+ * A OFERTA PEQUENA DE HOJE: a cobrança avulsa de entrega única (sem período) mais barata, se a conversa ainda não falou
+ * dela. É o que a agente oferece a quem só pode pagar o trabalho em outra data (`instrucaoDeFecharADataCombinada`). Pura.
+ */
+export function ofertaPequenaDeHoje(
+  extras: readonly Extra[],
+  mensagens: readonly { direction: string; body?: string | null }[],
+): { nome: string; precoCents: number } | null {
+  const unicas = extras.filter((e) => e.valid_days === undefined).sort((a, b) => a.price_cents - b.price_cents);
+  const mais = unicas[0];
+  if (!mais || conversaFalouDeExtra(mensagens, [mais])) return null;
+  return { nome: mais.name, precoCents: mais.price_cents };
+}
+
 export function extrasDaConfig(pricing: Pick<PricingConfig, "enabled" | "extras"> | null | undefined): Extra[] {
   return pricing?.enabled ? (pricing.extras ?? []) : [];
 }

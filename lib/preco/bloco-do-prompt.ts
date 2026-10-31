@@ -70,6 +70,11 @@ export interface EstadoDoBloco {
    * oferecer nem molde de cobrança — só a instrução de recuar.
    */
   faltaParaOEssencial?: boolean;
+  /**
+   * A cobrança avulsa mais barata (`ofertaPequenaDeHoje`), ainda não oferecida nesta conversa: no turno de fechar a
+   * data, ela entra UMA vez como o que cabe hoje. Ausente/`null` = o molde da data sai sem oferta.
+   */
+  ofertaDeHoje?: { nome: string; precoCents: number } | null;
 }
 
 const RECUO_PELO_ESSENCIAL =
@@ -80,14 +85,22 @@ const RECUO_PELO_ESSENCIAL =
  * ganha mais um degrau por adiar — o valor é o que já foi dito, e é ele que o retorno guarda
  * (`valorCombinadoNaConversa`). O defeito que isto corta é a despedida sem compromisso.
  */
-function instrucaoDeFecharADataCombinada(valorCents: number): string {
+function instrucaoDeFecharADataCombinada(valorCents: number, ofertaDeHoje: EstadoDoBloco["ofertaDeHoje"] = null): string {
   const valor = reais(valorCents);
+  // Decisão do dono, 31/10/2026: quem dá a data sai com o combinado E com uma oferta pequena para hoje. Medido no
+  // mesmo dia: 6 pessoas disseram "só dia 7", "dia 28", "sexta", e nenhuma ouviu oferta — o retorno da data paga
+  // semanas depois, quando paga.
+  const hoje = ofertaDeHoje
+    ? ` Na MESMA resposta, num balão separado depois do combinado, ofereça UMA vez o que cabe hoje: "E pra hoje, se quiser, eu faço uma *${ofertaDeHoje.nome}* por ${reais(ofertaDeHoje.precoCents)}. Quer?" Se ela disser que sim, cobre como está em COBRANÇAS À PARTE. Se disser não ou não responder a isso, NÃO ofereça de novo: o combinado da data continua de pé.`
+    : "";
   return [
     `- NEGOCIAÇÃO: ela disse que só consegue pagar em outra data, e o valor dela é ${valor}. NÃO ofereça outro valor e NÃO diga "me chama quando receber" nem "quando o dinheiro entrar": quem volta é VOCÊ, na data. Faça as DUAS coisas neste turno:`,
     "  1) chame a ferramenta de agendar retorno (schedule_followup) com a data que ela disse;",
-    `  2) responda com ESTE molde e nenhum outro: "Combinado, então: no dia [a data que ela disse] eu te chamo aqui com o link, e o seu valor fica em ${valor}. Se conseguir antes, é só me avisar."`,
+    `  2) responda com ESTE molde e nenhum outro: "Combinado, então: no dia [a data que ela disse] eu te chamo aqui com o link, e o seu valor fica em ${valor}. Se conseguir antes, é só me avisar."${hoje}`,
     `- Se ela não disse um dia que dê para marcar ("quando eu receber", sem dia), NÃO agende ainda: pergunte só "Qual dia cai o seu pagamento? Eu já deixo combinado por ${valor}."`,
-    "- Pergunte o dia UMA vez só. Depois de combinar, se o bloco COBRANÇAS À PARTE aparecer, ofereça UMA vez a pergunta nova como o que cabe hoje; se ela disser não, não insista.",
+    ofertaDeHoje
+      ? "- Pergunte o dia UMA vez só."
+      : "- Pergunte o dia UMA vez só. Depois de combinar, se o bloco COBRANÇAS À PARTE aparecer, ofereça UMA vez a pergunta nova como o que cabe hoje; se ela disser não, não insista.",
     "- Se ela disser que falta para o essencial (comida, remédio, aluguel, conta atrasada), NÃO insista em valor nenhum nem use o molde: acolha, e diga que a porta fica aberta quando ela puder.",
   ].join("\n");
 }
@@ -269,7 +282,7 @@ export function blocoDePreco(
         : combinado !== null && combinado < precoPermitidoAgora(c, estado.reclamacoes, estado.valorQueTemCents ?? null)
         ? instrucaoDoCombinado(c, combinado)
         : fechaAData
-          ? instrucaoDeFecharADataCombinada(dataPara)
+          ? instrucaoDeFecharADataCombinada(dataPara, estado.ofertaDeHoje ?? null)
           : instrucaoDeNegociacao(c, estado.reclamacoes, estado.valorQueTemCents ?? null, estado.reclamouAgora ?? true),
     );
     // Medido em produção: o prompt escrito pelo operador mandava chamar a equipe para enviar
