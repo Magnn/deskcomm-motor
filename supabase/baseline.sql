@@ -40122,3 +40122,9 @@ alter table public.area_quiz_passos add column if not exists anuncio text check 
 alter table public.webhook_sources add column if not exists cakto_somente_registro boolean not null default false;
 comment on column public.webhook_sources.cakto_somente_registro is
   'Aviso da Cakto só é registrado (arquivo + receita), sem contato/tag/fluxo; e só estas fontes aparecem no aviso público de compras recentes (0948).';
+
+-- ---- o alerta de risco de vida fora da tela (migration 0950) ----
+alter table public.passagens_de_atendimento add column if not exists alertas_de_risco smallint not null default 0;
+alter table public.passagens_de_atendimento add column if not exists ultimo_alerta_de_risco_em timestamptz;
+comment on column public.passagens_de_atendimento.alertas_de_risco is
+  'Quantos alertas de risco de vida saíram para fora da tela (e-mail/WhatsApp da equipe). Teto em lib/escalacao/alerta-de-risco.ts.';

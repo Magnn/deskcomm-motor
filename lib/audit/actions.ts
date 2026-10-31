@@ -845,6 +845,7 @@ export const AUDIT_ACTIONS = [
    * sem efeito não é mutação (`tests/unit/cron-audita-so-quando-ha-efeito.test.ts`).
    */
   "ai.passagem_parada_cobrada",
+  "ai.alerta_de_risco_enviado",
   // A chave de IA girada NO LUGAR (PATCH /ai/credentials/:id). Distinto de
   // `ai.credential_created` e `ai.credential_revalidated`: aqui o id não muda, e
   // "quando esta chave foi trocada, e por quem" é a pergunta que só esta linha
