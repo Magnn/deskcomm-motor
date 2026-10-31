@@ -86,7 +86,7 @@ export interface PassagemEmAberto {
   ultimo_alerta_de_risco_em: string | null;
 }
 
-export function passagemDeRisco(p: PassagemEmAberto): boolean {
+export function passagemDeRisco(p: Pick<PassagemEmAberto, "content" | "title" | "notes">): boolean {
   return ehRiscoDeVida([p.content, p.title, p.notes].filter(Boolean).join(" "));
 }
 

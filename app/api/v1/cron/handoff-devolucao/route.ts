@@ -43,6 +43,7 @@ import {
   type ConversaEmHandoff,
 } from "@/lib/escalacao/devolucao-automatica";
 import { devolverAtendimentoAoAgente } from "@/lib/escalacao/retomada";
+import { temPassagemDeRisco, type TextoDaPassagem } from "@/lib/followup/retorno-da-passagem";
 import { logger } from "@/lib/logger";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { autorizaCron } from "@/lib/auth/cron-auth";
@@ -156,9 +157,25 @@ export async function devolverHandoffsVencidos(
     agoraMs: agora.getTime(),
   });
 
+  // Quem falou em tirar a própria vida não volta sozinho para a venda: fica com uma pessoa até alguém decidir.
+  const { data: passagens, error: erroDasPassagens } = vencidas.length
+    ? await admin
+        .from("passagens_de_atendimento")
+        .select("conversation_id, content, title, notes")
+        .in("organization_id", orgIds)
+        .in("conversation_id", vencidas.map((v) => v.conversa.id))
+    : { data: [], error: null };
+  if (erroDasPassagens) throw new Error(`passagens: ${erroDasPassagens.message}`);
+  const emRisco = new Set(
+    ((passagens ?? []) as (TextoDaPassagem & { conversation_id: string })[])
+      .filter((p) => temPassagemDeRisco([p]))
+      .map((p) => p.conversation_id),
+  );
+
   let devolvidas = 0;
   let falhas = 0;
   for (const { conversa, minutos } of vencidas) {
+    if (emRisco.has(conversa.id)) continue;
     const r = await devolverAtendimentoAoAgente(
       { supabase: admin, organizationId: conversa.organization_id, actor: ATOR_DO_CRON, requestId },
       { conversationId: conversa.id, origem: { automatica: { minutos } } },

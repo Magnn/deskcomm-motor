@@ -126,12 +126,20 @@ export async function cancelPendingCronsForLead(
   db: Queryable,
   tenantId: string,
   leadId: string,
+  /** Por que desligou. Com motivo, o desligamento vira cancelamento legível e pode ser desfeito. */
+  motivo?: string,
 ): Promise<number> {
-  const { rowCount } = await db.query(
-    `update cron_jobs set enabled = false, updated_at = now()
-     where organization_id = $1 and contact_id = $2 and enabled = true`,
-    [tenantId, leadId],
-  );
+  const { rowCount } = motivo === undefined
+    ? await db.query(
+        `update cron_jobs set enabled = false, updated_at = now()
+         where organization_id = $1 and contact_id = $2 and enabled = true`,
+        [tenantId, leadId],
+      )
+    : await db.query(
+        `update cron_jobs set enabled = false, cancelled_at = now(), cancel_reason = $3, updated_at = now()
+         where organization_id = $1 and contact_id = $2 and enabled = true`,
+        [tenantId, leadId, motivo],
+      );
   return rowCount ?? 0;
 }
 
