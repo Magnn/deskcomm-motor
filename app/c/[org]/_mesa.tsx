@@ -677,7 +677,10 @@ export function MesaDeLeituras({
           {whatsapp ? (
             <div>
               <p className={TEXTO_SUAVE}>{tm.ciganaDeVerdade}</p>
-              <a href={`https://wa.me/${whatsapp}`} className={`${BOTAO} mt-2 w-full bg-[#1f9d55]`} style={{ background: "#1f9d55" }}>
+              <a
+                href={`https://wa.me/${whatsapp}`}
+                className="mt-2 inline-flex h-9 items-center gap-1.5 rounded-full border border-[#1f9d55]/50 px-4 text-[13px] font-medium text-[#7fd6a4] transition hover:bg-[#1f9d55]/10"
+              >
                 <MessageCircle className="size-4" aria-hidden />
                 {tm.falarComCigana}
               </a>
