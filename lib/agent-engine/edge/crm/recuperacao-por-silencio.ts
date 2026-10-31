@@ -30,7 +30,9 @@ import { capabilitiesOf } from '@/lib/channels/capabilities';
 import type { ChannelProvider } from '@/lib/channels/types';
 import { ehRecusaDaOferta } from '@/lib/opt-out/deteccao';
 import { lerRecuperacao, ofertaDoPasso } from '@/lib/recuperacao/config';
-import { anunciouPausa } from '@/lib/recuperacao/pausa-anunciada';
+import { anunciouPausa, disseQueNaoTemPrevisao } from '@/lib/recuperacao/pausa-anunciada';
+import { ofertaAindaDesce } from '@/lib/preco/estado-da-negociacao';
+import type { PricingConfig } from '@/lib/preco/tipos';
 import {
   FOLGA_DO_FECHAMENTO_MS,
   decidirManterJanela,
@@ -68,6 +70,8 @@ interface Candidata {
   provider: string | null;
   timezone: string | null;
   followup: unknown;
+  /** `ai_agents.config.pricing`: a escada que diz quais valores da conversa contam como oferta. */
+  pricing?: Pick<PricingConfig, 'steps'> | null;
   /**
    * Desde quando a recuperação está LIGADA neste agente: a publicação mais antiga da sequência de
    * versões com ela ligada. Republicar o roteiro não mexe nesta data.
@@ -95,7 +99,7 @@ interface Candidata {
  */
 export const CONSULTA_DE_SILENCIOSAS = `
   select v.id as conversation_id, v.organization_id, v.contact_id,
-         cs.provider, o.timezone, ag.followup, coalesce(lig.ligada_em, ag.published_at) as published_at,
+         cs.provider, o.timezone, ag.followup, ag.pricing, coalesce(lig.ligada_em, ag.published_at) as published_at,
          ui.id as anchor_message_id, ui.created_at as last_inbound_at, uo.created_at as last_outbound_at,
          (select string_agg(coalesce(mf.body, mf.media_derived_text, ''), ' / ' order by mf.created_at) from messages mf
            where mf.organization_id = v.organization_id and mf.conversation_id = v.id and mf.direction = 'inbound'
@@ -111,7 +115,7 @@ export const CONSULTA_DE_SILENCIOSAS = `
   join contacts c on c.id = v.contact_id and c.organization_id = v.organization_id
   join channel_sessions cs on cs.id = v.channel_session_id and cs.organization_id = v.organization_id
   join lateral (
-    select pv.followup, pv.published_at, a.id as agent_id
+    select pv.followup, pv.published_at, a.id as agent_id, a.config->'pricing' as pricing
     from ai_agents a
     join ai_agent_versions pv on pv.id = a.published_version_id
     where a.organization_id = v.organization_id and a.archived_at is null
@@ -173,6 +177,14 @@ export const CONSULTA_DE_SILENCIOSAS = `
   order by ui.created_at
   limit ${LOTE}`;
 
+/**
+ * O que a agente já falou com valor nesta conversa. É uma consulta à parte, só de quem vai receber oferta: a de
+ * candidatas roda a cada minuto, e varrer todas as mensagens de todas elas custaria o banco.
+ */
+export const FALAS_COM_VALOR = `
+  select m.body from messages m
+  where m.organization_id = $1 and m.conversation_id = $2 and m.direction = 'outbound' and m.body ~ 'R[$] ?[0-9]'`;
+
 /** O registro da chamada. Quem perde o índice único (outro worker chegou antes) não recebe linha. */
 export const REGISTRO_DA_CHAMADA = `
   insert into silence_recovery_attempts
@@ -187,7 +199,7 @@ export interface ResultadoDaRecuperacao {
 }
 
 type Chamada =
-  | { kind: 'step'; step: number; motivo: string; ofereceSaida: boolean }
+  | { kind: 'step'; step: number; motivo: string; ofereceSaida: boolean; ofertaCents: number | null }
   | { kind: 'keep_window'; step: 0; motivo: string };
 
 /** O canal desta conversa limita a mensagem livre a 24 h depois da última mensagem do cliente? */
@@ -199,7 +211,13 @@ export function canalTemPrazo(provider: string | null): boolean {
  * O que fazer com uma conversa silenciosa, agora. Pura: é a regra inteira, sem banco. `temPrazo` é a
  * capacidade do canal já resolvida (`canalTemPrazo`) — a regra não pergunta qual canal é.
  */
-export function decidirChamada(c: Candidata, agora: Date, temPrazo: boolean): Chamada | null {
+export function decidirChamada(
+  c: Candidata,
+  agora: Date,
+  temPrazo: boolean,
+  /** `true` quando a conversa já ouviu valor igual ou menor que o do passo (`ofertaAindaDesce`). */
+  semOferta = false,
+): Chamada | null {
   const r = lerRecuperacao(c.followup);
   if (r === null) return null;
   // Quem recusou por último ("não tenho mais interesse") já teve a resposta do turno; chamar de novo em
@@ -264,16 +282,20 @@ export function decidirChamada(c: Candidata, agora: Date, temPrazo: boolean): Ch
   // O passo oferece valor só a quem já ouviu o preço, não pagou e calou SEM avisar que voltava: quem disse
   // "tô indo pra casa, depois a gente se fala" parou por outro motivo, e baixar o preço dela é dar desconto
   // a quem não pediu (lib/recuperacao/pausa-anunciada.ts).
-  const ofereceValor = c.ouviu_preco === true && c.ja_pagou !== true && !anunciouPausa(c.falas_finais);
+  const ofereceValor =
+    !semOferta &&
+    c.ouviu_preco === true &&
+    c.ja_pagou !== true &&
+    !anunciouPausa(c.falas_finais) &&
+    !disseQueNaoTemPrevisao(c.falas_finais);
+  const ofertaCents = ofereceValor ? ofertaDoPasso(r, passo) : null;
   return {
     kind: 'step',
     step: passo,
     // Quando oferece valor, também não convida a parar.
-    motivo: motivoDoPasso(passo, r.steps_minutes.length, silencioMs, ofereceValor ? ofertaDoPasso(r, passo) : null),
-    ofereceSaida:
-      ofereceValor && ofertaDoPasso(r, passo) !== null
-        ? false
-        : ofereceSaida(passo, r.steps_minutes.length, silencioMs),
+    motivo: motivoDoPasso(passo, r.steps_minutes.length, silencioMs, ofertaCents),
+    ofereceSaida: ofertaCents !== null ? false : ofereceSaida(passo, r.steps_minutes.length, silencioMs),
+    ofertaCents,
   };
 }
 
@@ -298,7 +320,16 @@ export async function recuperarSilenciosos(
     )
     .slice(0, MAXIMO_DE_CHAMADAS_POR_RODADA);
 
-  for (const { c, chamada } of decididas) {
+  for (const decidida of decididas) {
+    const { c } = decidida;
+    let chamada: Chamada = decidida.chamada;
+
+    if (chamada.kind === 'step' && chamada.ofertaCents !== null && (c.pricing?.steps?.length ?? 0) > 0) {
+      const { rows: falas } = await pool.query<{ body: string }>(FALAS_COM_VALOR, [c.organization_id, c.conversation_id]);
+      if (!ofertaAindaDesce(c.pricing!, chamada.ofertaCents, falas.map((f) => f.body))) {
+        chamada = decidirChamada(c, agora, canalTemPrazo(c.provider), true) ?? chamada;
+      }
+    }
 
     // A fronteira do atendimento é o que o turno confere antes de falar: conversa encerrada no meio
     // do caminho vence a chamada sem enviar nada.

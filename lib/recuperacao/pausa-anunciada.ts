@@ -13,6 +13,19 @@
 const PAUSA =
   /\b(depois (a gente|nois|n[óo]s|eu) (se )?(fala|falamos|conversa|vejo|v[êe]|te chamo|retorno)|mais tarde|daqui a pouco|daqui (um|uma) (pouco|hora|horinha)|j[áa] (j[áa]|volto)|volto (j[áa]|depois|mais tarde|amanh[ãa])|te (chamo|falo|retorno|respondo|aviso) (depois|mais tarde|amanh[ãa]|quando)|(vou|estou|t[ôo]|to) (indo|saindo|chegando|dirigindo|trabalhando|no trabalho|na estrada|no [ôo]nibus)|indo pra casa|chegando em casa|quando (eu )?(chegar|sair do trabalho|receber)|(e|eu) retorno|vou ver (aqui|e te|e retorno)|amanh[ãa] (eu )?(te )?(falo|vejo|chamo|pago|fa[çc]o))\b/i;
 
+const SEM_PREVISAO =
+  /\b((nem|n[ãa]o) sei (nem )?quando|sem previs[ãa]o|sem data)\b/i;
+
+/**
+ * "Não tenho dinheiro agora nem sei quando vou ter." Medido em 31/10/2026: a agente respondeu que não perguntaria mais
+ * nada sobre isso, e três horas depois a régua ofereceu R$ 100. Sem data não há valor que caiba: a oferta fica para
+ * quando ela voltar a escrever.
+ */
+export function disseQueNaoTemPrevisao(texto: string | null | undefined): boolean {
+  if (texto === null || texto === undefined) return false;
+  return SEM_PREVISAO.test(texto);
+}
+
 /** A fala é um aviso de pausa ("tô indo pra casa, depois a gente se fala"), não uma recusa. */
 export function anunciouPausa(texto: string | null | undefined): boolean {
   if (texto === null || texto === undefined) return false;

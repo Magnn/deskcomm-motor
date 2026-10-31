@@ -16,6 +16,7 @@
  * (`promise_table.minPriceCents`, ligada por `sincronizar-piso.ts`): se o modelo citar um
  * valor abaixo do mínimo, a mensagem é vetada antes de sair.
  */
+import { LINHA_DA_PERGUNTA_DO_PIX } from "./pergunta-do-pix";
 import { combinadoEmVigor, degrauDoTurno, precoPermitidoAgora } from "./estado-da-negociacao";
 import type { EstadoDoPosVenda } from "./pos-venda";
 import { pisoEmCentavos, reais, type PricingConfig } from "./tipos";
@@ -59,6 +60,8 @@ export interface EstadoDoBloco {
    * oferece desconto. Ausente = `true` (quem monta o estado à mão testa a escada).
    */
   reclamouAgora?: boolean;
+  /** A agente já perguntou se manda o Pix e ele não saiu (`jaPerguntouDoPix`): o turno cobra em vez de perguntar. */
+  jaPerguntouDoPix?: boolean;
   /**
    * A pessoa acabou de dar uma data para pagar (`deuDataParaPagar`) e a agente JÁ ofereceu este
    * degrau: o turno fecha o combinado — data + este valor + retorno agendado — em vez de descer
@@ -280,6 +283,7 @@ export function blocoDePreco(
     );
   }
 
+  if (estado.jaPerguntouDoPix === true) linhas.push(LINHA_DA_PERGUNTA_DO_PIX);
   linhas.push(
     `- NUNCA cite valor abaixo de ${reais(piso)} e NUNCA repita o valor que ela propuser: diga só o seu. Nunca invente cupom, prazo, vaga ou promoção que não esteja escrito aqui.`,
   );
