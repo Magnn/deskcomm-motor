@@ -29,7 +29,7 @@ import { readCurrentServiceBoundary } from '@/lib/atendimento/fronteira-server';
 import { capabilitiesOf } from '@/lib/channels/capabilities';
 import type { ChannelProvider } from '@/lib/channels/types';
 import { ehRecusaDaOferta } from '@/lib/opt-out/deteccao';
-import { lerRecuperacao, ofertaDoPasso } from '@/lib/recuperacao/config';
+import { lerRecuperacao, ofertaDoPasso, perguntaQuantoCabeNoPasso } from '@/lib/recuperacao/config';
 import { anunciouPausa } from '@/lib/recuperacao/pausa-anunciada';
 import {
   FOLGA_DO_FECHAMENTO_MS,
@@ -37,6 +37,7 @@ import {
   decidirPasso,
   motivoDeManterJanela,
   motivoDoPasso,
+  motivoDoPassoQuantoCabe,
   ofereceSaida,
 } from '@/lib/recuperacao/decisao';
 
@@ -265,6 +266,9 @@ export function decidirChamada(c: Candidata, agora: Date, temPrazo: boolean): Ch
   // "tô indo pra casa, depois a gente se fala" parou por outro motivo, e baixar o preço dela é dar desconto
   // a quem não pediu (lib/recuperacao/pausa-anunciada.ts).
   const ofereceValor = c.ouviu_preco === true && c.ja_pagou !== true && !anunciouPausa(c.falas_finais);
+  if (ofereceValor && perguntaQuantoCabeNoPasso(r, passo)) {
+    return { kind: 'step', step: passo, motivo: motivoDoPassoQuantoCabe(passo, r.steps_minutes.length, silencioMs), ofereceSaida: false };
+  }
   return {
     kind: 'step',
     step: passo,

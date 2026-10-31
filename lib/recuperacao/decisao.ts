@@ -127,6 +127,20 @@ export function motivoDoPasso(passo: number, total: number, silencioMs: number, 
   );
 }
 
+/**
+ * O passo que PERGUNTA QUANTO CABE (`step_asks_amount`). A pergunta usa "quanto cabe" de propósito: é a forma que o
+ * turno seguinte reconhece para ler um número solto ("80") como o valor que a pessoa tem (`valorQueAPessoaTem`).
+ */
+export function motivoDoPassoQuantoCabe(passo: number, total: number, silencioMs: number): string {
+  return (
+    `recuperação de silêncio, chamada ${passo} de ${total}: o cliente ouviu o valor e não respondeu há ${duracao(silencioMs)}; ` +
+    "se você mandou um código Pix, ele já venceu. Escreva UMA mensagem curta, pelo nome, que termine com esta pergunta: " +
+    '"quanto cabe pra você hoje?" — e diga que dá pra começar com uma parte e acertar o restante depois. NÃO diga valor ' +
+    "nenhum, NÃO envie link nem código, NÃO pergunte se conseguiu copiar o código, NÃO invente prazo nem vaga e NÃO " +
+    "pergunte se ela quer parar. Se o cliente pediu para não ser procurado, não envie nada"
+  );
+}
+
 /** O que o agente lê ao ser acordado para manter a conversa aberta até a data combinada. */
 export function motivoDeManterJanela(retornoEm: Date, restanteMs: number): string {
   return (

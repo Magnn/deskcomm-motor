@@ -39,11 +39,22 @@ export const recuperacaoSchema = z
      * do agente: é por ele que o turno seguinte sabe cobrar. Ausente = nenhum passo oferece valor.
      */
     step_offers_cents: z.array(z.number().int().positive().nullable()).max(MAXIMO_DE_PASSOS).optional(),
+    /**
+     * O PASSO PERGUNTA QUANTO CABE HOJE a quem ouviu o preço e calou, na mesma ordem de `steps_minutes`. Pedido do dono
+     * em 31/10/2026: quando o Pix vence (1 h), em vez de repetir "conseguiu copiar o código?", a agente pergunta quanto
+     * cabe — e o valor que a pessoa disser vira entrada, com o restante numa data (`entradaImediata`). Um passo com
+     * valor em `step_offers_cents` oferece o valor; este vale só para o passo sem valor. Ausente = nenhum pergunta.
+     */
+    step_asks_amount: z.array(z.boolean()).max(MAXIMO_DE_PASSOS).optional(),
   })
   .strict()
   .refine((r) => (r.step_offers_cents?.length ?? 0) <= r.steps_minutes.length, {
     path: ["step_offers_cents"],
     message: "recovery_offers_exceed_steps",
+  })
+  .refine((r) => (r.step_asks_amount?.length ?? 0) <= r.steps_minutes.length, {
+    path: ["step_asks_amount"],
+    message: "recovery_asks_exceed_steps",
   })
   .refine((r) => r.steps_minutes.every((m, i) => i === 0 || m > (r.steps_minutes[i - 1] ?? 0)), {
     path: ["steps_minutes"],
@@ -66,6 +77,11 @@ export const RECUPERACAO_PADRAO: Recuperacao = {
 /** O valor que o passo `passo` (a partir de 1) oferece, ou `null`. */
 export function ofertaDoPasso(r: Pick<Recuperacao, "step_offers_cents"> | null, passo: number): number | null {
   return r?.step_offers_cents?.[passo - 1] ?? null;
+}
+
+/** O passo `passo` (a partir de 1) pergunta quanto cabe hoje: marcado, e sem valor próprio para oferecer. */
+export function perguntaQuantoCabeNoPasso(r: Pick<Recuperacao, "step_offers_cents" | "step_asks_amount"> | null, passo: number): boolean {
+  return r?.step_asks_amount?.[passo - 1] === true && ofertaDoPasso(r, passo) === null;
 }
 
 export function lerRecuperacao(followup: unknown): Recuperacao | null {
