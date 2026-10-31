@@ -14,6 +14,8 @@ import { currentExecutionBoundary, guardServiceEffect } from "@/lib/atendimento/
  */
 import type pg from "pg";
 
+import { EXTRA_DO_RESTANTE, restanteDoCombinado } from "@/lib/preco/restante";
+
 import { situacaoDoRetorno, type RetornoAgendado, type RetornoDb } from "./retorno";
 
 const COLUNAS =
@@ -135,6 +137,44 @@ export const VALIDADE_DO_VALOR_COMBINADO_DIAS = 7;
  * Lê também o retorno JÁ DISPARADO de propósito: na data a linha se desabilita (one-shot), e é
  * justamente dali em diante — a mensagem do dia e a resposta da pessoa — que o valor precisa valer.
  */
+export async function buscaRestanteCombinado(
+  db: pg.Pool,
+  orgId: string,
+  contactId: string,
+  listPriceCents: number,
+): Promise<number | null> {
+  const { rows } = await db.query<{ texto: string; guardado: string | null; criado: Date }>(
+    `select concat_ws(' ', payload->>'reason', payload->>'promise') as texto,
+            payload->>'restante_cents' as guardado, created_at as criado
+       from cron_jobs
+      where organization_id = $1 and contact_id = $2
+        and kind = 'at' and job_kind = 'followup_turn'
+        and cancelled_at is null
+        and concat_ws(' ', payload->>'reason', payload->>'promise') ilike '%restante%'
+        and next_run_at > now() - make_interval(days => $3)
+      order by next_run_at desc
+      limit 1`,
+    [orgId, contactId, VALIDADE_DO_VALOR_COMBINADO_DIAS],
+  );
+  const retorno = rows[0];
+  if (retorno === undefined) return null;
+  const { rows: livro } = await db.query<{ pago: string; quitado: boolean }>(
+    `select coalesce(sum(amount_cents) filter (where metadata->>'extra' is null), 0) as pago,
+            coalesce(bool_or(metadata->>'extra' = $4 and occurred_at >= $3), false) as quitado
+       from revenue_ledger
+      where organization_id = $1 and contact_id = $2 and event_type = 'charge'`,
+    [orgId, contactId, retorno.criado, EXTRA_DO_RESTANTE],
+  );
+  if (livro[0]?.quitado) return null;
+  const guardado = Number(retorno.guardado);
+  return restanteDoCombinado({
+    guardadoCents: Number.isInteger(guardado) && guardado > 0 ? guardado : null,
+    texto: retorno.texto,
+    listPriceCents,
+    pagoCents: Number(livro[0]?.pago ?? 0),
+  });
+}
+
 export async function buscaValorCombinado(db: pg.Pool, orgId: string, contactId: string): Promise<number | null> {
   const { rows } = await db.query<{ valor: string | number | null }>(
     `select payload->>'agreed_price_cents' as valor

@@ -12066,6 +12066,8 @@ export const DICIONARIO: Traducoes = {
     { es: "La IA dejó de atender porque esta persona habló de quitarse la vida, y nadie asumió la conversación." },
   "Responda com uma pessoa de verdade, sem falar de venda nem de cobrança. Passe o CVV (188) e, em perigo imediato, o SAMU (192).":
     { es: "Responde con una persona real, sin hablar de ventas ni de cobros. Indica la línea de crisis de su país y, en peligro inmediato, el número de emergencias." },
+  "Retorno que estava marcado":
+    { es: "Retorno que estaba programado" },
   "Alguém pediu atendimento e ninguém assumiu":
     { es: "Alguien pidió atención y nadie la asumió" },
   "A IA passou esta conversa para uma pessoa e ninguém assumiu desde então. Abra a conversa: o contexto do que já foi dito está lá.":

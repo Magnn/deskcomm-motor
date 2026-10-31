@@ -35,7 +35,9 @@ import type { Actor } from "@/lib/api/handlers/types";
 import { audit } from "@/lib/audit";
 import { emitLeadActivity } from "@/lib/leads/activity-emitter";
 import { resolveActiveLeadForContact, type LeadCandidate } from "@/lib/leads/active-lead";
+import { religarRetornosDaPassagem } from "@/lib/followup/retorno-da-passagem";
 import { logger } from "@/lib/logger";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { autorizarContatoParaIA } from "@/lib/ai/elegibilidade/autorizacao";
 
 import { lerContinuidadeHumana, type ContinuidadeHumana } from "./continuidade";
@@ -212,6 +214,26 @@ export async function devolverAtendimentoAoAgente(
       conversation_id: input.conversationId,
       error: passagemErr.message,
     });
+  }
+
+  // (3d) O COMBINADO VOLTA: a passagem desligou os retornos, e o que tem data pela frente volta a valer.
+  // Service role porque `cron_jobs` não é escrita pela sessão; a organização vem de quem chamou. Falha aqui
+  // não derruba a devolução, e não religar é o lado seguro.
+  if (conv.contact_id !== null) {
+    try {
+      const religados = await religarRetornosDaPassagem(createAdminClient(), organizationId, conv.contact_id);
+      if (religados > 0) {
+        logger.info("[escalacao.retomada] retornos combinados religados", {
+          conversation_id: input.conversationId,
+          religados,
+        });
+      }
+    } catch (err) {
+      logger.warn("[escalacao.retomada] retornos não foram religados", {
+        conversation_id: input.conversationId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
   }
 
   // (4) Sinal durável de fim do episódio. AWAITED, não fire-and-forget, pela
