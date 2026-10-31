@@ -70,6 +70,8 @@ export type MotivoDoAviso =
   | "suspeita_de_opt_out"
   /** O teto de gasto com IA parou o atendimento automático. */
   | "orcamento_de_ia"
+  /** A pessoa falou em tirar a própria vida: a frase não promete quem vem, dá o caminho. */
+  | "risco_de_vida"
   /** O sistema decidiu escalar (sentimento, baixa confiança, etapa, termo jurídico…). */
   | "outro";
 
@@ -131,6 +133,13 @@ const ABERTURAS: Record<MotivoDoAviso, readonly string[]> = {
     "Vou passar seu atendimento para uma pessoa da equipe.",
     "A partir daqui quem continua com você é alguém do time.",
     "Estou passando esta conversa para alguém da equipe.",
+  ],
+  // Sem prazo e sem "já vão te responder": a equipe pode não estar lá agora, e esta
+  // é a única mensagem que a pessoa não pode receber como promessa vazia.
+  risco_de_vida: [
+    "O que você me contou é sério e você merece falar com alguém agora. O CVV atende de graça, a qualquer hora, no 188.",
+    "Eu me importo com você, e isso precisa de gente preparada. Ligue 188, o CVV, de dia ou de noite, sem custo.",
+    "Você não precisa carregar isso sem ajuda. Tem gente pronta para te ouvir agora mesmo no 188, o CVV, sem pagar nada.",
   ],
   outro: [
     "Quero que alguém da equipe veja isso com você. Já acionei o time.",
@@ -199,6 +208,10 @@ export function textoDoAviso(
     // atendimento, então "aguarde um instante" seria a resposta errada à
     // pergunta que ele fez.
     return `${abertura} Se um dia quiser voltar, é só me chamar.`;
+  }
+
+  if (motivo === "risco_de_vida") {
+    return `${abertura} Se estiver em perigo agora, ligue 192.`;
   }
 
   const fecho =

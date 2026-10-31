@@ -110,6 +110,7 @@ import { insertInboxItem } from '../db/repository';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { moverLeadParaEtapaDeHandoff } from '@/lib/leads/handoff-stage-move';
 import { detectUrgencySignal } from '../guardrails/sinal-de-urgencia';
+import { ehRiscoDeVida } from '@/lib/escalacao/alerta-de-risco';
 import { buildNativeMediaParts } from './media-parts';
 import {
   copiarFotoNoStorage,
@@ -4866,7 +4867,7 @@ async function executarTurnoDoAgente(
             seq === 0
               ? await avisarLeadDaEscalacao(pool, avisoDaEscalacao().ids, {
                   ...avisoDaEscalacao().base,
-                  motivo: 'pediu_humano',
+                  motivo: ehRiscoDeVida(JSON.stringify(raw)) ? 'risco_de_vida' : 'pediu_humano',
                 })
               : ({ avisado: true } as const);
           // O contexto do TURNO vai junto, e sai da closure: `previous` é o

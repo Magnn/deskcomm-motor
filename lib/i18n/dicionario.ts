@@ -12057,6 +12057,15 @@ export const DICIONARIO: Traducoes = {
     { es: "está atendiendo. Si necesitas asumir, usa Transferir en la parte superior de la conversación." },
   // A cobrança da passagem esquecida (`app/api/v1/cron/case-stale-watcher`).
   // Traduzida no SERVIDOR, no insert, pela mesma razão do corpo do aviso acima.
+  // O alerta de risco de vida (`lib/escalacao/alerta-de-risco.ts`), traduzido no servidor.
+  "URGENTE: pessoa em risco sem atendimento":
+    { es: "URGENTE: persona en riesgo sin atención" },
+  "uma pessoa sem nome cadastrado":
+    { es: "una persona sin nombre registrado" },
+  "A IA parou de atender porque esta pessoa falou em tirar a própria vida, e ninguém assumiu a conversa.":
+    { es: "La IA dejó de atender porque esta persona habló de quitarse la vida, y nadie asumió la conversación." },
+  "Responda com uma pessoa de verdade, sem falar de venda nem de cobrança. Passe o CVV (188) e, em perigo imediato, o SAMU (192).":
+    { es: "Responde con una persona real, sin hablar de ventas ni de cobros. Indica la línea de crisis de su país y, en peligro inmediato, el número de emergencias." },
   "Alguém pediu atendimento e ninguém assumiu":
     { es: "Alguien pidió atención y nadie la asumió" },
   "A IA passou esta conversa para uma pessoa e ninguém assumiu desde então. Abra a conversa: o contexto do que já foi dito está lá.":

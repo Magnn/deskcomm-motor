@@ -7831,6 +7831,7 @@ export type Database = {
       }
       passagens_de_atendimento: {
         Row: {
+          alertas_de_risco: number
           aviso_motivo_codigo: string | null
           body: string
           caso_id: string | null
@@ -7850,8 +7851,10 @@ export type Database = {
           reconhecido_por: string | null
           tentativas: Json
           title: string | null
+          ultimo_alerta_de_risco_em: string | null
         }
         Insert: {
+          alertas_de_risco?: number
           aviso_motivo_codigo?: string | null
           body: string
           caso_id?: string | null
@@ -7871,8 +7874,10 @@ export type Database = {
           reconhecido_por?: string | null
           tentativas?: Json
           title?: string | null
+          ultimo_alerta_de_risco_em?: string | null
         }
         Update: {
+          alertas_de_risco?: number
           aviso_motivo_codigo?: string | null
           body?: string
           caso_id?: string | null
@@ -7892,6 +7897,7 @@ export type Database = {
           reconhecido_por?: string | null
           tentativas?: Json
           title?: string | null
+          ultimo_alerta_de_risco_em?: string | null
         }
         Relationships: [
           {

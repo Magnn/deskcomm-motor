@@ -66,6 +66,8 @@ CRONS="
 */5 * * * *|25|api/v1/cron/storage-redaction?limit=50
 */5 * * * *|25|api/v1/cron/snooze-watcher
 */5 * * * *|60|api/v1/cron/handoff-devolucao
+# Risco de vida sem ninguém: e-mail e WhatsApp da equipe, até três vezes.
+*/5 * * * *|60|api/v1/cron/alerta-de-risco
 # A CAMPANHA. Minuto a minuto, e a rodada manda no máximo uma mensagem por
 # número: é o cron que dá a cadência base, e o ritmo da campanha e do canal
 # (channel_knobs + pacing_ledger) só sabem torná-la mais lenta.
