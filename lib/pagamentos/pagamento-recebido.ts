@@ -56,9 +56,18 @@ export interface DepsDoPagamento extends Pick<DepsDaCompra, "gravarCompra" | "re
    * Idempotente pela chave do registro. Falha aqui não desfaz o registro: lança, e quem chama decide.
    */
   registrarReceita(contatoId: string, receita: { chave: string; valorCentavos: number; produto: string; metodo: string; pagoEm: string }): Promise<void>;
+  /** A cobrança já no livro que parece ser este mesmo pagamento: mesmo contato, valor próximo, até 2 dias. */
+  pagamentoParecido(
+    contatoId: string,
+    valorCentavos: number,
+    pagoEm: string,
+  ): Promise<{ valorCentavos: number; provedor: string; quando: string } | null>;
   /** Fecha o negócio como ganho pela regra de encerramento do produto. `false` = não fechou. */
   fecharComoGanho(leadId: string): Promise<boolean>;
 }
+
+const MARGEM_DO_PARECIDO_CENTS = 300;
+const JANELA_DO_PARECIDO_MS = 2 * 24 * 60 * 60 * 1000;
 
 const reaisTexto = (cents: number): string => `R$ ${(cents / 100).toFixed(2).replace(".", ",")}`;
 
@@ -74,6 +83,12 @@ export async function registrarPagamentoRecebido(
   if (contato.tags.includes(marca)) return { resultado: "ja_registrado" };
 
   const pagoEm = pagamento.pago_em ?? agora.toISOString();
+  // A chave só barra o clique duplo. O mesmo Pix lançado à mão depois do automático soma a venda duas vezes
+  // (medido em outubro: três casos), então quem registra vê o aviso e decide.
+  if (!pagamento.confirmar_repetido) {
+    const parecido = await deps.pagamentoParecido(contato.id, pagamento.valor_cents, pagoEm);
+    if (parecido !== null) return { resultado: "parecido", ...parecido };
+  }
   await deps.gravarCompra(contato.id, {
     tags: Array.from(new Set([...contato.tags, "pago", `produto:${slugDoProduto(pagamento.produto) || "outro"}`, marca])),
     ultimaCompra: {
@@ -162,6 +177,25 @@ export function depsReaisDoPagamento(
       });
       // 23505 = o mesmo registro já está no ledger (reenvio): não é falha.
       if (error && error.code !== "23505") throw new Error(`ledger de receita: ${error.message}`);
+    },
+
+    async pagamentoParecido(contatoId, valorCentavos, pagoEm) {
+      const instante = new Date(pagoEm).getTime();
+      const { data, error } = await admin
+        .from("revenue_ledger")
+        .select("amount_cents, provider, occurred_at")
+        .eq("organization_id", organizationId)
+        .eq("contact_id", contatoId)
+        .eq("event_type", "charge")
+        .gte("amount_cents", valorCentavos - MARGEM_DO_PARECIDO_CENTS)
+        .lte("amount_cents", valorCentavos + MARGEM_DO_PARECIDO_CENTS)
+        .gte("occurred_at", new Date(instante - JANELA_DO_PARECIDO_MS).toISOString())
+        .lte("occurred_at", new Date(instante + JANELA_DO_PARECIDO_MS).toISOString())
+        .order("occurred_at", { ascending: false })
+        .limit(1);
+      if (error) throw new Error(`ledger de receita: ${error.message}`);
+      const l = (data ?? [])[0] as { amount_cents: number; provider: string; occurred_at: string } | undefined;
+      return l ? { valorCentavos: Number(l.amount_cents), provedor: l.provider, quando: l.occurred_at } : null;
     },
 
     async negociosDoContato(contatoId) {

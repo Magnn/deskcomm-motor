@@ -23,7 +23,7 @@ const PAGAMENTO: PagamentoRecebido = pagamentoRecebidoSchema.parse({ chave: CHAV
 const aberto: NegocioDoContato = { id: "neg-aberto", status: "open", value_cents: null, closed_at: null, last_activity_at: "2026-10-11T17:00:00Z", created_at: "2026-10-10T18:00:00Z" };
 const ganho: NegocioDoContato = { id: "neg-ganho", status: "won", value_cents: 13000, closed_at: "2026-10-11T12:00:00Z", last_activity_at: null, created_at: "2026-10-09T18:00:00Z" };
 
-function dublês(opts: { tags?: string[]; negocios?: NegocioDoContato[]; fecha?: boolean; fluxo?: string | null; inscreve?: boolean; semContato?: boolean } = {}) {
+function dublês(opts: { parecido?: { valorCentavos: number; provedor: string; quando: string }; tags?: string[]; negocios?: NegocioDoContato[]; fecha?: boolean; fluxo?: string | null; inscreve?: boolean; semContato?: boolean } = {}) {
   const passos: string[] = [];
   const gravado: { tags?: string[]; ultimaCompra?: Record<string, unknown> } = {};
   const notas: string[] = [];
@@ -33,6 +33,7 @@ function dublês(opts: { tags?: string[]; negocios?: NegocioDoContato[]; fecha?:
     gravarCompra: async (_id, patch) => { passos.push("gravar"); gravado.tags = patch.tags; gravado.ultimaCompra = patch.ultimaCompra; },
     registrarReceita: async (_id, receita) => { passos.push("receita"); receitas.push(receita); },
     anotar: async (_id, texto) => { passos.push("anotar"); notas.push(texto); },
+    pagamentoParecido: async () => opts.parecido ?? null,
     negociosDoContato: async () => opts.negocios ?? [aberto],
     registrarValorNoNegocio: async () => { passos.push("valor"); },
     fecharComoGanho: async (leadId) => { passos.push(`fechar:${leadId}`); return opts.fecha ?? true; },
@@ -61,6 +62,20 @@ describe("registrarPagamentoRecebido", () => {
     const d = dublês({ tags: ["pago", `compra:manual-${CHAVE}`] });
     expect(await registrarPagamentoRecebido(d.deps, { contatoId: "contato-1", pagamento: PAGAMENTO, agora: AGORA })).toEqual({ resultado: "ja_registrado" });
     expect(d.passos).toEqual([]);
+  });
+
+  it("⭐ pagamento parecido no livro para antes de gravar, e passa quando a pessoa confirma", async () => {
+    const parecido = { valorCentavos: 4599, provedor: "cakto", quando: "2026-10-26T22:28:37.000Z" };
+    const d = dublês({ parecido });
+    const agora = new Date("2026-10-26T22:35:00.000Z");
+    const barrado = await registrarPagamentoRecebido(d.deps, { contatoId: "contato-1", pagamento: PAGAMENTO, agora });
+    expect(barrado).toEqual({ resultado: "parecido", ...parecido });
+    expect(d.passos).toEqual([]);
+
+    const pagamento = { ...PAGAMENTO, confirmar_repetido: true };
+    const confirmado = await registrarPagamentoRecebido(d.deps, { contatoId: "contato-1", pagamento, agora });
+    expect(confirmado.resultado).toBe("registrado");
+    expect(d.receitas).toHaveLength(1);
   });
 
   it("negócio que já estava ganho não é fechado de novo — o valor soma e a venda é reenviada pela ponta do valor", async () => {

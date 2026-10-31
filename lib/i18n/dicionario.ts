@@ -12066,6 +12066,12 @@ export const DICIONARIO: Traducoes = {
     { es: "La IA dejó de atender porque esta persona habló de quitarse la vida, y nadie asumió la conversación." },
   "Responda com uma pessoa de verdade, sem falar de venda nem de cobrança. Passe o CVV (188) e, em perigo imediato, o SAMU (192).":
     { es: "Responde con una persona real, sin hablar de ventas ni de cobros. Indica la línea de crisis de su país y, en peligro inmediato, el número de emergencias." },
+  "extras":
+    { es: "extras" },
+  "Já existe um pagamento parecido deste contato":
+    { es: "Ya existe un pago parecido de este contacto" },
+  "Confirme de novo só se for outro pagamento.":
+    { es: "Confirme de nuevo solo si es otro pago." },
   "Retorno que estava marcado":
     { es: "Retorno que estaba programado" },
   "Alguém pediu atendimento e ninguém assumiu":

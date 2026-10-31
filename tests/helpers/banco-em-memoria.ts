@@ -39,6 +39,7 @@ interface Consulta extends PromiseLike<{ data: unknown; error: Erro | null; coun
   like(coluna: string, padrao: string): Consulta;
   order(coluna: string, opts?: { ascending?: boolean }): Consulta;
   limit(n: number): Consulta;
+  range(de: number, ate: number): Consulta;
   single(): Promise<{ data: unknown; error: Erro | null }>;
   maybeSingle(): Promise<{ data: unknown; error: Erro | null }>;
 }
@@ -71,6 +72,7 @@ export function criarBancoEmMemoria(
     let opcoesDoUpsert: { onConflict?: string; ignoreDuplicates?: boolean } = {};
     let ordem: { coluna: string; asc: boolean } | null = null;
     let limite: number | null = null;
+    let desde = 0;
     let contar = false;
     let soCabeca = false;
 
@@ -125,7 +127,7 @@ export function criarBancoEmMemoria(
         });
       }
       const total = saida.length;
-      if (limite !== null) saida = saida.slice(0, limite);
+      if (limite !== null) saida = saida.slice(desde, desde + limite);
       return { data: soCabeca ? [] : saida.map((l) => ({ ...l })), error: null, count: contar ? total : null };
     };
 
@@ -200,6 +202,11 @@ export function criarBancoEmMemoria(
       },
       order(coluna, opts) {
         ordem = { coluna, asc: opts?.ascending !== false };
+        return q;
+      },
+      range(de, ate) {
+        desde = de;
+        limite = ate - de + 1;
         return q;
       },
       limit(n) {
