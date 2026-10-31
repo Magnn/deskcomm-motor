@@ -27,6 +27,8 @@ export const pagamentoRecebidoSchema = z.strictObject({
   /** Quando o dinheiro entrou. Ausente = agora. */
   pago_em: z.string().datetime({ offset: true }).optional(),
   iniciar_entrega: z.boolean().default(false),
+  /** A pessoa viu o aviso de pagamento parecido e confirmou que é outro. */
+  confirmar_repetido: z.boolean().default(false),
 });
 export type PagamentoRecebido = z.infer<typeof pagamentoRecebidoSchema>;
 
@@ -36,6 +38,7 @@ export type DesfechoDaEntrega = "nao_pedida" | "iniciada" | "sem_fluxo";
 export type ResultadoDoPagamento =
   | { resultado: "registrado"; negocio: DesfechoDoNegocio; entrega: DesfechoDaEntrega; motivoDaEntrega?: string }
   | { resultado: "ja_registrado" }
+  | { resultado: "parecido"; valorCentavos: number; provedor: string; quando: string }
   | { resultado: "contato_nao_encontrado" };
 
 export interface SugestaoDePagamento {

@@ -175,7 +175,7 @@ interface DashboardData {
   kpis: {
     leadsNovos: KPI;
     faturamento?: KPI;
-    vendas?: KPI;
+    vendas?: KPI & { extras?: number; clientes?: number };
     roas?: KPIOpcional;
     taxaConversao?: KPI;
     ticketMedio?: KPI;
@@ -544,7 +544,10 @@ export function DashboardClient({ orgName }: { orgName: string }) {
                   {data?.kpis.vendas?.valor ?? 0}
                 </div>
                 <div className="text-xs text-text-muted flex items-center justify-between mt-1">
-                  <span>Vendas</span>
+                  <span>
+                    {t("Vendas")}
+                    {(data?.kpis.vendas?.extras ?? 0) > 0 ? ` + ${data?.kpis.vendas?.extras} ${t("extras")}` : ""}
+                  </span>
                   <Info size={14} className="text-text-subtle" />
                 </div>
               </div>

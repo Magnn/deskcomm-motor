@@ -9,7 +9,19 @@ import { contasDoAnuncio, type GastoDoPeriodo } from "@/lib/resultado/contas-do-
 import { calcularDelta, calcularIntervalo, gastoTemComparacao, lerFusoDaOrganizacao, paraParede } from "@/lib/resultado/periodo";
 import { custoDeIaPorVenda, lerConsumoDeIa } from "@/lib/resultado/custo-de-ia";
 import { descontarIa, lerCotacaoDoDolar } from "@/lib/resultado/cotacao-do-dolar";
+import { lerTodasAsLinhas } from "@/lib/resultado/ler-todas-as-linhas";
 import { lerVendasDoPagamento, type VendaDoPainel } from "@/lib/resultado/vendas-do-pagamento";
+
+interface ConversaDoPainel {
+  id: string;
+  contact_id: string | null;
+  status: string | null;
+  assigned_to_user_id: string | null;
+  channel_session_id: string | null;
+  last_outbound_at: string | null;
+  created_at: string;
+  service_closed_at: string | null;
+}
 
 export const dynamic = "force-dynamic";
 
@@ -117,15 +129,16 @@ export async function GET(req: NextRequest) {
         .eq("organization_id", orgId)
         .gte("created_at", start.toISOString())
         .lte("created_at", end.toISOString())
-        .neq("status", "cancelled");
+        // Só a comanda fechada é venda: a aberta ainda não recebeu nada (medido: uma aberta desde 05/10 somava).
+        .eq("status", "finalized");
 
       const prevSalesQuery = admin
         .from("sales")
-        .select("id, total_cents")
+        .select("id, contact_id, total_cents")
         .eq("organization_id", orgId)
         .gte("created_at", prevStart.toISOString())
         .lte("created_at", prevEnd.toISOString())
-        .neq("status", "cancelled");
+        .eq("status", "finalized");
 
       const [{ data: salesData }, { data: prevSalesData }] = await Promise.all([
         salesQuery.order("created_at", { ascending: false }),
@@ -151,8 +164,17 @@ export async function GET(req: NextRequest) {
       );
       const prevSales = [...(prevSalesData ?? []), ...vendasDoGatewayAntes];
 
-      const vendasCount = sales.length;
-      const prevVendasCount = prevSales.length;
+      // Venda é produto principal; extra é receita, com contagem à parte. Medido em outubro: 55 das 130 "vendas"
+      // eram cobranças avulsas, quase todas de R$ 5, o que dobrava a conversão aparente.
+      const ehVenda = (s: { id: string; extra?: boolean }): boolean => s.extra !== true;
+      const vendasCount = sales.filter(ehVenda).length;
+      const prevVendasCount = prevSales.filter(ehVenda).length;
+      const extrasCount = sales.length - vendasCount;
+      // Quem pagou, uma vez só por pessoa. Cobrança sem contato conta como uma pessoa.
+      const clientes = (lista: readonly { id: string; contact_id?: string | null }[]): number =>
+        new Set(lista.map((s) => s.contact_id ?? s.id)).size;
+      const clientesCount = clientes(sales);
+      const prevClientesCount = clientes(prevSales);
 
       const faturamentoCents = sales.reduce((acc, s) => acc + (Number(s.total_cents) || 0), 0);
       const prevFaturamentoCents = prevSales.reduce((acc, s) => acc + (Number(s.total_cents) || 0), 0);
@@ -160,12 +182,12 @@ export async function GET(req: NextRequest) {
       const faturamentoReais = faturamentoCents / 100;
       const prevFaturamentoReais = prevFaturamentoCents / 100;
 
-      const ticketMedio = vendasCount > 0 ? faturamentoReais / vendasCount : 0;
-      const prevTicketMedio = prevVendasCount > 0 ? prevFaturamentoReais / prevVendasCount : 0;
+      const ticketMedio = clientesCount > 0 ? faturamentoReais / clientesCount : 0;
+      const prevTicketMedio = prevClientesCount > 0 ? prevFaturamentoReais / prevClientesCount : 0;
 
       const leadsCount = leadsNovosCount ?? 0;
-      const taxaConversao = leadsCount > 0 ? Number(((vendasCount / leadsCount) * 100).toFixed(2)) : 0;
-      const prevTaxaConversao = (prevLeadsNovosCount ?? 0) > 0 ? Number(((prevVendasCount / (prevLeadsNovosCount ?? 1)) * 100).toFixed(2)) : 0;
+      const taxaConversao = leadsCount > 0 ? Number(((clientesCount / leadsCount) * 100).toFixed(2)) : 0;
+      const prevTaxaConversao = (prevLeadsNovosCount ?? 0) > 0 ? Number(((prevClientesCount / (prevLeadsNovosCount ?? 1)) * 100).toFixed(2)) : 0;
 
       // O gasto LIDO da conta de anúncios (era um zero fixo). Desconhecido não vira zero: ROAS fica nulo e
       // o lucro não desconta anúncio — ver `contasDoAnuncio`.
@@ -376,7 +398,7 @@ export async function GET(req: NextRequest) {
         kpis: {
           leadsNovos: { valor: leadsCount, delta: calcularDelta(leadsCount, prevLeadsNovosCount ?? 0) },
           faturamento: { valor: faturamentoReais, delta: calcularDelta(faturamentoReais, prevFaturamentoReais) },
-          vendas: { valor: vendasCount, delta: calcularDelta(vendasCount, prevVendasCount) },
+          vendas: { valor: vendasCount, delta: calcularDelta(vendasCount, prevVendasCount), extras: extrasCount, clientes: clientesCount },
           roas: {
             valor: contas.roas,
             delta: gastoComparavel && contas.roas !== null && contasAntes.roas !== null ? calcularDelta(contas.roas, contasAntes.roas) : null,
@@ -443,15 +465,17 @@ export async function GET(req: NextRequest) {
     ]);
 
     // Conversas atendidas e finalizadas
-    const [{ data: conversasData }, { data: atendentesData }, { data: stagesData }] = await Promise.all([
-      admin
+    const [conversas, { data: atendentesData }, { data: stagesData }] = await Promise.all([
+      lerTodasAsLinhas<ConversaDoPainel>((de, ate) => admin
         .from("conversations")
         // `last_outbound_at` e `service_closed_at` são as colunas que existem. A consulta pedia
         // `first_outbound_at` e `closed_at`, era recusada, e a aba Atendimento mostrava zero em tudo.
         .select("id, contact_id, status, assigned_to_user_id, channel_session_id, last_outbound_at, created_at, service_closed_at")
         .eq("organization_id", orgId)
         .gte("created_at", start.toISOString())
-        .lte("created_at", end.toISOString()),
+        .lte("created_at", end.toISOString())
+        .order("id")
+        .range(de, ate)),
       admin
         // A tabela de membros é `user_organizations`; `organization_members` nunca existiu.
         .from("user_organizations")
@@ -465,7 +489,6 @@ export async function GET(req: NextRequest) {
         .order("position", { ascending: true }),
     ]);
 
-    const conversas = conversasData ?? [];
     const leadsAtendidos = conversas.filter((c) => c.last_outbound_at !== null || c.assigned_to_user_id !== null).length;
     const leadsFinalizados = conversas.filter(
       (c) => c.status === "archived" || c.status === "closed" || c.status === "resolved" || c.service_closed_at !== null,
@@ -500,13 +523,15 @@ export async function GET(req: NextRequest) {
     }));
 
     // Conversões e Valor por Coluna do Kanban
-    const { data: crmLeadsData } = await admin
-      .from("crm_leads")
-      // O valor do negócio mora em `value_cents`; `estimated_value_cents` não existe.
-      .select("id, stage_id, value_cents, contact_id")
-      .eq("organization_id", orgId);
-
-    const crmLeads = crmLeadsData ?? [];
+    const crmLeads = await lerTodasAsLinhas<{ id: string; stage_id: string | null; value_cents: number | null; contact_id: string | null }>(
+      (de, ate) => admin
+        .from("crm_leads")
+        // O valor do negócio mora em `value_cents`; `estimated_value_cents` não existe.
+        .select("id, stage_id, value_cents, contact_id")
+        .eq("organization_id", orgId)
+        .order("id")
+        .range(de, ate),
+    );
     const conversoesPorColuna = (stagesData ?? []).map((st) => {
       const leadsDaColuna = crmLeads.filter((l) => l.stage_id === st.id);
       const valorCents = leadsDaColuna.reduce((acc, l) => acc + (Number(l.value_cents) || 0), 0);

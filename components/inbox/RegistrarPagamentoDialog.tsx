@@ -83,12 +83,18 @@ export function RegistrarPagamentoDialog({ conversationId, open, onOpenChange }:
     setValorDigitado(null);
   };
 
+  const [parecido, setParecido] = useState<{ valorCentavos: number; quando: string } | null>(null);
+
   const enviar = () => {
     if (!pronto || cents === null) return;
     registrar.mutate(
-      { conversation_id: conversationId, pagamento: { chave, produto: produto.trim(), valor_cents: cents, metodo, iniciar_entrega: iniciarEntrega } },
+      { conversation_id: conversationId, pagamento: { chave, confirmar_repetido: parecido !== null, produto: produto.trim(), valor_cents: cents, metodo, iniciar_entrega: iniciarEntrega } },
       {
         onSuccess: (r) => {
+          if (r.resultado === "parecido") {
+            setParecido(r);
+            return;
+          }
           if (r.resultado === "ja_registrado") toast.info(t("Este pagamento já estava registrado."));
           else if (r.resultado === "registrado") {
             if (r.negocio === "nao_fechou") toast.warning(t("Pagamento registrado, mas o negócio não fechou sozinho. Feche-o no funil."));
@@ -181,6 +187,12 @@ export function RegistrarPagamentoDialog({ conversationId, open, onOpenChange }:
         </div>
 
         <DialogFooter>
+          {parecido !== null && (
+            <p className="text-xs text-warning w-full" data-testid="pagamento-parecido">
+              {t("Já existe um pagamento parecido deste contato")} (R$ {(parecido.valorCentavos / 100).toFixed(2).replace(".", ",")},{" "}
+              {new Date(parecido.quando).toLocaleDateString()}). {t("Confirme de novo só se for outro pagamento.")}
+            </p>
+          )}
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             {t("Cancelar")}
           </Button>

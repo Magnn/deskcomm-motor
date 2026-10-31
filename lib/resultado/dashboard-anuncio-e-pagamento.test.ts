@@ -31,7 +31,7 @@ describe("vendasDoLedger", () => {
       new Set(["p2"]),
     );
     expect(vendas).toEqual([
-      { id: "a", number: null, contact_id: "c1", status: "paid", total_cents: 13000, created_at: "2026-10-02T10:00:00Z", attendant_user_id: null, notes: null, conversation_id: null },
+      { id: "a", number: null, contact_id: "c1", status: "paid", total_cents: 13000, created_at: "2026-10-02T10:00:00Z", attendant_user_id: null, notes: null, conversation_id: null, extra: false },
     ]);
   });
 });
