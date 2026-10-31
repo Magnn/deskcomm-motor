@@ -5,11 +5,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useT } from "@/hooks/i18n/useT";
+import { reais } from "@/lib/preco/tipos";
 import {
   HORAS_ANTES_MAXIMO,
   MAXIMO_DE_PASSOS,
   PASSO_MAXIMO_MIN,
   RECUPERACAO_PADRAO,
+  ofertaDoPasso,
   recuperacaoSchema,
   type Recuperacao,
 } from "@/lib/recuperacao/config";
@@ -40,12 +42,31 @@ export function RecuperacaoEditor({ value, onChange, disabled }: Props) {
 
   function passos(steps_minutes: number[]) {
     if (value === null) return;
-    // O valor oferecido por passo (ainda sem campo na tela) acompanha a lista: não pode sobrar valor sem passo.
+    // O valor oferecido e a pergunta de quanto cabe, por passo, acompanham a lista: não pode sobrar nada sem passo.
     onChange({
       ...value,
       steps_minutes,
       ...(value.step_offers_cents ? { step_offers_cents: value.step_offers_cents.slice(0, steps_minutes.length) } : {}),
+      ...(value.step_asks_amount ? { step_asks_amount: value.step_asks_amount.slice(0, steps_minutes.length) } : {}),
     });
+  }
+
+  /** Tirar uma chamada do meio leva junto o que ela oferecia e perguntava: o resto não muda de passo. */
+  function remover(i: number) {
+    if (value === null) return;
+    const fora = <T,>(lista: T[] | undefined) => lista?.filter((_, j) => j !== i);
+    onChange({
+      ...value,
+      steps_minutes: value.steps_minutes.filter((_, j) => j !== i),
+      ...(value.step_offers_cents ? { step_offers_cents: fora(value.step_offers_cents) } : {}),
+      ...(value.step_asks_amount ? { step_asks_amount: fora(value.step_asks_amount) } : {}),
+    });
+  }
+
+  function marcarQuantoCabe(i: number, marcado: boolean) {
+    if (value === null) return;
+    const lista = value.steps_minutes.map((_, j) => (j === i ? marcado : value.step_asks_amount?.[j] === true));
+    onChange({ ...value, step_asks_amount: lista });
   }
 
   function mudarPasso(i: number, numero: number, unidade: Unidade) {
@@ -107,12 +128,27 @@ export function RecuperacaoEditor({ value, onChange, disabled }: Props) {
                       {u === "min" ? t("minutos") : t("horas")}
                     </button>
                   ))}
+                  {ofertaDoPasso(value, i + 1) !== null ? (
+                    <span className="text-xs text-muted-foreground">
+                      {t("oferece {valor} a quem ouviu o preço").replace("{valor}", reais(ofertaDoPasso(value, i + 1) ?? 0))}
+                    </span>
+                  ) : (
+                    <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <input
+                        type="checkbox"
+                        checked={value.step_asks_amount?.[i] === true}
+                        onChange={(e) => marcarQuantoCabe(i, e.target.checked)}
+                        disabled={disabled}
+                      />
+                      {t("pergunta quanto cabe hoje a quem ouviu o preço")}
+                    </label>
+                  )}
                   {value.steps_minutes.length > 1 ? (
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
-                      onClick={() => passos(value.steps_minutes.filter((_, j) => j !== i))}
+                      onClick={() => remover(i)}
                       disabled={disabled}
                     >
                       {t("Remover")}

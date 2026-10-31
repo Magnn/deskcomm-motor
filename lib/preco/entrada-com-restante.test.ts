@@ -224,6 +224,12 @@ describe("o número sozinho que responde 'quanto caberia pra você?' (30/10/2026
     expect(entradaImediata(PRICING, conversa)).toEqual({ entradaCents: 8000, restanteCents: 5000 });
   });
 
+  it("⭐ o lembrete do Pix vencido (31/10): ela calou depois do preço, a régua pergunta quanto cabe, '80' vira entrada", async () => {
+    const { entradaImediata } = await import("./estado-da-negociacao");
+    const lembrete = m("outbound", "Carla, o código do Pix venceu. Dá pra começar com uma parte e acertar o restante depois: quanto cabe pra você hoje?");
+    expect(entradaImediata(PRICING, [PRECO, lembrete, m("inbound", "80")])).toEqual({ entradaCents: 8000, restanteCents: 5000 });
+  });
+
   it("aceita 'R$ 80', '80,00' e '80 reais' sozinhos", async () => {
     const { valorQueAPessoaTem } = await import("./estado-da-negociacao");
     for (const resposta of ["R$ 80", "80,00", "80 reais", "80."]) {

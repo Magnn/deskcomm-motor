@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import { ofertaAindaDesce, ofertaFoiDita, precoPermitidoAgora, reclamacoesComOfertaPorSilencio } from "@/lib/preco/estado-da-negociacao";
 
-import { lerRecuperacao, ofertaDoPasso, recuperacaoSchema } from "./config";
-import { motivoDoPasso } from "./decisao";
+import { lerRecuperacao, ofertaDoPasso, perguntaQuantoCabeNoPasso, recuperacaoSchema } from "./config";
+import { motivoDoPasso, motivoDoPassoQuantoCabe } from "./decisao";
 import { disseQueNaoTemPrevisao } from "./pausa-anunciada";
 
 const ESCADA = { list_price_cents: 13000, steps: [{ price_cents: 10000 }, { price_cents: 6000 }, { price_cents: 5000 }] } as never;
@@ -69,5 +69,35 @@ describe("o lembrete nunca sobe o valor", () => {
     expect(disseQueNaoTemPrevisao("Minha linda não tenho dinhero agora nem sei quando vou ter")).toBe(true);
     expect(disseQueNaoTemPrevisao("Eu não tenho se eu tivesse era minha vontade")).toBe(false);
     expect(disseQueNaoTemPrevisao(null)).toBe(false);
+  });
+});
+
+describe("o passo do Pix vencido pergunta quanto cabe (pedido do dono, 31/10/2026)", () => {
+  const comPergunta = {
+    ...recovery,
+    steps_minutes: [3, 15, 60, 180, 360],
+    step_offers_cents: [null, null, null, 10000, 6000],
+    step_asks_amount: [false, false, true, false, false],
+  };
+
+  it("⭐ só o passo marcado e sem valor pergunta; o passo com valor continua oferecendo o valor", () => {
+    const r = lerRecuperacao({ recovery: comPergunta });
+    expect(recuperacaoSchema.safeParse(comPergunta).success).toBe(true);
+    expect(perguntaQuantoCabeNoPasso(r, 2)).toBe(false);
+    expect(perguntaQuantoCabeNoPasso(r, 3)).toBe(true);
+    expect(perguntaQuantoCabeNoPasso(lerRecuperacao({ recovery: { ...comPergunta, step_asks_amount: [false, false, false, true] } }), 4)).toBe(false);
+    expect(perguntaQuantoCabeNoPasso(lerRecuperacao({ recovery }), 3)).toBe(false);
+  });
+
+  it("⭐ o lembrete pergunta 'quanto cabe' — a forma que o turno seguinte lê num número solto — e não cobra o Pix", () => {
+    const motivo = motivoDoPassoQuantoCabe(3, 5, 3_600_000);
+    expect(motivo).toContain("quanto cabe pra você hoje?");
+    expect(motivo).toContain("NÃO diga valor");
+    expect(motivo).toContain("NÃO pergunte se conseguiu copiar o código");
+    expect(motivo).not.toContain("prefere parar");
+  });
+
+  it("mais marcações do que passos é configuração inválida", () => {
+    expect(recuperacaoSchema.safeParse({ ...recovery, step_asks_amount: [false, false, false, false, true] }).success).toBe(false);
   });
 });

@@ -29,7 +29,7 @@ import { readCurrentServiceBoundary } from '@/lib/atendimento/fronteira-server';
 import { capabilitiesOf } from '@/lib/channels/capabilities';
 import type { ChannelProvider } from '@/lib/channels/types';
 import { ehRecusaDaOferta } from '@/lib/opt-out/deteccao';
-import { lerRecuperacao, ofertaDoPasso } from '@/lib/recuperacao/config';
+import { lerRecuperacao, ofertaDoPasso, perguntaQuantoCabeNoPasso } from '@/lib/recuperacao/config';
 import { anunciouPausa, disseQueNaoTemPrevisao } from '@/lib/recuperacao/pausa-anunciada';
 import { ofertaAindaDesce } from '@/lib/preco/estado-da-negociacao';
 import type { PricingConfig } from '@/lib/preco/tipos';
@@ -39,6 +39,7 @@ import {
   decidirPasso,
   motivoDeManterJanela,
   motivoDoPasso,
+  motivoDoPassoQuantoCabe,
   ofereceSaida,
 } from '@/lib/recuperacao/decisao';
 
@@ -288,6 +289,15 @@ export function decidirChamada(
     c.ja_pagou !== true &&
     !anunciouPausa(c.falas_finais) &&
     !disseQueNaoTemPrevisao(c.falas_finais);
+  if (ofereceValor && perguntaQuantoCabeNoPasso(r, passo)) {
+    return {
+      kind: 'step',
+      step: passo,
+      motivo: motivoDoPassoQuantoCabe(passo, r.steps_minutes.length, silencioMs),
+      ofereceSaida: false,
+      ofertaCents: null,
+    };
+  }
   const ofertaCents = ofereceValor ? ofertaDoPasso(r, passo) : null;
   return {
     kind: 'step',

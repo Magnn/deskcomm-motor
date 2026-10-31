@@ -98,6 +98,7 @@ import {
   perguntaPagaRecente,
   conversaFalouDeExtra,
   extrasDaConfig,
+  ofertaPequenaDeHoje,
   janelaDeLeituraDosExtras,
   slugDoExtra,
   type ExtraPago,
@@ -2563,6 +2564,8 @@ async function executarTurnoDoAgente(
     posVenda: posVendaDoTurno,
     combinadoCents: combinadoDoTurno,
     faltaParaOEssencial: faltaParaOEssencialNoTurno,
+    // Só pesa no turno de fechar a data: o combinado sai junto de uma oferta pequena para hoje (decisão do dono, 31/10).
+    ofertaDeHoje: preview ? null : ofertaPequenaDeHoje(extrasDaConfig(agentConfig?.pricing), openingContext.context.messages),
       });
   // A REDE: o mesmo passo vira o piso de preço da trava de promessas deste turno. Se o modelo
   // oferecer um valor abaixo do degrau liberado, a mensagem é vetada antes de sair (`before-send`). No

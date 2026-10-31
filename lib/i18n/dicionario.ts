@@ -1701,6 +1701,12 @@ export const DICIONARIO: Traducoes = {
   "Adicionar chamada": {
     es: "Agregar llamada",
   },
+  "pergunta quanto cabe hoje a quem ouviu o preço": {
+    es: "pregunta cuánto puede pagar hoy a quien escuchó el precio",
+  },
+  "oferece {valor} a quem ouviu o preço": {
+    es: "ofrece {valor} a quien escuchó el precio",
+  },
   "Cada chamada precisa vir depois da anterior, e todas dentro de 23 horas.": {
     es: "Cada llamada debe venir después de la anterior, y todas dentro de 23 horas.",
   },

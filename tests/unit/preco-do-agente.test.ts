@@ -15,6 +15,7 @@ import { describe, expect, it } from "vitest";
 
 import { decidePromise } from "@/lib/agent-engine/guardrails/promise/engine";
 import { blocoDePreco, semObjecaoDePrecoQuandoHaBloco } from "@/lib/preco/bloco-do-prompt";
+import { ofertaPequenaDeHoje } from "@/lib/preco/extras";
 import {
   degrauQueFaltaOferecerAntesDeAgendar,
   deuDataParaPagar,
@@ -430,6 +431,28 @@ describe("ela deu a data para pagar: o turno fecha o combinado com o valor já o
     // Quem adia não ganha mais um degrau: a 2ª reclamação liberaria R$ 100, e o link dele não aparece.
     expect(b).not.toContain("pay.cakto.com.br/abc_100");
     expect(b).not.toContain("ofereça AGORA");
+  });
+
+  it("⭐ com oferta pequena (decisão do dono, 31/10): o combinado sai junto da oferta de hoje, uma vez", () => {
+    const b = blocoDePreco(cfg, { reclamacoes: 2, dataParaOValorCents: 11_000, ofertaDeHoje: { nome: "Pergunta nova", precoCents: 500 } });
+    expect(b).toContain("o seu valor fica em R$ 110");
+    expect(b).toContain("*Pergunta nova* por R$ 5");
+    expect(b).toContain("NÃO ofereça de novo");
+    // Sem oferta pequena, o molde da data é o de antes.
+    expect(blocoDePreco(cfg, { reclamacoes: 2, dataParaOValorCents: 11_000 })).not.toContain("E pra hoje");
+    // Fora do turno da data a oferta não aparece.
+    expect(blocoDePreco(cfg, { reclamacoes: 2, ofertaDeHoje: { nome: "Pergunta nova", precoCents: 500 } })).not.toContain("E pra hoje");
+  });
+
+  it("a oferta pequena é a avulsa de entrega única mais barata, e só se a conversa ainda não falou dela", () => {
+    const extras = [
+      { name: "Sinastria Amorosa", price_cents: 3700, when: "quando falar do outro" },
+      { name: "Pergunta nova", price_cents: 500, when: "outra pergunta às cartas" },
+      { name: "Acompanhamento", price_cents: 300, when: "todo dia", valid_days: 30 },
+    ];
+    expect(ofertaPequenaDeHoje(extras, [nossa("O trabalho custa R$ 130.")])).toEqual({ nome: "Pergunta nova", precoCents: 500 });
+    expect(ofertaPequenaDeHoje(extras, [nossa("Se quiser, faço uma pergunta nova por R$ 5.")])).toBeNull();
+    expect(ofertaPequenaDeHoje([], [])).toBeNull();
   });
 
   it("sem degrau já oferecido, com valor que não é da escada, ou com ela dizendo quanto tem: segue a negociação comum", () => {
