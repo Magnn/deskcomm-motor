@@ -68,6 +68,20 @@ export const RECLAMACAO_DE_VALOR = new RegExp(
     "fora\\s+do\\s+(?:meu\\s+)?or[çc]amento",
     "\\bpromo[çc][ãa]o\\b",
     "\\bcupom\\b",
+    // Medido em 31/10/2026: 10 de 11 respostas ao preço de quem não podia pagar não contavam — "tô zerado",
+    // "hoje não tem dinheiro", "não posso neste momento", "quando eu tiver condições", "não tenho pois…",
+    // "só dia 07", "só mês que vem", "até arrumar um serviço". A escada não andava e a conversa acabava em
+    // "fica com Deus" sem valor menor.
+    "\\bzerad[oa]\\b",
+    "n[ãa]o\\s+tem\\s+(?:dinheiro|grana)\\b",
+    "n[ãa]o\\s+(?:posso|consigo|d[áa])\\s+(?:neste|nesse|no)\\s+momento\\b",
+    "quando\\s+(?:eu\\s+)?tiver\\s+(?:condi[çc]|dinheiro|grana)",
+    "n[ãa]o\\s+tenho\\s+(?:pois|porque|porq|pq|nada|se\\s+eu)\\b",
+    "\\bs[óo]\\s+(?:no\\s+)?dia\\s+\\d",
+    "\\bs[óo]\\s+(?:o\\s+|n[ao]\\s+)?(?:m[êe]s|semana)\\s+que\\s+vem\\b",
+    "\\bs[óo]\\s+(?:no\\s+)?(?:fim|final)\\s+d[oe]\\s+m[êe]s\\b",
+    "arrumar\\s+(?:um\\s+)?(?:servi[çc]o|emprego|trabalho)\\b",
+    "\\bsem\\s+(?:emprego|servi[çc]o)\\b",
   ].join("|"),
   "i",
 );

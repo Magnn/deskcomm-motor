@@ -277,11 +277,22 @@ describe("reclamacoesDeValor", () => {
     "só recebo dia 10",
     "só consigo pagar depois do dia 20",
     "quando eu receber eu faço",
+    // Respostas reais ao preço em 31/10/2026 que não contavam.
+    "Puxa vou agradecer porq tô zerado",
+    "Hoje não tem dinheiro na próx semana te chamo",
+    "Não posso neste momento",
+    "Quando eu tiver condições te chamo ok.",
+    "Estou vivendo só com ajuda dos meus irmãos, até melhorar e arrumar um serviço.",
+    "So dia 07",
+    "Só mês que vem dia 28",
+    "Não tenho pois estou fazendo tratamento cardíaco e gasto muito",
+    "Eu não tenho se eu tivesse era minha vontade",
+    "só no final do mês",
   ])("reconhece a reclamação: %s", (frase) => {
     expect(reclamacoesDeValor([nossa("Custa R$ 130."), dela(frase)])).toBe(1);
   });
 
-  it.each(["adorei a leitura", "meu caro amigo me indicou", "posso pagar amanhã?", "manda o link", "não tenho dúvida", "não tenho cartão", "não uso pix", "já recebo o passo a passo?"])(
+  it.each(["adorei a leitura", "meu caro amigo me indicou", "posso pagar amanhã?", "manda o link", "não tenho dúvida", "não tenho cartão", "não uso pix", "já recebo o passo a passo?", "não posso falar agora, tô no trabalho", "ele tem dinheiro mas não tem tempo", "Nossa eu tenho", "Sexta"])(
     "não confunde com reclamação: %s",
     (frase) => {
       expect(reclamacoesDeValor([nossa("Custa R$ 130."), dela(frase)])).toBe(0);
