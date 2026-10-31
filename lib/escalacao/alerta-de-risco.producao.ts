@@ -10,6 +10,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { criarPacingDoCanal } from "@/lib/agent-engine/pacing/ledger-supabase";
 import { marcaDaSaida } from "@/lib/branding/saida";
+import { type ContatoNomeavel, nomeDoContato as nomeLegivel } from "@/lib/contacts/rotulo-do-contato";
 import { sendEmail } from "@/lib/email/roteador";
 import { env } from "@/lib/env";
 import { normalizarIdioma } from "@/lib/i18n/idiomas";
@@ -104,11 +105,11 @@ export function criarDepsDoAlerta(admin: SupabaseClient): DepsDoAlerta {
     async nomeDoContato(orgId, contactId) {
       const { data } = await admin
         .from("contacts")
-        .select("name")
+        .select("display_name, name")
         .eq("organization_id", orgId)
         .eq("id", contactId)
         .maybeSingle();
-      return (data as { name?: string | null } | null)?.name ?? null;
+      return nomeLegivel(data as ContatoNomeavel | null);
     },
 
     async idiomaDaOrganizacao(orgId) {
