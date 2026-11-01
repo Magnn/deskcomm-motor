@@ -10,12 +10,44 @@ import { createHash } from "node:crypto";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { identidadeDaResposta, montarIdentidade, partesDoNome } from "@/lib/conversoes/identidade-do-cliente";
+import { identidadeDaResposta, montarIdentidade, nomeENascimentoDaMensagem, partesDoNome } from "@/lib/conversoes/identidade-do-cliente";
+import { estadoDoTelefone } from "@/lib/plataformas-de-anuncio/estado-do-telefone";
 import { transporteMeta } from "@/lib/plataformas-de-anuncio/meta/conversions";
 import type { ConversaoOffline } from "@/lib/plataformas-de-anuncio/types";
 
 const HOJE = new Date("2026-10-29T12:00:00Z");
 const h = (v: string) => createHash("sha256").update(v).digest("hex");
+
+describe("nomeENascimentoDaMensagem", () => {
+  it("⭐ aceita a mensagem que é só nome completo e data", () => {
+    expect(nomeENascimentoDaMensagem("Ana Maria Souza 29/04/72", HOJE)).toBe("Ana Maria Souza 29/04/72");
+    expect(nomeENascimentoDaMensagem("Joana Lima\n01/07/1985", HOJE)).toBe("Joana Lima 01/07/1985");
+    expect(nomeENascimentoDaMensagem("Joana Diaz 01/07/1985", HOJE)).toBe("Joana Diaz 01/07/1985");
+  });
+
+  it("recusa frase livre, data de outra pessoa e data que não é nascimento", () => {
+    expect(nomeENascimentoDaMensagem("Meu filho Pedro nasceu 12/03/2001", HOJE)).toBeNull();
+    expect(nomeENascimentoDaMensagem("Paguei o boleto 12/10/2026", HOJE)).toBeNull();
+    expect(nomeENascimentoDaMensagem("Ana 29/04/72", HOJE)).toBeNull();
+    expect(nomeENascimentoDaMensagem("Ana Souza 29/04/72 tudo bem?", HOJE)).toBeNull();
+    expect(nomeENascimentoDaMensagem(null, HOJE)).toBeNull();
+  });
+});
+
+describe("estadoDoTelefone", () => {
+  it("⭐ tira a sigla do DDD, com e sem o nono dígito", () => {
+    expect(estadoDoTelefone("5569999998888")).toBe("ro");
+    expect(estadoDoTelefone("551133334444")).toBe("sp");
+    expect(estadoDoTelefone("+55 (61) 99999-8888")).toBe("df");
+  });
+
+  it("fora do Brasil, DDD inexistente ou número curto não tem estado", () => {
+    expect(estadoDoTelefone("14155550100")).toBeNull();
+    expect(estadoDoTelefone("5520999998888")).toBeNull();
+    expect(estadoDoTelefone("55119999")).toBeNull();
+    expect(estadoDoTelefone(null)).toBeNull();
+  });
+});
 
 describe("identidadeDaResposta", () => {
   it("⭐ 'Nome Sobrenome dd/mm/aa' vira nome e nascimento", () => {
@@ -125,7 +157,7 @@ describe("envio à Meta com a identidade", () => {
 
   it("sem identidade: o envio continua como antes (telefone e país)", async () => {
     const ud = await userDataEnviado(conversao());
-    expect(ud).toEqual({ ph: [h("5545999999999")], country: [h("br")] });
+    expect(ud).toEqual({ ph: [h("5545999999999")], country: [h("br")], st: [h("pr")] });
   });
 
   it("mensageria também leva o país e a identidade", async () => {

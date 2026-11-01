@@ -8,8 +8,11 @@
  * leitura: a resposta ficava como texto livre num campo do lead ("Ana Maria Souza 29/04/72").
  *
  * Este arquivo junta o que existe, nesta ordem de confiança: o que está gravado no contato; o que se lê,
- * com regra estrita, da resposta do cliente nos campos do lead; e, só para o primeiro nome, o nome do
- * perfil do WhatsApp. Nada aqui grava: é leitura para o envio.
+ * com regra estrita, da resposta do cliente nos campos do lead; o que o próprio cliente escreveu na conversa
+ * (só quando faltou algo, e com regra mais estrita ainda); e, só para o primeiro nome, o nome do perfil do
+ * WhatsApp. Nada aqui grava: é leitura para o envio.
+ *
+ * Medido em 01/11/2026: na Compra, nascimento em 56% dos eventos e sobrenome em 50%.
  *
  * Puro, exceto `lerIdentidade` (uma consulta).
  */
@@ -46,6 +49,24 @@ export function identidadeDaResposta(texto: unknown, hoje: Date = new Date()): {
 
   const nome = somenteLetras(linha.slice(0, m.index));
   return { nome: nome.length >= 2 ? nome : null, nascimento };
+}
+
+/** Palavras que mostram que a frase fala de outra pessoa ou de outra data, e não é "nome e nascimento". */
+const FORA_DE_NOME = /(?<![\p{L}])(meu|minha|dele|dela|filho|filha|marido|esposo|esposa|namorado|namorada|nasceu|dia|hoje|paguei|pago|pagamento|pix|vence|vencimento)(?![\p{L}])/iu;
+
+/**
+ * A mensagem do cliente que é, inteira, "Nome Sobrenome dd/mm/aaaa". Mais estrita que a resposta guardada no
+ * lead, porque aqui o texto é livre: tem de ter pelo menos duas palavras antes da data, nada depois dela e
+ * nenhuma palavra de `FORA_DE_NOME`. Devolve o texto para seguir o caminho das respostas, ou `null`.
+ */
+export function nomeENascimentoDaMensagem(corpo: unknown, hoje: Date = new Date()): string | null {
+  if (typeof corpo !== "string") return null;
+  const linha = corpo.replace(/\s+/g, " ").trim();
+  if (linha.length > 80 || FORA_DE_NOME.test(linha)) return null;
+  const m = DATA.exec(linha);
+  if (!m || m.index + m[0].length !== linha.length) return null;
+  const { nome, nascimento } = identidadeDaResposta(linha, hoje);
+  return nome && nascimento && nome.split(" ").length >= 2 ? linha : null;
 }
 
 /** Letras (com acento) e espaços; o resto vira espaço. */
@@ -98,7 +119,10 @@ export function montarIdentidade(contato: LinhaDoContato, respostas: unknown[], 
   };
 }
 
-/** Lê o contato e as respostas de texto dos leads dele. Falha de leitura = identidade só com o id. */
+/** O começo da conversa basta: nome e nascimento são pedidos antes da leitura. */
+const MENSAGENS_LIDAS = 60;
+
+/** Lê o contato, as respostas de texto dos leads dele e, se faltar dado, o começo da conversa. Falha de leitura = identidade só com o id. */
 export async function lerIdentidade(admin: SupabaseClient, organizationId: string, contactId: string): Promise<IdentidadeDoCliente> {
   try {
     const [{ data: contato }, { data: leads }] = await Promise.all([
@@ -120,7 +144,22 @@ export async function lerIdentidade(admin: SupabaseClient, organizationId: strin
     const respostas = ((leads ?? []) as Array<{ custom_fields: Record<string, unknown> | null }>)
       .flatMap((l) => Object.values(l.custom_fields ?? {}))
       .filter((v): v is string => typeof v === "string");
-    return montarIdentidade(contato as LinhaDoContato, respostas);
+    const identidade = montarIdentidade(contato as LinhaDoContato, respostas);
+    if (identidade.sobrenome && identidade.nascimento) return identidade;
+
+    // Faltou algo: as primeiras mensagens do cliente, em ordem, porque o dado dele vem antes do de outra pessoa.
+    const { data: mensagens } = await admin
+      .from("messages")
+      .select("body")
+      .eq("organization_id", organizationId)
+      .eq("contact_id", contactId)
+      .eq("direction", "inbound")
+      .order("created_at", { ascending: true })
+      .limit(MENSAGENS_LIDAS);
+    const daConversa = ((mensagens ?? []) as Array<{ body: string | null }>)
+      .map((m) => nomeENascimentoDaMensagem(m.body))
+      .filter((v): v is string => v !== null);
+    return montarIdentidade(contato as LinhaDoContato, [...respostas, ...daConversa]);
   } catch {
     return { idExterno: contactId };
   }

@@ -36,6 +36,7 @@ import { createHash } from "node:crypto";
 
 import { VERSAO_PADRAO_DA_GRAPH } from "@/lib/graph-version";
 import { logger } from "@/lib/logger";
+import { estadoDoTelefone } from "../estado-do-telefone";
 import type {
   ConversaoOffline,
   CredencialDeConversao,
@@ -106,6 +107,8 @@ async function enviar(
   // string crua onde ele espera lista é aceito com aviso e ignorado no match.
   if (conversao.telefone) userData.ph = [hash(conversao.telefone)];
   if (conversao.telefone?.startsWith("55")) userData.country = [hash("br")];
+  const estado = estadoDoTelefone(conversao.telefone);
+  if (estado) userData.st = [hash(estado)];
   // Quem é o cliente, além do telefone: cada campo sobe a nota de correspondência do evento (medido em
   // 29/10/2026: a Compra com só telefone/país/clique/IP/navegador tinha 7,2/10). Todos com hash; nome em
   // minúsculas e só letras, nascimento AAAAMMDD, como a plataforma pede antes do hash.
