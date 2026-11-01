@@ -63,7 +63,8 @@ export type Conferencia =
   | { tipo: "nenhum" }
   | { tipo: "nao_confere"; motivo: string }
   | { tipo: "confere_extra"; extra: Extra; quantidade: number; valorCents: number; idDoPix: string; pagoEm: Date }
-  | { tipo: "confere_principal"; valorCents: number; idDoPix: string; pagoEm: Date };
+  | { tipo: "confere_principal"; valorCents: number; idDoPix: string; pagoEm: Date }
+  | { tipo: "confere_produto"; produto: string; valorCents: number; idDoPix: string; pagoEm: Date };
 
 const semAcento = (s: string): string => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
@@ -120,6 +121,11 @@ export function conferirComprovante(e: {
   extras: readonly Extra[];
   /** Valores do produto principal: mesmo valor de uma avulsa fica com a pessoa, que sabe qual foi. */
   valoresDoPrincipal: readonly number[];
+  /**
+   * Os produtos de preço fechado que não são o principal nem cobrança avulsa: pós-venda e catálogo. Medido em 01/11/2026: a
+   * Oração dos Sonhos (R$ 35, pós-venda) foi paga, a agente entregou, e a venda não entrou no faturamento.
+   */
+  outrosProdutos?: ReadonlyArray<{ produto: string; valor_cents: number }>;
   agora: Date;
 }): Conferencia {
   if (e.texto.trim() === "" || !pareceComprovante(e.texto)) return { tipo: "nenhum" };
@@ -153,6 +159,11 @@ export function conferirComprovante(e: {
   const extra = extraDaCobranca(cobranca, e.extras);
   // Entrada, restante e valor combinado à parte: o valor sozinho não diz se quitou.
   if (extra === null || valorDaCobranca(extra, cobranca.quantidade) !== cobranca.valorCents) {
+    const mesmos = (e.outrosProdutos ?? []).filter((p) => p.valor_cents === cobranca.valorCents);
+    // Dois produtos no mesmo valor: só a pessoa sabe qual foi.
+    if (mesmos.length === 1) {
+      return { tipo: "confere_produto", produto: mesmos[0]!.produto, valorCents: cobranca.valorCents, idDoPix: id[0], pagoEm };
+    }
     return { tipo: "nao_confere", motivo: "este valor não é o de um produto fechado (entrada, restante ou valor combinado)" };
   }
   return { tipo: "confere_extra", extra, quantidade: cobranca.quantidade, valorCents: cobranca.valorCents, idDoPix: id[0], pagoEm };
@@ -181,7 +192,7 @@ export function blocoDaConferencia(c: Conferencia, chave: ChavePixDaEmpresa, ven
       `- Não acuse ninguém e não peça outro comprovante. Diga em um balão que recebeu e que a equipe vai conferir, e chame o atendimento humano AGORA com o motivo "Pix pela chave: conferir o comprovante (${c.motivo})".`,
     ].join("\n");
   }
-  if (c.tipo === "confere_principal" && venda) {
+  if ((c.tipo === "confere_principal" || c.tipo === "confere_produto") && venda) {
     return [
       "",
       "",

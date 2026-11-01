@@ -2652,6 +2652,7 @@ async function executarTurnoDoAgente(
         contactId: leadId,
         conversationId: input.conversationId,
         pricing: agentConfig?.pricing,
+        config: { pricing: agentConfig?.pricing, catalog: agentConfig?.catalog },
         mensagens: openingContext.context.messages,
         agora: new Date(),
         log: runLog,

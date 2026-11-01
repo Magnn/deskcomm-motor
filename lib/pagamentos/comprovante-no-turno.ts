@@ -23,7 +23,7 @@ import {
   textoDaMidia,
   type FalaDaConversa,
 } from "./comprovante-pix";
-import { depsReaisDoPagamento, registrarPagamentoRecebido } from "./pagamento-recebido";
+import { depsReaisDoPagamento, registrarPagamentoRecebido, sugestoesDePagamento } from "./pagamento-recebido";
 import type { PagamentoRecebido, ResultadoDoPagamento } from "./pagamento-recebido-tipos";
 
 interface Log {
@@ -91,6 +91,8 @@ export async function comprovanteDoTurno(
     contactId: string;
     conversationId: string;
     pricing: PricingConfig | null | undefined;
+    /** `ai_agents.config` inteira: os produtos de pós-venda e do catálogo saem dela (`sugestoesDePagamento`). */
+    config?: unknown;
     mensagens: readonly FalaDaConversa[];
     agora: Date;
     log: Log;
@@ -99,16 +101,18 @@ export async function comprovanteDoTurno(
   const chave = chavePrincipal(e.pricing);
   if (!chave || !e.pricing) return "";
   try {
+    const valoresDoPrincipal = [e.pricing.list_price_cents, ...(e.pricing.steps ?? []).map((s) => s.price_cents)];
     let conferencia = conferirComprovante({
       texto: midiaDaVez(e.mensagens),
       chave,
       cobrancas: cobrancasEnviadas(e.mensagens),
       extras: extrasDaConfig(e.pricing),
-      valoresDoPrincipal: [e.pricing.list_price_cents, ...(e.pricing.steps ?? []).map((s) => s.price_cents)],
+      valoresDoPrincipal,
+      outrosProdutos: sugestoesDePagamento([e.config ?? { pricing: e.pricing }]).filter((s) => s.extra === undefined && !valoresDoPrincipal.includes(s.valor_cents)),
       agora: e.agora,
     });
     if (conferencia.tipo === "nenhum") return "";
-    if (conferencia.tipo === "confere_extra" || conferencia.tipo === "confere_principal") {
+    if (conferencia.tipo === "confere_extra" || conferencia.tipo === "confere_principal" || conferencia.tipo === "confere_produto") {
       const uso = await deps.lerUso(conferencia.idDoPix);
       if (uso !== null) {
         const repeticaoDoTurno = uso.contactId === e.contactId && e.agora.getTime() - uso.criadoEm.getTime() < JANELA_DA_REPETICAO_DO_TURNO_MS;
@@ -143,6 +147,10 @@ export async function comprovanteDoTurno(
         ...(conferencia.quantidade > 1 ? { quantidade: conferencia.quantidade } : {}),
       } as PagamentoRecebido);
       return "";
+    }
+    if (conferencia.tipo === "confere_produto") {
+      await deps.registrar(e.contactId, { ...base, produto: conferencia.produto, iniciar_entrega: false } as PagamentoRecebido);
+      return blocoDaConferencia(conferencia, chave, { produto: conferencia.produto, entregaSozinha: false });
     }
     const produto = produtoCitado(e.mensagens, (e.pricing.list_product_links ?? []).map((l) => l.name)) ?? "Trabalho espiritual";
     const r = await deps.registrar(e.contactId, { ...base, produto, iniciar_entrega: true } as PagamentoRecebido);

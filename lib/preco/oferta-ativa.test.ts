@@ -70,6 +70,14 @@ describe("as conversas de 01/11/2026", () => {
   it("resposta sem valor do trabalho passa", () => {
     expect(confere("Entendo, meu bem. Fica com Deus.", [agente("Uma pergunta por R$ 7.")])).toBeNull();
   });
+  it("⭐ Antonino: a pequena não vem antes de R$ 100 e R$ 60", () => {
+    expect(confere("Existe um passo pequeno, de R$ 7.", [agente("O trabalho é R$ 130."), pessoa("Tô sem dinheiro")])).toContain("Ainda não é hora");
+    expect(confere("O *Código da Conexão* é R$ 37.", [agente("Te conto o que vi."), pessoa("Entendi")])).toContain("Ainda não é hora");
+  });
+  it("depois do menor valor, ou se ela perguntar, a pequena pode", () => {
+    expect(confere("Uma pergunta por R$ 7.", [agente("Fica em R$ 50."), pessoa("Não consigo")])).toBeNull();
+    expect(confere("Isso é pergunta nova, R$ 7.", [agente("O trabalho é R$ 130."), pessoa("Ele vai voltar")])).toBeNull();
+  });
   it("⭐ Hilvania: Código da Conexão a R$ 130 é recusado, na frase e no balão seguinte", () => {
     const nomes = ["Abertura do Coração"];
     expect(valorErradoDeExtra("Isso está no *Código da Conexão*, e são R$ 130, uma vez só.", extras, nomes)).toContain("R$ 37");
