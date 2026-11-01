@@ -11,7 +11,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { lerConexaoStripe, type ConexaoStripe } from '@/lib/pagamentos/conexao-stripe';
 import { VALIDADE_DO_PIX_S, pagamentosRecentesDoContato } from '@/lib/pagamentos/pix-na-conversa';
 import { ErroDaStripe, criarClienteStripe, type LinkCriado, type PedidoDeLink, type PedidoDePix, type PixCriado } from '@/lib/pagamentos/stripe';
-import { codigoDaChave, type ChavePixDaEmpresa } from '@/lib/preco/chave-pix';
+import { chaveParaCopiar, type ChavePixDaEmpresa } from '@/lib/preco/chave-pix';
 import {
   corpoComPixDoExtra,
   descricaoDaCobranca,
@@ -56,8 +56,8 @@ export async function pixDoExtraNoLugarDaMarca(e: EntradaDoPixDoExtra): Promise<
   if (marca.tipo === 'nenhuma') return { corpo: e.corpo };
   if (marca.tipo === 'invalida') return { recusa: marca.motivo };
   if (e.chavePrincipal) {
-    const codigo = codigoDaChave(e.chavePrincipal, valorDaCobranca(marca.extra, marca.quantidade), e.conversationId);
-    if (codigo === null) return { recusa: SEM_COBRANCA };
+    const chave = chaveParaCopiar(e.chavePrincipal);
+    if (chave === null) return { recusa: SEM_COBRANCA };
     e.log.info('cobrança avulsa pela chave principal', { conversation_id: e.conversationId, extra: slugDoExtra(marca.extra.name), quantidade: marca.quantidade });
     // O cartão é um extra da mensagem: se não sair, o Pix da chave vai sozinho.
     const cartao = await (async () => {
@@ -87,7 +87,7 @@ export async function pixDoExtraNoLugarDaMarca(e: EntradaDoPixDoExtra): Promise<
         return null;
       }
     })();
-    return { corpo: corpoComPixDoExtra(e.corpo, marca, codigo, cartao?.url ?? null, e.chavePrincipal.holder) };
+    return { corpo: corpoComPixDoExtra(e.corpo, marca, null, cartao?.url ?? null, { chave, titular: e.chavePrincipal.holder }) };
   }
   try {
     const conexao = await (e.lerConexao ?? lerConexaoStripe)(e.supabase, e.organizationId);

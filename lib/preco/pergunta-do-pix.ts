@@ -10,7 +10,7 @@
  * Tudo aqui é puro.
  */
 const PERGUNTA_DO_PIX = /\b(quer|prefere|posso|deseja)\b[^?.!\n]{0,40}\b(mand|envi)\w*[^?.!\n]{0,25}\bpix\b[^?\n]*\?/i;
-const COBRANCA = /(^|\s)000201|https:\/\/\S*(pay|buy|checkout|boleto)\S*/i;
+const COBRANCA = /(^|\s)000201|pra pagar no pix|https:\/\/\S*(pay|buy|checkout|boleto)\S*/i;
 const VALOR = /R\$\s?\d[\d.]*(?:,\d{2})?/g;
 
 interface Mensagem {

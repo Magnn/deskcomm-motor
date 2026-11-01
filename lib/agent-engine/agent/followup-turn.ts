@@ -77,7 +77,7 @@ import { definicaoNaConexao } from '@/lib/channels/linha-do-espelho';
 import { criarClienteAsaas } from '@/lib/pagamentos/asaas';
 import { lerConexaoStripe } from '@/lib/pagamentos/conexao-stripe';
 import { chavePrincipalDaOrganizacao } from '@/lib/pagamentos/chave-principal-da-organizacao';
-import { codigoDaChave } from '@/lib/preco/chave-pix';
+import { chaveParaCopiar } from '@/lib/preco/chave-pix';
 import { criarClienteStripe } from '@/lib/pagamentos/stripe';
 import { expandirCobrancas } from '@/lib/followup/cobranca-no-conteudo';
 import { dentroDaJanela } from '@/lib/followup/retorno-da-passagem';
@@ -1365,8 +1365,8 @@ async function sendConteudoSequence(
     if (!leadId) throw new Error('cobranca_sem_contato: a marca [[COBRAR]] precisa de um contato');
     const principal = await chavePrincipalDaOrganizacao(createAdminClient(), tenantId);
     if (principal !== null) {
-      const codigo = codigoDaChave(principal, valorCentavos, conversationId);
-      if (codigo === null) throw new Error('cobranca_sem_conexao: a chave Pix principal não gera código');
+      const chave = chaveParaCopiar(principal);
+      if (chave === null) throw new Error('cobranca_sem_conexao: a chave Pix principal não é uma chave válida');
       runLog.info('cobrança por pessoa pela chave principal', { valor_centavos: valorCentavos });
       // O cartão é um extra da mensagem: se não sair, o Pix da chave vai sozinho.
       const conexaoDoCartao = await lerConexaoStripe(createAdminClient(), tenantId).catch(() => null);
@@ -1388,7 +1388,7 @@ async function sendConteudoSequence(
               runLog.warn('cobrança do fluxo: o link de cartão não saiu', { error: (err instanceof Error ? err.message : String(err)).slice(0, 160) });
               return null;
             });
-      return { copiaECola: codigo, qrCodeUrl: null, urlDoCartao: cartao?.url ?? null, titularDaChave: principal.holder };
+      return { copiaECola: null, qrCodeUrl: null, urlDoCartao: cartao?.url ?? null, pelaChave: { chave, titular: principal.holder } };
     }
     const conexao = await lerConexaoStripe(createAdminClient(), tenantId);
     if (conexao === null) throw new Error('cobranca_sem_conexao: nenhum provedor de pagamento conectado para a marca [[COBRAR]]');

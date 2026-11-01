@@ -17,7 +17,7 @@
  *
  * A parte de cima é pura; quem fala com o provedor chega por parâmetro.
  */
-import { instrucaoDoPixCopiaECola, linhaDoLinkDePagamento, PEDIDO_DO_COMPROVANTE } from "@/lib/pagamentos/como-pagar-pix";
+import { baloesPelaChave, instrucaoDoPixCopiaECola, linhaDoLinkDePagamento } from "@/lib/pagamentos/como-pagar-pix";
 const MARCA = /\[\[\s*COBRAR\s*:\s*(\d{1,5})(?:[.,](\d{2}))?\s*(?:\|\s*([^\]]{1,80}?))?\s*\]\]/i;
 
 export interface MarcaDeCobranca {
@@ -42,8 +42,8 @@ export interface CobrancaCriada {
   /** Endereço da imagem do QR code, quando o provedor a fornece. */
   qrCodeUrl: string | null;
   urlDoCartao: string | null;
-  /** Quem recebe, quando o código é da chave da empresa: o banco mostra esse nome, e a confirmação pede comprovante. */
-  titularDaChave?: string | null;
+  /** A chave da empresa, quando o Pix sai por ela: vai a chave para copiar no lugar do código. */
+  pelaChave?: { chave: string; titular: string } | null;
 }
 
 export type ItemDeCobranca =
@@ -55,15 +55,17 @@ export type ItemDeCobranca =
  * em balões próprios. Pura. Lança se a cobrança não trouxe nenhum meio de pagar.
  */
 export function itensDaCobranca(texto: string, marca: MarcaDeCobranca, c: CobrancaCriada): ItemDeCobranca[] {
-  if (c.copiaECola === null && c.urlDoCartao === null) throw new Error("cobranca_indisponivel: o provedor não devolveu nenhum meio de pagamento");
+  if (c.copiaECola === null && c.urlDoCartao === null && !c.pelaChave) throw new Error("cobranca_indisponivel: o provedor não devolveu nenhum meio de pagamento");
   const [antes, depois] = texto.split(marca.bruto).map((t) => t.trim());
   const valor = reais(marca.valorCentavos);
   const itens: ItemDeCobranca[] = [];
   if (antes) itens.push({ type: "text", body: antes });
-  if (c.copiaECola !== null) {
-    itens.push({ type: "text", body: instrucaoDoPixCopiaECola(valor, c.titularDaChave ?? undefined) });
+  if (c.pelaChave) {
+    for (const body of baloesPelaChave(valor, c.pelaChave.chave, c.pelaChave.titular)) itens.push({ type: "text", body });
+    if (c.urlDoCartao !== null) itens.push({ type: "text", body: linhaDoLinkDePagamento(c.urlDoCartao) });
+  } else if (c.copiaECola !== null) {
+    itens.push({ type: "text", body: instrucaoDoPixCopiaECola(valor) });
     itens.push({ type: "text", body: c.copiaECola });
-    if (c.titularDaChave) itens.push({ type: "text", body: PEDIDO_DO_COMPROVANTE });
     if (c.qrCodeUrl !== null) itens.push({ type: "image", url: c.qrCodeUrl, caption: `Ou aponte a câmera do app do banco para este QR code (${valor}).` });
     if (c.urlDoCartao !== null) itens.push({ type: "text", body: linhaDoLinkDePagamento(c.urlDoCartao) });
   } else if (c.urlDoCartao !== null) {

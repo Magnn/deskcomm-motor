@@ -24,10 +24,10 @@ import { traduzir } from "@/lib/i18n/dicionario";
 import { logger } from "@/lib/logger";
 import { chavePrincipalDaOrganizacao } from "@/lib/pagamentos/chave-principal-da-organizacao";
 import { lerConexaoStripe } from "@/lib/pagamentos/conexao-stripe";
-import { enviarPixSchema, mensagensDoPix } from "@/lib/pagamentos/enviar-pix-tipos";
+import { enviarPixSchema, mensagensDoPix, mensagensDoPixPelaChave } from "@/lib/pagamentos/enviar-pix-tipos";
 import { VALIDADE_DO_PIX_S } from "@/lib/pagamentos/pix-na-conversa";
 import { ErroDaStripe, criarClienteStripe } from "@/lib/pagamentos/stripe";
-import { codigoDaChave } from "@/lib/preco/chave-pix";
+import { chaveParaCopiar } from "@/lib/preco/chave-pix";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -68,10 +68,10 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   // A CHAVE PRINCIPAL: o atendente cobra pelo mesmo caminho da agente, sem passar pelo provedor.
   const principal = await chavePrincipalDaOrganizacao(createAdminClient(), org.orgId);
   if (principal !== null) {
-    const codigo = codigoDaChave(principal, lido.data.valor_cents, conv.id);
-    if (codigo === null) return fail("validation_failed", t("A chave Pix cadastrada não gera código. Confira a chave na aba Preço do agente."), 422, { requestId });
+    const chave = chaveParaCopiar(principal);
+    if (chave === null) return fail("validation_failed", t("A chave Pix cadastrada não é válida. Confira a chave na aba Preço do agente."), 422, { requestId });
     try {
-      for (const body of mensagensDoPix(lido.data.valor_cents, codigo, principal.holder)) {
+      for (const body of mensagensDoPixPelaChave(lido.data.valor_cents, chave, principal.holder)) {
         await sendMessageHandler(
           supabase,
           { organization_id: org.orgId, actor: { type: "user", id: user.id }, requestId, idioma: user.idioma },
