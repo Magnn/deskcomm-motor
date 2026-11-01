@@ -76,6 +76,8 @@ import { preencherVariaveisDoContato } from '@/lib/followup/variaveis-do-contato
 import { definicaoNaConexao } from '@/lib/channels/linha-do-espelho';
 import { criarClienteAsaas } from '@/lib/pagamentos/asaas';
 import { lerConexaoStripe } from '@/lib/pagamentos/conexao-stripe';
+import { chavePrincipalDaOrganizacao } from '@/lib/pagamentos/chave-principal-da-organizacao';
+import { codigoDaChave } from '@/lib/preco/chave-pix';
 import { criarClienteStripe } from '@/lib/pagamentos/stripe';
 import { expandirCobrancas } from '@/lib/followup/cobranca-no-conteudo';
 import { dentroDaJanela } from '@/lib/followup/retorno-da-passagem';
@@ -1361,6 +1363,13 @@ async function sendConteudoSequence(
   // lança: a caixa não sai com a marca crua, e o job tenta de novo.
   const items = (await expandirCobrancas(itensSemCobranca, async ({ valorCentavos, produto, ordem }) => {
     if (!leadId) throw new Error('cobranca_sem_contato: a marca [[COBRAR]] precisa de um contato');
+    const principal = await chavePrincipalDaOrganizacao(createAdminClient(), tenantId);
+    if (principal !== null) {
+      const codigo = codigoDaChave(principal, valorCentavos, conversationId);
+      if (codigo === null) throw new Error('cobranca_sem_conexao: a chave Pix principal não gera código');
+      runLog.info('cobrança por pessoa pela chave principal', { valor_centavos: valorCentavos });
+      return { copiaECola: codigo, qrCodeUrl: null, urlDoCartao: null, titularDaChave: principal.holder };
+    }
     const conexao = await lerConexaoStripe(createAdminClient(), tenantId);
     if (conexao === null) throw new Error('cobranca_sem_conexao: nenhum provedor de pagamento conectado para a marca [[COBRAR]]');
     const p = job.payload as { followup_enrollment_id?: string; node_id?: string };

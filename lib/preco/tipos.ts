@@ -216,6 +216,11 @@ export const pricingSchema = z
         /** O nome de quem recebe, como aparece no banco. */
         holder: z.string().trim().min(2).max(60),
         city: z.string().trim().max(30).optional(),
+        /**
+         * A chave é a forma PRINCIPAL de receber Pix (`chavePrincipal`, em `lib/preco/chave-pix.ts`): nenhum Pix em
+         * reais passa pelo provedor e não sai link de cartão. Cada venda é confirmada por uma pessoa.
+         */
+        primary: z.boolean().optional(),
       })
       .optional(),
     /**

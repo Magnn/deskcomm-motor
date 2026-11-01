@@ -24,6 +24,9 @@ export function instrucaoDoPixCopiaECola(valor: string, noBancoAparece?: string)
   ].join("\n");
 }
 
+/** O balão depois do código da chave da empresa: esse pagamento só anda com o comprovante. */
+export const PEDIDO_DO_COMPROVANTE = "Assim que fizer, me manda o comprovante aqui, que esse eu confiro à mão.";
+
 /**
  * A linha do link de cartão que vai depois do código. Só cartão (decisão do dono em 29/10/2026): o Pix já foi no
  * balão de cima, e oferecer outro caminho de Pix aqui confundia quem tentava pagar.

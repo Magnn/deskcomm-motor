@@ -88,7 +88,7 @@ import { blocoDaRespostaAtropelada, respostaAtropelada } from './resposta-atrope
 import { blocoDaEntrada, blocoDaEntradaImediata, blocoDaPropostaDeEntrada, blocoDoValorAbaixoDoPiso, blocoDoValorAceito } from '@/lib/preco/bloco-da-entrada';
 import { linkDePagamentoNoCorpo, linksDePagamentoDaConfig } from '@/lib/pagamentos/pix-na-conversa';
 import { blocoDoPrecoInternacional, precoInternacionalDoContato } from '@/lib/preco/preco-internacional';
-import { blocoDaChavePix, pixPelaChaveNoLugarDaMarca, temMarcaDeChavePix } from '@/lib/preco/chave-pix';
+import { blocoDaChavePix, chavePrincipal, pixPelaChaveNoLugarDaMarca, temMarcaDeChavePix } from '@/lib/preco/chave-pix';
 import { RECUSA_DA_PERGUNTA_DO_PIX, jaPerguntouDoPix, repetePerguntaDoPix } from '@/lib/preco/pergunta-do-pix';
 import { blocoDoBoletoPronto, temMarcaDeBoleto, valoresDoBoleto } from '@/lib/preco/boleto-pronto';
 import {
@@ -2813,7 +2813,7 @@ async function executarTurnoDoAgente(
   blocoDaEntrega += blocoDaEntregaNaConversa(entregaNaConversaNoTurno);
   // Quem quer pagar e o Pix não funcionou: código novo + o link que tem o Pix com botão de copiar
   // (`lib/pagamentos/pix-que-nao-colou.ts`).
-  if (!preview) blocoDaEntrega += blocoDoPixQueNaoColou(openingContext.context.messages, new Date());
+  if (!preview) blocoDaEntrega += blocoDoPixQueNaoColou(openingContext.context.messages, new Date(), { pelaChave: chavePrincipal(agentConfig?.pricing) !== null });
   if (!preview && (openingContext.context.contact.tags ?? []).includes('pago') && !recusouOfertasNoTurno) {
     blocoDaEntrega += blocoDoEncerramento();
   }
@@ -3923,6 +3923,7 @@ async function executarTurnoDoAgente(
           }
           if (temMarcaDoRestante(body)) {
             const comRestante = await pixDoRestanteNoLugarDaMarca({
+              chavePrincipal: chavePrincipal(agentConfig?.pricing),
               corpo: body,
               restanteCents: restanteDoTurno,
               produto: produtoIndicadoNoTurno,
@@ -3949,6 +3950,7 @@ async function executarTurnoDoAgente(
             .find((l) => l !== null);
           const produtoDaEntrada = jaEnviado?.produto || conhecidos.find((l) => l.produto !== '')?.produto || '';
           const comEntrada = await pixDaEntradaNoLugarDaMarca({
+            chavePrincipal: chavePrincipal(agentConfig?.pricing),
             corpo: body,
             entrada: entradaImediataDoTurno,
             produto: produtoDaEntrada,
@@ -4106,6 +4108,7 @@ async function executarTurnoDoAgente(
         // cobrar, ou cobrança que não saiu, recusa o envio: marca crua não chega à pessoa.
         if (!preview) {
           const comExtra = await pixDoExtraNoLugarDaMarca({
+            chavePrincipal: chavePrincipal(agentConfig?.pricing),
             corpo: body,
             extras: extrasDoTurno,
             organizationId: tenantId,
@@ -4152,7 +4155,7 @@ async function executarTurnoDoAgente(
         } else if (!preview && agentConfig?.pricing?.enabled) {
           // SÓ PELO PROVEDOR: com a opção ligada e o provedor conectado, o link externo nunca sai — vira Pix e
           // cartão do provedor, a chave da empresa em último caso, ou o envio é recusado.
-          const peloProvedor = agentConfig.pricing.provider_only_checkout
+          const peloProvedor = agentConfig.pricing.provider_only_checkout || chavePrincipal(agentConfig.pricing) !== null
             ? await cobrancaPeloProvedorNoLugarDoLink({
                 corpo: body,
                 pricing: agentConfig.pricing,

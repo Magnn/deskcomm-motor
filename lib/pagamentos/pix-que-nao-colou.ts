@@ -20,11 +20,12 @@ export function relatouProblemaNoPix(texto: string): boolean {
   return PROBLEMA_NO_PIX.test(texto);
 }
 
-const CODIGO_PIX = /^0002010102\d/m;
+/** O código do provedor e o da chave da empresa: os dois começam assim, e só o do provedor segue com `010212`. */
+const CODIGO_PIX = /^000201/m;
 const JANELA_MS = 24 * 3_600_000;
 
 /** O bloco do turno. Vazio quando não se aplica. */
-export function blocoDoPixQueNaoColou(mensagens: readonly MensagemDoHistorico[], agora: Date): string {
+export function blocoDoPixQueNaoColou(mensagens: readonly MensagemDoHistorico[], agora: Date, opcoes: { pelaChave?: boolean } = {}): string {
   const quando = (m: MensagemDoHistorico) => (m.sent_at ? Date.parse(m.sent_at) : Number.NaN);
   let ultimaDela: MensagemDoHistorico | null = null;
   for (const m of mensagens) {
@@ -38,6 +39,14 @@ export function blocoDoPixQueNaoColou(mensagens: readonly MensagemDoHistorico[],
     return Number.isNaN(t) || agora.getTime() - t <= JANELA_MS;
   });
   if (!pixRecente) return "";
+  if (opcoes.pelaChave) {
+    return [
+      "",
+      "PIX QUE NÃO FUNCIONOU (a última mensagem dela diz que o Pix deu erro, não colou ou não chegou):",
+      "- Ela QUER pagar. Não desista do pagamento, não ofereça desconto e não troque de assunto.",
+      "- O código pela chave não vence: não diga que expirou. Mande agora a marca [[CHAVE PIX: valor]], sozinha num balão, com o valor que ela está pagando: o sistema manda o código de novo e a chave para digitar em \"Pagar com chave\".",
+    ].join("\n");
+  }
   return [
     "",
     "PIX QUE NÃO FUNCIONOU (a última mensagem dela diz que o Pix deu erro, não colou ou não chegou):",

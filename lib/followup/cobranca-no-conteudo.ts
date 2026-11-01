@@ -17,7 +17,7 @@
  *
  * A parte de cima é pura; quem fala com o provedor chega por parâmetro.
  */
-import { instrucaoDoPixCopiaECola, linhaDoLinkDePagamento } from "@/lib/pagamentos/como-pagar-pix";
+import { instrucaoDoPixCopiaECola, linhaDoLinkDePagamento, PEDIDO_DO_COMPROVANTE } from "@/lib/pagamentos/como-pagar-pix";
 const MARCA = /\[\[\s*COBRAR\s*:\s*(\d{1,5})(?:[.,](\d{2}))?\s*(?:\|\s*([^\]]{1,80}?))?\s*\]\]/i;
 
 export interface MarcaDeCobranca {
@@ -42,6 +42,8 @@ export interface CobrancaCriada {
   /** Endereço da imagem do QR code, quando o provedor a fornece. */
   qrCodeUrl: string | null;
   urlDoCartao: string | null;
+  /** Quem recebe, quando o código é da chave da empresa: o banco mostra esse nome, e a confirmação pede comprovante. */
+  titularDaChave?: string | null;
 }
 
 export type ItemDeCobranca =
@@ -59,8 +61,9 @@ export function itensDaCobranca(texto: string, marca: MarcaDeCobranca, c: Cobran
   const itens: ItemDeCobranca[] = [];
   if (antes) itens.push({ type: "text", body: antes });
   if (c.copiaECola !== null) {
-    itens.push({ type: "text", body: instrucaoDoPixCopiaECola(valor) });
+    itens.push({ type: "text", body: instrucaoDoPixCopiaECola(valor, c.titularDaChave ?? undefined) });
     itens.push({ type: "text", body: c.copiaECola });
+    if (c.titularDaChave) itens.push({ type: "text", body: PEDIDO_DO_COMPROVANTE });
     if (c.qrCodeUrl !== null) itens.push({ type: "image", url: c.qrCodeUrl, caption: `Ou aponte a câmera do app do banco para este QR code (${valor}).` });
     if (c.urlDoCartao !== null) itens.push({ type: "text", body: linhaDoLinkDePagamento(c.urlDoCartao) });
   } else if (c.urlDoCartao !== null) {

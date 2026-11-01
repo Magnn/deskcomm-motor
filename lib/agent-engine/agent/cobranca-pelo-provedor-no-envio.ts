@@ -20,8 +20,9 @@ import { lerConexaoStripe, type ConexaoStripe } from '@/lib/pagamentos/conexao-s
 import { VALIDADE_DO_PIX_S, linksDePagamentoDaConfig, pagamentosRecentesDoContato, referenciaDoPix, type LinkDePagamentoConhecido } from '@/lib/pagamentos/pix-na-conversa';
 import { codigoPixEstatico } from '@/lib/pagamentos/pix-estatico';
 import { criarClienteStripe, type LinkCriado, type PedidoDeLink, type PedidoDePix, type PixCriado } from '@/lib/pagamentos/stripe';
+import { chavePrincipal, codigoDaChave } from '@/lib/preco/chave-pix';
 import { reais, type PricingConfig } from '@/lib/preco/tipos';
-import { instrucaoDoPixCopiaECola, linhaDoLinkDePagamento } from "@/lib/pagamentos/como-pagar-pix";
+import { instrucaoDoPixCopiaECola, linhaDoLinkDePagamento, PEDIDO_DO_COMPROVANTE } from "@/lib/pagamentos/como-pagar-pix";
 
 interface Registro {
   info(msg: string, dados?: Record<string, unknown>): void;
@@ -66,7 +67,7 @@ export function baloesDaCobranca(
     return [
       instrucaoDoPixCopiaECola(valor, meios.pixDaChave.titular),
       meios.pixDaChave.codigo,
-      `Assim que fizer, me manda o comprovante aqui, que esse eu confiro à mão.`,
+      PEDIDO_DO_COMPROVANTE,
     ];
   }
   return [];
@@ -90,6 +91,17 @@ export async function cobrancaPeloProvedorNoLugarDoLink(e: EntradaDaCobrancaPelo
     return { recusa: 'A mensagem traz mais de um link de pagamento. Mande UM link só: o do produto e do valor combinados neste turno.' };
   }
   const link = presentes[0]!;
+
+  // A CHAVE PRINCIPAL: o operador escolheu receber pela chave. O provedor nem é consultado e não sai link de cartão.
+  const principal = chavePrincipal(e.pricing);
+  if (principal !== null) {
+    const codigo = codigoDaChave(principal, link.valorCentavos, e.conversationId);
+    if (codigo === null) {
+      return { recusa: 'O pagamento não pôde ser gerado agora. NÃO envie link nem chave: diga em uma frase que você manda o código em alguns minutos e chame o atendimento humano.' };
+    }
+    e.log.info('cobrança pela chave principal no lugar do link', { conversation_id: e.conversationId, valor_centavos: link.valorCentavos });
+    return { corpo: corpoComCobranca(e.corpo, link, baloesDaCobranca(link, { copiaECola: null, urlDoCartao: null, pixDaChave: { codigo, titular: principal.holder } })) };
+  }
 
   let conexao: ConexaoStripe | null;
   try {

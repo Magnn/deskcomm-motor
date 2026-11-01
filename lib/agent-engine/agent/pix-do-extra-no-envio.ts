@@ -11,6 +11,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { lerConexaoStripe, type ConexaoStripe } from '@/lib/pagamentos/conexao-stripe';
 import { VALIDADE_DO_PIX_S, pagamentosRecentesDoContato } from '@/lib/pagamentos/pix-na-conversa';
 import { ErroDaStripe, criarClienteStripe, type LinkCriado, type PedidoDeLink, type PedidoDePix, type PixCriado } from '@/lib/pagamentos/stripe';
+import { codigoDaChave, type ChavePixDaEmpresa } from '@/lib/preco/chave-pix';
 import {
   corpoComPixDoExtra,
   descricaoDaCobranca,
@@ -35,6 +36,8 @@ export interface EntradaDoPixDoExtra {
   conversationId: string;
   supabase: SupabaseClient;
   log: Registro;
+  /** A chave da empresa, quando é a forma principal de receber: o provedor não é consultado e não sai cartão. */
+  chavePrincipal?: ChavePixDaEmpresa | null;
   /** Injetáveis só para teste. */
   lerConexao?: (admin: SupabaseClient, organizationId: string) => Promise<ConexaoStripe | null>;
   criarPix?: (conexao: ConexaoStripe, pedido: PedidoDePix) => Promise<PixCriado>;
@@ -52,6 +55,12 @@ export async function pixDoExtraNoLugarDaMarca(e: EntradaDoPixDoExtra): Promise<
   const marca = marcaDeExtraNoCorpo(e.corpo, e.extras);
   if (marca.tipo === 'nenhuma') return { corpo: e.corpo };
   if (marca.tipo === 'invalida') return { recusa: marca.motivo };
+  if (e.chavePrincipal) {
+    const codigo = codigoDaChave(e.chavePrincipal, valorDaCobranca(marca.extra, marca.quantidade), e.conversationId);
+    if (codigo === null) return { recusa: SEM_COBRANCA };
+    e.log.info('cobrança avulsa pela chave principal', { conversation_id: e.conversationId, extra: slugDoExtra(marca.extra.name), quantidade: marca.quantidade });
+    return { corpo: corpoComPixDoExtra(e.corpo, marca, codigo, null, e.chavePrincipal.holder) };
+  }
   try {
     const conexao = await (e.lerConexao ?? lerConexaoStripe)(e.supabase, e.organizationId);
     if (conexao === null) {
