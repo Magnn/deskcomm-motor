@@ -55,6 +55,14 @@ export function baloesDaCobranca(
   meios: { copiaECola: string | null; urlDoCartao: string | null; pixDaChave: { codigo: string; titular: string } | null },
 ): string[] {
   const valor = reais(link.valorCentavos);
+  if (meios.copiaECola === null && meios.pixDaChave !== null) {
+    return [
+      instrucaoDoPixCopiaECola(valor, meios.pixDaChave.titular),
+      meios.pixDaChave.codigo,
+      PEDIDO_DO_COMPROVANTE,
+      ...(meios.urlDoCartao !== null ? [linhaDoLinkDePagamento(meios.urlDoCartao)] : []),
+    ];
+  }
   if (meios.copiaECola !== null) {
     return [
       instrucaoDoPixCopiaECola(valor),
@@ -63,13 +71,6 @@ export function baloesDaCobranca(
     ];
   }
   if (meios.urlDoCartao !== null) return [`O pagamento de *${valor}* é por este link, no cartão de crédito: ${meios.urlDoCartao}`];
-  if (meios.pixDaChave !== null) {
-    return [
-      instrucaoDoPixCopiaECola(valor, meios.pixDaChave.titular),
-      meios.pixDaChave.codigo,
-      PEDIDO_DO_COMPROVANTE,
-    ];
-  }
   return [];
 }
 
@@ -82,6 +83,35 @@ export function corpoComCobranca(corpo: string, link: LinkDePagamentoConhecido, 
   return [...partes.slice(0, i), ...(resto ? [resto] : []), ...baloes, ...partes.slice(i + 1)].join('\n\n');
 }
 
+/**
+ * O cartão ao lado do Pix da chave: um link só de cartão do provedor, que confirma sozinho. Se ele não sair, o link
+ * cadastrado na configuração (o checkout externo), para a pessoa nunca ficar sem como pagar no cartão.
+ */
+async function cartaoAoLadoDaChave(e: EntradaDaCobrancaPeloProvedor, link: LinkDePagamentoConhecido): Promise<string> {
+  try {
+    const conexao = await (e.lerConexao ?? lerConexaoStripe)(e.supabase, e.organizationId);
+    if (conexao === null) return link.url;
+    const agora = e.agora ?? new Date();
+    const referencia = referenciaDoPix(e.conversationId, link.valorCentavos, agora, await pagamentosRecentesDoContato(e.supabase, e.organizationId, e.contactId, agora));
+    const criado = await (e.criarLink ?? ((c, p) => criarClienteStripe(c).criarLinkDePagamento(p)))(conexao, {
+      valorCentavos: link.valorCentavos,
+      moeda: 'BRL',
+      descricao: link.produto || 'Pagamento',
+      referencia: `${referencia}-so-cartao`,
+      metadados: { organization_id: e.organizationId, contact_id: e.contactId, conversation_id: e.conversationId, produto: link.produto },
+      mensagemDepoisDePagar: 'Pagamento recebido. Pode voltar à conversa: a entrega continua por lá.',
+      soCartao: true,
+    });
+    return criado.url;
+  } catch (err) {
+    e.log.warn('link de cartão do provedor não saiu — vai o link cadastrado', {
+      conversation_id: e.conversationId,
+      error: (err instanceof Error ? err.message : String(err)).slice(0, 160),
+    });
+    return link.url;
+  }
+}
+
 export async function cobrancaPeloProvedorNoLugarDoLink(e: EntradaDaCobrancaPeloProvedor): Promise<SaidaDaCobrancaPeloProvedor> {
   const conhecidos = linksDePagamentoDaConfig(e.pricing);
   const presentes = conhecidos.filter((l) => noCorpo(e.corpo, l.url));
@@ -92,7 +122,7 @@ export async function cobrancaPeloProvedorNoLugarDoLink(e: EntradaDaCobrancaPelo
   }
   const link = presentes[0]!;
 
-  // A CHAVE PRINCIPAL: o operador escolheu receber pela chave. O provedor nem é consultado e não sai link de cartão.
+  // A CHAVE PRINCIPAL: o Pix sai pela chave, sem provedor. O provedor só entra no link de cartão.
   const principal = chavePrincipal(e.pricing);
   if (principal !== null) {
     const codigo = codigoDaChave(principal, link.valorCentavos, e.conversationId);
@@ -100,7 +130,7 @@ export async function cobrancaPeloProvedorNoLugarDoLink(e: EntradaDaCobrancaPelo
       return { recusa: 'O pagamento não pôde ser gerado agora. NÃO envie link nem chave: diga em uma frase que você manda o código em alguns minutos e chame o atendimento humano.' };
     }
     e.log.info('cobrança pela chave principal no lugar do link', { conversation_id: e.conversationId, valor_centavos: link.valorCentavos });
-    return { corpo: corpoComCobranca(e.corpo, link, baloesDaCobranca(link, { copiaECola: null, urlDoCartao: null, pixDaChave: { codigo, titular: principal.holder } })) };
+    return { corpo: corpoComCobranca(e.corpo, link, baloesDaCobranca(link, { copiaECola: null, urlDoCartao: await cartaoAoLadoDaChave(e, link), pixDaChave: { codigo, titular: principal.holder } })) };
   }
 
   let conexao: ConexaoStripe | null;

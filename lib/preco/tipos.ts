@@ -218,7 +218,7 @@ export const pricingSchema = z
         city: z.string().trim().max(30).optional(),
         /**
          * A chave é a forma PRINCIPAL de receber Pix (`chavePrincipal`, em `lib/preco/chave-pix.ts`): nenhum Pix em
-         * reais passa pelo provedor e não sai link de cartão. Cada venda é confirmada por uma pessoa.
+         * reais passa pelo provedor, e cada um é confirmado por uma pessoa. O cartão segue pelo provedor.
          */
         primary: z.boolean().optional(),
       })

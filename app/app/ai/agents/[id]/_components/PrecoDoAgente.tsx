@@ -535,7 +535,7 @@ export function PrecoDoAgente({ agentId, config, readOnly }: Props) {
           <div className="space-y-0.5">
             <Label htmlFor="preco-chave-principal">{t("Usar esta chave como forma principal de receber")}</Label>
             <p className="max-w-2xl text-sm text-muted-foreground">
-              {t("Todo Pix em reais sai por esta chave e o link de cartão deixa de ser enviado. Cada venda precisa do comprovante conferido e de Registrar pagamento para a entrega começar.")}
+              {t("Todo Pix em reais sai por esta chave. O cartão continua pelo link da Stripe, com o da Cakto de reserva. Cada Pix precisa do comprovante conferido e de Registrar pagamento para a entrega começar.")}
             </p>
           </div>
         </div>

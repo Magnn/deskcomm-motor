@@ -36,7 +36,7 @@ export interface EntradaDoPixDoExtra {
   conversationId: string;
   supabase: SupabaseClient;
   log: Registro;
-  /** A chave da empresa, quando é a forma principal de receber: o provedor não é consultado e não sai cartão. */
+  /** A chave da empresa, quando é a forma principal de receber: o Pix sai por ela, e o provedor só faz o link de cartão. */
   chavePrincipal?: ChavePixDaEmpresa | null;
   /** Injetáveis só para teste. */
   lerConexao?: (admin: SupabaseClient, organizationId: string) => Promise<ConexaoStripe | null>;
@@ -59,7 +59,35 @@ export async function pixDoExtraNoLugarDaMarca(e: EntradaDoPixDoExtra): Promise<
     const codigo = codigoDaChave(e.chavePrincipal, valorDaCobranca(marca.extra, marca.quantidade), e.conversationId);
     if (codigo === null) return { recusa: SEM_COBRANCA };
     e.log.info('cobrança avulsa pela chave principal', { conversation_id: e.conversationId, extra: slugDoExtra(marca.extra.name), quantidade: marca.quantidade });
-    return { corpo: corpoComPixDoExtra(e.corpo, marca, codigo, null, e.chavePrincipal.holder) };
+    // O cartão é um extra da mensagem: se não sair, o Pix da chave vai sozinho.
+    const cartao = await (async () => {
+      try {
+        const conexao = await (e.lerConexao ?? lerConexaoStripe)(e.supabase, e.organizationId);
+        if (conexao === null) return null;
+        const agora = e.agora ?? new Date();
+        const referencia = referenciaDoExtra(e.conversationId, marca.extra, agora, marca.quantidade, await pagamentosRecentesDoContato(e.supabase, e.organizationId, e.contactId, agora));
+        return await (e.criarLink ?? ((c, p) => criarClienteStripe(c).criarLinkDePagamento(p)))(conexao, {
+          valorCentavos: valorDaCobranca(marca.extra, marca.quantidade),
+          moeda: 'BRL',
+          descricao: descricaoDaCobranca(marca.extra, marca.quantidade),
+          referencia: `${referencia}-so-cartao`,
+          metadados: {
+            organization_id: e.organizationId,
+            contact_id: e.contactId,
+            conversation_id: e.conversationId,
+            produto: marca.extra.name,
+            extra: slugDoExtra(marca.extra.name),
+            ...(marca.quantidade > 1 ? { quantidade: String(marca.quantidade) } : {}),
+          },
+          mensagemDepoisDePagar: 'Pagamento recebido. Pode voltar à conversa: a entrega continua por lá.',
+          soCartao: true,
+        });
+      } catch (err) {
+        e.log.warn('link de cartão da cobrança avulsa não saiu', { conversation_id: e.conversationId, error: (err instanceof Error ? err.message : String(err)).slice(0, 160) });
+        return null;
+      }
+    })();
+    return { corpo: corpoComPixDoExtra(e.corpo, marca, codigo, cartao?.url ?? null, e.chavePrincipal.holder) };
   }
   try {
     const conexao = await (e.lerConexao ?? lerConexaoStripe)(e.supabase, e.organizationId);

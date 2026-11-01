@@ -7,8 +7,9 @@
  * (`lib/pagamentos/pix-estatico.ts`) e pela chave por extenso.
  *
  * Com `primary` ligado, a chave deixa de ser o último recurso: toda cobrança Pix em reais sai por ela (a venda, a
- * entrada, o restante, as avulsas, o fluxo e o botão do atendente), sem provedor e sem link de cartão. Decisão do
- * dono em 01/11/2026. Quem paga em outra moeda continua no provedor: Pix não atende essa pessoa.
+ * entrada, o restante, as avulsas, o fluxo e o botão do atendente), sem provedor. Decisão do dono em 01/11/2026.
+ * O cartão continua saindo junto, num link só de cartão do provedor; se ele falhar, o link cadastrado do checkout
+ * externo. Quem paga em outra moeda continua no provedor: Pix não atende essa pessoa.
  *
  * O VALOR é escrito pelo modelo, mas só passa se for um dos valores que o turno liberou (o preço em vigor, a
  * entrada, uma cobrança à parte). Valor fora da lista recusa o envio: o modelo não inventa quanto cobrar.
@@ -106,8 +107,8 @@ export function blocoDaChavePix(chave: ChavePixDaEmpresa | null | undefined, val
       "",
       "",
       "PIX PELA CHAVE DA EMPRESA (é a forma PRINCIPAL de receber; esta regra vence qualquer frase do roteiro sobre pagamento)",
-      `- Todo Pix sai pela chave, em nome de ${chave.holder}. Cobre do jeito de sempre (o link do produto ou a marca [[PIX: …]]): o sistema troca pelo código da chave. Se perguntarem por que aparece esse nome, é quem cuida do financeiro.`,
-      `- Não há pagamento no cartão por aqui. Se ela pedir cartão, diga em uma frase que o pagamento é por Pix. O código da chave não vence: NUNCA diga que vai expirar.`,
+      `- Todo Pix sai pela chave, em nome de ${chave.holder}. Cobre do jeito de sempre (o link do produto ou a marca [[PIX: …]]): o sistema troca pelo código da chave e pelo link de cartão. Se perguntarem por que aparece esse nome, é quem cuida do financeiro.`,
+      `- O link de cartão sai junto com o código. Se ela pedir cartão, cobre de novo do jeito de sempre e aponte o link. O cartão confirma sozinho, sem comprovante. O código da chave não vence: NUNCA diga que vai expirar.`,
       `- Se ela pedir a chave ou o número do Pix, escreva sozinha num balão a marca com o valor em reais, assim: [[CHAVE PIX: ${Math.round(valores[0]! / 100)}]]. Valores liberados para esta pessoa agora: ${valores.map(reais).join(", ")}. O sistema troca a marca pelo código e pela chave. NUNCA digite a chave você mesma, e é PROIBIDO dizer que não trabalha com chave.`,
       confirmacao,
     ].join("\n");
