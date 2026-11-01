@@ -85,3 +85,34 @@ describe("teto de bolhas por resposta", () => {
     expect(splitForSend(longa, false, 80)).toEqual([longa]);
   });
 });
+
+describe("a chave Pix vai sozinha no balão", () => {
+  const instrucao = "Pra pagar no Pix (*R$ 60,00*):\n1. Toque e segure na chave da próxima mensagem e escolha *Copiar*.\n2. No app do seu banco, entre em *Pix* e escolha *Pagar com chave* ou *Transferir*.\n3. Cole a chave, confira o nome *Fulano de Tal*, coloque o valor *R$ 60,00* e confirme.";
+  const comprovante = "Assim que fizer, me manda o comprovante aqui, que esse eu confiro à mão.";
+
+  it.each(["+5569900000000", "62917956000100", "pix@exemplo.com.br", "123e4567-e89b-12d3-a456-426614174000"])("%s não cola na frase vizinha", (chave) => {
+    for (const limite of [200, 600, 2000]) {
+      const baloes = splitIntoBubbles(`${instrucao}\n\n${chave}\n\n${comprovante}`, limite);
+      expect(baloes).toContain(chave);
+    }
+  });
+
+  it("a cobrança inteira chega em três balões, com a chave no do meio, em qualquer modo de envio", () => {
+    const corpo = `${instrucao}
+
++5569900000000
+
+${comprovante}
+
+Se preferir pagar no cartão, é por este link: https://buy.exemplo.com/abc`;
+    for (const ligado of [true, false]) {
+      const baloes = splitForSend(corpo, ligado, 200);
+      expect(baloes).toHaveLength(3);
+      expect(baloes[1]).toBe("+5569900000000");
+    }
+  });
+
+  it("frase que só cita um número continua junto do resto", () => {
+    expect(splitIntoBubbles("Meu número é +5569900000000.\n\nMe chama lá.", 200)).toEqual(["Meu número é +5569900000000.\n\nMe chama lá."]);
+  });
+});

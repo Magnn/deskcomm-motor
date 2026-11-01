@@ -30,6 +30,20 @@ export function ehCodigoDoPix(paragrafo: string): boolean {
   return /^000201[0-9A-Za-z]/.test(paragrafo) && paragrafo.length >= 60 && !paragrafo.includes("\n");
 }
 
+/**
+ * Um parágrafo que é só uma chave Pix (telefone, CPF, CNPJ, e-mail ou aleatória). Ela vai para o balão sozinha: colada
+ * na frase vizinha, quem toca em Copiar leva a frase junto e o banco não acha a chave.
+ */
+export function ehChavePixSozinha(paragrafo: string): boolean {
+  return (
+    /^\+?\d{11,14}$/.test(paragrafo) ||
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(paragrafo) ||
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(paragrafo)
+  );
+}
+
+const vaiSozinhoNoBalao = (paragrafo: string): boolean => ehCodigoDoPix(paragrafo) || ehChavePixSozinha(paragrafo);
+
 export function splitIntoBubbles(text: string, maxChars: number): string[] {
   const trimmed = (text ?? "").trim();
   if (trimmed === "") return [];
@@ -37,7 +51,7 @@ export function splitIntoBubbles(text: string, maxChars: number): string[] {
   // recebe): partido em dois, ou colado na frase vizinha, deixa de ser pagável. Cada parágrafo que é um
   // código vai inteiro e sozinho; o que vem antes e depois é cortado como sempre.
   const paragrafos = trimmed.split(/\n{2,}/).map((p) => p.trim()).filter((p) => p !== "");
-  if (paragrafos.some(ehCodigoDoPix)) {
+  if (paragrafos.some(vaiSozinhoNoBalao)) {
     const saida: string[] = [];
     let pendente: string[] = [];
     const despejar = () => {
@@ -45,7 +59,7 @@ export function splitIntoBubbles(text: string, maxChars: number): string[] {
       pendente = [];
     };
     for (const p of paragrafos) {
-      if (ehCodigoDoPix(p)) {
+      if (vaiSozinhoNoBalao(p)) {
         despejar();
         saida.push(p);
       } else pendente.push(p);
@@ -215,7 +229,7 @@ export const OK_KINDS = new Set(["sent", "already_sent", "queued"]);
  */
 export function splitForSend(body: string, enabled: boolean, maxChars: number): string[] {
   if (enabled) return limitarBolhas(body, maxChars);
-  // MENSAGEM ÚNICA (economia de mensagem cobrada) COM CÓDIGO DO PIX: o código vai sozinho mesmo assim.
+  // MENSAGEM ÚNICA (economia de mensagem cobrada) COM CÓDIGO OU CHAVE DO PIX: ele vai sozinho mesmo assim.
   // Medido em produção em 11/10/2026: o primeiro Pix real saiu no meio de um texto de 843 caracteres, e
   // código no meio do texto não se copia com um toque — é preciso selecionar à mão, e a pessoa desiste.
   // São no máximo três mensagens: o que vem antes, o código, o que vem depois.
@@ -223,7 +237,7 @@ export function splitForSend(body: string, enabled: boolean, maxChars: number): 
     .split(/\n{2,}/)
     .map((p) => p.trim())
     .filter((p) => p !== "");
-  const i = paragrafos.findIndex(ehCodigoDoPix);
+  const i = paragrafos.findIndex(vaiSozinhoNoBalao);
   if (i < 0) return [body];
   const antes = paragrafos.slice(0, i).join("\n\n");
   const depois = paragrafos.slice(i + 1).join("\n\n");
