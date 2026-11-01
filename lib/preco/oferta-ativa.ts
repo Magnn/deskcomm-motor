@@ -11,6 +11,8 @@
  *   • a oferta de pé é a ÚLTIMA dita pela agente, a pequena (cobrança avulsa abaixo do menor degrau) ou a do trabalho;
  *   • com a pequena de pé, o valor do trabalho só volta se ELA pedir o trabalho, der data ou disser quanto tem;
  *   • uma resposta nunca oferece as duas, em nenhum balão;
+ *   • a pequena só vem depois do menor valor do trabalho, a não ser que ELA faça uma pergunta nova às cartas (decisão do
+ *     dono em 01/11/2026: primeiro o trabalho de R$ 130, depois R$ 100 e R$ 60, e só então o resto);
  *   • lembrar o combinado de uma data ("o dia 20 segue de pé, R$ 130") não é oferta.
  *
  * Pura.
@@ -126,6 +128,18 @@ function rodadaDaPessoa(mensagens: readonly MensagemDaConversa[]): string {
   return rodada.join("\n");
 }
 
+/** Ela fez uma pergunta nova às cartas nesta rodada: a pergunta é a resposta certa, em qualquer ponto da escada. */
+const PEDIU_PERGUNTA = /\?|\b(?:carta|cartas|pergunta|perguntar|mesa|volta|voltar|sente|ama|quando|sera|por que|porque|o que)\b/;
+
+/**
+ * A conversa já desceu até o fim da escada que se oferece. O último degrau é o piso da negociação, e a régua de silêncio
+ * para no penúltimo (R$ 60): por isso qualquer um dos dois abre a oferta pequena.
+ */
+function ouviuOMenorValor(c: Escada, mensagens: readonly MensagemDaConversa[]): boolean {
+  const finais = c.steps.slice(-2).map((d) => d.price_cents);
+  return mensagens.some((m) => m.direction === "outbound" && valoresDitos(m.body ?? "").some((v) => finais.includes(v)));
+}
+
 /** Ela mesma trouxe o trabalho de volta nesta rodada. */
 export function pediuOTrabalho(mensagens: readonly MensagemDaConversa[], produtos: readonly string[] = []): boolean {
   const rodada = semAcento(rodadaDaPessoa(mensagens));
@@ -168,6 +182,15 @@ export function ofertaEmConflito(c: Escada, extras: readonly Extra[], e: Confere
       `(${pequena.pequena!.name}). Escolha a que responde ao que ela acabou de dizer e reescreva só com ela: se ela pediu carta ou ` +
       "pergunta, só a pergunta; se ela quer o trabalho, só o trabalho. Não pergunte qual das duas ela prefere."
     );
+  }
+  if (pequenaAgora !== undefined && !ouviuOMenorValor(c, e.mensagens)) {
+    const combinado = e.baloesDoTurno.some((b) => FALA_DO_COMBINADO.test(b));
+    if (!combinado && !PEDIU_PERGUNTA.test(semAcento(rodadaDaPessoa(e.mensagens)))) {
+      return (
+        `Ainda não é hora de *${pequenaAgora.pequena!.name}*: a ordem é o trabalho, depois os valores menores que o bloco de preço ` +
+        "liberar, e só depois de ela recusar o menor valor o resto. Reescreva sem esta oferta, seguindo o bloco PREÇO E NEGOCIAÇÃO."
+      );
+    }
   }
   if (trabalhoAgora === undefined) return null;
   const ativa = ofertaAtivaDaConversa(c, extras, e.mensagens, e.agora);

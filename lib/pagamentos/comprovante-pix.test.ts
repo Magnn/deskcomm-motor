@@ -165,3 +165,25 @@ describe("comprovante no turno", () => {
     expect(deps.lerUso).not.toHaveBeenCalled();
   });
 });
+
+describe("produto de pós-venda ou catálogo", () => {
+  const conferePorValor = (outrosProdutos: Array<{ produto: string; valor_cents: number }>) =>
+    conferirComprovante({
+      texto: comprovante("R$ 35,00"),
+      chave: CHAVE,
+      cobrancas: cobrancasEnviadas([cobranca("R$ 35")]),
+      extras: [],
+      valoresDoPrincipal: [6000],
+      outrosProdutos,
+      agora: AGORA,
+    });
+
+  it("⭐ a Oração dos Sonhos de R$ 35 confere e sai com o nome do produto", () => {
+    const r = conferePorValor([{ produto: "Oração dos Sonhos", valor_cents: 3500 }, { produto: "Sons Vocálicos", valor_cents: 4500 }]);
+    expect(r.tipo === "confere_produto" ? r.produto : r).toBe("Oração dos Sonhos");
+  });
+
+  it("dois produtos no mesmo valor seguem para a equipe", () => {
+    expect(conferePorValor([{ produto: "A", valor_cents: 3500 }, { produto: "B", valor_cents: 3500 }]).tipo).toBe("nao_confere");
+  });
+});
