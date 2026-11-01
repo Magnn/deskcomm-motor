@@ -72,7 +72,7 @@ export function FormularioDeModelo({
 
   return (
     <div
-      className="grid grid-cols-1 gap-4 rounded-md border border-border p-3 lg:grid-cols-[minmax(0,1fr)_20rem]"
+      className="grid grid-cols-1 gap-4 rounded-md border border-border p-3 lg:grid-cols-[1fr_20rem]"
       data-testid="formulario-de-modelo"
     >
       <div className="flex flex-col gap-2">
