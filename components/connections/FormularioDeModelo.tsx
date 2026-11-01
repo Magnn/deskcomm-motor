@@ -14,6 +14,7 @@ import {
   montarComponents,
   type BotaoDaDefinicao,
 } from "@/lib/channels/template-conteudo";
+import type { ModeloPronto } from "@/lib/channels/modelos-prontos";
 import { cn } from "@/lib/utils";
 import { useT } from "@/hooks/i18n/useT";
 
@@ -39,24 +40,29 @@ export interface ModeloParaCriar {
 export function FormularioDeModelo({
   aceitaImagem = true,
   idiomaInicial = "es",
+  inicial,
   enviando,
   onEnviar,
 }: {
   aceitaImagem?: boolean;
   idiomaInicial?: string;
+  /** Modelo pronto que abre o formulário. Quem usa remonta com `key` ao trocar. */
+  inicial?: ModeloPronto;
   enviando: boolean;
   onEnviar: (modelo: ModeloParaCriar) => void;
 }) {
   const t = useT();
-  const [nome, setNome] = useState("");
-  const [idioma, setIdioma] = useState(idiomaInicial);
-  const [categoria, setCategoria] = useState("UTILITY");
-  const [corpo, setCorpo] = useState("");
-  const [rodape, setRodape] = useState("");
-  const [exemplos, setExemplos] = useState<string[]>([]);
+  const [nome, setNome] = useState(inicial?.name ?? "");
+  const [idioma, setIdioma] = useState<string>(inicial?.language ?? idiomaInicial);
+  const [categoria, setCategoria] = useState<string>(inicial?.category ?? "UTILITY");
+  const [corpo, setCorpo] = useState(inicial?.body ?? "");
+  const [rodape, setRodape] = useState(inicial?.footer ?? "");
+  const [exemplos, setExemplos] = useState<string[]>(inicial?.exemplos ?? []);
   const [cabecalho, setCabecalho] = useState("");
   const [midiaUrl, setMidiaUrl] = useState("");
-  const [botoes, setBotoes] = useState<BotaoDaDefinicao[]>([]);
+  const [botoes, setBotoes] = useState<BotaoDaDefinicao[]>(
+    () => inicial?.botoes.map((b) => ({ ...b })) ?? [],
+  );
   const [subindo, setSubindo] = useState(false);
 
   // Quantas amostras a revisão vai exigir. Recalculado enquanto se digita: o
@@ -66,7 +72,7 @@ export function FormularioDeModelo({
 
   return (
     <div
-      className="grid gap-4 rounded-md border border-border p-3 lg:grid-cols-[1fr_20rem]"
+      className="grid grid-cols-1 gap-4 rounded-md border border-border p-3 lg:grid-cols-[1fr_20rem]"
       data-testid="formulario-de-modelo"
     >
       <div className="flex flex-col gap-2">

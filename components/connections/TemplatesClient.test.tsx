@@ -136,3 +136,28 @@ describe("TemplatesClient — criar modelo no canal oficial", () => {
     expect(screen.queryByTestId("formulario-de-modelo")).toBeNull();
   });
 });
+
+describe("modelo pronto", () => {
+  it("escolher preenche o formulário e só o botão envia à revisão", async () => {
+    criarModelo.mockReset();
+    criarModelo.mockResolvedValue({});
+    const user = userEvent.setup();
+    render(<TemplatesClient />);
+
+    await user.click(screen.getByTestId("btn-criar-modelo"));
+    await user.click(screen.getByTestId("modelo-pronto-oferta_para_clientes"));
+
+    expect(screen.getByLabelText("Nome do modelo")).toHaveProperty("value", "oferta_para_clientes");
+    expect(screen.getByLabelText("Categoria")).toHaveProperty("value", "MARKETING");
+    expect(criarModelo).not.toHaveBeenCalled();
+
+    await user.click(screen.getByTestId("btn-enviar-modelo"));
+
+    expect(criarModelo).toHaveBeenCalledTimes(1);
+    expect(criarModelo.mock.calls[0]![0]).toMatchObject({
+      name: "oferta_para_clientes",
+      category: "MARKETING",
+      language: "pt_BR",
+    });
+  });
+});

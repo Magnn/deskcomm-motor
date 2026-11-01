@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { EscolherModeloPronto } from "./EscolherModeloPronto";
 import { FormularioDeModelo } from "./FormularioDeModelo";
 import {
   useCreateTemplate,
@@ -17,6 +18,7 @@ import {
   type TemplateView,
 } from "@/hooks/channels/useTemplates";
 import { useT } from "@/hooks/i18n/useT";
+import type { ModeloPronto } from "@/lib/channels/modelos-prontos";
 
 /** Só APPROVED pode ser disparado — o resto é informação, não opção. */
 function statusTone(status: string): "default" | "secondary" | "destructive" | "outline" {
@@ -146,6 +148,7 @@ export function TemplatesClient() {
   const sync = useSyncTemplates();
   const criar = useCreateTemplate();
   const [criando, setCriando] = useState(false);
+  const [pronto, setPronto] = useState<ModeloPronto | null>(null);
 
   const waba = data?.data.waba ?? null;
   const templates = data?.data.templates ?? null;
@@ -192,7 +195,13 @@ export function TemplatesClient() {
           >
             {sync.isPending ? t("Sincronizando…") : t("Sincronizar com a Meta")}
           </Button>
-          <Button onClick={() => setCriando((v) => !v)} data-testid="btn-criar-modelo">
+          <Button
+            onClick={() => {
+              setCriando((v) => !v);
+              setPronto(null);
+            }}
+            data-testid="btn-criar-modelo"
+          >
             {criando ? t("Cancelar") : t("Criar modelo")}
           </Button>
         </div>
@@ -202,16 +211,22 @@ export function TemplatesClient() {
           pelo Desk muitas vezes nem sabe onde fica o Gerenciador. Sem imagem no
           cabeçalho — a Cloud API pede o identificador do upload dela, não link. */}
       {criando && (
-        <FormularioDeModelo
-          aceitaImagem={false}
-          idiomaInicial="pt_BR"
-          enviando={criar.isPending}
-          onEnviar={async (modelo) => {
-            await criar.mutateAsync(modelo);
-            toast.success(t("Modelo enviado para revisão da Meta."));
-            setCriando(false);
-          }}
-        />
+        <>
+          <EscolherModeloPronto escolhido={pronto?.name ?? null} onEscolher={setPronto} />
+          <FormularioDeModelo
+            key={pronto?.name ?? "em-branco"}
+            aceitaImagem={false}
+            idiomaInicial="pt_BR"
+            inicial={pronto ?? undefined}
+            enviando={criar.isPending}
+            onEnviar={async (modelo) => {
+              await criar.mutateAsync(modelo);
+              toast.success(t("Modelo enviado para revisão da Meta."));
+              setCriando(false);
+              setPronto(null);
+            }}
+          />
+        </>
       )}
 
       {templates.length === 0 ? (
