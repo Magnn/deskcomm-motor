@@ -141,8 +141,8 @@ describe("entradaImediata — o Pix no valor que a pessoa disse", () => {
   it("a entrada mínima é a configurada; sem ela, o menor degrau; sem degrau nem mínimo, não há entrada", async () => {
     const { entradaImediata } = await import("./estado-da-negociacao");
     const conversa = [PRECO, m("inbound", "só tenho 30")];
-    // Abaixo do menor degrau, a primeira vez não é entrada: a agente segura o menor valor (decisão do dono, 12/10).
-    expect(entradaImediata({ ...PRICING, min_down_payment_cents: 3000 }, conversa)).toBeNull();
+    // Com entrada mínima, o valor dito fecha na hora, mesmo abaixo do menor degrau (decisão do dono, 01/11).
+    expect(entradaImediata({ ...PRICING, min_down_payment_cents: 3000 }, conversa)).toEqual({ entradaCents: 3000, restanteCents: 10000 });
     const segurou = [...conversa, m("outbound", "O menor valor é R$ 50. Você consegue completar hoje?")];
     const comMinimo = { ...PRICING, min_down_payment_cents: 3000 };
     expect(entradaImediata(comMinimo, [...segurou, m("inbound", "não consigo, é o que eu tenho")])).toEqual({ entradaCents: 3000, restanteCents: 10000 });

@@ -104,6 +104,18 @@ export function cobrancasEnviadas(mensagens: readonly FalaDaConversa[]): Cobranc
   return achadas.sort((a, b) => b.enviadaEm.getTime() - a.enviadaEm.getTime());
 }
 
+/**
+ * As entradas que a agente fechou na conversa ("você entra com R$ 30 agora"). O restante não entra aqui: ele não inicia
+ * entrega e segue para a equipe conferir.
+ */
+export function entradasCombinadas(mensagens: readonly FalaDaConversa[]): number[] {
+  return mensagens.flatMap((m) =>
+    m.direction === "outbound"
+      ? [...(m.body ?? "").matchAll(/\bentra(?:r)?\s+com\s+\*?R\$\s?\d[\d.,]*/gi)].flatMap((a) => valoresDitos(a[0]))
+      : [],
+  );
+}
+
 /** Qual cobrança avulsa é esta: pelo nome, quando a cobrança o traz; senão, a única com aquele preço unitário. */
 function extraDaCobranca(cobranca: CobrancaEnviada, extras: readonly Extra[]): Extra | null {
   if (cobranca.nome !== null) {
@@ -126,6 +138,8 @@ export function conferirComprovante(e: {
    * Oração dos Sonhos (R$ 35, pós-venda) foi paga, a agente entregou, e a venda não entrou no faturamento.
    */
   outrosProdutos?: ReadonlyArray<{ produto: string; valor_cents: number }>;
+  /** `entradasCombinadas`: a entrada tem o valor que ela disse, que pode não existir em tabela nenhuma. */
+  entradas?: readonly number[];
   agora: Date;
 }): Conferencia {
   if (e.texto.trim() === "" || !pareceComprovante(e.texto)) return { tipo: "nenhum" };
@@ -150,6 +164,9 @@ export function conferirComprovante(e: {
   const diferenca = instante - impressa.getTime();
   if (diferenca < -FOLGA_MS || diferenca > MAIOR_FUSO_MS + FOLGA_MS) {
     return { tipo: "nao_confere", motivo: "a hora impressa não combina com o ID da transação" };
+  }
+  if (e.entradas?.includes(cobranca.valorCents)) {
+    return { tipo: "confere_principal", valorCents: cobranca.valorCents, idDoPix: id[0], pagoEm };
   }
   if (e.valoresDoPrincipal.includes(cobranca.valorCents)) {
     // Mesmo valor de uma avulsa (Acompanhamento e trabalho, ambos R$ 60): só a pessoa sabe qual foi.
