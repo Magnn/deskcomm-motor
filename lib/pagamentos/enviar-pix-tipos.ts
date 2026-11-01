@@ -11,6 +11,8 @@ export const enviarPixSchema = z.strictObject({
   produto: z.string().trim().min(1).max(120),
   /** Cobrança avulsa (`SugestaoDePagamento.extra`): o pagamento vira a cobrança avulsa e a entrega dela começa sozinha. */
   extra: z.string().regex(/^[a-z0-9-]{1,60}$/).optional(),
+  /** Unidades pagas da cobrança avulsa, de 2 a 10. */
+  quantidade: z.number().int().min(2).max(10).optional(),
 });
 export type EnviarPix = z.infer<typeof enviarPixSchema>;
 

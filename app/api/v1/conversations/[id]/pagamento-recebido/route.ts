@@ -121,7 +121,7 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<Response> {
     },
   });
 
-  const resultado = await registrarPagamentoRecebido(deps, { contatoId: conv.contact_id, pagamento: lido.data, agora: new Date() });
+  const resultado = await registrarPagamentoRecebido(deps, { contatoId: conv.contact_id, pagamento: lido.data, agora: new Date(), conversaId: conv.id });
   if (resultado.resultado === "contato_nao_encontrado") return fail("not_found", t("Contato não encontrado."), 404, { requestId });
 
   if (resultado.resultado === "registrado") {

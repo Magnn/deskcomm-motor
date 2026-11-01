@@ -60,7 +60,7 @@ export function EnviarPixDialog({ conversationId, open, onOpenChange }: Props) {
       {
         conversation_id: conversationId,
         // A cobrança avulsa só vale no valor da lista: valor mexido vira um Pix comum.
-        pix: { produto: produto.trim(), valor_cents: cents, ...(sugerido?.extra && cents === sugerido.valor_cents ? { extra: sugerido.extra } : {}) },
+        pix: { produto: produto.trim(), valor_cents: cents, ...(sugerido?.extra && cents === sugerido.valor_cents ? { extra: sugerido.extra, ...(sugerido.quantidade ? { quantidade: sugerido.quantidade } : {}) } : {}) },
       },
       {
         onSuccess: () => {

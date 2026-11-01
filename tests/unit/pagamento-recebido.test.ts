@@ -32,6 +32,8 @@ function dublês(opts: { parecido?: { valorCentavos: number; provedor: string; q
     lerContato: async () => (opts.semContato ? null : { id: "contato-1", tags: opts.tags ?? [] }),
     gravarCompra: async (_id, patch) => { passos.push("gravar"); gravado.tags = patch.tags; gravado.ultimaCompra = patch.ultimaCompra; },
     registrarReceita: async (_id, receita) => { passos.push("receita"); receitas.push(receita); },
+    marcarContato: async (_id, tags) => { passos.push("marcar"); gravado.tags = tags; },
+    pedirTurnoDaAgente: async () => { passos.push("turno"); },
     anotar: async (_id, texto) => { passos.push("anotar"); notas.push(texto); },
     pagamentoParecido: async () => opts.parecido ?? null,
     negociosDoContato: async () => opts.negocios ?? [aberto],
@@ -124,6 +126,18 @@ describe("registrarPagamentoRecebido", () => {
     expect(d.notas[0]).toBe("Pagamento recebido fora do checkout: Abertura do Coração (R$ 130,00, Dinheiro). Registrado pela equipe.");
   });
 
+  it("⭐ cobrança avulsa entra com extra e quantidade, acorda a agente e não fecha o negócio", async () => {
+    const d = dublês();
+    const pagamento = pagamentoRecebidoSchema.parse({ chave: CHAVE, valor_cents: 1000, produto: "2× Pergunta nova", extra: "pergunta-nova", quantidade: 2 });
+    const r = await registrarPagamentoRecebido(d.deps, { contatoId: "contato-1", pagamento, agora: AGORA, conversaId: "conversa-1" });
+
+    expect(r).toEqual({ resultado: "registrado", negocio: "sem_negocio", entrega: "iniciada" });
+    expect(d.passos).toEqual(["marcar", "receita", "anotar", "turno"]);
+    expect(d.receitas[0]).toMatchObject({ extra: "pergunta-nova", quantidade: 2, valorCentavos: 1000 });
+    expect(d.gravado.tags).toEqual(expect.arrayContaining(["extra:pergunta-nova"]));
+    expect(d.gravado.tags).not.toContain("pago");
+  });
+
   it("contato que não existe na organização: nada é gravado", async () => {
     const d = dublês({ semContato: true });
     expect(await registrarPagamentoRecebido(d.deps, { contatoId: "x", pagamento: PAGAMENTO, agora: AGORA })).toEqual({ resultado: "contato_nao_encontrado" });
@@ -163,6 +177,14 @@ describe("sugestoesDePagamento", () => {
       { produto: "Abertura do Coração", valor_cents: 13000 },
       { produto: "Limpeza e Proteção", valor_cents: 13000 },
       { produto: "Sons Vocálicos", valor_cents: 4500 },
+    ]);
+  });
+
+  it("a cobrança com preço por quantidade aparece em cada opção, com a quantidade", () => {
+    const comTabela = { pricing: { enabled: true, list_price_cents: 6000, steps: [], extras: [{ name: "Pergunta nova", price_cents: 700, when: "pede outra pergunta.", quantity_prices: [{ quantity: 2, price_cents: 1000 }] }] } };
+    expect(sugestoesDePagamento([comTabela])).toEqual([
+      { produto: "Pergunta nova", valor_cents: 700, extra: "pergunta-nova" },
+      { produto: "2× Pergunta nova", valor_cents: 1000, extra: "pergunta-nova", quantidade: 2 },
     ]);
   });
 

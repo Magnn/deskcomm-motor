@@ -25,7 +25,7 @@ export function instrucaoDoPixCopiaECola(valor: string, noBancoAparece?: string)
 }
 
 /** O balão depois do código da chave da empresa: esse pagamento só anda com o comprovante. */
-export const PEDIDO_DO_COMPROVANTE = "Assim que fizer, me manda o comprovante aqui, que esse eu confiro à mão.";
+export const PEDIDO_DO_COMPROVANTE = "Assim que fizer, me manda o comprovante aqui, que eu confiro.";
 
 /**
  * Os balões do Pix pela chave da empresa: a instrução, a chave sozinha para copiar com um toque e o pedido do
@@ -43,6 +43,18 @@ export function baloesPelaChave(valor: string, chave: string, titular: string): 
     chave,
     PEDIDO_DO_COMPROVANTE,
   ];
+}
+
+/**
+ * Lê de volta o valor da cobrança no primeiro balão ("Pra pagar no Pix (*R$ 10 (2× Pergunta nova)*):"), o mesmo texto
+ * que as duas instruções acima escrevem. É o que a conferência do comprovante compara (`comprovante-pix.ts`).
+ */
+export function cobrancaNoTexto(texto: string): { valorCents: number; quantidade: number; nome: string | null } | null {
+  const achada = texto.match(/Pra pagar no Pix \(\*R\$ ([\d.,]+)(?: \((\d+)× ([^)]+)\))?\*\)/);
+  if (!achada) return null;
+  const valorCents = Math.round(Number(achada[1]!.replace(/\./g, "").replace(",", ".")) * 100);
+  if (!Number.isFinite(valorCents) || valorCents <= 0) return null;
+  return { valorCents, quantidade: achada[2] ? Number(achada[2]) : 1, nome: achada[3]?.trim() ?? null };
 }
 
 /**

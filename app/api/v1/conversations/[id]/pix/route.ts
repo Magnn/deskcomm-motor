@@ -113,6 +113,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
         produto: lido.data.produto,
         // Cobrança avulsa: o aviso de pagamento lê `extra` (receita própria, marca `extra:<id>`, mesa da pergunta).
         ...(lido.data.extra ? { extra: lido.data.extra } : {}),
+        ...(lido.data.extra && lido.data.quantidade ? { quantidade: String(lido.data.quantidade) } : {}),
       },
       expiraEmSegundos: VALIDADE_DO_PIX_S,
     });
