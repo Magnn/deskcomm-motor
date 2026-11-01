@@ -42,11 +42,22 @@ export function slugDoExtra(nome: string): string {
  */
 export function conversaFalouDeExtra(
   mensagens: readonly { direction: string; body?: string | null }[],
-  extras: readonly Pick<Extra, "name">[],
+  extras: readonly Pick<Extra, "name" | "report">[],
 ): boolean {
   const semAcento = (t: string) => t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
-  const nomes = extras.map((e) => semAcento(e.name)).filter((n) => n.length >= 6);
+  const nomes = extras.flatMap((e) => nomesDoExtra(e));
   return mensagens.some((m) => m.direction === "outbound" && nomes.some((n) => semAcento(m.body ?? "").includes(n)));
+}
+
+/**
+ * COMO A CONVERSA CHAMA A COBRANÇA: o nome e o título que ela leva na capa. Medido em 01/11/2026: a "Sinastria Amorosa" é
+ * oferecida como "Código da Conexão", e nada ligava os dois nomes. Sem preço dito, o bloco das cobranças não entrava e a
+ * agente disse R$ 130 por um produto de R$ 37; nem a trava do valor reconhecia a frase. Em minúsculas e sem acento.
+ */
+export function nomesDoExtra(extra: Pick<Extra, "name" | "report">): string[] {
+  return [extra.name, extra.report?.title ?? ""]
+    .map((n) => n.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim().replace(/^(?:o|a|os|as)\s+/, ""))
+    .filter((n) => n.length >= 6);
 }
 
 /**
@@ -251,7 +262,7 @@ export function blocoDosExtras(extras: readonly Extra[], pagos: readonly ExtraPa
   }
   linhas.push(
     `- VÁRIAS DE UMA VEZ: se ela tem mais de uma pergunta (ou quer mais de uma unidade da mesma cobrança), ANOTE todas, confirme a lista com ela em um balão e cobre TUDO num Pix só, escrevendo a quantidade na marca: ${marcaDoExtraEmLote("nome", 3)} (até ${MAXIMO_DE_UNIDADES}). O valor é o total da tabela acima. Nunca cobre uma, responda, e cobre a próxima.`,
-    "- COMO COBRAR, numa resposta só: 1º um balão curto dizendo o que é e o valor; 2º a marca sozinha no balão seguinte (o sistema troca a marca pelo código do Pix e pelo link de cartão de crédito); 3º um balão final: \"Assim que o pagamento cair eu vejo aqui e já te atendo. Conseguiu copiar o código?\"",
+    "- COMO COBRAR, numa resposta só: 1º um balão curto dizendo o que é e o valor; 2º a marca sozinha no balão seguinte (o sistema troca a marca pelo código do Pix e pelo link de cartão de crédito); 3º um balão final: \"Conseguiu fazer o Pix?\"",
     "- Se ela disser que não tem Pix, que só tem cartão ou pedir o link do cartão: o link de cartão vai junto com o Pix. Mande a marca de novo, sozinha no balão, e diga que o link do cartão está logo abaixo do código. NUNCA peça nem aceite foto ou número de cartão na conversa: os dados do cartão são digitados só na página do pagamento.",
     "- NÃO chame atendimento humano para cobrar isto, NÃO peça comprovante e NÃO entregue antes de o pagamento aparecer neste bloco como PAGAMENTO CONFIRMADO.",
     "- Foto ou comprovante enviado pela pessoa NÃO é pagamento confirmado: NUNCA diga que o pagamento caiu nem cite um valor de comprovante. Diga que está conferindo e que abre assim que o sistema confirmar.",

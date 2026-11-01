@@ -108,6 +108,8 @@ import { promessaDeReenvioSemCobranca } from '@/lib/preco/promessa-de-reenvio';
 import { recusaDeQuemJaPagou } from '@/lib/preco/pago-mas-cobrando';
 import { comprovanteDoTurno, depsReaisDoComprovante } from '@/lib/pagamentos/comprovante-no-turno';
 import { falasDesdeAUltimaCobranca, quantidadeMenorQueACombinada, valorErradoDeExtra } from '@/lib/preco/valor-do-extra';
+import { blocoDaOfertaAtiva, ofertaAtivaDaConversa, ofertaEmConflito, pediuOTrabalho } from '@/lib/preco/oferta-ativa';
+import { falaErradaDoPagamento } from '@/lib/preco/fala-do-pagamento';
 import { destinoDaProva, legendaDaProva, provasParaEnviar } from '@/lib/preco/prova-social';
 import { classificarPerdaDoAtendimento } from '@/lib/resultado/motivo-da-perda-do-agente';
 import { insertInboxItem } from '../db/repository';
@@ -2990,12 +2992,38 @@ async function executarTurnoDoAgente(
     !preview && entregaPendenteDoTurno === null && blocoDaLeituraDoTurno === '' && rodadaSoDeConfirmacao(openingContext.context.messages);
   // "Não tenho mais interesse": recusa da oferta, não pedido para parar — o turno segue sem repetir a oferta.
   const recusouNaRodada = !preview && recusouNoTurno(inboundsNaoRespondidos(openingContext.context.messages));
+  // UMA OFERTA POR VEZ (`lib/preco/oferta-ativa.ts`). O turno fica livre para falar do trabalho quando tem motivo próprio:
+  // a data que ela deu, a entrada, o valor que ela disse ter, o combinado guardado ou o retorno agendado.
+  const retornoAgendadoNoTurno =
+    job?.kind === 'followup_turn' && (job.payload as { recovery?: unknown } | null)?.recovery === undefined;
+  const trabalhoLiberadoNoTurno =
+    !agentConfig?.pricing?.enabled ||
+    retornoAgendadoNoTurno ||
+    internacionalDoTurno !== null ||
+    ofertaDoCatalogoNoTurno !== null ||
+    posVendaDoTurno !== null ||
+    combinadoDoTurno !== null ||
+    valorQueTemNoTurno !== null ||
+    deuDataParaPagar(openingContext.context.messages) ||
+    entradaDoTurno !== null ||
+    entradaImediataDoTurno !== null ||
+    propostaDeEntradaDoTurno !== null ||
+    valorAceitoDoTurno !== null ||
+    pediuOTrabalho(openingContext.context.messages, (agentConfig?.pricing?.list_product_links ?? []).map((l) => l.name));
+  const ofertaAtivaNoTurno = agentConfig?.pricing?.enabled
+    ? ofertaAtivaDaConversa(agentConfig.pricing, extrasDaConfig(agentConfig.pricing), openingContext.context.messages)
+    : null;
+  const ofertaPequenaDePe = ofertaAtivaNoTurno?.tipo === 'pequena' && !trabalhoLiberadoNoTurno ? ofertaAtivaNoTurno : null;
   const blocoDoAtropeloDoTurno =
+    blocoDaOfertaAtiva(ofertaAtivaNoTurno, trabalhoLiberadoNoTurno) +
     blocoDaEntregaPendente(entregaPendenteDoTurno) +
     blocoDaRespostaAtropelada(atropeladaNoTurno) +
     blocoDaConfirmacaoCurta(soConfirmouNoTurno) +
     blocoDaRecusa(recusouNaRodada) +
-    blocoDaConversaGratuitaEsgotada(gratuitaEsgotadaNoTurno, ['o trabalho', ...extrasDoTurno.map((e) => e.name)]);
+    blocoDaConversaGratuitaEsgotada(
+      gratuitaEsgotadaNoTurno,
+      ofertaPequenaDePe !== null ? [ofertaPequenaDePe.nome] : ['o trabalho', ...extrasDoTurno.map((e) => e.name)],
+    );
   if (atropeladaNoTurno) {
     runLog.info('resposta atropelada — este turno responde só ao que a mensagem nova acrescenta', {});
   }
@@ -4078,10 +4106,34 @@ async function executarTurnoDoAgente(
             body,
             extrasDaConfig(agentConfig?.pricing),
             (agentConfig?.pricing?.list_product_links ?? []).map((l) => l.name),
+            corposEnviados.at(-1),
           );
           if (valorErrado) {
             runLog.warn('valor de cobrança avulsa diferente do cadastrado — envio recusado', {});
             return { ok: false, error: { code: 'valor_do_extra_errado', message: valorErrado } };
+          }
+          // UMA OFERTA POR VEZ: em 01/11/2026 quem comprou a pergunta de R$ 7 ouviu o trabalho de R$ 130 logo depois.
+          if (agentConfig?.pricing?.enabled) {
+            const conflito = ofertaEmConflito(agentConfig.pricing, extrasDaConfig(agentConfig.pricing), {
+              corpo: body,
+              baloesDoTurno: corposEnviados,
+              mensagens: openingContext.context.messages,
+              liberado: trabalhoLiberadoNoTurno,
+              produtos: (agentConfig.pricing.list_product_links ?? []).map((l) => l.name),
+            });
+            if (conflito) {
+              runLog.warn('duas ofertas na conversa — envio recusado', {});
+              return { ok: false, error: { code: 'oferta_em_conflito', message: conflito } };
+            }
+          }
+          // O QUE A AGENTE DIZ DO PAGAMENTO (`lib/preco/fala-do-pagamento.ts`): com a chave Pix, o link é só de cartão e
+          // ninguém avisa que o Pix caiu.
+          if (chavePrincipal(agentConfig?.pricing) !== null) {
+            const falaErrada = falaErradaDoPagamento(body, openingContext.context.messages);
+            if (falaErrada) {
+              runLog.warn('descrição errada do pagamento — envio recusado', {});
+              return { ok: false, error: { code: 'fala_errada_do_pagamento', message: falaErrada } };
+            }
           }
           // A QUANTIDADE COMBINADA ANTES VALE PARA A MARCA (`quantidadeMenorQueACombinada`): em 30/10/2026 o cliente tinha
           // duas perguntas anotadas e o Pix saiu de uma (R$ 5 em vez de R$ 10).

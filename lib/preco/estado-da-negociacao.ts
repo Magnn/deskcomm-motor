@@ -319,7 +319,7 @@ export function reclamouDoValorAgora(
  */
 const VALOR_QUE_TEM = new RegExp(
   [
-    "(?:s[óo]\\s+tenho|tenho\\s+s[óo]|tenho|s[óo]\\s+consigo|consigo|posso|d[áa]\\s+pra|deixa|faz|fecha|pago|dou|mando|arrumo|arranjo)" +
+    "(?:s[óo]\\s+tenho|tenho\\s+s[óo]|tenho|s[óo]\\s+consigo|consigo|posso|d[áa]\\s+pra|deixa|faz|fecha|pago|dou|mando|arrum(?:o|a|ar)|arranj(?:o|a|ar))" +
       "(?:\\s+(?:pagar|fazer|dar|mandar|por|pra\\s+mim|p\\s+mim|s[óo]|apenas|at[ée]|uns|no\\s+m[áa]ximo|agora|hoje))*\\s+(?:R\\$\\s?)?(\\d{2,3})(?:[.,]\\d{2})?(?!\\d)",
     "R\\$\\s?(\\d{2,3})(?:[.,]\\d{2})?(?!\\d)",
     "(?<!\\d)(\\d{2,3})(?:[.,]\\d{2})?\\s*(?:reais|real|contos?|pilas?)\\b",

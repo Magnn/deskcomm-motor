@@ -101,7 +101,23 @@ export function ofereceSaida(passo: number, total: number, silencioMs: number): 
 }
 
 /** O que o agente lê ao ser acordado para uma chamada de recuperação. */
-export function motivoDoPasso(passo: number, total: number, silencioMs: number, ofertaCents: number | null = null): string {
+export function motivoDoPasso(
+  passo: number,
+  total: number,
+  silencioMs: number,
+  ofertaCents: number | null = null,
+  /** A oferta pequena de pé na conversa (`ofertaAtivaDaConversa`): o lembrete retoma ela, e só ela. */
+  ofertaDePe: { nome: string; cents: number } | null = null,
+): string {
+  if (ofertaDePe !== null) {
+    const valor = `R$ ${ofertaDePe.cents % 100 === 0 ? ofertaDePe.cents / 100 : (ofertaDePe.cents / 100).toFixed(2).replace(".", ",")}`;
+    return (
+      `recuperação de silêncio, chamada ${passo} de ${total}: a última oferta foi ${ofertaDePe.nome}, por ${valor}, e o cliente ` +
+      `não respondeu há ${duracao(silencioMs)}. Escreva UMA mensagem curta, pelo nome, ligada ao que ela contou, retomando só essa ` +
+      "oferta. NÃO fale do trabalho, NÃO diga outro valor, NÃO pergunte quanto cabe, NÃO envie link nem chave, NÃO invente prazo e " +
+      "NÃO pergunte se ela quer parar. Se a conversa já tinha terminado, ou se o cliente pediu para não ser procurado, não envie nada"
+    );
+  }
   if (ofertaCents !== null) {
     const valor = `R$ ${ofertaCents % 100 === 0 ? ofertaCents / 100 : (ofertaCents / 100).toFixed(2).replace(".", ",")}`;
     return (

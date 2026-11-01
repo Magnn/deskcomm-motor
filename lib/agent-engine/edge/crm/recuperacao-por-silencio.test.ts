@@ -261,3 +261,40 @@ describe("recuperarSilenciosos", () => {
     expect(pool.chamadas).toHaveLength(1);
   });
 });
+
+describe("a régua respeita a oferta pequena de pé", () => {
+  const pergunta = { name: "Pergunta nova", when: "x", delivery: "x", price_cents: 700 };
+  const candidata = (feitas: number, minutos: number, recovery: object) =>
+    silenciosa({
+      followup: { recovery: { ...RECUPERACAO_PADRAO, steps_minutes: [3, 60, 180, 360], ...recovery } },
+      pricing: { list_price_cents: 13000, steps: [{ price_cents: 10000 }, { price_cents: 6000 }], extras: [pergunta] },
+      ouviu_preco: true,
+      feitas,
+      last_inbound_at: ha(minutos + 10),
+      last_outbound_at: ha(minutos),
+    });
+  const motivo = (pool: ReturnType<typeof poolCom>) =>
+    JSON.stringify(pool.chamadas.find((c) => c.sql.includes("insert into job_queue"))?.params);
+
+  it("⭐ Raiane: depois da pergunta de R$ 7, o passo de R$ 100 retoma a pergunta", async () => {
+    const pool = poolCom([candidata(2, 181, { step_offers_cents: [null, null, 10000, 6000] })], {
+      falas: ["O trabalho é R$ 130.", "Tenho um passo pequeno: uma pergunta por R$ 7."],
+    });
+    await recuperarSilenciosos(pool as never, log, { agora: AGORA });
+    expect(motivo(pool)).toContain("Pergunta nova, por R$ 7");
+    expect(motivo(pool)).not.toContain("R$ 100");
+  });
+
+  it("⭐ Francisco: o passo de 'quanto cabe' também retoma a pergunta", async () => {
+    const pool = poolCom([candidata(1, 61, { step_asks_amount: [false, true, false, false] })], { falas: ["Uma pergunta por R$ 7."] });
+    await recuperarSilenciosos(pool as never, log, { agora: AGORA });
+    expect(motivo(pool)).toContain("Pergunta nova, por R$ 7");
+    expect(motivo(pool)).not.toContain("quanto cabe pra você hoje");
+  });
+
+  it("com o trabalho de pé, a régua segue como era", async () => {
+    const pool = poolCom([candidata(2, 181, { step_offers_cents: [null, null, 10000, 6000] })], { falas: ["O trabalho é R$ 130."] });
+    await recuperarSilenciosos(pool as never, log, { agora: AGORA });
+    expect(motivo(pool)).toContain("R$ 100");
+  });
+});
