@@ -6,6 +6,10 @@
  * a marca `[[CHAVE PIX: valor]]`, e o envio a troca pela instrução, pelo código copia e cola já com o valor
  * (`lib/pagamentos/pix-estatico.ts`) e pela chave por extenso.
  *
+ * Com `primary` ligado, a chave deixa de ser o último recurso: toda cobrança Pix em reais sai por ela (a venda, a
+ * entrada, o restante, as avulsas, o fluxo e o botão do atendente), sem provedor e sem link de cartão. Decisão do
+ * dono em 01/11/2026. Quem paga em outra moeda continua no provedor: Pix não atende essa pessoa.
+ *
  * O VALOR é escrito pelo modelo, mas só passa se for um dos valores que o turno liberou (o preço em vigor, a
  * entrada, uma cobrança à parte). Valor fora da lista recusa o envio: o modelo não inventa quanto cobrar.
  *
@@ -20,6 +24,22 @@ import type { PricingConfig } from "./tipos";
 import { reais } from "./tipos";
 
 export type ChavePixDaEmpresa = NonNullable<PricingConfig["pix_key"]>;
+
+/** A chave, quando o operador a escolheu como forma principal de receber Pix. Senão, `null`. */
+export function chavePrincipal(pricing: Pick<PricingConfig, "pix_key"> | null | undefined): ChavePixDaEmpresa | null {
+  return pricing?.pix_key?.primary === true ? pricing.pix_key : null;
+}
+
+/** O código copia e cola da chave para uma cobrança. `null` quando a chave não gera código. */
+export function codigoDaChave(chave: ChavePixDaEmpresa, valorCentavos: number, conversaId: string): string | null {
+  return codigoPixEstatico({
+    chave: chave.key,
+    nome: chave.holder,
+    cidade: chave.city,
+    valorCentavos,
+    identificador: conversaId.replace(/-/g, "").slice(0, 20),
+  });
+}
 
 const MARCA = /\[\[\s*CHAVE\s+PIX\s*:\s*(?:R\$\s*)?(\d{1,5})(?:[.,](\d{2}))?\s*(?:reais)?\s*\]\]/gi;
 const QUALQUER_MARCA = /\[\[\s*CHAVE\s+PIX\b[^\]]*\]\]/i;
@@ -50,7 +70,7 @@ export function pixPelaChaveNoLugarDaMarca(e: {
   outraFormaJaTentada: boolean;
 }): SaidaDaChavePix {
   if (!temMarcaDeChavePix(e.corpo)) return { corpo: e.corpo };
-  if (!e.outraFormaJaTentada) {
+  if (!e.outraFormaJaTentada && e.chave?.primary !== true) {
     return { recusa: "A chave Pix da empresa é o ÚLTIMO recurso. Mande primeiro o pagamento do jeito normal (o Pix copia e cola ou o link) e ajude a pessoa a usar. Só use a marca [[CHAVE PIX: …]] se ela tentar e não conseguir." };
   }
   const lista = [...new Set(e.valoresPermitidosCents)].sort((a, b) => b - a).map(reais).join(", ");
@@ -80,6 +100,18 @@ export function pixPelaChaveNoLugarDaMarca(e: {
 export function blocoDaChavePix(chave: ChavePixDaEmpresa | null | undefined, valoresPermitidosCents: readonly number[]): string {
   const valores = [...new Set(valoresPermitidosCents)].sort((a, b) => b - a);
   if (!chave || valores.length === 0) return "";
+  const confirmacao = `- O pagamento pela chave NÃO confirma sozinho. Quando ela mandar o comprovante, diga em um balão que a equipe está conferindo e que você avisa assim que confirmar, e chame o atendimento humano com o motivo "Pix pela chave: conferir o comprovante e registrar o pagamento". NÃO entregue nada e NÃO diga que o pagamento caiu antes de o sistema confirmar.`;
+  if (chave.primary === true) {
+    return [
+      "",
+      "",
+      "PIX PELA CHAVE DA EMPRESA (é a forma PRINCIPAL de receber; esta regra vence qualquer frase do roteiro sobre pagamento)",
+      `- Todo Pix sai pela chave, em nome de ${chave.holder}. Cobre do jeito de sempre (o link do produto ou a marca [[PIX: …]]): o sistema troca pelo código da chave. Se perguntarem por que aparece esse nome, é quem cuida do financeiro.`,
+      `- Não há pagamento no cartão por aqui. Se ela pedir cartão, diga em uma frase que o pagamento é por Pix. O código da chave não vence: NUNCA diga que vai expirar.`,
+      `- Se ela pedir a chave ou o número do Pix, escreva sozinha num balão a marca com o valor em reais, assim: [[CHAVE PIX: ${Math.round(valores[0]! / 100)}]]. Valores liberados para esta pessoa agora: ${valores.map(reais).join(", ")}. O sistema troca a marca pelo código e pela chave. NUNCA digite a chave você mesma, e é PROIBIDO dizer que não trabalha com chave.`,
+      confirmacao,
+    ].join("\n");
+  }
   return [
     "",
     "",
@@ -87,6 +119,6 @@ export function blocoDaChavePix(chave: ChavePixDaEmpresa | null | undefined, val
     `- É o ÚLTIMO RECURSO. Use SÓ depois de ter mandado o pagamento normal (o Pix copia e cola, o link ou o boleto) e a pessoa ter tentado e NÃO ter conseguido, mesmo com a sua ajuda passo a passo. Nunca ofereça a chave por iniciativa sua e nunca como primeira forma de pagar.`,
     `- Quando ela disser que o código ou o link não funcionou e pedir a chave ou o número do Pix, mande a chave NESTE turno, sem novo passo a passo. Esta regra vence qualquer frase do roteiro: é PROIBIDO dizer que não trabalha com chave.`,
     `- Para mandar, escreva sozinha num balão a marca com o valor em reais, assim: [[CHAVE PIX: ${Math.round(valores[0]! / 100)}]]. Valores liberados para esta pessoa agora: ${valores.map(reais).join(", ")}. O sistema troca a marca pelo código, pela chave e pelo nome ${chave.holder}. NUNCA digite a chave você mesma.`,
-    `- O pagamento pela chave NÃO confirma sozinho. Quando ela mandar o comprovante, diga em um balão que a equipe está conferindo e que você avisa assim que confirmar, e chame o atendimento humano com o motivo "Pix pela chave: conferir o comprovante e registrar o pagamento". NÃO entregue nada e NÃO diga que o pagamento caiu antes de o sistema confirmar.`,
+    confirmacao,
   ].join("\n");
 }

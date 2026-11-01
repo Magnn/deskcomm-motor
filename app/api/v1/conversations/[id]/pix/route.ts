@@ -22,10 +22,12 @@ import { audit } from "@/lib/audit";
 import { requireRole } from "@/lib/auth/require-role";
 import { traduzir } from "@/lib/i18n/dicionario";
 import { logger } from "@/lib/logger";
+import { chavePrincipalDaOrganizacao } from "@/lib/pagamentos/chave-principal-da-organizacao";
 import { lerConexaoStripe } from "@/lib/pagamentos/conexao-stripe";
 import { enviarPixSchema, mensagensDoPix } from "@/lib/pagamentos/enviar-pix-tipos";
 import { VALIDADE_DO_PIX_S } from "@/lib/pagamentos/pix-na-conversa";
 import { ErroDaStripe, criarClienteStripe } from "@/lib/pagamentos/stripe";
+import { codigoDaChave } from "@/lib/preco/chave-pix";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -62,6 +64,35 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   const conv = convData as { id: string; contact_id: string | null } | null;
   if (!conv) return fail("not_found", t("Conversa não encontrada."), 404, { requestId });
   if (!conv.contact_id) return fail("validation_failed", t("Esta conversa não tem um contato para receber o pagamento."), 422, { requestId });
+
+  // A CHAVE PRINCIPAL: o atendente cobra pelo mesmo caminho da agente, sem passar pelo provedor.
+  const principal = await chavePrincipalDaOrganizacao(createAdminClient(), org.orgId);
+  if (principal !== null) {
+    const codigo = codigoDaChave(principal, lido.data.valor_cents, conv.id);
+    if (codigo === null) return fail("validation_failed", t("A chave Pix cadastrada não gera código. Confira a chave na aba Preço do agente."), 422, { requestId });
+    try {
+      for (const body of mensagensDoPix(lido.data.valor_cents, codigo, principal.holder)) {
+        await sendMessageHandler(
+          supabase,
+          { organization_id: org.orgId, actor: { type: "user", id: user.id }, requestId, idioma: user.idioma },
+          { conversation_id: conv.id, type: "text", body } as never,
+        );
+      }
+    } catch (err) {
+      if (err instanceof ApiError) return fail(err.code, err.message, err.status, { requestId });
+      return fail("internal_error", t("O Pix foi gerado, mas a mensagem não saiu. Tente de novo."), 500, { requestId });
+    }
+    await audit({
+      action: "payment.pix_sent",
+      actorUserId: user.id,
+      organizationId: org.orgId,
+      resourceType: "conversation",
+      resourceId: id,
+      requestId,
+      metadata: { valor_cents: lido.data.valor_cents, cobranca: "chave-pix" },
+    });
+    return ok({ cobranca: "chave-pix", valor_cents: lido.data.valor_cents }, { requestId });
+  }
 
   const conexao = await lerConexaoStripe(createAdminClient(), org.orgId);
   if (conexao === null) {

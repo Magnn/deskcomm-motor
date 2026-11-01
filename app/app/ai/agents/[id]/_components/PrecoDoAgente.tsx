@@ -81,6 +81,8 @@ interface Formulario {
   nomeDaChavePix: string;
   /** Campos da configuração que esta tela não mostra: vão e voltam como vieram. */
   cidadeDaChavePix?: string | undefined;
+  /** A chave é a forma principal de receber Pix: nada passa pelo provedor. */
+  chavePixPrincipal?: boolean;
   entradaMinima?: number | undefined;
 }
 
@@ -141,6 +143,7 @@ function formularioInicial(config: Props["config"]): Formulario {
     chavePix: c.pix_key?.key ?? "",
     nomeDaChavePix: c.pix_key?.holder ?? "",
     ...(c.pix_key?.city ? { cidadeDaChavePix: c.pix_key.city } : {}),
+    chavePixPrincipal: c.pix_key?.primary === true,
     ...(c.min_down_payment_cents !== undefined ? { entradaMinima: c.min_down_payment_cents } : {}),
     ...((c.extras ?? []).some((e) => e.report) ? { relatorios: Object.fromEntries((c.extras ?? []).flatMap((e) => (e.report ? [[e.name, e.report]] : []))) } : {}),
     ...(c.report_model !== undefined ? { modeloDoRelatorio: c.report_model } : {}),
@@ -258,7 +261,7 @@ function paraCorpo(f: Formulario): { corpo: PricingConfig } | { erro: string } {
     ...(f.soPeloProvedor !== undefined ? { provider_only_checkout: f.soPeloProvedor } : {}),
     ...(f.provas ? { social_proof: f.provas } : {}),
     ...(temChave
-      ? { pix_key: { key: f.chavePix.trim(), holder: f.nomeDaChavePix.trim(), ...(f.cidadeDaChavePix ? { city: f.cidadeDaChavePix } : {}) } }
+      ? { pix_key: { key: f.chavePix.trim(), holder: f.nomeDaChavePix.trim(), ...(f.cidadeDaChavePix ? { city: f.cidadeDaChavePix } : {}), ...(f.chavePixPrincipal ? { primary: true } : {}) } }
       : {}),
     steps,
     ...(posVenda !== undefined ? { post_sale: posVenda } : {}),
@@ -520,6 +523,20 @@ export function PrecoDoAgente({ agentId, config, readOnly }: Props) {
           <div className="flex flex-col gap-1">
             <Label htmlFor="preco-nome-da-chave">{t("Nome de quem recebe, como aparece no banco")}</Label>
             <Input id="preco-nome-da-chave" value={form.nomeDaChavePix} onChange={(e) => patch({ nomeDaChavePix: e.target.value })} disabled={readOnly} />
+          </div>
+        </div>
+        <div className="flex items-start gap-3">
+          <Switch
+            id="preco-chave-principal"
+            checked={form.chavePixPrincipal === true}
+            onCheckedChange={(v) => patch({ chavePixPrincipal: v })}
+            disabled={readOnly}
+          />
+          <div className="space-y-0.5">
+            <Label htmlFor="preco-chave-principal">{t("Usar esta chave como forma principal de receber")}</Label>
+            <p className="max-w-2xl text-sm text-muted-foreground">
+              {t("Todo Pix em reais sai por esta chave e o link de cartão deixa de ser enviado. Cada venda precisa do comprovante conferido e de Registrar pagamento para a entrega começar.")}
+            </p>
           </div>
         </div>
       </Card>

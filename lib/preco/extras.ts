@@ -22,7 +22,7 @@
 import type { Extra, PricingConfig } from "./tipos";
 import { reais } from "./tipos";
 import { comoEntregarRelatorio } from "./relatorio-pronto";
-import { instrucaoDoPixCopiaECola, linhaDoLinkDePagamento } from "@/lib/pagamentos/como-pagar-pix";
+import { instrucaoDoPixCopiaECola, linhaDoLinkDePagamento, PEDIDO_DO_COMPROVANTE } from "@/lib/pagamentos/como-pagar-pix";
 
 /** "Pergunta nova" → "pergunta-nova": é o que vai na marca, nos metadados da cobrança e no registro da receita. */
 export function slugDoExtra(nome: string): string {
@@ -132,6 +132,8 @@ export function corpoComPixDoExtra(
   copiaECola: string | null,
   /** Link de cartão do mesmo valor, para quem não tem saldo no Pix. Ausente = só o Pix. */
   linkDoCartao?: string | null,
+  /** Quem recebe, quando o código é da chave da empresa: o banco mostra esse nome, e a confirmação pede comprovante. */
+  titularDaChave?: string | null,
 ): string {
   const baloes = corpo.split(/\n{2,}/);
   const i = baloes.findIndex((b) => b.includes(marca.texto));
@@ -150,9 +152,10 @@ export function corpoComPixDoExtra(
         quantidade > 1
           ? `${reais(valorDaCobranca(marca.extra, quantidade))} (${descricaoDaCobranca(marca.extra, quantidade)})`
           : reais(marca.extra.price_cents),
-        "o nome da empresa de pagamentos",
+        titularDaChave ?? "o nome da empresa de pagamentos",
       ),
       copiaECola,
+      ...(titularDaChave ? [PEDIDO_DO_COMPROVANTE] : []),
     );
   }
   if (linkDoCartao) {

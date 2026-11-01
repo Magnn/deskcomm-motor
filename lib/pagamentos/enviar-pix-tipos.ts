@@ -3,7 +3,7 @@
  * Sem dependência de servidor: o diálogo (navegador) e a rota usam a mesma régua.
  */
 import { z } from "zod";
-import { instrucaoDoPixCopiaECola } from "@/lib/pagamentos/como-pagar-pix";
+import { instrucaoDoPixCopiaECola, PEDIDO_DO_COMPROVANTE } from "@/lib/pagamentos/como-pagar-pix";
 
 export const enviarPixSchema = z.strictObject({
   /** Em centavos. De R$ 1,00 a R$ 100.000,00. */
@@ -26,9 +26,10 @@ const reais = (cents: number): string => `R$ ${(cents / 100).toFixed(2).replace(
  * As duas mensagens que a pessoa recebe: a instrução (com o valor e o nome que aparece no banco) e o código
  * sozinho, para copiar com um toque. Pura.
  */
-export function mensagensDoPix(valorCents: number, copiaECola: string): [string, string] {
+export function mensagensDoPix(valorCents: number, copiaECola: string, titularDaChave?: string | null): string[] {
   return [
-    instrucaoDoPixCopiaECola(reais(valorCents), "o nome da empresa de pagamentos"),
+    instrucaoDoPixCopiaECola(reais(valorCents), titularDaChave ?? "o nome da empresa de pagamentos"),
     copiaECola,
+    ...(titularDaChave ? [PEDIDO_DO_COMPROVANTE] : []),
   ];
 }
