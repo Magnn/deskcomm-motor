@@ -14,6 +14,7 @@ import { NextRequest } from "next/server";
 import { sendMessageHandler } from "@/app/api/v1/messages/_handler";
 import { audit } from "@/lib/audit";
 import { requireRole } from "@/lib/auth/require-role";
+import { chavePrincipalDaOrganizacao } from "@/lib/pagamentos/chave-principal-da-organizacao";
 import { lerConexaoStripe } from "@/lib/pagamentos/conexao-stripe";
 import { mensagensDoPix } from "@/lib/pagamentos/enviar-pix-tipos";
 import { criarClienteStripe } from "@/lib/pagamentos/stripe";
@@ -26,6 +27,7 @@ vi.mock("@/lib/audit", () => ({ audit: vi.fn(async () => undefined) }));
 vi.mock("@/lib/impersonate/support", () => ({ requireSupportWrite: vi.fn(async () => null) }));
 vi.mock("@/app/api/v1/messages/_handler", () => ({ sendMessageHandler: vi.fn(async () => ({ id: "m" })) }));
 vi.mock("@/lib/pagamentos/conexao-stripe", () => ({ lerConexaoStripe: vi.fn() }));
+vi.mock("@/lib/pagamentos/chave-principal-da-organizacao", () => ({ chavePrincipalDaOrganizacao: vi.fn(async () => null) }));
 vi.mock("@/lib/pagamentos/stripe", async (original) => ({
   ...(await original<typeof import("@/lib/pagamentos/stripe")>()),
   criarClienteStripe: vi.fn(),
@@ -93,6 +95,20 @@ describe("POST /conversations/[id]/pix", () => {
     conversa(null);
     expect((await pedido({ valor_cents: 5000, produto: "X" })).status).toBe(404);
     expect(criarPix).not.toHaveBeenCalled();
+  });
+
+  it("com a chave principal, o Pix sai por ela e a Stripe não é chamada", async () => {
+    vi.mocked(chavePrincipalDaOrganizacao).mockResolvedValueOnce({ key: "+5569900000000", holder: "Fulano de Tal", primary: true });
+
+    const res = await pedido({ valor_cents: 5000, produto: "Abertura do Coração" });
+
+    expect(res.status).toBe(200);
+    expect(criarPix).not.toHaveBeenCalled();
+    const corpos = vi.mocked(sendMessageHandler).mock.calls.map((c) => (c[2] as { body: string }).body);
+    expect(corpos).toHaveLength(3);
+    expect(corpos[0]).toContain("Fulano de Tal");
+    expect(corpos[1]).toContain("+5569900000000");
+    expect(corpos[2]).toContain("comprovante");
   });
 
   it("a Stripe recusou: 502 com mensagem, e nenhuma mensagem sai para a pessoa", async () => {
