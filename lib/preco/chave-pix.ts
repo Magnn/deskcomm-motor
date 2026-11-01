@@ -109,7 +109,7 @@ export function pixPelaChaveNoLugarDaMarca(e: {
 export function blocoDaChavePix(chave: ChavePixDaEmpresa | null | undefined, valoresPermitidosCents: readonly number[]): string {
   const valores = [...new Set(valoresPermitidosCents)].sort((a, b) => b - a);
   if (!chave || valores.length === 0) return "";
-  const confirmacao = `- O pagamento pela chave NÃO confirma sozinho. Quando ela mandar o comprovante, diga em um balão que a equipe está conferindo e que você avisa assim que confirmar, e chame o atendimento humano com o motivo "Pix pela chave: conferir o comprovante e registrar o pagamento". NÃO entregue nada e NÃO diga que o pagamento caiu antes de o sistema confirmar.`;
+  const confirmacao = `- O pagamento pela chave NÃO confirma sozinho: quem confere é o sistema, lendo o comprovante, e o resultado aparece neste bloco (PAGAMENTO CONFIRMADO, COMPROVANTE LIDO ou COMPROVANTE NÃO CONFERE). Se ela disser que pagou sem mandar a imagem, peça o comprovante. Se mandou e nada disso apareceu, diga em um balão que a equipe está conferindo e que você avisa assim que confirmar, e chame o atendimento humano com o motivo "Pix pela chave: conferir o comprovante e registrar o pagamento". NÃO entregue nada e NÃO diga que o pagamento caiu antes de o sistema confirmar.`;
   if (chave.primary === true) {
     return [
       "",

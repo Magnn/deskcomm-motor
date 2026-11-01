@@ -29,6 +29,10 @@ export const pagamentoRecebidoSchema = z.strictObject({
   iniciar_entrega: z.boolean().default(false),
   /** A pessoa viu o aviso de pagamento parecido e confirmou que é outro. */
   confirmar_repetido: z.boolean().default(false),
+  /** Cobrança avulsa (`SugestaoDePagamento.extra`): não é a compra do produto principal, e a agente faz a entrega. */
+  extra: z.string().regex(/^[a-z0-9-]{1,60}$/).optional(),
+  /** Unidades pagas da cobrança avulsa, de 2 a 10. */
+  quantidade: z.number().int().min(2).max(10).optional(),
 });
 export type PagamentoRecebido = z.infer<typeof pagamentoRecebidoSchema>;
 
@@ -46,4 +50,6 @@ export interface SugestaoDePagamento {
   valor_cents: number;
   /** Cobrança avulsa (`pricing.extras`): o slug que a cobrança leva, para o pagamento abrir a mesa sozinho. */
   extra?: string;
+  /** Unidades, quando a cobrança avulsa tem preço por quantidade. */
+  quantidade?: number;
 }

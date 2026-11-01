@@ -27,11 +27,14 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { lerCatalogo } from "@/lib/catalogo/tipos";
 import { emitLeadActivity } from "@/lib/leads/activity-emitter";
+import { reportarCompraAvulsa } from "@/lib/conversoes/compra-avulsa";
+import { logger } from "@/lib/logger";
 import { extrasDaConfig, slugDoExtra } from "@/lib/preco/extras";
 import { lerPricing } from "@/lib/preco/tipos";
 import { slugDoProduto } from "@/lib/preco/pos-venda";
 
 import { depsReais as depsDaCompra, negocioQueRecebeOValor, type DepsDaCompra, type NegocioDoContato } from "./compra-cakto";
+import { pedirTurnoDoPagamento } from "./pedir-turno-do-pagamento";
 import { ROTULO_DO_METODO, type DesfechoDoNegocio, type PagamentoRecebido, type ResultadoDoPagamento, type SugestaoDePagamento } from "./pagamento-recebido-tipos";
 
 export {
@@ -55,7 +58,16 @@ export interface DepsDoPagamento extends Pick<DepsDaCompra, "gravarCompra" | "re
    * Grava o fato de dinheiro no ledger de receita — é dele que o Dashboard e a aba Receita somam.
    * Idempotente pela chave do registro. Falha aqui não desfaz o registro: lança, e quem chama decide.
    */
-  registrarReceita(contatoId: string, receita: { chave: string; valorCentavos: number; produto: string; metodo: string; pagoEm: string }): Promise<void>;
+  registrarReceita(
+    contatoId: string,
+    receita: { chave: string; valorCentavos: number; produto: string; metodo: string; pagoEm: string; extra?: string; quantidade?: number },
+  ): Promise<void>;
+  /** Grava só as marcas do contato: a cobrança avulsa não é a compra do produto principal. */
+  marcarContato(contatoId: string, tags: string[]): Promise<void>;
+  /** Leva a cobrança avulsa à plataforma de anúncio que trouxe o lead. Nunca lança. */
+  reportarAvulsa(contatoId: string, compra: { chave: string; valorCentavos: number; produto: string; pagoEm: string }): Promise<void>;
+  /** Acorda a agente na conversa, para ela entregar a cobrança avulsa paga. Falha aqui não desfaz o registro. */
+  pedirTurnoDaAgente(contatoId: string, conversaId: string): Promise<void>;
   /** A cobrança já no livro que parece ser este mesmo pagamento: mesmo contato, valor próximo, até 2 dias. */
   pagamentoParecido(
     contatoId: string,
@@ -73,9 +85,10 @@ const reaisTexto = (cents: number): string => `R$ ${(cents / 100).toFixed(2).rep
 
 export async function registrarPagamentoRecebido(
   deps: DepsDoPagamento,
-  entrada: { contatoId: string; pagamento: PagamentoRecebido; agora: Date },
+  entrada: { contatoId: string; pagamento: PagamentoRecebido; agora: Date; conversaId?: string; registradoPor?: string },
 ): Promise<ResultadoDoPagamento> {
-  const { contatoId, pagamento, agora } = entrada;
+  const { contatoId, pagamento, agora, conversaId } = entrada;
+  const assinatura = entrada.registradoPor ?? "Registrado pela equipe";
   const contato = await deps.lerContato(contatoId);
   if (contato === null) return { resultado: "contato_nao_encontrado" };
 
@@ -88,6 +101,29 @@ export async function registrarPagamentoRecebido(
   if (!pagamento.confirmar_repetido) {
     const parecido = await deps.pagamentoParecido(contato.id, pagamento.valor_cents, pagoEm);
     if (parecido !== null) return { resultado: "parecido", ...parecido };
+  }
+  // COBRANÇA AVULSA: entra no livro com `extra`, como o aviso da Stripe, e não fecha o negócio nem marca a pessoa como
+  // compradora do produto principal. Sem o `extra`, a pergunta paga pela chave ficava registrada e nunca era entregue:
+  // o turno da agente só enxerga o pagamento por esse campo.
+  if (pagamento.extra) {
+    await deps.marcarContato(contato.id, Array.from(new Set([...contato.tags, marca, `extra:${pagamento.extra}`])));
+    await deps.registrarReceita(contato.id, {
+      chave: pagamento.chave,
+      valorCentavos: pagamento.valor_cents,
+      produto: pagamento.produto,
+      metodo: pagamento.metodo,
+      pagoEm,
+      extra: pagamento.extra,
+      ...(pagamento.quantidade ? { quantidade: pagamento.quantidade } : {}),
+    });
+    await deps.anotar(
+      contato.id,
+      `Pagamento recebido fora do checkout: ${pagamento.produto} (${reaisTexto(pagamento.valor_cents)}, ${ROTULO_DO_METODO[pagamento.metodo]}). ${assinatura}.`,
+    );
+    await deps.reportarAvulsa(contato.id, { chave: pagamento.chave, valorCentavos: pagamento.valor_cents, produto: pagamento.produto, pagoEm });
+    if (conversaId === undefined) return { resultado: "registrado", negocio: "sem_negocio", entrega: "nao_pedida" };
+    await deps.pedirTurnoDaAgente(contato.id, conversaId);
+    return { resultado: "registrado", negocio: "sem_negocio", entrega: "iniciada" };
   }
   await deps.gravarCompra(contato.id, {
     tags: Array.from(new Set([...contato.tags, "pago", `produto:${slugDoProduto(pagamento.produto) || "outro"}`, marca])),
@@ -111,7 +147,7 @@ export async function registrarPagamentoRecebido(
   });
   await deps.anotar(
     contato.id,
-    `Pagamento recebido fora do checkout: ${pagamento.produto} (${reaisTexto(pagamento.valor_cents)}, ${ROTULO_DO_METODO[pagamento.metodo]}). Registrado pela equipe.`,
+    `Pagamento recebido fora do checkout: ${pagamento.produto} (${reaisTexto(pagamento.valor_cents)}, ${ROTULO_DO_METODO[pagamento.metodo]}). ${assinatura}.`,
   );
 
   // Qual negócio é o desta venda — a mesma régua do checkout. Lida ANTES de gravar o valor: é ela
@@ -144,10 +180,10 @@ export async function registrarPagamentoRecebido(
  */
 export function depsReaisDoPagamento(
   admin: SupabaseClient,
-  ctx: { organizationId: string; requestId: string; userId: string; fecharComoGanho: (leadId: string) => Promise<boolean> },
+  ctx: { organizationId: string; requestId: string; userId: string | null; fecharComoGanho: (leadId: string) => Promise<boolean> },
 ): DepsDoPagamento {
   const { organizationId, requestId, userId } = ctx;
-  const daCompra = depsDaCompra(admin, organizationId, requestId, userId);
+  const daCompra = depsDaCompra(admin, organizationId, requestId, userId ?? "comprovante");
   return {
     gravarCompra: daCompra.gravarCompra,
     registrarValorNoNegocio: daCompra.registrarValorNoNegocio,
@@ -173,10 +209,51 @@ export function depsReaisDoPagamento(
         occurred_at: receita.pagoEm,
         contact_id: contatoId,
         created_by_user_id: userId,
-        metadata: { produto: receita.produto, metodo: receita.metodo },
+        metadata: {
+          produto: receita.produto,
+          metodo: receita.metodo,
+          ...(receita.extra ? { extra: receita.extra } : {}),
+          ...(receita.quantidade ? { quantidade: receita.quantidade } : {}),
+        },
       });
       // 23505 = o mesmo registro já está no ledger (reenvio): não é falha.
       if (error && error.code !== "23505") throw new Error(`ledger de receita: ${error.message}`);
+    },
+
+    async marcarContato(contatoId, tags) {
+      const { error } = await admin.from("contacts").update({ tags }).eq("organization_id", organizationId).eq("id", contatoId);
+      if (error) throw new Error(`marcas do contato: ${error.message}`);
+    },
+
+    async reportarAvulsa(contatoId, compra) {
+      const reportada = await reportarCompraAvulsa(admin as never, {
+        organizationId,
+        contactId: contatoId,
+        referencia: `manual-${compra.chave}`,
+        valorCentavos: compra.valorCentavos,
+        moeda: "BRL",
+        ocorridaEm: new Date(compra.pagoEm),
+        produto: compra.produto,
+      });
+      if (reportada.status === "error") {
+        logger.warn("[pagamento-recebido] compra avulsa não foi reportada à plataforma de anúncio", {
+          organization_id: organizationId,
+          request_id: requestId,
+          motivo: reportada.motivo,
+        });
+      }
+    },
+
+    async pedirTurnoDaAgente(contatoId, conversaId) {
+      try {
+        await pedirTurnoDoPagamento(admin, { organizationId, conversaId, contatoId, fonte: "pagamento_de_extra" });
+      } catch (err) {
+        logger.warn("[pagamento-recebido] extra registrado, mas o turno da agente não foi pedido", {
+          organization_id: organizationId,
+          request_id: requestId,
+          motivo: err instanceof Error ? err.message : String(err),
+        });
+      }
     },
 
     async pagamentoParecido(contatoId, valorCentavos, pagoEm) {
@@ -225,7 +302,7 @@ export function depsReaisDoPagamento(
         type: "note",
         sourceModule: "pagamento_recebido",
         sourceId: requestId,
-        actor: { type: "user", id: userId },
+        actor: userId === null ? { type: "webhook_source", id: "comprovante" } : { type: "user", id: userId },
         reason: texto,
       });
     },
@@ -264,6 +341,9 @@ export function sugestoesDePagamento(configs: readonly unknown[]): SugestaoDePag
       const chave = slugDoProduto(nome);
       if (nome === "" || chave === "" || vistos.has(chave)) continue;
       vistos.set(chave, { produto: nome, valor_cents: e.price_cents, extra: slugDoExtra(nome) });
+      for (const q of [...(e.quantity_prices ?? [])].sort((a, b) => a.quantity - b.quantity)) {
+        vistos.set(`${chave}-x${q.quantity}`, { produto: `${q.quantity}× ${nome}`, valor_cents: q.price_cents, extra: slugDoExtra(nome), quantidade: q.quantity });
+      }
     }
   }
   return [...vistos.values()];

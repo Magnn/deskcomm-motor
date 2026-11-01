@@ -106,6 +106,7 @@ import {
 } from '@/lib/preco/extras';
 import { promessaDeReenvioSemCobranca } from '@/lib/preco/promessa-de-reenvio';
 import { recusaDeQuemJaPagou } from '@/lib/preco/pago-mas-cobrando';
+import { comprovanteDoTurno, depsReaisDoComprovante } from '@/lib/pagamentos/comprovante-no-turno';
 import { falasDesdeAUltimaCobranca, quantidadeMenorQueACombinada, valorErradoDeExtra } from '@/lib/preco/valor-do-extra';
 import { destinoDaProva, legendaDaProva, provasParaEnviar } from '@/lib/preco/prova-social';
 import { classificarPerdaDoAtendimento } from '@/lib/resultado/motivo-da-perda-do-agente';
@@ -2641,6 +2642,18 @@ async function executarTurnoDoAgente(
       conversaFalouDeExtra(openingContext.context.messages, extrasDaConfig(agentConfig?.pricing)))
       ? extrasDaConfig(agentConfig?.pricing)
       : [];
+  // O comprovante do Pix pela chave (`lib/pagamentos/comprovante-no-turno.ts`): vem antes da leitura dos pagamentos,
+  // para a cobrança avulsa em ordem já aparecer como paga neste turno.
+  const blocoDoComprovante = preview
+    ? ''
+    : await comprovanteDoTurno(depsReaisDoComprovante(deps.crmCfg.supabase, tenantId), {
+        contactId: leadId,
+        conversationId: input.conversationId,
+        pricing: agentConfig?.pricing,
+        mensagens: openingContext.context.messages,
+        agora: new Date(),
+        log: runLog,
+      });
   let extrasPagosNoTurno: ExtraPago[] = [];
   if (extrasDoTurno.length > 0) {
     try {
@@ -2687,6 +2700,7 @@ async function executarTurnoDoAgente(
   }
   const blocoDosExtrasDoTurno =
     blocoDosExtras(extrasDoTurno, extrasPagosNoTurno) +
+    blocoDoComprovante +
     blocoDoAcompanhamentoIncluso({ comprou: tagsDoContato.includes('pago'), diasDesdeACompra, extras: extrasDoTurno, pagos: extrasPagosNoTurno });
   // O LIMITE DA CONVERSA GRATUITA (`conversa-gratuita.ts`): quem ouviu a oferta, não comprou e não tem nada pago
   // valendo recebe um número de respostas de graça; depois disso, uma resposta curta com os caminhos pagos.

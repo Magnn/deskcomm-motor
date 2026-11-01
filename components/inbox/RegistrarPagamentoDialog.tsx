@@ -88,7 +88,7 @@ export function RegistrarPagamentoDialog({ conversationId, open, onOpenChange }:
   const enviar = () => {
     if (!pronto || cents === null) return;
     registrar.mutate(
-      { conversation_id: conversationId, pagamento: { chave, confirmar_repetido: parecido !== null, produto: produto.trim(), valor_cents: cents, metodo, iniciar_entrega: iniciarEntrega } },
+      { conversation_id: conversationId, pagamento: { chave, confirmar_repetido: parecido !== null, produto: produto.trim(), valor_cents: cents, metodo, iniciar_entrega: iniciarEntrega, ...(sugerido?.extra ? { extra: sugerido.extra } : {}), ...(sugerido?.quantidade ? { quantidade: sugerido.quantidade } : {}) } },
       {
         onSuccess: (r) => {
           if (r.resultado === "parecido") {
