@@ -90,6 +90,8 @@ export interface PedidoDeLink {
   metadados: Record<string, string>;
   /** O que a pessoa lê na página da Stripe depois de pagar. */
   mensagemDepoisDePagar: string;
+  /** Só cartão: a página não oferece Pix. Usado quando o Pix da empresa cai pela chave, e não aqui. */
+  soCartao?: boolean;
 }
 
 export interface LinkCriado {
@@ -307,6 +309,7 @@ export function criarClienteStripe(cred: CredencialStripe, opts: { fetch?: Fetch
         "after_completion[hosted_confirmation][custom_message]": pedido.mensagemDepoisDePagar.slice(0, 500),
         "payment_intent_data[description]": pedido.descricao.slice(0, 200),
       };
+      if (pedido.soCartao) campos["payment_method_types[0]"] = "card";
       // A taxa configurada é em reais. Nunca reinterpretar 99 centavos como US$ 0,99 ou € 0,99.
       // Até existir regra explícita de conversão, links em outras moedas não levam taxa da plataforma.
       const taxaDoLink = pedido.moeda.toUpperCase() === "BRL" ? taxaDaPlataforma(cred, pedido.valorCentavos) : null;

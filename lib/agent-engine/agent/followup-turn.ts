@@ -1368,7 +1368,27 @@ async function sendConteudoSequence(
       const codigo = codigoDaChave(principal, valorCentavos, conversationId);
       if (codigo === null) throw new Error('cobranca_sem_conexao: a chave Pix principal não gera código');
       runLog.info('cobrança por pessoa pela chave principal', { valor_centavos: valorCentavos });
-      return { copiaECola: codigo, qrCodeUrl: null, urlDoCartao: null, titularDaChave: principal.holder };
+      // O cartão é um extra da mensagem: se não sair, o Pix da chave vai sozinho.
+      const conexaoDoCartao = await lerConexaoStripe(createAdminClient(), tenantId).catch(() => null);
+      const pc = job.payload as { followup_enrollment_id?: string; node_id?: string };
+      const descricaoDoCartao = produto ?? 'Pagamento';
+      const cartao = conexaoDoCartao === null
+        ? null
+        : await criarClienteStripe(conexaoDoCartao)
+            .criarLinkDePagamento({
+              valorCentavos,
+              moeda: 'BRL',
+              descricao: descricaoDoCartao,
+              referencia: `fluxo-${pc.followup_enrollment_id ?? job.id}-${pc.node_id ?? 'conteudo'}-${ordem}-${valorCentavos}-so-cartao`,
+              metadados: { organization_id: tenantId, contact_id: leadId, conversation_id: conversationId, produto: descricaoDoCartao },
+              mensagemDepoisDePagar: 'Pagamento recebido. Pode voltar à conversa: a entrega continua por lá.',
+              soCartao: true,
+            })
+            .catch((err: unknown) => {
+              runLog.warn('cobrança do fluxo: o link de cartão não saiu', { error: (err instanceof Error ? err.message : String(err)).slice(0, 160) });
+              return null;
+            });
+      return { copiaECola: codigo, qrCodeUrl: null, urlDoCartao: cartao?.url ?? null, titularDaChave: principal.holder };
     }
     const conexao = await lerConexaoStripe(createAdminClient(), tenantId);
     if (conexao === null) throw new Error('cobranca_sem_conexao: nenhum provedor de pagamento conectado para a marca [[COBRAR]]');

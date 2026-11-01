@@ -48,22 +48,41 @@ describe("chave Pix como forma principal", () => {
     expect(codigo).toContain("FULANO DE TAL");
   });
 
-  it("a venda sai pela chave, sem provedor e sem cartão", async () => {
-    const pricing = {
+  const pricingComLink = () => ({
       enabled: true,
       list_price_cents: 6000,
       steps: [],
       pix_key: CHAVE,
       list_product_links: [{ name: "Abertura", url: "https://pay.exemplo.com/abc" }],
-    } as unknown as PricingConfig;
-    const saida = await cobrancaPeloProvedorNoLugarDoLink({ ...base, pricing, corpo: "Segue:\n\nhttps://pay.exemplo.com/abc" });
+  }) as unknown as PricingConfig;
+
+  it("o Pix sai pela chave e o cartão por um link só de cartão do provedor", async () => {
+    const criarLink = vi.fn(async () => ({ id: "plink", url: "https://buy.exemplo.com/cartao" }));
+    const saida = await cobrancaPeloProvedorNoLugarDoLink({
+      ...base,
+      lerConexao: (async () => ({ id: "c" })) as never,
+      criarLink: criarLink as never,
+      supabase: { from: () => { throw new Error("sem histórico"); } } as never,
+      pricing: pricingComLink(),
+      corpo: "Segue:\n\nhttps://pay.exemplo.com/abc",
+    });
+    expect("corpo" in saida).toBe(true);
+    if (!("corpo" in saida)) return;
+    expect(saida.corpo).toMatch(/(^|\n)000201/);
+    expect(saida.corpo).toContain("https://buy.exemplo.com/cartao");
+    expect(saida.corpo).not.toContain("pay.exemplo.com");
+    expect(criarLink).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ soCartao: true, valorCentavos: 6000 }));
+  });
+
+  it("sem o link do provedor, o cartão vai pelo link cadastrado (Cakto) e o Pix continua pela chave", async () => {
+    const saida = await cobrancaPeloProvedorNoLugarDoLink({ ...base, pricing: pricingComLink(), corpo: "Segue:\n\nhttps://pay.exemplo.com/abc" });
     expect("corpo" in saida).toBe(true);
     if (!("corpo" in saida)) return;
     expect(saida.corpo).toContain("Fulano de Tal");
     expect(saida.corpo).toMatch(/(^|\n)000201/);
     expect(saida.corpo).toContain("comprovante");
-    expect(saida.corpo).not.toContain("pay.exemplo.com");
-    expect(saida.corpo).not.toContain("cartão");
+    expect(saida.corpo).toContain("cartão, é por este link: https://pay.exemplo.com/abc");
+    expect(saida.corpo.indexOf("000201")).toBeLessThan(saida.corpo.indexOf("https://pay.exemplo.com/abc"));
   });
 
   it("entrada, restante e avulsa saem pela chave", async () => {
