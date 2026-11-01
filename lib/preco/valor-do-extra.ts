@@ -20,7 +20,7 @@
  *
  * Pura.
  */
-import { marcaDeExtraNoCorpo } from "./extras";
+import { marcaDeExtraNoCorpo, temPrecoPorQuantidade, totaisDoExtra, valorDaCobranca } from "./extras";
 import type { Extra } from "./tipos";
 import { reais } from "./tipos";
 
@@ -28,7 +28,7 @@ import { reais } from "./tipos";
 const PALAVRAS_GENERICAS = new Set(["nova", "novo", "novas", "novos", "mes", "unica", "unico", "extra", "avulsa", "avulso"]);
 /** Quem fala do trabalho principal está comparando, não cobrando a avulsa. */
 const PRODUTO_PRINCIPAL = /\btrabalh\w*/i;
-/** Até quantas unidades um múltiplo é aceito ("as três por R$ 15"). */
+/** Até quantas unidades uma quantidade dita é lida ("as três por R$ 15"). */
 const MAX_UNIDADES = 10;
 
 function semAcento(s: string): string {
@@ -117,22 +117,22 @@ export function valorErradoDeExtra(
       const palavras = palavrasDoExtra(extra.name).filter((p) => !palavrasDoPrincipal.has(p));
       if (palavras.length === 0 || !palavras.some((p) => new RegExp(`\\b${p}`).test(normalizada))) continue;
       const ditas = palavras.flatMap((p) => quantidadesDitas(frase, p));
-      // Disse QUANTAS: o valor é o unitário ou exatamente aquela quantidade × o unitário.
-      if (ditas.length > 0) {
-        const aceitos = new Set([extra.price_cents, ...ditas.map((n) => n * extra.price_cents)]);
+      // Lista as opções da tabela ("2 por R$ 10, 3 por R$ 15"): cada valor tem de ser um total da tabela.
+      const listaOpcoes = temPrecoPorQuantidade(extra) && valores.length > 1;
+      // Disse QUANTAS: o valor é o unitário ou exatamente o total daquela quantidade.
+      if (ditas.length > 0 && !listaOpcoes) {
+        const aceitos = new Set([extra.price_cents, ...ditas.map((n) => valorDaCobranca(extra, n))]);
         const fora = valores.find((v) => !aceitos.has(v));
         if (fora !== undefined) return contaErrada(extra, ditas[0]!, fora);
         continue;
       }
-      const errado = valores.find((v) => {
-        const unidades = v / extra.price_cents;
-        return !(Number.isInteger(unidades) && unidades >= 1 && unidades <= MAX_UNIDADES);
-      });
+      const totais = new Set(totaisDoExtra(extra));
+      const errado = valores.find((v) => !totais.has(v));
       if (errado !== undefined) {
         return (
           `O valor de *${extra.name}* é ${reais(extra.price_cents)} — é o valor desta cobrança, não o do trabalho principal. ` +
           `A sua mensagem diz ${reais(errado)}. Reescreva dizendo ${reais(extra.price_cents)} por ${extra.name.toLowerCase()} ` +
-          `(ou um múltiplo exato, para mais de uma) e NÃO "corrija" o valor depois: o valor do Pix é o certo.`
+          `(${temPrecoPorQuantidade(extra) ? "ou o total da tabela" : "ou um múltiplo exato"}, para mais de uma) e NÃO "corrija" o valor depois: o valor do Pix é o certo.`
         );
       }
     }
@@ -141,10 +141,14 @@ export function valorErradoDeExtra(
 }
 
 function contaErrada(extra: Extra, quantidade: number, dito: number): string {
+  const total = reais(valorDaCobranca(extra, quantidade));
+  if (temPrecoPorQuantidade(extra)) {
+    return `A conta está errada: ${quantidade} de ${extra.name.toLowerCase()} custa ${total} pela tabela, e a sua mensagem diz ${reais(dito)}. Reescreva com ${total}.`;
+  }
   return (
-    `A conta está errada: ${quantidade} × ${reais(extra.price_cents)} (${extra.name.toLowerCase()}) = ${reais(quantidade * extra.price_cents)}, ` +
+    `A conta está errada: ${quantidade} × ${reais(extra.price_cents)} (${extra.name.toLowerCase()}) = ${total}, ` +
     `e a sua mensagem diz ${reais(dito)}. Não existe valor de pacote nem desconto: o total é sempre a quantidade × o valor. ` +
-    `Reescreva com ${reais(quantidade * extra.price_cents)}.`
+    `Reescreva com ${total}.`
   );
 }
 
@@ -154,22 +158,27 @@ function contaErrada(extra: Extra, quantidade: number, dito: number): string {
  */
 function contaDaMarcaErrada(corpo: string, extra: Extra, quantidade: number): string | null {
   const palavras = palavrasDoExtra(extra.name);
-  const total = quantidade * extra.price_cents;
+  const total = valorDaCobranca(extra, quantidade);
+  const comTabela = temPrecoPorQuantidade(extra);
+  const totais = new Set(totaisDoExtra(extra));
   for (const frase of frases(corpo)) {
     if (PRODUTO_PRINCIPAL.test(frase)) continue;
     const normalizada = semAcento(frase);
     const citaACobranca = palavras.some((p) => new RegExp(`\\b${p}`).test(normalizada));
-    if (citaACobranca) {
+    const ditos = valoresDitos(frase);
+    // Frase com preço, numa cobrança com tabela, pode estar só mostrando as opções.
+    if (citaACobranca && !(comTabela && ditos.length > 0)) {
       const outra = palavras.flatMap((p) => quantidadesDitas(frase, p)).find((n) => n > 1 && n !== quantidade);
       if (outra !== undefined) {
         return (
           `Você combinou ${outra} ${extra.name.toLowerCase()}, mas a marca cobra ${quantidade}. ` +
-          `Use ${"[[PIX: " + extra.name + " x" + outra + "]]"} — ${reais(outra * extra.price_cents)} no total.`
+          `Use ${"[[PIX: " + extra.name + " x" + outra + "]]"} — ${reais(valorDaCobranca(extra, outra))} no total.`
         );
       }
     }
     if (!citaACobranca && !FALA_DO_CONJUNTO.test(normalizada)) continue;
-    const fora = valoresDitos(frase).find((v) => v !== extra.price_cents && v !== total);
+    const listaOpcoes = comTabela && ditos.length > 1;
+    const fora = ditos.find((v) => (listaOpcoes ? !totais.has(v) : v !== extra.price_cents && v !== total));
     if (fora !== undefined) return contaErrada(extra, quantidade, fora);
   }
   return null;
@@ -215,12 +224,21 @@ export function quantidadeMenorQueACombinada(corpo: string, extras: readonly Ext
   const desteTurno = [...conversa.slice(ultimaDela + 1).map((f) => f.body), corpo];
   if (desteTurno.some((texto) => COBRA_MENOS_DE_PROPOSITO.test(semAcento(texto)))) return null;
   const palavras = palavrasDoExtra(marca.extra.name);
-  const combinada = Math.max(0, ...[...conversa.map((f) => f.body), corpo].flatMap((texto) => palavras.flatMap((p) => quantidadesDitas(texto, p))));
+  const comTabela = temPrecoPorQuantidade(marca.extra);
+  // Com tabela, a frase que diz preço está oferecendo as opções ("4 perguntas por R$ 17"), não combinando a quantidade.
+  const semOfertaDePreco = (texto: string) => (comTabela ? frases(texto).filter((f) => valoresDitos(f).length === 0).join("\n") : texto);
+  const combinada = Math.max(
+    0,
+    ...[...conversa.map((f) => f.body), corpo].flatMap((texto) => palavras.flatMap((p) => quantidadesDitas(semOfertaDePreco(texto), p))),
+  );
   if (combinada <= marca.quantidade) return null;
   const nome = marca.extra.name;
+  const total = reais(valorDaCobranca(marca.extra, combinada));
   return (
-    `A conversa combinou ${combinada} ${nome.toLowerCase()}, e cada uma é ${reais(marca.extra.price_cents)}: ` +
-    `o total é ${combinada} × ${reais(marca.extra.price_cents)} = ${reais(combinada * marca.extra.price_cents)}, mas a marca cobra ${marca.quantidade}. ` +
+    (comTabela
+      ? `A conversa combinou ${combinada} ${nome.toLowerCase()}: o total da tabela é ${total}, mas a marca cobra ${marca.quantidade}. `
+      : `A conversa combinou ${combinada} ${nome.toLowerCase()}, e cada uma é ${reais(marca.extra.price_cents)}: ` +
+        `o total é ${combinada} × ${reais(marca.extra.price_cents)} = ${total}, mas a marca cobra ${marca.quantidade}. `) +
     `Reescreva dizendo o total e use [[PIX: ${nome} x${combinada}]]. ` +
     `Só cobre menos se a pessoa escolheu pagar uma agora — e então diga isso na resposta ("cobro só uma agora").`
   );
