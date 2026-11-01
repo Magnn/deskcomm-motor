@@ -64,7 +64,9 @@ export const RECLAMACAO_DE_VALOR = new RegExp(
     "(?:vai\\s+)?ficar\\s+pr[ao]\\s+depois\\b",
 
     "\\bsem\\s+(?:dinheiro|condi[çc][ãa]o|condi[çc][õo]es|grana)\\b",
-    "\\b(?:pre[çc]o|valor)\\s+(?:t[áa]\\s+)?alto\\b",
+    // Medido em 01/11/2026: "Valor está alto" e "o valor é muito alto pra mim" não contavam, e a negociação não começava.
+    "\\b(?:pre[çc]o|valor)\\s+(?:(?:t[áa]|est[áa]|[ée]|ficou)\\s+)?(?:(?:muito|bem|meio|mt|mto|um\\s+pouco)\\s+)?(?:alto|salgado|puxado|pesado)\\b",
+    "\\b(?:t[áa]|est[áa]|ficou)\\s+(?:(?:muito|bem|meio|mt|mto|um\\s+pouco)\\s+)?(?:alto|salgado|puxado)\\b",
     "fora\\s+do\\s+(?:meu\\s+)?or[çc]amento",
     "\\bpromo[çc][ãa]o\\b",
     "\\bcupom\\b",
@@ -334,7 +336,7 @@ const NEGADO = /(?:n[ãa]o|nem|sem)\s+(?:\S+\s+){0,2}$/i;
  * de verdade pra você?", a cliente respondeu só "80", e nada reconheceu o valor — a agente defendeu os R$ 130 e
  * ofereceu uma pergunta de R$ 5; o dono fechou a entrada de 80 à mão. Só vale logo depois de a agente perguntar o valor.
  */
-const SO_O_NUMERO = /^\s*(?:R\$\s?)?(\d{2,3})(?:[.,]\d{2})?\s*(?:reais)?\s*[.!]?\s*$/i;
+const SO_O_NUMERO = /^\s*(?:(?:uns|s[óo]|apenas|hoje|agora)\s+)?(?:R\$\s?)?(\d{2,3})(?:[.,]\d{2})?\s*(?:reais)?\s*(?:hoje|agora|s[óo])?\s*[.!]?\s*$/i;
 const PERGUNTOU_QUANTO =
   /\bquanto\s+(?:(?:que\s+)?(?:caberia|cabe|daria|d[áa]|consegue|conseguiria|pode|poderia|tem)|voc[êe]\s+(?:tem|consegue|conseguiria|pode|poderia))\b/i;
 
@@ -363,8 +365,9 @@ export function valorQueAPessoaTem(mensagens: readonly MensagemParaContar[]): nu
       achado = Number(numero) * 100;
     }
     if (achado === null && SO_O_NUMERO.test(corpo)) {
-      const fala = msgs.slice(0, i).reverse().find((x) => x.direction === "outbound");
-      if (fala && PERGUNTOU_QUANTO.test(fala.body ?? "")) achado = Number(SO_O_NUMERO.exec(corpo)![1]) * 100;
+      // A pergunta pode ter saído em balões separados.
+      const falas = msgs.slice(0, i).filter((x) => x.direction === "outbound").slice(-3).map((x) => x.body ?? "").join("\n");
+      if (PERGUNTOU_QUANTO.test(falas)) achado = Number(SO_O_NUMERO.exec(corpo)![1]) * 100;
     }
     if (achado !== null) return achado;
   }
@@ -642,7 +645,11 @@ export function entradaImediata(
   if (minimo === undefined) return null;
   const piso = menorDegrau ?? minimo;
   let dito = leitura.atual;
-  if (dito === null || dito < piso) {
+  // Ela respondeu a "quanto você consegue hoje? o restante a gente acerta depois": segurar o menor valor agora seria
+  // desdizer a pergunta. Decisão do dono em 01/11/2026.
+  const falas = msgs.filter((m) => m.direction === "outbound").slice(-3).map((m) => m.body ?? "").join("\n");
+  const respondeuAPerguntaDaEntrada = dito !== null && PERGUNTOU_QUANTO.test(falas) && /\brestante\b/i.test(falas);
+  if (!respondeuAPerguntaDaEntrada && (dito === null || dito < piso)) {
     // ABAIXO DO MENOR VALOR: a primeira vez não é entrada — a agente segura o menor valor e pergunta se ela
     // consegue completar (medido em 12/10: quem disse 30 voltou com 50 e pagou). Só quando ela volta dizendo que
     // não consegue, ou repete um valor baixo, é que o valor dela vira entrada e o restante fica para depois.
@@ -653,7 +660,7 @@ export function entradaImediata(
       dito = jaSegurou;
     }
   }
-  if (dito < minimo || dito >= c.list_price_cents) return null;
+  if (dito === null || dito < minimo || dito >= c.list_price_cents) return null;
   return { entradaCents: dito, restanteCents: c.list_price_cents - dito };
 }
 
@@ -667,24 +674,24 @@ const NAO_CONSEGUE_MAIS =
  */
 function rodadasDeValor(msgs: readonly MensagemParaContar[], primeiroPreco: number) {
   const rodadas: MensagemParaContar[][] = [];
-  /** A última fala da agente antes de cada rodada: é ela que diz se um número sozinho responde "quanto você tem". */
-  const falaAntes: MensagemParaContar[] = [];
+  /** As últimas falas da agente antes de cada rodada: são elas que dizem se um número sozinho responde "quanto você tem". */
+  const falaAntes: MensagemParaContar[][] = [];
   let aberta: MensagemParaContar[] | null = null;
-  let ultimaFala = msgs[primeiroPreco]!;
+  let ultimasFalas: MensagemParaContar[] = [msgs[primeiroPreco]!];
   for (const m of msgs.slice(primeiroPreco + 1)) {
     if (m.direction === "inbound") {
       if (aberta === null) {
         rodadas.push((aberta = []));
-        falaAntes.push(ultimaFala);
+        falaAntes.push(ultimasFalas);
       }
       aberta.push(m);
     } else if (m.direction === "outbound") {
       aberta = null;
-      ultimaFala = m;
+      ultimasFalas = [...ultimasFalas, m].slice(-3);
     }
   }
   if (aberta === null || rodadas.length === 0) return null;
-  const valorDa = (i: number) => valorQueAPessoaTem([msgs[primeiroPreco]!, falaAntes[i]!, ...rodadas[i]!]);
+  const valorDa = (i: number) => valorQueAPessoaTem([msgs[primeiroPreco]!, ...falaAntes[i]!, ...rodadas[i]!]);
   const atual = rodadas[rodadas.length - 1]!;
   return {
     atual: valorDa(rodadas.length - 1),

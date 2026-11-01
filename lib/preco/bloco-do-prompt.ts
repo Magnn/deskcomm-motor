@@ -201,6 +201,14 @@ function instrucaoDeNegociacao(
   const i = degrauDoTurno(c, reclamacoes, valorQueTemCents);
   const degrau = c.steps[i];
   if (degrau === undefined) {
+    // Quem aceita entrada pergunta quanto ela pode hoje antes de qualquer desconto: o valor da venda não muda. Decisão
+    // do dono em 01/11/2026: "Valor está alto" ouviu cartão e parcelas, e a conversa acabou sem número nenhum.
+    if (c.min_down_payment_cents !== undefined) {
+      return [
+        `- NEGOCIAÇÃO: ela disse que o valor não cabe. Nesta resposta NÃO baixe, NÃO fale de valor menor e NÃO fale de cartão nem de parcelas: mantenha ${venda} e pergunte quanto ela consegue pagar hoje. Molde, em UM balão só: "Entendo, [nome]. Você não precisa pagar tudo hoje. Quanto você consegue hoje? O restante a gente acerta depois." Termine nessa pergunta. Se ela disser um valor, o sistema fecha a entrada no próximo turno. Se ela disser de novo que não cabe, esta instrução muda no próximo turno.`,
+        "- Se ela disser que falta para o essencial (comida, remédio, aluguel, conta atrasada), NÃO insista em valor nenhum: acolha, e diga que a porta fica aberta quando ela puder.",
+      ].join("\n");
+    }
     // A DEFESA. Não é repetir o preço: é mostrar que ele cabe do jeito que o roteiro permite pagar.
     // Medido em 08/10/2026: três de quatro pessoas que reclamaram e compraram pagaram o valor
     // cheio depois de ouvir o parcelamento no cartão ou o Pix pelo link.

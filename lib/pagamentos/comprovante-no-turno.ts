@@ -18,7 +18,7 @@ import type { PricingConfig } from "@/lib/preco/tipos";
 import {
   blocoDaConferencia,
   cobrancasEnviadas,
-  conferirComprovante,
+  conferirComprovante, entradasCombinadas,
   produtoCitado,
   textoDaMidia,
   type FalaDaConversa,
@@ -108,6 +108,7 @@ export async function comprovanteDoTurno(
       cobrancas: cobrancasEnviadas(e.mensagens),
       extras: extrasDaConfig(e.pricing),
       valoresDoPrincipal,
+      entradas: entradasCombinadas(e.mensagens),
       outrosProdutos: sugestoesDePagamento([e.config ?? { pricing: e.pricing }]).filter((s) => s.extra === undefined && !valoresDoPrincipal.includes(s.valor_cents)),
       agora: e.agora,
     });
