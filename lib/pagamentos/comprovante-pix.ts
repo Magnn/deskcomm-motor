@@ -5,14 +5,15 @@
  * paga e pode trazer texto escrito para enganar a IA. O modelo de visão só transcreve; a regra lê a transcrição e compara
  * com a cobrança que nós mesmos mandamos na conversa.
  *
- * O que é conferido:
- *   • o valor é o de uma cobrança enviada nesta conversa;
+ * O que é conferido, e tudo tem de bater. Qualquer dúvida para e chama a equipe:
+ *   • o valor é o de uma cobrança enviada nesta conversa, e é o único valor do comprovante;
  *   • o comprovante cita quem recebe (nome ou final da chave);
- *   • tem o ID da transação do Pix (E2E, 32 caracteres), cuja data é posterior à cobrança e recente.
- * O ID repetido é barrado por quem grava, pelo índice único do livro de receita (`comprovante-no-turno.ts`).
+ *   • tem o ID da transação do Pix (E2E, 32 caracteres), cuja data é posterior à cobrança e recente;
+ *   • a data e a hora impressas combinam com a data do ID (o ID vem em UTC, a hora impressa no fuso do banco).
+ * O ID já usado, pelo mesmo lead ou por outro, é barrado por quem grava (`comprovante-no-turno.ts`).
  *
- * ⚠️ NADA aqui vê a conta do banco. Comprovante bem forjado passa. Por isso a cobrança avulsa, de valor baixo, libera
- * sozinha, e o produto principal segue para uma pessoa confirmar no extrato.
+ * ⚠️ NADA aqui vê a conta do banco. Decisão do dono em 01/11/2026: com tudo batendo, vale como pago, entra no faturamento
+ * e vai à Meta. Um comprovante falsificado com perfeição passa, e o extrato é a conferência final.
  *
  * Pura.
  */
@@ -31,6 +32,9 @@ const FALA_DE_COMPROVANTE = /comprovante|pix (?:enviado|realizado|efetuado|feito
 const VALIDADE_DA_COBRANCA_MS = 72 * 60 * 60 * 1000;
 /** Folga para relógio de banco: o pagamento pode constar minutos antes da nossa mensagem ser gravada. */
 const FOLGA_MS = 10 * 60 * 1000;
+/** O ID vem em UTC e a hora impressa no fuso do banco: no Brasil, de 2 a 5 horas atrás. */
+const MAIOR_FUSO_MS = 5 * 60 * 60 * 1000;
+const MESES: Record<string, number> = { jan: 1, fev: 2, mar: 3, abr: 4, mai: 5, jun: 6, jul: 7, ago: 8, set: 9, out: 10, nov: 11, dez: 12 };
 
 export interface FalaDaConversa {
   direction: "inbound" | "outbound";
@@ -44,6 +48,15 @@ export interface CobrancaEnviada {
   quantidade: number;
   nome: string | null;
   enviadaEm: Date;
+}
+
+/** A data e a hora impressas, lidas como se fossem UTC: "01/11/2026 às 12:10" ou "01 NOV 2026 - 12:10:05". */
+export function dataImpressa(texto: string): Date | null {
+  const numerica = texto.match(/\b(\d{2})\/(\d{2})\/(\d{4})\D{1,8}(\d{2}):(\d{2})/);
+  if (numerica) return new Date(Date.UTC(Number(numerica[3]), Number(numerica[2]) - 1, Number(numerica[1]), Number(numerica[4]), Number(numerica[5])));
+  const escrita = semAcento(texto).match(/\b(\d{1,2})\s+(?:de\s+)?(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)[a-z]*\.?\s+(?:de\s+)?(\d{4})\D{1,8}(\d{2}):(\d{2})/);
+  if (escrita) return new Date(Date.UTC(Number(escrita[3]), MESES[escrita[2]!]! - 1, Number(escrita[1]), Number(escrita[4]), Number(escrita[5])));
+  return null;
 }
 
 export type Conferencia =
@@ -111,7 +124,8 @@ export function conferirComprovante(e: {
 }): Conferencia {
   if (e.texto.trim() === "" || !pareceComprovante(e.texto)) return { tipo: "nenhum" };
   if (e.cobrancas.length === 0) return { tipo: "nao_confere", motivo: "não há cobrança pela chave nesta conversa" };
-  const valores = valoresDitos(e.texto);
+  const valores = [...new Set(valoresDitos(e.texto))];
+  if (valores.length > 1) return { tipo: "nao_confere", motivo: "o comprovante mostra mais de um valor" };
   const cobranca = e.cobrancas.find((c) => valores.includes(c.valorCents));
   if (!cobranca) {
     return { tipo: "nao_confere", motivo: `o valor do comprovante não é o da cobrança (${reais(e.cobrancas[0]!.valorCents)})` };
@@ -125,34 +139,57 @@ export function conferirComprovante(e: {
   if (instante < cobranca.enviadaEm.getTime() - FOLGA_MS || instante > cobranca.enviadaEm.getTime() + VALIDADE_DA_COBRANCA_MS || instante > e.agora.getTime() + FOLGA_MS) {
     return { tipo: "nao_confere", motivo: "a data do pagamento não combina com a data da cobrança" };
   }
-  const extra = e.valoresDoPrincipal.includes(cobranca.valorCents) ? null : extraDaCobranca(cobranca, e.extras);
-  if (extra === null) return { tipo: "confere_principal", valorCents: cobranca.valorCents, idDoPix: id[0], pagoEm };
-  // A quantidade vem da cobrança; o valor conferido tem de ser o total dela.
-  if (valorDaCobranca(extra, cobranca.quantidade) !== cobranca.valorCents) {
+  const impressa = dataImpressa(e.texto);
+  if (impressa === null) return { tipo: "nao_confere", motivo: "não dá para ler a data e a hora do pagamento" };
+  const diferenca = instante - impressa.getTime();
+  if (diferenca < -FOLGA_MS || diferenca > MAIOR_FUSO_MS + FOLGA_MS) {
+    return { tipo: "nao_confere", motivo: "a hora impressa não combina com o ID da transação" };
+  }
+  if (e.valoresDoPrincipal.includes(cobranca.valorCents)) {
+    // Mesmo valor de uma avulsa (Acompanhamento e trabalho, ambos R$ 60): só a pessoa sabe qual foi.
+    if (extraDaCobranca(cobranca, e.extras) !== null) return { tipo: "nao_confere", motivo: "o valor vale para mais de um produto" };
     return { tipo: "confere_principal", valorCents: cobranca.valorCents, idDoPix: id[0], pagoEm };
+  }
+  const extra = extraDaCobranca(cobranca, e.extras);
+  // Entrada, restante e valor combinado à parte: o valor sozinho não diz se quitou.
+  if (extra === null || valorDaCobranca(extra, cobranca.quantidade) !== cobranca.valorCents) {
+    return { tipo: "nao_confere", motivo: "este valor não é o de um produto fechado (entrada, restante ou valor combinado)" };
   }
   return { tipo: "confere_extra", extra, quantidade: cobranca.quantidade, valorCents: cobranca.valorCents, idDoPix: id[0], pagoEm };
 }
 
+/** Qual produto principal a conversa estava vendendo: o último citado pelo nome nas nossas falas. */
+export function produtoCitado(mensagens: readonly FalaDaConversa[], nomes: readonly string[]): string | null {
+  for (let i = mensagens.length - 1; i >= 0; i -= 1) {
+    const m = mensagens[i]!;
+    if (m.direction !== "outbound") continue;
+    const corpo = semAcento(m.body ?? "");
+    const achado = nomes.find((n) => n.trim() !== "" && corpo.includes(semAcento(n)));
+    if (achado) return achado;
+  }
+  return null;
+}
+
 /** O bloco do turno. Vazio quando o bloco de PAGAMENTO CONFIRMADO já diz tudo, ou quando não há comprovante. */
-export function blocoDaConferencia(c: Conferencia, chave: ChavePixDaEmpresa): string {
+export function blocoDaConferencia(c: Conferencia, chave: ChavePixDaEmpresa, venda?: { produto: string; entregaSozinha: boolean }): string {
   if (c.tipo === "nao_confere") {
     return [
       "",
       "",
-      "COMPROVANTE NÃO CONFERE (o sistema leu o comprovante; esta regra vence o roteiro)",
-      `- Motivo: ${c.motivo}. O pagamento NÃO está confirmado: não entregue e não diga que caiu.`,
-      "- Não acuse ninguém de nada. Peça, com carinho, o comprovante inteiro, com o valor, o nome de quem recebeu e o ID da transação.",
-      '- Se ela já mandou de novo e continua sem conferir, diga que a equipe vai olhar e chame o atendimento humano com o motivo "Pix pela chave: conferir o comprovante e registrar o pagamento".',
+      "COMPROVANTE COM DÚVIDA (o sistema leu o comprovante; esta regra vence o roteiro)",
+      `- Motivo interno: ${c.motivo}. O pagamento NÃO está confirmado: não entregue, não diga que caiu e não cobre de novo.`,
+      `- Não acuse ninguém e não peça outro comprovante. Diga em um balão que recebeu e que a equipe vai conferir, e chame o atendimento humano AGORA com o motivo "Pix pela chave: conferir o comprovante (${c.motivo})".`,
     ].join("\n");
   }
-  if (c.tipo === "confere_principal") {
+  if (c.tipo === "confere_principal" && venda) {
     return [
       "",
       "",
-      "COMPROVANTE LIDO (esta regra vence o roteiro)",
-      `- O comprovante de ${reais(c.valorCents)} para ${chave.holder} está em ordem, mas o produto principal só é liberado depois que a equipe confirma no extrato.`,
-      `- Diga em um balão que recebeu o comprovante e que a equipe confirma já, e chame o atendimento humano com o motivo "Pix pela chave: comprovante de ${reais(c.valorCents)} em ordem, confirmar no extrato e registrar o pagamento". NÃO entregue ainda.`,
+      "PAGAMENTO CONFIRMADO PELO COMPROVANTE (esta regra vence o roteiro)",
+      `- ${reais(c.valorCents)} de *${venda.produto}*, para ${chave.holder}: conferido e registrado. NÃO cobre de novo e NÃO diga que a equipe vai conferir.`,
+      venda.entregaSozinha
+        ? "- Diga que o pagamento caiu e que a entrega já começa."
+        : '- Diga que o pagamento caiu e siga o roteiro de quem pagou. Se o roteiro não disser como entregar, chame o atendimento humano com o motivo "Pix conferido: iniciar a entrega".',
     ].join("\n");
   }
   return "";

@@ -34,6 +34,7 @@ function dublês(opts: { parecido?: { valorCentavos: number; provedor: string; q
     registrarReceita: async (_id, receita) => { passos.push("receita"); receitas.push(receita); },
     marcarContato: async (_id, tags) => { passos.push("marcar"); gravado.tags = tags; },
     pedirTurnoDaAgente: async () => { passos.push("turno"); },
+    reportarAvulsa: async () => { passos.push("meta"); },
     anotar: async (_id, texto) => { passos.push("anotar"); notas.push(texto); },
     pagamentoParecido: async () => opts.parecido ?? null,
     negociosDoContato: async () => opts.negocios ?? [aberto],
@@ -132,7 +133,7 @@ describe("registrarPagamentoRecebido", () => {
     const r = await registrarPagamentoRecebido(d.deps, { contatoId: "contato-1", pagamento, agora: AGORA, conversaId: "conversa-1" });
 
     expect(r).toEqual({ resultado: "registrado", negocio: "sem_negocio", entrega: "iniciada" });
-    expect(d.passos).toEqual(["marcar", "receita", "anotar", "turno"]);
+    expect(d.passos).toEqual(["marcar", "receita", "anotar", "meta", "turno"]);
     expect(d.receitas[0]).toMatchObject({ extra: "pergunta-nova", quantidade: 2, valorCentavos: 1000 });
     expect(d.gravado.tags).toEqual(expect.arrayContaining(["extra:pergunta-nova"]));
     expect(d.gravado.tags).not.toContain("pago");

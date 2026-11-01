@@ -106,7 +106,7 @@ import {
 } from '@/lib/preco/extras';
 import { promessaDeReenvioSemCobranca } from '@/lib/preco/promessa-de-reenvio';
 import { recusaDeQuemJaPagou } from '@/lib/preco/pago-mas-cobrando';
-import { comprovanteDoTurno } from '@/lib/pagamentos/comprovante-no-turno';
+import { comprovanteDoTurno, depsReaisDoComprovante } from '@/lib/pagamentos/comprovante-no-turno';
 import { falasDesdeAUltimaCobranca, quantidadeMenorQueACombinada, valorErradoDeExtra } from '@/lib/preco/valor-do-extra';
 import { destinoDaProva, legendaDaProva, provasParaEnviar } from '@/lib/preco/prova-social';
 import { classificarPerdaDoAtendimento } from '@/lib/resultado/motivo-da-perda-do-agente';
@@ -2646,8 +2646,7 @@ async function executarTurnoDoAgente(
   // para a cobrança avulsa em ordem já aparecer como paga neste turno.
   const blocoDoComprovante = preview
     ? ''
-    : await comprovanteDoTurno(pool, {
-        organizationId: tenantId,
+    : await comprovanteDoTurno(depsReaisDoComprovante(deps.crmCfg.supabase, tenantId), {
         contactId: leadId,
         conversationId: input.conversationId,
         pricing: agentConfig?.pricing,

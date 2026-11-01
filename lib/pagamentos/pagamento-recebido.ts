@@ -27,6 +27,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { lerCatalogo } from "@/lib/catalogo/tipos";
 import { emitLeadActivity } from "@/lib/leads/activity-emitter";
+import { reportarCompraAvulsa } from "@/lib/conversoes/compra-avulsa";
 import { logger } from "@/lib/logger";
 import { extrasDaConfig, slugDoExtra } from "@/lib/preco/extras";
 import { lerPricing } from "@/lib/preco/tipos";
@@ -63,6 +64,8 @@ export interface DepsDoPagamento extends Pick<DepsDaCompra, "gravarCompra" | "re
   ): Promise<void>;
   /** Grava só as marcas do contato: a cobrança avulsa não é a compra do produto principal. */
   marcarContato(contatoId: string, tags: string[]): Promise<void>;
+  /** Leva a cobrança avulsa à plataforma de anúncio que trouxe o lead. Nunca lança. */
+  reportarAvulsa(contatoId: string, compra: { chave: string; valorCentavos: number; produto: string; pagoEm: string }): Promise<void>;
   /** Acorda a agente na conversa, para ela entregar a cobrança avulsa paga. Falha aqui não desfaz o registro. */
   pedirTurnoDaAgente(contatoId: string, conversaId: string): Promise<void>;
   /** A cobrança já no livro que parece ser este mesmo pagamento: mesmo contato, valor próximo, até 2 dias. */
@@ -82,9 +85,10 @@ const reaisTexto = (cents: number): string => `R$ ${(cents / 100).toFixed(2).rep
 
 export async function registrarPagamentoRecebido(
   deps: DepsDoPagamento,
-  entrada: { contatoId: string; pagamento: PagamentoRecebido; agora: Date; conversaId?: string },
+  entrada: { contatoId: string; pagamento: PagamentoRecebido; agora: Date; conversaId?: string; registradoPor?: string },
 ): Promise<ResultadoDoPagamento> {
   const { contatoId, pagamento, agora, conversaId } = entrada;
+  const assinatura = entrada.registradoPor ?? "Registrado pela equipe";
   const contato = await deps.lerContato(contatoId);
   if (contato === null) return { resultado: "contato_nao_encontrado" };
 
@@ -114,8 +118,9 @@ export async function registrarPagamentoRecebido(
     });
     await deps.anotar(
       contato.id,
-      `Pagamento recebido fora do checkout: ${pagamento.produto} (${reaisTexto(pagamento.valor_cents)}, ${ROTULO_DO_METODO[pagamento.metodo]}). Registrado pela equipe.`,
+      `Pagamento recebido fora do checkout: ${pagamento.produto} (${reaisTexto(pagamento.valor_cents)}, ${ROTULO_DO_METODO[pagamento.metodo]}). ${assinatura}.`,
     );
+    await deps.reportarAvulsa(contato.id, { chave: pagamento.chave, valorCentavos: pagamento.valor_cents, produto: pagamento.produto, pagoEm });
     if (conversaId === undefined) return { resultado: "registrado", negocio: "sem_negocio", entrega: "nao_pedida" };
     await deps.pedirTurnoDaAgente(contato.id, conversaId);
     return { resultado: "registrado", negocio: "sem_negocio", entrega: "iniciada" };
@@ -142,7 +147,7 @@ export async function registrarPagamentoRecebido(
   });
   await deps.anotar(
     contato.id,
-    `Pagamento recebido fora do checkout: ${pagamento.produto} (${reaisTexto(pagamento.valor_cents)}, ${ROTULO_DO_METODO[pagamento.metodo]}). Registrado pela equipe.`,
+    `Pagamento recebido fora do checkout: ${pagamento.produto} (${reaisTexto(pagamento.valor_cents)}, ${ROTULO_DO_METODO[pagamento.metodo]}). ${assinatura}.`,
   );
 
   // Qual negócio é o desta venda — a mesma régua do checkout. Lida ANTES de gravar o valor: é ela
@@ -175,10 +180,10 @@ export async function registrarPagamentoRecebido(
  */
 export function depsReaisDoPagamento(
   admin: SupabaseClient,
-  ctx: { organizationId: string; requestId: string; userId: string; fecharComoGanho: (leadId: string) => Promise<boolean> },
+  ctx: { organizationId: string; requestId: string; userId: string | null; fecharComoGanho: (leadId: string) => Promise<boolean> },
 ): DepsDoPagamento {
   const { organizationId, requestId, userId } = ctx;
-  const daCompra = depsDaCompra(admin, organizationId, requestId, userId);
+  const daCompra = depsDaCompra(admin, organizationId, requestId, userId ?? "comprovante");
   return {
     gravarCompra: daCompra.gravarCompra,
     registrarValorNoNegocio: daCompra.registrarValorNoNegocio,
@@ -218,6 +223,25 @@ export function depsReaisDoPagamento(
     async marcarContato(contatoId, tags) {
       const { error } = await admin.from("contacts").update({ tags }).eq("organization_id", organizationId).eq("id", contatoId);
       if (error) throw new Error(`marcas do contato: ${error.message}`);
+    },
+
+    async reportarAvulsa(contatoId, compra) {
+      const reportada = await reportarCompraAvulsa(admin as never, {
+        organizationId,
+        contactId: contatoId,
+        referencia: `manual-${compra.chave}`,
+        valorCentavos: compra.valorCentavos,
+        moeda: "BRL",
+        ocorridaEm: new Date(compra.pagoEm),
+        produto: compra.produto,
+      });
+      if (reportada.status === "error") {
+        logger.warn("[pagamento-recebido] compra avulsa não foi reportada à plataforma de anúncio", {
+          organization_id: organizationId,
+          request_id: requestId,
+          motivo: reportada.motivo,
+        });
+      }
     },
 
     async pedirTurnoDaAgente(contatoId, conversaId) {
@@ -278,7 +302,7 @@ export function depsReaisDoPagamento(
         type: "note",
         sourceModule: "pagamento_recebido",
         sourceId: requestId,
-        actor: { type: "user", id: userId },
+        actor: userId === null ? { type: "webhook_source", id: "comprovante" } : { type: "user", id: userId },
         reason: texto,
       });
     },

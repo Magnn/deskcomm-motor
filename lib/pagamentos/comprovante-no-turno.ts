@@ -1,27 +1,78 @@
 /**
- * O comprovante que acabou de chegar, no começo do turno: confere e, se for cobrança avulsa em ordem, grava o pagamento
- * com `metadata.extra`, o mesmo registro do aviso da Stripe. O turno lê esse registro logo em seguida e entrega.
+ * O comprovante que acabou de chegar, no começo do turno. Com certeza, registra pelo mesmo caminho do botão Registrar
+ * pagamento: entra no faturamento e vai à plataforma de anúncio. Com dúvida, nada é gravado e a agente chama a equipe.
+ *
+ * O ID da transação é único: a chave do registro nasce dele, e um ID já visto é recusado, seja de outro contato, seja do
+ * próprio lead reaproveitando o comprovante de um atendimento anterior.
  *
  * Nunca lança: falha aqui devolve o turno ao caminho de sempre, que é chamar uma pessoa para conferir.
  */
-import type { Pool } from "pg";
+import { randomUUID } from "node:crypto";
+
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { chavePrincipal } from "@/lib/preco/chave-pix";
-import { extrasDaConfig, slugDoExtra } from "@/lib/preco/extras";
+import { descricaoDaCobranca, extrasDaConfig, slugDoExtra } from "@/lib/preco/extras";
 import type { PricingConfig } from "@/lib/preco/tipos";
 
 import {
   blocoDaConferencia,
   cobrancasEnviadas,
   conferirComprovante,
+  produtoCitado,
   textoDaMidia,
-  type Conferencia,
   type FalaDaConversa,
 } from "./comprovante-pix";
+import { depsReaisDoPagamento, registrarPagamentoRecebido } from "./pagamento-recebido";
+import type { PagamentoRecebido, ResultadoDoPagamento } from "./pagamento-recebido-tipos";
 
 interface Log {
   info(msg: string, meta?: Record<string, unknown>): void;
   warn(msg: string, meta?: Record<string, unknown>): void;
+}
+
+/** O turno pode rodar de novo sobre a mesma imagem: dentro desta janela, o mesmo contato não é reaproveitamento. */
+const JANELA_DA_REPETICAO_DO_TURNO_MS = 10 * 60 * 1000;
+
+/** A chave do registro: `manual-<chave>` no livro de receita, com o índice único por trás. */
+export const chaveDoComprovante = (idDoPix: string): string => `comprovante-${idDoPix}`;
+
+export interface UsoDoComprovante {
+  contactId: string | null;
+  criadoEm: Date;
+}
+
+export interface DepsDoComprovante {
+  lerUso(idDoPix: string): Promise<UsoDoComprovante | null>;
+  registrar(contatoId: string, pagamento: PagamentoRecebido): Promise<ResultadoDoPagamento>;
+}
+
+export function depsReaisDoComprovante(admin: SupabaseClient, organizationId: string): DepsDoComprovante {
+  return {
+    async lerUso(idDoPix) {
+      const { data, error } = await admin
+        .from("revenue_ledger")
+        .select("contact_id, created_at")
+        .eq("organization_id", organizationId)
+        .eq("provider", "manual")
+        .eq("event_type", "charge")
+        .eq("external_event_id", `manual-${chaveDoComprovante(idDoPix)}`)
+        .maybeSingle();
+      if (error) throw new Error(`livro de receita: ${error.message}`);
+      const uso = data as { contact_id: string | null; created_at: string } | null;
+      return uso ? { contactId: uso.contact_id, criadoEm: new Date(uso.created_at) } : null;
+    },
+    registrar(contatoId, pagamento) {
+      const deps = depsReaisDoPagamento(admin, {
+        organizationId,
+        requestId: randomUUID(),
+        userId: null,
+        // Quem fecha é o registro do valor no negócio, pelo fechamento do pagamento aprovado (`compra-cakto.ts`).
+        fecharComoGanho: async () => true,
+      });
+      return registrarPagamentoRecebido(deps, { contatoId, pagamento, agora: new Date(), registradoPor: "conferido pelo comprovante" });
+    },
+  };
 }
 
 /** A mídia mais nova que chegou depois da nossa última fala. */
@@ -35,9 +86,8 @@ function midiaDaVez(mensagens: readonly FalaDaConversa[]): string {
 }
 
 export async function comprovanteDoTurno(
-  pool: Pick<Pool, "query">,
+  deps: DepsDoComprovante,
   e: {
-    organizationId: string;
     contactId: string;
     conversationId: string;
     pricing: PricingConfig | null | undefined;
@@ -49,7 +99,7 @@ export async function comprovanteDoTurno(
   const chave = chavePrincipal(e.pricing);
   if (!chave || !e.pricing) return "";
   try {
-    const conferencia = conferirComprovante({
+    let conferencia = conferirComprovante({
       texto: midiaDaVez(e.mensagens),
       chave,
       cobrancas: cobrancasEnviadas(e.mensagens),
@@ -58,13 +108,45 @@ export async function comprovanteDoTurno(
       agora: e.agora,
     });
     if (conferencia.tipo === "nenhum") return "";
+    if (conferencia.tipo === "confere_extra" || conferencia.tipo === "confere_principal") {
+      const uso = await deps.lerUso(conferencia.idDoPix);
+      if (uso !== null) {
+        const repeticaoDoTurno = uso.contactId === e.contactId && e.agora.getTime() - uso.criadoEm.getTime() < JANELA_DA_REPETICAO_DO_TURNO_MS;
+        if (repeticaoDoTurno) return "";
+        conferencia = {
+          tipo: "nao_confere",
+          motivo: uso.contactId === e.contactId ? "este comprovante já foi usado num atendimento anterior desta pessoa" : "este comprovante já foi usado por outro contato",
+        };
+      }
+    }
     e.log.info("comprovante conferido", {
       conversation_id: e.conversationId,
       resultado: conferencia.tipo,
       ...(conferencia.tipo === "nao_confere" ? { motivo: conferencia.motivo } : {}),
     });
-    if (conferencia.tipo !== "confere_extra") return blocoDaConferencia(conferencia, chave);
-    return blocoDaConferencia(await gravarPagamento(pool, e, conferencia), chave);
+    if (conferencia.tipo === "nao_confere") return blocoDaConferencia(conferencia, chave);
+
+    const base = {
+      chave: chaveDoComprovante(conferencia.idDoPix),
+      valor_cents: conferencia.valorCents,
+      metodo: "pix" as const,
+      pago_em: conferencia.pagoEm.toISOString(),
+      // Valor parecido no mesmo dia é outra compra: o ID da transação já provou que é outro pagamento.
+      confirmar_repetido: true,
+    };
+    if (conferencia.tipo === "confere_extra") {
+      await deps.registrar(e.contactId, {
+        ...base,
+        produto: descricaoDaCobranca(conferencia.extra, conferencia.quantidade),
+        iniciar_entrega: false,
+        extra: slugDoExtra(conferencia.extra.name),
+        ...(conferencia.quantidade > 1 ? { quantidade: conferencia.quantidade } : {}),
+      } as PagamentoRecebido);
+      return "";
+    }
+    const produto = produtoCitado(e.mensagens, (e.pricing.list_product_links ?? []).map((l) => l.name)) ?? "Trabalho espiritual";
+    const r = await deps.registrar(e.contactId, { ...base, produto, iniciar_entrega: true } as PagamentoRecebido);
+    return blocoDaConferencia(conferencia, chave, { produto, entregaSozinha: r.resultado === "registrado" && r.entrega === "iniciada" });
   } catch (err) {
     e.log.warn("não consegui conferir o comprovante — segue pela equipe", {
       conversation_id: e.conversationId,
@@ -72,50 +154,4 @@ export async function comprovanteDoTurno(
     });
     return "";
   }
-}
-
-async function gravarPagamento(
-  pool: Pick<Pool, "query">,
-  e: { organizationId: string; contactId: string; conversationId: string },
-  c: Extract<Conferencia, { tipo: "confere_extra" }>,
-): Promise<Conferencia> {
-  const slug = slugDoExtra(c.extra.name);
-  const referencia = `comprovante-${c.idDoPix}`;
-  const { rows } = await pool.query<{ id: string }>(
-    `insert into revenue_ledger (organization_id, event_type, amount_cents, currency, provider, external_event_id, occurred_at, contact_id, metadata)
-     values ($1, 'charge', $2, 'BRL', 'manual', $3, $4, $5, $6::jsonb)
-     on conflict do nothing
-     returning id`,
-    [
-      e.organizationId,
-      c.valorCents,
-      referencia,
-      c.pagoEm.toISOString(),
-      e.contactId,
-      JSON.stringify({
-        produto: c.extra.name,
-        metodo: "pix",
-        conversa: e.conversationId,
-        extra: slug,
-        conferido_por: "comprovante",
-        ...(c.quantidade > 1 ? { quantidade: c.quantidade } : {}),
-      }),
-    ],
-  );
-  if (rows.length === 0) {
-    // Turno repetido do mesmo contato: já está gravado. De outro contato: o comprovante é reaproveitado.
-    const { rows: dono } = await pool.query<{ contact_id: string | null }>(
-      `select contact_id from revenue_ledger
-        where organization_id = $1 and provider = 'manual' and event_type = 'charge' and external_event_id = $2 limit 1`,
-      [e.organizationId, referencia],
-    );
-    if (dono[0]?.contact_id === e.contactId) return c;
-    return { tipo: "nao_confere", motivo: "este comprovante já foi usado em outro pagamento" };
-  }
-  await pool.query(
-    `update contacts set tags = array_append(tags, $3)
-      where organization_id = $1 and id = $2 and not ($3 = any(coalesce(tags, '{}')))`,
-    [e.organizationId, e.contactId, `extra:${slug}`],
-  );
-  return c;
 }
