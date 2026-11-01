@@ -82,7 +82,7 @@ import {
   TAMANHO_DA_RESPOSTA_LIMITADA,
   blocoDaConversaGratuitaEsgotada,
   conversaGratuitaEsgotada,
-  silencioPorConversaGratuita,
+  ofereceuHoje,
 } from './conversa-gratuita';
 import { blocoDaRespostaAtropelada, respostaAtropelada } from './resposta-atropelada';
 import { blocoDaEntrada, blocoDaEntradaImediata, blocoDaPropostaDeEntrada, blocoDoValorAbaixoDoPiso, blocoDoValorAceito } from '@/lib/preco/bloco-da-entrada';
@@ -2706,7 +2706,7 @@ async function executarTurnoDoAgente(
     blocoDoComprovante +
     blocoDoAcompanhamentoIncluso({ comprou: tagsDoContato.includes('pago'), diasDesdeACompra, extras: extrasDoTurno, pagos: extrasPagosNoTurno });
   // O LIMITE DA CONVERSA GRATUITA (`conversa-gratuita.ts`): quem ouviu a oferta, não comprou e não tem nada pago
-  // valendo recebe um número de respostas de graça; depois disso, uma resposta curta com os caminhos pagos.
+  // valendo recebe um número de respostas de graça; depois disso, respostas curtas com uma oferta por dia.
   const temExtraValendo = extrasPagosNoTurno.some((p) => {
     const extra = extrasDoTurno.find((e) => slugDoExtra(e.name) === p.slug);
     return extra !== undefined && (p.diasAtras ?? 0) < (extra.valid_days ?? 1);
@@ -2715,7 +2715,7 @@ async function executarTurnoDoAgente(
     !preview && agentConfig?.pricing?.enabled === true && internacionalDoTurno === null && !tagsDoContato.includes('pago') && !temExtraValendo &&
     conversaGratuitaEsgotada(openingContext.context.messages, agentConfig.pricing.free_replies_after_offer);
   if (gratuitaEsgotadaNoTurno) {
-    runLog.info('conversa gratuita esgotada — o turno responde uma vez, curto, com os caminhos pagos', {});
+    runLog.info('conversa gratuita esgotada — resposta curta, com uma oferta por dia', {});
   }
   const promiseMinPriceCentsDaEscada =
     ofertaDoCatalogoNoTurno !== null
@@ -3024,6 +3024,7 @@ async function executarTurnoDoAgente(
     blocoDaConversaGratuitaEsgotada(
       gratuitaEsgotadaNoTurno,
       ofertaPequenaDePe !== null ? [ofertaPequenaDePe.nome] : ['o trabalho', ...extrasDoTurno.map((e) => e.name)],
+      ofereceuHoje(openingContext.context.messages),
     );
   if (atropeladaNoTurno) {
     runLog.info('resposta atropelada — este turno responde só ao que a mensagem nova acrescenta', {});
@@ -3231,27 +3232,6 @@ async function executarTurnoDoAgente(
       lead_avisado: aviso.avisado,
     });
     return; // bot silencia: a confirmação já saiu, e nada mais sai neste turno
-  }
-
-  // O SILÊNCIO DEPOIS DOS AVISOS (`silencioPorConversaGratuita`): quem esgotou a conversa gratuita e já recebeu os
-  // avisos com os caminhos pagos não consome mais resposta. Depois de tudo que trata pedido de pessoa e opt-out, e
-  // antes de qualquer chamada de modelo. Rodada comercial, com mídia ou com sinal de risco nunca chega aqui.
-  if (
-    gratuitaEsgotadaNoTurno &&
-    silencioPorConversaGratuita(openingContext.context.messages, agentConfig?.pricing?.free_replies_after_offer)
-  ) {
-    runLog.info('conversa gratuita esgotada e avisos já dados — turno encerrado sem modelo e sem envio', {
-      conversation_id: input.conversationId,
-    });
-    // O silêncio é de propósito: a marca no próprio job é o que impede o resgate do lead sem resposta
-    // (`resgate-de-lead-sem-resposta.ts`) de reemitir o atendimento e de abrir aviso para uma pessoa.
-    await pool
-      .query(`update job_queue set payload = payload || '{"silencio_gratuito": true}'::jsonb where organization_id = $1 and id = $2`, [
-        tenantId,
-        liveJob().id,
-      ])
-      .catch(() => undefined);
-    return;
   }
 
   // ROTEIRO DE ATENDIMENTO (módulo opcional `fluxos_atendimento`, #1130). Entra
@@ -3840,7 +3820,7 @@ async function executarTurnoDoAgente(
               ok: false,
               error: {
                 code: 'conversa_gratuita_esgotada',
-                message: `Resposta longa demais. Reescreva em UMA mensagem de até ${TAMANHO_DA_RESPOSTA_LIMITADA} caracteres: meia frase de acolhida e a pergunta de qual caminho ela escolhe. Sem conselho e sem pergunta sobre a vida dela.`,
+                message: `Resposta longa demais. Reescreva em UMA mensagem de até ${TAMANHO_DA_RESPOSTA_LIMITADA} caracteres: meia frase de acolhida e a oferta do bloco. Sem conselho e sem pergunta sobre a vida dela.`,
               },
             };
           }
