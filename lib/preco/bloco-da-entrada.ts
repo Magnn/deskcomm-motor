@@ -31,7 +31,7 @@ export function blocoDaEntrada(
     `2. Um balão dizendo que o pagamento da entrada vai agora, e que no banco aparece o nome da empresa de pagamentos.`,
     `3. O link da entrada do trabalho dela, SOZINHO em um balão (o sistema acrescenta o Pix desse valor):`,
     ...links,
-    `4. Um balão final com pergunta: "Conseguiu copiar o código do Pix?"`,
+    `4. Um balão final com pergunta: "Conseguiu fazer o Pix?"`,
     `Depois de enviar, chame a ferramenta de agendar retorno para a data que ela disse, com a promessa "Enviar o pagamento do restante de ${r}". Se ela não disse o dia exato, pergunte o dia ANTES de enviar o link.`,
     `NÃO chame a equipe humana por causa disto.`,
   ].join("\n");
@@ -77,7 +77,7 @@ export function blocoDoValorAceito(pricing: Pick<PricingConfig, "steps"> | null 
     `1. Um balão: "Fechado, [nome]: fica ${v}, uma vez só, e eu começo o seu trabalho hoje."`,
     `2. O link de ${v} do trabalho dela, SOZINHO em um balão (o sistema acrescenta o Pix desse valor):`,
     ...links,
-    `3. Um balão final com pergunta: "Conseguiu copiar o código do Pix?"`,
+    `3. Um balão final com pergunta: "Conseguiu fazer o Pix?"`,
     `NÃO chame a equipe humana por causa disto.`,
   ].join("\n");
 }
@@ -118,7 +118,7 @@ export function blocoDaEntradaImediata(entrada: { entradaCents: number; restante
     `Faça, nesta ordem, numa resposta só:`,
     `1. Um balão: "Fechado, [nome]: você entra com ${e} agora e o restante de ${r} a gente acerta depois."`,
     `2. Sozinha no balão seguinte, a marca: [[PIX: ${MARCA_DA_ENTRADA}]] (o sistema troca a marca pelo código do Pix de ${e}).`,
-    `3. Um balão final: "Conseguiu copiar o código? Assim que cair eu já começo o seu trabalho. E me diz que dia fica bom pra acertar o restante."`,
+    `3. Um balão final: "Conseguiu fazer o Pix? E me diz que dia fica bom pra acertar o restante."`,
     `Quando ela disser o dia do restante, chame a ferramenta de agendar retorno para essa data, com a promessa "Enviar o pagamento do restante de ${r}".`,
     `NÃO ofereça pergunta nova, simpatia nem outro produto neste turno: ela está fechando o trabalho, e outra oferta agora confunde o que ela está pagando.`,
     `NÃO chame a equipe humana por causa disto.`,

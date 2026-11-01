@@ -32,6 +32,7 @@ import { ehRecusaDaOferta } from '@/lib/opt-out/deteccao';
 import { lerRecuperacao, ofertaDoPasso, perguntaQuantoCabeNoPasso } from '@/lib/recuperacao/config';
 import { anunciouPausa, disseQueNaoTemPrevisao } from '@/lib/recuperacao/pausa-anunciada';
 import { ofertaAindaDesce } from '@/lib/preco/estado-da-negociacao';
+import { ofertaAtivaDaConversa, type OfertaAtiva } from '@/lib/preco/oferta-ativa';
 import type { PricingConfig } from '@/lib/preco/tipos';
 import {
   FOLGA_DO_FECHAMENTO_MS,
@@ -72,7 +73,7 @@ interface Candidata {
   timezone: string | null;
   followup: unknown;
   /** `ai_agents.config.pricing`: a escada que diz quais valores da conversa contam como oferta. */
-  pricing?: Pick<PricingConfig, 'steps'> | null;
+  pricing?: Pick<PricingConfig, 'steps' | 'list_price_cents' | 'extras'> | null;
   /**
    * Desde quando a recuperação está LIGADA neste agente: a publicação mais antiga da sequência de
    * versões com ela ligada. Republicar o roteiro não mexe nesta data.
@@ -184,7 +185,8 @@ export const CONSULTA_DE_SILENCIOSAS = `
  */
 export const FALAS_COM_VALOR = `
   select m.body from messages m
-  where m.organization_id = $1 and m.conversation_id = $2 and m.direction = 'outbound' and m.body ~ 'R[$] ?[0-9]'`;
+  where m.organization_id = $1 and m.conversation_id = $2 and m.direction = 'outbound' and m.body ~ 'R[$] ?[0-9]'
+  order by m.created_at`;
 
 /** O registro da chamada. Quem perde o índice único (outro worker chegou antes) não recebe linha. */
 export const REGISTRO_DA_CHAMADA = `
@@ -218,6 +220,8 @@ export function decidirChamada(
   temPrazo: boolean,
   /** `true` quando a conversa já ouviu valor igual ou menor que o do passo (`ofertaAindaDesce`). */
   semOferta = false,
+  /** A oferta pequena de pé (`ofertaAtivaDaConversa`): o passo retoma ela, sem valor do trabalho nem "quanto cabe". */
+  ofertaDePe: Extract<OfertaAtiva, { tipo: 'pequena' }> | null = null,
 ): Chamada | null {
   const r = lerRecuperacao(c.followup);
   if (r === null) return null;
@@ -298,6 +302,15 @@ export function decidirChamada(
       ofertaCents: null,
     };
   }
+  if (ofertaDePe !== null) {
+    return {
+      kind: 'step',
+      step: passo,
+      motivo: motivoDoPasso(passo, r.steps_minutes.length, silencioMs, null, ofertaDePe),
+      ofereceSaida: false,
+      ofertaCents: null,
+    };
+  }
   const ofertaCents = ofereceValor ? ofertaDoPasso(r, passo) : null;
   return {
     kind: 'step',
@@ -334,10 +347,19 @@ export async function recuperarSilenciosos(
     const { c } = decidida;
     let chamada: Chamada = decidida.chamada;
 
-    if (chamada.kind === 'step' && chamada.ofertaCents !== null && (c.pricing?.steps?.length ?? 0) > 0) {
+    // Quem ouviu um preço: o que a conversa já disse manda no que este passo pode dizer. A régua tem valores fixos e
+    // não sabe que a última oferta foi a pergunta de R$ 7 (`lib/preco/oferta-ativa.ts`).
+    if (chamada.kind === 'step' && c.ouviu_preco === true && (c.pricing?.steps?.length ?? 0) > 0) {
       const { rows: falas } = await pool.query<{ body: string }>(FALAS_COM_VALOR, [c.organization_id, c.conversation_id]);
-      if (!ofertaAindaDesce(c.pricing!, chamada.ofertaCents, falas.map((f) => f.body))) {
-        chamada = decidirChamada(c, agora, canalTemPrazo(c.provider), true) ?? chamada;
+      const corpos = falas.map((f) => f.body);
+      const ativa = ofertaAtivaDaConversa(
+        c.pricing!,
+        c.pricing!.extras ?? [],
+        corpos.map((body) => ({ direction: 'outbound', body })),
+      );
+      const ofertaDePe = ativa?.tipo === 'pequena' ? ativa : null;
+      if (ofertaDePe !== null || (chamada.ofertaCents !== null && !ofertaAindaDesce(c.pricing!, chamada.ofertaCents, corpos))) {
+        chamada = decidirChamada(c, agora, canalTemPrazo(c.provider), true, ofertaDePe) ?? chamada;
       }
     }
 

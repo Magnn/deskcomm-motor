@@ -20,7 +20,7 @@
  *
  * Pura.
  */
-import { marcaDeExtraNoCorpo, temPrecoPorQuantidade, totaisDoExtra, valorDaCobranca } from "./extras";
+import { marcaDeExtraNoCorpo, nomesDoExtra, temPrecoPorQuantidade, totaisDoExtra, valorDaCobranca } from "./extras";
 import type { Extra } from "./tipos";
 import { reais } from "./tipos";
 
@@ -100,7 +100,11 @@ export function valorErradoDeExtra(
   corpo: string,
   extras: readonly Extra[],
   produtosPrincipais: readonly string[] = [],
+  /** O balão anterior deste turno: "*Código da Conexão*…" num balão, "São R$ 130" no seguinte. */
+  balaoAnterior = "",
 ): string | null {
+  const titulado = valorErradoDoTitulo(corpo, extras, produtosPrincipais, balaoAnterior);
+  if (titulado) return titulado;
   const marca = marcaDeExtraNoCorpo(corpo, extras);
   if (marca.tipo === "uma") {
     const erro = contaDaMarcaErrada(corpo, marca.extra, marca.quantidade);
@@ -133,6 +137,44 @@ export function valorErradoDeExtra(
           `O valor de *${extra.name}* é ${reais(extra.price_cents)} — é o valor desta cobrança, não o do trabalho principal. ` +
           `A sua mensagem diz ${reais(errado)}. Reescreva dizendo ${reais(extra.price_cents)} por ${extra.name.toLowerCase()} ` +
           `(${temPrecoPorQuantidade(extra) ? "ou o total da tabela" : "ou um múltiplo exato"}, para mais de uma) e NÃO "corrija" o valor depois: o valor do Pix é o certo.`
+        );
+      }
+    }
+  }
+  return null;
+}
+
+/** "São R$ 130.": o valor sem dizer de quê. Vale para o que o balão citou por último. */
+const VALOR_SOLTO = /^(?:s[ãa]o|[ée]|fica|custa|sai)\b/i;
+
+/**
+ * O TÍTULO DA COBRANÇA TAMBÉM IDENTIFICA A COBRANÇA (`nomesDoExtra`). Título tem nome próprio ("Código da Conexão"): vale a
+ * frase que o cita e a frase solta de valor no mesmo balão ou no seguinte. A régua de palavras soltas não serve aqui:
+ * "código" é também o código do Pix.
+ */
+function valorErradoDoTitulo(
+  corpo: string,
+  extras: readonly Extra[],
+  produtosPrincipais: readonly string[],
+  balaoAnterior: string,
+): string | null {
+  for (const extra of extras) {
+    const titulo = extra.report?.title;
+    if (!titulo) continue;
+    const nome = nomesDoExtra({ name: titulo, report: undefined })[0];
+    if (nome === undefined) continue;
+    const citado = semAcento(`${balaoAnterior}\n${corpo}`).includes(nome);
+    if (!citado) continue;
+    const totais = new Set(totaisDoExtra(extra));
+    for (const frase of frases(corpo)) {
+      const normalizada = semAcento(frase);
+      if (PRODUTO_PRINCIPAL.test(frase) || produtoPrincipalCitado(normalizada, produtosPrincipais)) continue;
+      if (!normalizada.includes(nome) && !VALOR_SOLTO.test(frase)) continue;
+      const errado = valoresDitos(frase).find((v) => !totais.has(v));
+      if (errado !== undefined) {
+        return (
+          `O valor de *${titulo}* é ${reais(extra.price_cents)}, e a sua mensagem diz ${reais(errado)}. ` +
+          `Reescreva com ${reais(extra.price_cents)}: ${reais(errado)} não é o valor deste produto.`
         );
       }
     }
