@@ -139,6 +139,14 @@ export const MAX_EXTRAS = 12;
 export const extraSchema = z.object({
   name: z.string().trim().min(2).max(60),
   price_cents: centavos,
+  /**
+   * Preço fechado por quantidade: 2 por R$ 10, 3 por R$ 15. Ausente = o unitário vezes a quantidade. Quantidade acima da
+   * maior da tabela soma os grupos (`valorDaCobranca`).
+   */
+  quantity_prices: z
+    .array(z.object({ quantity: z.number().int().min(2).max(10), price_cents: centavos }))
+    .max(9)
+    .optional(),
   when: z.string().trim().min(5).max(400),
   /**
    * Por quantos dias o pagamento vale. Ausente = uma entrega (uma pergunta). Com dias, é um período: quem pagou é

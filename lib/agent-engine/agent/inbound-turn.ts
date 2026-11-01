@@ -98,6 +98,7 @@ import {
   perguntaPagaRecente,
   conversaFalouDeExtra,
   extrasDaConfig,
+  totaisDoExtra,
   ofertaPequenaDeHoje,
   janelaDeLeituraDosExtras,
   slugDoExtra,
@@ -2721,7 +2722,7 @@ async function executarTurnoDoAgente(
           ...(entradaImediataDoTurno !== null ? [entradaImediataDoTurno.entradaCents] : []),
           ...(valorAceitoDoTurno !== null ? [valorAceitoDoTurno] : []),
           ...(restanteDoTurno !== null ? [restanteDoTurno] : []),
-          ...extrasDoTurno.map((e) => e.price_cents),
+          ...extrasDoTurno.flatMap((e) => totaisDoExtra(e)),
         ];
   const valoresDaChavePix = agentConfig?.pricing?.pix_key ? valoresCobraveisNoTurno : [];
   // O que é do produto principal neste turno (o resto dos valores cobráveis são cobranças à parte), e o produto
@@ -3860,7 +3861,7 @@ async function executarTurnoDoAgente(
         // O BOLETO PRONTO: a marca `[[BOLETO: valor | nome | CPF | CEP]]` vira o boleto emitido. A marca traz o CPF
         // de quem paga e nunca passa adiante: ou vira boleto, ou o envio é recusado.
         if (!preview && temMarcaDeBoleto(body)) {
-          const extraDoValor = (cents: number) => extrasDoTurno.find((x) => x.price_cents === cents && !valoresDoProdutoPrincipal.includes(cents));
+          const extraDoValor = (cents: number) => extrasDoTurno.find((x) => totaisDoExtra(x).includes(cents) && !valoresDoProdutoPrincipal.includes(cents));
           const comBoleto = await boletoNoLugarDaMarca({
             corpo: body,
             valoresPermitidosCents: valoresDoBoleto(valoresCobraveisNoTurno),
@@ -3872,6 +3873,7 @@ async function executarTurnoDoAgente(
                 conversation_id: input.conversationId,
                 produto: extra?.name ?? produtoIndicadoNoTurno,
                 ...(extra ? { extra: slugDoExtra(extra.name) } : {}),
+                ...(extra && totaisDoExtra(extra).indexOf(cents) > 0 ? { quantidade: String(totaisDoExtra(extra).indexOf(cents) + 1) } : {}),
               };
             },
             descricaoDoValor: (cents) => extraDoValor(cents)?.name ?? (produtoIndicadoNoTurno || 'Pagamento'),
@@ -4310,7 +4312,7 @@ async function executarTurnoDoAgente(
             ...(extrasDoTurno.length > 0 || entradaImediataDoTurno !== null
               ? {
                   promiseAllowedPricesCents: [
-                    ...extrasDoTurno.map((e) => e.price_cents),
+                    ...extrasDoTurno.flatMap((e) => totaisDoExtra(e)),
                     // A entrada e o restante são valores exatos, quase sempre abaixo do piso da escada.
                     ...(entradaImediataDoTurno !== null ? [entradaImediataDoTurno.entradaCents, entradaImediataDoTurno.restanteCents] : []),
                   ],

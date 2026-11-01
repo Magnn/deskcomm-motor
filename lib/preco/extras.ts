@@ -115,8 +115,26 @@ export function marcaDeExtraNoCorpo(corpo: string, extras: readonly Extra[]): Ma
   return { tipo: "uma", extra, texto: achadas[0]![0], quantidade };
 }
 
-/** O valor de uma cobrança com a quantidade: o preço cadastrado vezes as unidades. */
-export const valorDaCobranca = (extra: Pick<Extra, "price_cents">, quantidade = 1): number => extra.price_cents * quantidade;
+/**
+ * O valor de uma cobrança com a quantidade. Com tabela (`quantity_prices`), o preço fechado daquela quantidade; acima da
+ * maior da tabela, soma o maior grupo e o que sobrar (com 4 por R$ 17 e 1 por R$ 7, 5 custam R$ 24). Sem tabela, o preço
+ * cadastrado vezes as unidades.
+ */
+export function valorDaCobranca(extra: Pick<Extra, "price_cents" | "quantity_prices">, quantidade = 1): number {
+  const tabela = extra.quantity_prices ?? [];
+  if (quantidade <= 1 || tabela.length === 0) return extra.price_cents * quantidade;
+  const exata = tabela.find((q) => q.quantity === quantidade);
+  if (exata) return exata.price_cents;
+  const maior = tabela.filter((q) => q.quantity < quantidade).sort((a, b) => b.quantity - a.quantity)[0];
+  return maior ? maior.price_cents + valorDaCobranca(extra, quantidade - maior.quantity) : extra.price_cents * quantidade;
+}
+
+/** Tem preço fechado por quantidade. */
+export const temPrecoPorQuantidade = (extra: Pick<Extra, "quantity_prices">): boolean => (extra.quantity_prices ?? []).length > 0;
+
+/** Todos os totais que esta cobrança pode ter, de 1 ao teto de unidades. */
+export const totaisDoExtra = (extra: Pick<Extra, "price_cents" | "quantity_prices">): number[] =>
+  Array.from({ length: MAXIMO_DE_UNIDADES }, (_, i) => valorDaCobranca(extra, i + 1));
 
 /** "Pergunta nova" ou "3× Pergunta nova": o nome que vai na cobrança. */
 export const descricaoDaCobranca = (extra: Pick<Extra, "name">, quantidade = 1): string =>
@@ -221,12 +239,18 @@ export function blocoDosExtras(extras: readonly Extra[], pagos: readonly ExtraPa
     );
     // A conta pronta: em 20/10/2026 a agente somou 6 perguntas de R$ 5 como "R$ 35 o pacote" e defendeu o erro.
     if ((e.valid_days ?? 1) <= 1) {
-      const tabela = Array.from({ length: MAXIMO_DE_UNIDADES - 1 }, (_, i) => `${i + 2} = ${reais((i + 2) * e.price_cents)}`).join(", ");
-      linhas.push(`  Total de *${e.name}* (NÃO faça conta de cabeça, use esta tabela): ${tabela}. Não existe pacote nem desconto: o total é sempre o da tabela, e a quantidade da marca é a quantidade combinada.`);
+      const tabela = Array.from({ length: MAXIMO_DE_UNIDADES - 1 }, (_, i) => `${i + 2} = ${reais(valorDaCobranca(e, i + 2))}`).join(", ");
+      if (temPrecoPorQuantidade(e)) {
+        const maior = Math.max(...(e.quantity_prices ?? []).map((q) => q.quantity));
+        const opcoes = Array.from({ length: maior }, (_, i) => `${i + 1} = ${reais(valorDaCobranca(e, i + 1))}`).join(", ");
+        linhas.push(`  Preço de *${e.name}* por quantidade (NÃO faça conta de cabeça, use esta tabela): 1 = ${reais(e.price_cents)}, ${tabela}. Ao dizer o valor, mostre as opções (${opcoes}) para ela escolher. O total é sempre o da tabela, e a quantidade da marca é a quantidade escolhida.`);
+      } else {
+        linhas.push(`  Total de *${e.name}* (NÃO faça conta de cabeça, use esta tabela): ${tabela}. Não existe pacote nem desconto: o total é sempre o da tabela, e a quantidade da marca é a quantidade combinada.`);
+      }
     }
   }
   linhas.push(
-    `- VÁRIAS DE UMA VEZ: se ela tem mais de uma pergunta (ou quer mais de uma unidade da mesma cobrança), ANOTE todas, confirme a lista com ela em um balão e cobre TUDO num Pix só, escrevendo a quantidade na marca: ${marcaDoExtraEmLote("nome", 3)} (até ${MAXIMO_DE_UNIDADES}). O valor é o da cobrança vezes a quantidade. Nunca cobre uma, responda, e cobre a próxima.`,
+    `- VÁRIAS DE UMA VEZ: se ela tem mais de uma pergunta (ou quer mais de uma unidade da mesma cobrança), ANOTE todas, confirme a lista com ela em um balão e cobre TUDO num Pix só, escrevendo a quantidade na marca: ${marcaDoExtraEmLote("nome", 3)} (até ${MAXIMO_DE_UNIDADES}). O valor é o total da tabela acima. Nunca cobre uma, responda, e cobre a próxima.`,
     "- COMO COBRAR, numa resposta só: 1º um balão curto dizendo o que é e o valor; 2º a marca sozinha no balão seguinte (o sistema troca a marca pelo código do Pix e pelo link de cartão de crédito); 3º um balão final: \"Assim que o pagamento cair eu vejo aqui e já te atendo. Conseguiu copiar o código?\"",
     "- Se ela disser que não tem Pix, que só tem cartão ou pedir o link do cartão: o link de cartão vai junto com o Pix. Mande a marca de novo, sozinha no balão, e diga que o link do cartão está logo abaixo do código. NUNCA peça nem aceite foto ou número de cartão na conversa: os dados do cartão são digitados só na página do pagamento.",
     "- NÃO chame atendimento humano para cobrar isto, NÃO peça comprovante e NÃO entregue antes de o pagamento aparecer neste bloco como PAGAMENTO CONFIRMADO.",
