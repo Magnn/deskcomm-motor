@@ -97,6 +97,21 @@ describe("a chave Pix vai sozinha no balão", () => {
     }
   });
 
+  it("a cobrança inteira chega em três balões, com a chave no do meio, em qualquer modo de envio", () => {
+    const corpo = `${instrucao}
+
++5569900000000
+
+${comprovante}
+
+Se preferir pagar no cartão, é por este link: https://buy.exemplo.com/abc`;
+    for (const ligado of [true, false]) {
+      const baloes = splitForSend(corpo, ligado, 200);
+      expect(baloes).toHaveLength(3);
+      expect(baloes[1]).toBe("+5569900000000");
+    }
+  });
+
   it("frase que só cita um número continua junto do resto", () => {
     expect(splitIntoBubbles("Meu número é +5569900000000.\n\nMe chama lá.", 200)).toEqual(["Meu número é +5569900000000.\n\nMe chama lá."]);
   });

@@ -229,7 +229,7 @@ export const OK_KINDS = new Set(["sent", "already_sent", "queued"]);
  */
 export function splitForSend(body: string, enabled: boolean, maxChars: number): string[] {
   if (enabled) return limitarBolhas(body, maxChars);
-  // MENSAGEM ÚNICA (economia de mensagem cobrada) COM CÓDIGO DO PIX: o código vai sozinho mesmo assim.
+  // MENSAGEM ÚNICA (economia de mensagem cobrada) COM CÓDIGO OU CHAVE DO PIX: ele vai sozinho mesmo assim.
   // Medido em produção em 11/10/2026: o primeiro Pix real saiu no meio de um texto de 843 caracteres, e
   // código no meio do texto não se copia com um toque — é preciso selecionar à mão, e a pessoa desiste.
   // São no máximo três mensagens: o que vem antes, o código, o que vem depois.
@@ -237,7 +237,7 @@ export function splitForSend(body: string, enabled: boolean, maxChars: number): 
     .split(/\n{2,}/)
     .map((p) => p.trim())
     .filter((p) => p !== "");
-  const i = paragrafos.findIndex(ehCodigoDoPix);
+  const i = paragrafos.findIndex(vaiSozinhoNoBalao);
   if (i < 0) return [body];
   const antes = paragrafos.slice(0, i).join("\n\n");
   const depois = paragrafos.slice(i + 1).join("\n\n");
