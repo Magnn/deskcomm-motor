@@ -645,11 +645,10 @@ export function entradaImediata(
   if (minimo === undefined) return null;
   const piso = menorDegrau ?? minimo;
   let dito = leitura.atual;
-  // Ela respondeu a "quanto você consegue hoje? o restante a gente acerta depois": segurar o menor valor agora seria
-  // desdizer a pergunta. Decisão do dono em 01/11/2026.
-  const falas = msgs.filter((m) => m.direction === "outbound").slice(-3).map((m) => m.body ?? "").join("\n");
-  const respondeuAPerguntaDaEntrada = dito !== null && PERGUNTOU_QUANTO.test(falas) && /\brestante\b/i.test(falas);
-  if (!respondeuAPerguntaDaEntrada && (dito === null || dito < piso)) {
+  // Quem configurou entrada mínima fecha no valor dito, sem pedir para completar. Decisão do dono em 01/11/2026: Marli
+  // escreveu "Pago 30 Hj" e ouviu "30 não fica a entrada".
+  const fechaNoValorDito = dito !== null && c.min_down_payment_cents !== undefined;
+  if (!fechaNoValorDito && (dito === null || dito < piso)) {
     // ABAIXO DO MENOR VALOR: a primeira vez não é entrada — a agente segura o menor valor e pergunta se ela
     // consegue completar (medido em 12/10: quem disse 30 voltou com 50 e pagou). Só quando ela volta dizendo que
     // não consegue, ou repete um valor baixo, é que o valor dela vira entrada e o restante fica para depois.
@@ -712,14 +711,15 @@ function rodadasDeValor(msgs: readonly MensagemParaContar[], primeiroPreco: numb
  * agente segura esse menor valor antes de aceitar entrada (`blocoDoValorAbaixoDoPiso`).
  */
 export function valorAbaixoDoPisoAgora(
-  c: Pick<PricingConfig, "list_price_cents" | "steps">,
+  c: Pick<PricingConfig, "list_price_cents" | "steps"> & { min_down_payment_cents?: number | undefined },
   mensagens: readonly MensagemParaContar[],
 ): { ditoCents: number; pisoCents: number } | null {
   const msgs = expandirHistoricoColado(mensagens);
   const primeiroPreco = msgs.findIndex((m) => m.direction === "outbound" && PRECO_DITO.test(m.body ?? ""));
   if (primeiroPreco === -1 || c.steps.length === 0) return null;
   const leitura = rodadasDeValor(msgs, primeiroPreco);
-  const piso = Math.min(...c.steps.map((s) => s.price_cents));
+  // Com entrada mínima, o que se segura é ela: acima dela o valor dito já fecha (`entradaImediata`).
+  const piso = c.min_down_payment_cents ?? Math.min(...c.steps.map((s) => s.price_cents));
   if (leitura === null || leitura.atual === null || leitura.atual >= piso) return null;
   if (leitura.anterioresAbaixoDe(piso) !== null) return null;
   return { ditoCents: leitura.atual, pisoCents: piso };

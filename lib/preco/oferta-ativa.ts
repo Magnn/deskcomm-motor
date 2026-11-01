@@ -13,7 +13,9 @@
  *   • uma resposta nunca oferece as duas, em nenhum balão;
  *   • a pequena só vem depois do menor valor do trabalho, a não ser que ELA faça uma pergunta nova às cartas (decisão do
  *     dono em 01/11/2026: primeiro o trabalho de R$ 130, depois R$ 100 e R$ 60, e só então o resto);
- *   • lembrar o combinado de uma data ("o dia 20 segue de pé, R$ 130") não é oferta.
+ *   • lembrar o combinado de uma data ("o dia 20 segue de pé, R$ 130") não é oferta;
+ *   • a entrada fechada ("você entra com R$ 30") é a oferta de pé: nada acima dela volta sem ela pedir, nem na régua de
+ *     silêncio, e falar do restante não é oferecer outro valor.
  *
  * Pura.
  */
@@ -38,7 +40,8 @@ interface MensagemDaConversa {
 const VALIDADE_DA_OFERTA_MS = 24 * 60 * 60 * 1000;
 
 /** Frase que lembra uma data acertada: não oferece nada. */
-const FALA_DO_COMBINADO = /\bcombinad|\bdia\s+\d{1,2}\b/i;
+const FALA_DO_COMBINADO = /\bcombinad|\bdia\s+\d{1,2}\b|\brestante\b/i;
+const FALA_DA_ENTRADA = /\bentra(?:r)?\s+com\s+\*?R\$\s?\d[\d.,]*/i;
 /** Parcela não é preço: "12x de R$ 15". */
 const FALA_DE_PARCELA = /\b\d{1,2}\s*x\b|\bparcela/i;
 const FALA_DO_TRABALHO = /\btrabalh\w*/i;
@@ -110,6 +113,9 @@ export function ofertaAtivaDaConversa(
     const m = mensagens[i]!;
     if (m.direction !== "outbound" || !m.body) continue;
     if (m.sent_at !== undefined && agora.getTime() - new Date(m.sent_at).getTime() > VALIDADE_DA_OFERTA_MS) return null;
+    const entrada = FALA_DA_ENTRADA.exec(m.body);
+    const valorDaEntrada = entrada === null ? undefined : valoresDitos(entrada[0])[0];
+    if (valorDaEntrada !== undefined) return { tipo: "pequena", nome: "Entrada de hoje", cents: valorDaEntrada };
     const ultimo = ofertasDoCorpo(c, pequenos, m.body).at(-1);
     if (ultimo === undefined) continue;
     return ultimo.pequena !== null
