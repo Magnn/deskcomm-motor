@@ -6,8 +6,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { EscolherModeloPronto } from "./EscolherModeloPronto";
 import { FormularioDeModelo } from "./FormularioDeModelo";
 import { apiClient } from "@/lib/api/client";
+import type { ModeloPronto } from "@/lib/channels/modelos-prontos";
 import { lerConteudo } from "@/lib/channels/template-conteudo";
 import { cn } from "@/lib/utils";
 import { useT } from "@/hooks/i18n/useT";
@@ -62,6 +64,7 @@ export function TemplatesParceiroClient({
   const t = useT();
   const qc = useQueryClient();
   const [criando, setCriando] = useState(false);
+  const [pronto, setPronto] = useState<ModeloPronto | null>(null);
   const [aberto, setAberto] = useState<string | null>(null);
 
   const lista = useQuery({
@@ -80,6 +83,7 @@ export function TemplatesParceiroClient({
       qc.invalidateQueries({ queryKey: ["channel-templates"] });
       toast.success(`${r.data.sincronizadas} ${t("de")} ${r.data.total} ${t("sincronizada(s).")}`);
       setCriando(false);
+      setPronto(null);
     },
     onError: (e: unknown) =>
       toast.error(e instanceof Error ? t(e.message) : t("Não consegui falar com a plataforma.")),
@@ -105,17 +109,29 @@ export function TemplatesParceiroClient({
           >
             {acao.isPending ? t("Sincronizando…") : t("Sincronizar")}
           </Button>
-          <Button type="button" size="sm" onClick={() => setCriando((v) => !v)}>
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => {
+              setCriando((v) => !v);
+              setPronto(null);
+            }}
+          >
             {criando ? t("Cancelar") : t("Criar modelo")}
           </Button>
         </div>
       </div>
 
       {criando && (
-        <FormularioDeModelo
-          enviando={acao.isPending}
-          onEnviar={(modelo) => acao.mutate({ acao: "criar", ...modelo })}
-        />
+        <>
+          <EscolherModeloPronto escolhido={pronto?.name ?? null} onEscolher={setPronto} />
+          <FormularioDeModelo
+            key={pronto?.name ?? "em-branco"}
+            inicial={pronto ?? undefined}
+            enviando={acao.isPending}
+            onEnviar={(modelo) => acao.mutate({ acao: "criar", ...modelo })}
+          />
+        </>
       )}
 
       {lista.isLoading ? (
