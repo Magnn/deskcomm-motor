@@ -20,9 +20,9 @@ import { lerConexaoStripe, type ConexaoStripe } from '@/lib/pagamentos/conexao-s
 import { VALIDADE_DO_PIX_S, linksDePagamentoDaConfig, pagamentosRecentesDoContato, referenciaDoPix, type LinkDePagamentoConhecido } from '@/lib/pagamentos/pix-na-conversa';
 import { codigoPixEstatico } from '@/lib/pagamentos/pix-estatico';
 import { criarClienteStripe, type LinkCriado, type PedidoDeLink, type PedidoDePix, type PixCriado } from '@/lib/pagamentos/stripe';
-import { chavePrincipal, codigoDaChave } from '@/lib/preco/chave-pix';
+import { chaveParaCopiar, chavePrincipal } from '@/lib/preco/chave-pix';
 import { reais, type PricingConfig } from '@/lib/preco/tipos';
-import { instrucaoDoPixCopiaECola, linhaDoLinkDePagamento, PEDIDO_DO_COMPROVANTE } from "@/lib/pagamentos/como-pagar-pix";
+import { baloesPelaChave, instrucaoDoPixCopiaECola, linhaDoLinkDePagamento, PEDIDO_DO_COMPROVANTE } from "@/lib/pagamentos/como-pagar-pix";
 
 interface Registro {
   info(msg: string, dados?: Record<string, unknown>): void;
@@ -55,14 +55,6 @@ export function baloesDaCobranca(
   meios: { copiaECola: string | null; urlDoCartao: string | null; pixDaChave: { codigo: string; titular: string } | null },
 ): string[] {
   const valor = reais(link.valorCentavos);
-  if (meios.copiaECola === null && meios.pixDaChave !== null) {
-    return [
-      instrucaoDoPixCopiaECola(valor, meios.pixDaChave.titular),
-      meios.pixDaChave.codigo,
-      PEDIDO_DO_COMPROVANTE,
-      ...(meios.urlDoCartao !== null ? [linhaDoLinkDePagamento(meios.urlDoCartao)] : []),
-    ];
-  }
   if (meios.copiaECola !== null) {
     return [
       instrucaoDoPixCopiaECola(valor),
@@ -71,6 +63,13 @@ export function baloesDaCobranca(
     ];
   }
   if (meios.urlDoCartao !== null) return [`O pagamento de *${valor}* é por este link, no cartão de crédito: ${meios.urlDoCartao}`];
+  if (meios.pixDaChave !== null) {
+    return [
+      instrucaoDoPixCopiaECola(valor, meios.pixDaChave.titular),
+      meios.pixDaChave.codigo,
+      PEDIDO_DO_COMPROVANTE,
+    ];
+  }
   return [];
 }
 
@@ -125,12 +124,13 @@ export async function cobrancaPeloProvedorNoLugarDoLink(e: EntradaDaCobrancaPelo
   // A CHAVE PRINCIPAL: o Pix sai pela chave, sem provedor. O provedor só entra no link de cartão.
   const principal = chavePrincipal(e.pricing);
   if (principal !== null) {
-    const codigo = codigoDaChave(principal, link.valorCentavos, e.conversationId);
-    if (codigo === null) {
+    const chave = chaveParaCopiar(principal);
+    if (chave === null) {
       return { recusa: 'O pagamento não pôde ser gerado agora. NÃO envie link nem chave: diga em uma frase que você manda o código em alguns minutos e chame o atendimento humano.' };
     }
     e.log.info('cobrança pela chave principal no lugar do link', { conversation_id: e.conversationId, valor_centavos: link.valorCentavos });
-    return { corpo: corpoComCobranca(e.corpo, link, baloesDaCobranca(link, { copiaECola: null, urlDoCartao: await cartaoAoLadoDaChave(e, link), pixDaChave: { codigo, titular: principal.holder } })) };
+    const baloes = [...baloesPelaChave(reais(link.valorCentavos), chave, principal.holder), linhaDoLinkDePagamento(await cartaoAoLadoDaChave(e, link))];
+    return { corpo: corpoComCobranca(e.corpo, link, baloes) };
   }
 
   let conexao: ConexaoStripe | null;

@@ -13,7 +13,7 @@
 import type { MensagemDoHistorico } from "@/lib/preco/pos-venda";
 
 const PROBLEMA_NO_PIX =
-  /inv[aá]lid|n[aã]o (est[aá] |t[aá] )?(cola|colou|colando|deu|dando|funciona|funcionou|aceita|aceitou|vai|foi|consigo|consegui|acho|achei)|deu erro|(c[oó]digo|pix) (errado|vencid|expir)|n[aã]o (mandou|mandaste|enviou|recebi|chegou|veio)( (o|a|esse|essa))? ?(pix|c[oó]digo|chave|link)|cad[eê] o (pix|c[oó]digo|link)/i;
+  /inv[aá]lid|n[aã]o encontr|n[aã]o (est[aá] |t[aá] )?(cola|colou|colando|deu|dando|funciona|funcionou|aceita|aceitou|vai|foi|consigo|consegui|acho|achei)|deu erro|(c[oó]digo|pix) (errado|vencid|expir)|n[aã]o (mandou|mandaste|enviou|recebi|chegou|veio)( (o|a|esse|essa))? ?(pix|c[oó]digo|chave|link)|cad[eê] o (pix|c[oó]digo|link)/i;
 
 /** A fala diz que o Pix não funcionou. */
 export function relatouProblemaNoPix(texto: string): boolean {
@@ -25,7 +25,7 @@ const CODIGO_PIX = /^000201/m;
 const JANELA_MS = 24 * 3_600_000;
 
 /** O bloco do turno. Vazio quando não se aplica. */
-export function blocoDoPixQueNaoColou(mensagens: readonly MensagemDoHistorico[], agora: Date, opcoes: { pelaChave?: boolean } = {}): string {
+export function blocoDoPixQueNaoColou(mensagens: readonly MensagemDoHistorico[], agora: Date, opcoes: { chaveDaEmpresa?: string | null } = {}): string {
   const quando = (m: MensagemDoHistorico) => (m.sent_at ? Date.parse(m.sent_at) : Number.NaN);
   let ultimaDela: MensagemDoHistorico | null = null;
   for (const m of mensagens) {
@@ -34,17 +34,18 @@ export function blocoDoPixQueNaoColou(mensagens: readonly MensagemDoHistorico[],
   }
   if (ultimaDela === null || !relatouProblemaNoPix(ultimaDela.body ?? "")) return "";
   const pixRecente = mensagens.some((m) => {
-    if (m.direction !== "outbound" || !CODIGO_PIX.test(m.body ?? "")) return false;
+    const corpo = m.body ?? "";
+    if (m.direction !== "outbound" || !(CODIGO_PIX.test(corpo) || (opcoes.chaveDaEmpresa && corpo.includes(opcoes.chaveDaEmpresa)))) return false;
     const t = quando(m);
     return Number.isNaN(t) || agora.getTime() - t <= JANELA_MS;
   });
   if (!pixRecente) return "";
-  if (opcoes.pelaChave) {
+  if (opcoes.chaveDaEmpresa) {
     return [
       "",
       "PIX QUE NÃO FUNCIONOU (a última mensagem dela diz que o Pix deu erro, não colou ou não chegou):",
       "- Ela QUER pagar. Não desista do pagamento, não ofereça desconto e não troque de assunto.",
-      "- O código pela chave não vence: não diga que expirou. Mande agora a marca [[CHAVE PIX: valor]], sozinha num balão, com o valor que ela está pagando: o sistema manda o código de novo e a chave para digitar em \"Pagar com chave\".",
+      "- A chave não vence: não diga que expirou. Mande agora a marca [[CHAVE PIX: valor]], sozinha num balão, com o valor que ela está pagando: o sistema manda o Pix copia e cola.",
     ].join("\n");
   }
   return [

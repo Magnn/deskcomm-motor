@@ -5,10 +5,10 @@ import { pixDaEntradaNoLugarDaMarca, pixDoRestanteNoLugarDaMarca } from "@/lib/a
 import { pixDoExtraNoLugarDaMarca } from "@/lib/agent-engine/agent/pix-do-extra-no-envio";
 import { itensDaCobranca } from "@/lib/followup/cobranca-no-conteudo";
 import { chavePixNormalizada } from "@/lib/pagamentos/pix-estatico";
-import { mensagensDoPix } from "@/lib/pagamentos/enviar-pix-tipos";
+import { mensagensDoPixPelaChave } from "@/lib/pagamentos/enviar-pix-tipos";
 import { blocoDoPixQueNaoColou } from "@/lib/pagamentos/pix-que-nao-colou";
 
-import { blocoDaChavePix, chavePrincipal, codigoDaChave, pixPelaChaveNoLugarDaMarca } from "./chave-pix";
+import { blocoDaChavePix, chaveParaCopiar, chavePrincipal, codigoDaChave, pixPelaChaveNoLugarDaMarca } from "./chave-pix";
 import { pricingSchema, type PricingConfig } from "./tipos";
 
 const CHAVE = { key: "+5569900000000", holder: "Fulano de Tal", primary: true };
@@ -68,7 +68,8 @@ describe("chave Pix como forma principal", () => {
     });
     expect("corpo" in saida).toBe(true);
     if (!("corpo" in saida)) return;
-    expect(saida.corpo).toMatch(/(^|\n)000201/);
+    expect(saida.corpo).not.toContain("000201");
+    expect(saida.corpo).toContain("\n\n+5569900000000\n\n");
     expect(saida.corpo).toContain("https://buy.exemplo.com/cartao");
     expect(saida.corpo).not.toContain("pay.exemplo.com");
     expect(criarLink).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ soCartao: true, valorCentavos: 6000 }));
@@ -79,10 +80,10 @@ describe("chave Pix como forma principal", () => {
     expect("corpo" in saida).toBe(true);
     if (!("corpo" in saida)) return;
     expect(saida.corpo).toContain("Fulano de Tal");
-    expect(saida.corpo).toMatch(/(^|\n)000201/);
+    expect(saida.corpo).toContain("Pagar com chave");
     expect(saida.corpo).toContain("comprovante");
     expect(saida.corpo).toContain("cartão, é por este link: https://pay.exemplo.com/abc");
-    expect(saida.corpo.indexOf("000201")).toBeLessThan(saida.corpo.indexOf("https://pay.exemplo.com/abc"));
+    expect(saida.corpo.indexOf("+5569900000000")).toBeLessThan(saida.corpo.indexOf("https://pay.exemplo.com/abc"));
   });
 
   it("entrada, restante e avulsa saem pela chave", async () => {
@@ -103,7 +104,8 @@ describe("chave Pix como forma principal", () => {
     for (const saida of [entrada, restante, extra]) {
       expect("corpo" in saida).toBe(true);
       if (!("corpo" in saida)) continue;
-      expect(saida.corpo).toMatch(/(^|\n)000201/);
+      expect(saida.corpo).not.toContain("000201");
+      expect(saida.corpo).toContain("+5569900000000");
       expect(saida.corpo).toContain("Fulano de Tal");
       expect(saida.corpo).toContain("comprovante");
       expect(saida.corpo).not.toContain("empresa de pagamentos");
@@ -120,6 +122,10 @@ describe("chave Pix como forma principal", () => {
       outraFormaJaTentada: false,
     });
     expect("corpo" in comPrincipal).toBe(true);
+    if ("corpo" in comPrincipal) {
+      expect(comPrincipal.corpo).toMatch(/(^|\n)000201/);
+      expect(comPrincipal.corpo).toContain("Copia e Cola");
+    }
     const comoReserva = pixPelaChaveNoLugarDaMarca({
       corpo: "[[CHAVE PIX: 60]]",
       chave: { key: CHAVE.key, holder: CHAVE.holder },
@@ -138,24 +144,24 @@ describe("chave Pix como forma principal", () => {
     expect(blocoDaChavePix({ key: CHAVE.key, holder: CHAVE.holder }, [6000])).toContain("ÚLTIMO RECURSO");
   });
 
-  it("código da chave que não colou: reenvia pela marca e não fala em vencer", () => {
+  it("chave que não funcionou: manda o copia e cola pela marca e não fala em vencer", () => {
     const mensagens = [
-      { direction: "outbound", body: codigoDaChave(CHAVE, 6000, CONVERSA)!, sent_at: "2026-11-01T12:00:00Z" },
-      { direction: "inbound", body: "não colou", sent_at: "2026-11-01T12:05:00Z" },
+      { direction: "outbound", body: chaveParaCopiar(CHAVE), sent_at: "2026-11-01T12:00:00Z" },
+      { direction: "inbound", body: "a chave não foi", sent_at: "2026-11-01T12:05:00Z" },
     ] as never;
-    const bloco = blocoDoPixQueNaoColou(mensagens, new Date("2026-11-01T12:06:00Z"), { pelaChave: true });
+    expect(blocoDoPixQueNaoColou(mensagens, new Date("2026-11-01T12:06:00Z"))).toBe("");
+    const bloco = blocoDoPixQueNaoColou(mensagens, new Date("2026-11-01T12:06:00Z"), { chaveDaEmpresa: chaveParaCopiar(CHAVE) });
     expect(bloco).toContain("[[CHAVE PIX");
     expect(bloco).not.toContain("vence em 1 hora");
   });
 
   it("botão do atendente e fluxo levam o nome e o pedido de comprovante", () => {
-    expect(mensagensDoPix(6000, "000201abc", "Fulano de Tal").join(" ")).toContain("comprovante");
-    expect(mensagensDoPix(6000, "000201abc")).toHaveLength(2);
+    expect(mensagensDoPixPelaChave(6000, "+5569900000000", "Fulano de Tal")[1]).toBe("+5569900000000");
     const itens = itensDaCobranca("[[COBRAR: 60]]", { valorCentavos: 6000, produto: null, bruto: "[[COBRAR: 60]]" }, {
-      copiaECola: "000201abc",
+      copiaECola: null,
       qrCodeUrl: null,
       urlDoCartao: null,
-      titularDaChave: "Fulano de Tal",
+      pelaChave: { chave: "+5569900000000", titular: "Fulano de Tal" },
     });
     const texto = itens.map((i) => (i.type === "text" ? i.body : "")).join(" ");
     expect(texto).toContain("Fulano de Tal");

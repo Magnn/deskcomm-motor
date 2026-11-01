@@ -88,7 +88,7 @@ import { blocoDaRespostaAtropelada, respostaAtropelada } from './resposta-atrope
 import { blocoDaEntrada, blocoDaEntradaImediata, blocoDaPropostaDeEntrada, blocoDoValorAbaixoDoPiso, blocoDoValorAceito } from '@/lib/preco/bloco-da-entrada';
 import { linkDePagamentoNoCorpo, linksDePagamentoDaConfig } from '@/lib/pagamentos/pix-na-conversa';
 import { blocoDoPrecoInternacional, precoInternacionalDoContato } from '@/lib/preco/preco-internacional';
-import { blocoDaChavePix, chavePrincipal, pixPelaChaveNoLugarDaMarca, temMarcaDeChavePix } from '@/lib/preco/chave-pix';
+import { blocoDaChavePix, chaveParaCopiar, chavePrincipal, pixPelaChaveNoLugarDaMarca, temMarcaDeChavePix } from '@/lib/preco/chave-pix';
 import { RECUSA_DA_PERGUNTA_DO_PIX, jaPerguntouDoPix, repetePerguntaDoPix } from '@/lib/preco/pergunta-do-pix';
 import { blocoDoBoletoPronto, temMarcaDeBoleto, valoresDoBoleto } from '@/lib/preco/boleto-pronto';
 import {
@@ -2813,7 +2813,7 @@ async function executarTurnoDoAgente(
   blocoDaEntrega += blocoDaEntregaNaConversa(entregaNaConversaNoTurno);
   // Quem quer pagar e o Pix não funcionou: código novo + o link que tem o Pix com botão de copiar
   // (`lib/pagamentos/pix-que-nao-colou.ts`).
-  if (!preview) blocoDaEntrega += blocoDoPixQueNaoColou(openingContext.context.messages, new Date(), { pelaChave: chavePrincipal(agentConfig?.pricing) !== null });
+  if (!preview) blocoDaEntrega += blocoDoPixQueNaoColou(openingContext.context.messages, new Date(), { chaveDaEmpresa: agentConfig?.pricing?.pix_key?.primary ? chaveParaCopiar(agentConfig.pricing.pix_key) : null });
   if (!preview && (openingContext.context.contact.tags ?? []).includes('pago') && !recusouOfertasNoTurno) {
     blocoDaEntrega += blocoDoEncerramento();
   }
@@ -2962,7 +2962,7 @@ async function executarTurnoDoAgente(
     if (melhor !== null) {
       const pagoEm = Date.now() - melhor.minutos * 60_000 - 60_000;
       const cobrouDepois = openingContext.context.messages.some(
-        (m) => m.direction === 'outbound' && /(^|\s)000201|buy\.stripe\.com\//.test(m.body ?? '') && new Date(m.sent_at).getTime() > pagoEm,
+        (m) => m.direction === 'outbound' && /(^|\s)000201|pra pagar no pix|buy\.stripe\.com\//i.test(m.body ?? '') && new Date(m.sent_at).getTime() > pagoEm,
       );
       if (cobrouDepois) return null;
     }

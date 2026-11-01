@@ -31,7 +31,7 @@ async function previaDaMensagem(
             .eq("organization_id", organizationId)
             .eq("conversation_id", conversationId)
             .eq("direction", "outbound")
-            .like("body", "000201%")
+            .or("body.like.000201%,body.ilike.Pra pagar no Pix%")
             .gte("created_at", new Date(Date.now() - 24 * 3_600_000).toISOString())
             .limit(1)
         : Promise.resolve({ data: [] }),

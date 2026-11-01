@@ -17,7 +17,7 @@ import { lerConexaoStripe, type ConexaoStripe } from '@/lib/pagamentos/conexao-s
 import { VALIDADE_DO_PIX_S } from '@/lib/pagamentos/pix-na-conversa';
 import { ErroDaStripe, criarClienteStripe, type PedidoDePix, type PixCriado } from '@/lib/pagamentos/stripe';
 import { MARCA_DA_ENTRADA } from '@/lib/preco/bloco-da-entrada';
-import { codigoDaChave, type ChavePixDaEmpresa } from '@/lib/preco/chave-pix';
+import { chaveParaCopiar, type ChavePixDaEmpresa } from '@/lib/preco/chave-pix';
 import { EXTRA_DO_RESTANTE, MARCA_DO_RESTANTE } from '@/lib/preco/restante';
 import { corpoComPixDoExtra } from '@/lib/preco/extras';
 
@@ -68,11 +68,11 @@ export async function pixDoRestanteNoLugarDaMarca(
   const achada = NA_MARCA_DO_RESTANTE.exec(e.corpo);
   if (achada === null) return { corpo: e.corpo };
   if (e.chavePrincipal) {
-    const codigo = codigoDaChave(e.chavePrincipal, e.restanteCents, e.conversationId);
-    if (codigo === null) return { recusa: SEM_COBRANCA_DO_RESTANTE };
+    const chave = chaveParaCopiar(e.chavePrincipal);
+    if (chave === null) return { recusa: SEM_COBRANCA_DO_RESTANTE };
     e.log.info('pix do restante pela chave principal', { conversation_id: e.conversationId, restante_cents: e.restanteCents });
     const marca = { extra: { name: MARCA_DO_RESTANTE, price_cents: e.restanteCents, when: '' }, texto: achada[0] };
-    return { corpo: corpoComPixDoExtra(e.corpo, marca, codigo, null, e.chavePrincipal.holder) };
+    return { corpo: corpoComPixDoExtra(e.corpo, marca, null, null, { chave, titular: e.chavePrincipal.holder }) };
   }
   try {
     const conexao = await (e.lerConexao ?? lerConexaoStripe)(e.supabase, e.organizationId);
@@ -114,11 +114,11 @@ export async function pixDaEntradaNoLugarDaMarca(e: EntradaDoPixDaEntrada): Prom
   const achada = NA_MARCA.exec(e.corpo);
   if (achada === null) return { corpo: e.corpo };
   if (e.chavePrincipal) {
-    const codigo = codigoDaChave(e.chavePrincipal, e.entrada.entradaCents, e.conversationId);
-    if (codigo === null) return { recusa: SEM_COBRANCA };
+    const chave = chaveParaCopiar(e.chavePrincipal);
+    if (chave === null) return { recusa: SEM_COBRANCA };
     e.log.info('pix da entrada pela chave principal', { conversation_id: e.conversationId, entrada_cents: e.entrada.entradaCents });
     const marca = { extra: { name: MARCA_DA_ENTRADA, price_cents: e.entrada.entradaCents, when: '' }, texto: achada[0] };
-    return { corpo: corpoComPixDoExtra(e.corpo, marca, codigo, null, e.chavePrincipal.holder) };
+    return { corpo: corpoComPixDoExtra(e.corpo, marca, null, null, { chave, titular: e.chavePrincipal.holder }) };
   }
   try {
     const conexao = await (e.lerConexao ?? lerConexaoStripe)(e.supabase, e.organizationId);

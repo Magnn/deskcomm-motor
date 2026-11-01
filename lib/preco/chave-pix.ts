@@ -8,6 +8,8 @@
  *
  * Com `primary` ligado, a chave deixa de ser o último recurso: toda cobrança Pix em reais sai por ela (a venda, a
  * entrada, o restante, as avulsas, o fluxo e o botão do atendente), sem provedor. Decisão do dono em 01/11/2026.
+ * A pessoa recebe a chave para copiar; o copia e cola fica para quem teve problema com ela: nesse modo, a marca
+ * `[[CHAVE PIX: valor]]` manda o código.
  * O cartão continua saindo junto, num link só de cartão do provedor; se ele falhar, o link cadastrado do checkout
  * externo. Quem paga em outra moeda continua no provedor: Pix não atende essa pessoa.
  *
@@ -19,6 +21,7 @@
  *
  * Tudo aqui é puro.
  */
+import { instrucaoDoPixCopiaECola, PEDIDO_DO_COMPROVANTE } from "@/lib/pagamentos/como-pagar-pix";
 import { codigoPixEstatico, chavePixNormalizada } from "@/lib/pagamentos/pix-estatico";
 
 import type { PricingConfig } from "./tipos";
@@ -29,6 +32,11 @@ export type ChavePixDaEmpresa = NonNullable<PricingConfig["pix_key"]>;
 /** A chave, quando o operador a escolheu como forma principal de receber Pix. Senão, `null`. */
 export function chavePrincipal(pricing: Pick<PricingConfig, "pix_key"> | null | undefined): ChavePixDaEmpresa | null {
   return pricing?.pix_key?.primary === true ? pricing.pix_key : null;
+}
+
+/** A chave como vai sozinha num balão, para copiar. `null` quando ela não é uma chave válida. */
+export function chaveParaCopiar(chave: ChavePixDaEmpresa): string | null {
+  return chavePixNormalizada(chave.key);
 }
 
 /** O código copia e cola da chave para uma cobrança. `null` quando a chave não gera código. */
@@ -89,7 +97,7 @@ export function pixPelaChaveNoLugarDaMarca(e: {
   const baloes = e.corpo.split(/\n{2,}/);
   const i = baloes.findIndex((b) => b.includes(achadas[0]![0]));
   const resto = baloes[i]!.replace(achadas[0]![0], "").trim();
-  const novos = [
+  const novos = e.chave.primary === true ? [instrucaoDoPixCopiaECola(reais(cents), e.chave.holder), codigo, PEDIDO_DO_COMPROVANTE] : [
     `Pra pagar pela chave Pix: copia o código abaixo e cola no app do seu banco, na opção *Pix Copia e Cola*. Já vai com o valor de *${reais(cents)}* e o nome *${e.chave.holder}*.`,
     codigo,
     `Se preferir digitar a chave, é o ${chavePorExtenso(e.chave.key)}, no valor de ${reais(cents)}. Depois de pagar, me manda o comprovante aqui.`,
@@ -107,9 +115,10 @@ export function blocoDaChavePix(chave: ChavePixDaEmpresa | null | undefined, val
       "",
       "",
       "PIX PELA CHAVE DA EMPRESA (é a forma PRINCIPAL de receber; esta regra vence qualquer frase do roteiro sobre pagamento)",
-      `- Todo Pix sai pela chave, em nome de ${chave.holder}. Cobre do jeito de sempre (o link do produto ou a marca [[PIX: …]]): o sistema troca pelo código da chave e pelo link de cartão. Se perguntarem por que aparece esse nome, é quem cuida do financeiro.`,
-      `- O link de cartão sai junto com o código. Se ela pedir cartão, cobre de novo do jeito de sempre e aponte o link. O cartão confirma sozinho, sem comprovante. O código da chave não vence: NUNCA diga que vai expirar.`,
-      `- Se ela pedir a chave ou o número do Pix, escreva sozinha num balão a marca com o valor em reais, assim: [[CHAVE PIX: ${Math.round(valores[0]! / 100)}]]. Valores liberados para esta pessoa agora: ${valores.map(reais).join(", ")}. O sistema troca a marca pelo código e pela chave. NUNCA digite a chave você mesma, e é PROIBIDO dizer que não trabalha com chave.`,
+      `- Todo Pix sai pela chave, em nome de ${chave.holder}. Cobre do jeito de sempre (o link do produto ou a marca [[PIX: …]]): o sistema troca pela chave para copiar e pelo link de cartão. Onde o roteiro disser "código", diga "chave". Se perguntarem por que aparece esse nome, é quem cuida do financeiro.`,
+      `- O link de cartão sai junto com o código. Se ela pedir cartão, cobre de novo do jeito de sempre e aponte o link. O cartão confirma sozinho, sem comprovante. A chave não vence: NUNCA diga que vai expirar.`,
+      `- Se ela pedir a chave de novo, cobre de novo do jeito de sempre. NUNCA digite a chave você mesma, e é PROIBIDO dizer que não trabalha com chave.`,
+      `- SÓ se ela disser que a chave não funcionou ou que não conseguiu pagar com ela, escreva sozinha num balão a marca com o valor em reais, assim: [[CHAVE PIX: ${Math.round(valores[0]! / 100)}]]. O sistema troca a marca pelo Pix copia e cola. Valores liberados para esta pessoa agora: ${valores.map(reais).join(", ")}. Nunca use essa marca antes de ela ter problema com a chave.`,
       confirmacao,
     ].join("\n");
   }
