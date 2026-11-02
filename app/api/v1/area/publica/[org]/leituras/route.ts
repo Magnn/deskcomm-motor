@@ -9,6 +9,9 @@
  * `forma: "creditos"` (com os créditos ligados): paga ali mesmo com o saldo da carteira, 1 crédito por real do
  * preço (`creditosDoPreco`). O débito é da função do banco, que recusa saldo insuficiente; a leitura já volta
  * paga e a pessoa vai direto para a mesa.
+ *
+ * `forma: "gratis"` (com `gratis_semanal` ligado): a pergunta grátis da semana, uma por pessoa de segunda a
+ * domingo. Conferida aqui (`gratisDaSemanaLivre`), a leitura já volta paga com `pagamento: "gratis_da_semana"`.
  */
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
@@ -19,8 +22,8 @@ import { creditosDoPreco } from "@/lib/area-do-cliente/creditos";
 import { configDosCreditos, moverCreditos } from "@/lib/area-do-cliente/creditos-servidor";
 import { registrarEvento } from "@/lib/area-do-cliente/eventos";
 import { NAO_ENCONTRADA, contextoDaArea } from "@/lib/area-do-cliente/http";
-import { EXTRA_DA_LEITURA, MODALIDADES, NOME_DA_MODALIDADE, cabeHoje, precoDaLeitura } from "@/lib/area-do-cliente/leituras";
-import { configDasLeituras, jaPagouNaModalidade, pagasHoje } from "@/lib/area-do-cliente/leituras-servidor";
+import { EXTRA_DA_LEITURA, MODALIDADES, NOME_DA_MODALIDADE, PAGAMENTO_GRATIS, cabeHoje, precoDaLeitura } from "@/lib/area-do-cliente/leituras";
+import { configDasLeituras, gratisDaSemanaLivre, jaPagouNaModalidade, pagasHoje } from "@/lib/area-do-cliente/leituras-servidor";
 import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
@@ -29,7 +32,7 @@ export const runtime = "nodejs";
 const corpo = z.strictObject({
   modalidade: z.enum(MODALIDADES),
   pergunta: z.string().trim().min(3).max(400),
-  forma: z.enum(["pix", "cartao", "creditos"]),
+  forma: z.enum(["pix", "cartao", "creditos", "gratis"]),
 });
 type Ctx = { params: Promise<{ org: string }> };
 
@@ -57,6 +60,9 @@ export async function POST(req: NextRequest, { params }: Ctx): Promise<Response>
   if (forma === "creditos" && !configDosCreditos(org.config.creditos).ativo) {
     return ERRO(422, "validation_failed", "Escolha Pix ou cartão.");
   }
+  if (forma === "gratis" && !(cfg.gratis_semanal && (await gratisDaSemanaLivre(admin, org, sessao.contactId)))) {
+    return ERRO(409, "gratis_usada", "A sua pergunta grátis desta semana já foi usada. Na segunda-feira tem outra.");
+  }
 
   const { data: criada, error } = await admin
     .from("area_leituras")
@@ -68,6 +74,22 @@ export async function POST(req: NextRequest, { params }: Ctx): Promise<Response>
     return ERRO(500, "internal_error", "Não foi possível abrir a mesa agora. Tente de novo.");
   }
   const leituraId = (criada as { id: string }).id;
+
+  if (forma === "gratis") {
+    await admin
+      .from("area_leituras")
+      .update({ pago_at: new Date().toISOString(), pagamento: PAGAMENTO_GRATIS })
+      .eq("id", leituraId)
+      .eq("organization_id", org.id);
+    await registrarEvento(admin, {
+      organizationId: org.id,
+      contactId: sessao.contactId,
+      tipo: "leitura_paga",
+      sessaoId: sessao.sessaoId,
+      props: { modalidade, metodo: PAGAMENTO_GRATIS },
+    });
+    return NextResponse.json({ data: { leitura_id: leituraId, preco_cents: 0, paga: true } }, { headers: { "Cache-Control": "no-store" } });
+  }
 
   if (forma === "creditos") {
     const custo = creditosDoPreco(preco);
