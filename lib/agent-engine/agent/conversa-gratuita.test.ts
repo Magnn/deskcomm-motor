@@ -58,9 +58,12 @@ describe('blocoDaConversaGratuitaEsgotada', () => {
   });
 
   it('⭐ com valor dito hoje, responde sem repetir oferta, e nunca se cala', () => {
-    const bloco = blocoDaConversaGratuitaEsgotada(true, ['o trabalho'], true);
-    expect(bloco).toContain('NÃO repita valor');
-    expect(bloco).toContain('A oferta volta em outro dia');
+    const bloco = blocoDaConversaGratuitaEsgotada(true, ['o trabalho', 'Pergunta nova'], true);
+    expect(bloco).toContain('NÃO repita esse valor');
+    expect(bloco).toContain('A oferta do trabalho volta em outro dia');
+    expect(bloco).toContain('ofereça UMA destas, a que mais responde ao que ela contou: Pergunta nova');
+    expect(bloco).toContain('Termine sempre com uma pergunta curta');
+    expect(blocoDaConversaGratuitaEsgotada(true, ['o trabalho'], true)).not.toContain('ofereça UMA destas');
   });
 
   it('a oferta volta no dia seguinte', () => {

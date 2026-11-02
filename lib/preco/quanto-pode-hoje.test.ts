@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { conferirComprovante, entradasCombinadas } from "../pagamentos/comprovante-pix";
 import { blocoDePreco } from "./bloco-do-prompt";
 import { entradaImediata, reclamacoesDeValor, valorAbaixoDoPisoAgora, valorQueAPessoaTem } from "./estado-da-negociacao";
-import { ofertaAtivaDaConversa, ofertaEmConflito } from "./oferta-ativa";
+import { blocoDaOportunidade, ofertaAtivaDaConversa, ofertaEmConflito, oportunidadeDeOferta } from "./oferta-ativa";
 import { pricingSchema } from "./tipos";
 
 const degrau = (v: number) => ({ price_cents: v, product_links: [{ name: "Abertura do Coração", url: `https://pay.exemplo.com.br/v${v}` }] });
@@ -76,5 +76,45 @@ describe("o comprovante da entrada", () => {
   });
   it("sem entrada combinada, o valor solto segue para a equipe", () => {
     expect(conferirComprovante({ texto, chave: CHAVE, cobrancas, extras: [], valoresDoPrincipal: [13000], entradas: [], agora: AGORA }).tipo).toBe("nao_confere");
+  });
+});
+
+describe("a porta aberta", () => {
+  const pergunta = { name: "Pergunta nova", when: "x", delivery: "x", price_cents: 700 };
+  const recado = { name: "Recado do Coração", when: "x", delivery: "x", price_cents: 1500 };
+  const extras = [recado, pergunta] as never;
+  const conversa = (fala: string, ...antes: ReturnType<typeof m>[]) => [
+    PRECO,
+    ...antes,
+    m("outbound", "Fica aqui comigo."),
+    m("outbound", "Te escuto."),
+    m("outbound", "Sei como é."),
+    m("outbound", "Conta mais."),
+    m("inbound", fala),
+  ];
+
+  it("⭐ pergunta sobre a pessoa ou novidade abre a oferta menor", () => {
+    expect(oportunidadeDeOferta(PRICING, extras, conversa("será que ele ainda me ama?"))?.name).toBe("Pergunta nova");
+    expect(oportunidadeDeOferta(PRICING, extras, conversa("ele me respondeu agora"))?.name).toBe("Pergunta nova");
+  });
+  it("sem preço dito, com oferta recente, ou em assunto de pagamento e trabalho, não abre", () => {
+    expect(oportunidadeDeOferta(PRICING, extras, [m("outbound", "Oi."), m("inbound", "ele vai voltar?")])).toBeNull();
+    expect(oportunidadeDeOferta(PRICING, extras, [PRECO, m("inbound", "ele vai voltar?")])).toBeNull();
+    expect(oportunidadeDeOferta(PRICING, extras, conversa("fazendo isso ele vai voltar?"))).toBeNull();
+    expect(oportunidadeDeOferta(PRICING, extras, conversa("vou pagar, ele me ligou"))).toBeNull();
+    expect(oportunidadeDeOferta(PRICING, extras, conversa("oi, tudo bem"))).toBeNull();
+  });
+  it("não atropela a pergunta que ela já comprou", () => {
+    const pedindo = [PRECO, m("outbound", "A."), m("outbound", "B."), m("outbound", "C."), m("outbound", "Qual é a sua pergunta?"), m("inbound", "o que ele pensa de mim")];
+    expect(oportunidadeDeOferta(PRICING, extras, pedindo)).toBeNull();
+  });
+  it("a oferta da porta passa pela trava, antes do menor valor", () => {
+    const mensagens = conversa("ele me respondeu agora");
+    expect(ofertaEmConflito(PRICING, extras, { corpo: "Eu abro a mesa por R$ 7, uma *Pergunta nova*.", baloesDoTurno: [], mensagens, liberado: false })).toBeNull();
+  });
+  it("o bloco pede desejo antes da oferta", () => {
+    const bloco = blocoDaOportunidade(pergunta as never);
+    expect(bloco.indexOf("Gere desejo")).toBeLessThan(bloco.indexOf("Ofereça só *Pergunta nova*"));
+    expect(blocoDaOportunidade(null)).toBe("");
   });
 });
