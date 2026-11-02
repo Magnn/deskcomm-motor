@@ -108,7 +108,7 @@ import { promessaDeReenvioSemCobranca } from '@/lib/preco/promessa-de-reenvio';
 import { recusaDeQuemJaPagou } from '@/lib/preco/pago-mas-cobrando';
 import { comprovanteDoTurno, depsReaisDoComprovante } from '@/lib/pagamentos/comprovante-no-turno';
 import { falasDesdeAUltimaCobranca, quantidadeMenorQueACombinada, valorErradoDeExtra } from '@/lib/preco/valor-do-extra';
-import { blocoDaOfertaAtiva, ofertaAtivaDaConversa, ofertaEmConflito, pediuOTrabalho } from '@/lib/preco/oferta-ativa';
+import { blocoDaOfertaAtiva, ofertaAtivaDaConversa, ofertaEmConflito, pediuOTrabalho, blocoDaOportunidade, oportunidadeDeOferta } from '@/lib/preco/oferta-ativa';
 import { falaErradaDoPagamento } from '@/lib/preco/fala-do-pagamento';
 import { destinoDaProva, legendaDaProva, provasParaEnviar } from '@/lib/preco/prova-social';
 import { classificarPerdaDoAtendimento } from '@/lib/resultado/motivo-da-perda-do-agente';
@@ -2993,6 +2993,14 @@ async function executarTurnoDoAgente(
     !preview && entregaPendenteDoTurno === null && blocoDaLeituraDoTurno === '' && rodadaSoDeConfirmacao(openingContext.context.messages);
   // "Não tenho mais interesse": recusa da oferta, não pedido para parar — o turno segue sem repetir a oferta.
   const recusouNaRodada = !preview && recusouNoTurno(inboundsNaoRespondidos(openingContext.context.messages));
+  // PORTA ABERTA (`oportunidadeDeOferta`): quem já ouviu o preço e pergunta de novo ouve uma oferta, não a resposta de graça.
+  const pagouExtraHoje = extrasPagosNoTurno.some((p) => (p.diasAtras ?? 0) < 1);
+  const oportunidadeNoTurno =
+    !preview && agentConfig?.pricing?.enabled === true && internacionalDoTurno === null && !gratuitaEsgotadaNoTurno && !recusouNaRodada &&
+    !faltaParaOEssencialNoTurno && !tagsDoContato.includes('pago') && !pagouExtraHoje && entradaDoTurno === null && entradaImediataDoTurno === null &&
+    ofertaDoCatalogoNoTurno === null && posVendaDoTurno === null
+      ? oportunidadeDeOferta(agentConfig.pricing, extrasDoTurno, openingContext.context.messages)
+      : null;
   // UMA OFERTA POR VEZ (`lib/preco/oferta-ativa.ts`). O turno fica livre para falar do trabalho quando tem motivo próprio:
   // a data que ela deu, a entrada, o valor que ela disse ter, o combinado guardado ou o retorno agendado.
   const retornoAgendadoNoTurno =
@@ -3025,7 +3033,8 @@ async function executarTurnoDoAgente(
       gratuitaEsgotadaNoTurno,
       ofertaPequenaDePe !== null ? [ofertaPequenaDePe.nome] : ['o trabalho', ...extrasDoTurno.map((e) => e.name)],
       ofereceuHoje(openingContext.context.messages),
-    );
+    ) +
+    blocoDaOportunidade(oportunidadeNoTurno);
   if (atropeladaNoTurno) {
     runLog.info('resposta atropelada — este turno responde só ao que a mensagem nova acrescenta', {});
   }

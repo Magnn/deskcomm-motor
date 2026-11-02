@@ -138,6 +138,49 @@ function rodadaDaPessoa(mensagens: readonly MensagemDaConversa[]): string {
 const PEDIU_PERGUNTA = /\?|\b(?:carta|cartas|pergunta|perguntar|mesa|volta|voltar|sente|ama|quando|sera|por que|porque|o que)\b/;
 
 /**
+ * ELA ABRIU UMA PORTA: perguntou de novo sobre a outra pessoa ou trouxe novidade dela. Medido em 01/11/2026, em 3 dias:
+ * de 40 rodadas assim, de quem já tinha ouvido o preço e não comprou, 30 receberam resposta de graça e nenhuma oferta.
+ */
+const PORTA =
+  /\b(?:ele|ela|marido|ex|namorad[oa])\b.*\?|\b(?:sera que|ele vai|ela vai|ele volta|ela volta|vai voltar|tem outr[ao]|ele me ama|ela me ama|o que (?:ele|ela)|por ?que (?:ele|ela)|quando (?:ele|ela)|(?:ele|ela) ainda)\b|\b(?:ele|ela) (?:me )?(?:respondeu|mandou|ligou|apareceu|falou|disse|sumiu|bloqueou|visualizou|postou|veio)\b|\b(?:brigamos|discutimos|terminamos|me bloqueou|me procurou|sonhei)\b/;
+/** Fala do trabalho, do pagamento, de parar ou de risco: outra regra responde. */
+const OUTRO_ASSUNTO = /trabalho|fazendo isso|isso vai|abertura|ritual|\bpix\b|\bpag|\bvalor|comprovante|suic|me matar|morrer|\bfome\b|\bparar?\b|golpe/;
+const FALA_DE_VALOR = /R\$\s?\d/;
+/** Sem repetir: uma oferta a cada tantas falas dela. */
+const FALAS_SEM_VALOR_ANTES_DA_OFERTA = 4;
+
+function abriuPorta(mensagens: readonly MensagemDaConversa[]): boolean {
+  const rodada = semAcento(rodadaDaPessoa(mensagens));
+  return rodada !== "" && PORTA.test(rodada) && !OUTRO_ASSUNTO.test(rodada);
+}
+
+/** A cobrança pequena que cabe oferecer neste turno, ou `null`. Só para quem já ouviu o preço. */
+export function oportunidadeDeOferta(c: Escada, extras: readonly Extra[], mensagens: readonly MensagemDaConversa[]): Extra | null {
+  const falas = mensagens.filter((m) => m.direction === "outbound").map((m) => m.body ?? "");
+  if (!falas.some((f) => FALA_DE_VALOR.test(f)) || !abriuPorta(mensagens)) return null;
+  // A agente acabou de pedir a pergunta que ela já pagou: isto é a resposta, não uma porta.
+  if (/\bpergunta\b/i.test(falas.at(-1) ?? "")) return null;
+  if (falas.slice(-FALAS_SEM_VALOR_ANTES_DA_OFERTA).some((f) => FALA_DE_VALOR.test(f))) return null;
+  return [...extrasPequenos(c, extras)].sort((a, b) => a.price_cents - b.price_cents)[0] ?? null;
+}
+
+/** O bloco do turno em que ela abriu uma porta: desejo primeiro, oferta depois. */
+export function blocoDaOportunidade(extra: Extra | null): string {
+  if (extra === null) return "";
+  return [
+    "",
+    "",
+    "PORTA ABERTA (VALE NESTE TURNO)",
+    "- Ela perguntou de novo ou trouxe novidade. Isto é uma oportunidade de venda: não entregue a resposta nova de graça.",
+    "- Monte a resposta nesta ordem:",
+    "  1. Reconheça em UMA frase, com as palavras dela, o que ela disse. Se já está nas cartas abertas, lembre em uma frase. Resposta nova é o que está à venda.",
+    "  2. Gere desejo em UMA frase: como vai ser para ela ter essa resposta, saber onde está pisando, dormir sem essa dúvida. Sem prometer resultado, volta nem data, e sem medo.",
+    `  3. Ofereça só *${extra.name}*, pelo valor do bloco de cobranças, e termine perguntando se você abre a mesa agora.`,
+    "- NÃO diga o que a outra pessoa sente ou vai fazer. Se ela disser não, não insista hoje.",
+  ].join("\n");
+}
+
+/**
  * A conversa já desceu até o fim da escada que se oferece. O último degrau é o piso da negociação, e a régua de silêncio
  * para no penúltimo (R$ 60): por isso qualquer um dos dois abre a oferta pequena.
  */
@@ -191,7 +234,7 @@ export function ofertaEmConflito(c: Escada, extras: readonly Extra[], e: Confere
   }
   if (pequenaAgora !== undefined && !ouviuOMenorValor(c, e.mensagens)) {
     const combinado = e.baloesDoTurno.some((b) => FALA_DO_COMBINADO.test(b));
-    if (!combinado && !PEDIU_PERGUNTA.test(semAcento(rodadaDaPessoa(e.mensagens)))) {
+    if (!combinado && !abriuPorta(e.mensagens) && !PEDIU_PERGUNTA.test(semAcento(rodadaDaPessoa(e.mensagens)))) {
       return (
         `Ainda não é hora de *${pequenaAgora.pequena!.name}*: a ordem é o trabalho, depois os valores menores que o bloco de preço ` +
         "liberar, e só depois de ela recusar o menor valor o resto. Reescreva sem esta oferta, seguindo o bloco PREÇO E NEGOCIAÇÃO."
