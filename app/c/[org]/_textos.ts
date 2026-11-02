@@ -7,6 +7,7 @@ import { FOCOS, NOME_DO_FOCO } from "@/lib/area-do-cliente/perfil";
 import type { TextosDoAviso } from "./_aviso";
 import type { TextosDaCarteira } from "./_carteira";
 import type { TextosDoChat } from "./_chat";
+import type { TextosDoRitual } from "./_ritual";
 import type { TextosDaArea } from "./_client";
 import type { TextosDaEntrada } from "./_entrada";
 import type { TextosDasEtapas } from "./_etapas";
@@ -316,5 +317,19 @@ export function textosDoChat(t: (s: string) => string): TextosDoChat {
     microfoneNegado: t("Não deu para usar o microfone. Libere o microfone para esta página ou escreva a mensagem."),
     naoEnviada: t("Não enviada"),
     transcricao: t("Ver o que foi dito"),
+  };
+}
+
+/** Os textos do ritual de hoje (`_ritual.tsx`), já traduzidos. `{guia}` vira o nome da guia. */
+export function textosDoRitual(t: (s: string) => string): TextosDoRitual {
+  return {
+    titulo: t("Seu ritual de hoje"),
+    completo: t("Ritual de hoje completo"),
+    completoTexto: t("Amanhã tem carta nova esperando por você."),
+    rotulos: { carta: t("Sua carta"), diario: t("Diário"), conversa: t("Conversar") },
+    conversaTitulo: t("O que está no seu coração? {guia} está aqui."),
+    conversaTexto: t("Conte o que a carta te fez sentir, ou pergunte o que quiser. A resposta chega no chat, aqui na sua área."),
+    conversar: t("Abrir o chat"),
+    creditos: t("créditos"),
   };
 }

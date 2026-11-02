@@ -19,6 +19,7 @@ import { caminhoDoPresente } from "@/lib/area-do-cliente/presente";
 import { MENSAGEM_DO_DIA, cartaDoDia } from "@/lib/area-do-cliente/carta-do-dia";
 import { DIAS_DO_AVISO_DE_RENOVACAO, assinaturaAtiva, diasRestantes, lerAssinatura, mesDoDia } from "@/lib/area-do-cliente/circulo";
 import { conversaDaArea, lerChat } from "@/lib/area-do-cliente/chat";
+import { passosDoRitual } from "@/lib/area-do-cliente/ritual";
 import { carregarDadosDaArea, diaNoFuso, fotoDaCarta } from "@/lib/area-do-cliente/dados";
 import { CARTAS_NA_MESA, NOME_DA_MODALIDADE } from "@/lib/area-do-cliente/leituras";
 import { configDosAvisos, convidarParaOAviso } from "@/lib/area-do-cliente/avisos";
@@ -45,7 +46,7 @@ import { vapidPronto } from "@/lib/notifications/vapid";
 import { vozPropriaConfigurada } from "@/lib/voz/servidor-proprio";
 
 import { serifDaArea } from "./_fonte";
-import { textosDaCarteira, textosDaEntrada, textosDaMesa, textosDoAviso, textosDasEtapas, textosDasOfertas, textosDasSimpatias, textosDoGrimorio, textosDaLuaDoMes, textosDoChat, textosDoNavegador } from "./_textos";
+import { textosDaCarteira, textosDaEntrada, textosDaMesa, textosDoAviso, textosDasEtapas, textosDasOfertas, textosDasSimpatias, textosDoGrimorio, textosDaLuaDoMes, textosDoChat, textosDoNavegador, textosDoRitual } from "./_textos";
 import { VistaDaArea, VistaDeEntrada } from "./_vista";
 
 export const dynamic = "force-dynamic";
@@ -152,6 +153,25 @@ export default async function AreaDoCliente({ params, searchParams }: Props) {
   const hoje = diaNoFuso(agora.toISOString(), org.fuso);
   const carta = org.config.carta_do_dia ? cartaDoDia(sessao.contactId, hoje) : null;
   const fotoDaCartaDeHoje = carta ? await fotoDaCarta(admin, org.id, carta.id) : null;
+  // O ritual de hoje (`lib/area-do-cliente/ritual.ts`): o que ela já fez hoje, no fuso da empresa.
+  const { data: cartasVistas } = await admin
+    .from("area_eventos")
+    .select("created_at")
+    .eq("organization_id", org.id)
+    .eq("contact_id", sessao.contactId)
+    .eq("tipo", "carta_do_dia")
+    .order("created_at", { ascending: false })
+    .limit(1);
+  const cartaJaRevelada = ((cartasVistas ?? []) as Array<{ created_at: string }>).some((e) => diaNoFuso(e.created_at, org.fuso) === hoje);
+  const ritual = {
+    cartaJaRevelada,
+    passos: passosDoRitual({
+      temCarta: carta !== null,
+      cartaHoje: cartaJaRevelada,
+      diarioHoje: dados.diario.some((d) => diaNoFuso(d.quando, org.fuso) === hoje),
+      conversouHoje: chat.some((m) => m.de === "voce" && diaNoFuso(m.quando, org.fuso) === hoje),
+    }),
+  };
 
   const circulo = org.config.circulo?.ativo ? org.config.circulo : null;
   const validoAte = circulo ? await lerAssinatura(admin, org.id, sessao.contactId) : null;
@@ -407,8 +427,19 @@ export default async function AreaDoCliente({ params, searchParams }: Props) {
       tp={textosDaEntrada(t)}
       guia={{ foto: urlDaMidiaDaArea(org.config.guia?.foto, baseDoStorage()), nome: org.config.guia?.nome ?? null }}
       abaInicial={abaValida(aba)}
-      chat={{ inicial: chat, podeEscrever: conversaViva !== null }}
+      chat={{
+        inicial: chat,
+        podeEscrever: conversaViva !== null,
+        // As perguntas prontas do chat: a primeira fala da carta que ela tirou hoje.
+        sugestoes: [
+          carta ? `${t("Me ajuda a entender a minha carta de hoje")}: ${t(carta.nome)}` : t("Me ajuda a entender o meu momento"),
+          t("Quero fazer uma pergunta às cartas"),
+          t("Como está a minha energia no amor?"),
+        ],
+      }}
       tch={textosDoChat(t)}
+      ritual={ritual}
+      tr={textosDoRitual(t)}
     />
   );
 }

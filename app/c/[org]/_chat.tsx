@@ -147,6 +147,7 @@ export function ChatDaArea({
   idioma,
   fuso,
   tc,
+  sugestoes = [],
 }: {
   slug: string;
   inicial: MensagemDoChat[];
@@ -157,6 +158,8 @@ export function ChatDaArea({
   idioma: string;
   fuso: string;
   tc: TextosDoChat;
+  /** Perguntas prontas para tocar e mandar ("O que está no seu coração?"), até ela escrever a primeira. */
+  sugestoes?: string[];
 }) {
   const [mensagens, setMensagens] = React.useState<MensagemDoChat[]>(inicial);
   const [digitando, setDigitando] = React.useState(false);
@@ -171,6 +174,7 @@ export function ChatDaArea({
   const gravador = React.useRef<{ rec: MediaRecorder; pedacos: Blob[]; cancelado: boolean } | null>(null);
   const foto = React.useRef<HTMLInputElement>(null);
   const colado = React.useRef(true);
+  const [escreveu, setEscreveu] = React.useState(false);
 
   const api = `/api/v1/area/publica/${slug}/chat`;
 
@@ -228,8 +232,8 @@ export function ChatDaArea({
     setMensagens((lista) => (lista.some((x) => x.id === m.id) ? lista : [...lista, m]));
   };
 
-  const mandarTexto = async () => {
-    const corpo = texto.trim();
+  const mandarTexto = async (pronto?: string) => {
+    const corpo = (pronto ?? texto).trim();
     if (!corpo || enviando) return;
     setEnviando(true);
     setErro(null);
@@ -243,7 +247,8 @@ export function ChatDaArea({
       const json = (await res.json().catch(() => null)) as { data?: MensagemDoChat; error?: { message?: string } } | null;
       if (res.ok && json?.data) {
         acrescentar(json.data);
-        setTexto("");
+        if (pronto === undefined) setTexto("");
+        setEscreveu(true);
         setDigitando(true);
       } else setErro(json?.error?.message ?? tc.naoFoiPossivel);
     } catch {
@@ -295,8 +300,8 @@ export function ChatDaArea({
         void mandarArquivo(blob, `audio.${mime.includes("mp4") ? "m4a" : "webm"}`);
       };
       gravador.current = estado;
+      rec.onstart = () => setGravando({ desde: Date.now() });
       rec.start();
-      setGravando({ desde: Date.now() });
     } catch {
       setErro(tc.microfoneNegado);
     }
@@ -329,7 +334,7 @@ export function ChatDaArea({
   return (
     <section
       ref={raiz}
-      className="flex h-[calc(100dvh-11rem)] min-h-[420px] flex-col overflow-hidden rounded-3xl border border-white/10 bg-[#0e0a1a] shadow-xl"
+      className="flex h-[calc(100dvh-6.25rem-env(safe-area-inset-bottom))] min-h-[420px] flex-col overflow-hidden rounded-3xl border border-white/10 bg-[#0e0a1a] shadow-xl"
       data-testid="area-chat"
     >
       {/* O topo: quem atende, como no WhatsApp. */}
@@ -387,6 +392,23 @@ export function ChatDaArea({
         <p role="alert" className="mx-3 mb-1 rounded-xl bg-[#f3a493]/10 px-3 py-2 text-sm text-[#f3a493]">
           {erro}
         </p>
+      ) : null}
+
+      {/* As perguntas prontas, como nos aplicativos do ramo: um toque e a conversa começa. */}
+      {podeEscrever && !gravando && !escreveu && texto === "" && sugestoes.length > 0 ? (
+        <div className="flex gap-2 overflow-x-auto px-3 pb-2 [scrollbar-width:none]" data-testid="area-chat-sugestoes">
+          {sugestoes.map((s) => (
+            <button
+              key={s}
+              type="button"
+              disabled={enviando}
+              onClick={() => void mandarTexto(s)}
+              className="shrink-0 rounded-full border border-[#c9a54e]/35 bg-[#1d1638] px-3.5 py-2 text-[13.5px] text-[#f0dca8] active:scale-95 disabled:opacity-40"
+            >
+              {s}
+            </button>
+          ))}
+        </div>
       ) : null}
 
       {/* O campo: texto, foto e áudio. */}
