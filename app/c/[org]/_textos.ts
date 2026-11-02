@@ -14,6 +14,7 @@ import type { TextosDasEtapas } from "./_etapas";
 import type { TextosDoGrimorio } from "./_grimorio";
 import type { TextosDaLuaDoMes } from "./_lua-do-mes";
 import type { TextosDaMao } from "./_mao";
+import type { TextosDaMeditacao } from "./_meditacao";
 import type { TextosDaMesa } from "./_mesa";
 import type { TextosDasOfertas } from "./_ofertas";
 import type { TextosDasSimpatias } from "./_simpatias";
@@ -375,5 +376,19 @@ export function textosDaMao(t: (s: string) => string): TextosDaMao {
       destino: t("caminho e propósito"),
       sol: t("brilho e reconhecimento"),
     },
+  };
+}
+
+/** A meditação da semana (`_meditacao.tsx`). */
+export function textosDaMeditacao(t: (s: string) => string): TextosDaMeditacao {
+  return {
+    sobretitulo: t("Sua meditação da semana"),
+    minutos: t("{n} min"),
+    ouvir: t("Ouvir a meditação"),
+    pausar: t("Pausar"),
+    preparando: t("Preparando a sua meditação…"),
+    semVoz: t("A voz não está disponível agora. Você pode ler a meditação abaixo."),
+    lerTexto: t("Ler o texto"),
+    novaToda: t("Feita com o seu céu. Toda segunda-feira chega uma nova."),
   };
 }

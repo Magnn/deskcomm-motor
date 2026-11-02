@@ -47,9 +47,11 @@ import { idiomaDoVisitante } from "@/lib/i18n/idiomaAnonimo";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { vapidPronto } from "@/lib/notifications/vapid";
 import { vozPropriaConfigurada } from "@/lib/voz/servidor-proprio";
+import { duracaoEstimada, meditacaoDaSemana } from "@/lib/area-do-cliente/meditacao";
+import { haVozParaMeditar } from "@/lib/area-do-cliente/meditacao-voz";
 
 import { serifDaArea } from "./_fonte";
-import { textosDaCarteira, textosDaEntrada, textosDaMesa, textosDoAviso, textosDasEtapas, textosDasOfertas, textosDasSimpatias, textosDoGrimorio, textosDaLuaDoMes, textosDoChat, textosDoNavegador, textosDoRitual, textosDaMao } from "./_textos";
+import { textosDaCarteira, textosDaEntrada, textosDaMesa, textosDoAviso, textosDasEtapas, textosDasOfertas, textosDasSimpatias, textosDoGrimorio, textosDaLuaDoMes, textosDoChat, textosDoNavegador, textosDoRitual, textosDaMao, textosDaMeditacao } from "./_textos";
 import { VistaDaArea, VistaDeEntrada } from "./_vista";
 
 export const dynamic = "force-dynamic";
@@ -447,6 +449,26 @@ export default async function AreaDoCliente({ params, searchParams }: Props) {
         const sol = ceuDoNascimento(dados.contato.nascimento)?.sol;
         return ehSigno(sol) ? { signo: t(sol), texto: t(horoscopoDoDia(sol, hoje)) } : null;
       })()}
+      meditacao={(() => {
+        // A meditação da semana (`meditacao.ts`): o roteiro é em português e precisa de voz no servidor.
+        if (idioma !== "pt-BR" || !haVozParaMeditar()) return null;
+        const c = ceuDoNascimento(dados.contato.nascimento);
+        const m = meditacaoDaSemana({
+          semente: sessao.contactId,
+          dia: hoje,
+          nome: dados.contato.primeiroNome,
+          ceu: c ? { sol: c.sol, lua: c.luaCerta ? c.lua : null } : null,
+          foco,
+        });
+        return {
+          titulo: m.titulo,
+          feitaCom: m.feitaCom,
+          minutos: duracaoEstimada(m),
+          trechos: m.trechos.map((x) => x.texto),
+          url: `/api/v1/area/publica/${org.slug}/meditacao`,
+        };
+      })()}
+      tmd={textosDaMeditacao(t)}
       luaDoMes={luaDoMes ? { versao: hoje } : null}
       tl={textosDaLuaDoMes(t)}
       perfil={{ feito: perfilR !== null, foco }}
