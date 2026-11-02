@@ -165,6 +165,11 @@ export function conferirComprovante(e: {
   if (diferenca < -FOLGA_MS || diferenca > MAIOR_FUSO_MS + FOLGA_MS) {
     return { tipo: "nao_confere", motivo: "a hora impressa não combina com o ID da transação" };
   }
+  // A cobrança diz o nome do produto: vale ele, mesmo que o trabalho ou outra avulsa tenham o mesmo valor.
+  const nomeada = cobranca.nome !== null ? extraDaCobranca(cobranca, e.extras) : null;
+  if (nomeada !== null && valorDaCobranca(nomeada, cobranca.quantidade) === cobranca.valorCents) {
+    return { tipo: "confere_extra", extra: nomeada, quantidade: cobranca.quantidade, valorCents: cobranca.valorCents, idDoPix: id[0], pagoEm };
+  }
   if (e.entradas?.includes(cobranca.valorCents)) {
     return { tipo: "confere_principal", valorCents: cobranca.valorCents, idDoPix: id[0], pagoEm };
   }

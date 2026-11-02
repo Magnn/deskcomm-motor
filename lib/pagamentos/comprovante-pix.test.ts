@@ -187,3 +187,25 @@ describe("produto de pós-venda ou catálogo", () => {
     expect(conferePorValor([{ produto: "A", valor_cents: 3500 }, { produto: "B", valor_cents: 3500 }]).tipo).toBe("nao_confere");
   });
 });
+
+describe("cobrança com o nome do produto", () => {
+  it("⭐ R$ 60 com o nome confere a avulsa, mesmo com o trabalho e outra avulsa no mesmo valor", async () => {
+    const { cobrancaNoTexto, baloesPelaChave } = await import("./como-pagar-pix");
+    const [instrucao] = baloesPelaChave("R$ 60,00 (Reconstrução do Casamento)", "+5569999999999", "Fulano");
+    expect(instrucao).toContain("Pra pagar no Pix (*R$ 60,00 (Reconstrução do Casamento)*):");
+    expect(instrucao).toContain("coloque o valor *R$ 60,00* e confirme");
+    expect(cobrancaNoTexto(instrucao!)).toEqual({ valorCents: 6000, quantidade: 1, nome: "Reconstrução do Casamento" });
+    expect(cobrancaNoTexto("Pra pagar no Pix (*R$ 10 (2× Pergunta nova)*):")).toEqual({ valorCents: 1000, quantidade: 2, nome: "Pergunta nova" });
+    expect(cobrancaNoTexto("Pra pagar no Pix (*R$ 130,00*):")).toEqual({ valorCents: 13000, quantidade: 1, nome: null });
+
+    const RECONSTRUCAO: Extra = { name: "Reconstrução do Casamento", price_cents: 6000, when: "quer salvar o casamento." };
+    const extras = [PERGUNTA, ACOMPANHAMENTO, RECONSTRUCAO];
+    expect(conferir(comprovante("R$ 60,00"), [cobranca("R$ 60,00 (Reconstrução do Casamento)")], extras)).toMatchObject({
+      tipo: "confere_extra",
+      extra: { name: "Reconstrução do Casamento" },
+      valorCents: 6000,
+    });
+    // Sem o nome é a cobrança do trabalho: toda avulsa sai com o nome (`corpoComPixDoExtra`).
+    expect(conferir(comprovante("R$ 60,00"), [cobranca("R$ 60")], extras)).toMatchObject({ tipo: "confere_principal" });
+  });
+});
