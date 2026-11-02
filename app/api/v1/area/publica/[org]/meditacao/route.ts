@@ -37,13 +37,13 @@ export async function POST(req: NextRequest, { params }: Ctx): Promise<Response>
     admin.from("contacts").select("name, display_name, birthdate").eq("id", sessao.contactId).eq("organization_id", org.id).maybeSingle(),
     admin.from("area_perfis").select("foco").eq("organization_id", org.id).eq("contact_id", sessao.contactId).maybeSingle(),
   ]);
-  const c = (contato ?? {}) as { name: string | null; display_name: string | null; birthdate: string | null };
+  const c = (contato ?? { name: null, display_name: null, birthdate: null }) as { name: string | null; display_name: string | null; birthdate: string | null };
   const foco = (perfil as { foco: string | null } | null)?.foco;
   const ceu = ceuDoNascimento(c.birthdate);
   const m = meditacaoDaSemana({
     semente: sessao.contactId,
     dia: diaNoFuso(new Date().toISOString(), org.fuso),
-    nome: primeiroNome(nomeDoContato({ name: c.name ?? null, display_name: c.display_name ?? null })),
+    nome: primeiroNome(nomeDoContato(c)),
     ceu: ceu ? { sol: ceu.sol, lua: ceu.luaCerta ? ceu.lua : null } : null,
     foco: ehFoco(foco) ? foco : null,
   });
