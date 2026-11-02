@@ -63,6 +63,12 @@ export const HOROSCOPO_DO_ELEMENTO: Record<Elemento, readonly string[]> = {
   ],
 };
 
+/** O elemento do signo (fogo, terra, ar, água) — também guia a meditação da semana (`meditacao.ts`). */
+export function elementoDoSigno(signo: Signo): Elemento {
+  return ELEMENTO[signo];
+}
+export type { Elemento };
+
 export function ehSigno(v: unknown): v is Signo {
   return typeof v === "string" && (SIGNOS as readonly string[]).includes(v);
 }

@@ -84,6 +84,8 @@ export const PUBLIC_PATHS: RegExp[] = [
   /^\/api\/v1\/area\/publica\/[a-z0-9][a-z0-9-]{1,62}\/leituras\/[0-9a-f-]{36}(\/(revelar|voz))?$/,
   // A leitura da mão (0951): mandar a foto, a leitura pelo id (UUID) e liberar o resto; a sessão da área é o direito.
   /^\/api\/v1\/area\/publica\/[a-z0-9][a-z0-9-]{1,62}\/mao(\/[0-9a-f-]{36}(\/liberar)?)?$/,
+  // A meditação da semana falada (sem migration: o áudio fica no Storage); a sessão da área é o direito.
+  /^\/api\/v1\/area\/publica\/[a-z0-9][a-z0-9-]{1,62}\/meditacao$/,
   // A pergunta de quem GANHOU o presente: sem cadastro; o código de 32 caracteres é o direito.
   /^\/api\/v1\/area\/publica\/[a-z0-9][a-z0-9-]{1,62}\/presente\/[A-Za-z0-9_-]{32}$/,
   // Relógio Hobby (GitHub Actions / cron-job.org). Auth é Bearer na própria

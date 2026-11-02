@@ -38,6 +38,7 @@ import { GrimorioDaArea, type CartaNoGrimorio, type TextosDoGrimorio } from "./_
 import { LuaDoMes, type TextosDaLuaDoMes } from "./_lua-do-mes";
 import { EtapaDeHoje, EtapasDaArea, LinhasDoTempo, type TextosDasEtapas } from "./_etapas";
 import { LeituraDaMaoNaArea, type MaoInicial, type TextosDaMao } from "./_mao";
+import { MeditacaoDaSemana, type MeditacaoNaArea, type TextosDaMeditacao } from "./_meditacao";
 import { MesaDeLeituras, type MesaInicial, type TextosDaMesa } from "./_mesa";
 import { LuaDeHoje } from "./_lua";
 import { AnoPessoalDoCliente, PresenteDoCliente, type TextosDasOfertas } from "./_ofertas";
@@ -177,6 +178,9 @@ export interface VistaDaAreaProps {
   tg: TextosDoGrimorio;
   /** O horóscopo do dia do signo solar (`lib/area-do-cliente/horoscopo.ts`); `null` = sem data de nascimento. */
   horoscopo: { signo: string; texto: string } | null;
+  /** A meditação da semana falada (`lib/area-do-cliente/meditacao.ts`); `null` = sem voz no servidor ou fora do português. */
+  meditacao: MeditacaoNaArea | null;
+  tmd: TextosDaMeditacao;
   /** "Sua lua do mês" (`_lua-do-mes.tsx`); `null` = o mês ainda não tem leitura nem diário. `versao` renova a imagem. */
   luaDoMes: { versao: string } | null;
   tl: TextosDaLuaDoMes;
@@ -386,6 +390,9 @@ export function VistaDaArea(p: VistaDaAreaProps) {
             <p className={`mt-2 ${DETALHE}`}>{t("O mesmo para todo mundo do seu signo hoje.")}</p>
           </section>
         ) : null}
+
+        {/* A meditação da semana: feita com o céu dela, nova toda segunda (pedido nº 1 dos comentários das lojas). */}
+        {p.meditacao ? <MeditacaoDaSemana m={p.meditacao} tx={p.tmd} /> : null}
 
         {/* A continuidade: a última palavra da empresa, com o caminho para responder. */}
         {recado ? (
