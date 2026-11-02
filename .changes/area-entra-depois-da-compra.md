@@ -1,5 +1,5 @@
 ---
-impacto: correcao
+impacto: capacidade_nova
 secao: corrigido
 titulo: O quiz do Retrato do Par voltou a vender, e quem compra um quiz entra na área já logada
 ---
