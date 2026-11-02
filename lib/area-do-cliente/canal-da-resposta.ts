@@ -19,7 +19,7 @@ import { capabilitiesOf } from "@/lib/channels/capabilities";
 import type { ChannelProvider } from "@/lib/channels/types";
 
 import { lerConfigDaArea } from "./config";
-import { MARCA_DO_AVISO, ORIGEM_DA_AREA } from "./chat";
+import { MARCA_DO_AVISO, ORIGEM_DA_AREA } from "./marcas";
 import { registrarEvento } from "./eventos";
 import { gerarToken, hashDoToken } from "./token";
 import { VALIDADE_DO_CONVITE_DIAS, caminhoPublicoDaArea } from "./vocabulario";
@@ -44,16 +44,21 @@ export async function respostaVaiParaAArea(
   args: { organizationId: string; conversationId: string; metadata?: Record<string, unknown> | null },
 ): Promise<boolean> {
   if (args.metadata?.[MARCA_DO_AVISO] === true || args.metadata?.entrega === "canal") return false;
-  const { data, error } = await db
-    .from("messages")
-    .select("metadata")
-    .eq("organization_id", args.organizationId)
-    .eq("conversation_id", args.conversationId)
-    .eq("direction", "inbound")
-    .order("created_at", { ascending: false })
-    .limit(1);
-  if (error) return false;
-  return vaiParaAArea(((data ?? [])[0] as { metadata: Record<string, unknown> | null } | undefined) ?? null, args.metadata);
+  try {
+    const { data, error } = await db
+      .from("messages")
+      .select("metadata")
+      .eq("organization_id", args.organizationId)
+      .eq("conversation_id", args.conversationId)
+      .eq("direction", "inbound")
+      .order("created_at", { ascending: false })
+      .limit(1);
+    if (error) return false;
+    return vaiParaAArea(((data ?? [])[0] as { metadata: Record<string, unknown> | null } | undefined) ?? null, args.metadata);
+  } catch {
+    // A leitura não pode derrubar o envio: sem saber, sai pelo canal.
+    return false;
+  }
 }
 
 /**

@@ -12,6 +12,7 @@ import * as React from "react";
 import { ArrowUp, Camera, Check, CheckCheck, Copy, Mic, Square, Trash2, TriangleAlert } from "lucide-react";
 
 import type { MensagemDoChat } from "@/lib/area-do-cliente/chat";
+import { copyToClipboard } from "@/lib/clipboard";
 
 /** Textos já traduzidos no servidor (`_textos.ts`). */
 export interface TextosDoChat {
@@ -76,13 +77,11 @@ function CartaoDoPix({ codigo, tc }: { codigo: string; tc: TextosDoChat }) {
       <button
         type="button"
         onClick={() => {
-          void navigator.clipboard?.writeText(codigo).then(
-            () => {
-              setCopiado(true);
-              window.setTimeout(() => setCopiado(false), 2_500);
-            },
-            () => undefined,
-          );
+          void copyToClipboard(codigo).then((ok) => {
+            if (!ok) return;
+            setCopiado(true);
+            window.setTimeout(() => setCopiado(false), 2_500);
+          });
         }}
         className="mt-2 inline-flex h-10 w-full items-center justify-center gap-2 rounded-full bg-[#e2c47a] text-sm font-semibold text-[#1b1433] active:scale-95"
         data-testid="area-chat-copiar-pix"
