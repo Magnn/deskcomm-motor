@@ -80,6 +80,8 @@ export const PUBLIC_PATHS: RegExp[] = [
   // e o proxy respondia 401 antes da rota — comprar leitura e créditos falhava em produção (achado em
   // 19/10/2026). `area-publica-atravessa-o-proxy.test.ts` cobra que TODA rota da área esteja liberada.
   /^\/api\/v1\/area\/publica\/[a-z0-9][a-z0-9-]{1,62}\/leituras\/[0-9a-f-]{36}(\/(revelar|voz))?$/,
+  // A leitura da mão (0951): mandar a foto, a leitura pelo id (UUID) e liberar o resto; a sessão da área é o direito.
+  /^\/api\/v1\/area\/publica\/[a-z0-9][a-z0-9-]{1,62}\/mao(\/[0-9a-f-]{36}(\/liberar)?)?$/,
   // A pergunta de quem GANHOU o presente: sem cadastro; o código de 32 caracteres é o direito.
   /^\/api\/v1\/area\/publica\/[a-z0-9][a-z0-9-]{1,62}\/presente\/[A-Za-z0-9_-]{32}$/,
   // Relógio Hobby (GitHub Actions / cron-job.org). Auth é Bearer na própria

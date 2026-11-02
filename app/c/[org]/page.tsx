@@ -32,6 +32,8 @@ import { resumoDaLuaDoMes, temLuaDoMes } from "@/lib/area-do-cliente/lua-do-mes"
 import { ehFoco, type Foco } from "@/lib/area-do-cliente/perfil";
 import { vePassoAPasso } from "@/lib/area-do-cliente/simpatias";
 import { carregarGrimorio, carregarMesa, configDasLeituras } from "@/lib/area-do-cliente/leituras-servidor";
+import { FOTOS_POR_DIA, configDaMao } from "@/lib/area-do-cliente/mao";
+import { fotosHoje, maosDoContato } from "@/lib/area-do-cliente/mao-servidor";
 import { abaValida } from "@/lib/area-do-cliente/abas";
 import { COR_PADRAO_DA_AREA } from "@/lib/area-do-cliente/config";
 import { registrarEvento } from "@/lib/area-do-cliente/eventos";
@@ -46,7 +48,7 @@ import { vapidPronto } from "@/lib/notifications/vapid";
 import { vozPropriaConfigurada } from "@/lib/voz/servidor-proprio";
 
 import { serifDaArea } from "./_fonte";
-import { textosDaCarteira, textosDaEntrada, textosDaMesa, textosDoAviso, textosDasEtapas, textosDasOfertas, textosDasSimpatias, textosDoGrimorio, textosDaLuaDoMes, textosDoChat, textosDoNavegador, textosDoRitual } from "./_textos";
+import { textosDaCarteira, textosDaEntrada, textosDaMesa, textosDoAviso, textosDasEtapas, textosDasOfertas, textosDasSimpatias, textosDoGrimorio, textosDaLuaDoMes, textosDoChat, textosDoNavegador, textosDoRitual, textosDaMao } from "./_textos";
 import { VistaDaArea, VistaDeEntrada } from "./_vista";
 
 export const dynamic = "force-dynamic";
@@ -273,6 +275,11 @@ export default async function AreaDoCliente({ params, searchParams }: Props) {
   const convidarJa = cfgDosAvisos.ativo ? await jaMereceConvite(admin, { id: org.id, fuso: org.fuso }, sessao.contactId) : false;
   const carteira = cfgDosCreditos.ativo ? await carregarCarteira(admin, org.id, sessao.contactId) : null;
   const destaque = pacoteEmDestaque(cfgDosCreditos.pacotes);
+  // A leitura da mão (0951): a linha do coração de graça, o resto pago. Segue a Mesa quando não tem bloco próprio.
+  const cfgDaMao = configDaMao(org.config.mao, org.config.leituras);
+  const [maos, fotosDeHoje] = cfgDaMao.ativo
+    ? await Promise.all([maosDoContato(admin, org.id, sessao.contactId), fotosHoje(admin, { id: org.id, fuso: org.fuso }, sessao.contactId)])
+    : [[], 0];
 
   return (
     <VistaDaArea
@@ -350,6 +357,18 @@ export default async function AreaDoCliente({ params, searchParams }: Props) {
           : null
       }
       tm={textosDaMesa(t, titulo)}
+      mao={
+        cfgDaMao.ativo
+          ? {
+              preco: dinheiro(cfgDaMao.preco_cents, "BRL"),
+              creditos: creditosDoPreco(cfgDaMao.preco_cents),
+              saldo: carteira ? carteira.saldo : null,
+              restamHoje: Math.max(0, FOTOS_POR_DIA - fotosDeHoje),
+              maos,
+            }
+          : null
+      }
+      tmao={textosDaMao(t)}
       carteira={
         carteira
           ? {

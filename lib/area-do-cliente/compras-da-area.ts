@@ -1,7 +1,7 @@
 /**
  * O QUE UM PAGAMENTO DA ÁREA LIBERA — chamado pelo aviso de pagamento da Stripe
  * depois de registrar a receita. O Círculo tem o seu próprio passo
- * (`ativarCirculo`); aqui ficam o presente, o Ano Pessoal, a leitura da Mesa,
+ * (`ativarCirculo`); aqui ficam o presente, o Ano Pessoal, a leitura da Mesa, a da mão,
  * o pacote de créditos, os créditos mensais do Círculo, o pedido de simpatia
  * ("o templo faz por mim") e a contribuição voluntária.
  *
@@ -16,6 +16,7 @@ import { EXTRA_DO_CIRCULO } from "./circulo";
 import { EXTRA_DOS_CREDITOS } from "./creditos";
 import { creditarCirculo, moverCreditos } from "./creditos-servidor";
 import { EXTRA_DA_LEITURA } from "./leituras";
+import { EXTRA_DA_MAO } from "./mao";
 import { registrarEvento } from "./eventos";
 import { EXTRA_DO_PRESENTE } from "./presente";
 import { tipoDoExtra } from "./quizzes";
@@ -65,6 +66,23 @@ export async function liberarCompraDaArea(
     const paga = (data ?? [])[0] as { modalidade: string } | undefined;
     if (paga) {
       await registrarEvento(admin, { organizationId, contactId, tipo: "leitura_paga", props: { modalidade: paga.modalidade, metodo } });
+    }
+    return;
+  }
+  if (extra === EXTRA_DA_MAO) {
+    const maoId = meta.mao_id;
+    if (!maoId || !UUID.test(maoId)) return;
+    const { data, error } = await admin
+      .from("area_maos")
+      .update({ pago_at: new Date().toISOString(), pagamento: pagamentoId })
+      .eq("id", maoId)
+      .eq("organization_id", organizationId)
+      .eq("contact_id", contactId)
+      .is("pago_at", null)
+      .select("id");
+    if (error) throw new Error(error.message);
+    if (data && data.length > 0) {
+      await registrarEvento(admin, { organizationId, contactId, tipo: "mao_paga", props: { metodo } });
     }
     return;
   }
