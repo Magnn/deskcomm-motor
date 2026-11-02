@@ -97,3 +97,27 @@ describe("gerarRelatorio", () => {
     expect(r).toEqual({ ok: false, motivo: "A sinastria precisa do nome e da data de nascimento das duas pessoas." });
   });
 });
+
+describe("relatório de leitura (sem mapas)", () => {
+  it("⭐ a Reconstrução do Casamento: o pedido leva o que ela contou e a orientação, e o PDF sai", async () => {
+    const p = {
+      tipo: "leitura" as const,
+      produto: "Reconstrução do Casamento",
+      assinatura: "Cigana Esmeralda",
+      a: { nome: "Renata" },
+      contexto: "salvar o casamento: a gente briga por tudo e ele chega em casa calado",
+      orientacao: "Plano de 7 dias para reaproximar o casal, escrito a partir do que ela contou.",
+    };
+    const pedido = pedidoAoModelo(p, null);
+    expect(pedido).toContain("Reconstrução do Casamento");
+    expect(pedido).toContain("ele chega em casa calado");
+    expect(pedido).toContain("Plano de 7 dias");
+    expect(pedido).not.toContain("DADOS CALCULADOS");
+    const r = await gerarRelatorio(p, { chamar: async () => JSON.stringify(conteudo()) });
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.pdf.subarray(0, 4).toString()).toBe("%PDF");
+      expect(r.nomeDoArquivo).toContain("Renata");
+    }
+  }, 60_000);
+});
