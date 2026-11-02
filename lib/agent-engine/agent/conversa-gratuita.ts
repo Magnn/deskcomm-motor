@@ -130,6 +130,7 @@ export function ofereceuHoje(mensagens: readonly MensagemDaConversa[], agora: Da
 export function blocoDaConversaGratuitaEsgotada(esgotada: boolean, caminhos: readonly string[], jaOfereceuHoje = false): string {
   if (!esgotada) return '';
   const lista = caminhos.length > 0 ? caminhos.join(', ') : 'o trabalho';
+  const outras = caminhos.filter((c) => c !== 'o trabalho').join(', ');
   return [
     '',
     '',
@@ -137,7 +138,8 @@ export function blocoDaConversaGratuitaEsgotada(esgotada: boolean, caminhos: rea
     '- Esta pessoa já recebeu a leitura e a oferta e ainda não comprou. Seu papel é vender: mantenha o contato e procure a oportunidade. Quem não aceitou hoje pode aceitar amanhã.',
     `- Responda com UMA mensagem só, de até ${TAMANHO_DA_RESPOSTA_LIMITADA} caracteres, e acolha em meia frase o que ela disse.`,
     jaOfereceuHoje
-      ? '- Hoje ela já ouviu um valor: NÃO repita valor nem oferta nesta resposta. Termine com uma pergunta curta sobre o que ela contou. A oferta volta em outro dia.'
+      ? // Medido em 01/11/2026: Elisangela recusou R$ 60 de manhã, voltou à noite com a resposta do Lineu e não ouviu oferta nenhuma.
+        `- Hoje ela já ouviu o valor do trabalho: NÃO repita esse valor. A oferta do trabalho volta em outro dia.${outras === '' ? '' : ` Se ela trouxe algo novo sobre a pessoa ou a situação, ofereça UMA destas, a que mais responde ao que ela contou: ${outras}, pelo valor do bloco de cobranças.`} Termine sempre com uma pergunta curta.`
       : `- Ligue o que ela contou a UMA oferta, a que mais responde a isso: ${lista}. Use o valor que os blocos de preço e de cobranças liberarem e termine perguntando se ela quer, ou quanto ela consegue hoje.`,
     '- É PROIBIDO neste turno: aconselhar em detalhe, interpretar o que ela contou, reler as cartas ou prometer acompanhamento. Isso é o que está à venda.',
     '- Se ela disser que hoje não dá, aceite sem insistir e não se despeça de vez. Se ela pedir para parar ou para não ser procurada, pare.',
