@@ -1,6 +1,6 @@
 ---
 impacto: capacidade_nova
-secao: novo
+secao: adicionado
 titulo: A aba Conversa da área do cliente virou um chat como o WhatsApp, atendido pelo agente
 ---
 

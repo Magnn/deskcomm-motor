@@ -160,6 +160,7 @@ export function ChatDaArea({
 }) {
   const [mensagens, setMensagens] = React.useState<MensagemDoChat[]>(inicial);
   const [digitando, setDigitando] = React.useState(false);
+  const [agora, setAgora] = React.useState<number | null>(null);
   const [texto, setTexto] = React.useState("");
   const [enviando, setEnviando] = React.useState(false);
   const [erro, setErro] = React.useState<string | null>(null);
@@ -184,6 +185,7 @@ export function ChatDaArea({
         setMensagens(json.data.mensagens);
         setDigitando(json.data.digitando);
       }
+      setAgora(Date.now());
     } catch {
       // Sem rede agora: tenta de novo na próxima volta.
     }
@@ -310,8 +312,9 @@ export function ChatDaArea({
 
   const hora = (iso: string) => new Intl.DateTimeFormat(idioma, { timeZone: fuso, hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
   const dia = (iso: string) => new Intl.DateTimeFormat("en-CA", { timeZone: fuso, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(iso));
-  const hojeDia = dia(new Date().toISOString());
-  const ontemDia = dia(new Date(Date.now() - 86_400_000).toISOString());
+  // "Hoje"/"Ontem" pelo relógio da última busca (o render não lê o relógio); antes dela, a data por extenso.
+  const hojeDia = agora === null ? null : dia(new Date(agora).toISOString());
+  const ontemDia = agora === null ? null : dia(new Date(agora - 86_400_000).toISOString());
   const nomeDoDia = (iso: string) => {
     const d = dia(iso);
     if (d === hojeDia) return tc.hoje;

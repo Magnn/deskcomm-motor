@@ -16,6 +16,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { capabilitiesOf } from "@/lib/channels/capabilities";
+import { nomeDoContato } from "@/lib/contacts/rotulo-do-contato";
 import type { ChannelProvider } from "@/lib/channels/types";
 
 import { lerConfigDaArea } from "./config";
@@ -160,8 +161,7 @@ export async function avisoDaResposta(
     if (error) return null;
     await registrarEvento(admin, { organizationId: args.organizationId, contactId: args.contactId, tipo: "convite_criado", ref: "aviso" });
     const link = `${origem}${caminhoPublicoDaArea(slug, config.apelido)}/entrar/${token}?para=conversa`;
-    const pessoa = contato as { name?: string | null; display_name?: string | null } | null;
-    return textoDoAviso(pessoa?.name ?? pessoa?.display_name ?? null, config.guia?.nome ?? null, link);
+    return textoDoAviso(nomeDoContato(contato as { name: string | null; display_name: string | null } | null), config.guia?.nome ?? null, link);
   } catch {
     return null;
   }
