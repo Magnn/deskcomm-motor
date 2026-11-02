@@ -6,7 +6,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { blocoDaConversaGratuitaEsgotada, conversaGratuitaEsgotada } from './conversa-gratuita';
+import { blocoDaConversaGratuitaEsgotada, conversaGratuitaEsgotada, ofereceuHoje } from './conversa-gratuita';
 
 const m = (direction: 'inbound' | 'outbound', body: string) => ({ direction, body });
 const OFERTA = m('outbound', 'O seu trabalho completo é R$ 130, uma vez só.');
@@ -48,37 +48,26 @@ describe('conversaGratuitaEsgotada', () => {
 });
 
 describe('blocoDaConversaGratuitaEsgotada', () => {
-  it('manda responder uma vez, curto, com os caminhos pagos, e proíbe aconselhar', () => {
+  it('sem valor dito hoje, liga o que ela contou a uma oferta', () => {
     expect(blocoDaConversaGratuitaEsgotada(false, [])).toBe('');
-    const bloco = blocoDaConversaGratuitaEsgotada(true, ['o trabalho', 'Pergunta nova', 'Acompanhamento do mês']);
-    expect(bloco).toContain('o trabalho, Pergunta nova, Acompanhamento do mês');
+    const bloco = blocoDaConversaGratuitaEsgotada(true, ['o trabalho', 'Pergunta nova']);
     expect(bloco).toContain('UMA mensagem só');
-    expect(bloco).toContain('PROIBIDO neste turno: aconselhar');
-  });
-});
-
-describe('silencioPorConversaGratuita', () => {
-  const rodada = (texto: string) => [m('inbound', texto), AG];
-  const longa = [OFERTA, ...rodada('ele sumiu'), ...rodada('tô triste'), ...rodada('saudade'), ...rodada('não durmo')];
-
-  it('⭐ depois do limite e dos dois avisos, o turno não responde mais', async () => {
-    const { silencioPorConversaGratuita } = await import('./conversa-gratuita');
-    expect(silencioPorConversaGratuita([...longa, m('inbound', 'queria desabafar')], 2)).toBe(true);
-    // No limite e no primeiro aviso ainda há resposta (curta).
-    expect(silencioPorConversaGratuita([OFERTA, ...rodada('a'), ...rodada('b'), m('inbound', 'c')], 2)).toBe(false);
-    expect(silencioPorConversaGratuita([OFERTA, ...rodada('a'), ...rodada('b'), ...rodada('c'), m('inbound', 'd')], 2)).toBe(false);
+    expect(bloco).toContain('o trabalho, Pergunta nova');
+    expect(bloco).toContain('quanto ela consegue hoje');
+    expect(bloco).toContain('É PROIBIDO');
   });
 
-  it('⭐ falar de compra, mandar foto ou dar sinal de risco reabre o atendimento na hora', async () => {
-    const { silencioPorConversaGratuita } = await import('./conversa-gratuita');
-    for (const fala of ['quero a pergunta', 'consegui o dinheiro', '[image]', '[o cliente enviou uma mídia que não consegui interpretar]', 'não quero mais viver']) {
-      expect(silencioPorConversaGratuita([...longa, m('inbound', fala)], 2), fala).toBe(false);
-    }
+  it('⭐ com valor dito hoje, responde sem repetir oferta, e nunca se cala', () => {
+    const bloco = blocoDaConversaGratuitaEsgotada(true, ['o trabalho'], true);
+    expect(bloco).toContain('NÃO repita valor');
+    expect(bloco).toContain('A oferta volta em outro dia');
   });
 
-  it('sem limite configurado, nunca silencia', async () => {
-    const { silencioPorConversaGratuita } = await import('./conversa-gratuita');
-    expect(silencioPorConversaGratuita([...longa, m('inbound', 'oi')], undefined)).toBe(false);
+  it('a oferta volta no dia seguinte', () => {
+    const agora = new Date('2026-11-02T12:00:00Z');
+    const fala = (sent_at: string) => [{ direction: 'outbound', body: 'O trabalho é R$ 130.', sent_at }];
+    expect(ofereceuHoje(fala('2026-11-02T08:00:00Z'), agora)).toBe(true);
+    expect(ofereceuHoje(fala('2026-11-01T12:00:00Z'), agora)).toBe(false);
   });
 });
 
@@ -88,27 +77,26 @@ describe('resposta a uma pergunta de pagamento', () => {
   const NOVA_OFERTA = m('outbound', 'Hoje eu consegui baixar o valor: de R$ 130 por R$ 60. Quer que eu te mande o Pix de R$ 60 agora?');
 
   it('⭐ o caso medido: "não sei ainda" depois de "quer o Pix?" é a venda acontecendo, não conversa gratuita', async () => {
-    const { silencioPorConversaGratuita, conversaGratuitaEsgotada } = await import('./conversa-gratuita');
+    const { conversaGratuitaEsgotada } = await import('./conversa-gratuita');
     for (const fala of ['Não sei ainda', 'Tudo bem', 'Vai falar sobre hoje ainda']) {
-      expect(silencioPorConversaGratuita([...longa, NOVA_OFERTA, m('inbound', fala)], 2), fala).toBe(false);
       expect(conversaGratuitaEsgotada([...longa, NOVA_OFERTA, m('inbound', fala)], 2), fala).toBe(false);
     }
   });
 
   it('pergunta que não é de pagamento não reabre', async () => {
-    const { silencioPorConversaGratuita } = await import('./conversa-gratuita');
+    const { conversaGratuitaEsgotada } = await import('./conversa-gratuita');
     const aviso = m('outbound', 'Pra eu seguir com você, preciso que escolha um caminho. Qual você prefere?');
-    expect(silencioPorConversaGratuita([...longa, aviso, m('inbound', 'queria desabafar')], 2)).toBe(true);
+    expect(conversaGratuitaEsgotada([...longa, aviso, m('inbound', 'queria desabafar')], 2)).toBe(true);
   });
 });
 
 describe('dúvida sobre a oferta é comercial', () => {
   it('⭐ casos medidos em 12/10: quem diz que está com dúvida, que não entendeu ou pede para esperar é atendido', async () => {
-    const { silencioPorConversaGratuita } = await import('./conversa-gratuita');
+    const { conversaGratuitaEsgotada } = await import('./conversa-gratuita');
     const rodada = (texto: string) => [m('inbound', texto), AG];
     const longa = [OFERTA, ...rodada('ele sumiu'), ...rodada('tô triste'), ...rodada('saudade'), ...rodada('não durmo')];
     for (const fala of ['To com dúvida', 'Nao sei e que nao entendo', 'Vc pode espera', 'como funciona isso']) {
-      expect(silencioPorConversaGratuita([...longa, m('inbound', fala)], 2), fala).toBe(false);
+      expect(conversaGratuitaEsgotada([...longa, m('inbound', fala)], 2), fala).toBe(false);
     }
   });
 });

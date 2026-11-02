@@ -11,8 +11,13 @@
  * Depois que o preço foi dito, cada RODADA da pessoa (o que ela escreve entre duas falas do agente) é
  * comercial ou não. Comercial é a que fala de pagar, de valor, de data, do que está à venda, ou traz um número.
  * As rodadas não comerciais que o agente já respondeu são a conversa gratuita. Quando elas chegam ao limite
- * que o operador definiu e a rodada atual também não é comercial, o turno responde UMA vez, curto, mostrando
- * os caminhos pagos — e o envio recusa o que passar disso.
+ * que o operador definiu e a rodada atual também não é comercial, cada resposta fica curta e leva no máximo uma
+ * oferta por dia. O envio recusa o que passar disso.
+ *
+ * ─── Nunca em silêncio ───────────────────────────────────────────────────────────────
+ * Até 01/11/2026, depois de dois avisos o turno terminava sem responder. Decisão do dono no mesmo dia: quem não
+ * aceitou hoje pode aceitar amanhã, e o papel da agente é vender. Medido: 14 turnos silenciados em 3 dias, entre eles
+ * a Elisangela, que tinha comprado duas vezes e contou que o Lineu respondeu.
  *
  * ─── O que NUNCA é limitado ───────────────────────────────────────────────────────────
  * Quem já pagou, quem tem um período pago valendo (quem chama decide), a rodada comercial (é a venda
@@ -24,6 +29,7 @@
 export interface MensagemDaConversa {
   direction: string;
   body: string | null | undefined;
+  sent_at?: string;
 }
 
 /** O preço foi dito por quem atende. O mesmo sinal que `lib/preco` usa. */
@@ -41,6 +47,9 @@ const COMERCIAL =
 const RISCO =
   /suic|me matar|tirar (a )?minha vida|n[ãa]o quero mais viver|quero morrer|vontade de morrer|me machucar|me cortar|me bate\b|me bateu|me agrid|apanh(o|ei|ando)|viol[êe]ncia|me amea[çc]/i;
 
+/** Uma oferta por dia: dentro deste intervalo, a agente responde sem repetir valor. */
+const INTERVALO_ENTRE_OFERTAS_MS = 16 * 60 * 60 * 1000;
+
 /** Tamanho máximo da resposta do turno em que o limite vale: um balão curto. */
 export const TAMANHO_DA_RESPOSTA_LIMITADA = 420;
 
@@ -50,12 +59,6 @@ const textoDaRodada = (rodada: readonly MensagemDaConversa[]): string => rodada.
  * A conversa gratuita acabou? `limite` = quantas rodadas não comerciais o agente responde de graça depois da
  * oferta. `limite` ausente, zero ou negativo desliga a regra.
  */
-/**
- * Quantas respostas "escolha um caminho" a pessoa recebe depois de esgotar a conversa gratuita. Passou disso, o
- * turno não chama modelo nem envia nada (`silencioPorConversaGratuita`).
- */
-export const AVISOS_DEPOIS_DO_LIMITE = 2;
-
 /**
  * A última pergunta de quem atende era sobre PAGAR ("Quer que eu te mande o Pix de R$ 60 agora?"). O que a pessoa
  * responde a isso é a venda acontecendo, mesmo que seja "não sei ainda" ou "tudo bem". Medido em 12/10/2026: três
@@ -106,36 +109,37 @@ export function rodadasGratuitasRespondidas(mensagens: readonly MensagemDaConver
   return r.respondidas.filter((x) => !rodadaComercial(x)).length;
 }
 
-/**
- * O SILÊNCIO DEPOIS DOS AVISOS. Medido em 12/10/2026: 30 contatos concentravam 41% do custo de IA do dia, e o
- * mais caro recebeu 186 respostas em um dia sem comprar. Quem esgotou a conversa gratuita e já recebeu os avisos
- * com os caminhos pagos não consome mais resposta: o turno termina sem chamar modelo. Qualquer rodada que fale
- * de comprar ou pagar, que traga foto ou documento (pode ser o comprovante) ou que dê sinal de risco reabre o
- * atendimento na hora — e o pedido de falar com uma pessoa é tratado antes desta regra.
- */
-export function silencioPorConversaGratuita(mensagens: readonly MensagemDaConversa[], limite: number | null | undefined): boolean {
-  if (!limite || limite <= 0) return false;
-  const gratuitas = rodadasGratuitasRespondidas(mensagens);
-  return gratuitas !== null && gratuitas >= limite + AVISOS_DEPOIS_DO_LIMITE;
-}
-
 export function conversaGratuitaEsgotada(mensagens: readonly MensagemDaConversa[], limite: number | null | undefined): boolean {
   if (!limite || limite <= 0) return false;
   const gratuitas = rodadasGratuitasRespondidas(mensagens);
   return gratuitas !== null && gratuitas >= limite;
 }
 
-/** O bloco do turno em que a conversa gratuita acabou. `caminhos` = os nomes do que está à venda. */
-export function blocoDaConversaGratuitaEsgotada(esgotada: boolean, caminhos: readonly string[]): string {
+/** A agente já falou um valor nas últimas horas: a próxima oferta fica para o dia seguinte. */
+export function ofereceuHoje(mensagens: readonly MensagemDaConversa[], agora: Date = new Date()): boolean {
+  return mensagens.some(
+    (m) =>
+      m.direction === 'outbound' &&
+      m.sent_at !== undefined &&
+      agora.getTime() - new Date(m.sent_at).getTime() < INTERVALO_ENTRE_OFERTAS_MS &&
+      PRECO_DITO.test(m.body ?? ''),
+  );
+}
+
+/** O bloco do turno depois da conversa gratuita. `caminhos` = os nomes do que está à venda. */
+export function blocoDaConversaGratuitaEsgotada(esgotada: boolean, caminhos: readonly string[], jaOfereceuHoje = false): string {
   if (!esgotada) return '';
   const lista = caminhos.length > 0 ? caminhos.join(', ') : 'o trabalho';
   return [
     '',
     '',
-    'A CONVERSA GRATUITA ACABOU (ESTE BLOCO VENCE TODO O RESTO NESTE TURNO)',
-    '- Esta pessoa já recebeu a leitura gratuita e a oferta, não comprou, e já teve as respostas gratuitas que o operador permite.',
-    `- Responda com UMA mensagem só, de até ${TAMANHO_DA_RESPOSTA_LIMITADA} caracteres: acolha em meia frase o que ela disse e diga, com carinho e firmeza, que para continuar você precisa que ela escolha um caminho: ${lista}. Termine perguntando qual ela quer.`,
-    '- É PROIBIDO neste turno: aconselhar, interpretar o que ela contou, fazer pergunta sobre a vida dela, puxar assunto, reler as cartas ou prometer que você segue ali com ela. Isso é o que está à venda.',
-    '- Se ela disser que não quer nenhum caminho, despeça-se em uma frase curta, sem pergunta.',
+    'CONVERSA DEPOIS DA OFERTA (ESTE BLOCO VENCE TODO O RESTO NESTE TURNO)',
+    '- Esta pessoa já recebeu a leitura e a oferta e ainda não comprou. Seu papel é vender: mantenha o contato e procure a oportunidade. Quem não aceitou hoje pode aceitar amanhã.',
+    `- Responda com UMA mensagem só, de até ${TAMANHO_DA_RESPOSTA_LIMITADA} caracteres, e acolha em meia frase o que ela disse.`,
+    jaOfereceuHoje
+      ? '- Hoje ela já ouviu um valor: NÃO repita valor nem oferta nesta resposta. Termine com uma pergunta curta sobre o que ela contou. A oferta volta em outro dia.'
+      : `- Ligue o que ela contou a UMA oferta, a que mais responde a isso: ${lista}. Use o valor que os blocos de preço e de cobranças liberarem e termine perguntando se ela quer, ou quanto ela consegue hoje.`,
+    '- É PROIBIDO neste turno: aconselhar em detalhe, interpretar o que ela contou, reler as cartas ou prometer acompanhamento. Isso é o que está à venda.',
+    '- Se ela disser que hoje não dá, aceite sem insistir e não se despeça de vez. Se ela pedir para parar ou para não ser procurada, pare.',
   ].join('\n');
 }

@@ -101,16 +101,6 @@ export const CONSULTA_DE_CANDIDATAS = `
     -- Medido em 20/10/2026: o resgate acordou a agente para uma lead no meio do fluxo de entrada, e as duas
     -- vozes falaram ao mesmo tempo. A regra é a mesma do turno (fluxo-no-comando.ts).
     and not ${sqlFluxoNoComando('u.organization_id', 'u.contact_id')}
-    -- Silêncio de propósito: o turno que viu esta mensagem terminou sem responder porque a conversa gratuita
-    -- acabou (conversa-gratuita.ts). Reemitir o atendimento ou chamar uma pessoa desfaria a regra.
-    and not exists (
-      select 1 from job_queue s
-      where s.organization_id = u.organization_id and s.contact_id = u.contact_id
-        and s.kind = 'inbound_turn' and s.status = 'done'
-        -- A janela usa o índice de tarefas terminadas por data; sem ela, a conferência varre a fila inteira.
-        and s.created_at > now() - interval '24 hours'
-        and s.payload->>'silencio_gratuito' = 'true'
-        and (s.payload->>'ultima_inbound_vista_em')::timestamptz >= u.created_at)
   order by u.created_at
   limit ${LOTE}`;
 
