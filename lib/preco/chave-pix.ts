@@ -34,9 +34,31 @@ export function chavePrincipal(pricing: Pick<PricingConfig, "pix_key"> | null | 
   return pricing?.pix_key?.primary === true ? pricing.pix_key : null;
 }
 
-/** A chave como vai sozinha num balão, para copiar. `null` quando ela não é uma chave válida. */
+/**
+ * A chave como vai sozinha num balão, para copiar. `null` quando ela não é uma chave válida.
+ *
+ * Celular vai SEM o +55 ("69993677810"): é assim que os apps dos bancos pedem a chave de celular, e com o +55 colado
+ * a busca falha em vários deles. Visto em 02/11/2026: "não aparece a chave" e "esse número é a chave?". Decisão do
+ * dono. O código copia e cola (`codigoDaChave`) continua com o +55, que é o formato que o padrão do Pix exige.
+ */
 export function chaveParaCopiar(chave: ChavePixDaEmpresa): string | null {
-  return chavePixNormalizada(chave.key);
+  const n = chavePixNormalizada(chave.key);
+  return n === null ? null : celularSemDdi(n);
+}
+
+const celularSemDdi = (n: string): string => (/^\+55\d{10,11}$/.test(n) ? n.slice(3) : n);
+
+export type TipoDaChave = "Celular" | "CPF" | "CNPJ" | "E-mail" | "Aleatória";
+
+/** O tipo da chave, como o app do banco pergunta ("Qual o tipo da chave?"). `null` quando ela não é válida. */
+export function tipoDaChave(chave: Pick<ChavePixDaEmpresa, "key">): TipoDaChave | null {
+  const n = chavePixNormalizada(chave.key);
+  if (n === null) return null;
+  if (n.startsWith("+")) return "Celular";
+  if (n.includes("@")) return "E-mail";
+  if (/^\d{14}$/.test(n)) return "CNPJ";
+  if (/^\d{11}$/.test(n)) return "CPF";
+  return "Aleatória";
 }
 
 /** O código copia e cola da chave para uma cobrança. `null` quando a chave não gera código. */
@@ -56,6 +78,7 @@ const QUALQUER_MARCA = /\[\[\s*CHAVE\s+PIX\b[^\]]*\]\]/i;
 /** A chave como a pessoa lê: CNPJ e CPF com pontuação; o resto, como foi cadastrado. */
 export function chavePorExtenso(chave: string): string {
   const d = chavePixNormalizada(chave) ?? chave.trim();
+  if (/^\+55\d{10,11}$/.test(d)) return `celular ${celularSemDdi(d)}`;
   if (/^\d{14}$/.test(d)) return `CNPJ ${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8, 12)}-${d.slice(12)}`;
   if (/^\d{11}$/.test(d)) return `CPF ${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`;
   return d;
@@ -105,6 +128,17 @@ export function pixPelaChaveNoLugarDaMarca(e: {
   return { corpo: [...baloes.slice(0, i), ...(resto ? [resto] : []), ...novos, ...baloes.slice(i + 1)].join("\n\n") };
 }
 
+/** Que chave é esta, para a agente responder "esse número é a chave?" e o "qual o tipo?" do banco sem inventar. */
+function comoEAChave(chave: ChavePixDaEmpresa): string[] {
+  const tipo = tipoDaChave(chave);
+  if (tipo === null) return [];
+  const copiar = chaveParaCopiar(chave);
+  const qual = tipo === "Celular" ? `um número de CELULAR (${copiar}), sem o +55` : `do tipo ${tipo}`;
+  return [
+    `- A chave é ${qual}, em nome de ${chave.holder}. Se ela perguntar "esse número é a chave?", a resposta é SIM. Se o banco perguntar o tipo de chave, é *${tipo}*. É PROIBIDO dizer que a chave é de outro tipo (CNPJ, CPF, e-mail, aleatória) ou que o número enviado não é a chave.`,
+  ];
+}
+
 /** O bloco do turno. '' quando não há chave configurada ou nenhum valor liberado. */
 export function blocoDaChavePix(chave: ChavePixDaEmpresa | null | undefined, valoresPermitidosCents: readonly number[]): string {
   const valores = [...new Set(valoresPermitidosCents)].sort((a, b) => b - a);
@@ -118,6 +152,9 @@ export function blocoDaChavePix(chave: ChavePixDaEmpresa | null | undefined, val
       `- Todo Pix sai pela chave, em nome de ${chave.holder}. Cobre do jeito de sempre (o link do produto ou a marca [[PIX: …]]): o sistema troca pela chave para copiar e pelo link de cartão. Onde o roteiro disser "código", diga "chave". Se perguntarem por que aparece esse nome, é quem cuida do financeiro.`,
       `- O link de cartão sai junto com o código. Se ela pedir cartão, cobre de novo do jeito de sempre e aponte o link. O cartão confirma sozinho, sem comprovante. A chave não vence: NUNCA diga que vai expirar.`,
       `- Se ela pedir a chave de novo, cobre de novo do jeito de sempre. NUNCA digite a chave você mesma, e é PROIBIDO dizer que não trabalha com chave.`,
+      ...comoEAChave(chave),
+      `- A chave SÓ chega pela cobrança que você escreve NESTE envio (o link do produto ou a marca [[PIX: …]]). É PROIBIDO dizer "a chave vai aqui embaixo", "aqui está a chave", "te mandei a chave" ou "a chave está aí em cima" sem a cobrança no mesmo envio ou sem a chave já enviada na conversa. Se não há valor liberado para cobrar o que ela quer, diga o valor que está liberado; nunca finja que mandou.`,
+      `- O link do cartão tem o valor fixo do produto e NÃO tem campo de valor: nunca mande digitar ou trocar o valor no link. Valor diferente (entrada, avulsa) é pela chave.`,
       `- SÓ se ela disser que a chave não funcionou ou que não conseguiu pagar com ela, escreva sozinha num balão a marca com o valor em reais, assim: [[CHAVE PIX: ${Math.round(valores[0]! / 100)}]]. O sistema troca a marca pelo Pix copia e cola. Valores liberados para esta pessoa agora: ${valores.map(reais).join(", ")}. Nunca use essa marca antes de ela ter problema com a chave.`,
       confirmacao,
     ].join("\n");

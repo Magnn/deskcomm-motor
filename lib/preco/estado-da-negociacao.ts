@@ -634,12 +634,21 @@ export function valorOferecidoParaPagarAgora(
 export function entradaImediata(
   c: Pick<PricingConfig, "list_price_cents" | "steps"> & { min_down_payment_cents?: number | undefined },
   mensagens: readonly MensagemParaContar[],
-): { entradaCents: number; restanteCents: number } | null {
+): { entradaCents: number; restanteCents: number; combinadaAntes?: true } | null {
   const msgs = expandirHistoricoColado(mensagens);
   const primeiroPreco = msgs.findIndex((m) => m.direction === "outbound" && PRECO_DITO.test(m.body ?? ""));
   if (primeiroPreco === -1) return null;
   const leitura = rodadasDeValor(msgs, primeiroPreco);
   if (leitura === null) return null;
+  // A ENTRADA JÁ COMBINADA CONTINUA VALENDO: ela disse "50", a agente fechou, e no turno seguinte ela perguntou outra
+  // coisa. Sem isto a entrada sumia do turno, a cobrança dela não era mais liberada e a agente passou uma hora dizendo
+  // "a chave vai aqui embaixo" sem chave nenhuma (Ana, 02/11/2026). Só com entrada mínima configurada.
+  if (leitura.atual === null && c.min_down_payment_cents !== undefined) {
+    const aceito = leitura.aceitoAntes();
+    if (aceito !== null && aceito >= c.min_down_payment_cents && aceito < c.list_price_cents) {
+      return { entradaCents: aceito, restanteCents: c.list_price_cents - aceito, combinadaAntes: true };
+    }
+  }
   const menorDegrau = c.steps.length > 0 ? Math.min(...c.steps.map((s) => s.price_cents)) : undefined;
   const minimo = c.min_down_payment_cents ?? menorDegrau;
   if (minimo === undefined) return null;
@@ -662,6 +671,16 @@ export function entradaImediata(
   if (dito === null || dito < minimo || dito >= c.list_price_cents) return null;
   return { entradaCents: dito, restanteCents: c.list_price_cents - dito };
 }
+
+/** A agente disse este valor ("R$ 50", "R$ 50,00", "*R$ 47*")? */
+function mencionaValor(texto: string, cents: number): boolean {
+  const n = cents % 100 === 0 ? String(cents / 100) : (cents / 100).toFixed(2).replace(".", ",");
+  return new RegExp(String.raw`R\$\s*\*?${n}(?:,00)?(?![\d,])`).test(texto);
+}
+
+/** O pagamento já caiu: a entrada combinada antes não vale mais. */
+const PAGAMENTO_RECEBIDO =
+  /\b(?:pagamento|pix|comprovante)\b[^.?!\n]{0,40}\b(?:caiu|confirmad[oa]|registrad[oa]|conferid[oa])\b|\brecebi\s+(?:aqui\s+)?o\s+seu\s+comprovante\b/i;
 
 /** "Não consigo mais que isso", dito depois de a agente segurar o menor valor. */
 const NAO_CONSEGUE_MAIS =
@@ -693,6 +712,22 @@ function rodadasDeValor(msgs: readonly MensagemParaContar[], primeiroPreco: numb
   const valorDa = (i: number) => valorQueAPessoaTem([msgs[primeiroPreco]!, ...falaAntes[i]!, ...rodadas[i]!]);
   const atual = rodadas[rodadas.length - 1]!;
   return {
+    /**
+     * O valor da rodada anterior mais recente em que ela disse um valor, SE a agente o aceitou (repetiu o valor na
+     * resposta) e nada foi pago depois. `null` quando o último valor dito não foi aceito, ou já foi pago.
+     */
+    aceitoAntes: (): number | null => {
+      for (let i = rodadas.length - 2; i >= 0; i -= 1) {
+        const v = valorDa(i);
+        if (v === null) continue;
+        const resposta = (falaAntes[i + 1] ?? []).map((m) => m.body ?? "").join("\n");
+        if (!mencionaValor(resposta, v)) return null;
+        const depois = msgs.slice(msgs.indexOf(rodadas[i]![rodadas[i]!.length - 1]!) + 1);
+        const pagou = depois.some((m) => m.direction === "outbound" && PAGAMENTO_RECEBIDO.test(m.body ?? ""));
+        return pagou ? null : v;
+      }
+      return null;
+    },
     atual: valorDa(rodadas.length - 1),
     textoDaRodada: atual.map((m) => m.body ?? "").join("\n"),
     /** O último valor abaixo de `piso` dito numa rodada ANTERIOR (a agente já respondeu a ele), ou `null`. */

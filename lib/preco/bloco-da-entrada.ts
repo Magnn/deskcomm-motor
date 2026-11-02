@@ -106,10 +106,22 @@ export const MARCA_DA_ENTRADA = "Entrada";
  * O bloco do turno em que a pessoa disse quanto consegue pagar AGORA (`entradaImediata`): a entrada é esse valor,
  * o Pix sai neste turno e o restante fica para depois. A data do restante é perguntada DEPOIS do Pix, nunca antes.
  */
-export function blocoDaEntradaImediata(entrada: { entradaCents: number; restanteCents: number } | null): string {
+export function blocoDaEntradaImediata(entrada: { entradaCents: number; restanteCents: number; combinadaAntes?: true } | null): string {
   if (entrada === null) return "";
   const e = reais(entrada.entradaCents);
   const r = reais(entrada.restanteCents);
+  if (entrada.combinadaAntes) {
+    return [
+      "",
+      "",
+      `ENTRADA JÁ COMBINADA (ESTE BLOCO VENCE O BLOCO DE PREÇO NESTE TURNO)`,
+      `Vocês já combinaram: ela entra com ${e} e o restante de ${r} fica para depois. NÃO mude esse valor, NÃO invente outro, NÃO ofereça desconto nem o valor cheio.`,
+      `- Responda primeiro o que ela perguntou agora, em poucas palavras.`,
+      `- Se ela pedir a chave, disser que vai pagar, que não achou ou que não chegou: mande de novo, escrevendo sozinha num balão a marca [[PIX: ${MARCA_DA_ENTRADA}]] (o sistema troca pela chave e pelo passo a passo de ${e}).`,
+      `- NUNCA diga que a chave está "aqui embaixo", "aí em cima" ou "é esta aqui" sem escrever a marca neste envio. O link do cartão NÃO serve para a entrada: ele cobra o valor cheio e não tem campo de valor.`,
+      `NÃO chame a equipe humana por causa disto.`,
+    ].join("\n");
+  }
   return [
     "",
     "",

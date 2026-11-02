@@ -20,7 +20,7 @@ import { lerConexaoStripe, type ConexaoStripe } from '@/lib/pagamentos/conexao-s
 import { VALIDADE_DO_PIX_S, linksDePagamentoDaConfig, pagamentosRecentesDoContato, referenciaDoPix, type LinkDePagamentoConhecido } from '@/lib/pagamentos/pix-na-conversa';
 import { codigoPixEstatico } from '@/lib/pagamentos/pix-estatico';
 import { criarClienteStripe, type LinkCriado, type PedidoDeLink, type PedidoDePix, type PixCriado } from '@/lib/pagamentos/stripe';
-import { chaveParaCopiar, chavePrincipal } from '@/lib/preco/chave-pix';
+import { chaveParaCopiar, chavePrincipal, tipoDaChave } from '@/lib/preco/chave-pix';
 import { reais, type PricingConfig } from '@/lib/preco/tipos';
 import { baloesPelaChave, instrucaoDoPixCopiaECola, linhaDoLinkDePagamento, PEDIDO_DO_COMPROVANTE } from "@/lib/pagamentos/como-pagar-pix";
 
@@ -129,7 +129,7 @@ export async function cobrancaPeloProvedorNoLugarDoLink(e: EntradaDaCobrancaPelo
       return { recusa: 'O pagamento não pôde ser gerado agora. NÃO envie link nem chave: diga em uma frase que você manda o código em alguns minutos e chame o atendimento humano.' };
     }
     e.log.info('cobrança pela chave principal no lugar do link', { conversation_id: e.conversationId, valor_centavos: link.valorCentavos });
-    const baloes = [...baloesPelaChave(reais(link.valorCentavos), chave, principal.holder), linhaDoLinkDePagamento(await cartaoAoLadoDaChave(e, link))];
+    const baloes = [...baloesPelaChave(reais(link.valorCentavos), chave, principal.holder, tipoDaChave(principal)), linhaDoLinkDePagamento(await cartaoAoLadoDaChave(e, link))];
     return { corpo: corpoComCobranca(e.corpo, link, baloes) };
   }
 

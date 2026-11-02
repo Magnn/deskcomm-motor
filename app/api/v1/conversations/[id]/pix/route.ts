@@ -27,7 +27,7 @@ import { lerConexaoStripe } from "@/lib/pagamentos/conexao-stripe";
 import { enviarPixSchema, mensagensDoPix, mensagensDoPixPelaChave } from "@/lib/pagamentos/enviar-pix-tipos";
 import { VALIDADE_DO_PIX_S } from "@/lib/pagamentos/pix-na-conversa";
 import { ErroDaStripe, criarClienteStripe } from "@/lib/pagamentos/stripe";
-import { chaveParaCopiar } from "@/lib/preco/chave-pix";
+import { chaveParaCopiar, tipoDaChave } from "@/lib/preco/chave-pix";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -71,7 +71,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     const chave = chaveParaCopiar(principal);
     if (chave === null) return fail("validation_failed", t("A chave Pix cadastrada não é válida. Confira a chave na aba Preço do agente."), 422, { requestId });
     try {
-      for (const body of mensagensDoPixPelaChave(lido.data.valor_cents, chave, principal.holder)) {
+      for (const body of mensagensDoPixPelaChave(lido.data.valor_cents, chave, principal.holder, tipoDaChave(principal))) {
         await sendMessageHandler(
           supabase,
           { organization_id: org.orgId, actor: { type: "user", id: user.id }, requestId, idioma: user.idioma },

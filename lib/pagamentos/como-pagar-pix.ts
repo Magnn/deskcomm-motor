@@ -35,12 +35,13 @@ export const PEDIDO_DO_COMPROVANTE = "Assim que fizer, me manda o comprovante aq
  * comprovante. Decisão do dono em 01/11/2026: a chave vem primeiro, e o copia e cola só sai para quem teve problema
  * com ela (a marca `[[CHAVE PIX: valor]]`, em `lib/preco/chave-pix.ts`).
  */
-export function baloesPelaChave(valor: string, chave: string, titular: string): string[] {
+export function baloesPelaChave(valor: string, chave: string, titular: string, tipo?: string | null): string[] {
+  const doTipo = tipo ? ` Se o banco perguntar o tipo de chave, escolha *${tipo}*.` : "";
   return [
     [
       `Pra pagar no Pix (*${valor}*):`,
       "1. Toque e segure na chave da próxima mensagem e escolha *Copiar*.",
-      "2. No app do seu banco, entre em *Pix* e escolha *Pagar com chave* ou *Transferir*.",
+      `2. No app do seu banco, entre em *Pix* e escolha *Pagar com chave* (em alguns bancos, *Transferir*).${doTipo}`,
       `3. Cole a chave, confira o nome *${titular}*, coloque o valor *${soOValor(valor)}* e confirme.`,
     ].join("\n"),
     chave,

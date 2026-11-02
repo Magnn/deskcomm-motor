@@ -107,7 +107,9 @@ describe("POST /conversations/[id]/pix", () => {
     const corpos = vi.mocked(sendMessageHandler).mock.calls.map((c) => (c[2] as { body: string }).body);
     expect(corpos).toHaveLength(3);
     expect(corpos[0]).toContain("Fulano de Tal");
-    expect(corpos[1]).toContain("+5569900000000");
+    // Celular vai sem o +55, e o passo a passo diz o tipo da chave (02/11/2026).
+    expect(corpos[1]).toBe("69900000000");
+    expect(corpos[0]).toContain("escolha *Celular*");
     expect(corpos[2]).toContain("comprovante");
   });
 
