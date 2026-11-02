@@ -2,6 +2,7 @@
  * Os textos da página final (`_pagina-final.tsx`), passados pelo dicionário no servidor. O que é igual nos três
  * quizzes mora aqui; o título da oferta vem de cada quiz.
  */
+import type { TextosDoAbrirArea } from "./_abrir-area";
 import type { TextosDaPaginaFinal } from "./_pagina-final";
 
 export function textosDaPaginaFinal(t: (texto: string) => string, ofertaSobretitulo: string, ofertaTitulo: string): TextosDaPaginaFinal {
@@ -51,5 +52,15 @@ export function textosDaPaginaFinal(t: (texto: string) => string, ofertaSobretit
     pagarCartao: t("Quero a leitura completa"),
     gerando: t("Gerando…"),
     noBanco: t("No banco aparece Stripe Brasil, a empresa de pagamentos."),
+  };
+}
+
+/** O cartão "a sua área já está aberta", depois da leitura paga (`_abrir-area.tsx`). */
+export function textosDoAbrirArea(t: (texto: string) => string): TextosDoAbrirArea {
+  return {
+    areaSobretitulo: t("A sua área"),
+    areaTitulo: t("Pronto: a sua área já está aberta"),
+    areaTexto: t("A leitura fica guardada lá, com a carta do dia, a leitura da mão e a conversa com a guia."),
+    areaBotao: t("Abrir a minha área"),
   };
 }

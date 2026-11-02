@@ -14,6 +14,7 @@ import { join, relative, sep } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { TIPOS_DE_QUIZ } from "@/lib/area-do-cliente/quizzes";
 import { isPublicPath } from "@/lib/auth/public-paths";
 
 const RAIZ = join(process.cwd(), "app", "api", "v1", "area", "publica", "[org]");
@@ -48,6 +49,19 @@ describe("área do cliente: toda rota pública atravessa o proxy", () => {
   it("⭐ nenhuma rota da área fica atrás do login da equipe", () => {
     const barradas = todas.map(urlDaRota).filter((url) => !isPublicPath(url));
     expect(barradas, "rota da área sem entrada em lib/auth/public-paths.ts: o proxy responde 401 ao comprador").toEqual([]);
+  });
+
+  it("⭐ TODO tipo de quiz atravessa — o pedido, o pedido pelo id e a entrada pela compra", () => {
+    // O exemplo de `[tipo]` acima é um só; "par" (22/10) ficou de fora da regex e levava 401 até 02/11.
+    const id = "11111111-1111-4111-8111-111111111111";
+    const barradas = TIPOS_DE_QUIZ.flatMap((tipo) => [
+      `/api/v1/area/publica/magno/quiz/${tipo}`,
+      `/api/v1/area/publica/magno/quiz/${tipo}/${id}`,
+      `/api/v1/area/publica/magno/quiz/${tipo}/${id}/entrar`,
+    ]).filter((url) => !isPublicPath(url));
+    expect(barradas).toEqual([]);
+    expect(isPublicPath(`/api/v1/area/publica/magno/sinastria/${id}/entrar`)).toBe(true);
+    expect(isPublicPath(`/api/v1/area/publica/magno/quiz/inventado/${id}`)).toBe(false);
   });
 
   it("a liberação continua ancorada: sub-caminho inventado não passa de carona", () => {

@@ -35,6 +35,7 @@ import { carregarGrimorio, carregarMesa, configDasLeituras } from "@/lib/area-do
 import { FOTOS_POR_DIA, configDaMao } from "@/lib/area-do-cliente/mao";
 import { fotosHoje, maosDoContato } from "@/lib/area-do-cliente/mao-servidor";
 import { abaValida } from "@/lib/area-do-cliente/abas";
+import { caminhoPublicoDaArea } from "@/lib/area-do-cliente/vocabulario";
 import { COR_PADRAO_DA_AREA } from "@/lib/area-do-cliente/config";
 import { registrarEvento } from "@/lib/area-do-cliente/eventos";
 import { urlDaMidiaDaArea } from "@/lib/area-do-cliente/midia";
@@ -89,6 +90,16 @@ async function jaMereceConvite(admin: ReturnType<typeof createAdminClient>, org:
   return convidarParaOAviso({ diasDeVisita: dias.size, jaViuValor: eventos.some((e) => e.tipo !== "visitou") });
 }
 
+/** O primeiro quiz ligado, na ordem da vitrine (o Par é a porta de entrada da página de vendas); nenhum = sem link. */
+function primeiraDescoberta(org: { slug: string; config: { apelido?: string | null; quiz_par?: { ativo?: boolean }; sinastria_quiz?: { ativo?: boolean }; quiz_prosperidade?: { ativo?: boolean }; quiz_caminhos?: { ativo?: boolean } } }): string | null {
+  const base = caminhoPublicoDaArea(org.slug, org.config.apelido);
+  if (org.config.quiz_par?.ativo) return `${base}/quiz/par`;
+  if (org.config.sinastria_quiz?.ativo) return `${base}/sinastria`;
+  if (org.config.quiz_prosperidade?.ativo) return `${base}/quiz/prosperidade`;
+  if (org.config.quiz_caminhos?.ativo) return `${base}/quiz/caminhos`;
+  return null;
+}
+
 function dinheiro(cents: number, currency: string): string {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency }).format(cents / 100);
 }
@@ -123,6 +134,7 @@ export default async function AreaDoCliente({ params, searchParams }: Props) {
         tx={tx}
         link={link}
         whatsapp={org.config.whatsapp}
+        comecar={primeiraDescoberta(org)}
       />
     );
   }

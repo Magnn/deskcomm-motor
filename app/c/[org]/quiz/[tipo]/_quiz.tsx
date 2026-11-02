@@ -17,6 +17,7 @@ import { copyToClipboard } from "@/lib/clipboard";
 
 import { enviarLead, idDaVisita, manterVivo, marcarPasso } from "../../_passos";
 
+import { AbrirMinhaArea } from "../../_abrir-area";
 import { PaginaFinal } from "../../_pagina-final";
 import { Interludio, OutrasLeituras, PerguntaDoQuiz, Progresso, SeletorDeData, TelaDeCalculo, VideoDaGuia, type Depoimento, type OutraLeitura, type PerguntaNaTela } from "../../_quiz-pecas";
 import { CARTAO, SERIF, SOBRETITULO } from "../../_tema";
@@ -642,6 +643,7 @@ export function QuizDePessoa(props: {
           <p className="mt-6 text-xs text-[#9d94b2]">{tx.guarde}</p>
         </article>
       )}
+      {fase === "pronto" && texto && pedido ? <AbrirMinhaArea url={`${base}/${pedido.id}/entrar`} segredo={pedido.segredo} cor={cor} tx={tx} /> : null}
       {fase === "pronto" && texto && <OutrasLeituras titulo={tx.outrasTitulo} botao={tx.outrasBotao} itens={outras} cor={cor} />}
     </section>
   );

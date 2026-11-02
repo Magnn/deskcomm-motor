@@ -2,7 +2,7 @@
  * Os textos dos quizzes de uma pessoa, passados pelo dicionário no servidor (`page.tsx`) e entregues prontos ao
  * navegador (`_quiz.tsx`). O que é igual ao quiz da sinastria usa a mesma frase do dicionário.
  */
-import { textosDaPaginaFinal } from "../../_pagina-final-textos";
+import { textosDaPaginaFinal, textosDoAbrirArea } from "../../_pagina-final-textos";
 
 export function textosDoQuizDePessoa(t: (texto: string) => string, tipo: "prosperidade" | "caminhos" | "par") {
   /** O texto de cada quiz: prosperidade, caminhos, Retrato do Par. */
@@ -163,6 +163,7 @@ export function textosDoQuizDePessoa(t: (texto: string) => string, tipo: "prospe
     escrevendo: t("Escrevendo a sua leitura…"),
     menosDeUmMinuto: t("Leva menos de um minuto. Não feche a página."),
     guarde: t("Guarde esta página: o endereço abre a sua leitura neste aparelho."),
+    ...textosDoAbrirArea(t),
     outrasTitulo: t("Outras leituras para você"),
     outrasBotao: t("Começar de graça"),
     seuResultado: t("O seu resultado"),
