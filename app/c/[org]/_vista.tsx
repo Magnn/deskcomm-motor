@@ -10,6 +10,7 @@ import { Check, FileText, Film, Headphones, MessageCircle, Receipt } from "lucid
 
 import { recadoDaEmpresa, type DadosDaArea } from "@/lib/area-do-cliente/dados";
 import type { CeuDoNascimento } from "@/lib/area-do-cliente/ceu";
+import type { MensagemDoChat } from "@/lib/area-do-cliente/chat";
 import type { DestaqueDeHoje } from "@/lib/area-do-cliente/hoje";
 import { faseDaLua } from "@/lib/area-do-cliente/lua";
 import { PERGUNTAS_DO_FOCO, type Foco } from "@/lib/area-do-cliente/perfil";
@@ -17,17 +18,16 @@ import { PERGUNTAS_DO_FOCO, type Foco } from "@/lib/area-do-cliente/perfil";
 import {
   AniversarioDoCliente,
   CartaDoDia,
-  ConversaGuardada,
   DesejoDoCliente,
   DiarioDoCliente,
   EmailDoCliente,
   EntrarNaArea,
-  FaleComAGente,
   TituloDaSecao,
   VitrineObservada,
   type TextosDaArea,
 } from "./_client";
 import { AbasDaArea, BotaoIrParaAba, type AbaDaArea } from "./_abas";
+import { ChatDaArea, type TextosDoChat } from "./_chat";
 import { AvisoDiario, type TextosDoAviso } from "./_aviso";
 import { CarteiraDeCreditos, type CarteiraInicial, type TextosDaCarteira } from "./_carteira";
 import { CirculoDoCliente } from "./_circulo";
@@ -170,6 +170,9 @@ export interface VistaDaAreaProps {
   guia: { foto: string | null; nome: string | null };
   /** A aba que abre primeiro (do endereço, `?aba=`); sem ela, Hoje. */
   abaInicial?: AbaDaArea;
+  /** O chat da área (`_chat.tsx`): a conversa de agora e se dá para escrever (há conversa num número ligado). */
+  chat: { inicial: MensagemDoChat[]; podeEscrever: boolean };
+  tch: TextosDoChat;
 }
 
 /** "tempo de agir…" → "Tempo de agir…": a frase da lua perde o começo ("Lua crescente:") e não pode começar em minúscula. */
@@ -504,14 +507,17 @@ export function VistaDaArea(p: VistaDaAreaProps) {
     <>
       {topo(rotulos.conversa)}
       <div className={corpo}>
-        <FaleComAGente slug={slug} cor={cor} tx={tx} inicial={dados.mensagens} idioma={tag} fuso={fuso} />
-        {dados.conversa.length > 0 ? (
-          <ConversaGuardada
-            tx={tx}
-            empresa={titulo}
-            falas={dados.conversa.map((f) => ({ id: f.id, de: f.de, texto: f.texto, quando: dataCurta(f.quando) }))}
-          />
-        ) : null}
+        {/* A conversa É o chat, como no WhatsApp — a mesma conversa, e a resposta chega aqui. */}
+        <ChatDaArea
+          slug={slug}
+          inicial={p.chat.inicial}
+          podeEscrever={p.chat.podeEscrever}
+          guia={p.guia}
+          empresa={titulo}
+          idioma={tag}
+          fuso={fuso}
+          tc={p.tch}
+        />
         {/* O WhatsApp fica pequeno e no fim: a conversa é aqui dentro, e o zap é só a saída para quem prefere. */}
         {p.whatsapp ? (
           <div className="flex justify-center pt-2">

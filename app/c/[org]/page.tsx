@@ -18,6 +18,7 @@ import { semanaDoAniversario } from "@/lib/area-do-cliente/aniversario";
 import { caminhoDoPresente } from "@/lib/area-do-cliente/presente";
 import { MENSAGEM_DO_DIA, cartaDoDia } from "@/lib/area-do-cliente/carta-do-dia";
 import { DIAS_DO_AVISO_DE_RENOVACAO, assinaturaAtiva, diasRestantes, lerAssinatura, mesDoDia } from "@/lib/area-do-cliente/circulo";
+import { conversaDaArea, lerChat } from "@/lib/area-do-cliente/chat";
 import { carregarDadosDaArea, diaNoFuso, fotoDaCarta } from "@/lib/area-do-cliente/dados";
 import { CARTAS_NA_MESA, NOME_DA_MODALIDADE } from "@/lib/area-do-cliente/leituras";
 import { configDosAvisos, convidarParaOAviso } from "@/lib/area-do-cliente/avisos";
@@ -44,7 +45,7 @@ import { vapidPronto } from "@/lib/notifications/vapid";
 import { vozPropriaConfigurada } from "@/lib/voz/servidor-proprio";
 
 import { serifDaArea } from "./_fonte";
-import { textosDaCarteira, textosDaEntrada, textosDaMesa, textosDoAviso, textosDasEtapas, textosDasOfertas, textosDasSimpatias, textosDoGrimorio, textosDaLuaDoMes, textosDoNavegador } from "./_textos";
+import { textosDaCarteira, textosDaEntrada, textosDaMesa, textosDoAviso, textosDasEtapas, textosDasOfertas, textosDasSimpatias, textosDoGrimorio, textosDaLuaDoMes, textosDoChat, textosDoNavegador } from "./_textos";
 import { VistaDaArea, VistaDeEntrada } from "./_vista";
 
 export const dynamic = "force-dynamic";
@@ -123,7 +124,12 @@ export default async function AreaDoCliente({ params, searchParams }: Props) {
     );
   }
 
-  const dados = await carregarDadosDaArea(admin, { id: org.id, fuso: org.fuso }, sessao.contactId);
+  // O chat da área (`_chat.tsx`): a conversa inteira, dos dois canais, e se há onde a mensagem dela entrar.
+  const [dados, chat, conversaViva] = await Promise.all([
+    carregarDadosDaArea(admin, { id: org.id, fuso: org.fuso }, sessao.contactId),
+    lerChat(admin, org.id, sessao.contactId),
+    conversaDaArea(admin, org.id, sessao.contactId),
+  ]);
   await registrarEvento(admin, {
     organizationId: org.id,
     contactId: sessao.contactId,
@@ -401,6 +407,8 @@ export default async function AreaDoCliente({ params, searchParams }: Props) {
       tp={textosDaEntrada(t)}
       guia={{ foto: urlDaMidiaDaArea(org.config.guia?.foto, baseDoStorage()), nome: org.config.guia?.nome ?? null }}
       abaInicial={abaValida(aba)}
+      chat={{ inicial: chat, podeEscrever: conversaViva !== null }}
+      tch={textosDoChat(t)}
     />
   );
 }

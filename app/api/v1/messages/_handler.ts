@@ -48,6 +48,8 @@ import type { ListMessagesQuery, SendMessageInput } from "@/lib/schemas";
 import { sendTemplateForSession } from "@/lib/channels/meta/send-template-for-session";
 import { nomeDoContato } from "@/lib/contacts/rotulo-do-contato";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { avisoDaResposta, respostaVaiParaAArea } from "@/lib/area-do-cliente/canal-da-resposta";
+import { MARCA_DO_AVISO } from "@/lib/area-do-cliente/chat";
 import type { Message } from "@/lib/types/messaging";
 
 type SB = SupabaseClient;
@@ -691,6 +693,13 @@ export async function sendMessageHandler(
     channelSessionId: c.channel_session_id,
     contactPhoneNumber: c.contacts?.phone_number ?? "",
   }).catch(() => ({ permite: false, motivo: "pre_go_live_indisponivel" }));
+  // A RESPOSTA VAI PARA ONDE ELA FALOU POR ÚLTIMO (`lib/area-do-cliente/canal-da-resposta.ts`): a última
+  // mensagem dela veio da área do cliente, então esta fica na área — o canal não é chamado. Modelo e cartão
+  // de contato são coisa do canal e saem sempre por ele.
+  const naArea =
+    input.type !== "template" && input.type !== "contact"
+      ? await respostaVaiParaAArea(supabase, { organizationId: ctx.organization_id, conversationId: c.id, metadata: input.metadata })
+      : false;
   if (acessoAtual && !acessoAtual.permite) {
     const { data: updated, error } = await supabase.from("messages").update({
       status: "failed",
@@ -701,6 +710,15 @@ export async function sendMessageHandler(
     }).eq("organization_id", ctx.organization_id).eq("id", message.id).select(MSG_COLS).single();
     if (error || !updated) throw new ApiError(500, "internal_error", undefined, ctx.requestId, "Não foi possível registrar o bloqueio do envio.");
     message = updated as unknown as Message;
+  } else if (naArea) {
+    const { data: updated } = await supabase
+      .from("messages")
+      .update({ status: "delivered", delivered_at: now, metadata: { ...(message.metadata ?? {}), entrega: "area" } })
+      .eq("organization_id", ctx.organization_id)
+      .eq("id", message.id)
+      .select(MSG_COLS)
+      .maybeSingle();
+    if (updated) message = updated as unknown as Message;
   } else if (c.channel_sessions?.archived_at) {
     // Canal ARQUIVADO = canal excluído pelo usuário: a sessão já foi deslogada e
     // removida do transporte, e a credencial do canal oficial já foi revogada. É a
@@ -1047,6 +1065,24 @@ export async function sendMessageHandler(
     .eq("id", c.contact_id)
     .eq("organization_id", c.organization_id);
 
+  }
+  // A resposta ficou na área e ela não está olhando: UM aviso pelo canal, com o link pessoal. Nunca derruba
+  // a resposta, que já está gravada e entregue na área.
+  if (naArea && message.status !== "failed") {
+    const aviso = await avisoDaResposta(createAdminClient(), {
+      organizationId: c.organization_id,
+      conversationId: c.id,
+      contactId: c.contact_id,
+      provider: c.channel_sessions?.provider ?? DEFAULT_CHANNEL_PROVIDER,
+      origem: process.env.NEXT_PUBLIC_APP_URL,
+    });
+    if (aviso) {
+      await sendMessageHandler(
+        supabase,
+        { organization_id: ctx.organization_id, actor: ctx.actor, requestId: ctx.requestId, idioma: ctx.idioma },
+        { conversation_id: c.id, type: "text", body: aviso, metadata: { [MARCA_DO_AVISO]: true } } as SendMessageInput,
+      ).catch((err) => console.error("[messages.send] aviso da área falhou", err instanceof Error ? err.message : String(err)));
+    }
   }
   const a = actorAuditPayload(ctx.actor);
   await audit({

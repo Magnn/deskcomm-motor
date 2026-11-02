@@ -281,6 +281,11 @@ export function MessageBubble({
               {t(ROTULO_DA_COBRANCA[message.billing_category ?? ""] ?? "Cobrada")}
             </span>
           )}
+          {/* Chat da área do cliente (`lib/area-do-cliente/chat.ts`): ela escreveu pela área, ou a resposta ficou
+              lá e não saiu pelo WhatsApp. Sem o selo, o atendente acharia que a mensagem foi pelo número. */}
+          {message.metadata?.origem === "area" && <span className="font-semibold" title={t("A cliente escreveu pela área do cliente")}>{t("pela área")}</span>}
+          {message.metadata?.entrega === "area" && <span className="font-semibold" title={t("Entregue na área do cliente, não pelo WhatsApp")}>{t("na área")}</span>}
+          {message.metadata?.aviso_da_area === true && <span className="font-semibold" title={t("Aviso de que a resposta está na área do cliente")}>{t("aviso da área")}</span>}
           <span>{time}</span>
           {showCitationButton && (
             <CitationButton citations={citations} messageId={message.id} />
