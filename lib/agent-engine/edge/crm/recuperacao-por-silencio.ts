@@ -31,6 +31,7 @@ import type { ChannelProvider } from '@/lib/channels/types';
 import { ehRecusaDaOferta } from '@/lib/opt-out/deteccao';
 import { lerRecuperacao, ofertaDoPasso, perguntaQuantoCabeNoPasso } from '@/lib/recuperacao/config';
 import { anunciouPausa, disseQueNaoTemPrevisao } from '@/lib/recuperacao/pausa-anunciada';
+import { fechouPorHoje, jaPerguntouQuantoCabe } from '@/lib/recuperacao/fechou-por-hoje';
 import { ofertaAindaDesce } from '@/lib/preco/estado-da-negociacao';
 import { ofertaAtivaDaConversa, type OfertaAtiva } from '@/lib/preco/oferta-ativa';
 import type { PricingConfig } from '@/lib/preco/tipos';
@@ -64,6 +65,8 @@ export const MAXIMO_DE_CHAMADAS_POR_RODADA = 40;
 const FOLGA_PARA_COMECAR_MS = 60 * 60_000;
 /** Um passo de uma régua em curso ainda sai com este atraso (worker parado, fila represada). Além disso, não sai. */
 export const ATRASO_MAXIMO_DE_UM_PASSO_MS = 3 * 60 * 60_000;
+/** O passo que já é "outro dia": quem fechou por hoje só recebe a partir dele (`fechouPorHoje`). */
+export const PASSO_DO_DIA_SEGUINTE_MS = 16 * 60 * 60_000;
 
 interface Candidata {
   conversation_id: string;
@@ -84,6 +87,8 @@ interface Candidata {
   falas_finais?: string | null;
   last_inbound_at: string;
   last_outbound_at: string;
+  /** A última mensagem da agente: se já perguntou quanto cabe, a régua não repete hoje (`jaPerguntouQuantoCabe`). */
+  ultima_fala?: string | null;
   feitas: number | null;
   /** A pessoa já comprou, e já ouviu algum valor nesta conversa: é o que decide se o passo oferece valor. */
   ja_pagou?: boolean | null;
@@ -102,7 +107,7 @@ interface Candidata {
 export const CONSULTA_DE_SILENCIOSAS = `
   select v.id as conversation_id, v.organization_id, v.contact_id,
          cs.provider, o.timezone, ag.followup, ag.pricing, coalesce(lig.ligada_em, ag.published_at) as published_at,
-         ui.id as anchor_message_id, ui.created_at as last_inbound_at, uo.created_at as last_outbound_at,
+         ui.id as anchor_message_id, ui.created_at as last_inbound_at, uo.created_at as last_outbound_at, uo.body as ultima_fala,
          (select string_agg(coalesce(mf.body, mf.media_derived_text, ''), ' / ' order by mf.created_at) from messages mf
            where mf.organization_id = v.organization_id and mf.conversation_id = v.id and mf.direction = 'inbound'
              and mf.created_at >= ui.created_at - interval '60 minutes') as falas_finais,
@@ -141,7 +146,7 @@ export const CONSULTA_DE_SILENCIOSAS = `
     where m.organization_id = v.organization_id and m.conversation_id = v.id and m.direction = 'inbound'
     order by m.created_at desc limit 1) ui on true
   join lateral (
-    select m.created_at from messages m
+    select m.created_at, m.body from messages m
     where m.organization_id = v.organization_id and m.conversation_id = v.id and m.direction = 'outbound'
     order by m.created_at desc limit 1) uo on true
   left join lateral (
@@ -204,6 +209,27 @@ export interface ResultadoDaRecuperacao {
 type Chamada =
   | { kind: 'step'; step: number; motivo: string; ofereceSaida: boolean; ofertaCents: number | null }
   | { kind: 'keep_window'; step: 0; motivo: string };
+
+/**
+ * O passo permitido mais recente que já venceu e ainda não saiu neste silêncio. O mais recente, e não o primeiro:
+ * um passo antigo que venceu horas atrás não sai agora.
+ */
+function ultimoPassoPermitido(
+  steps: readonly number[],
+  permitido: (i: number) => boolean,
+  silencioDesde: Date,
+  ultimaEm: string | null,
+  agora: Date,
+): number | null {
+  for (let i = steps.length - 1; i >= 0; i--) {
+    if (!permitido(i)) continue;
+    const venceEm = silencioDesde.getTime() + steps[i]! * 60_000;
+    if (agora.getTime() < venceEm) continue;
+    if (ultimaEm !== null && new Date(ultimaEm).getTime() >= venceEm) return null;
+    return i + 1;
+  }
+  return null;
+}
 
 /** O canal desta conversa limita a mensagem livre a 24 h depois da última mensagem do cliente? */
 export function canalTemPrazo(provider: string | null): boolean {
@@ -269,11 +295,21 @@ export function decidirChamada(
   if ((c.feitas ?? 0) === 0 && agora.getTime() - silencioDesde.getTime() > ultimoPassoMs + FOLGA_PARA_COMECAR_MS) {
     return null;
   }
-  const passo = decidirPasso(
-    r,
-    { silencioDesde, feitas: c.feitas ?? 0, ultimaEm: c.ultima_em === null ? null : new Date(c.ultima_em) },
-    agora,
-  );
+  // FECHOU POR HOJE (`lib/recuperacao/fechou-por-hoje.ts`). Cada fala dela abre uma régua nova, e sem isto um
+  // "Nao" recomeçava as cobranças do primeiro passo. Depois de "não", "não tenho" ou despedida, só o passo do dia
+  // seguinte. Quando a agente já perguntou quanto cabe, os lembretes que repetiriam a pergunta saem da régua, e os
+  // passos que baixam o valor seguem (a escada 100/60 é decisão do dono).
+  const fechou = fechouPorHoje(c.falas_finais?.split(' / ').at(-1));
+  const perguntou = !fechou && jaPerguntouQuantoCabe(c.ultima_fala);
+  const permitido = (i: number) =>
+    r.steps_minutes[i]! * 60_000 >= PASSO_DO_DIA_SEGUINTE_MS || (perguntou && ofertaDoPasso(r, i + 1) !== null);
+  const passo = fechou || perguntou
+    ? ultimoPassoPermitido(r.steps_minutes, permitido, silencioDesde, c.ultima_em, agora)
+    : decidirPasso(
+        r,
+        { silencioDesde, feitas: c.feitas ?? 0, ultimaEm: c.ultima_em === null ? null : new Date(c.ultima_em) },
+        agora,
+      );
   if (passo === null) return null;
   const silencioMs = agora.getTime() - silencioDesde.getTime();
   // PASSO ATRASADO NÃO DISPARA. Medido em 12/10/2026: um quarto passo (6 h) foi acrescentado à régua e, no minuto

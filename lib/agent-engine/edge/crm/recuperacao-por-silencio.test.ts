@@ -298,3 +298,47 @@ describe("a régua respeita a oferta pequena de pé", () => {
     expect(motivo(pool)).toContain("R$ 100");
   });
 });
+
+describe("fechou por hoje", () => {
+  const REGUA = {
+    ...RECUPERACAO_PADRAO,
+    steps_minutes: [3, 60, 180, 360, 1260],
+    step_offers_cents: [null, null, 10000, 6000, null],
+    step_asks_amount: [false, true, false, false, true],
+  };
+  const base = (over: object) => silenciosa({ followup: { recovery: REGUA }, ...over });
+
+  it("⭐ o caso da Mari: depois de 'Nao' a régua não recomeça os passos do dia", () => {
+    const depoisDoNao = base({ falas_finais: "Nao", last_inbound_at: ha(70), last_outbound_at: ha(65) });
+    expect(decidirChamada(depoisDoNao, AGORA, true)).toBeNull();
+    expect(decidirChamada(base({ falas_finais: "Obrigada", last_inbound_at: ha(10), last_outbound_at: ha(5) }), AGORA, true)).toBeNull();
+  });
+
+  it("a mesma pessoa recebe a chamada do dia seguinte, uma vez", () => {
+    const amanha = base({ falas_finais: "Não tenho esse $ agora", last_inbound_at: ha(1270), last_outbound_at: ha(1262) });
+    expect(decidirChamada(amanha, AGORA, true)).toMatchObject({ kind: "step", step: 5 });
+    expect(decidirChamada({ ...amanha, feitas: 1, ultima_em: ha(1) }, AGORA, true)).toBeNull();
+  });
+
+  it("a pergunta de quanto cabe que a agente acabou de fazer não se repete hoje", () => {
+    const perguntou = base({ ultima_fala: "Me diz só quanto caberia hoje, mesmo que seja pouquinho.", falas_finais: "Em breve volto" });
+    expect(decidirChamada(perguntou, AGORA, true)).toBeNull();
+  });
+
+  it("depois da pergunta de quanto cabe, a queda para R$ 100 segue na hora dela", () => {
+    const aos3h = base({
+      ultima_fala: "Quanto cabe pra você hoje?",
+      falas_finais: "Sim",
+      last_inbound_at: ha(200),
+      last_outbound_at: ha(70),
+      silence_since: ha(182),
+      feitas: 2,
+      ultima_em: ha(122),
+    });
+    expect(decidirChamada(aos3h, AGORA, true)).toMatchObject({ kind: "step", step: 3 });
+  });
+
+  it("quem segue na conversa continua com a régua normal", () => {
+    expect(decidirChamada(base({ falas_finais: "Sim", ultima_fala: "Conseguiu copiar a chave do Pix?" }), AGORA, true)).toMatchObject({ step: 1 });
+  });
+});
