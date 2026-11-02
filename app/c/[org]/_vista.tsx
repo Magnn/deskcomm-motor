@@ -64,10 +64,12 @@ export interface VistaDeEntradaProps {
   tx: TextosDaArea;
   link?: string;
   whatsapp?: string;
+  /** Quem ainda não tem área começa pela descoberta: o primeiro quiz ligado na empresa (a conta nasce na compra). */
+  comecar?: string | null;
 }
 
 /** Quem chega sem sessão: o céu, o nome da empresa e o pedido do e-mail. */
-export function VistaDeEntrada({ classeDaFonte, slug, cor, titulo, t, tx, link, whatsapp }: VistaDeEntradaProps) {
+export function VistaDeEntrada({ classeDaFonte, slug, cor, titulo, t, tx, link, whatsapp, comecar }: VistaDeEntradaProps) {
   return (
     <main className={`${classeDaFonte} ${PAGINA}`}>
       <header className={`${CEU} px-5 pb-24 pt-16 text-center`}>
@@ -91,6 +93,18 @@ export function VistaDeEntrada({ classeDaFonte, slug, cor, titulo, t, tx, link, 
         <div className="[&>div]:mt-0">
           <EntrarNaArea slug={slug} cor={OURO} tx={tx} />
         </div>
+        {comecar ? (
+          <a
+            href={comecar}
+            className="mt-6 block rounded-3xl border border-white/10 bg-white/[0.04] px-5 py-4 text-center transition hover:bg-white/[0.07]"
+            data-testid="area-entrada-comecar"
+          >
+            <span className="block text-[15px] text-[#c3bad3]">{t("Ainda não tem a sua área?")}</span>
+            <span className="mt-1 block text-[16px] font-semibold" style={{ color: OURO }}>
+              {t("Comece pela sua descoberta")} →
+            </span>
+          </a>
+        ) : null}
         {whatsapp ? (
           <p className="mt-8 text-center text-[15px] text-[#c3bad3]">
             {t("Não cadastrou e-mail?")}{" "}
