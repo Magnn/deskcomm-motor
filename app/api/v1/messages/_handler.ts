@@ -49,7 +49,7 @@ import { sendTemplateForSession } from "@/lib/channels/meta/send-template-for-se
 import { nomeDoContato } from "@/lib/contacts/rotulo-do-contato";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { avisoDaResposta, respostaVaiParaAArea } from "@/lib/area-do-cliente/canal-da-resposta";
-import { MARCA_DO_AVISO } from "@/lib/area-do-cliente/chat";
+import { MARCA_DO_AVISO } from "@/lib/area-do-cliente/marcas";
 import type { Message } from "@/lib/types/messaging";
 
 type SB = SupabaseClient;

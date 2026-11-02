@@ -22,10 +22,9 @@ import { aplicarEfeitosPosEntrada } from "@/lib/channels/pos-entrada";
 import { marcarConversaComMensagem } from "@/lib/channels/marcar-conversa";
 import type { createAdminClient } from "@/lib/supabase/admin";
 
-/** A marca da mensagem que nasceu na área. É o que decide para onde a resposta vai. */
-export const ORIGEM_DA_AREA = "area";
-/** A marca do aviso pelo canal ("a Cigana te respondeu na sua área"): não aparece no chat da área. */
-export const MARCA_DO_AVISO = "aviso_da_area";
+import { MARCA_DO_AVISO, ORIGEM_DA_AREA } from "./marcas";
+
+export { MARCA_DO_AVISO, ORIGEM_DA_AREA };
 /** O bucket privado das mídias da conversa (o mesmo do canal). */
 export const BUCKET_DO_CHAT = "whatsapp-media";
 /** Quantas mensagens o chat traz de uma vez. */
