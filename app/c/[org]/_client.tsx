@@ -10,6 +10,7 @@ import * as React from "react";
 import { ArrowUp, BookOpen, Cake, Check, KeyRound, Mail, MessagesSquare, Sparkles } from "lucide-react";
 
 import { EVENTO_DE_VALOR } from "@/lib/area-do-cliente/avisos";
+import { EVENTO_CARTA_REVELADA, EVENTO_DIARIO_SALVO } from "@/lib/area-do-cliente/ritual";
 
 import { BOTAO, CAMPO, CARTAO, DETALHE, SERIF, SOBRETITULO, TEXTO_SUAVE } from "./_tema";
 
@@ -366,6 +367,7 @@ export function CartaDoDia({
   nome,
   mensagem,
   foto,
+  jaRevelada = false,
 }: {
   slug: string;
   cor: string;
@@ -374,12 +376,15 @@ export function CartaDoDia({
   nome: string;
   mensagem: string;
   foto: string | null;
+  /** Ela já virou a carta hoje (outra visita): abre virada, sem contar de novo. */
+  jaRevelada?: boolean;
 }) {
-  const [revelada, setRevelada] = React.useState(false);
+  const [revelada, setRevelada] = React.useState(jaRevelada);
   const revelar = () => {
     if (revelada) return;
     setRevelada(true);
     void postar(`/api/v1/area/publica/${slug}/eventos`, { tipo: "carta_do_dia", carta: cartaId }, tx);
+    window.dispatchEvent(new Event(EVENTO_CARTA_REVELADA));
     // Acabou de ver valor: é a hora de convidar para o aviso diário (depois de a carta virar).
     window.setTimeout(() => window.dispatchEvent(new Event(EVENTO_DE_VALOR)), 2500);
   };
@@ -462,6 +467,7 @@ export function DiarioDoCliente({
       } else {
         setLista((l) => [{ id: json.data!.id, texto: json.data!.texto, quando: "" }, ...l].slice(0, 10));
         setTexto("");
+        window.dispatchEvent(new Event(EVENTO_DIARIO_SALVO));
       }
     } catch {
       setErro(tx.semConexao);

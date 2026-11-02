@@ -11,6 +11,7 @@ import { Check, FileText, Film, Headphones, MessageCircle, Receipt } from "lucid
 import { recadoDaEmpresa, type DadosDaArea } from "@/lib/area-do-cliente/dados";
 import type { CeuDoNascimento } from "@/lib/area-do-cliente/ceu";
 import type { MensagemDoChat } from "@/lib/area-do-cliente/chat";
+import type { PassoDoRitual } from "@/lib/area-do-cliente/ritual";
 import type { DestaqueDeHoje } from "@/lib/area-do-cliente/hoje";
 import { faseDaLua } from "@/lib/area-do-cliente/lua";
 import { PERGUNTAS_DO_FOCO, type Foco } from "@/lib/area-do-cliente/perfil";
@@ -28,6 +29,7 @@ import {
 } from "./_client";
 import { AbasDaArea, BotaoIrParaAba, type AbaDaArea } from "./_abas";
 import { ChatDaArea, type TextosDoChat } from "./_chat";
+import { CreditosNoTopo, RitualDeHoje, type TextosDoRitual } from "./_ritual";
 import { AvisoDiario, type TextosDoAviso } from "./_aviso";
 import { CarteiraDeCreditos, type CarteiraInicial, type TextosDaCarteira } from "./_carteira";
 import { CirculoDoCliente } from "./_circulo";
@@ -171,8 +173,11 @@ export interface VistaDaAreaProps {
   /** A aba que abre primeiro (do endereço, `?aba=`); sem ela, Hoje. */
   abaInicial?: AbaDaArea;
   /** O chat da área (`_chat.tsx`): a conversa de agora e se dá para escrever (há conversa num número ligado). */
-  chat: { inicial: MensagemDoChat[]; podeEscrever: boolean };
+  chat: { inicial: MensagemDoChat[]; podeEscrever: boolean; sugestoes: string[] };
   tch: TextosDoChat;
+  /** O ritual de hoje (`lib/area-do-cliente/ritual.ts`): os passos e quais já foram feitos. */
+  ritual: { passos: Array<{ passo: PassoDoRitual; feito: boolean }>; cartaJaRevelada: boolean };
+  tr: TextosDoRitual;
 }
 
 /** "tempo de agir…" → "Tempo de agir…": a frase da lua perde o começo ("Lua crescente:") e não pode começar em minúscula. */
@@ -211,7 +216,7 @@ export function VistaDaArea(p: VistaDaAreaProps) {
   const recado = recadoDaEmpresa(dados.conversa, p.agora);
   // Quem terminou o trabalho vê um próximo passo; o primeiro da vitrine que ela ainda não tem.
   const proximo = vitrine[0] ? { nome: vitrine[0].nome, descricao: vitrine[0].descricao ?? null } : null;
-  const rotulos = { hoje: t("Hoje"), trabalho: t("Meu trabalho"), conversa: t("Conversa"), explorar: t("Loja") };
+  const rotulos = { hoje: t("Hoje"), trabalho: t("Meu trabalho"), conversa: t("Chat"), explorar: t("Loja") };
 
   /** O topo das abas que não são a Hoje: o mesmo céu, mais baixo, com o nome da aba. */
   const topo = (nome: string) => (
@@ -242,7 +247,11 @@ export function VistaDaArea(p: VistaDaAreaProps) {
           </div>
         ) : null}
         <div className="relative mx-auto max-w-xl">
-          <p className={SOBRETITULO_NOTURNO}>{titulo}</p>
+          <div className="flex items-center justify-between gap-3">
+            <p className={SOBRETITULO_NOTURNO}>{titulo}</p>
+            {/* O saldo à vista no alto, sempre — como nos aplicativos do ramo. */}
+            {p.carteira ? <CreditosNoTopo inicial={p.carteira.saldo} rotulo={p.tr.creditos} /> : null}
+          </div>
           <h1 className={`${SERIF} mt-3 text-[38px] leading-[1.05] tracking-tight`} data-testid="area-ola">
             {ola}
           </h1>
@@ -279,10 +288,34 @@ export function VistaDaArea(p: VistaDaAreaProps) {
           </section>
         ) : null}
 
-        {/* O HERÓI: a carta do dia, o motivo de abrir a área todo dia. */}
-        {p.carta ? (
-          <CartaDoDia slug={slug} cor={cor} tx={tx} cartaId={p.carta.id} nome={p.carta.nome} mensagem={p.carta.mensagem} foto={p.carta.foto} />
-        ) : null}
+        {/* O RITUAL DE HOJE: 1 carta · 2 diário · 3 conversa, um cartão por vez (`_ritual.tsx`). */}
+        <RitualDeHoje
+          inicial={p.ritual.passos}
+          nomeDaGuia={p.guia.nome?.trim() || titulo}
+          tr={p.tr}
+          carta={
+            p.carta ? (
+              <CartaDoDia
+                slug={slug}
+                cor={cor}
+                tx={tx}
+                cartaId={p.carta.id}
+                nome={p.carta.nome}
+                mensagem={p.carta.mensagem}
+                foto={p.carta.foto}
+                jaRevelada={p.ritual.cartaJaRevelada}
+              />
+            ) : null
+          }
+          diario={
+            <DiarioDoCliente
+              slug={slug}
+              cor={cor}
+              tx={tx}
+              entradas={dados.diario.map((d) => ({ id: d.id, texto: d.texto, quando: dataCurta(d.quando) }))}
+            />
+          }
+        />
 
         <EtapaDeHoje proximo={proximo} />
 
@@ -294,7 +327,7 @@ export function VistaDaArea(p: VistaDaAreaProps) {
             </p>
             <p className={`${SERIF} mt-2 text-[22px] leading-snug`}>“{p.hojeTela.lembranca.pergunta}”</p>
             <p className="mt-2 text-[15px] leading-relaxed text-[#d9d0e6]">
-              {t("Como foi desde então? Anote no seu diário aqui embaixo, ou leve uma nova pergunta à mesa.")}
+              {t("Como foi desde então? Anote no seu diário, no ritual de hoje, ou leve uma nova pergunta à mesa.")}
             </p>
             <BotaoIrParaAba
               aba="explorar"
@@ -357,24 +390,8 @@ export function VistaDaArea(p: VistaDaAreaProps) {
           </section>
         ) : null}
 
-        {/* O resto, recolhido: um herói por tela. Com a lembrança em destaque, o diário já vem aberto. */}
-        <details className="group rounded-3xl" open={p.hojeTela.destaque === "lembranca"} data-testid="area-mais-para-hoje">
-          <summary className="flex cursor-pointer list-none items-center justify-between rounded-3xl border border-[#c9a54e]/15 bg-[#1a1430] px-5 py-4 text-[15px] font-semibold text-[#efe7f7]">
-            {t("Mais para hoje")}
-            <span aria-hidden className="text-[#e2c47a] transition-transform group-open:rotate-180">
-              ▾
-            </span>
-          </summary>
-          <div className="mt-4 space-y-5">
-            {p.avisos ? <AvisoDiario slug={slug} ta={p.ta} hora={p.avisos.hora} convidarJa={p.avisos.convidarJa} /> : null}
-            <DiarioDoCliente
-              slug={slug}
-              cor={cor}
-              tx={tx}
-              entradas={dados.diario.map((d) => ({ id: d.id, texto: d.texto, quando: dataCurta(d.quando) }))}
-            />
-          </div>
-        </details>
+        {/* O aviso diário no celular, depois de tudo (o diário foi para o ritual). */}
+        {p.avisos ? <AvisoDiario slug={slug} ta={p.ta} hora={p.avisos.hora} convidarJa={p.avisos.convidarJa} /> : null}
       </div>
     </>
   );
@@ -503,10 +520,10 @@ export function VistaDaArea(p: VistaDaAreaProps) {
     </>
   );
 
+  // O chat ocupa a tela, como num aplicativo de conversa: sem o céu de título em cima.
   const conversa = (
     <>
-      {topo(rotulos.conversa)}
-      <div className={corpo}>
+      <div className="mx-auto max-w-xl space-y-5 px-3 pt-3">
         {/* A conversa É o chat, como no WhatsApp — a mesma conversa, e a resposta chega aqui. */}
         <ChatDaArea
           slug={slug}
@@ -517,6 +534,7 @@ export function VistaDaArea(p: VistaDaAreaProps) {
           idioma={tag}
           fuso={fuso}
           tc={p.tch}
+          sugestoes={p.chat.sugestoes}
         />
         {/* O WhatsApp fica pequeno e no fim: a conversa é aqui dentro, e o zap é só a saída para quem prefere. */}
         {p.whatsapp ? (
