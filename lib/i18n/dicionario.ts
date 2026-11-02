@@ -15186,7 +15186,7 @@ export const DICIONARIO: Traducoes = {
   "Respire fundo e pense na sua pergunta": { es: "Respira hondo y piensa en tu pregunta" },
   "Inspire enquanto a luz cresce, solte o ar enquanto ela diminui.": { es: "Inhala mientras la luz crece, suelta el aire mientras disminuye." },
   "você perguntou às cartas": { es: "le preguntaste a las cartas" },
-  "Como foi desde então? Anote no seu diário aqui embaixo, ou leve uma nova pergunta à mesa.": { es: "¿Cómo te fue desde entonces? Anótalo en tu diario aquí abajo, o lleva una nueva pregunta a la mesa." },
+  "Como foi desde então? Anote no seu diário, no ritual de hoje, ou leve uma nova pergunta à mesa.": { es: "¿Cómo te fue desde entonces? Anótalo en tu diario, en el ritual de hoy, o lleva una nueva pregunta a la mesa." },
   "Voltar à mesa": { es: "Volver a la mesa" },
   "Mais para hoje": { es: "Más para hoy" },
   // O Grimório da área.
@@ -15387,6 +15387,21 @@ export const DICIONARIO: Traducoes = {
   "A cliente escreveu pela área do cliente": { es: "La clienta escribió por el área del cliente" },
   "Entregue na área do cliente, não pelo WhatsApp": { es: "Entregado en el área del cliente, no por WhatsApp" },
   "Aviso de que a resposta está na área do cliente": { es: "Aviso de que la respuesta está en el área del cliente" },
+  // Ritual de hoje e sugestões do chat (`app/c/[org]/_ritual.tsx`).
+  "Seu ritual de hoje": { es: "Tu ritual de hoy" },
+  "Ritual de hoje completo": { es: "Ritual de hoy completo" },
+  "Amanhã tem carta nova esperando por você.": { es: "Mañana te espera una carta nueva." },
+  "Sua carta": { es: "Tu carta" },
+  "Diário": { es: "Diario" },
+  "Conversar": { es: "Conversar" },
+  "O que está no seu coração? {guia} está aqui.": { es: "¿Qué hay en tu corazón? {guia} está aquí." },
+  "Conte o que a carta te fez sentir, ou pergunte o que quiser. A resposta chega no chat, aqui na sua área.": { es: "Cuenta lo que la carta te hizo sentir, o pregunta lo que quieras. La respuesta llega al chat, aquí en tu área." },
+  "Abrir o chat": { es: "Abrir el chat" },
+  "Chat": { es: "Chat" },
+  "Me ajuda a entender a minha carta de hoje": { es: "Ayúdame a entender mi carta de hoy" },
+  "Me ajuda a entender o meu momento": { es: "Ayúdame a entender mi momento" },
+  "Quero fazer uma pergunta às cartas": { es: "Quiero hacerle una pregunta a las cartas" },
+  "Como está a minha energia no amor?": { es: "¿Cómo está mi energía en el amor?" },
 };
 
 /**
