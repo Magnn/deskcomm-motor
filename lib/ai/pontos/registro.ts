@@ -415,6 +415,17 @@ export const PONTOS_DE_IA: readonly PontoDeIa[] = [
     registraEm: "llm_calls",
   },
   {
+    id: "area_mao",
+    rotulo: "Ler a mão pela foto",
+    oQueFaz:
+      "Olha a foto da palma que a cliente mandou na área e escreve a leitura das cinco linhas (coração, cabeça, vida, destino e sol), uma síntese e um passo pequeno. Sem escolha aqui, usa o mesmo modelo que vê as imagens do cliente.",
+    papel: "atender",
+    exige: { imagem: true },
+    emissor: "lib/area-do-cliente/mao-ia.ts",
+    sintomaDeFalha: "A cliente manda a foto da mão e a área pede para tentar de novo mais tarde, sem cobrar.",
+    registraEm: "llm_calls",
+  },
+  {
     id: "loss_reason_classify",
     rotulo: "Entender por que a venda não aconteceu",
     oQueFaz:

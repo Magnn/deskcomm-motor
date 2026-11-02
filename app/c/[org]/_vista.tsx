@@ -37,6 +37,7 @@ import { EntradaDaArea, type TextosDaEntrada } from "./_entrada";
 import { GrimorioDaArea, type CartaNoGrimorio, type TextosDoGrimorio } from "./_grimorio";
 import { LuaDoMes, type TextosDaLuaDoMes } from "./_lua-do-mes";
 import { EtapaDeHoje, EtapasDaArea, LinhasDoTempo, type TextosDasEtapas } from "./_etapas";
+import { LeituraDaMaoNaArea, type MaoInicial, type TextosDaMao } from "./_mao";
 import { MesaDeLeituras, type MesaInicial, type TextosDaMesa } from "./_mesa";
 import { LuaDeHoje } from "./_lua";
 import { AnoPessoalDoCliente, PresenteDoCliente, type TextosDasOfertas } from "./_ofertas";
@@ -143,6 +144,9 @@ export interface VistaDaAreaProps {
   /** A Mesa de leituras; `null` quando a empresa não ligou. */
   mesa: MesaInicial | null;
   tm: TextosDaMesa;
+  /** A leitura da mão pela foto; `null` quando a empresa não ligou. */
+  mao: MaoInicial | null;
+  tmao: TextosDaMao;
   /** Os créditos (`_carteira.tsx`); `null` = desligados. */
   carteira: CarteiraInicial | null;
   creditosDoCirculo: number | null;
@@ -655,6 +659,7 @@ export function VistaDaArea(p: VistaDaAreaProps) {
         ) : null}
 
         {p.carteira ? <CarteiraDeCreditos slug={slug} cor={cor} tx={tx} tc={p.tc} inicial={p.carteira} tag={tag} /> : null}
+        {p.mao ? <LeituraDaMaoNaArea slug={slug} cor={cor} tx={tx} tm={p.tmao} inicial={p.mao} /> : null}
         {/* A Mesa fica inteira, depois das prateleiras de trabalho: é o ritual da área, não um produto de prateleira. */}
         {p.mesa ? <MesaDeLeituras slug={slug} cor={cor} tx={tx} tm={p.tm} inicial={p.mesa} sugestoes={p.perfil.foco ? PERGUNTAS_DO_FOCO[p.perfil.foco].map((q) => t(q)) : []} whatsapp={p.whatsapp} tag={tag} /> : null}
 

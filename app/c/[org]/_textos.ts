@@ -13,6 +13,7 @@ import type { TextosDaEntrada } from "./_entrada";
 import type { TextosDasEtapas } from "./_etapas";
 import type { TextosDoGrimorio } from "./_grimorio";
 import type { TextosDaLuaDoMes } from "./_lua-do-mes";
+import type { TextosDaMao } from "./_mao";
 import type { TextosDaMesa } from "./_mesa";
 import type { TextosDasOfertas } from "./_ofertas";
 import type { TextosDasSimpatias } from "./_simpatias";
@@ -331,5 +332,48 @@ export function textosDoRitual(t: (s: string) => string): TextosDoRitual {
     conversaTexto: t("Conte o que a carta te fez sentir, ou pergunte o que quiser. A resposta chega no chat, aqui na sua área."),
     conversar: t("Abrir o chat"),
     creditos: t("créditos"),
+  };
+}
+
+export function textosDaMao(t: (s: string) => string): TextosDaMao {
+  return {
+    titulo: t("Leitura da mão"),
+    chamada: t("O que as linhas da sua mão dizem sobre você?"),
+    gratis: t("Fotografe a palma da sua mão. A linha do coração você vê na hora, de graça."),
+    fotografar: t("Fotografar minha mão"),
+    dicas: [t("A mão que você mais usa, aberta e esticada."), t("De perto, com boa luz, sem flash."), t("Só a palma na foto, sem anéis no caminho.")],
+    privacidade: t("A foto é usada só para a leitura e não fica guardada."),
+    lendo: t("Lendo as linhas da sua mão…"),
+    lendoDica: t("Isso leva alguns segundos."),
+    automatica: t("Leitura feita na hora a partir da sua foto, como orientação e reflexão."),
+    vistoNaFoto: t("Na sua mão:"),
+    abrirTudo: t("Abra a leitura inteira da sua mão"),
+    abrirTudoTexto: t("As outras quatro linhas, a síntese e um passo para os próximos dias"),
+    usarCreditos: t("Usar créditos"),
+    creditos: t("créditos"),
+    seusCreditos: t("Seus créditos"),
+    pagarComPix: t("Pagar com Pix"),
+    pagarComCartao: t("Pagar com cartão"),
+    esperandoPagamento: t("Esperando o pagamento"),
+    copiarCodigo: t("Copiar código Pix"),
+    codigoCopiado: t("Código copiado."),
+    sintese: t("A sua mão inteira"),
+    passo: t("Um passo para os próximos dias"),
+    novaFoto: t("Ler outra foto"),
+    limiteDoDia: t("Por hoje já lemos as suas mãos. Amanhã você pode mandar outra foto."),
+    nomes: {
+      coracao: t("Linha do coração"),
+      cabeca: t("Linha da cabeça"),
+      vida: t("Linha da vida"),
+      destino: t("Linha do destino"),
+      sol: t("Linha do sol"),
+    },
+    temas: {
+      coracao: t("amor e afeto"),
+      cabeca: t("pensamento e decisões"),
+      vida: t("vitalidade e mudanças"),
+      destino: t("caminho e propósito"),
+      sol: t("brilho e reconhecimento"),
+    },
   };
 }

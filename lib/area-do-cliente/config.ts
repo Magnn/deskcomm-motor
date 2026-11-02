@@ -177,6 +177,16 @@ export const configDaAreaSchema = z.strictObject({
     })
     .optional(),
   /**
+   * A leitura da mão pela foto (`lib/area-do-cliente/mao.ts`): a linha do coração de graça, o resto pago.
+   * Sem este bloco ela segue a Mesa de leituras (`configDaMao`).
+   */
+  mao: z
+    .strictObject({
+      ativo: z.boolean().optional(),
+      preco_cents: z.number().int().min(100).max(1_000_000).optional(),
+    })
+    .optional(),
+  /**
    * Os créditos (`lib/area-do-cliente/creditos.ts`): uma carteira para tudo na área. A pessoa compra um dos
    * `pacotes` e paga as leituras com créditos; o Círculo dá `circulo_mensal` créditos a cada mês pago.
    * Desligados por padrão.

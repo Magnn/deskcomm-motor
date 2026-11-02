@@ -49,6 +49,9 @@ export const TIPOS_DE_EVENTO_DA_AREA = [
   "sinastria_paga",
   "quiz_checkout",
   "quiz_pago",
+  "mao_lida",
+  "mao_checkout",
+  "mao_paga",
 ] as const;
 export type TipoDeEventoDaArea = (typeof TIPOS_DE_EVENTO_DA_AREA)[number];
 
