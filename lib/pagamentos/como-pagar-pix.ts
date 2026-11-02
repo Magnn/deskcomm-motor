@@ -14,13 +14,16 @@
  * decisão do dono em 29/10/2026 — a página com o botão "Copiar código Pix" (#415) era mais um link na conversa,
  * e mais um link atrapalha quem já tem dificuldade. O código vai sozinho no balão seguinte.
  */
+/** "R$ 60,00 (Reconstrução do Casamento)" → "R$ 60,00": no passo de conferir ou digitar, vai só o número. */
+const soOValor = (valor: string): string => valor.replace(/\s*\(.*\)\s*$/, "");
+
 export function instrucaoDoPixCopiaECola(valor: string, noBancoAparece?: string): string {
   const noBanco = noBancoAparece ? ` No banco aparece ${noBancoAparece}, é assim mesmo.` : "";
   return [
     `Pra pagar no Pix (*${valor}*):`,
     "1. Toque e segure no código da próxima mensagem e escolha *Copiar*.",
     "2. No app do seu banco, entre em *Pix* e escolha *Pix Copia e Cola*. Não é em \"Pagar com chave\" nem em \"Transferir\": lá o banco não acha o código.",
-    `3. Cole o código, confira o valor *${valor}* e confirme.${noBanco}`,
+    `3. Cole o código, confira o valor *${soOValor(valor)}* e confirme.${noBanco}`,
   ].join("\n");
 }
 
@@ -38,7 +41,7 @@ export function baloesPelaChave(valor: string, chave: string, titular: string): 
       `Pra pagar no Pix (*${valor}*):`,
       "1. Toque e segure na chave da próxima mensagem e escolha *Copiar*.",
       "2. No app do seu banco, entre em *Pix* e escolha *Pagar com chave* ou *Transferir*.",
-      `3. Cole a chave, confira o nome *${titular}*, coloque o valor *${valor}* e confirme.`,
+      `3. Cole a chave, confira o nome *${titular}*, coloque o valor *${soOValor(valor)}* e confirme.`,
     ].join("\n"),
     chave,
     PEDIDO_DO_COMPROVANTE,
@@ -46,11 +49,12 @@ export function baloesPelaChave(valor: string, chave: string, titular: string): 
 }
 
 /**
- * Lê de volta o valor da cobrança no primeiro balão ("Pra pagar no Pix (*R$ 10 (2× Pergunta nova)*):"), o mesmo texto
+ * Lê de volta o valor da cobrança no primeiro balão ("Pra pagar no Pix (*R$ 10 (2× Pergunta nova)*):", ou
+ * "(*R$ 7,00 (Pergunta nova)*)" com uma unidade), o mesmo texto
  * que as duas instruções acima escrevem. É o que a conferência do comprovante compara (`comprovante-pix.ts`).
  */
 export function cobrancaNoTexto(texto: string): { valorCents: number; quantidade: number; nome: string | null } | null {
-  const achada = texto.match(/Pra pagar no Pix \(\*R\$ ([\d.,]+)(?: \((\d+)× ([^)]+)\))?\*\)/);
+  const achada = texto.match(/Pra pagar no Pix \(\*R\$ ([\d.,]+)(?: \((?:(\d+)× )?([^)]+)\))?\*\)/);
   if (!achada) return null;
   const valorCents = Math.round(Number(achada[1]!.replace(/\./g, "").replace(",", ".")) * 100);
   if (!Number.isFinite(valorCents) || valorCents <= 0) return null;

@@ -175,20 +175,15 @@ export function corpoComPixDoExtra(
       ? `*${reais(valorDaCobranca(marca.extra, quantidade))}* (${descricaoDaCobranca(marca.extra, quantidade)})`
       : `*${reais(marca.extra.price_cents)}*`;
   const novos: string[] = [];
+  // O nome vai SEMPRE, mesmo com uma unidade: é por ele que o comprovante sabe qual produto foi pago. Medido em
+  // 02/11/2026: três produtos a R$ 60 (o degrau do trabalho, o Acompanhamento e a Reconstrução do Casamento), e o
+  // valor sozinho mandava todo comprovante de R$ 60 para a equipe (`conferirComprovante`).
+  const comNome = `${reais(valorDaCobranca(marca.extra, quantidade))} (${descricaoDaCobranca(marca.extra, quantidade)})`;
   if (copiaECola) {
-    novos.push(
-      instrucaoDoPixCopiaECola(
-        quantidade > 1
-          ? `${reais(valorDaCobranca(marca.extra, quantidade))} (${descricaoDaCobranca(marca.extra, quantidade)})`
-          : reais(marca.extra.price_cents),
-        "o nome da empresa de pagamentos",
-      ),
-      copiaECola,
-    );
+    novos.push(instrucaoDoPixCopiaECola(comNome, "o nome da empresa de pagamentos"), copiaECola);
   }
   if (pelaChave) {
-    const total = reais(valorDaCobranca(marca.extra, quantidade));
-    novos.push(...baloesPelaChave(quantidade > 1 ? `${total} (${descricaoDaCobranca(marca.extra, quantidade)})` : total, pelaChave.chave, pelaChave.titular));
+    novos.push(...baloesPelaChave(comNome, pelaChave.chave, pelaChave.titular));
   }
   if (linkDoCartao) {
     novos.push(
