@@ -43,7 +43,7 @@ export interface CobrancaCriada {
   qrCodeUrl: string | null;
   urlDoCartao: string | null;
   /** A chave da empresa, quando o Pix sai por ela: vai a chave para copiar no lugar do código. */
-  pelaChave?: { chave: string; titular: string } | null;
+  pelaChave?: { chave: string; titular: string; tipo?: string | null } | null;
 }
 
 export type ItemDeCobranca =
@@ -61,7 +61,7 @@ export function itensDaCobranca(texto: string, marca: MarcaDeCobranca, c: Cobran
   const itens: ItemDeCobranca[] = [];
   if (antes) itens.push({ type: "text", body: antes });
   if (c.pelaChave) {
-    for (const body of baloesPelaChave(valor, c.pelaChave.chave, c.pelaChave.titular)) itens.push({ type: "text", body });
+    for (const body of baloesPelaChave(valor, c.pelaChave.chave, c.pelaChave.titular, c.pelaChave.tipo)) itens.push({ type: "text", body });
     if (c.urlDoCartao !== null) itens.push({ type: "text", body: linhaDoLinkDePagamento(c.urlDoCartao) });
   } else if (c.copiaECola !== null) {
     itens.push({ type: "text", body: instrucaoDoPixCopiaECola(valor) });

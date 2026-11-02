@@ -36,6 +36,6 @@ export function mensagensDoPix(valorCents: number, copiaECola: string): [string,
 }
 
 /** O mesmo Pix quando ele sai pela chave da empresa: a instrução, a chave e o pedido do comprovante. Pura. */
-export function mensagensDoPixPelaChave(valorCents: number, chave: string, titular: string): string[] {
-  return baloesPelaChave(reais(valorCents), chave, titular);
+export function mensagensDoPixPelaChave(valorCents: number, chave: string, titular: string, tipo?: string | null): string[] {
+  return baloesPelaChave(reais(valorCents), chave, titular, tipo);
 }

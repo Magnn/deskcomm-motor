@@ -69,7 +69,9 @@ describe("chave Pix como forma principal", () => {
     expect("corpo" in saida).toBe(true);
     if (!("corpo" in saida)) return;
     expect(saida.corpo).not.toContain("000201");
-    expect(saida.corpo).toContain("\n\n+5569900000000\n\n");
+    // O balão da chave vai sem o +55 (02/11/2026): é como os bancos pedem a chave de celular.
+    expect(saida.corpo).toContain("\n\n69900000000\n\n");
+    expect(saida.corpo).toContain("escolha *Celular*");
     expect(saida.corpo).toContain("https://buy.exemplo.com/cartao");
     expect(saida.corpo).not.toContain("pay.exemplo.com");
     expect(criarLink).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ soCartao: true, valorCentavos: 6000 }));
@@ -105,7 +107,8 @@ describe("chave Pix como forma principal", () => {
       expect("corpo" in saida).toBe(true);
       if (!("corpo" in saida)) continue;
       expect(saida.corpo).not.toContain("000201");
-      expect(saida.corpo).toContain("+5569900000000");
+      expect(saida.corpo).toContain("\n\n69900000000\n\n");
+      expect(saida.corpo).not.toContain("+5569900000000");
       expect(saida.corpo).toContain("Fulano de Tal");
       expect(saida.corpo).toContain("comprovante");
       expect(saida.corpo).not.toContain("empresa de pagamentos");

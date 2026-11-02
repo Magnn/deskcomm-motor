@@ -77,7 +77,7 @@ import { definicaoNaConexao } from '@/lib/channels/linha-do-espelho';
 import { criarClienteAsaas } from '@/lib/pagamentos/asaas';
 import { lerConexaoStripe } from '@/lib/pagamentos/conexao-stripe';
 import { chavePrincipalDaOrganizacao } from '@/lib/pagamentos/chave-principal-da-organizacao';
-import { chaveParaCopiar } from '@/lib/preco/chave-pix';
+import { chaveParaCopiar, tipoDaChave } from '@/lib/preco/chave-pix';
 import { criarClienteStripe } from '@/lib/pagamentos/stripe';
 import { expandirCobrancas } from '@/lib/followup/cobranca-no-conteudo';
 import { dentroDaJanela } from '@/lib/followup/retorno-da-passagem';
@@ -1388,7 +1388,7 @@ async function sendConteudoSequence(
               runLog.warn('cobrança do fluxo: o link de cartão não saiu', { error: (err instanceof Error ? err.message : String(err)).slice(0, 160) });
               return null;
             });
-      return { copiaECola: null, qrCodeUrl: null, urlDoCartao: cartao?.url ?? null, pelaChave: { chave, titular: principal.holder } };
+      return { copiaECola: null, qrCodeUrl: null, urlDoCartao: cartao?.url ?? null, pelaChave: { chave, titular: principal.holder, tipo: tipoDaChave(principal) } };
     }
     const conexao = await lerConexaoStripe(createAdminClient(), tenantId);
     if (conexao === null) throw new Error('cobranca_sem_conexao: nenhum provedor de pagamento conectado para a marca [[COBRAR]]');

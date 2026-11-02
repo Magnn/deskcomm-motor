@@ -162,7 +162,7 @@ export function corpoComPixDoExtra(
   /** Link de cartão do mesmo valor, para quem não tem saldo no Pix. Ausente = só o Pix. */
   linkDoCartao?: string | null,
   /** A chave da empresa, quando o Pix sai por ela: vai a chave para copiar no lugar do código. */
-  pelaChave?: { chave: string; titular: string } | null,
+  pelaChave?: { chave: string; titular: string; tipo?: string | null } | null,
 ): string {
   const baloes = corpo.split(/\n{2,}/);
   const i = baloes.findIndex((b) => b.includes(marca.texto));
@@ -183,7 +183,7 @@ export function corpoComPixDoExtra(
     novos.push(instrucaoDoPixCopiaECola(comNome, "o nome da empresa de pagamentos"), copiaECola);
   }
   if (pelaChave) {
-    novos.push(...baloesPelaChave(comNome, pelaChave.chave, pelaChave.titular));
+    novos.push(...baloesPelaChave(comNome, pelaChave.chave, pelaChave.titular, pelaChave.tipo));
   }
   if (linkDoCartao) {
     novos.push(

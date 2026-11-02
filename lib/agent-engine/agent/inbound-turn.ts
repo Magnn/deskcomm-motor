@@ -4119,7 +4119,10 @@ async function executarTurnoDoAgente(
           // O QUE A AGENTE DIZ DO PAGAMENTO (`lib/preco/fala-do-pagamento.ts`): com a chave Pix, o link é só de cartão e
           // ninguém avisa que o Pix caiu.
           if (chavePrincipal(agentConfig?.pricing) !== null) {
-            const falaErrada = falaErradaDoPagamento(body, openingContext.context.messages);
+            const falaErrada = falaErradaDoPagamento(body, [
+              ...openingContext.context.messages,
+              ...corposEnviados.map((b) => ({ direction: 'outbound' as const, body: b })),
+            ]);
             if (falaErrada) {
               runLog.warn('descrição errada do pagamento — envio recusado', {});
               return { ok: false, error: { code: 'fala_errada_do_pagamento', message: falaErrada } };

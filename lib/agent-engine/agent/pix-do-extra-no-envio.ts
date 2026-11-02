@@ -11,7 +11,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { lerConexaoStripe, type ConexaoStripe } from '@/lib/pagamentos/conexao-stripe';
 import { VALIDADE_DO_PIX_S, pagamentosRecentesDoContato } from '@/lib/pagamentos/pix-na-conversa';
 import { ErroDaStripe, criarClienteStripe, type LinkCriado, type PedidoDeLink, type PedidoDePix, type PixCriado } from '@/lib/pagamentos/stripe';
-import { chaveParaCopiar, type ChavePixDaEmpresa } from '@/lib/preco/chave-pix';
+import { chaveParaCopiar, tipoDaChave, type ChavePixDaEmpresa } from '@/lib/preco/chave-pix';
 import {
   corpoComPixDoExtra,
   descricaoDaCobranca,
@@ -87,7 +87,7 @@ export async function pixDoExtraNoLugarDaMarca(e: EntradaDoPixDoExtra): Promise<
         return null;
       }
     })();
-    return { corpo: corpoComPixDoExtra(e.corpo, marca, null, cartao?.url ?? null, { chave, titular: e.chavePrincipal.holder }) };
+    return { corpo: corpoComPixDoExtra(e.corpo, marca, null, cartao?.url ?? null, { chave, titular: e.chavePrincipal.holder, tipo: tipoDaChave(e.chavePrincipal) }) };
   }
   try {
     const conexao = await (e.lerConexao ?? lerConexaoStripe)(e.supabase, e.organizationId);
