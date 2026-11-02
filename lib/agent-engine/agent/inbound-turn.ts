@@ -204,6 +204,7 @@ import {
 } from './lead-state';
 import { applySaveLeadNote, buildNotesIndexBlock, getLeadNoteBody } from './lead-notes';
 import { buildCompromissosBlock } from './compromissos-do-contato';
+import { buildAreaDoClienteBlock } from './area-do-cliente-block';
 import { applyScheduleFollowup, type FollowupWindowKnobs } from './schedule-followup';
 import {
   avisarLeadDaEscalacao,
@@ -1580,6 +1581,11 @@ export function ritualBlocks(
    * o inbound decidiu.
    */
   compromissosBlock = '',
+  /**
+   * O que ela já viveu na área do cliente (`area-do-cliente-block.ts`): leituras, cartas, mão, quizzes,
+   * foco e céu. Opcional e último pela mesma razão dos compromissos; hoje só o inbound passa.
+   */
+  areaDoClienteBlock = '',
 ): string[] {
   const checkpointBlock = previous
     ? JSON.stringify({
@@ -1636,6 +1642,9 @@ export function ritualBlocks(
     ...(compromissosBlock.trim() !== ''
       ? ['## Compromissos já marcados deste contato', compromissosBlock, '']
       : []),
+    ...(areaDoClienteBlock.trim() !== ''
+      ? ['## O que ela já viveu na área do cliente (memória da guia)', areaDoClienteBlock, '']
+      : []),
     '## Contexto do lead (contato + últimas mensagens)',
     // Campo de cadastro VAZIO não é prova de que a informação não existe.
     //
@@ -1682,6 +1691,8 @@ export function buildOpeningMessage(
   compromissosBlock = '',
   /** Mensagem canônica do job inbound; vence uma leitura concorrente do histórico. */
   currentInboundText?: string,
+  /** O que ela já viveu na área do cliente (`area-do-cliente-block.ts`). */
+  areaDoClienteBlock = '',
 ): string {
   const entregue = (nome: string): boolean => entregues.includes(nome);
   const mensagemAtual =
@@ -1704,7 +1715,7 @@ export function buildOpeningMessage(
   return [
     'Novo turno de atendimento: o lead enviou uma mensagem (a última inbound do histórico abaixo).',
     '',
-    ...ritualBlocks(previous, leadState, context, notesIndexBlock, projeta, compromissosBlock),
+    ...ritualBlocks(previous, leadState, context, notesIndexBlock, projeta, compromissosBlock, areaDoClienteBlock),
     '',
     ...mensagemAtualBlock,
     '',
@@ -1819,6 +1830,8 @@ export interface AgentTurnInput {
      * o compilador.
      */
     compromissosBlock?: string;
+    /** O que ela já viveu na área do cliente (`area-do-cliente-block.ts`); opcional como os compromissos. */
+    areaDoClienteBlock?: string;
     /** Texto exato da mensagem que acordou este turno inbound. */
     currentInboundText?: string;
     /**
@@ -3385,6 +3398,12 @@ async function executarTurnoDoAgente(
     preview?.kind === 'sandbox'
       ? ''
       : await buildCompromissosBlock(pool, tenantId, leadId, new Date());
+  // A memória da guia (pedido dos comentários das lojas, 02/11/2026): o que ela fez na área. Mesmo
+  // cuidado da #509: `leadId` aqui é o contato.
+  const areaDoClienteBlock =
+    preview?.kind === 'sandbox'
+      ? ''
+      : await buildAreaDoClienteBlock(pool, tenantId, leadId);
   // Observabilidade da memória (Fase 2A): SÓ ids/contagens no log — headline/corpo
   // são PII e nunca saem do prompt. Prova auditável de que a memória durável do
   // lead entrou no contexto DESTE turno.
@@ -5524,6 +5543,7 @@ async function executarTurnoDoAgente(
       projeta: projetaContexto,
       entregues,
       compromissosBlock,
+      areaDoClienteBlock,
       ...(currentInboundText !== null ? { currentInboundText } : {}),
     });
     // Sufixos por-lead (situacionais, voláteis — depois do prefixo cacheável F2-17): corpos de
@@ -6315,6 +6335,7 @@ export function createInboundTurnHandler(deps: InboundTurnDeps) {
         entregues,
         compromissosBlock,
         currentInboundText,
+        areaDoClienteBlock,
       }) =>
         buildOpeningMessage(
           previous,
@@ -6325,6 +6346,7 @@ export function createInboundTurnHandler(deps: InboundTurnDeps) {
           entregues,
           compromissosBlock,
           currentInboundText,
+          areaDoClienteBlock,
         ),
     });
   };
