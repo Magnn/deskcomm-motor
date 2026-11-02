@@ -15370,6 +15370,23 @@ export const DICIONARIO: Traducoes = {
   "O banco ainda está confirmando. Em alguns minutos chega a confirmação na conversa.": { es: "El banco aún está confirmando. En unos minutos llega la confirmación a la conversación." },
   "Este pagamento não está disponível": { es: "Este pago no está disponible" },
   "Volte para a conversa e peça um novo código.": { es: "Vuelve a la conversación y pide un código nuevo." },
+  // Chat da área (`app/c/[org]/_chat.tsx`).
+  online: { es: "en línea" },
+  "digitando…": { es: "escribiendo…" },
+  Gravando: { es: "Grabando" },
+  "Parar e enviar o áudio": { es: "Detener y enviar el audio" },
+  "Mandar foto": { es: "Enviar foto" },
+  "Pix copia e cola": { es: "Pix copia y pega" },
+  "Para conversar por aqui, mande antes um oi pelo WhatsApp.": { es: "Para conversar por aquí, envía antes un hola por WhatsApp." },
+  "Escreva aqui como no WhatsApp. A resposta chega nesta conversa.": { es: "Escribe aquí como en WhatsApp. La respuesta llega en esta conversación." },
+  "Não deu para usar o microfone. Libere o microfone para esta página ou escreva a mensagem.": { es: "No se pudo usar el micrófono. Permite el micrófono en esta página o escribe el mensaje." },
+  "Ver o que foi dito": { es: "Ver lo que se dijo" },
+  "pela área": { es: "por el área" },
+  "na área": { es: "en el área" },
+  "aviso da área": { es: "aviso del área" },
+  "A cliente escreveu pela área do cliente": { es: "La clienta escribió por el área del cliente" },
+  "Entregue na área do cliente, não pelo WhatsApp": { es: "Entregado en el área del cliente, no por WhatsApp" },
+  "Aviso de que a resposta está na área do cliente": { es: "Aviso de que la respuesta está en el área del cliente" },
 };
 
 /**

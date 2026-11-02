@@ -53,7 +53,8 @@ export async function GET(req: NextRequest, { params }: Ctx): Promise<Response> 
     props: { origem: "convite" },
   });
 
-  const resposta = irPara(destino);
+  // O aviso "te respondi na sua área" leva direto à conversa.
+  const resposta = req.nextUrl.searchParams.get("para") === "conversa" ? irPara(destino, { aba: "conversa" }) : irPara(destino);
   resposta.cookies.set(nomeDoCookieDaArea(org.slug), sessao.token, opcoesDoCookie(sessao.expira));
   resposta.headers.set("Cache-Control", "no-store");
   // O token do link não pode vazar como Referer para o checkout ou para o arquivo.

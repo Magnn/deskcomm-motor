@@ -6,6 +6,7 @@ import { FOCOS, NOME_DO_FOCO } from "@/lib/area-do-cliente/perfil";
 
 import type { TextosDoAviso } from "./_aviso";
 import type { TextosDaCarteira } from "./_carteira";
+import type { TextosDoChat } from "./_chat";
 import type { TextosDaArea } from "./_client";
 import type { TextosDaEntrada } from "./_entrada";
 import type { TextosDasEtapas } from "./_etapas";
@@ -287,5 +288,33 @@ export function textosDaMesa(t: (s: string) => string, empresa: string): TextosD
     vozIndisponivel: t("A voz não está disponível agora. A leitura escrita continua aqui."),
     vozSendoPreparada: t("A sua leitura em áudio está sendo preparada com carinho. Fica pronta em alguns minutos — pode continuar por aqui."),
     posicoes: [t("O que pesa"), t("O que está em movimento"), t("O conselho das cartas")],
+  };
+}
+
+/** Os textos do chat da área (`_chat.tsx`), já traduzidos. */
+export function textosDoChat(t: (s: string) => string): TextosDoChat {
+  return {
+    online: t("online"),
+    digitando: t("digitando…"),
+    escrevaAqui: t("Mensagem"),
+    enviar: t("Enviar"),
+    gravarAudio: t("Gravar áudio"),
+    gravando: t("Gravando"),
+    pararEEnviar: t("Parar e enviar o áudio"),
+    cancelar: t("Cancelar"),
+    mandarFoto: t("Mandar foto"),
+    copiarCodigo: t("Copiar código Pix"),
+    codigoCopiado: t("Código copiado."),
+    codigoPix: t("Pix copia e cola"),
+    hoje: t("Hoje"),
+    ontem: t("Ontem"),
+    voce: t("Você"),
+    semConversa: t("Para conversar por aqui, mande antes um oi pelo WhatsApp."),
+    comeceAqui: t("Escreva aqui como no WhatsApp. A resposta chega nesta conversa."),
+    naoFoiPossivel: t("Não foi possível agora. Tente de novo."),
+    semConexao: t("Sem conexão. Confira a internet e tente de novo."),
+    microfoneNegado: t("Não deu para usar o microfone. Libere o microfone para esta página ou escreva a mensagem."),
+    naoEnviada: t("Não enviada"),
+    transcricao: t("Ver o que foi dito"),
   };
 }
