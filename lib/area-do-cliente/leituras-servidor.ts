@@ -14,10 +14,12 @@ import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
 
 import { diaNoFuso, fotoDaCarta } from "./dados";
+import { semanaDaMeditacao } from "./meditacao";
 import { registrarEvento } from "./eventos";
 import { montarGrimorio, type CartaDoGrimorio } from "./grimorio";
 import {
   LIMITE_POR_DIA_PADRAO,
+  PAGAMENTO_GRATIS,
   MODALIDADES,
   NOME_DA_MODALIDADE,
   PRECO_DA_PRIMEIRA_PADRAO,
@@ -48,6 +50,8 @@ export interface LeituraSalva {
 export interface MesaDaArea {
   modalidades: Array<{ id: Modalidade; nome: string; precoCents: number; primeira: boolean }>;
   restamHoje: number;
+  /** A pergunta grátis desta semana ainda está livre (e a empresa a oferece). */
+  gratisDaSemana: boolean;
   leituras: LeituraSalva[];
 }
 
@@ -68,6 +72,7 @@ export function configDasLeituras(bruto: Partial<ConfigDasLeituras> | undefined)
     preco_primeira_cents: bruto?.preco_primeira_cents ?? PRECO_DA_PRIMEIRA_PADRAO,
     preco_cents: bruto?.preco_cents ?? PRECO_PADRAO,
     limite_por_dia: bruto?.limite_por_dia ?? LIMITE_POR_DIA_PADRAO,
+    gratis_semanal: bruto?.gratis_semanal ?? false,
   };
 }
 
@@ -115,8 +120,28 @@ export async function jaPagouNaModalidade(
     .eq("organization_id", orgId)
     .eq("contact_id", contactId)
     .eq("modalidade", modalidade)
-    .not("pago_at", "is", null);
+    .not("pago_at", "is", null)
+    // A pergunta grátis não conta como "já pagou": a primeira paga continua com o preço de entrada.
+    .or(`pagamento.is.null,pagamento.neq.${PAGAMENTO_GRATIS}`);
   return (count ?? 0) > 0;
+}
+
+/**
+ * A pergunta grátis desta semana ainda está livre? A semana vai de segunda a domingo no fuso da empresa
+ * (`semanaDaMeditacao`). Lê só os últimos 8 dias: basta para cobrir a semana corrente.
+ */
+export async function gratisDaSemanaLivre(admin: SupabaseClient, org: { id: string; fuso: string }, contactId: string): Promise<boolean> {
+  const { data, error } = await admin
+    .from("area_leituras")
+    .select("pago_at")
+    .eq("organization_id", org.id)
+    .eq("contact_id", contactId)
+    .eq("pagamento", PAGAMENTO_GRATIS)
+    .gte("pago_at", new Date(Date.now() - 8 * 86_400_000).toISOString())
+    .limit(5);
+  if (error) throw new Error(error.message);
+  const estaSemana = semanaDaMeditacao(diaNoFuso(new Date().toISOString(), org.fuso));
+  return !((data ?? []) as Array<{ pago_at: string }>).some((l) => semanaDaMeditacao(diaNoFuso(l.pago_at, org.fuso)) === estaSemana);
 }
 
 /** Uma carta do Grimório já com a foto (só o Tarot tem foto por carta). */
@@ -151,13 +176,14 @@ export async function carregarMesa(
 ): Promise<MesaDaArea> {
   const { data } = await admin
     .from("area_leituras")
-    .select("id, modalidade, pergunta, pago_at, cartas, texto, created_at")
+    .select("id, modalidade, pergunta, pago_at, pagamento, cartas, texto, created_at")
     .eq("organization_id", org.id)
     .eq("contact_id", contactId)
     .order("created_at", { ascending: false })
     .limit(30);
-  const linhas = ((data ?? []) as Linha[]).filter((l) => ehModalidade(l.modalidade));
-  const pagasPorModalidade = new Set(linhas.filter((l) => l.pago_at).map((l) => l.modalidade));
+  const linhas = ((data ?? []) as Array<Linha & { pagamento?: string | null }>).filter((l) => ehModalidade(l.modalidade));
+  const pagasPorModalidade = new Set(linhas.filter((l) => l.pago_at && l.pagamento !== PAGAMENTO_GRATIS).map((l) => l.modalidade));
+  const gratisDaSemana = cfg.gratis_semanal ? await gratisDaSemanaLivre(admin, org, contactId) : false;
   const hoje = diaNoFuso(new Date().toISOString(), org.fuso);
   const pagasNoDia = linhas.filter((l) => l.pago_at && diaNoFuso(l.pago_at, org.fuso) === hoje).length;
 
@@ -186,6 +212,7 @@ export async function carregarMesa(
       return { id, nome: NOME_DA_MODALIDADE[id], precoCents: precoDaLeitura(cfg, !primeira), primeira };
     }),
     restamHoje: Math.max(0, cfg.limite_por_dia - pagasNoDia),
+    gratisDaSemana,
     leituras,
   };
 }

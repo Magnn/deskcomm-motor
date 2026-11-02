@@ -836,6 +836,7 @@ function AbaConfig({ inicial }: { inicial: ConfigDaArea }) {
   const [mesaPrimeira, setMesaPrimeira] = useState(((inicial.leituras?.preco_primeira_cents ?? 500) / 100).toFixed(2).replace(".", ","));
   const [mesaPreco, setMesaPreco] = useState(((inicial.leituras?.preco_cents ?? 1490) / 100).toFixed(2).replace(".", ","));
   const [mesaNarrar, setMesaNarrar] = useState(inicial.leituras?.narrar ?? false);
+  const [mesaGratis, setMesaGratis] = useState(inicial.leituras?.gratis_semanal ?? false);
   const [narrarCom, setNarrarCom] = useState<"rapida" | "humana">(inicial.leituras?.narrar_com ?? "rapida");
   const [vozHumana, setVozHumana] = useState(inicial.leituras?.voz_humana ?? "");
   // As vozes clonadas no servidor: a narração humana fala com uma delas (ou com a voz padrão do serviço).
@@ -877,6 +878,7 @@ function AbaConfig({ inicial }: { inicial: ConfigDaArea }) {
           preco_cents: centavos(mesaPreco, 1490),
           limite_por_dia: Math.min(20, Math.max(1, Math.round(Number(mesaLimite)) || 3)),
           narrar: mesaNarrar,
+          gratis_semanal: mesaGratis,
           narrar_com: narrarCom,
           ...(narrarCom === "humana" ? { voz_humana: vozHumana } : {}),
         },
@@ -1062,6 +1064,15 @@ function AbaConfig({ inicial }: { inicial: ConfigDaArea }) {
             <Label htmlFor="area-mesa-limite">{t("Leituras por dia")}</Label>
             <Input id="area-mesa-limite" inputMode="numeric" value={mesaLimite} onChange={(e) => setMesaLimite(e.target.value)} />
           </div>
+        </div>
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <Label htmlFor="area-mesa-gratis">{t("Pergunta grátis da semana")}</Label>
+            <p className="text-xs text-muted-foreground">
+              {t("Cada pessoa da área faz uma leitura da Mesa por semana sem pagar (de segunda a domingo). Traz a pessoa de volta toda semana; cada leitura grátis gasta a IA de uma leitura.")}
+            </p>
+          </div>
+          <Switch id="area-mesa-gratis" checked={mesaGratis} onCheckedChange={setMesaGratis} />
         </div>
         <div className="flex items-center justify-between gap-3">
           <div>

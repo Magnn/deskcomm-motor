@@ -364,6 +364,7 @@ export default async function AreaDoCliente({ params, searchParams }: Props) {
                 creditos: creditosDoPreco(m.precoCents),
               })),
               restamHoje: mesa.restamHoje,
+              gratisDaSemana: mesa.gratisDaSemana,
               saldo: carteira ? carteira.saldo : null,
               narrar: Boolean(org.config.leituras?.narrar) && vozPropriaConfigurada(),
               leituras: mesa.leituras,

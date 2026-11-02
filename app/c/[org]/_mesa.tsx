@@ -15,7 +15,7 @@
  */
 import * as React from "react";
 
-import { Check, Copy, CreditCard, Loader2, MessageCircle, Pause, Play, QrCode, Sparkles, WalletCards } from "lucide-react";
+import { Check, Copy, CreditCard, Gift, Loader2, MessageCircle, Pause, Play, QrCode, Sparkles, WalletCards } from "lucide-react";
 
 import { copyToClipboard } from "@/lib/clipboard";
 
@@ -27,6 +27,10 @@ import { type TextosDaArea } from "./_client";
 import { BOTAO, BOTAO_CONTORNO, CAMPO, CARTAO, CARTAO_NOTURNO, DETALHE, SERIF, SOBRETITULO, SOBRETITULO_NOTURNO, TEXTO_SUAVE } from "./_tema";
 
 export interface TextosDaMesa {
+  gratisSelo: string;
+  gratisExplica: string;
+  gratisUsar: string;
+  gratisOu: string;
   titulo: string;
   automatica: string;
   primeiraPor: string;
@@ -98,6 +102,8 @@ export interface LeituraNaMesa {
 export interface MesaInicial {
   modalidades: Array<{ id: string; nome: string; preco: string; primeira: boolean; cartasNaMesa: number; creditos: number }>;
   restamHoje: number;
+  /** A pergunta grátis desta semana ainda está livre (`config.leituras.gratis_semanal`). */
+  gratisDaSemana: boolean;
   /** Com os créditos ligados: o saldo de partida. `null` = só Pix e cartão. */
   saldo: number | null;
   /** A leitura pode ser ouvida (voz do próprio servidor). */
@@ -354,6 +360,7 @@ export function MesaDeLeituras({
   const [etapa, setEtapa] = React.useState<Etapa>({ tipo: "inicio" });
   const [pergunta, setPergunta] = React.useState("");
   const [enviando, setEnviando] = React.useState(false);
+  const [gratis, setGratis] = React.useState(inicial.gratisDaSemana);
   const [erro, setErro] = React.useState<string | null>(null);
   const [copiado, setCopiado] = React.useState(false);
   const [leituras, setLeituras] = React.useState(inicial.leituras);
@@ -394,7 +401,7 @@ export function MesaDeLeituras({
     return () => window.clearTimeout(t);
   }, [etapa]);
 
-  const pedir = async (forma: "pix" | "cartao" | "creditos", mod: string) => {
+  const pedir = async (forma: "pix" | "cartao" | "creditos" | "gratis", mod: string) => {
     setEnviando(true);
     setErro(null);
     const r = await postarJson<{
@@ -418,7 +425,8 @@ export function MesaDeLeituras({
     }
     setLeituras((ls) => [{ id: r.data.leitura_id, modalidade: mod, pergunta, quando: new Date().toISOString(), revelada: false, cartas: [], leitura: null }, ...ls.filter((l) => l.id !== r.data.leitura_id)]);
     if (r.data.paga) {
-      // Pago com créditos: direto para o embaralhar.
+      if (forma === "gratis") setGratis(false);
+      // Pago com créditos (ou a pergunta grátis da semana): direto para o embaralhar.
       if (typeof r.data.saldo === "number") anunciarSaldo(r.data.saldo);
       setEtapa({ tipo: "respirando", leituraId: r.data.leitura_id, modalidade: mod });
       return;
@@ -500,6 +508,22 @@ export function MesaDeLeituras({
             ))}
           </ul>
         </div>
+        {gratis ? (
+          <div className="space-y-2">
+            <button
+              type="button"
+              disabled={enviando || pergunta.trim().length < 3}
+              onClick={() => void pedir("gratis", etapa.modalidade)}
+              className={`${BOTAO} w-full`}
+              style={{ background: "#c9a54e", color: "#1b1433" }}
+              data-testid="mesa-usar-gratis"
+            >
+              <Gift className="size-4" aria-hidden />
+              {tm.gratisUsar}
+            </button>
+            <p className="text-center text-xs text-[#b7aecb]">{tm.gratisOu}</p>
+          </div>
+        ) : null}
         <p className="text-sm text-[#f0dca8]">{m?.primeira ? `${tm.primeiraPor} ${m.preco}` : `${tm.leituraPor} ${m?.preco}`}</p>
         {comCreditos && m ? (
           <div className="space-y-2">
@@ -711,6 +735,15 @@ export function MesaDeLeituras({
             </button>
           </div>
         ))}
+        {gratis && inicial.restamHoje > 0 ? (
+          <div className="flex gap-3 rounded-2xl border border-[#c9a54e]/60 bg-[#c9a54e]/10 p-4" data-testid="mesa-gratis-selo">
+            <Gift className="mt-0.5 size-5 shrink-0 text-[#e2c47a]" aria-hidden />
+            <div>
+              <p className="text-sm font-semibold text-[#f6e3a8]">{tm.gratisSelo}</p>
+              <p className="mt-0.5 text-xs leading-relaxed text-[#d9d0e6]">{tm.gratisExplica}</p>
+            </div>
+          </div>
+        ) : null}
         <div className="grid gap-3 sm:grid-cols-2">
           {inicial.modalidades.map((m) => (
             <button

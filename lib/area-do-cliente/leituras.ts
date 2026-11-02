@@ -44,7 +44,12 @@ export interface ConfigDasLeituras {
   preco_primeira_cents: number;
   preco_cents: number;
   limite_por_dia: number;
+  /** A pergunta grátis da semana (`config.leituras.gratis_semanal`). */
+  gratis_semanal: boolean;
 }
+
+/** O `pagamento` gravado na leitura feita com a pergunta grátis da semana. */
+export const PAGAMENTO_GRATIS = "gratis_da_semana";
 
 /** A carta que saiu, já com a posição. `simbolo` só no Baralho Cigano (o tarot tem foto). */
 export interface CartaDaLeitura {

@@ -291,6 +291,10 @@ export function textosDaMesa(t: (s: string) => string, empresa: string): TextosD
     vozIndisponivel: t("A voz não está disponível agora. A leitura escrita continua aqui."),
     vozSendoPreparada: t("A sua leitura em áudio está sendo preparada com carinho. Fica pronta em alguns minutos — pode continuar por aqui."),
     posicoes: [t("O que pesa"), t("O que está em movimento"), t("O conselho das cartas")],
+    gratisSelo: t("Você tem 1 pergunta grátis esta semana"),
+    gratisExplica: t("Escolha o baralho, escreva a pergunta e use a sua pergunta grátis. Toda segunda-feira chega outra."),
+    gratisUsar: t("Usar a minha pergunta grátis da semana"),
+    gratisOu: t("ou pague esta leitura:"),
   };
 }
 
