@@ -39788,7 +39788,9 @@ alter table public.area_eventos add constraint area_eventos_tipo_check check (ti
   -- migration 0942 (a sinastria vendida pelo quiz da página).
   'sinastria_checkout', 'sinastria_paga',
   -- migration 0943 (os quizzes de uma pessoa).
-  'quiz_checkout', 'quiz_pago'
+  'quiz_checkout', 'quiz_pago',
+  -- migration 0951 (a leitura da mão).
+  'mao_lida', 'mao_checkout', 'mao_paga'
 ));
 
 -- ---- A conexão com a Stripe aceita a conta conectada — Stripe Connect (migration 0935) ----
@@ -40150,22 +40152,4 @@ comment on table public.area_maos is
 alter table public.area_maos enable row level security;
 revoke all on public.area_maos from anon, authenticated;
 
-alter table public.area_eventos drop constraint if exists area_eventos_tipo_check;
-alter table public.area_eventos add constraint area_eventos_tipo_check check (tipo in (
-  'convite_criado', 'entrou', 'visitou', 'material_aberto',
-  'servico_visto', 'checkout_clicado', 'desejo', 'email_salvo', 'saiu',
-  'carta_do_dia', 'diario_escrito', 'aniversario_salvo',
-  'circulo_checkout', 'circulo_ativado', 'pergunta_enviada',
-  'presente_checkout', 'presente_pago', 'presente_usado',
-  'ano_pessoal_checkout', 'ano_pessoal_pago',
-  'etapa_feita',
-  'leitura_checkout', 'leitura_paga', 'leitura_revelada',
-  'creditos_checkout', 'creditos_pagos',
-  'aviso_ligado', 'aviso_desligado',
-  'perfil_salvo',
-  'simpatia_checkout', 'simpatia_paga', 'simpatia_feita',
-  'contribuicao_checkout', 'contribuicao_paga',
-  'sinastria_checkout', 'sinastria_paga',
-  'quiz_checkout', 'quiz_pago',
-  'mao_lida', 'mao_checkout', 'mao_paga'
-));
+-- area_eventos_tipo_check: os tipos `mao_*` foram acrescentados ao bloco da migration 0934 acima.
