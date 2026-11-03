@@ -5,7 +5,7 @@
 import { describe, expect, it } from "vitest";
 
 import { voiceStudioConfigSchema, type FlowGraph, type FlowNode } from "./graph-schema";
-import { baixarNosDeEnvio, bolhasDoPix, configDeVozDoItem, itemDeCobranca, itemDeTemplate, itemDeVoz } from "./nos-de-envio";
+import { baixarNosDeEnvio, bolhasDoPix, configDeVozDoItem, itemDeCobranca, itemDeTemplate, itemDeVoz, pixDoNoPelaChavePrincipal, temPixDeNo } from "./nos-de-envio";
 
 const pos = { x: 0, y: 0 };
 
@@ -20,7 +20,7 @@ const grafo = (...nodes: FlowNode[]): FlowGraph => ({ nodes, edges: [] }) as Flo
 describe("bolhasDoPix — o que a pessoa recebe", () => {
   it("a chave vai SOZINHA na última bolha, para copiar sem selecionar", () => {
     const b = bolhasDoPix(noPix({ pix_key: "123.456.789-00", amount: "99,90" }).config as never);
-    expect(b.at(-1)).toEqual({ type: "text", body: "123.456.789-00" });
+    expect(b.at(-1)).toMatchObject({ type: "text", body: "123.456.789-00", chave_do_no: true });
     expect(b).toHaveLength(2);
   });
 
@@ -176,5 +176,39 @@ describe("baixarNosDeEnvio", () => {
     expect(voiceStudioConfigSchema.safeParse({}).success).toBe(true);
     expect(voiceStudioConfigSchema.safeParse({ provider: "elevenlabs", voice_id: "abc" }).success).toBe(true);
     expect(voiceStudioConfigSchema.safeParse({ provider: "azure" }).success).toBe(false);
+  });
+});
+
+describe("o nó de PIX cobra na chave principal da empresa (03/11/2026: o fluxo mandava a chave antiga)", () => {
+  const principal = { chave: "69993677810", titular: "Matheus Lobato Bocalon", tipo: "Celular" };
+  const doNo = bolhasDoPix(noPix({ key_type: "cnpj", pix_key: "62.917.956/0001-00", beneficiary: "Arcanum", amount: "60", message_text: "Segue o Pix 🙏" }).config as never);
+
+  it("com chave principal, a chave e o nome do nó NUNCA saem: vale o molde da conversa com a chave da empresa", () => {
+    const saida = pixDoNoPelaChavePrincipal(doNo, principal);
+    const tudo = saida.map((i) => (i as { body: string }).body).join(" | ");
+    expect(tudo).not.toContain("62.917.956/0001-00");
+    expect(tudo).not.toContain("Arcanum");
+    expect(saida.map((i) => (i as { body: string }).body)).toContain("69993677810");
+    expect(tudo).toContain("Matheus Lobato Bocalon");
+    expect(tudo).toContain("R$ 60");
+    expect(tudo).toContain("*Celular*");
+    expect((saida[0] as { body: string }).body).toBe("Segue o Pix 🙏");
+    expect(saida.every((i) => !("pix_do_no" in i) && !("chave_do_no" in i))).toBe(true);
+  });
+
+  it("sem chave principal, o nó segue com a chave dele, sem as marcas internas", () => {
+    const saida = pixDoNoPelaChavePrincipal(doNo, null);
+    expect(saida.map((i) => (i as { body: string }).body)).toEqual(doNo.map((i) => i.body));
+    expect(saida.every((i) => !("pix_do_no" in i) && !("chave_do_no" in i))).toBe(true);
+  });
+
+  it("nó só com a chave (sem texto) também é trocado; texto comum passa intacto", () => {
+    const soChave = bolhasDoPix(noPix({ pix_key: "antiga@x.com", key_type: "email" }).config as never);
+    const comum = { type: "text", body: "Oi" } as const;
+    const saida = pixDoNoPelaChavePrincipal([comum, ...soChave], principal);
+    expect(saida[0]).toBe(comum);
+    expect(saida.map((i) => (i as { body: string }).body).join(" ")).not.toContain("antiga@x.com");
+    expect(temPixDeNo(soChave)).toBe(true);
+    expect(temPixDeNo([comum])).toBe(false);
   });
 });
