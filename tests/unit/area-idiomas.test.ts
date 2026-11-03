@@ -10,7 +10,7 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { idiomaDaAreaOuNulo, idiomaDaAreaPeloCabecalho, traduzirNaArea } from "@/lib/i18n/area";
+import { idiomaDaAreaOuNulo, idiomaDaAreaPeloCabecalho, instrucaoDeIdioma, traduzirNaArea } from "@/lib/i18n/area";
 import { AREA_DE } from "@/lib/i18n/area/de";
 import { AREA_EN } from "@/lib/i18n/area/en";
 import { AREA_FR } from "@/lib/i18n/area/fr";
@@ -75,5 +75,13 @@ describe("idiomas da área", () => {
     expect(traduzirNaArea("Sua carta de hoje", "de")).toBe("Deine Karte für heute");
     expect(traduzirNaArea("Sua carta de hoje", "es")).toBe(DICIONARIO["Sua carta de hoje"]?.es);
     expect(traduzirNaArea("texto que não existe", "fr")).toBe("texto que não existe");
+  });
+
+  it("a IA escreve na língua de quem lê: em português nada muda; nos outros, a linha de idioma vai no fim do pedido", () => {
+    expect(instrucaoDeIdioma("pt-BR")).toBe("");
+    expect(instrucaoDeIdioma(undefined)).toBe("");
+    expect(instrucaoDeIdioma("de")).toMatch(/Deutsch/);
+    expect(instrucaoDeIdioma("en")).toMatch(/English/);
+    expect(instrucaoDeIdioma("fr")).toMatch(/chaves continuam as mesmas/);
   });
 });

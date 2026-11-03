@@ -8,6 +8,7 @@
 import type pg from "pg";
 
 import { runModelCall, type LlmEdgeConfig } from "@/lib/agent-engine/edge/llm/run-model-call";
+import { instrucaoDeIdioma, type IdiomaDaArea } from "@/lib/i18n/area";
 
 import { REGRAS_DE_TOM } from "./circulo-ia";
 import { lerLeituraDoSonho, type LeituraDoSonho } from "./sonho";
@@ -32,7 +33,7 @@ export type ResultadoDoSonho =
 export async function interpretarSonho(
   pool: pg.Pool,
   cfg: LlmEdgeConfig,
-  d: { organizationId: string; contactId: string; empresa: string; primeiroNome: string; relato: string },
+  d: { organizationId: string; contactId: string; empresa: string; primeiroNome: string; relato: string; idioma?: IdiomaDaArea },
 ): Promise<ResultadoDoSonho> {
   const chamada = await runModelCall(pool, cfg, {
     tenantId: d.organizationId,
@@ -40,7 +41,7 @@ export async function interpretarSonho(
     jobId: null,
     purpose: "area_sonho",
     maxOutputTokens: 2000,
-    messages: [{ role: "user", content: pedidoDoSonho(d.empresa, d.primeiroNome, d.relato) }],
+    messages: [{ role: "user", content: pedidoDoSonho(d.empresa, d.primeiroNome, d.relato) + instrucaoDeIdioma(d.idioma) }],
   });
   const lida = lerLeituraDoSonho(chamada.result.text ?? "");
   if (lida === "nao_e_sonho") return { ok: false, motivo: "nao_e_sonho" };

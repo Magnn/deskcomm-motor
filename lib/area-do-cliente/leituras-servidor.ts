@@ -12,6 +12,7 @@ import { getRequestPool } from "@/lib/agent-engine/db/request-pool";
 import { llmEdgeConfigFromEnv } from "@/lib/agent-engine/edge/llm/credentials";
 import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
+import { idiomaDaAreaOuPortugues } from "@/lib/i18n/area-servidor";
 
 import { diaNoFuso, fotoDaCarta } from "./dados";
 import { semanaDaMeditacao } from "./meditacao";
@@ -268,6 +269,7 @@ export async function revelarLeitura(
         pergunta: l.pergunta,
         cartas,
         primeiroNome,
+        idioma: await idiomaDaAreaOuPortugues(),
       });
       if (escrita) {
         leitura = escrita.leitura;

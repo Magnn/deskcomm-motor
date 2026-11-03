@@ -9,6 +9,7 @@
 import type pg from "pg";
 
 import { runModelCall, type LlmEdgeConfig } from "@/lib/agent-engine/edge/llm/run-model-call";
+import { instrucaoDeIdioma, type IdiomaDaArea } from "@/lib/i18n/area";
 
 import { REGRAS_DE_TOM } from "./circulo-ia";
 import { NOME_DA_MODALIDADE, type CartaDaLeitura, type Modalidade } from "./leituras";
@@ -64,6 +65,8 @@ export async function escreverLeitura(
     pergunta: string;
     cartas: readonly CartaDaLeitura[];
     primeiroNome: string;
+    /** A língua de quem lê (`lib/i18n/area.ts`); sem ela, português. */
+    idioma?: IdiomaDaArea;
   },
 ): Promise<{ leitura: LeituraEscrita; modelo: string | null } | null> {
   const chamada = await runModelCall(pool, cfg, {
@@ -71,7 +74,7 @@ export async function escreverLeitura(
     leadId: d.contactId,
     jobId: null,
     purpose: "area_leitura",
-    messages: [{ role: "user", content: pedidoDaLeitura(d.empresa, d) }],
+    messages: [{ role: "user", content: pedidoDaLeitura(d.empresa, d) + instrucaoDeIdioma(d.idioma) }],
   });
   const leitura = lerLeitura(chamada.result.text ?? "");
   return leitura ? { leitura, modelo: chamada.model ?? null } : null;
