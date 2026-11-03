@@ -15,6 +15,7 @@ import type { TextosDoGrimorio } from "./_grimorio";
 import type { TextosDaLuaDoMes } from "./_lua-do-mes";
 import type { TextosDaMao } from "./_mao";
 import type { TextosDoSonho } from "./_sonho";
+import type { TextosDoPlano } from "./_plano-semanal";
 import { textosDoOuvir } from "./_pagina-final-textos";
 import type { TextosDaMeditacao } from "./_meditacao";
 import type { TextosDaMesa } from "./_mesa";
@@ -414,6 +415,22 @@ export function textosDoSonho(t: (s: string) => string): TextosDoSonho {
     passo: t("Um passo para os próximos dias"),
     outroSonho: t("Contar outro sonho"),
     limiteDoDia: t("Por hoje já lemos os seus sonhos. Amanhã você pode contar outro."),
+  };
+}
+
+/** O Plano da Semana (`_plano-semanal.tsx`). */
+export function textosDoPlano(t: (s: string) => string): TextosDoPlano {
+  return {
+    convite: t("O seu cantinho semanal: comece cada semana sabendo o que as cartas e os seus sonhos dizem."),
+    porSemana: t("por semana"),
+    beneficios: [
+      t("Uma pergunta às cartas toda semana, sem pagar (Tarot ou Baralho Cigano)."),
+      t("Um sonho por semana interpretado inteiro: todos os símbolos, a mensagem e um passo."),
+    ],
+    ativoAte: t("Ativo até"),
+    nestaSemana: t("O que você tem nesta semana"),
+    renovar: t("Pague a próxima semana quando quiser: os dias se somam, nenhum se perde."),
+    soCartao: t("Pagamento no cartão, na sua moeda."),
   };
 }
 

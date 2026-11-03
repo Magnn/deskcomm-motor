@@ -39792,7 +39792,9 @@ alter table public.area_eventos add constraint area_eventos_tipo_check check (ti
   -- migration 0951 (a leitura da mão).
   'mao_lida', 'mao_checkout', 'mao_paga',
   -- migration 0952 (a interpretação de sonhos).
-  'sonho_lido', 'sonho_checkout', 'sonho_pago'
+  'sonho_lido', 'sonho_checkout', 'sonho_pago',
+  -- migration 0953 (o plano da semana).
+  'plano_checkout', 'plano_ativado'
 ));
 
 -- ---- A conexão com a Stripe aceita a conta conectada — Stripe Connect (migration 0935) ----
@@ -40179,3 +40181,27 @@ alter table public.area_sonhos enable row level security;
 revoke all on public.area_sonhos from anon, authenticated;
 
 -- area_eventos_tipo_check: os tipos `sonho_*` foram acrescentados ao bloco da migration 0934 acima.
+
+-- ---- o plano da semana da área do cliente (migration 0953) ----
+create table if not exists public.area_planos (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references public.organizations(id) on delete cascade,
+  contact_id uuid not null references public.contacts(id) on delete cascade,
+  plano text not null check (plano in ('semanal')),
+  valido_ate timestamptz not null,
+  ultimo_pagamento text,
+  moeda text not null default 'BRL' check (moeda in ('BRL', 'USD', 'EUR')),
+  stripe_assinatura text,
+  cancelada_em timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (organization_id, contact_id, plano)
+);
+
+comment on table public.area_planos is
+  'Planos de acesso por período da área do cliente (migration 0953; hoje só o semanal). Cada pagamento estende valido_ate em 7 dias; ultimo_pagamento segura a reentrega do aviso. Só o servidor lê e escreve.';
+
+alter table public.area_planos enable row level security;
+revoke all on public.area_planos from anon, authenticated;
+
+-- area_eventos_tipo_check: os tipos `plano_*` foram acrescentados ao bloco da migration 0934 acima.

@@ -43,6 +43,7 @@ export function PagarNaArea({
   tx,
   rotulo,
   escuro = false,
+  soCartao = false,
 }: {
   endpoint: string;
   corpo?: Record<string, unknown>;
@@ -51,6 +52,8 @@ export function PagarNaArea({
   rotulo?: string;
   /** Dentro de um cartão noturno: o Pix vira dourado e o cartão, contorno dourado. */
   escuro?: boolean;
+  /** Fora do Brasil (dólar, euro): só cartão — Pix é só em reais. */
+  soCartao?: boolean;
 }) {
   const [pix, setPix] = React.useState<{ copiaECola: string; qrPng: string | null } | null>(null);
   const [enviando, setEnviando] = React.useState<"pix" | "cartao" | null>(null);
@@ -95,6 +98,7 @@ export function PagarNaArea({
     <div className="mt-4 space-y-2">
       {rotulo ? <p className="text-sm font-semibold">{rotulo}</p> : null}
       <div className="flex flex-col gap-2 sm:flex-row">
+        {soCartao ? null : (
         <button
           type="button"
           disabled={enviando !== null}
@@ -106,6 +110,7 @@ export function PagarNaArea({
           <QrCode className="size-4" aria-hidden />
           {enviando === "pix" ? tx.enviando : tx.pagarComPix}
         </button>
+        )}
         <button
           type="button"
           disabled={enviando !== null}

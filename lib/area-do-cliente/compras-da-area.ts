@@ -18,6 +18,7 @@ import { creditarCirculo, moverCreditos } from "./creditos-servidor";
 import { EXTRA_DA_LEITURA } from "./leituras";
 import { EXTRA_DA_MAO } from "./mao";
 import { EXTRA_DO_SONHO } from "./sonho";
+import { EXTRA_DO_PLANO_SEMANAL, ativarPlanoSemanal } from "./plano-semanal";
 import { registrarEvento } from "./eventos";
 import { EXTRA_DO_PRESENTE } from "./presente";
 import { tipoDoExtra } from "./quizzes";
@@ -67,6 +68,13 @@ export async function liberarCompraDaArea(
     const paga = (data ?? [])[0] as { modalidade: string } | undefined;
     if (paga) {
       await registrarEvento(admin, { organizationId, contactId, tipo: "leitura_paga", props: { modalidade: paga.modalidade, metodo } });
+    }
+    return;
+  }
+  if (extra === EXTRA_DO_PLANO_SEMANAL) {
+    const ativado = await ativarPlanoSemanal(admin, organizationId, contactId, pagamentoId, meta.moeda ?? "BRL");
+    if (!ativado.jaAplicado) {
+      await registrarEvento(admin, { organizationId, contactId, tipo: "plano_ativado", props: { valido_ate: ativado.validoAte, metodo, moeda: meta.moeda ?? "BRL" } });
     }
     return;
   }
