@@ -14,3 +14,12 @@ export async function idiomaDaArea(): Promise<IdiomaDaArea> {
   if (escolhido) return escolhido;
   return idiomaDaAreaPeloCabecalho((await headers()).get("accept-language"));
 }
+
+/** O mesmo, sem quebrar fora de uma requisição (teste, rodada agendada): aí é português. */
+export async function idiomaDaAreaOuPortugues(): Promise<IdiomaDaArea> {
+  try {
+    return await idiomaDaArea();
+  } catch {
+    return "pt-BR";
+  }
+}

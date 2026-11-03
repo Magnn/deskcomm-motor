@@ -15,6 +15,7 @@ import { previaDaSinastria } from "@/lib/area-do-cliente/sinastria";
 import { FORMA_DO_TOKEN, hashDoToken } from "@/lib/area-do-cliente/token";
 import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
+import { idiomaDaAreaOuPortugues } from "@/lib/i18n/area-servidor";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -89,6 +90,7 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<Response> {
       organizationId: org.id,
       contactId: pedido.contact_id,
       empresa: org.titulo,
+      idioma: await idiomaDaAreaOuPortugues(),
       nomeDela: pedido.nome_dela,
       nomeDele: pedido.nome_dele,
       signoDela: previa.signoDela,

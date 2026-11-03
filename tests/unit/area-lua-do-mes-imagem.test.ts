@@ -8,7 +8,7 @@
 import { NextRequest } from "next/server";
 import { expect, it, vi } from "vitest";
 
-vi.mock("@/lib/i18n/idiomaAnonimo", () => ({ idiomaDoVisitante: async () => "pt-BR" }));
+vi.mock("@/lib/i18n/area-servidor", () => ({ idiomaDaArea: async () => "pt-BR", idiomaDaAreaOuPortugues: async () => "pt-BR" }));
 vi.mock("@/lib/area-do-cliente/http", () => {
   const tabela = (dados: unknown) => {
     const q: Record<string, unknown> = {};

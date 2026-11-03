@@ -17,8 +17,9 @@ import { AREA_EN } from "./area/en";
 import { AREA_FR } from "./area/fr";
 import { AREA_IT } from "./area/it";
 
-export const IDIOMAS_DA_AREA = ["pt-BR", "es", "en", "fr", "it", "de"] as const;
-export type IdiomaDaArea = (typeof IDIOMAS_DA_AREA)[number];
+import { IDIOMAS_DA_AREA, type IdiomaDaArea } from "./area-idiomas";
+
+export { IDIOMAS_DA_AREA, type IdiomaDaArea };
 
 const DICIONARIOS_DA_AREA: Record<"en" | "fr" | "it" | "de", Record<string, string>> = {
   en: AREA_EN,
@@ -38,6 +39,23 @@ export function traduzirNaArea(texto: string, idioma: IdiomaDaArea): string {
   if (idioma === "pt-BR") return texto;
   if (idioma === "es") return DICIONARIO[texto]?.es ?? texto;
   return DICIONARIOS_DA_AREA[idioma][texto] ?? AREA_EN[texto] ?? texto;
+}
+
+const NOME_PARA_A_IA: Record<Exclude<IdiomaDaArea, "pt-BR">, string> = {
+  es: "espanhol (español, como se fala na América Latina)",
+  en: "inglês (English)",
+  fr: "francês (français)",
+  it: "italiano (italiano)",
+  de: "alemão (Deutsch), tratando a pessoa por du",
+};
+
+/**
+ * A linha que vai no FIM do pedido à IA para ela escrever na língua de quem lê (as instruções da casa são em
+ * português). Vazia em português. As chaves de JSON não mudam: só os textos.
+ */
+export function instrucaoDeIdioma(idioma: IdiomaDaArea | undefined): string {
+  if (!idioma || idioma === "pt-BR") return "";
+  return `\n\nIDIOMA: a pessoa lê em ${NOME_PARA_A_IA[idioma]}. Escreva TODO o texto da resposta nesse idioma, mesmo com estas instruções em português (as regras continuam valendo). Se a resposta for JSON, as chaves continuam as mesmas; só os valores mudam de idioma.`;
 }
 
 /** Normaliza um valor solto (cookie, parâmetro) para um idioma da área, ou `null`. */

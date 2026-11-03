@@ -8,6 +8,7 @@ import { getRequestPool } from "@/lib/agent-engine/db/request-pool";
 import { llmEdgeConfigFromEnv } from "@/lib/agent-engine/edge/llm/credentials";
 import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
+import { idiomaDaAreaOuPortugues } from "@/lib/i18n/area-servidor";
 
 import { diaNoFuso } from "./dados";
 import { registrarEvento } from "./eventos";
@@ -98,6 +99,7 @@ export async function lerFotoDaMao(
       primeiroNome: d.primeiroNome,
       foto: d.foto,
       mime: d.mime,
+      idioma: await idiomaDaAreaOuPortugues(),
     });
   } catch (err) {
     logger.error("[area.mao] leitura não feita", {

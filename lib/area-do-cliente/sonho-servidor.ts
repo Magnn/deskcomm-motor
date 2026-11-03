@@ -8,6 +8,7 @@ import { getRequestPool } from "@/lib/agent-engine/db/request-pool";
 import { llmEdgeConfigFromEnv } from "@/lib/agent-engine/edge/llm/credentials";
 import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
+import { idiomaDaAreaOuPortugues } from "@/lib/i18n/area-servidor";
 
 import { diaNoFuso } from "./dados";
 import { registrarEvento } from "./eventos";
@@ -116,6 +117,7 @@ export async function contarSonho(
       empresa: org.titulo || org.nome,
       primeiroNome: d.primeiroNome,
       relato: d.relato,
+      idioma: await idiomaDaAreaOuPortugues(),
     });
   } catch (err) {
     logger.error("[area.sonho] interpretação não feita", {

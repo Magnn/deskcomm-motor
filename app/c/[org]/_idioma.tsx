@@ -7,7 +7,7 @@ import * as React from "react";
 
 import { Languages } from "lucide-react";
 
-import { IDIOMAS_DA_AREA, type IdiomaDaArea } from "@/lib/i18n/area";
+import { IDIOMAS_DA_AREA, type IdiomaDaArea } from "@/lib/i18n/area-idiomas";
 
 const NOMES: Record<IdiomaDaArea, string> = {
   "pt-BR": "Português",

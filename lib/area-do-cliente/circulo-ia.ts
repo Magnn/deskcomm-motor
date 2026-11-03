@@ -16,6 +16,7 @@ import type pg from "pg";
 
 import { runModelCall, type LlmEdgeConfig } from "@/lib/agent-engine/edge/llm/run-model-call";
 import { BARALHO, type Carta } from "@/lib/leitura/baralho";
+import { instrucaoDeIdioma, type IdiomaDaArea } from "@/lib/i18n/area";
 
 import { ROTULO_DA_RESPOSTA, type IdDaPergunta } from "./sinastria";
 
@@ -154,14 +155,14 @@ export function pedidoDaSinastria(
 export async function gerarSinastria(
   pool: pg.Pool,
   cfg: LlmEdgeConfig,
-  d: Parameters<typeof pedidoDaSinastria>[1] & { organizationId: string; contactId: string; empresa: string },
+  d: Parameters<typeof pedidoDaSinastria>[1] & { organizationId: string; contactId: string; empresa: string; idioma?: IdiomaDaArea },
 ): Promise<{ texto: string; modelo: string | null } | null> {
   const chamada = await runModelCall(pool, cfg, {
     tenantId: d.organizationId,
     leadId: d.contactId,
     jobId: null,
     purpose: "area_sinastria",
-    messages: [{ role: "user", content: pedidoDaSinastria(d.empresa, d) }],
+    messages: [{ role: "user", content: pedidoDaSinastria(d.empresa, d) + instrucaoDeIdioma(d.idioma) }],
   });
   const texto = (chamada.result.text ?? "").trim();
   return texto ? { texto: texto.slice(0, 16000), modelo: chamada.model ?? null } : null;
@@ -216,14 +217,14 @@ export function pedidoDoQuiz(
 export async function gerarQuiz(
   pool: pg.Pool,
   cfg: LlmEdgeConfig,
-  d: Parameters<typeof pedidoDoQuiz>[1] & { organizationId: string; contactId: string; empresa: string },
+  d: Parameters<typeof pedidoDoQuiz>[1] & { organizationId: string; contactId: string; empresa: string; idioma?: IdiomaDaArea },
 ): Promise<{ texto: string; modelo: string | null } | null> {
   const chamada = await runModelCall(pool, cfg, {
     tenantId: d.organizationId,
     leadId: d.contactId,
     jobId: null,
     purpose: d.tipo === "prosperidade" ? "area_quiz_prosperidade" : d.tipo === "par" ? "area_quiz_par" : "area_quiz_caminhos",
-    messages: [{ role: "user", content: pedidoDoQuiz(d.empresa, d) }],
+    messages: [{ role: "user", content: pedidoDoQuiz(d.empresa, d) + instrucaoDeIdioma(d.idioma) }],
   });
   const texto = (chamada.result.text ?? "").trim();
   return texto ? { texto: texto.slice(0, 16000), modelo: chamada.model ?? null } : null;

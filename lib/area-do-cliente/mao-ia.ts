@@ -14,6 +14,7 @@ import type pg from "pg";
 
 import { runModelCall, type LlmEdgeConfig } from "@/lib/agent-engine/edge/llm/run-model-call";
 import { visaoEmVigor } from "@/lib/ai/pontos/capacidade-em-vigor";
+import { instrucaoDeIdioma, type IdiomaDaArea } from "@/lib/i18n/area";
 
 import { REGRAS_DE_TOM } from "./circulo-ia";
 import { LINHAS_DA_MAO, NOME_DA_LINHA, TEMA_DA_LINHA, lerLeituraDaMao, type LeituraDaMao } from "./mao";
@@ -55,7 +56,7 @@ export type ResultadoDaMao =
 export async function lerMao(
   pool: pg.Pool,
   cfg: LlmEdgeConfig,
-  d: { organizationId: string; contactId: string; empresa: string; primeiroNome: string; foto: Buffer; mime: string },
+  d: { organizationId: string; contactId: string; empresa: string; primeiroNome: string; foto: Buffer; mime: string; idioma?: IdiomaDaArea },
 ): Promise<ResultadoDaMao> {
   const heranca = await herancaDaVisao(pool, d.organizationId);
   if (heranca) {
@@ -83,7 +84,7 @@ export async function lerMao(
       {
         role: "user",
         content: [
-          { type: "text", text: pedidoDaMao(d.empresa, d.primeiroNome) },
+          { type: "text", text: pedidoDaMao(d.empresa, d.primeiroNome) + instrucaoDeIdioma(d.idioma) },
           { type: "file", data: d.foto, mediaType: d.mime },
         ],
       },
