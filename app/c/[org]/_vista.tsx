@@ -142,6 +142,8 @@ export interface VistaDaAreaProps {
     frase: string;
     lembranca: { pergunta: string; quando: string } | null;
     destaque: DestaqueDeHoje;
+    /** O número e a cor do dia (`lib/area-do-cliente/numero-do-dia.ts`), já traduzidos. */
+    doDia: { numero: number; rotulo: string; cor: string; hex: string; sentido: string };
   };
   carta: { id: number; nome: string; mensagem: string; foto: string | null } | null;
   anoPessoal: { ano: number; numero: number; preco: string; pago: boolean; texto: string | null } | null;
@@ -281,6 +283,22 @@ export function VistaDaArea(p: VistaDaAreaProps) {
           <p className={`${SERIF} mt-3 max-w-md text-[20px] italic leading-snug text-[#e9e1f3]`} data-testid="area-frase-do-dia">
             “{p.hojeTela.frase}”
           </p>
+          {/* O número e a cor do dia: conta da numerologia, sem IA, a mesma o dia todo. */}
+          <div className="mt-4 flex max-w-md items-start gap-3" data-testid="area-numero-do-dia">
+            <span
+              className={`${SERIF} grid size-11 shrink-0 place-items-center rounded-full text-[22px] font-semibold text-[#120d1d]`}
+              style={{ background: p.hojeTela.doDia.hex, boxShadow: `0 0 22px ${p.hojeTela.doDia.hex}66` }}
+              aria-hidden
+            >
+              {p.hojeTela.doDia.numero}
+            </span>
+            <p className="min-w-0 text-[13px] leading-snug text-[#c3bad3]">
+              <span className="font-semibold text-[#f0dca8]">
+                {p.hojeTela.doDia.rotulo}: {p.hojeTela.doDia.numero} · {p.hojeTela.doDia.cor}
+              </span>
+              <span className="block">{p.hojeTela.doDia.sentido}</span>
+            </p>
+          </div>
           <div className="mt-5 flex items-center gap-3" data-testid="area-lua">
             <LuaDeHoje quando={p.agora} tamanho={34} />
             <p className="min-w-0 text-[13px] leading-snug text-[#c3bad3]">

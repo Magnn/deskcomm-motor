@@ -27,6 +27,7 @@ import { ceuDoNascimento } from "@/lib/area-do-cliente/ceu";
 import { bonusDoPacote, creditosDoPreco, pacoteEmDestaque } from "@/lib/area-do-cliente/creditos";
 import { carregarCarteira, configDosCreditos } from "@/lib/area-do-cliente/creditos-servidor";
 import { destaqueDeHoje, fraseDoDia, lembrancaDaMesa } from "@/lib/area-do-cliente/hoje";
+import { numeroDoDia } from "@/lib/area-do-cliente/numero-do-dia";
 import { ehSigno, horoscopoDoDia } from "@/lib/area-do-cliente/horoscopo";
 import { resumoDaLuaDoMes, temLuaDoMes } from "@/lib/area-do-cliente/lua-do-mes";
 import { ehFoco, type Foco } from "@/lib/area-do-cliente/perfil";
@@ -321,6 +322,17 @@ export default async function AreaDoCliente({ params, searchParams }: Props) {
           ? { pergunta: lembranca.pergunta, quando: lembranca.diasAtras === 1 ? t("Ontem") : `${t("Há")} ${lembranca.diasAtras} ${t("dias")}` }
           : null,
         destaque: destaqueDeHoje({ aniversario: aniversarioNestaSemana, lembranca, mesa: mesa !== null }),
+        doDia: (() => {
+          // O número e a cor do dia (`numero-do-dia.ts`): dia pessoal com o nascimento, dia universal sem ele.
+          const n = numeroDoDia(hoje, dados.contato.nascimento);
+          return {
+            numero: n.numero,
+            rotulo: n.pessoal ? t("Seu número de hoje") : t("Número do dia"),
+            cor: `${t("cor")} ${t(n.cor).toLowerCase()}`,
+            hex: n.hex,
+            sentido: t(n.sentido),
+          };
+        })(),
       }}
       carta={
         carta
