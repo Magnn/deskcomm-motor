@@ -37912,8 +37912,13 @@ grant execute on function public.fn_area_creditos_mover(uuid, uuid, integer, tex
 -- esta trava, a linha diria "use a chave da instalação com a conta X" sem que
 -- o servidor tivesse conectado X. Quem as grava é sempre a rota do servidor,
 -- pelo service role; `anon` e `authenticated` não as escrevem (42501).
--- `phone_number` entra junto nas linhas da instalação: os eventos de número
--- do provedor são roteados por ele.
+-- Nas linhas da instalação também ficam com o servidor `phone_number` (os
+-- eventos de número do provedor são roteados por ele), `archived_at`,
+-- `provider`, `organization_id` e o DELETE: arquivar, apagar ou trocar o
+-- provedor por fora da rota pularia o passo que desconecta o número da conta
+-- da instalação, e desarquivar devolveria ao roteamento um número que pode já
+-- ser de outra organização. A rota de exclusão grava essas linhas pelo
+-- service role, depois de desfazer no provedor.
 --
 -- Gatilho e não privilégio por coluna: o GRANT ALL de tabela prevalece sobre
 -- um revoke de coluna, e trocá-lo por uma lista de colunas teria de ser
@@ -37922,7 +37927,14 @@ create or replace function public.fn_channel_sessions_ligacao_ao_provedor_e_do_s
 returns trigger language plpgsql set search_path = public, pg_temp as $$
 begin
   if current_user not in ('authenticated', 'anon') then
-    return new;
+    -- `new` é nulo no DELETE: devolvê-lo cancelaria a exclusão do servidor.
+    return coalesce(new, old);
+  end if;
+  if tg_op = 'DELETE' then
+    if old.zernio_credencial_da_instalacao then
+      raise exception 'canal_ligacao_ao_provedor_e_do_servidor' using errcode = '42501';
+    end if;
+    return old;
   end if;
   if tg_op = 'INSERT' then
     if new.zernio_credencial_da_instalacao
@@ -37936,7 +37948,10 @@ begin
   if (new.zernio_credencial_da_instalacao, new.zernio_account_id, new.zernio_profile_id, new.zernio_webhook_id)
        is distinct from
      (old.zernio_credencial_da_instalacao, old.zernio_account_id, old.zernio_profile_id, old.zernio_webhook_id)
-     or (old.zernio_credencial_da_instalacao and new.phone_number is distinct from old.phone_number) then
+     or (old.zernio_credencial_da_instalacao and
+         (new.archived_at, new.provider, new.organization_id, new.phone_number)
+           is distinct from
+         (old.archived_at, old.provider, old.organization_id, old.phone_number)) then
     raise exception 'canal_ligacao_ao_provedor_e_do_servidor' using errcode = '42501';
   end if;
   return new;
@@ -37947,7 +37962,7 @@ revoke execute on function public.fn_channel_sessions_ligacao_ao_provedor_e_do_s
 
 drop trigger if exists trg_channel_sessions_ligacao_ao_provedor_e_do_servidor on public.channel_sessions;
 create trigger trg_channel_sessions_ligacao_ao_provedor_e_do_servidor
-  before insert or update on public.channel_sessions
+  before insert or update or delete on public.channel_sessions
   for each row execute function public.fn_channel_sessions_ligacao_ao_provedor_e_do_servidor();
 
 -- ---- VARREDURA anon: função nova nasce exposta em quem ATUALIZA (migration 0116) ----
