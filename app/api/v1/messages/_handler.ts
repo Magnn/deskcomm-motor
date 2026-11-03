@@ -48,6 +48,8 @@ import type { ListMessagesQuery, SendMessageInput } from "@/lib/schemas";
 import { sendTemplateForSession } from "@/lib/channels/meta/send-template-for-session";
 import { nomeDoContato } from "@/lib/contacts/rotulo-do-contato";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { podeTerChavePix, trocarChavesErradas } from "@/lib/pagamentos/chave-certa-no-envio";
+import { chavePrincipalDaOrganizacao } from "@/lib/pagamentos/chave-principal-da-organizacao";
 import { avisoDaResposta, respostaVaiParaAArea } from "@/lib/area-do-cliente/canal-da-resposta";
 import { MARCA_DO_AVISO } from "@/lib/area-do-cliente/marcas";
 import type { Message } from "@/lib/types/messaging";
@@ -481,6 +483,25 @@ export async function sendMessageHandler(
     botoesDeResposta = null;
     const { reply_buttons: _semBotao, ...resto } = input.metadata ?? {};
     input = { ...input, body: `${input.body ?? ""}\n\n${LINHA_SEM_BOTAO}`.trim(), metadata: resto };
+  }
+
+  // A CHAVE CERTA EM TODO ENVIO (`lib/pagamentos/chave-certa-no-envio.ts`): com chave Pix principal configurada, uma
+  // chave que não é ela (o CNPJ antigo num fluxo, no roteiro ou digitado de memória) vira a principal antes de gravar
+  // e de sair. Sem chave principal, ou se a leitura falhar, o texto segue como veio.
+  if (input.type === "text" && input.body && podeTerChavePix(input.body)) {
+    const principal = await chavePrincipalDaOrganizacao(createAdminClient(), ctx.organization_id).catch(() => null);
+    if (principal) {
+      const corrigida = trocarChavesErradas(input.body, principal);
+      if (corrigida.trocadas.length > 0) {
+        console.warn("[messages] chave Pix diferente da principal trocada no envio", {
+          organization_id: ctx.organization_id,
+          conversation_id: input.conversation_id,
+          origem: origemDaMensagem(ctx.actor),
+          trocadas: corrigida.trocadas.length,
+        });
+        input = { ...input, body: corrigida.body, metadata: { ...(input.metadata ?? {}), chave_pix_corrigida: corrigida.trocadas } };
+      }
+    }
   }
 
   let outboundBody = input.body ?? null;

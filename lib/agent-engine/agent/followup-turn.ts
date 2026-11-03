@@ -86,7 +86,7 @@ import { missingSlots } from '@/lib/channels/meta/build-components';
 import { renderTemplateBody } from '@/lib/channels/meta/render-template';
 import { deriveTemplateContract } from '@/lib/channels/meta/template-contract';
 import { isStatusSendable } from '@/lib/channels/meta/template-binding';
-import { configDeVozDoItem } from '@/lib/followup/nos-de-envio';
+import { configDeVozDoItem, pixDoNoPelaChavePrincipal, temPixDeNo } from '@/lib/followup/nos-de-envio';
 import { IDS_DE_PROVEDOR_DE_VOZ } from '@/lib/voz/tipos';
 import { dependenciasReaisDeNota, enviarNotasDeVoz, prepararNotasDeVoz } from './nota-de-voz';
 
@@ -106,7 +106,14 @@ const HOUR_MS = 3_600_000;
  * antes deste payload existir; aqui só precisa do suficiente para montar o envio.
  */
 const conteudoItemPayloadSchema = z.discriminatedUnion('type', [
-  z.object({ type: z.literal('text'), body: z.string().min(1) }),
+  // `pix_do_no`/`chave_do_no`: balões do nó de PIX, trocados pela chave principal da empresa no envio
+  // (`pixDoNoPelaChavePrincipal`). Sem eles aqui, o parse descartaria as marcas e a chave do nó voltaria a sair.
+  z.object({
+    type: z.literal('text'),
+    body: z.string().min(1),
+    pix_do_no: z.object({ valor: z.string(), intro: z.string().nullable() }).optional(),
+    chave_do_no: z.literal(true).optional(),
+  }),
   // Imagem, vídeo e documento têm DUAS origens (arquivo do bucket OU link/variável) —
   // ver "Mídia tem DUAS origens" em graph-schema.ts. Aqui as duas são opcionais; quem
   // garante "exatamente uma" é o schema de autoria, no salvar.
@@ -1330,7 +1337,8 @@ async function sendConteudoSequence(
         runLog.warn('texto do conteúdo ficou vazio depois das variáveis — item pulado');
         return [];
       }
-      return [{ ...i, body }];
+      const intro = i.pix_do_no?.intro ? trocarVariaveis(i.pix_do_no.intro) : null;
+      return [{ ...i, body, ...(i.pix_do_no ? { pix_do_no: { ...i.pix_do_no, intro: intro || null } } : {}) }];
     }
     if (i.type === 'contact') {
       // O cartão também aceita variáveis (ex.: nome `{{nome}}`, telefone `{{telefone}}`).
@@ -1361,7 +1369,16 @@ async function sendConteudoSequence(
   // cobrança DESTA pessoa no provedor conectado (Pix copia e cola, QR code e link de cartão), com o contato e a
   // conversa nos metadados — é o que faz o aviso de pagamento marcar a venda e iniciar a entrega. Falha aqui
   // lança: a caixa não sai com a marca crua, e o job tenta de novo.
-  const items = (await expandirCobrancas(itensSemCobranca, async ({ valorCentavos, produto, ordem }) => {
+  // O nó de PIX do fluxo cobra na CHAVE PRINCIPAL da empresa quando ela existe (`pixDoNoPelaChavePrincipal`): a chave
+  // digitada no nó era uma segunda fonte de verdade e mandava a chave antiga. Falha de leitura lança: mandar a chave
+  // do nó por engano é mandar o dinheiro para outra conta.
+  const principalDoNo = temPixDeNo(itensSemCobranca) ? await chavePrincipalDaOrganizacao(createAdminClient(), tenantId) : null;
+  const chaveDoNo = principalDoNo === null ? null : chaveParaCopiar(principalDoNo);
+  const itensComAChaveCerta = pixDoNoPelaChavePrincipal(
+    itensSemCobranca,
+    principalDoNo !== null && chaveDoNo !== null ? { chave: chaveDoNo, titular: principalDoNo.holder, tipo: tipoDaChave(principalDoNo) } : null,
+  );
+  const items = (await expandirCobrancas(itensComAChaveCerta, async ({ valorCentavos, produto, ordem }) => {
     if (!leadId) throw new Error('cobranca_sem_contato: a marca [[COBRAR]] precisa de um contato');
     const principal = await chavePrincipalDaOrganizacao(createAdminClient(), tenantId);
     if (principal !== null) {

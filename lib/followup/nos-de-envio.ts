@@ -13,12 +13,17 @@
  * mostrando o nó de PIX), só a cópia que o motor executa.
  */
 import { valorEmCentavos } from "@/lib/moeda/valor-em-centavos";
+import { baloesPelaChave } from "@/lib/pagamentos/como-pagar-pix";
 import { MODELO_PADRAO_DA_OPENAI } from "@/lib/voz/catalogo-openai";
 import type { IdDeProvedorDeVoz, VoiceReplyConfig } from "@/lib/voz/tipos";
 import type { FlowGraph, FlowNode } from "./graph-schema";
 
 type PixConfig = Extract<FlowNode, { type: "pix_payment" }>["config"];
-type ItemDeTexto = { type: "text"; body: string };
+/**
+ * Um balão de texto. Os do nó de PIX levam as marcas `pix_do_no` (no primeiro) e `chave_do_no` (no da chave): é por
+ * elas que o envio troca a chave digitada no nó pela CHAVE PRINCIPAL da empresa (`pixDoNoPelaChavePrincipal`).
+ */
+type ItemDeTexto = { type: "text"; body: string; pix_do_no?: { valor: string; intro: string | null }; chave_do_no?: true };
 
 const ROTULO_DA_CHAVE: Record<PixConfig["key_type"], string> = {
   aleatoria: "Chave aleatória",
@@ -55,10 +60,58 @@ export function bolhasDoPix(config: PixConfig): ItemDeTexto[] {
   if (detalhes.length > 0) linhas.push(detalhes.join("\n"));
 
   const bolhas: ItemDeTexto[] = [];
-  if (linhas.length > 0) bolhas.push({ type: "text", body: linhas.join("\n\n") });
-  if (chave) bolhas.push({ type: "text", body: chave });
+  const marca = { valor, intro: intro ?? null };
+  if (linhas.length > 0) bolhas.push({ type: "text", body: linhas.join("\n\n"), pix_do_no: marca });
+  if (chave) bolhas.push({ type: "text", body: chave, chave_do_no: true, ...(linhas.length === 0 ? { pix_do_no: marca } : {}) });
   return bolhas;
 }
+
+/** A chave principal da empresa, já pronta para copiar (`chaveParaCopiar`), com o titular e o tipo. */
+export interface ChaveDaEmpresaParaOFluxo {
+  chave: string;
+  titular: string;
+  tipo: string | null;
+}
+
+/**
+ * O NÓ DE PIX DO FLUXO COBRA NA CHAVE DA EMPRESA.
+ *
+ * Visto em 03/11/2026: o dono passou a receber tudo na chave de celular do financeiro (aba Preço do agente), mas o
+ * nó "Enviar PIX" dos fluxos guarda a chave digitada nele, e o fluxo seguia mandando a chave antiga. Eram duas fontes
+ * de verdade para a mesma chave, e a do nó vencia. Agora, com chave principal configurada, os balões do nó saem do
+ * mesmo molde da conversa (`baloesPelaChave`: passo a passo, a chave sozinha, o pedido do comprovante), com a chave e
+ * o titular da empresa; a chave do nó só vale para quem não tem chave principal. A mensagem do dono no nó segue na
+ * frente. Pura: item sem marca passa igual, e as marcas nunca chegam ao canal.
+ */
+export function pixDoNoPelaChavePrincipal<T extends { type: string }>(itens: readonly T[], principal: ChaveDaEmpresaParaOFluxo | null): T[] {
+  const saida: T[] = [];
+  for (const item of itens) {
+    if (item.type !== "text") {
+      saida.push(item);
+      continue;
+    }
+    const { pix_do_no, chave_do_no, ...resto } = item as unknown as ItemDeTexto;
+    if (pix_do_no === undefined && chave_do_no === undefined) {
+      saida.push(item);
+      continue;
+    }
+    if (principal === null) {
+      saida.push(resto as unknown as T);
+      continue;
+    }
+    if (pix_do_no) {
+      if (pix_do_no.intro) saida.push({ type: "text", body: pix_do_no.intro } as unknown as T);
+      const valor = pix_do_no.valor || "o valor combinado";
+      for (const body of baloesPelaChave(valor, principal.chave, principal.titular, principal.tipo)) saida.push({ type: "text", body } as unknown as T);
+    }
+    // O balão da chave do nó some: a chave da empresa já saiu no molde acima.
+  }
+  return saida;
+}
+
+/** O conteúdo tem balão de nó de PIX? Só então vale ler a chave da empresa. */
+export const temPixDeNo = (itens: readonly { type: string }[]): boolean =>
+  itens.some((i) => i.type === "text" && ((i as unknown as ItemDeTexto).pix_do_no !== undefined || (i as unknown as ItemDeTexto).chave_do_no === true));
 
 type VozConfig = Extract<FlowNode, { type: "voice_studio" }>["config"];
 
