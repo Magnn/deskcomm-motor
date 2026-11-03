@@ -40430,3 +40430,33 @@ comment on column public.pacing_ledger.tipo is
 
 create index if not exists idx_conversations_sessao_criada
   on public.conversations (organization_id, channel_session_id, created_at desc);
+
+-- ---- o número oficial conectado com um clique, pela conta do provedor da instalação (migration 0964) ----
+-- Espelho da 0964; o porquê inteiro está no cabeçalho da migration. A sessão
+-- conectada por um clique guarda um PONTEIRO para a chave da instalação
+-- (`zernio_credencial_da_instalacao`), nunca uma cópia; o perfil do provedor
+-- criado para a organização (`zernio_profile_id`); e o id da assinatura de
+-- webhook que entrega os eventos (`zernio_webhook_id` — na conexão por um
+-- clique, o webhook ÚNICO da instalação).
+--
+-- Idempotente e auto-curativo: `add column if not exists` e constraint
+-- recriada por nome. Toda linha existente nasce com `false` e satisfaz o
+-- CHECK, então o `update.sh` de um clone com dados não tem o que corrigir.
+-- Não cria função, então pode ficar depois da VARREDURA anon.
+alter table public.channel_sessions
+  add column if not exists zernio_profile_id text,
+  add column if not exists zernio_webhook_id text,
+  add column if not exists zernio_credencial_da_instalacao boolean not null default false;
+
+alter table public.channel_sessions
+  drop constraint if exists channel_sessions_zernio_credencial_unica;
+alter table public.channel_sessions
+  add constraint channel_sessions_zernio_credencial_unica
+  check (not (zernio_credencial_da_instalacao and zernio_token_encrypted is not null));
+
+comment on column public.channel_sessions.zernio_profile_id is
+  'Perfil do provedor parceiro em que a conta foi conectada. Só a conexão por um clique o grava: é por ele que a volta confere que a conta conectada é desta organização, e é ele que entra no filtro do webhook da instalação. Migration 0964.';
+comment on column public.channel_sessions.zernio_webhook_id is
+  'Assinatura de webhook que entrega os eventos desta conta, registrada pela INSTALAÇÃO. Na conexão por um clique é o webhook ÚNICO da instalação (compartilhado, filtrado aos perfis das conexões ativas; id em platform_config): a remoção do canal tira o perfil do filtro e NÃO apaga a assinatura. Na chave própria é a assinatura do número (filtrada à conta), apagada na remoção. Nulo quando o operador configurou o webhook à mão. Migration 0964.';
+comment on column public.channel_sessions.zernio_credencial_da_instalacao is
+  'true = a sessão fala com o provedor pela chave da INSTALAÇÃO (platform_config), resolvida na hora; zernio_token_encrypted fica nulo. false = chave própria da organização, cifrada em zernio_token_encrypted. Migration 0964.';
