@@ -591,19 +591,6 @@ export function VistaDaArea(p: VistaDaAreaProps) {
           tc={p.tch}
           sugestoes={p.chat.sugestoes}
         />
-        {/* O WhatsApp fica pequeno e no fim: a conversa é aqui dentro, e o zap é só a saída para quem prefere. */}
-        {p.whatsapp ? (
-          <div className="flex justify-center pt-2">
-            <a
-              href={`https://wa.me/${p.whatsapp}`}
-              className="inline-flex h-9 items-center gap-1.5 rounded-full border border-[#1f9d55]/50 px-4 text-[13px] font-medium text-[#7fd6a4] transition hover:bg-[#1f9d55]/10"
-              data-testid="area-whatsapp"
-            >
-              <MessageCircle className="size-4" aria-hidden />
-              {t("Falar com a gente no WhatsApp")}
-            </a>
-          </div>
-        ) : null}
       </div>
     </>
   );
@@ -636,15 +623,13 @@ export function VistaDaArea(p: VistaDaAreaProps) {
             {t("Quero este")}
           </a>
         </div>
-        {/* Compra direta é o caminho principal; a conversa fica à mão, para quem quiser tirar dúvida antes. */}
-        {p.whatsapp ? (
-          <p className={`mt-4 ${TEXTO_SUAVE}`}>
-            {t("Prefere tirar uma dúvida antes?")}{" "}
-            <a href={`https://wa.me/${p.whatsapp}`} className="font-semibold underline underline-offset-4" style={{ color: cor }} data-testid="area-vitrine-whatsapp">
-              {t("Fale com a gente no WhatsApp")}
-            </a>
-          </p>
-        ) : null}
+        {/* Compra direta é o caminho principal; a conversa fica à mão, no chat da área, para quem quiser tirar dúvida antes. */}
+        <p className={`mt-4 ${TEXTO_SUAVE}`}>
+          {t("Prefere tirar uma dúvida antes?")}{" "}
+          <BotaoIrParaAba aba="conversa" className="font-semibold underline underline-offset-4" style={{ color: cor }}>
+            {t("Fale com a gente no chat")}
+          </BotaoIrParaAba>
+        </p>
       </article>
   );
   const explorar = (
@@ -713,7 +698,7 @@ export function VistaDaArea(p: VistaDaAreaProps) {
         {p.mao ? <LeituraDaMaoNaArea slug={slug} cor={cor} tx={tx} tm={p.tmao} inicial={p.mao} /> : null}
         {p.sonho ? <SonhosNaArea slug={slug} cor={cor} tx={tx} ts={p.tsonho} inicial={p.sonho} /> : null}
         {/* A Mesa fica inteira, depois das prateleiras de trabalho: é o ritual da área, não um produto de prateleira. */}
-        {p.mesa ? <MesaDeLeituras slug={slug} cor={cor} tx={tx} tm={p.tm} inicial={p.mesa} sugestoes={p.perfil.foco ? PERGUNTAS_DO_FOCO[p.perfil.foco].map((q) => t(q)) : []} whatsapp={p.whatsapp} tag={tag} /> : null}
+        {p.mesa ? <MesaDeLeituras slug={slug} cor={cor} tx={tx} tm={p.tm} inicial={p.mesa} sugestoes={p.perfil.foco ? PERGUNTAS_DO_FOCO[p.perfil.foco].map((q) => t(q)) : []} tag={tag} /> : null}
 
         {temSoParaVoce ? (
           <Prateleira titulo={t("Só para você")} testId="area-prateleira-so-para-voce">

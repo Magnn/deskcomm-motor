@@ -21,6 +21,7 @@ import { copyToClipboard } from "@/lib/clipboard";
 
 import { EVENTO_DE_VALOR } from "@/lib/area-do-cliente/avisos";
 
+import { BotaoIrParaAba } from "./_abas";
 import { anunciarSaldo, useSaldo } from "./_carteira";
 import { postarJson } from "./_circulo";
 import { type TextosDaArea } from "./_client";
@@ -342,7 +343,6 @@ export function MesaDeLeituras({
   tx,
   tm,
   inicial,
-  whatsapp,
   tag,
   sugestoes = [],
 }: {
@@ -351,7 +351,6 @@ export function MesaDeLeituras({
   tx: TextosDaArea;
   tm: TextosDaMesa;
   inicial: MesaInicial;
-  whatsapp?: string;
   /** A tag de idioma das datas (`pt-BR`, `es`…). */
   tag: string;
   /** Perguntas prontas no tema do foco da pessoa (entrada com 3 perguntas): um toque preenche. */
@@ -698,18 +697,18 @@ export function MesaDeLeituras({
           </div>
         ) : null}
         <div className="space-y-3 border-t border-white/10 pt-4">
-          {whatsapp ? (
-            <div>
-              <p className={TEXTO_SUAVE}>{tm.ciganaDeVerdade}</p>
-              <a
-                href={`https://wa.me/${whatsapp}`}
-                className="mt-2 inline-flex h-9 items-center gap-1.5 rounded-full border border-[#1f9d55]/50 px-4 text-[13px] font-medium text-[#7fd6a4] transition hover:bg-[#1f9d55]/10"
-              >
-                <MessageCircle className="size-4" aria-hidden />
-                {tm.falarComCigana}
-              </a>
-            </div>
-          ) : null}
+          {/* Continuar a conversa é no chat da própria área — nada leva para fora do app. */}
+          <div>
+            <p className={TEXTO_SUAVE}>{tm.ciganaDeVerdade}</p>
+            <BotaoIrParaAba
+              aba="conversa"
+              className="mt-2 inline-flex h-9 items-center gap-1.5 rounded-full border px-4 text-[13px] font-medium transition hover:bg-white/5"
+              style={{ borderColor: cor, color: cor }}
+            >
+              <MessageCircle className="size-4" aria-hidden />
+              {tm.falarComCigana}
+            </BotaoIrParaAba>
+          </div>
           <button type="button" onClick={() => setEtapa({ tipo: "inicio" })} className="text-sm text-[#c3bad3] underline underline-offset-4">
             {tm.voltarAMesa}
           </button>

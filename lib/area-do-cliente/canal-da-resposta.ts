@@ -10,8 +10,8 @@
  * ─── O aviso ─────────────────────────────────────────────────────────────────────────────────────
  * Resposta na área que a pessoa não está olhando não é resposta. Quando ela não abre a área há mais de
  * `AUSENTE_DEPOIS_DE_MS`, sai pelo canal UMA mensagem curta com o link pessoal ("te respondi na sua área"),
- * e só uma até ela voltar à área. O aviso respeita a regra de 24 horas: só para quem escreveu nas últimas
- * 24 horas — e, no canal que exige modelo fora da janela, só se ela escreveu PELO CANAL nesse tempo.
+ * e só uma até ela voltar à área. O aviso só sai para quem escreveu PELO CANAL nas últimas 24 horas: o
+ * chat da área é aberto (não depende do WhatsApp) e quem só conversa por ali não recebe nada fora dela.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -82,7 +82,11 @@ export function deveAvisar(
   const avisado = t(s.avisadoEm);
   // Já avisou e ela não voltou à área desde então: um aviso basta.
   if (avisado !== null && (visto === null || avisado > visto)) return false;
-  const entrada = t(s.canalExigeJanela ? s.ultimaEntradaPeloCanalEm : s.ultimaEntradaEm);
+  // Só avisa pelo canal quem ESCREVEU PELO CANAL nas últimas 24 h, em qualquer canal: quem só conversa pela
+  // área (chegou pelo quiz, pela página, pelo e-mail) nunca recebe mensagem no WhatsApp por causa da área.
+  // `canalExigeJanela` fica para quem chama; com esta regra, ele não muda mais o desfecho.
+  void s.canalExigeJanela;
+  const entrada = t(s.ultimaEntradaPeloCanalEm);
   return entrada !== null && agora.getTime() - entrada < DIA_MS;
 }
 

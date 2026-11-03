@@ -18,7 +18,7 @@ import { semanaDoAniversario } from "@/lib/area-do-cliente/aniversario";
 import { caminhoDoPresente } from "@/lib/area-do-cliente/presente";
 import { MENSAGEM_DO_DIA, cartaDoDia } from "@/lib/area-do-cliente/carta-do-dia";
 import { DIAS_DO_AVISO_DE_RENOVACAO, assinaturaAtiva, diasRestantes, lerAssinatura, mesDoDia } from "@/lib/area-do-cliente/circulo";
-import { conversaDaArea, lerChat } from "@/lib/area-do-cliente/chat";
+import { chatDaAreaAberto, lerChat } from "@/lib/area-do-cliente/chat";
 import { passosDoRitual } from "@/lib/area-do-cliente/ritual";
 import { carregarDadosDaArea, diaNoFuso, fotoDaCarta } from "@/lib/area-do-cliente/dados";
 import { CARTAS_NA_MESA, NOME_DA_MODALIDADE } from "@/lib/area-do-cliente/leituras";
@@ -144,11 +144,12 @@ export default async function AreaDoCliente({ params, searchParams }: Props) {
     );
   }
 
-  // O chat da área (`_chat.tsx`): a conversa inteira, dos dois canais, e se há onde a mensagem dela entrar.
-  const [dados, chat, conversaViva] = await Promise.all([
+  // O chat da área (`_chat.tsx`): a conversa inteira, de todas as origens. É aberto: quem nunca conversou
+  // escreve mesmo assim, e a primeira mensagem cria a conversa (`garantirConversaDaArea`).
+  const [dados, chat, chatAberto] = await Promise.all([
     carregarDadosDaArea(admin, { id: org.id, fuso: org.fuso }, sessao.contactId),
     lerChat(admin, org.id, sessao.contactId),
-    conversaDaArea(admin, org.id, sessao.contactId),
+    chatDaAreaAberto(admin, org.id, sessao.contactId),
   ]);
   await registrarEvento(admin, {
     organizationId: org.id,
@@ -534,7 +535,7 @@ export default async function AreaDoCliente({ params, searchParams }: Props) {
       abaInicial={abaValida(aba)}
       chat={{
         inicial: chat,
-        podeEscrever: conversaViva !== null,
+        podeEscrever: chatAberto,
         // As perguntas prontas do chat: a primeira fala da carta que ela tirou hoje.
         sugestoes: [
           carta ? `${t("Me ajuda a entender a minha carta de hoje")}: ${t(carta.nome)}` : t("Me ajuda a entender o meu momento"),

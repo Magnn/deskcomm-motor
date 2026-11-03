@@ -18,7 +18,7 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { aplicarEfeitosPosEntrada } from "@/lib/channels/pos-entrada";
+import { ORIGEM_DA_ENTRADA_PELA_AREA, aplicarEfeitosPosEntrada } from "@/lib/channels/pos-entrada";
 import { marcarConversaComMensagem } from "@/lib/channels/marcar-conversa";
 import type { createAdminClient } from "@/lib/supabase/admin";
 
@@ -185,8 +185,8 @@ export async function empresaDigitando(admin: SupabaseClient, orgId: string, con
 }
 
 /**
- * A conversa onde a mensagem da área entra: a do contato que falou por último, num número que ainda está
- * ligado. `null` = o contato nunca conversou (a área só existe para quem já conversou e comprou).
+ * A conversa do contato que falou por último, num número que ainda está ligado. `null` = o contato nunca
+ * conversou: `garantirConversaDaArea` cria a conversa na primeira mensagem dela pela área.
  */
 export async function conversaDaArea(
   admin: SupabaseClient,
@@ -208,6 +208,100 @@ export async function conversaDaArea(
   }>;
   const viva = linhas.find((c) => !c.channel_sessions?.archived_at) ?? null;
   return viva ? { id: viva.id, channelSessionId: viva.channel_session_id } : null;
+}
+
+interface SessaoCandidata {
+  id: string;
+  status: string | null;
+  archived_at: string | null;
+}
+interface AgenteCandidato {
+  priority: number | null;
+  archived_at: string | null;
+  version: { channel_session_id: string | null } | Array<{ channel_session_id: string | null }> | null;
+}
+
+/**
+ * Regra pura: o número que atende quem escreve pela área SEM nunca ter conversado por canal nenhum. É o do
+ * agente publicado de maior prioridade (o mesmo critério do despacho: maior `priority` vence), num número
+ * não arquivado; o que está ligado (`WORKING`) vem antes. Sem agente publicado, qualquer número ligado — a
+ * equipe responde pelo Desk. A pessoa nunca vê o número: a conversa só existe para o Desk e o agente terem
+ * onde gravar, e a resposta fica na área (`canal-da-resposta.ts`).
+ */
+export function sessaoParaAArea(sessoes: readonly SessaoCandidata[], agentes: readonly AgenteCandidato[]): string | null {
+  const vivas = sessoes.filter((s) => !s.archived_at);
+  if (vivas.length === 0) return null;
+  const ligadaPrimeiro = (a: SessaoCandidata, b: SessaoCandidata) => Number(b.status === "WORKING") - Number(a.status === "WORKING");
+  const prioridade = new Map<string, number>();
+  for (const ag of agentes) {
+    const versao = Array.isArray(ag.version) ? (ag.version[0] ?? null) : ag.version;
+    const sid = versao?.channel_session_id;
+    if (ag.archived_at || !sid) continue;
+    const p = ag.priority ?? 0;
+    if (!prioridade.has(sid) || p > (prioridade.get(sid) as number)) prioridade.set(sid, p);
+  }
+  const comAgente = vivas
+    .filter((s) => prioridade.has(s.id))
+    .sort((a, b) => (prioridade.get(b.id) as number) - (prioridade.get(a.id) as number) || ligadaPrimeiro(a, b));
+  if (comAgente[0]) return comAgente[0].id;
+  return [...vivas].sort(ligadaPrimeiro)[0]?.id ?? null;
+}
+
+/** Lê os números e os agentes da empresa e escolhe onde a conversa da área nasce (`sessaoParaAArea`). */
+export async function numeroDaArea(admin: SupabaseClient, orgId: string): Promise<string | null> {
+  const [{ data: sessoes }, { data: agentes }] = await Promise.all([
+    admin.from("channel_sessions").select("id, status, archived_at").eq("organization_id", orgId).is("archived_at", null),
+    admin
+      .from("ai_agents")
+      .select("priority, archived_at, version:ai_agent_versions!ai_agents_published_version_id_fkey(channel_session_id)")
+      .eq("organization_id", orgId)
+      .is("archived_at", null)
+      .not("published_version_id", "is", null),
+  ]);
+  return sessaoParaAArea((sessoes ?? []) as SessaoCandidata[], (agentes ?? []) as unknown as AgenteCandidato[]);
+}
+
+/**
+ * A conversa onde a mensagem da área entra — e, se a pessoa nunca conversou por canal nenhum (chegou pelo
+ * quiz, pela página de vendas, pelo e-mail), a conversa nasce agora, no número de `numeroDaArea`. O chat da
+ * área é aberto: ninguém precisa mandar "oi" no WhatsApp antes. Duas mensagens ao mesmo tempo não criam duas
+ * conversas: a única por (contato, número) recusa a segunda, que relê a primeira.
+ */
+export async function garantirConversaDaArea(
+  admin: SupabaseClient,
+  orgId: string,
+  contactId: string,
+): Promise<{ id: string; channelSessionId: string } | null> {
+  const existente = await conversaDaArea(admin, orgId, contactId);
+  if (existente) return existente;
+  const numero = await numeroDaArea(admin, orgId);
+  if (!numero) return null;
+  const { data, error } = await admin
+    .from("conversations")
+    .insert({ organization_id: orgId, contact_id: contactId, channel_session_id: numero, status: "open", metadata: { origem: ORIGEM_DA_AREA } })
+    .select("id, channel_session_id")
+    .single();
+  if (!error && data) {
+    const c = data as { id: string; channel_session_id: string };
+    return { id: c.id, channelSessionId: c.channel_session_id };
+  }
+  // Corrida (a outra mensagem criou primeiro) ou conversa antiga num número que já existia: relê.
+  const { data: ja } = await admin
+    .from("conversations")
+    .select("id, channel_session_id")
+    .eq("organization_id", orgId)
+    .eq("contact_id", contactId)
+    .eq("channel_session_id", numero)
+    .eq("is_group", false)
+    .maybeSingle();
+  const c = ja as { id: string; channel_session_id: string } | null;
+  return c ? { id: c.id, channelSessionId: c.channel_session_id } : null;
+}
+
+/** Dá para escrever pela área? Há conversa, ou há um número onde ela pode nascer. */
+export async function chatDaAreaAberto(admin: SupabaseClient, orgId: string, contactId: string): Promise<boolean> {
+  if (await conversaDaArea(admin, orgId, contactId)) return true;
+  return (await numeroDaArea(admin, orgId)) !== null;
 }
 
 export type ConteudoDaArea =
@@ -249,7 +343,7 @@ export async function receberDaArea(
   admin: ReturnType<typeof createAdminClient>,
   args: { orgId: string; contactId: string; nome: string | null; conteudo: ConteudoDaArea },
 ): Promise<{ ok: true; mensagem: MensagemDoChat } | { ok: false; motivo: "sem_conversa" | "arquivo_recusado" | "falhou" }> {
-  const conversa = await conversaDaArea(admin as unknown as SupabaseClient, args.orgId, args.contactId);
+  const conversa = await garantirConversaDaArea(admin as unknown as SupabaseClient, args.orgId, args.contactId);
   if (!conversa) return { ok: false, motivo: "sem_conversa" };
   const agora = new Date().toISOString();
   const id = crypto.randomUUID();
@@ -327,7 +421,7 @@ export async function receberDaArea(
     channelSessionId: conversa.channelSessionId,
     texto: corpo,
     nomeDoContato: args.nome,
-    origem: "area_do_cliente",
+    origem: ORIGEM_DA_ENTRADA_PELA_AREA,
   });
 
   let midia: string | null = null;

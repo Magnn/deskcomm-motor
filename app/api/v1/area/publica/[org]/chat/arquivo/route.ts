@@ -44,7 +44,7 @@ export async function POST(req: NextRequest, { params }: Ctx): Promise<Response>
   });
   if (!r.ok) {
     return r.motivo === "sem_conversa"
-      ? ERRO(409, "sem_conversa", "Ainda não há uma conversa sua com a gente. Fale pelo WhatsApp primeiro.")
+      ? ERRO(409, "sem_conversa", "O chat ainda não está disponível. Tente de novo mais tarde.")
       : r.motivo === "arquivo_recusado"
         ? ERRO(422, "arquivo_recusado", "Mande um áudio ou uma foto de até 16 MB.")
         : ERRO(500, "internal_error", "Não foi possível enviar agora. Tente de novo.");
