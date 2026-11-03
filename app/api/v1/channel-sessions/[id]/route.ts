@@ -27,6 +27,7 @@ import { ok, fail } from "@/lib/api/wrappers";
 import { loadAuthUser, mfaEmDivida, resolveActiveOrg } from "@/lib/auth/server";
 import { requireRole } from "@/lib/auth/require-role";
 import { CHANNEL_PROVIDER_MESSENGER, CHANNEL_PROVIDER_TELEGRAM, CHANNEL_PROVIDER_WAHA } from "@/lib/channels/capabilities";
+import { PARTNER_CHANNEL_PROVIDER, desfazerNoProvedor } from "@/lib/channels/connect";
 import { resolverSaudeDaConexaoRemovida } from "@/lib/channels/health";
 import { desfazerWebhookDoNumero } from "@/lib/channels/meta/webhook-override";
 import { desligarAvisosDaPagina } from "@/lib/channels/messenger/paginas";
@@ -352,6 +353,7 @@ export async function DELETE(
   let webhookOverride: "desfeito" | "sem_credencial" | "falhou" = "sem_credencial";
   /** Idem, para os avisos da página do Messenger ou o webhook do bot do Telegram. `null` = nenhum dos dois. */
   let avisosDaPagina: "desfeito" | "sem_credencial" | "falhou" | null = null;
+  let parceiro: "desfeito" | "nada_a_desfazer" | "sem_credencial" | "falhou" | "nao_parceiro" = "nao_parceiro";
 
   if (session.provider === CHANNEL_PROVIDER_WAHA) {
     const waha = getWahaClient();
@@ -373,6 +375,32 @@ export async function DELETE(
         .eq("organization_id", activeOrg.orgId).eq("id", id);
       return fail("waha_error", wahaFriendlyError(err), 502, { requestId });
     }
+  } else if (session.provider === PARTNER_CHANNEL_PROVIDER) {
+    // ─── O QUE A INSTALAÇÃO FEZ NO PROVEDOR PARCEIRO NÃO FICA ÓRFÃO ──────────
+    //
+    // A conexão por um clique pôs o perfil da organização no webhook ÚNICO da
+    // instalação e conectou o número na conta DELA; a por chave própria pode ter
+    // tido o webhook do número registrado pela rota. `desfazerNoProvedor` tira o
+    // perfil do filtro (o webhook segue entregando as outras conexões) e
+    // desconecta o número — senão ele seguiria na fatura do provedor da
+    // instalação depois de sair do CRM —, ou apaga a assinatura do número na
+    // chave própria. Webhook colado à mão não é tocado.
+    //
+    // Antes do patch, que gira o token; best-effort como o ramo social: provedor
+    // fora do ar vai para o log e para a auditoria (`parceiro`), e NÃO desfaz a
+    // exclusão que o operador pediu.
+    try {
+      parceiro = await desfazerNoProvedor(createAdminClient(), activeOrg.orgId, id);
+    } catch (err) {
+      parceiro = "falhou";
+      logger.warn("Falha ao desfazer a conexão no provedor parceiro", {
+        requestId,
+        channel_session_id: id,
+        organization_id: activeOrg.orgId,
+        erro: err instanceof Error ? err.message : String(err),
+      });
+    }
+    patch.webhook_path_token = randomUUID().replace(/-/g, "");
   } else {
     // ─── O OVERRIDE NÃO FICA ÓRFÃO NA META (issue #1334) ─────────────────────
     //
@@ -551,6 +579,7 @@ export async function DELETE(
       avisos_fechados: avisosFechados,
       webhook_override: webhookOverride,
       ...(avisosDaPagina ? { avisos_do_canal: avisosDaPagina } : {}),
+      parceiro,
       ...impact.history,
       ...impact.configuration,
     },
