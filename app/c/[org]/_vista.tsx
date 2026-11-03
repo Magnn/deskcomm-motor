@@ -9,6 +9,7 @@ import type { CSSProperties } from "react";
 import { Check, FileText, Film, Headphones, MessageCircle, Receipt } from "lucide-react";
 
 import { recadoDaEmpresa, type DadosDaArea } from "@/lib/area-do-cliente/dados";
+import type { IdiomaDaArea } from "@/lib/i18n/area";
 import type { CeuDoNascimento } from "@/lib/area-do-cliente/ceu";
 import type { MensagemDoChat } from "@/lib/area-do-cliente/chat";
 import type { PassoDoRitual } from "@/lib/area-do-cliente/ritual";
@@ -16,6 +17,7 @@ import type { DestaqueDeHoje } from "@/lib/area-do-cliente/hoje";
 import { faseDaLua } from "@/lib/area-do-cliente/lua";
 import { PERGUNTAS_DO_FOCO, type Foco } from "@/lib/area-do-cliente/perfil";
 
+import { SeletorDeIdiomaDaArea } from "./_idioma";
 import {
   AniversarioDoCliente,
   CartaDoDia,
@@ -122,6 +124,8 @@ export function VistaDeEntrada({ classeDaFonte, slug, cor, titulo, t, tx, link, 
 }
 
 export interface VistaDaAreaProps {
+  /** O idioma em que a área está sendo lida (`lib/i18n/area.ts`) — a troca fica no rodapé. */
+  idioma: IdiomaDaArea;
   classeDaFonte: string;
   slug: string;
   fuso: string;
@@ -812,6 +816,7 @@ export function VistaDaArea(p: VistaDaAreaProps) {
           {t("Sair deste aparelho")}
         </button>
       </form>
+      <SeletorDeIdiomaDaArea atual={p.idioma} />
     </footer>
   );
 

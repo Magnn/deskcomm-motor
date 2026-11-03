@@ -12,9 +12,8 @@ import { notFound, redirect } from "next/navigation";
 
 import { nomeDoCookieDaArea, orgDaArea, sessaoDoCookie } from "@/lib/area-do-cliente/sessao";
 import { caminhoPublicoDaArea } from "@/lib/area-do-cliente/vocabulario";
-import { tagDeIdioma } from "@/lib/i18n/datas";
-import { traduzir } from "@/lib/i18n/dicionario";
-import { idiomaDoVisitante } from "@/lib/i18n/idiomaAnonimo";
+import { tagDaArea, traduzirNaArea } from "@/lib/i18n/area";
+import { idiomaDaArea } from "@/lib/i18n/area-servidor";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 import { serifDaArea } from "../../_fonte";
@@ -26,8 +25,8 @@ type Props = { params: Promise<{ org: string; id: string }> };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function generateMetadata(): Promise<Metadata> {
-  const idioma = await idiomaDoVisitante(null);
-  return { title: traduzir("Recibo", idioma), robots: { index: false, follow: false } };
+  const idioma = await idiomaDaArea();
+  return { title: traduzirNaArea("Recibo", idioma), robots: { index: false, follow: false } };
 }
 
 export default async function Recibo({ params }: Props) {
@@ -57,9 +56,9 @@ export default async function Recibo({ params }: Props) {
   } | null;
   if (!c) notFound();
 
-  const idioma = await idiomaDoVisitante(null);
-  const t = (texto: string) => traduzir(texto, idioma);
-  const tag = tagDeIdioma(idioma);
+  const idioma = await idiomaDaArea();
+  const t = (texto: string) => traduzirNaArea(texto, idioma);
+  const tag = tagDaArea(idioma);
   const metodo = typeof c.metadata?.metodo === "string" ? c.metadata.metodo : null;
   const produto = typeof c.metadata?.produto === "string" && c.metadata.produto.trim() ? c.metadata.produto.trim() : null;
   const quando = new Intl.DateTimeFormat(tag, {

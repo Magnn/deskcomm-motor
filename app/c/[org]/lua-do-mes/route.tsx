@@ -13,8 +13,8 @@ import { lerCartas } from "@/lib/area-do-cliente/leituras";
 import { nomeDoMes, resumoDaLuaDoMes, temLuaDoMes } from "@/lib/area-do-cliente/lua-do-mes";
 import { caminhoPublicoDaArea } from "@/lib/area-do-cliente/vocabulario";
 import { nomeDoContato } from "@/lib/contacts/rotulo-do-contato";
-import { traduzir } from "@/lib/i18n/dicionario";
-import { idiomaDoVisitante } from "@/lib/i18n/idiomaAnonimo";
+import { traduzirNaArea } from "@/lib/i18n/area";
+import { idiomaDaArea } from "@/lib/i18n/area-servidor";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -28,8 +28,8 @@ export async function GET(req: NextRequest, { params }: Ctx): Promise<Response> 
   const { admin, org, sessao } = ctx;
   if (!sessao) return new Response("entre na sua área", { status: 401 });
 
-  const idioma = await idiomaDoVisitante(null);
-  const t = (texto: string) => traduzir(texto, idioma);
+  const idioma = await idiomaDaArea();
+  const t = (texto: string) => traduzirNaArea(texto, idioma);
   const diaDe = (iso: string) => diaNoFuso(iso, org.fuso);
   const mes = diaDe(new Date().toISOString()).slice(0, 7);
   // Um pouco mais que um mês para trás: o filtro fino do mês é por dia no fuso da empresa (`resumoDaLuaDoMes`).
