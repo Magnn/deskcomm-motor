@@ -77,6 +77,7 @@ interface Excecao {
 const PROVA_PROPRIA: readonly Excecao[] = [
   { tabela: "area_presentes", razao: "tests/invariants/area-do-cliente-rls.test.ts — tabela só do servidor: com linhas gravadas, o admin da própria organização lê zero e nem anon nem authenticated têm grant." },
   { tabela: "area_leituras", razao: "tests/invariants/area-do-cliente-rls.test.ts — tabela só do servidor: com linhas gravadas, o admin da própria organização lê zero e nem anon nem authenticated têm grant." },
+  { tabela: "area_sonhos", razao: "tests/invariants/area-do-cliente-rls.test.ts — tabela só do servidor: com linhas gravadas, o admin da própria organização lê zero e nem anon nem authenticated têm grant (o sonho contado é pessoal)." },
   { tabela: "area_maos", razao: "tests/invariants/area-do-cliente-rls.test.ts — tabela só do servidor: com linhas gravadas, o admin da própria organização lê zero e nem anon nem authenticated têm grant (a leitura da mão é pessoal; a foto nem é guardada)." },
   { tabela: "area_creditos", razao: "tests/invariants/area-do-cliente-rls.test.ts — tabela só do servidor: com linhas gravadas, o admin da própria organização lê zero e nem anon nem authenticated têm grant; a escrita é só por fn_area_creditos_mover (service_role)." },
   { tabela: "area_avisos", razao: "tests/invariants/area-do-cliente-rls.test.ts — tabela só do servidor: com linhas gravadas, o admin da própria organização lê zero e nem anon nem authenticated têm grant (o endpoint é endereço de entrega do aparelho da pessoa)." },

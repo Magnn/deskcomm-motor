@@ -426,6 +426,17 @@ export const PONTOS_DE_IA: readonly PontoDeIa[] = [
     registraEm: "llm_calls",
   },
   {
+    id: "area_sonho",
+    rotulo: "Interpretar o sonho",
+    oQueFaz:
+      "Lê o sonho que a cliente contou na área e escreve o que significam os símbolos dele (de 2 a 4), a mensagem do sonho e um passo pequeno, como símbolo e nunca como previsão.",
+    papel: "atender",
+    exige: {},
+    emissor: "lib/area-do-cliente/sonho-ia.ts",
+    sintomaDeFalha: "A cliente conta o sonho e a área pede para tentar de novo mais tarde, sem cobrar.",
+    registraEm: "llm_calls",
+  },
+  {
     id: "loss_reason_classify",
     rotulo: "Entender por que a venda não aconteceu",
     oQueFaz:

@@ -837,6 +837,8 @@ function AbaConfig({ inicial }: { inicial: ConfigDaArea }) {
   const [mesaPreco, setMesaPreco] = useState(((inicial.leituras?.preco_cents ?? 1490) / 100).toFixed(2).replace(".", ","));
   const [mesaNarrar, setMesaNarrar] = useState(inicial.leituras?.narrar ?? false);
   const [mesaGratis, setMesaGratis] = useState(inicial.leituras?.gratis_semanal ?? false);
+  const [sonhoAtivo, setSonhoAtivo] = useState(inicial.sonho?.ativo ?? false);
+  const [sonhoPreco, setSonhoPreco] = useState(((inicial.sonho?.preco_cents ?? 1200) / 100).toFixed(2).replace(".", ","));
   const [narrarCom, setNarrarCom] = useState<"rapida" | "humana">(inicial.leituras?.narrar_com ?? "rapida");
   const [vozHumana, setVozHumana] = useState(inicial.leituras?.voz_humana ?? "");
   // As vozes clonadas no servidor: a narração humana fala com uma delas (ou com a voz padrão do serviço).
@@ -882,6 +884,7 @@ function AbaConfig({ inicial }: { inicial: ConfigDaArea }) {
           narrar_com: narrarCom,
           ...(narrarCom === "humana" ? { voz_humana: vozHumana } : {}),
         },
+        sonho: { ativo: sonhoAtivo, preco_cents: centavos(sonhoPreco, 1200) },
         avisos: { ativo: avisosAtivos, hora: horaDoAviso },
         creditos: {
           ativo: creditosAtivos,
@@ -1074,6 +1077,21 @@ function AbaConfig({ inicial }: { inicial: ConfigDaArea }) {
           </div>
           <Switch id="area-mesa-gratis" checked={mesaGratis} onCheckedChange={setMesaGratis} />
         </div>
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <Label htmlFor="area-sonho">{t("Interpretação de sonhos")}</Label>
+            <p className="text-xs text-muted-foreground">
+              {t("A pessoa conta o sonho e a IA lê os símbolos na hora: o primeiro sai de graça, os outros, a mensagem e um passo abrem pelo preço abaixo (créditos, Pix ou cartão).")}
+            </p>
+          </div>
+          <Switch id="area-sonho" checked={sonhoAtivo} onCheckedChange={setSonhoAtivo} data-testid="area-sonho-ativo" />
+        </div>
+        {sonhoAtivo ? (
+          <div className="max-w-[12rem]">
+            <Label htmlFor="area-sonho-preco">{t("Preço da interpretação (R$)")}</Label>
+            <Input id="area-sonho-preco" inputMode="decimal" value={sonhoPreco} onChange={(e) => setSonhoPreco(e.target.value)} />
+          </div>
+        ) : null}
         <div className="flex items-center justify-between gap-3">
           <div>
             <Label htmlFor="area-mesa-narrar">{t("Leitura narrada em voz")}</Label>

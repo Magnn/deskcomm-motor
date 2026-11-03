@@ -39790,7 +39790,9 @@ alter table public.area_eventos add constraint area_eventos_tipo_check check (ti
   -- migration 0943 (os quizzes de uma pessoa).
   'quiz_checkout', 'quiz_pago',
   -- migration 0951 (a leitura da mão).
-  'mao_lida', 'mao_checkout', 'mao_paga'
+  'mao_lida', 'mao_checkout', 'mao_paga',
+  -- migration 0952 (a interpretação de sonhos).
+  'sonho_lido', 'sonho_checkout', 'sonho_pago'
 ));
 
 -- ---- A conexão com a Stripe aceita a conta conectada — Stripe Connect (migration 0935) ----
@@ -40153,3 +40155,27 @@ alter table public.area_maos enable row level security;
 revoke all on public.area_maos from anon, authenticated;
 
 -- area_eventos_tipo_check: os tipos `mao_*` foram acrescentados ao bloco da migration 0934 acima.
+
+-- ---- a interpretação de sonhos (migration 0952) ----
+create table if not exists public.area_sonhos (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references public.organizations(id) on delete cascade,
+  contact_id uuid not null references public.contacts(id) on delete cascade,
+  relato text not null check (char_length(relato) between 20 and 1500),
+  leitura jsonb not null,
+  modelo text,
+  preco_cents integer not null check (preco_cents between 100 and 100000),
+  pagamento text,
+  pago_at timestamptz,
+  created_at timestamptz not null default now()
+);
+create index if not exists area_sonhos_contato_idx
+  on public.area_sonhos (organization_id, contact_id, created_at desc);
+
+comment on table public.area_sonhos is
+  'Interpretações de sonho na área do cliente (migration 0952). Nasce com a leitura escrita pela IA e pago_at nulo (só o primeiro símbolo aparece); créditos ou o aviso da Stripe marcam pago_at. Só o servidor lê e escreve.';
+
+alter table public.area_sonhos enable row level security;
+revoke all on public.area_sonhos from anon, authenticated;
+
+-- area_eventos_tipo_check: os tipos `sonho_*` foram acrescentados ao bloco da migration 0934 acima.
