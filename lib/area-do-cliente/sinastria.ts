@@ -127,5 +127,39 @@ export function previaDaSinastria(nascimentoDela: string, nascimentoDele: string
   if (!sa || !sb) return null;
   const ea = elementoDe(sa);
   const eb = elementoDe(sb);
-  return { signoDela: sa, signoDele: sb, elementoDela: ea, elementoDele: eb, ...tomDaCombinacao(ea, eb) };
+  return { signoDela: sa, signoDele: sb, elementoDela: ea, elementoDele: eb, ...tomDaCombinacao(ea, eb), aneis: aneisDeAfinidade(sa, sb) };
+}
+
+/**
+ * OS ANÉIS DE AFINIDADE (pedido dos comentários das lojas, 02/11/2026: "queria ver a porcentagem de
+ * compatibilidade"). Conta pura sobre os dois signos solares: a distância entre eles no zodíaco (o aspecto da
+ * astrologia: conjunção, sextil, quadratura, trígono, oposição…) dá a base, e os elementos puxam cada anel para
+ * cima ou para baixo. Fica entre 52% e 97%: nenhum par recebe um número que soe como sentença, e a tela diz de onde
+ * a conta vem. Igual no navegador e no servidor.
+ */
+export interface AneisDeAfinidade {
+  amor: number;
+  conversa: number;
+  quimica: number;
+  confianca: number;
+  total: number;
+}
+
+const BASE_DO_ASPECTO = [82, 64, 88, 60, 94, 58, 76] as const; // distância de 0 a 6 signos
+
+export function aneisDeAfinidade(a: Signo, b: Signo): AneisDeAfinidade {
+  const ordem = ["Áries", "Touro", "Gêmeos", "Câncer", "Leão", "Virgem", "Libra", "Escorpião", "Sagitário", "Capricórnio", "Aquário", "Peixes"];
+  const bruto = Math.abs(ordem.indexOf(a) - ordem.indexOf(b));
+  const distancia = Math.min(bruto, 12 - bruto);
+  const base = BASE_DO_ASPECTO[distancia]!;
+  const ea = elementoDe(a);
+  const eb = elementoDe(b);
+  const tem = (e: Elemento) => ea === e || eb === e;
+  const par = [ea, eb].sort().join("+");
+  const limitar = (n: number) => Math.max(52, Math.min(97, Math.round(n)));
+  const amor = limitar(base + (ea === eb ? 4 : 0) + (par === "terra+água" || par === "ar+fogo" ? 3 : 0));
+  const conversa = limitar(base + (tem("ar") ? 7 : 0) + (par === "fogo+água" ? -6 : 0) + (distancia === 3 ? -3 : 0));
+  const quimica = limitar(base + (tem("fogo") ? 7 : 0) + (distancia === 6 ? 8 : 0) + (distancia === 3 ? 5 : 0));
+  const confianca = limitar(base + (tem("terra") || tem("água") ? 6 : 0) + (par === "ar+fogo" ? -4 : 0));
+  return { amor, conversa, quimica, confianca, total: Math.round((amor + conversa + quimica + confianca) / 4) };
 }
