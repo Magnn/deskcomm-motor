@@ -52,7 +52,7 @@ export async function POST(req: NextRequest, { params }: Ctx): Promise<Response>
   const manha = await manhaDoDia(admin, { id: org.id, nome: org.nome, titulo: org.config.titulo ?? "" }, {
     contactId: sessao.contactId,
     dia: diaNoFuso(agora.toISOString(), org.fuso),
-    primeiroNome: primeiroNome(nomeDoContato({ name: c.name ?? null, display_name: c.display_name ?? null })),
+    primeiroNome: primeiroNome(nomeDoContato(c)),
     nascimento: c.birthdate ?? null,
     agora,
   });
