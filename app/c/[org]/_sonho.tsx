@@ -195,7 +195,7 @@ export function SonhosNaArea({ slug, cor, tx, ts, inicial }: { slug: string; cor
               onChange={(e) => setRelato(e.target.value.slice(0, RELATO_MAXIMO))}
               rows={6}
               placeholder={ts.placeholder}
-              className="w-full resize-none rounded-2xl border border-white/10 bg-white/[0.05] p-4 text-[15px] leading-relaxed text-[#f6f0e4] placeholder:text-[#8f86a6] focus:border-[#b89cff]/60 focus:outline-none"
+              className="w-full resize-none rounded-2xl border border-white/10 bg-white/[0.05] p-4 text-[15px] leading-relaxed text-[#f6f0e4] placeholder:text-[#8f86a6] focus:border-[#b89cff]/60 focus:outline-hidden"
               data-testid="area-sonho-relato"
             />
             <p className="-mt-2 text-right text-[11px] text-[#8f86a6]">
