@@ -29,6 +29,7 @@ import { carregarCarteira, configDosCreditos } from "@/lib/area-do-cliente/credi
 import { destaqueDeHoje, fraseDoDia, lembrancaDaMesa } from "@/lib/area-do-cliente/hoje";
 import { numeroDoDia } from "@/lib/area-do-cliente/numero-do-dia";
 import { ehSigno, horoscopoDoDia } from "@/lib/area-do-cliente/horoscopo";
+import { gracasRecebidas, velaAberta } from "@/lib/area-do-cliente/intencao-servidor";
 import { temAManha } from "@/lib/area-do-cliente/manha";
 import { resumoDaLuaDoMes, temLuaDoMes } from "@/lib/area-do-cliente/lua-do-mes";
 import { ehFoco, type Foco } from "@/lib/area-do-cliente/perfil";
@@ -55,7 +56,7 @@ import { duracaoEstimada, meditacaoDaSemana } from "@/lib/area-do-cliente/medita
 import { haVozParaMeditar } from "@/lib/area-do-cliente/meditacao-voz";
 
 import { serifDaArea } from "./_fonte";
-import { textosDaCarteira, textosDaEntrada, textosDaMesa, textosDoAviso, textosDasEtapas, textosDasOfertas, textosDasSimpatias, textosDoGrimorio, textosDaLuaDoMes, textosDoChat, textosDoNavegador, textosDoRitual, textosDaMao, textosDaManha, textosDaMeditacao, textosDoSonho, textosDoPlano } from "./_textos";
+import { textosDaCarteira, textosDaEntrada, textosDaMesa, textosDoAviso, textosDasEtapas, textosDasOfertas, textosDasSimpatias, textosDoGrimorio, textosDaLuaDoMes, textosDoChat, textosDoNavegador, textosDoRitual, textosDaMao, textosDaManha, textosDaMeditacao, textosDaVela, textosDoSonho, textosDoPlano } from "./_textos";
 import { VistaDaArea, VistaDeEntrada } from "./_vista";
 
 export const dynamic = "force-dynamic";
@@ -245,6 +246,11 @@ export default async function AreaDoCliente({ params, searchParams }: Props) {
   const cfgDoPlano = configDoPlanoSemanal(org.config.plano_semanal);
   const planoDela = cfgDoPlano.ativo ? await lerPlanoSemanal(admin, org.id, sessao.contactId) : null;
   const noPlano = planoDela !== null && planoAtivo(planoDela.validoAte, agora);
+  // A vela de 7 dias (0957): a aberta dela e as graças marcadas. Acender pede o plano ou o Círculo.
+  const [velaDela, gracasDela] = await Promise.all([
+    velaAberta(admin, org.id, sessao.contactId, hoje),
+    gracasRecebidas(admin, org.id, sessao.contactId),
+  ]);
   const cfgDasLeituras = configDasLeituras(org.config.leituras);
   const mesa = cfgDasLeituras.ativo ? await carregarMesa(admin, { id: org.id, fuso: org.fuso }, sessao.contactId, cfgDasLeituras, noPlano) : null;
   // O Grimório só existe com a Mesa ligada: são as cartas das leituras dela.
@@ -527,6 +533,8 @@ export default async function AreaDoCliente({ params, searchParams }: Props) {
       tmd={textosDaMeditacao(t)}
       manha={!org.config.carta_do_dia ? null : temAManha({ noPlano, noCirculo }) ? "dela" : cfgDoPlano.ativo ? "convite" : null}
       tmanha={textosDaManha(t)}
+      vela={{ aberta: velaDela, gracas: gracasDela, podeAcender: temAManha({ noPlano, noCirculo }) }}
+      tvela={textosDaVela(t)}
       luaDoMes={luaDoMes ? { versao: hoje } : null}
       tl={textosDaLuaDoMes(t)}
       perfil={{ feito: perfilR !== null, foco }}
