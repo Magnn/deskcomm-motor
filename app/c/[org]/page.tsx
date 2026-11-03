@@ -39,7 +39,7 @@ import { SONHOS_POR_DIA, configDoSonho } from "@/lib/area-do-cliente/sonho";
 import { configDoPlanoSemanal, lerPlanoSemanal, planoAtivo } from "@/lib/area-do-cliente/plano-semanal";
 import { sonhosDoContato, sonhosHoje } from "@/lib/area-do-cliente/sonho-servidor";
 import { abaValida } from "@/lib/area-do-cliente/abas";
-import { caminhoPublicoDaArea } from "@/lib/area-do-cliente/vocabulario";
+import { caminhoPublicoDaArea, origemDaArea } from "@/lib/area-do-cliente/vocabulario";
 import { COR_PADRAO_DA_AREA } from "@/lib/area-do-cliente/config";
 import { registrarEvento } from "@/lib/area-do-cliente/eventos";
 import { urlDaMidiaDaArea } from "@/lib/area-do-cliente/midia";
@@ -221,7 +221,9 @@ export default async function AreaDoCliente({ params, searchParams }: Props) {
         .order("created_at", { ascending: false })
         .limit(10)
     : { data: null };
-  const origem = (await headers()).get("host") ? `https://${(await headers()).get("host")}` : "";
+  const host = (await headers()).get("host");
+  // O link do presente sai da área: vai com o domínio próprio dela quando há (a marca da casa).
+  const origem = origemDaArea(org.config.dominio, host ? `https://${host}` : "");
   const presentes = ((presentesData ?? []) as Array<{ id: string; codigo: string; para_nome: string | null; pergunta: string | null }>).map(
     (p) => ({ id: p.id, para: p.para_nome, link: `${origem}${caminhoDoPresente(org.config.apelido || org.slug, p.codigo)}`, usado: p.pergunta !== null }),
   );

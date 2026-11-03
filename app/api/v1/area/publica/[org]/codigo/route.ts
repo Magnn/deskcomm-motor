@@ -9,6 +9,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 
+import { emailDoCodigoDaArea } from "@/lib/area-do-cliente/email-da-area";
 import { NAO_ENCONTRADA, contextoDaArea, dentroDoLimite } from "@/lib/area-do-cliente/http";
 import { gerarCodigo, hashDoCodigo } from "@/lib/area-do-cliente/token";
 import { VALIDADE_DO_CODIGO_MIN } from "@/lib/area-do-cliente/vocabulario";
@@ -65,17 +66,19 @@ export async function POST(req: NextRequest, { params }: Ctx): Promise<Response>
   }
 
   const marca = await marcaDaSaida(org.id);
-  const titulo = org.config.titulo || org.nome;
+  const mensagem = emailDoCodigoDaArea({
+    codigo,
+    validadeMin: VALIDADE_DO_CODIGO_MIN,
+    titulo: org.config.titulo,
+    marcaDaOrganizacao: marca.nome,
+    guia: org.config.guia?.nome ?? null,
+  });
   const envio = await sendEmail({
     to: email,
-    subject: `Seu código de acesso: ${codigo}`,
-    fromName: marca.nome,
-    text: `Seu código para entrar em ${titulo} é ${codigo}. Ele vale ${VALIDADE_DO_CODIGO_MIN} minutos. Se não foi você que pediu, ignore este e-mail.`,
-    html: `<div style="font-family:system-ui,-apple-system,Segoe UI,sans-serif;max-width:420px;margin:0 auto;padding:24px;color:#1c1f24">
-<p style="font-size:15px;margin:0 0 12px">Seu código para entrar em <strong>${titulo.replace(/[<>&"]/g, "")}</strong>:</p>
-<p style="font-size:32px;letter-spacing:6px;font-weight:700;margin:0 0 16px">${codigo}</p>
-<p style="font-size:13px;color:#6b7280;margin:0">Ele vale ${VALIDADE_DO_CODIGO_MIN} minutos. Se não foi você que pediu, ignore este e-mail.</p>
-</div>`,
+    subject: mensagem.subject,
+    fromName: mensagem.fromName,
+    text: mensagem.text,
+    html: mensagem.html,
     tags: [{ name: "tipo", value: "area_codigo" }],
   });
   if (!envio.ok) {

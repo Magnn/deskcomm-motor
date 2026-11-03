@@ -15,7 +15,7 @@ import { z } from "zod";
 import { ok, fail } from "@/lib/api/wrappers";
 import { lerConfigDaArea } from "@/lib/area-do-cliente/config";
 import { registrarEvento } from "@/lib/area-do-cliente/eventos";
-import { origemPublica } from "@/lib/area-do-cliente/http";
+import { origemPublicaDaArea } from "@/lib/area-do-cliente/http";
 import { gerarToken, hashDoToken } from "@/lib/area-do-cliente/token";
 import { VALIDADE_DO_CONVITE_DIAS, caminhoPublicoDaArea } from "@/lib/area-do-cliente/vocabulario";
 import { audit } from "@/lib/audit";
@@ -61,8 +61,8 @@ export async function POST(req: NextRequest): Promise<Response> {
   const slug = (orgRow as { slug: string } | null)?.slug;
   if (!slug) return fail("not_found", "Organização não encontrada.", 404, { requestId });
 
-  const apelido = lerConfigDaArea((orgRow as { settings?: unknown } | null)?.settings).apelido;
-  const base = `${origemPublica(req)}${caminhoPublicoDaArea(slug, apelido)}/entrar/`;
+  const config = lerConfigDaArea((orgRow as { settings?: unknown } | null)?.settings);
+  const base = `${origemPublicaDaArea(req, config.dominio)}${caminhoPublicoDaArea(slug, config.apelido)}/entrar/`;
   const expira = new Date(Date.now() + VALIDADE_DO_CONVITE_DIAS * 86_400_000).toISOString();
   const admin = createAdminClient();
   const linhas = ((contatos ?? []) as Array<{ id: string; name: string | null; display_name: string | null; phone_number: string | null }>).map(

@@ -13,6 +13,7 @@ import { ipDoCliente } from "@/lib/http/ip-do-cliente";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 import { nomeDoCookieDaArea, orgDaArea, sessaoDoCookie, type OrgDaArea, type SessaoDaArea } from "./sessao";
+import { origemDaArea } from "./vocabulario";
 
 export interface ContextoDaArea {
   admin: SupabaseClient;
@@ -57,6 +58,11 @@ export function origemPublica(req: NextRequest): string {
   const protocolo = (req.headers.get("x-forwarded-proto") ?? "https").split(",")[0]?.trim() || "https";
   const repassada = host ? `${protocolo}://${host}` : null;
   return urlPublicaUsavel(repassada) ? (repassada as string) : req.nextUrl.origin;
+}
+
+/** A origem de link que sai DA ÁREA: o domínio próprio dela (`config.dominio`), senão `origemPublica`. */
+export function origemPublicaDaArea(req: NextRequest, dominio: string | null | undefined): string {
+  return origemDaArea(dominio, origemPublica(req));
 }
 
 export function paginaSimples(status: number, titulo: string, texto: string): Response {

@@ -13622,6 +13622,11 @@ export const DICIONARIO: Traducoes = {
   "Período grande: contas feitas sobre as 1.000 visitas mais recentes.": { es: "Período grande: cálculos sobre las 1.000 visitas más recientes." },
   "Endereço público": { es: "Dirección pública" },
   "ex.: cigana-esmeralda": { es: "ej.: gitana-esmeralda" },
+  "Domínio próprio": { es: "Dominio propio" },
+  "ex.: https://meumisterio.com": { es: "ej.: https://meumisterio.com" },
+  "Os links da área (conversa, convite, presente) saem com este domínio. Ele precisa já apontar para esta instalação. Vazio = o endereço da instalação.": {
+    es: "Los enlaces del área (conversación, invitación, regalo) salen con este dominio. Ya debe apuntar a esta instalación. Vacío = la dirección de la instalación.",
+  },
   "O nome que vai nos anúncios e nos links novos. O endereço antigo continua funcionando para quem já recebeu.": {
     es: "El nombre que va en los anuncios y en los enlaces nuevos. La dirección anterior sigue funcionando para quien ya la recibió.",
   },

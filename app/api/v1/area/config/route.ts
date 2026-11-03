@@ -11,7 +11,7 @@ import type { NextRequest } from "next/server";
 
 import { ok, fail } from "@/lib/api/wrappers";
 import { configDaAreaSchema, lerConfigDaArea } from "@/lib/area-do-cliente/config";
-import { origemPublica } from "@/lib/area-do-cliente/http";
+import { origemPublicaDaArea } from "@/lib/area-do-cliente/http";
 import { caminhoPublicoDaArea } from "@/lib/area-do-cliente/vocabulario";
 import { audit } from "@/lib/audit";
 import { requireRole } from "@/lib/auth/require-role";
@@ -36,7 +36,7 @@ export async function GET(req: NextRequest): Promise<Response> {
   if (!org) return fail("not_found", "Organização não encontrada.", 404, { requestId });
   const config = lerConfigDaArea(org.settings);
   return ok(
-    { config, endereco: `${origemPublica(req)}${caminhoPublicoDaArea(org.slug, config.apelido)}` },
+    { config, endereco: `${origemPublicaDaArea(req, config.dominio)}${caminhoPublicoDaArea(org.slug, config.apelido)}` },
     { requestId },
   );
 }

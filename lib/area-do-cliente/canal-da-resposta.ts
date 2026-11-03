@@ -23,7 +23,7 @@ import { lerConfigDaArea } from "./config";
 import { MARCA_DO_AVISO, ORIGEM_DA_AREA } from "./marcas";
 import { registrarEvento } from "./eventos";
 import { gerarToken, hashDoToken } from "./token";
-import { VALIDADE_DO_CONVITE_DIAS, caminhoPublicoDaArea } from "./vocabulario";
+import { VALIDADE_DO_CONVITE_DIAS, caminhoPublicoDaArea, origemDaArea } from "./vocabulario";
 
 /** Sem abrir a área há mais que isto, ela não está olhando: a resposta ganha o aviso pelo canal. */
 export const AUSENTE_DEPOIS_DE_MS = 2 * 60_000;
@@ -164,7 +164,7 @@ export async function avisoDaResposta(
     });
     if (error) return null;
     await registrarEvento(admin, { organizationId: args.organizationId, contactId: args.contactId, tipo: "convite_criado", ref: "aviso" });
-    const link = `${origem}${caminhoPublicoDaArea(slug, config.apelido)}/entrar/${token}?para=conversa`;
+    const link = `${origemDaArea(config.dominio, origem)}${caminhoPublicoDaArea(slug, config.apelido)}/entrar/${token}?para=conversa`;
     return textoDoAviso(nomeDoContato(contato as { name: string | null; display_name: string | null } | null), config.guia?.nome ?? null, link);
   } catch {
     return null;
