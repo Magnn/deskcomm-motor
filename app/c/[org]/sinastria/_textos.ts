@@ -2,7 +2,7 @@
  * Os textos do quiz da sinastria, passados pelo dicionário no servidor (`page.tsx`) e entregues prontos ao
  * navegador (`_quiz.tsx`).
  */
-import { textosDaPaginaFinal, textosDoAbrirArea } from "../_pagina-final-textos";
+import { textosDaPaginaFinal, textosDoAbrirArea, textosDoOuvir } from "../_pagina-final-textos";
 
 export function textosDoQuiz(t: (texto: string) => string) {
   return {
@@ -70,6 +70,7 @@ export function textosDoQuiz(t: (texto: string) => string) {
     menosDeUmMinuto: t("Leva menos de um minuto. Não feche a página."),
     guarde: t("Guarde esta página: o endereço abre a sua leitura neste aparelho."),
     ...textosDoAbrirArea(t),
+    ...textosDoOuvir(t),
     outrasTitulo: t("Outras leituras para você"),
     outrasBotao: t("Começar de graça"),
     seuResultado: t("O seu resultado"),

@@ -75,15 +75,15 @@ export const PUBLIC_PATHS: RegExp[] = [
   // Os quizzes de uma pessoa (0943): o pedido e o pedido pelo id; o direito é o segredo do pedido, conferido na rota.
   // "par" (O Retrato do Par, 22/10) faltava aqui: o pedido do quiz em destaque levava 401 do proxy até 02/11.
   // `/entrar`: quem pagou entra na área já logada (`lib/area-do-cliente/entrada-pela-compra.ts`).
-  /^\/api\/v1\/area\/publica\/[a-z0-9][a-z0-9-]{1,62}\/quiz\/(prosperidade|caminhos|par)(\/[0-9a-f-]{36}(\/entrar)?)?$/,
+  /^\/api\/v1\/area\/publica\/[a-z0-9][a-z0-9-]{1,62}\/quiz\/(prosperidade|caminhos|par)(\/[0-9a-f-]{36}(\/(entrar|voz))?)?$/,
   // O quiz da sinastria (0942): o pedido pelo id (UUID); quem prova o direito é o segredo do pedido, conferido na rota.
-  /^\/api\/v1\/area\/publica\/[a-z0-9][a-z0-9-]{1,62}\/sinastria\/[0-9a-f-]{36}(\/entrar)?$/,
+  /^\/api\/v1\/area\/publica\/[a-z0-9][a-z0-9-]{1,62}\/sinastria\/[0-9a-f-]{36}(\/(entrar|voz))?$/,
   // A Mesa de leituras (0937): uma leitura pelo id (UUID), revelar e ouvir. Faltava aqui desde o PR #335
   // e o proxy respondia 401 antes da rota — comprar leitura e créditos falhava em produção (achado em
   // 19/10/2026). `area-publica-atravessa-o-proxy.test.ts` cobra que TODA rota da área esteja liberada.
   /^\/api\/v1\/area\/publica\/[a-z0-9][a-z0-9-]{1,62}\/leituras\/[0-9a-f-]{36}(\/(revelar|voz))?$/,
   // A leitura da mão (0951): mandar a foto, a leitura pelo id (UUID) e liberar o resto; a sessão da área é o direito.
-  /^\/api\/v1\/area\/publica\/[a-z0-9][a-z0-9-]{1,62}\/mao(\/[0-9a-f-]{36}(\/liberar)?)?$/,
+  /^\/api\/v1\/area\/publica\/[a-z0-9][a-z0-9-]{1,62}\/mao(\/[0-9a-f-]{36}(\/(liberar|voz))?)?$/,
   // A meditação da semana falada (sem migration: o áudio fica no Storage); a sessão da área é o direito.
   /^\/api\/v1\/area\/publica\/[a-z0-9][a-z0-9-]{1,62}\/meditacao$/,
   // A pergunta de quem GANHOU o presente: sem cadastro; o código de 32 caracteres é o direito.

@@ -3,6 +3,7 @@
  * quizzes mora aqui; o título da oferta vem de cada quiz.
  */
 import type { TextosDoAbrirArea } from "./_abrir-area";
+import type { TextosDoOuvir } from "./_ouvir";
 import type { TextosDaPaginaFinal } from "./_pagina-final";
 
 export function textosDaPaginaFinal(t: (texto: string) => string, ofertaSobretitulo: string, ofertaTitulo: string): TextosDaPaginaFinal {
@@ -52,6 +53,15 @@ export function textosDaPaginaFinal(t: (texto: string) => string, ofertaSobretit
     pagarCartao: t("Quero a leitura completa"),
     gerando: t("Gerando…"),
     noBanco: t("No banco aparece Stripe Brasil, a empresa de pagamentos."),
+  };
+}
+
+/** O botão "Ouvir a leitura" das leituras longas (`_ouvir.tsx`). */
+export function textosDoOuvir(t: (texto: string) => string): TextosDoOuvir {
+  return {
+    ouvirLeitura: t("Ouvir a leitura"),
+    pausarLeitura: t("Pausar"),
+    preparandoLeitura: t("Preparando o áudio da sua leitura…"),
   };
 }
 

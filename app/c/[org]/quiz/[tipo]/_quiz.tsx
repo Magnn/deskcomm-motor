@@ -18,6 +18,7 @@ import { copyToClipboard } from "@/lib/clipboard";
 import { enviarLead, idDaVisita, manterVivo, marcarPasso } from "../../_passos";
 
 import { AbrirMinhaArea } from "../../_abrir-area";
+import { OuvirLeituraLonga } from "../../_ouvir";
 import { PaginaFinal } from "../../_pagina-final";
 import { Interludio, OutrasLeituras, PerguntaDoQuiz, Progresso, SeletorDeData, TelaDeCalculo, VideoDaGuia, type Depoimento, type OutraLeitura, type PerguntaNaTela } from "../../_quiz-pecas";
 import { CARTAO, SERIF, SOBRETITULO } from "../../_tema";
@@ -639,6 +640,7 @@ export function QuizDePessoa(props: {
         <article className={CARTAO}>
           <p className={SOBRETITULO}>{tx.produto}</p>
           {previa ? <h2 className={`${SERIF} mt-2 text-2xl text-[#f6e3a8]`}>{previa.titulo}</h2> : null}
+          {pedido ? <OuvirLeituraLonga url={`${base}/${pedido.id}/voz`} segredo={pedido.segredo} tx={tx} /> : null}
           <div className="mt-4 space-y-4 whitespace-pre-line text-[16px] leading-relaxed text-[#f6f0e4]">{texto}</div>
           <p className="mt-6 text-xs text-[#9d94b2]">{tx.guarde}</p>
         </article>
