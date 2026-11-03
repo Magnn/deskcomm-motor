@@ -111,13 +111,15 @@ export interface EntradaDeMensagem {
   /** Correlaciona a linha de auditoria com a request que a originou. */
   requestId?: string;
   /**
-   * Rótulo da origem, só para `metadata` e log.
-   *
-   * Não é decisão: nenhum passo abaixo ramifica por este valor. Serve para que,
-   * lendo o `event_log` meses depois, se saiba por onde a mensagem entrou.
+   * Rótulo da origem, para `metadata` e log: lendo o `event_log` meses depois, se sabe por onde a
+   * mensagem entrou. Uma única decisão lê este valor: a mensagem que veio da área do cliente
+   * (`ORIGEM_DA_ENTRADA_PELA_AREA`) não abre fluxo novo de entrada nem de palavra-chave.
    */
   origem: string;
 }
+
+/** A origem das mensagens escritas no chat da área do cliente (`lib/area-do-cliente/chat.ts`). */
+export const ORIGEM_DA_ENTRADA_PELA_AREA = "area_do_cliente";
 
 /**
  * Roda os três efeitos, em ordem, para uma mensagem de ENTRADA recém-gravada.
@@ -302,6 +304,9 @@ async function entrarEmFluxoPorPalavraChave(admin: Admin, entrada: EntradaDeMens
       });
       return true;
     }
+    // Quem escreve pela ÁREA do cliente não abre fluxo novo: os fluxos de entrada e de palavra-chave são
+    // roteiros do canal ("salva meu contato", áudio de boas-vindas). Na área, quem responde é o agente.
+    if (entrada.origem === ORIGEM_DA_ENTRADA_PELA_AREA) return false;
 
     let flowId = escolherFluxoPelaMensagem(fluxos, entrada.texto);
     // Sem palavra-chave casada: contato novo entra no fluxo de primeiro contato; quem já conversou fica com o agente.

@@ -44,7 +44,7 @@ export async function POST(req: NextRequest, { params }: Ctx): Promise<Response>
   const r = await receberDaArea(admin, { orgId: org.id, contactId: sessao.contactId, nome: null, conteudo: { tipo: "texto", texto: lido.data.texto } });
   if (!r.ok) {
     return r.motivo === "sem_conversa"
-      ? ERRO(409, "sem_conversa", "Ainda não há uma conversa sua com a gente. Fale pelo WhatsApp primeiro.")
+      ? ERRO(409, "sem_conversa", "O chat ainda não está disponível. Tente de novo mais tarde.")
       : ERRO(500, "internal_error", "Não foi possível enviar agora. Tente de novo.");
   }
   await marcarChatVisto(admin, org.id, sessao.contactId, sessao.sessaoId);

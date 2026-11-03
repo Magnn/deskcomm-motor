@@ -7,7 +7,7 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("@/lib/channels/pos-entrada", () => ({ aplicarEfeitosPosEntrada: vi.fn() }));
 vi.mock("@/lib/channels/marcar-conversa", () => ({ marcarConversaComMensagem: vi.fn() }));
 
-import { MARCA_DO_AVISO, mensagensDoChat, previaDaArea, tipoDoArquivo, type LinhaDaMensagem } from "@/lib/area-do-cliente/chat";
+import { MARCA_DO_AVISO, mensagensDoChat, previaDaArea, sessaoParaAArea, tipoDoArquivo, type LinhaDaMensagem } from "@/lib/area-do-cliente/chat";
 import { AUSENTE_DEPOIS_DE_MS, deveAvisar, textoDoAviso, vaiParaAArea } from "@/lib/area-do-cliente/canal-da-resposta";
 
 const linha = (p: Partial<LinhaDaMensagem> & { id: string; created_at: string }): LinhaDaMensagem => ({
@@ -88,8 +88,10 @@ describe("deveAvisar", () => {
     expect(deveAvisar({ ...base, vistoEm: antes(3_600_000), avisadoEm: antes(600_000) }, agora)).toBe(false);
     expect(deveAvisar({ ...base, vistoEm: antes(300_000), avisadoEm: antes(600_000) }, agora)).toBe(true);
   });
-  it("só para quem escreveu nas últimas 24 horas — no canal com janela, pelo canal", () => {
-    expect(deveAvisar({ ...base, ultimaEntradaEm: antes(25 * 3_600_000) }, agora)).toBe(false);
+  it("só para quem escreveu PELO CANAL nas últimas 24 horas, em qualquer canal", () => {
+    expect(deveAvisar({ ...base, ultimaEntradaPeloCanalEm: antes(25 * 3_600_000) }, agora)).toBe(false);
+    // Quem só conversa pela área (nunca escreveu pelo canal) não recebe aviso no WhatsApp.
+    expect(deveAvisar({ ...base, ultimaEntradaPeloCanalEm: null }, agora)).toBe(false);
     expect(deveAvisar({ ...base, canalExigeJanela: true, ultimaEntradaPeloCanalEm: antes(25 * 3_600_000) }, agora)).toBe(false);
     expect(deveAvisar({ ...base, canalExigeJanela: true, ultimaEntradaPeloCanalEm: null }, agora)).toBe(false);
   });
@@ -111,5 +113,25 @@ describe("textos e arquivos", () => {
   });
   it("a prévia no Desk diz que veio pela área", () => {
     expect(previaDaArea({ tipo: "arquivo", bytes: new Uint8Array(1), mime: "audio/webm", legenda: null })).toContain("pela área");
+  });
+});
+
+describe("chat aberto: onde nasce a conversa de quem nunca falou por canal nenhum", () => {
+  const s = (id: string, status = "WORKING", archived_at: string | null = null) => ({ id, status, archived_at });
+  const ag = (sid: string, priority: number, archived_at: string | null = null) => ({ priority, archived_at, version: { channel_session_id: sid } });
+
+  it("no número do agente publicado de maior prioridade (o critério do despacho)", () => {
+    expect(sessaoParaAArea([s("a"), s("b"), s("c")], [ag("a", 1), ag("b", 5)])).toBe("b");
+    expect(sessaoParaAArea([s("a"), s("b")], [{ priority: 0, archived_at: null, version: [{ channel_session_id: "b" }] }])).toBe("b");
+  });
+  it("ignora número arquivado e agente arquivado; entre iguais, o ligado vem antes", () => {
+    expect(sessaoParaAArea([s("a", "WORKING", "2026-11-01"), s("b")], [ag("a", 9), ag("b", 1)])).toBe("b");
+    expect(sessaoParaAArea([s("a"), s("b")], [ag("a", 9, "2026-11-01"), ag("b", 1)])).toBe("b");
+    expect(sessaoParaAArea([s("a", "STOPPED"), s("b", "WORKING")], [ag("a", 1), ag("b", 1)])).toBe("b");
+  });
+  it("sem agente, qualquer número ligado (a equipe responde pelo Desk); sem número, o chat fica fechado", () => {
+    expect(sessaoParaAArea([s("a", "STOPPED"), s("b")], [])).toBe("b");
+    expect(sessaoParaAArea([], [ag("a", 1)])).toBeNull();
+    expect(sessaoParaAArea([s("a", "WORKING", "2026-11-01")], [])).toBeNull();
   });
 });
