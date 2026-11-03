@@ -80,6 +80,8 @@ export const configDaAreaSchema = z.strictObject({
       nome: z.string().trim().min(1).max(40).default("Plano da Semana"),
       preco_cents: z.number().int().min(100).max(1_000_000).default(500),
       precos_internacionais: z.array(precoInternacionalSchema).max(MOEDAS_INTERNACIONAIS.length).optional(),
+      /** Créditos de boas-vindas de quem entra pela página (`entrada.ts`, 0955). Só valem com os créditos ligados. */
+      creditos_de_entrada: z.number().int().min(0).max(1000).optional(),
     })
     .optional(),
   /** O presente: uma pergunta de tarô que o cliente compra para dar a alguém. */
