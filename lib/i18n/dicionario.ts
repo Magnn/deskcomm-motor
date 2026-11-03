@@ -15334,6 +15334,7 @@ export const DICIONARIO: Traducoes = {
   "ou pague esta leitura:": { es: "o paga esta lectura:" },
   "Pergunta grátis da semana": { es: "Pregunta gratis de la semana" },
   "Cada pessoa da área faz uma leitura da Mesa por semana sem pagar (de segunda a domingo). Traz a pessoa de volta toda semana; cada leitura grátis gasta a IA de uma leitura.": { es: "Cada persona del área hace una lectura de la Mesa por semana sin pagar (de lunes a domingo). Trae a la persona de vuelta cada semana; cada lectura gratis gasta la IA de una lectura." },
+  "Preparando o áudio da sua leitura…": { es: "Preparando el audio de tu lectura…" },
   "Sua meditação da semana": { es: "Tu meditación de la semana" },
   "{n} min": { es: "{n} min" },
   "Ouvir a meditação": { es: "Escuchar la meditación" },

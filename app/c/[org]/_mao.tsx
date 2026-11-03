@@ -17,10 +17,11 @@ import type { LinhaDaMao } from "@/lib/area-do-cliente/mao";
 
 import { anunciarSaldo, useSaldo } from "./_carteira";
 import { postarJson } from "./_circulo";
+import { OuvirLeituraLonga, type TextosDoOuvir } from "./_ouvir";
 import { type TextosDaArea } from "./_client";
 import { BOTAO, SERIF, SOBRETITULO_NOTURNO } from "./_tema";
 
-export interface TextosDaMao {
+export interface TextosDaMao extends TextosDoOuvir {
   titulo: string;
   chamada: string;
   gratis: string;
@@ -332,6 +333,7 @@ export function LeituraDaMaoNaArea({ slug, cor, tx, tm, inicial }: { slug: strin
 
         {mao.paga ? (
           <div className="space-y-3 rounded-2xl bg-[#241a45] p-4 text-[#f6f0e4]" data-testid="area-mao-sintese">
+            <OuvirLeituraLonga url={`${base}/${mao.id}/voz`} tx={tm} />
             <p className={SOBRETITULO_NOTURNO}>{tm.sintese}</p>
             <p className="text-[15px] leading-relaxed">{mao.sintese}</p>
             <p className={SOBRETITULO_NOTURNO}>{tm.passo}</p>

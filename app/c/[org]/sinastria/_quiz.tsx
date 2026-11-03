@@ -20,6 +20,7 @@ import { copyToClipboard } from "@/lib/clipboard";
 import { enviarLead, idDaVisita, manterVivo, marcarPasso } from "../_passos";
 
 import { AbrirMinhaArea } from "../_abrir-area";
+import { OuvirLeituraLonga } from "../_ouvir";
 import { PaginaFinal } from "../_pagina-final";
 import { Interludio, OutrasLeituras, Progresso, SeletorDeData, TelaDeCalculo, VideoDaGuia, type Depoimento, type OutraLeitura } from "../_quiz-pecas";
 import { CARTAO, SERIF, SOBRETITULO } from "../_tema";
@@ -530,6 +531,7 @@ export function QuizDaSinastria(props: {
               {previa.signoDela} e {previa.signoDele}
             </h2>
           ) : null}
+          {pedido ? <OuvirLeituraLonga url={`/api/v1/area/publica/${slug}/sinastria/${pedido.id}/voz`} segredo={pedido.segredo} tx={tx} /> : null}
           <div className="mt-4 space-y-4 whitespace-pre-line text-[16px] leading-relaxed text-[#f6f0e4]">{texto}</div>
           <p className="mt-6 text-xs text-[#9d94b2]">{tx.guarde}</p>
         </article>

@@ -14,6 +14,7 @@ import type { TextosDasEtapas } from "./_etapas";
 import type { TextosDoGrimorio } from "./_grimorio";
 import type { TextosDaLuaDoMes } from "./_lua-do-mes";
 import type { TextosDaMao } from "./_mao";
+import { textosDoOuvir } from "./_pagina-final-textos";
 import type { TextosDaMeditacao } from "./_meditacao";
 import type { TextosDaMesa } from "./_mesa";
 import type { TextosDasOfertas } from "./_ofertas";
@@ -342,6 +343,7 @@ export function textosDoRitual(t: (s: string) => string): TextosDoRitual {
 
 export function textosDaMao(t: (s: string) => string): TextosDaMao {
   return {
+    ...textosDoOuvir(t),
     titulo: t("Leitura da mão"),
     chamada: t("O que as linhas da sua mão dizem sobre você?"),
     gratis: t("Fotografe a palma da sua mão. A linha do coração você vê na hora, de graça."),
