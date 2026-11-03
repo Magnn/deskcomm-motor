@@ -173,6 +173,8 @@ export async function carregarMesa(
   org: { id: string; fuso: string },
   contactId: string,
   cfg: ConfigDasLeituras,
+  /** Quem está com o Plano da Semana em dia tem a pergunta da semana mesmo com a pergunta grátis desligada. */
+  doPlano = false,
 ): Promise<MesaDaArea> {
   const { data } = await admin
     .from("area_leituras")
@@ -183,7 +185,7 @@ export async function carregarMesa(
     .limit(30);
   const linhas = ((data ?? []) as Array<Linha & { pagamento?: string | null }>).filter((l) => ehModalidade(l.modalidade));
   const pagasPorModalidade = new Set(linhas.filter((l) => l.pago_at && l.pagamento !== PAGAMENTO_GRATIS).map((l) => l.modalidade));
-  const gratisDaSemana = cfg.gratis_semanal ? await gratisDaSemanaLivre(admin, org, contactId) : false;
+  const gratisDaSemana = cfg.gratis_semanal || doPlano ? await gratisDaSemanaLivre(admin, org, contactId) : false;
   const hoje = diaNoFuso(new Date().toISOString(), org.fuso);
   const pagasNoDia = linhas.filter((l) => l.pago_at && diaNoFuso(l.pago_at, org.fuso) === hoje).length;
 

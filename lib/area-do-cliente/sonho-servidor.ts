@@ -13,6 +13,8 @@ import { diaNoFuso } from "./dados";
 import { registrarEvento } from "./eventos";
 import { sonhoNaTela, type LeituraDoSonho } from "./sonho";
 import { interpretarSonho } from "./sonho-ia";
+import { semanaDaMeditacao } from "./meditacao";
+import { PAGAMENTO_DO_PLANO, temPlanoSemanal } from "./plano-semanal";
 
 export interface SonhoNaTela {
   id: string;
@@ -82,10 +84,28 @@ export async function sonhosHoje(admin: SupabaseClient, org: { id: string; fuso:
 
 export type ResultadoDoRelato = { ok: true; sonho: SonhoNaTela } | { ok: false; motivo: "nao_e_sonho" | "indisponivel" };
 
-/** Interpreta o relato e grava (ainda não pago). */
+/**
+ * O sonho da semana do Plano da Semana está livre? Um por semana (de segunda a domingo, no fuso da empresa) sai
+ * inteiro para quem está com o plano em dia.
+ */
+export async function sonhoDoPlanoLivre(admin: SupabaseClient, org: { id: string; fuso: string }, contactId: string): Promise<boolean> {
+  if (!(await temPlanoSemanal(admin, org.id, contactId))) return false;
+  const { data } = await admin
+    .from("area_sonhos")
+    .select("pago_at")
+    .eq("organization_id", org.id)
+    .eq("contact_id", contactId)
+    .eq("pagamento", PAGAMENTO_DO_PLANO)
+    .gte("pago_at", new Date(Date.now() - 8 * 86_400_000).toISOString())
+    .limit(5);
+  const estaSemana = semanaDaMeditacao(diaNoFuso(new Date().toISOString(), org.fuso));
+  return !((data ?? []) as Array<{ pago_at: string }>).some((l) => semanaDaMeditacao(diaNoFuso(l.pago_at, org.fuso)) === estaSemana);
+}
+
+/** Interpreta o relato e grava — já pago quando é o sonho da semana do plano; senão, só o primeiro símbolo abre. */
 export async function contarSonho(
   admin: SupabaseClient,
-  org: { id: string; nome: string; titulo: string },
+  org: { id: string; nome: string; titulo: string; fuso: string },
   d: { contactId: string; sessaoId: string; primeiroNome: string; relato: string; precoCents: number },
 ): Promise<ResultadoDoRelato> {
   let lida: Awaited<ReturnType<typeof interpretarSonho>>;
@@ -117,6 +137,7 @@ export async function contarSonho(
       leitura: lida.leitura,
       modelo: lida.modelo,
       preco_cents: d.precoCents,
+      ...((await sonhoDoPlanoLivre(admin, org, d.contactId)) ? { pago_at: new Date().toISOString(), pagamento: PAGAMENTO_DO_PLANO } : {}),
     })
     .select(COLUNAS)
     .single();

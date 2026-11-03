@@ -16,7 +16,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 
 import { GOV_ADMIN, GOV_ORG, countAs, seedGov, sql } from "./gov-helpers";
 
-const SO_DO_SERVIDOR = ["area_codigos", "area_diario", "area_perguntas", "area_presentes", "area_ano_pessoal", "area_leituras", "area_creditos", "area_avisos", "area_perfis", "area_maos", "area_sonhos"] as const;
+const SO_DO_SERVIDOR = ["area_codigos", "area_diario", "area_perguntas", "area_presentes", "area_ano_pessoal", "area_leituras", "area_creditos", "area_avisos", "area_perfis", "area_maos", "area_sonhos", "area_planos"] as const;
 
 beforeAll(() => {
   seedGov();
@@ -43,6 +43,8 @@ beforeAll(() => {
       values ('${GOV_ORG}', '${contato}', 'amor', 'o que me pesa');
     insert into public.area_maos (organization_id, contact_id, leitura, preco_cents)
       values ('${GOV_ORG}', '${contato}', '{"linhas": []}'::jsonb, 1500);
+    insert into public.area_planos (organization_id, contact_id, plano, valido_ate)
+      values ('${GOV_ORG}', '${contato}', 'semanal', now() + interval '7 days');
     insert into public.area_sonhos (organization_id, contact_id, relato, leitura, preco_cents)
       values ('${GOV_ORG}', '${contato}', 'Sonhei com uma casa antiga cheia de água.', '{"simbolos": []}'::jsonb, 1200);
   `);

@@ -24,6 +24,7 @@ import { registrarEvento } from "@/lib/area-do-cliente/eventos";
 import { NAO_ENCONTRADA, contextoDaArea } from "@/lib/area-do-cliente/http";
 import { EXTRA_DA_LEITURA, MODALIDADES, NOME_DA_MODALIDADE, PAGAMENTO_GRATIS, cabeHoje, precoDaLeitura } from "@/lib/area-do-cliente/leituras";
 import { configDasLeituras, gratisDaSemanaLivre, jaPagouNaModalidade, pagasHoje } from "@/lib/area-do-cliente/leituras-servidor";
+import { temPlanoSemanal } from "@/lib/area-do-cliente/plano-semanal";
 import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
@@ -60,7 +61,10 @@ export async function POST(req: NextRequest, { params }: Ctx): Promise<Response>
   if (forma === "creditos" && !configDosCreditos(org.config.creditos).ativo) {
     return ERRO(422, "validation_failed", "Escolha Pix ou cartão.");
   }
-  if (forma === "gratis" && !(cfg.gratis_semanal && (await gratisDaSemanaLivre(admin, org, sessao.contactId)))) {
+  if (
+    forma === "gratis" &&
+    !((cfg.gratis_semanal || (await temPlanoSemanal(admin, org.id, sessao.contactId))) && (await gratisDaSemanaLivre(admin, org, sessao.contactId)))
+  ) {
     return ERRO(409, "gratis_usada", "A sua pergunta grátis desta semana já foi usada. Na segunda-feira tem outra.");
   }
 

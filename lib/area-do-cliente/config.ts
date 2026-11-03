@@ -58,6 +58,18 @@ export const configDaAreaSchema = z.strictObject({
       preco_cents: z.number().int().min(100).max(1_000_000).default(2900),
     })
     .optional(),
+  /**
+   * O Plano da Semana (`lib/area-do-cliente/plano-semanal.ts`, 0953): a assinatura de entrada, por 7 dias — a
+   * pergunta da semana na Mesa e um sonho interpretado inteiro. Reais com Pix ou cartão; dólar e euro no cartão.
+   */
+  plano_semanal: z
+    .strictObject({
+      ativo: z.boolean().default(false),
+      nome: z.string().trim().min(1).max(40).default("Plano da Semana"),
+      preco_cents: z.number().int().min(100).max(1_000_000).default(500),
+      precos_internacionais: z.array(precoInternacionalSchema).max(MOEDAS_INTERNACIONAIS.length).optional(),
+    })
+    .optional(),
   /** O presente: uma pergunta de tarô que o cliente compra para dar a alguém. */
   presente: z
     .strictObject({

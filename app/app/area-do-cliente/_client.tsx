@@ -822,6 +822,13 @@ function AbaConfig({ inicial }: { inicial: ConfigDaArea }) {
   const [cor, setCor] = useState(inicial.cor ?? "");
   const [cartaDoDia, setCartaDoDia] = useState(inicial.carta_do_dia ?? false);
   const [circuloAtivo, setCirculoAtivo] = useState(inicial.circulo?.ativo ?? false);
+  const [planoAtivo, setPlanoAtivo] = useState(inicial.plano_semanal?.ativo ?? false);
+  const [planoNome, setPlanoNome] = useState(inicial.plano_semanal?.nome ?? "Plano da Semana");
+  const [planoReais, setPlanoReais] = useState(((inicial.plano_semanal?.preco_cents ?? 500) / 100).toFixed(2).replace(".", ","));
+  const precoDoPlanoEm = (moeda: "USD" | "EUR") =>
+    ((inicial.plano_semanal?.precos_internacionais?.find((p) => p.currency === moeda)?.price_cents ?? 100) / 100).toFixed(2).replace(".", ",");
+  const [planoDolar, setPlanoDolar] = useState(precoDoPlanoEm("USD"));
+  const [planoEuro, setPlanoEuro] = useState(precoDoPlanoEm("EUR"));
   const [circuloNome, setCirculoNome] = useState(inicial.circulo?.nome ?? "Círculo");
   const [presenteAtivo, setPresenteAtivo] = useState(inicial.presente?.ativo ?? false);
   const [presentePreco, setPresentePreco] = useState(((inicial.presente?.preco_cents ?? 1700) / 100).toFixed(2).replace(".", ","));
@@ -885,6 +892,15 @@ function AbaConfig({ inicial }: { inicial: ConfigDaArea }) {
           ...(narrarCom === "humana" ? { voz_humana: vozHumana } : {}),
         },
         sonho: { ativo: sonhoAtivo, preco_cents: centavos(sonhoPreco, 1200) },
+        plano_semanal: {
+          ativo: planoAtivo,
+          nome: planoNome.trim() || "Plano da Semana",
+          preco_cents: centavos(planoReais, 500),
+          precos_internacionais: [
+            { currency: "USD" as const, price_cents: centavos(planoDolar, 100) },
+            { currency: "EUR" as const, price_cents: centavos(planoEuro, 100) },
+          ],
+        },
         avisos: { ativo: avisosAtivos, hora: horaDoAviso },
         creditos: {
           ativo: creditosAtivos,
@@ -962,6 +978,35 @@ function AbaConfig({ inicial }: { inicial: ConfigDaArea }) {
           <p className="text-xs text-muted-foreground">{t("Usa as fotos do baralho da leitura. Ligue só se elas estiverem cadastradas.")}</p>
         </div>
         <Switch id="area-carta" checked={cartaDoDia} onCheckedChange={setCartaDoDia} />
+      </div>
+      <div className="space-y-2 rounded-md border border-border p-3">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <Label htmlFor="area-plano">{t("Plano da Semana (assinatura de entrada)")}</Label>
+            <p className="text-xs text-muted-foreground">
+              {t("Toda semana: uma pergunta às cartas sem pagar e um sonho interpretado inteiro. 7 dias por pagamento; no Brasil Pix ou cartão, fora do Brasil cartão em dólar ou euro.")}
+            </p>
+          </div>
+          <Switch id="area-plano" checked={planoAtivo} onCheckedChange={setPlanoAtivo} data-testid="area-plano-ativo-switch" />
+        </div>
+        <div className="grid gap-3 sm:grid-cols-4">
+          <div className="sm:col-span-4">
+            <Label htmlFor="area-plano-nome">{t("Nome")}</Label>
+            <Input id="area-plano-nome" value={planoNome} maxLength={40} onChange={(e) => setPlanoNome(e.target.value)} />
+          </div>
+          <div>
+            <Label htmlFor="area-plano-reais">{t("Por semana (R$)")}</Label>
+            <Input id="area-plano-reais" inputMode="decimal" value={planoReais} onChange={(e) => setPlanoReais(e.target.value)} />
+          </div>
+          <div>
+            <Label htmlFor="area-plano-dolar">{t("Por semana (US$)")}</Label>
+            <Input id="area-plano-dolar" inputMode="decimal" value={planoDolar} onChange={(e) => setPlanoDolar(e.target.value)} />
+          </div>
+          <div>
+            <Label htmlFor="area-plano-euro">{t("Por semana (€)")}</Label>
+            <Input id="area-plano-euro" inputMode="decimal" value={planoEuro} onChange={(e) => setPlanoEuro(e.target.value)} />
+          </div>
+        </div>
       </div>
       <div className="space-y-2 rounded-md border border-border p-3">
         <div className="flex items-center justify-between">

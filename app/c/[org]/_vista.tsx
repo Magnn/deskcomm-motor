@@ -39,6 +39,7 @@ import { LuaDoMes, type TextosDaLuaDoMes } from "./_lua-do-mes";
 import { EtapaDeHoje, EtapasDaArea, LinhasDoTempo, type TextosDasEtapas } from "./_etapas";
 import { LeituraDaMaoNaArea, type MaoInicial, type TextosDaMao } from "./_mao";
 import { SonhosNaArea, type SonhoInicial, type TextosDoSonho } from "./_sonho";
+import { PlanoSemanalDoCliente, type PlanoSemanalNaArea, type TextosDoPlano } from "./_plano-semanal";
 import { MeditacaoDaSemana, type MeditacaoNaArea, type TextosDaMeditacao } from "./_meditacao";
 import { MesaDeLeituras, type MesaInicial, type TextosDaMesa } from "./_mesa";
 import { LuaDeHoje } from "./_lua";
@@ -168,6 +169,9 @@ export interface VistaDaAreaProps {
   /** A interpretação de sonhos; `null` quando a empresa não ligou. */
   sonho: SonhoInicial | null;
   tsonho: TextosDoSonho;
+  /** O Plano da Semana (0953); `null` quando a empresa não ligou. */
+  planoSemanal: PlanoSemanalNaArea | null;
+  tplano: TextosDoPlano;
   /** Os créditos (`_carteira.tsx`); `null` = desligados. */
   carteira: CarteiraInicial | null;
   creditosDoCirculo: number | null;
@@ -603,7 +607,7 @@ export function VistaDaArea(p: VistaDaAreaProps) {
   // O EXPLORAR É VITRINE (`_vitrine.tsx`): prateleiras de cartões, e o conteúdo e o pagamento só na gaveta, depois
   // do toque. Era uma coluna de onze blocos e cinco mil pixels, com "Pagar com Pix" aparecendo antes do desejo.
   const temCaminho = p.grimorio.length > 0 || p.luaDoMes !== null;
-  const temSoParaVoce = p.anoPessoal !== null || p.circulo !== null || p.presente !== null;
+  const temSoParaVoce = p.anoPessoal !== null || p.circulo !== null || p.presente !== null || p.planoSemanal !== null;
   // A LOJA (antes "Explorar"): o desenho das lojas de streaming — um destaque grande no alto e prateleiras de
   // cartões em pé que deslizam. O destaque é o trabalho marcado "para você" (ou o primeiro), e sai da prateleira.
   const destaqueDaLoja = vitrine.find((sv) => sv.destaque) ?? vitrine[0] ?? null;
@@ -709,6 +713,20 @@ export function VistaDaArea(p: VistaDaAreaProps) {
 
         {temSoParaVoce ? (
           <Prateleira titulo={t("Só para você")} testId="area-prateleira-so-para-voce">
+            {p.planoSemanal ? (
+              <CartaoDaVitrine
+                formato="poster"
+                icone="estrela"
+                tema="estrela"
+                tom="lilas"
+                sobretitulo={p.planoSemanal.ativo ? t("Ativo") : null}
+                titulo={p.planoSemanal.nome}
+                linha={t("Toda semana, uma pergunta às cartas e um sonho interpretado.")}
+                preco={null}
+              >
+                <PlanoSemanalDoCliente slug={slug} cor={cor} tx={tx} tp={p.tplano} plano={p.planoSemanal} />
+              </CartaoDaVitrine>
+            ) : null}
             {p.circulo ? (
               <CartaoDaVitrine
                 formato="poster"

@@ -36,6 +36,7 @@ import { carregarGrimorio, carregarMesa, configDasLeituras } from "@/lib/area-do
 import { FOTOS_POR_DIA, configDaMao } from "@/lib/area-do-cliente/mao";
 import { fotosHoje, maosDoContato } from "@/lib/area-do-cliente/mao-servidor";
 import { SONHOS_POR_DIA, configDoSonho } from "@/lib/area-do-cliente/sonho";
+import { configDoPlanoSemanal, lerPlanoSemanal, planoAtivo } from "@/lib/area-do-cliente/plano-semanal";
 import { sonhosDoContato, sonhosHoje } from "@/lib/area-do-cliente/sonho-servidor";
 import { abaValida } from "@/lib/area-do-cliente/abas";
 import { caminhoPublicoDaArea } from "@/lib/area-do-cliente/vocabulario";
@@ -54,7 +55,7 @@ import { duracaoEstimada, meditacaoDaSemana } from "@/lib/area-do-cliente/medita
 import { haVozParaMeditar } from "@/lib/area-do-cliente/meditacao-voz";
 
 import { serifDaArea } from "./_fonte";
-import { textosDaCarteira, textosDaEntrada, textosDaMesa, textosDoAviso, textosDasEtapas, textosDasOfertas, textosDasSimpatias, textosDoGrimorio, textosDaLuaDoMes, textosDoChat, textosDoNavegador, textosDoRitual, textosDaMao, textosDaMeditacao, textosDoSonho } from "./_textos";
+import { textosDaCarteira, textosDaEntrada, textosDaMesa, textosDoAviso, textosDasEtapas, textosDasOfertas, textosDasSimpatias, textosDoGrimorio, textosDaLuaDoMes, textosDoChat, textosDoNavegador, textosDoRitual, textosDaMao, textosDaMeditacao, textosDoSonho, textosDoPlano } from "./_textos";
 import { VistaDaArea, VistaDeEntrada } from "./_vista";
 
 export const dynamic = "force-dynamic";
@@ -237,8 +238,12 @@ export default async function AreaDoCliente({ params, searchParams }: Props) {
         .maybeSingle()
     : { data: null };
 
+  // O Plano da Semana (0953): a pergunta da semana na Mesa e um sonho inteiro por semana, para quem está em dia.
+  const cfgDoPlano = configDoPlanoSemanal(org.config.plano_semanal);
+  const planoDela = cfgDoPlano.ativo ? await lerPlanoSemanal(admin, org.id, sessao.contactId) : null;
+  const noPlano = planoDela !== null && planoAtivo(planoDela.validoAte, agora);
   const cfgDasLeituras = configDasLeituras(org.config.leituras);
-  const mesa = cfgDasLeituras.ativo ? await carregarMesa(admin, { id: org.id, fuso: org.fuso }, sessao.contactId, cfgDasLeituras) : null;
+  const mesa = cfgDasLeituras.ativo ? await carregarMesa(admin, { id: org.id, fuso: org.fuso }, sessao.contactId, cfgDasLeituras, noPlano) : null;
   // O Grimório só existe com a Mesa ligada: são as cartas das leituras dela.
   const grimorio = mesa ? await carregarGrimorio(admin, org.id, sessao.contactId) : [];
   // "Sua lua do mês": aparece quando o mês já tem uma leitura ou uma página de diário. A conta exata (todas as
@@ -415,6 +420,20 @@ export default async function AreaDoCliente({ params, searchParams }: Props) {
           : null
       }
       tsonho={textosDoSonho(t)}
+      planoSemanal={
+        cfgDoPlano.ativo && (cfgDasLeituras.ativo || cfgDoSonho.ativo)
+          ? {
+              nome: t(cfgDoPlano.nome),
+              preco_cents: cfgDoPlano.preco_cents,
+              precos_internacionais: cfgDoPlano.precos_internacionais,
+              ativo: noPlano,
+              ate: noPlano && planoDela ? dataCurta(planoDela.validoAte, org.fuso, tag) : null,
+              temMesa: cfgDasLeituras.ativo,
+              temSonho: cfgDoSonho.ativo,
+            }
+          : null
+      }
+      tplano={textosDoPlano(t)}
       carteira={
         carteira
           ? {
