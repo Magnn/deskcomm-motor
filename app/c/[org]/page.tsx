@@ -35,6 +35,8 @@ import { vePassoAPasso } from "@/lib/area-do-cliente/simpatias";
 import { carregarGrimorio, carregarMesa, configDasLeituras } from "@/lib/area-do-cliente/leituras-servidor";
 import { FOTOS_POR_DIA, configDaMao } from "@/lib/area-do-cliente/mao";
 import { fotosHoje, maosDoContato } from "@/lib/area-do-cliente/mao-servidor";
+import { SONHOS_POR_DIA, configDoSonho } from "@/lib/area-do-cliente/sonho";
+import { sonhosDoContato, sonhosHoje } from "@/lib/area-do-cliente/sonho-servidor";
 import { abaValida } from "@/lib/area-do-cliente/abas";
 import { caminhoPublicoDaArea } from "@/lib/area-do-cliente/vocabulario";
 import { COR_PADRAO_DA_AREA } from "@/lib/area-do-cliente/config";
@@ -52,7 +54,7 @@ import { duracaoEstimada, meditacaoDaSemana } from "@/lib/area-do-cliente/medita
 import { haVozParaMeditar } from "@/lib/area-do-cliente/meditacao-voz";
 
 import { serifDaArea } from "./_fonte";
-import { textosDaCarteira, textosDaEntrada, textosDaMesa, textosDoAviso, textosDasEtapas, textosDasOfertas, textosDasSimpatias, textosDoGrimorio, textosDaLuaDoMes, textosDoChat, textosDoNavegador, textosDoRitual, textosDaMao, textosDaMeditacao } from "./_textos";
+import { textosDaCarteira, textosDaEntrada, textosDaMesa, textosDoAviso, textosDasEtapas, textosDasOfertas, textosDasSimpatias, textosDoGrimorio, textosDaLuaDoMes, textosDoChat, textosDoNavegador, textosDoRitual, textosDaMao, textosDaMeditacao, textosDoSonho } from "./_textos";
 import { VistaDaArea, VistaDeEntrada } from "./_vista";
 
 export const dynamic = "force-dynamic";
@@ -295,6 +297,11 @@ export default async function AreaDoCliente({ params, searchParams }: Props) {
   const [maos, fotosDeHoje] = cfgDaMao.ativo
     ? await Promise.all([maosDoContato(admin, org.id, sessao.contactId), fotosHoje(admin, { id: org.id, fuso: org.fuso }, sessao.contactId)])
     : [[], 0];
+  // A interpretação de sonhos (0952): o primeiro símbolo de graça, o resto pago. Ligada pela empresa no painel.
+  const cfgDoSonho = configDoSonho(org.config.sonho);
+  const [sonhos, sonhosDeHoje] = cfgDoSonho.ativo
+    ? await Promise.all([sonhosDoContato(admin, org.id, sessao.contactId), sonhosHoje(admin, { id: org.id, fuso: org.fuso }, sessao.contactId)])
+    : [[], 0];
 
   return (
     <VistaDaArea
@@ -396,6 +403,18 @@ export default async function AreaDoCliente({ params, searchParams }: Props) {
           : null
       }
       tmao={textosDaMao(t)}
+      sonho={
+        cfgDoSonho.ativo
+          ? {
+              preco: dinheiro(cfgDoSonho.preco_cents, "BRL"),
+              creditos: creditosDoPreco(cfgDoSonho.preco_cents),
+              saldo: carteira ? carteira.saldo : null,
+              restamHoje: Math.max(0, SONHOS_POR_DIA - sonhosDeHoje),
+              sonhos,
+            }
+          : null
+      }
+      tsonho={textosDoSonho(t)}
       carteira={
         carteira
           ? {

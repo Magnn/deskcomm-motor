@@ -192,6 +192,16 @@ export const configDaAreaSchema = z.strictObject({
     })
     .optional(),
   /**
+   * A interpretação de sonhos (`lib/area-do-cliente/sonho.ts`): o primeiro símbolo de graça, o resto pago.
+   * Desligada até a empresa ligar no painel (`configDoSonho`).
+   */
+  sonho: z
+    .strictObject({
+      ativo: z.boolean().optional(),
+      preco_cents: z.number().int().min(100).max(1_000_000).optional(),
+    })
+    .optional(),
+  /**
    * Os créditos (`lib/area-do-cliente/creditos.ts`): uma carteira para tudo na área. A pessoa compra um dos
    * `pacotes` e paga as leituras com créditos; o Círculo dá `circulo_mensal` créditos a cada mês pago.
    * Desligados por padrão.

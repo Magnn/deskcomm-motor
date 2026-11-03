@@ -17,6 +17,7 @@ import { EXTRA_DOS_CREDITOS } from "./creditos";
 import { creditarCirculo, moverCreditos } from "./creditos-servidor";
 import { EXTRA_DA_LEITURA } from "./leituras";
 import { EXTRA_DA_MAO } from "./mao";
+import { EXTRA_DO_SONHO } from "./sonho";
 import { registrarEvento } from "./eventos";
 import { EXTRA_DO_PRESENTE } from "./presente";
 import { tipoDoExtra } from "./quizzes";
@@ -66,6 +67,23 @@ export async function liberarCompraDaArea(
     const paga = (data ?? [])[0] as { modalidade: string } | undefined;
     if (paga) {
       await registrarEvento(admin, { organizationId, contactId, tipo: "leitura_paga", props: { modalidade: paga.modalidade, metodo } });
+    }
+    return;
+  }
+  if (extra === EXTRA_DO_SONHO) {
+    const sonhoId = meta.sonho_id;
+    if (!sonhoId || !UUID.test(sonhoId)) return;
+    const { data, error } = await admin
+      .from("area_sonhos")
+      .update({ pago_at: new Date().toISOString(), pagamento: pagamentoId })
+      .eq("id", sonhoId)
+      .eq("organization_id", organizationId)
+      .eq("contact_id", contactId)
+      .is("pago_at", null)
+      .select("id");
+    if (error) throw new Error(error.message);
+    if (data && data.length > 0) {
+      await registrarEvento(admin, { organizationId, contactId, tipo: "sonho_pago", props: { metodo } });
     }
     return;
   }

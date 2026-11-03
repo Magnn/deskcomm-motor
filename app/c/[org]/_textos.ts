@@ -14,6 +14,7 @@ import type { TextosDasEtapas } from "./_etapas";
 import type { TextosDoGrimorio } from "./_grimorio";
 import type { TextosDaLuaDoMes } from "./_lua-do-mes";
 import type { TextosDaMao } from "./_mao";
+import type { TextosDoSonho } from "./_sonho";
 import { textosDoOuvir } from "./_pagina-final-textos";
 import type { TextosDaMeditacao } from "./_meditacao";
 import type { TextosDaMesa } from "./_mesa";
@@ -382,6 +383,37 @@ export function textosDaMao(t: (s: string) => string): TextosDaMao {
       destino: t("caminho e propósito"),
       sol: t("brilho e reconhecimento"),
     },
+  };
+}
+
+/** A interpretação de sonhos (`_sonho.tsx`). */
+export function textosDoSonho(t: (s: string) => string): TextosDoSonho {
+  return {
+    titulo: t("Interpretação de sonhos"),
+    chamada: t("O que o seu sonho quer te dizer?"),
+    gratis: t("Conte o que você sonhou. O símbolo principal do sonho você vê na hora, de graça."),
+    placeholder: t("Eu estava numa casa antiga, a água começou a subir e minha mãe me chamava da janela…"),
+    caracteres: t("caracteres"),
+    interpretar: t("Interpretar meu sonho"),
+    privacidade: t("Só você vê o seu sonho aqui na sua área."),
+    lendo: t("Lendo os símbolos do seu sonho…"),
+    lendoDica: t("Isso leva alguns segundos."),
+    automatica: t("Interpretação feita na hora a partir do que você contou, como símbolo e reflexão, nunca como previsão."),
+    seuSonho: t("O seu sonho"),
+    abrirTudo: t("Abra a interpretação inteira"),
+    abrirTudoTexto: t("Os outros símbolos, a mensagem do sonho e um passo para os próximos dias"),
+    usarCreditos: t("Usar créditos"),
+    creditos: t("créditos"),
+    seusCreditos: t("Seus créditos"),
+    pagarComPix: t("Pagar com Pix"),
+    pagarComCartao: t("Pagar com cartão"),
+    esperandoPagamento: t("Esperando o pagamento"),
+    copiarCodigo: t("Copiar código Pix"),
+    codigoCopiado: t("Código copiado."),
+    mensagem: t("A mensagem do sonho"),
+    passo: t("Um passo para os próximos dias"),
+    outroSonho: t("Contar outro sonho"),
+    limiteDoDia: t("Por hoje já lemos os seus sonhos. Amanhã você pode contar outro."),
   };
 }
 

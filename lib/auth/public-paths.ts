@@ -83,6 +83,8 @@ export const PUBLIC_PATHS: RegExp[] = [
   // 19/10/2026). `area-publica-atravessa-o-proxy.test.ts` cobra que TODA rota da área esteja liberada.
   /^\/api\/v1\/area\/publica\/[a-z0-9][a-z0-9-]{1,62}\/leituras\/[0-9a-f-]{36}(\/(revelar|voz))?$/,
   // A leitura da mão (0951): mandar a foto, a leitura pelo id (UUID) e liberar o resto; a sessão da área é o direito.
+  // A interpretação de sonhos (0952): contar o sonho, ele pelo id (UUID), e liberar o resto; a sessão da área é o direito.
+  /^\/api\/v1\/area\/publica\/[a-z0-9][a-z0-9-]{1,62}\/sonho(\/[0-9a-f-]{36}(\/liberar)?)?$/,
   /^\/api\/v1\/area\/publica\/[a-z0-9][a-z0-9-]{1,62}\/mao(\/[0-9a-f-]{36}(\/(liberar|voz))?)?$/,
   // A meditação da semana falada (sem migration: o áudio fica no Storage); a sessão da área é o direito.
   /^\/api\/v1\/area\/publica\/[a-z0-9][a-z0-9-]{1,62}\/meditacao$/,

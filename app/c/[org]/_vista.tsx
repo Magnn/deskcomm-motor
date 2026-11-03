@@ -38,6 +38,7 @@ import { GrimorioDaArea, type CartaNoGrimorio, type TextosDoGrimorio } from "./_
 import { LuaDoMes, type TextosDaLuaDoMes } from "./_lua-do-mes";
 import { EtapaDeHoje, EtapasDaArea, LinhasDoTempo, type TextosDasEtapas } from "./_etapas";
 import { LeituraDaMaoNaArea, type MaoInicial, type TextosDaMao } from "./_mao";
+import { SonhosNaArea, type SonhoInicial, type TextosDoSonho } from "./_sonho";
 import { MeditacaoDaSemana, type MeditacaoNaArea, type TextosDaMeditacao } from "./_meditacao";
 import { MesaDeLeituras, type MesaInicial, type TextosDaMesa } from "./_mesa";
 import { LuaDeHoje } from "./_lua";
@@ -164,6 +165,9 @@ export interface VistaDaAreaProps {
   /** A leitura da mão pela foto; `null` quando a empresa não ligou. */
   mao: MaoInicial | null;
   tmao: TextosDaMao;
+  /** A interpretação de sonhos; `null` quando a empresa não ligou. */
+  sonho: SonhoInicial | null;
+  tsonho: TextosDoSonho;
   /** Os créditos (`_carteira.tsx`); `null` = desligados. */
   carteira: CarteiraInicial | null;
   creditosDoCirculo: number | null;
@@ -699,6 +703,7 @@ export function VistaDaArea(p: VistaDaAreaProps) {
 
         {p.carteira ? <CarteiraDeCreditos slug={slug} cor={cor} tx={tx} tc={p.tc} inicial={p.carteira} tag={tag} /> : null}
         {p.mao ? <LeituraDaMaoNaArea slug={slug} cor={cor} tx={tx} tm={p.tmao} inicial={p.mao} /> : null}
+        {p.sonho ? <SonhosNaArea slug={slug} cor={cor} tx={tx} ts={p.tsonho} inicial={p.sonho} /> : null}
         {/* A Mesa fica inteira, depois das prateleiras de trabalho: é o ritual da área, não um produto de prateleira. */}
         {p.mesa ? <MesaDeLeituras slug={slug} cor={cor} tx={tx} tm={p.tm} inicial={p.mesa} sugestoes={p.perfil.foco ? PERGUNTAS_DO_FOCO[p.perfil.foco].map((q) => t(q)) : []} whatsapp={p.whatsapp} tag={tag} /> : null}
 
