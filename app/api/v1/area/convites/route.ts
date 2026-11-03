@@ -11,7 +11,7 @@ import { z } from "zod";
 import { ok, fail } from "@/lib/api/wrappers";
 import { lerConfigDaArea } from "@/lib/area-do-cliente/config";
 import { registrarEvento } from "@/lib/area-do-cliente/eventos";
-import { origemPublica } from "@/lib/area-do-cliente/http";
+import { origemPublicaDaArea } from "@/lib/area-do-cliente/http";
 import { gerarToken, hashDoToken } from "@/lib/area-do-cliente/token";
 import { VALIDADE_DO_CONVITE_DIAS, caminhoPublicoDaArea } from "@/lib/area-do-cliente/vocabulario";
 import { audit } from "@/lib/audit";
@@ -69,9 +69,10 @@ export async function POST(req: NextRequest): Promise<Response> {
     resourceId: lido.data.contact_id,
     requestId,
   });
+  const configDaOrg = lerConfigDaArea((org as { settings?: unknown }).settings);
   return ok(
     {
-      link: `${origemPublica(req)}${caminhoPublicoDaArea(slug, lerConfigDaArea((org as { settings?: unknown }).settings).apelido)}/entrar/${token}`,
+      link: `${origemPublicaDaArea(req, configDaOrg.dominio)}${caminhoPublicoDaArea(slug, configDaOrg.apelido)}/entrar/${token}`,
       expira: expira.toISOString(),
     },
     { requestId, status: 201 },

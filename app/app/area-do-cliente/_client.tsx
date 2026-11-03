@@ -819,6 +819,7 @@ function AbaConfig({ inicial }: { inicial: ConfigDaArea }) {
   const [boasVindas, setBoasVindas] = useState(inicial.boas_vindas ?? "");
   const [whatsapp, setWhatsapp] = useState(inicial.whatsapp ?? "");
   const [apelido, setApelido] = useState(inicial.apelido ?? "");
+  const [dominio, setDominio] = useState(inicial.dominio ?? "");
   const [cor, setCor] = useState(inicial.cor ?? "");
   const [cartaDoDia, setCartaDoDia] = useState(inicial.carta_do_dia ?? false);
   const [circuloAtivo, setCirculoAtivo] = useState(inicial.circulo?.ativo ?? false);
@@ -920,6 +921,7 @@ function AbaConfig({ inicial }: { inicial: ConfigDaArea }) {
         whatsapp: whatsapp.replace(/\D/g, "") || undefined,
         cor: cor.trim() || undefined,
         apelido: apelido.trim().toLowerCase() || undefined,
+        dominio: dominio.trim().toLowerCase().replace(/\/+$/, "") || undefined,
       }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["area"] });
@@ -955,6 +957,20 @@ function AbaConfig({ inicial }: { inicial: ConfigDaArea }) {
         </div>
         <p className="mt-1 text-xs text-muted-foreground">
           {t("O nome que vai nos anúncios e nos links novos. O endereço antigo continua funcionando para quem já recebeu.")}
+        </p>
+      </div>
+      <div>
+        <Label htmlFor="area-dominio">{t("Domínio próprio")}</Label>
+        <Input
+          id="area-dominio"
+          value={dominio}
+          maxLength={120}
+          inputMode="url"
+          placeholder={t("ex.: https://www.example.com")}
+          onChange={(e) => setDominio(e.target.value)}
+        />
+        <p className="mt-1 text-xs text-muted-foreground">
+          {t("Os links da área (conversa, convite, presente) saem com este domínio. Ele precisa já apontar para esta instalação. Vazio = o endereço da instalação.")}
         </p>
       </div>
       <div>

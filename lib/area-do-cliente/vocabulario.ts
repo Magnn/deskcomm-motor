@@ -98,3 +98,21 @@ export function caminhoDaArea(slugDaOrganizacao: string): string {
 export function caminhoPublicoDaArea(slugDaOrganizacao: string, apelido?: string | null): string {
   return caminhoDaArea(apelido || slugDaOrganizacao);
 }
+
+/**
+ * O domínio próprio da área (`config.dominio`): só a origem, em https, sem caminho nem barra no fim
+ * (ex.: `https://www.example.com`). É a marca da casa no link: quem recebe o link pela conversa, por
+ * convite ou de presente vê o nome da marca, e não o endereço da instalação.
+ */
+export const FORMA_DO_DOMINIO_DA_AREA = /^https:\/\/[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/;
+
+/**
+ * A origem dos links que SAEM da área. Com domínio próprio válido, ele; senão, a origem de sempre
+ * (`NEXT_PUBLIC_APP_URL` ou o host da requisição), que quem chama já resolveu. Nunca lança: domínio
+ * fora da forma (config antiga, edição manual no banco) cai na origem de sempre em vez de mandar
+ * um link quebrado.
+ */
+export function origemDaArea(dominio: string | null | undefined, origemPadrao: string): string {
+  const d = (dominio ?? "").trim().toLowerCase().replace(/\/+$/, "");
+  return FORMA_DO_DOMINIO_DA_AREA.test(d) ? d : origemPadrao.replace(/\/+$/, "");
+}

@@ -21,7 +21,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { lerConfigDaArea } from "./config";
 import { registrarEvento } from "./eventos";
 import { gerarToken, hashDoToken } from "./token";
-import { VALIDADE_DO_CONVITE_DIAS, caminhoPublicoDaArea } from "./vocabulario";
+import { VALIDADE_DO_CONVITE_DIAS, caminhoPublicoDaArea, origemDaArea } from "./vocabulario";
 
 export const MARCA_DA_AREA = "[[AREA_DO_CLIENTE]]";
 /** O `ref` do convite criado pela conversa — distingue do criado à mão na tela. */
@@ -127,7 +127,7 @@ export async function linkDaAreaNoLugarDaMarca(args: {
     ref: REF_DA_CONVERSA,
   });
 
-  const apelido = lerConfigDaArea((org as { settings?: unknown } | null)?.settings).apelido;
-  const link = `${origem}${caminhoPublicoDaArea(slug, apelido)}/entrar/${token}`;
+  const config = lerConfigDaArea((org as { settings?: unknown } | null)?.settings);
+  const link = `${origemDaArea(config.dominio, origem)}${caminhoPublicoDaArea(slug, config.apelido)}/entrar/${token}`;
   return { corpo: args.corpo.split(MARCA_DA_AREA).join(link) };
 }

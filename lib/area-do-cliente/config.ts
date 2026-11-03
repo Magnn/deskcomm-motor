@@ -11,7 +11,7 @@ import { z } from "zod";
 import { MOEDAS_INTERNACIONAIS, precoInternacionalSchema } from "@/lib/preco/tipos";
 
 import { caminhoDaMidiaSchema } from "./midia";
-import { FORMA_DO_SLUG_DA_AREA } from "./vocabulario";
+import { FORMA_DO_DOMINIO_DA_AREA, FORMA_DO_SLUG_DA_AREA } from "./vocabulario";
 
 export const configDaAreaSchema = z.strictObject({
   ativo: z.boolean().default(false),
@@ -26,6 +26,18 @@ export const configDaAreaSchema = z.strictObject({
     .trim()
     .toLowerCase()
     .regex(FORMA_DO_SLUG_DA_AREA, "só letras minúsculas, números e hífen (ex.: cigana-esmeralda)")
+    .optional(),
+  /**
+   * O DOMÍNIO PRÓPRIO da área (ex.: `https://www.example.com`): a origem de todo link que sai dela
+   * (conversa, convite, presente). O domínio tem de apontar para esta instalação; o proxy é quem
+   * decide o que serve nele. Vazio = o endereço da instalação.
+   */
+  dominio: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .transform((v) => v.replace(/\/+$/, ""))
+    .pipe(z.string().regex(FORMA_DO_DOMINIO_DA_AREA, "só a origem, com https (ex.: https://www.example.com)"))
     .optional(),
   /** Título no topo da área. Vazio = o nome de exibição da organização. */
   titulo: z.string().trim().max(60).optional(),
