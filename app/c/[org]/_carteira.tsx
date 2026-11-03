@@ -38,7 +38,7 @@ export interface TextosDaCarteira {
   extrato: string;
   semMovimento: string;
   voltar: string;
-  motivos: Record<"pacote" | "circulo" | "leitura" | "devolucao" | "ajuste", string>;
+  motivos: Record<"pacote" | "circulo" | "leitura" | "devolucao" | "ajuste" | "boas_vindas", string>;
 }
 
 export interface CarteiraInicial {

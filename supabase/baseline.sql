@@ -40217,3 +40217,34 @@ create index if not exists area_planos_renovacao_idx on public.area_planos (vali
 
 comment on column public.area_planos.renova is
   'Renovação sozinha no cartão (0954): ligada pelo pagamento no cartão, desligada pelo cancelamento ou após 3 recusas.';
+
+-- ---- a entrada pelo plano de 7 dias, vendida na página (migration 0955) ----
+create table if not exists public.area_entradas (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references public.organizations(id) on delete cascade,
+  contact_id uuid not null references public.contacts(id) on delete cascade,
+  nome text not null check (char_length(nome) between 1 and 80),
+  nascimento date,
+  foco text not null check (foco in ('amor', 'dinheiro', 'caminhos', 'eu')),
+  moeda text not null default 'BRL' check (moeda in ('BRL', 'USD', 'EUR')),
+  segredo_hash text not null check (char_length(segredo_hash) = 64),
+  pagamento text,
+  pago_at timestamptz,
+  created_at timestamptz not null default now()
+);
+create index if not exists area_entradas_pessoa_idx on public.area_entradas (organization_id, contact_id, created_at desc);
+
+comment on table public.area_entradas is
+  'A entrada pelo plano de 7 dias vendida na página (migration 0955). Nasce antes do pagamento; o aviso da Stripe marca pago_at, estende o plano e credita as boas-vindas. Abre a área pelo segredo do pedido. A equipe lê; só o servidor escreve.';
+
+alter table public.area_entradas enable row level security;
+drop policy if exists tenant_isolation_area_entradas_select on public.area_entradas;
+create policy tenant_isolation_area_entradas_select on public.area_entradas
+  for select
+  using (organization_id in (select public.fn_user_org_ids()) or public.fn_is_platform_admin());
+revoke all on public.area_entradas from anon;
+revoke insert, update, delete, truncate on public.area_entradas from authenticated;
+
+alter table public.area_creditos drop constraint if exists area_creditos_motivo_check;
+alter table public.area_creditos add constraint area_creditos_motivo_check
+  check (motivo in ('pacote', 'circulo', 'leitura', 'devolucao', 'ajuste', 'boas_vindas'));

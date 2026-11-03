@@ -240,6 +240,7 @@ export function textosDaCarteira(t: (s: string) => string): TextosDaCarteira {
       leitura: t("Leitura na mesa"),
       devolucao: t("Devolução"),
       ajuste: t("Ajuste"),
+      boas_vindas: t("Boas-vindas do plano"),
     },
   };
 }

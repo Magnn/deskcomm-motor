@@ -13,8 +13,11 @@ import { criarSessao, type OrgDaArea, type SessaoCriada } from "./sessao";
 import { hashDoToken } from "./token";
 import { caminhoPublicoDaArea } from "./vocabulario";
 
-/** As tabelas de pedido pago que abrem a área: os quizzes de uma pessoa (0943) e a sinastria (0942). */
-export type PedidoQueAbreAArea = { tabela: "area_quiz_pedidos"; tipo: string } | { tabela: "area_sinastrias" };
+/** As tabelas de pedido pago que abrem a área: os quizzes de uma pessoa (0943), a sinastria (0942) e a entrada do plano (0955). */
+export type PedidoQueAbreAArea =
+  | { tabela: "area_quiz_pedidos"; tipo: string }
+  | { tabela: "area_sinastrias" }
+  | { tabela: "area_entradas" };
 
 export type EntradaPelaCompra =
   | { ok: true; sessao: SessaoCriada; caminho: string }
@@ -46,7 +49,10 @@ export async function entrarPelaCompra(
     contactId: achado.contact_id,
     tipo: "entrou",
     sessaoId: sessao.sessaoId,
-    props: { origem: "quiz", pedido: pedido.tabela === "area_quiz_pedidos" ? pedido.tipo : "sinastria" },
+    props:
+      pedido.tabela === "area_entradas"
+        ? { origem: "entrada", pedido: "entrada" }
+        : { origem: "quiz", pedido: pedido.tabela === "area_quiz_pedidos" ? pedido.tipo : "sinastria" },
   });
   return { ok: true, sessao, caminho: caminhoPublicoDaArea(org.slug, org.config.apelido) };
 }

@@ -14,7 +14,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { EXTRA_DO_ANO_PESSOAL } from "./ano-pessoal";
 import { EXTRA_DO_CIRCULO } from "./circulo";
 import { EXTRA_DOS_CREDITOS } from "./creditos";
-import { creditarCirculo, moverCreditos } from "./creditos-servidor";
+import { creditarBoasVindas, creditarCirculo, moverCreditos } from "./creditos-servidor";
 import { EXTRA_DA_LEITURA } from "./leituras";
 import { EXTRA_DA_MAO } from "./mao";
 import { EXTRA_DO_SONHO } from "./sonho";
@@ -80,8 +80,28 @@ export async function liberarCompraDaArea(
         organizationId,
         contactId,
         tipo: "plano_ativado",
-        props: { valido_ate: ativado.validoAte, metodo, moeda: meta.moeda ?? "BRL", renova: cartao !== null, renovacao: meta.renovacao === "1" },
+        props: {
+          valido_ate: ativado.validoAte,
+          metodo,
+          moeda: meta.moeda ?? "BRL",
+          renova: cartao !== null,
+          renovacao: meta.renovacao === "1",
+          origem: meta.entrada_id ? "entrada" : "area",
+        },
       });
+    }
+    // A entrada pela página (0955): marca o pedido (é ele que abre a área) e dá as boas-vindas, uma vez por pessoa.
+    const entradaId = meta.entrada_id;
+    if (entradaId && UUID.test(entradaId)) {
+      const { error } = await admin
+        .from("area_entradas")
+        .update({ pago_at: new Date().toISOString(), pagamento: pagamentoId })
+        .eq("id", entradaId)
+        .eq("organization_id", organizationId)
+        .eq("contact_id", contactId)
+        .is("pago_at", null);
+      if (error) throw new Error(error.message);
+      await creditarBoasVindas(admin, organizationId, contactId);
     }
     return;
   }

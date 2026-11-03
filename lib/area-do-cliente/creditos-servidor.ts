@@ -7,8 +7,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { lerConfigDaArea } from "./config";
 import { CREDITOS_DO_CIRCULO_PADRAO, PACOTES_PADRAO, type ConfigDosCreditos } from "./creditos";
+import { CREDITOS_DE_BOAS_VINDAS_PADRAO, referenciaDasBoasVindas } from "./entrada";
 
-export type MotivoDoMovimento = "pacote" | "circulo" | "leitura" | "devolucao" | "ajuste";
+export type MotivoDoMovimento = "pacote" | "circulo" | "leitura" | "devolucao" | "ajuste" | "boas_vindas";
 
 export interface MovimentoDeCreditos {
   delta: number;
@@ -64,6 +65,28 @@ export async function moverCreditos(
   const linha = (Array.isArray(data) ? data[0] : data) as ResultadoDoMovimento | undefined;
   if (!linha) throw new Error("fn_area_creditos_mover sem resposta");
   return linha;
+}
+
+/**
+ * Os créditos de boas-vindas de quem entrou pela página (`entrada.ts`, 0955), se a empresa ligou os créditos. Um por
+ * pessoa, para sempre: a referência é da pessoa, não do pagamento, e a função do banco recusa a repetida.
+ */
+export async function creditarBoasVindas(
+  admin: SupabaseClient,
+  organizationId: string,
+  contactId: string,
+): Promise<ResultadoDoMovimento | null> {
+  const { data } = await admin.from("organizations").select("settings").eq("id", organizationId).maybeSingle();
+  const area = lerConfigDaArea((data as { settings: unknown } | null)?.settings);
+  const quantos = area.plano_semanal?.creditos_de_entrada ?? CREDITOS_DE_BOAS_VINDAS_PADRAO;
+  if (!configDosCreditos(area.creditos).ativo || quantos <= 0) return null;
+  return moverCreditos(admin, {
+    organizationId,
+    contactId,
+    delta: quantos,
+    motivo: "boas_vindas",
+    referencia: referenciaDasBoasVindas(contactId),
+  });
 }
 
 /** Os créditos mensais do Círculo, se a empresa ligou os créditos. Idempotente pelo pagamento. */
