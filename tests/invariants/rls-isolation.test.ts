@@ -350,6 +350,11 @@ beforeAll(() => {
           insert into public.area_quiz_visitas (organization_id, visita, quiz, passo)
             values (v_org, gen_random_uuid(), 'caminhos', 'abriu');
         end if;
+        -- 0955: a entrada pelo plano de 7 dias — a equipe lê.
+        if not exists (select 1 from public.area_entradas where organization_id = v_org) then
+          insert into public.area_entradas (organization_id, contact_id, nome, nascimento, foco, segredo_hash)
+            values (v_org, v_contact, 'Ana', '1990-05-01', 'amor', repeat('d', 64));
+        end if;
 
         if not exists (select 1 from public.catalog_products where organization_id = v_org) then
           insert into public.catalog_products
@@ -734,6 +739,8 @@ export const TABLES = [
   // migration 0944 — o funil dos quizzes da página.
   "area_quiz_passos",
   "area_quiz_visitas",
+  // migration 0955 — a entrada pelo plano de 7 dias vendida na página.
+  "area_entradas",
 ] as const;
 
 describe("RLS tenant isolation (fn_user_org_ids pattern)", () => {
