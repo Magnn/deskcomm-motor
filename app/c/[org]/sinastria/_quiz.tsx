@@ -24,6 +24,7 @@ import { OuvirLeituraLonga } from "../_ouvir";
 import { PaginaFinal } from "../_pagina-final";
 import { Interludio, OutrasLeituras, Progresso, SeletorDeData, TelaDeCalculo, VideoDaGuia, type Depoimento, type OutraLeitura } from "../_quiz-pecas";
 import { CARTAO, SERIF, SOBRETITULO } from "../_tema";
+import { AneisDeAfinidade } from "./_aneis";
 import type { TextosDoQuiz } from "./_textos";
 
 interface Pergunta {
@@ -441,6 +442,7 @@ export function QuizDaSinastria(props: {
           ]}
           resultado={
             <div className={CARTAO}>
+              <AneisDeAfinidade aneis={previaCalculada.aneis} tx={tx} />
               <p className="text-xs uppercase tracking-wide text-[#7fd1a0]">{tx.pontoForte}</p>
               <p className="mt-1 text-[16px] leading-relaxed text-[#f6f0e4]">{previaCalculada.forte}</p>
               <p className="mt-4 text-xs uppercase tracking-wide text-[#f3a3c0]">{tx.pontoDeAtencao}</p>
