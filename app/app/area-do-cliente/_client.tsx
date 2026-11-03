@@ -966,7 +966,7 @@ function AbaConfig({ inicial }: { inicial: ConfigDaArea }) {
           value={dominio}
           maxLength={120}
           inputMode="url"
-          placeholder={t("ex.: https://meumisterio.com")}
+          placeholder={t("ex.: https://www.example.com")}
           onChange={(e) => setDominio(e.target.value)}
         />
         <p className="mt-1 text-xs text-muted-foreground">

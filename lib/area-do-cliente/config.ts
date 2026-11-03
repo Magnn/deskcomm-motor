@@ -28,7 +28,7 @@ export const configDaAreaSchema = z.strictObject({
     .regex(FORMA_DO_SLUG_DA_AREA, "só letras minúsculas, números e hífen (ex.: cigana-esmeralda)")
     .optional(),
   /**
-   * O DOMÍNIO PRÓPRIO da área (ex.: `https://meumisterio.com`): a origem de todo link que sai dela
+   * O DOMÍNIO PRÓPRIO da área (ex.: `https://www.example.com`): a origem de todo link que sai dela
    * (conversa, convite, presente). O domínio tem de apontar para esta instalação; o proxy é quem
    * decide o que serve nele. Vazio = o endereço da instalação.
    */
@@ -37,7 +37,7 @@ export const configDaAreaSchema = z.strictObject({
     .trim()
     .toLowerCase()
     .transform((v) => v.replace(/\/+$/, ""))
-    .pipe(z.string().regex(FORMA_DO_DOMINIO_DA_AREA, "só a origem, com https (ex.: https://meumisterio.com)"))
+    .pipe(z.string().regex(FORMA_DO_DOMINIO_DA_AREA, "só a origem, com https (ex.: https://www.example.com)"))
     .optional(),
   /** Título no topo da área. Vazio = o nome de exibição da organização. */
   titulo: z.string().trim().max(60).optional(),

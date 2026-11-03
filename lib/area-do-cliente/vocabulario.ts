@@ -101,7 +101,7 @@ export function caminhoPublicoDaArea(slugDaOrganizacao: string, apelido?: string
 
 /**
  * O domínio próprio da área (`config.dominio`): só a origem, em https, sem caminho nem barra no fim
- * (ex.: `https://meumisterio.com`). É a marca da casa no link: quem recebe o link pela conversa, por
+ * (ex.: `https://www.example.com`). É a marca da casa no link: quem recebe o link pela conversa, por
  * convite ou de presente vê o nome da marca, e não o endereço da instalação.
  */
 export const FORMA_DO_DOMINIO_DA_AREA = /^https:\/\/[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/;

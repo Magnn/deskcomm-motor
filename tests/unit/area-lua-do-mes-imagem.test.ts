@@ -20,6 +20,7 @@ vi.mock("@/lib/area-do-cliente/http", () => {
   return {
     NAO_ENCONTRADA: () => new Response("x", { status: 404 }),
     origemPublica: () => "https://acassia.tech",
+    origemPublicaDaArea: () => "https://acassia.tech",
     contextoDaArea: async () => ({
       org: { id: "o", slug: "magno", nome: "Cigana", fuso: "America/Rio_Branco", config: { titulo: "Cigana Esmeralda", cor: "#7c3aed" } },
       sessao: { contactId: "c", sessaoId: "s" },
