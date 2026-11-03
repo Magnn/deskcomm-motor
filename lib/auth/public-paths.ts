@@ -88,6 +88,8 @@ export const PUBLIC_PATHS: RegExp[] = [
   /^\/api\/v1\/area\/publica\/[a-z0-9][a-z0-9-]{1,62}\/mao(\/[0-9a-f-]{36}(\/(liberar|voz))?)?$/,
   // A meditação da semana falada (sem migration: o áudio fica no Storage); a sessão da área é o direito.
   /^\/api\/v1\/area\/publica\/[a-z0-9][a-z0-9-]{1,62}\/meditacao$/,
+  // A vela de 7 dias (0957): acender e marcar a graça; a sessão da área é o direito.
+  /^\/api\/v1\/area\/publica\/[a-z0-9][a-z0-9-]{1,62}\/vela(\/[0-9a-f-]{36}\/graca)?$/,
   // A entrada pelo plano de 7 dias (0955): o pedido sem cadastro; `/entrar` com o segredo do pedido é o direito.
   /^\/api\/v1\/area\/publica\/[a-z0-9][a-z0-9-]{1,62}\/entrada(\/[0-9a-f-]{36}\/entrar)?$/,
   // A pergunta de quem GANHOU o presente: sem cadastro; o código de 32 caracteres é o direito.

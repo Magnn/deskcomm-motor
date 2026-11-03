@@ -42,6 +42,8 @@ import { EtapaDeHoje, EtapasDaArea, LinhasDoTempo, type TextosDasEtapas } from "
 import { LeituraDaMaoNaArea, type MaoInicial, type TextosDaMao } from "./_mao";
 import { SonhosNaArea, type SonhoInicial, type TextosDoSonho } from "./_sonho";
 import { ConviteDaManha, ManhaDoCliente, type TextosDaManha } from "./_manha";
+import { VelaDoCliente, type TextosDaVela } from "./_vela";
+import type { VelaNaArea } from "@/lib/area-do-cliente/intencao";
 import { PlanoSemanalDoCliente, type PlanoSemanalNaArea, type TextosDoPlano } from "./_plano-semanal";
 import { MeditacaoDaSemana, type MeditacaoNaArea, type TextosDaMeditacao } from "./_meditacao";
 import { MesaDeLeituras, type MesaInicial, type TextosDaMesa } from "./_mesa";
@@ -196,6 +198,9 @@ export interface VistaDaAreaProps {
   /** A sua manhã (`_manha.tsx`): "dela" = tem o plano ou o Círculo; "convite" = a empresa vende o plano; `null` = nada. */
   manha: "dela" | "convite" | null;
   tmanha: TextosDaManha;
+  /** Por quem eu peço (`_vela.tsx`, 0957): a vela aberta, as graças marcadas e se ela pode acender (plano ou Círculo). */
+  vela: { aberta: VelaNaArea | null; gracas: number; podeAcender: boolean };
+  tvela: TextosDaVela;
   /** A meditação da semana falada (`lib/area-do-cliente/meditacao.ts`); `null` = sem voz no servidor ou fora do português. */
   meditacao: MeditacaoNaArea | null;
   tmd: TextosDaMeditacao;
@@ -416,6 +421,9 @@ export function VistaDaArea(p: VistaDaAreaProps) {
 
         {/* A sua manhã: a carta lida para ela e a energia do dia dela, para quem tem o plano ou o Círculo (0956). */}
         {p.manha === "dela" ? <ManhaDoCliente slug={slug} cor={cor} tx={tx} tm={p.tmanha} /> : p.manha === "convite" ? <ConviteDaManha cor={cor} tm={p.tmanha} /> : null}
+
+        {/* Por quem eu peço: a vela de 7 dias com uma intenção, e as graças que ela marcou (0957). */}
+        <VelaDoCliente slug={slug} cor={cor} tx={tx} tv={p.tvela} vela={p.vela.aberta} gracas={p.vela.gracas} podeAcender={p.vela.podeAcender} />
 
         {/* O horóscopo do signo: o segundo motivo para abrir a área todo dia, pequeno, depois da carta. */}
         {p.horoscopo ? (

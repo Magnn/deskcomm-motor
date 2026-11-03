@@ -18,6 +18,7 @@ import type { TextosDoSonho } from "./_sonho";
 import type { TextosDoPlano } from "./_plano-semanal";
 import { textosDoOuvir } from "./_pagina-final-textos";
 import type { TextosDaManha } from "./_manha";
+import type { TextosDaVela } from "./_vela";
 import type { TextosDaMeditacao } from "./_meditacao";
 import type { TextosDaMesa } from "./_mesa";
 import type { TextosDasOfertas } from "./_ofertas";
@@ -453,8 +454,34 @@ export function textosDaManha(t: (s: string) => string): TextosDaManha {
     gesto: t("Um gesto para hoje"),
     preparando: t("Escrevendo a sua manhã…"),
     tentarDeNovo: t("Tentar de novo"),
-    convite: t("Com o plano, toda manhã a sua carta do dia vem lida para você, e a energia do dia vem pelo seu Sol e a sua Lua."),
+    convite: t("Com o plano, toda manhã a sua carta do dia vem lida para você, e a energia do dia vem pelo seu Sol e a sua Lua. E você acende uma vela de 7 dias por quem você ama."),
     verPlano: t("Conhecer o plano"),
+  };
+}
+
+/** Por quem eu peço (`_vela.tsx`). */
+export function textosDaVela(t: (s: string) => string): TextosDaVela {
+  return {
+    sobretitulo: t("Por quem eu peço"),
+    convite: t("Acenda uma vela de 7 dias por alguém que você ama, ou por você. Escrevemos uma oração para o seu pedido."),
+    porQuem: t("Por quem você pede?"),
+    porQuemExemplo: t("Ex.: a minha filha, o Pedro, por mim"),
+    pedido: t("O que você pede para essa pessoa?"),
+    pedidoExemplo: t("Ex.: que ela encontre um trabalho que a faça feliz"),
+    acender: t("Acender a vela"),
+    acendendo: t("Acendendo…"),
+    por: t("Vela acesa por"),
+    dia: t("Dia {n} de {total} da sua vela"),
+    repita: t("Repita hoje"),
+    gracaVeio: t("A graça já veio"),
+    apagou: t("A sua vela se apagou"),
+    pergunta: t("A graça veio?"),
+    veio: t("Veio"),
+    aindaNao: t("Ainda não"),
+    obrigadaVeio: t("Que bom. Essa graça fica guardada no seu fio."),
+    obrigadaAinda: t("Às vezes o tempo é outro. Você pode acender de novo, com o mesmo pedido."),
+    acenderOutra: t("Acender uma nova vela"),
+    gracas: t("Graças que você já marcou: {n}"),
   };
 }
 

@@ -448,6 +448,17 @@ export const PONTOS_DE_IA: readonly PontoDeIa[] = [
     registraEm: "llm_calls",
   },
   {
+    id: "area_intencao",
+    rotulo: "Escrever a oração da vela",
+    oQueFaz:
+      "Quando a cliente acende a vela de 7 dias na área, lê por quem ela pede e o pedido e escreve uma oração curta, de qualquer fé, e uma intenção para repetir a cada dia. Recusa pedido que deseja o mal de alguém. Uma vez por vela.",
+    papel: "atender",
+    exige: {},
+    emissor: "lib/area-do-cliente/intencao-ia.ts",
+    sintomaDeFalha: "A cliente escreve o pedido e a área pede para tentar de novo mais tarde; a vela não acende.",
+    registraEm: "llm_calls",
+  },
+  {
     id: "loss_reason_classify",
     rotulo: "Entender por que a venda não aconteceu",
     oQueFaz:
