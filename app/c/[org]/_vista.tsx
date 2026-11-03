@@ -41,6 +41,7 @@ import { LuaDoMes, type TextosDaLuaDoMes } from "./_lua-do-mes";
 import { EtapaDeHoje, EtapasDaArea, LinhasDoTempo, type TextosDasEtapas } from "./_etapas";
 import { LeituraDaMaoNaArea, type MaoInicial, type TextosDaMao } from "./_mao";
 import { SonhosNaArea, type SonhoInicial, type TextosDoSonho } from "./_sonho";
+import { ConviteDaManha, ManhaDoCliente, type TextosDaManha } from "./_manha";
 import { PlanoSemanalDoCliente, type PlanoSemanalNaArea, type TextosDoPlano } from "./_plano-semanal";
 import { MeditacaoDaSemana, type MeditacaoNaArea, type TextosDaMeditacao } from "./_meditacao";
 import { MesaDeLeituras, type MesaInicial, type TextosDaMesa } from "./_mesa";
@@ -192,6 +193,9 @@ export interface VistaDaAreaProps {
   tg: TextosDoGrimorio;
   /** O horóscopo do dia do signo solar (`lib/area-do-cliente/horoscopo.ts`); `null` = sem data de nascimento. */
   horoscopo: { signo: string; texto: string } | null;
+  /** A sua manhã (`_manha.tsx`): "dela" = tem o plano ou o Círculo; "convite" = a empresa vende o plano; `null` = nada. */
+  manha: "dela" | "convite" | null;
+  tmanha: TextosDaManha;
   /** A meditação da semana falada (`lib/area-do-cliente/meditacao.ts`); `null` = sem voz no servidor ou fora do português. */
   meditacao: MeditacaoNaArea | null;
   tmd: TextosDaMeditacao;
@@ -409,6 +413,9 @@ export function VistaDaArea(p: VistaDaAreaProps) {
             </BotaoIrParaAba>
           </section>
         ) : null}
+
+        {/* A sua manhã: a carta lida para ela e a energia do dia dela, para quem tem o plano ou o Círculo (0956). */}
+        {p.manha === "dela" ? <ManhaDoCliente slug={slug} cor={cor} tx={tx} tm={p.tmanha} /> : p.manha === "convite" ? <ConviteDaManha cor={cor} tm={p.tmanha} /> : null}
 
         {/* O horóscopo do signo: o segundo motivo para abrir a área todo dia, pequeno, depois da carta. */}
         {p.horoscopo ? (
@@ -710,7 +717,7 @@ export function VistaDaArea(p: VistaDaAreaProps) {
                 tom="lilas"
                 sobretitulo={p.planoSemanal.ativo ? t("Ativo") : null}
                 titulo={p.planoSemanal.nome}
-                linha={t("Toda semana, uma pergunta às cartas e um sonho interpretado.")}
+                linha={t("Toda semana, uma pergunta às cartas, um sonho e a sua mão; toda manhã, a sua carta lida para você.")}
                 preco={null}
               >
                 <PlanoSemanalDoCliente slug={slug} cor={cor} tx={tx} tp={p.tplano} plano={p.planoSemanal} />

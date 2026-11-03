@@ -36,7 +36,7 @@ function adminFalso() {
         h.chamadas.push([tabela, metodo, resto.length ? [arg, ...resto] : arg]);
         return q;
       };
-      for (const m of ["update", "delete", "eq", "is", "select", "not", "gte", "order", "limit"]) q[m] = reg(m);
+      for (const m of ["update", "delete", "eq", "is", "select", "not", "gte", "order", "limit", "upsert"]) q[m] = reg(m);
       q.insert = (linha: unknown) => {
         h.chamadas.push([tabela, "insert", linha]);
         return { select: () => ({ single: async () => ({ data: { id: tabela === "contacts" ? "contato-novo" : ENTRADA }, error: null }) }) };
@@ -156,8 +156,15 @@ describe("POST /entrada", () => {
 describe("o aviso de pagamento da entrada", () => {
   it("⭐ estende o plano, marca o pedido e dá as boas-vindas da empresa, com a referência da pessoa", async () => {
     h.settings = { area: { ativo: true, creditos: { ativo: true }, plano_semanal: { ativo: true, creditos_de_entrada: 20 } } };
+    h.linhas = { area_entradas: [{ foco: "eu" }] };
     const { liberarCompraDaArea } = await import("@/lib/area-do-cliente/compras-da-area");
     await liberarCompraDaArea(adminFalso() as never, "org-1", "c-1", "pi_1", "plano-semanal", { entrada_id: ENTRADA, moeda: "BRL" }, "pix");
+    // O foco da página vira o perfil da área ("eu" = autoconhecimento), sem pisar no perfil que ela já tenha.
+    expect(h.chamadas).toContainEqual([
+      "area_perfis",
+      "upsert",
+      [{ organization_id: "org-1", contact_id: "c-1", foco: "autoconhecimento" }, { onConflict: "organization_id,contact_id", ignoreDuplicates: true }],
+    ]);
     expect(h.chamadas).toContainEqual(["area_planos", "insert", expect.objectContaining({ contact_id: "c-1", plano: "semanal" })]);
     expect(h.chamadas).toContainEqual(["area_entradas", "update", expect.objectContaining({ pagamento: "pi_1" })]);
     expect(h.rpc).toHaveBeenCalledWith("fn_area_creditos_mover", {
@@ -184,6 +191,6 @@ describe("o aviso de pagamento da entrada", () => {
     const { liberarCompraDaArea } = await import("@/lib/area-do-cliente/compras-da-area");
     await liberarCompraDaArea(adminFalso() as never, "org-1", "c-1", "pi_4", "plano-semanal", { moeda: "BRL" }, "cartao");
     expect(h.rpc).not.toHaveBeenCalled();
-    expect(h.chamadas.some(([t]) => t === "area_entradas")).toBe(false);
+    expect(h.chamadas.some(([t]) => t === "area_entradas" || t === "area_perfis")).toBe(false);
   });
 });

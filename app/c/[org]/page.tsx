@@ -29,6 +29,7 @@ import { carregarCarteira, configDosCreditos } from "@/lib/area-do-cliente/credi
 import { destaqueDeHoje, fraseDoDia, lembrancaDaMesa } from "@/lib/area-do-cliente/hoje";
 import { numeroDoDia } from "@/lib/area-do-cliente/numero-do-dia";
 import { ehSigno, horoscopoDoDia } from "@/lib/area-do-cliente/horoscopo";
+import { temAManha } from "@/lib/area-do-cliente/manha";
 import { resumoDaLuaDoMes, temLuaDoMes } from "@/lib/area-do-cliente/lua-do-mes";
 import { ehFoco, type Foco } from "@/lib/area-do-cliente/perfil";
 import { vePassoAPasso } from "@/lib/area-do-cliente/simpatias";
@@ -54,7 +55,7 @@ import { duracaoEstimada, meditacaoDaSemana } from "@/lib/area-do-cliente/medita
 import { haVozParaMeditar } from "@/lib/area-do-cliente/meditacao-voz";
 
 import { serifDaArea } from "./_fonte";
-import { textosDaCarteira, textosDaEntrada, textosDaMesa, textosDoAviso, textosDasEtapas, textosDasOfertas, textosDasSimpatias, textosDoGrimorio, textosDaLuaDoMes, textosDoChat, textosDoNavegador, textosDoRitual, textosDaMao, textosDaMeditacao, textosDoSonho, textosDoPlano } from "./_textos";
+import { textosDaCarteira, textosDaEntrada, textosDaMesa, textosDoAviso, textosDasEtapas, textosDasOfertas, textosDasSimpatias, textosDoGrimorio, textosDaLuaDoMes, textosDoChat, textosDoNavegador, textosDoRitual, textosDaMao, textosDaManha, textosDaMeditacao, textosDoSonho, textosDoPlano } from "./_textos";
 import { VistaDaArea, VistaDeEntrada } from "./_vista";
 
 export const dynamic = "force-dynamic";
@@ -524,6 +525,8 @@ export default async function AreaDoCliente({ params, searchParams }: Props) {
         };
       })()}
       tmd={textosDaMeditacao(t)}
+      manha={!org.config.carta_do_dia ? null : temAManha({ noPlano, noCirculo }) ? "dela" : cfgDoPlano.ativo ? "convite" : null}
+      tmanha={textosDaManha(t)}
       luaDoMes={luaDoMes ? { versao: hoje } : null}
       tl={textosDaLuaDoMes(t)}
       perfil={{ feito: perfilR !== null, foco }}

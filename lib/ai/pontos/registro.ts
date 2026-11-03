@@ -437,6 +437,17 @@ export const PONTOS_DE_IA: readonly PontoDeIa[] = [
     registraEm: "llm_calls",
   },
   {
+    id: "area_manha",
+    rotulo: "Escrever a manhã da cliente",
+    oQueFaz:
+      "Para quem tem o Plano da Semana ou o Círculo, lê a carta do dia para ela (ligada ao foco dela) e escreve a energia do dia pelo Sol e a Lua do nascimento dela contra a Lua de hoje, com um gesto pequeno. Uma vez por pessoa por dia, guardada.",
+    papel: "atender",
+    exige: {},
+    emissor: "lib/area-do-cliente/manha-ia.ts",
+    sintomaDeFalha: "A aba Hoje mostra a carta e o horóscopo do signo de sempre, sem a parte escrita para ela.",
+    registraEm: "llm_calls",
+  },
+  {
     id: "loss_reason_classify",
     rotulo: "Entender por que a venda não aconteceu",
     oQueFaz:
