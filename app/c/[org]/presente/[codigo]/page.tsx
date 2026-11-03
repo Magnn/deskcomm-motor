@@ -12,8 +12,8 @@ import { notFound } from "next/navigation";
 import { COR_PADRAO_DA_AREA } from "@/lib/area-do-cliente/config";
 import { FORMA_DO_CODIGO_DO_PRESENTE } from "@/lib/area-do-cliente/presente";
 import { orgDaArea } from "@/lib/area-do-cliente/sessao";
-import { traduzir } from "@/lib/i18n/dicionario";
-import { idiomaDoVisitante } from "@/lib/i18n/idiomaAnonimo";
+import { traduzirNaArea } from "@/lib/i18n/area";
+import { idiomaDaArea } from "@/lib/i18n/area-servidor";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { Gift, MessageCircle } from "lucide-react";
 
@@ -27,8 +27,8 @@ export const dynamic = "force-dynamic";
 type Props = { params: Promise<{ org: string; codigo: string }> };
 
 export async function generateMetadata(): Promise<Metadata> {
-  const idioma = await idiomaDoVisitante(null);
-  return { title: traduzir("Seu presente", idioma), robots: { index: false, follow: false } };
+  const idioma = await idiomaDaArea();
+  return { title: traduzirNaArea("Seu presente", idioma), robots: { index: false, follow: false } };
 }
 
 export default async function PaginaDoPresente({ params }: Props) {
@@ -45,8 +45,8 @@ export default async function PaginaDoPresente({ params }: Props) {
   const p = data as { para_nome: string | null; pago_at: string | null; pergunta: string | null; resposta: string | null } | null;
   if (!p?.pago_at) notFound();
 
-  const idioma = await idiomaDoVisitante(null);
-  const t = (texto: string) => traduzir(texto, idioma);
+  const idioma = await idiomaDaArea();
+  const t = (texto: string) => traduzirNaArea(texto, idioma);
   const cor = org.config.cor || COR_PADRAO_DA_AREA;
   const tx = {
     naoFoiPossivel: t("Não foi possível agora. Tente de novo."),

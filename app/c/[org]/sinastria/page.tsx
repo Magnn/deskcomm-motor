@@ -12,9 +12,9 @@ import { COR_PADRAO_DA_AREA } from "@/lib/area-do-cliente/config";
 import { urlDaMidiaDaArea } from "@/lib/area-do-cliente/midia";
 import { orgDaArea } from "@/lib/area-do-cliente/sessao";
 import { PERGUNTAS_DO_QUIZ } from "@/lib/area-do-cliente/sinastria";
-import { traduzir } from "@/lib/i18n/dicionario";
+import { traduzirNaArea } from "@/lib/i18n/area";
 import { baseDoStorage } from "@/lib/branding/logo";
-import { idiomaDoVisitante } from "@/lib/i18n/idiomaAnonimo";
+import { idiomaDaArea } from "@/lib/i18n/area-servidor";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 import { serifDaArea } from "../_fonte";
@@ -42,8 +42,8 @@ export default async function PaginaDoQuiz({ params }: Props) {
   const oferta = org?.config.sinastria_quiz;
   if (!org || !oferta?.ativo) notFound();
   const cor = org.config.cor || COR_PADRAO_DA_AREA;
-  const idioma = await idiomaDoVisitante(null);
-  const tx = textosDoQuiz((texto) => traduzir(texto, idioma));
+  const idioma = await idiomaDaArea();
+  const tx = textosDoQuiz((texto) => traduzirNaArea(texto, idioma));
   const base = baseDoStorage();
   const fotoDaGuia = urlDaMidiaDaArea(org.config.guia?.foto, base);
 
@@ -74,7 +74,7 @@ export default async function PaginaDoQuiz({ params }: Props) {
         videoMeio={urlDaMidiaDaArea(oferta.video_meio, base)}
         videoPrevia={urlDaMidiaDaArea(oferta.video_previa, base)}
         depoimentos={depoimentosDoQuiz(org.config, "sinastria", base)}
-        outras={outrasLeituras(org.config, org.slug, "sinastria", (texto) => traduzir(texto, idioma))}
+        outras={outrasLeituras(org.config, org.slug, "sinastria", (texto) => traduzirNaArea(texto, idioma))}
       />
       <footer className="px-5 pb-10 text-center text-xs leading-relaxed text-[#9d94b2]">
         {tx.rodape}

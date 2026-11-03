@@ -45,9 +45,8 @@ import { registrarEvento } from "@/lib/area-do-cliente/eventos";
 import { urlDaMidiaDaArea } from "@/lib/area-do-cliente/midia";
 import { nomeDoCookieDaArea, orgDaArea, sessaoDoCookie } from "@/lib/area-do-cliente/sessao";
 import { baseDoStorage } from "@/lib/branding/logo";
-import { tagDeIdioma } from "@/lib/i18n/datas";
-import { traduzir } from "@/lib/i18n/dicionario";
-import { idiomaDoVisitante } from "@/lib/i18n/idiomaAnonimo";
+import { tagDaArea, traduzirNaArea } from "@/lib/i18n/area";
+import { idiomaDaArea } from "@/lib/i18n/area-servidor";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { vapidPronto } from "@/lib/notifications/vapid";
 import { vozPropriaConfigurada } from "@/lib/voz/servidor-proprio";
@@ -65,10 +64,10 @@ type Props = { params: Promise<{ org: string }>; searchParams: Promise<{ link?: 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { org: slug } = await params;
   const org = await orgDaArea(createAdminClient(), slug);
-  const idioma = await idiomaDoVisitante(null);
+  const idioma = await idiomaDaArea();
   // `absolute`: a área é da empresa, não do produto — o nome do sistema não vai na aba do cliente.
   return {
-    title: { absolute: org ? org.config.titulo || org.nome : traduzir("Área do cliente", idioma) },
+    title: { absolute: org ? org.config.titulo || org.nome : traduzirNaArea("Área do cliente", idioma) },
     robots: { index: false, follow: false },
     // O app da área: instalar no celular abre aqui, com o nome e o ícone da empresa (`manifest/route.ts`).
     ...(org
@@ -117,8 +116,8 @@ function dataCurta(iso: string, fuso: string, tag: string): string {
 export default async function AreaDoCliente({ params, searchParams }: Props) {
   const { org: slug } = await params;
   const { link, aba, de } = await searchParams;
-  const idioma = await idiomaDoVisitante(null);
-  const t = (texto: string) => traduzir(texto, idioma);
+  const idioma = await idiomaDaArea();
+  const t = (texto: string) => traduzirNaArea(texto, idioma);
   const tx = textosDoNavegador(t);
   const admin = createAdminClient();
   const org = await orgDaArea(admin, slug);
@@ -169,7 +168,7 @@ export default async function AreaDoCliente({ params, searchParams }: Props) {
     .is("lida_pelo_cliente_at", null);
 
   const agora = new Date();
-  const tag = tagDeIdioma(idioma);
+  const tag = tagDaArea(idioma);
   const hoje = diaNoFuso(agora.toISOString(), org.fuso);
   const carta = org.config.carta_do_dia ? cartaDoDia(sessao.contactId, hoje) : null;
   const fotoDaCartaDeHoje = carta ? await fotoDaCarta(admin, org.id, carta.id) : null;
@@ -310,6 +309,7 @@ export default async function AreaDoCliente({ params, searchParams }: Props) {
 
   return (
     <VistaDaArea
+      idioma={idioma}
       classeDaFonte={serifDaArea.variable}
       slug={org.slug}
       fuso={org.fuso}
