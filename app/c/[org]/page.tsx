@@ -428,6 +428,7 @@ export default async function AreaDoCliente({ params, searchParams }: Props) {
               precos_internacionais: cfgDoPlano.precos_internacionais,
               ativo: noPlano,
               ate: noPlano && planoDela ? dataCurta(planoDela.validoAte, org.fuso, tag) : null,
+              renova: noPlano && planoDela !== null && planoDela.renova,
               temMesa: cfgDasLeituras.ativo,
               temSonho: cfgDoSonho.ativo,
             }

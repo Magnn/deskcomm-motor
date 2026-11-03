@@ -431,6 +431,12 @@ export function textosDoPlano(t: (s: string) => string): TextosDoPlano {
     nestaSemana: t("O que você tem nesta semana"),
     renovar: t("Pague a próxima semana quando quiser: os dias se somam, nenhum se perde."),
     soCartao: t("Pagamento no cartão, na sua moeda."),
+    avisoDeRenovacao: t("No cartão, o plano renova sozinho toda semana, no mesmo valor. Cancele quando quiser, com um toque, aqui na sua área."),
+    avisoDoPix: t("No Pix, você paga semana a semana."),
+    renovaEm: t("Renova sozinho em"),
+    cancelar: t("Cancelar renovação"),
+    cancelada: t("Renovação cancelada. A sua semana continua valendo até o fim."),
+    erroAoCancelar: t("Não foi possível cancelar agora. Tente de novo em instantes."),
   };
 }
 

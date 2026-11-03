@@ -6,6 +6,9 @@
  * A moeda é proposta pelo fuso do aparelho (`moeda-do-visitante.ts`) depois de montar a tela — o servidor desenha
  * em reais e o navegador troca, sem diferença entre o HTML do servidor e o do aparelho. O servidor confere o valor
  * de novo na cobrança.
+ *
+ * No cartão o plano RENOVA SOZINHO toda semana (0954): a tela diz isso ANTES de pagar, mostra a data da próxima
+ * cobrança e tem o "Cancelar renovação" de um toque. No Pix, a pessoa paga semana a semana.
  */
 import * as React from "react";
 
@@ -26,6 +29,14 @@ export interface TextosDoPlano {
   nestaSemana: string;
   renovar: string;
   soCartao: string;
+  /** Antes de pagar: o cartão renova sozinho toda semana; cancela com um toque. */
+  avisoDeRenovacao: string;
+  /** Só no Brasil, onde há Pix. */
+  avisoDoPix: string;
+  renovaEm: string;
+  cancelar: string;
+  cancelada: string;
+  erroAoCancelar: string;
 }
 
 export interface PlanoSemanalNaArea {
@@ -38,6 +49,8 @@ export interface PlanoSemanalNaArea {
   /** O que a empresa ligou: o plano só promete o que existe (0 = a pergunta da Mesa, 1 = o sonho). */
   temMesa: boolean;
   temSonho: boolean;
+  /** O cartão guardado renova sozinho no vencimento (`ate`). */
+  renova: boolean;
 }
 
 export function PlanoSemanalDoCliente({ slug, cor, tx, tp, plano }: { slug: string; cor: string; tx: TextosDaArea; tp: TextosDoPlano; plano: PlanoSemanalNaArea }) {
@@ -49,6 +62,23 @@ export function PlanoSemanalDoCliente({ slug, cor, tx, tp, plano }: { slug: stri
       setMoeda("BRL");
     }
   }, [plano]);
+  const [renova, setRenova] = React.useState(plano.renova);
+  const [cancelando, setCancelando] = React.useState(false);
+  const [aviso, setAviso] = React.useState<string | null>(null);
+  async function cancelarRenovacao() {
+    setCancelando(true);
+    setAviso(null);
+    try {
+      const r = await fetch(`/api/v1/area/publica/${slug}/plano-semanal`, { method: "DELETE" });
+      if (!r.ok) throw new Error(String(r.status));
+      setRenova(false);
+      setAviso(tp.cancelada);
+    } catch {
+      setAviso(tp.erroAoCancelar);
+    } finally {
+      setCancelando(false);
+    }
+  }
   const valor = precoDaOferta(plano, moeda) ?? plano.preco_cents;
   const preco = valorNaMoedaDaPagina(valor, precoDaOferta(plano, moeda) === null ? "BRL" : moeda);
 
@@ -71,15 +101,34 @@ export function PlanoSemanalDoCliente({ slug, cor, tx, tp, plano }: { slug: stri
           {plano.nome}
         </h3>
         {plano.ate ? (
-          <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-white/[0.08] px-3 py-1 text-sm text-[#f0dca8]">
+          <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-white/[0.08] px-3 py-1 text-sm text-[#f0dca8]" data-testid="area-plano-ate">
             <CalendarHeart className="size-4" aria-hidden />
-            {tp.ativoAte} {plano.ate}
+            {renova ? tp.renovaEm : tp.ativoAte} {plano.ate}
           </p>
         ) : null}
         <p className="mt-4 text-xs uppercase tracking-[0.18em] text-[#b7aecb]">{tp.nestaSemana}</p>
         {lista}
-        <p className="mt-5 text-sm text-[#c3bad3]">{tp.renovar}</p>
-        <PagarNaArea endpoint={`/api/v1/area/publica/${slug}/plano-semanal`} corpo={{ moeda }} cor={cor} tx={tx} escuro soCartao={moeda !== "BRL"} />
+        {renova ? (
+          <button
+            type="button"
+            onClick={cancelarRenovacao}
+            disabled={cancelando}
+            className="mt-5 text-sm text-[#c3bad3] underline underline-offset-4 hover:text-white disabled:opacity-60"
+            data-testid="area-plano-cancelar"
+          >
+            {tp.cancelar}
+          </button>
+        ) : (
+          <>
+            <p className="mt-5 text-sm text-[#c3bad3]">{tp.renovar}</p>
+            <PagarNaArea endpoint={`/api/v1/area/publica/${slug}/plano-semanal`} corpo={{ moeda }} cor={cor} tx={tx} escuro soCartao={moeda !== "BRL"} />
+          </>
+        )}
+        {aviso ? (
+          <p className="mt-3 text-sm text-[#f0dca8]" role="status">
+            {aviso}
+          </p>
+        ) : null}
       </section>
     );
   }
@@ -97,6 +146,10 @@ export function PlanoSemanalDoCliente({ slug, cor, tx, tp, plano }: { slug: stri
         <span className="text-sm text-[#b7aecb]">{tp.porSemana}</span>
       </p>
       {moeda !== "BRL" ? <p className="mt-1 text-xs text-[#b7aecb]">{tp.soCartao}</p> : null}
+      <p className="mt-3 rounded-xl bg-white/[0.06] px-3 py-2 text-xs leading-relaxed text-[#d9d0e6]" data-testid="area-plano-aviso-renovacao">
+        {tp.avisoDeRenovacao}
+        {moeda === "BRL" ? ` ${tp.avisoDoPix}` : null}
+      </p>
       <PagarNaArea endpoint={`/api/v1/area/publica/${slug}/plano-semanal`} corpo={{ moeda }} cor={cor} tx={tx} escuro soCartao={moeda !== "BRL"} />
     </section>
   );

@@ -4,6 +4,9 @@
  * Corpo `{ forma, moeda }`. A moeda é a que a tela propôs pelo fuso do aparelho (`moeda-do-visitante.ts`); o VALOR
  * sai da configuração da empresa, nunca do navegador, e moeda sem preço é recusada. Pix só em reais. Quem libera os
  * 7 dias é o aviso de pagamento da Stripe (`ativarPlanoSemanal`), não esta rota.
+ *
+ * No cartão, o cartão fica guardado e o plano RENOVA SOZINHO toda semana (migration 0954) — a tela diz isso antes
+ * de pagar. DELETE cancela a renovação: a semana paga segue valendo até o fim.
  */
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
@@ -14,7 +17,7 @@ import { diaNoFuso } from "@/lib/area-do-cliente/dados";
 import { registrarEvento } from "@/lib/area-do-cliente/eventos";
 import { NAO_ENCONTRADA, contextoDaArea } from "@/lib/area-do-cliente/http";
 import { precoDaOferta } from "@/lib/area-do-cliente/moeda-do-visitante";
-import { EXTRA_DO_PLANO_SEMANAL, configDoPlanoSemanal } from "@/lib/area-do-cliente/plano-semanal";
+import { EXTRA_DO_PLANO_SEMANAL, cancelarRenovacaoDoPlano, configDoPlanoSemanal } from "@/lib/area-do-cliente/plano-semanal";
 import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
@@ -57,7 +60,11 @@ export async function POST(req: NextRequest, { params }: Ctx): Promise<Response>
       extra: EXTRA_DO_PLANO_SEMANAL,
       referencia: `plano-semanal-${sessao.contactId}-${moeda}-${hora}`,
       metadados: { moeda },
-      mensagemDepoisDePagar: "Pagamento confirmado! Volte para a sua área: o seu plano da semana já está liberado.",
+      mensagemDepoisDePagar:
+        forma === "cartao"
+          ? "Pagamento confirmado! Volte para a sua área: o seu plano já está liberado e renova sozinho toda semana. Cancele quando quiser, com um toque, na própria área."
+          : "Pagamento confirmado! Volte para a sua área: o seu plano da semana já está liberado.",
+      guardarCartao: forma === "cartao",
     });
     await registrarEvento(admin, {
       organizationId: org.id,
@@ -76,5 +83,24 @@ export async function POST(req: NextRequest, { params }: Ctx): Promise<Response>
       motivo: (err instanceof Error ? err.message : String(err)).slice(0, 200),
     });
     return ERRO(502, "pagamento_indisponivel", "Não foi possível gerar o pagamento agora. Tente de novo em instantes.");
+  }
+}
+
+/** DELETE — "Cancelar renovação". Sem cobrança nem reembolso: só a próxima semana deixa de ser cobrada. */
+export async function DELETE(req: NextRequest, { params }: Ctx): Promise<Response> {
+  const { org: slug } = await params;
+  const ctx = await contextoDaArea(req, slug);
+  if (!ctx) return NAO_ENCONTRADA();
+  const { admin, org, sessao } = ctx;
+  if (!sessao) return ERRO(401, "unauthenticated", "Entre na sua área.");
+  try {
+    const cancelada = await cancelarRenovacaoDoPlano(admin, org.id, sessao.contactId);
+    return NextResponse.json({ data: { cancelada } }, { headers: { "Cache-Control": "no-store" } });
+  } catch (err) {
+    logger.error("[area.plano] renovação não cancelada", {
+      organization_id: org.id,
+      motivo: (err instanceof Error ? err.message : String(err)).slice(0, 200),
+    });
+    return ERRO(500, "internal_error", "Não foi possível cancelar agora. Tente de novo em instantes.");
   }
 }
