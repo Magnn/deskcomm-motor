@@ -11,9 +11,12 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { logger } from "@/lib/logger";
+
 import { EXTRA_DO_ANO_PESSOAL } from "./ano-pessoal";
 import { EXTRA_DO_CIRCULO } from "./circulo";
 import { EXTRA_DOS_CREDITOS } from "./creditos";
+import { focoDoPerfil, type FocoDaEntrada } from "./entrada";
 import { creditarBoasVindas, creditarCirculo, moverCreditos } from "./creditos-servidor";
 import { EXTRA_DA_LEITURA } from "./leituras";
 import { EXTRA_DA_MAO } from "./mao";
@@ -93,15 +96,29 @@ export async function liberarCompraDaArea(
     // A entrada pela página (0955): marca o pedido (é ele que abre a área) e dá as boas-vindas, uma vez por pessoa.
     const entradaId = meta.entrada_id;
     if (entradaId && UUID.test(entradaId)) {
-      const { error } = await admin
+      const { data: pagas, error } = await admin
         .from("area_entradas")
         .update({ pago_at: new Date().toISOString(), pagamento: pagamentoId })
         .eq("id", entradaId)
         .eq("organization_id", organizationId)
         .eq("contact_id", contactId)
-        .is("pago_at", null);
+        .is("pago_at", null)
+        .select("foco");
       if (error) throw new Error(error.message);
       await creditarBoasVindas(admin, organizationId, contactId);
+      // O foco que ela escolheu na página vira o perfil da área (a área abre "feita para ela", sem repetir as
+      // perguntas). Quem já tem perfil fica com o dela.
+      const paga = (pagas ?? [])[0] as { foco: FocoDaEntrada } | undefined;
+      if (paga) {
+        const { error: erroDoPerfil } = await admin
+          .from("area_perfis")
+          .upsert(
+            { organization_id: organizationId, contact_id: contactId, foco: focoDoPerfil(paga.foco) },
+            { onConflict: "organization_id,contact_id", ignoreDuplicates: true },
+          );
+        // Sem lançar: o pedido já está marcado, e a Stripe reenviando não refaria o perfil. A área pergunta o foco.
+        if (erroDoPerfil) logger.warn("[area.entrada] perfil não gravado", { organization_id: organizationId, motivo: erroDoPerfil.message.slice(0, 200) });
+      }
     }
     return;
   }

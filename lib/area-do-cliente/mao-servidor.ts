@@ -14,6 +14,8 @@ import { diaNoFuso } from "./dados";
 import { registrarEvento } from "./eventos";
 import { LINHAS_DA_MAO, leituraNaTela, type LeituraDaMao, type LinhaDaMao } from "./mao";
 import { lerMao } from "./mao-ia";
+import { semanaDaMeditacao } from "./meditacao";
+import { PAGAMENTO_DO_PLANO, temPlanoSemanal } from "./plano-semanal";
 
 export interface MaoNaTela {
   id: string;
@@ -80,6 +82,26 @@ export async function fotosHoje(admin: SupabaseClient, org: { id: string; fuso: 
   return ((data ?? []) as Array<{ created_at: string }>).filter((l) => diaNoFuso(l.created_at, org.fuso) === hoje).length;
 }
 
+/**
+ * A mão da semana do Plano da Semana está livre? Uma leitura por semana (de segunda a domingo, no fuso da empresa)
+ * sai INTEIRA para quem está com o plano em dia — as cinco linhas, a síntese e o passo, sem créditos nem Pix. É o
+ * primeiro "uau" de quem entra pelo plano (pedido do dono em 03/11/2026), e não custa nada a mais: a leitura das
+ * cinco linhas já sai da mesma chamada.
+ */
+export async function maoDoPlanoLivre(admin: SupabaseClient, org: { id: string; fuso: string }, contactId: string): Promise<boolean> {
+  if (!(await temPlanoSemanal(admin, org.id, contactId))) return false;
+  const { data } = await admin
+    .from("area_maos")
+    .select("pago_at")
+    .eq("organization_id", org.id)
+    .eq("contact_id", contactId)
+    .eq("pagamento", PAGAMENTO_DO_PLANO)
+    .gte("pago_at", new Date(Date.now() - 8 * 86_400_000).toISOString())
+    .limit(5);
+  const estaSemana = semanaDaMeditacao(diaNoFuso(new Date().toISOString(), org.fuso));
+  return !((data ?? []) as Array<{ pago_at: string }>).some((l) => semanaDaMeditacao(diaNoFuso(l.pago_at, org.fuso)) === estaSemana);
+}
+
 export type ResultadoDaFoto =
   | { ok: true; mao: MaoNaTela }
   | { ok: false; motivo: "nao_e_mao" | "indisponivel" };
@@ -87,7 +109,7 @@ export type ResultadoDaFoto =
 /** Lê a foto e grava a leitura (ainda não paga). A foto não é guardada em lugar nenhum. */
 export async function lerFotoDaMao(
   admin: SupabaseClient,
-  org: { id: string; nome: string; titulo: string },
+  org: { id: string; nome: string; titulo: string; fuso: string },
   d: { contactId: string; sessaoId: string; primeiroNome: string; foto: Buffer; mime: string; precoCents: number },
 ): Promise<ResultadoDaFoto> {
   let lida: Awaited<ReturnType<typeof lerMao>>;
@@ -120,6 +142,7 @@ export async function lerFotoDaMao(
       leitura: lida.leitura,
       modelo: lida.modelo,
       preco_cents: d.precoCents,
+      ...((await maoDoPlanoLivre(admin, org, d.contactId)) ? { pago_at: new Date().toISOString(), pagamento: PAGAMENTO_DO_PLANO } : {}),
     })
     .select("id, leitura, pago_at, created_at")
     .single();

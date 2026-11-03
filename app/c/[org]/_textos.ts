@@ -17,6 +17,7 @@ import type { TextosDaMao } from "./_mao";
 import type { TextosDoSonho } from "./_sonho";
 import type { TextosDoPlano } from "./_plano-semanal";
 import { textosDoOuvir } from "./_pagina-final-textos";
+import type { TextosDaManha } from "./_manha";
 import type { TextosDaMeditacao } from "./_meditacao";
 import type { TextosDaMesa } from "./_mesa";
 import type { TextosDasOfertas } from "./_ofertas";
@@ -427,6 +428,8 @@ export function textosDoPlano(t: (s: string) => string): TextosDoPlano {
     beneficios: [
       t("Uma pergunta às cartas toda semana, sem pagar (Tarot ou Baralho Cigano)."),
       t("Um sonho por semana interpretado inteiro: todos os símbolos, a mensagem e um passo."),
+      t("Uma leitura da mão por semana, inteira: as cinco linhas."),
+      t("Toda manhã, a sua carta do dia lida para você e a energia do dia pelo seu céu."),
     ],
     ativoAte: t("Ativo até"),
     nestaSemana: t("O que você tem nesta semana"),
@@ -438,6 +441,20 @@ export function textosDoPlano(t: (s: string) => string): TextosDoPlano {
     cancelar: t("Cancelar renovação"),
     cancelada: t("Renovação cancelada. A sua semana continua valendo até o fim."),
     erroAoCancelar: t("Não foi possível cancelar agora. Tente de novo em instantes."),
+  };
+}
+
+/** A sua manhã (`_manha.tsx`). */
+export function textosDaManha(t: (s: string) => string): TextosDaManha {
+  return {
+    sobretitulo: t("Sua manhã"),
+    carta: t("A sua carta, lida para você"),
+    energia: t("A energia do seu dia"),
+    gesto: t("Um gesto para hoje"),
+    preparando: t("Escrevendo a sua manhã…"),
+    tentarDeNovo: t("Tentar de novo"),
+    convite: t("Com o plano, toda manhã a sua carta do dia vem lida para você, e a energia do dia vem pelo seu Sol e a sua Lua."),
+    verPlano: t("Conhecer o plano"),
   };
 }
 

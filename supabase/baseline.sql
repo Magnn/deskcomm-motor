@@ -40248,3 +40248,21 @@ revoke insert, update, delete, truncate on public.area_entradas from authenticat
 alter table public.area_creditos drop constraint if exists area_creditos_motivo_check;
 alter table public.area_creditos add constraint area_creditos_motivo_check
   check (motivo in ('pacote', 'circulo', 'leitura', 'devolucao', 'ajuste', 'boas_vindas'));
+
+-- ---- a manhã da cliente da área: carta funda e horóscopo dela (migration 0956) ----
+create table if not exists public.area_manhas (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references public.organizations(id) on delete cascade,
+  contact_id uuid not null references public.contacts(id) on delete cascade,
+  dia date not null,
+  texto jsonb not null,
+  modelo text,
+  created_at timestamptz not null default now(),
+  unique (organization_id, contact_id, dia)
+);
+
+comment on table public.area_manhas is
+  'A manhã da cliente da área (migration 0956): a carta do dia lida para ela, a energia do dia pelo céu dela e um gesto. Uma por pessoa por dia, escrita pela IA para quem tem o Plano da Semana ou o Círculo. Só o servidor lê e escreve.';
+
+alter table public.area_manhas enable row level security;
+revoke all on public.area_manhas from anon, authenticated;

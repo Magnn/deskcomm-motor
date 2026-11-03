@@ -14,8 +14,15 @@
  */
 import { z } from "zod";
 
+import type { Foco } from "./perfil";
+
 export const FOCOS_DA_ENTRADA = ["amor", "dinheiro", "caminhos", "eu"] as const;
 export type FocoDaEntrada = (typeof FOCOS_DA_ENTRADA)[number];
+
+/** O foco da entrada no vocabulário do perfil da área (`perfil.ts`): "eu" é o autoconhecimento. */
+export function focoDoPerfil(foco: FocoDaEntrada): Foco {
+  return foco === "eu" ? "autoconhecimento" : foco;
+}
 
 /** Os créditos de boas-vindas quando a empresa não muda (1 crédito = R$ 1 no preço de tabela). */
 export const CREDITOS_DE_BOAS_VINDAS_PADRAO = 20;

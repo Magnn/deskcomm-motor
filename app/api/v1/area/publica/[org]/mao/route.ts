@@ -49,7 +49,7 @@ export async function POST(req: NextRequest, { params }: Ctx): Promise<Response>
     .eq("id", sessao.contactId)
     .eq("organization_id", org.id)
     .maybeSingle();
-  const r = await lerFotoDaMao(admin, { id: org.id, nome: org.nome, titulo: org.config.titulo ?? "" }, {
+  const r = await lerFotoDaMao(admin, { id: org.id, nome: org.nome, titulo: org.config.titulo ?? "", fuso: org.fuso }, {
     contactId: sessao.contactId,
     sessaoId: sessao.sessaoId,
     primeiroNome: primeiroNome(nomeDoContato((contato ?? {}) as { name: string | null; display_name: string | null })),
