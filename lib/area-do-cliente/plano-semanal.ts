@@ -9,6 +9,9 @@
  *  - a PERGUNTA DA SEMANA na Mesa: uma leitura de Tarot ou Baralho Cigano sem pagar (`gratisDaSemanaLivre`);
  *  - UM SONHO interpretado inteiro (`sonho-servidor.ts`).
  * Os dois custam uma chamada de IA cada: cabem no preço mesmo em US$ 1 depois da tarifa do cartão.
+ *
+ * Renovação sozinha no cartão (migration 0954): o primeiro pagamento no cartão guarda o cartão na conta da empresa e
+ * liga `renova`; a rodada `plano-semanal-renovacao.ts` cobra a semana seguinte antes de vencer. Pix não renova.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -57,20 +60,28 @@ export function planoAtivo(validoAte: string | null, agora: Date): boolean {
 export interface PlanoDaPessoa {
   validoAte: string;
   moeda: "BRL" | "USD" | "EUR";
+  /** O cartão guardado renova sozinho (0954). */
+  renova: boolean;
+}
+
+/** O cartão guardado no primeiro pagamento, como a Stripe o devolve no aviso. */
+export interface CartaoGuardado {
+  cliente: string;
+  cartao: string;
 }
 
 export async function lerPlanoSemanal(admin: SupabaseClient, orgId: string, contactId: string): Promise<PlanoDaPessoa | null> {
   const { data, error } = await admin
     .from("area_planos")
-    .select("valido_ate, moeda")
+    .select("*")
     .eq("organization_id", orgId)
     .eq("contact_id", contactId)
     .eq("plano", "semanal")
     .maybeSingle();
-  // Antes da 0953 a tabela não existe: sem plano, sem quebrar a página.
+  // Antes da 0953 a tabela não existe: sem plano, sem quebrar a página. Antes da 0954, sem `renova` (o `*` não quebra).
   if (error || !data) return null;
-  const d = data as { valido_ate: string; moeda: PlanoDaPessoa["moeda"] };
-  return { validoAte: d.valido_ate, moeda: d.moeda };
+  const d = data as { valido_ate: string; moeda: PlanoDaPessoa["moeda"]; renova?: boolean | null };
+  return { validoAte: d.valido_ate, moeda: d.moeda, renova: d.renova === true };
 }
 
 /** A pessoa está com o plano em dia agora? */
@@ -90,6 +101,8 @@ export async function ativarPlanoSemanal(
   pagamentoId: string,
   moeda: string,
   agora = new Date(),
+  /** Só no primeiro pagamento no cartão (`setup_future_usage=off_session`): guarda o cartão e liga a renovação. */
+  cartao: CartaoGuardado | null = null,
 ): Promise<{ validoAte: string; jaAplicado: boolean }> {
   const { data, error: erroDeLeitura } = await admin
     .from("area_planos")
@@ -104,10 +117,16 @@ export async function ativarPlanoSemanal(
 
   const validoAte = estenderPlano(atual ? new Date(atual.valido_ate) : null, agora).toISOString();
   const moedaGravada = moeda === "USD" || moeda === "EUR" ? moeda : "BRL";
+  // Pagou: as recusas e a espera da rodada zeram. O cartão novo liga a renovação (e desfaz um cancelamento antigo).
+  const renovacao = {
+    falhas: 0,
+    proxima_tentativa: null,
+    ...(cartao ? { stripe_cliente: cartao.cliente, stripe_cartao: cartao.cartao, renova: true, cancelada_em: null } : {}),
+  };
   if (atual) {
     const { error } = await admin
       .from("area_planos")
-      .update({ valido_ate: validoAte, ultimo_pagamento: pagamentoId, moeda: moedaGravada, updated_at: agora.toISOString() })
+      .update({ valido_ate: validoAte, ultimo_pagamento: pagamentoId, moeda: moedaGravada, updated_at: agora.toISOString(), ...renovacao })
       .eq("id", atual.id);
     if (error) throw new Error(error.message);
   } else {
@@ -118,8 +137,26 @@ export async function ativarPlanoSemanal(
       valido_ate: validoAte,
       ultimo_pagamento: pagamentoId,
       moeda: moedaGravada,
+      ...renovacao,
     });
     if (error) throw new Error(error.message);
   }
   return { validoAte, jaAplicado: false };
+}
+
+/**
+ * "Cancelar renovação": a semana já paga continua valendo até o fim; só a próxima cobrança não acontece. O cartão
+ * fica guardado na conta da empresa (pagar de novo no cartão religa). Devolve se havia renovação a cancelar.
+ */
+export async function cancelarRenovacaoDoPlano(admin: SupabaseClient, orgId: string, contactId: string, agora = new Date()): Promise<boolean> {
+  const { data, error } = await admin
+    .from("area_planos")
+    .update({ renova: false, cancelada_em: agora.toISOString(), updated_at: agora.toISOString() })
+    .eq("organization_id", orgId)
+    .eq("contact_id", contactId)
+    .eq("plano", "semanal")
+    .eq("renova", true)
+    .select("id");
+  if (error) throw new Error(error.message);
+  return (data ?? []).length > 0;
 }

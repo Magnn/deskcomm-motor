@@ -179,6 +179,11 @@ export async function aplicarAvisoDePagamentoDaStripe(
         return ok({ received: true, resultado: "repetida" }, { requestId }) as NextResponse;
       if (erroDoLedger) throw new Error(erroDoLedger.message);
       // A área do cliente: o que cada pagamento libera (todos idempotentes pelo id do pagamento).
+      // O cartão guardado para cobrar de novo (o plano que renova sozinho): só o pagamento que pediu para guardar.
+      const cartaoGuardado =
+        pi.setup_future_usage === "off_session" && typeof pi.customer === "string" && typeof pi.payment_method === "string"
+          ? { cliente: pi.customer, cartao: pi.payment_method }
+          : null;
       await liberarCompraDaArea(
         admin,
         conexao.organizationId,
@@ -187,6 +192,7 @@ export async function aplicarAvisoDePagamentoDaStripe(
         extra,
         meta,
         metodoDaCobranca,
+        cartaoGuardado,
       );
       if (extra === EXTRA_DO_CIRCULO) {
         const ativado = await ativarCirculo(admin, conexao.organizationId, contatoId, cobrancaId);

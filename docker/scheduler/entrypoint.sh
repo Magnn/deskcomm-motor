@@ -121,6 +121,9 @@ CRONS="
 # O AVISO DIÁRIO DA ÁREA DO CLIENTE (a carta do dia abriu). De hora em hora pelo mesmo motivo do
 # aniversário: a rodada só age na empresa cujo relógio marca a hora do aviso. Minuto 2, longe das outras.
 2 * * * *|60|api/v1/cron/area-avisos
+# A RENOVAÇÃO DO PLANO DA SEMANA no cartão guardado (0954): cobra quem vence nas próximas 12 h.
+# De hora em hora, minuto 41, longe das outras; a cobrança tem chave de idempotência por semana.
+41 * * * *|60|api/v1/cron/area-planos
 # O canal mudo (doc 11, decisão B): varredura de banco, sem rede, com régua em
 # DIAS. Diária e de madrugada porque o estado que ela lê muda em dias — de 5 em
 # 5 minutos seriam 288 varreduras para nada, e o aviso chegaria na mesma hora.

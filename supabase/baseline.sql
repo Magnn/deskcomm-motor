@@ -40205,3 +40205,15 @@ alter table public.area_planos enable row level security;
 revoke all on public.area_planos from anon, authenticated;
 
 -- area_eventos_tipo_check: os tipos `plano_*` foram acrescentados ao bloco da migration 0934 acima.
+
+-- ---- a renovação sozinha do plano da semana no cartão (migration 0954) ----
+alter table public.area_planos add column if not exists stripe_cliente text;
+alter table public.area_planos add column if not exists stripe_cartao text;
+alter table public.area_planos add column if not exists renova boolean not null default false;
+alter table public.area_planos add column if not exists falhas smallint not null default 0;
+alter table public.area_planos add column if not exists proxima_tentativa timestamptz;
+
+create index if not exists area_planos_renovacao_idx on public.area_planos (valido_ate) where renova;
+
+comment on column public.area_planos.renova is
+  'Renovação sozinha no cartão (0954): ligada pelo pagamento no cartão, desligada pelo cancelamento ou após 3 recusas.';

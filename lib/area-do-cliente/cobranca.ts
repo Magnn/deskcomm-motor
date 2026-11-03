@@ -37,6 +37,8 @@ export async function criarCobrancaDaArea(
     referencia: string;
     metadados?: Record<string, string>;
     mensagemDepoisDePagar: string;
+    /** O plano que renova sozinho: o cartão fica guardado na conta da empresa (`stripe.ts`). */
+    guardarCartao?: boolean;
   },
 ): Promise<CobrancaCriada> {
   const conexao = await lerConexaoStripe(admin, d.organizationId);
@@ -68,6 +70,7 @@ export async function criarCobrancaDaArea(
     referencia: `${d.referencia}-link`,
     metadados,
     mensagemDepoisDePagar: d.mensagemDepoisDePagar,
+    ...(d.guardarCartao ? { guardarCartao: true } : {}),
   });
   return { forma: "cartao", url: link.url };
 }

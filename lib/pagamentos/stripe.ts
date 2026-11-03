@@ -92,6 +92,24 @@ export interface PedidoDeLink {
   mensagemDepoisDePagar: string;
   /** Só cartão: a página não oferece Pix. Usado quando o Pix da empresa cai pela chave, e não aqui. */
   soCartao?: boolean;
+  /**
+   * Guarda o cartão na conta da empresa para cobrar de novo fora da sessão (o plano da semana que renova sozinho,
+   * migration 0954): cria o cliente na Stripe e marca o pagamento com `setup_future_usage=off_session`. Só cartão.
+   */
+  guardarCartao?: boolean;
+}
+
+export interface PedidoDeCobrancaGuardada {
+  valorCentavos: number;
+  /** ISO-4217 (`BRL`, `EUR`, `USD`). */
+  moeda: string;
+  descricao: string;
+  /** O cliente e o cartão guardados no primeiro pagamento (`guardarCartao`). */
+  cliente: string;
+  cartao: string;
+  /** Determinística — a rodada que roda de novo devolve a MESMA cobrança. */
+  referencia: string;
+  metadados: Record<string, string>;
 }
 
 export interface LinkCriado {
@@ -309,7 +327,11 @@ export function criarClienteStripe(cred: CredencialStripe, opts: { fetch?: Fetch
         "after_completion[hosted_confirmation][custom_message]": pedido.mensagemDepoisDePagar.slice(0, 500),
         "payment_intent_data[description]": pedido.descricao.slice(0, 200),
       };
-      if (pedido.soCartao) campos["payment_method_types[0]"] = "card";
+      if (pedido.soCartao || pedido.guardarCartao) campos["payment_method_types[0]"] = "card";
+      if (pedido.guardarCartao) {
+        campos.customer_creation = "always";
+        campos["payment_intent_data[setup_future_usage]"] = "off_session";
+      }
       // A taxa configurada é em reais. Nunca reinterpretar 99 centavos como US$ 0,99 ou € 0,99.
       // Até existir regra explícita de conversão, links em outras moedas não levam taxa da plataforma.
       const taxaDoLink = pedido.moeda.toUpperCase() === "BRL" ? taxaDaPlataforma(cred, pedido.valorCentavos) : null;
@@ -346,6 +368,28 @@ export function criarClienteStripe(cred: CredencialStripe, opts: { fetch?: Fetch
     async lerEmailDoPagador(cobrancaId: string): Promise<string | null> {
       const pi = await chamar("GET", `/payment_intents/${encodeURIComponent(cobrancaId)}?expand[]=latest_charge`);
       return emailDoPagamento(pi);
+    },
+
+    /**
+     * Cobra de novo, sem a pessoa na tela, o cartão guardado no primeiro pagamento. A Stripe confirma na hora:
+     * pago, o aviso `payment_intent.succeeded` de sempre chega com os metadados; recusado (saldo, cartão vencido,
+     * banco pedindo autenticação), vira `ErroDaStripe("recusada")` e quem chama tenta outro dia.
+     */
+    async cobrarCartaoGuardado(pedido: PedidoDeCobrancaGuardada): Promise<{ id: string; status: string }> {
+      const campos: Record<string, string | number | boolean> = {
+        amount: pedido.valorCentavos,
+        currency: pedido.moeda.toLowerCase(),
+        customer: pedido.cliente,
+        payment_method: pedido.cartao,
+        off_session: true,
+        confirm: true,
+        description: pedido.descricao.slice(0, 200),
+      };
+      const taxa = pedido.moeda.toUpperCase() === "BRL" ? taxaDaPlataforma(cred, pedido.valorCentavos) : null;
+      if (taxa !== null) campos.application_fee_amount = taxa;
+      for (const [k, v] of Object.entries(pedido.metadados)) campos[`metadata[${k}]`] = v.slice(0, 480);
+      const pi = await chamar("POST", "/payment_intents", campos, pedido.referencia);
+      return { id: String(pi.id ?? ""), status: String(pi.status ?? "") };
     },
 
     /** Registra na Stripe o endereço que recebe o aviso de pagamento. Devolve o segredo da assinatura (vem uma vez só). */

@@ -18,7 +18,7 @@ import { creditarCirculo, moverCreditos } from "./creditos-servidor";
 import { EXTRA_DA_LEITURA } from "./leituras";
 import { EXTRA_DA_MAO } from "./mao";
 import { EXTRA_DO_SONHO } from "./sonho";
-import { EXTRA_DO_PLANO_SEMANAL, ativarPlanoSemanal } from "./plano-semanal";
+import { EXTRA_DO_PLANO_SEMANAL, ativarPlanoSemanal, type CartaoGuardado } from "./plano-semanal";
 import { registrarEvento } from "./eventos";
 import { EXTRA_DO_PRESENTE } from "./presente";
 import { tipoDoExtra } from "./quizzes";
@@ -35,6 +35,8 @@ export async function liberarCompraDaArea(
   extra: string,
   meta: Record<string, string>,
   metodo: string,
+  /** O cartão que a Stripe guardou neste pagamento (`setup_future_usage=off_session`) — o plano que renova sozinho. */
+  cartao: CartaoGuardado | null = null,
 ): Promise<void> {
   if (extra === EXTRA_DO_PRESENTE) {
     const presenteId = meta.presente_id;
@@ -72,9 +74,14 @@ export async function liberarCompraDaArea(
     return;
   }
   if (extra === EXTRA_DO_PLANO_SEMANAL) {
-    const ativado = await ativarPlanoSemanal(admin, organizationId, contactId, pagamentoId, meta.moeda ?? "BRL");
+    const ativado = await ativarPlanoSemanal(admin, organizationId, contactId, pagamentoId, meta.moeda ?? "BRL", new Date(), cartao);
     if (!ativado.jaAplicado) {
-      await registrarEvento(admin, { organizationId, contactId, tipo: "plano_ativado", props: { valido_ate: ativado.validoAte, metodo, moeda: meta.moeda ?? "BRL" } });
+      await registrarEvento(admin, {
+        organizationId,
+        contactId,
+        tipo: "plano_ativado",
+        props: { valido_ate: ativado.validoAte, metodo, moeda: meta.moeda ?? "BRL", renova: cartao !== null, renovacao: meta.renovacao === "1" },
+      });
     }
     return;
   }
