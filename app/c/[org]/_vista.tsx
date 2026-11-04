@@ -6,7 +6,7 @@
  * banco nem sessão: é assim que a tela é provada antes de ir ao ar.
  */
 import type { CSSProperties } from "react";
-import { Check, FileText, Film, Headphones, MessageCircle, Receipt } from "lucide-react";
+import { ArrowUpRight, BookOpen, Check, FileText, Film, Headphones, MessageCircle, Receipt, Sparkles } from "lucide-react";
 
 import { recadoDaEmpresa, type DadosDaArea } from "@/lib/area-do-cliente/dados";
 import type { IdiomaDaArea } from "@/lib/i18n/area";
@@ -52,6 +52,7 @@ import { AnoPessoalDoCliente, PresenteDoCliente, type TextosDasOfertas } from ".
 import { ContribuicaoDoCliente, SimpatiasDoCliente, type PedidoNaArea, type SimpatiaNaArea, type TextosDasSimpatias } from "./_simpatias";
 import { CARTAO, CARTAO_NOTURNO, CEU, DETALHE, OURO, PAGINA, SERIF, SOBRETITULO, SOBRETITULO_NOTURNO, TEXTO_SUAVE } from "./_tema";
 import { temaDaIlustracao } from "./_ilustracoes";
+import { MemoriasDaArea } from "./_memorias";
 import { CartaoDaVitrine, DestaqueDaLoja, LinhaDaVitrine, Prateleira } from "./_vitrine";
 
 type Traduzir = (texto: string) => string;
@@ -261,7 +262,7 @@ export function VistaDaArea(p: VistaDaAreaProps) {
   const recado = recadoDaEmpresa(dados.conversa, p.agora);
   // Quem terminou o trabalho vê um próximo passo; o primeiro da vitrine que ela ainda não tem.
   const proximo = vitrine[0] ? { nome: vitrine[0].nome, descricao: vitrine[0].descricao ?? null } : null;
-  const rotulos = { hoje: t("Hoje"), trabalho: t("Meu trabalho"), conversa: t("Chat"), explorar: t("Loja") };
+  const rotulos = { hoje: t("Hoje"), trabalho: t("Você"), conversa: t("Guia"), explorar: t("Leituras") };
 
   /** O topo das abas que não são a Hoje: o mesmo céu, mais baixo, com o nome da aba. */
   const topo = (nome: string) => (
@@ -278,7 +279,7 @@ export function VistaDaArea(p: VistaDaAreaProps) {
   const hoje = (
     <>
       {/* O topo do Hoje é CURTO: o nome dela, a frase do dia e o céu numa linha. O herói é a carta, logo abaixo. */}
-      <header className={`${CEU} px-5 pb-24 pt-10`}>
+      <header className={`${CEU} px-5 pb-24 pt-7 sm:pt-10`}>
         <div className="pointer-events-none absolute inset-0" style={brilho(corDaEmpresa)} />
         {/* A CAPA: a foto da guia à direita, sumindo no céu — quem conversa com ela no WhatsApp reconhece de quem é a área. */}
         {p.guia.foto ? (
@@ -293,38 +294,46 @@ export function VistaDaArea(p: VistaDaAreaProps) {
         ) : null}
         <div className="relative mx-auto max-w-xl">
           <div className="flex items-center justify-between gap-3">
-            <p className={SOBRETITULO_NOTURNO}>{titulo}</p>
+            <p className={`${SERIF} flex items-center gap-2 text-xl tracking-wide text-[#f3e4c3]`}><Sparkles aria-hidden className="size-4" />{titulo}</p>
             {/* O saldo à vista no alto, sempre — como nos aplicativos do ramo. */}
             {p.carteira ? <CreditosNoTopo inicial={p.carteira.saldo} rotulo={p.tr.creditos} /> : null}
           </div>
-          <h1 className={`${SERIF} mt-3 text-[38px] leading-[1.05] tracking-tight`} data-testid="area-ola">
+          <p className="mt-5 text-[11px] font-medium uppercase tracking-[0.18em] text-[#c3bad3]">
+            <time dateTime={p.agora.toISOString()}>{new Intl.DateTimeFormat(tag, { timeZone: fuso, weekday: "long", day: "numeric", month: "long" }).format(p.agora)}</time>
+          </p>
+          <h1 className={`${SERIF} mt-2 text-[40px] leading-[1.1] tracking-tight sm:text-[46px]`} data-testid="area-ola">
             {ola}
           </h1>
           {/* A frase de hoje (o modelo Co-Star): curta, no tema dela, a mesma o dia todo. */}
-          <p className={`${SERIF} mt-3 max-w-md text-[20px] italic leading-snug text-[#e9e1f3]`} data-testid="area-frase-do-dia">
+          <p className={`${SERIF} mt-3 max-w-[24rem] text-[21px] italic leading-snug text-[#e9e1f3]`} data-testid="area-frase-do-dia">
             “{p.hojeTela.frase}”
           </p>
           {/* O número e a cor do dia: conta da numerologia, sem IA, a mesma o dia todo. */}
-          <div className="mt-4 flex max-w-md items-start gap-3" data-testid="area-numero-do-dia">
+          <div className="mt-5 grid grid-cols-2 items-start gap-3">
+          <details className="min-w-0 rounded-2xl border border-white/10 bg-[#171126]/70 p-3" data-testid="area-numero-do-dia">
+            <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-lg focus-visible:outline-2 focus-visible:outline-[#e2c47a] [&::-webkit-details-marker]:hidden">
             <span
-              className={`${SERIF} grid size-11 shrink-0 place-items-center rounded-full text-[22px] font-semibold text-[#120d1d]`}
+              className={`${SERIF} grid size-8 shrink-0 place-items-center rounded-full text-[20px] font-semibold text-[#120d1d]`}
               style={{ background: p.hojeTela.doDia.hex, boxShadow: `0 0 22px ${p.hojeTela.doDia.hex}66` }}
               aria-hidden
             >
               {p.hojeTela.doDia.numero}
             </span>
-            <p className="min-w-0 text-[13px] leading-snug text-[#c3bad3]">
-              <span className="font-semibold text-[#f0dca8]">
-                {p.hojeTela.doDia.rotulo}: {p.hojeTela.doDia.numero} · {p.hojeTela.doDia.cor}
+            <span className="min-w-0 text-[11px] leading-snug text-[#c3bad3]">
+              <span className="block font-semibold text-[#f0dca8]">
+                {p.hojeTela.doDia.rotulo}: {p.hojeTela.doDia.numero}
               </span>
-              <span className="block">{p.hojeTela.doDia.sentido}</span>
-            </p>
-          </div>
-          <div className="mt-5 flex items-center gap-3" data-testid="area-lua">
-            <LuaDeHoje quando={p.agora} tamanho={34} />
-            <p className="min-w-0 text-[13px] leading-snug text-[#c3bad3]">
-              <span className="font-semibold text-[#f0dca8]">{nomeDaFase}</span>
-              {" · "}
+              {p.hojeTela.doDia.cor}<span className="ml-1 text-[#e2c47a]" aria-hidden>＋</span>
+            </span>
+            </summary>
+            <p className="mt-3 border-t border-white/10 pt-3 text-[13px] leading-relaxed text-[#c3bad3]">{p.hojeTela.doDia.sentido}</p>
+          </details>
+          <details className="min-w-0 rounded-2xl border border-white/10 bg-[#171126]/70 p-3" data-testid="area-lua">
+            <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-lg focus-visible:outline-2 focus-visible:outline-[#e2c47a] [&::-webkit-details-marker]:hidden">
+              <LuaDeHoje quando={p.agora} tamanho={28} />
+              <span className="text-[11px] font-semibold leading-snug text-[#f0dca8]">{nomeDaFase}<span className="ml-1" aria-hidden>＋</span></span>
+            </summary>
+            <p className="mt-3 border-t border-white/10 pt-3 text-[13px] leading-relaxed text-[#c3bad3]">
               {maiuscula(fraseDaLua.replace(/^[^:]+:\s*/, ""))}
               {p.ceu ? (
                 <span className="block text-[#9d94b2]" data-testid="area-ceu">
@@ -333,6 +342,7 @@ export function VistaDaArea(p: VistaDaAreaProps) {
                 </span>
               ) : null}
             </p>
+          </details>
           </div>
         </div>
       </header>
@@ -377,6 +387,19 @@ export function VistaDaArea(p: VistaDaAreaProps) {
             />
           }
         />
+
+        <section className="grid grid-cols-2 gap-3" aria-label={t("Atalhos da sua área")} data-testid="area-atalhos-pessoais">
+          <BotaoIrParaAba aba="trabalho" className="group flex min-h-24 items-center gap-3 rounded-3xl border border-[#b89cff]/20 bg-[#b89cff]/[0.06] p-4 text-[#e6dbfa]">
+            <BookOpen aria-hidden className="size-5 shrink-0 text-[#b89cff]" />
+            <span className="min-w-0 flex-1 text-sm font-semibold">{t("Suas memórias")}</span>
+            <ArrowUpRight aria-hidden className="size-4 shrink-0" />
+          </BotaoIrParaAba>
+          <BotaoIrParaAba aba="explorar" className="group flex min-h-24 items-center gap-3 rounded-3xl border border-[#e2c47a]/20 bg-[#e2c47a]/[0.05] p-4 text-[#f0dca8]">
+            <Sparkles aria-hidden className="size-5 shrink-0" />
+            <span className="min-w-0 flex-1 text-sm font-semibold">{t("Explorar leituras")}</span>
+            <ArrowUpRight aria-hidden className="size-4 shrink-0" />
+          </BotaoIrParaAba>
+        </section>
 
         <EtapaDeHoje proximo={proximo} />
 
@@ -470,6 +493,8 @@ export function VistaDaArea(p: VistaDaAreaProps) {
     <>
       {topo(rotulos.trabalho)}
       <div className={corpo}>
+        <MemoriasDaArea entradas={dados.diario} tag={tag} fuso={fuso} titulo={t("Suas memórias")} recentes={t("Reflexões recentes")} vazio={t("As suas reflexões ficam aqui. Comece pelo diário no ritual de hoje.")} />
+        {p.grimorio.length > 0 ? <GrimorioDaArea cartas={p.grimorio} tg={p.tg} /> : null}
         {ultimaCompra ? (
           <section className={CARTAO} data-testid="area-compra-confirmada">
             <div className="flex items-start gap-4">
@@ -496,11 +521,7 @@ export function VistaDaArea(p: VistaDaAreaProps) {
               {t("Ver recibo")}
             </a>
           </section>
-        ) : (
-          <section className={CARTAO}>
-            <p className={TEXTO_SUAVE}>{t("Quando você comprar um trabalho, ele aparece aqui, com tudo o que a gente te enviar.")}</p>
-          </section>
-        )}
+        ) : null}
 
         <LinhasDoTempo />
 
@@ -652,6 +673,20 @@ export function VistaDaArea(p: VistaDaAreaProps) {
       {topo(rotulos.explorar)}
       <div className={`${corpo} [&>*+*]:!mt-8`}>
 
+        {p.mesa || p.mao || p.sonho ? (
+          <Prateleira titulo={t("Explorar leituras")} testId="area-prateleira-leituras">
+            {p.mesa ? <CartaoDaVitrine icone="brilho" tema="cartas" tom="ouro" titulo={p.tm.titulo}>
+              <MesaDeLeituras slug={slug} cor={cor} tx={tx} tm={p.tm} inicial={p.mesa} sugestoes={p.perfil.foco ? PERGUNTAS_DO_FOCO[p.perfil.foco].map((q) => t(q)) : []} tag={tag} />
+            </CartaoDaVitrine> : null}
+            {p.mao ? <CartaoDaVitrine icone="mao-com-coracao" tema="estrela" tom="rosa" titulo={p.tmao.titulo} linha={p.tmao.chamada}>
+              <LeituraDaMaoNaArea slug={slug} cor={cor} tx={tx} tm={p.tmao} inicial={p.mao} />
+            </CartaoDaVitrine> : null}
+            {p.sonho ? <CartaoDaVitrine icone="lua" tema="lua" tom="azul" titulo={p.tsonho.titulo}>
+              <SonhosNaArea slug={slug} cor={cor} tx={tx} ts={p.tsonho} inicial={p.sonho} />
+            </CartaoDaVitrine> : null}
+          </Prateleira>
+        ) : null}
+
         {vitrine.length > 0 ? (
           <VitrineObservada slug={slug}>
             <div data-testid="area-vitrine" className="space-y-8">
@@ -710,10 +745,6 @@ export function VistaDaArea(p: VistaDaAreaProps) {
         ) : null}
 
         {p.carteira ? <CarteiraDeCreditos slug={slug} cor={cor} tx={tx} tc={p.tc} inicial={p.carteira} tag={tag} /> : null}
-        {p.mao ? <LeituraDaMaoNaArea slug={slug} cor={cor} tx={tx} tm={p.tmao} inicial={p.mao} /> : null}
-        {p.sonho ? <SonhosNaArea slug={slug} cor={cor} tx={tx} ts={p.tsonho} inicial={p.sonho} /> : null}
-        {/* A Mesa fica inteira, depois das prateleiras de trabalho: é o ritual da área, não um produto de prateleira. */}
-        {p.mesa ? <MesaDeLeituras slug={slug} cor={cor} tx={tx} tm={p.tm} inicial={p.mesa} sugestoes={p.perfil.foco ? PERGUNTAS_DO_FOCO[p.perfil.foco].map((q) => t(q)) : []} tag={tag} /> : null}
 
         {temSoParaVoce ? (
           <Prateleira titulo={t("Só para você")} testId="area-prateleira-so-para-voce">

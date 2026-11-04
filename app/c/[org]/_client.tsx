@@ -350,7 +350,14 @@ function VersoDaCarta() {
     <span className="absolute inset-0 flex items-center justify-center rounded-2xl bg-[#1b1433] bg-[radial-gradient(circle_at_50%_40%,rgba(201,165,78,0.28),transparent_60%)] shadow-[0_14px_30px_-14px_rgba(20,15,38,0.8)] [backface-visibility:hidden]">
       <span className="absolute inset-2 rounded-xl border border-[#c9a54e]/60" />
       <span className="absolute inset-3.5 rounded-lg border border-[#c9a54e]/25" />
-      <Sparkles className="size-9 text-[#e2c47a]" strokeWidth={1.25} aria-hidden />
+      <svg viewBox="0 0 160 240" className="absolute inset-0 size-full text-[#e2c47a]" fill="none" aria-hidden="true">
+        <ellipse cx="80" cy="120" rx="52" ry="82" stroke="currentColor" strokeOpacity=".25" />
+        <circle cx="80" cy="120" r="40" stroke="currentColor" strokeOpacity=".5" />
+        <circle cx="80" cy="120" r="31" stroke="currentColor" strokeOpacity=".2" strokeDasharray="2 5" />
+        <path d="M80 62v18m0 80v18M22 120h18m80 0h18M40 80l12 12m56 56 12 12M40 160l12-12m56-56 12-12" stroke="currentColor" strokeOpacity=".55" />
+        <path d="m80 91 7 22 22 7-22 7-7 22-7-22-22-7 22-7Z" fill="currentColor" fillOpacity=".85" />
+        <path d="m80 32 3 6-3 6-3-6Zm0 164 3 6-3 6-3-6Z" fill="currentColor" />
+      </svg>
     </span>
   );
 }
@@ -380,10 +387,19 @@ export function CartaDoDia({
   jaRevelada?: boolean;
 }) {
   const [revelada, setRevelada] = React.useState(jaRevelada);
-  const revelar = () => {
-    if (revelada) return;
+  const [enviando, setEnviando] = React.useState(false);
+  const [erro, setErro] = React.useState<string | null>(null);
+  const revelar = async () => {
+    if (revelada || enviando) return;
+    setEnviando(true);
+    setErro(null);
+    const r = await postar(`/api/v1/area/publica/${slug}/eventos`, { tipo: "carta_do_dia", carta: cartaId }, tx);
+    setEnviando(false);
+    if (!r.ok) {
+      setErro(r.mensagem ?? tx.naoFoiPossivel);
+      return;
+    }
     setRevelada(true);
-    void postar(`/api/v1/area/publica/${slug}/eventos`, { tipo: "carta_do_dia", carta: cartaId }, tx);
     window.dispatchEvent(new Event(EVENTO_CARTA_REVELADA));
     // Acabou de ver valor: é a hora de convidar para o aviso diário (depois de a carta virar).
     window.setTimeout(() => window.dispatchEvent(new Event(EVENTO_DE_VALOR)), 2500);
@@ -394,11 +410,12 @@ export function CartaDoDia({
       <div className="mt-5 flex flex-col items-center gap-5">
         <button
           type="button"
-          onClick={revelar}
-          disabled={revelada}
+          onClick={() => void revelar()}
+          disabled={revelada || enviando}
+          aria-busy={enviando}
           aria-label={tx.revelar}
           data-testid="area-revelar-carta"
-          className="relative aspect-[3/5] w-44 shrink-0 [perspective:900px] focus-visible:outline-2 focus-visible:outline-offset-4 disabled:cursor-default"
+          className="relative aspect-[3/5] w-40 shrink-0 [perspective:900px] focus-visible:outline-2 focus-visible:outline-offset-4 disabled:cursor-default sm:w-44"
           style={{ outlineColor: cor }}
         >
           <span
@@ -426,10 +443,11 @@ export function CartaDoDia({
               <p className={`mt-2 ${TEXTO_SUAVE}`}>{mensagem}</p>
             </>
           ) : (
-            <p className={TEXTO_SUAVE}>{tx.revelar}</p>
+            <p className={TEXTO_SUAVE}>{enviando ? tx.enviando : tx.revelar}</p>
           )}
         </div>
       </div>
+      {erro ? <Erro>{erro}</Erro> : null}
     </section>
   );
 }
@@ -461,13 +479,13 @@ export function DiarioDoCliente({
         body: JSON.stringify({ texto: texto.trim() }),
         credentials: "same-origin",
       });
-      const json = (await res.json().catch(() => null)) as { data?: { id: string; texto: string }; error?: { message?: string } } | null;
+      const json = (await res.json().catch(() => null)) as { data?: { id: string; texto: string; created_at: string }; error?: { message?: string } } | null;
       if (!res.ok || !json?.data) {
         setErro(json?.error?.message ?? tx.naoFoiPossivel);
       } else {
         setLista((l) => [{ id: json.data!.id, texto: json.data!.texto, quando: "" }, ...l].slice(0, 10));
         setTexto("");
-        window.dispatchEvent(new Event(EVENTO_DIARIO_SALVO));
+        window.dispatchEvent(new CustomEvent(EVENTO_DIARIO_SALVO, { detail: { id: json.data.id, texto: json.data.texto, quando: json.data.created_at } }));
       }
     } catch {
       setErro(tx.semConexao);
