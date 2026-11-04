@@ -83,7 +83,7 @@ Straight to the point, so that you do not find out in front of the client. Each 
 - **Theme.** The light/dark pair belongs to the design system. Your brand moves the **accent** — what is action, highlight and focus — and deliberately does **not** move the page background: the background is the same under every brand, and that is why the browser bar color is too.
 - **The LGPD data-subject report does not carry your brand — and that is on purpose.** See its own section below.
 - **The AI budget alarm** still goes out with our brand. It is the only known leak, and it stays: today that alarm has no schedule wired to it at all, so fixing its brand would change nothing anyone sees. It goes out when the alarm gets a real cron.
-- **Two technical names do not change**: the `X-Deskcomm-Signature` header of outbound webhooks and the session cookie. The first is a contract with third-party systems that already check that name; renaming it would break a client's integration **silently** — the receiver raises no error, it merely stops recognizing.
+- **Two technical names do not change**: the old `X-Deskcomm-Signature` header of outbound webhooks (sent alongside the current one, `X-Acassia-Signature`) and the session cookie. The first is a contract with third-party systems that already check that name; renaming it would break a client's integration **silently** — the receiver raises no error, it merely stops recognizing.
 
 ---
 

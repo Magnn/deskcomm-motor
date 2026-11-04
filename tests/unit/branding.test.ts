@@ -212,13 +212,13 @@ const MARCA_CONGELADA: Record<string, EntradaDeMarca> = {
   "app/api/v1/webhooks/in/[token]/route.ts": {
     categoria: "PROTOCOLO",
     motivo:
-      "header que o webhook de ENTRADA exige de quem envia. Renomear invalida a assinatura de todo integrador já configurado, e o sintoma para ele é 401 sem explicação",
+      "nome ANTIGO do header que o webhook de ENTRADA aceita (o atual é x-acassia-signature). Deixar de aceitá-lo invalida a assinatura de todo integrador já configurado, e o sintoma para ele é 401 sem explicação",
     marcas: ["x-deskcomm-signature"],
   },
   "lib/automation/actions/call-webhook.ts": {
     categoria: "PROTOCOLO",
     motivo:
-      "headers do webhook de SAÍDA. O receptor do cliente lê o nome exato para rotear e para conferir o HMAC; renomear faz o payload chegar e ser descartado calado",
+      "nomes ANTIGOS dos headers do webhook de SAÍDA, enviados junto com os x-acassia-*. O receptor do cliente lê o nome exato para rotear e para conferir o HMAC; parar de enviá-los faz o payload chegar e ser descartado calado",
     marcas: ["x-deskcomm-event", "x-deskcomm-signature"],
   },
   "lib/automation/actions/call-webhook.test.ts": {
@@ -233,23 +233,11 @@ const MARCA_CONGELADA: Record<string, EntradaDeMarca> = {
       "nome do servidor MCP, que o cliente (Claude Desktop e afins) grava na própria configuração. Renomear derruba as conexões já configuradas de quem usa",
     marcas: ["deskcomm-crm"],
   },
-  "lib/supabase/admin.ts": {
-    categoria: "PROTOCOLO",
-    motivo:
-      "`X-Client-Info` enviado ao Supabase — identifica o cliente nos logs e na telemetria DELES. Não é texto de interface e nunca chega ao usuário",
-    marcas: ["deskcomm-crm"],
-  },
   "lib/wacalls/events-bridge.ts": {
     categoria: "PROTOCOLO",
     motivo:
       "X-Client-Id enviado ao processo WaCalls (spec 18) — identifica o worker como o operador dono da conexão SSE nos logs e na lógica de exclusividade de chamada dele. Não é texto de interface e nunca chega ao usuário",
     marcas: ["deskcomm-worker"],
-  },
-  "lib/nuvemshop/config.ts": {
-    categoria: "PROTOCOLO",
-    motivo:
-      "User-Agent exigido pela Nuvemshop, que identifica a aplicação registrada na plataforma deles. Trocar pelo nome do revendedor descreveria uma aplicação que não existe lá",
-    marcas: ["deskcommcrm"],
   },
   "lib/agenda/google/evento.ts": {
     categoria: "PROTOCOLO",
@@ -301,13 +289,6 @@ const MARCA_CONGELADA: Record<string, EntradaDeMarca> = {
   },
 
   // ─── DIVIDA — vazamento real. Cada linha declara a fase que a apaga. ───
-  "lib/email/templates/ai-budget-alarm.tsx": {
-    categoria: "DIVIDA",
-    fase: 7,
-    motivo:
-      "template sem caminho de produção: sem rota em app/api/v1/cron/, sem linha no docker/scheduler/entrypoint.sh e, desde a limpeza do teto de orçamento (0159), sem chamador NENHUM — o único era workers/ai-budget-checker.cron.ts, que foi apagado por nunca ter tido agendador. Marcar isto não muda nada que um usuário veja, e a única 'prova' possível seria invocar a função à mão — o que prova a função, não o produto. Sai quando o alarme ganhar cron de verdade (ou quando o template for apagado junto)",
-    marcas: ["deskcommcrm"],
-  },
 
   // ─── DEV — fixture de teste; não embarca. ───
   "lib/agent-engine/agent/draft-reply.test.ts": {
@@ -611,10 +592,9 @@ describe("catraca de marca hardcoded", () => {
       .map(([arquivo]) => arquivo);
     expect(
       dividas,
-      "a Fase 4 zerou as dívidas de marca, exceto o alarme de orçamento de IA " +
-        "(que não tem caminho de produção). Dívida nova aqui precisa de decisão, " +
-        "não de mais uma linha na lista.",
-    ).toEqual(["lib/email/templates/ai-budget-alarm.tsx"]);
+      "não há dívida de marca: o último caso, o alarme de orçamento de IA sem chamador, " +
+        "foi apagado. Dívida nova aqui precisa de decisão, não de mais uma linha na lista.",
+    ).toEqual([]);
   });
 
   it("toda DIVIDA nomeia a fase que a resolve, e só DIVIDA tem fase", () => {
