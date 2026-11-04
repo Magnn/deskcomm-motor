@@ -1,4 +1,4 @@
-<!-- traduzido-de: docs/white-label.md@7c95d7aebe7b -->
+<!-- traduzido-de: docs/white-label.md@fa2aa39ec588 -->
 
 [🇧🇷 Português](white-label.md) · [🇺🇸 English](white-label.en.md) · 🇪🇸 Español
 
@@ -83,7 +83,7 @@ Directo, para que no lo descubras delante del cliente. Cada línea trae la razó
 - **Tema.** El par claro/oscuro es del design system. Tu marca mueve el **accent** — lo que es acción, destaque y foco — y deliberadamente **no** mueve el fondo de la página: el fondo es el mismo en toda marca, y por eso el color de la barra del navegador también.
 - **El informe de LGPD del titular no lleva tu marca — y es a propósito.** Ver la sección propia más abajo.
 - **La alarma de presupuesto de IA** todavía sale con nuestra marca. Es la única fuga conocida, y se queda: hoy esa alarma no tiene ninguna programación conectada, así que arreglar su marca no cambiaría nada que alguien vea. Sale cuando la alarma tenga un cron de verdad.
-- **Dos nombres técnicos no cambian**: la cabecera `X-Deskcomm-Signature` de los webhooks de salida y la cookie de sesión. El primero es un contrato con sistemas de terceros que ya verifican ese nombre; renombrarlo tumbaría la integración de un cliente **en silencio** — el receptor no da error, simplemente deja de reconocer.
+- **Dos nombres técnicos no cambian**: la cabecera antigua `X-Deskcomm-Signature` de los webhooks de salida (enviada junto con la actual, `X-Acassia-Signature`) y la cookie de sesión. El primero es un contrato con sistemas de terceros que ya verifican ese nombre; renombrarlo tumbaría la integración de un cliente **en silencio** — el receptor no da error, simplemente deja de reconocer.
 
 ---
 

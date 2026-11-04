@@ -90,6 +90,8 @@ export async function executeCallWebhook(
   });
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
+    "X-Acassia-Event": ctx.event.event_type,
+    // nome antigo, mantido para o receptor que já confere por ele não descartar o envio calado
     "X-Deskcomm-Event": ctx.event.event_type,
   };
   // secret_enc (cifrado at-rest, migration 0041) tem precedência; config.secret
@@ -101,7 +103,8 @@ export async function executeCallWebhook(
     secret = await decryptWebhookSecret(ctx.admin, config.secret_enc);
   }
   if (secret) {
-    headers["X-Deskcomm-Signature"] = createHmac("sha256", secret).update(body).digest("hex");
+    headers["X-Acassia-Signature"] = createHmac("sha256", secret).update(body).digest("hex");
+    headers["X-Deskcomm-Signature"] = headers["X-Acassia-Signature"];
   }
 
   const retryDelaysMs = opts.retryDelaysMs ?? RETRY_DELAYS_MS;
