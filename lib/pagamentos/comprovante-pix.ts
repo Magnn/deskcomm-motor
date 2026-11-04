@@ -153,7 +153,10 @@ export function conferirComprovante(e: {
   if (e.cobrancas.length === 0) return { tipo: "nao_confere", motivo: "não há cobrança pela chave nesta conversa" };
   const valores = [...new Set(valoresDitos(e.texto))];
   if (valores.length > 1) return { tipo: "nao_confere", motivo: "o comprovante mostra mais de um valor" };
-  if (valores.length === 0) return { tipo: "nao_confere", motivo: "não dá para ler o valor do comprovante" };
+  if (valores.length === 0) {
+    // Sem valor e sem ID não é comprovante: a descrição de uma foto comum diz "não se trata de um comprovante" (04/11/2026).
+    return ID_DO_PIX.test(e.texto) ? { tipo: "nao_confere", motivo: "não dá para ler o valor do comprovante" } : { tipo: "nenhum" };
+  }
   const valor = valores[0]!;
   if (!citaQuemRecebe(e.texto, e.chave)) return { tipo: "nao_confere", motivo: `não aparece ${e.chave.holder} como quem recebeu` };
   const id = e.texto.match(ID_DO_PIX);
