@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { lerOfertaProativa, ofertaProativaSchema, type OfertaProativa } from "./config";
-import { dentroDaFaixa, escolherOferta, motivoDaOferta, type PessoaParaOferta } from "./decisao";
+import { compraCabe, dentroDaFaixa, escolherOferta, motivoDaOferta, type PessoaParaOferta } from "./decisao";
 import { ritmoPermite } from "@/lib/agent-engine/edge/crm/oferta-proativa";
 
 const AGORA = new Date("2026-10-21T13:00:00Z"); // 09:00 em Porto Velho
@@ -135,5 +135,62 @@ describe("crise escrita abreviada fica fora da oferta", () => {
     expect(r.test("Ate minha vd ja pensei em tirar")).toBe(true);
     expect(r.test("já pensei em me matar")).toBe(true);
     expect(r.test("quero fazer outra pergunta")).toBe(false);
+  });
+});
+
+describe("condições de compra: quem comprou X, e há quanto tempo", () => {
+  const compra = (produto: string, diasAtras: number) => ({ produto, em: new Date(AGORA.getTime() - diasAtras * DIA) });
+
+  it("so_se_comprou exige uma compra do produto; quem comprou outra coisa ou nada fica de fora", () => {
+    const o = { so_se_comprou: "pergunta" };
+    expect(compraCabe(o, { produtosComprados: ["Pergunta nova"], compras: [compra("Pergunta nova", 1)] }, AGORA)).toBe(true);
+    expect(compraCabe(o, { produtosComprados: ["Sinastria"], compras: [compra("Sinastria", 1)] }, AGORA)).toBe(false);
+    expect(compraCabe(o, { produtosComprados: [] }, AGORA)).toBe(false);
+  });
+
+  it("compra_ha_pelo_menos_dias olha a compra MAIS RECENTE: quem comprou de novo ontem espera", () => {
+    const o = { compra_ha_pelo_menos_dias: 7 };
+    expect(compraCabe(o, { produtosComprados: ["Trabalho"], compras: [compra("Trabalho", 8)] }, AGORA)).toBe(true);
+    expect(compraCabe(o, { produtosComprados: ["Trabalho"], compras: [compra("Trabalho", 8), compra("Pergunta", 1)] }, AGORA)).toBe(false);
+    expect(compraCabe(o, { produtosComprados: [] }, AGORA)).toBe(false); // sem compra datada não cabe
+  });
+
+  it("as duas juntas: a data vale só para as compras do produto pedido", () => {
+    const o = { so_se_comprou: "trabalho", compra_ha_pelo_menos_dias: 7 };
+    const p = { produtosComprados: ["Trabalho", "Pergunta"], compras: [compra("Trabalho", 9), compra("Pergunta", 1)] };
+    expect(compraCabe(o, p, AGORA)).toBe(true);
+  });
+
+  it("sem nenhuma das duas condições, a oferta cabe como antes", () => {
+    expect(compraCabe({}, { produtosComprados: [] }, AGORA)).toBe(true);
+  });
+
+  it("escolherOferta respeita as condições: o trabalho só vai a quem comprou a pergunta e ainda não tem o trabalho", () => {
+    const c = ofertaProativaSchema.parse({
+      enabled: true,
+      ofertas: [
+        {
+          id: "trabalho_apos_pergunta",
+          motivo: "ofereça o trabalho a quem comprou a pergunta e recebeu a resposta",
+          so_se_comprou: "pergunta",
+          ja_tem_se_comprou: "trabalho",
+        },
+      ],
+    });
+    const comprouPergunta = pessoa({ comprou: true, produtosComprados: ["Pergunta nova"], compras: [compra("Pergunta nova", 1)] });
+    expect(escolherOferta(comprouPergunta, c, AGORA)).toMatchObject({ oferta: { id: "trabalho_apos_pergunta" } });
+    const jaTemTrabalho = pessoa({
+      comprou: true,
+      produtosComprados: ["Pergunta nova", "Trabalho"],
+      compras: [compra("Pergunta nova", 3), compra("Trabalho", 1)],
+    });
+    expect(escolherOferta(jaTemTrabalho, c, AGORA)).toMatchObject({ oferta: null });
+    expect(escolherOferta(pessoa(), c, AGORA)).toMatchObject({ oferta: null });
+  });
+
+  it("o schema recusa dias fora da faixa e regex inválida", () => {
+    const base = { id: "x", motivo: "um motivo comprido o bastante para valer" };
+    expect(() => ofertaProativaSchema.parse({ enabled: true, ofertas: [{ ...base, compra_ha_pelo_menos_dias: 0 }] })).toThrow();
+    expect(() => ofertaProativaSchema.parse({ enabled: true, ofertas: [{ ...base, so_se_comprou: "(" }] })).toThrow();
   });
 });
