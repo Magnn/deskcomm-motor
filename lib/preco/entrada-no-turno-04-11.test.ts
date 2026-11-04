@@ -31,6 +31,22 @@ describe("entrada no valor dito — 04/11/2026", () => {
     expect(entradaImediata(PRICING, [PRECO, m("inbound", "dá em 2x no cartão?")])).toBeNull();
     expect(entradaImediata(PRICING, [PRECO, m("inbound", "faz em 12x?")])).toBeNull();
   });
+
+  it("⭐ '2 vezes' e 'metade' sem fala de pagamento não são entrada", () => {
+    expect(entradaImediata(PRICING, [PRECO, m("inbound", "ele já me bloqueou 2 vezes")])).toBeNull();
+    expect(entradaImediata(PRICING, [PRECO, m("inbound", "metade de mim quer desistir")])).toBeNull();
+  });
+
+  it("⭐ a fala da entrada combinada antes não vira o total da entrada seguinte", () => {
+    const conversa = [
+      PRECO,
+      m("inbound", "só tenho 50"),
+      m("outbound", "Fechado: você entra com R$ 50 agora e o restante de R$ 80 a gente acerta depois."),
+      m("outbound", "Pra pagar no Pix (*R$ 50 (Entrada)*): 1. Toque e segure na chave."),
+      m("inbound", "só consigo 30 hoje"),
+    ];
+    expect(entradaImediata(PRICING, conversa)).toEqual({ entradaCents: 3000, restanteCents: 10000 });
+  });
 });
 
 describe("perguntaAntesDoPixDaEntrada", () => {
