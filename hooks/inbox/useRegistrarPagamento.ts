@@ -35,6 +35,19 @@ export function useRegistrarPagamento() {
   });
 }
 
+/** Quem é do templo terminou a parte do altar: o agente avisa a cliente (só dentro da janela de 24 h). */
+export function useTrabalhoFeito() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (args: { conversation_id: string; observacao: string }) =>
+      (await apiClient.post<{ data: { avisando: true } }>(`/api/v1/conversations/${args.conversation_id}/trabalho-feito`, { observacao: args.observacao })).data,
+    onError: (err) => showApiError(err),
+    onSuccess: (_data, args) => {
+      qc.invalidateQueries({ queryKey: ["messages", args.conversation_id] });
+    },
+  });
+}
+
 /** Envia um Pix copia e cola na conversa, pelo atendente. As mensagens entram no histórico como qualquer resposta. */
 export function useEnviarPix() {
   const qc = useQueryClient();

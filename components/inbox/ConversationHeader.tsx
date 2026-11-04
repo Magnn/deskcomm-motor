@@ -40,6 +40,7 @@ import { comandoDaConversa, ROTULO_DO_MOTIVO } from "@/lib/inbox/comando-da-conv
 import { ReassignDialog } from "@/components/inbox/ReassignDialog";
 import { EnviarPixDialog } from "@/components/inbox/EnviarPixDialog";
 import { RegistrarPagamentoDialog } from "@/components/inbox/RegistrarPagamentoDialog";
+import { TrabalhoFeitoDialog } from "@/components/inbox/TrabalhoFeitoDialog";
 import { SnoozeButton } from "@/components/inbox/SnoozeButton";
 import { useMarkAsUnread } from "@/hooks/inbox/useMarkAsUnread";
 import { showApiError } from "@/components/feedback/ApiErrorToast";
@@ -97,6 +98,7 @@ export function ConversationHeader({ conversation, onAbrirConversa, onSair }: Pr
   const automaticoDaOrg = useAutomaticoAtivo();
   const [reassignOpen, setReassignOpen] = useState(false);
   const [pagamentoOpen, setPagamentoOpen] = useState(false);
+  const [trabalhoOpen, setTrabalhoOpen] = useState(false);
   const [pixOpen, setPixOpen] = useState(false);
   const [confirmFecharOpen, setConfirmFecharOpen] = useState(false);
   const [confirmArquivarOpen, setConfirmArquivarOpen] = useState(false);
@@ -338,6 +340,17 @@ export function ConversationHeader({ conversation, onAbrirConversa, onSair }: Pr
           <Button
             size="sm"
             variant="outline"
+            data-testid="abrir-trabalho-feito"
+            title={t("Terminou a parte do altar? Confirme aqui e o agente avisa a cliente.")}
+            onClick={() => setTrabalhoOpen(true)}
+          >
+            {t("Trabalho feito")}
+          </Button>
+        )}
+        {!encerrada && conversation.contact_id && (
+          <Button
+            size="sm"
+            variant="outline"
             data-testid="abrir-enviar-pix"
             title={t("Envia o Pix copia e cola nesta conversa, no valor que você informar. O pagamento é confirmado sozinho.")}
             onClick={() => setPixOpen(true)}
@@ -471,6 +484,9 @@ export function ConversationHeader({ conversation, onAbrirConversa, onSair }: Pr
       {pixOpen && <EnviarPixDialog conversationId={conversation.id} open={pixOpen} onOpenChange={setPixOpen} />}
       {pagamentoOpen && (
         <RegistrarPagamentoDialog conversationId={conversation.id} open={pagamentoOpen} onOpenChange={setPagamentoOpen} />
+      )}
+      {trabalhoOpen && (
+        <TrabalhoFeitoDialog conversationId={conversation.id} open={trabalhoOpen} onOpenChange={setTrabalhoOpen} />
       )}
       <ReassignDialog
         conversationId={conversation.id}
