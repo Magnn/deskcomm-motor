@@ -17,3 +17,12 @@ describe("ícone da aba na área do cliente", () => {
     expect(pagina).not.toMatch(/\bicons\s*:/);
   });
 });
+
+describe("desenho do ícone da área", () => {
+  it("usa a cor da empresa só quando é hex de 6 dígitos", async () => {
+    const { corDoIcone } = await import("@/app/c/[org]/icone/route");
+    expect(corDoIcone("#c0ffee")).toBe("#c0ffee");
+    expect(corDoIcone('red"/><script>alert(1)</script>')).toBe("#7c3aed");
+    expect(corDoIcone(null)).toBe("#7c3aed");
+  });
+});
