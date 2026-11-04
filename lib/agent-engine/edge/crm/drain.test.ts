@@ -46,7 +46,7 @@ const eventoDeAudio = (criadoHaMs: number) => ({
 });
 
 function poolFalso(
-  msgRow: { type: string; media_derived_status: string | null },
+  msgRow: { type: string; media_derived_status: string | null } | Array<{ type: string; media_derived_status: string | null }>,
   calls: string[],
   capacidade: { tem_agente: boolean; tem_roteador: boolean } = { tem_agente: true, tem_roteador: false },
 ) {
@@ -56,7 +56,7 @@ function poolFalso(
     if (sql.includes('ai_dispatch_mode')) return { rows: [{ mode: null }] };
     if (sql.includes('is_group')) return { rows: [{ is_group: false }] };
     if (sql.includes('tem_agente')) return { rows: [capacidade] };
-    if (sql.includes('media_derived_status')) return { rows: [msgRow] };
+    if (sql.includes('media_derived_status')) return { rows: Array.isArray(msgRow) ? msgRow : [msgRow] };
     return { rows: [] };
   });
   return { query } as unknown as pg.Pool;
@@ -110,6 +110,16 @@ it('áudio esperando 90s (janela 45s–120s do #530): turno segue ADIADO, não d
   // Adiar não é falha: volta a 'pending' com espera curta, sem gastar tentativa.
   expect(calls.some((s) => s.includes("status = 'pending'") && s.includes('next_attempt_at'))).toBe(true);
   expect(calls.some((s) => s.includes("status = 'done'"))).toBe(false);
+});
+
+it('⭐ 04/11/2026: texto que chega logo depois do comprovante espera a imagem virar texto', async () => {
+  const calls: string[] = [];
+  process.env.__ESPERA__ = '1000';
+  const linhas = [{ type: 'text', media_derived_status: null }, { type: 'image', media_derived_status: 'pending' }];
+  await drainTick(poolFalso(linhas, calls), knobs, log);
+  expect(calls.some((s) => s.includes('media_derived_status') && s.includes('conversation_id'))).toBe(true);
+  expect(calls.some((s) => s.includes('job_queue'))).toBe(false);
+  expect(calls.some((s) => s.includes("status = 'pending'") && s.includes('next_attempt_at'))).toBe(true);
 });
 
 it('mensagem de texto não espera nada', async () => {

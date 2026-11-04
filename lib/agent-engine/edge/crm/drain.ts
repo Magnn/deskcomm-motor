@@ -431,20 +431,20 @@ async function processEvent(
   // baixado e transcrito — e o cliente recebia "recebi seu áudio, mas não
   // consigo ouvi-lo" segundos ANTES de a transcrição ficar pronta. Medido nesta
   // VPS: dispatch às 20:24:22, derivação só pedida às 20:25:03.
+  // Vale também para a mídia que veio ANTES na mesma conversa: o turno da última mensagem lê todas. Medido em
+  // 04/11/2026: comprovante às 09:26:39, dois textos logo depois, o turno do último texto rodou às 09:27 com a
+  // imagem ainda sem texto (pronto às 09:27:18) — o Pix de R$ 10 não foi conferido nem entrou no faturamento.
   const { rows: msgRows } = await pool.query<{
     type: string;
     media_derived_status: string | null;
   }>(
     `select type, media_derived_status from messages
-     where organization_id = $1 and id = $2`,
-    [event.organization_id, p.inbound_message_id],
+     where organization_id = $1
+       and (id = $2 or (conversation_id = $3 and direction = 'inbound' and sent_at > now() - interval '3 minutes'))`,
+    [event.organization_id, p.inbound_message_id, p.conversation_id],
   );
-  const msg = msgRows[0];
-  if (
-    msg !== undefined &&
-    TIPOS_DERIVAVEIS.has(msg.type) &&
-    !DERIVACAO_TERMINADA.has(msg.media_derived_status ?? '')
-  ) {
+  const msg = msgRows.find((m) => TIPOS_DERIVAVEIS.has(m.type) && !DERIVACAO_TERMINADA.has(m.media_derived_status ?? ''));
+  if (msg !== undefined) {
     const esperandoHa = Date.now() - new Date(event.created_at).getTime();
     if (esperandoHa < TETO_ESPERA_DERIVACAO_MS) {
       log.info('drain: mídia ainda sendo transcrita — turno adiado', {

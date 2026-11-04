@@ -110,6 +110,8 @@ describe("conferência do comprovante Pix", () => {
   it("sem cobrança enviada é dúvida, e foto comum nem conta como comprovante", () => {
     expect(conferir(comprovante("R$ 7,00"), []).tipo).toBe("nao_confere");
     expect(conferir("Uma foto de um gato no sofá.").tipo).toBe("nenhum");
+    // 04/11/2026: a descrição da foto de um casal chamou a equipe para "conferir o comprovante".
+    expect(conferir("O cliente enviou uma foto pessoal de um casal. Não se trata de um comprovante de pagamento.").tipo).toBe("nenhum");
   });
 
   it("a legenda digitada pela pessoa não vale como comprovante", () => {
