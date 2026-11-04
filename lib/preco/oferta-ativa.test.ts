@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { conversaFalouDeExtra } from "./extras";
+import { conversaFalouDeExtra, ofertaPequenaDeHoje } from "./extras";
 import { reclamacoesDeValor, valorQueAPessoaTem } from "./estado-da-negociacao";
 import { falaErradaDoPagamento } from "./fala-do-pagamento";
-import { blocoDaOfertaAtiva, ofertaAtivaDaConversa, ofertaEmConflito, pediuOTrabalho } from "./oferta-ativa";
+import { blocoDaOfertaAtiva, ofertaAtivaDaConversa, ofertaEmConflito, oportunidadeDeOferta, ouviuOMenorValor, pediuOTrabalho } from "./oferta-ativa";
 import type { Extra } from "./tipos";
 import { valorErradoDeExtra } from "./valor-do-extra";
 
@@ -114,5 +114,24 @@ describe("o que a agente diz do pagamento", () => {
     expect(falaErradaDoPagamento("Conseguiu copiar a chave?", [])).toBeNull();
     expect(falaErradaDoPagamento("Conseguiu copiar o código?", [agente("00020126360014br.gov.bcb.pix")])).toBeNull();
     expect(falaErradaDoPagamento("Esse é o Código da Conexão.", [])).toBeNull();
+  });
+});
+
+describe("o relatório do casal quando ela já deu as duas datas (04/11/2026)", () => {
+  const datas = pessoa("1-Valeria de Sousa gomes 15/10/1999 2-fred Silva Mendonça 06/10/2000");
+  const ate60 = [datas, agente("Aqui o seu trabalho é *R$ 130*."), pessoa("não tenho"), agente("Consegui deixar por *R$ 60*, uma vez só."), pessoa("não consigo"), agente("Entendo, meu bem."), agente("Fica comigo."), agente("Sem pressa."), agente("Tô aqui.")];
+
+  it("⭐ depois do menor valor, a porta aberta sobre ele oferece a Sinastria, não a pergunta", () => {
+    expect(oportunidadeDeOferta(escada, extras, [...ate60, pessoa("será que ele ainda me ama?")])?.name).toBe("Sinastria Amorosa");
+    expect(ouviuOMenorValor(escada, ate60)).toBe(true);
+    expect(ofertaPequenaDeHoje(extras, ate60, true)?.nome).toBe("Sinastria Amorosa");
+  });
+
+  it("sem as duas datas, antes do menor valor, ou com a Sinastria já oferecida: segue a pergunta", () => {
+    const semDatas = ate60.slice(1);
+    expect(oportunidadeDeOferta(escada, extras, [...semDatas, pessoa("será que ele ainda me ama?")])?.name).toBe("Pergunta nova");
+    expect(ofertaPequenaDeHoje(extras, ate60, false)?.nome).toBe("Pergunta nova");
+    const jaOfereceu = [...ate60.slice(0, 5), agente("Eu faço o *Código da Conexão* de vocês dois."), ...ate60.slice(5)];
+    expect(oportunidadeDeOferta(escada, extras, [...jaOfereceu, pessoa("será que ele ainda me ama?")])?.name).toBe("Pergunta nova");
   });
 });

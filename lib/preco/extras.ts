@@ -67,11 +67,32 @@ export function nomesDoExtra(extra: Pick<Extra, "name" | "report">): string[] {
 export function ofertaPequenaDeHoje(
   extras: readonly Extra[],
   mensagens: readonly { direction: string; body?: string | null }[],
+  ouviuOMenorValor = false,
 ): { nome: string; precoCents: number } | null {
+  const casal = ouviuOMenorValor ? extraDoCasalPronto(extras, mensagens) : null;
+  if (casal) return { nome: casal.name, precoCents: casal.price_cents };
   const unicas = extras.filter((e) => e.valid_days === undefined).sort((a, b) => a.price_cents - b.price_cents);
   const mais = unicas[0];
   if (!mais || conversaFalouDeExtra(mensagens, [mais])) return null;
   return { nome: mais.name, precoCents: mais.price_cents };
+}
+
+/** Duas datas de nascimento na mesma mensagem dela: a dela e a da outra pessoa ("15/10/1999 … 06/10/2000"). */
+const DUAS_DATAS = /\b\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4}\b[\s\S]*\b\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4}\b/;
+
+/**
+ * O RELATÓRIO DO CASAL JÁ TEM O QUE PRECISA: o extra que se monta pelas duas datas (`report.kind = "sinastria"`), quando ela
+ * já mandou as duas e a conversa ainda não falou dele. Medido em 04/11/2026: em 3 dias, 68 conversas trouxeram as duas
+ * datas e 1 ouviu a oferta; 22 chegaram ao menor valor do trabalho, onde o roteiro manda oferecê-lo, e receberam a
+ * cobrança mais barata, porque quem escolhia a oferta pequena só olhava o preço.
+ */
+export function extraDoCasalPronto(
+  extras: readonly Extra[],
+  mensagens: readonly { direction: string; body?: string | null }[],
+): Extra | null {
+  const casal = extras.find((e) => e.report?.kind === "sinastria" && e.valid_days === undefined);
+  if (!casal || conversaFalouDeExtra(mensagens, [casal])) return null;
+  return mensagens.some((m) => m.direction === "inbound" && DUAS_DATAS.test(m.body ?? "")) ? casal : null;
 }
 
 export function extrasDaConfig(pricing: Pick<PricingConfig, "enabled" | "extras"> | null | undefined): Extra[] {
