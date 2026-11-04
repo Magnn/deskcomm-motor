@@ -108,7 +108,7 @@ import { promessaDeReenvioSemCobranca } from '@/lib/preco/promessa-de-reenvio';
 import { recusaDeQuemJaPagou } from '@/lib/preco/pago-mas-cobrando';
 import { comprovanteDoTurno, depsReaisDoComprovante } from '@/lib/pagamentos/comprovante-no-turno';
 import { falasDesdeAUltimaCobranca, quantidadeMenorQueACombinada, valorErradoDeExtra } from '@/lib/preco/valor-do-extra';
-import { blocoDaOfertaAtiva, ofertaAtivaDaConversa, ofertaEmConflito, pediuOTrabalho, blocoDaOportunidade, oportunidadeDeOferta } from '@/lib/preco/oferta-ativa';
+import { blocoDaOfertaAtiva, ofertaAtivaDaConversa, ofertaEmConflito, ouviuOMenorValor, pediuOTrabalho, blocoDaOportunidade, oportunidadeDeOferta } from '@/lib/preco/oferta-ativa';
 import { falaErradaDoPagamento } from '@/lib/preco/fala-do-pagamento';
 import { destinoDaProva, legendaDaProva, provasParaEnviar } from '@/lib/preco/prova-social';
 import { classificarPerdaDoAtendimento } from '@/lib/resultado/motivo-da-perda-do-agente';
@@ -2582,7 +2582,13 @@ async function executarTurnoDoAgente(
     combinadoCents: combinadoDoTurno,
     faltaParaOEssencial: faltaParaOEssencialNoTurno,
     // Só pesa no turno de fechar a data: o combinado sai junto de uma oferta pequena para hoje (decisão do dono, 31/10).
-    ofertaDeHoje: preview ? null : ofertaPequenaDeHoje(extrasDaConfig(agentConfig?.pricing), openingContext.context.messages),
+    ofertaDeHoje: preview
+      ? null
+      : ofertaPequenaDeHoje(
+          extrasDaConfig(agentConfig?.pricing),
+          openingContext.context.messages,
+          !!agentConfig?.pricing && ouviuOMenorValor(agentConfig.pricing, openingContext.context.messages),
+        ),
       });
   // A REDE: o mesmo passo vira o piso de preço da trava de promessas deste turno. Se o modelo
   // oferecer um valor abaixo do degrau liberado, a mensagem é vetada antes de sair (`before-send`). No

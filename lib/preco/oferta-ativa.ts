@@ -19,7 +19,7 @@
  *
  * Pura.
  */
-import { nomesDoExtra, totaisDoExtra } from "./extras";
+import { extraDoCasalPronto, nomesDoExtra, totaisDoExtra } from "./extras";
 import type { Extra, PricingConfig } from "./tipos";
 import { reais } from "./tipos";
 import { valoresDitos } from "./valor-do-extra";
@@ -161,7 +161,10 @@ export function oportunidadeDeOferta(c: Escada, extras: readonly Extra[], mensag
   // A agente acabou de pedir a pergunta que ela já pagou: isto é a resposta, não uma porta.
   if (/\bpergunta\b/i.test(falas.at(-1) ?? "")) return null;
   if (falas.slice(-FALAS_SEM_VALOR_ANTES_DA_OFERTA).some((f) => FALA_DE_VALOR.test(f))) return null;
-  return [...extrasPequenos(c, extras)].sort((a, b) => a.price_cents - b.price_cents)[0] ?? null;
+  const pequenos = extrasPequenos(c, extras);
+  // Ela já ouviu o menor valor do trabalho e deu as duas datas: a porta sobre a outra pessoa é o relatório do casal.
+  const casal = ouviuOMenorValor(c, mensagens) ? extraDoCasalPronto(pequenos, mensagens) : null;
+  return casal ?? [...pequenos].sort((a, b) => a.price_cents - b.price_cents)[0] ?? null;
 }
 
 /** O bloco do turno em que ela abriu uma porta: desejo primeiro, oferta depois. */
@@ -184,7 +187,7 @@ export function blocoDaOportunidade(extra: Extra | null): string {
  * A conversa já desceu até o fim da escada que se oferece. O último degrau é o piso da negociação, e a régua de silêncio
  * para no penúltimo (R$ 60): por isso qualquer um dos dois abre a oferta pequena.
  */
-function ouviuOMenorValor(c: Escada, mensagens: readonly MensagemDaConversa[]): boolean {
+export function ouviuOMenorValor(c: Escada, mensagens: readonly MensagemDaConversa[]): boolean {
   const finais = c.steps.slice(-2).map((d) => d.price_cents);
   return mensagens.some((m) => m.direction === "outbound" && valoresDitos(m.body ?? "").some((v) => finais.includes(v)));
 }
