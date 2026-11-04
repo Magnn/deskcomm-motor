@@ -16,6 +16,17 @@ describe("entrada no valor dito — 04/11/2026", () => {
     expect(entradaImediata(PRICING, conversa)).toEqual({ entradaCents: 5000, restanteCents: 5000 });
   });
 
+  it("⭐ a entrada de R$ 50 já combinada não vira o total — o restante sai sobre R$ 130", () => {
+    const conversa = [
+      PRECO,
+      m("inbound", "Tô sem salário agora"),
+      m("outbound", "Fechado: você entra com R$ 50 agora e o restante de R$ 80 a gente acerta depois."),
+      m("outbound", "Pra pagar no Pix (*R$ 50 (Entrada)*): 1. Toque e segure na chave…"),
+      m("inbound", "consigo 40 hoje"),
+    ];
+    expect(entradaImediata(PRICING, conversa)).toEqual({ entradaCents: 4000, restanteCents: 9000 });
+  });
+
   it("sem degrau dito, o total continua sendo o valor de venda", () => {
     expect(entradaImediata(PRICING, [PRECO, m("inbound", "Só tenho 50$ aqui no Pix"), m("inbound", "Dinheiro só dia 10")])).toEqual({ entradaCents: 5000, restanteCents: 8000 });
   });

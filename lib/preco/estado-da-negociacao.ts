@@ -488,6 +488,9 @@ export function deuDataParaPagar(mensagens: readonly MensagemParaContar[]): bool
 
 const VALORES_EM_REAIS = /R\$\s?(\d{1,3}(?:\.\d{3})+|\d+)(?:,(\d{2}))?/g;
 
+/** A fala é sobre uma parte do preço (entrada, restante), não sobre o preço. */
+const FALA_DE_PARTE = /\bentrada\b|\bentra\s+com\b|\brestante\b/i;
+
 /**
  * O VALOR COMBINADO — o último valor da escada que a agente disse, quando ele é um DEGRAU
  * (abaixo do valor de venda). `null` = ela ainda está no valor de venda, ou não disse preço.
@@ -508,6 +511,9 @@ export function valorCombinadoNaConversa(
   for (let i = msgs.length - 1; i >= 0; i -= 1) {
     const m = msgs[i]!;
     if (m.direction !== "outbound") continue;
+    // Fala de entrada/restante cita PARTE do preço, não o preço: um lead (04/11/2026) ouviu R$ 130, fechou "entrada de
+    // R$ 50" — que coincide com um degrau — e o total virou R$ 50, com "restante de R$ 4".
+    if (FALA_DE_PARTE.test(m.body ?? "")) continue;
     let ultimo: number | null = null;
     for (const achado of (m.body ?? "").matchAll(VALORES_EM_REAIS)) {
       const cents = Number(achado[1]!.replace(/\./g, "")) * 100 + Number(achado[2] ?? "0");
