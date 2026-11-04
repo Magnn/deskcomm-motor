@@ -103,6 +103,29 @@ export function blocoDoValorAbaixoDoPiso(v: { ditoCents: number; pisoCents: numb
 export const MARCA_DA_ENTRADA = "Entrada";
 
 /**
+ * A TRAVA DO TURNO DA ENTRADA: pergunta antes do Pix é recusada. Medido em 04/11/2026: França escreveu "Só tenho 50$
+ * aqui no Pix", a entrada de R$ 50 estava no turno e a agente perguntou "Quanto você consegue hoje?"; o Pix saiu pela
+ * mão da equipe. Ademir pediu "faz em 2x?" e ouviu "me diz o dia do restante, que eu te mando o Pix" — nunca recebeu.
+ * Só na entrada nova (a combinada antes responde primeiro o que ela perguntou). `enviados` = balões já mandados no turno.
+ */
+export function perguntaAntesDoPixDaEntrada(
+  corpo: string,
+  entrada: { entradaCents: number; restanteCents: number; combinadaAntes?: true } | null,
+  enviados: readonly string[],
+): string | null {
+  if (entrada === null || entrada.combinadaAntes) return null;
+  if ([...enviados, corpo].some((b) => /pagar no pix/i.test(b))) return null;
+  if (!corpo.includes("?")) return null;
+  const e = reais(entrada.entradaCents);
+  const r = reais(entrada.restanteCents);
+  return (
+    `Envio recusado: a entrada de ${e} já está fechada neste turno e o Pix tem de sair ANTES de qualquer pergunta. ` +
+    `Não pergunte quanto ela consegue, o dia do restante nem se pode mandar. Mande "Fechado, [nome]: você entra com ${e} agora e o restante de ${r} a gente acerta depois." ` +
+    `e, sozinha no balão seguinte, a marca [[PIX: ${MARCA_DA_ENTRADA}]]. A pergunta vai depois do Pix.`
+  );
+}
+
+/**
  * O bloco do turno em que a pessoa disse quanto consegue pagar AGORA (`entradaImediata`): a entrada é esse valor,
  * o Pix sai neste turno e o restante fica para depois. A data do restante é perguntada DEPOIS do Pix, nunca antes.
  */

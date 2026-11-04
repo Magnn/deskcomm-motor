@@ -145,8 +145,9 @@ describe("entradaImediata — o Pix no valor que a pessoa disse", () => {
     expect(entradaImediata({ ...PRICING, min_down_payment_cents: 3000 }, conversa)).toEqual({ entradaCents: 3000, restanteCents: 10000 });
     const segurou = [...conversa, m("outbound", "O menor valor é R$ 50. Você consegue completar hoje?")];
     const comMinimo = { ...PRICING, min_down_payment_cents: 3000 };
-    expect(entradaImediata(comMinimo, [...segurou, m("inbound", "não consigo, é o que eu tenho")])).toEqual({ entradaCents: 3000, restanteCents: 10000 });
-    expect(entradaImediata(comMinimo, [...segurou, m("inbound", "só tenho 35")])).toEqual({ entradaCents: 3500, restanteCents: 9500 });
+    // O total é o último valor que ela ouviu (R$ 50), não o de venda: o restante fecha o que a agente disse (04/11/2026).
+    expect(entradaImediata(comMinimo, [...segurou, m("inbound", "não consigo, é o que eu tenho")])).toEqual({ entradaCents: 3000, restanteCents: 2000 });
+    expect(entradaImediata(comMinimo, [...segurou, m("inbound", "só tenho 35")])).toEqual({ entradaCents: 3500, restanteCents: 1500 });
     // Ela conseguiu o menor valor: não é entrada abaixo do piso, segue a regra de sempre.
     expect(entradaImediata(comMinimo, [...segurou, m("inbound", "vou ver com meu tio")])).toBeNull();
     expect(entradaImediata(comMinimo, [...segurou, m("inbound", "só tenho 20")])).toBeNull();

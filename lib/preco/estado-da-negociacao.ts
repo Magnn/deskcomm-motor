@@ -337,7 +337,7 @@ const NEGADO = /(?:n[ãa]o|nem|sem)\s+(?:\S+\s+){0,2}$/i;
  * ofereceu uma pergunta de R$ 5; o dono fechou a entrada de 80 à mão. Só vale logo depois de a agente perguntar o valor.
  */
 const SO_O_NUMERO = /^\s*(?:(?:uns|s[óo]|apenas|hoje|agora)\s+)?(?:R\$\s?)?(\d{2,3})(?:[.,]\d{2})?\s*(?:reais)?\s*(?:hoje|agora|s[óo])?\s*[.!]?\s*$/i;
-const PERGUNTOU_QUANTO =
+export const PERGUNTOU_QUANTO =
   /\bquanto\s+(?:(?:que\s+)?(?:caberia|cabe|daria|d[áa]|consegue|conseguiria|pode|poderia|tem)|voc[êe]\s+(?:tem|consegue|conseguiria|pode|poderia))\b/i;
 
 /**
@@ -643,17 +643,28 @@ export function entradaImediata(
   // A ENTRADA JÁ COMBINADA CONTINUA VALENDO: ela disse "50", a agente fechou, e no turno seguinte ela perguntou outra
   // coisa. Sem isto a entrada sumia do turno, a cobrança dela não era mais liberada e a agente passou uma hora dizendo
   // "a chave vai aqui embaixo" sem chave nenhuma (Ana, 02/11/2026). Só com entrada mínima configurada.
+  // O TOTAL é o valor que a agente disse por último antes da rodada, não o valor de venda: Edna (04/11/2026) ouviu
+  // R$ 100, disse "dou 50" e recebeu "restante de R$ 80" — R$ 130 no total.
+  const totalAntesDe = (inicio: number) => valorCombinadoNaConversa(c, msgs.slice(0, inicio)) ?? c.list_price_cents;
   if (leitura.atual === null && c.min_down_payment_cents !== undefined) {
     const aceito = leitura.aceitoAntes();
-    if (aceito !== null && aceito >= c.min_down_payment_cents && aceito < c.list_price_cents) {
-      return { entradaCents: aceito, restanteCents: c.list_price_cents - aceito, combinadaAntes: true };
+    if (aceito !== null) {
+      const total = totalAntesDe(aceito.inicio);
+      if (aceito.cents >= c.min_down_payment_cents && aceito.cents < total) {
+        return { entradaCents: aceito.cents, restanteCents: total - aceito.cents, combinadaAntes: true };
+      }
     }
   }
+  const total = totalAntesDe(leitura.inicioDaAtual);
   const menorDegrau = c.steps.length > 0 ? Math.min(...c.steps.map((s) => s.price_cents)) : undefined;
   const minimo = c.min_down_payment_cents ?? menorDegrau;
   if (minimo === undefined) return null;
   const piso = menorDegrau ?? minimo;
   let dito = leitura.atual;
+  // "Faz em 2x?" no Pix é metade agora: Ademir (04/11/2026) pediu, a agente disse que sim e nunca mandou a chave.
+  if (dito === null && EM_DUAS_VEZES.test(leitura.textoDaRodada) && !/cart[ãa]o|cr[ée]dito/i.test(leitura.textoDaRodada)) {
+    dito = Math.ceil(total / 200) * 100;
+  }
   // Quem configurou entrada mínima fecha no valor dito, sem pedir para completar. Decisão do dono em 01/11/2026: Marli
   // escreveu "Pago 30 Hj" e ouviu "30 não fica a entrada".
   const fechaNoValorDito = dito !== null && c.min_down_payment_cents !== undefined;
@@ -668,9 +679,12 @@ export function entradaImediata(
       dito = jaSegurou;
     }
   }
-  if (dito === null || dito < minimo || dito >= c.list_price_cents) return null;
-  return { entradaCents: dito, restanteCents: c.list_price_cents - dito };
+  if (dito === null || dito < minimo || dito >= total) return null;
+  return { entradaCents: dito, restanteCents: total - dito };
 }
+
+/** "Faz em 2x?", "dá pra dividir em duas vezes?", "metade agora". */
+const EM_DUAS_VEZES = /\b(?:2|duas)\s*(?:x|vezes)\b|\bmetade\b/i;
 
 /** A agente disse este valor ("R$ 50", "R$ 50,00", "*R$ 47*")? */
 function mencionaValor(texto: string, cents: number): boolean {
@@ -694,13 +708,17 @@ function rodadasDeValor(msgs: readonly MensagemParaContar[], primeiroPreco: numb
   const rodadas: MensagemParaContar[][] = [];
   /** As últimas falas da agente antes de cada rodada: são elas que dizem se um número sozinho responde "quanto você tem". */
   const falaAntes: MensagemParaContar[][] = [];
+  /** O índice em `msgs` da primeira mensagem de cada rodada. */
+  const inicios: number[] = [];
   let aberta: MensagemParaContar[] | null = null;
   let ultimasFalas: MensagemParaContar[] = [msgs[primeiroPreco]!];
-  for (const m of msgs.slice(primeiroPreco + 1)) {
+  for (let j = primeiroPreco + 1; j < msgs.length; j += 1) {
+    const m = msgs[j]!;
     if (m.direction === "inbound") {
       if (aberta === null) {
         rodadas.push((aberta = []));
         falaAntes.push(ultimasFalas);
+        inicios.push(j);
       }
       aberta.push(m);
     } else if (m.direction === "outbound") {
@@ -716,7 +734,7 @@ function rodadasDeValor(msgs: readonly MensagemParaContar[], primeiroPreco: numb
      * O valor da rodada anterior mais recente em que ela disse um valor, SE a agente o aceitou (repetiu o valor na
      * resposta) e nada foi pago depois. `null` quando o último valor dito não foi aceito, ou já foi pago.
      */
-    aceitoAntes: (): number | null => {
+    aceitoAntes: (): { cents: number; inicio: number } | null => {
       for (let i = rodadas.length - 2; i >= 0; i -= 1) {
         const v = valorDa(i);
         if (v === null) continue;
@@ -724,11 +742,12 @@ function rodadasDeValor(msgs: readonly MensagemParaContar[], primeiroPreco: numb
         if (!mencionaValor(resposta, v)) return null;
         const depois = msgs.slice(msgs.indexOf(rodadas[i]![rodadas[i]!.length - 1]!) + 1);
         const pagou = depois.some((m) => m.direction === "outbound" && PAGAMENTO_RECEBIDO.test(m.body ?? ""));
-        return pagou ? null : v;
+        return pagou ? null : { cents: v, inicio: inicios[i]! };
       }
       return null;
     },
     atual: valorDa(rodadas.length - 1),
+    inicioDaAtual: inicios[rodadas.length - 1]!,
     textoDaRodada: atual.map((m) => m.body ?? "").join("\n"),
     /** O último valor abaixo de `piso` dito numa rodada ANTERIOR (a agente já respondeu a ele), ou `null`. */
     anterioresAbaixoDe: (piso: number): number | null => {

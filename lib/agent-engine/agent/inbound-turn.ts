@@ -85,7 +85,7 @@ import {
   ofereceuHoje,
 } from './conversa-gratuita';
 import { blocoDaRespostaAtropelada, respostaAtropelada } from './resposta-atropelada';
-import { blocoDaEntrada, blocoDaEntradaImediata, blocoDaPropostaDeEntrada, blocoDoValorAbaixoDoPiso, blocoDoValorAceito } from '@/lib/preco/bloco-da-entrada';
+import { blocoDaEntrada, blocoDaEntradaImediata, blocoDaPropostaDeEntrada, blocoDoValorAbaixoDoPiso, blocoDoValorAceito, perguntaAntesDoPixDaEntrada } from '@/lib/preco/bloco-da-entrada';
 import { linkDePagamentoNoCorpo, linksDePagamentoDaConfig } from '@/lib/pagamentos/pix-na-conversa';
 import { blocoDoPrecoInternacional, precoInternacionalDoContato } from '@/lib/preco/preco-internacional';
 import { blocoDaChavePix, chaveParaCopiar, chavePrincipal, pixPelaChaveNoLugarDaMarca, temMarcaDeChavePix } from '@/lib/preco/chave-pix';
@@ -4181,6 +4181,11 @@ async function executarTurnoDoAgente(
           if (reenvioSemCobranca) {
             runLog.warn('promessa de reenviar o pagamento sem a cobrança — envio recusado', {});
             return { ok: false, error: { code: 'reenvio_sem_cobranca', message: reenvioSemCobranca } };
+          }
+          const perguntaAntesDoPix = preview ? null : perguntaAntesDoPixDaEntrada(body, entradaImediataDoTurno, corposEnviados);
+          if (perguntaAntesDoPix) {
+            runLog.warn('pergunta antes do Pix da entrada — envio recusado', { entrada_cents: entradaImediataDoTurno?.entradaCents });
+            return { ok: false, error: { code: 'pergunta_antes_do_pix_da_entrada', message: perguntaAntesDoPix } };
           }
           // PAGOU, MAS A AGENTE CONTINUA COBRANDO (`lib/preco/pago-mas-cobrando.ts`): em 21/10/2026, com o Pix da pergunta
           // já pago, a agente seguiu ensinando a copiar o código e dizendo "ainda não caiu".
