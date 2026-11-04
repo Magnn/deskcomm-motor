@@ -30,6 +30,7 @@ import {
   type TextosDaArea,
 } from "./_client";
 import { AbasDaArea, BotaoIrParaAba, type AbaDaArea } from "./_abas";
+import { SimboloDaArea } from "./_simbolo";
 import { ChatDaArea, type TextosDoChat } from "./_chat";
 import { CreditosNoTopo, RitualDeHoje, type TextosDoRitual } from "./_ritual";
 import { AvisoDiario, type TextosDoAviso } from "./_aviso";
@@ -294,7 +295,7 @@ export function VistaDaArea(p: VistaDaAreaProps) {
         ) : null}
         <div className="relative mx-auto max-w-xl">
           <div className="flex items-center justify-between gap-3">
-            <p className={`${SERIF} flex items-center gap-2 text-xl tracking-wide text-[#f3e4c3]`}><Sparkles aria-hidden className="size-4" />{titulo}</p>
+            <p className={`${SERIF} flex items-center gap-2 text-xl tracking-wide text-[#f3e4c3]`}><SimboloDaArea className="size-6 shrink-0" />{titulo}</p>
             {/* O saldo à vista no alto, sempre — como nos aplicativos do ramo. */}
             {p.carteira ? <CreditosNoTopo inicial={p.carteira.saldo} rotulo={p.tr.creditos} /> : null}
           </div>
