@@ -67,6 +67,7 @@ interface Candidata {
   contact_id: string;
   comprou: boolean;
   produtos: string[] | null;
+  compras: { produto: string | null; em: string }[] | null;
   falas: string[] | null;
   saidas: { texto: string; em: string }[] | null;
   feitas: { id: string; em: string }[] | null;
@@ -82,6 +83,9 @@ export const CONSULTA_DE_CANDIDATAS = `
                   and l.contact_id = v.contact_id and l.amount_cents > 0) as comprou,
          (select array_agg(coalesce(l.metadata->>'produto', '')) from revenue_ledger l
            where l.organization_id = v.organization_id and l.contact_id = v.contact_id and l.amount_cents > 0) as produtos,
+         (select jsonb_agg(jsonb_build_object('produto', coalesce(l.metadata->>'produto', ''), 'em', l.created_at))
+            from revenue_ledger l
+           where l.organization_id = v.organization_id and l.contact_id = v.contact_id and l.amount_cents > 0) as compras,
          (select array_agg(x.t) from (
             select coalesce(m.body, m.media_derived_text, '') as t from messages m
              where m.organization_id = v.organization_id and m.contact_id = v.contact_id and m.direction = 'inbound'
@@ -127,6 +131,7 @@ export function pessoaDaCandidata(c: Candidata): PessoaParaOferta {
   return {
     comprou: c.comprou,
     produtosComprados: (c.produtos ?? []).filter((p) => p !== ''),
+    compras: (c.compras ?? []).map((x) => ({ produto: x.produto ?? '', em: new Date(x.em) })),
     falas: (c.falas ?? []).filter((f) => f.trim() !== ''),
     saidas: (c.saidas ?? []).map((s) => ({ texto: s.texto, em: new Date(s.em) })),
     ofertasFeitas: (c.feitas ?? []).filter((f) => typeof f.id === 'string').map((f) => ({ id: f.id, em: new Date(f.em) })),
