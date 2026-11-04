@@ -256,7 +256,8 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<NextRespons
     return ok({ received: true, resultado: efeito.resultado }, { requestId }) as NextResponse;
   }
 
-  const sigHeader = req.headers.get("x-deskcomm-signature");
+  // X-Acassia-Signature é o nome atual; o antigo segue aceito para não dar 401 em quem já integrou.
+  const sigHeader = req.headers.get("x-acassia-signature") ?? req.headers.get("x-deskcomm-signature");
   // secret cifrado at-rest (migration 0041). Decrypt falhou (chave da GUC
   // ausente/trocada)? Precedente WAHA: pula a validação em vez de derrubar a
   // captação — secret aqui é defesa opcional, não gate de disponibilidade.

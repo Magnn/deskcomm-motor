@@ -201,8 +201,8 @@
       "items": [
         "DOMÍNIO por organização: fora. Zero coluna no schema, o proxy é NOOP nesse eixo, e no Edge não há banco para consultar antes de decidir o host",
         "FONTE por tenant: fora. next/font resolve em BUILD time e a imagem é pré-buildada — um seletor de fonte seria controle decorativo",
-        "X-Deskcomm-Signature e sb-deskcomm-auth NÃO são renomeados: o primeiro é contrato de fio com receptores de terceiros, o segundo é a sessão de quem está logado. 'Completar o whitelabel' ali derruba integração de cliente em silêncio",
-        "lib/email/templates/ai-budget-alarm.tsx segue com a nossa marca: não tem rota de cron, não tem linha no docker/scheduler/entrypoint.sh e, desde a limpeza do teto de orçamento (0159), não tem chamador nenhum — workers/ai-budget-checker.cron.ts, o único, foi apagado. Dívida D1, com a condição de saída escrita",
+        "Os webhooks de saída enviam X-Acassia-Event/Signature E os nomes antigos X-Deskcomm-* (a entrada aceita os dois); sb-deskcomm-auth NÃO é renomeado. Parar de enviar o antigo é contrato de fio com receptores de terceiros, o segundo é a sessão de quem está logado. 'Completar o whitelabel' ali derruba integração de cliente em silêncio",
+        "O alarme de orçamento de IA (lib/email/templates/ai-budget-alarm.tsx), última dívida de marca e sem chamador nenhum, foi apagado em 04/11/2026.",
         "quem envia e-mail é o APP (via event-log-drain, batido pelo scheduler), NUNCA o contêiner worker — que roda o agent-engine e não importa e-mail nenhum. Quem for provar reiniciando 'o worker' reinicia o processo errado"
       ]
     }

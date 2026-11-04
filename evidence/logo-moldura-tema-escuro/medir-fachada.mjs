@@ -47,7 +47,7 @@ try {
     const p = await ctx.newPage();
     // O que o navegador de quem escolheu escuro e saiu da conta já faz sozinho:
     // `THEME_INIT_SCRIPT` (app/layout.tsx) lê esta chave no <head>.
-    await p.addInitScript((t) => window.localStorage.setItem("deskcomm-theme", t), tema);
+    await p.addInitScript((t) => window.localStorage.setItem("acassia-theme", t), tema);
     await p.goto(`${BASE}/login`, { waitUntil: "networkidle" });
 
     const temaReal = await p.evaluate(() => document.documentElement.getAttribute("data-theme"));

@@ -3,8 +3,8 @@
  * Injeta o botão flutuante e o iframe de atendimento no site do cliente.
  */
 (function () {
-  if (window.__deskcomm_webchat_loaded) return;
-  window.__deskcomm_webchat_loaded = true;
+  if (window.__acassia_webchat_loaded) return;
+  window.__acassia_webchat_loaded = true;
 
   // Localiza a tag do script atual para extrair os atributos de configuração
   var currentScript =
@@ -27,9 +27,9 @@
 
   // Injeta estilos CSS isolados
   var style = document.createElement("style");
-  style.id = "deskcomm-webchat-styles";
+  style.id = "acassia-webchat-styles";
   style.textContent = `
-    .deskcomm-chat-launcher {
+    .acassia-chat-launcher {
       position: fixed;
       bottom: 24px;
       ${position === "bottom_left" ? "left: 24px;" : "right: 24px;"}
@@ -48,17 +48,17 @@
       border: none;
       outline: none;
     }
-    .deskcomm-chat-launcher:hover {
+    .acassia-chat-launcher:hover {
       transform: scale(1.08);
       box-shadow: 0 6px 24px rgba(0, 0, 0, 0.28);
     }
-    .deskcomm-chat-launcher svg {
+    .acassia-chat-launcher svg {
       width: 28px;
       height: 28px;
       fill: currentColor;
       transition: transform 0.2s ease;
     }
-    .deskcomm-chat-container {
+    .acassia-chat-container {
       position: fixed;
       bottom: 96px;
       ${position === "bottom_left" ? "left: 24px;" : "right: 24px;"}
@@ -77,19 +77,19 @@
       transform: translateY(20px) scale(0.96);
       transition: opacity 0.25s ease, transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
     }
-    .deskcomm-chat-container.open {
+    .acassia-chat-container.open {
       opacity: 1;
       pointer-events: auto;
       transform: translateY(0) scale(1);
     }
-    .deskcomm-chat-iframe {
+    .acassia-chat-iframe {
       width: 100%;
       height: 100%;
       border: none;
       display: block;
     }
     @media (max-width: 480px) {
-      .deskcomm-chat-container {
+      .acassia-chat-container {
         bottom: 0;
         right: 0;
         left: 0;
@@ -105,10 +105,10 @@
 
   // Cria o iframe do chat
   var container = document.createElement("div");
-  container.className = "deskcomm-chat-container";
+  container.className = "acassia-chat-container";
 
   var iframe = document.createElement("iframe");
-  iframe.className = "deskcomm-chat-iframe";
+  iframe.className = "acassia-chat-iframe";
   iframe.src = chatPageUrl;
   iframe.allow = "microphone; camera";
   iframe.title = "Atendimento";
@@ -117,7 +117,7 @@
 
   // Cria o botão launcher
   var launcher = document.createElement("button");
-  launcher.className = "deskcomm-chat-launcher";
+  launcher.className = "acassia-chat-launcher";
   launcher.setAttribute("aria-label", "Abrir chat de atendimento");
   
   var chatIcon = '<svg viewBox="0 0 256 256"><path d="M216,48H40A16,16,0,0,0,24,64V224a8,8,0,0,0,13.66,5.66L72,195.31V208a16,16,0,0,0,16,16H216a16,16,0,0,0,16-16V64A16,16,0,0,0,216,48ZM88,208V192a8,8,0,0,0-8-8H40V64H216V208Z"></path></svg>';
