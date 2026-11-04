@@ -35,7 +35,8 @@ export async function generateMetadata({ params }: Omit<Props, "children">): Pro
   const imagem = { url: `/c/${encodeURIComponent(org.slug)}/icone?t=512`, width: 512, height: 512, alt: nome };
   return {
     metadataBase: baseDoDominio((await headers()).get("host")),
-    title: { default: nome, template: `%s · ${nome}` },
+    // absolute: o título da área não herda o "· AcassIA" do layout raiz.
+    title: { absolute: nome, template: `%s · ${nome}` },
     description: descricao,
     applicationName: nome,
     authors: null,
