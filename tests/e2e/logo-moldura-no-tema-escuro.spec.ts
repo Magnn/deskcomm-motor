@@ -67,7 +67,7 @@
  * Em `/login` não há controle nenhum: a fachada é anterior à sessão. Lá o estado
  * é semeado em `localStorage` ANTES do primeiro byte (`addInitScript`), que é
  * exatamente o que o navegador de quem já escolheu escuro e saiu da conta faz —
- * `THEME_INIT_SCRIPT` (`app/layout.tsx:122`) lê `deskcomm-theme` no `<head>`.
+ * `THEME_INIT_SCRIPT` (`app/layout.tsx:122`) lê `acassia-theme` no `<head>`.
  */
 import { execFileSync } from "node:child_process";
 import * as fs from "node:fs";
@@ -444,7 +444,7 @@ test.describe("a moldura do logo no tema escuro", () => {
       try {
         const pagina = await contexto.newPage();
         await pagina.addInitScript(
-          (t) => window.localStorage.setItem("deskcomm-theme", t),
+          (t) => window.localStorage.setItem("acassia-theme", t),
           tema,
         );
         await pagina.goto("/login");

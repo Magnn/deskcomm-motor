@@ -247,17 +247,6 @@ const MARCA_CONGELADA: Record<string, EntradaDeMarca> = {
   },
 
   // ─── INFRA — cookie/storage/contêiner. Renomear desloga ou perde estado. ───
-  "app/layout.tsx": {
-    categoria: "INFRA",
-    motivo:
-      "chave de localStorage do tema, lida no script anti-flash. Renomear faz todo mundo voltar ao tema claro no próximo acesso — e o par com lib/theme.tsx tem de mudar junto",
-    marcas: ["deskcomm-theme"],
-  },
-  "lib/theme.tsx": {
-    categoria: "INFRA",
-    motivo: "a mesma chave de localStorage do script do layout; as duas são um par só",
-    marcas: ["deskcomm-theme"],
-  },
   "lib/supabase/browser.ts": {
     categoria: "INFRA",
     motivo:
@@ -284,7 +273,7 @@ const MARCA_CONGELADA: Record<string, EntradaDeMarca> = {
   "hooks/ai/useDebugToggle.ts": {
     categoria: "INFRA",
     motivo:
-      "chave de localStorage do modo de depuração das citações da IA — irmã de `deskcomm-theme` em lib/theme.tsx. Não é texto de interface: renomear só faz quem já tinha o modo ligado perdê-lo, e o par leitura/escrita teria de mudar junto",
+      "chave de localStorage do modo de depuração das citações da IA — irmã da chave do tema em lib/theme.tsx. Não é texto de interface: renomear só faz quem já tinha o modo ligado perdê-lo, e o par leitura/escrita teria de mudar junto",
     marcas: ["deskcomm.show_ai_citations"],
   },
 
