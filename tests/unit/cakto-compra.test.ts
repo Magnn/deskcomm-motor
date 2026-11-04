@@ -244,7 +244,7 @@ describe("a fiação da rota de captação", () => {
 
   it("o ramo da Cakto vem ANTES da checagem de assinatura HMAC (a Cakto não manda o cabeçalho)", () => {
     const ramo = rota.indexOf("if (isCaktoPayload(payload))");
-    const hmac = rota.indexOf('const sigHeader = req.headers.get("x-deskcomm-signature")');
+    const hmac = rota.indexOf('const sigHeader = req.headers.get("x-acassia-signature")');
     expect(ramo).toBeGreaterThan(-1);
     expect(hmac).toBeGreaterThan(ramo);
   });
@@ -253,7 +253,7 @@ describe("a fiação da rota de captação", () => {
     expect(rota).toContain("segredoDaCaktoConfere(payload, segredoDaFonte)");
     expect(rota).toContain('secret: "[omitido]"');
     // O corpo bruto (que contém o segredo) não é o que vai para `webhook_events_log` neste ramo.
-    const ramo = rota.slice(rota.indexOf("if (isCaktoPayload(payload))"), rota.indexOf('const sigHeader = req.headers.get("x-deskcomm-signature")'));
+    const ramo = rota.slice(rota.indexOf("if (isCaktoPayload(payload))"), rota.indexOf('const sigHeader = req.headers.get("x-acassia-signature")'));
     expect(ramo).not.toContain("raw_body: rawBody");
   });
 
