@@ -28,7 +28,7 @@ describe("identidade da área em todas as páginas /c/<org>", () => {
   it("aba, prévia de link e app são da empresa, nunca do produto", async () => {
     orgDaArea.mockResolvedValue({ slug: "cigana-esmeralda", nome: "Templo", config: { titulo: "Cigana Esmeralda" } });
     const m = await meta();
-    expect(m.title).toEqual({ default: "Cigana Esmeralda", template: "%s · Cigana Esmeralda" });
+    expect(m.title).toEqual({ absolute: "Cigana Esmeralda", template: "%s · Cigana Esmeralda" });
     expect(m.openGraph).toMatchObject({ title: "Cigana Esmeralda", siteName: "Cigana Esmeralda" });
     expect(JSON.stringify(m.openGraph)).toContain("/c/cigana-esmeralda/icone?t=512");
     expect(m.manifest).toBe("/c/cigana-esmeralda/manifest");
