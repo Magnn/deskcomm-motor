@@ -130,6 +130,9 @@ export const AUDIT_ACTIONS = [
   // É dinheiro declarado à mão — "quem disse que entrou, quanto e quando" só esta linha responde.
   "payment.manual_registered",
   "payment.pix_sent",
+  // Quem é do templo confirmou que fez a parte do altar (POST /conversations/:id/trabalho-feito): o
+  // agente avisa a cliente. É a prova de execução — "quem confirmou e quando" só esta linha responde.
+  "service.work_done_confirmed",
   "conversation.tags_changed",
   "contact.tags_changed",
   // Fila de confirmação (spec 17 §4b): a IA PROPÕE, uma pessoa decide. As três
