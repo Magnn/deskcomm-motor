@@ -1,5 +1,5 @@
 ---
-impacto: correcao
+impacto: nada_mudou
 secao: corrigido
 titulo: A entrada no valor dito manda o Pix antes de qualquer pergunta, e o restante fecha o valor que a pessoa ouviu
 ---
