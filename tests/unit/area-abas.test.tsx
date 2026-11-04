@@ -74,4 +74,19 @@ describe("as abas da área do cliente", () => {
     expect(screen.getByTestId("area-aba-explorar").hidden).toBe(false);
     expect(screen.getByTestId("area-aba-hoje").hidden).toBe(true);
   });
+
+  it("permite percorrer as abas com setas, Home e End, com um só ponto de tabulação", () => {
+    montar();
+    const hoje = screen.getByRole("tab", { name: "Hoje" });
+    expect(hoje.tabIndex).toBe(0);
+    fireEvent.keyDown(hoje, { key: "ArrowRight" });
+    const explorar = screen.getByRole("tab", { name: "Explorar" });
+    expect(document.activeElement).toBe(explorar);
+    expect(explorar.getAttribute("aria-selected")).toBe("true");
+    expect(hoje.tabIndex).toBe(-1);
+    fireEvent.keyDown(explorar, { key: "End" });
+    expect(document.activeElement).toBe(screen.getByRole("tab", { name: "Meu trabalho" }));
+    fireEvent.keyDown(document.activeElement!, { key: "Home" });
+    expect(document.activeElement).toBe(hoje);
+  });
 });

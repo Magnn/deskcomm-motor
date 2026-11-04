@@ -10,6 +10,10 @@
 
 ## Convenções
 
+### Área do cliente — bancada de interface em 03/11/2026
+
+`docs/area-experiencia.md` descreve a atualização do ritual e das memórias. A bancada com `VistaDaArea` real e dados sintéticos passou em 320/390/768/1440 px no fluxo carta → diário → conclusão → Você. Os endpoints foram interceptados: **esta evidência não é a jornada com banco fresco deste mapa**. A prova com sessão e persistência reais permanece pendente antes de declarar deploy em produção.
+
 - `[P0]` primeira impressão — bug aqui é vergonha pública; prioridade máxima.
 - `[P1]` rotina diária do operador/atendente.
 - `[P2]` exploração/edge.

@@ -3,7 +3,7 @@
  * Mora fora do arquivo do navegador porque a página do servidor também lê a
  * aba do endereço (`?aba=`) para abrir já na certa.
  */
-export const ABAS_DA_AREA = ["hoje", "trabalho", "conversa", "explorar"] as const;
+export const ABAS_DA_AREA = ["hoje", "explorar", "conversa", "trabalho"] as const;
 export type AbaDaArea = (typeof ABAS_DA_AREA)[number];
 
 /** A aba do endereço, ou Hoje quando vem vazia ou desconhecida. */

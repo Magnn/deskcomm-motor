@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "diagram_type": "fluxo",
+  "meta": { "titulo": "Experiência diária da área", "pergunta": "Como ligar carta, diário e memórias sem interromper a leitura?", "resumo": "Confirmação do servidor alimenta o progresso. A pessoa escolhe quando continuar; conversa é opcional." },
+  "lanes": [{ "id": "tela", "label": "Interface" }, { "id": "dados", "label": "Dados existentes" }],
+  "mainPath": ["pagina", "vista", "ritual", "diario", "memorias"],
+  "nodes": [
+    { "id": "pagina", "lane": "dados", "col": 1, "type": "route", "label": "app/c/[org]/page.tsx", "sublabel": "sessão, organização e contato" },
+    { "id": "vista", "lane": "tela", "col": 1, "type": "frontend", "label": "VistaDaArea + AbasDaArea", "sublabel": "Hoje, Leituras, Guia e Você" },
+    { "id": "ritual", "lane": "tela", "col": 2, "type": "frontend", "label": "RitualDeHoje", "sublabel": "avanço explícito e progressoDoRitual" },
+    { "id": "carta", "lane": "tela", "col": 3, "type": "frontend", "label": "CartaDoDia", "sublabel": "registro aceito antes de revelar" },
+    { "id": "diario", "lane": "tela", "col": 4, "type": "frontend", "label": "DiarioDoCliente", "sublabel": "preserva o texto na falha" },
+    { "id": "registros", "lane": "dados", "col": 3, "type": "table", "label": "area_eventos e area_diario", "sublabel": "endpoints e tabelas existentes" },
+    { "id": "memorias", "lane": "tela", "col": 5, "type": "frontend", "label": "MemoriasDaArea", "sublabel": "dez reflexões recentes no fuso da organização" },
+    { "id": "chat", "lane": "tela", "col": 3, "type": "frontend", "label": "ChatDaArea", "sublabel": "atendimento existente" }
+  ],
+  "edges": [
+    { "id": "a1", "from": "pagina", "to": "vista", "label": "dados da sessão e textos" },
+    { "id": "a2", "from": "vista", "to": "ritual", "label": "estado inicial" },
+    { "id": "a3", "from": "ritual", "to": "carta", "label": "revelar" },
+    { "id": "a4", "from": "carta", "to": "registros", "label": "POST carta_do_dia" },
+    { "id": "a5", "from": "carta", "to": "ritual", "label": "EVENTO_CARTA_REVELADA após confirmação" },
+    { "id": "a6", "from": "ritual", "to": "diario", "label": "Continuar" },
+    { "id": "a7", "from": "diario", "to": "registros", "label": "salva e registra diario_escrito" },
+    { "id": "a8", "from": "diario", "to": "memorias", "label": "EVENTO_DIARIO_SALVO com anotação aceita" },
+    { "id": "a9", "from": "diario", "to": "ritual", "label": "confirmação atualiza progresso" },
+    { "id": "a10", "from": "pagina", "to": "memorias", "label": "dados.diario na próxima visita" },
+    { "id": "a11", "from": "ritual", "to": "chat", "label": "convite opcional" },
+    { "id": "a12", "from": "chat", "to": "ritual", "label": "EVENTO_CONVERSA_ENVIADA após envio aceito" }
+  ],
+  "cards": [{ "titulo": "Limite da prova visual", "texto": "Bancada com componentes reais, dados sintéticos e APIs interceptadas. Não comprova banco ou deploy." }]
+}

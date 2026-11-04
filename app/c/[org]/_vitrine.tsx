@@ -220,21 +220,22 @@ export function DestaqueDaLoja({
 
 /** A gaveta: sobe da base, escurece o fundo, fecha no X, no fundo e no Esc. */
 export function Gaveta({ titulo, fechar, children }: { titulo: string; fechar: () => void; children: React.ReactNode }) {
+  const dialogo = React.useRef<HTMLDialogElement>(null);
   React.useEffect(() => {
+    const el = dialogo.current;
+    const focoAnterior = document.activeElement;
+    if (el && !el.open) el.showModal();
     const antes = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    const tecla = (e: KeyboardEvent) => {
-      if (e.key === "Escape") fechar();
-    };
-    window.addEventListener("keydown", tecla);
     return () => {
+      el?.close();
       document.body.style.overflow = antes;
-      window.removeEventListener("keydown", tecla);
+      if (focoAnterior instanceof HTMLElement && focoAnterior.isConnected) focoAnterior.focus({ preventScroll: true });
     };
-  }, [fechar]);
+  }, []);
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center" role="dialog" aria-modal="true" aria-label={titulo} data-testid="area-gaveta">
-      <button type="button" aria-label="Fechar" onClick={fechar} className="absolute inset-0 bg-black/60 backdrop-blur-[2px]" />
+    <dialog ref={dialogo} onCancel={(e) => { e.preventDefault(); fechar(); }} className="fixed inset-0 m-0 h-dvh max-h-none w-screen max-w-none items-end justify-center border-0 bg-transparent p-0 text-[#f6f0e4] backdrop:bg-transparent open:flex" aria-label={titulo} data-testid="area-gaveta">
+      <button type="button" aria-label="Fechar" tabIndex={-1} onClick={fechar} className="absolute inset-0 bg-black/60 backdrop-blur-[2px]" />
       <div className="relative max-h-[88vh] w-full max-w-xl overflow-y-auto rounded-t-[28px] border-t border-[#c9a54e]/25 bg-[#110c20] px-4 pb-[calc(env(safe-area-inset-bottom)+24px)] pt-3 shadow-[0_-24px_60px_-20px_rgba(0,0,0,0.9)] [animation:gaveta-sobe_.28s_ease-out] motion-reduce:[animation:none]">
         <style>{"@keyframes gaveta-sobe{from{transform:translateY(40px);opacity:.6}to{transform:none;opacity:1}}"}</style>
         {/* O topo da gaveta tem altura própria: o X não pode cair por cima do cartão que vem embaixo. */}
@@ -251,7 +252,7 @@ export function Gaveta({ titulo, fechar, children }: { titulo: string; fechar: (
         </div>
         <div className="mt-2 space-y-4">{children}</div>
       </div>
-    </div>
+    </dialog>
   );
 }
 

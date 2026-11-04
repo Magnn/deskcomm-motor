@@ -3,6 +3,15 @@
  * Texto novo da área entra aqui e nos outros três idiomas — a cerca `tests/unit/area-idiomas.test.ts` cobra.
  */
 export const AREA_EN: Record<string, string> = {
+  "Opcional": "Optional",
+  "Um momento seu. No seu ritmo.": "A moment for you. At your own pace.",
+  "Mais um momento guardado": "Another moment saved",
+  "Guia": "Guide",
+  "Leituras": "Readings",
+  "Suas memórias": "Your memories",
+  "Explorar leituras": "Explore readings",
+  "Reflexões recentes": "Recent reflections",
+  "As suas reflexões ficam aqui. Comece pelo diário no ritual de hoje.": "Your reflections stay here. Start with the journal in today's ritual.",
   "Como funciona": "How it works",
   "Lead": "Lead",
   "Atalhos da sua área": "Shortcuts to your space",

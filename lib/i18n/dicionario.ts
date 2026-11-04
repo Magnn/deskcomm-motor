@@ -38,6 +38,14 @@ import { TRADUCOES_PAGINA_INICIAL } from "./pagina-inicial";
 type Traducoes = Record<string, Partial<Record<Exclude<Idioma, "pt-BR">, string>>>;
 
 export const DICIONARIO: Traducoes = {
+  "Um momento seu. No seu ritmo.": { es: "Un momento para ti. A tu ritmo." },
+  "Mais um momento guardado": { es: "Otro momento guardado" },
+  "Guia": { es: "Guía" },
+  "Leituras": { es: "Lecturas" },
+  "Suas memórias": { es: "Tus recuerdos" },
+  "Explorar leituras": { es: "Explorar lecturas" },
+  "Reflexões recentes": { es: "Reflexiones recientes" },
+  "As suas reflexões ficam aqui. Comece pelo diário no ritual de hoje.": { es: "Tus reflexiones quedan aquí. Empieza por el diario del ritual de hoy." },
   ...TRADUCOES_PAGINA_INICIAL,
   "Atalhos da sua área": { es: "Accesos de tu área" },
   "Meu espaço": { es: "Mi espacio" },

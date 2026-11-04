@@ -17,7 +17,7 @@ export const SERIF = "font-[family-name:var(--font-area-serif)] [font-variation-
  * O fundo da página e a tinta do texto. A área inteira é NOITE (desde 20/10/2026): antes, o céu do topo era
  * noite e o resto era papel marfim com botão na cor da empresa, e as duas identidades brigavam na mesma tela.
  */
-export const PAGINA = "min-h-screen bg-[#110c20] text-[#f6f0e4]";
+export const PAGINA = "min-h-screen bg-[#110c20] text-[#f6f0e4] selection:bg-[#e2c47a]/25 selection:text-[#fff7e3]";
 
 /** O céu do topo: noite funda com um brilho da cor da empresa e estrelas. */
 export const CEU =
@@ -26,11 +26,11 @@ export const CEU =
 
 /** Cartão padrão: um vidro escuro sobre a noite, com o fio dourado bem fino. */
 export const CARTAO =
-  "rounded-3xl border border-[#c9a54e]/15 bg-[#1a1430] p-6 text-[#f6f0e4] shadow-[0_18px_40px_-24px_rgba(0,0,0,0.8)]";
+  "rounded-[28px] border border-[#d5bc83]/15 bg-gradient-to-br from-[#211a35] to-[#19142b] p-5 text-[#f6f0e4] shadow-[0_18px_40px_-24px_rgba(0,0,0,0.8)] sm:p-6";
 
 /** Cartão escuro, para o que é especial (Círculo, Ano Pessoal). */
 export const CARTAO_NOTURNO =
-  "relative overflow-hidden rounded-3xl border border-[#c9a54e]/40 bg-[#1b1433] p-6 text-[#f6f0e4] shadow-[0_18px_40px_-18px_rgba(20,15,38,0.7)]";
+  "relative overflow-hidden rounded-[28px] border border-[#d5bc83]/30 bg-gradient-to-br from-[#302341] via-[#211832] to-[#191729] p-5 text-[#f6f0e4] shadow-[0_18px_40px_-18px_rgba(20,15,38,0.7)] sm:p-6";
 
 /** A linha dourada pequena acima de um título. */
 export const SOBRETITULO = "text-[11px] font-semibold uppercase tracking-[0.22em] text-[#e2c47a]";

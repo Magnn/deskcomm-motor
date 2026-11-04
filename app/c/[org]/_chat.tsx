@@ -9,6 +9,7 @@
  * aba escondida ou o celular em outra tela, a cada 20.
  */
 import * as React from "react";
+import { EVENTO_CONVERSA_ENVIADA } from "@/lib/area-do-cliente/ritual";
 import { ArrowUp, Camera, Check, CheckCheck, Copy, Mic, Square, Trash2, TriangleAlert } from "lucide-react";
 
 import type { MensagemDoChat } from "@/lib/area-do-cliente/chat";
@@ -230,6 +231,7 @@ export function ChatDaArea({
   const acrescentar = (m: MensagemDoChat) => {
     colado.current = true;
     setMensagens((lista) => (lista.some((x) => x.id === m.id) ? lista : [...lista, m]));
+    window.dispatchEvent(new Event(EVENTO_CONVERSA_ENVIADA));
   };
 
   const mandarTexto = async (pronto?: string) => {

@@ -11,14 +11,14 @@
  * "voltar" do celular não tira a pessoa da área.
  */
 import * as React from "react";
-import { MessagesSquare, Moon, ScrollText, ShoppingBag } from "lucide-react";
+import { MessagesSquare, Moon, Sparkles, UserRound } from "lucide-react";
 
 import { ABAS_DA_AREA, abaValida, type AbaDaArea } from "@/lib/area-do-cliente/abas";
 
 export type { AbaDaArea };
 
 
-const ICONE = { hoje: Moon, trabalho: ScrollText, conversa: MessagesSquare, explorar: ShoppingBag } as const;
+const ICONE = { hoje: Moon, trabalho: UserRound, conversa: MessagesSquare, explorar: Sparkles } as const;
 
 /** Um link ou botão de dentro de uma aba que leva para outra (ex.: "Responder" na aba Hoje). */
 export const IrParaAba = React.createContext<(aba: AbaDaArea) => void>(() => {});
@@ -31,6 +31,7 @@ export function BotaoIrParaAba({ aba, className, style, children }: { aba: AbaDa
       className={className}
       style={style}
       onClick={(e) => {
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
         e.preventDefault();
         ir(aba);
       }}
@@ -91,9 +92,9 @@ export function AbasDaArea({
 
       <nav
         aria-label={rotuloDaBarra}
-        className="fixed inset-x-0 bottom-0 z-40 border-t border-[#c9a54e]/15 bg-[#110c20]/92 pb-[env(safe-area-inset-bottom)] shadow-[0_-12px_30px_-18px_rgba(0,0,0,0.9)] backdrop-blur-md"
+        className="fixed inset-x-0 bottom-0 z-40 border-t border-[#d5bc83]/15 bg-[#110c20]/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-12px_40px_-20px_rgba(0,0,0,0.8)] backdrop-blur-xl"
       >
-        <div role="tablist" className="mx-auto grid max-w-xl grid-cols-4">
+        <div role="tablist" aria-label={rotuloDaBarra} className="mx-auto grid max-w-xl grid-cols-4">
           {ABAS_DA_AREA.map((a) => {
             const Icone = ICONE[a];
             const ativa = a === aba;
@@ -105,11 +106,21 @@ export function AbasDaArea({
                 id={`botao-aba-${a}`}
                 aria-selected={ativa}
                 aria-controls={`aba-${a}`}
+                tabIndex={ativa ? 0 : -1}
                 onClick={() => ir(a)}
-                className="flex flex-col items-center gap-1 pb-2.5 pt-2 text-[11.5px] font-semibold transition focus-visible:outline-2 focus-visible:-outline-offset-4"
+                onKeyDown={(e) => {
+                  const indice = ABAS_DA_AREA.indexOf(a);
+                  const proxima = e.key === "Home" ? ABAS_DA_AREA[0] : e.key === "End" ? ABAS_DA_AREA[ABAS_DA_AREA.length - 1] : e.key === "ArrowRight" ? ABAS_DA_AREA[(indice + 1) % ABAS_DA_AREA.length] : e.key === "ArrowLeft" ? ABAS_DA_AREA[(indice + ABAS_DA_AREA.length - 1) % ABAS_DA_AREA.length] : undefined;
+                  if (!proxima) return;
+                  e.preventDefault();
+                  ir(proxima);
+                  document.getElementById(`botao-aba-${proxima}`)?.focus();
+                }}
+                className="relative flex min-h-[76px] flex-col items-center gap-1 pb-2.5 pt-3 text-[11.5px] font-semibold transition focus-visible:outline-2 focus-visible:-outline-offset-4 motion-reduce:transition-none"
                 style={{ color: ativa ? cor : "#9d94b2" }}
                 data-testid={`area-botao-aba-${a}`}
               >
+                {ativa ? <span aria-hidden className="absolute top-0 h-0.5 w-7 rounded-b-full" style={{ background: cor }} /> : null}
                 <span
                   className="flex h-8 w-14 items-center justify-center rounded-full transition"
                   style={ativa ? { background: `${cor}1f` } : undefined}

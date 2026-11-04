@@ -1,5 +1,7 @@
 # Mapas de arquitetura
 
+`area-experiencia.architecture.json`: carta e diário confirmados alimentam o progresso e as memórias da área; conversa opcional e avanço explícito. Detalhes em `../area-experiencia.md`.
+
 `stripe-connect.architecture.json`: cadastro da conta da empresa, cobranças diretas, confirmação compartilhada e retorno da prontidão. Contrato em `../specs/stripe-connect.md`.
 
 ## Regra única deste diretório: o JSON é a FONTE; o HTML é DERIVADO

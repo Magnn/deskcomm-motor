@@ -343,6 +343,10 @@ export function textosDoRitual(t: (s: string) => string): TextosDoRitual {
     conversaTexto: t("Conte o que a carta te fez sentir, ou pergunte o que quiser. A resposta chega no chat, aqui na sua área."),
     conversar: t("Abrir o chat"),
     creditos: t("créditos"),
+    continuar: t("Continuar"),
+    opcional: t("Opcional"),
+    noSeuRitmo: t("Um momento seu. No seu ritmo."),
+    passoConcluido: t("Mais um momento guardado"),
   };
 }
 
