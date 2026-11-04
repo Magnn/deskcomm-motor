@@ -24,6 +24,8 @@ export interface PessoaParaOferta {
   comprou: boolean;
   /** O produto de cada compra, como o pagamento o registrou. */
   produtosComprados: readonly string[];
+  /** Cada compra com a data — o que `so_se_comprou` e `compra_ha_pelo_menos_dias` leem. Ausente = sem datas. */
+  compras?: readonly { produto: string; em: Date }[];
   /** O que a pessoa disse, nas mensagens recentes. */
   falas: readonly string[];
   /** O que o agente disse, com a hora. */
@@ -42,6 +44,29 @@ function casa(padrao: string | undefined, textos: readonly string[]): boolean {
   return textos.some((t) => re.test(t));
 }
 
+/**
+ * As duas condições de compra da oferta. Sem nenhuma delas, cabe sempre. Com `so_se_comprou`, a pessoa precisa
+ * ter comprado um produto que casa; com `compra_ha_pelo_menos_dias`, a compra mais recente (dentre as que casam,
+ * ou qualquer uma) precisa ter ao menos tantos dias — sem compra datada, não cabe.
+ */
+export function compraCabe(
+  o: Pick<Oferta, "so_se_comprou" | "compra_ha_pelo_menos_dias">,
+  p: Pick<PessoaParaOferta, "produtosComprados" | "compras">,
+  agora: Date,
+): boolean {
+  if (o.so_se_comprou === undefined && o.compra_ha_pelo_menos_dias === undefined) return true;
+  const datadas = p.compras ?? [];
+  if (o.so_se_comprou !== undefined && !casa(o.so_se_comprou, [...p.produtosComprados, ...datadas.map((c) => c.produto)])) {
+    return false;
+  }
+  if (o.compra_ha_pelo_menos_dias === undefined) return true;
+  const re = o.so_se_comprou === undefined ? null : new RegExp(o.so_se_comprou, "i");
+  const relevantes = datadas.filter((c) => re === null || re.test(c.produto));
+  if (relevantes.length === 0) return false;
+  const maisRecente = Math.max(...relevantes.map((c) => c.em.getTime()));
+  return agora.getTime() - maisRecente >= o.compra_ha_pelo_menos_dias * DIA_MS;
+}
+
 /** A pessoa disse algo que tira qualquer oferta da mesa. */
 export function naoOferecer(cfg: Pick<OfertaProativa, "nao_oferecer_se_cliente_disse">, falas: readonly string[]): boolean {
   const padrao = new RegExp(NAO_OFERECER_PADRAO, "i");
@@ -57,6 +82,7 @@ export function escolherOferta(p: PessoaParaOferta, cfg: OfertaProativa, agora: 
     if (o.so_quem_comprou === true && !p.comprou) continue;
     if (o.so_quem_comprou === false && p.comprou) continue;
     if (o.ja_tem_se_comprou !== undefined && casa(o.ja_tem_se_comprou, p.produtosComprados)) continue;
+    if (!compraCabe(o, p, agora)) continue;
     if (!casa(o.agente_ja_disse, tudoQueOAgenteDisse)) continue;
     if (!casa(o.cliente_disse, p.falas)) continue;
 
