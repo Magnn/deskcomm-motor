@@ -174,10 +174,12 @@ export async function aplicarAvisoDePagamentoDaStripe(
           ...(taxaDaPlataforma !== null ? { taxa_da_plataforma_cents: taxaDaPlataforma } : {}),
         },
       });
-      // Reentrega da Stripe: a receita já está lá e a marca também.
-      if (erroDoLedger?.code === "23505")
-        return ok({ received: true, resultado: "repetida" }, { requestId }) as NextResponse;
-      if (erroDoLedger) throw new Error(erroDoLedger.message);
+      // Reentrega da Stripe: a receita já está lá. Mas a entrega anterior pode ter caído DEPOIS do livro (a
+      // liberação na área falhou e devolveu 500): por isso a reentrega refaz a liberação, o Círculo e a marca —
+      // os três conferem o id do pagamento e não repetem efeito. O que não pode repetir (conversão do anúncio,
+      // turno do agente, auditoria) só roda na primeira.
+      const repetida = erroDoLedger?.code === "23505";
+      if (erroDoLedger && !repetida) throw new Error(erroDoLedger.message);
       // A área do cliente: o que cada pagamento libera (todos idempotentes pelo id do pagamento).
       // O cartão guardado para cobrar de novo (o plano que renova sozinho): só o pagamento que pediu para guardar.
       const cartaoGuardado =
@@ -221,6 +223,7 @@ export async function aplicarAvisoDePagamentoDaStripe(
           .eq("organization_id", conexao.organizationId)
           .eq("id", contatoId);
       }
+      if (repetida) return ok({ received: true, resultado: "repetida" }, { requestId }) as NextResponse;
       // A compra avulsa vai à plataforma de anúncio que trouxe o lead (`lib/conversoes/compra-avulsa.ts`). Nunca
       // lança: receita registrada não falha por causa do anúncio.
       const reportada = await reportarCompraAvulsa(admin, {
