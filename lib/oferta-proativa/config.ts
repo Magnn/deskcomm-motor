@@ -45,6 +45,16 @@ export const ofertaSchema = z
     ja_ofertada_se_agente_disse: regex.optional(),
     /** Se uma compra da pessoa tem produto que casa com isto, ela já tem e não recebe. */
     ja_tem_se_comprou: regex.optional(),
+    /**
+     * Só quem tem uma compra cujo produto casa com isto (ex.: quem comprou a pergunta recebe a oferta do
+     * trabalho). É o oposto de `ja_tem_se_comprou`: aquele exclui quem tem, este exige.
+     */
+    so_se_comprou: regex.optional(),
+    /**
+     * A compra mais recente (entre as que casam com `so_se_comprou`, ou qualquer uma) tem pelo menos isto de
+     * dias. Ex.: pedir depoimento só depois de a pessoa ter vivido a entrega. Exige que a pessoa tenha comprado.
+     */
+    compra_ha_pelo_menos_dias: z.number().int().min(1).max(90).optional(),
     dias_entre_repeticoes: z.number().int().min(1).max(90).default(5),
   })
   .strict();
