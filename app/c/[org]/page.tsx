@@ -76,7 +76,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       ? {
           manifest: `/c/${org.slug}/manifest`,
           appleWebApp: { capable: true, title: org.config.titulo || org.nome, statusBarStyle: "black-translucent" as const },
-          icons: { apple: `/c/${org.slug}/icone?t=192` },
+          // o ícone (aba e tela de início) vem de `layout.tsx`, para valer em todas as páginas da área
         }
       : {}),
   };
