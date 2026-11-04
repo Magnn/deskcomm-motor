@@ -240,7 +240,7 @@ import {
   promessasEmAberto,
   type DeclaracaoDoTurno,
 } from './declaracao';
-import { ehNarracaoDoProprioAgente, falaEmTextoSolto } from './fala-em-texto-solto';
+import { ehNarracaoDoProprioAgente, falaEmTextoSolto, respondeAUmaMensagem } from './fala-em-texto-solto';
 import { lerJsonTolerante } from './json-quase-valido';
 import {
   projetarContexto,
@@ -5695,8 +5695,11 @@ async function executarTurnoDoAgente(
     // turno terminava `ok` com `messages_sent: 0` e a pessoa ficava no vácuo (medido em produção em
     // 06/10/2026). O texto sai pelo MESMO `send_message` do turno — a cadeia de travas inteira — e nunca
     // por um atalho. Ver `fala-em-texto-solto.ts` para a regra de quando o silêncio é respeitado.
-    if (!preview) {
-      const textoSolto = falaEmTextoSolto(turn.result, outcomes.length, input.inboundMessageId !== undefined);
+    // Vale também na PRÉVIA ("Testar agente"): lá o `send_message` é o da prévia, que só registra o
+    // candidato depois das travas. Sem isto a tela mostrava vazio onde o cliente receberia a resposta —
+    // e um teste de vazamento de prompt (04/11/2026) ficou cego em 6 de 8 respostas por isso.
+    {
+      const textoSolto = falaEmTextoSolto(turn.result, outcomes.length, respondeAUmaMensagem(preview !== undefined, input.inboundMessageId));
       if (textoSolto === null && outcomes.length === 0 && ehNarracaoDoProprioAgente((turn.result.text ?? '').trim())) {
         // Fica dito no log (só o tamanho — o texto fala da pessoa): o turno escolheu o silêncio.
         runLog.info('o modelo narrou a própria decisão em vez de falar — nada foi enviado', {

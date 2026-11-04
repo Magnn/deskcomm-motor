@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { ehNarracaoDoProprioAgente, falaEmTextoSolto } from "./fala-em-texto-solto";
+import { readFileSync } from "node:fs";
+
+import { ehNarracaoDoProprioAgente, falaEmTextoSolto, respondeAUmaMensagem } from "./fala-em-texto-solto";
 
 describe("falaEmTextoSolto", () => {
   it("o modelo escreveu a resposta e não acionou ferramenta nenhuma: o texto sai (o caso medido em produção)", () => {
@@ -86,5 +88,21 @@ describe("turno que o sistema abriu não usa o texto solto", () => {
 
   it("⭐ em retomada de silêncio ou retorno agendado, o silêncio é respeitado", () => {
     expect(falaEmTextoSolto(fala, 0, false)).toBeNull();
+  });
+});
+
+describe("respondeAUmaMensagem", () => {
+  it("a prévia responde sempre à mensagem de quem testa; o turno real só quando alguém escreveu", () => {
+    expect(respondeAUmaMensagem(true, undefined)).toBe(true);
+    expect(respondeAUmaMensagem(false, "msg-1")).toBe(true);
+    expect(respondeAUmaMensagem(false, undefined)).toBe(false);
+  });
+
+  it("o turno não restringe a fala em texto solto ao turno real (a prévia mostra o que o cliente receberia)", () => {
+    const turno = readFileSync("lib/agent-engine/agent/inbound-turn.ts", "utf8");
+    const i = turno.indexOf("const textoSolto = falaEmTextoSolto(");
+    expect(i).toBeGreaterThan(-1);
+    expect(turno.slice(i - 400, i)).not.toMatch(/if \(!preview\) \{\s*$/);
+    expect(turno.slice(i, i + 200)).toContain("respondeAUmaMensagem(preview !== undefined, input.inboundMessageId)");
   });
 });

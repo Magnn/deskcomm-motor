@@ -120,3 +120,13 @@ export function falaEmTextoSolto(
   // Texto que narra a decisão do agente não é fala: é o silêncio dele, explicado. Respeita-se.
   return ehNarracaoDoProprioAgente(texto) ? null : texto;
 }
+
+/**
+ * O turno responde a alguém? No turno real, só quando há mensagem de entrada — turno aberto pelo
+ * sistema (retorno agendado, recuperação) pode escolher o silêncio. Na PRÉVIA ("Testar agente") há
+ * sempre a mensagem de exemplo de quem testa, então ela responde: sem isto a tela ficava vazia
+ * justamente quando o modelo escrevia em texto solto, e o turno real teria enviado esse texto.
+ */
+export function respondeAUmaMensagem(ehPrevia: boolean, inboundMessageId: string | undefined): boolean {
+  return ehPrevia || inboundMessageId !== undefined;
+}
