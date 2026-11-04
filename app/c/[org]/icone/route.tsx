@@ -1,8 +1,8 @@
 /**
  * O ÍCONE DO APP DA ÁREA — aba do navegador (`layout.tsx`) e tela de início do celular de quem instalou
- * a área (`manifest/route.ts`). Desenhado na hora: a lua crescente e a estrela douradas da área sobre o
- * céu noturno, que nasce na cor da empresa. É o mesmo símbolo do cabeçalho e da carta do dia, e continua
- * legível em 16 px — a inicial num círculo virava um borrão na aba.
+ * a área (`manifest/route.ts`). Desenhado na hora: o símbolo da área (ver `Desenho`) sobre o céu noturno,
+ * que nasce na cor da empresa. Legível em 16 px — a inicial num círculo virava um borrão na aba. A lua com
+ * estrela, que veio antes, foi trocada: é o símbolo do Islã e da bandeira da Turquia.
  *
  * Sem rede e sem arquivo: o logo da empresa é texto livre e buscá-lo aqui seria uma requisição de saída a
  * cada pedido.
@@ -25,28 +25,33 @@ export function corDoIcone(cor: string | null | undefined): string {
   return cor && /^#[0-9a-f]{6}$/i.test(cor) ? cor : COR_PADRAO_DA_AREA;
 }
 
-/** O desenho (viewBox 64): lua recortada por máscara e a estrela de 4 pontas no vão da crescente. */
+/**
+ * O desenho (viewBox 64): dois círculos que se cruzam — duas pessoas — e só a interseção acesa, com a
+ * estrela-guia dentro. A resposta mora no "entre" (a vesica piscis da geometria sagrada). Os anéis ficam
+ * suaves para não lerem como aliança; em 16 px sobra uma amêndoa dourada entre dois arcos.
+ */
 function Desenho({ cor, lado }: { cor: string; lado: number }) {
   return (
     <svg width={lado} height={lado} viewBox="0 0 64 64">
       <defs>
         <linearGradient id="c" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor={cor} stopOpacity={0.55} />
-          <stop offset="1" stopColor="#140d26" />
+          <stop offset="0" stopColor={cor} stopOpacity={0.5} />
+          <stop offset="1" stopColor="#0d0919" />
         </linearGradient>
         <linearGradient id="o" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#ffe7a8" />
-          <stop offset="1" stopColor="#d9a94a" />
+          <stop offset="0" stopColor="#ffe9b0" />
+          <stop offset="1" stopColor="#d6a443" />
         </linearGradient>
-        <mask id="m">
-          <rect width="64" height="64" fill="#fff" />
-          <circle cx="40" cy="25" r="17" fill="#000" />
-        </mask>
+        <clipPath id="k">
+          <circle cx="24.5" cy="32" r="15.5" />
+        </clipPath>
       </defs>
       <rect width="64" height="64" fill="#140d26" />
       <rect width="64" height="64" fill="url(#c)" />
-      <circle cx="29" cy="33" r="19" fill="url(#o)" mask="url(#m)" />
-      <path d="M44 15l2.6 7.4 7.4 2.6-7.4 2.6-2.6 7.4-2.6-7.4-7.4-2.6 7.4-2.6z" fill="url(#o)" />
+      <circle cx="24.5" cy="32" r="15.5" fill="none" stroke="#e8c574" strokeOpacity={0.62} strokeWidth={3.2} />
+      <circle cx="39.5" cy="32" r="15.5" fill="none" stroke="#e8c574" strokeOpacity={0.62} strokeWidth={3.2} />
+      <circle cx="39.5" cy="32" r="17.1" fill="url(#o)" clipPath="url(#k)" />
+      <path d="M32 24.6l2 5.4 5.4 2-5.4 2-2 5.4-2-5.4-5.4-2 5.4-2z" fill="#1a1030" />
     </svg>
   );
 }
