@@ -29,6 +29,8 @@ import { logger } from "@/lib/logger";
 
 import { flowGraphSchema, type ConteudoItem, type FlowGraph, type FlowNode, type ReplySaveTo } from "./graph-schema";
 import { baixarNosDeEnvio } from "./nos-de-envio";
+import { pedidoDeFimComIa, pedirTurnoDoFimComIa, type PedidoDeFimComIa } from "./fim-com-ia";
+import { getRequestPool } from "@/lib/agent-engine/db/request-pool";
 import { textoDaRespostaDoLead, type MensagemDoLead } from "./resposta-do-lead";
 import { reportarEventoDoPixel, type PedidoDePixel } from "@/lib/conversoes/evento-do-pixel";
 import {
@@ -185,6 +187,8 @@ export interface AdminClient {
    * (`devolver-a-vez.ts`). Opcional e best-effort, como os de cima.
    */
   devolverAVezAoAgente?(orgId: string, contactId: string): Promise<void>;
+  /** Fim com «Ao finalizar: IA» e a última palavra nossa: pede o turno da agente (`fim-com-ia.ts`). Best-effort. */
+  pedirTurnoDoFimComIa?(pedido: PedidoDeFimComIa): Promise<string>;
   persistirRespostaFollowup(input: {
     organization_id: string;
     contact_id: string;
@@ -596,6 +600,22 @@ async function applyResult(
         error: err instanceof Error ? err.message : String(err),
         enrollment_id: enrollment.id,
       });
+    }
+  }
+
+  // Fim com «Ao finalizar: IA»: quem parou de responder recebe a agente, com a instrução da caixa (`fim-com-ia.ts`).
+  if (patch.status === "completed" && !isReplay) {
+    const pedidoDoFim = pedidoDeFimComIa(enrollment, node, result);
+    if (pedidoDoFim) {
+      try {
+        const desfecho = await db.pedirTurnoDoFimComIa?.(pedidoDoFim);
+        logger.info("followup: fim com IA", { enrollment_id: enrollment.id, node_id: node.id, desfecho });
+      } catch (err) {
+        logger.warn("followup: fim com IA não pediu o turno da agente", {
+          error: err instanceof Error ? err.message : String(err),
+          enrollment_id: enrollment.id,
+        });
+      }
     }
   }
 
@@ -1218,6 +1238,10 @@ export function createSupabaseAdminClient(admin: SupabaseClient): AdminClient {
         .maybeSingle();
       if (error) throw new Error(error.message);
       return data?.name ?? null;
+    },
+    async pedirTurnoDoFimComIa(pedido) {
+      // A fila é Postgres puro (`enqueueJob`): o mesmo pool sob demanda das rotas.
+      return pedirTurnoDoFimComIa(getRequestPool(), pedido);
     },
     async devolverAVezAoAgente(orgId, contactId) {
       // REST não roda SQL solto: a mesma regra de `SQL_DEVOLVER_A_VEZ` em duas leituras e o `emit_event`.

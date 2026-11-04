@@ -26,6 +26,7 @@ import { coletarEsperasAdaptativas, montarTimingPlan, type PropostaDeEspera } fr
 import { persistirRespostaFollowupPg } from "./persistir-resposta";
 import { textoDaRespostaDoLead } from "./resposta-do-lead";
 import { SQL_DEVOLVER_A_VEZ } from "./devolver-a-vez";
+import { pedirTurnoDoFimComIa } from "./fim-com-ia";
 import { ESPERA_DA_NOVA_TENTATIVA_MS, EVENTO_NOVA_TENTATIVA, SEM_ENVIO_DO_PASSO } from "./sem-envio";
 
 /** Superset de AdminClient: a ponte precisa do snapshot COMPLETO do enrollment
@@ -524,6 +525,9 @@ export function createPgAdminClient(pool: pg.Pool): TurnBridgeAdminClient {
     },
     async devolverAVezAoAgente(orgId, contactId) {
       await pool.query(SQL_DEVOLVER_A_VEZ, [orgId, contactId]);
+    },
+    async pedirTurnoDoFimComIa(pedido) {
+      return pedirTurnoDoFimComIa(pool, pedido);
     },
     async insertDeadInboxItem(item) {
       await pool.query(
