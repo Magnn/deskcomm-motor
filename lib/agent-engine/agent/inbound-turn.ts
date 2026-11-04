@@ -2595,11 +2595,30 @@ async function executarTurnoDoAgente(
       : null;
   // "SÓ TENHO 90 NO PIX": a entrada é o valor que ela disse, e o Pix sai neste turno (`entradaImediata`). Vem antes
   // da proposta de entrada e do valor aceito: manter o valor de venda com entrada vale mais que dar desconto.
-  const entradaImediataDoTurno =
+  const entradaImediataLida =
     entradaDoTurno === null && !preview && agentConfig?.pricing?.enabled && internacionalDoTurno === null && ofertaDoCatalogoNoTurno === null &&
     posVendaDoTurno === null && !faltaParaOEssencialNoTurno
       ? entradaImediata(agentConfig.pricing, openingContext.context.messages)
       : null;
+  // O comprovante do Pix pela chave (`lib/pagamentos/comprovante-no-turno.ts`): vem antes da entrada e da leitura dos
+  // pagamentos. Quem já pagou a entrada que disse não recebe outra cobrança dela (04/11/2026: R$ 67 pagos, cobrados de novo).
+  let comprovanteConfirmado = false;
+  const blocoDoComprovante = preview
+    ? ''
+    : await comprovanteDoTurno(depsReaisDoComprovante(deps.crmCfg.supabase, tenantId), {
+        contactId: leadId,
+        conversationId: input.conversationId,
+        pricing: agentConfig?.pricing,
+        config: { pricing: agentConfig?.pricing, catalog: agentConfig?.catalog },
+        mensagens: openingContext.context.messages,
+        entradaDoTurnoCents: entradaImediataLida?.entradaCents ?? null,
+        aoConfirmar: () => {
+          comprovanteConfirmado = true;
+        },
+        agora: new Date(),
+        log: runLog,
+      });
+  const entradaImediataDoTurno = comprovanteConfirmado ? null : entradaImediataLida;
   if (entradaImediataDoTurno !== null) {
     runLog.info('entrada no valor que a pessoa disse — Pix neste turno', {
       entrada_cents: entradaImediataDoTurno.entradaCents,
@@ -2657,19 +2676,6 @@ async function executarTurnoDoAgente(
       conversaFalouDeExtra(openingContext.context.messages, extrasDaConfig(agentConfig?.pricing)))
       ? extrasDaConfig(agentConfig?.pricing)
       : [];
-  // O comprovante do Pix pela chave (`lib/pagamentos/comprovante-no-turno.ts`): vem antes da leitura dos pagamentos,
-  // para a cobrança avulsa em ordem já aparecer como paga neste turno.
-  const blocoDoComprovante = preview
-    ? ''
-    : await comprovanteDoTurno(depsReaisDoComprovante(deps.crmCfg.supabase, tenantId), {
-        contactId: leadId,
-        conversationId: input.conversationId,
-        pricing: agentConfig?.pricing,
-        config: { pricing: agentConfig?.pricing, catalog: agentConfig?.catalog },
-        mensagens: openingContext.context.messages,
-        agora: new Date(),
-        log: runLog,
-      });
   let extrasPagosNoTurno: ExtraPago[] = [];
   if (extrasDoTurno.length > 0) {
     try {

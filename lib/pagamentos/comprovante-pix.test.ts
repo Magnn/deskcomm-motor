@@ -4,7 +4,7 @@ import { baloesPelaChave, cobrancaNoTexto } from "@/lib/pagamentos/como-pagar-pi
 import type { ChavePixDaEmpresa } from "@/lib/preco/chave-pix";
 import type { Extra } from "@/lib/preco/tipos";
 
-import { comprovanteDoTurno, type DepsDoComprovante } from "./comprovante-no-turno";
+import { comprovanteDoTurno, PRODUTO_DO_VALOR_SOLTO, type DepsDoComprovante } from "./comprovante-no-turno";
 import { cobrancasEnviadas, conferirComprovante, dataImpressa, produtoCitado, textoDaMidia, type FalaDaConversa } from "./comprovante-pix";
 
 const CHAVE: ChavePixDaEmpresa = { key: "+5569900001234", holder: "Fulano de Tal Silva", primary: true };
@@ -58,7 +58,7 @@ describe("conferência do comprovante Pix", () => {
   });
 
   it.each([
-    ["valor diferente", comprovante("R$ 5,00"), "valor"],
+    ["sem valor legível", `Comprovante. ${QUANDO}. Fulano de Tal Silva. ID ${ID}`, "valor"],
     ["dois valores", `${comprovante("R$ 7,00")} Saldo R$ 90,00`, "mais de um valor"],
     ["outra pessoa recebeu", comprovante("R$ 7,00", "Beltrano Souza"), "recebeu"],
     ["sem ID", `Comprovante. ${QUANDO}. R$ 7,00. Fulano de Tal Silva.`, "ID da transação"],
@@ -72,12 +72,39 @@ describe("conferência do comprovante Pix", () => {
     if (r.tipo === "nao_confere") expect(r.motivo).toContain(trecho);
   });
 
-  it("entrada, restante ou valor combinado não fecham sozinhos", () => {
-    expect(conferir(comprovante("R$ 30,00"), [cobranca("R$ 30")]).tipo).toBe("nao_confere");
+  it("entrada, restante ou valor combinado: o dinheiro entra, o que liberar fica com a equipe", () => {
+    expect(conferir(comprovante("R$ 30,00"), [cobranca("R$ 30")])).toMatchObject({ tipo: "confere_valor", valorCents: 3000, idDoPix: ID });
   });
 
-  it("valor igual de produto e de avulsa fica com a equipe", () => {
-    expect(conferir(comprovante("R$ 60,00"), [cobranca("R$ 60")], [ACOMPANHAMENTO]).tipo).toBe("nao_confere");
+  it("valor igual de produto e de avulsa: registra o dinheiro, sem escolher o produto", () => {
+    expect(conferir(comprovante("R$ 60,00"), [cobranca("R$ 60")], [ACOMPANHAMENTO]).tipo).toBe("confere_valor");
+  });
+
+  it("⭐ 04/11: cobrou R$ 7 e ela pagou R$ 10, o preço de duas perguntas — são duas perguntas", () => {
+    expect(conferir(comprovante("R$ 10,00"))).toMatchObject({ tipo: "confere_extra", extra: { name: "Pergunta nova" }, quantidade: 2, valorCents: 1000 });
+  });
+
+  it("⭐ 04/11: valor que não é de cobrança nenhuma, num Pix que é nosso, ainda é dinheiro recebido", () => {
+    expect(conferir(comprovante("R$ 67,00"))).toMatchObject({ tipo: "confere_valor", valorCents: 6700 });
+    expect(conferir(comprovante("R$ 5,00"))).toMatchObject({ tipo: "confere_valor", valorCents: 500 });
+  });
+
+  it("⭐ a entrada que ela acabou de dizer confere como o trabalho", () => {
+    const r = conferirComprovante({
+      texto: comprovante("R$ 67,00"),
+      chave: CHAVE,
+      cobrancas: cobrancasEnviadas([cobranca("R$ 7")]),
+      extras: [PERGUNTA],
+      valoresDoPrincipal: [13000],
+      entradas: [6700],
+      agora: AGORA,
+    });
+    expect(r).toMatchObject({ tipo: "confere_principal", valorCents: 6700 });
+  });
+
+  it("valor solto continua barrado sem as provas de que o Pix é nosso", () => {
+    expect(conferir(comprovante("R$ 67,00", "Beltrano Souza")).tipo).toBe("nao_confere");
+    expect(conferir(comprovante("R$ 67,00", undefined, "E12345678202610201510abcDEF12345")).tipo).toBe("nao_confere");
   });
 
   it("sem cobrança enviada é dúvida, e foto comum nem conta como comprovante", () => {
@@ -148,8 +175,34 @@ describe("comprovante no turno", () => {
 
   it("dúvida não registra nada", async () => {
     const deps = dublês();
-    expect(await turno(deps, [cobranca("R$ 7"), imagem("R$ 5,00")])).toContain("COMPROVANTE COM DÚVIDA");
+    const outraPessoa: FalaDaConversa = { direction: "inbound", type: "image", body: `[Mídia]\nConteúdo: ${comprovante("R$ 7,00", "Beltrano Souza")}`, sent_at: "2026-11-01T15:20:00.000Z" };
+    expect(await turno(deps, [cobranca("R$ 7"), outraPessoa])).toContain("COMPROVANTE COM DÚVIDA");
     expect(deps.registrar).not.toHaveBeenCalled();
+  });
+
+  it("⭐ 04/11: Pix nosso de valor solto vai ao faturamento, sem entrega, e a agente não cobra de novo", async () => {
+    const deps = dublês();
+    const aoConfirmar = vi.fn();
+    const bloco = await comprovanteDoTurno(deps, { contactId: "c1", conversationId: "v", pricing, mensagens: [cobranca("R$ 7"), imagem("R$ 67,00")], aoConfirmar, agora: AGORA, log });
+    expect(bloco).toContain("PIX RECEBIDO PELO COMPROVANTE");
+    expect(bloco).toContain("NÃO cobre de novo");
+    expect(deps.registrar).toHaveBeenCalledWith("c1", expect.objectContaining({ produto: PRODUTO_DO_VALOR_SOLTO, valor_cents: 6700, iniciar_entrega: false, chave: `comprovante-${ID}` }));
+    expect(aoConfirmar).toHaveBeenCalledOnce();
+  });
+
+  it("⭐ a entrada do turno paga pelo comprovante vira venda do trabalho, e a cobrança dela some do turno", async () => {
+    const deps = dublês();
+    const aoConfirmar = vi.fn();
+    await comprovanteDoTurno(deps, { contactId: "c1", conversationId: "v", pricing, mensagens: [cobranca("R$ 7"), imagem("R$ 67,00")], entradaDoTurnoCents: 6700, aoConfirmar, agora: AGORA, log });
+    expect(deps.registrar).toHaveBeenCalledWith("c1", expect.objectContaining({ valor_cents: 6700, iniciar_entrega: true }));
+    expect(aoConfirmar).toHaveBeenCalledOnce();
+  });
+
+  it("dúvida não avisa o turno de que está pago", async () => {
+    const aoConfirmar = vi.fn();
+    const outraPessoa: FalaDaConversa = { direction: "inbound", type: "image", body: `[Mídia]\nConteúdo: ${comprovante("R$ 7,00", "Beltrano Souza")}`, sent_at: "2026-11-01T15:20:00.000Z" };
+    await comprovanteDoTurno(dublês(), { contactId: "c1", conversationId: "v", pricing, mensagens: [cobranca("R$ 7"), outraPessoa], aoConfirmar, agora: AGORA, log });
+    expect(aoConfirmar).not.toHaveBeenCalled();
   });
 
   it("sem chave principal não faz nada, e falha do banco não derruba o turno", async () => {
@@ -183,8 +236,8 @@ describe("produto de pós-venda ou catálogo", () => {
     expect(r.tipo === "confere_produto" ? r.produto : r).toBe("Oração dos Sonhos");
   });
 
-  it("dois produtos no mesmo valor seguem para a equipe", () => {
-    expect(conferePorValor([{ produto: "A", valor_cents: 3500 }, { produto: "B", valor_cents: 3500 }]).tipo).toBe("nao_confere");
+  it("dois produtos no mesmo valor: o dinheiro entra, o produto fica com a equipe", () => {
+    expect(conferePorValor([{ produto: "A", valor_cents: 3500 }, { produto: "B", valor_cents: 3500 }]).tipo).toBe("confere_valor");
   });
 });
 

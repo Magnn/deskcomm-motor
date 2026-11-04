@@ -5,12 +5,17 @@
  * paga e pode trazer texto escrito para enganar a IA. O modelo de visão só transcreve; a regra lê a transcrição e compara
  * com a cobrança que nós mesmos mandamos na conversa.
  *
- * O que é conferido, e tudo tem de bater. Qualquer dúvida para e chama a equipe:
- *   • o valor é o de uma cobrança enviada nesta conversa, e é o único valor do comprovante;
+ * O que prova que o Pix é nosso, e tudo tem de bater. Qualquer dúvida aqui para e chama a equipe:
+ *   • houve cobrança pela chave nesta conversa, e o comprovante tem um valor só;
  *   • o comprovante cita quem recebe (nome ou final da chave);
  *   • tem o ID da transação do Pix (E2E, 32 caracteres), cuja data é posterior à cobrança e recente;
  *   • a data e a hora impressas combinam com a data do ID (o ID vem em UTC, a hora impressa no fuso do banco).
  * O ID já usado, pelo mesmo lead ou por outro, é barrado por quem grava (`comprovante-no-turno.ts`).
+ *
+ * Provado que é nosso, o VALOR decide só o que liberar, nunca se registra. Pedido do dono em 04/11/2026 ("saiu vendas e a
+ * cigana não está registrando"): quem pagou R$ 10 por duas perguntas depois de uma cobrança de R$ 7, ou R$ 67 de entrada,
+ * ficava fora do faturamento. Valor que não fecha com nada vira `confere_valor`: entra no faturamento, sem entrega, e a
+ * equipe vê o que liberar.
  *
  * ⚠️ NADA aqui vê a conta do banco. Decisão do dono em 01/11/2026: com tudo batendo, vale como pago, entra no faturamento
  * e vai à Meta. Um comprovante falsificado com perfeição passa, e o extrato é a conferência final.
@@ -64,7 +69,9 @@ export type Conferencia =
   | { tipo: "nao_confere"; motivo: string }
   | { tipo: "confere_extra"; extra: Extra; quantidade: number; valorCents: number; idDoPix: string; pagoEm: Date }
   | { tipo: "confere_principal"; valorCents: number; idDoPix: string; pagoEm: Date }
-  | { tipo: "confere_produto"; produto: string; valorCents: number; idDoPix: string; pagoEm: Date };
+  | { tipo: "confere_produto"; produto: string; valorCents: number; idDoPix: string; pagoEm: Date }
+  /** O Pix é nosso, mas o valor não fecha com um produto só: registra o dinheiro, e a equipe vê o que liberar. */
+  | { tipo: "confere_valor"; valorCents: number; idDoPix: string; pagoEm: Date };
 
 const semAcento = (s: string): string => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
@@ -138,7 +145,7 @@ export function conferirComprovante(e: {
    * Oração dos Sonhos (R$ 35, pós-venda) foi paga, a agente entregou, e a venda não entrou no faturamento.
    */
   outrosProdutos?: ReadonlyArray<{ produto: string; valor_cents: number }>;
-  /** `entradasCombinadas`: a entrada tem o valor que ela disse, que pode não existir em tabela nenhuma. */
+  /** `entradasCombinadas` e a entrada do turno: a entrada tem o valor que ela disse, que pode não existir em tabela nenhuma. */
   entradas?: readonly number[];
   agora: Date;
 }): Conferencia {
@@ -146,17 +153,18 @@ export function conferirComprovante(e: {
   if (e.cobrancas.length === 0) return { tipo: "nao_confere", motivo: "não há cobrança pela chave nesta conversa" };
   const valores = [...new Set(valoresDitos(e.texto))];
   if (valores.length > 1) return { tipo: "nao_confere", motivo: "o comprovante mostra mais de um valor" };
-  const cobranca = e.cobrancas.find((c) => valores.includes(c.valorCents));
-  if (!cobranca) {
-    return { tipo: "nao_confere", motivo: `o valor do comprovante não é o da cobrança (${reais(e.cobrancas[0]!.valorCents)})` };
-  }
+  if (valores.length === 0) return { tipo: "nao_confere", motivo: "não dá para ler o valor do comprovante" };
+  const valor = valores[0]!;
   if (!citaQuemRecebe(e.texto, e.chave)) return { tipo: "nao_confere", motivo: `não aparece ${e.chave.holder} como quem recebeu` };
   const id = e.texto.match(ID_DO_PIX);
   if (!id) return { tipo: "nao_confere", motivo: "não dá para ler o ID da transação do Pix (começa com E, 32 caracteres)" };
   const pagoEm = dataDoId(id[1]!);
   if (pagoEm === null) return { tipo: "nao_confere", motivo: "o ID da transação não é válido" };
   const instante = pagoEm.getTime();
-  if (instante < cobranca.enviadaEm.getTime() - FOLGA_MS || instante > cobranca.enviadaEm.getTime() + VALIDADE_DA_COBRANCA_MS || instante > e.agora.getTime() + FOLGA_MS) {
+  const depoisDa = (c: CobrancaEnviada) => instante >= c.enviadaEm.getTime() - FOLGA_MS && instante <= c.enviadaEm.getTime() + VALIDADE_DA_COBRANCA_MS;
+  // A cobrança do mesmo valor, quando há; senão basta uma cobrança pela chave que o pagamento veio depois.
+  const cobranca = e.cobrancas.find((c) => c.valorCents === valor && depoisDa(c)) ?? null;
+  if ((cobranca === null && !e.cobrancas.some(depoisDa)) || instante > e.agora.getTime() + FOLGA_MS) {
     return { tipo: "nao_confere", motivo: "a data do pagamento não combina com a data da cobrança" };
   }
   const impressa = dataImpressa(e.texto);
@@ -165,30 +173,37 @@ export function conferirComprovante(e: {
   if (diferenca < -FOLGA_MS || diferenca > MAIOR_FUSO_MS + FOLGA_MS) {
     return { tipo: "nao_confere", motivo: "a hora impressa não combina com o ID da transação" };
   }
+  // Daqui em diante o Pix é nosso: o valor só decide o que liberar.
+  const pago = { valorCents: valor, idDoPix: id[0], pagoEm };
+  const soODinheiro: Conferencia = { tipo: "confere_valor", ...pago };
   // A cobrança diz o nome do produto: vale ele, mesmo que o trabalho ou outra avulsa tenham o mesmo valor.
-  const nomeada = cobranca.nome !== null ? extraDaCobranca(cobranca, e.extras) : null;
-  if (nomeada !== null && valorDaCobranca(nomeada, cobranca.quantidade) === cobranca.valorCents) {
-    return { tipo: "confere_extra", extra: nomeada, quantidade: cobranca.quantidade, valorCents: cobranca.valorCents, idDoPix: id[0], pagoEm };
+  const nomeada = cobranca !== null && cobranca.nome !== null ? extraDaCobranca(cobranca, e.extras) : null;
+  if (cobranca !== null && nomeada !== null && valorDaCobranca(nomeada, cobranca.quantidade) === valor) {
+    return { tipo: "confere_extra", extra: nomeada, quantidade: cobranca.quantidade, ...pago };
   }
-  if (e.entradas?.includes(cobranca.valorCents)) {
-    return { tipo: "confere_principal", valorCents: cobranca.valorCents, idDoPix: id[0], pagoEm };
-  }
-  if (e.valoresDoPrincipal.includes(cobranca.valorCents)) {
+  if (e.entradas?.includes(valor)) return { tipo: "confere_principal", ...pago };
+  if (e.valoresDoPrincipal.includes(valor)) {
     // Mesmo valor de uma avulsa (Acompanhamento e trabalho, ambos R$ 60): só a pessoa sabe qual foi.
-    if (extraDaCobranca(cobranca, e.extras) !== null) return { tipo: "nao_confere", motivo: "o valor vale para mais de um produto" };
-    return { tipo: "confere_principal", valorCents: cobranca.valorCents, idDoPix: id[0], pagoEm };
+    const semNome: CobrancaEnviada = cobranca ?? { valorCents: valor, quantidade: 1, nome: null, enviadaEm: pagoEm };
+    return extraDaCobranca(semNome, e.extras) !== null ? soODinheiro : { tipo: "confere_principal", ...pago };
   }
-  const extra = extraDaCobranca(cobranca, e.extras);
-  // Entrada, restante e valor combinado à parte: o valor sozinho não diz se quitou.
-  if (extra === null || valorDaCobranca(extra, cobranca.quantidade) !== cobranca.valorCents) {
-    const mesmos = (e.outrosProdutos ?? []).filter((p) => p.valor_cents === cobranca.valorCents);
-    // Dois produtos no mesmo valor: só a pessoa sabe qual foi.
-    if (mesmos.length === 1) {
-      return { tipo: "confere_produto", produto: mesmos[0]!.produto, valorCents: cobranca.valorCents, idDoPix: id[0], pagoEm };
+  if (cobranca !== null) {
+    const extra = extraDaCobranca(cobranca, e.extras);
+    if (extra !== null && valorDaCobranca(extra, cobranca.quantidade) === valor) {
+      return { tipo: "confere_extra", extra, quantidade: cobranca.quantidade, ...pago };
     }
-    return { tipo: "nao_confere", motivo: "este valor não é o de um produto fechado (entrada, restante ou valor combinado)" };
   }
-  return { tipo: "confere_extra", extra, quantidade: cobranca.quantidade, valorCents: cobranca.valorCents, idDoPix: id[0], pagoEm };
+  // Outro total de uma avulsa já cobrada aqui: a cobrança foi de uma pergunta (R$ 7) e ela pagou duas (R$ 10).
+  const cobradas = e.extras.filter((x) => totaisDoExtra(x).includes(valor) && e.cobrancas.some((c) => extraDaCobranca(c, e.extras) === x));
+  if (cobradas.length === 1) {
+    const extra = cobradas[0]!;
+    return { tipo: "confere_extra", extra, quantidade: totaisDoExtra(extra).indexOf(valor) + 1, ...pago };
+  }
+  const mesmos = (e.outrosProdutos ?? []).filter((p) => p.valor_cents === valor);
+  // Dois produtos no mesmo valor: só a pessoa sabe qual foi.
+  if (mesmos.length === 1 && cobradas.length === 0) return { tipo: "confere_produto", produto: mesmos[0]!.produto, ...pago };
+  // Entrada, restante, valor combinado ou valor que não fecha com nada: o dinheiro entrou, a equipe vê o que liberar.
+  return soODinheiro;
 }
 
 /** Qual produto principal a conversa estava vendendo: o último citado pelo nome nas nossas falas. */
@@ -212,6 +227,16 @@ export function blocoDaConferencia(c: Conferencia, chave: ChavePixDaEmpresa, ven
       "COMPROVANTE COM DÚVIDA (o sistema leu o comprovante; esta regra vence o roteiro)",
       `- Motivo interno: ${c.motivo}. O pagamento NÃO está confirmado: não entregue, não diga que caiu e não cobre de novo.`,
       `- Não acuse ninguém e não peça outro comprovante. Diga em um balão que recebeu e que a equipe vai conferir, e chame o atendimento humano AGORA com o motivo "Pix pela chave: conferir o comprovante (${c.motivo})".`,
+    ].join("\n");
+  }
+  if (c.tipo === "confere_valor") {
+    return [
+      "",
+      "",
+      "PIX RECEBIDO PELO COMPROVANTE (esta regra vence o roteiro)",
+      `- ${reais(c.valorCents)} para ${chave.holder}: conferido e registrado no faturamento. NÃO cobre de novo e NÃO diga que o Pix não caiu.`,
+      "- O valor não fecha sozinho com um produto desta conversa: não comece entrega que ainda não estava liberada.",
+      `- Agradeça e diga que o pagamento de ${reais(c.valorCents)} caiu. Se não estiver claro a que ele se refere, chame o atendimento humano com o motivo "Pix de ${reais(c.valorCents)} conferido: ver o que liberar".`,
     ].join("\n");
   }
   if ((c.tipo === "confere_principal" || c.tipo === "confere_produto") && venda) {

@@ -74,8 +74,8 @@ describe("o comprovante da entrada", () => {
     expect(entradas).toEqual([3000]);
     expect(conferirComprovante({ texto, chave: CHAVE, cobrancas, extras: [], valoresDoPrincipal: [13000], entradas, agora: AGORA }).tipo).toBe("confere_principal");
   });
-  it("sem entrada combinada, o valor solto segue para a equipe", () => {
-    expect(conferirComprovante({ texto, chave: CHAVE, cobrancas, extras: [], valoresDoPrincipal: [13000], entradas: [], agora: AGORA }).tipo).toBe("nao_confere");
+  it("sem entrada combinada, o valor solto entra no faturamento e a entrega fica com a equipe (04/11/2026)", () => {
+    expect(conferirComprovante({ texto, chave: CHAVE, cobrancas, extras: [], valoresDoPrincipal: [13000], entradas: [], agora: AGORA }).tipo).toBe("confere_valor");
   });
 });
 

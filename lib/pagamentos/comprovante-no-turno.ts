@@ -34,6 +34,9 @@ interface Log {
 /** O turno pode rodar de novo sobre a mesma imagem: dentro desta janela, o mesmo contato não é reaproveitamento. */
 const JANELA_DA_REPETICAO_DO_TURNO_MS = 10 * 60 * 1000;
 
+/** O nome no faturamento do Pix conferido cujo valor não fecha com um produto só. */
+export const PRODUTO_DO_VALOR_SOLTO = "Pix pela chave (ver o que liberar)";
+
 /** A chave do registro: `manual-<chave>` no livro de receita, com o índice único por trás. */
 export const chaveDoComprovante = (idDoPix: string): string => `comprovante-${idDoPix}`;
 
@@ -94,6 +97,10 @@ export async function comprovanteDoTurno(
     /** `ai_agents.config` inteira: os produtos de pós-venda e do catálogo saem dela (`sugestoesDePagamento`). */
     config?: unknown;
     mensagens: readonly FalaDaConversa[];
+    /** A entrada que o turno acabou de ler da pessoa (`entradaImediata`): ela pode pagar antes de a agente cobrar. */
+    entradaDoTurnoCents?: number | null;
+    /** Chamado quando este comprovante está registrado (agora ou pela mesma imagem há pouco): o turno não cobra de novo. */
+    aoConfirmar?: () => void;
     agora: Date;
     log: Log;
   },
@@ -108,16 +115,19 @@ export async function comprovanteDoTurno(
       cobrancas: cobrancasEnviadas(e.mensagens),
       extras: extrasDaConfig(e.pricing),
       valoresDoPrincipal,
-      entradas: entradasCombinadas(e.mensagens),
+      entradas: [...entradasCombinadas(e.mensagens), ...(e.entradaDoTurnoCents ? [e.entradaDoTurnoCents] : [])],
       outrosProdutos: sugestoesDePagamento([e.config ?? { pricing: e.pricing }]).filter((s) => s.extra === undefined && !valoresDoPrincipal.includes(s.valor_cents)),
       agora: e.agora,
     });
     if (conferencia.tipo === "nenhum") return "";
-    if (conferencia.tipo === "confere_extra" || conferencia.tipo === "confere_principal" || conferencia.tipo === "confere_produto") {
+    if (conferencia.tipo !== "nao_confere") {
       const uso = await deps.lerUso(conferencia.idDoPix);
       if (uso !== null) {
         const repeticaoDoTurno = uso.contactId === e.contactId && e.agora.getTime() - uso.criadoEm.getTime() < JANELA_DA_REPETICAO_DO_TURNO_MS;
-        if (repeticaoDoTurno) return "";
+        if (repeticaoDoTurno) {
+          e.aoConfirmar?.();
+          return "";
+        }
         conferencia = {
           tipo: "nao_confere",
           motivo: uso.contactId === e.contactId ? "este comprovante já foi usado num atendimento anterior desta pessoa" : "este comprovante já foi usado por outro contato",
@@ -127,9 +137,10 @@ export async function comprovanteDoTurno(
     e.log.info("comprovante conferido", {
       conversation_id: e.conversationId,
       resultado: conferencia.tipo,
-      ...(conferencia.tipo === "nao_confere" ? { motivo: conferencia.motivo } : {}),
+      ...(conferencia.tipo === "nao_confere" ? { motivo: conferencia.motivo } : { valor_cents: conferencia.valorCents }),
     });
     if (conferencia.tipo === "nao_confere") return blocoDaConferencia(conferencia, chave);
+    e.aoConfirmar?.();
 
     const base = {
       chave: chaveDoComprovante(conferencia.idDoPix),
@@ -148,6 +159,11 @@ export async function comprovanteDoTurno(
         ...(conferencia.quantidade > 1 ? { quantidade: conferencia.quantidade } : {}),
       } as PagamentoRecebido);
       return "";
+    }
+    if (conferencia.tipo === "confere_valor") {
+      // O dinheiro entra no faturamento; o que liberar fica com a equipe.
+      await deps.registrar(e.contactId, { ...base, produto: PRODUTO_DO_VALOR_SOLTO, iniciar_entrega: false } as PagamentoRecebido);
+      return blocoDaConferencia(conferencia, chave);
     }
     if (conferencia.tipo === "confere_produto") {
       await deps.registrar(e.contactId, { ...base, produto: conferencia.produto, iniciar_entrega: false } as PagamentoRecebido);
