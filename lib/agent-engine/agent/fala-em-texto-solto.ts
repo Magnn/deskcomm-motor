@@ -57,6 +57,10 @@ const NARRACAO_FORTE: readonly RegExp[] = [
   /\bn[ãa]o\s+(?:vou|devo)\s+(?:reengajar|reativar|reabrir)\b/i,
   /\bnenhuma\s+(?:a[çc][ãa]o|mensagem)\b[^.]{0,40}\b(?:turno|envio|necess[áa]ria|agora)\b/i,
   /\b(?:neste|este|pr[óo]ximo|nesse)\s+turno\b/i,
+  // Medido em 05/11/2026, numa conversa de risco de vida: "Ela respondeu que está em lugar seguro… Depois de
+  // acolher, aciono a equipe humana: a fala … é situação de risco" saiu como balão, entre duas falas à cliente.
+  /\b(?:aciono|vou\s+acionar|acionar|acionei)\s+(?:a\s+)?(?:equipe\s+humana|o\s+humano|o\s+atendimento\s+humano|o\s+handoff)\b/i,
+  /\bdepois\s+de\s+acolher\b/i,
   /\b(?:toque|chamada)\s+(?:de\s+sil[êe]ncio|de\s+retomada|de\s+resgate|autom[áa]tic[oa])/i,
   /\breabrir\s+a\s+cad[êe]ncia\b/i,
   /\bn[ãa]o\s+vou\s+reabrir\s+a\s+(?:conversa|oferta|leitura)\b/i,
@@ -70,8 +74,7 @@ const NARRACAO_FORTE: readonly RegExp[] = [
 ];
 const NARRACAO_FRACA: readonly RegExp[] = [
   /\b[oa]\s+lead\b/i,
-  /\b[oa]\s+(?:cliente|contato)\s+(?:encerrou|recusou|pediu|respondeu|disse|est[áa]|j[áa]|n[ãa]o)\b/i,
-  /\bcad[êe]ncia\b/i,
+  /\b[oa]\s+(?:cliente|contato)\s+(?:encerrou|recusou|pediu|respondeu|disse|est[áa]|j[áa]|n[ãa]o)\b/i,  /\bcad[êe]ncia\b/i,
   /\bnota\s+(?:nova|registrada|dur[áa]vel)\b/i,
   /\bfunil\b/i,
   /\bMotor\s+\d+\b/,
@@ -102,6 +105,16 @@ export function ehNarracaoDoProprioAgente(texto: string): boolean {
   const fracos = NARRACAO_FRACA.filter((re) => re.test(texto)).length;
   if (fracos >= 2) return true;
   return fracos === 1 && !FALA_COM_A_PESSOA.test(texto);
+}
+
+/**
+ * O corpo de um `send_message` sem os parágrafos que narram a decisão do agente. A narração também vem
+ * DENTRO da fala, como um parágrafo entre outros, e cada parágrafo vira um balão. Pura.
+ */
+export function semParagrafosDeNarracao(corpo: string): { corpo: string; removidos: number } {
+  const paragrafos = corpo.split(/\n{2,}/);
+  const ficam = paragrafos.filter((p) => p.trim() === "" || !ehNarracaoDoProprioAgente(p.trim()));
+  return { corpo: ficam.join("\n\n").trim(), removidos: paragrafos.length - ficam.length };
 }
 
 /** O texto a enviar, ou `null` quando o silêncio do turno deve ser respeitado. Pura. */
