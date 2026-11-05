@@ -242,6 +242,22 @@ export interface RunModelCallDeps {
    * surpresa em produção.
    */
   agora?: Date;
+  /** Limite de cada passo (uma ida ao provedor), injetável só para teste. */
+  limiteDoPassoMs?: number;
+}
+
+/**
+ * LIMITE DE CADA PASSO: uma ida ao provedor que não volta em 90 s é tratada como queda.
+ * Medido em 04/11/2026: a DeepSeek respondia em 12–16 s (máximo 48 s) e, das 21:35 às 21:42, três
+ * chamadas ficaram penduradas por 622–750 s. Sem limite, o turno passou dos 10 min da posse do job,
+ * a fila o entregou de novo e a resposta original foi descartada — a IA ficou muda por 10 minutos.
+ * Estourado o limite, a chave reserva (se houver) assume; senão o job falha e a fila tenta de novo.
+ */
+export const LIMITE_DO_PASSO_MS = 90_000;
+
+/** O erro que o AI SDK lança quando o limite do passo estoura (`DOMException` "TimeoutError"). */
+export function esgotouOTempo(err: unknown): boolean {
+  return (err as { name?: unknown } | null)?.name === 'TimeoutError' || /timeout of \d+ms exceeded/i.test(String((err as Error)?.message ?? ''));
 }
 
 /**
@@ -671,6 +687,7 @@ export async function runModelCall(db: pg.Pool, cfg: LlmEdgeConfig, input: RunMo
       system: prefix.system,
       messages: input.messages,
       abortSignal: input.abortSignal,
+      timeout: { stepMs: deps.limiteDoPassoMs ?? LIMITE_DO_PASSO_MS },
       tools: guardServiceTools(prefix.tools),
       stopWhen: input.maxSteps === undefined ? undefined : stepCountIs(input.maxSteps),
       temperature: input.temperature ?? temperature,
@@ -732,8 +749,9 @@ export async function runModelCall(db: pg.Pool, cfg: LlmEdgeConfig, input: RunMo
     // Regra, ordem e limites em `./chave-reserva.ts`. Sem reserva que funcione,
     // o erro que sobe é o ORIGINAL — quem chama continua vendo a causa de verdade.
     const motivo = normalizarErro(err).error_code;
+    // Provedor pendurado também troca: outra chave (de outro provedor) responde enquanto este não volta.
     const podeTrocarDeChave =
-      FALHAS_QUE_PEDEM_OUTRA_CHAVE.has(motivo) &&
+      (FALHAS_QUE_PEDEM_OUTRA_CHAVE.has(motivo) || esgotouOTempo(err)) &&
       passosConcluidos === 0 &&
       !decisao.baseUrl &&
       input.abortSignal?.aborted !== true;

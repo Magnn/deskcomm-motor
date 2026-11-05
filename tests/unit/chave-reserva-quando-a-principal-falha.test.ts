@@ -253,6 +253,39 @@ describe("chave reserva no seam", () => {
     expect(fabricadas).toEqual(["chave:principal"]);
   });
 
+  it("provedor PENDURADO: o passo estoura o limite e a reserva de outro provedor responde", async () => {
+    // Medido em 04/11/2026: chamadas da DeepSeek penduradas por 10–12 min deixaram a IA muda.
+    const { pool, consultas } = poolFalso([{ id: "r2", provider: "openai", label: "SAAS", model: "gpt-reserva" }]);
+    const chamadas: string[] = [];
+    const fabrica = (provider: string) => (apiKey: string, modelId: string) => {
+      chamadas.push(apiKey);
+      return {
+        specificationVersion: "v3",
+        provider,
+        modelId,
+        doGenerate: async ({ abortSignal }: { abortSignal?: AbortSignal }) => {
+          if (apiKey !== "chave:principal") return RESPOSTA_OK;
+          // Nunca responde: só sai quando o limite do passo aborta.
+          return new Promise((_, rejeita) => abortSignal?.addEventListener("abort", () => rejeita(abortSignal.reason)));
+        },
+      } as never;
+    };
+    const registry = { deepseek: fabrica("deepseek"), openai: fabrica("openai") };
+
+    const r = await runModelCall(pool, cfg, entrada, { registry: registry as never, limiteDoPassoMs: 50 });
+
+    expect(chamadas).toEqual(["chave:principal", "chave:reserva-r2"]);
+    expect(r.provider).toBe("openai");
+    expect(linhasDeLlmCalls(consultas).map((l) => l.falha)).toEqual([true, false]);
+  });
+
+  it("controle: o limite de produção é de 90 s e o erro do AI SDK é reconhecido", async () => {
+    const { LIMITE_DO_PASSO_MS, esgotouOTempo } = await import("@/lib/agent-engine/edge/llm/run-model-call");
+    expect(LIMITE_DO_PASSO_MS).toBe(90_000);
+    expect(esgotouOTempo(new DOMException("Step timeout of 90000ms exceeded", "TimeoutError"))).toBe(true);
+    expect(esgotouOTempo(erroDoProvedor(503, "Service Unavailable"))).toBe(false);
+  });
+
   it("sem nenhuma reserva cadastrada: comportamento de antes — o erro sobe", async () => {
     const { pool } = poolFalso([]);
     const { chamadas, registry } = registrySpiao({ "chave:principal": SEM_SALDO });
