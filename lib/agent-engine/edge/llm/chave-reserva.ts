@@ -8,8 +8,9 @@
  * vira linha em `llm_calls` (a falha da principal e o sucesso da reserva), log e aviso na Central.
  *
  * ─── Quando a reserva entra ───────────────────────────────────────────────────────────────────────
- * Só em falha que OUTRA CHAVE resolve: conta sem saldo ou no limite, e chave recusada. Provedor fora
- * do ar, modelo inexistente e erro de ferramenta não trocam de chave — a causa não é a chave.
+ * Só em falha que OUTRA CHAVE resolve: conta sem saldo ou no limite, chave recusada e — desde 04/11/2026 —
+ * chamada pendurada além de `LIMITE_DO_PASSO_MS` (ver `run-model-call.ts`), que a chave de outro provedor
+ * resolve. Provedor que recusa na hora (5xx), modelo inexistente e erro de ferramenta não trocam de chave.
  *
  * ─── Em que ordem ─────────────────────────────────────────────────────────────────────────────────
  *   1. outras chaves do MESMO provedor, da mais antiga para a mais nova, com o MESMO modelo — o
