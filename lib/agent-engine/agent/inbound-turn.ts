@@ -240,7 +240,7 @@ import {
   promessasEmAberto,
   type DeclaracaoDoTurno,
 } from './declaracao';
-import { ehNarracaoDoProprioAgente, falaEmTextoSolto, respondeAUmaMensagem } from './fala-em-texto-solto';
+import { ehNarracaoDoProprioAgente, falaEmTextoSolto, respondeAUmaMensagem, semParagrafosDeNarracao } from './fala-em-texto-solto';
 import { lerJsonTolerante } from './json-quase-valido';
 import {
   projetarContexto,
@@ -4292,6 +4292,13 @@ async function executarTurnoDoAgente(
         // min(1) no argumento, mas um `\n`/espaço passa e vira vazio depois do
         // trim/gates. Recusar aqui devolve ao modelo para reescrever — nunca
         // manda bolha em branco.
+        // A narração da própria decisão ("Ela respondeu que… Depois de acolher, aciono a equipe humana") não
+        // é fala: sai do corpo antes de virar balão. Medido em 05/11/2026 numa conversa de risco de vida.
+        const semNarracao = semParagrafosDeNarracao(body);
+        if (semNarracao.removidos > 0) {
+          runLog.warn('send_message: parágrafo de narração do agente removido', { removidos: semNarracao.removidos });
+          body = semNarracao.corpo;
+        }
         if (body.trim() === '') {
           return {
             ok: false,

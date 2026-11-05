@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { readFileSync } from "node:fs";
 
-import { ehNarracaoDoProprioAgente, falaEmTextoSolto, respondeAUmaMensagem } from "./fala-em-texto-solto";
+import { ehNarracaoDoProprioAgente, falaEmTextoSolto, respondeAUmaMensagem, semParagrafosDeNarracao } from "./fala-em-texto-solto";
 
 describe("falaEmTextoSolto", () => {
   it("o modelo escreveu a resposta e não acionou ferramenta nenhuma: o texto sai (o caso medido em produção)", () => {
@@ -104,5 +104,29 @@ describe("respondeAUmaMensagem", () => {
     expect(i).toBeGreaterThan(-1);
     expect(turno.slice(i - 400, i)).not.toMatch(/if \(!preview\) \{\s*$/);
     expect(turno.slice(i, i + 200)).toContain("respondeAUmaMensagem(preview !== undefined, input.inboundMessageId)");
+  });
+});
+
+describe("narração dentro do send_message sai antes de virar balão", () => {
+  it("⭐ caso de 05/11: o relato entre duas falas à cliente é removido, as falas ficam", () => {
+    const corpo = [
+      "Que bom, meu bem. Fico mais tranquila em saber que tem gente por perto agora.",
+      'Ela respondeu que está em lugar seguro, com pessoas por perto. Depois de acolher, aciono a equipe humana: a fala "me tirou a vontade de viver" é situação de risco.',
+      "Gabriella, o que você me disse hoje não é assunto pra carta. Vou pedir pra alguém da nossa equipe falar com você.",
+    ].join("\n\n");
+    const r = semParagrafosDeNarracao(corpo);
+    expect(r.removidos).toBe(1);
+    expect(r.corpo).not.toContain("Ela respondeu");
+    expect(r.corpo).toContain("Fico mais tranquila");
+    expect(r.corpo).toContain("Vou pedir pra alguém da nossa equipe");
+  });
+
+  it("fala comum passa inteira, inclusive a que cita o que ele disse falando COM ela", () => {
+    const corpo = "Ele disse que acabou, e eu sei que isso dói em você, meu bem.\n\nMe conta: quando foi a última conversa?";
+    expect(semParagrafosDeNarracao(corpo)).toEqual({ corpo, removidos: 0 });
+  });
+
+  it("só narração vira corpo vazio, e o turno recusa e pede a fala de novo", () => {
+    expect(semParagrafosDeNarracao("Ela respondeu que vai pensar. Não envio nada neste turno.").corpo).toBe("");
   });
 });
