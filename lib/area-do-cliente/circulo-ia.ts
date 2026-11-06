@@ -236,7 +236,8 @@ export async function gerarQuiz(
     tenantId: d.organizationId,
     leadId: d.contactId,
     jobId: null,
-    purpose: `area_quiz_${d.tipo}`,
+    purpose:
+      d.tipo === "prosperidade" ? "area_quiz_prosperidade" : d.tipo === "par" ? "area_quiz_par" : d.tipo === "sombra" ? "area_quiz_sombra" : "area_quiz_caminhos",
     messages: [{ role: "user", content: pedidoDoQuiz(d.empresa, d) + instrucaoDeIdioma(d.idioma) }],
   });
   const texto = (chamada.result.text ?? "").trim();
