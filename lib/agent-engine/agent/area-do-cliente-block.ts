@@ -33,6 +33,7 @@ const NOME_DO_QUIZ: Record<string, string> = {
   par: "O Retrato do Par",
   prosperidade: "O Código da Prosperidade",
   caminhos: "Abrir os Caminhos",
+  sombra: "O Código da Sombra",
 };
 
 export interface AreaDoContato {

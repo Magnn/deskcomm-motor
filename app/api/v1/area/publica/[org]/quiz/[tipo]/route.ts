@@ -25,6 +25,7 @@ const PRODUTO: Record<TipoDeQuiz, string> = {
   prosperidade: "Seu Mapa da Prosperidade",
   caminhos: "Seu Ritual de Abertura de Caminhos",
   par: "O Retrato do Par",
+  sombra: "O Código da Sombra",
 };
 
 export async function POST(req: NextRequest, { params }: Ctx): Promise<Response> {
@@ -35,7 +36,7 @@ export async function POST(req: NextRequest, { params }: Ctx): Promise<Response>
   const ctx = await contextoDaArea(req, slug);
   if (!ctx) return NAO_ENCONTRADA();
   const { admin, org } = ctx;
-  const oferta = { prosperidade: org.config.quiz_prosperidade, caminhos: org.config.quiz_caminhos, par: org.config.quiz_par }[tipo];
+  const oferta = { prosperidade: org.config.quiz_prosperidade, caminhos: org.config.quiz_caminhos, par: org.config.quiz_par, sombra: org.config.quiz_sombra }[tipo];
   if (!oferta?.ativo) return ERRO(404, "not_found", "Esta leitura não está disponível.");
 
   const lido = pedidoDeQuizSchema.safeParse(await req.json().catch(() => null));

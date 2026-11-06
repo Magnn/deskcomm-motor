@@ -2,22 +2,26 @@
  * Os textos dos quizzes de uma pessoa, passados pelo dicionário no servidor (`page.tsx`) e entregues prontos ao
  * navegador (`_quiz.tsx`). O que é igual ao quiz da sinastria usa a mesma frase do dicionário.
  */
+import type { TipoDeQuiz } from "@/lib/area-do-cliente/quizzes";
+
 import { textosDaPaginaFinal, textosDoAbrirArea, textosDoOuvir } from "../../_pagina-final-textos";
 
-export function textosDoQuizDePessoa(t: (texto: string) => string, tipo: "prosperidade" | "caminhos" | "par") {
-  /** O texto de cada quiz: prosperidade, caminhos, Retrato do Par. */
-  const por = <T,>(p: T, c: T, r: T): T => (tipo === "prosperidade" ? p : tipo === "caminhos" ? c : r);
+export function textosDoQuizDePessoa(t: (texto: string) => string, tipo: TipoDeQuiz) {
+  /** O texto de cada quiz: prosperidade, caminhos, Retrato do Par, Código da Sombra. */
+  const por = <T,>(p: T, c: T, r: T, s: T): T => ({ prosperidade: p, caminhos: c, par: r, sombra: s })[tipo];
   return {
     final: por(
       textosDaPaginaFinal(t, t("Seu Mapa da Prosperidade"), t("O mapa completo do seu número")),
       textosDaPaginaFinal(t, t("Seu Ritual de Abertura de Caminhos"), t("O ritual completo do seu momento")),
       textosDaPaginaFinal(t, t("O Retrato do Par"), t("O perfil que combina com você, inteiro")),
+      textosDaPaginaFinal(t, t("O Código da Sombra"), t("O caminho inteiro para os dois subirem")),
     ),
     resultadoPronto: t("o seu resultado está pronto"),
     calculadoDe: por(
       t("Calculado a partir da sua data de nascimento, agora."),
       t("Calculado a partir das suas respostas, agora."),
       t("Calculado a partir do seu mapa de nascimento, agora."),
+      t("Calculado a partir das suas respostas, agora."),
     ),
     rotuloNumero: t("Número do destino"),
     rotuloArquetipo: t("O seu arquétipo"),
@@ -31,11 +35,29 @@ export function textosDoQuizDePessoa(t: (texto: string) => string, tipo: "prospe
     rotuloAscendente: t("Ascendente"),
     rotuloCombinam: t("Signos que combinam"),
     precisaDaHora: t("precisa da hora"),
+    rotuloSombraDele: t("A Sombra dele"),
+    rotuloNivelDele: t("O nível dele"),
+    rotuloSeuNivel: t("O seu nível"),
+    rotuloLinha: t("A linha da coragem"),
+    abaixoDaLinha: t("Os dois abaixo da linha dos 200. Abaixo dela, um puxa o outro para baixo: quanto mais você reage no seu nível, mais ele afunda no dele."),
+    oErroQuePiora: t("O erro que piora"),
+    desarmeTitulo: t("As 72 horas do desarme, de graça"),
+    desarme: [
+      t("Nenhuma conversa sobre a relação."),
+      t("Mensagem no máximo do tamanho da dele."),
+      t("No máximo uma pergunta aberta sobre ele, nunca sobre vocês."),
+      t("Nunca responda mais rápido do que ele."),
+      t("Nada de “a gente precisa conversar”."),
+    ],
+    voceContouQuer: t("Você contou que o que mais quer agora é"),
+    sombraMaioria: t("A Sombra que apareceu mais"),
+    nivelPelaReacao: t("O seu nível pela sua reação"),
     ligadoA: t("ligado ao que você contou:"),
     partes: por(
       [t("O que o seu número diz sobre como você prospera"), t("Os talentos que você pode usar"), t("O padrão que costuma atrapalhar"), t("O que o seu ano pessoal pede"), t("Três atitudes práticas e uma intenção")],
       [t("O que o seu perfil e a sua carta-chave mostram"), t("O que separar em casa"), t("O ritual de 7 dias, um passo por dia"), t("Como encerrar e o que observar depois")],
       [t("O que te atrai"), t("O que te faz bem"), t("O padrão que se repete"), t("O perfil que combina com você"), t("O sinal de alerta e uma prática de 7 dias")],
+      [t("A Sombra dele"), t("O seu nível"), t("As 72 horas para subir"), t("O Espelho"), t("Acender o lado que sente"), t("Se ele não subir")],
     ),
     entregas: por(
       [
@@ -59,18 +81,28 @@ export function textosDoQuizDePessoa(t: (texto: string) => string, tipo: "prospe
         [t("O perfil que combina"), t("os signos, os elementos e os traços")],
         [t("O sinal de alerta"), t("o tipo que repete o padrão, e uma prática de 7 dias")],
       ],
+      [
+        [t("A Sombra dele"), t("o que ele está vivendo por dentro, sem culpa e sem desculpa")],
+        [t("As 72 horas"), t("o que fazer por você e as regras para não piorar")],
+        [t("O Espelho"), t("como acompanhar o ritmo dele antes de conduzir, com frases prontas")],
+        [t("Acender o lado que sente"), t("o elogio, o pedido leve e o espaço")],
+        [t("Se ele não subir"), t("os sinais de que não é a Sombra, e o que você merece")],
+        [t("Leitura na hora"), t("aqui mesmo, logo depois de pagar, para reler quando quiser")],
+      ],
     ) as [string, string][],
-    titulo: por(t("Qual é o seu número da prosperidade?"), t("O que abre os seus caminhos?"), t("Com quem você combina de verdade?")),
+    titulo: por(t("Qual é o seu número da prosperidade?"), t("O que abre os seus caminhos?"), t("Com quem você combina de verdade?"), t("Por que ele ficou diferente com você?")),
     chamada: por(
       t("A numerologia soma os algarismos da data de nascimento até um único número. Veja a conta feita na hora e o que o seu número diz sobre como você prospera."),
       t("Quatro toques e uma carta-chave do tarô para o momento: o que ele pede para os caminhos se abrirem."),
       t("Não é falta de sorte: o que te atrai e o que te faz bem nem sempre moram no mesmo lugar. O seu mapa mostra onde os dois se encontram."),
+      t("Não é falta de amor. Ele entrou na Sombra, e o jeito como você reage decide se ele sai ou se afunda. Seis toques mostram onde cada um está."),
     ),
-    tempoDoQuiz: por(t("Grátis · cerca de 2 minutos · conta feita à vista"), t("Grátis · cerca de 1 minuto · resultado na hora"), t("Grátis · cerca de 2 minutos · calculado com o seu mapa")),
+    tempoDoQuiz: por(t("Grátis · cerca de 2 minutos · conta feita à vista"), t("Grátis · cerca de 1 minuto · resultado na hora"), t("Grátis · cerca de 2 minutos · calculado com o seu mapa"), t("Grátis · cerca de 1 minuto · resultado na hora")),
     mecanismo: por(
       t("Na numerologia, a data de nascimento se reduz a um único número, somando os algarismos até sobrar um de 1 a 9. O 11 e o 22 são números mestres e não se reduzem. Cada número descreve um jeito de lidar com escolhas, trabalho e dinheiro."),
       t("Cada resposta aponta um de quatro perfis: Recomeço, Clareza, Coragem ou Paz interior. O perfil que aparecer mais vezes é o seu, e cada perfil tem uma carta-chave do tarô. Você vai ver a conta na próxima tela."),
       t("No mapa astral, Vênus mostra o que te ATRAI. O Descendente, a porta da casa 7, mostra o que te FAZ BEM numa relação. Quando os dois apontam para lados diferentes, a gente se apaixona sempre pelo mesmo tipo errado. Para achar o seu Descendente, preciso da data, da hora e do lugar em que você nasceu."),
+      t("Jung chamou de Sombra a parte que a gente não vê em si e que age por nós sob pressão. No mapa de consciência de David Hawkins, abaixo da linha dos 200 ficam o orgulho, a raiva, o medo e a apatia: ali a energia contrai, e um puxa o outro para baixo. Cada resposta sobre ele aponta uma Sombra, e a sua reação mostra o seu nível."),
     ),
     frases: por(
       [t("Dinheiro é um dos lugares onde a gente mais se repete. A numerologia ajuda a ver o padrão."), t("Agora, a sua data. É dela que sai o seu número.")],
@@ -81,6 +113,7 @@ export function textosDoQuizDePessoa(t: (texto: string) => string, tipo: "prospe
         t("O seu mapa está começando a aparecer pra mim. Faltam só algumas perguntas."),
         t("Agora eu preciso do seu nome completo, da data, da hora e do lugar em que você nasceu. É com eles que eu monto o seu mapa."),
       ],
+      [t("Já dá para ver onde ele está. Falta ver onde você está, porque uma relação é feita de dois."), t("Agora, o seu nome. É com ele que eu escrevo o seu resultado.")],
     ),
     comoFunciona: t("Como a leitura funciona"),
     assinatura: t("A Cigana"),
@@ -97,7 +130,7 @@ export function textosDoQuizDePessoa(t: (texto: string) => string, tipo: "prospe
     horaSemEla: t("Sem a hora, eu calculo Vênus, mas o Descendente fica de fora."),
     lugarTitulo: t("Onde você nasceu?"),
     lugarAjuda: t("Uso a capital do estado: a diferença para a sua cidade muda o cálculo em poucos graus."),
-    calculando: por(t("Fazendo a conta"), t("Lendo as suas respostas"), t("Montando o seu mapa")),
+    calculando: por(t("Fazendo a conta"), t("Lendo as suas respostas"), t("Montando o seu mapa"), t("Lendo as suas respostas")),
     somando: t("Somando os algarismos"),
     reduzindo: t("Reduzindo"),
     numeroDoDestino: t("Número do destino"),
@@ -126,9 +159,10 @@ export function textosDoQuizDePessoa(t: (texto: string) => string, tipo: "prospe
       t("O número explica o padrão. O que fazer com ele nas próximas semanas está no mapa completo."),
       t("A carta diz qual porta. O ritual diz como passar por ela, um passo por dia, durante 7 dias."),
       t("A prévia mostra onde atração e bem-estar estão. O perfil inteiro que combina com você, e o sinal do tipo que repete o padrão, estão no retrato completo."),
+      t("Essas 72 horas param a queda. Como subir os dois, com as frases certas para o seu caso, está na leitura completa."),
     ),
     garantia: t("Se não fizer sentido para você, peça o reembolso em até 7 dias. Basta uma mensagem."),
-    produto: por(t("Seu Mapa da Prosperidade"), t("Seu Ritual de Abertura de Caminhos"), t("O Retrato do Par")),
+    produto: por(t("Seu Mapa da Prosperidade"), t("Seu Ritual de Abertura de Caminhos"), t("O Retrato do Par"), t("O Código da Sombra")),
     rodape: t("Orientação espiritual e de autoconhecimento. Não substitui ajuda médica, psicológica ou jurídica, e não há promessa de resultado."),
     sobreVoce: t("Sobre você"),
     seuNome: t("Seu primeiro nome"),

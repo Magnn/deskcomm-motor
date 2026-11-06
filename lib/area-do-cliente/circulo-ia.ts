@@ -18,6 +18,7 @@ import { runModelCall, type LlmEdgeConfig } from "@/lib/agent-engine/edge/llm/ru
 import { BARALHO, type Carta } from "@/lib/leitura/baralho";
 import { instrucaoDeIdioma, type IdiomaDaArea } from "@/lib/i18n/area";
 
+import type { TipoDeQuiz } from "./quizzes";
 import { ROTULO_DA_RESPOSTA, type IdDaPergunta } from "./sinastria";
 
 export const REGRAS_DE_TOM = [
@@ -170,7 +171,7 @@ export async function gerarSinastria(
 
 export function pedidoDoQuiz(
   empresa: string,
-  d: { tipo: "prosperidade" | "caminhos" | "par"; nome: string; titulo: string; detalhe: string; fato?: string; respostas: Record<string, string> },
+  d: { tipo: TipoDeQuiz; nome: string; titulo: string; detalhe: string; fato?: string; respostas: Record<string, string> },
 ): string {
   // A hora e o lugar de nascimento (Retrato do Par) já viraram o `fato` calculado: não entram como "resposta".
   const contexto = Object.entries(d.respostas)
@@ -192,6 +193,18 @@ export function pedidoDoQuiz(
       "Escreva em cinco partes: (1) O que te atrai (Vênus), (2) O que te faz bem (o Descendente; sem a hora, diga com clareza que esta parte precisa da hora e fale do que Vênus pede), (3) O padrão que se repete, ligado ao que ela contou, (4) O perfil que combina com você: os signos e elementos listados e os traços desse perfil, (5) O sinal de alerta: o tipo que repete o padrão, e uma prática para os próximos 7 dias.",
       "Fale de PERFIL e de TENDÊNCIA, nunca de uma pessoa específica: não invente nome, inicial, aparência nem data de encontro, e não prometa que alguém vai aparecer.",
       ...comum,
+    ].filter(Boolean).join("\n\n");
+  }
+  if (d.tipo === "sombra") {
+    return [
+      `Você escreve "O Código da Sombra", uma leitura de relacionamento para ${d.nome}, cliente de ${empresa}: o que mudou no parceiro dela e o que ela pode fazer, a partir de hoje, para a relação voltar a respirar.`,
+      `Calculado das respostas dela, por regra fixa: ${d.fato ?? d.titulo}`,
+      "O mapa de leitura: a Sombra, de Carl Jung (psicologia analítica), é a parte que a pessoa não vê em si e que age por ela quando está sob pressão; a \"caverna\", de John Gray (terapeuta e escritor), é o recolhimento do homem que se fecha para dar conta do que sente; a escala de consciência de David Hawkins é um modelo da espiritualidade, não ciência: abaixo da linha dos 200 (vergonha, culpa, apatia, tristeza, medo, desejo, raiva, orgulho) a energia contrai e um puxa o outro para baixo; da coragem (200) para cima, ela expande. Cite os três assim, sem exagerar o que dizem e sem chamar nada de comprovado.",
+      contexto ? `O que ela contou no quiz:\n${contexto}` : "",
+      "Escreva em seis partes: (1) A Sombra dele: o que ele está vivendo por dentro, ligado ao que ela contou, sem culpá-lo nem desculpá-lo; (2) O seu nível: a reação dela, sem acusar, e por que ela piora o que quer resolver; (3) As 72 horas para subir: o que ela faz por ela nesses três dias, e as regras do desarme (nenhuma conversa sobre a relação, mensagem no máximo do tamanho da dele, no máximo uma pergunta aberta sobre ele, nunca responder mais rápido do que ele, nada de \"a gente precisa conversar\"); (4) O Espelho: técnicas reais de comunicação, rapport e espelhamento (acompanhar o ritmo e as palavras dele antes de conduzir), a âncora de um momento bom e a escada do sim (começar pelo pequeno e fácil), com duas ou três frases prontas para o caso dela; (5) Acender a anima: como acordar nele o lado que sente, pelo elogio específico, pelo pedido leve e pelo espaço, nunca pela cobrança; (6) Se ele não subir: os sinais de que não é a Sombra, é ele, e o que ela merece levar em conta.",
+      "Ética: o objetivo é comunicação e cuidado dos dois, nunca controle. Não prometa que ele volta, que muda nem prazo; não ensine a manipular, enciumar, testar ou punir. Se ela contou ameaça, controle do celular, humilhação ou agressão, isso não é caverna nem Sombra: diga com carinho e com clareza que ela merece segurança e que pode ligar para o 180 (Central de Atendimento à Mulher, grátis e sigiloso), e não ensine a reconquistá-lo.",
+      // Seis partes com frases prontas não cabem em 900 palavras.
+      ...comum.map((c) => (c.startsWith("Entre 600") ? "Entre 900 e 1.200 palavras. Use o nome dela no máximo três vezes." : c)),
     ].filter(Boolean).join("\n\n");
   }
   if (d.tipo === "prosperidade") {
@@ -223,7 +236,7 @@ export async function gerarQuiz(
     tenantId: d.organizationId,
     leadId: d.contactId,
     jobId: null,
-    purpose: d.tipo === "prosperidade" ? "area_quiz_prosperidade" : d.tipo === "par" ? "area_quiz_par" : "area_quiz_caminhos",
+    purpose: `area_quiz_${d.tipo}`,
     messages: [{ role: "user", content: pedidoDoQuiz(d.empresa, d) + instrucaoDeIdioma(d.idioma) }],
   });
   const texto = (chamada.result.text ?? "").trim();

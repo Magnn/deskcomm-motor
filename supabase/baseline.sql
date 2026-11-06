@@ -40339,3 +40339,11 @@ comment on column public.area_quiz_visitas.dados is
   'O que a pessoa deu no quiz (nome, nascimento, nome_dele, nascimento_dele, respostas), gravado com o e-mail (0960): o link da recuperação reabre a prévia com isto.';
 comment on column public.area_quiz_visitas.recuperacao_chave is
   'Segredo do link de retomada e de saída dos e-mails da recuperação (0960).';
+
+-- ---- o quiz O Código da Sombra (migration 0961) ----
+alter table public.area_quiz_pedidos drop constraint if exists area_quiz_pedidos_tipo_check;
+alter table public.area_quiz_pedidos add constraint area_quiz_pedidos_tipo_check check (tipo in ('prosperidade', 'caminhos', 'par', 'sombra'));
+alter table public.area_quiz_visitas drop constraint if exists area_quiz_visitas_quiz_check;
+alter table public.area_quiz_visitas add constraint area_quiz_visitas_quiz_check check (quiz in ('sinastria', 'prosperidade', 'caminhos', 'par', 'sombra', 'pagina'));
+alter table public.area_quiz_passos drop constraint if exists area_quiz_passos_quiz_check;
+alter table public.area_quiz_passos add constraint area_quiz_passos_quiz_check check (quiz in ('sinastria', 'prosperidade', 'caminhos', 'par', 'sombra', 'pagina'));

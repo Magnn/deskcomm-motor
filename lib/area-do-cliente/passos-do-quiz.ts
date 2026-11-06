@@ -10,7 +10,7 @@
  */
 import { z } from "zod";
 
-export const QUIZZES_DA_PAGINA = ["sinastria", "prosperidade", "caminhos", "par", "pagina"] as const;
+export const QUIZZES_DA_PAGINA = ["sinastria", "prosperidade", "caminhos", "par", "sombra", "pagina"] as const;
 export type QuizDaPagina = (typeof QUIZZES_DA_PAGINA)[number];
 
 /**
@@ -18,7 +18,7 @@ export type QuizDaPagina = (typeof QUIZZES_DA_PAGINA)[number];
  * estática (ex.: acassia.tech/mandalas) manda `quiz: "pagina"` e o slug em `pagina`. O lead do quiz e o pedido só
  * existem para estes.
  */
-export const QUIZZES = ["sinastria", "prosperidade", "caminhos", "par"] as const satisfies readonly QuizDaPagina[];
+export const QUIZZES = ["sinastria", "prosperidade", "caminhos", "par", "sombra"] as const satisfies readonly QuizDaPagina[];
 export type Quiz = (typeof QUIZZES)[number];
 
 export const PASSOS_DO_QUIZ = [

@@ -46,6 +46,7 @@ export function AbaQuizzes() {
     prosperidade: t("Número da prosperidade"),
     caminhos: t("O que abre os seus caminhos"),
     par: t("O Retrato do Par"),
+    sombra: t("O Código da Sombra"),
     pagina: t("Página de vendas"),
   };
   const nomeDoPasso: Record<PassoDoQuiz, string> = {

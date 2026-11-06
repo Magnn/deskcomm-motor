@@ -8,7 +8,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { COR_PADRAO_DA_AREA } from "@/lib/area-do-cliente/config";
-import { PERGUNTAS_DA_PROSPERIDADE, PERGUNTAS_DO_PAR, PERGUNTAS_DOS_CAMINHOS, TIPOS_DE_QUIZ, type TipoDeQuiz } from "@/lib/area-do-cliente/quizzes";
+import { PERGUNTAS_DA_PROSPERIDADE, PERGUNTAS_DA_SOMBRA, PERGUNTAS_DO_PAR, PERGUNTAS_DOS_CAMINHOS, TIPOS_DE_QUIZ, type TipoDeQuiz } from "@/lib/area-do-cliente/quizzes";
 import { urlDaMidiaDaArea } from "@/lib/area-do-cliente/midia";
 import { dadosDaRetomada } from "@/lib/area-do-cliente/recuperacao-do-quiz";
 import { orgDaArea } from "@/lib/area-do-cliente/sessao";
@@ -39,7 +39,7 @@ export default async function PaginaDoQuizDePessoa({ params, searchParams }: Pro
   const tipo = bruto as TipoDeQuiz;
   const admin = createAdminClient();
   const org = await orgDaArea(admin, slug);
-  const oferta = org ? { prosperidade: org.config.quiz_prosperidade, caminhos: org.config.quiz_caminhos, par: org.config.quiz_par }[tipo] : undefined;
+  const oferta = org ? { prosperidade: org.config.quiz_prosperidade, caminhos: org.config.quiz_caminhos, par: org.config.quiz_par, sombra: org.config.quiz_sombra }[tipo] : undefined;
   if (!org || !oferta?.ativo) notFound();
   const cor = org.config.cor || COR_PADRAO_DA_AREA;
   // O link do e-mail da recuperação (0960): a prévia reabre com o que a pessoa já tinha dado.
@@ -50,8 +50,8 @@ export default async function PaginaDoQuizDePessoa({ params, searchParams }: Pro
   const base = baseDoStorage();
   const fotoDaGuia = urlDaMidiaDaArea(org.config.guia?.foto, base);
   const perguntas =
-    tipo === "caminhos"
-      ? PERGUNTAS_DOS_CAMINHOS.map((p) => ({ id: p.id, capitulo: p.capitulo, texto: p.texto, opcoes: p.opcoes.map(([o]) => o) }))
+    tipo === "caminhos" || tipo === "sombra"
+      ? (tipo === "caminhos" ? PERGUNTAS_DOS_CAMINHOS : PERGUNTAS_DA_SOMBRA).map((p) => ({ id: p.id, capitulo: p.capitulo, texto: p.texto, opcoes: p.opcoes.map(([o]) => o) }))
       : tipo === "par"
         ? PERGUNTAS_DO_PAR.map((p) => ({ ...p, opcoes: [...p.opcoes], rotulos: p.rotulos ? ([...p.rotulos] as [string, string]) : undefined }))
         : PERGUNTAS_DA_PROSPERIDADE.map((p) => ({ id: p.id, capitulo: p.capitulo, texto: p.texto, opcoes: [...p.opcoes] }));
