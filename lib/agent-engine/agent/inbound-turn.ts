@@ -107,6 +107,7 @@ import {
 import { promessaDeReenvioSemCobranca } from '@/lib/preco/promessa-de-reenvio';
 import { recusaDeQuemJaPagou } from '@/lib/preco/pago-mas-cobrando';
 import { comprovanteDoTurno, depsReaisDoComprovante } from '@/lib/pagamentos/comprovante-no-turno';
+import { confirmaPagamentoEmDuvida } from '@/lib/pagamentos/comprovante-pix';
 import { falasDesdeAUltimaCobranca, quantidadeMenorQueACombinada, valorErradoDeExtra } from '@/lib/preco/valor-do-extra';
 import { blocoDaOfertaAtiva, ofertaAtivaDaConversa, ofertaEmConflito, ouviuOMenorValor, pediuOTrabalho, blocoDaOportunidade, oportunidadeDeOferta } from '@/lib/preco/oferta-ativa';
 import { falaErradaDoPagamento } from '@/lib/preco/fala-do-pagamento';
@@ -2609,6 +2610,7 @@ async function executarTurnoDoAgente(
   // O comprovante do Pix pela chave (`lib/pagamentos/comprovante-no-turno.ts`): vem antes da entrada e da leitura dos
   // pagamentos. Quem já pagou a entrada que disse não recebe outra cobrança dela (04/11/2026: R$ 67 pagos, cobrados de novo).
   let comprovanteConfirmado = false;
+  let comprovanteEmDuvida = false;
   const blocoDoComprovante = preview
     ? ''
     : await comprovanteDoTurno(depsReaisDoComprovante(deps.crmCfg.supabase, tenantId), {
@@ -2620,6 +2622,9 @@ async function executarTurnoDoAgente(
         entradaDoTurnoCents: entradaImediataLida?.entradaCents ?? null,
         aoConfirmar: () => {
           comprovanteConfirmado = true;
+        },
+        aoDuvidar: () => {
+          comprovanteEmDuvida = true;
         },
         agora: new Date(),
         log: runLog,
@@ -4187,6 +4192,11 @@ async function executarTurnoDoAgente(
           if (reenvioSemCobranca) {
             runLog.warn('promessa de reenviar o pagamento sem a cobrança — envio recusado', {});
             return { ok: false, error: { code: 'reenvio_sem_cobranca', message: reenvioSemCobranca } };
+          }
+          const caiuSemConferir = confirmaPagamentoEmDuvida(body, comprovanteEmDuvida);
+          if (caiuSemConferir) {
+            runLog.warn('comprovante em dúvida, mas a mensagem diz que caiu — envio recusado', {});
+            return { ok: false, error: { code: 'pagamento_em_duvida_confirmado', message: caiuSemConferir } };
           }
           const perguntaAntesDoPix = preview ? null : perguntaAntesDoPixDaEntrada(body, entradaImediataDoTurno, corposEnviados);
           if (perguntaAntesDoPix) {
