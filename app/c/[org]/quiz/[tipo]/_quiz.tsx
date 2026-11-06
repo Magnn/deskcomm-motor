@@ -13,6 +13,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { moedaDaOferta, precoDaOferta, valorNaMoedaDaPagina, type MoedaDaPagina } from "@/lib/area-do-cliente/moeda-do-visitante";
 import { PERFIS_DOS_CAMINHOS, previaDaProsperidade, previaDoPar, previaDoQuiz, previaDosCaminhos, votosDosCaminhos } from "@/lib/area-do-cliente/quizzes";
 import { LUGARES_DE_NASCIMENTO, lugarPorId } from "@/lib/area-do-cliente/retrato-do-par";
+import type { DadosDaRetomada } from "@/lib/area-do-cliente/recuperacao-do-quiz";
 import { tradutorDoQuiz } from "@/lib/area-do-cliente/textos-dos-quizzes";
 import { copyToClipboard } from "@/lib/clipboard";
 
@@ -95,6 +96,8 @@ export function QuizDePessoa(props: {
   /** Depoimentos reais (configuração) e os outros quizzes ligados, para depois da compra. */
   depoimentos: Depoimento[];
   outras: OutraLeitura[];
+  /** O link do e-mail da recuperação (0960): abre direto na prévia, com o que a pessoa já tinha dado. */
+  retomada?: DadosDaRetomada | null;
 }) {
   const { slug, tipo, cor, precoCents, precosInternacionais, pixelId, perguntas, tx, guia, videoMeio, videoPrevia, depoimentos, outras } = props;
   const t = tradutorDoQuiz(props.trad);
@@ -108,16 +111,19 @@ export function QuizDePessoa(props: {
     t(s) !== s ? t(s) : s.replace(/(Vênus em|Descendente em) (\p{L}+)/gu, (_, pedaco: string, signo: string) => `${t(pedaco)} ${t(signo)}`);
   const chave = `quiz-${tipo}:${slug}`;
   const base = `/api/v1/area/publica/${slug}/quiz/${tipo}`;
-  const [fase, setFase] = useState<Fase>("quiz");
+  const r0 = props.retomada ?? null;
+  const [fase, setFase] = useState<Fase>(r0 ? "previa" : "quiz");
   const [tela, setTela] = useState(0);
-  const [nome, setNome] = useState("");
-  const [data, setData] = useState("");
-  const [respostas, setRespostas] = useState<Record<string, string>>({});
-  const [email, setEmail] = useState("");
+  const [nome, setNome] = useState(r0?.nome ?? "");
+  const [data, setData] = useState(r0?.nascimento ?? "");
+  const [respostas, setRespostas] = useState<Record<string, string>>(r0?.respostas ?? {});
+  const [email, setEmail] = useState(r0?.email ?? "");
   const [erro, setErro] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
   const [pedido, setPedido] = useState<{ id: string; segredo: string } | null>(null);
-  const [previa, setPrevia] = useState<Previa | null>(null);
+  const [previa, setPrevia] = useState<Previa | null>(() =>
+    r0 ? previaDoQuiz(tipo, { nascimento: r0.nascimento ?? null, respostas: r0.respostas, nome: r0.nome }) : null,
+  );
   const [cobranca, setCobranca] = useState<Cobranca | null>(null);
   const [texto, setTexto] = useState<string | null>(null);
   const [copiado, setCopiado] = useState(false);

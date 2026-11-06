@@ -124,6 +124,9 @@ CRONS="
 # A RENOVAÇÃO DO PLANO DA SEMANA no cartão guardado (0954): cobra quem vence nas próximas 12 h.
 # De hora em hora, minuto 41, longe das outras; a cobrança tem chave de idempotência por semana.
 41 * * * *|60|api/v1/cron/area-planos
+# A RECUPERAÇÃO DE QUEM VIU A PRÉVIA DO QUIZ E NÃO PAGOU (0960): 1º e-mail 1 h depois, 2º 23 h depois do 1º.
+# De 15 em 15 minutos para a espera de 1 h não virar 2 h; a visita é marcada antes de mandar.
+7,22,37,52 * * * *|60|api/v1/cron/area-quiz-recupera
 # O canal mudo (doc 11, decisão B): varredura de banco, sem rede, com régua em
 # DIAS. Diária e de madrugada porque o estado que ela lê muda em dias — de 5 em
 # 5 minutos seriam 288 varreduras para nada, e o aviso chegaria na mesma hora.

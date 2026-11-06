@@ -10,7 +10,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { ligarVisitaAoContato } from "@/lib/area-do-cliente/funil-dos-quizzes";
 import { NAO_ENCONTRADA, contextoDaArea, dentroDoLimite } from "@/lib/area-do-cliente/http";
-import { leadDoQuizSchema, origemDoLead } from "@/lib/area-do-cliente/lead-do-quiz";
+import { dadosDoLead, leadDoQuizSchema, origemDoLead } from "@/lib/area-do-cliente/lead-do-quiz";
 import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
@@ -54,7 +54,7 @@ export async function POST(req: NextRequest, { params }: Ctx): Promise<Response>
       if (error || !novo) throw new Error(error?.message ?? "contato não criado");
       contactId = (novo as { id: string }).id;
     }
-    await ligarVisitaAoContato(admin, { organizationId: org.id, visita: l.visita, quiz: l.quiz, contactId });
+    await ligarVisitaAoContato(admin, { organizationId: org.id, visita: l.visita, quiz: l.quiz, contactId, dados: dadosDoLead(l) });
   } catch (err) {
     logger.warn("[area.quiz.lead] não gravado", {
       organization_id: org.id,

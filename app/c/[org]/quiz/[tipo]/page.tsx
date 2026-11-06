@@ -10,6 +10,7 @@ import { notFound } from "next/navigation";
 import { COR_PADRAO_DA_AREA } from "@/lib/area-do-cliente/config";
 import { PERGUNTAS_DA_PROSPERIDADE, PERGUNTAS_DO_PAR, PERGUNTAS_DOS_CAMINHOS, TIPOS_DE_QUIZ, type TipoDeQuiz } from "@/lib/area-do-cliente/quizzes";
 import { urlDaMidiaDaArea } from "@/lib/area-do-cliente/midia";
+import { dadosDaRetomada } from "@/lib/area-do-cliente/recuperacao-do-quiz";
 import { orgDaArea } from "@/lib/area-do-cliente/sessao";
 import { dicionarioDosQuizzes } from "@/lib/area-do-cliente/textos-dos-quizzes";
 import { traduzirNaArea } from "@/lib/i18n/area";
@@ -26,20 +27,24 @@ import { textosDoQuizDePessoa } from "./_textos";
 
 export const dynamic = "force-dynamic";
 
-type Props = { params: Promise<{ org: string; tipo: string }> };
+type Props = { params: Promise<{ org: string; tipo: string }>; searchParams: Promise<{ retomar?: string; k?: string }> };
 
 export async function generateMetadata(): Promise<Metadata> {
   return { robots: { index: false, follow: false } };
 }
 
-export default async function PaginaDoQuizDePessoa({ params }: Props) {
+export default async function PaginaDoQuizDePessoa({ params, searchParams }: Props) {
   const { org: slug, tipo: bruto } = await params;
   if (!(TIPOS_DE_QUIZ as readonly string[]).includes(bruto)) notFound();
   const tipo = bruto as TipoDeQuiz;
-  const org = await orgDaArea(createAdminClient(), slug);
+  const admin = createAdminClient();
+  const org = await orgDaArea(admin, slug);
   const oferta = org ? { prosperidade: org.config.quiz_prosperidade, caminhos: org.config.quiz_caminhos, par: org.config.quiz_par }[tipo] : undefined;
   if (!org || !oferta?.ativo) notFound();
   const cor = org.config.cor || COR_PADRAO_DA_AREA;
+  // O link do e-mail da recuperação (0960): a prévia reabre com o que a pessoa já tinha dado.
+  const { retomar, k } = await searchParams;
+  const retomada = retomar ? await dadosDaRetomada(admin, org.id, tipo, retomar, k) : null;
   const idioma = await idiomaDaArea();
   const tx = textosDoQuizDePessoa((texto) => traduzirNaArea(texto, idioma), tipo);
   const base = baseDoStorage();
@@ -64,7 +69,7 @@ export default async function PaginaDoQuizDePessoa({ params }: Props) {
         <p className="mx-auto mt-3 max-w-md text-[15px] leading-relaxed text-[#c3bad3]">{tx.chamada}</p>
         <p className="mx-auto mt-2 max-w-md text-xs text-[#9d94b2]">{tx.tempoDoQuiz}</p>
       </section>
-      <QuizDePessoa slug={org.slug} tipo={tipo} cor={cor} precoCents={oferta.preco_cents}
+      <QuizDePessoa slug={org.slug} tipo={tipo} cor={cor} precoCents={oferta.preco_cents} retomada={retomada}
         precosInternacionais={oferta.precos_internacionais ?? []}
         pixelId={oferta.pixel_id ?? null} perguntas={perguntas} tx={tx}
         trad={dicionarioDosQuizzes((texto) => traduzirNaArea(texto, idioma))} minusculas={idioma !== "de"}

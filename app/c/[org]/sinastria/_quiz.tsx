@@ -16,6 +16,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { moedaDaOferta, precoDaOferta, valorNaMoedaDaPagina, type MoedaDaPagina } from "@/lib/area-do-cliente/moeda-do-visitante";
 import { previaDaSinastria } from "@/lib/area-do-cliente/sinastria";
 import { tradutorDoQuiz } from "@/lib/area-do-cliente/textos-dos-quizzes";
+import type { DadosDaRetomada } from "@/lib/area-do-cliente/recuperacao-do-quiz";
 import { copyToClipboard } from "@/lib/clipboard";
 
 import { enviarLead, idDaVisita, manterVivo, marcarPasso } from "../_passos";
@@ -106,6 +107,8 @@ export function QuizDaSinastria(props: {
   /** Depoimentos reais (configuração) e os outros quizzes ligados, para depois da compra. */
   depoimentos: Depoimento[];
   outras: OutraLeitura[];
+  /** O link do e-mail da recuperação (0960): abre direto na prévia, com o que a pessoa já tinha dado. */
+  retomada?: DadosDaRetomada | null;
 }) {
   const { slug, cor, precoCents, precosInternacionais, pixelId, perguntas, tx, guia, videoMeio, videoPrevia, depoimentos, outras } = props;
   const t = tradutorDoQuiz(props.trad);
@@ -114,14 +117,15 @@ export function QuizDaSinastria(props: {
     const x = t(s);
     return props.minusculas ? x.toLowerCase() : x;
   };
-  const [fase, setFase] = useState<Fase>("quiz");
+  const r0 = props.retomada?.nascimento && props.retomada.nascimento_dele ? props.retomada : null;
+  const [fase, setFase] = useState<Fase>(r0 ? "previa" : "quiz");
   const [tela, setTela] = useState(0);
-  const [nomeDela, setNomeDela] = useState("");
-  const [dataDela, setDataDela] = useState("");
-  const [nomeDele, setNomeDele] = useState("");
-  const [dataDele, setDataDele] = useState("");
-  const [respostas, setRespostas] = useState<Record<string, string>>({});
-  const [email, setEmail] = useState("");
+  const [nomeDela, setNomeDela] = useState(r0?.nome ?? "");
+  const [dataDela, setDataDela] = useState(r0?.nascimento ?? "");
+  const [nomeDele, setNomeDele] = useState(r0?.nome_dele ?? "");
+  const [dataDele, setDataDele] = useState(r0?.nascimento_dele ?? "");
+  const [respostas, setRespostas] = useState<Record<string, string>>(r0?.respostas ?? {});
+  const [email, setEmail] = useState(r0?.email ?? "");
   const [erro, setErro] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
   const [pedido, setPedido] = useState<{ id: string; segredo: string } | null>(null);
