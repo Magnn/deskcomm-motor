@@ -5,6 +5,7 @@
 import { FOCOS, NOME_DO_FOCO } from "@/lib/area-do-cliente/perfil";
 
 import type { TextosDoAviso } from "./_aviso";
+import type { TextosDoMapa } from "./_mapa";
 import type { TextosDaCarteira } from "./_carteira";
 import type { TextosDoChat } from "./_chat";
 import type { TextosDoRitual } from "./_ritual";
@@ -500,5 +501,31 @@ export function textosDaMeditacao(t: (s: string) => string): TextosDaMeditacao {
     semVoz: t("A voz não está disponível agora. Você pode ler a meditação abaixo."),
     lerTexto: t("Ler o texto"),
     novaToda: t("Feita com o seu céu. Toda segunda-feira chega uma nova."),
+  };
+}
+
+/** O mapa astral completo (`_mapa.tsx`). */
+export function textosDoMapa(t: (s: string) => string): TextosDoMapa {
+  const nomes = ["Sol", "Lua", "Mercúrio", "Vênus", "Marte", "Júpiter", "Saturno", "Urano", "Netuno", "Plutão",
+    "Áries", "Touro", "Gêmeos", "Câncer", "Leão", "Virgem", "Libra", "Escorpião", "Sagitário", "Capricórnio", "Aquário", "Peixes"];
+  return {
+    convite: t("Com a hora e a cidade em que você nasceu, o céu daquele instante: os dez planetas, o seu Ascendente e as doze casas."),
+    data: t("Data de nascimento"),
+    hora: t("Hora de nascimento"),
+    naoSeiAHora: t("Não sei a hora"),
+    semHora: t("Sem a hora, o mapa mostra os planetas do dia, sem Ascendente nem casas."),
+    cidade: t("Cidade onde nasceu"),
+    cidadeDica: t("Comece a digitar o nome da cidade"),
+    nenhumaCidade: t("Não achei essa cidade. Se for pequena, escolha a cidade grande mais perto."),
+    ver: t("Ver o meu mapa"),
+    calculando: t("Calculando o seu céu…"),
+    erro: t("Não foi possível calcular agora. Tente de novo em instantes."),
+    ascendente: t("Ascendente"),
+    meioDoCeu: t("Meio do Céu"),
+    casa: t("casa"),
+    retrogrado: t("retrógrado"),
+    editar: t("Mudar data, hora ou cidade"),
+    fonteDasCidades: t("Cidades: GeoNames (CC BY 4.0)"),
+    nomes: Object.fromEntries(nomes.map((n) => [n, t(n)])),
   };
 }
