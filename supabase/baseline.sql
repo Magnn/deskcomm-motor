@@ -40290,3 +40290,10 @@ comment on table public.area_velas is
 
 alter table public.area_velas enable row level security;
 revoke all on public.area_velas from anon, authenticated;
+
+-- ---- o aviso antes da renovação do plano da semana (migration 0958) ----
+alter table public.area_planos add column if not exists aviso_para timestamptz;
+alter table public.area_planos add column if not exists aviso_em timestamptz;
+
+comment on column public.area_planos.aviso_para is
+  'O vencimento (valido_ate) cuja renovação foi avisada por e-mail (0958). Sem aviso para a semana, a renovação não cobra.';
