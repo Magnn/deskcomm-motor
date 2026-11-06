@@ -53,6 +53,7 @@ import { AnoPessoalDoCliente, PresenteDoCliente, type TextosDasOfertas } from ".
 import { ContribuicaoDoCliente, SimpatiasDoCliente, type PedidoNaArea, type SimpatiaNaArea, type TextosDasSimpatias } from "./_simpatias";
 import { CARTAO, CARTAO_NOTURNO, CEU, DETALHE, OURO, PAGINA, SERIF, SOBRETITULO, SOBRETITULO_NOTURNO, TEXTO_SUAVE } from "./_tema";
 import { temaDaIlustracao } from "./_ilustracoes";
+import type { LeituraDoMapaInicial, TextosDaLeituraDoMapa } from "./_leitura-do-mapa";
 import { MapaAstral, type TextosDoMapa } from "./_mapa";
 import { MemoriasDaArea } from "./_memorias";
 import { CartaoDaVitrine, DestaqueDaLoja, LinhaDaVitrine, Prateleira } from "./_vitrine";
@@ -184,6 +185,9 @@ export interface VistaDaAreaProps {
   tplano: TextosDoPlano;
   /** O mapa astral completo (`_mapa.tsx`): sempre na prateleira "Só para você", de graça. */
   tmapa: TextosDoMapa;
+  /** A leitura paga do mapa (0959); `null` = desligada. */
+  leituraDoMapa: LeituraDoMapaInicial | null;
+  tleituraDoMapa: TextosDaLeituraDoMapa;
   /** Os créditos (`_carteira.tsx`); `null` = desligados. */
   carteira: CarteiraInicial | null;
   creditosDoCirculo: number | null;
@@ -763,7 +767,7 @@ export function VistaDaArea(p: VistaDaAreaProps) {
               linha={t("O céu do instante em que você nasceu: planetas, Ascendente e casas.")}
               preco={null}
             >
-              <MapaAstral slug={slug} cor={cor} tm={p.tmapa} nascimento={dados.contato.nascimento} />
+              <MapaAstral slug={slug} cor={cor} tm={p.tmapa} nascimento={dados.contato.nascimento} tx={tx} tl={p.tleituraDoMapa} leitura={p.leituraDoMapa} />
             </CartaoDaVitrine>
             {p.planoSemanal ? (
               <CartaoDaVitrine

@@ -19,6 +19,7 @@ import { EXTRA_DOS_CREDITOS } from "./creditos";
 import { focoDoPerfil, type FocoDaEntrada } from "./entrada";
 import { creditarBoasVindas, creditarCirculo, moverCreditos } from "./creditos-servidor";
 import { EXTRA_DA_LEITURA } from "./leituras";
+import { EXTRA_DA_LEITURA_DO_MAPA } from "./leitura-do-mapa";
 import { EXTRA_DA_MAO } from "./mao";
 import { EXTRA_DO_SONHO } from "./sonho";
 import { EXTRA_DO_PLANO_SEMANAL, ativarPlanoSemanal, type CartaoGuardado } from "./plano-semanal";
@@ -136,6 +137,23 @@ export async function liberarCompraDaArea(
     if (error) throw new Error(error.message);
     if (data && data.length > 0) {
       await registrarEvento(admin, { organizationId, contactId, tipo: "sonho_pago", props: { metodo } });
+    }
+    return;
+  }
+  if (extra === EXTRA_DA_LEITURA_DO_MAPA) {
+    const mapaId = meta.mapa_id;
+    if (!mapaId || !UUID.test(mapaId)) return;
+    const { data, error } = await admin
+      .from("area_mapas")
+      .update({ pago_at: new Date().toISOString(), pagamento: pagamentoId })
+      .eq("id", mapaId)
+      .eq("organization_id", organizationId)
+      .eq("contact_id", contactId)
+      .is("pago_at", null)
+      .select("id");
+    if (error) throw new Error(error.message);
+    if (data && data.length > 0) {
+      await registrarEvento(admin, { organizationId, contactId, tipo: "mapa_pago", props: { metodo } });
     }
     return;
   }

@@ -228,6 +228,16 @@ export const configDaAreaSchema = z.strictObject({
     })
     .optional(),
   /**
+   * A leitura do mapa astral (`lib/area-do-cliente/leitura-do-mapa.ts`): o Sol de graça, o resto pago.
+   * Desligada até a empresa ligar no painel (`configDaLeituraDoMapa`).
+   */
+  leitura_do_mapa: z
+    .strictObject({
+      ativo: z.boolean().optional(),
+      preco_cents: z.number().int().min(100).max(1_000_000).optional(),
+    })
+    .optional(),
+  /**
    * Os créditos (`lib/area-do-cliente/creditos.ts`): uma carteira para tudo na área. A pessoa compra um dos
    * `pacotes` e paga as leituras com créditos; o Círculo dá `circulo_mensal` créditos a cada mês pago.
    * Desligados por padrão.

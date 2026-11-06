@@ -55,6 +55,9 @@ export const TIPOS_DE_EVENTO_DA_AREA = [
   "sonho_lido",
   "sonho_checkout",
   "sonho_pago",
+  "mapa_lido",
+  "mapa_checkout",
+  "mapa_pago",
   "plano_checkout",
   "plano_ativado",
 ] as const;

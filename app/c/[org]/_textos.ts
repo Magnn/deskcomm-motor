@@ -6,6 +6,7 @@ import { FOCOS, NOME_DO_FOCO } from "@/lib/area-do-cliente/perfil";
 
 import type { TextosDoAviso } from "./_aviso";
 import type { TextosDoMapa } from "./_mapa";
+import type { TextosDaLeituraDoMapa } from "./_leitura-do-mapa";
 import type { TextosDaCarteira } from "./_carteira";
 import type { TextosDoChat } from "./_chat";
 import type { TextosDoRitual } from "./_ritual";
@@ -505,6 +506,39 @@ export function textosDaMeditacao(t: (s: string) => string): TextosDaMeditacao {
 }
 
 /** O mapa astral completo (`_mapa.tsx`). */
+export function textosDaLeituraDoMapa(t: (s: string) => string): TextosDaLeituraDoMapa {
+  return {
+    titulo: t("A leitura do seu mapa"),
+    chamada: t("O que o seu céu diz sobre você?"),
+    gratis: t("A leitura do seu Sol sai na hora, de graça. A Lua, o Ascendente, Vênus, Marte e a síntese abrem depois."),
+    pedir: t("Ler o meu mapa"),
+    lendo: t("Lendo o seu céu…"),
+    automatica: t("Leitura automática, escrita a partir das posições do seu mapa, como orientação e reflexão."),
+    abrirTudo: t("Abra a leitura inteira do seu mapa"),
+    abrirTudoTexto: t("A Lua, o Ascendente, Vênus, Marte, a síntese e um passo para os próximos dias"),
+    usarCreditos: t("Usar créditos"),
+    creditos: t("créditos"),
+    seusCreditos: t("Seus créditos"),
+    pagarComPix: t("Pagar com Pix"),
+    pagarComCartao: t("Pagar com cartão"),
+    esperandoPagamento: t("Esperando o pagamento"),
+    copiarCodigo: t("Copiar código Pix"),
+    codigoCopiado: t("Código copiado."),
+    sintese: t("O seu mapa inteiro"),
+    passo: t("Um passo para os próximos dias"),
+    em: t("em"),
+    casa: t("casa"),
+    nomes: { sol: t("Sol"), lua: t("Lua"), ascendente: t("Ascendente"), venus: t("Vênus"), marte: t("Marte") },
+    temas: {
+      sol: t("essência e brilho"),
+      lua: t("emoções e acolhimento"),
+      ascendente: t("o jeito de chegar"),
+      venus: t("amor e afeto"),
+      marte: t("coragem e desejo"),
+    },
+  };
+}
+
 export function textosDoMapa(t: (s: string) => string): TextosDoMapa {
   const nomes = ["Sol", "Lua", "Mercúrio", "Vênus", "Marte", "Júpiter", "Saturno", "Urano", "Netuno", "Plutão",
     "Áries", "Touro", "Gêmeos", "Câncer", "Leão", "Virgem", "Libra", "Escorpião", "Sagitário", "Capricórnio", "Aquário", "Peixes"];

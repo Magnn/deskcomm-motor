@@ -15632,6 +15632,22 @@ export const DICIONARIO: Traducoes = {
   "Cidades: GeoNames (CC BY 4.0)": { es: "Ciudades: GeoNames (CC BY 4.0)" },
   "O seu mapa astral": { es: "Tu carta astral" },
   "O céu do instante em que você nasceu: planetas, Ascendente e casas.": { es: "El cielo del instante en que naciste: planetas, Ascendente y casas." },
+  "A leitura do seu mapa": { es: "La lectura de tu carta" },
+  "O que o seu céu diz sobre você?": { es: "¿Qué dice tu cielo sobre ti?" },
+  "A leitura do seu Sol sai na hora, de graça. A Lua, o Ascendente, Vênus, Marte e a síntese abrem depois.": { es: "La lectura de tu Sol sale al momento, gratis. La Luna, el Ascendente, Venus, Marte y la síntesis se abren después." },
+  "Ler o meu mapa": { es: "Leer mi carta" },
+  "Lendo o seu céu…": { es: "Leyendo tu cielo…" },
+  "Leitura automática, escrita a partir das posições do seu mapa, como orientação e reflexão.": { es: "Lectura automática, escrita a partir de las posiciones de tu carta, como orientación y reflexión." },
+  "Abra a leitura inteira do seu mapa": { es: "Abre la lectura completa de tu carta" },
+  "A Lua, o Ascendente, Vênus, Marte, a síntese e um passo para os próximos dias": { es: "La Luna, el Ascendente, Venus, Marte, la síntesis y un paso para los próximos días" },
+  "O seu mapa inteiro": { es: "Tu carta completa" },
+  "essência e brilho": { es: "esencia y brillo" },
+  "emoções e acolhimento": { es: "emociones y cuidado" },
+  "o jeito de chegar": { es: "tu forma de llegar" },
+  "coragem e desejo": { es: "valentía y deseo" },
+  "Leitura do mapa astral": { es: "Lectura de la carta astral" },
+  "Embaixo do mapa astral grátis, a IA escreve a leitura do mapa: o Sol sai de graça; a Lua, o Ascendente, Vênus, Marte, a síntese e um passo abrem pelo preço abaixo (créditos, Pix ou cartão).": { es: "Debajo de la carta astral gratis, la IA escribe la lectura de la carta: el Sol sale gratis; la Luna, el Ascendente, Venus, Marte, la síntesis y un paso se abren por el precio de abajo (créditos, Pix o tarjeta)." },
+  "Preço da leitura do mapa (R$)": { es: "Precio de la lectura de la carta (R$)" },
 };
 
 /**

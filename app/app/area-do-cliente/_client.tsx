@@ -847,6 +847,8 @@ function AbaConfig({ inicial }: { inicial: ConfigDaArea }) {
   const [mesaGratis, setMesaGratis] = useState(inicial.leituras?.gratis_semanal ?? false);
   const [sonhoAtivo, setSonhoAtivo] = useState(inicial.sonho?.ativo ?? false);
   const [sonhoPreco, setSonhoPreco] = useState(((inicial.sonho?.preco_cents ?? 1200) / 100).toFixed(2).replace(".", ","));
+  const [leituraDoMapaAtiva, setLeituraDoMapaAtiva] = useState(inicial.leitura_do_mapa?.ativo ?? false);
+  const [leituraDoMapaPreco, setLeituraDoMapaPreco] = useState(((inicial.leitura_do_mapa?.preco_cents ?? 1900) / 100).toFixed(2).replace(".", ","));
   const [narrarCom, setNarrarCom] = useState<"rapida" | "humana">(inicial.leituras?.narrar_com ?? "rapida");
   const [vozHumana, setVozHumana] = useState(inicial.leituras?.voz_humana ?? "");
   // As vozes clonadas no servidor: a narração humana fala com uma delas (ou com a voz padrão do serviço).
@@ -893,6 +895,7 @@ function AbaConfig({ inicial }: { inicial: ConfigDaArea }) {
           ...(narrarCom === "humana" ? { voz_humana: vozHumana } : {}),
         },
         sonho: { ativo: sonhoAtivo, preco_cents: centavos(sonhoPreco, 1200) },
+        leitura_do_mapa: { ativo: leituraDoMapaAtiva, preco_cents: centavos(leituraDoMapaPreco, 1900) },
         plano_semanal: {
           ativo: planoAtivo,
           nome: planoNome.trim() || "Plano da Semana",
@@ -1151,6 +1154,21 @@ function AbaConfig({ inicial }: { inicial: ConfigDaArea }) {
           <div className="max-w-[12rem]">
             <Label htmlFor="area-sonho-preco">{t("Preço da interpretação (R$)")}</Label>
             <Input id="area-sonho-preco" inputMode="decimal" value={sonhoPreco} onChange={(e) => setSonhoPreco(e.target.value)} />
+          </div>
+        ) : null}
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <Label htmlFor="area-leitura-do-mapa">{t("Leitura do mapa astral")}</Label>
+            <p className="text-xs text-muted-foreground">
+              {t("Embaixo do mapa astral grátis, a IA escreve a leitura do mapa: o Sol sai de graça; a Lua, o Ascendente, Vênus, Marte, a síntese e um passo abrem pelo preço abaixo (créditos, Pix ou cartão).")}
+            </p>
+          </div>
+          <Switch id="area-leitura-do-mapa" checked={leituraDoMapaAtiva} onCheckedChange={setLeituraDoMapaAtiva} data-testid="area-leitura-do-mapa-ativo" />
+        </div>
+        {leituraDoMapaAtiva ? (
+          <div className="max-w-[12rem]">
+            <Label htmlFor="area-leitura-do-mapa-preco">{t("Preço da leitura do mapa (R$)")}</Label>
+            <Input id="area-leitura-do-mapa-preco" inputMode="decimal" value={leituraDoMapaPreco} onChange={(e) => setLeituraDoMapaPreco(e.target.value)} />
           </div>
         ) : null}
         <div className="flex items-center justify-between gap-3">

@@ -35,6 +35,8 @@ import { resumoDaLuaDoMes, temLuaDoMes } from "@/lib/area-do-cliente/lua-do-mes"
 import { ehFoco, type Foco } from "@/lib/area-do-cliente/perfil";
 import { vePassoAPasso } from "@/lib/area-do-cliente/simpatias";
 import { carregarGrimorio, carregarMesa, configDasLeituras } from "@/lib/area-do-cliente/leituras-servidor";
+import { configDaLeituraDoMapa } from "@/lib/area-do-cliente/leitura-do-mapa";
+import { ultimaLeituraDoMapa } from "@/lib/area-do-cliente/leitura-do-mapa-servidor";
 import { FOTOS_POR_DIA, configDaMao } from "@/lib/area-do-cliente/mao";
 import { fotosHoje, maosDoContato } from "@/lib/area-do-cliente/mao-servidor";
 import { SONHOS_POR_DIA, configDoSonho } from "@/lib/area-do-cliente/sonho";
@@ -56,7 +58,7 @@ import { duracaoEstimada, meditacaoDaSemana } from "@/lib/area-do-cliente/medita
 import { haVozParaMeditar } from "@/lib/area-do-cliente/meditacao-voz";
 
 import { serifDaArea } from "./_fonte";
-import { textosDaCarteira, textosDaEntrada, textosDaMesa, textosDoAviso, textosDasEtapas, textosDasOfertas, textosDasSimpatias, textosDoGrimorio, textosDaLuaDoMes, textosDoChat, textosDoNavegador, textosDoRitual, textosDaMao, textosDaManha, textosDaMeditacao, textosDaVela, textosDoSonho, textosDoPlano, textosDoMapa } from "./_textos";
+import { textosDaCarteira, textosDaEntrada, textosDaMesa, textosDoAviso, textosDasEtapas, textosDasOfertas, textosDasSimpatias, textosDoGrimorio, textosDaLuaDoMes, textosDoChat, textosDoNavegador, textosDoRitual, textosDaMao, textosDaManha, textosDaMeditacao, textosDaVela, textosDoSonho, textosDoPlano, textosDoMapa, textosDaLeituraDoMapa } from "./_textos";
 import { VistaDaArea, VistaDeEntrada } from "./_vista";
 
 export const dynamic = "force-dynamic";
@@ -311,6 +313,9 @@ export default async function AreaDoCliente({ params, searchParams }: Props) {
   const [maos, fotosDeHoje] = cfgDaMao.ativo
     ? await Promise.all([maosDoContato(admin, org.id, sessao.contactId), fotosHoje(admin, { id: org.id, fuso: org.fuso }, sessao.contactId)])
     : [[], 0];
+  // A leitura do mapa astral (0959): o Sol de graça, o resto pago. Ligada pela empresa no painel.
+  const cfgDaLeituraDoMapa = configDaLeituraDoMapa(org.config.leitura_do_mapa);
+  const ultimaDoMapa = cfgDaLeituraDoMapa.ativo ? await ultimaLeituraDoMapa(admin, org.id, sessao.contactId) : null;
   // A interpretação de sonhos (0952): o primeiro símbolo de graça, o resto pago. Ligada pela empresa no painel.
   const cfgDoSonho = configDoSonho(org.config.sonho);
   const [sonhos, sonhosDeHoje] = cfgDoSonho.ativo
@@ -446,6 +451,17 @@ export default async function AreaDoCliente({ params, searchParams }: Props) {
       }
       tplano={textosDoPlano(t)}
       tmapa={textosDoMapa(t)}
+      leituraDoMapa={
+        cfgDaLeituraDoMapa.ativo
+          ? {
+              preco: dinheiro(cfgDaLeituraDoMapa.preco_cents, "BRL"),
+              creditos: creditosDoPreco(cfgDaLeituraDoMapa.preco_cents),
+              saldo: carteira ? carteira.saldo : null,
+              ultima: ultimaDoMapa,
+            }
+          : null
+      }
+      tleituraDoMapa={textosDaLeituraDoMapa(t)}
       carteira={
         carteira
           ? {
