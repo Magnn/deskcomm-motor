@@ -15648,6 +15648,9 @@ export const DICIONARIO: Traducoes = {
   "Leitura do mapa astral": { es: "Lectura de la carta astral" },
   "Embaixo do mapa astral grátis, a IA escreve a leitura do mapa: o Sol sai de graça; a Lua, o Ascendente, Vênus, Marte, a síntese e um passo abrem pelo preço abaixo (créditos, Pix ou cartão).": { es: "Debajo de la carta astral gratis, la IA escribe la lectura de la carta: el Sol sale gratis; la Luna, el Ascendente, Venus, Marte, la síntesis y un paso se abren por el precio de abajo (créditos, Pix o tarjeta)." },
   "Preço da leitura do mapa (R$)": { es: "Precio de la lectura de la carta (R$)" },
+  "Ler o mapa astral": { es: "Leer la carta astral" },
+  "Escreve a leitura do mapa astral que a cliente calculou na área: Sol, Lua, Ascendente (com a hora), Vênus e Marte no signo e na casa em que caíram, uma síntese e um passo pequeno, como retrato de temperamento e nunca como destino.": { es: "Escribe la lectura de la carta astral que la clienta calculó en el área: Sol, Luna, Ascendente (con la hora), Venus y Marte en el signo y la casa en que cayeron, una síntesis y un paso pequeño, como retrato del temperamento y nunca como destino." },
+  "A cliente pede a leitura do mapa e a área pede para tentar de novo mais tarde, sem cobrar.": { es: "La clienta pide la lectura de la carta y el área le pide que lo intente más tarde, sin cobrar." },
 };
 
 /**
