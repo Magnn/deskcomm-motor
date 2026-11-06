@@ -6,8 +6,13 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { describe, expect, it, vi } from "vitest";
 
+vi.mock("@/lib/branding/saida", () => ({ marcaDaSaida: async () => ({ nome: "Casa" }) }));
+
+import { emailDoAvisoDeRenovacao } from "@/lib/area-do-cliente/email-da-area";
 import {
   RECUSAS_ATE_DESLIGAR,
+  avisarRenovacoes,
+  avisoPermiteCobrar,
   depoisDaRecusa,
   referenciaDaRenovacao,
   renovarPlanosSemanais,
@@ -57,6 +62,9 @@ const LINHA: LinhaDeRenovacao = {
   stripe_cliente: "cus_1",
   stripe_cartao: "pm_1",
   falhas: 0,
+  // Avisada desta semana há 36 h: pode cobrar.
+  aviso_para: "2026-11-10T18:00:00Z",
+  aviso_em: "2026-11-08T21:00:00Z",
 };
 const ORG_COM_PLANO = { id: LINHA.organization_id, settings: { area: { ativo: true, plano_semanal: { ativo: true } } } };
 
@@ -171,5 +179,67 @@ describe("a rodada de renovação", () => {
     const r = await renovarPlanosSemanais(admin, AGORA, cobrar);
     expect(cobrar).not.toHaveBeenCalled();
     expect(r.adiadas).toBe(1);
+  });
+});
+
+describe("o aviso antes de renovar (0958)", () => {
+  it("⭐ sem aviso desta semana, ou com aviso de menos de 24 h, a renovação NÃO cobra", async () => {
+    expect(avisoPermiteCobrar(LINHA, AGORA)).toBe(true);
+    expect(avisoPermiteCobrar({ ...LINHA, aviso_para: null, aviso_em: null }, AGORA)).toBe(false);
+    expect(avisoPermiteCobrar({ ...LINHA, aviso_para: "2026-11-03T18:00:00Z" }, AGORA)).toBe(false); // aviso da semana passada
+    expect(avisoPermiteCobrar({ ...LINHA, aviso_em: "2026-11-09T12:00:00Z" }, AGORA)).toBe(false); // 21 h atrás
+    const { admin } = cenario({ ...LINHA, aviso_para: null, aviso_em: null });
+    const cobrar = vi.fn(async () => ({ status: "succeeded" }));
+    const r = await renovarPlanosSemanais(admin, AGORA, cobrar);
+    expect(cobrar).not.toHaveBeenCalled();
+    expect(r.sem_aviso).toBe(1);
+  });
+
+  const SEM_AVISO = { ...LINHA, valido_ate: "2026-11-12T00:00:00Z", moeda: "BRL" as const, aviso_para: null, aviso_em: null };
+  const ORG = { id: LINHA.organization_id, slug: "casa", timezone: "America/Sao_Paulo", settings: { area: { ativo: true, titulo: "Meu Mistério", plano_semanal: { ativo: true, preco_cents: 500 } } } };
+  function cenarioDoAviso(contato: unknown) {
+    return bancoFalso((tabela, op) => {
+      if (tabela === "organizations") return { data: [ORG], error: null };
+      if (tabela === "contacts") return { data: contato ? [contato] : [], error: null };
+      if (op === "update") return { data: [{ id: SEM_AVISO.id }], error: null };
+      return { data: [SEM_AVISO], error: null };
+    });
+  }
+
+  it("⭐ manda o e-mail com valor, dia e o caminho para cancelar, e marca a semana avisada", async () => {
+    const { admin, escritas } = cenarioDoAviso({ id: SEM_AVISO.contact_id, organization_id: SEM_AVISO.organization_id, name: "Maria Souza", display_name: null, email: "maria@x.com" });
+    const mandar = vi.fn(async () => ({ ok: true }));
+    const r = await avisarRenovacoes(admin, AGORA, mandar);
+    expect(r).toEqual({ avisados: 1, sem_email: 0, avisos_falhos: 0 });
+    expect(escritas[0]!.valores).toEqual({ aviso_para: SEM_AVISO.valido_ate, aviso_em: AGORA.toISOString() });
+    const [envio] = mandar.mock.calls[0] as unknown as [{ to: string; subject: string; text: string }];
+    expect(envio.to).toBe("maria@x.com");
+    expect(envio.text).toContain("Oi, Maria.");
+    expect(envio.text).toContain("R$ 5,00");
+    expect(envio.text).toContain("11 de novembro"); // 12 h antes de 12/11 00:00 UTC, em São Paulo
+    expect(envio.text).toContain("Cancelar renovação");
+    expect(envio.text).toContain("/c/casa?aba=explorar");
+    expect(envio.subject).toContain("Meu Mistério");
+  });
+
+  it("sem e-mail no contato não avisa (e por isso não cobra); contato de outra empresa também não", async () => {
+    const r1 = await avisarRenovacoes(cenarioDoAviso({ id: SEM_AVISO.contact_id, organization_id: SEM_AVISO.organization_id, name: null, display_name: null, email: null }).admin, AGORA, vi.fn());
+    expect(r1.sem_email).toBe(1);
+    const r2 = await avisarRenovacoes(cenarioDoAviso({ id: SEM_AVISO.contact_id, organization_id: "outra", name: null, display_name: null, email: "a@b.c" }).admin, AGORA, vi.fn());
+    expect(r2.sem_email).toBe(1);
+  });
+
+  it("e-mail que não saiu desmarca o aviso, para a próxima rodada tentar de novo", async () => {
+    const { admin, escritas } = cenarioDoAviso({ id: SEM_AVISO.contact_id, organization_id: SEM_AVISO.organization_id, name: null, display_name: null, email: "a@b.c" });
+    const r = await avisarRenovacoes(admin, AGORA, async () => ({ ok: false }));
+    expect(r.avisos_falhos).toBe(1);
+    expect(escritas.at(-1)!.valores).toEqual({ aviso_para: null, aviso_em: null });
+  });
+
+  it("fora do Brasil o aviso sai em inglês, na moeda da pessoa", () => {
+    const m = emailDoAvisoDeRenovacao({ titulo: null, marcaDaOrganizacao: "Casa", nomeDoPlano: "Weekly Plan", nomeDaPessoa: null, valor: "€1.00", dia: "November 11", link: "https://x/c/casa", emPortugues: false });
+    expect(m.text).toContain("€1.00");
+    expect(m.text).toContain("Cancel renewal");
+    expect(m.html).not.toContain("<script");
   });
 });
