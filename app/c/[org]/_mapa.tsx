@@ -12,6 +12,8 @@ import * as React from "react";
 import type { Cidade } from "@/lib/area-do-cliente/cidades";
 import type { MapaNatal } from "@/lib/relatorio/mapa-natal";
 
+import { type TextosDaArea } from "./_client";
+import { LeituraDoMapa, type LeituraDoMapaInicial, type TextosDaLeituraDoMapa } from "./_leitura-do-mapa";
 import { CARTAO_NOTURNO, SERIF } from "./_tema";
 
 export interface TextosDoMapa {
@@ -81,7 +83,24 @@ function Roda({ mapa }: { mapa: MapaNatal }) {
   return <div id={id} className="mx-auto aspect-square w-full max-w-[480px]" data-testid="area-mapa-roda" />;
 }
 
-export function MapaAstral({ slug, cor, tm, nascimento }: { slug: string; cor: string; tm: TextosDoMapa; nascimento: string | null }) {
+export function MapaAstral({
+  slug,
+  cor,
+  tm,
+  nascimento,
+  tx,
+  tl,
+  leitura,
+}: {
+  slug: string;
+  cor: string;
+  tm: TextosDoMapa;
+  nascimento: string | null;
+  tx: TextosDaArea;
+  tl: TextosDaLeituraDoMapa;
+  /** A leitura paga do mapa (0959), quando a empresa a ligou; `null` = só o mapa grátis. */
+  leitura: LeituraDoMapaInicial | null;
+}) {
   const [data, setData] = React.useState(nascimento ?? "");
   const [hora, setHora] = React.useState("");
   const [semHora, setSemHora] = React.useState(false);
@@ -90,6 +109,8 @@ export function MapaAstral({ slug, cor, tm, nascimento }: { slug: string; cor: s
   const [achadas, setAchadas] = React.useState<{ q: string; lista: Cidade[] }>({ q: "", lista: [] });
   const [cidade, setCidade] = React.useState<Cidade | null>(null);
   const [mapa, setMapa] = React.useState<MapaNatal | null>(null);
+  /** O nascimento do mapa que está na tela (a leitura é deste mapa). */
+  const [doMapa, setDoMapa] = React.useState<Guardado | null>(null);
   const [estado, setEstado] = React.useState<"livre" | "calculando" | "erro">("livre");
   const nome = (s: string) => tm.nomes[s] ?? s;
 
@@ -105,6 +126,7 @@ export function MapaAstral({ slug, cor, tm, nascimento }: { slug: string; cor: s
         if (!r.ok) throw new Error(String(r.status));
         const j = (await r.json()) as { data: { mapa: MapaNatal } };
         setMapa(j.data.mapa);
+        setDoMapa(g);
         setEstado("livre");
         try {
           window.localStorage.setItem(GUARDA, JSON.stringify(g));
@@ -194,6 +216,18 @@ export function MapaAstral({ slug, cor, tm, nascimento }: { slug: string; cor: s
             </li>
           ))}
         </ul>
+        {leitura && doMapa ? (
+          <LeituraDoMapa
+            key={`${doMapa.data}-${doMapa.hora}-${doMapa.cidade.id}`}
+            slug={slug}
+            cor={cor}
+            tx={tx}
+            tl={tl}
+            nomes={tm.nomes}
+            nascimento={{ data: doMapa.data, hora: doMapa.hora, cidade_id: doMapa.cidade.id }}
+            inicial={leitura}
+          />
+        ) : null}
         <button type="button" onClick={() => setMapa(null)} className="mx-auto block text-sm text-[#c3bad3] underline underline-offset-4">
           {tm.editar}
         </button>

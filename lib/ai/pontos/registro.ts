@@ -437,6 +437,17 @@ export const PONTOS_DE_IA: readonly PontoDeIa[] = [
     registraEm: "llm_calls",
   },
   {
+    id: "area_mapa",
+    rotulo: "Ler o mapa astral",
+    oQueFaz:
+      "Escreve a leitura do mapa astral que a cliente calculou na área: Sol, Lua, Ascendente (com a hora), Vênus e Marte no signo e na casa em que caíram, uma síntese e um passo pequeno, como retrato de temperamento e nunca como destino.",
+    papel: "atender",
+    exige: {},
+    emissor: "lib/area-do-cliente/leitura-do-mapa-ia.ts",
+    sintomaDeFalha: "A cliente pede a leitura do mapa e a área pede para tentar de novo mais tarde, sem cobrar.",
+    registraEm: "llm_calls",
+  },
+  {
     id: "area_manha",
     rotulo: "Escrever a manhã da cliente",
     oQueFaz:

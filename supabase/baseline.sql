@@ -39794,7 +39794,9 @@ alter table public.area_eventos add constraint area_eventos_tipo_check check (ti
   -- migration 0952 (a interpretação de sonhos).
   'sonho_lido', 'sonho_checkout', 'sonho_pago',
   -- migration 0953 (o plano da semana).
-  'plano_checkout', 'plano_ativado'
+  'plano_checkout', 'plano_ativado',
+  -- migration 0959 (a leitura do mapa astral).
+  'mapa_lido', 'mapa_checkout', 'mapa_pago'
 ));
 
 -- ---- A conexão com a Stripe aceita a conta conectada — Stripe Connect (migration 0935) ----
@@ -40297,3 +40299,26 @@ alter table public.area_planos add column if not exists aviso_em timestamptz;
 
 comment on column public.area_planos.aviso_para is
   'O vencimento (valido_ate) cuja renovação foi avisada por e-mail (0958). Sem aviso para a semana, a renovação não cobra.';
+-- ---- a leitura do mapa astral (migration 0959) ----
+create table if not exists public.area_mapas (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references public.organizations(id) on delete cascade,
+  contact_id uuid not null references public.contacts(id) on delete cascade,
+  nascimento jsonb not null,
+  leitura jsonb not null,
+  modelo text,
+  preco_cents integer not null check (preco_cents between 100 and 1000000),
+  pagamento text,
+  pago_at timestamptz,
+  created_at timestamptz not null default now()
+);
+create index if not exists area_mapas_contato_idx
+  on public.area_mapas (organization_id, contact_id, created_at desc);
+
+comment on table public.area_mapas is
+  'Leituras do mapa astral na área do cliente (migration 0959). Nasce com a leitura escrita pela IA e pago_at nulo (só o Sol aparece); créditos ou o aviso da Stripe marcam pago_at. Só o servidor lê e escreve.';
+
+alter table public.area_mapas enable row level security;
+revoke all on public.area_mapas from anon, authenticated;
+
+-- area_eventos_tipo_check: os tipos `mapa_*` foram acrescentados ao bloco da migration 0934 acima.
