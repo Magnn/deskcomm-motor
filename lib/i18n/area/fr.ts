@@ -1317,4 +1317,7 @@ export const AREA_FR: Record<string, string> = {
   "Tente de novo em alguns minutos.": "Réessaie dans quelques minutes.",
   "Pronto. Você não vai mais receber estes e-mails.": "C'est fait. Tu ne recevras plus ces e-mails.",
   "Este link não vale mais.": "Ce lien n'est plus valable.",
+  "Pagamento seguro no cartão · leitura pronta em menos de um minuto": "Paiement sécurisé par carte · lecture prête en moins d'une minute",
+  "Você paga com cartão, numa página segura.": "Vous payez par carte, sur une page sécurisée.",
+  "Na hora. Assim que o pagamento no cartão é confirmado, a leitura aparece nesta mesma página.": "Tout de suite. Dès que le paiement par carte est confirmé, la lecture apparaît sur cette même page.",
 };

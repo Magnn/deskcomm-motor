@@ -1317,4 +1317,7 @@ export const AREA_DE: Record<string, string> = {
   "Tente de novo em alguns minutos.": "Versuche es in ein paar Minuten noch einmal.",
   "Pronto. Você não vai mais receber estes e-mails.": "Erledigt. Du bekommst diese E-Mails nicht mehr.",
   "Este link não vale mais.": "Dieser Link ist nicht mehr gültig.",
+  "Pagamento seguro no cartão · leitura pronta em menos de um minuto": "Sichere Kartenzahlung · Deutung in unter einer Minute fertig",
+  "Você paga com cartão, numa página segura.": "Du zahlst mit Karte, auf einer sicheren Seite.",
+  "Na hora. Assim que o pagamento no cartão é confirmado, a leitura aparece nesta mesma página.": "Sofort. Sobald die Kartenzahlung bestätigt ist, erscheint die Deutung auf genau dieser Seite.",
 };
