@@ -53,6 +53,7 @@ import { AnoPessoalDoCliente, PresenteDoCliente, type TextosDasOfertas } from ".
 import { ContribuicaoDoCliente, SimpatiasDoCliente, type PedidoNaArea, type SimpatiaNaArea, type TextosDasSimpatias } from "./_simpatias";
 import { CARTAO, CARTAO_NOTURNO, CEU, DETALHE, OURO, PAGINA, SERIF, SOBRETITULO, SOBRETITULO_NOTURNO, TEXTO_SUAVE } from "./_tema";
 import { temaDaIlustracao } from "./_ilustracoes";
+import { MapaAstral, type TextosDoMapa } from "./_mapa";
 import { MemoriasDaArea } from "./_memorias";
 import { CartaoDaVitrine, DestaqueDaLoja, LinhaDaVitrine, Prateleira } from "./_vitrine";
 
@@ -181,6 +182,8 @@ export interface VistaDaAreaProps {
   /** O Plano da Semana (0953); `null` quando a empresa não ligou. */
   planoSemanal: PlanoSemanalNaArea | null;
   tplano: TextosDoPlano;
+  /** O mapa astral completo (`_mapa.tsx`): sempre na prateleira "Só para você", de graça. */
+  tmapa: TextosDoMapa;
   /** Os créditos (`_carteira.tsx`); `null` = desligados. */
   carteira: CarteiraInicial | null;
   creditosDoCirculo: number | null;
@@ -635,7 +638,8 @@ export function VistaDaArea(p: VistaDaAreaProps) {
   // O EXPLORAR É VITRINE (`_vitrine.tsx`): prateleiras de cartões, e o conteúdo e o pagamento só na gaveta, depois
   // do toque. Era uma coluna de onze blocos e cinco mil pixels, com "Pagar com Pix" aparecendo antes do desejo.
   const temCaminho = p.grimorio.length > 0 || p.luaDoMes !== null;
-  const temSoParaVoce = p.anoPessoal !== null || p.circulo !== null || p.presente !== null || p.planoSemanal !== null;
+  // O mapa astral está sempre ali: a prateleira "Só para você" sempre aparece.
+  const temSoParaVoce = true;
   // A LOJA (antes "Explorar"): o desenho das lojas de streaming — um destaque grande no alto e prateleiras de
   // cartões em pé que deslizam. O destaque é o trabalho marcado "para você" (ou o primeiro), e sai da prateleira.
   const destaqueDaLoja = vitrine.find((sv) => sv.destaque) ?? vitrine[0] ?? null;
@@ -749,6 +753,18 @@ export function VistaDaArea(p: VistaDaAreaProps) {
 
         {temSoParaVoce ? (
           <Prateleira titulo={t("Só para você")} testId="area-prateleira-so-para-voce">
+            <CartaoDaVitrine
+              formato="poster"
+              icone="estrela"
+              tema="estrela"
+              tom="azul"
+              sobretitulo={t("Grátis")}
+              titulo={t("O seu mapa astral")}
+              linha={t("O céu do instante em que você nasceu: planetas, Ascendente e casas.")}
+              preco={null}
+            >
+              <MapaAstral slug={slug} cor={cor} tm={p.tmapa} nascimento={dados.contato.nascimento} />
+            </CartaoDaVitrine>
             {p.planoSemanal ? (
               <CartaoDaVitrine
                 formato="poster"

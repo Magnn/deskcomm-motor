@@ -56,7 +56,7 @@ import { duracaoEstimada, meditacaoDaSemana } from "@/lib/area-do-cliente/medita
 import { haVozParaMeditar } from "@/lib/area-do-cliente/meditacao-voz";
 
 import { serifDaArea } from "./_fonte";
-import { textosDaCarteira, textosDaEntrada, textosDaMesa, textosDoAviso, textosDasEtapas, textosDasOfertas, textosDasSimpatias, textosDoGrimorio, textosDaLuaDoMes, textosDoChat, textosDoNavegador, textosDoRitual, textosDaMao, textosDaManha, textosDaMeditacao, textosDaVela, textosDoSonho, textosDoPlano } from "./_textos";
+import { textosDaCarteira, textosDaEntrada, textosDaMesa, textosDoAviso, textosDasEtapas, textosDasOfertas, textosDasSimpatias, textosDoGrimorio, textosDaLuaDoMes, textosDoChat, textosDoNavegador, textosDoRitual, textosDaMao, textosDaManha, textosDaMeditacao, textosDaVela, textosDoSonho, textosDoPlano, textosDoMapa } from "./_textos";
 import { VistaDaArea, VistaDeEntrada } from "./_vista";
 
 export const dynamic = "force-dynamic";
@@ -445,6 +445,7 @@ export default async function AreaDoCliente({ params, searchParams }: Props) {
           : null
       }
       tplano={textosDoPlano(t)}
+      tmapa={textosDoMapa(t)}
       carteira={
         carteira
           ? {
