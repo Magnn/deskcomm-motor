@@ -100,6 +100,7 @@ export function textosDoQuiz(t: (texto: string) => string) {
     lendoOsMapas: t("Lendo os dois mapas"),
     solDe: t("Sol de"),
     em: t("em"),
+    e: t("e"),
     elemento: t("elemento"),
     cruzandoElementos: t("Cruzando os elementos"),
     juntandoRespostas: t("Juntando com o que você contou: desentendimentos por"),

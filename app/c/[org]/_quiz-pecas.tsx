@@ -96,8 +96,16 @@ const OPCAO = "w-full rounded-2xl border px-4 py-3 text-left text-base text-[#f6
  * outras) e confirma no botão; `escala` são cinco toques de 1 a 5 com o rótulo das pontas. A resposta vai como
  * TEXTO — as opções marcadas juntas por "; " na múltipla, "N de 5" na escala —, porque é texto que a leitura lê.
  */
-export function PerguntaDoQuiz(props: { p: PerguntaNaTela; cor: string; continuar: string; aoResponder: (valor: string) => void }) {
+export function PerguntaDoQuiz(props: {
+  p: PerguntaNaTela;
+  cor: string;
+  continuar: string;
+  aoResponder: (valor: string) => void;
+  /** Traduz o que a tela MOSTRA; o valor respondido segue em português. */
+  traduzir?: (texto: string) => string;
+}) {
   const { p } = props;
+  const tr = props.traduzir ?? ((texto: string) => texto);
   const [marcadas, setMarcadas] = useState<string[]>([]);
   if (p.tipo === "escala") {
     return (
@@ -111,8 +119,8 @@ export function PerguntaDoQuiz(props: { p: PerguntaNaTela; cor: string; continua
         </div>
         {p.rotulos ? (
           <div className="mt-2 flex justify-between text-xs text-[#9d94b2]">
-            <span>{p.rotulos[0]}</span>
-            <span>{p.rotulos[1]}</span>
+            <span>{tr(p.rotulos[0])}</span>
+            <span>{tr(p.rotulos[1])}</span>
           </div>
         ) : null}
       </div>
@@ -128,7 +136,7 @@ export function PerguntaDoQuiz(props: { p: PerguntaNaTela; cor: string; continua
           const on = marcadas.includes(o);
           return (
             <button key={o} className={`${OPCAO} flex items-center justify-between gap-3 ${on ? "border-[#e2c47a] bg-[#2a1f3d]" : "border-[#c9a54e]/25 bg-[#120d22]"}`} onClick={() => alternar(o)} aria-pressed={on}>
-              <span>{o}</span>
+              <span>{tr(o)}</span>
               <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border text-xs ${on ? "border-[#e2c47a] bg-[#e2c47a] text-[#1a1430]" : "border-[#9d94b2]"}`}>{on ? "✓" : ""}</span>
             </button>
           );
@@ -143,7 +151,7 @@ export function PerguntaDoQuiz(props: { p: PerguntaNaTela; cor: string; continua
     <div className="mt-5 space-y-3">
       {p.opcoes.map((o) => (
         <button key={o} className={`${OPCAO} border-[#c9a54e]/25 bg-[#120d22] hover:border-[#e2c47a]`} onClick={() => props.aoResponder(o)}>
-          {o}
+          {tr(o)}
         </button>
       ))}
     </div>
