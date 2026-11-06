@@ -11,6 +11,7 @@ import { COR_PADRAO_DA_AREA } from "@/lib/area-do-cliente/config";
 import { PERGUNTAS_DA_PROSPERIDADE, PERGUNTAS_DO_PAR, PERGUNTAS_DOS_CAMINHOS, TIPOS_DE_QUIZ, type TipoDeQuiz } from "@/lib/area-do-cliente/quizzes";
 import { urlDaMidiaDaArea } from "@/lib/area-do-cliente/midia";
 import { orgDaArea } from "@/lib/area-do-cliente/sessao";
+import { dicionarioDosQuizzes } from "@/lib/area-do-cliente/textos-dos-quizzes";
 import { traduzirNaArea } from "@/lib/i18n/area";
 import { baseDoStorage } from "@/lib/branding/logo";
 import { idiomaDaArea } from "@/lib/i18n/area-servidor";
@@ -66,6 +67,7 @@ export default async function PaginaDoQuizDePessoa({ params }: Props) {
       <QuizDePessoa slug={org.slug} tipo={tipo} cor={cor} precoCents={oferta.preco_cents}
         precosInternacionais={oferta.precos_internacionais ?? []}
         pixelId={oferta.pixel_id ?? null} perguntas={perguntas} tx={tx}
+        trad={dicionarioDosQuizzes((texto) => traduzirNaArea(texto, idioma))} minusculas={idioma !== "de"}
         guia={{ nome: org.config.guia?.nome ?? null, foto: fotoDaGuia }}
         videoMeio={urlDaMidiaDaArea(oferta.video_meio, base)}
         videoPrevia={urlDaMidiaDaArea(oferta.video_previa, base)}

@@ -12,6 +12,7 @@ import { COR_PADRAO_DA_AREA } from "@/lib/area-do-cliente/config";
 import { urlDaMidiaDaArea } from "@/lib/area-do-cliente/midia";
 import { orgDaArea } from "@/lib/area-do-cliente/sessao";
 import { PERGUNTAS_DO_QUIZ } from "@/lib/area-do-cliente/sinastria";
+import { dicionarioDosQuizzes } from "@/lib/area-do-cliente/textos-dos-quizzes";
 import { traduzirNaArea } from "@/lib/i18n/area";
 import { baseDoStorage } from "@/lib/branding/logo";
 import { idiomaDaArea } from "@/lib/i18n/area-servidor";
@@ -29,9 +30,10 @@ export const dynamic = "force-dynamic";
 type Props = { params: Promise<{ org: string }> };
 
 export async function generateMetadata(): Promise<Metadata> {
+  const idioma = await idiomaDaArea();
   return {
-    title: "Vocês combinam? O Código da Conexão",
-    description: "Descubra o que os signos de vocês dois mostram sobre a relação.",
+    title: traduzirNaArea("Vocês combinam? O Código da Conexão", idioma),
+    description: traduzirNaArea("Descubra o que os signos de vocês dois mostram sobre a relação.", idioma),
     robots: { index: false, follow: false },
   };
 }
@@ -70,6 +72,8 @@ export default async function PaginaDoQuiz({ params }: Props) {
         pixelId={oferta.pixel_id ?? null}
         perguntas={PERGUNTAS_DO_QUIZ.map((p) => ({ id: p.id, capitulo: p.capitulo, texto: p.texto, opcoes: [...p.opcoes] }))}
         tx={tx}
+        trad={dicionarioDosQuizzes((texto) => traduzirNaArea(texto, idioma))}
+        minusculas={idioma !== "de"}
         guia={{ nome: org.config.guia?.nome ?? null, foto: fotoDaGuia }}
         videoMeio={urlDaMidiaDaArea(oferta.video_meio, base)}
         videoPrevia={urlDaMidiaDaArea(oferta.video_previa, base)}

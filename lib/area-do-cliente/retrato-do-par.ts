@@ -114,7 +114,7 @@ export function longitudeDoAscendente(quando: Date, lat: number, lon: number): n
 }
 
 /** O que cada Vênus ATRAI — uma frase, em tendência. */
-const O_QUE_ATRAI: Record<SignoDoZodiaco, string> = {
+export const O_QUE_ATRAI: Record<SignoDoZodiaco, string> = {
   Áries: "gente decidida, que toma a iniciativa e traz desafio",
   Touro: "presença, toque e quem oferece segurança e conforto",
   Gêmeos: "conversa boa, humor e quem estimula a sua mente",
@@ -130,7 +130,7 @@ const O_QUE_ATRAI: Record<SignoDoZodiaco, string> = {
 };
 
 /** O que cada Descendente pede de um parceiro — o que FAZ BEM. */
-const O_QUE_FAZ_BEM: Record<SignoDoZodiaco, string> = {
+export const O_QUE_FAZ_BEM: Record<SignoDoZodiaco, string> = {
   Áries: "alguém com coragem e iniciativa, que tire você da espera",
   Touro: "alguém estável e paciente, que traga calma e constância",
   Gêmeos: "alguém leve e curioso, com quem a conversa nunca acaba",

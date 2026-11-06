@@ -84,7 +84,7 @@ export const PERGUNTAS_DA_PROSPERIDADE = [
   { id: "quando", capitulo: "O seu momento", texto: "Para quando você quer clareza?", opcoes: ["Para este mês", "Para a virada do ano"] },
 ] as const;
 
-const TOM_DO_NUMERO: Record<number, { titulo: string; texto: string }> = {
+export const TOM_DO_NUMERO: Record<number, { titulo: string; texto: string }> = {
   1: { titulo: "O Iniciador", texto: "A sua prosperidade nasce quando você toma a frente. O seu desafio é não esperar a permissão de ninguém para começar." },
   2: { titulo: "O Parceiro", texto: "Você prospera em parceria e com paciência. O seu desafio é valorizar o que você mesmo traz para a mesa." },
   3: { titulo: "O Comunicador", texto: "A sua prosperidade vem da sua voz e da sua criatividade. O seu desafio é terminar o que começa." },

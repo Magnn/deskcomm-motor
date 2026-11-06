@@ -13,6 +13,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { moedaDaOferta, precoDaOferta, valorNaMoedaDaPagina, type MoedaDaPagina } from "@/lib/area-do-cliente/moeda-do-visitante";
 import { PERFIS_DOS_CAMINHOS, previaDaProsperidade, previaDoPar, previaDoQuiz, previaDosCaminhos, votosDosCaminhos } from "@/lib/area-do-cliente/quizzes";
 import { LUGARES_DE_NASCIMENTO, lugarPorId } from "@/lib/area-do-cliente/retrato-do-par";
+import { tradutorDoQuiz } from "@/lib/area-do-cliente/textos-dos-quizzes";
 import { copyToClipboard } from "@/lib/clipboard";
 
 import { enviarLead, idDaVisita, manterVivo, marcarPasso } from "../../_passos";
@@ -83,6 +84,10 @@ export function QuizDePessoa(props: {
   pixelId: string | null;
   perguntas: Pergunta[];
   tx: TextosDoQuizDePessoa;
+  /** Português → idioma de quem lê, para o que o quiz MOSTRA (`textos-dos-quizzes.ts`); a resposta gravada segue em português. */
+  trad: Record<string, string>;
+  /** Alemão escreve substantivo com maiúscula: a resposta no meio da frase não vai para minúscula. */
+  minusculas: boolean;
   /** A guia (nome e foto) e os vídeos dela no meio do quiz e na prévia (`midia.ts`, 0946); `null` = não mostra. */
   guia: { nome: string | null; foto: string | null };
   videoMeio: string | null;
@@ -92,6 +97,15 @@ export function QuizDePessoa(props: {
   outras: OutraLeitura[];
 }) {
   const { slug, tipo, cor, precoCents, precosInternacionais, pixelId, perguntas, tx, guia, videoMeio, videoPrevia, depoimentos, outras } = props;
+  const t = tradutorDoQuiz(props.trad);
+  /** A resposta dita no meio de uma frase da prévia. */
+  const naFrase = (s: string) => {
+    const x = t(s);
+    return props.minusculas ? x.toLowerCase() : x;
+  };
+  /** O título que volta do pedido: fixo (caminhos, prosperidade) ou montado ("Vênus em Touro, Descendente em Leão"). */
+  const tituloNaTela = (s: string) =>
+    t(s) !== s ? t(s) : s.replace(/(Vênus em|Descendente em) (\p{L}+)/gu, (_, pedaco: string, signo: string) => `${t(pedaco)} ${t(signo)}`);
   const chave = `quiz-${tipo}:${slug}`;
   const base = `/api/v1/area/publica/${slug}/quiz/${tipo}`;
   const [fase, setFase] = useState<Fase>("quiz");
@@ -158,7 +172,7 @@ export function QuizDePessoa(props: {
       return [
         `${tx.somando}: ${primeiro}`,
         ...resto.map((p) => `${tx.reduzindo}: ${p}`),
-        `${tx.numeroDoDestino}: ${prosperidade.numero} · ${prosperidade.titulo}`,
+        `${tx.numeroDoDestino}: ${prosperidade.numero} · ${t(prosperidade.titulo)}`,
         `${tx.anoPessoalDe} ${prosperidade.ano}: ${prosperidade.anoPessoal}`,
       ];
     }
@@ -166,9 +180,9 @@ export function QuizDePessoa(props: {
       const votos = votosDosCaminhos(respostas);
       const vezes = votos.filter((v) => v.perfil === caminhos.perfil).length;
       return [
-        ...votos.map((v) => `“${v.resposta}” → ${PERFIS_DOS_CAMINHOS[v.perfil].titulo}`),
-        `${tx.maioria}: ${caminhos.titulo} (${vezes} ${tx.vezes} ${votos.length})`,
-        `${tx.cartaChave}: ${caminhos.carta}`,
+        ...votos.map((v) => `“${t(v.resposta)}” → ${t(PERFIS_DOS_CAMINHOS[v.perfil].titulo)}`),
+        `${tx.maioria}: ${t(caminhos.titulo)} (${vezes} ${tx.vezes} ${votos.length})`,
+        `${tx.cartaChave}: ${t(caminhos.carta)}`,
       ];
     }
     if (par) {
@@ -177,18 +191,19 @@ export function QuizDePessoa(props: {
       const [a, m, d] = data.split("-");
       return [
         `${tx.horaLocal}: ${d}/${m}/${a}${respostas.hora && lugar ? ` · ${respostas.hora} · ${lugar.nome}` : ""}`,
-        `${tx.posicaoDeVenus}: ${r.venus.signo} ${r.venus.grau}° · ${r.venus.elemento}`,
+        `${tx.posicaoDeVenus}: ${t(r.venus.signo)} ${r.venus.grau}° · ${t(r.venus.elemento)}`,
         ...(r.descendente
           ? [
-              `${tx.ascendenteCalculado}: ${r.descendente.ascendente}`,
-              `${tx.descendenteCalculado}: ${r.descendente.signo} ${r.descendente.grau}° · ${r.descendente.elemento}`,
-              `${tx.cruzando}: ${r.venus.elemento} + ${r.descendente.elemento}`,
+              `${tx.ascendenteCalculado}: ${t(r.descendente.ascendente)}`,
+              `${tx.descendenteCalculado}: ${t(r.descendente.signo)} ${r.descendente.grau}° · ${t(r.descendente.elemento)}`,
+              `${tx.cruzando}: ${t(r.venus.elemento)} + ${t(r.descendente.elemento)}`,
             ]
           : []),
       ];
     }
     return [];
-  }, [prosperidade, caminhos, par, data, respostas, tx]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `t` nasce a cada render do mesmo `props.trad`
+  }, [prosperidade, caminhos, par, data, respostas, tx, props.trad]);
 
   // O "ao vivo" (0944): enquanto a aba está visível, a visita segue aparecendo no painel.
   useEffect(() => manterVivo(slug, tipo), [slug, tipo]);
@@ -343,14 +358,15 @@ export function QuizDePessoa(props: {
 
       {fase === "quiz" && atual?.tipo === "pergunta" && perguntas[atual.i] && (
         <div className={CARTAO}>
-          <p className={SOBRETITULO}>{perguntas[atual.i]!.capitulo}</p>
-          <h2 className={`${SERIF} mt-2 text-2xl text-[#f6e3a8]`}>{perguntas[atual.i]!.texto}</h2>
-          {perguntas[atual.i]!.apoio ? <p className="mt-2 text-sm text-[#9d94b2]">{perguntas[atual.i]!.apoio}</p> : null}
+          <p className={SOBRETITULO}>{t(perguntas[atual.i]!.capitulo)}</p>
+          <h2 className={`${SERIF} mt-2 text-2xl text-[#f6e3a8]`}>{t(perguntas[atual.i]!.texto)}</h2>
+          {perguntas[atual.i]!.apoio ? <p className="mt-2 text-sm text-[#9d94b2]">{t(perguntas[atual.i]!.apoio!)}</p> : null}
           <PerguntaDoQuiz
             key={perguntas[atual.i]!.id}
             p={perguntas[atual.i]!}
             cor={cor}
             continuar={tx.continuar}
+            traduzir={t}
             aoResponder={(valor) => {
               setRespostas((r) => ({ ...r, [perguntas[atual.i]!.id]: valor }));
               avancar();
@@ -481,22 +497,22 @@ export function QuizDePessoa(props: {
             prosperidade
               ? [
                   { rotulo: tx.rotuloNumero, valor: String(prosperidade.numero) },
-                  { rotulo: tx.rotuloArquetipo, valor: prosperidade.titulo },
+                  { rotulo: tx.rotuloArquetipo, valor: t(prosperidade.titulo) },
                   { rotulo: `${tx.rotuloAno} ${prosperidade.ano}`, valor: String(prosperidade.anoPessoal) },
-                  ...(respostas.estilo ? [{ rotulo: tx.rotuloEstilo, valor: respostas.estilo }] : []),
+                  ...(respostas.estilo ? [{ rotulo: tx.rotuloEstilo, valor: t(respostas.estilo) }] : []),
                 ]
               : caminhos
                 ? [
-                    { rotulo: tx.rotuloPerfil, valor: caminhos.titulo },
-                    { rotulo: tx.rotuloCarta, valor: caminhos.carta },
-                    ...(respostas.area ? [{ rotulo: tx.rotuloArea, valor: respostas.area }] : []),
+                    { rotulo: tx.rotuloPerfil, valor: t(caminhos.titulo) },
+                    { rotulo: tx.rotuloCarta, valor: t(caminhos.carta) },
+                    ...(respostas.area ? [{ rotulo: tx.rotuloArea, valor: t(respostas.area) }] : []),
                   ]
                 : par
                   ? [
-                      { rotulo: tx.rotuloVenus, valor: par.retrato.venus.signo },
-                      { rotulo: tx.rotuloDescendente, valor: par.retrato.descendente?.signo ?? tx.precisaDaHora },
-                      ...(par.retrato.descendente ? [{ rotulo: tx.rotuloAscendente, valor: par.retrato.descendente.ascendente }] : []),
-                      { rotulo: tx.rotuloCombinam, valor: par.retrato.combinam.join(", ") },
+                      { rotulo: tx.rotuloVenus, valor: t(par.retrato.venus.signo) },
+                      { rotulo: tx.rotuloDescendente, valor: par.retrato.descendente ? t(par.retrato.descendente.signo) : tx.precisaDaHora },
+                      ...(par.retrato.descendente ? [{ rotulo: tx.rotuloAscendente, valor: t(par.retrato.descendente.ascendente) }] : []),
+                      { rotulo: tx.rotuloCombinam, valor: par.retrato.combinam.map(t).join(", ") },
                       ...(par.alma ? [{ rotulo: tx.rotuloAlma, valor: String(par.alma) }] : []),
                       ...(par.letras.length ? [{ rotulo: tx.rotuloLetras, valor: par.letras.join(" · ") }] : []),
                     ]
@@ -506,11 +522,11 @@ export function QuizDePessoa(props: {
             <div className={CARTAO}>
               {prosperidade ? (
                 <>
-                  <p className="text-[16px] leading-relaxed text-[#f6f0e4]">{prosperidade.texto}</p>
+                  <p className="text-[16px] leading-relaxed text-[#f6f0e4]">{t(prosperidade.texto)}</p>
                   <p className="mt-4 text-[14px] text-[#c3bad3]">{tx.oQueEleAnoPede}</p>
                   {respostas.estilo && respostas.pesa ? (
                     <p className="mt-4 border-l-2 border-[#c9a54e]/40 pl-3 text-[15px] leading-relaxed text-[#c3bad3]">
-                      {tx.comDinheiroE} {respostas.estilo.toLowerCase()} {tx.eQuePesa} “{respostas.pesa.toLowerCase()}”.
+                      {tx.comDinheiroE} {naFrase(respostas.estilo)} {tx.eQuePesa} “{naFrase(respostas.pesa)}”.
                     </p>
                   ) : null}
                 </>
@@ -518,10 +534,10 @@ export function QuizDePessoa(props: {
               {par ? (
                 <>
                   <p className="text-xs uppercase tracking-wide text-[#f3a3c0]">{tx.oQueTeAtrai}</p>
-                  <p className="mt-1 text-[16px] leading-relaxed text-[#f6f0e4]">{maiuscula(par.retrato.venus.atrai)}.</p>
+                  <p className="mt-1 text-[16px] leading-relaxed text-[#f6f0e4]">{maiuscula(t(par.retrato.venus.atrai))}.</p>
                   <p className="mt-4 text-xs uppercase tracking-wide text-[#7fd1a0]">{tx.oQueTeFazBem}</p>
                   <p className="mt-1 text-[16px] leading-relaxed text-[#f6f0e4]">
-                    {par.retrato.descendente ? `${maiuscula(par.retrato.descendente.fazBem)}.` : tx.encontroSemHora}
+                    {par.retrato.descendente ? `${maiuscula(t(par.retrato.descendente.fazBem))}.` : tx.encontroSemHora}
                   </p>
                   {par.retrato.encontro !== "sem_hora" ? (
                     <p className="mt-4 rounded-2xl border border-[#c9a54e]/25 bg-[#120d22] p-4 text-[15px] leading-relaxed text-[#f6f0e4]">
@@ -530,7 +546,7 @@ export function QuizDePessoa(props: {
                   ) : null}
                   {par.almaNoAmor ? (
                     <p className="mt-4 text-[15px] leading-relaxed text-[#f6f0e4]">
-                      <span className="text-[#e2c47a]">{tx.rotuloAlma} {par.alma}.</span> {par.almaNoAmor}
+                      <span className="text-[#e2c47a]">{tx.rotuloAlma} {par.alma}.</span> {t(par.almaNoAmor)}
                     </p>
                   ) : null}
                   {par.letras.length ? (
@@ -542,7 +558,7 @@ export function QuizDePessoa(props: {
                   ) : null}
                   {respostas.termina ? (
                     <p className="mt-4 border-l-2 border-[#c9a54e]/40 pl-3 text-[15px] leading-relaxed text-[#c3bad3]">
-                      {tx.voceContouRepete} “{respostas.termina.toLowerCase()}”.
+                      {tx.voceContouRepete} “{naFrase(respostas.termina)}”.
                     </p>
                   ) : null}
                 </>
@@ -550,13 +566,13 @@ export function QuizDePessoa(props: {
               {caminhos ? (
                 <>
                   <p className="text-sm text-[#e2c47a]">
-                    {tx.cartaChave}: <span className="font-semibold">{caminhos.carta}</span>
+                    {tx.cartaChave}: <span className="font-semibold">{t(caminhos.carta)}</span>
                   </p>
-                  <p className="mt-1 text-[15px] leading-relaxed text-[#f6f0e4]">{caminhos.sentidoDaCarta}</p>
-                  <p className="mt-4 text-[16px] leading-relaxed text-[#f6f0e4]">{caminhos.texto}</p>
+                  <p className="mt-1 text-[15px] leading-relaxed text-[#f6f0e4]">{t(caminhos.sentidoDaCarta)}</p>
+                  <p className="mt-4 text-[16px] leading-relaxed text-[#f6f0e4]">{t(caminhos.texto)}</p>
                   {respostas.precisa ? (
                     <p className="mt-4 border-l-2 border-[#c9a54e]/40 pl-3 text-[15px] leading-relaxed text-[#c3bad3]">
-                      {tx.voceContou} {tx.quePrecisaDe} “{respostas.precisa.toLowerCase()}”.
+                      {tx.voceContou} {tx.quePrecisaDe} “{naFrase(respostas.precisa)}”.
                     </p>
                   ) : null}
                 </>
@@ -568,17 +584,17 @@ export function QuizDePessoa(props: {
             titulo,
             gancho:
               i === 2 && prosperidade && respostas.pesa
-                ? `${tx.ligadoA} ${respostas.pesa.toLowerCase()}`
+                ? `${tx.ligadoA} ${naFrase(respostas.pesa)}`
                 : i === 3 && prosperidade
                   ? `${tx.rotuloAno} ${prosperidade.ano}: ${prosperidade.anoPessoal}`
                   : i === 0 && caminhos
-                    ? `${caminhos.titulo} · ${caminhos.carta}`
+                    ? `${t(caminhos.titulo)} · ${t(caminhos.carta)}`
                     : par
                       ? [
-                          `Vênus em ${par.retrato.venus.signo}`,
-                          par.retrato.descendente ? `Descendente em ${par.retrato.descendente.signo}` : tx.precisaDaHora,
-                          respostas.termina ? `${tx.ligadoA} ${respostas.termina.toLowerCase()}` : undefined,
-                          par.retrato.combinam.join(", "),
+                          `${t("Vênus em")} ${t(par.retrato.venus.signo)}`,
+                          par.retrato.descendente ? `${t("Descendente em")} ${t(par.retrato.descendente.signo)}` : tx.precisaDaHora,
+                          respostas.termina ? `${tx.ligadoA} ${naFrase(respostas.termina)}` : undefined,
+                          par.retrato.combinam.map(t).join(", "),
                           undefined,
                         ][i]
                       : undefined,
@@ -639,7 +655,7 @@ export function QuizDePessoa(props: {
       {fase === "pronto" && texto && (
         <article className={CARTAO}>
           <p className={SOBRETITULO}>{tx.produto}</p>
-          {previa ? <h2 className={`${SERIF} mt-2 text-2xl text-[#f6e3a8]`}>{previa.titulo}</h2> : null}
+          {previa ? <h2 className={`${SERIF} mt-2 text-2xl text-[#f6e3a8]`}>{tituloNaTela(previa.titulo)}</h2> : null}
           {pedido ? <OuvirLeituraLonga url={`${base}/${pedido.id}/voz`} segredo={pedido.segredo} tx={tx} /> : null}
           <div className="mt-4 space-y-4 whitespace-pre-line text-[16px] leading-relaxed text-[#f6f0e4]">{texto}</div>
           <p className="mt-6 text-xs text-[#9d94b2]">{tx.guarde}</p>

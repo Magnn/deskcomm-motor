@@ -15,6 +15,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { moedaDaOferta, precoDaOferta, valorNaMoedaDaPagina, type MoedaDaPagina } from "@/lib/area-do-cliente/moeda-do-visitante";
 import { previaDaSinastria } from "@/lib/area-do-cliente/sinastria";
+import { tradutorDoQuiz } from "@/lib/area-do-cliente/textos-dos-quizzes";
 import { copyToClipboard } from "@/lib/clipboard";
 
 import { enviarLead, idDaVisita, manterVivo, marcarPasso } from "../_passos";
@@ -94,6 +95,10 @@ export function QuizDaSinastria(props: {
   pixelId: string | null;
   perguntas: Pergunta[];
   tx: TextosDoQuiz;
+  /** Português → idioma de quem lê, para o que o quiz MOSTRA (`textos-dos-quizzes.ts`); a resposta gravada segue em português. */
+  trad: Record<string, string>;
+  /** Alemão escreve substantivo com maiúscula: a resposta no meio da frase não vai para minúscula. */
+  minusculas: boolean;
   /** A guia (nome e foto) e os vídeos dela no meio do quiz e na prévia (`midia.ts`, 0946); `null` = não mostra. */
   guia: { nome: string | null; foto: string | null };
   videoMeio: string | null;
@@ -103,6 +108,12 @@ export function QuizDaSinastria(props: {
   outras: OutraLeitura[];
 }) {
   const { slug, cor, precoCents, precosInternacionais, pixelId, perguntas, tx, guia, videoMeio, videoPrevia, depoimentos, outras } = props;
+  const t = tradutorDoQuiz(props.trad);
+  /** A resposta dita no meio de uma frase da prévia. */
+  const naFrase = (s: string) => {
+    const x = t(s);
+    return props.minusculas ? x.toLowerCase() : x;
+  };
   const [fase, setFase] = useState<Fase>("quiz");
   const [tela, setTela] = useState(0);
   const [nomeDela, setNomeDela] = useState("");
@@ -315,8 +326,8 @@ export function QuizDaSinastria(props: {
 
       {fase === "quiz" && atual?.tipo === "pergunta" && perguntas[atual.i] && (
         <div className={CARTAO}>
-          <p className={SOBRETITULO}>{perguntas[atual.i]!.capitulo}</p>
-          <h2 className={`${SERIF} mt-2 text-2xl text-[#f6e3a8]`}>{perguntas[atual.i]!.texto}</h2>
+          <p className={SOBRETITULO}>{t(perguntas[atual.i]!.capitulo)}</p>
+          <h2 className={`${SERIF} mt-2 text-2xl text-[#f6e3a8]`}>{t(perguntas[atual.i]!.texto)}</h2>
           <div className="mt-5 space-y-3">
             {perguntas[atual.i]!.opcoes.map((o) => (
               <button
@@ -327,7 +338,7 @@ export function QuizDaSinastria(props: {
                   avancar();
                 }}
               >
-                {o}
+                {t(o)}
               </button>
             ))}
           </div>
@@ -400,10 +411,10 @@ export function QuizDaSinastria(props: {
           titulo={tx.lendoOsMapas}
           foto={guia.foto}
           linhas={[
-            `${tx.solDe} ${nomeDela.trim()} ${tx.em} ${previaCalculada.signoDela} · ${tx.elemento} ${previaCalculada.elementoDela}`,
-            `${tx.solDe} ${nomeDele.trim()} ${tx.em} ${previaCalculada.signoDele} · ${tx.elemento} ${previaCalculada.elementoDele}`,
-            `${tx.cruzandoElementos}: ${previaCalculada.elementoDela} + ${previaCalculada.elementoDele} = ${previaCalculada.titulo}`,
-            ...(respostas.briga ? [`${tx.juntandoRespostas} ${respostas.briga.toLowerCase()}`] : []),
+            `${tx.solDe} ${nomeDela.trim()} ${tx.em} ${t(previaCalculada.signoDela)} · ${tx.elemento} ${t(previaCalculada.elementoDela)}`,
+            `${tx.solDe} ${nomeDele.trim()} ${tx.em} ${t(previaCalculada.signoDele)} · ${tx.elemento} ${t(previaCalculada.elementoDele)}`,
+            `${tx.cruzandoElementos}: ${t(previaCalculada.elementoDela)} + ${t(previaCalculada.elementoDele)} = ${t(previaCalculada.titulo)}`,
+            ...(respostas.briga ? [`${tx.juntandoRespostas} ${naFrase(respostas.briga)}`] : []),
           ]}
           aoTerminar={avancar}
         />
@@ -435,38 +446,38 @@ export function QuizDaSinastria(props: {
           capaDoVideo={guia.foto}
           depoimentos={depoimentos}
           dados={[
-            { rotulo: `${tx.signoDe} ${nomeDela.trim()}`, valor: previaCalculada.signoDela },
-            { rotulo: `${tx.signoDe} ${nomeDele.trim()}`, valor: previaCalculada.signoDele },
-            { rotulo: tx.elementos, valor: `${previaCalculada.elementoDela} + ${previaCalculada.elementoDele}` },
-            { rotulo: tx.combinacao, valor: previaCalculada.titulo },
+            { rotulo: `${tx.signoDe} ${nomeDela.trim()}`, valor: t(previaCalculada.signoDela) },
+            { rotulo: `${tx.signoDe} ${nomeDele.trim()}`, valor: t(previaCalculada.signoDele) },
+            { rotulo: tx.elementos, valor: `${t(previaCalculada.elementoDela)} + ${t(previaCalculada.elementoDele)}` },
+            { rotulo: tx.combinacao, valor: t(previaCalculada.titulo) },
           ]}
           resultado={
             <div className={CARTAO}>
               <AneisDeAfinidade aneis={previaCalculada.aneis} tx={tx} />
               <p className="text-xs uppercase tracking-wide text-[#7fd1a0]">{tx.pontoForte}</p>
-              <p className="mt-1 text-[16px] leading-relaxed text-[#f6f0e4]">{previaCalculada.forte}</p>
+              <p className="mt-1 text-[16px] leading-relaxed text-[#f6f0e4]">{t(previaCalculada.forte)}</p>
               <p className="mt-4 text-xs uppercase tracking-wide text-[#f3a3c0]">{tx.pontoDeAtencao}</p>
-              <p className="mt-1 text-[16px] leading-relaxed text-[#f6f0e4]">{previaCalculada.atencao}</p>
+              <p className="mt-1 text-[16px] leading-relaxed text-[#f6f0e4]">{t(previaCalculada.atencao)}</p>
               {respostas.aperta ? (
                 <p className="mt-4 border-l-2 border-[#c9a54e]/40 pl-3 text-[15px] leading-relaxed text-[#c3bad3]">
                   {tx.voceContou}{" "}
                   {respostas.briga && respostas.briga !== "Quase não brigamos"
-                    ? `${tx.seDesentendemPor} ${respostas.briga.toLowerCase()} ${tx.eQueAperta}`
+                    ? `${tx.seDesentendemPor} ${naFrase(respostas.briga)} ${tx.eQueAperta}`
                     : tx.oQueMaisAperta}{" "}
-                  “{respostas.aperta.toLowerCase()}”.
-                  {respostas.falta ? ` ${tx.eQueSenteFaltaDe} ${respostas.falta.toLowerCase()}.` : ""}
+                  “{naFrase(respostas.aperta)}”.
+                  {respostas.falta ? ` ${tx.eQueSenteFaltaDe} ${naFrase(respostas.falta)}.` : ""}
                 </p>
               ) : null}
               <p className="mt-4 text-[15px] leading-relaxed text-[#c3bad3]">{tx.ponte}</p>
             </div>
           }
           partes={[
-            { titulo: tx.parte1, gancho: `${previaCalculada.signoDela} e ${previaCalculada.signoDele}` },
-            { titulo: tx.parte2, gancho: previaCalculada.titulo },
+            { titulo: tx.parte1, gancho: `${t(previaCalculada.signoDela)} ${tx.e} ${t(previaCalculada.signoDele)}` },
+            { titulo: tx.parte2, gancho: t(previaCalculada.titulo) },
             { titulo: tx.parte3 },
-            { titulo: tx.parte4, gancho: respostas.briga && respostas.briga !== "Quase não brigamos" ? `${tx.ligadoA} ${respostas.briga.toLowerCase()}` : undefined },
-            { titulo: tx.parte5, gancho: respostas.carinho ? `${tx.doJeito} ${respostas.carinho.toLowerCase()}` : undefined },
-            { titulo: tx.parte6, gancho: respostas.deseja ? `${tx.paraResponder} ${respostas.deseja.toLowerCase()}` : undefined },
+            { titulo: tx.parte4, gancho: respostas.briga && respostas.briga !== "Quase não brigamos" ? `${tx.ligadoA} ${naFrase(respostas.briga)}` : undefined },
+            { titulo: tx.parte5, gancho: respostas.carinho ? `${tx.doJeito} ${naFrase(respostas.carinho)}` : undefined },
+            { titulo: tx.parte6, gancho: respostas.deseja ? `${tx.paraResponder} ${naFrase(respostas.deseja)}` : undefined },
           ]}
           itens={[tx.entrega1, tx.entrega2, tx.entrega3, tx.entrega4, tx.entrega5]}
           preco={valorNaMoedaDaPagina(preco, moeda)}
@@ -530,7 +541,7 @@ export function QuizDaSinastria(props: {
           <p className={SOBRETITULO}>{tx.codigo}</p>
           {previa ? (
             <h2 className={`${SERIF} mt-2 text-2xl text-[#f6e3a8]`}>
-              {previa.signoDela} e {previa.signoDele}
+              {t(previa.signoDela)} {tx.e} {t(previa.signoDele)}
             </h2>
           ) : null}
           {pedido ? <OuvirLeituraLonga url={`/api/v1/area/publica/${slug}/sinastria/${pedido.id}/voz`} segredo={pedido.segredo} tx={tx} /> : null}
