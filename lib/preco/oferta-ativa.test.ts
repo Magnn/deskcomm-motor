@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { conversaFalouDeExtra, ofertaPequenaDeHoje } from "./extras";
 import { reclamacoesDeValor, valorQueAPessoaTem } from "./estado-da-negociacao";
 import { falaErradaDoPagamento } from "./fala-do-pagamento";
-import { blocoDaOfertaAtiva, ofertaAtivaDaConversa, ofertaEmConflito, oportunidadeDeOferta, ouviuOMenorValor, pediuOTrabalho } from "./oferta-ativa";
+import { blocoDaOfertaAtiva, blocoDaOportunidade, ofertaAtivaDaConversa, ofertaEmConflito, oportunidadeDaCliente, oportunidadeDeOferta, ouviuOMenorValor, pediuOTrabalho } from "./oferta-ativa";
 import type { Extra } from "./tipos";
 import { valorErradoDeExtra } from "./valor-do-extra";
 
@@ -133,5 +133,28 @@ describe("o relatório do casal quando ela já deu as duas datas (04/11/2026)", 
     expect(ofertaPequenaDeHoje(extras, ate60, false)?.nome).toBe("Pergunta nova");
     const jaOfereceu = [...ate60.slice(0, 5), agente("Eu faço o *Código da Conexão* de vocês dois."), ...ate60.slice(5)];
     expect(oportunidadeDeOferta(escada, extras, [...jaOfereceu, pessoa("será que ele ainda me ama?")])?.name).toBe("Pergunta nova");
+  });
+});
+
+describe("a cliente da casa que pergunta de novo da outra pessoa (06/11/2026)", () => {
+  const AGORA = new Date("2026-11-06T20:00:00Z");
+  const em = (iso: string, m: { direction: string; body: string }) => ({ ...m, sent_at: iso });
+  const pagou = [em("2026-11-06T07:30:00Z", agente("Recebi os R$ 60, Fabiana. O seu trabalho começa hoje.")), em("2026-11-06T12:00:00Z", agente("Hoje à noite, a Noite 1."))];
+
+  it("⭐ 'será que ele vai sentir minha falta' depois da entrega: o Código da Conexão primeiro, depois a pergunta", () => {
+    const rodada = [...pagou, em("2026-11-06T19:59:00Z", pessoa("Será que ele vai sentir minha falta"))];
+    expect(oportunidadeDaCliente(escada, extras, rodada, AGORA)?.name).toBe("Sinastria Amorosa");
+    const jaOuviu = [em("2026-11-05T10:00:00Z", agente("Eu faço o *Código da Conexão* de vocês dois.")), ...rodada];
+    expect(oportunidadeDaCliente(escada, extras, jaOuviu, AGORA)?.name).toBe("Pergunta nova");
+  });
+
+  it("uma oferta a cada 12 h, fala do trabalho não é porta, e o bloco gera desejo antes do preço", () => {
+    const recente = [...pagou, em("2026-11-06T15:00:00Z", agente("O Código da Conexão de vocês sai por R$ 37.")), em("2026-11-06T16:00:00Z", agente("Tô aqui, meu bem.")), em("2026-11-06T19:59:00Z", pessoa("ela vai me desbloquear??"))];
+    expect(oportunidadeDaCliente(escada, extras, recente, AGORA)).toBeNull();
+    expect(oportunidadeDaCliente(escada, extras, recente, new Date("2026-11-07T04:00:00Z"))?.name).toBe("Pergunta nova");
+    expect(oportunidadeDaCliente(escada, extras, [...pagou, pessoa("quantos dias tem que fazer do trabalho?")], AGORA)).toBeNull();
+    const bloco = blocoDaOportunidade(sinastria, true);
+    expect(bloco).toContain("O Código da Conexão");
+    expect(bloco.indexOf("desejo")).toBeLessThan(bloco.indexOf("Ofereça só"));
   });
 });
