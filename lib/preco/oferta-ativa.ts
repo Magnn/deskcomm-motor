@@ -19,7 +19,7 @@
  *
  * Pura.
  */
-import { extraDoCasalPronto, nomesDoExtra, totaisDoExtra } from "./extras";
+import { conversaFalouDeExtra, extraDoCasalPronto, nomesDoExtra, totaisDoExtra } from "./extras";
 import type { Extra, PricingConfig } from "./tipos";
 import { reais } from "./tipos";
 import { valoresDitos } from "./valor-do-extra";
@@ -167,19 +167,47 @@ export function oportunidadeDeOferta(c: Escada, extras: readonly Extra[], mensag
   return casal ?? [...pequenos].sort((a, b) => a.price_cents - b.price_cents)[0] ?? null;
 }
 
+/** Sem valor nosso nas últimas 12 h: a cliente da casa ouve uma oferta por vez, e o dia do pagamento fica com a entrega. */
+const PAUSA_DA_CLIENTE_MS = 12 * 60 * 60 * 1000;
+
+/**
+ * CLIENTE DA CASA: quem já comprou e pergunta de novo sobre a outra pessoa ("ela sente minha falta?", "ele vai voltar?").
+ * Medido em 06/11/2026: a porta excluía quem tinha a etiqueta `pago`, e nenhuma cliente do dia ouviu a pergunta nova nem o
+ * Código da Conexão; as perguntas saíam respondidas de graça, várias por dia. O próximo passo do trabalho é o relatório do
+ * casal; depois dele, a pergunta nova.
+ */
+export function oportunidadeDaCliente(c: Escada, extras: readonly Extra[], mensagens: readonly MensagemDaConversa[], agora: Date): Extra | null {
+  if (!abriuPorta(mensagens)) return null;
+  const falas = mensagens.filter((m) => m.direction === "outbound");
+  if (/\bpergunta\b/i.test(falas.at(-1)?.body ?? "")) return null;
+  const desde = agora.getTime() - PAUSA_DA_CLIENTE_MS;
+  // Sem data é recente: na dúvida, não oferece.
+  if (falas.some((m) => FALA_DE_VALOR.test(m.body ?? "") && (!m.sent_at || Date.parse(m.sent_at) >= desde))) return null;
+  const pequenos = extrasPequenos(c, extras);
+  const casal = pequenos.find((e) => e.report?.kind === "sinastria" && e.valid_days === undefined);
+  if (casal && !conversaFalouDeExtra(mensagens, [casal])) return casal;
+  return [...pequenos].filter((e) => e !== casal).sort((a, b) => a.price_cents - b.price_cents)[0] ?? null;
+}
+
 /** O bloco do turno em que ela abriu uma porta: desejo primeiro, oferta depois. */
-export function blocoDaOportunidade(extra: Extra | null): string {
+export function blocoDaOportunidade(extra: Extra | null, clienteDaCasa = false): string {
   if (extra === null) return "";
+  const casal = extra.report?.kind === "sinastria";
+  const nome = extra.report?.title ?? extra.name;
   return [
     "",
     "",
     "PORTA ABERTA (VALE NESTE TURNO)",
     "- Ela perguntou de novo ou trouxe novidade. Isto é uma oportunidade de venda: não entregue a resposta nova de graça.",
-    "- Monte a resposta nesta ordem:",
-    "  1. Reconheça em UMA frase, com as palavras dela, o que ela disse. Se já está nas cartas abertas, lembre em uma frase. Resposta nova é o que está à venda.",
-    "  2. Gere desejo em UMA frase: como vai ser para ela ter essa resposta, saber onde está pisando, dormir sem essa dúvida. Sem prometer resultado, volta nem data, e sem medo.",
-    `  3. Ofereça só *${extra.name}*, pelo valor do bloco de cobranças, e termine perguntando se você abre a mesa agora.`,
-    "- NÃO diga o que a outra pessoa sente ou vai fazer. Se ela disser não, não insista hoje.",
+    "- Monte a resposta nesta ordem, e o preço só no fim:",
+    clienteDaCasa
+      ? "  1. Ela é cliente da casa e esta é a oferta dela neste turno (vale como o bloco da LEI 14). Se a rodada fala do trabalho dela, responda isso primeiro em UMA frase. Depois reconheça, com as palavras dela, a pergunta sobre a outra pessoa."
+      : "  1. Reconheça em UMA frase, com as palavras dela, o que ela disse. Se já está nas cartas abertas, lembre em uma frase. Resposta nova é o que está à venda.",
+    casal
+      ? `  2. Gere desejo antes do preço: a carta mostra o quê; o encontro dos dois signos mostra o porquê. Ligue a pergunta dela a UMA das 6 partes do *${nome}* (ele some ou esfria → parte 2; a briga que volta → parte 3; não sabe o que falar → partes 5 e 6) e diga como vai ser para ela entender o jeito dele e saber o que fazer. Siga o COMO OFERECER da SINASTRIA AMOROSA, com a arte.`
+      : "  2. Gere desejo antes do preço: mostre o fio que ficou solto na mesa dela, ligado ao que ela acabou de perguntar, e como vai ser ter essa resposta, saber onde está pisando, dormir sem essa dúvida.",
+    `  3. Ofereça só *${nome}*, pelo valor do bloco de cobranças, e termine com UMA pergunta: ${casal ? '"Quer que eu monte o de vocês dois?"' : "se você abre a mesa agora."}`,
+    "- Sem prometer resultado, volta nem data, sem medo e sem urgência. NÃO diga o que a outra pessoa sente ou vai fazer. Se ela disser não, não insista hoje.",
   ].join("\n");
 }
 
