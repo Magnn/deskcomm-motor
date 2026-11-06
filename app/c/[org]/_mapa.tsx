@@ -152,7 +152,7 @@ export function MapaAstral({ slug, cor, tm, nascimento }: { slug: string; cor: s
   const cidades = !buscando ? [] : achadas.q === busca ? achadas.lista : null;
 
   const pronto = /^\d{4}-\d{2}-\d{2}$/.test(data) && (semHora || /^\d{2}:\d{2}$/.test(hora)) && cidade !== null;
-  const campo = "mt-1 h-12 w-full rounded-xl border border-white/10 bg-[#120d22] px-4 text-[16px] text-[#efe7f7] outline-none focus:border-[#c9a54e]/60";
+  const campo = "mt-1 h-12 w-full rounded-xl border border-white/10 bg-[#120d22] px-4 text-[16px] text-[#efe7f7] outline-hidden focus:border-[#c9a54e]/60";
 
   if (mapa && estado !== "calculando") {
     const sol = mapa.planetas[0]!;
