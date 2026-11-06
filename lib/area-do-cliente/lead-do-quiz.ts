@@ -37,3 +37,15 @@ export function origemDoLead(l: LeadDoQuiz): Record<string, unknown> {
     ...(l.nascimento_dele ? { nascimento_dele: l.nascimento_dele } : {}),
   };
 }
+
+/** O que a visita guarda (0960) para o link da recuperação reabrir a prévia sem a pessoa refazer o quiz. */
+export function dadosDoLead(l: LeadDoQuiz): Record<string, unknown> {
+  return {
+    nome: l.nome,
+    email: l.email,
+    ...(l.nascimento ? { nascimento: l.nascimento } : {}),
+    ...(l.nome_dele ? { nome_dele: l.nome_dele } : {}),
+    ...(l.nascimento_dele ? { nascimento_dele: l.nascimento_dele } : {}),
+    respostas: l.respostas,
+  };
+}

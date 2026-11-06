@@ -10,6 +10,7 @@ import { notFound } from "next/navigation";
 
 import { COR_PADRAO_DA_AREA } from "@/lib/area-do-cliente/config";
 import { urlDaMidiaDaArea } from "@/lib/area-do-cliente/midia";
+import { dadosDaRetomada } from "@/lib/area-do-cliente/recuperacao-do-quiz";
 import { orgDaArea } from "@/lib/area-do-cliente/sessao";
 import { PERGUNTAS_DO_QUIZ } from "@/lib/area-do-cliente/sinastria";
 import { dicionarioDosQuizzes } from "@/lib/area-do-cliente/textos-dos-quizzes";
@@ -27,7 +28,7 @@ import { textosDoQuiz } from "./_textos";
 
 export const dynamic = "force-dynamic";
 
-type Props = { params: Promise<{ org: string }> };
+type Props = { params: Promise<{ org: string }>; searchParams: Promise<{ retomar?: string; k?: string }> };
 
 export async function generateMetadata(): Promise<Metadata> {
   const idioma = await idiomaDaArea();
@@ -38,12 +39,16 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default async function PaginaDoQuiz({ params }: Props) {
+export default async function PaginaDoQuiz({ params, searchParams }: Props) {
   const { org: slug } = await params;
-  const org = await orgDaArea(createAdminClient(), slug);
+  const admin = createAdminClient();
+  const org = await orgDaArea(admin, slug);
   const oferta = org?.config.sinastria_quiz;
   if (!org || !oferta?.ativo) notFound();
   const cor = org.config.cor || COR_PADRAO_DA_AREA;
+  // O link do e-mail da recuperação (0960): a prévia reabre com o que a pessoa já tinha dado.
+  const { retomar, k } = await searchParams;
+  const retomada = retomar ? await dadosDaRetomada(admin, org.id, "sinastria", retomar, k) : null;
   const idioma = await idiomaDaArea();
   const tx = textosDoQuiz((texto) => traduzirNaArea(texto, idioma));
   const base = baseDoStorage();
@@ -67,6 +72,7 @@ export default async function PaginaDoQuiz({ params }: Props) {
       <QuizDaSinastria
         slug={org.slug}
         cor={cor}
+        retomada={retomada}
         precoCents={oferta.preco_cents}
         precosInternacionais={oferta.precos_internacionais ?? []}
         pixelId={oferta.pixel_id ?? null}

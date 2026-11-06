@@ -40322,3 +40322,20 @@ alter table public.area_mapas enable row level security;
 revoke all on public.area_mapas from anon, authenticated;
 
 -- area_eventos_tipo_check: os tipos `mapa_*` foram acrescentados ao bloco da migration 0934 acima.
+
+-- ---- a recuperação de quem viu a prévia do quiz e não pagou (migration 0960) ----
+alter table public.area_quiz_visitas add column if not exists dados jsonb;
+alter table public.area_quiz_visitas add column if not exists recuperacao_chave uuid not null default gen_random_uuid();
+alter table public.area_quiz_visitas add column if not exists recuperacoes smallint not null default 0;
+alter table public.area_quiz_visitas add column if not exists recuperacao_em timestamptz;
+
+alter table public.area_quiz_visitas drop constraint if exists area_quiz_visitas_recuperacoes_check;
+alter table public.area_quiz_visitas add constraint area_quiz_visitas_recuperacoes_check check (recuperacoes between 0 and 5);
+
+create index if not exists area_quiz_visitas_recuperacao_idx on public.area_quiz_visitas (visto_em)
+  where contact_id is not null and dados is not null and recuperacoes < 2;
+
+comment on column public.area_quiz_visitas.dados is
+  'O que a pessoa deu no quiz (nome, nascimento, nome_dele, nascimento_dele, respostas), gravado com o e-mail (0960): o link da recuperação reabre a prévia com isto.';
+comment on column public.area_quiz_visitas.recuperacao_chave is
+  'Segredo do link de retomada e de saída dos e-mails da recuperação (0960).';

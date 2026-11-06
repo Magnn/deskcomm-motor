@@ -182,13 +182,14 @@ async function lerFunilDasPaginas(db: SupabaseClient, orgId: string, iso: string
  */
 export async function ligarVisitaAoContato(
   admin: SupabaseClient,
-  d: { organizationId: string; visita: string | undefined; quiz: QuizDaPagina; contactId: string },
+  d: { organizationId: string; visita: string | undefined; quiz: QuizDaPagina; contactId: string; dados?: Record<string, unknown> },
 ): Promise<void> {
   if (!d.visita) return;
   try {
     await admin
       .from("area_quiz_visitas")
-      .update({ contact_id: d.contactId })
+      // `dados` (0960): o que a pessoa deu no quiz, para o link da recuperação reabrir a prévia.
+      .update({ contact_id: d.contactId, ...(d.dados ? { dados: d.dados } : {}) })
       .eq("organization_id", d.organizationId)
       .eq("visita", d.visita)
       .eq("quiz", d.quiz);

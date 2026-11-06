@@ -15966,6 +15966,19 @@ export const DICIONARIO: Traducoes = {
   "Número mestre, alma de amor: você ama de um jeito raro e precisa ser amada assim.": { es: "Número maestro, alma de amor: amas de una forma única y necesitas ser amada así." },
   "Vocês combinam? O Código da Conexão": { es: "¿Ustedes combinan? El Código de la Conexión" },
   "Descubra o que os signos de vocês dois mostram sobre a relação.": { es: "Descubre lo que los signos de ustedes dos muestran sobre la relación." },
+  "Oi": { es: "Hola" },
+  "A sua prévia ficou guardada, do jeito que você deixou.": { es: "Tu vista previa quedó guardada, tal como la dejaste." },
+  "A leitura completa está pronta para ser escrita para você. Toque no botão para voltar exatamente onde parou.": { es: "La lectura completa está lista para ser escrita para ti. Toca el botón para volver justo donde te quedaste." },
+  "Ontem você começou e parou na prévia.": { es: "Ayer empezaste y te detuviste en la vista previa." },
+  "Ela continua guardada para você. Se quiser a leitura completa, é só voltar por aqui.": { es: "Sigue guardada para ti. Si quieres la lectura completa, solo vuelve por aquí." },
+  "Ver a minha prévia": { es: "Ver mi vista previa" },
+  "Não quer mais receber estes e-mails?": { es: "¿No quieres recibir más estos correos?" },
+  "Sair da lista": { es: "Salir de la lista" },
+  "A sua prévia está guardada": { es: "Tu vista previa está guardada" },
+  "Ainda guardada para você": { es: "Todavía guardada para ti" },
+  "Tente de novo em alguns minutos.": { es: "Inténtalo de nuevo en unos minutos." },
+  "Pronto. Você não vai mais receber estes e-mails.": { es: "Listo. Ya no recibirás estos correos." },
+  "Este link não vale mais.": { es: "Este enlace ya no es válido." },
 };
 
 /**

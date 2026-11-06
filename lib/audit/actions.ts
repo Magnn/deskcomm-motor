@@ -65,6 +65,7 @@ export const AUDIT_ACTIONS = [
   "area.avisos_enviados",
   /** A rodada de renovação do plano da semana cobrou cartões guardados (ou marcou recusas). */
   "area.planos_renovados",
+  "area.quiz_recuperado",
   /**
    * A varredura de data do funil (#989) emitiu o aviso de "faltam N dias". A
    * trilha guarda a RODADA (quantos negócios, quantos pulados), e não um evento

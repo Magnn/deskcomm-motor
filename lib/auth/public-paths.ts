@@ -71,7 +71,7 @@ export const PUBLIC_PATHS: RegExp[] = [
   // sem conta. O direito é saber o id da cobrança; a página lê a cobrança com a chave da organização do
   // caminho e só mostra o que a própria Stripe mostraria. Ancorado nos dois segmentos.
   /^\/pix\/[0-9a-f-]{36}\/pi_[A-Za-z0-9]{8,64}$/,
-  /^\/api\/v1\/area\/publica\/[a-z0-9][a-z0-9-]{1,62}\/(codigo|codigo\/confirmar|eventos|email|diario|aniversario|circulo|circulo\/conteudo|circulo\/pergunta|plano-semanal|presente|ano-pessoal|ano-pessoal\/gerar|mensagens|chat|chat\/arquivo|etapas|leituras|creditos|avisos|perfil|manha|simpatias|contribuicao|sinastria|passo|lead|compras-recentes|mapa|mapa\/cidades)$/,
+  /^\/api\/v1\/area\/publica\/[a-z0-9][a-z0-9-]{1,62}\/(codigo|codigo\/confirmar|eventos|email|diario|aniversario|circulo|circulo\/conteudo|circulo\/pergunta|plano-semanal|presente|ano-pessoal|ano-pessoal\/gerar|mensagens|chat|chat\/arquivo|etapas|leituras|creditos|avisos|perfil|manha|simpatias|contribuicao|sinastria|passo|lead|sair|compras-recentes|mapa|mapa\/cidades)$/,
   // Os quizzes de uma pessoa (0943): o pedido e o pedido pelo id; o direito é o segredo do pedido, conferido na rota.
   // "par" (O Retrato do Par, 22/10) faltava aqui: o pedido do quiz em destaque levava 401 do proxy até 02/11.
   // `/entrar`: quem pagou entra na área já logada (`lib/area-do-cliente/entrada-pela-compra.ts`).
