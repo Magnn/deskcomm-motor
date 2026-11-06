@@ -221,6 +221,22 @@ export function produtoCitado(mensagens: readonly FalaDaConversa[], nomes: reado
   return null;
 }
 
+const DIZ_QUE_CAIU = /\b(?:caiu|confirmad[oa]s?|certinho|tudo\s+certo|entrou|aprovad[oa]|pagamento\s+(?:ok|feito))\b/i;
+
+/**
+ * Com o comprovante em dúvida, o balão que diz que caiu é recusado. Em 06/11/2026 o comprovante de R$ 130 veio sem o ID
+ * da transação, o sistema não registrou, e a agente respondeu "Está certinho" e começou a entrega sem chamar a equipe.
+ */
+export function confirmaPagamentoEmDuvida(corpo: string, emDuvida: boolean): string | null {
+  // "ainda não caiu" / "não está confirmado" é o que ela deve dizer: a negação sai antes do teste.
+  const semNegacao = corpo.replace(/\bn[ãa]o\s+(?:\S+\s+){0,3}\S+/gi, "");
+  if (!emDuvida || !DIZ_QUE_CAIU.test(semNegacao)) return null;
+  return [
+    "Envio recusado: o comprovante deste turno NÃO foi conferido, então não diga que caiu, que está certo ou que o trabalho está confirmado, e não comece a entrega.",
+    'Diga em um balão que recebeu o comprovante e que a equipe vai conferir, e chame o atendimento humano agora com o motivo "Pix pela chave: conferir o comprovante".',
+  ].join(" ");
+}
+
 /** O bloco do turno. Vazio quando o bloco de PAGAMENTO CONFIRMADO já diz tudo, ou quando não há comprovante. */
 export function blocoDaConferencia(c: Conferencia, chave: ChavePixDaEmpresa, venda?: { produto: string; entregaSozinha: boolean }): string {
   if (c.tipo === "nao_confere") {

@@ -5,7 +5,19 @@ import type { ChavePixDaEmpresa } from "@/lib/preco/chave-pix";
 import type { Extra } from "@/lib/preco/tipos";
 
 import { comprovanteDoTurno, PRODUTO_DO_VALOR_SOLTO, type DepsDoComprovante } from "./comprovante-no-turno";
-import { cobrancasEnviadas, conferirComprovante, dataImpressa, produtoCitado, textoDaMidia, type FalaDaConversa } from "./comprovante-pix";
+import { cobrancasEnviadas, confirmaPagamentoEmDuvida, conferirComprovante, dataImpressa, produtoCitado, textoDaMidia, type FalaDaConversa } from "./comprovante-pix";
+
+describe("comprovante em dúvida no envio", () => {
+  it("⭐ 06/11: comprovante sem ID não vira 'está certinho' nem entrega", () => {
+    expect(confirmaPagamentoEmDuvida("Agora sim 🌙 Vi o comprovante de R$ 130 aqui. Está certinho, pode ficar tranquila.", true)).not.toBeNull();
+    expect(confirmaPagamentoEmDuvida("O seu trabalho já está confirmado no meu altar.", true)).not.toBeNull();
+  });
+  it("deixa passar o recebi-e-a-equipe-confere, a negação e o turno sem dúvida", () => {
+    expect(confirmaPagamentoEmDuvida("Recebi o seu comprovante, a equipe vai conferir e já te falo.", true)).toBeNull();
+    expect(confirmaPagamentoEmDuvida("O pagamento ainda não está confirmado, a equipe confere.", true)).toBeNull();
+    expect(confirmaPagamentoEmDuvida("Está certinho, caiu aqui.", false)).toBeNull();
+  });
+});
 
 const CHAVE: ChavePixDaEmpresa = { key: "+5569900001234", holder: "Fulano de Tal Silva", primary: true };
 const PERGUNTA: Extra = {

@@ -101,6 +101,8 @@ export async function comprovanteDoTurno(
     entradaDoTurnoCents?: number | null;
     /** Chamado quando este comprovante está registrado (agora ou pela mesma imagem há pouco): o turno não cobra de novo. */
     aoConfirmar?: () => void;
+    /** Chamado quando o comprovante ficou em dúvida: o envio recusa dizer que caiu (`confirmaPagamentoEmDuvida`). */
+    aoDuvidar?: () => void;
     agora: Date;
     log: Log;
   },
@@ -139,7 +141,10 @@ export async function comprovanteDoTurno(
       resultado: conferencia.tipo,
       ...(conferencia.tipo === "nao_confere" ? { motivo: conferencia.motivo } : { valor_cents: conferencia.valorCents }),
     });
-    if (conferencia.tipo === "nao_confere") return blocoDaConferencia(conferencia, chave);
+    if (conferencia.tipo === "nao_confere") {
+      e.aoDuvidar?.();
+      return blocoDaConferencia(conferencia, chave);
+    }
     e.aoConfirmar?.();
 
     const base = {
