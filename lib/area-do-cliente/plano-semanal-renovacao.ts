@@ -28,6 +28,7 @@ import { caminhoDaArea, origemDaArea } from "@/lib/area-do-cliente/vocabulario";
 import { marcaDaSaida } from "@/lib/branding/saida";
 import { sendEmail } from "@/lib/email/roteador";
 import { env } from "@/lib/env";
+import { nomeDoContato } from "@/lib/contacts/rotulo-do-contato";
 import { precoDaOferta } from "@/lib/area-do-cliente/moeda-do-visitante";
 import { EXTRA_DO_PLANO_SEMANAL, configDoPlanoSemanal } from "@/lib/area-do-cliente/plano-semanal";
 import { lerConexaoStripe } from "@/lib/pagamentos/conexao-stripe";
@@ -269,7 +270,7 @@ export async function avisarRenovacoes(admin: SupabaseClient, agora: Date, manda
       titulo: area.titulo,
       marcaDaOrganizacao: marca.nome,
       nomeDoPlano: cfg.nome,
-      nomeDaPessoa: contato?.display_name ?? contato?.name ?? null,
+      nomeDaPessoa: contato ? nomeDoContato(contato) : null,
       valor: formatoDoValor(valor, l.moeda, pt),
       dia: diaDaCobranca(l.valido_ate, org.timezone, pt),
       link: `${origemDaArea(area.dominio, env.NEXT_PUBLIC_APP_URL ?? "")}${caminhoDaArea(org.slug)}?aba=explorar`,
