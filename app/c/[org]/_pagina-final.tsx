@@ -35,6 +35,10 @@ export interface TextosDaPaginaFinal {
   ofertaTitulo: string;
   pagamentoUnico: string;
   seguro: string;
+  /** Fora do Brasil só há cartão: os textos não falam de Pix. */
+  seguroCartao: string;
+  passoUmCartao: string;
+  quandoReceboCartao: string;
   garantiaTitulo: string;
   garantiaTexto: string;
   comoFunciona: string;
@@ -176,7 +180,7 @@ export function PaginaFinal(props: {
         </div>
         {props.erro && <p className="mt-3 text-center text-sm text-[#f3a3c0]">{props.erro}</p>}
         <div className="mt-5">{botoes}</div>
-        <p className="mt-3 text-center text-[12px] text-[#9d94b2]">{tx.seguro}</p>
+        <p className="mt-3 text-center text-[12px] text-[#9d94b2]">{brasil ? tx.seguro : tx.seguroCartao}</p>
         {brasil ? <p className="mt-1 text-center text-[11px] text-[#7d7495]">{tx.noBanco}</p> : null}
         <div className="mt-5 flex gap-3 rounded-2xl border border-[#7fd1a0]/25 bg-[#7fd1a0]/[0.06] p-4">
           <span className="text-xl">🛡️</span>
@@ -208,7 +212,7 @@ export function PaginaFinal(props: {
       <section className={CARTAO}>
         <p className={SOBRETITULO}>{tx.comoFunciona}</p>
         <ol className="mt-4 space-y-3">
-          {tx.passos.map((p, i) => (
+          {(brasil ? tx.passos : [tx.passoUmCartao, ...tx.passos.slice(1)]).map((p, i) => (
             <li key={p} className="flex items-start gap-3 text-[15px] text-[#c3bad3]">
               <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white" style={{ background: cor }}>
                 {i + 1}
@@ -222,7 +226,7 @@ export function PaginaFinal(props: {
       <section className={CARTAO}>
         <p className={SOBRETITULO}>{tx.perguntas}</p>
         <div className="mt-3 divide-y divide-[#c9a54e]/10">
-          {tx.faq.map((f, i) => (
+          {(brasil ? tx.faq : tx.faq.map((f, i) => (i === tx.faq.length - 1 ? { ...f, r: tx.quandoReceboCartao } : f))).map((f, i) => (
             <div key={f.p}>
               <button className="flex w-full items-center justify-between gap-3 py-3 text-left text-[15px] text-[#f6f0e4]" onClick={() => setAberta(aberta === i ? null : i)} aria-expanded={aberta === i}>
                 <span>{f.p}</span>

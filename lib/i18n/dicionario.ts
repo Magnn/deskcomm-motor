@@ -15979,6 +15979,9 @@ export const DICIONARIO: Traducoes = {
   "Tente de novo em alguns minutos.": { es: "Inténtalo de nuevo en unos minutos." },
   "Pronto. Você não vai mais receber estes e-mails.": { es: "Listo. Ya no recibirás estos correos." },
   "Este link não vale mais.": { es: "Este enlace ya no es válido." },
+  "Pagamento seguro no cartão · leitura pronta em menos de um minuto": { es: "Pago seguro con tarjeta · lectura lista en menos de un minuto" },
+  "Você paga com cartão, numa página segura.": { es: "Pagas con tarjeta, en una página segura." },
+  "Na hora. Assim que o pagamento no cartão é confirmado, a leitura aparece nesta mesma página.": { es: "Al instante. En cuanto se confirma el pago con tarjeta, la lectura aparece en esta misma página." },
 };
 
 /**

@@ -110,6 +110,7 @@ export async function POST(req: NextRequest, { params }: Ctx): Promise<Response>
       valorCentavos: valor,
       moeda: p.moeda,
       descricao: PRODUTO[tipo],
+      email: p.email,
       produto: PRODUTO[tipo],
       extra: EXTRA_DO_QUIZ(tipo),
       referencia: `quiz-${pedidoId}`,

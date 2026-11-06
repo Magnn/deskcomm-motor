@@ -522,7 +522,7 @@ export function QuizDaSinastria(props: {
             <>
               <h2 className={`${SERIF} mt-2 text-2xl text-[#f6e3a8]`}>{tx.pagueNoCartao}</h2>
               <a className={`${botao} mt-4 block text-center`} style={{ background: cor }} href={cobranca.url} target="_blank" rel="noopener noreferrer">
-                {tx.abrirPagamento}
+                {tx.abrirPagamento} · {valorNaMoedaDaPagina(preco, moeda)}
               </a>
             </>
           ) : (
