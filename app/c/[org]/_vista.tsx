@@ -54,6 +54,8 @@ import { ContribuicaoDoCliente, SimpatiasDoCliente, type PedidoNaArea, type Simp
 import { CARTAO, CARTAO_NOTURNO, CEU, DETALHE, OURO, PAGINA, SERIF, SOBRETITULO, SOBRETITULO_NOTURNO, TEXTO_SUAVE } from "./_tema";
 import { temaDaIlustracao } from "./_ilustracoes";
 import type { LeituraDoMapaInicial, TextosDaLeituraDoMapa } from "./_leitura-do-mapa";
+import type { LeituraDoQuizNaArea } from "@/lib/area-do-cliente/leitura-do-quiz";
+import { LeiturasDoQuiz, type TextosDasLeiturasDoQuiz } from "./_leituras-do-quiz";
 import { MapaAstral, type TextosDoMapa } from "./_mapa";
 import { MemoriasDaArea } from "./_memorias";
 import { CartaoDaVitrine, DestaqueDaLoja, LinhaDaVitrine, Prateleira } from "./_vitrine";
@@ -188,6 +190,10 @@ export interface VistaDaAreaProps {
   /** A leitura paga do mapa (0959); `null` = desligada. */
   leituraDoMapa: LeituraDoMapaInicial | null;
   tleituraDoMapa: TextosDaLeituraDoMapa;
+  /** As leituras pagas dos quizzes (entregues aqui dentro) e a que veio aberta pelo link (`?leitura=`). */
+  leiturasDeQuiz: LeituraDoQuizNaArea[];
+  leituraAberta: string | null;
+  tlq: TextosDasLeiturasDoQuiz;
   /** Os créditos (`_carteira.tsx`); `null` = desligados. */
   carteira: CarteiraInicial | null;
   creditosDoCirculo: number | null;
@@ -501,6 +507,7 @@ export function VistaDaArea(p: VistaDaAreaProps) {
     <>
       {topo(rotulos.trabalho)}
       <div className={corpo}>
+        <LeiturasDoQuiz slug={slug} leituras={p.leiturasDeQuiz} aberta={p.leituraAberta} dataCurta={(iso) => dataCurta(iso)} tx={p.tlq} />
         <MemoriasDaArea entradas={dados.diario} tag={tag} fuso={fuso} titulo={t("Suas memórias")} recentes={t("Reflexões recentes")} vazio={t("As suas reflexões ficam aqui. Comece pelo diário no ritual de hoje.")} />
         {p.grimorio.length > 0 ? <GrimorioDaArea cartas={p.grimorio} tg={p.tg} /> : null}
         {ultimaCompra ? (
@@ -884,7 +891,8 @@ export function VistaDaArea(p: VistaDaAreaProps) {
           rodape={rodape}
         />
       </EtapasDaArea>
-      {!p.perfil.feito ? (
+      {/* Quem chega do quiz com a leitura (`?leitura=`) lê primeiro; as 3 perguntas ficam para a próxima visita. */}
+      {!p.perfil.feito && !p.leituraAberta ? (
         <EntradaDaArea slug={slug} nome={dados.contato.primeiroNome} jaSabeONascimento={Boolean(dados.contato.nascimento)} tx={tx} te={p.tp} />
       ) : null}
     </main>

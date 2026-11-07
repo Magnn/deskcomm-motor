@@ -9,6 +9,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { SemPagamento, criarCobrancaDaArea } from "@/lib/area-do-cliente/cobranca";
 import { registrarEvento } from "@/lib/area-do-cliente/eventos";
 import { NAO_ENCONTRADA, contextoDaArea, dentroDoLimite, origemPublicaDaArea } from "@/lib/area-do-cliente/http";
+import { NOME_DO_QUIZ } from "@/lib/area-do-cliente/leitura-do-quiz";
 import { caminhoDoQuiz } from "@/lib/area-do-cliente/recuperacao-do-quiz";
 import { EXTRA_DO_QUIZ, TIPOS_DE_QUIZ, pedidoDeQuizSchema, previaDoQuiz, type TipoDeQuiz } from "@/lib/area-do-cliente/quizzes";
 import { gerarToken, hashDoToken } from "@/lib/area-do-cliente/token";
@@ -22,12 +23,7 @@ export const runtime = "nodejs";
 type Ctx = { params: Promise<{ org: string; tipo: string }> };
 const ERRO = (status: number, code: string, message: string) => NextResponse.json({ error: { code, message } }, { status });
 
-const PRODUTO: Record<TipoDeQuiz, string> = {
-  prosperidade: "Seu Mapa da Prosperidade",
-  caminhos: "Seu Ritual de Abertura de Caminhos",
-  par: "O Retrato do Par",
-  sombra: "O Código da Sombra",
-};
+const PRODUTO = NOME_DO_QUIZ;
 
 export async function POST(req: NextRequest, { params }: Ctx): Promise<Response> {
   const { org: slug, tipo: bruto } = await params;

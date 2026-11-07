@@ -37,6 +37,7 @@ import { vePassoAPasso } from "@/lib/area-do-cliente/simpatias";
 import { carregarGrimorio, carregarMesa, configDasLeituras } from "@/lib/area-do-cliente/leituras-servidor";
 import { configDaLeituraDoMapa } from "@/lib/area-do-cliente/leitura-do-mapa";
 import { ultimaLeituraDoMapa } from "@/lib/area-do-cliente/leitura-do-mapa-servidor";
+import { leiturasDosQuizzes } from "@/lib/area-do-cliente/leitura-do-quiz";
 import { FOTOS_POR_DIA, configDaMao } from "@/lib/area-do-cliente/mao";
 import { fotosHoje, maosDoContato } from "@/lib/area-do-cliente/mao-servidor";
 import { SONHOS_POR_DIA, configDoSonho } from "@/lib/area-do-cliente/sonho";
@@ -63,7 +64,7 @@ import { VistaDaArea, VistaDeEntrada } from "./_vista";
 
 export const dynamic = "force-dynamic";
 
-type Props = { params: Promise<{ org: string }>; searchParams: Promise<{ link?: string; aba?: string; de?: string }> };
+type Props = { params: Promise<{ org: string }>; searchParams: Promise<{ link?: string; aba?: string; de?: string; leitura?: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { org: slug } = await params;
@@ -120,7 +121,7 @@ function dataCurta(iso: string, fuso: string, tag: string): string {
 
 export default async function AreaDoCliente({ params, searchParams }: Props) {
   const { org: slug } = await params;
-  const { link, aba, de } = await searchParams;
+  const { link, aba, de, leitura } = await searchParams;
   const idioma = await idiomaDaArea();
   const t = (texto: string) => traduzirNaArea(texto, idioma);
   const tx = textosDoNavegador(t);
@@ -317,6 +318,8 @@ export default async function AreaDoCliente({ params, searchParams }: Props) {
   // A leitura do mapa astral (0959): o Sol de graça, o resto pago. Ligada pela empresa no painel.
   const cfgDaLeituraDoMapa = configDaLeituraDoMapa(org.config.leitura_do_mapa);
   const ultimaDoMapa = cfgDaLeituraDoMapa.ativo ? await ultimaLeituraDoMapa(admin, org.id, sessao.contactId) : null;
+  // As leituras dos quizzes que ela pagou: entregues aqui dentro, em "Suas leituras" (quem chega do quiz abre na dela).
+  const leiturasDeQuiz = (await leiturasDosQuizzes(admin, org.id, sessao.contactId)).map((l) => ({ ...l, titulo: t(l.titulo) }));
   // A interpretação de sonhos (0952): o primeiro símbolo de graça, o resto pago. Ligada pela empresa no painel.
   const cfgDoSonho = configDoSonho(org.config.sonho);
   const [sonhos, sonhosDeHoje] = cfgDoSonho.ativo
@@ -463,6 +466,9 @@ export default async function AreaDoCliente({ params, searchParams }: Props) {
           : null
       }
       tleituraDoMapa={textosDaLeituraDoMapa(t)}
+      leiturasDeQuiz={leiturasDeQuiz}
+      leituraAberta={leitura ?? null}
+      tlq={{ titulo: t("Suas leituras"), escrevendo: t("Sua leitura está sendo escrita. Leva menos de um minuto."), tentar: t("Tentar de novo") }}
       carteira={
         carteira
           ? {

@@ -285,6 +285,21 @@ export function QuizDePessoa(props: {
       setFase("gerando");
       if (gerandoRef.current) return;
       gerandoRef.current = true;
+      // A ENTREGA É NA ÁREA: entra já logada e abre a leitura lá dentro ("Suas leituras", que a escreve se faltar).
+      // Se entrar falhar, segue o caminho antigo e a leitura sai aqui mesmo.
+      try {
+        const e = await fetch(`${base}/${pedido.id}/entrar`, { method: "POST", headers: { "x-segredo": pedido.segredo }, credentials: "same-origin" });
+        if (e.ok) {
+          const { data: entrada } = (await e.json()) as { data: { area: string } };
+          marcarPasso(slug, tipo, "leitura", moeda);
+          // Um instante para o Purchase do pixel sair antes de trocar de página.
+          await new Promise((ok) => setTimeout(ok, 700));
+          window.location.assign(`${entrada.area}${entrada.area.includes("?") ? "&" : "?"}aba=trabalho&leitura=${pedido.id}`);
+          return;
+        }
+      } catch {
+        /* rede: a leitura sai aqui */
+      }
       const g = await fetch(`${base}/${pedido.id}`, { method: "POST", headers: { "x-segredo": pedido.segredo } });
       gerandoRef.current = false;
       if (g.ok) {
