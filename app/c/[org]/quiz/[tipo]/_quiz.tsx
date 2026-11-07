@@ -617,6 +617,7 @@ export function QuizDePessoa(props: {
               ) : null}
               {sombra ? (
                 <>
+                  <p className="mb-3 text-[13px] italic leading-snug text-[#9d94b2]">{tx.sugeremOPadrao}</p>
                   <p className="text-[16px] leading-relaxed text-[#f6f0e4]">{t(sombra.texto)}</p>
                   <EscalaDos200 ele={sombra.nivel} ela={sombra.dela.nivel} rotuloEle={tx.rotuloNivelDele} rotuloEla={tx.rotuloSeuNivel} />
                   <p className="mt-3 text-[15px] leading-relaxed text-[#c3bad3]">{tx.abaixoDaLinha}</p>

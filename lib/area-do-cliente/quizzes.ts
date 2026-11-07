@@ -176,7 +176,7 @@ export const SOMBRAS = {
   orgulho: {
     titulo: "A Sombra do Orgulho",
     nivel: 175,
-    texto: "Ele se fechou no trabalho e nas obrigações: “agora não dá”. Não é falta de amor, é a caverna: sob pressão, ele se recolhe para não parecer fraco.",
+    texto: "Ele se fechou no trabalho e nas obrigações: “agora não dá”. Nem sempre é falta de amor; pode ser a caverna: sob pressão, ele se recolhe para não parecer fraco.",
     erro: "cobrar atenção, porque a cobrança confirma que ele está falhando, e ele se fecha mais",
   },
   raiva: {
