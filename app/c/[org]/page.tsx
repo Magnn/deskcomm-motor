@@ -100,12 +100,13 @@ async function jaMereceConvite(admin: ReturnType<typeof createAdminClient>, org:
 }
 
 /** O primeiro quiz ligado, na ordem da vitrine (o Par é a porta de entrada da página de vendas); nenhum = sem link. */
-function primeiraDescoberta(org: { slug: string; config: { apelido?: string | null; quiz_par?: { ativo?: boolean }; sinastria_quiz?: { ativo?: boolean }; quiz_prosperidade?: { ativo?: boolean }; quiz_caminhos?: { ativo?: boolean } } }): string | null {
+function primeiraDescoberta(org: { slug: string; config: { apelido?: string | null; quiz_par?: { ativo?: boolean }; sinastria_quiz?: { ativo?: boolean }; quiz_prosperidade?: { ativo?: boolean }; quiz_caminhos?: { ativo?: boolean }; quiz_sombra?: { ativo?: boolean } } }): string | null {
   const base = caminhoPublicoDaArea(org.slug, org.config.apelido);
   if (org.config.quiz_par?.ativo) return `${base}/quiz/par`;
   if (org.config.sinastria_quiz?.ativo) return `${base}/sinastria`;
   if (org.config.quiz_prosperidade?.ativo) return `${base}/quiz/prosperidade`;
   if (org.config.quiz_caminhos?.ativo) return `${base}/quiz/caminhos`;
+  if (org.config.quiz_sombra?.ativo) return `${base}/quiz/sombra`;
   return null;
 }
 

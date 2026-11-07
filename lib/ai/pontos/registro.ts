@@ -393,6 +393,17 @@ export const PONTOS_DE_IA: readonly PontoDeIa[] = [
     registraEm: "llm_calls",
   },
   {
+    id: "area_quiz_sombra",
+    rotulo: "Escrever O Código da Sombra do quiz",
+    oQueFaz:
+      "Escreve \"O Código da Sombra\" de quem comprou pelo quiz da página: a Sombra do parceiro e o nível dela na escala dos 200, calculados pelas respostas, com as 72 horas do desarme e técnicas reais de comunicação, sem prometer volta nem ensinar a manipular, e com o 180 quando ela contou agressão ou controle.",
+    papel: "atender",
+    exige: {},
+    emissor: "lib/area-do-cliente/circulo-ia.ts",
+    sintomaDeFalha: "Quem pagou O Código da Sombra vê o aviso de que a leitura está sendo preparada.",
+    registraEm: "llm_calls",
+  },
+  {
     id: "area_sinastria",
     rotulo: "Escrever a sinastria do quiz",
     oQueFaz:

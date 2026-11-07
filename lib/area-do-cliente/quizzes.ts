@@ -13,8 +13,8 @@ import { z } from "zod";
 
 import { ALMA_NO_AMOR, letrasQueVibram, numeroDaAlma, retratoDoPar } from "./retrato-do-par";
 
-/** Os quizzes de uma pessoa; o mesmo conjunto do CHECK de `area_quiz_pedidos.tipo` (0943, 0945). */
-export const TIPOS_DE_QUIZ = ["prosperidade", "caminhos", "par"] as const;
+/** Os quizzes de uma pessoa; o mesmo conjunto do CHECK de `area_quiz_pedidos.tipo` (0943, 0945, 0961). */
+export const TIPOS_DE_QUIZ = ["prosperidade", "caminhos", "par", "sombra"] as const;
 export type TipoDeQuiz = (typeof TIPOS_DE_QUIZ)[number];
 export const EXTRA_DO_QUIZ = (tipo: TipoDeQuiz) => `quiz-${tipo}`;
 export const tipoDoExtra = (extra: string): TipoDeQuiz | null =>
@@ -160,6 +160,96 @@ export function previaDosCaminhos(respostas: Record<string, string>) {
   return { perfil, ...PERFIS_DOS_CAMINHOS[perfil] };
 }
 
+// ─── O CÓDIGO DA SOMBRA ───────────────────────────────────────────────────────────────────
+
+/**
+ * Para a mulher cujo parceiro "ficou diferente". O veículo é a Sombra de Jung (a parte que a pessoa não vê em si) e a
+ * "caverna" de John Gray (o homem que se recolhe sob pressão), medidos na escala de consciência de David Hawkins — um
+ * MODELO de espiritualidade, nunca apresentado como ciência. Abaixo da linha dos 200 a energia contrai; acima, expande.
+ *
+ * A Sombra DELE sai da maioria das respostas sobre o que ele faz (como nos caminhos); o nível DELA sai da resposta à
+ * pergunta "o que você faz quando ele fica assim". Regra fixa, declarada na tela: não é sorteio nem diagnóstico.
+ */
+export const LINHA_DOS_200 = 200;
+
+export const SOMBRAS = {
+  orgulho: {
+    titulo: "A Sombra do Orgulho",
+    nivel: 175,
+    texto: "Ele se fechou no trabalho e nas obrigações: “agora não dá”. Não é falta de amor, é a caverna: sob pressão, ele se recolhe para não parecer fraco.",
+    erro: "cobrar atenção, porque a cobrança confirma que ele está falhando, e ele se fecha mais",
+  },
+  raiva: {
+    titulo: "A Sombra da Raiva",
+    nivel: 150,
+    texto: "Qualquer conversa vira briga. A raiva dele é a frustração que ele não sabe nomear, e ela procura um alvo que esteja perto.",
+    erro: "rebater no mesmo tom, porque duas pessoas na raiva só sobem a voz, nunca o nível",
+  },
+  medo: {
+    titulo: "A Sombra do Medo",
+    nivel: 100,
+    texto: "Ele chega perto e some. Quando a intimidade cresce, o medo de perder a liberdade ou de se machucar o empurra para longe.",
+    erro: "correr atrás quando ele some, porque quem foge do medo foge mais de quem persegue",
+  },
+  apatia: {
+    titulo: "A Sombra da Apatia",
+    nivel: 50,
+    texto: "Ele está em casa e está longe. “Tá tudo bem”, e nada acontece. A apatia é o nível mais baixo: a energia dele está quase desligada.",
+    erro: "insistir em conversar sobre a relação, porque a conversa pesada apaga o pouco que ainda acende",
+  },
+} as const;
+export type SombraDele = keyof typeof SOMBRAS;
+
+/** O nível dela, pela reação que ela contou. Todos abaixo da linha: é o que a prévia mostra sem acusar. */
+export const NIVEIS_DELA = {
+  "Pergunto o que aconteceu, várias vezes": { nome: "Medo", nivel: 100 },
+  "Mando mensagem e insisto até ele responder": { nome: "Desejo", nivel: 125 },
+  "Cobro e acabo brigando": { nome: "Raiva", nivel: 150 },
+  "Fico quieta e magoada": { nome: "Tristeza", nivel: 75 },
+  "Finjo que não ligo": { nome: "Orgulho", nivel: 175 },
+} as const satisfies Record<string, { nome: string; nivel: number }>;
+type ReacaoDela = keyof typeof NIVEIS_DELA;
+const REACAO_PADRAO: ReacaoDela = "Pergunto o que aconteceu, várias vezes";
+
+export const PERGUNTAS_DA_SOMBRA = [
+  { id: "tempo", capitulo: "O que mudou", texto: "Há quanto tempo ele está diferente com você?", opcoes: [["Alguns dias", null], ["Algumas semanas", null], ["Meses", null], ["Sempre foi assim, mas piorou", null]] },
+  { id: "perto", capitulo: "O que mudou", texto: "Quando você tenta chegar perto, ele…", opcoes: [["Diz que está cansado ou ocupado", "orgulho"], ["Diz que está tudo bem e muda de assunto", "apatia"], ["Se irrita com qualquer coisa", "raiva"], ["Às vezes é lindo, às vezes some", "medo"]] },
+  { id: "mensagens_dele", capitulo: "O que mudou", texto: "Como ele está nas mensagens?", opcoes: [["Seco, responde só o necessário", "orgulho"], ["Demora horas para responder", "medo"], ["Visualiza e não responde", "apatia"], ["Responde atravessado, com ironia", "raiva"]] },
+  { id: "briga", capitulo: "O que mudou", texto: "Quando vocês discutem, ele…", opcoes: [["Vira as costas e vai fazer outra coisa", "orgulho"], ["Levanta a voz", "raiva"], ["Sai e some por um tempo", "medo"], ["Não reage, tanto faz", "apatia"]] },
+  { id: "reacao", capitulo: "O que você faz", texto: "E você, o que costuma fazer quando ele fica assim?", opcoes: [["Pergunto o que aconteceu, várias vezes", null], ["Mando mensagem e insisto até ele responder", null], ["Cobro e acabo brigando", null], ["Fico quieta e magoada", null], ["Finjo que não ligo", null]] },
+  { id: "quer", capitulo: "O que você faz", texto: "O que você mais quer agora?", opcoes: [["Entender o que mudou nele", null], ["Saber se ele ainda gosta de mim", null], ["Saber o que falar e o que não falar", null], ["Parar de me sentir assim", null]] },
+] as const satisfies ReadonlyArray<{ id: string; capitulo: string; texto: string; opcoes: ReadonlyArray<readonly [string, SombraDele | null]> }>;
+
+/** Para a tela de cálculo: a Sombra que CADA resposta sobre ele apontou, na ordem das perguntas. */
+export function votosDaSombra(respostas: Record<string, string>): { resposta: string; sombra: SombraDele }[] {
+  const votos: { resposta: string; sombra: SombraDele }[] = [];
+  for (const p of PERGUNTAS_DA_SOMBRA)
+    for (const [texto, sombra] of p.opcoes as ReadonlyArray<readonly [string, SombraDele | null]>)
+      if (sombra && texto === respostas[p.id]) votos.push({ resposta: texto, sombra });
+  return votos;
+}
+
+/** A Sombra pela maioria; empate fica com a última resposta (como nos caminhos). Sem resposta, o Orgulho, o mais comum. */
+export function sombraDele(respostas: Record<string, string>): SombraDele {
+  const votos = votosDaSombra(respostas);
+  if (votos.length === 0) return "orgulho";
+  const conta: Record<SombraDele, number> = { orgulho: 0, raiva: 0, medo: 0, apatia: 0 };
+  for (const v of votos) conta[v.sombra] += 1;
+  const max = Math.max(...Object.values(conta));
+  return [...votos].reverse().find((v) => conta[v.sombra] === max)!.sombra;
+}
+
+/** O nível dela pela reação; sem resposta reconhecida, o Medo (100), a reação mais comum. */
+export function nivelDela(respostas: Record<string, string>): { nome: string; nivel: number } {
+  const r = respostas.reacao;
+  return r && r in NIVEIS_DELA ? NIVEIS_DELA[r as ReacaoDela] : NIVEIS_DELA[REACAO_PADRAO];
+}
+
+export function previaDaSombra(respostas: Record<string, string>) {
+  const sombra = sombraDele(respostas);
+  return { sombra, ...SOMBRAS[sombra], dela: nivelDela(respostas) };
+}
+
 // ─── O RETRATO DO PAR ─────────────────────────────────────────────────────────────────────
 
 /**
@@ -284,6 +374,15 @@ export function previaDoQuiz(
   if (tipo === "prosperidade") {
     const p = d.nascimento ? previaDaProsperidade(d.nascimento, hoje) : null;
     return p ? { titulo: p.titulo, texto: p.texto, detalhe: `Número ${p.numero}`, fato: `Ano pessoal de ${p.ano}: ${p.anoPessoal} (${p.tomDoAno})` } : null;
+  }
+  if (tipo === "sombra") {
+    const p = previaDaSombra(d.respostas);
+    return {
+      titulo: p.titulo,
+      texto: p.texto,
+      detalhe: p.sombra,
+      fato: `Ele na ${p.titulo}, nível ${p.nivel}; ela reagindo com ${p.dela.nome}, nível ${p.dela.nivel}; os dois abaixo da linha dos ${LINHA_DOS_200}. O erro que piora: ${p.erro}.`,
+    };
   }
   const c = previaDosCaminhos(d.respostas);
   return { titulo: c.titulo, texto: c.texto, detalhe: c.perfil, fato: `Carta-chave: ${c.carta}. ${c.sentidoDaCarta}` };

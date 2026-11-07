@@ -11,7 +11,7 @@ import Script from "next/script";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { moedaDaOferta, precoDaOferta, valorNaMoedaDaPagina, type MoedaDaPagina } from "@/lib/area-do-cliente/moeda-do-visitante";
-import { PERFIS_DOS_CAMINHOS, previaDaProsperidade, previaDoPar, previaDoQuiz, previaDosCaminhos, votosDosCaminhos } from "@/lib/area-do-cliente/quizzes";
+import { LINHA_DOS_200, PERFIS_DOS_CAMINHOS, SOMBRAS, previaDaProsperidade, previaDaSombra, previaDoPar, previaDoQuiz, previaDosCaminhos, votosDaSombra, votosDosCaminhos, type TipoDeQuiz } from "@/lib/area-do-cliente/quizzes";
 import { LUGARES_DE_NASCIMENTO, lugarPorId } from "@/lib/area-do-cliente/retrato-do-par";
 import type { DadosDaRetomada } from "@/lib/area-do-cliente/recuperacao-do-quiz";
 import { tradutorDoQuiz } from "@/lib/area-do-cliente/textos-dos-quizzes";
@@ -77,7 +77,7 @@ function pixelProprio(evento: string, dados?: Record<string, unknown>) {
 
 export function QuizDePessoa(props: {
   slug: string;
-  tipo: "prosperidade" | "caminhos" | "par";
+  tipo: TipoDeQuiz;
   cor: string;
   precoCents: number;
   /** Preço para quem abre a página fora do Brasil; a moeda vem do fuso do aparelho. */
@@ -170,6 +170,7 @@ export function QuizDePessoa(props: {
   const prosperidade = useMemo(() => (tipo === "prosperidade" && data ? previaDaProsperidade(data) : null), [tipo, data]);
   const caminhos = useMemo(() => (tipo === "caminhos" ? previaDosCaminhos(respostas) : null), [tipo, respostas]);
   const par = useMemo(() => (tipo === "par" && data ? previaDoPar(data, respostas, nome) : null), [tipo, data, respostas, nome]);
+  const sombra = useMemo(() => (tipo === "sombra" ? previaDaSombra(respostas) : null), [tipo, respostas]);
   const irPara = useCallback((alvo: Tela["tipo"]) => setTela(telas.findIndex((t) => t.tipo === alvo)), [telas]);
   // A conta que a tela de cálculo mostra — a MESMA que deu o resultado.
   const linhasDoCalculo = useMemo(() => {
@@ -191,6 +192,15 @@ export function QuizDePessoa(props: {
         `${tx.cartaChave}: ${t(caminhos.carta)}`,
       ];
     }
+    if (sombra) {
+      const votos = votosDaSombra(respostas);
+      const vezes = votos.filter((v) => v.sombra === sombra.sombra).length;
+      return [
+        ...votos.map((v) => `“${t(v.resposta)}” → ${t(SOMBRAS[v.sombra].titulo)}`),
+        `${tx.sombraMaioria}: ${t(sombra.titulo)} (${vezes} ${tx.vezes} ${votos.length}) · ${sombra.nivel}`,
+        `${tx.nivelPelaReacao}: ${t(sombra.dela.nome)} · ${sombra.dela.nivel}`,
+      ];
+    }
     if (par) {
       const r = par.retrato;
       const lugar = lugarPorId(respostas.lugar);
@@ -209,7 +219,7 @@ export function QuizDePessoa(props: {
     }
     return [];
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `t` nasce a cada render do mesmo `props.trad`
-  }, [prosperidade, caminhos, par, data, respostas, tx, props.trad]);
+  }, [prosperidade, caminhos, par, sombra, data, respostas, tx, props.trad]);
 
   // O "ao vivo" (0944): enquanto a aba está visível, a visita segue aparecendo no painel.
   useEffect(() => manterVivo(slug, tipo), [slug, tipo]);
@@ -490,7 +500,7 @@ export function QuizDePessoa(props: {
         </div>
       )}
 
-      {fase === "previa" && (prosperidade || caminhos || par) && (
+      {fase === "previa" && (prosperidade || caminhos || par || sombra) && (
         <PaginaFinal
           cor={cor}
           sobretitulo={tx.seuResultado}
@@ -522,7 +532,14 @@ export function QuizDePessoa(props: {
                       ...(par.alma ? [{ rotulo: tx.rotuloAlma, valor: String(par.alma) }] : []),
                       ...(par.letras.length ? [{ rotulo: tx.rotuloLetras, valor: par.letras.join(" · ") }] : []),
                     ]
-                  : []
+                  : sombra
+                    ? [
+                        { rotulo: tx.rotuloSombraDele, valor: t(sombra.titulo) },
+                        { rotulo: tx.rotuloNivelDele, valor: String(sombra.nivel) },
+                        { rotulo: tx.rotuloSeuNivel, valor: `${sombra.dela.nivel} · ${t(sombra.dela.nome)}` },
+                        { rotulo: tx.rotuloLinha, valor: String(LINHA_DOS_200) },
+                      ]
+                    : []
           }
           resultado={
             <div className={CARTAO}>
@@ -583,6 +600,27 @@ export function QuizDePessoa(props: {
                   ) : null}
                 </>
               ) : null}
+              {sombra ? (
+                <>
+                  <p className="text-[16px] leading-relaxed text-[#f6f0e4]">{t(sombra.texto)}</p>
+                  <EscalaDos200 ele={sombra.nivel} ela={sombra.dela.nivel} rotuloEle={tx.rotuloNivelDele} rotuloEla={tx.rotuloSeuNivel} />
+                  <p className="mt-3 text-[15px] leading-relaxed text-[#c3bad3]">{tx.abaixoDaLinha}</p>
+                  <p className="mt-4 rounded-2xl border border-[#c9a54e]/25 bg-[#120d22] p-4 text-[15px] leading-relaxed text-[#f6f0e4]">
+                    <span className="text-[#e2c47a]">{tx.oErroQuePiora}:</span> {t(sombra.erro)}.
+                  </p>
+                  <p className="mt-5 text-xs uppercase tracking-wide text-[#7fd1a0]">{tx.desarmeTitulo}</p>
+                  <ul className="mt-2 list-disc space-y-1 pl-5 text-[15px] leading-relaxed text-[#f6f0e4]">
+                    {tx.desarme.map((regra) => (
+                      <li key={regra}>{regra}</li>
+                    ))}
+                  </ul>
+                  {respostas.quer ? (
+                    <p className="mt-4 border-l-2 border-[#c9a54e]/40 pl-3 text-[15px] leading-relaxed text-[#c3bad3]">
+                      {tx.voceContouQuer} “{naFrase(respostas.quer)}”.
+                    </p>
+                  ) : null}
+                </>
+              ) : null}
               <p className="mt-4 text-[15px] leading-relaxed text-[#c3bad3]">{tx.ponte}</p>
             </div>
           }
@@ -595,6 +633,10 @@ export function QuizDePessoa(props: {
                   ? `${tx.rotuloAno} ${prosperidade.ano}: ${prosperidade.anoPessoal}`
                   : i === 0 && caminhos
                     ? `${t(caminhos.titulo)} · ${t(caminhos.carta)}`
+                    : sombra && i < 2
+                      ? i === 0
+                        ? `${t(sombra.titulo)} · ${sombra.nivel}`
+                        : `${t(sombra.dela.nome)} · ${sombra.dela.nivel}`
                     : par
                       ? [
                           `${t("Vênus em")} ${t(par.retrato.venus.signo)}`,
@@ -670,5 +712,26 @@ export function QuizDePessoa(props: {
       {fase === "pronto" && texto && pedido ? <AbrirMinhaArea url={`${base}/${pedido.id}/entrar`} segredo={pedido.segredo} cor={cor} tx={tx} /> : null}
       {fase === "pronto" && texto && <OutrasLeituras titulo={tx.outrasTitulo} botao={tx.outrasBotao} itens={outras} cor={cor} />}
     </section>
+  );
+}
+
+/** A escala de 0 a 1000 com a linha dos 200 marcada e os dois níveis; abaixo da linha, a cor contrai. */
+function EscalaDos200({ ele, ela, rotuloEle, rotuloEla }: { ele: number; ela: number; rotuloEle: string; rotuloEla: string }) {
+  // shortcut: régua até 400 (não 1000) para os níveis abaixo de 200 não ficarem espremidos na ponta.
+  const pos = (n: number) => `${Math.min(100, (n / 400) * 100)}%`;
+  return (
+    <div className="mt-5" role="img" aria-label={`${rotuloEle} ${ele}, ${rotuloEla} ${ela}, linha ${LINHA_DOS_200}`}>
+      <div className="relative h-3 rounded-full bg-gradient-to-r from-[#3a2340] via-[#6b4a7a] to-[#c9a54e]">
+        <div className="absolute -top-1 h-5 w-0.5 bg-[#f6e3a8]" style={{ left: pos(LINHA_DOS_200) }} />
+        <div className="absolute -top-1.5 h-6 w-6 -translate-x-1/2 rounded-full border-2 border-[#120d22] bg-[#f3a3c0]" style={{ left: pos(ela) }} />
+        <div className="absolute -top-1.5 h-6 w-6 -translate-x-1/2 rounded-full border-2 border-[#120d22] bg-[#8fb3ff]" style={{ left: pos(ele) }} />
+      </div>
+      <div className="mt-3 flex justify-between text-xs text-[#c3bad3]">
+        <span>
+          <span className="text-[#8fb3ff]">●</span> {rotuloEle}: {ele} · <span className="text-[#f3a3c0]">●</span> {rotuloEla}: {ela}
+        </span>
+        <span className="text-[#f6e3a8]">{LINHA_DOS_200}</span>
+      </div>
+    </div>
   );
 }

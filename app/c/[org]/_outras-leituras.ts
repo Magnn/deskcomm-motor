@@ -10,7 +10,7 @@ import { urlDaMidiaDaArea } from "@/lib/area-do-cliente/midia";
 
 import type { Depoimento, OutraLeitura } from "./_quiz-pecas";
 
-type QuizDaArea = "sinastria" | "prosperidade" | "caminhos" | "par";
+type QuizDaArea = "sinastria" | "prosperidade" | "caminhos" | "par" | "sombra";
 
 export function outrasLeituras(config: ConfigDaArea, slug: string, atual: QuizDaArea, t: (texto: string) => string): OutraLeitura[] {
   const base = `/c/${config.apelido || slug}`;
@@ -19,6 +19,7 @@ export function outrasLeituras(config: ConfigDaArea, slug: string, atual: QuizDa
     { id: "par", ativo: !!config.quiz_par?.ativo, titulo: t("Com quem você combina de verdade?"), chamada: t("Vênus e o Descendente: o que te atrai e o que te faz bem."), href: `${base}/quiz/par` },
     { id: "prosperidade", ativo: !!config.quiz_prosperidade?.ativo, titulo: t("Qual é o seu número da prosperidade?"), chamada: t("A conta da sua data e o que ela diz sobre como você prospera."), href: `${base}/quiz/prosperidade` },
     { id: "caminhos", ativo: !!config.quiz_caminhos?.ativo, titulo: t("O que abre os seus caminhos?"), chamada: t("Quatro toques e uma carta-chave do tarô para o momento."), href: `${base}/quiz/caminhos` },
+    { id: "sombra", ativo: !!config.quiz_sombra?.ativo, titulo: t("Por que ele ficou diferente com você?"), chamada: t("A Sombra em que ele entrou e o nível em que você está."), href: `${base}/quiz/sombra` },
   ];
   return todas.filter((o) => o.ativo && o.id !== atual).map(({ titulo, chamada, href }) => ({ titulo, chamada, href }));
 }

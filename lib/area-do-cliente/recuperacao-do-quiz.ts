@@ -93,6 +93,7 @@ const TITULO_DO_QUIZ: Record<Quiz, string> = {
   par: "Com quem você combina de verdade?",
   prosperidade: "Qual é o seu número da prosperidade?",
   caminhos: "O que abre os seus caminhos?",
+  sombra: "Por que ele ficou diferente com você?",
 };
 
 const semHtml = (t: string) => t.replace(/[<>&"]/g, "");
