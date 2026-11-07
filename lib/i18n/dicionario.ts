@@ -15569,6 +15569,8 @@ export const DICIONARIO: Traducoes = {
   "Raiva": { es: "Ira" },
   "Tristeza": { es: "Tristeza" },
   "Orgulho": { es: "Orgullo" },
+  "Suas leituras": { es: "Tus lecturas" },
+  "Sua leitura está sendo escrita. Leva menos de um minuto.": { es: "Tu lectura se está escribiendo. Tarda menos de un minuto." },
   "Escrever O Código da Sombra do quiz": { es: "Escribir El Código de la Sombra del quiz" },
   "Escreve \"O Código da Sombra\" de quem comprou pelo quiz da página: a Sombra do parceiro e o nível dela na escala dos 200, calculados pelas respostas, com as 72 horas do desarme e técnicas reais de comunicação, sem prometer volta nem ensinar a manipular, e com o 180 quando ela contou agressão ou controle.": { es: "Escribe \"El Código de la Sombra\" de quien compró por el quiz de la página: la Sombra de la pareja y su nivel en la escala de los 200, calculados por las respuestas, con las 72 horas del desarme y técnicas reales de comunicación, sin prometer que vuelva ni enseñar a manipular, y con el 180 cuando ella contó agresión o control." },
   "Quem pagou O Código da Sombra vê o aviso de que a leitura está sendo preparada.": { es: "Quien pagó El Código de la Sombra ve el aviso de que la lectura se está preparando." },

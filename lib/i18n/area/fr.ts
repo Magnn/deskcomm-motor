@@ -1354,6 +1354,9 @@ export const AREA_FR: Record<string, string> = {
   "o que ele está vivendo por dentro, sem culpa e sem desculpa": "ce qu'il vit à l'intérieur, sans le blâmer ni l'excuser",
   "o que fazer por você e as regras para não piorar": "quoi faire pour vous et les règles pour ne pas aggraver",
   "os sinais de que não é a Sombra, e o que você merece": "les signes que ce n'est pas l'Ombre, et ce que vous méritez",
+  // Suas leituras (as leituras dos quizzes entregues dentro da área)
+  "Suas leituras": "Vos lectures",
+  "Sua leitura está sendo escrita. Leva menos de um minuto.": "Votre lecture est en cours d’écriture. Cela prend moins d’une minute.",
   // O Código da Sombra (quiz 5)
   "O que mudou": "Ce qui a changé",
   "O que você faz": "Ce que vous faites",
