@@ -97,6 +97,8 @@ export interface PedidoDeLink {
    * migration 0954): cria o cliente na Stripe e marca o pagamento com `setup_future_usage=off_session`. Só cartão.
    */
   guardarCartao?: boolean;
+  /** Depois de pagar, volta para esta página (a do quiz, que já espera o pagamento) em vez da confirmação da Stripe. */
+  voltarPara?: string;
 }
 
 export interface PedidoDeCobrancaGuardada {
@@ -323,10 +325,15 @@ export function criarClienteStripe(cred: CredencialStripe, opts: { fetch?: Fetch
         "line_items[0][price_data][product_data][name]": pedido.descricao.slice(0, 200),
         "line_items[0][quantity]": 1,
         "restrictions[completed_sessions][limit]": 1,
-        "after_completion[type]": "hosted_confirmation",
-        "after_completion[hosted_confirmation][custom_message]": pedido.mensagemDepoisDePagar.slice(0, 500),
         "payment_intent_data[description]": pedido.descricao.slice(0, 200),
       };
+      if (pedido.voltarPara) {
+        campos["after_completion[type]"] = "redirect";
+        campos["after_completion[redirect][url]"] = pedido.voltarPara;
+      } else {
+        campos["after_completion[type]"] = "hosted_confirmation";
+        campos["after_completion[hosted_confirmation][custom_message]"] = pedido.mensagemDepoisDePagar.slice(0, 500);
+      }
       if (pedido.soCartao || pedido.guardarCartao) campos["payment_method_types[0]"] = "card";
       if (pedido.guardarCartao) {
         campos.customer_creation = "always";

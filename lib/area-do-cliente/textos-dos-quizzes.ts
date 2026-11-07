@@ -9,7 +9,7 @@
  *
  * Puro.
  */
-import { PERFIS_DOS_CAMINHOS, PERGUNTAS_DA_PROSPERIDADE, PERGUNTAS_DO_PAR, PERGUNTAS_DOS_CAMINHOS, TOM_DO_ANO_PESSOAL, TOM_DO_NUMERO } from "./quizzes";
+import { NIVEIS_DELA, PERFIS_DOS_CAMINHOS, PERGUNTAS_DA_PROSPERIDADE, PERGUNTAS_DA_SOMBRA, PERGUNTAS_DO_PAR, PERGUNTAS_DOS_CAMINHOS, SOMBRAS, TOM_DO_ANO_PESSOAL, TOM_DO_NUMERO } from "./quizzes";
 import { ALMA_NO_AMOR, O_QUE_ATRAI, O_QUE_FAZ_BEM, SIGNOS_DO_ZODIACO } from "./retrato-do-par";
 import { PERGUNTAS_DO_QUIZ, tomDaCombinacao, type Elemento } from "./sinastria";
 
@@ -34,6 +34,9 @@ export function textosDosQuizzes(): string[] {
   for (const p of Object.values(PERFIS_DOS_CAMINHOS)) t.push(p.titulo, p.texto, p.carta, p.sentidoDaCarta);
   for (const p of PERGUNTAS_DO_PAR) t.push(p.capitulo, p.texto, ...(p.apoio ? [p.apoio] : []), ...(p.rotulos ?? []), ...p.opcoes);
   t.push(...Object.values(O_QUE_ATRAI), ...Object.values(O_QUE_FAZ_BEM), ...Object.values(ALMA_NO_AMOR));
+  for (const p of PERGUNTAS_DA_SOMBRA) t.push(p.capitulo, p.texto, ...p.opcoes.map(([o]) => o));
+  for (const x of Object.values(SOMBRAS)) t.push(x.titulo, x.texto, x.erro);
+  t.push(...Object.values(NIVEIS_DELA).map((n) => n.nome));
   // Escala de 1 a 5 é número: não se traduz.
   return [...new Set(t)].filter((s) => /\p{L}/u.test(s));
 }

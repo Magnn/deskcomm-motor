@@ -94,6 +94,19 @@ describe("Stripe — o cartão que fica guardado", () => {
     expect(c.get("payment_method_types[0]")).toBe("card");
   });
 
+  it("⭐ o link do quiz devolve quem pagou para a página do quiz; sem destino, fica a confirmação da Stripe", async () => {
+    const base = { valorCentavos: 490, moeda: "EUR", descricao: "O Código da Sombra", referencia: "quiz-1-link", metadados: {}, mensagemDepoisDePagar: "ok" };
+    const { chamadas, fetch } = gravador({ id: "plink_1", url: "https://buy.stripe.com/x" });
+    const stripe = criarClienteStripe({ chave: "sk" }, { fetch });
+    await stripe.criarLinkDePagamento({ ...base, voltarPara: "https://acassia.tech/c/cigana-esmeralda/quiz/sombra" });
+    await stripe.criarLinkDePagamento(base);
+    expect(chamadas[0]!.corpo.get("after_completion[type]")).toBe("redirect");
+    expect(chamadas[0]!.corpo.get("after_completion[redirect][url]")).toBe("https://acassia.tech/c/cigana-esmeralda/quiz/sombra");
+    expect(chamadas[0]!.corpo.get("after_completion[hosted_confirmation][custom_message]")).toBeNull();
+    expect(chamadas[1]!.corpo.get("after_completion[type]")).toBe("hosted_confirmation");
+    expect(chamadas[1]!.corpo.get("after_completion[hosted_confirmation][custom_message]")).toBe("ok");
+  });
+
   it("⭐ a cobrança da renovação é fora da sessão, confirmada na hora, com a chave da semana e os metadados", async () => {
     const { chamadas, fetch } = gravador({ id: "pi_1", status: "succeeded" });
     const r = await criarClienteStripe({ chave: "sk", conta: "acct_1", taxa: { fixoCentavos: 99, percentualBp: 0, tetoCentavos: 0 } }, { fetch }).cobrarCartaoGuardado({
