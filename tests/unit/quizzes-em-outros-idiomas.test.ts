@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from "vitest";
 
-import { perfilDosCaminhos, PERGUNTAS_DOS_CAMINHOS, previaDaProsperidade, previaDoPar } from "@/lib/area-do-cliente/quizzes";
+import { perfilDosCaminhos, PERGUNTAS_DOS_CAMINHOS, previaDaProsperidade, previaDaSombra, previaDoPar } from "@/lib/area-do-cliente/quizzes";
 import { previaDaSinastria } from "@/lib/area-do-cliente/sinastria";
 import { dicionarioDosQuizzes, textosDosQuizzes, tradutorDoQuiz } from "@/lib/area-do-cliente/textos-dos-quizzes";
 import { traduzirNaArea, type IdiomaDaArea } from "@/lib/i18n/area";
@@ -54,5 +54,14 @@ describe("quizzes em outros idiomas", () => {
 
   it("em português o dicionário é vazio (nada muda na tela de hoje)", () => {
     expect(dicionarioDosQuizzes((s) => traduzirNaArea(s, "pt-BR" as IdiomaDaArea))).toEqual({});
+  });
+
+  it("⭐ O Código da Sombra inteiro no dicionário: perguntas, respostas, Sombra, erro e o nível dela (06/11: em francês saía meio português)", () => {
+    const respostas = { perto: "Se irrita com qualquer coisa", mensagens_dele: "Responde atravessado, com ironia", briga: "Levanta a voz", reacao: "Cobro e acabo brigando", quer: "Parar de me sentir assim" };
+    const s = previaDaSombra(respostas);
+    for (const idioma of ["es", "en", "fr", "it", "de"] as IdiomaDaArea[]) {
+      const t = tradutorDoQuiz(dicionarioDosQuizzes((x) => traduzirNaArea(x, idioma)));
+      for (const x of [s.titulo, s.texto, s.erro, s.dela.nome, respostas.quer, "Há quanto tempo ele está diferente com você?"]) expect(t(x), `${idioma}: ${x}`).not.toBe(x);
+    }
   });
 });

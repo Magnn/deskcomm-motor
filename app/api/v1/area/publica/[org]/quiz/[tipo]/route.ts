@@ -8,7 +8,8 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { SemPagamento, criarCobrancaDaArea } from "@/lib/area-do-cliente/cobranca";
 import { registrarEvento } from "@/lib/area-do-cliente/eventos";
-import { NAO_ENCONTRADA, contextoDaArea, dentroDoLimite } from "@/lib/area-do-cliente/http";
+import { NAO_ENCONTRADA, contextoDaArea, dentroDoLimite, origemPublicaDaArea } from "@/lib/area-do-cliente/http";
+import { caminhoDoQuiz } from "@/lib/area-do-cliente/recuperacao-do-quiz";
 import { EXTRA_DO_QUIZ, TIPOS_DE_QUIZ, pedidoDeQuizSchema, previaDoQuiz, type TipoDeQuiz } from "@/lib/area-do-cliente/quizzes";
 import { gerarToken, hashDoToken } from "@/lib/area-do-cliente/token";
 import { ligarVisitaAoContato } from "@/lib/area-do-cliente/funil-dos-quizzes";
@@ -117,6 +118,8 @@ export async function POST(req: NextRequest, { params }: Ctx): Promise<Response>
       referencia: `quiz-${pedidoId}`,
       metadados: { quiz_id: pedidoId, moeda: p.moeda },
       mensagemDepoisDePagar: "Pagamento confirmado. Volte para a página: a sua leitura já está sendo escrita.",
+      // A página do quiz acha o pedido no navegador e abre a leitura (e o Purchase) sem a pessoa ter de voltar sozinha.
+      voltarPara: `${origemPublicaDaArea(req, org.config.dominio)}${caminhoDoQuiz(slug, tipo)}`,
     });
     await registrarEvento(admin, { organizationId: org.id, contactId, tipo: "quiz_checkout", props: { quiz: tipo, forma: p.forma, moeda: p.moeda } });
     return NextResponse.json({ data: { id: pedidoId, segredo, cobranca, previa } }, { headers: { "Cache-Control": "no-store" } });

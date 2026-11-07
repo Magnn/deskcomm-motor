@@ -38,6 +38,8 @@ export async function criarCobrancaDaArea(
     referencia: string;
     metadados?: Record<string, string>;
     mensagemDepoisDePagar: string;
+    /** A página para onde a Stripe devolve quem pagou (o quiz). */
+    voltarPara?: string;
     /** O plano que renova sozinho: o cartão fica guardado na conta da empresa (`stripe.ts`). */
     guardarCartao?: boolean;
     /** O e-mail que a pessoa já deu: a página da Stripe abre com ele preenchido. */
@@ -77,6 +79,7 @@ export async function criarCobrancaDaArea(
     metadados,
     mensagemDepoisDePagar: d.mensagemDepoisDePagar,
     ...(d.guardarCartao ? { guardarCartao: true } : {}),
+    ...(d.voltarPara ? { voltarPara: d.voltarPara } : {}),
   });
   return { forma: "cartao", url: comEmailPreenchido(link.url, d.email) };
 }
