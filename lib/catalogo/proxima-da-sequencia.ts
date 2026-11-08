@@ -10,6 +10,7 @@
  * oferecer o produto que tem `depois_de: X` e `espera_horas: 0`. O turno escreve a oferta (ou decide não
  * oferecer, se a pessoa está num momento difícil). Pura; quem agenda é `agendar-proxima-da-sequencia.ts`.
  */
+import { moldeComDesejo } from "@/lib/preco/molde-com-desejo";
 import { slugDoProduto } from "@/lib/preco/pos-venda";
 
 import { nomeCasaComCompra, produtosComprados } from "./oferta-da-vez";
@@ -45,9 +46,8 @@ export function motivoDaOfertaDaSequencia(comprado: string, p: ProdutoDoCatalogo
     `oferta da sequência: ela acabou de comprar ${comprado} e já recebeu. Agora ofereça ${p.nome} (${valor}, pagamento único)` +
     (p.descricao ? ` — ${p.descricao}` : "") +
     (p.recebe ? ` O que ela recebe: ${p.recebe}.` : "") +
-    ` Primeiro pergunte em meia frase como foi com ${comprado}; depois, ligado ao que ela contou, use o molde do bloco PREÇO E PRÓXIMA OFERTA: ` +
-    `"Pelo que você me contou, tem algo que combina com este momento: ${p.nome}. Fica ${valor}, pagamento único. Quer que eu te mande?" ` +
-    "O link só se ela disser que quer. Sem prazo, sem \"só hoje\", e nunca diga que o que ela comprou não funciona sem isto. " +
+    ` Primeiro pergunte em meia frase como foi com ${comprado}; depois, ligado ao que ela contou, ofereça ${moldeComDesejo(p.nome, valor, p.descricao ?? "")} ` +
+    "Sem prazo, sem \"só hoje\", e nunca diga que o que ela comprou não funciona sem isto. " +
     "Se ela está no meio de uma dificuldade, pediu para não ser procurada ou disse que não tem dinheiro, não ofereça: só acompanhe."
   );
 }

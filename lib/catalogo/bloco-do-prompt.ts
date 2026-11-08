@@ -19,6 +19,7 @@
  * ─── O que o cliente digita é dado ──────────────────────────────────────────────────────────────
  * Cada texto vira UMA linha, sem aspas duplas, sem controles nem separadores de linha do Unicode.
  */
+import { moldeComDesejo } from "@/lib/preco/molde-com-desejo";
 import { reais } from "@/lib/preco/tipos";
 import { umaLinha } from "@/lib/prompt/texto-do-cliente";
 
@@ -58,7 +59,7 @@ export function blocoDaOfertaDoCatalogo(oferta: OfertaDaVez | null): string {
       linhas.push(
         `- A OFERTA DE HOJE é ${nome}. Uma oferta por dia: quem já comprou é cliente da casa, e você oferece o próximo passo todos os dias.`,
         "- ACOLHER ANTES: se NESTA mensagem ela contou uma dificuldade da vida (falta de casa ou de dinheiro, trabalho pesado, solidão, briga, cansaço, decepção) ou algo grave, NÃO ofereça neste turno: acolha com as palavras dela, acompanhe o que ela já comprou e termine com uma pergunta. A oferta fica para a próxima resposta dela.",
-        `- Nos outros casos, ofereça NESTE turno, ligando ao que ela contou, em 2 bolhas: 1ª "Pelo que você me contou, tem algo que combina com este momento: ${nome}. Fica ${valor}, pagamento único. Quer que eu te mande?" 2ª (só se ela disser que sim) o link.`,
+        `- Nos outros casos, ofereça NESTE turno, ${moldeComDesejo(nome, valor, descricao)}`,
         '- Sem prazo, sem "só hoje", sem vaga, e NUNCA diga que o que ela comprou não funciona, ou que algo ruim acontece, sem este produto. Se ela disser não, agradeça em uma frase e siga o acompanhamento: amanhã vem outra oferta.',
       );
     }
@@ -68,7 +69,7 @@ export function blocoDaOfertaDoCatalogo(oferta: OfertaDaVez | null): string {
     );
   } else {
     linhas.push(
-      `- OFERTA (uma vez só): primeiro responda o que ela disse e acompanhe o que ela já comprou. Se a conversa estiver boa, você PODE oferecer ${nome}, ligando ao que ELA contou. Use ESTE molde em 2 bolhas: 1ª "Pelo que você me contou, tem algo que combina com este momento: ${nome}. Fica ${valor}, pagamento único. Quer que eu te mande?" 2ª (só se ela disser que sim) o link.`,
+      `- OFERTA (uma vez só): primeiro responda o que ela disse e acompanhe o que ela já comprou. Se a conversa estiver boa, você PODE oferecer ${nome}, ligando ao que ELA contou. Use ESTE molde, ${moldeComDesejo(nome, valor, descricao)}`,
     );
     linhas.push(
       '- Sem prazo, sem "só hoje", sem vaga, e NUNCA diga que o que ela comprou não funciona, ou que algo ruim acontece, sem este produto. Se ela disser não, agradeça e siga o acompanhamento.',
