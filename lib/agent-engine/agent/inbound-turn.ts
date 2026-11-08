@@ -598,6 +598,17 @@ export const AGENT_TOOL_DEFS = {
 export const MAX_VETOS_DE_VOCABULARIO_INTERNO = 2;
 
 /**
+ * Vetos pelo CONTEÚDO da mensagem — reescrever resolve, e um turno que termina sem reescrever é
+ * refeito pela fila. Ficam de fora os vetos em que o silêncio é a resposta certa (opt-out, contato
+ * bloqueado, janela, cap de envio): refazer o turno ali só repetiria o veto.
+ */
+export const VETOS_DE_CONTEUDO: ReadonlySet<string> = new Set([
+  'promise_semantic',
+  'promise_out_of_table',
+  'internal_vocabulary_leak',
+]);
+
+/**
  * O mesmo degrau para o veto de `false_empty_inbound`, e pela mesma assimetria.
  *
  * Sem teto, o contador só subia: um falso positivo teimoso da detecção calava o
@@ -3529,6 +3540,9 @@ async function executarTurnoDoAgente(
   // o cap depende de quanto já saiu HOJE, que muda com o turno concorrente — só dá pra
   // saber com certeza no momento do envio, não antes.
   let pacingCapVeto: { code: string; nextAllowedAt: Date } | null = null;
+  // Veto de CONTEÚDO (promessa, vocabulário) neste turno: o modelo recebe a frase para reescrever,
+  // mas pode encerrar o turno sem reescrever — e o cliente ficava sem resposta (ver o fim do turno).
+  let vetoDeConteudo: string | null = null;
   // Best-effort: move o lead pra etapa `crm_stages.slug='chamar-humano'` do pipeline
   // dele (se o tenant tiver criado essa etapa — opt-in, ver `lib/leads/handoff-stage-move.ts`)
   // sempre que um caso humano abre neste turno, deliberado (open_human_case) ou pelo
@@ -4760,6 +4774,7 @@ async function executarTurnoDoAgente(
             ) {
               pacingCapVeto = { code: chain.code, nextAllowedAt: chain.nextAllowedAt };
             }
+            if (VETOS_DE_CONTEUDO.has(chain.code)) vetoDeConteudo = chain.code;
             // Erro de ENSINO pt-br (mesmo shape de get_lead_context/breaker): o
             // modelo o vê no turno seguinte. NÃO é exceção — não derruba o run.
             return { ok: false, error: { code: chain.code, message: chain.message } };
@@ -5764,6 +5779,20 @@ async function executarTurnoDoAgente(
         }
         if (runError !== null) throw runError;
       }
+    }
+
+    // TURNO MUDO DEPOIS DE VETO DE CONTEÚDO: a trava barrou a resposta (ex.: a da chave Pix, por
+    // "promessa"), o modelo não reescreveu e o turno ia terminar `ok` sem nada enviado — o cliente
+    // esperando a chave, em silêncio, até escrever de novo (medido em produção em 08/11/2026: 1 em 440
+    // vetos de promessa em 36 h, justo numa cobrança). Uma nova amostra do modelo quase sempre passa;
+    // a fila limita as tentativas e, esgotadas, vira `job_dead` com escalação humana na Central.
+    if (
+      vetoDeConteudo !== null &&
+      !preview &&
+      outcomes.length === 0 &&
+      input.inboundMessageId !== undefined
+    ) {
+      throw new Error(`turno terminou sem resposta depois do veto ${vetoDeConteudo} — run re-tentado pela fila`);
     }
 
     if (outcomes.some((o) => o.kind === 'failed')) {
