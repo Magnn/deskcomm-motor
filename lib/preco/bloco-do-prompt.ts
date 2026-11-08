@@ -16,6 +16,7 @@
  * (`promise_table.minPriceCents`, ligada por `sincronizar-piso.ts`): se o modelo citar um
  * valor abaixo do mínimo, a mensagem é vetada antes de sair.
  */
+import { moldeComDesejo } from "./molde-com-desejo";
 import { LINHA_DA_PERGUNTA_DO_PIX } from "./pergunta-do-pix";
 import { combinadoEmVigor, degrauDoTurno, precoPermitidoAgora } from "./estado-da-negociacao";
 import type { EstadoDoPosVenda } from "./pos-venda";
@@ -149,7 +150,7 @@ function blocoDoPosVenda(p: EstadoDoPosVenda): string {
     );
   } else {
     linhas.push(
-      `- SEGUNDA OFERTA (uma vez só): primeiro responda o que ela disse e acompanhe o trabalho que ela está fazendo. Se a conversa estiver boa, você PODE oferecer UM segundo trabalho por ${valor}, escolhendo pelo que ELA contou. Use ESTE molde em 2 bolhas: 1ª "Pelo que você me contou, tem um trabalho que combina com este momento: [nome do trabalho]. Fica ${valor}, pagamento único. Quer que eu te mande?" 2ª (só se ela disser que sim) o link do trabalho.`,
+      `- SEGUNDA OFERTA (uma vez só): primeiro responda o que ela disse e acompanhe o trabalho que ela está fazendo. Se a conversa estiver boa, você PODE oferecer UM segundo trabalho por ${valor}, escolhendo pelo que ELA contou. Use ESTE molde, ${moldeComDesejo("[nome do trabalho]", valor)}`,
     );
     linhas.push(
       "- Sem prazo, sem \"só hoje\", sem vaga, e NUNCA diga que o trabalho que ela comprou não funciona, ou que algo ruim acontece, sem o segundo. Se ela disser não, agradeça e siga o acompanhamento.",
