@@ -31,4 +31,15 @@ describe("a ordem de escolha do modelo da reserva", () => {
   it("no MESMO provedor a reserva segue com o modelo da chamada", () => {
     expect(CONSULTA_DAS_RESERVAS).toContain("case when c.provider = $2 then $3");
   });
+
+  it("provedor sem catálogo usa o modelo que a organização já escolheu para ele (08/11/2026)", () => {
+    const depois = CONSULTA_DAS_RESERVAS.slice(CONSULTA_DAS_RESERVAS.indexOf("limit 1),"));
+    expect(CONSULTA_DAS_RESERVAS).toContain("else coalesce(");
+    expect(depois).toContain("from ai_purpose_bindings b");
+    expect(depois).toContain("b.organization_id = $1");
+    expect(depois).toContain("b.provider = c.provider");
+    expect(depois).toContain("b.is_enabled");
+    // Endereço próprio é de outro gateway: a chave desta credencial não vale lá.
+    expect(depois).toContain("b.base_url is null");
+  });
 });

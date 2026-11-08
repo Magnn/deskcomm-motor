@@ -18,6 +18,11 @@
  *   2. chaves de OUTRO provedor, com o modelo MAIS BARATO do catálogo que aquela chave alcança e
  *      que aceita ferramentas. O tom pode mudar um pouco; ficar mudo é pior.
  *
+ *      Provedor sem catálogo baixado não tinha modelo e era pulado. Medido em 08/11/2026: a DeepSeek
+ *      ficou sem saldo por quase 2 horas, a OpenAI também estava sem crédito, o modelo do Google tinha
+ *      sido retirado — e a chave do xAI, validada e em uso na leitura de imagens, nunca foi tentada.
+ *      Sem catálogo, a reserva usa o modelo que a organização já escolheu para aquele provedor.
+ *
  *      ⚠️ Era o modelo PADRÃO do provedor, e o padrão é o modelo de vitrine, não o barato. Medido em
  *      08/10/2026: o saldo da chave principal (DeepSeek) acabou às 18:25, a reserva assumiu a operação
  *      inteira com `gpt-5.6-terra` e, em 27 minutos e 1.109 chamadas, gastou US$ 24,51 — todo o
@@ -62,16 +67,26 @@ export interface ChaveReserva {
 export const CONSULTA_DAS_RESERVAS = `
   select c.id, c.provider, c.label, c.api_key_encrypted, c.api_key_iv, c.api_key_tag,
          case when c.provider = $2 then $3
-              else (select m.model_id
-                      from ai_models m
-                     where m.provider = c.provider
-                       and m.supports_tools
-                       and m.deprecated_at is null
-                       and m.model_id = any(c.models_available)
-                     order by m.input_price_per_million_cents asc nulls last,
-                              m.output_price_per_million_cents asc nulls last,
-                              m.model_id
-                     limit 1)
+              else coalesce(
+                     (select m.model_id
+                        from ai_models m
+                       where m.provider = c.provider
+                         and m.supports_tools
+                         and m.deprecated_at is null
+                         and m.model_id = any(c.models_available)
+                       order by m.input_price_per_million_cents asc nulls last,
+                                m.output_price_per_million_cents asc nulls last,
+                                m.model_id
+                       limit 1),
+                     -- Provedor sem catálogo baixado (xAI, em 08/11/2026): o modelo que a organização já usa com ele.
+                     (select b.model_id
+                        from ai_purpose_bindings b
+                       where b.organization_id = $1
+                         and b.provider = c.provider
+                         and b.is_enabled
+                         and b.base_url is null
+                       order by b.updated_at desc, b.model_id
+                       limit 1))
          end as model
     from ai_provider_credentials c
    where c.organization_id = $1
