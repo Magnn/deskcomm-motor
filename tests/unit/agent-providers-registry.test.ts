@@ -16,6 +16,7 @@ describe("createDefaultRegistry", () => {
       "google",
       "openai",
       "openrouter",
+      "xai",
     ]);
   });
   it("cada factory produz um LanguageModel (não lança ao instanciar)", () => {
@@ -38,5 +39,12 @@ describe("createDefaultRegistry", () => {
     const reg = createDefaultRegistry();
     const modelo = reg.openrouter!("k", "google/gemini-2.5-flash-lite") as { provider?: string };
     expect(modelo.provider).toBe("openai.chat");
+  });
+
+  it("xai fala Chat Completions e enxerga imagem (leitura de comprovante)", async () => {
+    const reg = createDefaultRegistry();
+    expect((reg.xai!("k", "grok-4.20-non-reasoning") as { provider?: string }).provider).toBe("openai.chat");
+    const { modelCapabilities } = await import("@/lib/agent-engine/edge/llm/capabilities");
+    expect(modelCapabilities("xai", "grok-4.20-non-reasoning").image).toBe(true);
   });
 });

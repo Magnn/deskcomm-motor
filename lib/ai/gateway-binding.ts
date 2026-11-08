@@ -26,7 +26,7 @@ import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createOpenAI } from "@ai-sdk/openai";
 import type { LanguageModel } from "ai";
 
-import { comRaciocinioDesligado, DEEPSEEK_ENDPOINT } from "@/lib/agent-engine/edge/llm/providers";
+import { comRaciocinioDesligado, DEEPSEEK_ENDPOINT, XAI_ENDPOINT } from "@/lib/agent-engine/edge/llm/providers";
 import { decryptKey, byteaToBuffer } from "@/lib/crypto/aes_gcm";
 import { logger } from "@/lib/logger";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -556,6 +556,8 @@ function instanciar(
         baseURL: baseUrl ?? DEEPSEEK_ENDPOINT,
         fetch: comRaciocinioDesligado(globalThis.fetch),
       })(modelId);
+    case "xai":
+      return createOpenAI({ apiKey, baseURL: baseUrl ?? XAI_ENDPOINT }).chat(modelId); // ver providers.ts
     default:
       return null;
   }

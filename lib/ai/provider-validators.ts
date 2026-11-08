@@ -272,6 +272,27 @@ export async function validateDeepSeekKey(apiKey: string): Promise<ValidationRes
   }
 }
 
+/** xAI: OpenAI-compatível, `GET /v1/models` exige a chave e não gasta token. */
+export async function validateXaiKey(apiKey: string): Promise<ValidationResult> {
+  try {
+    const res = await timedFetch("https://api.x.ai/v1/models", {
+      method: "GET",
+      headers: { Authorization: `Bearer ${apiKey}` },
+    });
+    if (res.status === 401 || res.status === 403) {
+      return { ok: false, error: "auth_failed_401" };
+    }
+    if (!res.ok) {
+      return { ok: false, error: `provider_status_${res.status}` };
+    }
+    const json = (await res.json()) as { data?: { id: string }[] };
+    const models = (json.data ?? []).map((m) => m.id).filter(Boolean);
+    return { ok: true, models };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.name : "network_error" };
+  }
+}
+
 /** A ElevenLabs não lista modelos de chat: provar a chave é o que interessa. */
 async function validarChaveDeVoz(id: IdDeProvedorDeVoz, apiKey: string): Promise<ValidationResult> {
   const r = await implementacaoDeVoz(id).validarChave(apiKey);
@@ -332,6 +353,8 @@ export function validateProviderKey(
       return validateOpenRouterKey(apiKey);
     case "deepseek":
       return validateDeepSeekKey(apiKey);
+    case "xai":
+      return validateXaiKey(apiKey);
     case "typesafe":
       return validateTypeSafeKey(apiKey);
     default: {

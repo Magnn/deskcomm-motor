@@ -96,6 +96,16 @@ export const PROVEDORES = [
     ondePegarAChave: "https://platform.deepseek.com/api_keys",
     prefixoDaChave: "sk-…",
   },
+  {
+    id: "xai",
+    rotulo: "xAI (Grok)",
+    quandoUsar:
+      "Lê imagens (comprovantes, fotos) e conversa; serve de reserva quando a chave do Google ou da OpenAI fica sem saldo.",
+    aceitaEndpointProprio: true,
+    catalogoSincronizavel: false,
+    ondePegarAChave: "https://console.x.ai",
+    prefixoDaChave: "xai-…",
+  },
 ] as const satisfies readonly ProvedorSuportado[];
 // `as const satisfies` e não anotação de tipo: a anotação apagaria os literais
 // e `Provider` viraria `string`, deixando o compilador aceitar qualquer texto

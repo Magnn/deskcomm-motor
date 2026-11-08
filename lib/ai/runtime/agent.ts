@@ -33,6 +33,7 @@ import {
   cabecalhosDeAtribuicaoOpenRouter,
   DEEPSEEK_ENDPOINT,
   OPENROUTER_ENDPOINT,
+  XAI_ENDPOINT,
 } from "@/lib/agent-engine/edge/llm/providers";
 import { CredentialUnavailableError, loadCredential } from "@/lib/ai/credentials";
 import { decidirElegibilidadeDaConversaViaSupabase } from "@/lib/ai/elegibilidade/consulta-supabase";
@@ -190,6 +191,8 @@ export function buildModel(provider: string, apiKey: string, modelId: string): L
     // rígido que a produção mente sobre o que está quebrado.
     case "deepseek":
       return createOpenAI({ apiKey, baseURL: DEEPSEEK_ENDPOINT })(modelId);
+    case "xai":
+      return createOpenAI({ apiKey, baseURL: XAI_ENDPOINT }).chat(modelId);
     default:
       throw new Error(`unsupported_provider: ${provider}`);
   }

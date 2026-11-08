@@ -20,6 +20,8 @@ const PROVIDER_DEFAULT: Record<string, ModelCapabilities> = {
   anthropic: NATIVE,
   openai: NATIVE,
   google: NATIVE,
+  // Grok 4.x aceita imagem (a API cobra `prompt_image_token_price` nos modelos atuais).
+  xai: NATIVE,
 };
 
 /**
