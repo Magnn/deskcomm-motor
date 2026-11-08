@@ -211,3 +211,20 @@ describe("guiaDoProdutoDoCatalogo — produto do catálogo entregue na conversa 
     expect(guiaDoProdutoDoCatalogo(null)).toBeNull();
   });
 });
+
+describe("comLinksDoCatalogo — a oferta do catálogo é cobrada pela chave/provedor, não pelo link externo", () => {
+  it("o link do produto ativo do catálogo vira link conhecido, com o valor e o nome dele", async () => {
+    const { comLinksDoCatalogo, linksDePagamentoDaConfig, linkDePagamentoNoCorpo } = await import("@/lib/pagamentos/pix-na-conversa");
+    const pricing = { steps: [], list_price_cents: 6000 } as never;
+    const catalogo = {
+      produtos: [
+        { nome: "Lua Nova do mês", link: "https://pay.example/lua", preco_cents: 2700, ativo: true },
+        { nome: "Desligado", link: "https://pay.example/off", preco_cents: 1000, ativo: false },
+      ],
+    };
+    const links = linksDePagamentoDaConfig(comLinksDoCatalogo(pricing, catalogo));
+    expect(links).toEqual([{ url: "https://pay.example/lua", valorCentavos: 2700, produto: "Lua Nova do mês" }]);
+    expect(linkDePagamentoNoCorpo("paga aqui https://pay.example/lua", links)?.produto).toBe("Lua Nova do mês");
+    expect(comLinksDoCatalogo(pricing, null)).toBe(pricing);
+  });
+});
