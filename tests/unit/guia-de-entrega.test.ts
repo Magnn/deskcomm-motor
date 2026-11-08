@@ -5,6 +5,7 @@ import { BLOCOS_DO_TURNO } from "@/lib/agent-engine/agent/blocos-do-turno";
 import {
   TETO_DO_GUIA,
   carregarGuiaDeEntrega,
+  guiaDoProdutoDoCatalogo,
   montarBlocoDoGuia,
   trabalhoPagoDasTags,
   type TrechoDoConhecimento,
@@ -192,5 +193,21 @@ describe("guia lido pelo nome quando a busca não devolve nada", () => {
     );
     expect(bloco).toContain("GUIA DA BUSCA");
     expect(lerPorNome).not.toHaveBeenCalled();
+  });
+});
+
+describe("guiaDoProdutoDoCatalogo — produto do catálogo entregue na conversa usa o material dele", () => {
+  it("entrega na conversa vira o guia \"Entregável: <nome>\"", async () => {
+    const g = guiaDoProdutoDoCatalogo({ nome: " Lua Nova do mês ", entrega: "conversa" });
+    expect(g).toEqual({ slug: "Lua Nova do mês", nome: "Lua Nova do mês" });
+    const buscar = vi.fn(async (q: string) =>
+      q.includes("regras gerais") ? [] : [{ source_name: "Entregável: Lua Nova do mês", content: "GUIA: louro na porta" }],
+    );
+    expect(await carregarGuiaDeEntrega({ buscar }, g!)).toContain("GUIA: louro na porta");
+  });
+
+  it("material pronto (fluxo de entrega) ou sem produto não tem guia", () => {
+    expect(guiaDoProdutoDoCatalogo({ nome: "Oração dos Sonhos", entrega: "material" })).toBeNull();
+    expect(guiaDoProdutoDoCatalogo(null)).toBeNull();
   });
 });
