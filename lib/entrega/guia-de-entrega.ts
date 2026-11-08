@@ -40,6 +40,16 @@ export function trabalhoPagoDasTags(tags: readonly string[] | null | undefined):
   return null;
 }
 
+/**
+ * Produto do catálogo entregue NA CONVERSA: o guia dele é o material "Entregável: <nome do produto>", pelo mesmo
+ * caminho dos trabalhos. Produto novo passa a ter entrega conduzida só com o material no acervo, sem código.
+ */
+export function guiaDoProdutoDoCatalogo(p: { nome: string; entrega: string } | null): TrabalhoPago | null {
+  if (p === null || p.entrega !== "conversa") return null;
+  const nome = p.nome.trim();
+  return nome === "" ? null : { slug: nome, nome };
+}
+
 export interface TrechoDoConhecimento {
   content: string;
   source_name?: string | null | undefined;

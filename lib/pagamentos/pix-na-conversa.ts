@@ -26,7 +26,24 @@ export interface LinkDePagamentoConhecido {
   produto: string;
 }
 
-type ConfigComLinksDoValorCheio = PricingConfig & { list_product_links?: Array<{ name: string; url: string }> };
+type ConfigComLinksDoValorCheio = PricingConfig & {
+  list_product_links?: Array<{ name: string; url: string }>;
+  /** Os links do catálogo do agente (`comLinksDoCatalogo`): a oferta a quem já comprou também é cobrada pelo provedor/chave. */
+  catalog_links?: Array<{ name: string; url: string; price_cents: number }>;
+};
+
+/**
+ * Junta à configuração de preço os links dos produtos ATIVOS do catálogo. Sem isto, a oferta do catálogo mandava o
+ * link externo cru (a Cakto) — fora da decisão de 12/10/2026 de cobrar só pelo provedor e pela chave Pix.
+ */
+export function comLinksDoCatalogo<P extends PricingConfig>(
+  pricing: P | null,
+  catalogo: { produtos: ReadonlyArray<{ nome: string; link: string; preco_cents: number; ativo: boolean }> } | null,
+): P | null {
+  if (pricing === null || catalogo === null) return pricing;
+  const catalog_links = catalogo.produtos.filter((p) => p.ativo).map((p) => ({ name: p.nome, url: p.link, price_cents: p.preco_cents }));
+  return catalog_links.length === 0 ? pricing : { ...pricing, catalog_links };
+}
 
 /** Todos os links de pagamento da configuração de preço, cada um com o valor e o produto que cobra. Pura. */
 export function linksDePagamentoDaConfig(pricing: PricingConfig | null | undefined): LinkDePagamentoConhecido[] {
@@ -41,6 +58,7 @@ export function linksDePagamentoDaConfig(pricing: PricingConfig | null | undefin
     for (const l of degrau.product_links ?? []) por(l.url, degrau.price_cents, l.name);
     por(degrau.payment_url, degrau.price_cents, "");
   }
+  for (const l of c.catalog_links ?? []) por(l.url, l.price_cents, l.name);
   if (c.post_sale) {
     for (const l of c.post_sale.product_links) por(l.url, c.post_sale.price_cents, l.name);
     for (const oferta of c.post_sale.next_offers ?? []) for (const l of oferta.product_links) por(l.url, oferta.price_cents, l.name);

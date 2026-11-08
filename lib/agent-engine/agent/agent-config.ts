@@ -20,6 +20,7 @@ import { lerIdentidade, type IdentidadeConfig } from '@/lib/identidade/tipos';
 import { lerLimites, type LimitesConfig } from '@/lib/limites/tipos';
 import { lerObjecoes, type ObjecoesConfig } from '@/lib/objecoes/tipos';
 import { lerCatalogo, type CatalogoConfig } from '@/lib/catalogo/tipos';
+import { comLinksDoCatalogo } from '@/lib/pagamentos/pix-na-conversa';
 import { lerOferta, type OfertaConfig } from '@/lib/oferta/tipos';
 import { logger } from '@/lib/logger';
 import { lerPricing, type PricingConfig } from '@/lib/preco/tipos';
@@ -282,8 +283,12 @@ function mapAgentConfigRow(r: Row): PublishedAgentConfig {
     // "desligada" — a direção segura é continuar respondendo em texto.
     voiceReply: lerVoiceReply(r.config),
     // Extra inválido é descartado sozinho, com aviso — antes ele apagava o preço inteiro em silêncio.
-    pricing: lerPricing(r.config, (extras) =>
-      logger.warn('extra de preço inválido descartado — corrija na aba Preço', { agent_id: r.agent_id, extras }),
+    // Com os links do catálogo: a oferta a quem já comprou também vira Pix pela chave / cartão do provedor no envio.
+    pricing: comLinksDoCatalogo(
+      lerPricing(r.config, (extras) =>
+        logger.warn('extra de preço inválido descartado — corrija na aba Preço', { agent_id: r.agent_id, extras }),
+      ),
+      lerCatalogo(r.config),
     ),
     ritmo: lerRitmo(r.config),
     identity: lerIdentidade(r.config),

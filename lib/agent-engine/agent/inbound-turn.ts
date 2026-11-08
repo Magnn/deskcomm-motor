@@ -140,7 +140,7 @@ import {
   ultimoTipoDeCobrancaDoContato,
 } from './economia-de-mensagem-cobrada';
 import { blocoDoAcompanhamentoIncluso } from '@/lib/entrega/acompanhamento-incluso';
-import { blocoDaCompraConfirmadaSemGuia, carregarGuiaDeEntrega, trabalhoPagoDasTags } from '@/lib/entrega/guia-de-entrega';
+import { blocoDaCompraConfirmadaSemGuia, carregarGuiaDeEntrega, guiaDoProdutoDoCatalogo, trabalhoPagoDasTags } from '@/lib/entrega/guia-de-entrega';
 import { blocoDaLeitura } from '@/lib/leitura/bloco-do-prompt';
 import { blocoDoAnuncio, carregarAnuncioDoContato } from '@/lib/anuncio/contexto-do-anuncio';
 import { comporSystemDoTurno } from './blocos-do-turno';
@@ -2821,7 +2821,9 @@ async function executarTurnoDoAgente(
   // Entrega personalizada: quem PAGOU (tags `pago` + `produto:<trabalho>`, postas pela compra
   // aprovada na Cakto) recebe, neste turno, o guia do trabalho certo e as regras gerais — buscados
   // pelo código, porque o modelo pequeno não chamava a busca. Sem as duas tags, nada é injetado.
-  const trabalhoPago = trabalhoPagoDasTags(openingContext.context.contact.tags);
+  // Produto do catálogo entregue NA CONVERSA e ainda em aberto: o guia é o material "Entregável: <nome>"
+  // dele, como nos trabalhos — e ele vem antes, porque é a compra mais recente.
+  const trabalhoPago = guiaDoProdutoDoCatalogo(entregaNaConversaNoTurno) ?? trabalhoPagoDasTags(openingContext.context.contact.tags);
   const fontesDoAgente = agentConfig?.knowledgeSourceIds ?? [];
   let blocoDaEntrega = '';
   if (trabalhoPago !== null && fontesDoAgente.length > 0) {
