@@ -2751,6 +2751,9 @@ export const DICIONARIO: Traducoes = {
   "Uma chave só dá acesso a centenas de modelos de dezenas de fabricantes, inclusive os gratuitos. É o caminho mais simples para experimentar sem abrir conta em cada provedor.": {
     es: "Una sola clave da acceso a cientos de modelos de decenas de fabricantes, incluidos los gratuitos. Es la forma más sencilla de experimentar sin abrir una cuenta con cada proveedor.",
   },
+  "Lê imagens (comprovantes, fotos) e conversa; serve de reserva quando a chave do Google ou da OpenAI fica sem saldo.": {
+    es: "Lee imágenes (comprobantes, fotos) y conversa; sirve de reserva cuando la clave de Google o de OpenAI se queda sin saldo.",
+  },
   "Muito barata e desconta sozinha o trecho repetido da conversa, sem você configurar nada — o custo cai para quem atende com um roteiro que não muda.": {
     es: "Muy barata y descuenta sola la parte repetida de la conversación, sin que configures nada: el costo baja para quien atiende con un guion que no cambia.",
   },

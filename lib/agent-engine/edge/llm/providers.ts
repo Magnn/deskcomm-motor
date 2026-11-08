@@ -52,6 +52,8 @@ export const OPENROUTER_ENDPOINT = process.env.OPENROUTER_BASE_URL?.trim() || 'h
  */
 export const DEEPSEEK_ENDPOINT = 'https://api.deepseek.com';
 
+export const XAI_ENDPOINT = 'https://api.x.ai/v1';
+
 /**
  * Cabeçalhos OPCIONAIS de atribuição da OpenRouter.
  *
@@ -206,6 +208,14 @@ export function createDefaultRegistry(opts?: {
       const fetchFinal =
         opts?.deepseekThinking === 'disabled' ? comRaciocinioDesligado(contido) : contido;
       return createOpenAI({ apiKey, baseURL: endpoint, fetch: fetchFinal })(modelId);
+    },
+    /**
+     * xAI (Grok) é OpenAI-compatível. `.chat()` pelo mesmo motivo da OpenRouter: fixa o chat/completions, que é o
+     * formato que medimos funcionando com a chave cadastrada (07/11, quando Gemini e OpenAI ficaram sem cota).
+     */
+    xai: (apiKey, modelId, baseUrl) => {
+      const endpoint = baseUrl ?? XAI_ENDPOINT;
+      return createOpenAI({ apiKey, baseURL: endpoint, fetch: contain(endpoint) }).chat(modelId);
     },
   };
 }

@@ -22,6 +22,7 @@ import { normalizarErro } from "@/lib/agent-engine/edge/llm/run-model-call";
 import {
   cabecalhosDeAtribuicaoOpenRouter,
   DEEPSEEK_ENDPOINT,
+  XAI_ENDPOINT,
   OPENROUTER_ENDPOINT,
 } from "@/lib/agent-engine/edge/llm/providers";
 
@@ -97,6 +98,12 @@ export function montarRequisicaoDeProva(
       // GERAÇÃO, não a listagem `GET /models` (que o validador de chave já usa).
       return {
         url: `${baseUrl ?? DEEPSEEK_ENDPOINT}/chat/completions`,
+        headers: { authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
+        body: { model: modelo, max_tokens: 1, messages: msg },
+      };
+    case "xai":
+      return {
+        url: `${baseUrl ?? XAI_ENDPOINT}/chat/completions`,
         headers: { authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
         body: { model: modelo, max_tokens: 1, messages: msg },
       };

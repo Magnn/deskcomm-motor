@@ -894,6 +894,11 @@ const HOSTS_DECLARADOS: Record<string, EntradaDeHost> = {
     motivo:
       "endpoint da API da DeepSeek (OpenAI-compatível) no registry de produção, no runtime de ensaio, no validador de chave e na prova de crédito. É o destino do request, não texto de interface; trocar pelo domínio do revendedor faria a chamada não chegar.",
   },
+  "api.x.ai": {
+    categoria: "FORNECEDOR",
+    motivo:
+      "endpoint da API da xAI (Grok, OpenAI-compatível) no registry de produção, no runtime de ensaio, no validador de chave e na prova de crédito. É o destino do request, não texto de interface.",
+  },
   "generativelanguage.googleapis.com": {
     categoria: "FORNECEDOR",
     motivo:
@@ -977,6 +982,11 @@ const HOSTS_DECLARADOS: Record<string, EntradaDeHost> = {
     categoria: "CONSOLE",
     motivo:
       "painel onde o usuário gera a PRÓPRIA chave da DeepSeek (`ondePegarAChave` em lib/ai/pontos/provedores.ts). Endereço do fornecedor, não nosso.",
+  },
+  "console.x.ai": {
+    categoria: "CONSOLE",
+    motivo:
+      "painel onde o usuário gera a PRÓPRIA chave da xAI (`ondePegarAChave` em lib/ai/pontos/provedores.ts). Endereço do fornecedor, não nosso.",
   },
   "aistudio.google.com": {
     categoria: "CONSOLE",
@@ -1179,6 +1189,8 @@ describe("catraca de host de terceiro no código que embarca", () => {
       "console.typesafe.ai",
       // Decisão escrita: o link Abrir minha Stripe leva ao Dashboard da própria
       // empresa conectada, onde ela resolve cadastro, recebimentos e reembolsos.
+      // Decisão escrita: painel onde o usuário gera a chave da xAI, como os da DeepSeek e da OpenAI.
+      "console.x.ai",
       "dashboard.stripe.com",
       "deskcomm.app",
       "elevenlabs.io",
