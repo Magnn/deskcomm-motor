@@ -237,6 +237,34 @@ export function confirmaPagamentoEmDuvida(corpo: string, emDuvida: boolean): str
   ].join(" ");
 }
 
+/** Fala da agente que cobra: Pix copia-e-cola, instrução de pagar pela chave, link do cartão. */
+const COBRANCA_ENVIADA = /(^|\s)000201|pra pagar no pix|pagar com chave|buy\.stripe\.com\//i;
+
+/**
+ * Comprovante que NINGUÉM confirmou: depois da última cobrança a pessoa mandou imagem ou documento, e nenhum pagamento
+ * foi registrado desde a cobrança. A trava de `confirmaPagamentoEmDuvida` só via o comprovante da rodada; em 09/11/2026
+ * o comprovante da entrada não foi confirmado, e duas horas depois, a "deu certo?", a agente disse "caiu certinho" e
+ * começou a entrega com o pagamento fora do registro (e fora da Meta).
+ */
+export function comprovanteSemRegistro(
+  mensagens: readonly { direction: string; body?: string | null; sent_at: string; type?: string }[],
+  ultimoPagamentoEm: Date | null,
+): boolean {
+  let cobranca = -1;
+  for (let i = mensagens.length - 1; i >= 0; i -= 1) {
+    const m = mensagens[i]!;
+    if (m.direction === "outbound" && COBRANCA_ENVIADA.test(m.body ?? "")) {
+      cobranca = i;
+      break;
+    }
+  }
+  if (cobranca === -1) return false;
+  const cobrouEm = Date.parse(mensagens[cobranca]!.sent_at);
+  // Margem de 1 min: o pagamento registrado pelo provedor pode chegar com o relógio dele.
+  if (ultimoPagamentoEm !== null && ultimoPagamentoEm.getTime() >= cobrouEm - 60_000) return false;
+  return mensagens.slice(cobranca + 1).some((m) => m.direction === "inbound" && (m.type === "image" || m.type === "document"));
+}
+
 /** O bloco do turno. Vazio quando o bloco de PAGAMENTO CONFIRMADO já diz tudo, ou quando não há comprovante. */
 export function blocoDaConferencia(c: Conferencia, chave: ChavePixDaEmpresa, venda?: { produto: string; entregaSozinha: boolean }): string {
   if (c.tipo === "nao_confere") {
