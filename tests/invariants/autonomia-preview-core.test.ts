@@ -60,7 +60,8 @@ function deps(prompts: string[]) {
         | { type: "text"; text: string }
         | { type: "tool-call"; toolCallId: string; toolName: string; input: string }
       >;
-      if (!options.tools?.length) {
+      // o fechamento leva as tools só pelo cache, com toolChoice none: conta como "sem tools"
+      if (!options.tools?.length || options.toolChoice?.type === "none") {
         const value = text.includes("Turno interno de memória")
           ? {
               notes: [
