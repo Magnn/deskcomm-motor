@@ -208,6 +208,12 @@ export interface RunModelCallInput {
   messages: ModelMessage[];
   tools?: ToolSet;
   /**
+   * 'none' = as tools vão no pedido só para o prefixo bater com o da chamada anterior
+   * (provedores serializam as tools ANTES das mensagens: sem elas, tudo depois do system
+   * perde o cache). O modelo não pode chamá-las, e o seam tira o `execute` por garantia.
+   */
+  toolChoice?: 'auto' | 'none';
+  /**
    * Override do modelo default da org — é como classificador/compaction usam um
    * modelo pequeno pela MESMA camada. Sujeito a enabled_models quando a lista
    * não é vazia. NUNCA um id hardcoded: o valor vem de config de quem chama.
@@ -525,6 +531,14 @@ async function registrarRecusaDeEnderecoSemChave(d: {
   return erro;
 }
 
+/** Mesmas tools (mesmo texto no pedido), sem `execute`: o SDK nunca as roda. */
+export function semExecutar(tools: ToolSet | undefined): ToolSet | undefined {
+  if (!tools) return tools;
+  return Object.fromEntries(
+    Object.entries(tools).map(([nome, t]) => [nome, { ...t, execute: undefined }]),
+  ) as ToolSet;
+}
+
 export async function runModelCall(db: pg.Pool, cfg: LlmEdgeConfig, input: RunModelCallInput, deps: RunModelCallDeps = {}) {
   // O knob do raciocínio da DeepSeek entra pela fábrica: `deepseekThinking` só é
   // lido pela fábrica `deepseek`, então os outros provedores não têm como mudar.
@@ -688,7 +702,8 @@ export async function runModelCall(db: pg.Pool, cfg: LlmEdgeConfig, input: RunMo
       messages: input.messages,
       abortSignal: input.abortSignal,
       timeout: { stepMs: deps.limiteDoPassoMs ?? LIMITE_DO_PASSO_MS },
-      tools: guardServiceTools(prefix.tools),
+      tools: input.toolChoice === 'none' ? semExecutar(prefix.tools) : guardServiceTools(prefix.tools),
+      ...(input.toolChoice ? { toolChoice: input.toolChoice } : {}),
       stopWhen: input.maxSteps === undefined ? undefined : stepCountIs(input.maxSteps),
       temperature: input.temperature ?? temperature,
       topP,

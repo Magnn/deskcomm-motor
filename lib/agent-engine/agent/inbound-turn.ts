@@ -5916,6 +5916,11 @@ async function executarTurnoDoAgente(
           leadId: leadId || null,
           jobId: job?.id,
           purpose: 'checkpoint',
+          // As MESMAS tools da resposta, sem uso: o pedido começa idêntico ao último passo
+          // dela e o provedor lê do cache. Sem elas, abertura + conversa (~4 mil tokens)
+          // pagavam preço cheio em todo resumo (medido 08/11: 90% de cache x 94% da resposta).
+          tools,
+          toolChoice: 'none',
           ...(agentConfig !== null
             ? {
                 model: agentConfig.model,
