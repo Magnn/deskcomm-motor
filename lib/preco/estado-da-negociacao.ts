@@ -21,7 +21,7 @@
 
 import type { PromiseTable } from "@/lib/agent-engine/guardrails/promise/table";
 
-import type { PricingConfig } from "./tipos";
+import { reais, type PricingConfig } from "./tipos";
 
 export interface MensagemParaContar {
   direction: string;
@@ -634,9 +634,19 @@ export function valorOferecidoParaPagarAgora(
 export function entradaImediata(
   c: Pick<PricingConfig, "list_price_cents" | "steps"> & { min_down_payment_cents?: number | undefined },
   mensagens: readonly MensagemParaContar[],
+  /**
+   * O valor guardado com o retorno combinado. Quem combinou dias antes já ouviu o preço, mas a fala dele saiu da
+   * janela de mensagens: sem esta referência, "tenho 30 hoje" não virava entrada e a agente respondia "hoje não
+   * precisa fechar nada" (medido em 09/11/2026). Só entra quando a janela não tem preço nenhum.
+   */
+  valorDoCombinadoCents?: number | null,
 ): { entradaCents: number; restanteCents: number; combinadaAntes?: true } | null {
-  const msgs = expandirHistoricoColado(mensagens);
-  const primeiroPreco = msgs.findIndex((m) => m.direction === "outbound" && PRECO_DITO.test(m.body ?? ""));
+  let msgs = expandirHistoricoColado(mensagens);
+  let primeiroPreco = msgs.findIndex((m) => m.direction === "outbound" && PRECO_DITO.test(m.body ?? ""));
+  if (primeiroPreco === -1 && valorDoCombinadoCents) {
+    msgs = [{ direction: "outbound", body: `O seu valor combinado é ${reais(valorDoCombinadoCents)}.` }, ...msgs];
+    primeiroPreco = 0;
+  }
   if (primeiroPreco === -1) return null;
   const leitura = rodadasDeValor(msgs, primeiroPreco);
   if (leitura === null) return null;
