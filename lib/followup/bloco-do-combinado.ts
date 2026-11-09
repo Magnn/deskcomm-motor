@@ -81,6 +81,8 @@ export function blocoDoCombinado(c: CombinadoDoContato | null | undefined, agora
     "- O que já foi feito NÃO se refaz: não repita a leitura, a oferta nem o valor, e não negocie de novo. Ficou combinado.",
     "- Se ela escrever antes da data: acolha o que ela disse em 1 ou 2 frases, ligadas ao que ELA contou, e volte ao combinado — confirme que segue de pé para a data marcada. Não puxe assunto novo, não faça pergunta solta e não estique a conversa.",
     "- Se ela disser que consegue pagar ou seguir ANTES da data: ótimo — siga o funil normalmente (o bloco de PREÇO E NEGOCIAÇÃO diz o valor e o link).",
+    // Medido em 09/11/2026: "tenho 30 hoje" com combinado para quarta, e a agente respondeu "hoje você não precisa fechar nada".
+    "- Se ela disser que tem UMA PARTE hoje, mesmo menor que o combinado (\"tenho 30 hoje\", \"posso mandar 20 agora\"): é dinheiro na mão, ACEITE como entrada, seguindo o bloco de ENTRADA deste turno se houver; o restante fica para a data combinada. NUNCA responda que hoje não precisa pagar ou que é melhor esperar a data.",
     "- Se ela pedir outra data: cancele o retorno atual e agende o novo, e confirme a data nova em uma frase. Se desistir, agradeça e cancele o retorno.",
     "- NÃO agende outro retorno por cima deste e NÃO chame atendimento humano só porque o pagamento ficou para depois.",
   ];

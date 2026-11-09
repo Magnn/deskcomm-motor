@@ -148,7 +148,7 @@ export function blocoDaEntradaImediata(entrada: { entradaCents: number; restante
   return [
     "",
     "",
-    `ENTRADA AGORA, NO VALOR QUE ELA DISSE (ESTE BLOCO VENCE O BLOCO DE PREÇO NESTE TURNO)`,
+    `ENTRADA AGORA, NO VALOR QUE ELA DISSE (ESTE BLOCO VENCE O BLOCO DE PREÇO E O RETORNO COMBINADO NESTE TURNO)`,
     `Ela disse quanto consegue pagar agora: ${e}. ACEITE exatamente esse valor como entrada. O restante, ${r}, ela acerta depois. NÃO arredonde, NÃO ofereça outro valor, NÃO defenda o valor cheio, NÃO ofereça desconto e NÃO pergunte a data antes de mandar o Pix.`,
     `Faça, nesta ordem, numa resposta só:`,
     `1. Um balão: "Fechado, [nome]: você entra com ${e} agora e o restante de ${r} a gente acerta depois."`,

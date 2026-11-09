@@ -2553,9 +2553,12 @@ async function executarTurnoDoAgente(
   // agendado (`buscaValorCombinado`), e só vale se ainda for um degrau da escada em vigor. Sem ele,
   // semanas depois a contagem de reclamações volta a zero e o valor combinado seria vetado.
   let combinadoDoTurno: number | null = null;
+  // O valor guardado como veio (o de venda também): referência da entrada quando o preço saiu da janela.
+  let valorGuardadoDoCombinado: number | null = null;
   if (!preview && agentConfig?.pricing?.enabled && agentConfig.pricing.steps.length > 0) {
     try {
-      combinadoDoTurno = combinadoEmVigor(agentConfig.pricing, await buscaValorCombinado(pool, tenantId, leadId));
+      valorGuardadoDoCombinado = await buscaValorCombinado(pool, tenantId, leadId);
+      combinadoDoTurno = combinadoEmVigor(agentConfig.pricing, valorGuardadoDoCombinado);
     } catch {
       combinadoDoTurno = null;
     }
@@ -2616,7 +2619,11 @@ async function executarTurnoDoAgente(
   const entradaImediataLida =
     entradaDoTurno === null && !preview && agentConfig?.pricing?.enabled && internacionalDoTurno === null && ofertaDoCatalogoNoTurno === null &&
     posVendaDoTurno === null && !faltaParaOEssencialNoTurno
-      ? entradaImediata(agentConfig.pricing, openingContext.context.messages)
+      ? entradaImediata(
+          agentConfig.pricing,
+          openingContext.context.messages,
+          valorGuardadoDoCombinado !== null && valorGuardadoDoCombinado <= agentConfig.pricing.list_price_cents ? valorGuardadoDoCombinado : null,
+        )
       : null;
   // O comprovante do Pix pela chave (`lib/pagamentos/comprovante-no-turno.ts`): vem antes da entrada e da leitura dos
   // pagamentos. Quem já pagou a entrada que disse não recebe outra cobrança dela (04/11/2026: R$ 67 pagos, cobrados de novo).
