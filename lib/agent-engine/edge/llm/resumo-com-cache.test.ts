@@ -18,9 +18,10 @@ describe("resumo do turno com o mesmo prefixo da resposta", () => {
     };
     const sem = semExecutar(tools)!;
     expect(Object.keys(sem)).toEqual(["send_message"]);
-    expect(sem.send_message.description).toBe("envia");
-    expect(sem.send_message.inputSchema).toBe(tools.send_message.inputSchema);
-    expect(sem.send_message.execute).toBeUndefined();
+    const t = sem.send_message!;
+    expect(t.description).toBe("envia");
+    expect(t.inputSchema).toBe(tools.send_message.inputSchema);
+    expect(t.execute).toBeUndefined();
     expect(semExecutar(undefined)).toBeUndefined();
   });
 
