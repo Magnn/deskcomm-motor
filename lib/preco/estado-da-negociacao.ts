@@ -325,11 +325,20 @@ const VALOR_QUE_TEM = new RegExp(
       "(?:\\s+(?:pagar|fazer|dar|mandar|por|pra\\s+mim|p\\s+mim|s[óo]|apenas|at[ée]|uns|no\\s+m[áa]ximo|agora|hoje))*\\s+(?:R\\$\\s?)?(\\d{2,3})(?:[.,]\\d{2})?(?!\\d)",
     "R\\$\\s?(\\d{2,3})(?:[.,]\\d{2})?(?!\\d)",
     "(?<!\\d)(\\d{2,3})(?:[.,]\\d{2})?\\s*(?:reais|real|contos?|pilas?)\\b",
+    // "Só posso te fazer o Pix de 30" (09/11/2026): sem esta forma, o 30 não era lido.
+    "\\bpix\\s+de\\s+(?:R\\$\\s?)?(\\d{2,3})(?:[.,]\\d{2})?(?!\\d)",
   ].join("|"),
   "gi",
 );
 const NAO_E_DINHEIRO = /^\s*(?:x\b|vezes|anos?\b|dias?\b|meses|m[êe]s\b|horas?\b|h\b|%|kg|km)/i;
 const NEGADO = /(?:n[ãa]o|nem|sem)\s+(?:\S+\s+){0,2}$/i;
+/**
+ * O valor do RESTANTE não é o que ela tem agora. Medido em 09/11/2026: "Só posso te fazer o Pix de 30. O restante posso te
+ * fazer no final do mês" e, no balão seguinte, "Os 100 reais" — o 100 virava a entrada e o 30 o restante.
+ */
+const RESTANTE_LOGO_ANTES = /(?:restante|resto|o\s+que\s+falta)\D{0,30}$/i;
+const RESTANTE_SEM_VALOR_NO_FIM = /(?:restante|resto|o\s+que\s+falta)\D*$/i;
+const HOJE_OU_AGORA = /\b(?:hoje|agora)\b/i;
 
 /**
  * O NÚMERO SOZINHO que responde à pergunta de quanto ela tem. Medido em 30/10/2026: a agente perguntou "quanto caberia
@@ -355,13 +364,17 @@ export function valorQueAPessoaTem(mensagens: readonly MensagemParaContar[]): nu
     const m = msgs[i]!;
     if (m.direction !== "inbound") continue;
     const corpo = m.body ?? "";
+    const anterior = msgs[i - 1];
+    if (anterior?.direction === "inbound" && RESTANTE_SEM_VALOR_NO_FIM.test(anterior.body ?? "") && !HOJE_OU_AGORA.test(corpo)) continue;
     let achado: number | null = null;
     for (const a of corpo.matchAll(VALOR_QUE_TEM)) {
-      const numero = a[1] ?? a[2] ?? a[3];
+      const numero = a[1] ?? a[2] ?? a[3] ?? a[4];
       if (numero === undefined) continue;
       const inicio = a.index ?? 0;
       if (NAO_E_DINHEIRO.test(corpo.slice(inicio + a[0].length))) continue;
       if (NEGADO.test(corpo.slice(0, inicio))) continue;
+      const antes = corpo.slice(0, inicio);
+      if (RESTANTE_LOGO_ANTES.test(antes) && !HOJE_OU_AGORA.test(antes.slice(antes.search(RESTANTE_LOGO_ANTES)))) continue;
       achado = Number(numero) * 100;
     }
     if (achado === null && SO_O_NUMERO.test(corpo)) {
