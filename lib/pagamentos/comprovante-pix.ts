@@ -237,6 +237,26 @@ export function confirmaPagamentoEmDuvida(corpo: string, emDuvida: boolean): str
   ].join(" ");
 }
 
+const FALA_DE_PAGAMENTO = /\b(?:comprovante|pix|pagamento|pago|paga|valor|dinheiro|transfer[êe]ncia|entrada|R\$)/i;
+
+/**
+ * A trava das RODADAS SEGUINTES ao comprovante não conferido: só a frase que confirma o PAGAMENTO. Medido em 10/11/2026:
+ * com a trava larga, "entendi certinho" e "o seu nome entrou no altar" eram recusados em toda rodada até alguém registrar
+ * o pagamento, e a conversa ficou sem resposta. "caiu" sozinho conta; as outras palavras só ao lado de fala de pagamento.
+ */
+export function confirmaPagamentoSemRegistro(corpo: string, semRegistro: boolean): string | null {
+  if (!semRegistro) return null;
+  const semNegacao = corpo.replace(/\bn[ãa]o\s+(?:\S+\s+){0,3}\S+/gi, "");
+  const confirma = semNegacao
+    .split(/(?<=[.!?\n])\s+/)
+    .some((frase) => /\bcaiu\b/i.test(frase) || (DIZ_QUE_CAIU.test(frase) && FALA_DE_PAGAMENTO.test(frase)));
+  if (!confirma) return null;
+  return [
+    "Envio recusado: o pagamento desta conversa ainda NÃO foi registrado, então não diga que caiu, que o pagamento está certo ou confirmado.",
+    "Se ela perguntar do pagamento, diga que o comprovante está com a equipe para conferir. Fora isso, siga o atendimento normalmente.",
+  ].join(" ");
+}
+
 /** Fala da agente que cobra: Pix copia-e-cola, instrução de pagar pela chave, link do cartão. */
 const COBRANCA_ENVIADA = /(^|\s)000201|pra pagar no pix|pagar com chave|buy\.stripe\.com\//i;
 
