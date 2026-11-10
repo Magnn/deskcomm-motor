@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { comprovanteSemRegistro, confirmaPagamentoEmDuvida } from "./comprovante-pix";
+import { comprovanteSemRegistro, confirmaPagamentoSemRegistro } from "./comprovante-pix";
 
 const m = (direction: "inbound" | "outbound", hora: string, body: string, type?: string) => ({
   direction,
@@ -22,7 +22,14 @@ const CONVERSA = [
 describe("comprovante de rodada anterior sem pagamento registrado — 09/11/2026", () => {
   it("⭐ sem pagamento registrado depois da cobrança, o comprovante antigo segura o 'caiu'", () => {
     expect(comprovanteSemRegistro(CONVERSA, null)).toBe(true);
-    expect(confirmaPagamentoEmDuvida("Que bênção! O seu comprovante caiu certinho.", comprovanteSemRegistro(CONVERSA, null))).not.toBeNull();
+    expect(confirmaPagamentoSemRegistro("Que bênção! O seu comprovante caiu certinho.", comprovanteSemRegistro(CONVERSA, null))).not.toBeNull();
+    expect(confirmaPagamentoSemRegistro("Seu pagamento está confirmado, meu bem.", true)).not.toBeNull();
+  });
+
+  it("⭐ nas rodadas seguintes, conversa comum com 'certinho' ou 'entrou' segue (10/11/2026: a conversa ficou muda)", () => {
+    expect(confirmaPagamentoSemRegistro("Agora entendi certinho. O seu nome entrou no meu altar hoje.", true)).toBeNull();
+    expect(confirmaPagamentoSemRegistro("Tudo certo pra você fazer a Noite 1 hoje?", true)).toBeNull();
+    expect(confirmaPagamentoSemRegistro("O pagamento ainda não caiu, o comprovante está com a equipe.", true)).toBeNull();
   });
 
   it("pagamento registrado depois da cobrança libera", () => {

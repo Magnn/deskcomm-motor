@@ -107,7 +107,7 @@ import {
 import { promessaDeReenvioSemCobranca } from '@/lib/preco/promessa-de-reenvio';
 import { recusaDeQuemJaPagou } from '@/lib/preco/pago-mas-cobrando';
 import { comprovanteDoTurno, depsReaisDoComprovante } from '@/lib/pagamentos/comprovante-no-turno';
-import { comprovanteSemRegistro, confirmaPagamentoEmDuvida } from '@/lib/pagamentos/comprovante-pix';
+import { comprovanteSemRegistro, confirmaPagamentoEmDuvida, confirmaPagamentoSemRegistro } from '@/lib/pagamentos/comprovante-pix';
 import { falasDesdeAUltimaCobranca, quantidadeMenorQueACombinada, valorErradoDeExtra } from '@/lib/preco/valor-do-extra';
 import { blocoDaOfertaAtiva, ofertaAtivaDaConversa, ofertaEmConflito, ouviuOMenorValor, pediuOTrabalho, blocoDaOportunidade, oportunidadeDaCliente, oportunidadeDeOferta } from '@/lib/preco/oferta-ativa';
 import { falaErradaDoPagamento } from '@/lib/preco/fala-do-pagamento';
@@ -4240,7 +4240,8 @@ async function executarTurnoDoAgente(
             runLog.warn('promessa de reenviar o pagamento sem a cobrança — envio recusado', {});
             return { ok: false, error: { code: 'reenvio_sem_cobranca', message: reenvioSemCobranca } };
           }
-          const caiuSemConferir = confirmaPagamentoEmDuvida(body, comprovanteEmDuvida || comprovanteSemRegistroNoTurno);
+          const caiuSemConferir =
+            confirmaPagamentoEmDuvida(body, comprovanteEmDuvida) ?? confirmaPagamentoSemRegistro(body, comprovanteSemRegistroNoTurno);
           if (caiuSemConferir) {
             runLog.warn('comprovante em dúvida, mas a mensagem diz que caiu — envio recusado', {});
             return { ok: false, error: { code: 'pagamento_em_duvida_confirmado', message: caiuSemConferir } };
