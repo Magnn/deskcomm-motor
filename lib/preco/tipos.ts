@@ -129,7 +129,7 @@ export type PrecoInternacional = z.infer<typeof precoInternacionalSchema>;
  * conversa traz (amor novo, corte de laços, prosperidade, proteção, caminhos, paz em casa, amor-próprio), além da
  * pergunta, da sinastria e do acompanhamento. Cada uma custa uma linha no bloco do turno, não mais.
  */
-export const MAX_EXTRAS = 16;
+export const MAX_EXTRAS = 20;
 
 /**
  * COBRANÇA AVULSA: algo que o agente vende à parte do produto principal, por um valor próprio — uma pergunta
@@ -164,6 +164,12 @@ export const extraSchema = z.object({
    * responde a pergunta. Ausente = vale para a cobrança com "pergunta" no nome (`abreLeitura`).
    */
   opens_reading: z.boolean().optional(),
+  /**
+   * Quem entrega é a EQUIPE, não a agente (vela acesa no altar com vídeo, um trabalho feito à mão). Pago, o turno da
+   * entrega abre um aviso na Central para alguém fazer e mandar a prova pela conversa; a agente só confirma o que a
+   * equipe vai fazer, nunca diz que já foi feito. Ausente = a agente entrega sozinha.
+   */
+  team_delivers: z.boolean().optional(),
   /**
    * A entrega é um relatório em PDF gerado sob medida depois do pagamento (`lib/preco/relatorio-pronto.ts`).
    * `sinastria` calcula os dois mapas a partir das datas de nascimento; `leitura` escreve a partir do que a
