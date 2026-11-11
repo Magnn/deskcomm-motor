@@ -9,7 +9,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const factoryMock = vi.fn((_k: string, modelo: string) => `modelo:${modelo}`);
 const listarMock = vi.fn();
 const generateTextMock = vi.fn();
-const visao = vi.hoisted(() => ({ enxerga: (_p: string, _m: string) => true }));
+const visao = vi.hoisted(() => ({ enxerga: (_p: string, _m: string): boolean => true }));
 
 const BINDING = { provider: "xai", model_id: "grok-4.20-non-reasoning", credential_id: "cred-xai", base_url: null as string | null };
 
