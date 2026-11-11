@@ -30,7 +30,7 @@ import { reais } from "@/lib/preco/tipos";
 import { valoresDitos } from "@/lib/preco/valor-do-extra";
 
 /** ID de ponta a ponta do Pix: E + ISPB (8) + AAAAMMDDHHMM em UTC (12) + 11 caracteres. */
-const ID_DO_PIX = /\bE[0-9A-Z]{8}(\d{12})[0-9A-Za-z]{11}\b/;
+export const ID_DO_PIX = /\bE[0-9A-Z]{8}(\d{12})[0-9A-Za-z]{11}\b/;
 const FALA_DE_COMPROVANTE = /comprovante|pix (?:enviado|realizado|efetuado|feito)|transfer[êe]ncia (?:realizada|efetuada|enviada)|id da transa|autentica[çc][ãa]o/i;
 
 /** Quanto tempo depois da cobrança um comprovante ainda vale. */
