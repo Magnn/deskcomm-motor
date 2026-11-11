@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { PdfExtractError } from "@/lib/ai/rag/extractors/pdf";
 import { deriveMediaText, type DeriveDeps } from "@/lib/messaging/media/derive";
 
 function deps(over: Partial<DeriveDeps> = {}): DeriveDeps {
@@ -21,6 +22,22 @@ describe("deriveMediaText", () => {
     expect(
       await deriveMediaText("document", Buffer.from([1]), "application/pdf", deps()),
     ).toBe("conteúdo do pdf");
+  });
+  it("⭐ PDF só de imagem (comprovante escaneado) vai para a visão — 11/11/2026", async () => {
+    const describeImage = vi.fn(async () => "Comprovante Pix R$ 130,00");
+    const extractPdf = vi.fn(async () => {
+      throw new PdfExtractError("pdfjs-dist extracted no text (possibly image-only PDF)", undefined, "sem_texto");
+    });
+    expect(await deriveMediaText("document", Buffer.from([1]), "application/pdf", deps({ extractPdf, describeImage }))).toBe("Comprovante Pix R$ 130,00");
+    expect(describeImage).toHaveBeenCalledWith(expect.any(Buffer), "application/pdf");
+  });
+  it("PDF que falhou por outro motivo não vai para a visão", async () => {
+    const describeImage = vi.fn(async () => "x");
+    const extractPdf = vi.fn(async () => {
+      throw new PdfExtractError("corrompido");
+    });
+    await expect(deriveMediaText("document", Buffer.from([1]), "application/pdf", deps({ extractPdf, describeImage }))).rejects.toThrow("corrompido");
+    expect(describeImage).not.toHaveBeenCalled();
   });
   it("image → descrição por visão", async () => {
     expect(await deriveMediaText("image", Buffer.from([1]), "image/jpeg", deps())).toBe(

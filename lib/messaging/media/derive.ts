@@ -3,6 +3,7 @@
  * (transcrição, visão, extração de pdf) são injetadas — o worker as monta com as
  * credenciais BYOK da org. O resultado é texto que qualquer modelo de chat lê.
  */
+import { PdfExtractError } from "@/lib/ai/rag/extractors/pdf";
 import type { TranscriptionProvider } from "@/lib/messaging/media/transcription";
 
 const MAX_DERIVED_CHARS = 8000;
@@ -26,7 +27,14 @@ export async function deriveMediaText(
   if (kind === "audio") {
     text = await deps.transcriber.transcribe(buffer, mime);
   } else if (kind === "document" && base === "application/pdf") {
-    text = await deps.extractPdf(buffer);
+    try {
+      text = await deps.extractPdf(buffer);
+    } catch (err) {
+      // PDF só de imagem (comprovante de banco "impresso" em foto) não tem texto: vai para a visão.
+      // 11/11/2026: o comprovante Pix de R$ 130 de uma cliente era um PDF assim e nunca foi lido.
+      if (!(err instanceof PdfExtractError) || err.motivo !== "sem_texto") throw err;
+      text = await deps.describeImage(buffer, "application/pdf");
+    }
   } else if (kind === "image") {
     text = await deps.describeImage(buffer, mime);
   } else if (kind === "video" && deps.deriveVideo) {

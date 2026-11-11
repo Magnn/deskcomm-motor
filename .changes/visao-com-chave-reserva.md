@@ -8,3 +8,6 @@ Quando a chave de IA que lê imagens fica sem saldo ou é recusada, a leitura pa
 outras chaves ativas da organização cujo modelo enxerga imagens — a mesma regra da chave reserva
 do atendimento. Antes, todas as imagens (comprovantes de Pix inclusive) falhavam até alguém trocar
 a configuração à mão.
+
+PDF escaneado (só imagem, sem texto selecionável) agora também é lido pela visão, em vez de
+ficar sem leitura — é o formato de comprovante de alguns bancos.

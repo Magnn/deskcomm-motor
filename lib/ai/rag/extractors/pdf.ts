@@ -348,7 +348,7 @@ async function extrairEmProcessoAParte(
 
   const texto = resposta.texto ?? "";
   if (texto.length === 0) {
-    throw new PdfExtractError("pdfjs-dist extracted no text (possibly image-only PDF)");
+    throw new PdfExtractError("pdfjs-dist extracted no text (possibly image-only PDF)", undefined, "sem_texto");
   }
   return texto;
 }
