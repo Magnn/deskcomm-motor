@@ -226,10 +226,45 @@ describe("comprovante no turno", () => {
     expect(await comprovanteDoTurno(deps, { contactId: "c", conversationId: "v", pricing: null, mensagens: falas, agora: AGORA, log })).toBe("");
   });
 
-  it("mensagem nossa depois da mídia encerra: o comprovante já foi tratado", async () => {
-    const deps = dublês();
-    expect(await turno(deps, [...falas, { direction: "outbound", body: "Recebi", sent_at: "2026-11-01T15:21:00.000Z" }])).toBe("");
-    expect(deps.lerUso).not.toHaveBeenCalled();
+  describe("comprovante de rodada anterior — 11/11/2026 (IA sem saldo, turno do comprovante falhou)", () => {
+    const depois: FalaDaConversa[] = [
+      { direction: "outbound", body: "Recebi, já te falo", sent_at: "2026-11-01T15:21:00.000Z" },
+      { direction: "inbound", body: "caiu?", sent_at: "2026-11-01T15:25:00.000Z" },
+    ];
+
+    it("⭐ nunca registrado: confere e registra na rodada seguinte", async () => {
+      const deps = dublês();
+      const aoConfirmar = vi.fn();
+      await comprovanteDoTurno(deps, { contactId: "c1", conversationId: "v", pricing, mensagens: [...falas, ...depois], aoConfirmar, agora: AGORA, log });
+      expect(deps.registrar).toHaveBeenCalledWith("c1", expect.objectContaining({ chave: `comprovante-${ID}`, valor_cents: 700 }));
+      expect(aoConfirmar).toHaveBeenCalledOnce();
+    });
+
+    it("já registrado para a mesma pessoa: não acusa reaproveitamento nem registra de novo", async () => {
+      const deps = dublês({ contactId: "c1", criadoEm: new Date("2026-11-01T15:00:00.000Z") });
+      const aoConfirmar = vi.fn();
+      expect(await comprovanteDoTurno(deps, { contactId: "c1", conversationId: "v", pricing, mensagens: [...falas, ...depois], aoConfirmar, agora: AGORA, log })).toBe("");
+      expect(deps.registrar).not.toHaveBeenCalled();
+      expect(aoConfirmar).toHaveBeenCalledOnce();
+    });
+
+    it("em dúvida ou de outro contato: fica em silêncio (a rodada dele já respondeu)", async () => {
+      const outraPessoa: FalaDaConversa = { direction: "inbound", type: "image", body: `[Mídia]\nConteúdo: ${comprovante("R$ 7,00", "Beltrano Souza")}`, sent_at: "2026-11-01T15:20:00.000Z" };
+      const aoDuvidar = vi.fn();
+      const deps = dublês();
+      expect(await comprovanteDoTurno(deps, { contactId: "c1", conversationId: "v", pricing, mensagens: [cobranca("R$ 7"), outraPessoa, ...depois], aoDuvidar, agora: AGORA, log })).toBe("");
+      expect(aoDuvidar).not.toHaveBeenCalled();
+      const deOutro = dublês({ contactId: "outro", criadoEm: new Date("2026-11-01T15:00:00.000Z") });
+      expect(await turno(deOutro, [...falas, ...depois])).toBe("");
+      expect(deOutro.registrar).not.toHaveBeenCalled();
+    });
+
+    it("foto comum de rodada anterior não é comprovante", async () => {
+      const deps = dublês();
+      const foto: FalaDaConversa = { direction: "inbound", type: "image", body: "[Mídia]\nConteúdo: Uma foto de um gato no sofá.", sent_at: "2026-11-01T15:20:00.000Z" };
+      expect(await turno(deps, [cobranca("R$ 7"), foto, ...depois])).toBe("");
+      expect(deps.lerUso).not.toHaveBeenCalled();
+    });
   });
 });
 

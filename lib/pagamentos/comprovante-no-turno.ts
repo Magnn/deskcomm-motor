@@ -19,6 +19,7 @@ import {
   blocoDaConferencia,
   cobrancasEnviadas,
   conferirComprovante, entradasCombinadas,
+  ID_DO_PIX,
   produtoCitado,
   textoDaMidia,
   type FalaDaConversa,
@@ -78,14 +79,25 @@ export function depsReaisDoComprovante(admin: SupabaseClient, organizationId: st
   };
 }
 
-/** A mídia mais nova que chegou depois da nossa última fala. */
-function midiaDaVez(mensagens: readonly FalaDaConversa[]): string {
+/**
+ * A mídia mais nova que chegou depois da nossa última fala; sem ela, o comprovante mais novo de uma rodada anterior
+ * (mídia com ID de Pix). 11/11/2026: com a IA sem saldo, o turno do comprovante falhou, a equipe respondeu à mão, e o
+ * comprovante nunca mais foi conferido — a trava do "caiu" segurou a conversa e as vendas ficaram fora do faturamento.
+ */
+function midiaDaVez(mensagens: readonly FalaDaConversa[]): { texto: string; daRodada: boolean } {
+  let daRodada = true;
   for (let i = mensagens.length - 1; i >= 0; i -= 1) {
     const m = mensagens[i]!;
-    if (m.direction === "outbound") return "";
-    if (m.type === "image" || m.type === "document") return textoDaMidia(m.body ?? "");
+    if (m.direction === "outbound") {
+      daRodada = false;
+      continue;
+    }
+    if (m.type !== "image" && m.type !== "document") continue;
+    const texto = textoDaMidia(m.body ?? "");
+    if (daRodada) return { texto, daRodada };
+    if (ID_DO_PIX.test(texto)) return { texto, daRodada };
   }
-  return "";
+  return { texto: "", daRodada: true };
 }
 
 export async function comprovanteDoTurno(
@@ -111,8 +123,9 @@ export async function comprovanteDoTurno(
   if (!chave || !e.pricing) return "";
   try {
     const valoresDoPrincipal = [e.pricing.list_price_cents, ...(e.pricing.steps ?? []).map((s) => s.price_cents)];
+    const midia = midiaDaVez(e.mensagens);
     let conferencia = conferirComprovante({
-      texto: midiaDaVez(e.mensagens),
+      texto: midia.texto,
       chave,
       cobrancas: cobrancasEnviadas(e.mensagens),
       extras: extrasDaConfig(e.pricing),
@@ -122,8 +135,15 @@ export async function comprovanteDoTurno(
       agora: e.agora,
     });
     if (conferencia.tipo === "nenhum") return "";
+    // Comprovante de rodada anterior: só a confirmação muda o turno. Já registrado ou em dúvida, a rodada dele já
+    // respondeu (e a trava `comprovanteSemRegistro` segura o "caiu"); acusar de novo a cada mensagem não.
+    if (!midia.daRodada && conferencia.tipo === "nao_confere") return "";
     if (conferencia.tipo !== "nao_confere") {
       const uso = await deps.lerUso(conferencia.idDoPix);
+      if (uso !== null && !midia.daRodada) {
+        if (uso.contactId === e.contactId) e.aoConfirmar?.();
+        return "";
+      }
       if (uso !== null) {
         const repeticaoDoTurno = uso.contactId === e.contactId && e.agora.getTime() - uso.criadoEm.getTime() < JANELA_DA_REPETICAO_DO_TURNO_MS;
         if (repeticaoDoTurno) {
@@ -138,6 +158,7 @@ export async function comprovanteDoTurno(
     }
     e.log.info("comprovante conferido", {
       conversation_id: e.conversationId,
+      ...(midia.daRodada ? {} : { de_rodada_anterior: true }),
       resultado: conferencia.tipo,
       ...(conferencia.tipo === "nao_confere" ? { motivo: conferencia.motivo } : { valor_cents: conferencia.valorCents }),
     });
