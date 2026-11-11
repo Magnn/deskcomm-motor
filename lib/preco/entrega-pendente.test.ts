@@ -34,6 +34,14 @@ describe("entrega pendente de cobrança avulsa", () => {
     expect(entregaPendente(EXTRAS, [{ slug: "acompanhamento-do-mes", hora: "15:13", minutosAtras: 0 }], [], AGORA)).toBeNull();
   });
 
+  it("⭐ entregue pela equipe (vela com vídeo — 11/11/2026): confirma o que vai ser feito, nunca que já foi", () => {
+    const vela = { name: "Vela no Seu Nome", when: "x", price_cents: 2700, team_delivers: true } as unknown as Extra;
+    const bloco = blocoDaEntregaPendente({ extra: vela, minutos: 0 });
+    expect(bloco).toContain("QUEM FAZ É A EQUIPE");
+    expect(bloco).toContain("Nunca diga que já foi feito");
+    expect(bloco).not.toContain("comece a entrega agora");
+  });
+
   it("sem pendência, sem bloco", () => {
     expect(blocoDaEntregaPendente(null)).toBe("");
   });

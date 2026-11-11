@@ -342,7 +342,9 @@ export function blocoDaEntregaPendente(pendente: { extra: Extra; minutos: number
     "",
     "",
     `UM PAGAMENTO ACABOU DE CAIR (vale mais que qualquer outra instrução deste turno): ela pagou *${pendente.extra.name}* ${ha}. Esta resposta É A ENTREGA.`,
-    "- Diga em meia frase que o pagamento caiu e está tudo certo, e comece a entrega agora, como está em COBRANÇAS À PARTE.",
+    pendente.extra.team_delivers
+      ? "- Diga em meia frase que o pagamento caiu e está tudo certo. QUEM FAZ É A EQUIPE: confirme o que vai ser feito e que a prova chega por aqui nesta conversa, como está em COBRANÇAS À PARTE. Nunca diga que já foi feito, nem dê horário que ninguém confirmou."
+      : "- Diga em meia frase que o pagamento caiu e está tudo certo, e comece a entrega agora, como está em COBRANÇAS À PARTE.",
     "- Se ela mandou imagem ou print (o comprovante), não comente a imagem e não peça comprovante: o sistema já viu o dinheiro.",
     "- Não fale de outro assunto antes da entrega, não cobre de novo e não repita o código do Pix.",
   ].join("\n");

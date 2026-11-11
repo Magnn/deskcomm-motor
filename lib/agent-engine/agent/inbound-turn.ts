@@ -1918,6 +1918,43 @@ export async function avisarCapacidadesAusentes(
 }
 
 /**
+ * O aviso de que uma cobrança avulsa ENTREGUE PELA EQUIPE foi paga (`team_delivers`, `lib/preco/tipos.ts`).
+ *
+ * Usa o kind `promise_unfulfilled` — a agente confirmou à cliente algo que só uma pessoa pode fazer — com dedupe por
+ * conversa aberta: o turno da entrega pode rodar de novo (retentativa) sem duplicar o aviso. Best-effort, como os
+ * outros avisos deste arquivo: falhar o aviso não derruba o atendimento.
+ */
+export async function avisarEntregaDaEquipe(
+  db: pg.Pool,
+  tenantId: string,
+  conversationId: string,
+  nomeDoExtra: string,
+  log: Logger,
+): Promise<void> {
+  try {
+    await insertInboxItem(
+      db,
+      tenantId,
+      {
+        kind: 'promise_unfulfilled',
+        severity: 'warn',
+        title: `Pago: ${nomeDoExtra} — a equipe entrega`,
+        body:
+          `A cliente pagou "${nomeDoExtra}", que é feito pela equipe. Faça, mande a prova (foto ou vídeo) pela ` +
+          'conversa e clique em "Trabalho feito" no cabeçalho para a agente seguir.',
+        refKind: 'conversation',
+        refId: conversationId,
+      },
+      'kind_e_ref',
+    );
+  } catch (err) {
+    log.warn('aviso de entrega da equipe não foi gravado', {
+      error: (err instanceof Error ? err.message : String(err)).slice(0, 120),
+    });
+  }
+}
+
+/**
  * O NÚCLEO DO TURNO, SEMPRE SOB A ESCOLTA DO ORÇAMENTO.
  *
  * Esta função é o único ponto do produto por onde os três kinds de turno de
@@ -3031,6 +3068,10 @@ async function executarTurnoDoAgente(
     : entregaPendente(extrasDoTurno, extrasPagosNoTurno, openingContext.context.messages, new Date());
   if (entregaPendenteDoTurno) {
     runLog.info('pagamento de cobrança avulsa acabou de cair — este turno é a entrega', { extra: entregaPendenteDoTurno.extra.name });
+    // Quem entrega é a equipe (vela acesa com vídeo): sem o aviso, a agente confirma e ninguém fica sabendo que tem de fazer.
+    if (entregaPendenteDoTurno.extra.team_delivers) {
+      await avisarEntregaDaEquipe(pool, tenantId, input.conversationId, entregaPendenteDoTurno.extra.name, runLog);
+    }
   }
   // A cobrança avulsa de uso único paga mais recente: enquanto ela é recente, a agente não pode dizer que o pagamento
   // ainda não caiu (`recusaDeQuemJaPagou`, em `lib/preco/pago-mas-cobrando.ts`).

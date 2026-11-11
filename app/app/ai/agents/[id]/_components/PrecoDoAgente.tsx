@@ -152,7 +152,7 @@ function formularioInicial(config: Props["config"]): Formulario {
       : {}),
     ...(c.provider_only_checkout !== undefined ? { soPeloProvedor: c.provider_only_checkout } : {}),
     ...(c.social_proof ? { provas: c.social_proof } : {}),
-    extras: (c.extras ?? []).map((e) => `${e.name} | ${emTexto(e.price_cents)} | ${e.when}${e.valid_days ? ` | ${e.valid_days}` : ""}${e.delivery ? ` | entrega: ${e.delivery}` : ""}${e.quantity_prices?.length ? ` | quantidade: ${e.quantity_prices.map((q) => `${q.quantity}=${emTexto(q.price_cents)}`).join("; ")}` : ""}`).join("\n"),
+    extras: (c.extras ?? []).map((e) => `${e.name} | ${emTexto(e.price_cents)} | ${e.when}${e.valid_days ? ` | ${e.valid_days}` : ""}${e.delivery ? ` | entrega: ${e.delivery}` : ""}${e.team_delivers ? " | equipe entrega" : ""}${e.quantity_prices?.length ? ` | quantidade: ${e.quantity_prices.map((q) => `${q.quantity}=${emTexto(q.price_cents)}`).join("; ")}` : ""}`).join("\n"),
   };
 }
 
@@ -233,7 +233,9 @@ function paraCorpo(f: Formulario): { corpo: PricingConfig } | { erro: string } {
       if (!/^(?:[2-9]|10)$/.test(quantos ?? "") || cents === null) return { erro: "O preço por quantidade deve ser: quantidade: 2=10,00; 3=15,00 (de 2 a 10 unidades)." };
       quantity_prices.push({ quantity: Number(quantos), price_cents: cents });
     }
-    const partes = todas.filter((p) => !/^(?:entrega|quantidade)\s*:/i.test(p));
+    // "equipe entrega" em qualquer posição: quem entrega é a equipe, e o pagamento abre um aviso na Central.
+    const equipeEntrega = todas.some((p) => /^equipe entrega$/i.test(p));
+    const partes = todas.filter((p) => !/^(?:entrega|quantidade)\s*:/i.test(p) && !/^equipe entrega$/i.test(p));
     const preco = emCentavos(partes[1] ?? "");
     if (partes.length < 3 || preco === null) return { erro: "Cada cobrança à parte deve ser: Nome | valor | quando cobrar" };
     // Um número inteiro no fim da linha é o período em dias ("… | 30"); sem ele, a cobrança vale uma entrega.
@@ -248,6 +250,7 @@ function paraCorpo(f: Formulario): { corpo: PricingConfig } | { erro: string } {
       ...(quantity_prices.length > 0 ? { quantity_prices } : {}),
       ...(f.relatorios?.[partes[0] ?? ""] ? { report: f.relatorios[partes[0] ?? ""] } : {}),
       ...(f.abreLeitura?.[partes[0] ?? ""] !== undefined ? { opens_reading: f.abreLeitura[partes[0] ?? ""] } : {}),
+      ...(equipeEntrega ? { team_delivers: true } : {}),
     });
   }
   const gratuitas = f.respostasGratuitas.trim() === "" ? null : Number(f.respostasGratuitas);
@@ -504,7 +507,7 @@ export function PrecoDoAgente({ agentId, config, readOnly }: Props) {
           </p>
         </div>
         <div className="flex flex-col gap-1">
-          <Label htmlFor="preco-extras">{t("Uma linha por cobrança: Nome | valor | quando cobrar | dias que vale (opcional) | entrega: como entregar depois de pago (opcional) | quantidade: 2=10,00; 3=15,00 (opcional)")}</Label>
+          <Label htmlFor="preco-extras">{t("Uma linha por cobrança: Nome | valor | quando cobrar | dias que vale (opcional) | entrega: como entregar depois de pago (opcional) | quantidade: 2=10,00; 3=15,00 (opcional) | equipe entrega (opcional: quem entrega é a equipe, e o pagamento abre um aviso na Central)")}</Label>
           <Textarea
             id="preco-extras"
             rows={4}
