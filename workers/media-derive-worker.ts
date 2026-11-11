@@ -355,7 +355,7 @@ const DISPENSAM_O_MODELO_DE_CHAT: ReadonlySet<string> = new Set(["audio", "docum
 
 function buildDeriveDeps(
   // `null` = a organização não tem chave de chat: só a imagem fica sem leitura, com aviso.
-  llm: { provider: string; apiKey: string; defaultModel: string | null } | null,
+  llm: { provider: string; apiKey: string; defaultModel: string | null; credentialId?: string | null } | null,
   openaiKey: string | null,
   orgId: string,
   admin: ReturnType<typeof createAdminClient>,
@@ -492,7 +492,7 @@ function buildDeriveDeps(
         organizationId: orgId,
         provider: llm.provider,
         model: llm.defaultModel ?? "",
-        credencialQueFalhou: llm.credentialId,
+        credencialQueFalhou: llm.credentialId ?? null,
       });
       let tentadas = 0;
       for (const r of reservas) {
