@@ -54,7 +54,8 @@ interface WahaSession {
 
 /** Nome do perfil da conta conectada, ou `null` quando o transporte não o informa. */
 export function nomeNoPerfil(s: Pick<WahaSession, 'me'>): string | null {
-  const nome = typeof s.me?.pushName === 'string' ? s.me.pushName.replace(/\s+/g, ' ').trim() : '';
+  // "Esmeralda · Meu Mistério": o que vem depois do "·" ou "|" é a marca, não o nome com que o agente se apresenta.
+  const nome = typeof s.me?.pushName === 'string' ? s.me.pushName.split(/[·|]/)[0]!.replace(/\s+/g, ' ').trim() : '';
   return nome ? nome.slice(0, 80) : null;
 }
 
