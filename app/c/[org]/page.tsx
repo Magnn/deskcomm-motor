@@ -53,6 +53,7 @@ import { baseDoStorage } from "@/lib/branding/logo";
 import { tagDaArea, traduzirNaArea } from "@/lib/i18n/area";
 import { idiomaDaArea } from "@/lib/i18n/area-servidor";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { whatsappVivoDaArea } from "@/lib/area-do-cliente/whatsapp-vivo";
 import { vapidPronto } from "@/lib/notifications/vapid";
 import { vozPropriaConfigurada } from "@/lib/voz/servidor-proprio";
 import { duracaoEstimada, meditacaoDaSemana } from "@/lib/area-do-cliente/meditacao";
@@ -128,6 +129,7 @@ export default async function AreaDoCliente({ params, searchParams }: Props) {
   const admin = createAdminClient();
   const org = await orgDaArea(admin, slug);
   if (!org) notFound();
+  const whatsapp = await whatsappVivoDaArea(admin, org.id, org.config.whatsapp);
 
   const cor = org.config.cor || COR_PADRAO_DA_AREA;
   const titulo = org.config.titulo || org.nome;
@@ -144,7 +146,7 @@ export default async function AreaDoCliente({ params, searchParams }: Props) {
         t={t}
         tx={tx}
         link={link}
-        whatsapp={org.config.whatsapp}
+        whatsapp={whatsapp}
         comecar={primeiraDescoberta(org)}
       />
     );
@@ -336,7 +338,7 @@ export default async function AreaDoCliente({ params, searchParams }: Props) {
       cor={cor}
       titulo={titulo}
       boasVindas={org.config.boas_vindas}
-      whatsapp={org.config.whatsapp}
+      whatsapp={whatsapp}
       // A razão social só aparece com o CNPJ ao lado: sozinha ela não prova nada
       // e costuma não ser o nome que o cliente conhece.
       assinatura={org.cnpj ? `${org.razaoSocial || titulo} · CNPJ ${org.cnpj}` : titulo}
