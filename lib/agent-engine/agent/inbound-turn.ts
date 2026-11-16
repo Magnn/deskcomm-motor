@@ -144,6 +144,7 @@ import { blocoDaCompraConfirmadaSemGuia, carregarGuiaDeEntrega, guiaDoProdutoDoC
 import { blocoDaLeitura } from '@/lib/leitura/bloco-do-prompt';
 import { blocoDoAnuncio, carregarAnuncioDoContato } from '@/lib/anuncio/contexto-do-anuncio';
 import { comporSystemDoTurno } from './blocos-do-turno';
+import { blocoDoNomeNoNumero, lerIdentidadeDoNumero } from '@/lib/channels/identidade-do-numero';
 import { blocoDeVariacao } from '@/lib/estilo/variacao-do-agente';
 import { blocoDeIdentidade } from '@/lib/identidade/bloco-do-prompt';
 import { blocoDeConsciencia } from '@/lib/consciencia/bloco-do-prompt';
@@ -3014,7 +3015,10 @@ async function executarTurnoDoAgente(
   // Objeções (aba "Objeções"): as respostas que o dono aprovou ao que a pessoa levanta para não fechar.
   const blocoDeObjecoesDoTurno = blocoDeObjecoes(agentConfig?.objections ?? null);
   // Limites (aba "Limites"): o que o dono proíbe. Vai por ÚLTIMO na fila: o que ele proíbe vence o que o funil manda.
-  const blocoDeLimitesDoTurno = blocoDeLimites(agentConfig?.limits ?? null);
+  // Mais o nome do perfil DESTE número: o mesmo agente atende vários números, cada um com um nome (0962).
+  const blocoDeLimitesDoTurno =
+    blocoDeLimites(agentConfig?.limits ?? null) +
+    blocoDoNomeNoNumero(await lerIdentidadeDoNumero(pool, tenantId, input.channelSessionId));
   // Agente no comando de um fluxo (nó “Agente de IA”, inscrição `com_agente`): só quando o resolvedor do turno
   // escolheu o agente DO FLUXO (`outcome: 'fluxo'`) e num turno de resposta à pessoa. Falha de leitura vira
   // “ninguém no comando”: o cliente segue atendido, só sem o objetivo do fluxo neste turno.

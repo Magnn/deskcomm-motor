@@ -68,7 +68,8 @@ import { blocoDeIdentidade } from '@/lib/identidade/bloco-do-prompt';
 import { blocoDeLimites } from '@/lib/limites/bloco-do-prompt';
 import { OK_KINDS } from './split-message';
 import { baixarMidiaDoLink } from './midia-por-link';
-import { citaDadoDoLead, interpolarVariaveisDoContato, type DadosDoContato } from './variaveis-do-contato';
+import { citaDadoDoLead, citaONumero, interpolarVariaveisDoContato, type DadosDoContato } from './variaveis-do-contato';
+import { lerIdentidadeDoNumero, telefoneParaExibir } from '@/lib/channels/identidade-do-numero';
 import { extFromMime } from '@/lib/messaging/media/types';
 import type { ChannelSendResult } from '../channel-adapter';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -1196,6 +1197,7 @@ async function dadosDoContatoParaVariaveis(
   leadId: string,
   contato: { name: string | null; phone: string | null; email: string | null },
   textos: readonly string[],
+  channelSessionId?: string,
 ): Promise<DadosDoContato> {
   let etapa: string | null = null;
   const campos: Record<string, string> = {};
@@ -1214,7 +1216,16 @@ async function dadosDoContatoParaVariaveis(
       }
     }
   }
-  return { nome: contato.name, telefone: contato.phone, email: contato.email, etapa, campos };
+  // `{{meu_nome}}`/`{{meu_numero}}`: o número em que a conversa está, não um telefone fixo no fluxo.
+  const numero =
+    channelSessionId && textos.some(citaONumero)
+      ? await lerIdentidadeDoNumero(pool, tenantId, channelSessionId)
+      : null;
+  return {
+    nome: contato.name, telefone: contato.phone, email: contato.email, etapa, campos,
+    meuNome: numero?.nome ?? null,
+    meuNumero: numero ? telefoneParaExibir(numero.telefone) : null,
+  };
 }
 
 /**
@@ -1315,7 +1326,7 @@ async function sendConteudoSequence(
                 ? Object.values(i.values)
                 : [],
   );
-  const dados = await dadosDoContatoParaVariaveis(pool, tenantId, leadId, context.context.contact, textosDoFluxo);
+  const dados = await dadosDoContatoParaVariaveis(pool, tenantId, leadId, context.context.contact, textosDoFluxo, channelSessionId);
   // As caixas de Voz, Cobrança e Modelo nasceram com a grafia de chave simples
   // (`{first_name}`), as de Conteúdo com a dupla (`{{primeiro_nome}}`). As duas
   // são resolvidas aqui, com o contato lido NESTE turno — quem montou o fluxo não

@@ -48,6 +48,14 @@ export interface WatchdogConfig {
 interface WahaSession {
   name: string;
   status: string;
+  /** Conta conectada; `pushName` é o nome do perfil que a pessoa vê (`lib/channels/identidade-do-numero.ts`). */
+  me?: { pushName?: unknown } | null;
+}
+
+/** Nome do perfil da conta conectada, ou `null` quando o transporte não o informa. */
+export function nomeNoPerfil(s: Pick<WahaSession, 'me'>): string | null {
+  const nome = typeof s.me?.pushName === 'string' ? s.me.pushName.replace(/\s+/g, ' ').trim() : '';
+  return nome ? nome.slice(0, 80) : null;
 }
 
 /**
@@ -141,6 +149,18 @@ export async function reconcileSessions(
        returning id, status`,
       [s.name, nextStatus],
     );
+    // O nome do perfil muda quando o dono troca no aparelho; sem nome (desconectada) fica o último visto.
+    const nome = nomeNoPerfil(s);
+    if (nome !== null) {
+      await pool.query(
+        `update channel_sessions
+            set metadata = coalesce(metadata, '{}'::jsonb) || jsonb_build_object('nome_no_perfil', $2::text)
+          where waha_session_name = $1
+            and to_jsonb(channel_sessions) ->> 'archived_at' is null
+            and coalesce(metadata ->> 'nome_no_perfil', '') is distinct from $2`,
+        [s.name, nome],
+      );
+    }
     for (const row of rows) {
       fixed += 1;
       log.warn('watchdog: espelho de sessão reconciliado com o WAHA real', {

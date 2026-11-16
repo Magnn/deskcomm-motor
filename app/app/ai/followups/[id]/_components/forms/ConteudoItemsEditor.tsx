@@ -100,6 +100,8 @@ const CAMPOS_PERSONALIZADOS = [
   { tag: "{{telefone}}", label: "Telefone" },
   { tag: "{{email}}", label: "E-mail" },
   { tag: "{{etapa}}", label: "Etapa Atual" },
+  { tag: "{{meu_nome}}", label: "Nome deste número" },
+  { tag: "{{meu_numero}}", label: "Telefone deste número" },
 ];
 
 function itemPadrao(type: ConteudoItemType): ConteudoItem {
@@ -488,7 +490,11 @@ function ItemCard({
             <code className="font-mono text-[10px] text-cat-blue">{"{{nome}}"}</code>,{" "}
             <code className="font-mono text-[10px] text-cat-blue">{"{{primeiro_nome}}"}</code>,{" "}
             <code className="font-mono text-[10px] text-cat-blue">{"{{telefone}}"}</code>.{" "}
-            {t("São resolvidas no envio do fluxo.")}
+            {t("São resolvidas no envio do fluxo.")}{" "}
+            {t("Para mandar o número em que a conversa está, use")}{" "}
+            <code className="font-mono text-[10px] text-cat-blue">{"{{meu_nome}}"}</code>{" "}
+            {t("e")}{" "}
+            <code className="font-mono text-[10px] text-cat-blue">{"{{meu_numero}}"}</code>.
           </p>
           <label className="block space-y-1">
             <span className="block text-[12px] font-semibold text-text">
