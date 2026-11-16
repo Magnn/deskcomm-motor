@@ -129,6 +129,10 @@ describe("chat aberto: onde nasce a conversa de quem nunca falou por canal nenhu
     expect(sessaoParaAArea([s("a"), s("b")], [ag("a", 9, "2026-11-01"), ag("b", 1)])).toBe("b");
     expect(sessaoParaAArea([s("a", "STOPPED"), s("b", "WORKING")], [ag("a", 1), ag("b", 1)])).toBe("b");
   });
+  it("o agente em vários números (0962): o número extra ligado vale tanto quanto o principal caído", () => {
+    const cigana = { priority: 10, archived_at: null, version: { channel_session_id: "a" }, extras: ["b", "c"] };
+    expect(sessaoParaAArea([s("a", "FAILED"), s("b", "WORKING"), s("c", "STOPPED"), s("d", "WORKING")], [cigana])).toBe("b");
+  });
   it("sem agente, qualquer número ligado (a equipe responde pelo Desk); sem número, o chat fica fechado", () => {
     expect(sessaoParaAArea([s("a", "STOPPED"), s("b")], [])).toBe("b");
     expect(sessaoParaAArea([], [ag("a", 1)])).toBeNull();

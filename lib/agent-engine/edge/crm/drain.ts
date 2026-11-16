@@ -25,6 +25,7 @@ import { TIPOS_DERIVAVEIS, DERIVACAO_TERMINADA } from '@/lib/messaging/media/der
 import { decidirElegibilidadeDaConversa } from '@/lib/ai/elegibilidade/consulta-pg';
 import { deveCederTurnoAoRetorno } from '@/lib/followup/ceder-turno-ao-retorno';
 import { fluxoNoComando } from '@/lib/followup/fluxo-no-comando';
+import { sqlAtendeNumero } from '@/lib/ai/agents/numeros-do-agente';
 
 const DRAIN_CONSUMER = 'agent-engine';
 
@@ -274,7 +275,7 @@ async function processEvent(
          select 1 from ai_agents a
          join ai_agent_versions v on v.id = a.published_version_id
          where a.organization_id = $1 and a.archived_at is null
-           and v.status = 'published' and v.channel_session_id = $2
+           and v.status = 'published' and ${sqlAtendeNumero('a', 'v', '$2')}
        ) as tem_agente,
        exists(
          select 1 from ai_routers r
@@ -399,7 +400,7 @@ async function processEvent(
   const {rows:assistance}=await pool.query<{available:boolean}>(`select exists(
     select 1 from ai_agents a join ai_agent_versions v on v.organization_id=a.organization_id and v.id=a.published_version_id
     where a.organization_id=$1 and a.archived_at is null and a.operation_mode='assisted' and v.status='published'
-    and(v.channel_session_id=$2 or exists(select 1 from ai_routers r where r.organization_id=a.organization_id and r.channel_session_id=$2 and r.is_active and(r.fallback_agent_id=a.id or exists(select 1 from ai_router_members m where m.organization_id=r.organization_id and m.router_id=r.id and m.agent_id=a.id))))) as available`,[event.organization_id,p.channel_session_id]);
+    and(${sqlAtendeNumero('a', 'v', '$2')} or exists(select 1 from ai_routers r where r.organization_id=a.organization_id and r.channel_session_id=$2 and r.is_active and(r.fallback_agent_id=a.id or exists(select 1 from ai_router_members m where m.organization_id=r.organization_id and m.router_id=r.id and m.agent_id=a.id))))) as available`,[event.organization_id,p.channel_session_id]);
   const canAssist=assistance[0]?.available===true;
   try {
     const elegib = await decidirElegibilidadeDaConversa(pool, {

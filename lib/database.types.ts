@@ -1712,6 +1712,52 @@ export type Database = {
           },
         ]
       }
+      ai_agent_numeros: {
+        Row: {
+          agent_id: string
+          channel_session_id: string
+          created_at: string
+          created_by: string | null
+          organization_id: string
+        }
+        Insert: {
+          agent_id: string
+          channel_session_id: string
+          created_at?: string
+          created_by?: string | null
+          organization_id: string
+        }
+        Update: {
+          agent_id?: string
+          channel_session_id?: string
+          created_at?: string
+          created_by?: string | null
+          organization_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_agent_numeros_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "ai_agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_agent_numeros_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_agent_numeros_sessao_org_fk"
+            columns: ["organization_id", "channel_session_id"]
+            isOneToOne: false
+            referencedRelation: "channel_sessions"
+            referencedColumns: ["organization_id", "id"]
+          },
+        ]
+      }
       ai_agent_runs: {
         Row: {
           abort_reason: string | null

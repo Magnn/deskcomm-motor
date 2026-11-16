@@ -28,6 +28,7 @@ import { lerRitmo, type Ritmo } from '@/lib/ritmo/tipos';
 import { lerVoiceReply, type VoiceReplyConfig } from '@/lib/voz/tipos';
 
 import { lerJanelaDeAtendimento, type JanelaDeAtendimento } from './janela-de-atendimento';
+import { sqlAtendeNumero, sqlOrdemDoNumero } from '@/lib/ai/agents/numeros-do-agente';
 
 export interface PublishedAgentConfig {
   operationMode?: 'automatic' | 'assisted';
@@ -317,8 +318,8 @@ export async function loadPublishedAgentConfig(
        -- published_version_id preenchido + não arquivado (mesmo critério do
        -- dispatcher nativo do CRM — pausar = despublicar).
        and v.status = 'published'
-       and v.channel_session_id = $2
-     order by a.priority desc, a.created_at asc
+       and ${sqlAtendeNumero('a', 'v', '$2')}
+     order by ${sqlOrdemDoNumero('v', '$2')}, a.priority desc, a.created_at asc
      limit 1`,
     [organizationId, channelSessionId],
   );

@@ -49,6 +49,7 @@ import { proximaAberturaDoFollowup } from '../../agent/janela-de-followup';
 import { WINDOW_MS } from '../../guardrails/messaging-window';
 import type { Logger } from '../../obs/logger';
 import { enqueueJob } from '../../queue/queue';
+import { sqlAtendeNumero, sqlOrdemDoNumero } from '@/lib/ai/agents/numeros-do-agente';
 
 /**
  * Quantas conversas a consulta traz. É TODAS as candidatas das últimas 24 h, na prática: quem decide
@@ -126,8 +127,8 @@ export const CONSULTA_DE_SILENCIOSAS = `
     from ai_agents a
     join ai_agent_versions pv on pv.id = a.published_version_id
     where a.organization_id = v.organization_id and a.archived_at is null
-      and pv.status = 'published' and pv.channel_session_id = v.channel_session_id
-    order by a.priority desc, a.created_at asc
+      and pv.status = 'published' and ${sqlAtendeNumero('a', 'pv', 'v.channel_session_id')}
+    order by ${sqlOrdemDoNumero('pv', 'v.channel_session_id')}, a.priority desc, a.created_at asc
     limit 1) ag on true
   -- DESDE QUANDO a recuperação está ligada: a primeira publicação depois da última versão SEM ela.
   left join lateral (

@@ -35,6 +35,7 @@ import {
   type DispatchMessage,
   type DispatchConversation,
 } from "./triggers";
+import { numerosDoAgente, numerosExtrasPorAgente } from "@/lib/ai/agents/numeros-do-agente";
 
 export const DISPATCHER_KEY = "worker.agent-dispatcher.v1";
 export const DISPATCH_EVENT_TYPE = "ai_agent.dispatch_requested";
@@ -396,12 +397,27 @@ async function loadCandidates(
     Omit<CandidateRow, "version"> & { version: VersionRow | VersionRow[] | null }
   >;
 
-  return rows
+  // Números extras (migration 0962): o agente atende também onde não é o principal. Falhar a leitura
+  // não cala o número: segue só com os principais, como antes da 0962.
+  let extras = new Map<string, string[]>();
+  try {
+    extras = await numerosExtrasPorAgente(admin, [orgId]);
+  } catch (err) {
+    logger.warn("[agent-dispatcher] números extras não lidos — seguindo só com os principais", {
+      error: err instanceof Error ? err.message : String(err),
+      organization_id: orgId,
+    });
+  }
+  const candidatos = rows
     .map((r) => {
       const version = Array.isArray(r.version) ? r.version[0] ?? null : r.version;
       return { ...r, version } as CandidateRow;
     })
-    .filter((r) => r.version && r.version.channel_session_id === channelSessionId);
+    .filter((r) => r.version && numerosDoAgente(r.version.channel_session_id, extras.get(r.id)).includes(channelSessionId));
+  // O dono principal do número antes de quem o tem como extra; dentro de cada grupo, a ordem da consulta
+  // (prioridade, depois antiguidade) fica — o sort é estável.
+  const principal = (r: CandidateRow) => Number(r.version?.channel_session_id === channelSessionId);
+  return candidatos.sort((a, b) => principal(b) - principal(a));
 }
 
 // ---------------------------------------------------------------------------

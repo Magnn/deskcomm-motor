@@ -1634,6 +1634,11 @@ export const DICIONARIO: Traducoes = {
   },
   "Conectar WhatsApp": { es: "Conectar WhatsApp" },
   "para poder publicar.": { es: "para poder publicar." },
+  "Também atende estes números": { es: "También atiende estos números" },
+  "Mesma configuração em todos: mudou aqui, muda em todos. Vale na hora, sem publicar.": {
+    es: "La misma configuración en todos: si cambias aquí, cambia en todos. Vale al instante, sin publicar.",
+  },
+  "Número que não é desta empresa.": { es: "Número que no es de esta empresa." },
   "Escolha o número para poder publicar. Sem ele, o rascunho salva mas não atende.": {
     es: "Elige el número para poder publicar. Sin él, el borrador se guarda pero no atiende.",
   },
