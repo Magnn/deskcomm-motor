@@ -572,6 +572,13 @@ beforeAll(() => {
             (organization_id, campaign_id, channel_session_id)
             values (v_org, v_camp, v_sess);
         end if;
+
+        -- migration 0962 -- os numeros extras do agente. Reusa o agente e a
+        -- sessao que esta semente ja criou.
+        if not exists (select 1 from public.ai_agent_numeros where organization_id = v_org) then
+          insert into public.ai_agent_numeros (organization_id, agent_id, channel_session_id)
+            select v_org, a.id, v_sess from public.ai_agents a where a.organization_id = v_org limit 1;
+        end if;
       end loop;
     end
     $seed$;
@@ -719,6 +726,9 @@ export const TABLES = [
   // papel (o `agent` semeado aqui é controle positivo legítimo); a ESCRITA exige
   // admin e NÃO é medida por este molde genérico.
   "ai_agent_ad_briefs",
+  // migration 0962 — os números que o agente atende além do principal. Leitura
+  // org-scoped sem gate de papel; escrita só pelo servidor (sem policy de escrita).
+  "ai_agent_numeros",
   // migration 0928 — a área do cliente: o que a equipe lê.
   "area_servicos",
   "area_convites",
