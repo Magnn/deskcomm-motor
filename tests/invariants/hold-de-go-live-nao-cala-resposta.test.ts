@@ -1,7 +1,7 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import pg from "pg";
 
-import { enforceHolds } from "@/lib/agent-engine/edge/crm/session-watchdog";
+import { enforceHolds, reterAoPegarSeNumeroFora } from "@/lib/agent-engine/edge/crm/session-watchdog";
 
 /**
  * O hold de go-live segura DISPARO, não RESPOSTA.
@@ -204,5 +204,43 @@ describe("enforceHolds nos holds que NÃO são go-live", () => {
       inbound_turn: { retido: false },
       followup_turn: { retido: false },
     });
+  });
+});
+
+describe("trava no instante em que o worker pega o job (16/11/2026)", () => {
+  async function pegoPeloWorker(): Promise<string> {
+    const { rows } = await pool.query<{ id: string }>(
+      `insert into job_queue (organization_id, contact_id, kind, payload, status, run_after, locked_by, locked_at, attempts)
+       values ($1, $2, 'followup_turn', jsonb_build_object('conversation_id', $3::text), 'running', now(), 'w1', now(), 1)
+       returning id`,
+      [ORG, CONTATO, CONVERSA],
+    );
+    return rows[0]!.id;
+  }
+
+  it("⭐ retorno nascido com o número FAILED volta retido sem rodar, e sai quando o número volta", async () => {
+    await saude({ ativo: false, razao: null, statusDaSessao: "FAILED" });
+    const id = await pegoPeloWorker();
+
+    expect(await reterAoPegarSeNumeroFora(pool, id, "w1")).toBe(true);
+    const { rows } = await pool.query(
+      `select status, attempts, locked_by, run_after = 'infinity' as parado from job_queue where id = $1`,
+      [id],
+    );
+    expect(rows[0]).toEqual({ status: "pending", attempts: 0, locked_by: null, parado: true });
+
+    await saude({ ativo: false, razao: null, statusDaSessao: "WORKING" });
+    const { released } = await enforceHolds(pool);
+    expect(released).toBe(1);
+    expect(await estado()).toEqual({ followup_turn: { retido: false } });
+  });
+
+  it("com o número no ar, não mexe no job", async () => {
+    await saude({ ativo: false, razao: null, statusDaSessao: "WORKING" });
+    const id = await pegoPeloWorker();
+
+    expect(await reterAoPegarSeNumeroFora(pool, id, "w1")).toBe(false);
+    const { rows } = await pool.query(`select status from job_queue where id = $1`, [id]);
+    expect(rows[0]).toEqual({ status: "running" });
   });
 });
