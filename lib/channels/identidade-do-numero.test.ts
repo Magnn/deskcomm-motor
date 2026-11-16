@@ -36,6 +36,10 @@ describe('identidade do número', () => {
     expect(nomeNoPerfil({ me: { pushName: ' Estela ' } })).toBe('Estela');
     expect(nomeNoPerfil({ me: null })).toBeNull();
     expect(nomeNoPerfil({ me: { pushName: 42 } })).toBeNull();
+    // A marca depois do separador fica no perfil, fora do nome com que o agente se apresenta (16/11/2026).
+    expect(nomeNoPerfil({ me: { pushName: 'Esmeralda · Meu Mistério' } })).toBe('Esmeralda');
+    expect(nomeNoPerfil({ me: { pushName: 'Estela | Meu Mistério' } })).toBe('Estela');
+    expect(nomeNoPerfil({ me: { pushName: '· Meu Mistério' } })).toBeNull();
   });
 });
 

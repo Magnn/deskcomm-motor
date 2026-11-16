@@ -406,6 +406,47 @@ function bodyOf(p: WahaPayload): string | null {
     if (o.vcard) return o.vcard;
     if (o.displayName) return o.displayName;
   }
+  return textoDoCatalogo(msg);
+}
+
+/** Valor em milésimos do WhatsApp (número, texto ou Long `{low, high}`) para "R$ 130,00". */
+function valorDoCatalogo(milesimos: unknown, moeda: unknown): string | null {
+  const bruto =
+    typeof milesimos === "number" || typeof milesimos === "string"
+      ? Number(milesimos)
+      : milesimos && typeof milesimos === "object" && typeof (milesimos as { low?: unknown }).low === "number"
+        ? (milesimos as { low: number; high?: number }).low + ((milesimos as { high?: number }).high ?? 0) * 2 ** 32
+        : NaN;
+  if (!Number.isFinite(bruto) || bruto <= 0) return null;
+  const codigo = typeof moeda === "string" && /^[A-Z]{3}$/.test(moeda) ? moeda : "BRL";
+  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: codigo }).format(bruto / 1000);
+}
+
+/**
+ * Item ou carrinho mandado do catálogo do WhatsApp Business. Chegam sem `body` e sem mídia, e a guarda
+ * do inbound os descartava em silêncio: a cliente tocava no produto e o agente nunca via (16/11/2026).
+ * Vira texto legível para o atendente e para o agente: qual produto e por quanto, ou o total do carrinho.
+ */
+export function textoDoCatalogo(msg: object): string | null {
+  const pm = (msg as { productMessage?: unknown }).productMessage;
+  if (pm && typeof pm === "object") {
+    const o = pm as { product?: Record<string, unknown>; body?: unknown };
+    const titulo = typeof o.product?.title === "string" ? o.product.title.trim() : "";
+    if (!titulo) return null;
+    const valor = valorDoCatalogo(o.product?.salePriceAmount1000 ?? o.product?.priceAmount1000, o.product?.currencyCode);
+    const recado = typeof o.body === "string" && o.body.trim() ? `\n${o.body.trim()}` : "";
+    return `[Produto do catálogo] ${titulo}${valor ? ` — ${valor}` : ""}${recado}`;
+  }
+  const om = (msg as { orderMessage?: unknown }).orderMessage;
+  if (om && typeof om === "object") {
+    const o = om as Record<string, unknown>;
+    const itens = typeof o.itemCount === "number" && o.itemCount > 0 ? o.itemCount : null;
+    const total = valorDoCatalogo(o.totalAmount1000, o.totalCurrencyCode);
+    const titulo = typeof o.orderTitle === "string" && o.orderTitle.trim() ? ` (${o.orderTitle.trim()})` : "";
+    const recado = typeof o.message === "string" && o.message.trim() ? `\n${o.message.trim()}` : "";
+    const partes = [itens ? `${itens} ${itens === 1 ? "item" : "itens"}` : null, total ? `total ${total}` : null].filter(Boolean);
+    return `[Carrinho do catálogo] ${partes.join(", ") || "pedido enviado"}${titulo}${recado}`;
+  }
   return null;
 }
 
