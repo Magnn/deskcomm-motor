@@ -10,6 +10,9 @@ describe('identidade do número', () => {
     const bloco = blocoDoNomeNoNumero({ nome: 'Estela', telefone: '556981084871' });
     expect(bloco).toContain('SEU NOME NESTE WHATSAPP: Estela.');
     expect(bloco).toContain('+556981084871');
+    // "Está escrito [nome]" é o nome no perfil do número, não o da pessoa (16/11/2026).
+    expect(bloco).toContain('"está escrito"');
+    expect(bloco).toContain('nunca chame a pessoa por esse nome');
     expect(blocoDoNomeNoNumero({ nome: '  ', telefone: '556981084871' })).toBe('');
     expect(blocoDoNomeNoNumero({ nome: null, telefone: null })).toBe('');
   });

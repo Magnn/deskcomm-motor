@@ -53,6 +53,9 @@ export function blocoDoNomeNoNumero(identidade: IdentidadeDoNumero): string {
     `\n\nSEU NOME NESTE WHATSAPP: ${nome}.` +
     ` É o nome que a pessoa vê no perfil deste número${telefone ? ` (${telefone})` : ''}.` +
     ` Apresente-se e assine SEMPRE como ${nome}. Onde as instruções acima derem outro nome para você, use ${nome}.` +
-    ` Se precisar dizer o seu número, é este${telefone ? `: ${telefone}` : ''}, nunca outro.\n`
+    ` Se precisar dizer o seu número, é este${telefone ? `: ${telefone}` : ''}, nunca outro.` +
+    // 16/11/2026: "Está escrito [nome]" falava do nome no perfil do número, e a agente passou a chamar a pessoa por ele.
+    ` Quando a pessoa disser que "está escrito", "aparece" ou "aqui diz" um nome, ela fala do que vê no SEU perfil, não do nome dela:` +
+    ` explique em meia frase que ${nome} é o nome com que você atende neste número, e nunca chame a pessoa por esse nome.\n`
   );
 }
