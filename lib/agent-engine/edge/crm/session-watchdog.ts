@@ -41,6 +41,43 @@ const SESSAO_DO_JOB = `coalesce(j.payload->>'channel_session_id',
   (select c.channel_session_id::text from conversations c
     where c.organization_id = j.organization_id and c.id::text = j.payload->>'conversation_id'))`;
 
+/** Sessão fora do ar retém tudo; hold de saúde retém tudo, menos a resposta sob `go_live` ($1 = WORKING, $3 = kind proativo). */
+const DEVE_RETER = `(
+             s.status <> $1
+             or (
+               coalesce(h.health_hold_active, false)
+               and (h.health_hold_reason is distinct from 'go_live' or j.kind = $3)
+             )
+           )`;
+
+/**
+ * A mesma trava, no instante em que o worker PEGA o job. O tick do `enforceHolds` roda a cada
+ * `QUEUE_REAPER_INTERVAL_MS`, e o retorno agendado nasce com `run_after = now()`: medido em 16/11/2026,
+ * 9 retornos do 7336 (FAILED havia 20 min) foram pegos no mesmo segundo em que nasceram, rodaram o turno
+ * inteiro e deixaram 21 mensagens em 'queued' para sair de uma vez quando o número voltasse.
+ * Devolve o job retido (a liberação é a do tick, quando o número volta) e `true`; senão `false` e nada muda.
+ */
+export async function reterAoPegarSeNumeroFora(db: Queryable, jobId: string, workerId: string): Promise<boolean> {
+  const { rows } = await db.query(
+    `update job_queue j
+     set status = 'pending', locked_by = null, locked_at = null,
+         attempts = greatest(j.attempts - 1, 0),
+         payload = jsonb_set(j.payload, '{held_run_after}', to_jsonb(now())),
+         run_after = 'infinity'
+     from channel_sessions s
+     left join channel_session_health h
+       on h.organization_id = s.organization_id and h.channel_session_id = s.id
+     where ${DEVE_RETER}
+       and j.id = $4 and j.status = 'running' and j.locked_by = $5
+       and j.organization_id = s.organization_id
+       and j.kind = any($2::text[])
+       and ${SESSAO_DO_JOB} = s.id::text
+     returning j.id`,
+    [SESSION_HEALTHY_STATUS, [...SEND_JOB_KINDS], PROACTIVE_SEND_JOB_KIND, jobId, workerId],
+  );
+  return rows.length > 0;
+}
+
 /**
  * Retém jobs 'pending' de sessão não-WORKING ou sob hold de saúde (run_after =
  * infinity, com o run_after original guardado no payload) e libera quando a
@@ -74,13 +111,7 @@ export async function enforceHolds(harness: pg.Pool): Promise<{ held: number; re
      from channel_sessions s
      left join channel_session_health h
        on h.organization_id = s.organization_id and h.channel_session_id = s.id
-     where (
-             s.status <> $1
-             or (
-               coalesce(h.health_hold_active, false)
-               and (h.health_hold_reason is distinct from 'go_live' or j.kind = $3)
-             )
-           )
+     where ${DEVE_RETER}
        and j.organization_id = s.organization_id
        and j.status = 'pending'
        and j.kind = any($2::text[])

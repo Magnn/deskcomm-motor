@@ -97,7 +97,7 @@ import { recuperarSilenciosos } from "@/lib/agent-engine/edge/crm/recuperacao-po
 import { oferecerAQuemCabe } from "@/lib/agent-engine/edge/crm/oferta-proativa";
 import { runEventLogDrainLoop, prontidaoDoLacoDeEventLog } from "@/lib/event-log/drain-loop";
 import { crmEdgeConfigFromEnv } from "@/lib/agent-engine/edge/crm/mcp-client";
-import { enforceHolds, sessionHealthMetrics } from "@/lib/agent-engine/edge/crm/session-watchdog";
+import { enforceHolds, reterAoPegarSeNumeroFora, sessionHealthMetrics } from "@/lib/agent-engine/edge/crm/session-watchdog";
 import { runVoiceCallsBridgeLoop } from "@/lib/wacalls/events-bridge";
 import { runSessionWatchdogLoop } from "@/lib/agent-engine/edge/crm/session-reconciler";
 import { runHealthLoop } from "@/lib/agent-engine/health/circuit";
@@ -479,6 +479,10 @@ export async function startWorker(
       // Entrega transacional liquida estado do compromisso + job na mesma RPC cercada.
       if (job.kind === "transactional_delivery" || job.kind === "approved_reply") {
         await handler(job, pool, { workerId });
+        return;
+      }
+      if (await reterAoPegarSeNumeroFora(pool, job.id, workerId)) {
+        log.info("job retido: número fora do ar", { job_id: job.id, kind: job.kind });
         return;
       }
       await withServiceJob(pool, job, () => handler(job, pool, { workerId }));
