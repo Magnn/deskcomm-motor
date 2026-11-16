@@ -47,7 +47,7 @@ import { lerCredencial } from "@/lib/plataformas-de-anuncio/credenciais";
 import { transporteMeta } from "@/lib/plataformas-de-anuncio/meta/conversions";
 import { criarClickRef } from "@/lib/plataformas-de-anuncio/captura-de-clique";
 import { lerConfigDaLanding } from "@/lib/plataformas-de-anuncio/landing-config";
-import { numerosDoRodizio, sortearNumero } from "@/lib/plataformas-de-anuncio/rodizio-de-numeros";
+import { proximoNumeroDoRodizio } from "@/lib/plataformas-de-anuncio/rodizio-de-numeros";
 import {
   clientIp,
   modeloComFrase,
@@ -151,8 +151,8 @@ export async function GET(req: NextRequest, ctx: RouteContext): Promise<Response
   const lida = await lerConfigDaLanding(admin, "meta_ads_landing_pages", organizationId);
   if (!lida) return paginaDeSaida(null);
   // A página de outra oferta manda a própria frase (`frase=`), e o fluxo de palavra-chave começa a conversa certa.
-  // `rodizio=1`: o clique vai para um dos números vivos com agente, sorteado; sem nenhum vivo, o número configurado.
-  const sorteado = parametros.get("rodizio") === "1" ? sortearNumero(await numerosDoRodizio(admin, organizationId)) : null;
+  // `rodizio=1`: o clique vai para o número vivo com agente que recebeu menos cliques; sem nenhum vivo, o configurado.
+  const sorteado = parametros.get("rodizio") === "1" ? await proximoNumeroDoRodizio(admin, organizationId) : null;
   const config = {
     whatsappE164: sorteado ?? lida.whatsappE164,
     messageTemplate: modeloComFrase(lida.messageTemplate, parametros.get("frase")),
@@ -173,6 +173,8 @@ export async function GET(req: NextRequest, ctx: RouteContext): Promise<Response
     ...Object.fromEntries(parametros.entries()),
     ...(ip ? { __ip: ip.slice(0, 64) } : {}),
     ...(ua ? { __ua: ua } : {}),
+    // Para onde o rodízio mandou: é a contagem que divide os próximos cliques por igual.
+    ...(sorteado ? { __numero: sorteado } : {}),
   };
   const criado = await criarClickRef(admin, "meta_ads_click_refs", organizationId, {
     utm,
