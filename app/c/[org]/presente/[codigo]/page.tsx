@@ -15,6 +15,7 @@ import { orgDaArea } from "@/lib/area-do-cliente/sessao";
 import { traduzirNaArea } from "@/lib/i18n/area";
 import { idiomaDaArea } from "@/lib/i18n/area-servidor";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { whatsappVivoDaArea } from "@/lib/area-do-cliente/whatsapp-vivo";
 import { Gift, MessageCircle } from "lucide-react";
 
 import { PerguntaDoPresente } from "../../_ofertas";
@@ -36,6 +37,7 @@ export default async function PaginaDoPresente({ params }: Props) {
   const admin = createAdminClient();
   const org = await orgDaArea(admin, slug);
   if (!org || !FORMA_DO_CODIGO_DO_PRESENTE.test(codigo)) notFound();
+  const whatsapp = await whatsappVivoDaArea(admin, org.id, org.config.whatsapp);
   const { data } = await admin
     .from("area_presentes")
     .select("para_nome, pago_at, pergunta, resposta, de_contact_id")
@@ -75,9 +77,9 @@ export default async function PaginaDoPresente({ params }: Props) {
         <section className={CARTAO} data-testid="presente-pergunta">
           <PerguntaDoPresente slug={org.slug} codigo={codigo} cor={cor} tx={tx} inicial={{ pergunta: p.pergunta, resposta: p.resposta }} />
         </section>
-        {org.config.whatsapp ? (
+        {whatsapp ? (
           <a
-            href={`https://wa.me/${org.config.whatsapp}`}
+            href={`https://wa.me/${whatsapp}`}
             className="flex h-14 items-center justify-center gap-2 rounded-full bg-[#1f9d55] px-5 text-[16px] font-semibold text-white shadow-[0_10px_24px_-12px_rgba(31,157,85,0.8)]"
           >
             <MessageCircle className="size-5" aria-hidden />
