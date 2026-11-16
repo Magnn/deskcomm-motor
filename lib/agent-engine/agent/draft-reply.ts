@@ -10,6 +10,7 @@ import type pg from 'pg';
 import type { ModelMessage } from 'ai';
 
 import { loadPublishedAgentConfig } from './agent-config';
+import { lerIdentidadeDoNumero, trocarMeuNome } from '@/lib/channels/identidade-do-numero';
 import { getLeadContext } from '../edge/crm/get-lead-context';
 import { fusoDaOrganizacao } from './fuso-da-org';
 import type { CrmEdgeConfig } from '../edge/crm/mcp-client';
@@ -81,7 +82,7 @@ export async function generateDraftReply(
     : '';
 
   const system =
-    `${agent.systemPrompt}\n\n` +
+    `${trocarMeuNome(agent.systemPrompt, (await lerIdentidadeDoNumero(db, input.tenantId, input.channelSessionId)).nome ?? agent.agentName)}\n\n` +
     `[MODO RASCUNHO] Gere UMA resposta pronta para o vendedor humano enviar ao cliente. ` +
     `Escreva como o vendedor (NÃO se identifique como assistente/IA, NÃO use disclosure de bot). ` +
     `Responda só com o texto da mensagem, sem aspas nem comentários.` +

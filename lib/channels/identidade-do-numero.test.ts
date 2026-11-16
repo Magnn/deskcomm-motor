@@ -10,6 +10,9 @@ describe('identidade do número', () => {
     const bloco = blocoDoNomeNoNumero({ nome: 'Estela', telefone: '556981084871' });
     expect(bloco).toContain('SEU NOME NESTE WHATSAPP: Estela.');
     expect(bloco).toContain('+556981084871');
+    // "Está escrito [nome]" é o nome no perfil do número, não o da pessoa (16/11/2026).
+    expect(bloco).toContain('"está escrito"');
+    expect(bloco).toContain('nunca chame a pessoa por esse nome');
     expect(blocoDoNomeNoNumero({ nome: '  ', telefone: '556981084871' })).toBe('');
     expect(blocoDoNomeNoNumero({ nome: null, telefone: null })).toBe('');
   });
@@ -33,5 +36,15 @@ describe('identidade do número', () => {
     expect(nomeNoPerfil({ me: { pushName: ' Estela ' } })).toBe('Estela');
     expect(nomeNoPerfil({ me: null })).toBeNull();
     expect(nomeNoPerfil({ me: { pushName: 42 } })).toBeNull();
+  });
+});
+
+describe('{{meu_nome}} no roteiro', () => {
+  it('troca no molde literal pelo nome do perfil', async () => {
+    const { trocarMeuNome } = await import('./identidade-do-numero');
+    expect(trocarMeuNome('Me chamo Cigana {{meu_nome}} e vou cuidar de você. {{ meu_nome }}', 'Estela')).toBe(
+      'Me chamo Cigana Estela e vou cuidar de você. Estela',
+    );
+    expect(trocarMeuNome('sem variável', 'Estela')).toBe('sem variável');
   });
 });

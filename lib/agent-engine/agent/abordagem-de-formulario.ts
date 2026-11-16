@@ -41,6 +41,7 @@ import type pg from 'pg';
 import type { ModelMessage } from 'ai';
 
 import { loadPublishedAgentConfigById } from './agent-config';
+import { trocarMeuNome } from '@/lib/channels/identidade-do-numero';
 import { runModelCall, type LlmEdgeConfig } from '../edge/llm/run-model-call';
 
 export interface AbordagemDeFormularioInput {
@@ -219,7 +220,8 @@ export async function gerarAbordagemDeFormulario(
   // O prompt do agente PRIMEIRO (é o prefixo estável, e é quem ele é); o modo
   // depois, porque é o que muda por chamada — e a instrução do OPERADOR vai
   // junto, no system, longe do conteúdo público. Ver blocoDeModo.
-  const system = `${agent.systemPrompt}\n\n${blocoDeModo(input.origemDaAbordagem, nonce, input.instrucao)}`;
+  // Sem número na abordagem: `{{meu_nome}}` do roteiro vira o nome do agente.
+  const system = `${trocarMeuNome(agent.systemPrompt, agent.agentName)}\n\n${blocoDeModo(input.origemDaAbordagem, nonce, input.instrucao)}`;
 
   // A mensagem do usuário carrega SÓ conteúdo — nada aqui tem autoridade.
   // `origem` é o nome da fonte, escrito por quem administra o CRM, mas entra no
