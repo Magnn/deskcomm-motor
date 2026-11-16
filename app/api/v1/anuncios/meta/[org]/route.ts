@@ -47,6 +47,7 @@ import { lerCredencial } from "@/lib/plataformas-de-anuncio/credenciais";
 import { transporteMeta } from "@/lib/plataformas-de-anuncio/meta/conversions";
 import { criarClickRef } from "@/lib/plataformas-de-anuncio/captura-de-clique";
 import { lerConfigDaLanding } from "@/lib/plataformas-de-anuncio/landing-config";
+import { numerosDoRodizio, sortearNumero } from "@/lib/plataformas-de-anuncio/rodizio-de-numeros";
 import {
   clientIp,
   modeloComFrase,
@@ -150,7 +151,12 @@ export async function GET(req: NextRequest, ctx: RouteContext): Promise<Response
   const lida = await lerConfigDaLanding(admin, "meta_ads_landing_pages", organizationId);
   if (!lida) return paginaDeSaida(null);
   // A página de outra oferta manda a própria frase (`frase=`), e o fluxo de palavra-chave começa a conversa certa.
-  const config = { ...lida, messageTemplate: modeloComFrase(lida.messageTemplate, parametros.get("frase")) };
+  // `rodizio=1`: o clique vai para um dos números vivos com agente, sorteado; sem nenhum vivo, o número configurado.
+  const sorteado = parametros.get("rodizio") === "1" ? sortearNumero(await numerosDoRodizio(admin, organizationId)) : null;
+  const config = {
+    whatsappE164: sorteado ?? lida.whatsappE164,
+    messageTemplate: modeloComFrase(lida.messageTemplate, parametros.get("frase")),
+  };
 
   // Sem UTM nenhuma não há o que guardar, e um ref que não aponta para origem
   // alguma só suja a mensagem do lead. A pessoa vai para o WhatsApp do mesmo
