@@ -18,7 +18,10 @@ describe("sortearNumero", () => {
   it("divide por igual", () => {
     const numeros = ["a", "b", "c"];
     const conta: Record<string, number> = { a: 0, b: 0, c: 0 };
-    for (let i = 0; i < 3000; i++) conta[sortearNumero(numeros, () => i / 3000)!]++;
+    for (let i = 0; i < 3000; i++) {
+      const n = sortearNumero(numeros, () => i / 3000)!;
+      conta[n] = (conta[n] ?? 0) + 1;
+    }
     expect(conta).toEqual({ a: 1000, b: 1000, c: 1000 });
   });
 });

@@ -17,6 +17,11 @@ export function sortearNumero(numeros: readonly string[], aleatorio: () => numbe
   return numeros[Math.min(numeros.length - 1, Math.floor(aleatorio() * numeros.length))] ?? null;
 }
 
+interface VersaoPublicada {
+  channel_session_id: string | null;
+  status: string;
+}
+
 /** Telefones dos números vivos com agente publicado. Falha devolve `[]`: quem chama cai no número configurado. */
 export async function numerosDoRodizio(admin: SupabaseClient, organizationId: string): Promise<string[]> {
   const { data: agentes, error: erroAgentes } = await admin
@@ -32,7 +37,9 @@ export async function numerosDoRodizio(admin: SupabaseClient, organizationId: st
   const sessoes = [
     ...new Set(
       (agentes ?? []).flatMap((a) => {
-        const v = (a as { version: { channel_session_id: string | null; status: string } | null }).version;
+        // O PostgREST tipa o embed como lista mesmo sendo FK para uma linha só.
+        const bruto = (a as unknown as { version: VersaoPublicada | VersaoPublicada[] | null }).version;
+        const v = Array.isArray(bruto) ? bruto[0] : bruto;
         return v?.status === "published" && v.channel_session_id ? [v.channel_session_id] : [];
       }),
     ),
