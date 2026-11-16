@@ -42,6 +42,14 @@ export function telefoneParaExibir(telefone: string | null): string {
 }
 
 /**
+ * `{{meu_nome}}` no roteiro do agente vira o nome do perfil deste número. O modelo pequeno copia molde literal
+ * ("Me chamo Cigana Esmeralda"), e uma instrução no fim do prompt não desfaz o molde; o nome tem de estar NO molde.
+ */
+export function trocarMeuNome(texto: string, nome: string): string {
+  return texto.replace(/\{\{\s*meu_nome\s*\}\}/gi, nome.replace(/\s+/g, ' ').trim());
+}
+
+/**
  * Bloco do prompt com o nome do perfil. Vai junto dos limites (fim da fila) porque o prompt-base
  * pode dizer outro nome. É o mesmo agente em vários números, e o nome deste número tem de vencer.
  */

@@ -144,7 +144,7 @@ import { blocoDaCompraConfirmadaSemGuia, carregarGuiaDeEntrega, guiaDoProdutoDoC
 import { blocoDaLeitura } from '@/lib/leitura/bloco-do-prompt';
 import { blocoDoAnuncio, carregarAnuncioDoContato } from '@/lib/anuncio/contexto-do-anuncio';
 import { comporSystemDoTurno } from './blocos-do-turno';
-import { blocoDoNomeNoNumero, lerIdentidadeDoNumero } from '@/lib/channels/identidade-do-numero';
+import { blocoDoNomeNoNumero, lerIdentidadeDoNumero, trocarMeuNome } from '@/lib/channels/identidade-do-numero';
 import { nuncaOuviuPreco } from '@/lib/preco/preco-nunca-dito';
 import { blocoDeVariacao } from '@/lib/estilo/variacao-do-agente';
 import { blocoDeIdentidade } from '@/lib/identidade/bloco-do-prompt';
@@ -3022,9 +3022,8 @@ async function executarTurnoDoAgente(
   const blocoDeObjecoesDoTurno = blocoDeObjecoes(agentConfig?.objections ?? null);
   // Limites (aba "Limites"): o que o dono proíbe. Vai por ÚLTIMO na fila: o que ele proíbe vence o que o funil manda.
   // Mais o nome do perfil DESTE número: o mesmo agente atende vários números, cada um com um nome (0962).
-  const blocoDeLimitesDoTurno =
-    blocoDeLimites(agentConfig?.limits ?? null) +
-    blocoDoNomeNoNumero(await lerIdentidadeDoNumero(pool, tenantId, input.channelSessionId));
+  const identidadeDoNumero = await lerIdentidadeDoNumero(pool, tenantId, input.channelSessionId);
+  const blocoDeLimitesDoTurno = blocoDeLimites(agentConfig?.limits ?? null) + blocoDoNomeNoNumero(identidadeDoNumero);
   // Agente no comando de um fluxo (nó “Agente de IA”, inscrição `com_agente`): só quando o resolvedor do turno
   // escolheu o agente DO FLUXO (`outcome: 'fluxo'`) e num turno de resposta à pessoa. Falha de leitura vira
   // “ninguém no comando”: o cliente segue atendido, só sem o objetivo do fluxo neste turno.
@@ -3169,7 +3168,8 @@ async function executarTurnoDoAgente(
   if (recusouNaRodada) {
     runLog.info('recusa da oferta — o turno segue sem repetir a oferta e sem anunciar parada', {});
   }
-  const systemDoTurno = comporSystemDoTurno(system, {
+  // `{{meu_nome}}` no roteiro: o molde literal ("Me chamo …") vence qualquer instrução no fim do prompt (16/11/2026).
+  const systemDoTurno = trocarMeuNome(comporSystemDoTurno(system, {
     identidade: blocoDeIdentidadeDoTurno,
     oferta: blocoDeOfertaDoTurno,
     consciencia: blocoDeConscienciaDoTurno,
@@ -3183,7 +3183,7 @@ async function executarTurnoDoAgente(
     entrega: blocoDaEntrega,
     atropelo: blocoDoAtropeloDoTurno,
     limites: blocoDeLimitesDoTurno,
-  });
+  }), identidadeDoNumero.nome ?? agentConfig?.agentName ?? '');
   const currentInboundText =
     input.inboundMessageId === undefined
       ? null
