@@ -38,3 +38,13 @@ describe('identidade do número', () => {
     expect(nomeNoPerfil({ me: { pushName: 42 } })).toBeNull();
   });
 });
+
+describe('{{meu_nome}} no roteiro', () => {
+  it('troca no molde literal pelo nome do perfil', async () => {
+    const { trocarMeuNome } = await import('./identidade-do-numero');
+    expect(trocarMeuNome('Me chamo Cigana {{meu_nome}} e vou cuidar de você. {{ meu_nome }}', 'Estela')).toBe(
+      'Me chamo Cigana Estela e vou cuidar de você. Estela',
+    );
+    expect(trocarMeuNome('sem variável', 'Estela')).toBe('sem variável');
+  });
+});
