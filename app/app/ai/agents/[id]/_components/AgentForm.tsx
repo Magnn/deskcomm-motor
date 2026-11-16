@@ -33,6 +33,7 @@ import {
 import { TokenCounter } from "@/lib/ui/TokenCounter";
 import { Info } from "@/lib/ui/icons";
 import { useT } from "@/hooks/i18n/useT";
+import { NumerosExtrasDoAgente } from "./NumerosExtrasDoAgente";
 import Link from "next/link";
 
 import { TETO_TOOLS_POR_AGENTE } from "@/lib/mcp/tools/selecao-por-pacote";
@@ -944,6 +945,14 @@ export function AgentForm(props: Props) {
                     t("Escolha o número para poder publicar. Sem ele, o rascunho salva mas não atende.")
                   )}
                 </p>
+              ) : null}
+              {props.mode === "edit" && form.channel_session_id ? (
+                <NumerosExtrasDoAgente
+                  agentId={props.agent.id}
+                  principal={form.channel_session_id}
+                  channelSessions={props.channelSessions}
+                  disabled={props.readOnly}
+                />
               ) : null}
             </div>
           </Card>

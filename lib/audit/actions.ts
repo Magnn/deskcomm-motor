@@ -872,6 +872,7 @@ export const AUDIT_ACTIONS = [
   "ai.pricing_updated",
   // O ritmo da resposta do agente (`ai_agents.config.ritmo`): muda quanto tempo cada atendimento leva.
   "ai.ritmo_updated",
+  "ai.agent_numeros_updated",
   // A identidade e o tom de um agente (PUT /ai/agents/:id/identidade): nome, empresa, público, tom,
   // palavras da casa. Vale no PRÓXIMO turno, sem publicar versão — então "quem mudou como o agente
   // fala, e quando" é a pergunta que só esta linha responde. O texto digitado não vai na auditoria.

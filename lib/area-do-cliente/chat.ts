@@ -23,6 +23,7 @@ import { marcarConversaComMensagem } from "@/lib/channels/marcar-conversa";
 import type { createAdminClient } from "@/lib/supabase/admin";
 
 import { MARCA_DO_AVISO, ORIGEM_DA_AREA } from "./marcas";
+import { numerosDoAgente, numerosExtrasPorAgente } from "@/lib/ai/agents/numeros-do-agente";
 
 export { MARCA_DO_AVISO, ORIGEM_DA_AREA };
 /** O bucket privado das mídias da conversa (o mesmo do canal). */
@@ -216,6 +217,9 @@ interface SessaoCandidata {
   archived_at: string | null;
 }
 interface AgenteCandidato {
+  id?: string;
+  /** Números extras do agente (migration 0962), além do principal da versão. */
+  extras?: readonly string[];
   priority: number | null;
   archived_at: string | null;
   version: { channel_session_id: string | null } | Array<{ channel_session_id: string | null }> | null;
@@ -235,10 +239,11 @@ export function sessaoParaAArea(sessoes: readonly SessaoCandidata[], agentes: re
   const prioridade = new Map<string, number>();
   for (const ag of agentes) {
     const versao = Array.isArray(ag.version) ? (ag.version[0] ?? null) : ag.version;
-    const sid = versao?.channel_session_id;
-    if (ag.archived_at || !sid) continue;
+    if (ag.archived_at) continue;
     const p = ag.priority ?? 0;
-    if (!prioridade.has(sid) || p > (prioridade.get(sid) as number)) prioridade.set(sid, p);
+    for (const sid of numerosDoAgente(versao?.channel_session_id, ag.extras)) {
+      if (!prioridade.has(sid) || p > (prioridade.get(sid) as number)) prioridade.set(sid, p);
+    }
   }
   const comAgente = vivas
     .filter((s) => prioridade.has(s.id))
@@ -253,12 +258,15 @@ export async function numeroDaArea(admin: SupabaseClient, orgId: string): Promis
     admin.from("channel_sessions").select("id, status, archived_at").eq("organization_id", orgId).is("archived_at", null),
     admin
       .from("ai_agents")
-      .select("priority, archived_at, version:ai_agent_versions!ai_agents_published_version_id_fkey(channel_session_id)")
+      .select("id, priority, archived_at, version:ai_agent_versions!ai_agents_published_version_id_fkey(channel_session_id)")
       .eq("organization_id", orgId)
       .is("archived_at", null)
       .not("published_version_id", "is", null),
   ]);
-  return sessaoParaAArea((sessoes ?? []) as SessaoCandidata[], (agentes ?? []) as unknown as AgenteCandidato[]);
+  // Sem os extras a área ainda acha o principal; não vale derrubar a conversa por isso.
+  const extras = await numerosExtrasPorAgente(admin, [orgId]).catch(() => new Map<string, string[]>());
+  const candidatos = ((agentes ?? []) as unknown as AgenteCandidato[]).map((a) => ({ ...a, extras: a.id ? extras.get(a.id) : undefined }));
+  return sessaoParaAArea((sessoes ?? []) as SessaoCandidata[], candidatos);
 }
 
 /**

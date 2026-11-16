@@ -118,6 +118,18 @@ async function sessoesComAgente(
     if (v && v.status === "published") add(a.organization_id, v.channel_session_id);
   }
 
+  // Números extras dos agentes (migration 0962) também têm quem atenda.
+  const { data: extras, error: erroExtras } = await admin
+    .from("ai_agent_numeros")
+    .select("organization_id, channel_session_id, ai_agents!inner(archived_at, published_version_id)")
+    .in("organization_id", orgIds)
+    .is("ai_agents.archived_at", null)
+    .not("ai_agents.published_version_id", "is", null);
+  if (erroExtras) throw new Error(`ai_agent_numeros: ${erroExtras.message}`);
+  for (const e of (extras ?? []) as unknown as Array<{ organization_id: string; channel_session_id: string }>) {
+    add(e.organization_id, e.channel_session_id);
+  }
+
   const { data: roteadores, error: erroRoteadores } = await admin
     .from("ai_routers")
     .select("organization_id, channel_session_id")

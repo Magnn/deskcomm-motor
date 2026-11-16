@@ -10,6 +10,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { STATUS_SAUDAVEL } from "@/lib/channels/health";
 import { logger } from "@/lib/logger";
+import { numerosDoAgente, numerosExtrasPorAgente } from "@/lib/ai/agents/numeros-do-agente";
 
 /** Sorteio uniforme; `null` quando não há número vivo. `aleatorio` injetável para o teste. */
 export function sortearNumero(numeros: readonly string[], aleatorio: () => number = Math.random): string | null {
@@ -26,7 +27,7 @@ interface VersaoPublicada {
 export async function numerosDoRodizio(admin: SupabaseClient, organizationId: string): Promise<string[]> {
   const { data: agentes, error: erroAgentes } = await admin
     .from("ai_agents")
-    .select("version:ai_agent_versions!ai_agents_published_version_id_fkey(channel_session_id, status)")
+    .select("id, version:ai_agent_versions!ai_agents_published_version_id_fkey(channel_session_id, status)")
     .eq("organization_id", organizationId)
     .is("archived_at", null)
     .not("published_version_id", "is", null);
@@ -34,13 +35,19 @@ export async function numerosDoRodizio(admin: SupabaseClient, organizationId: st
     logger.warn("[plataformas-de-anuncio.rodizio] leitura dos agentes falhou", { detalhe: erroAgentes.message });
     return [];
   }
+  let extras = new Map<string, string[]>();
+  try {
+    extras = await numerosExtrasPorAgente(admin, [organizationId]);
+  } catch (err) {
+    logger.warn("[plataformas-de-anuncio.rodizio] números extras não lidos", { detalhe: err instanceof Error ? err.message : String(err) });
+  }
   const sessoes = [
     ...new Set(
       (agentes ?? []).flatMap((a) => {
         // O PostgREST tipa o embed como lista mesmo sendo FK para uma linha só.
-        const bruto = (a as unknown as { version: VersaoPublicada | VersaoPublicada[] | null }).version;
-        const v = Array.isArray(bruto) ? bruto[0] : bruto;
-        return v?.status === "published" && v.channel_session_id ? [v.channel_session_id] : [];
+        const linha = a as unknown as { id: string; version: VersaoPublicada | VersaoPublicada[] | null };
+        const v = Array.isArray(linha.version) ? linha.version[0] : linha.version;
+        return v?.status === "published" ? numerosDoAgente(v.channel_session_id, extras.get(linha.id)) : [];
       }),
     ),
   ];

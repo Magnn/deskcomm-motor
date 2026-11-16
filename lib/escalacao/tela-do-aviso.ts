@@ -201,7 +201,7 @@ async function lerConexoes(db: SupabaseClient, orgId: string): Promise<ConexaoPa
   const canais = await listSelectableChannels(db, orgId);
 
   const emUso = new Set<string>();
-  const [versoes, roteadores] = await Promise.all([
+  const [versoes, roteadores, extras] = await Promise.all([
     db
       .from("ai_agent_versions")
       .select("channel_session_id")
@@ -213,8 +213,10 @@ async function lerConexoes(db: SupabaseClient, orgId: string): Promise<ConexaoPa
       .select("channel_session_id")
       .eq("organization_id", orgId)
       .eq("is_active", true),
+    // Números extras dos agentes (migration 0962): também falam com cliente.
+    db.from("ai_agent_numeros").select("channel_session_id").eq("organization_id", orgId),
   ]);
-  for (const fonte of [versoes, roteadores]) {
+  for (const fonte of [versoes, roteadores, extras]) {
     if (fonte.error) {
       // Não saber se o número atende clientes vira ALERTA AUSENTE, nunca alerta
       // inventado: dizer "este é o número dos seus clientes" sobre um número

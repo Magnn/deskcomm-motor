@@ -29,6 +29,7 @@ import { dentroDaFaixa, escolherOferta, motivoDaOferta, type PessoaParaOferta } 
 
 import type { Logger } from '../../obs/logger';
 import { enqueueJob } from '../../queue/queue';
+import { sqlNumeroExtra } from '@/lib/ai/agents/numeros-do-agente';
 
 /** Chave do payload do job: é por ela que o ritmo e a repetição são contados. */
 export const CHAVE_DA_OFERTA = 'oferta_proativa';
@@ -45,11 +46,12 @@ interface AgenteComOferta {
 }
 
 export const CONSULTA_DE_AGENTES = `
-  select a.organization_id, pv.channel_session_id, o.timezone, pv.followup
+  select a.organization_id, cs.id as channel_session_id, o.timezone, pv.followup
   from ai_agents a
   join ai_agent_versions pv on pv.id = a.published_version_id
   join organizations o on o.id = a.organization_id
-  join channel_sessions cs on cs.id = pv.channel_session_id and cs.organization_id = a.organization_id
+  join channel_sessions cs on cs.organization_id = a.organization_id
+    and (cs.id = pv.channel_session_id or ${sqlNumeroExtra('a', 'cs.id')})
   where a.archived_at is null and pv.status = 'published'
     and pv.followup->'oferta_proativa'->>'enabled' = 'true'
     and cs.status = 'WORKING' and to_jsonb(cs)->>'archived_at' is null`;
