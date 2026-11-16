@@ -145,6 +145,7 @@ import { blocoDaLeitura } from '@/lib/leitura/bloco-do-prompt';
 import { blocoDoAnuncio, carregarAnuncioDoContato } from '@/lib/anuncio/contexto-do-anuncio';
 import { comporSystemDoTurno } from './blocos-do-turno';
 import { blocoDoNomeNoNumero, lerIdentidadeDoNumero } from '@/lib/channels/identidade-do-numero';
+import { nuncaOuviuPreco } from '@/lib/preco/preco-nunca-dito';
 import { blocoDeVariacao } from '@/lib/estilo/variacao-do-agente';
 import { blocoDeIdentidade } from '@/lib/identidade/bloco-do-prompt';
 import { blocoDeConsciencia } from '@/lib/consciencia/bloco-do-prompt';
@@ -2654,14 +2655,19 @@ async function executarTurnoDoAgente(
       : null;
   // "SÓ TENHO 90 NO PIX": a entrada é o valor que ela disse, e o Pix sai neste turno (`entradaImediata`). Vem antes
   // da proposta de entrada e do valor aceito: manter o valor de venda com entrada vale mais que dar desconto.
+  // PREÇO NUNCA DITO: a agente ofereceu o trabalho sem o número ("é um valor só") e a pessoa respondeu "tenho 20
+  // reais". Sem preço na conversa a entrada não era lida e a trava vetava os R$ 20 contra o piso de R$ 130 (Felipe,
+  // 16/11/2026). Quem nunca ouviu valor nenhum está diante do valor de venda: ele vira a referência da entrada.
+  const referenciaDaEntrada =
+    valorGuardadoDoCombinado !== null && agentConfig?.pricing && valorGuardadoDoCombinado <= agentConfig.pricing.list_price_cents
+      ? valorGuardadoDoCombinado
+      : agentConfig?.pricing?.min_down_payment_cents !== undefined && !preview && (await nuncaOuviuPreco(pool, tenantId, leadId))
+        ? agentConfig.pricing.list_price_cents
+        : null;
   const entradaImediataLida =
     entradaDoTurno === null && !preview && agentConfig?.pricing?.enabled && internacionalDoTurno === null && ofertaDoCatalogoNoTurno === null &&
     posVendaDoTurno === null && !faltaParaOEssencialNoTurno
-      ? entradaImediata(
-          agentConfig.pricing,
-          openingContext.context.messages,
-          valorGuardadoDoCombinado !== null && valorGuardadoDoCombinado <= agentConfig.pricing.list_price_cents ? valorGuardadoDoCombinado : null,
-        )
+      ? entradaImediata(agentConfig.pricing, openingContext.context.messages, referenciaDaEntrada)
       : null;
   // O comprovante do Pix pela chave (`lib/pagamentos/comprovante-no-turno.ts`): vem antes da entrada e da leitura dos
   // pagamentos. Quem já pagou a entrada que disse não recebe outra cobrança dela (04/11/2026: R$ 67 pagos, cobrados de novo).
