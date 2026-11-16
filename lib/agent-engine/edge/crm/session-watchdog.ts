@@ -33,6 +33,15 @@ const SEND_JOB_KINDS = ['inbound_turn', 'followup_turn'] as const;
 const PROACTIVE_SEND_JOB_KIND = 'followup_turn';
 
 /**
+ * O número do job. O retorno agendado (`followup_turn` do CRM) leva só a conversa, sem `channel_session_id`:
+ * medido em 16/11/2026, com o número caído havia um dia, os retornos dele passavam pela trava, rodavam o
+ * turno inteiro (token gasto) e a mensagem ficava presa em 'queued'. Sem o campo, vale o número da conversa.
+ */
+const SESSAO_DO_JOB = `coalesce(j.payload->>'channel_session_id',
+  (select c.channel_session_id::text from conversations c
+    where c.organization_id = j.organization_id and c.id::text = j.payload->>'conversation_id'))`;
+
+/**
  * Retém jobs 'pending' de sessão não-WORKING ou sob hold de saúde (run_after =
  * infinity, com o run_after original guardado no payload) e libera quando a
  * sessão volta. Idempotente por construção (marcador held_run_after no payload).
@@ -75,7 +84,7 @@ export async function enforceHolds(harness: pg.Pool): Promise<{ held: number; re
        and j.organization_id = s.organization_id
        and j.status = 'pending'
        and j.kind = any($2::text[])
-       and j.payload->>'channel_session_id' = s.id::text
+       and ${SESSAO_DO_JOB} = s.id::text
        and not (j.payload ? 'held_run_after')`,
     [SESSION_HEALTHY_STATUS, [...SEND_JOB_KINDS], PROACTIVE_SEND_JOB_KIND],
   );
@@ -94,7 +103,7 @@ export async function enforceHolds(harness: pg.Pool): Promise<{ held: number; re
        and j.organization_id = s.organization_id
        and j.status = 'pending'
        and j.payload ? 'held_run_after'
-       and j.payload->>'channel_session_id' = s.id::text`,
+       and ${SESSAO_DO_JOB} = s.id::text`,
     [SESSION_HEALTHY_STATUS, PROACTIVE_SEND_JOB_KIND],
   );
   return { held: hold.rowCount ?? 0, released: release.rowCount ?? 0 };
@@ -121,7 +130,7 @@ export async function sessionHealthMetrics(db: Queryable): Promise<SessionHealth
               where j.organization_id = s.organization_id
                 and j.status = 'pending'
                 and j.payload ? 'held_run_after'
-                and j.payload->>'channel_session_id' = s.id::text) as held_jobs
+                and ${SESSAO_DO_JOB} = s.id::text) as held_jobs
      from channel_sessions s
      order by s.updated_at desc
      limit 50`,
