@@ -35,6 +35,7 @@ const pool = new pg.Pool({
 const ORG = "0be7a70a-2580-4000-8000-000000000101";
 const CONTATO = "0be7a70a-2580-4000-8000-000000000102";
 const SESSAO = "0be7a70a-2580-4000-8000-000000000103";
+const CONVERSA = "0be7a70a-2580-4000-8000-000000000104";
 
 async function enfileirar(kind: "inbound_turn" | "followup_turn", jaRetido = false): Promise<void> {
   const payload = jaRetido
@@ -91,6 +92,11 @@ beforeAll(async () => {
      values ($1, $2, 'sessao-hold', '\\x00'::bytea, 'WORKING') on conflict (id) do nothing`,
     [SESSAO, ORG],
   );
+  await pool.query(
+    `insert into conversations (id, organization_id, contact_id, channel_session_id)
+     values ($1, $2, $3, $4) on conflict (id) do nothing`,
+    [CONVERSA, ORG, CONTATO, SESSAO],
+  );
 });
 
 afterEach(async () => {
@@ -100,6 +106,7 @@ afterEach(async () => {
 afterAll(async () => {
   await pool.query("delete from job_queue where organization_id = $1", [ORG]);
   await pool.query("delete from channel_session_health where organization_id = $1", [ORG]);
+  await pool.query("delete from conversations where id = $1", [CONVERSA]);
   await pool.query("delete from channel_sessions where id = $1", [SESSAO]);
   await pool.query("delete from contacts where id = $1", [CONTATO]);
   await pool.query("delete from organizations where id = $1", [ORG]);
@@ -168,6 +175,20 @@ describe("enforceHolds nos holds que NÃO são go-live", () => {
       inbound_turn: { retido: true },
       followup_turn: { retido: true },
     });
+  });
+
+  it("⭐ retorno agendado que só leva a conversa também é retido com o canal fora do ar (16/11/2026)", async () => {
+    await saude({ ativo: false, razao: null, statusDaSessao: "FAILED" });
+    await pool.query(
+      `insert into job_queue (organization_id, contact_id, kind, payload, status, run_after)
+       values ($1, $2, 'followup_turn', jsonb_build_object('conversation_id', $3::text), 'pending', now())`,
+      [ORG, CONTATO, CONVERSA],
+    );
+
+    const { held } = await enforceHolds(pool);
+
+    expect(held).toBe(1);
+    expect(await estado()).toEqual({ followup_turn: { retido: true } });
   });
 
   it("sem hold e com canal no ar, nada é retido e o que estava preso volta", async () => {
