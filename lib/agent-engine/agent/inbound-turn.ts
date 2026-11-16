@@ -144,7 +144,8 @@ import { blocoDaCompraConfirmadaSemGuia, carregarGuiaDeEntrega, guiaDoProdutoDoC
 import { blocoDaLeitura } from '@/lib/leitura/bloco-do-prompt';
 import { blocoDoAnuncio, carregarAnuncioDoContato } from '@/lib/anuncio/contexto-do-anuncio';
 import { comporSystemDoTurno } from './blocos-do-turno';
-import { blocoDoNomeNoNumero, lerIdentidadeDoNumero } from '@/lib/channels/identidade-do-numero';
+import { blocoDoNomeNoNumero, lerIdentidadeDoNumero, trocarMeuNome } from '@/lib/channels/identidade-do-numero';
+import { nuncaOuviuPreco } from '@/lib/preco/preco-nunca-dito';
 import { blocoDeVariacao } from '@/lib/estilo/variacao-do-agente';
 import { blocoDeIdentidade } from '@/lib/identidade/bloco-do-prompt';
 import { blocoDeConsciencia } from '@/lib/consciencia/bloco-do-prompt';
@@ -2654,14 +2655,19 @@ async function executarTurnoDoAgente(
       : null;
   // "SÓ TENHO 90 NO PIX": a entrada é o valor que ela disse, e o Pix sai neste turno (`entradaImediata`). Vem antes
   // da proposta de entrada e do valor aceito: manter o valor de venda com entrada vale mais que dar desconto.
+  // PREÇO NUNCA DITO: a agente ofereceu o trabalho sem o número ("é um valor só") e a pessoa respondeu "tenho 20
+  // reais". Sem preço na conversa a entrada não era lida e a trava vetava os R$ 20 contra o piso de R$ 130 (Felipe,
+  // 16/11/2026). Quem nunca ouviu valor nenhum está diante do valor de venda: ele vira a referência da entrada.
+  const referenciaDaEntrada =
+    valorGuardadoDoCombinado !== null && agentConfig?.pricing && valorGuardadoDoCombinado <= agentConfig.pricing.list_price_cents
+      ? valorGuardadoDoCombinado
+      : agentConfig?.pricing?.min_down_payment_cents !== undefined && !preview && (await nuncaOuviuPreco(pool, tenantId, leadId))
+        ? agentConfig.pricing.list_price_cents
+        : null;
   const entradaImediataLida =
     entradaDoTurno === null && !preview && agentConfig?.pricing?.enabled && internacionalDoTurno === null && ofertaDoCatalogoNoTurno === null &&
     posVendaDoTurno === null && !faltaParaOEssencialNoTurno
-      ? entradaImediata(
-          agentConfig.pricing,
-          openingContext.context.messages,
-          valorGuardadoDoCombinado !== null && valorGuardadoDoCombinado <= agentConfig.pricing.list_price_cents ? valorGuardadoDoCombinado : null,
-        )
+      ? entradaImediata(agentConfig.pricing, openingContext.context.messages, referenciaDaEntrada)
       : null;
   // O comprovante do Pix pela chave (`lib/pagamentos/comprovante-no-turno.ts`): vem antes da entrada e da leitura dos
   // pagamentos. Quem já pagou a entrada que disse não recebe outra cobrança dela (04/11/2026: R$ 67 pagos, cobrados de novo).
@@ -3016,9 +3022,8 @@ async function executarTurnoDoAgente(
   const blocoDeObjecoesDoTurno = blocoDeObjecoes(agentConfig?.objections ?? null);
   // Limites (aba "Limites"): o que o dono proíbe. Vai por ÚLTIMO na fila: o que ele proíbe vence o que o funil manda.
   // Mais o nome do perfil DESTE número: o mesmo agente atende vários números, cada um com um nome (0962).
-  const blocoDeLimitesDoTurno =
-    blocoDeLimites(agentConfig?.limits ?? null) +
-    blocoDoNomeNoNumero(await lerIdentidadeDoNumero(pool, tenantId, input.channelSessionId));
+  const identidadeDoNumero = await lerIdentidadeDoNumero(pool, tenantId, input.channelSessionId);
+  const blocoDeLimitesDoTurno = blocoDeLimites(agentConfig?.limits ?? null) + blocoDoNomeNoNumero(identidadeDoNumero);
   // Agente no comando de um fluxo (nó “Agente de IA”, inscrição `com_agente`): só quando o resolvedor do turno
   // escolheu o agente DO FLUXO (`outcome: 'fluxo'`) e num turno de resposta à pessoa. Falha de leitura vira
   // “ninguém no comando”: o cliente segue atendido, só sem o objetivo do fluxo neste turno.
@@ -3163,7 +3168,8 @@ async function executarTurnoDoAgente(
   if (recusouNaRodada) {
     runLog.info('recusa da oferta — o turno segue sem repetir a oferta e sem anunciar parada', {});
   }
-  const systemDoTurno = comporSystemDoTurno(system, {
+  // `{{meu_nome}}` no roteiro: o molde literal ("Me chamo …") vence qualquer instrução no fim do prompt (16/11/2026).
+  const systemDoTurno = trocarMeuNome(comporSystemDoTurno(system, {
     identidade: blocoDeIdentidadeDoTurno,
     oferta: blocoDeOfertaDoTurno,
     consciencia: blocoDeConscienciaDoTurno,
@@ -3177,7 +3183,7 @@ async function executarTurnoDoAgente(
     entrega: blocoDaEntrega,
     atropelo: blocoDoAtropeloDoTurno,
     limites: blocoDeLimitesDoTurno,
-  });
+  }), identidadeDoNumero.nome ?? agentConfig?.agentName ?? '');
   const currentInboundText =
     input.inboundMessageId === undefined
       ? null
