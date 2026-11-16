@@ -1,7 +1,10 @@
 /**
  * As variáveis que o construtor de fluxo oferece no botão "Inserir variável"
  * (`{{nome}}`, `{{primeiro_nome}}`, `{{telefone}}`, `{{email}}`, `{{etapa}}`),
- * trocadas pelos dados do contato NA HORA do envio.
+ * trocadas pelos dados do contato NA HORA do envio. `{{meu_nome}}` e `{{meu_numero}}` são o
+ * outro lado: o nome do perfil e o telefone do NÚMERO em que a conversa está
+ * (`lib/channels/identidade-do-numero.ts`). O cartão "salve meu número" usa os dois, e o
+ * mesmo agente em vários números manda, em cada um, o cartão daquele número.
  *
  * ─── Por que existe ────────────────────────────────────────────────────────
  * A tela inseria a variável e o motor mandava o texto como estava: o cliente
@@ -34,12 +37,20 @@ export interface DadosDoContato {
   etapa: string | null;
   /** Campos de fluxo do lead (`custom_fields`), por chave. Ausente = nenhum conhecido. */
   campos?: Readonly<Record<string, string>>;
+  /** O número em que a conversa está: nome do perfil e telefone (`+55…`). Ausente = desconhecido. */
+  meuNome?: string | null;
+  meuNumero?: string | null;
 }
 
 const VARIAVEL = /\{\{\s*([a-zA-Z_]+)\s*\}\}/g;
 
 /** O vocabulário fechado deste módulo — o mesmo que `CAMPOS_PERSONALIZADOS` oferece na tela. */
-export const VARIAVEIS_DO_CONTATO = ['nome', 'primeiro_nome', 'telefone', 'email', 'etapa'] as const;
+export const VARIAVEIS_DO_CONTATO = ['nome', 'primeiro_nome', 'telefone', 'email', 'etapa', 'meu_nome', 'meu_numero'] as const;
+
+/** O texto cita o número da conversa? Quem chama só lê a sessão quando cita. */
+export function citaONumero(texto: string): boolean {
+  return [...texto.matchAll(VARIAVEL)].some((m) => ['meu_nome', 'meu_numero'].includes((m[1] ?? '').toLowerCase()));
+}
 type VariavelDoContato = (typeof VARIAVEIS_DO_CONTATO)[number];
 
 function ehVariavelDoContato(chave: string): chave is VariavelDoContato {
@@ -76,6 +87,10 @@ function valorDe(chave: VariavelDoContato, dados: DadosDoContato): string {
       return (dados.email ?? '').trim();
     case 'etapa':
       return (dados.etapa ?? '').trim();
+    case 'meu_nome':
+      return (dados.meuNome ?? '').trim();
+    case 'meu_numero':
+      return (dados.meuNumero ?? '').trim();
   }
 }
 
