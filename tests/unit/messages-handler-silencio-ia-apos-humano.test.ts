@@ -79,7 +79,7 @@ function makeSupabase(botSilencedUntil: string | null, snapshot?: () => Record<s
         return q;
       }
       if(table==='organizations'){
-        const q={select:()=>q,eq:()=>q,single:async()=>({data:{settings:{}},error:null})};return q;
+        const q={select:()=>q,eq:()=>q,single:async()=>({data:{settings:{}},error:null}),maybeSingle:async()=>({data:{settings:{}},error:null})};return q;
       }
 
       if (table === 'conversations') {

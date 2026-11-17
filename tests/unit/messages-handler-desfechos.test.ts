@@ -97,7 +97,8 @@ function makeSupabase(
 
   const client = {
     from(table: string) {
-      if (table === "channel_sessions") {
+      // `organizations` cai aqui também: sem `settings`, a trava de janela fica desligada.
+      if (table === "channel_sessions" || table === "organizations") {
         const query = {
           select: () => query,
           eq: () => query,

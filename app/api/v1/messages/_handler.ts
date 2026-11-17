@@ -38,6 +38,7 @@ import { ARCHIVED_AT, queryTolerantToMissingArchived } from "@/lib/channels/arch
 import { canalTemBotaoDeResposta, LINHA_SEM_BOTAO, lerBotoesDeResposta } from "@/lib/channels/botoes-de-resposta";
 import { conferirDefinicao } from "@/lib/channels/conferir-definicao";
 import { isMediaPathOwnedBy } from "@/lib/messaging/media/upload-validation";
+import { envioDependeDoAjuste, pedeSoDentroDaJanela } from "@/lib/messaging/so-dentro-da-janela";
 import {
   buildVcard,
   normalizePhoneForDisplay,
@@ -461,6 +462,25 @@ export async function sendMessageHandler(
       ctx.requestId,
       traduzir("Contato bloqueou o atendimento.", ctx.idioma ?? "pt-BR"),
     );
+  }
+
+  if (envioDependeDoAjuste(ctx.actor, c.last_inbound_at, new Date())) {
+    const { data: org, error: orgErr } = await supabase
+      .from("organizations")
+      .select("settings")
+      .eq("id", c.organization_id)
+      .maybeSingle();
+    // Falha de leitura sobe: na dúvida, não fala com quem pode estar fora da janela.
+    if (orgErr) throw new ApiError(500, "internal_error", undefined, ctx.requestId, orgErr.message);
+    if (pedeSoDentroDaJanela(org?.settings)) {
+      throw new ApiError(
+        403,
+        "forbidden",
+        undefined,
+        ctx.requestId,
+        traduzir("Fora da janela de 24 horas: a pessoa não escreveu para este número no último dia.", ctx.idioma ?? "pt-BR"),
+      );
+    }
   }
 
   if (

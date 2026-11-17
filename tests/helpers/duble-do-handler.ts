@@ -15,6 +15,8 @@ export interface OpcoesDoDubleDoHandler {
   channelMetadata?: LinhaDoDuble;
   templateRow?: LinhaDoDuble | null;
   rpcData?: unknown | (() => unknown);
+  /** `organizations.settings` — lido só quando o envio automático sai fora da janela de 24 h. */
+  orgSettings?: LinhaDoDuble;
 }
 
 interface CadeiaAguardavel extends PromiseLike<{ error: null }> {
@@ -98,6 +100,15 @@ export function criarDubleDoHandler(opcoes: OpcoesDoDubleDoHandler): {
             return cadeia;
           },
           maybeSingle: async () => ({ data: { metadata: opcoes.channelMetadata ?? {} }, error: null }),
+        };
+        return cadeia;
+      }
+
+      if (tabela === "organizations") {
+        const cadeia = {
+          select: () => cadeia,
+          eq: () => cadeia,
+          maybeSingle: async () => ({ data: { settings: opcoes.orgSettings ?? {} }, error: null }),
         };
         return cadeia;
       }
