@@ -5,6 +5,7 @@
  */
 import { describe, expect, it, vi } from "vitest";
 
+import { DEFAULT_CHANNEL_PROVIDER } from "@/lib/channels/capabilities";
 import { RECUPERACAO_PADRAO as PADRAO_DO_PRODUTO } from "@/lib/recuperacao/config";
 
 // A régua de três passos curtos é o cenário destes testes (silêncio de minutos); o padrão do produto é outro.
@@ -208,7 +209,7 @@ describe("decidirChamada", () => {
 
 describe("recuperarSilenciosos", () => {
   it("⭐ número por QR numa organização que exige a janela: manda a mensagem de manter aberta antes de fechar", async () => {
-    const qr = { provider: "waha", retorno_em: daqui(3 * 24 * 60), last_inbound_at: ha(22 * 60), last_outbound_at: ha(21 * 60) };
+    const qr = { provider: DEFAULT_CHANNEL_PROVIDER, retorno_em: daqui(3 * 24 * 60), last_inbound_at: ha(22 * 60), last_outbound_at: ha(21 * 60) };
     const exige = await recuperarSilenciosos(poolCom([silenciosa({ ...qr, so_dentro_da_janela: true })]) as never, log, { agora: AGORA });
     expect(exige.janelas, "sem isto o retorno combinado cai fora da janela e é recusado na saída").toBe(1);
     // CONTROLE: sem a exigência, o QR fala livre a qualquer hora e não precisa manter nada aberto.
