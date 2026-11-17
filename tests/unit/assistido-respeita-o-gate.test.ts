@@ -42,8 +42,15 @@ vi.mock('@/lib/agent-engine/guardrails/camadas-da-org', () => ({
 }));
 vi.mock('@/lib/agent-engine/agent/fuso-da-org', () => ({ fusoDaOrganizacao: vi.fn(async () => 'UTC') }));
 vi.mock('@/lib/ai/elegibilidade/consulta-pg', () => ({ decidirElegibilidadeDaConversa: mocks.elegibilidade }));
-vi.mock('@/lib/agent-engine/pacing/store', () => ({ loadChannelKnobs: vi.fn(async () => ({ knobs: {} })) }));
-vi.mock('@/lib/agent-engine/pacing/engine', () => ({ janelaDeEnvioAberta: () => true, proximaAberturaDaJanela: vi.fn() }));
+vi.mock('@/lib/agent-engine/pacing/store', () => ({
+  loadChannelKnobs: vi.fn(async () => ({ knobs: { maxPerHour: null } })),
+  loadPacingState: vi.fn(),
+}));
+vi.mock('@/lib/agent-engine/pacing/engine', () => ({
+  janelaDeEnvioAberta: () => true,
+  proximaAberturaDaJanela: vi.fn(),
+  proximaVagaNaHora: vi.fn(() => null),
+}));
 vi.mock('@/lib/agent-engine/pacing/aviso-de-janela', () => ({
   resolverAvisoDeJanela: vi.fn(async () => 0), avisarJanelaFechada: vi.fn(),
 }));
