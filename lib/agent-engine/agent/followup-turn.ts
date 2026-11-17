@@ -542,26 +542,14 @@ export function createFollowupTurnHandler(deps: FollowupTurnDeps) {
 
     // Também quando a organização pediu só dentro da janela: sem isto o turno rodaria o modelo inteiro
     // para o envio ser recusado na saída (`lib/messaging/so-dentro-da-janela.ts`).
-    const soDentro =
-      payload.so_dentro_da_janela === true ||
-      pedeSoDentroDaJanela(
-        (await pool.query<{ settings: unknown }>('select settings from organizations where id = $1', [tenantId])).rows[0]?.settings,
-      );
-    if (soDentro) {
-      const { rows } = await pool.query<{ ultima: Date | null }>(
-        `select max(created_at) as ultima from messages
-          where organization_id = $1 and conversation_id = $2 and direction = 'inbound'`,
-        [tenantId, target.conversationId],
-      );
-      if (!dentroDaJanela(rows[0]?.ultima ?? null, clock())) {
-        deps.log?.info('retorno religado descartado: a pessoa não escreveu nas últimas 24 h', {
-          job_id: job.id,
-          tenant_id: tenantId,
-          lead_id: leadId,
-          conversation_id: target.conversationId,
-        });
-        return;
-      }
+    if (await foraDaJanelaExigida(pool, tenantId, target.conversationId, clock(), payload.so_dentro_da_janela === true)) {
+      deps.log?.info('retorno descartado: a pessoa não escreveu nas últimas 24 h', {
+        job_id: job.id,
+        tenant_id: tenantId,
+        lead_id: leadId,
+        conversation_id: target.conversationId,
+      });
+      return;
     }
 
     // F3-04: caminho determinístico ($0) — envia o template versionado direto pela
@@ -643,6 +631,28 @@ interface ReentrySendTarget {
  * verdade vive em `lib/followup/turn-bridge.ts`, que este arquivo NUNCA importa:
  * agent-engine não conhece followup/*, só o callback).
  */
+/**
+ * A janela de 24 h está fechada e alguém a exige — o próprio job (`so_dentro_da_janela`) ou a organização
+ * (`lib/messaging/so-dentro-da-janela.ts`)? A conversa é por contato + número: só conta o que a pessoa
+ * escreveu NESTE número.
+ */
+async function foraDaJanelaExigida(
+  pool: pg.Pool,
+  tenantId: string,
+  conversationId: string,
+  agora: Date,
+  pedidoNoJob = false,
+): Promise<boolean> {
+  const { rows } = await pool.query<{ ultima: Date | null; settings: unknown }>(
+    `select (select max(created_at) from messages
+              where organization_id = $1 and conversation_id = $2 and direction = 'inbound') as ultima,
+            (select settings from organizations where id = $1) as settings`,
+    [tenantId, conversationId],
+  );
+  if (!pedidoNoJob && !pedeSoDentroDaJanela(rows[0]?.settings)) return false;
+  return !dentroDaJanela(rows[0]?.ultima ?? null, agora);
+}
+
 async function runFlowDrivenTurn(
   deps: FollowupTurnDeps,
   job: JobRow,
@@ -678,6 +688,14 @@ async function runFlowDrivenTurn(
   }
   const { enrollmentId, nodeId } = input;
   const runLog = withFields(deps.log, { job_id: job.id, tenant_id: target.tenantId, lead_id: target.leadId, enrollment_id: enrollmentId });
+
+  // Passo de envio fora da janela que a organização exige: pula antes de montar o texto ou chamar o modelo. O
+  // fluxo recebe `skipped` e segue — o mesmo desfecho de um envio recusado na saída, sem o custo.
+  if (input.purpose === 'send_message' && (await foraDaJanelaExigida(pool, target.tenantId, target.conversationId, clock()))) {
+    runLog.info('passo do fluxo pulado: fora da janela de 24 h exigida pela organização', { node_id: nodeId });
+    await complete(pool, { jobId: job.id, jobClaim: claimOfJob(job), organizationId: target.tenantId, enrollmentId, nodeId, result: { kind: 'skipped', reason: 'Fora da janela de 24 horas: a pessoa não escreveu para este número no último dia.' } });
+    return;
+  }
 
   if (input.purpose === 'send_message') {
     // action mode 'content': sequência de itens, ANTES do fallback de corpo único
