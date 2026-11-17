@@ -172,7 +172,43 @@ describe("o registro do número na Cloud API", () => {
     ]);
 
     expect(await garantirNumeroRegistrado(p, buscar)).toEqual({ ok: true, registrou: false, noAplicativo: false });
-    expect(chamadas[1]?.corpo.get("fields")).toBe("platform_type");
+    expect(chamadas[1]?.corpo.get("fields")).toBe("platform_type,status");
+  });
+
+  it("⭐ na Cloud API mas DESCONECTADO: registra de novo em vez de dizer que está pronto", async () => {
+    const { buscar, chamadas } = graph([
+      resposta(200, { platform_type: "CLOUD_API", status: "DISCONNECTED" }),
+      resposta(200, { success: true }),
+    ]);
+
+    expect(await garantirNumeroRegistrado(p, buscar)).toEqual({ ok: true, registrou: true, noAplicativo: false });
+    expect(chamadas[0]?.corpo.get("fields")).toContain("status");
+    expect(chamadas[1]?.aresta).toBe("num1/register");
+  });
+
+  it("⭐ desconectado e a Meta pede nova verificação: recusa e diz o que fazer", async () => {
+    const { buscar } = graph([
+      resposta(200, { platform_type: "CLOUD_API", status: "DISCONNECTED" }),
+      resposta(400, {
+        error: {
+          code: 133006,
+          message: "(#133006) Phone number re-verification needed",
+          error_data: { details: "Phone number needs to be verified before registering" },
+        },
+      }),
+    ]);
+
+    const r = await garantirNumeroRegistrado(p, buscar);
+    expect(r.ok).toBe(false);
+    expect(!r.ok && r.motivo).toContain("desconectado na Meta");
+    expect(!r.ok && r.motivo).toContain("Phone number needs to be verified before registering");
+  });
+
+  it("na Cloud API e conectado: não registra de novo", async () => {
+    const { buscar, chamadas } = graph([resposta(200, { platform_type: "CLOUD_API", status: "CONNECTED" })]);
+
+    expect(await garantirNumeroRegistrado(p, buscar)).toEqual({ ok: true, registrou: false, noAplicativo: false });
+    expect(chamadas).toHaveLength(1);
   });
 
   it("registro recusado devolve o detalhe da Meta", async () => {
