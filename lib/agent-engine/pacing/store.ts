@@ -167,7 +167,9 @@ export async function loadPacingState(
   return {
     lastSentAt: row?.last_sent_at ?? null,
     sentToday: Number(row?.sent_today ?? 0),
-    initiatedToday: Number(row?.initiated_today ?? 0),
+    // Sem a contagem por tipo, a leitura conservadora é o total: o aquecimento falha FECHADO.
+    initiatedToday:
+      row?.initiated_today == null ? Number(row?.sent_today ?? 0) : Number(row.initiated_today),
     sentLastHour: Number(row?.sent_last_hour ?? 0),
     oldestInLastHourAt: row?.oldest_last_hour ?? null,
     numberActivatedAt: input.numberActivatedAt,

@@ -5047,8 +5047,34 @@ export const DICIONARIO: Traducoes = {
   "dias: sem limite de aquecimento": { es: "días: sin límite de calentamiento" },
   "dias: até": { es: "días: hasta" },
   dia: { es: "día" },
-  "Número recém-conectado envia pouco e sobe aos poucos — enviar demais no início é a causa nº 1 de bloqueio.": {
-    es: "Un número recién conectado envía pocos mensajes y aumenta poco a poco. Enviar demasiado al principio es la causa n.º 1 de bloqueos.",
+  "Número recém-conectado envia pouco e sobe aos poucos — enviar demais no início é a causa nº 1 de bloqueio. Conta só o que nós iniciamos (retorno, recuperação, oferta): responder quem acabou de escrever não gasta o aquecimento.": {
+    es: "Un número recién conectado envía pocos mensajes y aumenta poco a poco. Enviar demasiado al principio es la causa n.º 1 de bloqueos. Solo cuenta lo que iniciamos nosotros (seguimiento, recuperación, oferta): responder a quien acaba de escribir no gasta el calentamiento.",
+  },
+  "Hoje neste número": { es: "Hoy en este número" },
+  "Leads novos:": { es: "Leads nuevos:" },
+  "a caminho": { es: "en camino" },
+  "Última hora:": { es: "Última hora:" },
+  "msgs": { es: "mensajes" },
+  "Iniciadas por nós:": { es: "Iniciadas por nosotros:" },
+  "Total enviado:": { es: "Total enviado:" },
+  "Leads novos por dia (rodízio)": { es: "Leads nuevos por día (rotación)" },
+  "sem limite": { es: "sin límite" },
+  "Subir sozinho com a idade do número": { es: "Subir solo con la antigüedad del número" },
+  "0–3 dias: 15 por dia · 4–7 dias: 25 · 8–14 dias: 50 · 15 dias ou mais: sem limite.": {
+    es: "0–3 días: 15 por día · 4–7 días: 25 · 8–14 días: 50 · 15 días o más: sin límite.",
+  },
+  "Orçamento personalizado em vigor — hoje:": { es: "Presupuesto personalizado vigente — hoy:" },
+  "Preencha o campo para trocar.": { es: "Completa el campo para cambiarlo." },
+  "Quantas conversas novas os anúncios com rodízio mandam a este número por dia. O clique vai para o número mais longe do seu limite; se todos encherem, vai para o menos carregado e o excesso fica registrado — nenhum clique pago se perde. Em branco: divide por igual.": {
+    es: "Cuántas conversaciones nuevas envían por día a este número los anuncios con rotación. El clic va al número más lejos de su límite; si todos se llenan, va al menos cargado y el exceso queda registrado: ningún clic pagado se pierde. En blanco: reparte por igual.",
+  },
+  "Teto de mensagens por hora": { es: "Tope de mensajes por hora" },
+  "sem teto por hora": { es: "sin tope por hora" },
+  "Conta tudo o que sai do número. Rajada é o que mais derruba número novo: acima do teto, a mensagem espera alguns minutos até abrir vaga. Quem relata urgência é respondido mesmo assim.": {
+    es: "Cuenta todo lo que sale del número. Las ráfagas son lo que más tumba un número nuevo: por encima del tope, el mensaje espera unos minutos hasta que haya lugar. A quien reporta una urgencia se le responde igual.",
+  },
+  "Este número atingiu o limite de mensagens por hora. A resposta sai sozinha assim que abrir vaga, em poucos minutos — rajada de envios é o que mais derruba número no WhatsApp.": {
+    es: "Este número alcanzó el límite de mensajes por hora. La respuesta sale sola en cuanto haya lugar, en pocos minutos: las ráfagas de envíos son lo que más tumba números en WhatsApp.",
   },
   "Salvar proteção": { es: "Guardar protección" },
   "Copiado.": { es: "Copiado." },
