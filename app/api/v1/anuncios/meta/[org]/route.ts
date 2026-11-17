@@ -151,8 +151,10 @@ export async function GET(req: NextRequest, ctx: RouteContext): Promise<Response
   const lida = await lerConfigDaLanding(admin, "meta_ads_landing_pages", organizationId);
   if (!lida) return paginaDeSaida(null);
   // A página de outra oferta manda a própria frase (`frase=`), e o fluxo de palavra-chave começa a conversa certa.
-  // `rodizio=1`: o clique vai para o número vivo com agente que recebeu menos cliques; sem nenhum vivo, o configurado.
-  const sorteado = parametros.get("rodizio") === "1" ? await proximoNumeroDoRodizio(admin, organizationId) : null;
+  // `rodizio=1`: o clique vai para o número vivo com agente mais longe do orçamento de leads de hoje; sem nenhum
+  // vivo, o configurado. Todos cheios: o menos carregado, marcado como transbordo (o clique pago nunca se perde).
+  const escolhaDoRodizio = parametros.get("rodizio") === "1" ? await proximoNumeroDoRodizio(admin, organizationId) : null;
+  const sorteado = escolhaDoRodizio?.telefone ?? null;
   const config = {
     whatsappE164: sorteado ?? lida.whatsappE164,
     messageTemplate: modeloComFrase(lida.messageTemplate, parametros.get("frase")),
@@ -173,8 +175,9 @@ export async function GET(req: NextRequest, ctx: RouteContext): Promise<Response
     ...Object.fromEntries(parametros.entries()),
     ...(ip ? { __ip: ip.slice(0, 64) } : {}),
     ...(ua ? { __ua: ua } : {}),
-    // Para onde o rodízio mandou: é a contagem que divide os próximos cliques por igual.
+    // Para onde o rodízio mandou: o clique conta "a caminho" na carga do número até a pessoa escrever.
     ...(sorteado ? { __numero: sorteado } : {}),
+    ...(escolhaDoRodizio?.transbordo ? { __transbordo: "1" } : {}),
   };
   const criado = await criarClickRef(admin, "meta_ads_click_refs", organizationId, {
     utm,

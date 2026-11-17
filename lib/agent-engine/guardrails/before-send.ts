@@ -53,7 +53,7 @@ import { emitVetoActivity } from '@/lib/leads/veto-activity';
 import type { Queryable } from '../queue/queue';
 import { decidePacing } from '../pacing/engine';
 import type { PacingState } from '../pacing/engine';
-import type { PacingKnobs } from '../pacing/defaults';
+import { JANELA_DE_RESPOSTA_MS, type PacingKnobs, type TipoDeEnvio } from '../pacing/defaults';
 import { loadChannelKnobs, loadPacingState, recordSend } from '../pacing/store';
 import { decideSpinning } from '../spinning/engine';
 import type { RecentCopy } from '../spinning/engine';
@@ -134,6 +134,8 @@ export interface GateContext {
     crmDailyLimit: number | null;
     /** `false` = sem teto de volume do dia nesta tentativa. Ver `RunBeforeSendArgs.enforceDailyCaps`. */
     dailyCapsEnforced?: boolean;
+    /** `false` = sem teto por hora nesta tentativa. Ver `RunBeforeSendArgs.enforceHourlyCap`. */
+    hourlyCapEnforced?: boolean;
     rng?: () => number;
   };
   spinning: {
@@ -686,6 +688,23 @@ export const disclosureGate: Gate = {
 };
 
 /**
+ * O tipo do envio que vai para o `pacing_ledger`: o que o chamador declarou, ou deduzido da
+ * última mensagem do lead. Quem escreveu há menos de `JANELA_DE_RESPOSTA_MS` está sendo
+ * respondido — inclusive pelo passo de fluxo que acolhe o que ele acabou de dizer.
+ */
+export function tipoDoEnvio(
+  declarado: TipoDeEnvio | undefined,
+  ultimaDoLead: Date | null,
+  agora: Date,
+): TipoDeEnvio {
+  if (declarado) return declarado;
+  if (ultimaDoLead && agora.getTime() - ultimaDoLead.getTime() <= JANELA_DE_RESPOSTA_MS) {
+    return 'resposta';
+  }
+  return 'iniciada';
+}
+
+/**
  * Gate 2 — anti-ban: janela/warm-up/cap vetam; throttle vira `waitMs` (espera, não veto).
  *
  * A capability `banRisk` do canal decide se a parte ANTI-BAN arma. Ela entra em
@@ -707,6 +726,7 @@ export const pacingGate: Gate = {
       crmDailyLimit: ctx.pacing.crmDailyLimit,
       banRisk,
       ...(ctx.pacing.dailyCapsEnforced === false ? { enforceDailyCaps: false } : {}),
+      ...(ctx.pacing.hourlyCapEnforced === false ? { enforceHourlyCap: false } : {}),
       rng: ctx.pacing.rng,
     });
     if (!decision.allow) {
@@ -988,6 +1008,22 @@ export interface RunBeforeSendArgs {
    * volume real do número.
    */
   enforceDailyCaps?: boolean;
+  /**
+   * `false` = este envio não é julgado pelo TETO POR HORA do número. Ausente = armado.
+   *
+   * Quem desarma é o turno de entrada: ele já fez a pergunta no COMEÇO do turno
+   * (`proximaVagaNaHora`) e adiou o turno inteiro se o teto estava cheio. Vetar aqui a
+   * segunda bolha de uma resposta já começada cortaria a resposta no meio. O envio segue
+   * CONTADO, e conta para o próximo turno.
+   */
+  enforceHourlyCap?: boolean;
+  /**
+   * Quem originou o envio, para o `pacing_ledger` (migration 0963): só a `iniciada` conta
+   * contra o aquecimento. Ausente = deduzido — `resposta` se o lead escreveu nos últimos
+   * `JANELA_DE_RESPOSTA_MS`, senão `iniciada`. O turno de entrada passa `resposta` sempre:
+   * a resposta adiada pela janela de horário continua sendo resposta.
+   */
+  tipoDeEnvio?: TipoDeEnvio;
   /**
    * `false` = este corpo é TEXTO FIXO DE FLUXO, escrito pelo dono, e a tabela de
    * preço do agente não o julga. Ausente = armado (todo texto do modelo).
@@ -1282,6 +1318,7 @@ async function enviarSobOLock(
         state: pacingState,
         crmDailyLimit: args.crmDailyLimit,
         ...(args.enforceDailyCaps === false ? { dailyCapsEnforced: false as const } : {}),
+        ...(args.enforceHourlyCap === false ? { hourlyCapEnforced: false as const } : {}),
         rng: args.rng,
       },
       spinning: { knobs: spinningKnobs, window },
@@ -1380,7 +1417,13 @@ async function enviarSobOLock(
     // já foram (ou serão) contabilizados na tentativa original — o ledger F2-06 faz as
     // repetições curto-circuitarem, então re-registrar aqui inflaria o cap.
     if (outcome.kind === 'sent') {
-      await recordSend(client, args.tenantId, args.channelSessionId, args.now);
+      await recordSend(
+        client,
+        args.tenantId,
+        args.channelSessionId,
+        args.now,
+        tipoDoEnvio(args.tipoDeEnvio, lastInboundAt, args.now),
+      );
       // Simetria com o gate desarmado: quem não é julgado pela janela não entra
       // nela. Ver `GateContext.spinningEnforced`.
       if (args.enforceSpinning !== false) {

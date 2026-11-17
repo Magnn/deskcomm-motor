@@ -65,6 +65,13 @@ export function retentionCopy(
         "protection",
         `${t("O limite diário de envios do número foi atingido — proteção contra bloqueio do WhatsApp. Libera de novo amanhã, a partir das")} ${ctx.window_start_hour}h.`,
       );
+    case "hourly_cap":
+      return make(
+        "protection",
+        t(
+          "Este número atingiu o limite de mensagens por hora. A resposta sai sozinha assim que abrir vaga, em poucos minutos — rajada de envios é o que mais derruba número no WhatsApp.",
+        ),
+      );
     case "mass_identical":
       return make(
         "protection",

@@ -270,8 +270,9 @@ import {
 } from '@/lib/followup/agente-no-fluxo';
 import { AGENT_CONCLUDED_BRANCH_ID, AGENT_LIMIT_BRANCH_ID } from '@/lib/followup/graph-schema';
 import { msAteAJanelaAbrir } from './janela-de-atendimento';
-import { janelaDeEnvioAberta, proximaAberturaDaJanela } from '../pacing/engine';
-import { loadChannelKnobs } from '../pacing/store';
+import { janelaDeEnvioAberta, proximaAberturaDaJanela, proximaVagaNaHora } from '../pacing/engine';
+import type { PacingKnobs } from '../pacing/defaults';
+import { loadChannelKnobs, loadPacingState } from '../pacing/store';
 import { avisarJanelaFechada, resolverAvisoDeJanela } from '../pacing/aviso-de-janela';
 import { resolveConversationTurn, type TurnAgentResolution } from './resolve-turn-agent';
 import {
@@ -2046,6 +2047,61 @@ function turnoVaiFalarComOLead(job: JobRow): boolean {
   return purpose === undefined || purpose === 'send_message';
 }
 
+/**
+ * Quando abre vaga no teto por hora deste número — `null` se dá para falar agora, se o
+ * número não tem teto, ou se o canal não tem risco de banimento (o canal oficial: o teto por
+ * hora é anti-ban, e anti-ban não arma onde não há ban, como em `decidePacing`).
+ * A regra é a do motor (`proximaVagaNaHora`); aqui só se lê o estado.
+ */
+async function vagaNaHoraDoNumero(
+  pool: pg.Pool,
+  tenantId: string,
+  channelSessionId: string,
+  knobs: PacingKnobs,
+  agora: Date,
+): Promise<Date | null> {
+  const provider = await loadChannelProvider(pool, tenantId, channelSessionId);
+  if (!capabilitiesOf(provider).banRisk) return null;
+  const estado = await loadPacingState(pool, tenantId, channelSessionId, {
+    now: agora,
+    timezone: knobs.timezone,
+    numberActivatedAt: null,
+  });
+  return proximaVagaNaHora(agora, knobs, estado);
+}
+
+/**
+ * O lead relatou urgência nas mensagens ainda não respondidas? Lê as inbound depois da
+ * última outbound (no máximo 10), com o mesmo detector do alerta de urgência. Falha de
+ * leitura = `true`: na dúvida, o teto por hora não segura quem pode estar em risco.
+ */
+async function leadRelataUrgencia(
+  pool: pg.Pool,
+  tenantId: string,
+  conversationId: string,
+): Promise<boolean> {
+  try {
+    const { rows } = await pool.query<{ body: string | null }>(
+      `select m.body
+         from messages m
+        where m.organization_id = $1
+          and m.conversation_id = $2
+          and m.direction = 'inbound'
+          and m.created_at > coalesce(
+                (select max(o.created_at) from messages o
+                  where o.organization_id = $1 and o.conversation_id = $2
+                    and o.direction = 'outbound'),
+                '-infinity'::timestamptz)
+        order by m.created_at desc
+        limit 10`,
+      [tenantId, conversationId],
+    );
+    return rows.some((r) => typeof r.body === 'string' && detectUrgencySignal(r.body));
+  } catch {
+    return true;
+  }
+}
+
 async function executarTurnoDoAgente(
   deps: InboundTurnDeps,
   job: JobRow | null,
@@ -2120,8 +2176,19 @@ async function executarTurnoDoAgente(
   // intervalo entre envios, pedido de saída e LGPD seguem valendo, e o envio
   // segue CONTADO — a campanha do mesmo número continua vendo o volume real.
   // Só o turno de entrada: retomada, follow-up e caso continuam armados.
-  const TETO_DO_TURNO = (): { enforceDailyCaps?: false } =>
-    liveJob().kind === 'inbound_turn' ? { enforceDailyCaps: false } : {};
+  //
+  // O teto por HORA é diferente: ele vale para todo turno que fala com o lead, mas é
+  // perguntado no COMEÇO do turno (ver "TETO POR HORA" abaixo), e por isso sai desarmado
+  // aqui. E a resposta vai ao ledger como `resposta` — só a `iniciada` conta contra o
+  // aquecimento (migration 0963).
+  const TETO_DO_TURNO = (): {
+    enforceDailyCaps?: false;
+    enforceHourlyCap: false;
+    tipoDeEnvio?: 'resposta';
+  } =>
+    liveJob().kind === 'inbound_turn'
+      ? { enforceDailyCaps: false, enforceHourlyCap: false, tipoDeEnvio: 'resposta' }
+      : { enforceHourlyCap: false };
 
   // GATE DE ELEGIBILIDADE (opt-in por canal — `metadata.ai_gate = 'allowlist'`).
   // Segunda checagem, defesa em profundidade: o drain já barra antes de
@@ -2232,6 +2299,27 @@ async function executarTurnoDoAgente(
       throw new JobSettledError(
         'fora da janela anti-ban — job reagendado para a abertura da janela',
       );
+    }
+    // TETO POR HORA (migration 0963): perguntado AQUI, antes do modelo, pela mesma razão da
+    // janela — a resposta ou sai inteira, ou espera inteira. Dentro do turno o gate fica
+    // desarmado para esta pergunta (`enforceHourlyCap: false`): vetar a segunda bolha
+    // cortaria a resposta no meio. A espera é de minutos (até a vaga mais antiga da última
+    // hora sair), e quem relata urgência não espera — uma resposta a mais não derruba
+    // número, e um lead em risco sem resposta é o desfecho que não pode existir.
+    if (knobs.maxPerHour !== null) {
+      const vaga = await vagaNaHoraDoNumero(pool, tenantId, input.channelSessionId, knobs, agora);
+      if (vaga !== null && !(await leadRelataUrgencia(pool, tenantId, input.conversationId))) {
+        await rescheduleJob(pool, liveJob().id, ctx.workerId, {
+          acquiredAt: claimOfJob(liveJob())?.acquired_at,
+          delayMs: Math.max(vaga.getTime() - agora.getTime(), 1_000),
+          reason: 'teto por hora do número atingido — turno adiado até abrir vaga',
+        });
+        runLog.info('turno adiado — teto por hora do número atingido', {
+          teto_por_hora: knobs.maxPerHour,
+          vaga: vaga.toISOString(),
+        });
+        throw new JobSettledError('teto por hora atingido — job reagendado para quando abrir vaga');
+      }
     }
     // A janela está ABERTA: se havia aviso de silêncio pendurado, ele morre
     // AQUI — no mesmo ponto que o abriu. Um aviso que só o humano fecha vira
@@ -3871,6 +3959,9 @@ async function executarTurnoDoAgente(
           isTemplate: true,
           optedOutThisTurn,
           crmDailyLimit: null,
+          // Template é disparo iniciado por nós (fora da janela de 24h): só desarma o teto
+          // por hora, já perguntado no começo do turno; o tipo fica deduzido.
+          enforceHourlyCap: false,
           now: clock(),
           sleep: deps.sleep,
           lgpd,
@@ -4847,7 +4938,9 @@ async function executarTurnoDoAgente(
             // `rescheduleJob` já usado pra janela horária), em vez de deixar o lead sem
             // resposta até a próxima mensagem dele chegar (ou nunca).
             if (
-              (chain.code === 'warmup_cap' || chain.code === 'daily_cap') &&
+              (chain.code === 'warmup_cap' ||
+                chain.code === 'daily_cap' ||
+                chain.code === 'hourly_cap') &&
               chain.nextAllowedAt !== undefined
             ) {
               pacingCapVeto = { code: chain.code, nextAllowedAt: chain.nextAllowedAt };

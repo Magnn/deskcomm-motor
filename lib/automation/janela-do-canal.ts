@@ -45,6 +45,7 @@ interface LinhaDeKnobs {
   allow_sunday: boolean | null;
   timezone: string | null;
   warmup_daily_caps: unknown;
+  max_per_hour: number | null;
 }
 
 /**
@@ -61,7 +62,7 @@ export async function knobsDoCanal(
     admin
       .from("channel_knobs")
       .select(
-        "throttle_ms, jitter_max_ms, window_start_hour, window_end_hour, allow_sunday, timezone, warmup_daily_caps",
+        "throttle_ms, jitter_max_ms, window_start_hour, window_end_hour, allow_sunday, timezone, warmup_daily_caps, max_per_hour",
       )
       .eq("organization_id", organizationId)
       .eq("channel_session_id", channelSessionId)
@@ -94,6 +95,7 @@ export async function knobsDoCanal(
     allowSunday: linha.allow_sunday ?? PACING_DEFAULTS.allowSunday,
     timezone: fusoDaJanela(linha.timezone, fusoDaOrg),
     warmupDailyCaps: caps ?? PACING_DEFAULTS.warmupDailyCaps,
+    maxPerHour: linha.max_per_hour ?? PACING_DEFAULTS.maxPerHour,
   };
 }
 

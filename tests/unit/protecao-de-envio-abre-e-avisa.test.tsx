@@ -93,6 +93,7 @@ const KNOBS: PacingKnobs = {
     { minAgeDays: 7, cap: 60 },
     { minAgeDays: 30, cap: null },
   ],
+  maxPerHour: null,
 };
 
 function itemDePacing(over: Partial<PacingKnobsItem> = {}): PacingKnobsItem {
@@ -107,12 +108,16 @@ function itemDePacing(over: Partial<PacingKnobsItem> = {}): PacingKnobsItem {
     },
     effective: KNOBS,
     warmup: { number_activated_at: null, age_days: 0, skipped: false, cap_today: 20 },
+    leads: { mode: "sem_limite", steps: null, cap_today: null },
+    today: null,
     overrides: null,
     defaults: KNOBS,
     bounds: {
       intervalMaxMs: 600_000,
       hourLastStart: 23,
       hourEnd: 24,
+      perHourMax: 10_000,
+      leadsPerDayMax: 10_000,
       daily_limit: { min: 1, max: 2_000 },
     },
     ...over,

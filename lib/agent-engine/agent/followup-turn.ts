@@ -1784,7 +1784,12 @@ async function sendConteudoSequence(
  */
 const ENVIO_DE_FLUXO = { enforceSpinning: false, enforceDailyCaps: false } as const;
 
-const VETOS_QUE_ESPERAM: ReadonlySet<string> = new Set(['outside_window', 'warmup_cap', 'daily_cap']);
+const VETOS_QUE_ESPERAM: ReadonlySet<string> = new Set([
+  'outside_window',
+  'warmup_cap',
+  'daily_cap',
+  'hourly_cap',
+]);
 
 export function vetoQueEspera(code: string): boolean {
   return VETOS_QUE_ESPERAM.has(code);

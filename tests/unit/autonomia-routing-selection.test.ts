@@ -30,8 +30,16 @@ vi.mock('@/lib/agent-engine/agent/turno-ja-respondido', () => ({
   ultimaInboundJaRespondida: vi.fn(async () => false),
   anotarUltimaInboundVista: vi.fn(async () => {}),
 }));
-vi.mock('@/lib/agent-engine/pacing/store', () => ({ loadChannelKnobs: vi.fn(async () => ({ knobs: {} })) }));
-vi.mock('@/lib/agent-engine/pacing/engine', () => ({ janelaDeEnvioAberta: () => true, proximaAberturaDaJanela: vi.fn() }));
+// Sem teto por hora (o padrão): a checagem do começo do turno não consulta o ledger.
+vi.mock('@/lib/agent-engine/pacing/store', () => ({
+  loadChannelKnobs: vi.fn(async () => ({ knobs: { maxPerHour: null } })),
+  loadPacingState: vi.fn(),
+}));
+vi.mock('@/lib/agent-engine/pacing/engine', () => ({
+  janelaDeEnvioAberta: () => true,
+  proximaAberturaDaJanela: vi.fn(),
+  proximaVagaNaHora: vi.fn(() => null),
+}));
 vi.mock('@/lib/agent-engine/pacing/aviso-de-janela', () => ({
   resolverAvisoDeJanela: vi.fn(async () => 0), avisarJanelaFechada: vi.fn(),
 }));

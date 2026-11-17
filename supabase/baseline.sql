@@ -40381,3 +40381,52 @@ create policy ai_agent_numeros_select on public.ai_agent_numeros
 
 revoke all on public.ai_agent_numeros from anon, authenticated;
 grant select on public.ai_agent_numeros to authenticated;
+
+-- ---- rodízio por capacidade e ritmo por hora (migration 0963) ----
+alter table public.channel_knobs
+  add column if not exists lead_daily_caps jsonb,
+  add column if not exists max_per_hour integer;
+
+-- Corrige antes de criar a constraint: um clone com valor fora da faixa não pode quebrar o update.sh.
+update public.channel_knobs set lead_daily_caps = null
+  where lead_daily_caps is not null and jsonb_typeof(lead_daily_caps) <> 'array';
+update public.channel_knobs set max_per_hour = null
+  where max_per_hour is not null and (max_per_hour < 1 or max_per_hour > 10000);
+
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'channel_knobs_lead_caps_is_array') then
+    alter table public.channel_knobs
+      add constraint channel_knobs_lead_caps_is_array
+      check (lead_daily_caps is null or jsonb_typeof(lead_daily_caps) = 'array');
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'channel_knobs_max_per_hour_faixa') then
+    alter table public.channel_knobs
+      add constraint channel_knobs_max_per_hour_faixa
+      check (max_per_hour is null or max_per_hour between 1 and 10000);
+  end if;
+end $$;
+
+comment on column public.channel_knobs.lead_daily_caps is
+  'Orçamento de leads NOVOS por dia, em degraus por idade do número ([{"minAgeDays":0,"cap":15}], cap null = sem teto). Nulo = sem orçamento: o rodízio divide por igual (migration 0963).';
+comment on column public.channel_knobs.max_per_hour is
+  'Teto de mensagens enviadas por hora pelo número (resposta e disparo). Nulo = sem teto por hora (migration 0963).';
+
+alter table public.pacing_ledger
+  add column if not exists tipo text not null default 'iniciada';
+
+update public.pacing_ledger set tipo = 'iniciada' where tipo not in ('iniciada', 'resposta');
+
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'pacing_ledger_tipo_check') then
+    alter table public.pacing_ledger
+      add constraint pacing_ledger_tipo_check check (tipo in ('iniciada', 'resposta'));
+  end if;
+end $$;
+
+comment on column public.pacing_ledger.tipo is
+  '''resposta'' = envio a quem acabou de escrever; ''iniciada'' = mensagem que o sistema iniciou. Só a iniciada conta contra o aquecimento (migration 0963).';
+
+create index if not exists idx_conversations_sessao_criada
+  on public.conversations (organization_id, channel_session_id, created_at desc);

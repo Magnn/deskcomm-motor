@@ -194,6 +194,20 @@
       "col": 3,
       "type": "logic",
       "label": "trg_redigir_campanhas_anonimizado + export-collector — apaga e entrega"
+    },
+    {
+      "id": "rodizio",
+      "lane": "motor",
+      "col": 4,
+      "type": "logic",
+      "label": "rodizio-de-numeros.ts — clique de anúncio vai ao número mais longe do orçamento de leads de hoje (0963)"
+    },
+    {
+      "id": "teto-hora",
+      "lane": "envio",
+      "col": 3,
+      "type": "logic",
+      "label": "teto por hora + aquecimento só das iniciadas (pacing_ledger.tipo, 0963)"
     }
   ],
   "edges": [
@@ -226,6 +240,9 @@
     { "id": "lgpd-apaga", "from": "lgpd", "to": "campaign-recipients", "label": "anonimizar apaga telefone e texto; o export entrega" },
     { "id": "detalhe-le-metricas", "from": "detalhe", "to": "rota-metricas", "label": "funil, progresso e quem ficou de fora" },
     { "id": "metricas-le-destinatarios", "from": "rota-metricas", "to": "campaign-recipients", "label": "contagem por carimbo, não por status" },
-    { "id": "antiban-edita-knobs", "from": "antiban", "to": "channel-knobs", "label": "o operador ajusta o ritmo do número aqui" }
+    { "id": "antiban-edita-knobs", "from": "antiban", "to": "channel-knobs", "label": "o operador ajusta o ritmo do número aqui" },
+    { "id": "rodizio-le-orcamento", "from": "rodizio", "to": "channel-knobs", "label": "lead_daily_caps por idade; carga = leads de hoje + cliques a caminho" },
+    { "id": "antiban-mostra-uso", "from": "antiban", "to": "rodizio", "label": "leads de hoje / orçamento, ao lado do campo" },
+    { "id": "pacing-teto-hora", "from": "pacing", "to": "teto-hora", "label": "mesma decisão, contada por tipo e por hora" }
   ]
 }

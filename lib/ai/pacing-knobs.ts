@@ -10,7 +10,9 @@ import { z } from "zod";
 import {
   KNOB_BOUNDS,
   PACING_DEFAULTS,
+  RAMPA_DE_LEADS,
   type PacingKnobs,
+  type WarmupStep,
 } from "@/lib/agent-engine/pacing/defaults";
 import { warmupCapFor } from "@/lib/agent-engine/pacing/engine";
 import { fusoDaJanela, parseWarmupCaps } from "@/lib/agent-engine/pacing/store";
@@ -153,8 +155,31 @@ export const pacingKnobsUpdateSchema = z
      * assumindo o risco de banimento de um número que talvez não esteja pronto.
      */
     skip_warmup: z.boolean().optional(),
+    /**
+     * Teto de mensagens por HORA do número (resposta e disparo). `null` = sem teto.
+     * É a rajada que derruba número novo, não o total do dia (16/11/2026).
+     */
+    max_per_hour: z.number().int().min(1).max(KNOB_BOUNDS.perHourMax).nullable().optional(),
+    /**
+     * Orçamento de LEADS NOVOS por dia que o rodízio manda a este número.
+     * Número = o mesmo todo dia; `"rampa"` = sobe sozinho com a idade
+     * (`RAMPA_DE_LEADS`); `null` = sem orçamento (o rodízio divide por igual).
+     */
+    lead_daily_cap: z
+      .union([z.number().int().min(1).max(KNOB_BOUNDS.leadsPerDayMax), z.literal("rampa")])
+      .nullable()
+      .optional(),
   })
   .strict();
+
+/** O que gravar em `channel_knobs.lead_daily_caps` para a escolha da tela. */
+export function degrausDoOrcamento(
+  escolha: number | "rampa" | null,
+): WarmupStep[] | null {
+  if (escolha === null) return null;
+  if (escolha === "rampa") return RAMPA_DE_LEADS.map((d) => ({ ...d }));
+  return [{ minAgeDays: 0, cap: escolha }];
+}
 
 export type PacingKnobsUpdate = z.infer<typeof pacingKnobsUpdateSchema>;
 
@@ -166,6 +191,10 @@ export interface ChannelKnobsRow {
   allow_sunday: boolean | null;
   timezone: string | null;
   warmup_daily_caps: unknown;
+  /** Teto por hora (migration 0963). Ausente = linha lida sem a coluna = sem teto. */
+  max_per_hour?: number | null;
+  /** Orçamento de leads novos por dia, em degraus por idade (migration 0963). */
+  lead_daily_caps?: unknown;
   /** idade do número p/ warm-up (linha ausente = engine trata como idade 0). */
   number_activated_at?: string | null;
 }
@@ -194,7 +223,24 @@ export function effectiveKnobs(row: ChannelKnobsRow | null, fusoDaOrg?: string |
     allowSunday: row?.allow_sunday ?? PACING_DEFAULTS.allowSunday,
     timezone: fusoDaJanela(row?.timezone, fusoDaOrg),
     warmupDailyCaps: parseWarmupCaps(row?.warmup_daily_caps) ?? PACING_DEFAULTS.warmupDailyCaps,
+    maxPerHour: row?.max_per_hour ?? PACING_DEFAULTS.maxPerHour,
   };
+}
+
+/**
+ * Como a tela descreve o orçamento de leads gravado: `sem_limite` (nada gravado),
+ * `rampa` (os degraus de `RAMPA_DE_LEADS`), `fixo` (um degrau só, com teto) ou
+ * `personalizado` (outro desenho, gravado fora da tela — a tela mostra, não reescreve).
+ */
+export function modoDoOrcamento(
+  caps: WarmupStep[] | null,
+): "sem_limite" | "rampa" | "fixo" | "personalizado" {
+  if (!caps) return "sem_limite";
+  if (caps.length === 1 && caps[0]?.minAgeDays === 0 && typeof caps[0].cap === "number") return "fixo";
+  const igualARampa =
+    caps.length === RAMPA_DE_LEADS.length &&
+    caps.every((d, i) => d.minAgeDays === RAMPA_DE_LEADS[i]?.minAgeDays && d.cap === RAMPA_DE_LEADS[i]?.cap);
+  return igualARampa ? "rampa" : "personalizado";
 }
 
 /** Forma gravada em `warmup_daily_caps` quando o dono declara o número já aquecido. */
@@ -242,6 +288,18 @@ export function knobsView(
       /** Teto de HOJE pelo aquecimento. null = sem teto (formado ou pulado). */
       cap_today: warmupCapFor(dias, efetivo.warmupDailyCaps),
     },
+    leads: orcamentoDeLeads(row, dias),
+  };
+}
+
+/** O orçamento de leads novos desta conexão, como a tela e o rodízio o leem. */
+export function orcamentoDeLeads(row: ChannelKnobsRow | null, idadeDias: number) {
+  const caps = parseWarmupCaps(row?.lead_daily_caps);
+  return {
+    mode: modoDoOrcamento(caps),
+    steps: caps,
+    /** Leads novos que o rodízio manda HOJE. null = sem orçamento. */
+    cap_today: caps ? warmupCapFor(idadeDias, caps) : null,
   };
 }
 

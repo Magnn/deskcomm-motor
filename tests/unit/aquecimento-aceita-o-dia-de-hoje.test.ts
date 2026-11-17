@@ -198,7 +198,9 @@ describe("o limite do campo não pode oferecer o que o servidor recusa", () => {
       join(process.cwd(), "components/connections/AntiBanSheet.tsx"),
       "utf8",
     );
-    const maxDoCampo = /max=\{([^}]*)\}/.exec(sheet)?.[1] ?? "";
+    // O `max` DO CAMPO DE DATA: a ficha tem outros campos numéricos com `max` antes dele.
+    const campoDeData = sheet.slice(sheet.indexOf('id="numero-em-uso-desde"'));
+    const maxDoCampo = /max=\{([^}]*)\}/.exec(campoDeData)?.[1] ?? "";
     expect(maxDoCampo, "AntiBanSheet perdeu o `max` do campo de data").not.toBe("");
     expect(
       maxDoCampo.includes("diaDeHojeLocal"),

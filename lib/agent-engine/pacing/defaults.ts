@@ -37,7 +37,56 @@ export interface PacingKnobs {
   timezone: string;
   /** Degraus de warm-up ordenados por minAgeDays crescente (o primeiro cobre idade 0). */
   warmupDailyCaps: WarmupStep[];
+  /**
+   * Teto de mensagens por HORA do número, contando TUDO o que sai (resposta e
+   * disparo). `null` = sem teto por hora.
+   *
+   * O aquecimento e o teto diário medem o DIA; o que derrubou três números em
+   * 16/11/2026 foi a RAJADA: 90–160 mensagens por hora em números de 1 dia, e
+   * 728 em 2 horas quando uma fila presa saiu de uma vez. Um teto diário de 500
+   * deixa passar 500 em 1 hora.
+   */
+  maxPerHour: number | null;
 }
+
+/**
+ * Quem originou o envio — a coluna `pacing_ledger.tipo` (migration 0963).
+ *
+ * O teto de AQUECIMENTO existe contra disparo, e por isso só conta a
+ * `iniciada`. O teto diário absoluto e o teto por hora contam as duas: o
+ * WhatsApp vê o volume inteiro.
+ */
+export const TIPOS_DE_ENVIO = ["iniciada", "resposta"] as const;
+export type TipoDeEnvio = (typeof TIPOS_DE_ENVIO)[number];
+
+/**
+ * Um envio que sai até este tempo depois da última mensagem do lead é RESPOSTA,
+ * mesmo que não venha do turno de entrada — o passo de fluxo que acolhe o que
+ * ela acabou de dizer, por exemplo. Passado isso, o envio é iniciado por nós.
+ */
+export const JANELA_DE_RESPOSTA_MS = 15 * 60 * 1000;
+
+/**
+ * Orçamento de leads novos por dia, por idade do número — a rampa que a tela
+ * oferece em "subir sozinho com a idade". Mesma forma de `warmupDailyCaps`
+ * (`cap: null` = sem teto). Ninguém recebe esta rampa sem escolher: sem linha
+ * em `channel_knobs.lead_daily_caps` o número não tem orçamento e o rodízio
+ * divide por igual, como antes da 0963.
+ */
+export const RAMPA_DE_LEADS: WarmupStep[] = [
+  { minAgeDays: 0, cap: 15 },
+  { minAgeDays: 4, cap: 25 },
+  { minAgeDays: 8, cap: 50 },
+  { minAgeDays: 15, cap: null },
+];
+
+/**
+ * Quanto tempo um clique do rodízio fica "a caminho": a pessoa foi mandada ao
+ * número e ainda não escreveu. Conta na carga do número para uma rajada de
+ * cliques não cair inteira no mesmo número antes de a primeira conversa nascer.
+ * Clique que vira conversa sai daqui (`matched_at`) e passa a contar como lead.
+ */
+export const JANELA_DE_CHEGADA_MS = 20 * 60 * 1000;
 
 /**
  * Limites de SANIDADE da edição de knobs no Console (FU-14) — validação de entrada do
@@ -52,6 +101,10 @@ export const KNOB_BOUNDS = {
   hourLastStart: 23,
   /** fim de janela é exclusivo e pode chegar à meia-noite seguinte. */
   hourEnd: 24,
+  /** maior teto por hora aceito (o CHECK da 0963 diz o mesmo). */
+  perHourMax: 10_000,
+  /** maior orçamento de leads por dia aceito. */
+  leadsPerDayMax: 10_000,
 } as const;
 
 export const PACING_DEFAULTS: PacingKnobs = {
@@ -70,4 +123,5 @@ export const PACING_DEFAULTS: PacingKnobs = {
     { minAgeDays: 15, cap: 200 },
     { minAgeDays: 31, cap: null },
   ],
+  maxPerHour: null,
 };

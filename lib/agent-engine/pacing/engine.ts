@@ -7,15 +7,25 @@
  * determinístico); em produção o chamador passa `new Date()` e omite o rng.
  *
  * Ordem de avaliação: janela horária (tz do tenant, domingo conforme `allowSunday`) → caps
- * diários (warm-up por idade do número; limite do CRM injetado) → throttle+jitter.
+ * diários (warm-up por idade do número, contra os envios INICIADOS; limite do CRM injetado,
+ * contra todos) → teto por hora (todos os envios) → throttle+jitter.
  */
 import type { PacingKnobs, WarmupStep } from './defaults';
 
 export interface PacingState {
   /** Último envio deste número (qualquer dia) — base do throttle. */
   lastSentAt: Date | null;
-  /** Envios deste número desde a meia-noite LOCAL do tenant. */
+  /** Envios deste número desde a meia-noite LOCAL do tenant (todos os tipos) — base do teto do CRM. */
   sentToday: number;
+  /**
+   * Envios INICIADOS por nós desde a meia-noite local (`pacing_ledger.tipo = iniciada`) —
+   * base do teto de aquecimento. Ausente = `sentToday` (o leitor antigo, que não separa).
+   */
+  initiatedToday?: number;
+  /** Envios (todos os tipos) nos últimos 60 minutos — base do teto por hora. Ausente = 0. */
+  sentLastHour?: number;
+  /** O envio mais antigo dentre os da última hora: quando ele sair da janela, abre vaga. */
+  oldestInLastHourAt?: Date | null;
   /** Ativação do número (channel_knobs.number_activated_at); null = idade 0 (conservador). */
   numberActivatedAt: Date | null;
 }
@@ -49,17 +59,25 @@ export interface PacingInput {
    * Omitir = `true`: nenhum chamador existente muda de comportamento.
    */
   enforceDailyCaps?: boolean;
+  /**
+   * `false` desarma SÓ o teto por hora NESTA decisão. Quem desarma é o turno de entrada,
+   * que já fez a mesma pergunta no COMEÇO do turno (`proximaVagaNaHora`) e adiou o turno
+   * inteiro se preciso: vetar a segunda bolha de uma resposta já começada cortaria a
+   * resposta no meio. Omitir = armado.
+   */
+  enforceHourlyCap?: boolean;
   /** [0,1) — injetável nos testes; default Math.random. */
   rng?: () => number;
 }
 
-export type PacingVetoCode = 'outside_window' | 'warmup_cap' | 'daily_cap';
+export type PacingVetoCode = 'outside_window' | 'warmup_cap' | 'daily_cap' | 'hourly_cap';
 
 export type PacingDecision =
   | { allow: true; waitMs: number }
   | { allow: false; code: PacingVetoCode; nextAllowedAt: Date; reason: string };
 
 const DAY_MS = 86_400_000;
+const HOUR_MS = 3_600_000;
 
 export function decidePacing(input: PacingInput): PacingDecision {
   const { now, knobs, state, crmDailyLimit } = input;
@@ -80,7 +98,7 @@ export function decidePacing(input: PacingInput): PacingDecision {
     };
   }
 
-  // Daqui para baixo tudo é ANTI-BAN (warm-up, cap diário, throttle+jitter): só
+  // Daqui para baixo tudo é ANTI-BAN (warm-up, cap diário, teto por hora, throttle+jitter): só
   // arma onde há risco de banimento. A janela horária acima é CORTESIA e roda
   // SEMPRE — desarmar as duas juntas acordaria cliente às 3h (invariante 3).
   if (!banRisk) return { allow: true, waitMs: 0 };
@@ -92,19 +110,37 @@ export function decidePacing(input: PacingInput): PacingDecision {
     ? Math.max(0, Math.floor((now.getTime() - state.numberActivatedAt.getTime()) / DAY_MS))
     : 0;
   const wCap = warmupCapFor(ageDays, knobs.warmupDailyCaps);
-  const effectiveCap = Math.min(wCap ?? Infinity, crmDailyLimit ?? Infinity);
-  if (input.enforceDailyCaps !== false && state.sentToday >= effectiveCap) {
+  // Os dois tetos do dia contam coisas DIFERENTES (migration 0963): o aquecimento é contra
+  // disparo e conta só o que NÓS iniciamos; o limite do CRM é o teto absoluto e conta tudo.
+  const iniciadosHoje = state.initiatedToday ?? state.sentToday;
+  const estourouAquecimento = wCap !== null && iniciadosHoje >= wCap;
+  const estourouCrm = crmDailyLimit !== null && state.sentToday >= crmDailyLimit;
+  if (input.enforceDailyCaps !== false && (estourouAquecimento || estourouCrm)) {
     const nextAllowedAt = addMs(nextDayOpen(now, knobs), jitterOf(rng, knobs));
-    const isWarmup = wCap !== null && wCap < (crmDailyLimit ?? Infinity);
+    // Os dois estouraram: o rótulo é do MENOR teto, como sempre foi — é ele que o operador mexe.
+    const porAquecimento =
+      estourouAquecimento && (!estourouCrm || (wCap as number) < (crmDailyLimit as number));
     return {
       allow: false,
-      code: isWarmup ? 'warmup_cap' : 'daily_cap',
+      code: porAquecimento ? 'warmup_cap' : 'daily_cap',
       nextAllowedAt,
-      reason: isWarmup
-        ? `cap de warm-up atingido (${wCap}/dia para número com ${ageDays} dia(s) de idade); ` +
+      reason: porAquecimento
+        ? `cap de warm-up atingido (${wCap} envios iniciados/dia para número com ${ageDays} dia(s) de idade); ` +
           `agende para ${formatInTz(nextAllowedAt, knobs.timezone)} (próxima abertura + jitter)`
-        : `cap diário do número atingido (${effectiveCap}/dia, limite do CRM); ` +
+        : `cap diário do número atingido (${crmDailyLimit}/dia, limite do CRM); ` +
           `agende para ${formatInTz(nextAllowedAt, knobs.timezone)} (próxima abertura + jitter)`,
+    };
+  }
+
+  const vagaPorHora = proximaVagaNaHora(now, knobs, state, rng);
+  if (vagaPorHora !== null && input.enforceHourlyCap !== false) {
+    return {
+      allow: false,
+      code: 'hourly_cap',
+      nextAllowedAt: vagaPorHora,
+      reason:
+        `teto por hora do número atingido (${knobs.maxPerHour} envios na última hora); ` +
+        `agende para ${formatInTz(vagaPorHora, knobs.timezone)} (quando abre vaga + jitter)`,
     };
   }
 
@@ -133,7 +169,29 @@ export function warmupCapFor(ageDays: number, steps: WarmupStep[]): number | nul
   return cap;
 }
 
-function jitterOf(rng: () => number, knobs: PacingKnobs): number {
+/**
+ * O teto por hora está cheio? Devolve QUANDO abre a próxima vaga (o envio mais antigo da
+ * última hora completa 60 minutos, mais o jitter), ou `null` se dá para enviar agora.
+ *
+ * Exportada porque o turno de entrada faz esta pergunta ANTES de chamar o modelo: uma
+ * resposta ou sai inteira, ou espera inteira. É a mesma regra do gate — nunca uma cópia.
+ * Sem teto configurado (`maxPerHour: null`) é sempre `null`.
+ */
+export function proximaVagaNaHora(
+  now: Date,
+  knobs: Pick<PacingKnobs, 'maxPerHour' | 'jitterMaxMs'>,
+  state: Pick<PacingState, 'sentLastHour' | 'oldestInLastHourAt'>,
+  rng: () => number = Math.random,
+): Date | null {
+  if (knobs.maxPerHour === null) return null;
+  if ((state.sentLastHour ?? 0) < knobs.maxPerHour) return null;
+  // Sem o instante do mais antigo (leitor que não o traz), a espera honesta é a hora inteira.
+  const base = state.oldestInLastHourAt ?? now;
+  const libera = Math.max(base.getTime() + HOUR_MS, now.getTime() + 1_000);
+  return addMs(new Date(libera), jitterOf(rng, knobs));
+}
+
+function jitterOf(rng: () => number, knobs: Pick<PacingKnobs, 'jitterMaxMs'>): number {
   return Math.floor(rng() * (knobs.jitterMaxMs + 1));
 }
 
