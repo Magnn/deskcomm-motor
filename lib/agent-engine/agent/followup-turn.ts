@@ -82,6 +82,7 @@ import { chaveParaCopiar, tipoDaChave } from '@/lib/preco/chave-pix';
 import { criarClienteStripe } from '@/lib/pagamentos/stripe';
 import { expandirCobrancas } from '@/lib/followup/cobranca-no-conteudo';
 import { dentroDaJanela } from '@/lib/followup/retorno-da-passagem';
+import { pedeSoDentroDaJanela } from '@/lib/messaging/so-dentro-da-janela';
 import { lerCredencialDeCobranca, MOTIVO_DA_COBRANCA } from '@/lib/pagamentos/credencial-de-cobranca';
 import { missingSlots } from '@/lib/channels/meta/build-components';
 import { renderTemplateBody } from '@/lib/channels/meta/render-template';
@@ -539,7 +540,14 @@ export function createFollowupTurnHandler(deps: FollowupTurnDeps) {
       return;
     }
 
-    if (payload.so_dentro_da_janela) {
+    // Também quando a organização pediu só dentro da janela: sem isto o turno rodaria o modelo inteiro
+    // para o envio ser recusado na saída (`lib/messaging/so-dentro-da-janela.ts`).
+    const soDentro =
+      payload.so_dentro_da_janela === true ||
+      pedeSoDentroDaJanela(
+        (await pool.query<{ settings: unknown }>('select settings from organizations where id = $1', [tenantId])).rows[0]?.settings,
+      );
+    if (soDentro) {
       const { rows } = await pool.query<{ ultima: Date | null }>(
         `select max(created_at) as ultima from messages
           where organization_id = $1 and conversation_id = $2 and direction = 'inbound'`,
