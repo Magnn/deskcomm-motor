@@ -22,16 +22,37 @@ export interface PacingWarmupView {
   cap_today: number | null;
 }
 
+/** Orçamento de leads novos por dia que o rodízio manda ao número (migration 0963). */
+export interface PacingLeadsView {
+  mode: "sem_limite" | "rampa" | "fixo" | "personalizado";
+  steps: { minAgeDays: number; cap: number | null }[] | null;
+  /** Leads novos de HOJE pelo orçamento; null = sem orçamento. */
+  cap_today: number | null;
+}
+
+/** O que o número já fez hoje. null = leitura falhou (a ficha segue editável). */
+export interface PacingTodayView {
+  leads_today: number;
+  leads_on_the_way: number;
+  sent_today: number;
+  initiated_today: number;
+  sent_last_hour: number;
+}
+
 export interface PacingKnobsItem {
   channel_session: PacingSessionLite;
   effective: PacingKnobs;
   warmup: PacingWarmupView;
+  leads: PacingLeadsView;
+  today: PacingTodayView | null;
   overrides: ChannelKnobsRow | null;
   defaults: PacingKnobs;
   bounds: {
     intervalMaxMs: number;
     hourLastStart: number;
     hourEnd: number;
+    perHourMax: number;
+    leadsPerDayMax: number;
     daily_limit: { min: number; max: number };
   };
 }

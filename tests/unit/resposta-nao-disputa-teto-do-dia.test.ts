@@ -24,8 +24,10 @@ const fonte = readFileSync(join(process.cwd(), "lib/agent-engine/agent/inbound-t
 
 describe("a resposta a quem escreveu não disputa o teto do dia", () => {
   it("o desarme vale só para o turno de entrada", () => {
+    // O teto por hora sai desarmado nos dois lados (é perguntado no começo do turno);
+    // o teto do DIA e o tipo `resposta`, só no turno de entrada.
     expect(fonte).toMatch(
-      /const TETO_DO_TURNO = \(\)[^=]*=>\s*liveJob\(\)\.kind === 'inbound_turn' \? \{ enforceDailyCaps: false \} : \{\};/,
+      /liveJob\(\)\.kind === 'inbound_turn'\s*\?\s*\{ enforceDailyCaps: false, enforceHourlyCap: false, tipoDeEnvio: 'resposta' \}\s*:\s*\{ enforceHourlyCap: false \};/,
     );
   });
 

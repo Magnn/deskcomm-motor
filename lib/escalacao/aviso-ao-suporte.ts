@@ -237,7 +237,7 @@ export interface TransporteDoAviso {
 
 export type DecisaoDePacing =
   | { liberado: true }
-  | { liberado: false; motivo: "espacamento" | "teto_diario"; liberaEm: Date };
+  | { liberado: false; motivo: "espacamento" | "teto_diario" | "teto_por_hora"; liberaEm: Date };
 
 export interface PacingDoAviso {
   decide(orgId: string, channelSessionId: string, agora: Date): Promise<DecisaoDePacing>;

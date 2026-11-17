@@ -45,6 +45,14 @@ interface FormState {
   /** `yyyy-mm-dd` do input date; '' = não declarado (o motor trata como idade 0). */
   numero_em_uso_desde: string;
   pular_aquecimento: boolean;
+  /** '' = sem teto por hora. */
+  max_per_hour: string;
+  /** Orçamento fixo de leads por dia; '' = sem orçamento (o rodízio divide por igual). */
+  leads_por_dia: string;
+  /** "Subir sozinho com a idade" — grava a rampa em vez do número fixo. */
+  leads_em_rampa: boolean;
+  /** O orçamento só é regravado se o operador mexeu: um desenho "personalizado" não é reescrito por um save de outro campo. */
+  leads_tocado: boolean;
 }
 
 function fromItem(item: PacingKnobsItem): FormState {
@@ -64,7 +72,18 @@ function fromItem(item: PacingKnobsItem): FormState {
       ? item.warmup.number_activated_at.slice(0, 10)
       : "",
     pular_aquecimento: item.warmup.skipped,
+    max_per_hour: o?.max_per_hour != null ? String(o.max_per_hour) : "",
+    leads_por_dia:
+      item.leads.mode === "fixo" && item.leads.cap_today != null ? String(item.leads.cap_today) : "",
+    leads_em_rampa: item.leads.mode === "rampa",
+    leads_tocado: false,
   };
+}
+
+/** O que a tela manda para o orçamento de leads: número, "rampa" ou null (sem orçamento). */
+function orcamentoDoForm(form: FormState): number | "rampa" | null {
+  if (form.leads_em_rampa) return "rampa";
+  return form.leads_por_dia.trim() === "" ? null : Math.round(Number(form.leads_por_dia));
 }
 
 const intOrNull = (s: string): number | null => (s.trim() === "" ? null : Math.round(Number(s)));
@@ -157,6 +176,8 @@ export function AntiBanSheet({ item, canWrite, onClose }: Props) {
             ? null
             : new Date(`${form.numero_em_uso_desde}T12:00:00.000Z`).toISOString(),
         skip_warmup: form.pular_aquecimento,
+        max_per_hour: intOrNull(form.max_per_hour),
+        ...(form.leads_tocado ? { lead_daily_cap: orcamentoDoForm(form) } : {}),
       });
       toast.success(t("Proteção de envio atualizada."));
       onClose();
@@ -180,6 +201,87 @@ export function AntiBanSheet({ item, canWrite, onClose }: Props) {
         </SheetHeader>
 
         <div className="flex flex-col gap-5 px-4 py-2" data-testid="anti-ban-form">
+          {item.today ? (
+            <div className="rounded-md border border-border bg-muted/30 p-3" data-testid="uso-de-hoje">
+              <p className="text-xs font-medium">{t("Hoje neste número")}</p>
+              <ul className="mt-1 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                <li data-testid="uso-leads">
+                  {t("Leads novos:")} <strong className="text-foreground">{item.today.leads_today}</strong>
+                  {item.leads.cap_today != null ? ` / ${item.leads.cap_today}` : ""}
+                  {item.today.leads_on_the_way > 0 ? ` (+${item.today.leads_on_the_way} ${t("a caminho")})` : ""}
+                </li>
+                <li data-testid="uso-hora">
+                  {t("Última hora:")} <strong className="text-foreground">{item.today.sent_last_hour}</strong>
+                  {eff.maxPerHour != null ? ` / ${eff.maxPerHour}` : ""} {t("msgs")}
+                </li>
+                <li>
+                  {t("Iniciadas por nós:")} <strong className="text-foreground">{item.today.initiated_today}</strong>
+                  {item.warmup.cap_today != null ? ` / ${item.warmup.cap_today}` : ""}
+                </li>
+                <li>
+                  {t("Total enviado:")} <strong className="text-foreground">{item.today.sent_today}</strong>
+                </li>
+              </ul>
+            </div>
+          ) : null}
+
+          <fieldset className="flex flex-col gap-2" data-testid="orcamento-de-leads">
+            <Label htmlFor="leads-por-dia">{t("Leads novos por dia (rodízio)")}</Label>
+            <Input
+              id="leads-por-dia"
+              type="number"
+              min={1}
+              max={item.bounds.leadsPerDayMax}
+              inputMode="numeric"
+              placeholder={t("sem limite")}
+              value={form.leads_por_dia}
+              onChange={(e) => set({ leads_por_dia: e.target.value, leads_tocado: true })}
+              disabled={!canWrite || form.leads_em_rampa}
+              className="w-32"
+            />
+            <div className="mt-1 flex items-center gap-2">
+              <Switch
+                id="leads-em-rampa"
+                checked={form.leads_em_rampa}
+                onCheckedChange={(v) => set({ leads_em_rampa: v, leads_tocado: true })}
+                disabled={!canWrite}
+              />
+              <Label htmlFor="leads-em-rampa" className="font-normal">
+                {t("Subir sozinho com a idade do número")}
+              </Label>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {form.leads_em_rampa
+                ? t("0–3 dias: 15 por dia · 4–7 dias: 25 · 8–14 dias: 50 · 15 dias ou mais: sem limite.")
+                : item.leads.mode === "personalizado" && !form.leads_tocado
+                  ? `${t("Orçamento personalizado em vigor — hoje:")} ${item.leads.cap_today ?? t("sem limite")}. ${t("Preencha o campo para trocar.")}`
+                  : t(
+                      "Quantas conversas novas os anúncios com rodízio mandam a este número por dia. O clique vai para o número mais longe do seu limite; se todos encherem, vai para o menos carregado e o excesso fica registrado — nenhum clique pago se perde. Em branco: divide por igual.",
+                    )}
+            </p>
+          </fieldset>
+
+          <fieldset className="flex flex-col gap-2" data-testid="teto-por-hora">
+            <Label htmlFor="max-por-hora">{t("Teto de mensagens por hora")}</Label>
+            <Input
+              id="max-por-hora"
+              type="number"
+              min={1}
+              max={item.bounds.perHourMax}
+              inputMode="numeric"
+              placeholder={t("sem teto por hora")}
+              value={form.max_per_hour}
+              onChange={(e) => set({ max_per_hour: e.target.value })}
+              disabled={!canWrite}
+              className="w-32"
+            />
+            <p className="text-xs text-muted-foreground">
+              {t(
+                "Conta tudo o que sai do número. Rajada é o que mais derruba número novo: acima do teto, a mensagem espera alguns minutos até abrir vaga. Quem relata urgência é respondido mesmo assim.",
+              )}
+            </p>
+          </fieldset>
+
           <fieldset className="flex flex-col gap-2" data-testid="aquecimento">
             <Label htmlFor="numero-em-uso-desde">{t("Este número é usado desde")}</Label>
             <Input
@@ -373,7 +475,7 @@ export function AntiBanSheet({ item, canWrite, onClose }: Props) {
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
               {t(
-                "Número recém-conectado envia pouco e sobe aos poucos — enviar demais no início é a causa nº 1 de bloqueio.",
+                "Número recém-conectado envia pouco e sobe aos poucos — enviar demais no início é a causa nº 1 de bloqueio. Conta só o que nós iniciamos (retorno, recuperação, oferta): responder quem acabou de escrever não gasta o aquecimento.",
               )}
             </p>
           </div>

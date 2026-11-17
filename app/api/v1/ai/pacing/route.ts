@@ -23,13 +23,61 @@ import {
   effectiveKnobs,
   windowIsValid,
   WARMUP_PULADO,
+  degrausDoOrcamento,
   type ChannelKnobsRow,
 } from "@/lib/ai/pacing-knobs";
+import { lerEstadoDoPacing } from "@/lib/agent-engine/pacing/ledger-supabase";
+import { cargaDosNumeros } from "@/lib/plataformas-de-anuncio/rodizio-de-numeros";
 
 export const dynamic = "force-dynamic";
 
 const KNOB_COLUMNS =
-  "throttle_ms, jitter_max_ms, window_start_hour, window_end_hour, allow_sunday, timezone, warmup_daily_caps, number_activated_at";
+  "throttle_ms, jitter_max_ms, window_start_hour, window_end_hour, allow_sunday, timezone, warmup_daily_caps, number_activated_at, max_per_hour, lead_daily_caps";
+
+/**
+ * O que o número fez HOJE, ao lado do que foi configurado: sem isto o operador põe
+ * "24 leads/dia" e não tem como ver se o rodízio está respeitando. Falha de leitura
+ * vira `null` — é exibição, não derruba a ficha.
+ */
+async function usoDeHoje(
+  admin: ReturnType<typeof createAdminClient>,
+  orgId: string,
+  sessoes: { id: string; phone_number: string | null }[],
+  timezoneDe: (sessionId: string) => string,
+) {
+  const agora = new Date();
+  const uso = new Map<string, {
+    leads_today: number;
+    leads_on_the_way: number;
+    sent_today: number;
+    initiated_today: number;
+    sent_last_hour: number;
+  } | null>();
+  try {
+    const carga = await cargaDosNumeros(
+      admin,
+      orgId,
+      sessoes.map((s) => ({ sessionId: s.id, telefone: (s.phone_number ?? "").replace(/[^0-9]/g, "") })),
+      agora,
+    );
+    await Promise.all(
+      sessoes.map(async (s) => {
+        const estado = await lerEstadoDoPacing(admin, orgId, s.id, { agora, timezone: timezoneDe(s.id) });
+        const c = carga.get(s.id);
+        uso.set(s.id, {
+          leads_today: c?.leadsHoje ?? 0,
+          leads_on_the_way: c?.aCaminho ?? 0,
+          sent_today: estado.sentToday,
+          initiated_today: estado.initiatedToday ?? estado.sentToday,
+          sent_last_hour: estado.sentLastHour ?? 0,
+        });
+      }),
+    );
+  } catch {
+    // Exibição: sem os números a ficha continua editável.
+  }
+  return uso;
+}
 
 /**
  * `organizations.timezone`, para a tela mostrar o fuso em que o motor avalia a
@@ -76,9 +124,19 @@ export async function GET(): Promise<Response> {
   const byuSession = new Map<string, ChannelKnobsRow>(
     (knobs ?? []).map((k) => [k.channel_session_id as string, k as unknown as ChannelKnobsRow]),
   );
+  const views = new Map(
+    (sessions ?? []).map((s) => [s.id, knobsView(byuSession.get(s.id) ?? null, new Date(), fusoDaOrg)]),
+  );
+  const uso = await usoDeHoje(
+    admin,
+    org.orgId,
+    (sessions ?? []) as { id: string; phone_number: string | null }[],
+    (id) => views.get(id)?.effective.timezone ?? "America/Sao_Paulo",
+  );
   const items = (sessions ?? []).map((s) => ({
     channel_session: s,
-    ...knobsView(byuSession.get(s.id) ?? null, new Date(), fusoDaOrg),
+    ...views.get(s.id)!,
+    today: uso.get(s.id) ?? null,
   }));
   return ok({ items }, { requestId });
 }
@@ -111,6 +169,7 @@ export async function PUT(req: NextRequest): Promise<Response> {
     daily_message_limit,
     skip_warmup,
     number_activated_at,
+    lead_daily_cap,
     ...camposDiretos
   } = parsed.data;
   // `skip_warmup` é pergunta da TELA; a coluna guarda a forma que o motor lê.
@@ -129,6 +188,9 @@ export async function PUT(req: NextRequest): Promise<Response> {
     ...(skip_warmup !== undefined
       ? { warmup_daily_caps: skip_warmup ? [...WARMUP_PULADO] : null }
       : {}),
+    // Mesma ideia do `skip_warmup`: a tela escolhe "24 por dia" ou "rampa"; a coluna
+    // guarda os degraus que o rodízio lê.
+    ...(lead_daily_cap !== undefined ? { lead_daily_caps: degrausDoOrcamento(lead_daily_cap) } : {}),
   };
 
   const admin = createAdminClient();
