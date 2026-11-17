@@ -98,6 +98,8 @@ interface Candidata {
   ultima_em: string | null;
   silence_since: string | null;
   janela_enviada: boolean | null;
+  /** A organização exige a janela de 24 h em todo envio automático (`lib/messaging/so-dentro-da-janela.ts`). */
+  so_dentro_da_janela?: boolean | null;
   retorno_em: string | null;
 }
 
@@ -114,6 +116,7 @@ export const CONSULTA_DE_SILENCIOSAS = `
              and mf.created_at >= ui.created_at - interval '60 minutes') as falas_finais,
          t.feitas, t.ultima_em, t.silence_since, t.janela_enviada,
          r.retorno_em,
+         (o.settings->'envio'->>'so_dentro_da_janela' = 'true') as so_dentro_da_janela,
          ('pago' = any(coalesce(c.tags, '{}'::text[]))) as ja_pagou,
          exists (select 1 from messages mp
                   where mp.organization_id = v.organization_id and mp.conversation_id = v.id
@@ -232,8 +235,13 @@ function ultimoPassoPermitido(
   return null;
 }
 
-/** O canal desta conversa limita a mensagem livre a 24 h depois da última mensagem do cliente? */
-export function canalTemPrazo(provider: string | null): boolean {
+/**
+ * A mensagem livre desta conversa acaba 24 h depois da última mensagem do cliente? Pelo canal, ou porque a
+ * organização exige a janela em todo envio automático — aí o número por QR também tem prazo, e a régua e o
+ * "manter a janela" passam a valer nele.
+ */
+export function canalTemPrazo(provider: string | null, soDentroDaJanela = false): boolean {
+  if (soDentroDaJanela) return true;
   return provider !== null && !capabilitiesOf(provider as ChannelProvider).freeformOutsideWindow;
 }
 
@@ -371,7 +379,7 @@ export async function recuperarSilenciosos(
   // Decide tudo primeiro e atende do silêncio MAIS RECENTE para o mais antigo, até o teto da rodada:
   // quem acabou de se calar é quem mais tem chance de voltar, e o resto sai na rodada seguinte.
   const decididas = rows
-    .map((c) => ({ c, chamada: decidirChamada(c, agora, canalTemPrazo(c.provider)) }))
+    .map((c) => ({ c, chamada: decidirChamada(c, agora, canalTemPrazo(c.provider, c.so_dentro_da_janela === true)) }))
     .filter((d): d is { c: Candidata; chamada: Chamada } => d.chamada !== null)
     .sort(
       (a, b) =>
@@ -396,7 +404,7 @@ export async function recuperarSilenciosos(
       );
       const ofertaDePe = ativa?.tipo === 'pequena' ? ativa : null;
       if (ofertaDePe !== null || (chamada.ofertaCents !== null && !ofertaAindaDesce(c.pricing!, chamada.ofertaCents, corpos))) {
-        chamada = decidirChamada(c, agora, canalTemPrazo(c.provider), true, ofertaDePe) ?? chamada;
+        chamada = decidirChamada(c, agora, canalTemPrazo(c.provider, c.so_dentro_da_janela === true), true, ofertaDePe) ?? chamada;
       }
     }
 
