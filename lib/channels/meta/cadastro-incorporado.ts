@@ -237,27 +237,40 @@ export async function garantirNumeroRegistrado(
   buscar: Buscar = fetch,
 ): Promise<{ ok: true; registrou: boolean; noAplicativo: boolean } | { ok: false; motivo: string }> {
   const id = encodeURIComponent(p.phoneNumberId);
-  let estado = await chamar<{ platform_type?: string; is_on_biz_app?: boolean }>(buscar, id, {
-    parametros: { fields: "platform_type,is_on_biz_app" },
+  let estado = await chamar<{ platform_type?: string; is_on_biz_app?: boolean; status?: string }>(buscar, id, {
+    parametros: { fields: "platform_type,is_on_biz_app,status" },
     token: p.token,
   });
   // `is_on_biz_app` é campo recente: numa versão da Graph que não o conhece a
   // leitura inteira é recusada, e isso não pode impedir a conexão comum.
   if (!estado.ok) {
-    estado = await chamar(buscar, id, { parametros: { fields: "platform_type" }, token: p.token });
+    estado = await chamar(buscar, id, { parametros: { fields: "platform_type,status" }, token: p.token });
   }
   if (!estado.ok) return { ok: false, motivo: estado.motivo };
   // COEXISTÊNCIA: o número continua no aplicativo WhatsApp Business do celular, e
   // é o aplicativo que o mantém registrado. Registrar daqui o tiraria de lá.
   if (estado.corpo?.is_on_biz_app === true) return { ok: true, registrou: false, noAplicativo: true };
-  if (estado.corpo?.platform_type === "CLOUD_API") return { ok: true, registrou: false, noAplicativo: false };
+  // Na Cloud API e DESCONECTADO ("Offline" no Gerenciador) não envia nada: em
+  // 17/11/2026 um número assim foi gravado como WORKING e entrou mudo no rodízio.
+  // Ninguém usa o PIN de um número desconectado, então registrar é seguro; se a
+  // Meta pedir nova verificação por SMS, a conexão é recusada com o que fazer.
+  const desconectado = estado.corpo?.status === "DISCONNECTED";
+  if (estado.corpo?.platform_type === "CLOUD_API" && !desconectado) {
+    return { ok: true, registrou: false, noAplicativo: false };
+  }
 
   const registro = await chamar<{ success?: boolean }>(buscar, `${id}/register`, {
     metodo: "POST",
     parametros: { messaging_product: "whatsapp", pin: pinDoNumero(p.phoneNumberId, p.segredoDoPin) },
     token: p.token,
   });
-  if (!registro.ok) return { ok: false, motivo: registro.motivo };
+  if (!registro.ok) {
+    if (!desconectado) return { ok: false, motivo: registro.motivo };
+    return {
+      ok: false,
+      motivo: `o número está desconectado na Meta. Verifique-o de novo por SMS no Gerenciador do WhatsApp (Telefones › o número) e conecte outra vez. Detalhe da Meta: ${registro.motivo}`,
+    };
+  }
   return { ok: true, registrou: true, noAplicativo: false };
 }
 
