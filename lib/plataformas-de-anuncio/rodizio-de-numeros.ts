@@ -1,17 +1,33 @@
 /**
- * Rodízio de números na captura: o clique vai para o número CONECTADO e com agente publicado que
- * recebeu MENOS cliques nas últimas horas (empate sorteado). O sorteio puro deixava a divisão torta
- * em volume baixo (12 cliques em 16/11: 6, 5 e 1). Um número que cai sai do rodízio sozinho — sem
- * ninguém trocar o número da landing.
+ * Rodízio de números na captura, POR CAPACIDADE (migration 0963).
+ *
+ * O clique vai para o número CONECTADO e com agente publicado que está mais LONGE do seu orçamento de
+ * leads novos de hoje (`channel_knobs.lead_daily_caps`, em degraus por idade do número). A carga é o
+ * que importa para o WhatsApp: conversas que COMEÇARAM hoje no número (o lead escreveu) mais os cliques
+ * que acabaram de ser mandados para lá e ainda não escreveram (`JANELA_DE_CHEGADA_MS`).
+ *
+ * A versão anterior contava cliques das últimas 6 horas e dividia por igual: um número de 1 dia recebia
+ * o mesmo que um de 1 mês, e clique que não virava conversa pesava igual a lead. Três números caíram
+ * assim em 16/11/2026.
+ *
+ * Número cheio sai da escolha. Todos cheios: o clique vai para o MENOS carregado e a rota marca o
+ * transbordo (`__transbordo`) — clique pago nunca se perde, e o excesso fica visível e logado.
+ * Número sem orçamento nunca enche: entra na proporção pelo maior orçamento entre os outros (ou 1, se
+ * nenhum tem orçamento — e aí o rodízio volta a dividir por igual, como antes).
  *
  * Opt-in pela página (`rodizio=1`): organização com um agente por produto em números diferentes
  * não pode ter o lead de uma oferta caindo no número da outra.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { JANELA_DE_CHEGADA_MS } from "@/lib/agent-engine/pacing/defaults";
+import { dayStartInTz, warmupCapFor } from "@/lib/agent-engine/pacing/engine";
+import { fusoDaJanela, parseWarmupCaps } from "@/lib/agent-engine/pacing/store";
 import { STATUS_SAUDAVEL } from "@/lib/channels/health";
 import { logger } from "@/lib/logger";
 import { numerosDoAgente, numerosExtrasPorAgente } from "@/lib/ai/agents/numeros-do-agente";
+
+const DAY_MS = 86_400_000;
 
 /** Sorteio uniforme; `null` quando não há número vivo. `aleatorio` injetável para o teste. */
 export function sortearNumero(numeros: readonly string[], aleatorio: () => number = Math.random): string | null {
@@ -19,48 +35,45 @@ export function sortearNumero(numeros: readonly string[], aleatorio: () => numbe
   return numeros[Math.min(numeros.length - 1, Math.floor(aleatorio() * numeros.length))] ?? null;
 }
 
-/** Janela da contagem: curta o bastante para um número recém-ligado não receber sozinho um dia inteiro de cliques. */
-export const JANELA_DO_RODIZIO_MS = 6 * 60 * 60 * 1000;
+/** Um número no rodízio, com o que a escolha precisa saber dele hoje. */
+export interface NumeroNoRodizio {
+  telefone: string;
+  /** Conversas que começaram hoje (dia local) neste número com o lead tendo escrito. */
+  leadsHoje: number;
+  /** Cliques mandados para cá nos últimos `JANELA_DE_CHEGADA_MS` que ainda não viraram conversa. */
+  aCaminho: number;
+  /** Orçamento de leads novos de hoje. `null` = sem orçamento (nunca enche). */
+  orcamentoHoje: number | null;
+}
 
-/** O número com menos cliques na janela; empate vai para o sorteio. `null` quando não há número vivo. */
-export function numeroComMenosCliques(
-  numeros: readonly string[],
-  cliques: ReadonlyMap<string, number>,
-  aleatorio: () => number = Math.random,
-): string | null {
-  if (numeros.length === 0) return null;
-  const menor = Math.min(...numeros.map((n) => cliques.get(n) ?? 0));
-  return sortearNumero(numeros.filter((n) => (cliques.get(n) ?? 0) === menor), aleatorio);
+export interface EscolhaDoRodizio {
+  telefone: string;
+  /** Todos os números estavam cheios: este é o menos carregado, acima do orçamento. */
+  transbordo: boolean;
 }
 
 /**
- * Cliques que o rodízio mandou para cada número desde `desde` (a rota grava o número em `query_raw.__numero`).
- * Falha devolve mapa vazio: todos empatam e o rodízio vira sorteio, nunca para.
+ * A escolha PURA: o número com a menor fração do orçamento usada, entre os que ainda têm vaga;
+ * empate sorteado. Todos cheios: a menor fração entre todos, marcada como transbordo.
  */
-export async function cliquesPorNumero(admin: SupabaseClient, organizationId: string, desde: Date): Promise<Map<string, number>> {
-  const { data, error } = await admin
-    .from("meta_ads_click_refs")
-    .select("numero:query_raw->>__numero")
-    .eq("organization_id", organizationId)
-    .gte("created_at", desde.toISOString())
-    .not("query_raw->>__numero", "is", null)
-    .limit(5000);
-  const conta = new Map<string, number>();
-  if (error) {
-    logger.warn("[plataformas-de-anuncio.rodizio] contagem de cliques falhou", { detalhe: error.message });
-    return conta;
-  }
-  for (const linha of (data ?? []) as { numero: string | null }[]) {
-    if (linha.numero) conta.set(linha.numero, (conta.get(linha.numero) ?? 0) + 1);
-  }
-  return conta;
-}
+export function escolherPorCapacidade(
+  numeros: readonly NumeroNoRodizio[],
+  aleatorio: () => number = Math.random,
+): EscolhaDoRodizio | null {
+  if (numeros.length === 0) return null;
+  const finitos = numeros.map((n) => n.orcamentoHoje).filter((o): o is number => o !== null);
+  // Sem orçamento entra na proporção pelo maior orçamento dos outros: divide com eles sem "furar a fila".
+  const referencia = finitos.length > 0 ? Math.max(...finitos) : 1;
+  const fracao = (n: NumeroNoRodizio) => (n.leadsHoje + n.aCaminho) / Math.max(1, n.orcamentoHoje ?? referencia);
+  const temVaga = (n: NumeroNoRodizio) => n.orcamentoHoje === null || n.leadsHoje + n.aCaminho < n.orcamentoHoje;
 
-/** O número do próximo clique do rodízio, ou `null` sem número vivo (a rota usa o configurado). */
-export async function proximoNumeroDoRodizio(admin: SupabaseClient, organizationId: string): Promise<string | null> {
-  const numeros = await numerosDoRodizio(admin, organizationId);
-  if (numeros.length <= 1) return numeros[0] ?? null;
-  return numeroComMenosCliques(numeros, await cliquesPorNumero(admin, organizationId, new Date(Date.now() - JANELA_DO_RODIZIO_MS)));
+  const comVaga = numeros.filter(temVaga);
+  const universo = comVaga.length > 0 ? comVaga : numeros;
+  const menor = Math.min(...universo.map(fracao));
+  // Comparação com folga: frações iguais vindas de divisões diferentes não podem desempatar por arredondamento.
+  const empatados = universo.filter((n) => fracao(n) - menor < 1e-9).map((n) => n.telefone);
+  const telefone = sortearNumero(empatados, aleatorio);
+  return telefone ? { telefone, transbordo: comVaga.length === 0 } : null;
 }
 
 interface VersaoPublicada {
@@ -68,8 +81,18 @@ interface VersaoPublicada {
   status: string;
 }
 
-/** Telefones dos números vivos com agente publicado. Falha devolve `[]`: quem chama cai no número configurado. */
-export async function numerosDoRodizio(admin: SupabaseClient, organizationId: string): Promise<string[]> {
+/** Uma conexão viva do rodízio: o id da sessão e o telefone só com dígitos. */
+export interface SessaoDoRodizio {
+  sessionId: string;
+  telefone: string;
+}
+
+function soDigitos(telefone: string): string {
+  return telefone.replace(/\D/g, "");
+}
+
+/** Conexões vivas com agente publicado. Falha devolve `[]`: quem chama cai no número configurado. */
+export async function sessoesDoRodizio(admin: SupabaseClient, organizationId: string): Promise<SessaoDoRodizio[]> {
   const { data: agentes, error: erroAgentes } = await admin
     .from("ai_agents")
     .select("id, version:ai_agent_versions!ai_agents_published_version_id_fkey(channel_session_id, status)")
@@ -100,7 +123,7 @@ export async function numerosDoRodizio(admin: SupabaseClient, organizationId: st
 
   const { data: vivas, error: erroSessoes } = await admin
     .from("channel_sessions")
-    .select("phone_number")
+    .select("id, phone_number")
     .eq("organization_id", organizationId)
     .in("id", sessoes)
     .eq("status", STATUS_SAUDAVEL)
@@ -110,7 +133,140 @@ export async function numerosDoRodizio(admin: SupabaseClient, organizationId: st
     logger.warn("[plataformas-de-anuncio.rodizio] leitura dos números falhou", { detalhe: erroSessoes.message });
     return [];
   }
-  return [...new Set((vivas ?? []).map((s) => String((s as { phone_number: string }).phone_number).replace(/\D/g, "")))].filter(
-    (n) => n.length >= 10,
+  const vistos = new Set<string>();
+  const saida: SessaoDoRodizio[] = [];
+  for (const s of (vivas ?? []) as { id: string; phone_number: string }[]) {
+    const telefone = soDigitos(String(s.phone_number));
+    // Dois registros do mesmo telefone contam como um número: o WhatsApp vê um só.
+    if (telefone.length < 10 || vistos.has(telefone)) continue;
+    vistos.add(telefone);
+    saida.push({ sessionId: s.id, telefone });
+  }
+  return saida;
+}
+
+/** Telefones dos números vivos com agente publicado (a área do cliente sorteia entre eles). */
+export async function numerosDoRodizio(admin: SupabaseClient, organizationId: string): Promise<string[]> {
+  return (await sessoesDoRodizio(admin, organizationId)).map((s) => s.telefone);
+}
+
+/** O que o rodízio sabe de cada conexão hoje — também é o que a tela de Proteção de envio mostra. */
+export interface CargaDoNumero {
+  leadsHoje: number;
+  aCaminho: number;
+  orcamentoHoje: number | null;
+}
+
+/**
+ * Carga e orçamento de hoje por conexão (chave: `sessionId`). O dia é o LOCAL do número
+ * (`fusoDaJanela`: o do número, senão o da organização), o mesmo dia do aquecimento.
+ *
+ * Falha de leitura vira zero e é LOGADA: o rodízio não pode parar de mandar cliques porque uma
+ * contagem falhou — dividir sem a carga é o comportamento antigo, não um clique perdido.
+ */
+export async function cargaDosNumeros(
+  admin: SupabaseClient,
+  organizationId: string,
+  sessoes: readonly SessaoDoRodizio[],
+  agora: Date = new Date(),
+): Promise<Map<string, CargaDoNumero>> {
+  const carga = new Map<string, CargaDoNumero>();
+  if (sessoes.length === 0) return carga;
+  const ids = sessoes.map((s) => s.sessionId);
+
+  const [knobs, org] = await Promise.all([
+    admin
+      .from("channel_knobs")
+      .select("channel_session_id, lead_daily_caps, number_activated_at, timezone")
+      .eq("organization_id", organizationId)
+      .in("channel_session_id", ids),
+    admin.from("organizations").select("timezone").eq("id", organizationId).maybeSingle(),
+  ]);
+  if (knobs.error) {
+    logger.warn("[plataformas-de-anuncio.rodizio] orçamentos não lidos", { detalhe: knobs.error.message });
+  }
+  const fusoDaOrg = (org.data as { timezone?: string | null } | null)?.timezone ?? null;
+  const knobsPorSessao = new Map(
+    ((knobs.data ?? []) as {
+      channel_session_id: string;
+      lead_daily_caps: unknown;
+      number_activated_at: string | null;
+      timezone: string | null;
+    }[]).map((k) => [k.channel_session_id, k]),
   );
+
+  const inicioDoDia = new Map<string, Date>();
+  for (const s of sessoes) {
+    const k = knobsPorSessao.get(s.sessionId);
+    inicioDoDia.set(s.sessionId, dayStartInTz(agora, fusoDaJanela(k?.timezone, fusoDaOrg)));
+    const caps = parseWarmupCaps(k?.lead_daily_caps);
+    const ativado = k?.number_activated_at ? Date.parse(k.number_activated_at) : NaN;
+    const idade = Number.isFinite(ativado) ? Math.max(0, Math.floor((agora.getTime() - ativado) / DAY_MS)) : 0;
+    carga.set(s.sessionId, { leadsHoje: 0, aCaminho: 0, orcamentoHoje: caps ? warmupCapFor(idade, caps) : null });
+  }
+
+  // Uma consulta desde o começo de dia MAIS ANTIGO entre os fusos; cada número filtra o seu.
+  const desde = new Date(Math.min(...[...inicioDoDia.values()].map((d) => d.getTime())));
+  const conversas = await admin
+    .from("conversations")
+    .select("channel_session_id, created_at")
+    .eq("organization_id", organizationId)
+    .in("channel_session_id", ids)
+    .gte("created_at", desde.toISOString())
+    .eq("is_group", false)
+    .not("last_inbound_at", "is", null)
+    .limit(10_000);
+  if (conversas.error) {
+    logger.warn("[plataformas-de-anuncio.rodizio] leads de hoje não contados", { detalhe: conversas.error.message });
+  }
+  for (const c of (conversas.data ?? []) as { channel_session_id: string; created_at: string }[]) {
+    const item = carga.get(c.channel_session_id);
+    const inicio = inicioDoDia.get(c.channel_session_id);
+    if (item && inicio && Date.parse(c.created_at) >= inicio.getTime()) item.leadsHoje += 1;
+  }
+
+  const sessaoPorTelefone = new Map(sessoes.map((s) => [s.telefone, s.sessionId]));
+  const cliques = await admin
+    .from("meta_ads_click_refs")
+    .select("numero:query_raw->>__numero")
+    .eq("organization_id", organizationId)
+    .gte("created_at", new Date(agora.getTime() - JANELA_DE_CHEGADA_MS).toISOString())
+    .is("matched_at", null)
+    .not("query_raw->>__numero", "is", null)
+    .limit(5000);
+  if (cliques.error) {
+    logger.warn("[plataformas-de-anuncio.rodizio] cliques a caminho não contados", { detalhe: cliques.error.message });
+  }
+  for (const linha of (cliques.data ?? []) as { numero: string | null }[]) {
+    const sessionId = linha.numero ? sessaoPorTelefone.get(soDigitos(linha.numero)) : undefined;
+    const item = sessionId ? carga.get(sessionId) : undefined;
+    if (item) item.aCaminho += 1;
+  }
+  return carga;
+}
+
+/**
+ * O número do próximo clique do rodízio, ou `null` sem número vivo (a rota usa o configurado).
+ * Transbordo é logado como aviso: é o sinal de que os números precisam de mais orçamento (ou de
+ * mais um número) para o volume de anúncio que está entrando.
+ */
+export async function proximoNumeroDoRodizio(
+  admin: SupabaseClient,
+  organizationId: string,
+  agora: Date = new Date(),
+): Promise<EscolhaDoRodizio | null> {
+  const sessoes = await sessoesDoRodizio(admin, organizationId);
+  if (sessoes.length === 0) return null;
+  const carga = await cargaDosNumeros(admin, organizationId, sessoes, agora);
+  const escolha = escolherPorCapacidade(
+    sessoes.map((s) => ({ telefone: s.telefone, ...(carga.get(s.sessionId) ?? { leadsHoje: 0, aCaminho: 0, orcamentoHoje: null }) })),
+  );
+  if (escolha?.transbordo) {
+    logger.warn("[plataformas-de-anuncio.rodizio] todos os números cheios — clique em transbordo", {
+      organizationId,
+      numeros: sessoes.length,
+      carga: Object.fromEntries([...carga].map(([id, c]) => [id, `${c.leadsHoje}+${c.aCaminho}/${c.orcamentoHoje ?? "∞"}`])),
+    });
+  }
+  return escolha;
 }

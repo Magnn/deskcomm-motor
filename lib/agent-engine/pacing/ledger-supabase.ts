@@ -38,21 +38,28 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { knobsDoCanal } from "@/lib/automation/janela-do-canal";
 import { logger } from "@/lib/logger";
 
-import { dayStartInTz, warmupCapFor } from "./engine";
+import type { TipoDeEnvio } from "./defaults";
+import { dayStartInTz, proximaVagaNaHora, warmupCapFor } from "./engine";
 
 /** O que o ledger responde sobre este número. */
 export interface EstadoDoPacing {
   /** Último envio deste número, em qualquer dia — a base do espaçamento. */
   lastSentAt: Date | null;
-  /** Envios deste número desde a meia-noite LOCAL do tenant. */
+  /** Envios deste número desde a meia-noite LOCAL do tenant (todos os tipos) — base do teto do CRM. */
   sentToday: number;
+  /** Envios INICIADOS desde a meia-noite local — base do aquecimento (migration 0963). Ausente = `sentToday`. */
+  initiatedToday?: number;
+  /** Envios (todos os tipos) nos últimos 60 minutos — base do teto por hora. */
+  sentLastHour?: number;
+  /** O mais antigo da última hora: quando ele completa 60 minutos, abre vaga. */
+  oldestInLastHourAt?: Date | null;
   /** `channel_knobs.number_activated_at`; `null` = idade 0 (o degrau mais conservador). */
   numberActivatedAt: Date | null;
 }
 
 export type DecisaoDeEspacamento =
   | { liberado: true }
-  | { liberado: false; motivo: "espacamento" | "teto_diario"; liberaEm: Date };
+  | { liberado: false; motivo: "espacamento" | "teto_diario" | "teto_por_hora"; liberaEm: Date };
 
 /**
  * Lê `pacing_ledger` pelo PostgREST.
@@ -87,6 +94,25 @@ export async function lerEstadoDoPacing(
     .eq("channel_session_id", channelSessionId)
     .gte("sent_at", inicioDoDia.toISOString());
 
+  // Só o que NÓS iniciamos conta contra o aquecimento (migration 0963).
+  const iniciadosDoDia = await admin
+    .from("pacing_ledger")
+    .select("id", { count: "exact", head: true })
+    .eq("organization_id", organizationId)
+    .eq("channel_session_id", channelSessionId)
+    .eq("tipo", "iniciada")
+    .gte("sent_at", inicioDoDia.toISOString());
+
+  // A última hora em ordem crescente: a contagem vem no `count`, e a linha que vem é a mais antiga.
+  const daHora = await admin
+    .from("pacing_ledger")
+    .select("sent_at", { count: "exact" })
+    .eq("organization_id", organizationId)
+    .eq("channel_session_id", channelSessionId)
+    .gte("sent_at", new Date(entrada.agora.getTime() - 3_600_000).toISOString())
+    .order("sent_at", { ascending: true })
+    .limit(1);
+
   const knobs = await admin
     .from("channel_knobs")
     .select("number_activated_at")
@@ -101,6 +127,8 @@ export async function lerEstadoDoPacing(
   for (const [qual, erro] of [
     ["ultimo envio", ultimo.error],
     ["contagem do dia", doDia.error],
+    ["iniciados do dia", iniciadosDoDia.error],
+    ["ultima hora", daHora.error],
     ["knobs do numero", knobs.error],
   ] as const) {
     if (erro) {
@@ -117,9 +145,15 @@ export async function lerEstadoDoPacing(
   const ativado = (knobs.data as { number_activated_at?: string | null } | null)
     ?.number_activated_at;
 
+  const maisAntigoDaHora = ((daHora.data ?? []) as { sent_at?: string }[])[0]?.sent_at ?? null;
+
   return {
     lastSentAt: sentAt ? new Date(sentAt) : null,
     sentToday: doDia.count ?? 0,
+    // Leitura que falhou não vira zero: cai no total do dia, a leitura conservadora.
+    initiatedToday: iniciadosDoDia.error ? (doDia.count ?? 0) : (iniciadosDoDia.count ?? 0),
+    sentLastHour: daHora.count ?? 0,
+    oldestInLastHourAt: maisAntigoDaHora ? new Date(maisAntigoDaHora) : null,
     numberActivatedAt: ativado ? new Date(ativado) : null,
   };
 }
@@ -136,11 +170,13 @@ export async function registrarEnvioNoLedger(
   organizationId: string,
   channelSessionId: string,
   quando: Date = new Date(),
+  tipo: TipoDeEnvio = "iniciada",
 ): Promise<void> {
   const { error } = await admin.from("pacing_ledger").insert({
     organization_id: organizationId,
     channel_session_id: channelSessionId,
     sent_at: quando.toISOString(),
+    tipo,
   });
   if (error) {
     logger.warn("[pacing] envio não contabilizado no ledger", {
@@ -154,10 +190,11 @@ export async function registrarEnvioNoLedger(
 /**
  * A decisão PURA: dá para mandar agora, e se não dá, quando dá?
  *
- * Só as duas regras que protegem o NÚMERO. A ordem importa: o teto diário é
+ * Só as regras que protegem o NÚMERO. A ordem importa: o teto diário é
  * checado antes do espaçamento porque ele adia por horas e o outro por
  * segundos — perguntar na ordem inversa devolveria "espere 1,2 s" a um número
- * que só volta a enviar amanhã.
+ * que só volta a enviar amanhã. O teto por hora fica no meio, e só vale para
+ * quem o pede (`maxPerHour`): o aviso interno de risco não pode esperar uma hora.
  */
 export function decidirEspacamento(entrada: {
   agora: Date;
@@ -168,6 +205,8 @@ export function decidirEspacamento(entrada: {
   warmupDailyCaps: Parameters<typeof warmupCapFor>[1];
   /** `channel_sessions.daily_message_limit` — a fonte única do teto ABSOLUTO. */
   crmDailyLimit: number | null;
+  /** Teto por hora do número. Ausente ou `null` = não aplica (o aviso interno). */
+  maxPerHour?: number | null;
   rng?: () => number;
 }): DecisaoDeEspacamento {
   const { agora, estado } = entrada;
@@ -180,18 +219,28 @@ export function decidirEspacamento(entrada: {
     ? Math.max(0, (agora.getTime() - estado.numberActivatedAt.getTime()) / 86_400_000)
     : 0;
   const capDoWarmup = warmupCapFor(idadeDias, entrada.warmupDailyCaps);
-  const caps = [capDoWarmup, entrada.crmDailyLimit].filter(
-    (c): c is number => typeof c === "number" && Number.isFinite(c),
-  );
-  const cap = caps.length > 0 ? Math.min(...caps) : null;
+  // A mesma separação do motor (`decidePacing`): o aquecimento conta o que iniciamos, o
+  // limite do CRM conta tudo.
+  const iniciados = estado.initiatedToday ?? estado.sentToday;
+  const estourouAquecimento = typeof capDoWarmup === "number" && iniciados >= capDoWarmup;
+  const estourouCrm =
+    typeof entrada.crmDailyLimit === "number" && estado.sentToday >= entrada.crmDailyLimit;
 
-  if (cap !== null && estado.sentToday >= cap) {
+  if (estourouAquecimento || estourouCrm) {
     // O contador zera na meia-noite LOCAL do tenant — é exatamente esse o
     // instante em que este número volta a poder enviar. Um `+24h` cru daria uma
     // hora arbitrária e faria o aviso sair no meio da madrugada seguinte.
     const amanha = dayStartInTz(new Date(agora.getTime() + 86_400_000), entrada.timezone);
     return { liberado: false, motivo: "teto_diario", liberaEm: amanha };
   }
+
+  const vaga = proximaVagaNaHora(
+    agora,
+    { maxPerHour: entrada.maxPerHour ?? null, jitterMaxMs: entrada.jitterMaxMs },
+    estado,
+    rng,
+  );
+  if (vaga !== null) return { liberado: false, motivo: "teto_por_hora", liberaEm: vaga };
 
   if (estado.lastSentAt) {
     // O jitter existe porque intervalo fixo é assinatura de robô — e é o padrão
@@ -212,7 +261,15 @@ export function decidirEspacamento(entrada: {
  * Existe para o chamador não ter de saber a ordem das três leituras — e para a
  * REGRA (`decidirEspacamento`) continuar testável sem banco nenhum.
  */
-export async function criarPacingDoCanal(admin: SupabaseClient) {
+export async function criarPacingDoCanal(
+  admin: SupabaseClient,
+  /**
+   * `tetoPorHora: true` aplica o teto por hora do número. Quem pede é o envio por TOKEN
+   * (volume de fora, como qualquer disparo). O aviso interno não pede: um alerta de risco
+   * represado por uma hora é o desfecho que ele existe para evitar.
+   */
+  opcoes: { tetoPorHora?: boolean } = {},
+) {
   return {
     async decide(organizationId: string, channelSessionId: string, agora: Date) {
       const knobs = await knobsDoCanal(admin, organizationId, channelSessionId);
@@ -233,6 +290,7 @@ export async function criarPacingDoCanal(admin: SupabaseClient) {
         jitterMaxMs: knobs.jitterMaxMs,
         timezone: knobs.timezone,
         warmupDailyCaps: knobs.warmupDailyCaps,
+        maxPerHour: opcoes.tetoPorHora === true ? knobs.maxPerHour : null,
         crmDailyLimit:
           (data as { daily_message_limit?: number | null } | null)?.daily_message_limit ?? null,
       });

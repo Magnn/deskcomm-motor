@@ -9,7 +9,7 @@ import { fusoValido } from '@/lib/tempo/fusos';
 
 import type { Logger } from '../obs/logger';
 import type { Queryable } from '../queue/queue';
-import { PACING_DEFAULTS, type PacingKnobs, type WarmupStep } from './defaults';
+import { PACING_DEFAULTS, type PacingKnobs, type TipoDeEnvio, type WarmupStep } from './defaults';
 import { dayStartInTz, type PacingState } from './engine';
 
 interface ChannelKnobsRow {
@@ -20,6 +20,7 @@ interface ChannelKnobsRow {
   allow_sunday: boolean | null;
   timezone: string | null;
   warmup_daily_caps: unknown; // jsonb — shape validado em parseWarmupCaps (nunca confiado)
+  max_per_hour: number | null;
   /** Nulo quando o número não tem linha em channel_knobs (o `left join` da leitura). */
   number_activated_at: Date | null;
   /** `organizations.timezone` — o fuso da janela de quem não escolheu um no número. */
@@ -92,7 +93,7 @@ export async function loadChannelKnobs(
   // ainda precisa do fuso da empresa (`fusoDaJanela`). Uma ida ao banco só.
   const { rows } = await db.query<ChannelKnobsRow>(
     `select k.throttle_ms, k.jitter_max_ms, k.window_start_hour, k.window_end_hour,
-            k.allow_sunday, k.timezone, k.warmup_daily_caps, k.number_activated_at,
+            k.allow_sunday, k.timezone, k.warmup_daily_caps, k.max_per_hour, k.number_activated_at,
             o.timezone as org_timezone
      from organizations o
      left join channel_knobs k
@@ -127,12 +128,17 @@ export async function loadChannelKnobs(
       allowSunday: row.allow_sunday ?? PACING_DEFAULTS.allowSunday,
       timezone: fusoDaJanela(row.timezone, row.org_timezone),
       warmupDailyCaps,
+      maxPerHour: row.max_per_hour ?? PACING_DEFAULTS.maxPerHour,
     },
     numberActivatedAt: row.number_activated_at,
   };
 }
 
-/** lastSentAt (qualquer dia) + sentToday (desde a meia-noite local do tenant). */
+/**
+ * lastSentAt (qualquer dia), sentToday e initiatedToday (desde a meia-noite local do tenant),
+ * e sentLastHour + oldestInLastHourAt (os últimos 60 minutos, para o teto por hora).
+ * Uma ida ao banco só, no índice `(organization_id, channel_session_id, sent_at desc)`.
+ */
 export async function loadPacingState(
   db: Queryable,
   tenantId: string,
@@ -140,31 +146,49 @@ export async function loadPacingState(
   input: { now: Date; timezone: string; numberActivatedAt: Date | null },
 ): Promise<PacingState> {
   const dayStart = dayStartInTz(input.now, input.timezone);
-  const { rows } = await db.query<{ last_sent_at: Date | null; sent_today: string }>(
+  const hourAgo = new Date(input.now.getTime() - 3_600_000);
+  const { rows } = await db.query<{
+    last_sent_at: Date | null;
+    sent_today: string;
+    initiated_today: string;
+    sent_last_hour: string;
+    oldest_last_hour: Date | null;
+  }>(
     `select max(sent_at) as last_sent_at,
-            count(*) filter (where sent_at >= $3) as sent_today
+            count(*) filter (where sent_at >= $3) as sent_today,
+            count(*) filter (where sent_at >= $3 and tipo = 'iniciada') as initiated_today,
+            count(*) filter (where sent_at >= $4) as sent_last_hour,
+            min(sent_at) filter (where sent_at >= $4) as oldest_last_hour
      from pacing_ledger
      where organization_id = $1 and channel_session_id = $2`,
-    [tenantId, channelSessionId, dayStart],
+    [tenantId, channelSessionId, dayStart, hourAgo],
   );
   const row = rows[0];
   return {
     lastSentAt: row?.last_sent_at ?? null,
     sentToday: Number(row?.sent_today ?? 0),
+    initiatedToday: Number(row?.initiated_today ?? 0),
+    sentLastHour: Number(row?.sent_last_hour ?? 0),
+    oldestInLastHourAt: row?.oldest_last_hour ?? null,
     numberActivatedAt: input.numberActivatedAt,
   };
 }
 
-/** Registra um envio efetivado — chamado pela cadeia de envio (F2-13) após o accept do CRM. */
+/**
+ * Registra um envio efetivado — chamado pela cadeia de envio (F2-13) após o accept do CRM.
+ * `tipo` omitido = 'iniciada': campanha, prospecção e retorno são disparo, e é a leitura
+ * conservadora (conta contra o aquecimento). Só quem SABE que respondeu passa 'resposta'.
+ */
 export async function recordSend(
   db: Queryable,
   tenantId: string,
   channelSessionId: string,
   sentAt: Date = new Date(),
+  tipo: TipoDeEnvio = 'iniciada',
 ): Promise<void> {
   await db.query(
-    `insert into pacing_ledger (organization_id, channel_session_id, sent_at)
-     values ($1, $2, $3)`,
-    [tenantId, channelSessionId, sentAt],
+    `insert into pacing_ledger (organization_id, channel_session_id, sent_at, tipo)
+     values ($1, $2, $3, $4)`,
+    [tenantId, channelSessionId, sentAt, tipo],
   );
 }

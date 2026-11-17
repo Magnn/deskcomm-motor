@@ -4026,6 +4026,8 @@ export type Database = {
           created_at: string
           health_knobs: Json | null
           jitter_max_ms: number | null
+          lead_daily_caps: Json | null
+          max_per_hour: number | null
           number_activated_at: string
           organization_id: string
           spinning_knobs: Json | null
@@ -4042,6 +4044,8 @@ export type Database = {
           created_at?: string
           health_knobs?: Json | null
           jitter_max_ms?: number | null
+          lead_daily_caps?: Json | null
+          max_per_hour?: number | null
           number_activated_at?: string
           organization_id: string
           spinning_knobs?: Json | null
@@ -4058,6 +4062,8 @@ export type Database = {
           created_at?: string
           health_knobs?: Json | null
           jitter_max_ms?: number | null
+          lead_daily_caps?: Json | null
+          max_per_hour?: number | null
           number_activated_at?: string
           organization_id?: string
           spinning_knobs?: Json | null
@@ -7845,18 +7851,21 @@ export type Database = {
           id: string
           organization_id: string
           sent_at: string
+          tipo: string
         }
         Insert: {
           channel_session_id: string
           id?: string
           organization_id: string
           sent_at?: string
+          tipo?: string
         }
         Update: {
           channel_session_id?: string
           id?: string
           organization_id?: string
           sent_at?: string
+          tipo?: string
         }
         Relationships: [
           {

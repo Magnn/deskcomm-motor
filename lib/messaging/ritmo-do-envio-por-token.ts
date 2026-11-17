@@ -118,7 +118,9 @@ export async function segurarEnvioPorToken(
     entrada.requestId,
     decisao.motivo === "teto_diario"
       ? `Este número atingiu o limite de envios de hoje. Tente de novo depois de ${liberaEm} (em ${retryAfterSeconds}s).`
-      : `Envios rápidos demais para este número. Tente de novo em ${retryAfterSeconds}s.`,
+      : decisao.motivo === "teto_por_hora"
+        ? `Este número atingiu o limite de envios por hora. Tente de novo depois de ${liberaEm} (em ${retryAfterSeconds}s).`
+        : `Envios rápidos demais para este número. Tente de novo em ${retryAfterSeconds}s.`,
   );
 }
 
@@ -167,7 +169,8 @@ export async function depsDoRitmo(admin: SupabaseClient): Promise<DepsDoRitmo> {
         provider: linha.provider ?? null,
       };
     },
-    pacing: await criarPacingDoCanal(admin),
+    // Envio por token é volume de fora: vale o teto por hora do número, como no disparo.
+    pacing: await criarPacingDoCanal(admin, { tetoPorHora: true }),
     sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
     agora: () => new Date(),
   };
