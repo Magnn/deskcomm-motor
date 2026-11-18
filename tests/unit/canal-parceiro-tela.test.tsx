@@ -25,10 +25,17 @@ vi.mock("@/lib/api/client", () => ({
 }));
 const toastOk = vi.fn();
 const toastErro = vi.fn();
-vi.mock("sonner", () => ({ toast: { success: (m: string) => toastOk(m), error: (m: string) => toastErro(m) } }));
+vi.mock("sonner", () => ({
+  toast: { success: (m: string) => toastOk(m), error: (m: string) => toastErro(m) },
+}));
 vi.mock("@/lib/clipboard", () => ({ copyToClipboard: vi.fn(async () => true) }));
-// O acesso da IA por número tem teste próprio; aqui só importa que a tela o monta por número.
-vi.mock("@/components/connections/ChannelAiAccess", () => ({ ChannelAiAccess: () => <div>acesso da IA</div> }));
+const replaceMock = vi.fn();
+const roteador = { replace: (...a: unknown[]) => replaceMock(...a) };
+let paramsDaUrl = new URLSearchParams();
+vi.mock("next/navigation", () => ({
+  useRouter: () => roteador,
+  useSearchParams: () => paramsDaUrl,
+}));
 
 import { CanalParceiroClient } from "@/components/connections/CanalParceiroClient";
 
@@ -63,6 +70,8 @@ beforeEach(() => {
   postMock.mockReset();
   toastOk.mockReset();
   toastErro.mockReset();
+  replaceMock.mockReset();
+  paramsDaUrl = new URLSearchParams();
 });
 
 describe("estado inicial", () => {
@@ -91,11 +100,6 @@ describe("estado inicial", () => {
     getMock.mockResolvedValue(conectado);
     render(<CanalParceiroClient />);
     const campo = await screen.findByLabelText(/Chave de API/);
-    // Desde que a tela aceita vários números, o campo Conta começa vazio (é o
-    // caminho de conectar um número NOVO); "gravada" vale para a conta digitada
-    // que já está conectada.
-    await screen.findByText(/\+19392301037/);
-    fireEvent.change(screen.getByLabelText("Conta"), { target: { value: "acc_1" } });
     // O campo existe no PRIMEIRO render, antes de a leitura do estado voltar —
     // e é só depois dela que o placeholder passa a dizer "gravada". Afirmar
     // isso na linha seguinte ao `findByLabelText` é uma corrida: ela é ganha
@@ -133,7 +137,12 @@ describe("conectar", () => {
   it("manda conta e chave para a rota", async () => {
     getMock.mockResolvedValue(desconectado);
     postMock.mockResolvedValue({
-      data: { webhook_url: "https://x/w/1", webhook_secret: "s3cr3t", phone_number: null, quality_rating: null },
+      data: {
+        webhook_url: "https://x/w/1",
+        webhook_secret: "s3cr3t",
+        phone_number: null,
+        quality_rating: null,
+      },
     });
     render(<CanalParceiroClient />);
     await preencher();
@@ -162,7 +171,9 @@ describe("conectar", () => {
     fireEvent.click(screen.getByRole("button", { name: /conectar/i }));
 
     expect(await screen.findByText(/Falta ligar a volta/)).toBeInTheDocument();
-    expect(screen.getByText("https://crm.exemplo/api/v1/webhooks/channel/tok123")).toBeInTheDocument();
+    expect(
+      screen.getByText("https://crm.exemplo/api/v1/webhooks/channel/tok123"),
+    ).toBeInTheDocument();
     expect(screen.getByText("segredo-do-webhook")).toBeInTheDocument();
     // O aviso é o que impede o operador parar no passo 1 e achar que terminou.
     expect(screen.getByText(/envia mas não recebe/)).toBeInTheDocument();
@@ -195,39 +206,133 @@ describe("conectar", () => {
   it("já conectado mostra a URL do webhook mas NÃO o segredo", async () => {
     getMock.mockResolvedValue(conectado);
     render(<CanalParceiroClient />);
-    expect(await screen.findByText("https://crm.exemplo/api/v1/webhooks/channel/tok123")).toBeInTheDocument();
+    expect(
+      await screen.findByText("https://crm.exemplo/api/v1/webhooks/channel/tok123"),
+    ).toBeInTheDocument();
     expect(screen.queryByText(/Segredo \(assinatura\)/)).not.toBeInTheDocument();
   });
 });
 
-describe("vários números", () => {
-  const doisNumeros = {
-    data: {
-      ...conectado.data,
-      numeros: [
-        { channel_session_id: "cs_1", account_id: "acc_1", phone_number: "+19392301037", display_name: "Loja A", status: "WORKING", has_api_key: true, webhook_url: "https://crm.exemplo/api/v1/webhooks/channel/tok123" },
-        { channel_session_id: "cs_2", account_id: "acc_2", phone_number: "+5569981087336", display_name: "Loja B", status: "WORKING", has_api_key: true, webhook_url: "https://crm.exemplo/api/v1/webhooks/channel/tok456" },
-      ],
-    },
-  };
-
-  it("mostra cada número conectado, com o próprio webhook", async () => {
-    getMock.mockResolvedValue(doisNumeros);
-    render(<CanalParceiroClient />);
-    expect(await screen.findByText("Loja A")).toBeInTheDocument();
-    expect(screen.getByText("Loja B")).toBeInTheDocument();
-    expect(screen.getAllByTestId("numero-parceiro")).toHaveLength(2);
-    expect(screen.getByText("https://crm.exemplo/api/v1/webhooks/channel/tok456")).toBeInTheDocument();
+describe("um clique, pela conta do provedor da instalação", () => {
+  const comUmClique = { data: { ...desconectado.data, um_clique: true } };
+  const assign = vi.fn();
+  beforeEach(() => {
+    assign.mockReset();
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: { ...window.location, assign },
+    });
   });
 
-  it("conta nova é Conectar (mais um número); conta já conectada é Reconectar", async () => {
-    getMock.mockResolvedValue(doisNumeros);
+  it("sem conexão: o botão de um clique aparece, e a chave própria fica a um passo", async () => {
+    getMock.mockResolvedValue(comUmClique);
     render(<CanalParceiroClient />);
-    await screen.findByText("Loja A");
-    fireEvent.change(screen.getByLabelText("Conta"), { target: { value: "acc_3" } });
+    expect(
+      await screen.findByRole("button", { name: "Conectar meu WhatsApp" }),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText(/O número já usa o app WhatsApp Business/)).toBeChecked();
+    expect(screen.queryByLabelText(/Chave de API/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /usar a minha chave/ }));
+    expect(screen.getByLabelText(/Chave de API/)).toBeInTheDocument();
+  });
+
+  it("o botão pede a página ao servidor, com a escolha de coexistência, e navega para ela", async () => {
+    getMock.mockResolvedValue(comUmClique);
+    postMock.mockResolvedValue({ data: { url: "https://provedor.test/cadastro?x=1" } });
+    render(<CanalParceiroClient />);
+    fireEvent.click(await screen.findByLabelText(/Número novo, ou que já está na API oficial/));
+    fireEvent.click(screen.getByRole("button", { name: "Conectar meu WhatsApp" }));
+    await waitFor(() =>
+      expect(postMock).toHaveBeenCalledWith("/api/v1/channels/partner/um-clique", {
+        acao: "iniciar",
+        coexistencia: false,
+      }),
+    );
+    await waitFor(() => expect(assign).toHaveBeenCalledWith("https://provedor.test/cadastro?x=1"));
+  });
+
+  it("a volta na URL é entregue ao servidor UMA vez, e a URL é limpa", async () => {
+    paramsDaUrl = new URLSearchParams({
+      aba: "parceiro",
+      parceiro_estado: "estado-assinado",
+      parceiro_conta: "b".repeat(24),
+      parceiro_perfil: "a".repeat(24),
+    });
+    getMock.mockResolvedValue(comUmClique);
+    postMock.mockResolvedValue({ data: { connected: true } });
+    render(<CanalParceiroClient />);
+    await waitFor(() =>
+      expect(postMock).toHaveBeenCalledWith("/api/v1/channels/partner/um-clique", {
+        acao: "concluir",
+        estado: "estado-assinado",
+        account_id: "b".repeat(24),
+        profile_id: "a".repeat(24),
+        erro: undefined,
+      }),
+    );
+    expect(replaceMock).toHaveBeenCalledWith("?aba=parceiro", { scroll: false });
+    await waitFor(() => expect(toastOk).toHaveBeenCalled());
+    expect(postMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("volta com recusa da Meta: o motivo do servidor aparece", async () => {
+    paramsDaUrl = new URLSearchParams({
+      aba: "parceiro",
+      parceiro_estado: "e",
+      parceiro_erro: "connection_cancelled",
+    });
+    getMock.mockResolvedValue(comUmClique);
+    postMock.mockRejectedValue(new Error("A conexão foi cancelada na janela da Meta."));
+    render(<CanalParceiroClient />);
+    await waitFor(() =>
+      expect(toastErro).toHaveBeenCalledWith("A conexão foi cancelada na janela da Meta."),
+    );
+    expect(postMock.mock.calls[0]?.[1]).toMatchObject({
+      acao: "concluir",
+      erro: "connection_cancelled",
+    });
+  });
+
+  it("conectado pela instalação: sem campo de chave, com reconectar e webhook automático", async () => {
+    getMock.mockResolvedValue({
+      data: {
+        ...conectado.data,
+        has_api_key: false,
+        um_clique: true,
+        pela_instalacao: true,
+        webhook_automatico: true,
+      },
+    });
+    render(<CanalParceiroClient />);
+    expect(
+      await screen.findByRole("button", { name: "Reconectar meu WhatsApp" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByLabelText(/Chave de API/)).not.toBeInTheDocument();
+    expect(screen.getByText(/Configurado automaticamente no provedor/)).toBeInTheDocument();
+    // Nada a colar: o webhook não é do operador.
+    expect(
+      screen.queryByText("https://crm.exemplo/api/v1/webhooks/channel/tok123"),
+    ).not.toBeInTheDocument();
+  });
+});
+
+describe("chave própria com webhook registrado pela rota", () => {
+  it("não pede para colar nada quando o provedor aceitou o webhook", async () => {
+    getMock.mockResolvedValue(desconectado);
+    postMock.mockResolvedValue({
+      data: {
+        webhook_url: "https://x/w/1",
+        webhook_secret: null,
+        phone_number: null,
+        quality_rating: null,
+        webhook_automatico: true,
+      },
+    });
+    render(<CanalParceiroClient />);
+    fireEvent.change(await screen.findByLabelText("Conta"), { target: { value: "acc_1" } });
     fireEvent.change(screen.getByLabelText(/Chave de API/), { target: { value: "sk_live_x" } });
-    expect(screen.getByRole("button", { name: "Conectar" })).toBeEnabled();
-    fireEvent.change(screen.getByLabelText("Conta"), { target: { value: "acc_2" } });
-    expect(screen.getByRole("button", { name: "Reconectar" })).toBeEnabled();
+    fireEvent.click(screen.getByRole("button", { name: /conectar/i }));
+    expect(await screen.findByText("Webhook configurado")).toBeInTheDocument();
+    expect(screen.queryByText(/Falta ligar a volta/)).not.toBeInTheDocument();
   });
 });
