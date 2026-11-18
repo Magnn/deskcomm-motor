@@ -20,6 +20,7 @@ import {
 import { channelBrand } from "@/lib/channels/presentation";
 import { usePacingKnobs } from "@/hooks/channels/usePacingKnobs";
 import { AntiBanSheet } from "./AntiBanSheet";
+import { PerfilWhatsappSheet } from "./PerfilWhatsappSheet";
 import { PairingOptions } from "./PairingOptions";
 import { ChannelAiAccess } from "./ChannelAiAccess";
 import { ChannelFlowConfigDialog } from "./ChannelFlowConfigDialog";
@@ -38,6 +39,7 @@ import {
   ArrowsClockwise,
   CheckCircle,
   CircleNotch,
+  IdentificationCard,
   Phone,
   ShieldCheck,
   Trash,
@@ -158,6 +160,7 @@ export function ConnectionsClient({
   const [checking, setChecking] = useState(false);
   const [qr, setQr] = useState<{ sessionId: string; title: string } | null>(null);
   const [antiBanId, setAntiBanId] = useState<string | null>(null);
+  const [perfilId, setPerfilId] = useState<string | null>(null);
   const [toDelete, setToDelete] = useState<ChannelSession | null>(null);
   const pacingItems = usePacingKnobs().data?.items ?? [];
 
@@ -478,6 +481,12 @@ export function ConnectionsClient({
                     <ShieldCheck size={14} aria-hidden />
                     {t("Proteção de envio")}
                   </Button>
+                  {ehCanalOficial(c) && (
+                    <Button variant="outline" size="sm" onClick={() => setPerfilId(c.id)}>
+                      <IdentificationCard size={14} aria-hidden />
+                      {t("Perfil do WhatsApp")}
+                    </Button>
+                  )}
                   <ChannelFlowConfigDialog channelId={c.id} channelName={channelLabel(c, t)} />
                   <Button
                     variant="outline"
@@ -542,6 +551,17 @@ export function ConnectionsClient({
           item={pacingItems.find((i) => i.channel_session.id === antiBanId) ?? null}
           canWrite
           onClose={() => setAntiBanId(null)}
+        />
+      )}
+
+      {perfilId !== null && (
+        <PerfilWhatsappSheet
+          channelId={perfilId}
+          titulo={(() => {
+            const canal = list.find((c) => c.id === perfilId);
+            return canal ? channelLabel(canal, t) : "";
+          })()}
+          onClose={() => setPerfilId(null)}
         />
       )}
 
