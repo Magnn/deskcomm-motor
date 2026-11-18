@@ -29,6 +29,8 @@ vi.mock("sonner", () => ({
   toast: { success: (m: string) => toastOk(m), error: (m: string) => toastErro(m) },
 }));
 vi.mock("@/lib/clipboard", () => ({ copyToClipboard: vi.fn(async () => true) }));
+// O acesso da IA por número tem teste próprio; aqui só importa que a tela o monta por número.
+vi.mock("@/components/connections/ChannelAiAccess", () => ({ ChannelAiAccess: () => <div>acesso da IA</div> }));
 const replaceMock = vi.fn();
 const roteador = { replace: (...a: unknown[]) => replaceMock(...a) };
 let paramsDaUrl = new URLSearchParams();
@@ -100,6 +102,11 @@ describe("estado inicial", () => {
     getMock.mockResolvedValue(conectado);
     render(<CanalParceiroClient />);
     const campo = await screen.findByLabelText(/Chave de API/);
+    // Desde que a tela aceita vários números, o campo Conta começa vazio (é o
+    // caminho de conectar um número NOVO); "gravada" vale para a conta digitada
+    // que já está conectada.
+    await screen.findByText(/\+19392301037/);
+    fireEvent.change(screen.getByLabelText("Conta"), { target: { value: "acc_1" } });
     // O campo existe no PRIMEIRO render, antes de a leitura do estado voltar —
     // e é só depois dela que o placeholder passa a dizer "gravada". Afirmar
     // isso na linha seguinte ao `findByLabelText` é uma corrida: ela é ganha
@@ -308,7 +315,7 @@ describe("um clique, pela conta do provedor da instalação", () => {
       await screen.findByRole("button", { name: "Reconectar meu WhatsApp" }),
     ).toBeInTheDocument();
     expect(screen.queryByLabelText(/Chave de API/)).not.toBeInTheDocument();
-    expect(screen.getByText(/Configurado automaticamente no provedor/)).toBeInTheDocument();
+    expect(screen.getByText(/configurado automaticamente no provedor/i)).toBeInTheDocument();
     // Nada a colar: o webhook não é do operador.
     expect(
       screen.queryByText("https://crm.exemplo/api/v1/webhooks/channel/tok123"),
@@ -334,5 +341,37 @@ describe("chave própria com webhook registrado pela rota", () => {
     fireEvent.click(screen.getByRole("button", { name: /conectar/i }));
     expect(await screen.findByText("Webhook configurado")).toBeInTheDocument();
     expect(screen.queryByText(/Falta ligar a volta/)).not.toBeInTheDocument();
+  });
+});
+
+describe("vários números", () => {
+  const doisNumeros = {
+    data: {
+      ...conectado.data,
+      numeros: [
+        { channel_session_id: "cs_1", account_id: "acc_1", phone_number: "+19392301037", display_name: "Loja A", status: "WORKING", has_api_key: true, webhook_url: "https://crm.exemplo/api/v1/webhooks/channel/tok123" },
+        { channel_session_id: "cs_2", account_id: "acc_2", phone_number: "+5569981087336", display_name: "Loja B", status: "WORKING", has_api_key: true, webhook_url: "https://crm.exemplo/api/v1/webhooks/channel/tok456" },
+      ],
+    },
+  };
+
+  it("mostra cada número conectado, com o próprio webhook", async () => {
+    getMock.mockResolvedValue(doisNumeros);
+    render(<CanalParceiroClient />);
+    expect(await screen.findByText("Loja A")).toBeInTheDocument();
+    expect(screen.getByText("Loja B")).toBeInTheDocument();
+    expect(screen.getAllByTestId("numero-parceiro")).toHaveLength(2);
+    expect(screen.getByText("https://crm.exemplo/api/v1/webhooks/channel/tok456")).toBeInTheDocument();
+  });
+
+  it("conta nova é Conectar (mais um número); conta já conectada é Reconectar", async () => {
+    getMock.mockResolvedValue(doisNumeros);
+    render(<CanalParceiroClient />);
+    await screen.findByText("Loja A");
+    fireEvent.change(screen.getByLabelText("Conta"), { target: { value: "acc_3" } });
+    fireEvent.change(screen.getByLabelText(/Chave de API/), { target: { value: "sk_live_x" } });
+    expect(screen.getByRole("button", { name: "Conectar" })).toBeEnabled();
+    fireEvent.change(screen.getByLabelText("Conta"), { target: { value: "acc_2" } });
+    expect(screen.getByRole("button", { name: "Reconectar" })).toBeEnabled();
   });
 });

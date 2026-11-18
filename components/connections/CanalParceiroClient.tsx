@@ -45,7 +45,21 @@ import { ParaIntegrar } from "./ParaIntegrar";
  * disponível, um passo abaixo.
  */
 
+interface Numero {
+  channel_session_id: string | null;
+  account_id: string | null;
+  phone_number: string | null;
+  display_name: string | null;
+  status: string | null;
+  has_api_key: boolean;
+  webhook_url: string | null;
+  pela_instalacao?: boolean;
+  webhook_automatico?: boolean;
+}
+
 interface Estado {
+  /** Um por número conectado. Os campos soltos abaixo descrevem o primeiro (servidor antigo só manda eles). */
+  numeros?: Numero[];
   channel_session_id?: string | null;
   label: string;
   connected: boolean;
@@ -218,6 +232,25 @@ export function CanalParceiroClient() {
   const rotulo = estado?.label ?? t("provedor parceiro");
   const conectado = estado?.connected ?? false;
   const pelaInstalacao = conectado && (estado?.pela_instalacao ?? false);
+  const numeros: Numero[] =
+    estado?.numeros ??
+    (conectado && estado
+      ? [
+          {
+            channel_session_id: estado.channel_session_id ?? null,
+            account_id: estado.account_id,
+            phone_number: estado.phone_number,
+            display_name: estado.display_name,
+            status: estado.status,
+            has_api_key: estado.has_api_key,
+            webhook_url: estado.webhook_url,
+            pela_instalacao: estado.pela_instalacao,
+            webhook_automatico: estado.webhook_automatico,
+          },
+        ]
+      : []);
+  // Conta digitada que já está conectada: reconecta aquele número; senão, é mais um.
+  const reconectando = numeros.some((n) => n.account_id === accountId.trim());
   // Um clique para quem não conectou, ou para reconectar o que a instalação conectou.
   const mostrarUmClique = (estado?.um_clique ?? false) && (!conectado || pelaInstalacao);
   // A chave própria: sempre sem um clique; com ele, a pedido; e para quem já conectou assim.
@@ -239,22 +272,46 @@ export function CanalParceiroClient() {
             </p>
           </div>
           {conectado ? (
-            <Badge variant="secondary">{t("Conectado")}</Badge>
+            <Badge variant="secondary">
+              {numeros.length > 1 ? `${numeros.length} ${t("números conectados")}` : t("Conectado")}
+            </Badge>
           ) : (
             <Badge variant="outline">{t("Não conectado")}</Badge>
           )}
         </div>
 
-        {conectado && (
-          <div className="rounded-md border border-border bg-muted/40 p-3 text-sm">
-            <p className="font-medium">{estado?.display_name ?? t("Número conectado")}</p>
-            <p className="text-xs text-muted-foreground">
-              {estado?.phone_number ?? t("sem número informado")} · {estado?.status ?? "—"}
-            </p>
-          </div>
-        )}
-
-        {estado?.channel_session_id && <ChannelAiAccess channelId={estado.channel_session_id} />}
+        {!recemConectado &&
+          numeros.map((n) => (
+            <div
+              key={n.channel_session_id ?? n.account_id ?? "numero"}
+              data-testid="numero-parceiro"
+              className="flex flex-col gap-3 rounded-md border border-border bg-muted/40 p-3 text-sm"
+            >
+              <div>
+                <p className="font-medium">{n.display_name ?? t("Número conectado")}</p>
+                <p className="text-xs text-muted-foreground">
+                  {n.phone_number ?? t("sem número informado")} · {n.status ?? "—"}
+                </p>
+              </div>
+              {n.channel_session_id && <ChannelAiAccess channelId={n.channel_session_id} />}
+              {n.webhook_automatico ? (
+                <p className="text-xs text-muted-foreground">
+                  {t("Webhook configurado automaticamente no provedor: só os eventos deste número chegam aqui.")}
+                </p>
+              ) : (
+                n.webhook_url && (
+                  <div className="flex flex-col gap-1.5">
+                    <ParaColar rotulo={t("URL do webhook")} valor={n.webhook_url} />
+                    <p className="text-xs text-muted-foreground">
+                      {t(
+                        "Na inscrição do webhook no provedor, preencha o filtro de contas (accountIds) com a Conta deste número: assim só chegam aqui os eventos dele.",
+                      )}
+                    </p>
+                  </div>
+                )
+              )}
+            </div>
+          ))}
         {concluindo && (
           <p className="text-sm text-muted-foreground" role="status">
             {t("Concluindo a conexão…")}
@@ -337,6 +394,9 @@ export function CanalParceiroClient() {
 
         {mostrarChavePropria && (
           <div className="flex flex-col gap-3">
+            {conectado && (
+              <p className="text-sm font-medium">{t("Conectar outro número ou reconectar um deles")}</p>
+            )}
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="parceiro-conta">{t("Conta")}</Label>
               <Input
@@ -358,9 +418,7 @@ export function CanalParceiroClient() {
                 type="password"
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
-                placeholder={
-                  estado?.has_api_key ? t("gravada — preencha para trocar") : t("cole a chave")
-                }
+                placeholder={reconectando ? t("gravada — preencha para trocar") : t("cole a chave")}
                 autoComplete="off"
               />
               <p className="text-xs text-muted-foreground">
@@ -372,7 +430,7 @@ export function CanalParceiroClient() {
 
             <div>
               <Button onClick={conectar} disabled={salvando || !accountId || !apiKey}>
-                {salvando ? t("Verificando…") : conectado ? t("Reconectar") : t("Conectar")}
+                {salvando ? t("Verificando…") : reconectando ? t("Reconectar") : t("Conectar")}
               </Button>
               <p className="mt-1.5 text-xs text-muted-foreground">
                 {t("A credencial é testada contra o provedor antes de ser gravada.")}
@@ -424,39 +482,18 @@ export function CanalParceiroClient() {
         </Card>
       )}
 
-      {conectado && !recemConectado && estado?.webhook_automatico && (
-        <Card className="flex flex-col gap-1 p-4">
-          <h3 className="text-sm font-semibold">Webhook</h3>
-          <p className="text-xs text-muted-foreground">
-            {t("Configurado automaticamente no provedor: só os eventos deste número chegam aqui.")}
-          </p>
-        </Card>
-      )}
-
-      {conectado && !recemConectado && !estado?.webhook_automatico && estado?.webhook_url && (
-        <Card className="flex flex-col gap-3 p-4">
-          <div>
-            <h3 className="text-sm font-semibold">Webhook</h3>
-            <p className="text-xs text-muted-foreground">
-              {t(
-                "O endereço que o provedor usa para entregar as mensagens. O segredo não é mostrado de novo — para gerar outro, exclua a conexão e conecte de novo.",
-              )}
-            </p>
-          </div>
-          <ParaColar rotulo={t("URL do webhook")} valor={estado.webhook_url} />
-          <p className="text-xs text-muted-foreground">
-            {t(
-              "Na inscrição do webhook no provedor, preencha o filtro de contas (accountIds) com a Conta deste número: assim só chegam aqui os eventos dele.",
-            )}
-          </p>
-        </Card>
-      )}
-
       {conectado && !pelaInstalacao ? (
         <ParaIntegrar
           campos={[
             { rotulo: t("Endpoint da API"), valor: estado?.endpoint ?? null },
-            { rotulo: t("Conta"), valor: estado?.account_id ?? null },
+            {
+              rotulo: t("Conta"),
+              valor:
+                numeros
+                  .filter((n) => !n.pela_instalacao && n.account_id)
+                  .map((n) => n.account_id)
+                  .join(", ") || null,
+            },
           ]}
           ajuda={
             <div className="space-y-1.5">

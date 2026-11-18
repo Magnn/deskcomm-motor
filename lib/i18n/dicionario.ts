@@ -5237,6 +5237,9 @@ export const DICIONARIO: Traducoes = {
     { es: "Esta instalación no tiene una dirección pública con HTTPS, y Meta solo registra direcciones así." },
   "Canal conectado.": { es: "Canal conectado." },
   "Conectar outro número ou reconectar um deles": { es: "Conectar otro número o reconectar uno de ellos" },
+  "Webhook configurado automaticamente no provedor: só os eventos deste número chegam aqui.": {
+    es: "Webhook configurado automáticamente en el proveedor: solo llegan aquí los eventos de este número.",
+  },
   "Este número já está conectado nesta organização por outro canal (por exemplo, QR code). Desconecte-o lá antes de conectar por aqui.": { es: "Este número ya está conectado en esta organización por otro canal (por ejemplo, código QR). Desconéctalo allí antes de conectarlo por aquí." },
   "Não foi possível conectar.": { es: "No se pudo conectar." },
   "provedor parceiro": { es: "proveedor asociado" },
@@ -16231,7 +16234,6 @@ export const DICIONARIO: Traducoes = {
   ": usar a minha chave": { es: ": usar mi clave" },
   "Webhook configurado": { es: "Webhook configurado" },
   "A instalação registrou o webhook no provedor: só os eventos deste número chegam a esta organização. Não há nada para colar.": { es: "La instalación registró el webhook en el proveedor: solo los eventos de este número llegan a esta organización. No hay nada para pegar." },
-  "Configurado automaticamente no provedor: só os eventos deste número chegam aqui.": { es: "Configurado automáticamente en el proveedor: solo los eventos de este número llegan aquí." },
   "Confira os dados da conexão.": { es: "Revisa los datos de la conexión." },
   "Aguarde um minuto antes de tentar novamente.": { es: "Espera un minuto antes de intentarlo de nuevo." },
   "Não foi possível concluir a conexão. Tente novamente.": { es: "No se pudo completar la conexión. Inténtalo de nuevo." },
