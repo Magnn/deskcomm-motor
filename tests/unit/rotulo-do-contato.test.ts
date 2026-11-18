@@ -210,8 +210,8 @@ describe("a sétima cópia não nasce", () => {
     },
     {
       arquivo: "components/connections/CanalParceiroClient.tsx",
-      trecho: 'n.display_name ?? t("Número conectado")',
-      motivo: "nome do CANAL conectado (um cartão por número desde a tela de vários números)",
+      trecho: 'estado?.display_name ?? t("Número conectado")',
+      motivo: "nome do CANAL conectado",
     },
     {
       arquivo: "components/inbox/ConversationListItem.tsx",
