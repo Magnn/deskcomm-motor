@@ -33,9 +33,26 @@ import { ParaIntegrar } from "./ParaIntegrar";
  * Por isso o segundo passo só aparece DEPOIS de conectar, com a URL e o segredo
  * prontos para copiar, e um aviso explícito de que sem colá-los não entra
  * mensagem.
+ *
+ * ─── Vários números ─────────────────────────────────────────────────────────
+ *
+ * Cada número é uma conta no provedor e um canal aqui, com webhook próprio.
+ * Conta já conectada reconecta a mesma linha; conta nova vira mais um canal.
+ * Até 18/11/2026 a tela mostrava um número só e o segundo substituía o primeiro.
  */
 
+interface Numero {
+  channel_session_id: string | null;
+  account_id: string | null;
+  phone_number: string | null;
+  display_name: string | null;
+  status: string | null;
+  has_api_key: boolean;
+  webhook_url: string | null;
+}
+
 interface Estado {
+  numeros?: Numero[];
   channel_session_id?: string | null;
   label: string;
   connected: boolean;
@@ -93,7 +110,6 @@ export function CanalParceiroClient() {
     try {
       const r = await apiClient.get<{ data: Estado }>("/api/v1/channels/partner");
       setEstado(r.data);
-      if (r.data.account_id) setAccountId(r.data.account_id);
     } catch {
       // Falha de leitura não deve travar a tela: o formulário continua servindo.
       setEstado(null);
@@ -126,6 +142,23 @@ export function CanalParceiroClient() {
 
   const rotulo = estado?.label ?? t("provedor parceiro");
   const conectado = estado?.connected ?? false;
+  // Servidor antigo (sem `numeros`) ainda descreve um número só pelos campos soltos.
+  const numeros: Numero[] =
+    estado?.numeros ??
+    (conectado && estado
+      ? [
+          {
+            channel_session_id: estado.channel_session_id ?? null,
+            account_id: estado.account_id,
+            phone_number: estado.phone_number,
+            display_name: estado.display_name,
+            status: estado.status,
+            has_api_key: estado.has_api_key,
+            webhook_url: estado.webhook_url,
+          },
+        ]
+      : []);
+  const reconectando = numeros.some((n) => n.account_id === accountId.trim());
 
   return (
     <div className="flex flex-col gap-4">
@@ -142,23 +175,37 @@ export function CanalParceiroClient() {
             </p>
           </div>
           {conectado ? (
-            <Badge variant="secondary">{t("Conectado")}</Badge>
+            <Badge variant="secondary">
+              {numeros.length > 1 ? `${numeros.length} ${t("números conectados")}` : t("Conectado")}
+            </Badge>
           ) : (
             <Badge variant="outline">{t("Não conectado")}</Badge>
           )}
         </div>
 
-        {conectado && (
-          <div className="rounded-md border border-border bg-muted/40 p-3 text-sm">
-            <p className="font-medium">{estado?.display_name ?? t("Número conectado")}</p>
-            <p className="text-xs text-muted-foreground">
-              {estado?.phone_number ?? t("sem número informado")} · {estado?.status ?? "—"}
-            </p>
+        {numeros.map((n) => (
+          <div
+            key={n.channel_session_id ?? n.account_id ?? "unico"}
+            className="flex flex-col gap-3 rounded-md border border-border bg-muted/40 p-3 text-sm"
+            data-testid="numero-parceiro"
+          >
+            <div>
+              <p className="font-medium">{n.display_name ?? t("Número conectado")}</p>
+              <p className="text-xs text-muted-foreground">
+                {n.phone_number ?? t("sem número informado")} · {n.status ?? "—"} · {t("Conta")} {n.account_id ?? "—"}
+              </p>
+            </div>
+            {n.channel_session_id && <ChannelAiAccess channelId={n.channel_session_id} />}
+            {n.webhook_url && !recemConectado && (
+              <ParaColar rotulo={t("URL do webhook")} valor={n.webhook_url} />
+            )}
           </div>
-        )}
+        ))}
 
-        {estado?.channel_session_id && <ChannelAiAccess channelId={estado.channel_session_id} />}
         <div className="flex flex-col gap-3">
+          {conectado && (
+            <p className="text-sm font-medium">{t("Conectar outro número ou reconectar um deles")}</p>
+          )}
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="parceiro-conta">{t("Conta")}</Label>
             <Input
@@ -180,9 +227,7 @@ export function CanalParceiroClient() {
               type="password"
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
-              placeholder={
-                estado?.has_api_key ? t("gravada — preencha para trocar") : t("cole a chave")
-              }
+              placeholder={reconectando ? t("gravada — preencha para trocar") : t("cole a chave")}
               autoComplete="off"
             />
             <p className="text-xs text-muted-foreground">
@@ -194,7 +239,7 @@ export function CanalParceiroClient() {
 
           <div>
             <Button onClick={conectar} disabled={salvando || !accountId || !apiKey}>
-              {salvando ? t("Verificando…") : conectado ? t("Reconectar") : t("Conectar")}
+              {salvando ? t("Verificando…") : reconectando ? t("Reconectar") : t("Conectar")}
             </Button>
             <p className="mt-1.5 text-xs text-muted-foreground">
               {t("A credencial é testada contra o provedor antes de ser gravada.")}
@@ -229,25 +274,11 @@ export function CanalParceiroClient() {
         </Card>
       )}
 
-      {conectado && !recemConectado && estado?.webhook_url && (
-        <Card className="flex flex-col gap-3 p-4">
-          <div>
-            <h3 className="text-sm font-semibold">Webhook</h3>
-            <p className="text-xs text-muted-foreground">
-              {t(
-                "O endereço que o provedor usa para entregar as mensagens. O segredo não é mostrado de novo — para obter um novo, reconecte.",
-              )}
-            </p>
-          </div>
-          <ParaColar rotulo={t("URL do webhook")} valor={estado.webhook_url} />
-        </Card>
-      )}
-
       {conectado ? (
         <ParaIntegrar
           campos={[
             { rotulo: t("Endpoint da API"), valor: estado?.endpoint ?? null },
-            { rotulo: t("Conta"), valor: estado?.account_id ?? null },
+            { rotulo: t("Conta"), valor: numeros.map((n) => n.account_id).filter(Boolean).join(", ") || null },
           ]}
           ajuda={
             <div className="space-y-1.5">

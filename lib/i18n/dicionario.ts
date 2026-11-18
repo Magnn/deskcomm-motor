@@ -5236,6 +5236,8 @@ export const DICIONARIO: Traducoes = {
   "Esta instalação não tem um endereço público com HTTPS, e a Meta só registra endereço assim.":
     { es: "Esta instalación no tiene una dirección pública con HTTPS, y Meta solo registra direcciones así." },
   "Canal conectado.": { es: "Canal conectado." },
+  "Conectar outro número ou reconectar um deles": { es: "Conectar otro número o reconectar uno de ellos" },
+  "Este número já está conectado nesta organização por outro canal (por exemplo, QR code). Desconecte-o lá antes de conectar por aqui.": { es: "Este número ya está conectado en esta organización por otro canal (por ejemplo, código QR). Desconéctalo allí antes de conectarlo por aquí." },
   "Não foi possível conectar.": { es: "No se pudo conectar." },
   "provedor parceiro": { es: "proveedor asociado" },
   "Conectar por": { es: "Conectar por" },
