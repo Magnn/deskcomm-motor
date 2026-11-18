@@ -37,6 +37,20 @@ export interface PacingTodayView {
   sent_today: number;
   initiated_today: number;
   sent_last_hour: number;
+  /** Maior número de mensagens numa hora, nas últimas 24 h. */
+  peak_hour_24h: number;
+}
+
+/** Nota de saúde do número e o efeito dela no rodízio. null = leitura falhou. */
+export interface PacingHealthView {
+  score: number;
+  /** "descansa" = fora do rodízio enquanto outro tiver vaga; "metade" = metade do orçamento. */
+  rotation: "inteiro" | "metade" | "descansa";
+  drops_72h: number;
+  failed_24h: number;
+  sent_24h: number;
+  leads_72h: number;
+  gone_leads_72h: number;
 }
 
 export interface PacingKnobsItem {
@@ -45,6 +59,7 @@ export interface PacingKnobsItem {
   warmup: PacingWarmupView;
   leads: PacingLeadsView;
   today: PacingTodayView | null;
+  health: PacingHealthView | null;
   overrides: ChannelKnobsRow | null;
   defaults: PacingKnobs;
   bounds: {

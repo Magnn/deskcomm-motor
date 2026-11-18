@@ -27,6 +27,8 @@ import { ApiError } from "@/lib/api/types";
 import { nomeDoCanal } from "@/lib/channels/estado";
 import { useT } from "@/hooks/i18n/useT";
 
+import { DetalheDaSaude } from "./SaudeDoNumero";
+
 interface Props {
   item: PacingKnobsItem | null;
   canWrite: boolean;
@@ -222,6 +224,7 @@ export function AntiBanSheet({ item, canWrite, onClose }: Props) {
                   {t("Total enviado:")} <strong className="text-foreground">{item.today.sent_today}</strong>
                 </li>
               </ul>
+              <DetalheDaSaude health={item.health} picoHora={item.today.peak_hour_24h} />
             </div>
           ) : null}
 

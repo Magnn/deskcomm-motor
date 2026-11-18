@@ -28,6 +28,7 @@ import {
 } from "@/lib/ai/pacing-knobs";
 import { lerEstadoDoPacing } from "@/lib/agent-engine/pacing/ledger-supabase";
 import { cargaDosNumeros } from "@/lib/plataformas-de-anuncio/rodizio-de-numeros";
+import { fatorDaNota, saudeDosNumeros, type SaudeDoNumero } from "@/lib/plataformas-de-anuncio/saude-do-numero";
 
 export const dynamic = "force-dynamic";
 
@@ -52,14 +53,20 @@ async function usoDeHoje(
     sent_today: number;
     initiated_today: number;
     sent_last_hour: number;
+    peak_hour_24h: number;
   } | null>();
+  const saude = new Map<string, SaudeDoNumero>();
   try {
-    const carga = await cargaDosNumeros(
-      admin,
-      orgId,
-      sessoes.map((s) => ({ sessionId: s.id, telefone: (s.phone_number ?? "").replace(/[^0-9]/g, "") })),
-      agora,
-    );
+    const [carga, notas] = await Promise.all([
+      cargaDosNumeros(
+        admin,
+        orgId,
+        sessoes.map((s) => ({ sessionId: s.id, telefone: (s.phone_number ?? "").replace(/[^0-9]/g, "") })),
+        agora,
+      ),
+      saudeDosNumeros(admin, orgId, sessoes.map((s) => s.id), agora),
+    ]);
+    for (const [id, n] of notas) saude.set(id, n);
     await Promise.all(
       sessoes.map(async (s) => {
         const estado = await lerEstadoDoPacing(admin, orgId, s.id, { agora, timezone: timezoneDe(s.id) });
@@ -70,13 +77,29 @@ async function usoDeHoje(
           sent_today: estado.sentToday,
           initiated_today: estado.initiatedToday ?? estado.sentToday,
           sent_last_hour: estado.sentLastHour ?? 0,
+          peak_hour_24h: saude.get(s.id)?.picoPorHora24h ?? 0,
         });
       }),
     );
   } catch {
     // Exibição: sem os números a ficha continua editável.
   }
-  return uso;
+  return { uso, saude };
+}
+
+/** A nota de saúde como a tela mostra: a mesma régua que o rodízio usa (`fatorDaNota`). */
+function saudeView(s: SaudeDoNumero | undefined) {
+  if (!s) return null;
+  const fator = fatorDaNota(s.nota);
+  return {
+    score: s.nota,
+    rotation: fator === 0 ? ("descansa" as const) : fator < 1 ? ("metade" as const) : ("inteiro" as const),
+    drops_72h: s.quedas72h,
+    failed_24h: s.falhas24h,
+    sent_24h: s.enviadas24h,
+    leads_72h: s.leads72h,
+    gone_leads_72h: s.leadsSumidos72h,
+  };
 }
 
 /**
@@ -127,7 +150,7 @@ export async function GET(): Promise<Response> {
   const views = new Map(
     (sessions ?? []).map((s) => [s.id, knobsView(byuSession.get(s.id) ?? null, new Date(), fusoDaOrg)]),
   );
-  const uso = await usoDeHoje(
+  const { uso, saude } = await usoDeHoje(
     admin,
     org.orgId,
     (sessions ?? []) as { id: string; phone_number: string | null }[],
@@ -137,6 +160,7 @@ export async function GET(): Promise<Response> {
     channel_session: s,
     ...views.get(s.id)!,
     today: uso.get(s.id) ?? null,
+    health: saudeView(saude.get(s.id)),
   }));
   return ok({ items }, { requestId });
 }
