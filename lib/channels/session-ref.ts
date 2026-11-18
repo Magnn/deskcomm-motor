@@ -16,6 +16,7 @@ export type ChannelSessionRef =
   | { provider: "meta_cloud"; meta_phone_number_id: string }
   | { provider: "zernio" | "zernio_social"; zernio_account_id: string }
   | { provider: "datafy"; datafy_phone_number_id: string }
+  | { provider: "kapso"; kapso_phone_number_id: string }
   | { provider: "meta_messenger"; messenger_page_id: string }
   | { provider: "telegram_bot"; telegram_bot_id: string };
 
@@ -25,7 +26,7 @@ export type ChannelSessionRef =
  * nomeia coluna de provider, e ela some da feature junto com a decisão.
  */
 export const CHANNEL_SESSION_REF_COLUMNS =
-  "provider, waha_session_name, meta_phone_number_id, zernio_account_id, datafy_phone_number_id, messenger_page_id, telegram_bot_id";
+  "provider, waha_session_name, meta_phone_number_id, zernio_account_id, datafy_phone_number_id, kapso_phone_number_id, messenger_page_id, telegram_bot_id";
 
 export function resolveSessionRef(session: ChannelSessionRef): string {
   switch (session.provider) {
@@ -35,6 +36,9 @@ export function resolveSessionRef(session: ChannelSessionRef): string {
     // parceiro, porque os dois podem conviver e endereçam servidores diferentes.
     case "datafy":
       return session.datafy_phone_number_id;
+    // Idem, pela coluna do segundo parceiro.
+    case "kapso":
+      return session.kapso_phone_number_id;
     case "waha":
       return session.waha_session_name;
     // O `accountId` que o provider devolve ao conectar a WABA. NÃO é o

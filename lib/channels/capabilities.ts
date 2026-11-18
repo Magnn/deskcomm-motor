@@ -110,6 +110,21 @@ export const CHANNEL_CAPABILITIES: Record<ProviderDeMensagem, ChannelCapabilitie
     costPerMessage: true,
     enderecamento: "telefone",
   },
+  // Segundo parceiro com a API no formato da Cloud API (link de cadastro pela
+  // chave da instalação): WABA, janela de 24h e custo são da Meta — mesmo perfil
+  // do canal oficial. `canManageTemplates: false` por ora: o espelho de modelos
+  // deste canal ainda não existe, e prometer a gestão sem a rota seria mentir.
+  kapso: {
+    freeformOutsideWindow: false,
+    requiresTemplates: true,
+    canManageTemplates: false,
+    banRisk: false,
+    minIntervalMs: 6000,
+    voiceNote: "opus-only",
+    groups: "limited",
+    costPerMessage: true,
+    enderecamento: "telefone",
+  },
   // Messenger direto: mesma forma do Messenger pelo intermediário (janela de 24h
   // da plataforma, sem modelo aprovado, sem grupo), mas a mensagem NÃO é cobrada
   // — a página fala pela Graph API de graça — e não há risco de banimento por
@@ -165,6 +180,8 @@ export const CHANNEL_PROVIDER_SOCIAL: ChannelProvider = "zernio_social";
 export const CHANNEL_PROVIDER_ZERNIO: ChannelProvider = "zernio";
 /** Parceiro que espelha a Cloud API — canal opcional da instalação, desligado por padrão. */
 export const CHANNEL_PROVIDER_DATAFY: ChannelProvider = "datafy";
+/** Segundo parceiro Cloud-API-compatível, conectado por link de cadastro. */
+export const CHANNEL_PROVIDER_KAPSO: ChannelProvider = "kapso";
 /** Messenger direto: a página do Facebook pela Graph API, sem intermediário. */
 export const CHANNEL_PROVIDER_MESSENGER: ChannelProvider = "meta_messenger";
 /** Telegram: o bot da empresa, pela Bot API. */
@@ -193,6 +210,7 @@ export const PROVIDERS_DE_MENSAGEM = [
   "zernio",
   "zernio_social",
   "datafy",
+  "kapso",
   "meta_messenger",
   "telegram_bot",
 ] as const satisfies readonly ProviderDeMensagem[];
@@ -253,7 +271,7 @@ void _todoProviderFoiClassificado;
  * a classificação abaixo é erro de COMPILAÇÃO enquanto um provider novo não
  * disser se é número ou não.
  */
-export const PROVIDERS_DE_NUMERO = ["waha", "meta_cloud", "zernio", "datafy"] as const satisfies readonly ChannelProvider[];
+export const PROVIDERS_DE_NUMERO = ["waha", "meta_cloud", "zernio", "datafy", "kapso"] as const satisfies readonly ChannelProvider[];
 export const PROVIDERS_QUE_NAO_SAO_NUMERO = [
   "zernio_social",
   "meta_messenger",

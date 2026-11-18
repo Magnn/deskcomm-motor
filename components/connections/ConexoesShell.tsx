@@ -9,6 +9,7 @@ import { MessengerClient } from "./MessengerClient";
 import { TelegramClient } from "./TelegramClient";
 import { RedesSociaisClient } from "./RedesSociaisClient";
 import { CanalGraphParceiroClient } from "./CanalGraphParceiroClient";
+import { CanalLinkDeCadastroClient } from "./CanalLinkDeCadastroClient";
 import { CanalOficialClient } from "./CanalOficialClient";
 import { CanalParceiroClient } from "./CanalParceiroClient";
 import { CanalVozClient } from "./CanalVozClient";
@@ -49,6 +50,7 @@ export function ConexoesShell({
   wahaConfigured,
   wacallsConfigured,
   graphParceiro = null,
+  linkDeCadastro = null,
 }: {
   wahaConfigured: boolean;
   wacallsConfigured: boolean;
@@ -59,6 +61,8 @@ export function ConexoesShell({
    * O rótulo vem do servidor porque a tela não pode nomear provider.
    */
   graphParceiro?: { label: string } | null;
+  /** Número oficial por link de cadastro: só quando a instalação tem a chave do provedor. */
+  linkDeCadastro?: { label: string } | null;
 }) {
   const t = useT();
   const router = useRouter();
@@ -83,7 +87,9 @@ export function ConexoesShell({
               ? "webchat"
               : abaParam === "graph" && graphParceiro
                 ? "graph"
-                : "numeros";
+                : abaParam === "link" && linkDeCadastro
+                  ? "link"
+                  : "numeros";
   const sub = params.get("sub") === "templates" ? "templates" : "conexao";
   // O botão único "Conectar WhatsApp" abre a janela do Facebook ali mesmo; para
   // isso precisa do login da instalação antes do clique.
@@ -134,6 +140,7 @@ export function ConexoesShell({
         <TabsTrigger value="parceiro">{t("Provedor parceiro")}</TabsTrigger>
         <TabsTrigger value="voz">{t("Chamada de voz")}</TabsTrigger>
         {graphParceiro && <TabsTrigger value="graph">{graphParceiro.label}</TabsTrigger>}
+        {linkDeCadastro && <TabsTrigger value="link">{linkDeCadastro.label}</TabsTrigger>}
         <span className="mx-1 hidden h-5 w-px bg-border sm:block" aria-hidden />
         <span className="px-2 text-[10px] font-semibold uppercase tracking-wider text-text-subtle" aria-hidden>
           {t("Outros canais")}
@@ -173,6 +180,12 @@ export function ConexoesShell({
       <TabsContent value="voz" className="mt-0">
         <CanalVozClient wacallsConfigured={wacallsConfigured} />
       </TabsContent>
+
+      {linkDeCadastro && (
+        <TabsContent value="link" className="mt-0">
+          <CanalLinkDeCadastroClient />
+        </TabsContent>
+      )}
 
       {graphParceiro && (
         <TabsContent value="graph" className="mt-0">

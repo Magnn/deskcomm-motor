@@ -3,6 +3,7 @@
  * pede o adapter do provider da conversa e o descritor de capabilities.
  */
 import { datafyAdapter } from "./adapters/datafy";
+import { kapsoAdapter } from "./adapters/kapso";
 import { metaCloudAdapter } from "./adapters/meta-cloud";
 import { wahaAdapter } from "./adapters/waha";
 import { messengerAdapter } from "./messenger/adapter";
@@ -21,6 +22,7 @@ const ADAPTERS: Record<ProviderDeMensagem, ChannelAdapter | null> = {
   zernio: zernioAdapter,
   zernio_social: socialAdapter,
   datafy: datafyAdapter,
+  kapso: kapsoAdapter,
   meta_messenger: messengerAdapter,
   telegram_bot: telegramAdapter,
 };

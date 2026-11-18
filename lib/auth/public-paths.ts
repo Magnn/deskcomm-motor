@@ -30,6 +30,8 @@ export const PUBLIC_PATHS: RegExp[] = [
   // `FORMATO_DO_ESTADO` (lib/channels/estado-da-volta.ts): nenhum outro sub-path
   // nasce público de carona.
   /^\/auth\/partner-return\/[A-Za-z0-9_-]{20,600}\.[0-9a-f]{64}$/,
+  // Idem, para a volta do link de cadastro do segundo parceiro.
+  /^\/auth\/link-return\/[A-Za-z0-9_-]{20,600}\.[0-9a-f]{64}$/,
   /^\/403$/,
   /^\/admin\/forbidden$/,
   /^\/404$/,

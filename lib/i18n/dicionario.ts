@@ -16229,6 +16229,9 @@ export const DICIONARIO: Traducoes = {
   "Só pelo CRM, sem o app no celular.": { es: "Solo por el CRM, sin la app en el celular." },
   "Reconectar meu WhatsApp": { es: "Reconectar mi WhatsApp" },
   "Conectar outro número": { es: "Conectar otro número" },
+  "Um número oficial (WhatsApp Business) conectado por um link de cadastro, sem conta no provedor. As mensagens entram e saem pelo CRM.": {
+    es: "Un número oficial (WhatsApp Business) conectado por un enlace de registro, sin cuenta en el proveedor. Los mensajes entran y salen por el CRM.",
+  },
   "Não foi possível abrir a conexão.": { es: "No fue posible abrir la conexión." },
   "Conectar meu WhatsApp": { es: "Conectar mi WhatsApp" },
   "Já tenho conta no": { es: "Ya tengo cuenta en" },

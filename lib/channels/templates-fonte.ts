@@ -47,6 +47,8 @@ const FONTE: Record<ProviderDeMensagem, FonteDeTemplates | null> = {
   // Parceiro Graph-compatível: os modelos são os da Cloud API, servidos por uma
   // rota própria (host/token do parceiro).
   datafy: "graph",
+  // Sem espelho de modelos ainda (ver `canManageTemplates` do canal).
+  kapso: null,
   // O Messenger não tem definição aprovada: fora da janela não há modelo a
   // escolher, só a espera pela próxima mensagem da pessoa.
   meta_messenger: null,

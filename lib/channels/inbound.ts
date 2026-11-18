@@ -20,7 +20,9 @@ import { CHANNEL_PROVIDER_SOCIAL } from "./capabilities";
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { CHANNEL_PROVIDER_DATAFY, CHANNEL_PROVIDER_TELEGRAM, CHANNEL_PROVIDER_ZERNIO } from "./capabilities";
+import { CHANNEL_PROVIDER_DATAFY, CHANNEL_PROVIDER_KAPSO, CHANNEL_PROVIDER_TELEGRAM, CHANNEL_PROVIDER_ZERNIO } from "./capabilities";
+import { refsDaSessaoKapso } from "./cadastro-por-link/session";
+import { HEADER_ASSINATURA_KAPSO, verifyKapsoSignature } from "./cadastro-por-link/webhook";
 import { CABECALHO_DO_SEGREDO, ingerirAtualizacao, segredoDoTelegramConfere } from "./telegram/ingest";
 import { canalGraphParceiroLigado } from "./graph-parceiro/credentials";
 import { graphPartnerRefsDaSessao } from "./graph-parceiro/session";
@@ -86,7 +88,7 @@ export function acceptsInboundWebhook(provider: string): boolean {
   // O canal Datafy é opcional da instalação: desligado, a entrada dele não
   // existe — nem para quem tem o token de uma sessão gravada antes.
   if (provider === CHANNEL_PROVIDER_DATAFY) return canalGraphParceiroLigado();
-  return provider === CHANNEL_PROVIDER_ZERNIO || provider === CHANNEL_PROVIDER_SOCIAL || provider === CHANNEL_PROVIDER_TELEGRAM;
+  return provider === CHANNEL_PROVIDER_KAPSO || provider === CHANNEL_PROVIDER_ZERNIO || provider === CHANNEL_PROVIDER_SOCIAL || provider === CHANNEL_PROVIDER_TELEGRAM;
 }
 
 /** Authenticate before archiving raw payloads. The handler repeats this guard for non-HTTP callers. */
@@ -99,6 +101,7 @@ export function verifyInboundWebhookSignature(provider: string, raw: string, hea
   if (provider === CHANNEL_PROVIDER_DATAFY) {
     return verifyGraphPartnerSignature(raw, headers.get(HEADER_ASSINATURA), headers.get(HEADER_TIMESTAMP), secret);
   }
+  if (provider === CHANNEL_PROVIDER_KAPSO) return verifyKapsoSignature(raw, headers.get(HEADER_ASSINATURA_KAPSO), secret);
   return verifyZernioSignature(raw, headers.get("x-zernio-signature"), secret);
 }
 
@@ -119,7 +122,9 @@ export async function handleInboundWebhook(
     case CHANNEL_PROVIDER_ZERNIO:
       return zernioInbound(admin, input);
     case CHANNEL_PROVIDER_DATAFY:
-      return datafyInbound(admin, input);
+      return entradaNoFormatoDaMeta(admin, input, graphPartnerRefsDaSessao);
+    case CHANNEL_PROVIDER_KAPSO:
+      return entradaNoFormatoDaMeta(admin, input, refsDaSessaoKapso);
     case CHANNEL_PROVIDER_TELEGRAM:
       return telegramInbound(admin, input);
     default:
@@ -246,7 +251,8 @@ async function zernioInbound(
 }
 
 /**
- * Entrada do canal Datafy (recorte do #1130, @vgamkt).
+ * Entrada dos parceiros que entregam no formato da Meta: Datafy (recorte do
+ * #1130, @vgamkt) e o do link de cadastro. Cada um passa a sua leitura de refs.
  *
  * O payload é IDÊNTICO ao da Meta (o parceiro espelha a Cloud API), então a
  * leitura reusa `lerEnvelopeMeta` + `parseMetaWebhook` + `ingestMetaInbound`; o
@@ -257,9 +263,14 @@ async function zernioInbound(
  * se for do número e da conta DESTA sessão — a sessão veio do token do path, e
  * o corpo não escolhe onde gravar.
  */
-async function datafyInbound(
+async function entradaNoFormatoDaMeta(
   admin: SupabaseClient,
   input: InboundWebhookInput,
+  refsDaSessao: (
+    admin: SupabaseClient,
+    organizationId: string,
+    channelSessionId: string,
+  ) => Promise<{ phoneNumberId: string | null; wabaId: string | null }>,
 ): Promise<InboundWebhookOutcome> {
   if (!verifyInboundWebhookSignature(input.session.provider, input.rawBody, input.headers, input.secret)) {
     return { ok: false, code: "unauthorized", message: "bad_signature" };
@@ -278,7 +289,7 @@ async function datafyInbound(
   }
 
   const orgId = input.session.organization_id;
-  const refs = await graphPartnerRefsDaSessao(admin, orgId, input.session.id);
+  const refs = await refsDaSessao(admin, orgId, input.session.id);
   const eventos = parseMetaWebhook(leitura.envelope);
   const desfechos: string[] = [];
   const agora = new Date().toISOString();

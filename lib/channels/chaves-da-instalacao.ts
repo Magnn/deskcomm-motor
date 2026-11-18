@@ -55,4 +55,12 @@ export const CHAVES_DE_CANAL_DA_INSTALACAO: readonly ChaveDeCanal[] = [
     explicacao:
       "Com ela, cada empresa conecta o número oficial do WhatsApp com um clique, sem ter conta no provedor. Os números ficam na conta da instalação e entram na fatura dela.",
   },
+  {
+    // Editável pela tela: lida a cada chamada por `chaveDoKapso()`
+    // (lib/channels/cadastro-por-link/api.ts). Vazia, a aba do link de cadastro some.
+    chave: "KAPSO_API_KEY",
+    rotulo: "Chave da conta da instalação no Kapso",
+    explicacao:
+      "Com ela, cada empresa conecta o número oficial do WhatsApp (inclusive o que já usa o app WhatsApp Business) por um link de cadastro do Kapso, sem ter conta lá. Os números ficam no projeto da instalação e contam no plano dele.",
+  },
 ] as const;
