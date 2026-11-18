@@ -5,6 +5,7 @@ import { audit } from "@/lib/audit";
 import { fail } from "@/lib/api/wrappers";
 import { loadAuthUser } from "@/lib/auth/server";
 import { requireRole } from "@/lib/auth/require-role";
+import { CHANNEL_PROVIDER_META } from "@/lib/channels/capabilities";
 import { metaCredsForPhoneNumberId } from "@/lib/channels/meta/credentials";
 import * as perfil from "@/lib/channels/meta/perfil-do-numero";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -29,7 +30,7 @@ vi.mock("@/lib/channels/meta/perfil-do-numero", async (original) => ({
 const org = "11111111-1111-4111-8111-111111111111";
 const canal = "22222222-2222-4222-8222-222222222222";
 const filtros: Record<string, unknown> = {};
-const linha = { id: canal, organization_id: org, provider: "meta_cloud", archived_at: null, meta_phone_number_id: "num1", meta_app_id: null };
+const linha = { id: canal, organization_id: org, provider: CHANNEL_PROVIDER_META, archived_at: null, meta_phone_number_id: "num1", meta_app_id: null };
 const update = vi.fn();
 const contexto = (id = canal) => ({ params: Promise.resolve({ id }) });
 const req = (method: string, body?: unknown) =>
@@ -66,7 +67,7 @@ describe("perfil do WhatsApp pela tela", () => {
 
   it("número de outra organização, ou que não é oficial, é 404", async () => {
     expect((await GET(req("GET"), contexto(org))).status).toBe(404);
-    expect(filtros).toMatchObject({ organization_id: org, provider: "meta_cloud", archived_at: null });
+    expect(filtros).toMatchObject({ organization_id: org, provider: CHANNEL_PROVIDER_META, archived_at: null });
   });
 
   it("sem credencial guardada: 422 com o que fazer", async () => {

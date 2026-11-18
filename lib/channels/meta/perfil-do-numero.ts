@@ -100,6 +100,8 @@ export async function lerPerfilDoNumero(
   const bruto = perfil.corpo?.data?.[0] ?? {};
   const texto = (v: unknown) => (typeof v === "string" && v ? v : undefined);
   const n = numero.corpo ?? {};
+  // O nome que a Meta está analisando — do NÚMERO, não de contato.
+  const nomeNovo = n.new_display_name;
 
   return {
     ok: true,
@@ -108,7 +110,7 @@ export async function lerPerfilDoNumero(
         telefone: n.display_phone_number ?? null,
         nome: n.verified_name ?? null,
         situacaoDoNome: n.name_status ?? null,
-        nomePedido: n.new_display_name ?? null,
+        nomePedido: nomeNovo ?? null,
         situacaoDoNomePedido: n.new_name_status ?? null,
         conexao: n.status ?? null,
         verificacao: n.code_verification_status ?? null,
