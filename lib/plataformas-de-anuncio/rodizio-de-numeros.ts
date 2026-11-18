@@ -15,6 +15,9 @@
  * Número sem orçamento nunca enche: entra na proporção pelo maior orçamento entre os outros (ou 1, se
  * nenhum tem orçamento — e aí o rodízio volta a dividir por igual, como antes).
  *
+ * Desde 18/11/2026: número OFICIAL com vaga recebe antes dos de QR (que viram reserva), e a nota de
+ * saúde (`saude-do-numero.ts`) corta o orçamento de quem está prestes a cair.
+ *
  * Opt-in pela página (`rodizio=1`): organização com um agente por produto em números diferentes
  * não pode ter o lead de uma oferta caindo no número da outra.
  */
@@ -26,6 +29,9 @@ import { fusoDaJanela, parseWarmupCaps } from "@/lib/agent-engine/pacing/store";
 import { STATUS_SAUDAVEL } from "@/lib/channels/health";
 import { logger } from "@/lib/logger";
 import { numerosDoAgente, numerosExtrasPorAgente } from "@/lib/ai/agents/numeros-do-agente";
+import { CHANNEL_PROVIDER_META } from "@/lib/channels/capabilities";
+
+import { fatorDaNota, saudeDosNumeros } from "./saude-do-numero";
 
 const DAY_MS = 86_400_000;
 
@@ -44,6 +50,10 @@ export interface NumeroNoRodizio {
   aCaminho: number;
   /** Orçamento de leads novos de hoje. `null` = sem orçamento (nunca enche). */
   orcamentoHoje: number | null;
+  /** Número oficial (Cloud API): recebe primeiro; os de QR são reserva. */
+  oficial?: boolean;
+  /** Nota de saúde 0–100 (`saude-do-numero.ts`). Ausente = saudável. */
+  nota?: number | null;
 }
 
 export interface EscolhaDoRodizio {
@@ -53,8 +63,12 @@ export interface EscolhaDoRodizio {
 }
 
 /**
- * A escolha PURA: o número com a menor fração do orçamento usada, entre os que ainda têm vaga;
- * empate sorteado. Todos cheios: a menor fração entre todos, marcada como transbordo.
+ * A escolha PURA, em três passos:
+ * 1. Vaga = carga abaixo do orçamento × `fatorDaNota` (nota < 30 descansa; 30–59 vale metade).
+ * 2. Entre os com vaga, os OFICIAIS primeiro: conversa que o lead começa não gasta limite da Meta e o
+ *    risco de queda é bem menor; os de QR só recebem quando o oficial enche ou descansa.
+ * 3. A menor fração do orçamento usada; empate sorteado. Ninguém com vaga: a menor fração entre
+ *    todos (pelo orçamento cheio, sem a nota), marcada como transbordo — clique pago nunca se perde.
  */
 export function escolherPorCapacidade(
   numeros: readonly NumeroNoRodizio[],
@@ -64,11 +78,18 @@ export function escolherPorCapacidade(
   const finitos = numeros.map((n) => n.orcamentoHoje).filter((o): o is number => o !== null);
   // Sem orçamento entra na proporção pelo maior orçamento dos outros: divide com eles sem "furar a fila".
   const referencia = finitos.length > 0 ? Math.max(...finitos) : 1;
-  const fracao = (n: NumeroNoRodizio) => (n.leadsHoje + n.aCaminho) / Math.max(1, n.orcamentoHoje ?? referencia);
-  const temVaga = (n: NumeroNoRodizio) => n.orcamentoHoje === null || n.leadsHoje + n.aCaminho < n.orcamentoHoje;
+  const carga = (n: NumeroNoRodizio) => n.leadsHoje + n.aCaminho;
+  const capacidade = (n: NumeroNoRodizio) => (n.orcamentoHoje ?? referencia) * fatorDaNota(n.nota);
+  const temVaga = (n: NumeroNoRodizio) =>
+    fatorDaNota(n.nota) > 0 && (n.orcamentoHoje === null || carga(n) < capacidade(n));
 
   const comVaga = numeros.filter(temVaga);
-  const universo = comVaga.length > 0 ? comVaga : numeros;
+  const oficiaisComVaga = comVaga.filter((n) => n.oficial);
+  const universo = oficiaisComVaga.length > 0 ? oficiaisComVaga : comVaga.length > 0 ? comVaga : numeros;
+  const fracao =
+    comVaga.length > 0
+      ? (n: NumeroNoRodizio) => carga(n) / Math.max(1, capacidade(n))
+      : (n: NumeroNoRodizio) => carga(n) / Math.max(1, n.orcamentoHoje ?? referencia);
   const menor = Math.min(...universo.map(fracao));
   // Comparação com folga: frações iguais vindas de divisões diferentes não podem desempatar por arredondamento.
   const empatados = universo.filter((n) => fracao(n) - menor < 1e-9).map((n) => n.telefone);
@@ -85,6 +106,8 @@ interface VersaoPublicada {
 export interface SessaoDoRodizio {
   sessionId: string;
   telefone: string;
+  /** Cloud API (número oficial). */
+  oficial?: boolean;
 }
 
 function soDigitos(telefone: string): string {
@@ -123,7 +146,7 @@ export async function sessoesDoRodizio(admin: SupabaseClient, organizationId: st
 
   const { data: vivas, error: erroSessoes } = await admin
     .from("channel_sessions")
-    .select("id, phone_number")
+    .select("id, phone_number, provider")
     .eq("organization_id", organizationId)
     .in("id", sessoes)
     .eq("status", STATUS_SAUDAVEL)
@@ -135,12 +158,12 @@ export async function sessoesDoRodizio(admin: SupabaseClient, organizationId: st
   }
   const vistos = new Set<string>();
   const saida: SessaoDoRodizio[] = [];
-  for (const s of (vivas ?? []) as { id: string; phone_number: string }[]) {
+  for (const s of (vivas ?? []) as { id: string; phone_number: string; provider: string | null }[]) {
     const telefone = soDigitos(String(s.phone_number));
     // Dois registros do mesmo telefone contam como um número: o WhatsApp vê um só.
     if (telefone.length < 10 || vistos.has(telefone)) continue;
     vistos.add(telefone);
-    saida.push({ sessionId: s.id, telefone });
+    saida.push({ sessionId: s.id, telefone, oficial: s.provider === CHANNEL_PROVIDER_META });
   }
   return saida;
 }
@@ -257,15 +280,31 @@ export async function proximoNumeroDoRodizio(
 ): Promise<EscolhaDoRodizio | null> {
   const sessoes = await sessoesDoRodizio(admin, organizationId);
   if (sessoes.length === 0) return null;
-  const carga = await cargaDosNumeros(admin, organizationId, sessoes, agora);
+  const [carga, saude] = await Promise.all([
+    cargaDosNumeros(admin, organizationId, sessoes, agora),
+    // A nota nunca derruba o clique: sem ela, todo número conta como saudável (o rodízio de antes).
+    saudeDosNumeros(admin, organizationId, sessoes.map((s) => s.sessionId), agora).catch((err: unknown) => {
+      logger.warn("[plataformas-de-anuncio.rodizio] nota de saúde não calculada", {
+        detalhe: err instanceof Error ? err.message : String(err),
+      });
+      return new Map<string, { nota: number }>();
+    }),
+  ]);
   const escolha = escolherPorCapacidade(
-    sessoes.map((s) => ({ telefone: s.telefone, ...(carga.get(s.sessionId) ?? { leadsHoje: 0, aCaminho: 0, orcamentoHoje: null }) })),
+    sessoes.map((s) => ({
+      telefone: s.telefone,
+      oficial: s.oficial ?? false,
+      nota: saude.get(s.sessionId)?.nota ?? null,
+      ...(carga.get(s.sessionId) ?? { leadsHoje: 0, aCaminho: 0, orcamentoHoje: null }),
+    })),
   );
   if (escolha?.transbordo) {
-    logger.warn("[plataformas-de-anuncio.rodizio] todos os números cheios — clique em transbordo", {
+    logger.warn("[plataformas-de-anuncio.rodizio] todos os números cheios ou descansando — clique em transbordo", {
       organizationId,
       numeros: sessoes.length,
-      carga: Object.fromEntries([...carga].map(([id, c]) => [id, `${c.leadsHoje}+${c.aCaminho}/${c.orcamentoHoje ?? "∞"}`])),
+      carga: Object.fromEntries(
+        [...carga].map(([id, c]) => [id, `${c.leadsHoje}+${c.aCaminho}/${c.orcamentoHoje ?? "∞"} nota ${saude.get(id)?.nota ?? "?"}`]),
+      ),
     });
   }
   return escolha;

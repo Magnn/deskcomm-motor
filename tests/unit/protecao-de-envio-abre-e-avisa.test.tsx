@@ -110,6 +110,7 @@ function itemDePacing(over: Partial<PacingKnobsItem> = {}): PacingKnobsItem {
     warmup: { number_activated_at: null, age_days: 0, skipped: false, cap_today: 20 },
     leads: { mode: "sem_limite", steps: null, cap_today: null },
     today: null,
+    health: null,
     overrides: null,
     defaults: KNOBS,
     bounds: {

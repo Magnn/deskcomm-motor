@@ -91,3 +91,53 @@ describe("escolherPorCapacidade", () => {
     expect(escolherPorCapacidade(numeros, () => 0.99)?.telefone).toBe("c");
   });
 });
+
+describe("escolherPorCapacidade — oficial primeiro e nota de saúde", () => {
+  const n = (
+    telefone: string,
+    leadsHoje: number,
+    orcamentoHoje: number | null,
+    extra: Partial<NumeroNoRodizio> = {},
+  ): NumeroNoRodizio => ({ telefone, leadsHoje, aCaminho: 0, orcamentoHoje, ...extra });
+
+  it("oficial com vaga recebe antes do QR, mesmo mais carregado", () => {
+    expect(escolherPorCapacidade([n("qr", 0, 24), n("oficial", 20, 24, { oficial: true })])).toEqual({
+      telefone: "oficial",
+      transbordo: false,
+    });
+  });
+
+  it("oficial cheio: os de QR viram a reserva", () => {
+    expect(escolherPorCapacidade([n("qr", 3, 24), n("oficial", 24, 24, { oficial: true })])?.telefone).toBe("qr");
+  });
+
+  it("dia inteiro: 24 no oficial e depois os QR dividem pela capacidade", () => {
+    const numeros = [n("oficial", 0, 24, { oficial: true }), n("qr1", 0, 24), n("qr2", 0, 24)];
+    for (let i = 0; i < 48; i++) numeros.find((x) => x.telefone === escolherPorCapacidade(numeros, () => 0)!.telefone)!.leadsHoje += 1;
+    expect(numeros.map((x) => x.leadsHoje)).toEqual([24, 12, 12]);
+  });
+
+  it("nota abaixo de 30 descansa enquanto outro tiver vaga", () => {
+    expect(escolherPorCapacidade([n("caindo", 0, 24, { nota: 25 }), n("bom", 20, 24)])?.telefone).toBe("bom");
+  });
+
+  it("nota 30–59 recebe metade do orçamento", () => {
+    const fraco = n("fraco", 12, 24, { nota: 50 });
+    // 12 de 24×0,5 = cheio: o outro recebe mesmo com 20/24.
+    expect(escolherPorCapacidade([fraco, n("bom", 20, 24)])?.telefone).toBe("bom");
+    fraco.leadsHoje = 5;
+    // 5/12 = 42% contra 20/24 = 83%: o fraco ainda recebe enquanto tem metade livre.
+    expect(escolherPorCapacidade([fraco, n("bom", 20, 24)])?.telefone).toBe("fraco");
+  });
+
+  it("oficial descansando não fura: os de QR recebem", () => {
+    expect(escolherPorCapacidade([n("oficial", 0, 24, { oficial: true, nota: 10 }), n("qr", 5, 24)])?.telefone).toBe("qr");
+  });
+
+  it("todos descansando: transbordo para o menos carregado, nunca perde o clique", () => {
+    expect(escolherPorCapacidade([n("a", 10, 24, { nota: 0 }), n("b", 2, 24, { nota: 20 })])).toEqual({
+      telefone: "b",
+      transbordo: true,
+    });
+  });
+});
