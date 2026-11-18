@@ -943,6 +943,11 @@ const HOSTS_DECLARADOS: Record<string, EntradaDeHost> = {
     motivo:
       "endpoint padrão do adapter do canal de mensagens, com override por ZERNIO_API_BASE_URL. Fixo de propósito: instalação que não configura nada tem de funcionar.",
   },
+  "api.kapso.ai": {
+    categoria: "FORNECEDOR",
+    motivo:
+      "endpoint padrão do segundo parceiro (número oficial por link de cadastro), com override por KAPSO_API_BASE_URL. Destino de envio, mídia, clientes, links de cadastro e webhooks — e o canal só aparece numa instalação com KAPSO_API_KEY.",
+  },
   "cloud.datafyapi.com.br": {
     categoria: "FORNECEDOR",
     motivo:

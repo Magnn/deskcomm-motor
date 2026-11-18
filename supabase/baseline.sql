@@ -9298,14 +9298,22 @@ alter table public.channel_sessions
   add column if not exists telegram_bot_id text,
   add column if not exists telegram_bot_token_encrypted bytea;
 
+-- Link de cadastro do segundo parceiro (migration 0965) — colunas nullable e
+-- antes das constraints que as referenciam.
+alter table public.channel_sessions
+  add column if not exists kapso_phone_number_id text,
+  add column if not exists kapso_waba_id text,
+  add column if not exists kapso_customer_id text,
+  add column if not exists kapso_webhook_id text;
+
 alter table public.channel_sessions
   drop constraint if exists channel_sessions_provider_check;
 
 alter table public.channel_sessions
   add constraint channel_sessions_provider_check
-  -- 'wacalls' (0233), 'zernio_social' (0368), 'datafy' (0387), 'meta_messenger' (0911) e 'telegram_bot' (0912) somados AQUI —
+  -- 'wacalls' (0233), 'zernio_social' (0368), 'datafy' (0387), 'meta_messenger' (0911), 'telegram_bot' (0912) e 'kapso' (0965) somados AQUI —
   -- UM bloco só por constraint (não duplicar drop+add por migration).
-  check (provider = any (array['waha'::text, 'meta_cloud'::text, 'zernio'::text, 'wacalls'::text, 'zernio_social'::text, 'datafy'::text, 'meta_messenger'::text, 'telegram_bot'::text]));
+  check (provider = any (array['waha'::text, 'meta_cloud'::text, 'zernio'::text, 'wacalls'::text, 'zernio_social'::text, 'datafy'::text, 'meta_messenger'::text, 'telegram_bot'::text, 'kapso'::text]));
 
 alter table public.channel_sessions
   drop constraint if exists channel_sessions_provider_ref_check;
@@ -9320,7 +9328,8 @@ alter table public.channel_sessions
     (provider = 'wacalls'    and wacalls_session_id    is not null) or
     (provider = 'datafy'     and datafy_phone_number_id is not null) or
     (provider = 'meta_messenger' and messenger_page_id is not null) or
-    (provider = 'telegram_bot' and telegram_bot_id is not null)
+    (provider = 'telegram_bot' and telegram_bot_id is not null) or
+    (provider = 'kapso'      and kapso_phone_number_id is not null)
   );
 
 comment on column public.channel_sessions.zernio_account_id is
@@ -14420,7 +14429,7 @@ alter table public.webhook_events_log
   drop constraint if exists webhook_events_log_provider_check;
 alter table public.webhook_events_log
   add constraint webhook_events_log_provider_check check (provider in (
-    'waha', 'nuvemshop', 'generic', 'meta_cloud', 'zernio', 'datafy', 'meta_messenger', 'telegram_bot'
+    'waha', 'nuvemshop', 'generic', 'meta_cloud', 'zernio', 'datafy', 'meta_messenger', 'telegram_bot', 'kapso'
   ));
 
 -- ---- a marca da instalação sai do .env e vai para o banco (migration 0155) ----
@@ -37931,7 +37940,7 @@ begin
     return coalesce(new, old);
   end if;
   if tg_op = 'DELETE' then
-    if old.zernio_credencial_da_instalacao then
+    if old.zernio_credencial_da_instalacao or old.provider = 'kapso' then
       raise exception 'canal_ligacao_ao_provedor_e_do_servidor' using errcode = '42501';
     end if;
     return old;
@@ -37940,7 +37949,11 @@ begin
     if new.zernio_credencial_da_instalacao
        or new.zernio_account_id is not null
        or new.zernio_profile_id is not null
-       or new.zernio_webhook_id is not null then
+       or new.zernio_webhook_id is not null
+       or new.provider = 'kapso'
+       or new.kapso_phone_number_id is not null
+       or new.kapso_customer_id is not null
+       or new.kapso_webhook_id is not null then
       raise exception 'canal_ligacao_ao_provedor_e_do_servidor' using errcode = '42501';
     end if;
     return new;
@@ -37948,7 +37961,10 @@ begin
   if (new.zernio_credencial_da_instalacao, new.zernio_account_id, new.zernio_profile_id, new.zernio_webhook_id)
        is distinct from
      (old.zernio_credencial_da_instalacao, old.zernio_account_id, old.zernio_profile_id, old.zernio_webhook_id)
-     or (old.zernio_credencial_da_instalacao and
+     or (new.kapso_phone_number_id, new.kapso_waba_id, new.kapso_customer_id, new.kapso_webhook_id)
+       is distinct from
+     (old.kapso_phone_number_id, old.kapso_waba_id, old.kapso_customer_id, old.kapso_webhook_id)
+     or ((old.zernio_credencial_da_instalacao or old.provider = 'kapso') and
          (new.archived_at, new.provider, new.organization_id, new.phone_number)
            is distinct from
          (old.archived_at, old.provider, old.organization_id, old.phone_number)) then
@@ -40529,3 +40545,33 @@ comment on column public.channel_sessions.zernio_webhook_id is
   'Assinatura de webhook que entrega os eventos desta conta, registrada pela INSTALAÇÃO. Na conexão por um clique é o webhook ÚNICO da instalação (compartilhado, filtrado aos perfis das conexões ativas; id em platform_config): a remoção do canal tira o perfil do filtro e NÃO apaga a assinatura. Na chave própria é a assinatura do número (filtrada à conta), apagada na remoção. Nulo quando o operador configurou o webhook à mão. Migration 0964.';
 comment on column public.channel_sessions.zernio_credencial_da_instalacao is
   'true = a sessão fala com o provedor pela chave da INSTALAÇÃO (platform_config), resolvida na hora; zernio_token_encrypted fica nulo. false = chave própria da organização, cifrada em zernio_token_encrypted. Migration 0964.';
+
+-- ---- número oficial por link de cadastro (migration 0965) ----
+-- Espelho da 0965; colunas e CHECKs vivem nos blocos ÚNICOS lá em cima. Aqui só
+-- a dedup e o índice único entre ativos (dedup ANTES do índice).
+with ativos as (
+  select id,
+         row_number() over (
+           partition by kapso_phone_number_id
+           order by created_at desc nulls last, id desc
+         ) as posicao
+    from public.channel_sessions
+   where archived_at is null
+     and kapso_phone_number_id is not null
+)
+update public.channel_sessions s
+   set kapso_phone_number_id = s.kapso_phone_number_id || '-conflito-' || s.id::text
+  from ativos a
+ where a.id = s.id
+   and a.posicao > 1;
+
+create unique index if not exists channel_sessions_kapso_phone_number_id_ativo_unique
+  on public.channel_sessions (kapso_phone_number_id)
+  where archived_at is null and kapso_phone_number_id is not null;
+
+comment on column public.channel_sessions.kapso_phone_number_id is
+  'phone_number_id da Meta no segundo provedor parceiro (link de cadastro). É o sessionRef deste canal. Espelhado em lib/channels/session-ref.ts. Migration 0965.';
+comment on column public.channel_sessions.kapso_customer_id is
+  'Cliente que a instalação criou no provedor para esta organização. A volta do cadastro só aceita número deste cliente. Migration 0965.';
+comment on column public.channel_sessions.kapso_webhook_id is
+  'Assinatura de webhook do número, registrada pela instalação com segredo gerado aqui (webhook_secret_encrypted). Migration 0965.';

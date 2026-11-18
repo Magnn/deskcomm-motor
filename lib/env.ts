@@ -296,6 +296,9 @@ const schema = z.object({
   // em `lib/channels/zernio/credentials.ts`, pelo resolvedor da instalação, a
   // cada chamada — nunca por `env.`, para a troca na tela valer na hora.
   ZERNIO_PLATFORM_API_KEY: z.string().optional().default(""),
+  // Chave do projeto da instalação no segundo parceiro (link de cadastro). Lida
+  // por `lib/channels/cadastro-por-link/api.ts` pelo resolvedor da instalação, nunca por `env.`.
+  KAPSO_API_KEY: z.string().optional().default(""),
 
   // Upstash Redis
   UPSTASH_REDIS_REST_URL: required("UPSTASH_REDIS_REST_URL"),

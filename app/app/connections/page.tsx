@@ -5,6 +5,7 @@ import { requireAuth, resolveActiveOrg } from "@/lib/auth/server";
 import { ROLE_RANK } from "@/lib/auth/types";
 import { ConexoesShell } from "@/components/connections/ConexoesShell";
 import { canalGraphParceiroLigado, GRAPH_PARTNER_LABEL } from "@/lib/channels/graph-parceiro/credentials";
+import { ROTULO_DO_LINK_DE_CADASTRO, linkDeCadastroDisponivel } from "@/lib/channels/cadastro-por-link/conexao";
 import { traduzir } from "@/lib/i18n/dicionario";
 
 export const dynamic = "force-dynamic";
@@ -24,6 +25,7 @@ export default async function ConnectionsPage() {
     process.env.WAHA_API_BASE_URL && key && key !== "dev_plaintext_change_me",
   );
   const wacallsConfigured = Boolean(process.env.WACALLS_API_BASE_URL);
+  const linkDeCadastro = (await linkDeCadastroDisponivel()) ? { label: ROTULO_DO_LINK_DE_CADASTRO } : null;
 
   return (
     <div className="flex h-full flex-col gap-6 p-6">
@@ -40,6 +42,7 @@ export default async function ConnectionsPage() {
         wahaConfigured={wahaConfigured}
         wacallsConfigured={wacallsConfigured}
         graphParceiro={canalGraphParceiroLigado() ? { label: GRAPH_PARTNER_LABEL } : null}
+        linkDeCadastro={linkDeCadastro}
       />
     </div>
   );
