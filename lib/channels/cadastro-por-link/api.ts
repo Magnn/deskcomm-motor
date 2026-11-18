@@ -6,12 +6,13 @@
  *  - **Platform** (`/platform/v1`): clientes, links de cadastro, números e
  *    webhooks — é a parte "SaaS": cada organização vira um cliente no projeto
  *    da instalação e conecta o número por um link de cadastro hospedado.
- *  - **Meta proxy** (`/meta/whatsapp/v24.0`): o dialeto da Cloud API (envio,
+ *  - **Meta proxy** (`/meta/whatsapp/<versão da Graph>`): o dialeto da Cloud API (envio,
  *    mídia). Por isso o corpo do envio sai das MESMAS funções do canal oficial.
  *
  * A chave é da INSTALAÇÃO (painel de configuração), lida a cada chamada: trocar
  * na tela vale na hora para todas as conexões.
  */
+import { graphVersion } from "@/lib/graph-version";
 import { valorDaInstalacao } from "@/lib/instalacao/config";
 
 export const KAPSO_LABEL = "Kapso";
@@ -21,7 +22,8 @@ export function kapsoRootUrl(): string {
 }
 
 export function kapsoMetaBase(): string {
-  return `${kapsoRootUrl()}/meta/whatsapp/v24.0`;
+  // A versão é a da instalação (`lib/graph-version.ts`): o proxy repassa à Meta.
+  return `${kapsoRootUrl()}/meta/whatsapp/${graphVersion()}`;
 }
 
 function platformBase(): string {
@@ -135,7 +137,6 @@ export async function numeroDoKapso(chave: string, phoneNumberId: string): Promi
       customer_id: string | null;
       display_phone_number: string | null;
       verified_name: string | null;
-      display_name: string | null;
     };
   }>(chave, "GET", `${platformBase()}/whatsapp/phone_numbers/${encodeURIComponent(phoneNumberId)}`);
   const d = r.data;
@@ -144,7 +145,7 @@ export async function numeroDoKapso(chave: string, phoneNumberId: string): Promi
     wabaId: d.business_account_id,
     customerId: d.customer_id,
     telefone: d.display_phone_number,
-    nome: d.verified_name ?? d.display_name,
+    nome: d.verified_name,
   };
 }
 

@@ -21,6 +21,8 @@ const DECLARADAS: Record<string, string> = {
     "Grava o que a rota app/api/v1/channels/partner/route.ts manda — e é ela que chama a trava antes.",
   "lib/channels/graph-parceiro/session.ts":
     "Grava o que a rota app/api/v1/channels/graph-partner/route.ts manda — e é ela que chama a trava antes.",
+  "lib/channels/cadastro-por-link/session.ts":
+    "Grava o que a rota app/api/v1/channels/link-de-cadastro/route.ts manda — ela chama a trava ao abrir o cadastro, e a volta confere de novo em lib/channels/cadastro-por-link/conexao.ts.",
   "lib/channels/connect-waha.ts":
     "É a função; quem a chama são as duas rotas de QR code (Conexões e onboarding), e as duas chamam a trava.",
   "lib/channels/social/store.ts":
@@ -75,7 +77,7 @@ describe("toda porta que cria número passa pela trava do plano", () => {
   });
 
   it("as rotas que respondem pelas declaradas chamam mesmo a trava", () => {
-    for (const rota of ["app/api/v1/channels/partner/route.ts", "app/api/v1/channels/graph-partner/route.ts"]) {
+    for (const rota of ["app/api/v1/channels/partner/route.ts", "app/api/v1/channels/graph-partner/route.ts", "app/api/v1/channels/link-de-cadastro/route.ts"]) {
       expect(readFileSync(rota, "utf8"), rota).toMatch(/\btravaDeNovoNumero\(/);
     }
   });

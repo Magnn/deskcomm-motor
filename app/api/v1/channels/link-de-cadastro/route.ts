@@ -31,6 +31,7 @@ import { env } from "@/lib/env";
 import { traduzir } from "@/lib/i18n/dicionario";
 import { requireSupportWrite } from "@/lib/impersonate/support";
 import { logger } from "@/lib/logger";
+import { travaDeNovoNumero } from "@/lib/planos/trava-de-numero";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { basePublicaConfiguradaDaInstalacao } from "@/lib/webhooks/url-publica";
 
@@ -68,7 +69,7 @@ export async function GET(): Promise<NextResponse> {
         .map((s) => ({
           channel_session_id: s.id,
           phone_number: s.phoneNumber,
-          display_name: s.displayName,
+          nome: s.displayName,
           status: s.status,
           webhook_automatico: s.webhookId !== null,
         })),
@@ -126,6 +127,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   try {
     if (corpo.acao === "iniciar") {
+      const semVaga = await travaDeNovoNumero(admin, orgId, t, requestId);
+      if (semVaga) return semVaga;
       const marca = await marcaDaSaida(orgId);
       const { url } = await iniciarLinkDeCadastro(admin, ctx, { coexistencia: corpo.coexistencia, cor: marca.accent });
       return ok({ url }, { requestId, headers });
