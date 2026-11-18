@@ -1038,6 +1038,13 @@ export const AUDIT_ACTIONS = [
   "contact.desbloqueado_manual",
   // A conversa inteira baixada em texto ou PDF (`/api/v1/conversations/[id]/exportar`): dado pessoal saindo.
   "conversation.exportada",
+  // Perfil do número oficial pela tela (`/api/v1/channel-sessions/[id]/perfil-whatsapp`). O código do SMS nunca entra no metadata.
+  "channel.whatsapp_profile_updated",
+  "channel.display_name_requested",
+  "channel.profile_photo_updated",
+  "channel.phone_verification_requested",
+  "channel.phone_verified",
+  "channel.number_reregistered",
 ] as const;
 
 /** Um código de auditoria. Derivado de `AUDIT_ACTIONS` — não redigite a lista. */

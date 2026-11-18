@@ -48,7 +48,7 @@ const TETO_MS = 15_000;
 /** As permissões cujo alcance (`target_ids`) são contas do WhatsApp Business. */
 const ESCOPOS_DO_WHATSAPP = new Set(["whatsapp_business_management", "whatsapp_business_messaging"]);
 
-type Buscar = typeof fetch;
+export type Buscar = typeof fetch;
 
 export interface AppDoCadastroIncorporado {
   appId: string;
@@ -68,14 +68,14 @@ export async function appDoCadastroIncorporado(): Promise<AppDoCadastroIncorpora
   return { appId, appSecret, configId };
 }
 
-interface RespostaDaGraph<T> {
+export interface RespostaDaGraph<T> {
   ok: boolean;
   corpo: T | null;
   /** O motivo que a Meta deu — `error_data.details` é o que diferencia os casos. */
   motivo: string;
 }
 
-async function chamar<T>(
+export async function chamar<T>(
   buscar: Buscar,
   caminho: string,
   p: { metodo?: "GET" | "POST"; parametros?: Record<string, string>; token?: string },

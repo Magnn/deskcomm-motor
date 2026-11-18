@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": { "title": "Perfil do WhatsApp oficial", "subtitle": "Nome, perfil, foto e verificação por SMS na Meta, pela tela", "output": "perfil-do-whatsapp-oficial.html", "quality_profile": "standard" },
+  "lanes": [
+    { "id": "operador", "label": "Operação" },
+    { "id": "servidor", "label": "Servidor" },
+    { "id": "externo", "label": "Meta" },
+    { "id": "banco", "label": "Persistência" }
+  ],
+  "mainPath": ["tela", "api", "graph", "meta"],
+  "nodes": [
+    { "id": "tela", "lane": "operador", "col": 1, "type": "frontend", "label": "Conexões / PerfilWhatsappSheet" },
+    { "id": "api", "lane": "servidor", "col": 2, "type": "route", "label": "GET/PATCH/POST channel-sessions/:id/perfil-whatsapp" },
+    { "id": "creds", "lane": "servidor", "col": 2, "type": "lib", "label": "metaCredsForPhoneNumberId (token da sessão)" },
+    { "id": "graph", "lane": "servidor", "col": 3, "type": "lib", "label": "perfil-do-numero.ts (chamar / upload retomável)" },
+    { "id": "meta", "lane": "externo", "col": 4, "type": "service", "label": "Graph API: número, whatsapp_business_profile, request/verify_code, register" },
+    { "id": "sessao", "lane": "banco", "col": 3, "type": "database", "label": "channel_sessions.display_name" },
+    { "id": "audit", "lane": "banco", "col": 4, "type": "database", "label": "api_audit_log / channel.* do perfil" }
+  ],
+  "edges": [
+    { "id": "e1", "from": "tela", "to": "api", "label": "admin lê e salva" },
+    { "id": "e2", "from": "api", "to": "creds", "label": "token decifrado, nunca devolvido" },
+    { "id": "e3", "from": "api", "to": "graph", "label": "ação validada" },
+    { "id": "e4", "from": "graph", "to": "meta", "label": "leitura e escrita" },
+    { "id": "e5", "from": "meta", "to": "tela", "label": "estado real: nome, conexão, verificação" },
+    { "id": "e6", "from": "api", "to": "sessao", "label": "nome aprovado acompanha" },
+    { "id": "e7", "from": "api", "to": "audit", "label": "campos e ação, sem código do SMS" }
+  ]
+}
