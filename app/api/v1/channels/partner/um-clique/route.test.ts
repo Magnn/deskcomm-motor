@@ -164,16 +164,22 @@ it("recusa do fluxo sai com o status e a frase traduzida", async () => {
   expect(h.audit).not.toHaveBeenCalled();
 });
 
-it("limite do plano recusado pelo banco vira plan_limit_reached", async () => {
-  h.concluir.mockRejectedValue(new Error("limite_do_plano:canais:1"));
+it("sem vaga no plano: a trava de lib/planos sai como 402 plano_necessario", async () => {
+  h.concluir.mockRejectedValue(
+    new ErroDaConexaoUmClique("Escolha um plano para conectar um número.", 402, "plano_necessario", {
+      motivo: "sem_plano",
+    }),
+  );
   const r = await chamar({
     acao: "concluir",
     estado: "e".repeat(30),
     account_id: "b".repeat(24),
     profile_id: "a".repeat(24),
   });
-  expect(r.status).toBe(409);
-  expect((await r.json()).error.code).toBe("plan_limit_reached");
+  expect(r.status).toBe(402);
+  const corpo = await r.json();
+  expect(corpo.error.code).toBe("plano_necessario");
+  expect(corpo.error.details).toEqual({ motivo: "sem_plano" });
 });
 
 it("falha inesperada do provedor: 502 sem vazar o detalhe", async () => {
