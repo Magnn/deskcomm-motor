@@ -81,10 +81,12 @@ test("iniciar: cliente da organização, link com volta pelo caminho e coexistê
   expect(link.idioma).toBe("pt");
 });
 
-test("iniciar sem vaga no plano é recusado antes de falar com o provedor", async () => {
+test("concluir número novo sem vaga no plano é recusado antes de registrar o webhook", async () => {
   h.recusaParaNovoNumero.mockResolvedValue({ motivo: "limite_do_plano", limite: 1, plano: "Start" });
-  await expect(iniciarLinkDeCadastro({} as never, ctx, { coexistencia: true, cor: null })).rejects.toMatchObject({ status: 402 });
-  expect(h.garantirCliente).not.toHaveBeenCalled();
+  await expect(
+    concluirLinkDeCadastro({} as never, ctx, { estado: estado(), phoneNumberId: "1234567890" }),
+  ).rejects.toMatchObject({ status: 402 });
+  expect(h.registrarWebhookDoNumero).not.toHaveBeenCalled();
 });
 
 test("concluir: número de outro cliente é recusado e nada é gravado", async () => {

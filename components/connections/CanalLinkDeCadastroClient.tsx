@@ -21,7 +21,7 @@ import { ChannelAiAccess } from "./ChannelAiAccess";
 interface Numero {
   channel_session_id: string;
   phone_number: string | null;
-  display_name: string | null;
+  nome: string | null;
   status: string | null;
   webhook_automatico: boolean;
 }
@@ -130,7 +130,7 @@ export function CanalLinkDeCadastroClient() {
           className="flex flex-col gap-3 rounded-md border border-border bg-muted/40 p-3 text-sm"
         >
           <div>
-            <p className="font-medium">{n.display_name ?? t("Número conectado")}</p>
+            <p className="font-medium">{n.nome || t("Número conectado")}</p>
             <p className="text-xs text-muted-foreground">
               {n.phone_number ?? t("sem número informado")} · {n.status ?? "—"}
             </p>

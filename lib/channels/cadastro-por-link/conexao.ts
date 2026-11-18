@@ -66,10 +66,9 @@ export async function iniciarLinkDeCadastro(
   ctx: ContextoDaConexao,
   opcoes: { coexistencia: boolean; cor: string | null },
 ): Promise<{ url: string }> {
+  // A trava do plano para abrir o cadastro é da ROTA (`travaDeNovoNumero`); a
+  // volta confere de novo, porque reconectar o mesmo número não gasta vaga.
   const chave = await chaveOuRecusa();
-  // Conectar sempre é número novo aqui (reconectar o mesmo número ressuscita a
-  // linha na volta, sem gastar vaga) — a trava vem antes de abrir o cadastro.
-  await conferirVaga(admin, ctx.organizationId);
   const customerId = await garantirCliente(chave, { id: ctx.organizationId, nome: ctx.organizationNome });
   const estado = emitirEstadoDaVolta(
     { organizationId: ctx.organizationId, userId: ctx.userId, profileId: customerId },
