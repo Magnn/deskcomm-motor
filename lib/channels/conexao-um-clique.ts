@@ -35,6 +35,7 @@ import { encryptWebhookSecret } from "@/lib/webhooks/secrets";
 import {
   PARTNER_CHANNEL_LABEL,
   findPartnerSession,
+  perfisEmUsoDaOrganizacao,
   registrarNoWebhookDaInstalacao,
   savePartnerSession,
   segredoAtualDoWebhook,
@@ -46,6 +47,7 @@ import {
   contaConectadaNoPerfil,
   garantirPerfil,
   motivoDaVolta,
+  perfilParaNovoNumero,
   urlDaPaginaDeConexao,
   whatsappDoPerfil,
   type ContaConectada,
@@ -199,24 +201,30 @@ export type InicioDaConexao =
 export async function iniciarConexaoUmClique(
   admin: SupabaseClient,
   ctx: ContextoDaConexao,
-  opcoes: { coexistencia: boolean; marca: string; cor: string | null },
+  opcoes: { coexistencia: boolean; marca: string; cor: string | null; novoNumero?: boolean },
 ): Promise<InicioDaConexao> {
   const chave = await chaveOuRecusa();
   const existente = await findPartnerSession(admin, ctx.organizationId);
   recusarSeHaChavePropria(existente);
-  await conferirVagaDoPlano(admin, ctx, existente);
-  const profileId = await garantirPerfil(chave, {
-    id: ctx.organizationId,
-    nome: ctx.organizationNome,
-    marca: await marcaDaInstalacaoParaOProvedor(),
-    perfilGravado: existente?.profileId ?? null,
-  });
-  const jaNoPerfil = await whatsappDoPerfil(chave, profileId);
-  if (jaNoPerfil) {
-    return {
-      tipo: "concluida",
-      ...(await gravarConexao(admin, ctx, chave, profileId, jaNoPerfil, existente)),
-    };
+  const org = { id: ctx.organizationId, nome: ctx.organizationNome, marca: await marcaDaInstalacaoParaOProvedor() };
+  let profileId: string;
+  if (opcoes.novoNumero) {
+    // Mais um número: perfil próprio, e ele é número novo para o plano.
+    await conferirVagaDoPlano(admin, ctx, null);
+    profileId = await perfilParaNovoNumero(chave, org, await perfisEmUsoDaOrganizacao(admin, ctx.organizationId));
+  } else {
+    await conferirVagaDoPlano(admin, ctx, existente);
+    profileId = await garantirPerfil(chave, { ...org, perfilGravado: existente?.profileId ?? null });
+    const jaNoPerfil = await whatsappDoPerfil(chave, profileId);
+    if (jaNoPerfil) {
+      // A sessão é a DESTA conta: com vários números, "a mais recente" pode ser outra.
+      const doNumero = await findPartnerSession(admin, ctx.organizationId, jaNoPerfil.accountId);
+      await conferirVagaDoPlano(admin, ctx, doNumero);
+      return {
+        tipo: "concluida",
+        ...(await gravarConexao(admin, ctx, chave, profileId, jaNoPerfil, doNumero)),
+      };
+    }
   }
   const estado = emitirEstadoDaVolta(
     { organizationId: ctx.organizationId, userId: ctx.userId, profileId },
@@ -275,7 +283,9 @@ export async function concluirConexaoUmClique(
       "O provedor não confirmou este número no perfil da organização. Conecte de novo.",
     );
   }
-  const existente = await findPartnerSession(admin, ctx.organizationId);
-  recusarSeHaChavePropria(existente);
+  recusarSeHaChavePropria(await findPartnerSession(admin, ctx.organizationId));
+  // Conta já conectada aqui = reconexão; conta nova = mais um número (passa pelo plano).
+  const existente = await findPartnerSession(admin, ctx.organizationId, conta.accountId);
+  await conferirVagaDoPlano(admin, ctx, existente);
   return gravarConexao(admin, ctx, chave, estado.profileId, conta, existente);
 }

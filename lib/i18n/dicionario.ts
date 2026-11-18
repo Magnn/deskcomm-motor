@@ -16224,6 +16224,7 @@ export const DICIONARIO: Traducoes = {
   "Número novo, ou que já está na API oficial": { es: "Número nuevo, o que ya está en la API oficial" },
   "Só pelo CRM, sem o app no celular.": { es: "Solo por el CRM, sin la app en el celular." },
   "Reconectar meu WhatsApp": { es: "Reconectar mi WhatsApp" },
+  "Conectar outro número": { es: "Conectar otro número" },
   "Não foi possível abrir a conexão.": { es: "No fue posible abrir la conexión." },
   "Conectar meu WhatsApp": { es: "Conectar mi WhatsApp" },
   "Já tenho conta no": { es: "Ya tengo cuenta en" },

@@ -242,6 +242,22 @@ export async function findPartnerSession(
   return todas.find((s) => s.accountId === accountId) ?? null;
 }
 
+/** Os perfis do provedor que as conexões ATIVAS desta organização já usam. */
+export async function perfisEmUsoDaOrganizacao(
+  admin: SupabaseClient,
+  organizationId: string,
+): Promise<string[]> {
+  const { data, error } = await admin
+    .from("channel_sessions")
+    .select("zernio_profile_id")
+    .eq("organization_id", organizationId)
+    .eq("provider", PARTNER_CHANNEL_PROVIDER)
+    .is("archived_at", null)
+    .not("zernio_profile_id", "is", null);
+  if (error) throw new Error(`perfis da organização não lidos: ${error.message}`);
+  return ((data ?? []) as { zernio_profile_id: string }[]).map((l) => l.zernio_profile_id);
+}
+
 /**
  * Grava (ou ressuscita) a sessão. Devolve o id dela.
  *
