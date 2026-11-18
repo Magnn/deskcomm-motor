@@ -123,7 +123,7 @@ it("iniciar devolve a página e passa a organização da SESSÃO, nunca do corpo
     userId: "admin-1",
     idioma: "es",
   });
-  expect(opcoes).toEqual({ coexistencia: false, marca: "Marca", cor: "#206ce8" });
+  expect(opcoes).toEqual({ coexistencia: false, novoNumero: false, marca: "Marca", cor: "#206ce8" });
   expect(h.audit).not.toHaveBeenCalled();
 });
 
