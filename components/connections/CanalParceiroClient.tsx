@@ -170,17 +170,25 @@ export function CanalParceiroClient() {
     })();
   }, [params, router, t]);
 
-  const abrirConexao = async () => {
+  const abrirConexao = async (novoNumero = false) => {
     setAbrindo(true);
     try {
-      const r = await apiClient.post<{ data: { url: string } }>(
+      const r = await apiClient.post<{ data: { url?: string } }>(
         "/api/v1/channels/partner/um-clique",
         {
           acao: "iniciar",
           coexistencia,
+          ...(novoNumero ? { novo_numero: true } : {}),
         },
       );
-      window.location.assign(r.data.url);
+      if (r.data.url) {
+        window.location.assign(r.data.url);
+        return;
+      }
+      // O provedor já tinha o número no perfil: a conexão se concluiu sem ir à Meta.
+      toast.success(t("WhatsApp conectado. As mensagens já entram por aqui."));
+      await carregar();
+      setAbrindo(false);
     } catch (e) {
       toast.error(e instanceof Error ? t(e.message) : t("Não foi possível abrir a conexão."));
       setAbrindo(false);
@@ -300,14 +308,19 @@ export function CanalParceiroClient() {
                 </span>
               </label>
             </fieldset>
-            <div>
-              <Button onClick={abrirConexao} disabled={abrindo || concluindo}>
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={() => abrirConexao()} disabled={abrindo || concluindo}>
                 {abrindo
                   ? t("Abrindo…")
                   : conectado
                     ? t("Reconectar meu WhatsApp")
                     : t("Conectar meu WhatsApp")}
               </Button>
+              {conectado && (
+                <Button variant="outline" onClick={() => abrirConexao(true)} disabled={abrindo || concluindo}>
+                  {t("Conectar outro número")}
+                </Button>
+              )}
             </div>
             {!conectado && !usarChavePropria && (
               <button

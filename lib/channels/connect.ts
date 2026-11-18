@@ -193,23 +193,47 @@ function toPartnerSession(row: Record<string, unknown> | null): PartnerSession |
   };
 }
 
+/**
+ * A sessão do canal na organização. Com `accountId`, a DAQUELA conta; sem, a
+ * mais recente — a organização pode ter vários números (um perfil do provedor
+ * por número), e `maybeSingle` com duas linhas devolveria nada.
+ */
 export async function findPartnerSession(
   admin: SupabaseClient,
   organizationId: string,
+  accountId?: string,
 ): Promise<PartnerSession | null> {
-  const buscar = (colunas: string) =>
-    admin
+  const buscar = (colunas: string) => {
+    let q = admin
       .from("channel_sessions")
       .select(colunas)
       .eq("organization_id", organizationId)
-      .eq("provider", PARTNER_CHANNEL_PROVIDER)
-      .maybeSingle();
+      .eq("provider", PARTNER_CHANNEL_PROVIDER);
+    if (accountId) q = q.eq("zernio_account_id", accountId);
+    return q.order("created_at", { ascending: false }).limit(1).maybeSingle();
+  };
 
   const { data } = await queryTolerantToMissingArchived(
     () => buscar(`${COLUNAS}, ${ARCHIVED_AT}`),
     () => buscar(COLUNAS),
   );
   return toPartnerSession(data as Record<string, unknown> | null);
+}
+
+/** Os perfis do provedor que as conexões ATIVAS desta organização já usam. */
+export async function perfisEmUsoDaOrganizacao(
+  admin: SupabaseClient,
+  organizationId: string,
+): Promise<string[]> {
+  const { data, error } = await admin
+    .from("channel_sessions")
+    .select("zernio_profile_id")
+    .eq("organization_id", organizationId)
+    .eq("provider", PARTNER_CHANNEL_PROVIDER)
+    .is("archived_at", null)
+    .not("zernio_profile_id", "is", null);
+  if (error) throw new Error(`perfis da organização não lidos: ${error.message}`);
+  return ((data ?? []) as { zernio_profile_id: string }[]).map((l) => l.zernio_profile_id);
 }
 
 /**

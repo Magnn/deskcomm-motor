@@ -44,7 +44,7 @@ export const runtime = "nodejs";
 const headers = { "Cache-Control": "no-store" };
 
 const corpoSchema = z.discriminatedUnion("acao", [
-  z.object({ acao: z.literal("iniciar"), coexistencia: z.boolean() }).strict(),
+  z.object({ acao: z.literal("iniciar"), coexistencia: z.boolean(), novo_numero: z.boolean().optional() }).strict(),
   z
     .object({
       acao: z.literal("concluir"),
@@ -120,6 +120,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       const marca = await marcaDaSaida(orgId);
       const inicio = await iniciarConexaoUmClique(admin, ctx, {
         coexistencia: corpo.coexistencia,
+        novoNumero: corpo.novo_numero === true,
         marca: marca.nome,
         cor: marca.accent,
       });

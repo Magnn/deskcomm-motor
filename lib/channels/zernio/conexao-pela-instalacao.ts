@@ -124,6 +124,30 @@ export async function garantirPerfil(
   }
 }
 
+/**
+ * Um perfil SEM WhatsApp para mais um número da organização (o provedor aceita
+ * um WhatsApp por perfil). Reaproveita o da organização que ainda está vazio e
+ * fora de uso — uma tentativa anterior que não terminou não deixa perfil órfão
+ * a cada clique —, senão cria `… · <org> · N`. Esse nome não termina no id da
+ * organização, então `garantirPerfil` continua achando só o primeiro.
+ */
+export async function perfilParaNovoNumero(
+  chave: string,
+  org: { id: string; nome: string; marca?: string | null },
+  emUso: string[],
+): Promise<string> {
+  const perfis = perfisSchema.parse(await pedirAoProvedor(chave, "profiles")).profiles;
+  const daOrganizacao = perfis.filter((p) => p.name.includes(` · ${org.id}`));
+  for (const p of daOrganizacao) {
+    if (emUso.includes(p._id)) continue;
+    if ((await whatsappsDoPerfil(chave, p._id)).length === 0) return p._id;
+  }
+  const criado = z
+    .object({ profile: z.object({ _id: z.string() }) })
+    .parse(await pedirAoProvedor(chave, "profiles", { name: `${nomeDoPerfil(org)} · ${daOrganizacao.length + 1}` }));
+  return criado.profile._id;
+}
+
 export interface PaginaDeConexao {
   profileId: string;
   /** Para onde o provedor devolve o navegador, com `connected`/`error` acrescentados. */
