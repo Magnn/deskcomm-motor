@@ -8,7 +8,7 @@ import { createClient } from "@supabase/supabase-js";
 
 import { carregarEnvLocal } from "../../scripts/lib/env-de-teste";
 import { loginComoAdmin, type CredsE2E } from "./helpers/login-admin";
-import { expect, test } from "./helpers/test";
+import { expect, test } from "@playwright/test";
 
 /**
  * O número oficial conectado com UM CLIQUE, pela conta do provedor da instalação.
