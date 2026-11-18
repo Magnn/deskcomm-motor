@@ -194,30 +194,52 @@ function toPartnerSession(row: Record<string, unknown> | null): PartnerSession |
 }
 
 /**
- * A sessão do canal na organização. Com `accountId`, a DAQUELA conta; sem, a
- * mais recente — a organização pode ter vários números (um perfil do provedor
- * por número), e `maybeSingle` com duas linhas devolveria nada.
+ * Todas as conexões de parceiro da organização — uma por número. Ativas primeiro,
+ * na ordem em que foram conectadas.
+ *
+ * Até 18/11/2026 a busca era `maybeSingle()` por organização: o segundo número
+ * SUBSTITUÍA o primeiro na mesma linha, e com duas linhas (ex.: um excluído e um
+ * ativo) o `maybeSingle` devolvia `null` e a tela dizia "Não conectado". O banco
+ * nunca exigiu um por organização — o índice único é por `zernio_account_id`
+ * entre os ativos (migration 0165).
+ */
+export async function listPartnerSessions(
+  admin: SupabaseClient,
+  organizationId: string,
+): Promise<PartnerSession[]> {
+  const buscar = (colunas: string) =>
+    admin
+      .from("channel_sessions")
+      .select(`${colunas}, created_at`)
+      .eq("organization_id", organizationId)
+      .eq("provider", PARTNER_CHANNEL_PROVIDER)
+      .order("created_at", { ascending: true });
+
+  const { data } = await queryTolerantToMissingArchived(
+    () => buscar(`${COLUNAS}, ${ARCHIVED_AT}`),
+    () => buscar(COLUNAS),
+  );
+  const sessoes = ((data ?? []) as unknown as Record<string, unknown>[])
+    .map(toPartnerSession)
+    .filter((s): s is PartnerSession => s !== null);
+  return [...sessoes.filter((s) => !s.archivedAt), ...sessoes.filter((s) => s.archivedAt)];
+}
+
+/**
+ * Uma conexão. Com `accountId`, a daquele número (ativa de preferência, senão a
+ * excluída mais antiga, para reconectar a ressuscite com o mesmo webhook). Sem
+ * ele, a primeira ativa — é o que usam as telas que ainda falam de "a" conexão,
+ * como a de modelos (shortcut: modelos seguem a primeira conexão; escolher o
+ * número ali só quando os números estiverem em contas do WhatsApp diferentes).
  */
 export async function findPartnerSession(
   admin: SupabaseClient,
   organizationId: string,
   accountId?: string,
 ): Promise<PartnerSession | null> {
-  const buscar = (colunas: string) => {
-    let q = admin
-      .from("channel_sessions")
-      .select(colunas)
-      .eq("organization_id", organizationId)
-      .eq("provider", PARTNER_CHANNEL_PROVIDER);
-    if (accountId) q = q.eq("zernio_account_id", accountId);
-    return q.order("created_at", { ascending: false }).limit(1).maybeSingle();
-  };
-
-  const { data } = await queryTolerantToMissingArchived(
-    () => buscar(`${COLUNAS}, ${ARCHIVED_AT}`),
-    () => buscar(COLUNAS),
-  );
-  return toPartnerSession(data as Record<string, unknown> | null);
+  const todas = await listPartnerSessions(admin, organizationId);
+  if (accountId === undefined) return todas[0] ?? null;
+  return todas.find((s) => s.accountId === accountId) ?? null;
 }
 
 /** Os perfis do provedor que as conexões ATIVAS desta organização já usam. */

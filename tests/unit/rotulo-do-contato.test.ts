@@ -210,7 +210,7 @@ describe("a sétima cópia não nasce", () => {
     },
     {
       arquivo: "components/connections/CanalParceiroClient.tsx",
-      trecho: 'estado?.display_name ?? t("Número conectado")',
+      trecho: 'n.display_name ?? t("Número conectado")',
       motivo: "nome do CANAL conectado",
     },
     {

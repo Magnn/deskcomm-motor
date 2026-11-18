@@ -33,6 +33,7 @@ import { umCliqueDisponivel } from "@/lib/channels/conexao-um-clique";
 import {
   PARTNER_CHANNEL_LABEL,
   findPartnerSession,
+  listPartnerSessions,
   partnerEndpoint,
   registrarWebhookDoNumero,
   savePartnerSession,
@@ -73,8 +74,10 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   if (!authz.ok) return authz.response;
   const orgId = authz.org.orgId;
 
-  const sessao = await findPartnerSession(createAdminClient(), orgId);
-  const conectado = !!sessao && !sessao.archivedAt;
+  // Um número por linha; os campos soltos abaixo são o PRIMEIRO, para quem lê o formato antigo.
+  const ativas = (await listPartnerSessions(createAdminClient(), orgId)).filter((s) => !s.archivedAt);
+  const sessao = ativas[0] ?? null;
+  const conectado = !!sessao;
   const umClique = await umCliqueDisponivel();
 
   return ok(
@@ -96,6 +99,17 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       um_clique: umClique,
       pela_instalacao: conectado ? sessao.pelaInstalacao : false,
       webhook_automatico: conectado ? sessao.webhookId !== null : false,
+      numeros: ativas.map((s) => ({
+        channel_session_id: s.id,
+        account_id: s.accountId,
+        phone_number: s.phoneNumber,
+        display_name: s.displayName,
+        status: s.status,
+        has_api_key: s.hasApiKey,
+        webhook_url: s.webhookPathToken ? urlDoWebhook(req, s.webhookPathToken) : null,
+        pela_instalacao: s.pelaInstalacao,
+        webhook_automatico: s.webhookId !== null,
+      })),
     },
     { requestId },
   );
@@ -126,7 +140,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   if (!v.ok) return fail("invalid_request", v.reason, 422, { requestId });
 
   const admin = createAdminClient();
-  const existente = await findPartnerSession(admin, orgId);
+  // Por NÚMERO: conta já conhecida reconecta a mesma linha; conta nova vira um canal a mais.
+  const existente = await findPartnerSession(admin, orgId, parsed.data.account_id.trim());
   // A conexão por um clique fala pela conta da INSTALAÇÃO, e o número está na
   // fatura dela: gravar uma chave própria por cima deixaria esse número e o
   // webhook dele órfãos lá. Excluir a conexão primeiro desfaz os dois.
@@ -182,7 +197,19 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     phoneNumber: v.phoneNumber ? `+${v.phoneNumber.replace(/\D/g, "")}` : null,
     displayName: v.displayName ?? PARTNER_CHANNEL_LABEL,
   });
-  if (error) return fail("internal_error", error, 500, { requestId });
+  if (error) {
+    // Mesmo telefone ativo por outro canal da org (ex.: o QR): o índice
+    // channel_sessions_phone_per_org_unique recusa, e o texto cru do Postgres não ajuda ninguém.
+    if (error.includes("channel_sessions_phone_per_org_unique")) {
+      return fail(
+        "conflict",
+        t("Este número já está conectado nesta organização por outro canal (por exemplo, QR code). Desconecte-o lá antes de conectar por aqui."),
+        409,
+        { requestId },
+      );
+    }
+    return fail("internal_error", error, 500, { requestId });
+  }
 
   const webhookId = id
     ? await registrarWebhookDoNumero(admin, {
