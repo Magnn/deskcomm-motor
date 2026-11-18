@@ -323,6 +323,18 @@ describe("um clique, pela conta do provedor da instalação", () => {
   });
 });
 
+describe("outra conta no provedor ao lado do um clique", () => {
+  it("com número conectado pela instalação, ainda dá para usar a chave de outra conta", async () => {
+    getMock.mockResolvedValue({
+      data: { ...conectado.data, has_api_key: false, um_clique: true, pela_instalacao: true, webhook_automatico: true },
+    });
+    render(<CanalParceiroClient />);
+    fireEvent.click(await screen.findByRole("button", { name: /usar a minha chave/ }));
+    expect(screen.getByLabelText(/Chave de API/)).toBeInTheDocument();
+    expect(screen.getByLabelText("Conta")).toBeInTheDocument();
+  });
+});
+
 describe("chave própria com webhook registrado pela rota", () => {
   it("não pede para colar nada quando o provedor aceitou o webhook", async () => {
     getMock.mockResolvedValue(desconectado);
