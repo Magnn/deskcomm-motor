@@ -87,7 +87,7 @@ test("outro número: perfil próprio, passa pelo plano e vai à Meta mesmo com o
   expect(h.recusaParaNovoNumero).toHaveBeenCalledWith({}, "org-1");
   expect(h.perfilParaNovoNumero).toHaveBeenCalledWith("chave", expect.objectContaining({ id: "org-1" }), ["perfil-1"]);
   expect(h.whatsappDoPerfil).not.toHaveBeenCalled();
-  expect(h.urlDaPaginaDeConexao.mock.calls[0][1].profileId).toBe("perfil-2");
+  expect(h.urlDaPaginaDeConexao.mock.calls[0]![1].profileId).toBe("perfil-2");
 });
 
 test("outro número sem vaga no plano é recusado antes de criar perfil", async () => {
@@ -107,7 +107,7 @@ test("a volta de uma conta nova cria sessão nova (não sobrescreve o 1º númer
 
   await concluirConexaoUmClique({} as never, ctx, { estado, accountId: "conta5000", profileId: "perfil-2" });
 
-  const gravado = h.savePartnerSession.mock.calls[0][1];
+  const gravado = h.savePartnerSession.mock.calls[0]![1];
   expect(gravado.existingId).toBeNull();
   expect(gravado.credencial).toEqual({ tipo: "instalacao", profileId: "perfil-2" });
   expect(h.recusaParaNovoNumero).toHaveBeenCalled();
@@ -121,7 +121,7 @@ test("a volta de uma conta já conectada atualiza a sessão dela, sem gastar vag
   await concluirConexaoUmClique({} as never, ctx, { estado, accountId: "conta7336", profileId: "perfil-1" });
 
   expect(h.findPartnerSession).toHaveBeenCalledWith({}, "org-1", "conta7336");
-  expect(h.savePartnerSession.mock.calls[0][1].existingId).toBe("sess-7336");
+  expect(h.savePartnerSession.mock.calls[0]![1].existingId).toBe("sess-7336");
   expect(h.recusaParaNovoNumero).not.toHaveBeenCalled();
 });
 
@@ -133,5 +133,5 @@ test("reconectar com o número já no perfil conclui na hora, na sessão daquela
   const r = await iniciarConexaoUmClique({} as never, ctx, opcoes);
 
   expect(r.tipo).toBe("concluida");
-  expect(h.savePartnerSession.mock.calls[0][1].existingId).toBe("sess-7336");
+  expect(h.savePartnerSession.mock.calls[0]![1].existingId).toBe("sess-7336");
 });
