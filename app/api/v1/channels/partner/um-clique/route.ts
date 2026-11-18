@@ -27,7 +27,6 @@ import {
   iniciarConexaoUmClique,
   type ContextoDaConexao,
 } from "@/lib/channels/conexao-um-clique";
-import { traduzirLimiteDoPlano } from "@/lib/cobranca/limites";
 import { env } from "@/lib/env";
 import { traduzir } from "@/lib/i18n/dicionario";
 import { requireSupportWrite } from "@/lib/impersonate/support";
@@ -135,14 +134,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         requestId,
         headers,
         details: erro.details,
-      });
-    }
-    const limiteDoPlano = traduzirLimiteDoPlano(erro, authz.user.idioma);
-    if (limiteDoPlano) {
-      return fail(limiteDoPlano.code, limiteDoPlano.message, 409, {
-        requestId,
-        headers,
-        details: limiteDoPlano.details,
       });
     }
     logger.warn("[channels.partner.um-clique] conexão não concluída", {

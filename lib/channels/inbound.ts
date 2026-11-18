@@ -347,3 +347,25 @@ async function telegramInbound(
   const body = await ingerirAtualizacao(admin, input.session, input.rawBody);
   return { ok: true, body };
 }
+
+/** A conta que o provedor diz ter originado o evento — os mesmos três lugares que o parser lê. */
+export function contaDoEventoZernio(rawBody: string): string | null {
+  return cabecalhoDoEventoZernio(rawBody).conta;
+}
+
+function cabecalhoDoEventoZernio(rawBody: string): { evento: string | null; conta: string | null } {
+  let p: unknown;
+  try {
+    p = JSON.parse(rawBody);
+  } catch {
+    return { evento: null, conta: null };
+  }
+  if (!p || typeof p !== "object") return { evento: null, conta: null };
+  const o = p as Record<string, unknown>;
+  const conta = o.account && typeof o.account === "object" ? (o.account as Record<string, unknown>) : null;
+  const valor = conta?.id ?? conta?.accountId ?? o.accountId;
+  return {
+    evento: typeof o.event === "string" ? o.event : null,
+    conta: typeof valor === "string" && valor.length > 0 ? valor : null,
+  };
+}

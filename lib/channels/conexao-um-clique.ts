@@ -27,11 +27,11 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { randomBytes } from "node:crypto";
 
 import { marcaDaSaida } from "@/lib/branding/saida";
-import { lerLimiteDoPlano, mensagemDoLimite } from "@/lib/cobranca/limites";
+import { CODIGO_DE_PLANO_NECESSARIO } from "@/lib/planos/trava-de-numero";
+import { mensagemDaRecusa, recusaParaNovoNumero } from "@/lib/planos/assinatura-da-organizacao";
 import type { Idioma } from "@/lib/i18n/idiomas";
 import { encryptWebhookSecret } from "@/lib/webhooks/secrets";
 
-import { CHANNEL_PROVIDER_WACALLS } from "./capabilities";
 import {
   PARTNER_CHANNEL_LABEL,
   findPartnerSession,
@@ -111,9 +111,9 @@ async function chaveOuRecusa(): Promise<string> {
 }
 
 /**
- * Cabe mais um número no plano? A mesma conta do gatilho
- * `fn_trava_canais_do_plano`: sessões não arquivadas, menos as de chamada. A
- * sessão desta conexão que já está ativa não conta como número novo.
+ * Cabe mais um número no plano? A mesma trava de toda porta que cria número
+ * (`lib/planos/trava-de-numero.ts`). A sessão desta conexão que já está ativa
+ * não conta como número novo.
  */
 async function conferirVagaDoPlano(
   admin: SupabaseClient,
@@ -121,26 +121,9 @@ async function conferirVagaDoPlano(
   existente: PartnerSession | null,
 ): Promise<void> {
   if (existente && !existente.archivedAt) return;
-  const limite = await lerLimiteDoPlano(admin, ctx.organizationId, "canais");
-  if (limite === null) return;
-  const { count, error } = await admin
-    .from("channel_sessions")
-    .select("id", { count: "exact", head: true })
-    .eq("organization_id", ctx.organizationId)
-    .is("archived_at", null)
-    .neq("provider", CHANNEL_PROVIDER_WACALLS);
-  if (error) throw new Error(`vaga do plano não conferida: ${error.message}`);
-  if ((count ?? 0) >= limite) {
-    throw new ErroDaConexaoUmClique(
-      mensagemDoLimite("canais", limite, ctx.idioma),
-      409,
-      "plan_limit_reached",
-      {
-        recurso: "canais",
-        limite,
-      },
-    );
-  }
+  const recusa = await recusaParaNovoNumero(admin, ctx.organizationId);
+  if (recusa === null) return;
+  throw new ErroDaConexaoUmClique(mensagemDaRecusa(recusa), 402, CODIGO_DE_PLANO_NECESSARIO, { ...recusa });
 }
 
 /** A conexão por chave própria ativa não é sobrescrita por baixo: excluir é decisão da pessoa. */
