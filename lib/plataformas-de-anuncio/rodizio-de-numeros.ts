@@ -29,7 +29,7 @@ import { fusoDaJanela, parseWarmupCaps } from "@/lib/agent-engine/pacing/store";
 import { STATUS_SAUDAVEL } from "@/lib/channels/health";
 import { logger } from "@/lib/logger";
 import { numerosDoAgente, numerosExtrasPorAgente } from "@/lib/ai/agents/numeros-do-agente";
-import { CHANNEL_PROVIDER_META } from "@/lib/channels/capabilities";
+import { CHANNEL_PROVIDER_META, CHANNEL_PROVIDER_ZERNIO } from "@/lib/channels/capabilities";
 
 import { fatorDaNota, saudeDosNumeros } from "./saude-do-numero";
 
@@ -50,7 +50,7 @@ export interface NumeroNoRodizio {
   aCaminho: number;
   /** Orçamento de leads novos de hoje. `null` = sem orçamento (nunca enche). */
   orcamentoHoje: number | null;
-  /** Número oficial (Cloud API): recebe primeiro; os de QR são reserva. */
+  /** Número oficial (Cloud API direto ou pelo parceiro): recebe primeiro; os de QR são reserva. */
   oficial?: boolean;
   /** Nota de saúde 0–100 (`saude-do-numero.ts`). Ausente = saudável. */
   nota?: number | null;
@@ -106,12 +106,21 @@ interface VersaoPublicada {
 export interface SessaoDoRodizio {
   sessionId: string;
   telefone: string;
-  /** Cloud API (número oficial). */
+  /** Cloud API, direto ou pelo provedor parceiro (número oficial). */
   oficial?: boolean;
 }
 
 function soDigitos(telefone: string): string {
   return telefone.replace(/\D/g, "");
+}
+
+/**
+ * Cloud API da Meta, direto ou pelo provedor parceiro: os dois dividem o rodízio por igual.
+ * O parceiro (Zernio) é a mesma API oficial, sem o risco de queda do QR; tratá-lo como
+ * reserva deixava o número direto com todos os leads até encher.
+ */
+export function ehNumeroOficial(provider: string | null): boolean {
+  return provider === CHANNEL_PROVIDER_META || provider === CHANNEL_PROVIDER_ZERNIO;
 }
 
 /** Conexões vivas com agente publicado. Falha devolve `[]`: quem chama cai no número configurado. */
@@ -163,7 +172,7 @@ export async function sessoesDoRodizio(admin: SupabaseClient, organizationId: st
     // Dois registros do mesmo telefone contam como um número: o WhatsApp vê um só.
     if (telefone.length < 10 || vistos.has(telefone)) continue;
     vistos.add(telefone);
-    saida.push({ sessionId: s.id, telefone, oficial: s.provider === CHANNEL_PROVIDER_META });
+    saida.push({ sessionId: s.id, telefone, oficial: ehNumeroOficial(s.provider) });
   }
   return saida;
 }
