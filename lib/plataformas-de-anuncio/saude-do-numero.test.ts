@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import { contarEpisodios, fatorDaNota, notaDeSaude, type SinaisDeSaude } from "./saude-do-numero";
+import {
+  bloqueioDoNumero,
+  codigoDaMeta,
+  contarEpisodios,
+  fatorDaNota,
+  notaDeSaude,
+  type EnvioRecente,
+  type SinaisDeSaude,
+} from "./saude-do-numero";
 
 const limpo: SinaisDeSaude = { quedas72h: 0, enviadas24h: 0, falhas24h: 0, picoPorHora24h: 0, leads72h: 0, leadsSumidos72h: 0 };
 const MIN = 60_000;
@@ -49,5 +57,35 @@ describe("notaDeSaude", () => {
   });
   it("nunca sai de 0–100", () => {
     expect(notaDeSaude({ quedas72h: 9, enviadas24h: 100, falhas24h: 100, picoPorHora24h: 999, leads72h: 100, leadsSumidos72h: 100 })).toBe(0);
+  });
+});
+
+describe("bloqueioDoNumero", () => {
+  const e = (min: number, status: string, error_code: string | null = null, error_message: string | null = null): EnvioRecente => ({
+    status,
+    error_code,
+    error_message,
+    created_at: new Date(Date.UTC(2026, 10, 19, 12, min)).toISOString(),
+  });
+  const travada = "131031 — Business Account locked — Meta has restricted or disabled the WhatsApp Business Account";
+
+  it("lê o código no error_code (Cloud API) ou no começo da mensagem (parceiro)", () => {
+    expect(codigoDaMeta("130497", null)).toBe("130497");
+    expect(codigoDaMeta("zernio_error", travada)).toBe("131031");
+    expect(codigoDaMeta("waha_error", "waha_500")).toBeNull();
+    expect(codigoDaMeta(null, null)).toBeNull();
+  });
+
+  it("recusa de bloqueio mais nova que o último envio que saiu = bloqueado", () => {
+    expect(bloqueioDoNumero([e(0, "sent"), e(5, "failed", "zernio_error", travada)])).toBe("131031");
+  });
+
+  it("envio que saiu depois da recusa devolve o número ao rodízio", () => {
+    expect(bloqueioDoNumero([e(0, "failed", "130497"), e(5, "delivered")])).toBeNull();
+  });
+
+  it("falha comum ou recusa por destinatário não bloqueia", () => {
+    expect(bloqueioDoNumero([e(0, "failed", "131026"), e(1, "failed", "queue_expired", "Ficou mais de 24 horas")])).toBeNull();
+    expect(bloqueioDoNumero([])).toBeNull();
   });
 });

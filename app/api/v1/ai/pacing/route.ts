@@ -93,7 +93,14 @@ function saudeView(s: SaudeDoNumero | undefined) {
   const fator = fatorDaNota(s.nota);
   return {
     score: s.nota,
-    rotation: fator === 0 ? ("descansa" as const) : fator < 1 ? ("metade" as const) : ("inteiro" as const),
+    rotation: s.bloqueio
+      ? ("bloqueado" as const)
+      : fator === 0
+        ? ("descansa" as const)
+        : fator < 1
+          ? ("metade" as const)
+          : ("inteiro" as const),
+    block_code: s.bloqueio,
     drops_72h: s.quedas72h,
     failed_24h: s.falhas24h,
     sent_24h: s.enviadas24h,

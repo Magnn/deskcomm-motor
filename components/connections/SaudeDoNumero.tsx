@@ -11,12 +11,15 @@ const COR_DA_NOTA: Record<PacingHealthView["rotation"], string> = {
   inteiro: "text-emerald-600 dark:text-emerald-400",
   metade: "text-amber-600 dark:text-amber-400",
   descansa: "text-red-600 dark:text-red-400",
+  bloqueado: "text-red-600 dark:text-red-400",
 };
 
 function useEfeitoNoRodizio() {
   const t = useT();
   return (rotation: PacingHealthView["rotation"]) =>
-    rotation === "descansa"
+    rotation === "bloqueado"
+      ? t("bloqueado pela Meta, fora do rodízio")
+      : rotation === "descansa"
       ? t("descansando no rodízio")
       : rotation === "metade"
         ? t("recebe metade dos leads")

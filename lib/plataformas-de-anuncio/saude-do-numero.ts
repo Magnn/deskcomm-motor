@@ -44,6 +44,49 @@ export interface SinaisDeSaude {
 
 export interface SaudeDoNumero extends SinaisDeSaude {
   nota: number;
+  /** Código da Meta que bloqueia o número (ex. "131031"), ou `null`. Bloqueado sai do rodízio. */
+  bloqueio: string | null;
+}
+
+/**
+ * Recusas da Meta que valem para TODO destinatário: o número não entrega a ninguém, então
+ * mandar lead para ele é clique pago perdido (4871 em 19/11/2026: 42 cliques, 4 conversas).
+ * 131031 conta bloqueada; 130497 país restrito; 368 bloqueio por política; 131042 pagamento.
+ * Recusa por destinatário (131026, 131047…) não entra: o número segue bom para os outros.
+ */
+export const CODIGOS_DE_BLOQUEIO = new Set(["131031", "130497", "368", "131042"]);
+
+/** Código da Meta de uma falha: a Cloud API grava em `error_code`; o parceiro, no começo da mensagem. */
+export function codigoDaMeta(errorCode: string | null, errorMessage: string | null): string | null {
+  if (errorCode && /^\d+$/.test(errorCode)) return errorCode;
+  return errorMessage?.match(/^\s*(\d{3,6})\b/)?.[1] ?? null;
+}
+
+export interface EnvioRecente {
+  status: string | null;
+  error_code: string | null;
+  error_message: string | null;
+  created_at: string;
+}
+
+/**
+ * O número está bloqueado quando a última recusa de bloqueio é MAIS NOVA que o último envio que
+ * saiu. Volta sozinho: um envio que passa depois da recusa (ou 24 h sem nova recusa) o devolve
+ * ao rodízio — e, se ainda estiver bloqueado, a próxima recusa o tira de novo.
+ */
+export function bloqueioDoNumero(envios: readonly EnvioRecente[]): string | null {
+  let ultimoBloqueio: { em: number; codigo: string } | null = null;
+  let ultimoQueSaiu = -Infinity;
+  for (const e of envios) {
+    const em = Date.parse(e.created_at);
+    if (e.status === "failed") {
+      const codigo = codigoDaMeta(e.error_code, e.error_message);
+      if (codigo && CODIGOS_DE_BLOQUEIO.has(codigo) && em > (ultimoBloqueio?.em ?? -Infinity)) ultimoBloqueio = { em, codigo };
+    } else if (e.status === "sent" || e.status === "delivered" || e.status === "read") {
+      ultimoQueSaiu = Math.max(ultimoQueSaiu, em);
+    }
+  }
+  return ultimoBloqueio && ultimoBloqueio.em > ultimoQueSaiu ? ultimoBloqueio.codigo : null;
 }
 
 /** Quantos episódios de queda há numa lista de horários de aviso (qualquer ordem). */
@@ -83,8 +126,7 @@ export function fatorDaNota(nota: number | null | undefined): number {
   return 1;
 }
 
-const SAUDAVEL: SaudeDoNumero = {
-  nota: 100,
+const SAUDAVEL: SinaisDeSaude = {
   quedas72h: 0,
   enviadas24h: 0,
   falhas24h: 0,
@@ -123,7 +165,7 @@ export async function saudeDosNumeros(
       .limit(2000),
     admin
       .from("messages")
-      .select("channel_session_id, status")
+      .select("channel_session_id, status, error_code, error_message, created_at")
       .eq("organization_id", organizationId)
       .in("channel_session_id", ids)
       .eq("direction", "outbound")
@@ -165,11 +207,13 @@ export async function saudeDosNumeros(
     const s = sinais.get(id);
     if (s) s.quedas72h = contarEpisodios(horarios);
   }
-  for (const m of (saidas.data ?? []) as { channel_session_id: string; status: string | null }[]) {
+  const enviosPorSessao = new Map<string, EnvioRecente[]>();
+  for (const m of (saidas.data ?? []) as (EnvioRecente & { channel_session_id: string })[]) {
     const s = sinais.get(m.channel_session_id);
     if (!s) continue;
     s.enviadas24h += 1;
     if (m.status === "failed") s.falhas24h += 1;
+    enviosPorSessao.set(m.channel_session_id, [...(enviosPorSessao.get(m.channel_session_id) ?? []), m]);
   }
   const porHora = new Map<string, Map<number, number>>();
   for (const l of (ledger.data ?? []) as { channel_session_id: string; sent_at: string }[]) {
@@ -191,6 +235,8 @@ export async function saudeDosNumeros(
     if (Date.parse(c.last_inbound_at) - Date.parse(c.created_at) < 2 * 60_000) s.leadsSumidos72h += 1;
   }
 
-  for (const [id, s] of sinais) saida.set(id, { ...s, nota: notaDeSaude(s) });
+  for (const [id, s] of sinais) {
+    saida.set(id, { ...s, nota: notaDeSaude(s), bloqueio: bloqueioDoNumero(enviosPorSessao.get(id) ?? []) });
+  }
   return saida;
 }
