@@ -73,13 +73,12 @@ export function LeiturasDoQuiz({
   slug,
   leituras,
   aberta,
-  dataCurta,
   tx,
 }: {
   slug: string;
-  leituras: LeituraDoQuizNaArea[];
+  /** `quandoCurto` já formatado no servidor: função não atravessa para componente de cliente. */
+  leituras: (LeituraDoQuizNaArea & { quandoCurto: string })[];
   aberta: string | null;
-  dataCurta: (iso: string) => string;
   tx: TextosDasLeiturasDoQuiz;
 }) {
   const ref = React.useRef<HTMLElement>(null);
@@ -98,7 +97,7 @@ export function LeiturasDoQuiz({
             <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
               <span className="min-w-0">
                 <span className={`${SERIF} block text-[20px] leading-tight text-[#f6e3a8]`}>{l.titulo}</span>
-                <span className={DETALHE}>{dataCurta(l.quando)}</span>
+                <span className={DETALHE}>{l.quandoCurto}</span>
               </span>
               <span className="shrink-0 text-[#e2c47a] transition group-open:rotate-45" aria-hidden>
                 ＋
