@@ -140,6 +140,21 @@ describe("escolherPorCapacidade — oficial primeiro e nota de saúde", () => {
       transbordo: true,
     });
   });
+
+  it("bloqueado pela Meta sai da escolha, mesmo vazio e oficial (4871 em 19/11)", () => {
+    expect(escolherPorCapacidade([n("bloqueado", 0, 24, { oficial: true, bloqueado: true }), n("bom", 11, 24)])?.telefone).toBe("bom");
+  });
+
+  it("todos cheios: o transbordo também pula o bloqueado", () => {
+    expect(escolherPorCapacidade([n("bloqueado", 0, 24, { bloqueado: true }), n("cheio", 30, 24)])).toEqual({
+      telefone: "cheio",
+      transbordo: true,
+    });
+  });
+
+  it("só bloqueados: null (a rota usa o número configurado)", () => {
+    expect(escolherPorCapacidade([n("a", 0, 24, { bloqueado: true })])).toBeNull();
+  });
 });
 
 describe("ehNumeroOficial — quem divide o rodízio como oficial", () => {
