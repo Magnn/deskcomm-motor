@@ -101,6 +101,38 @@ export function contarEpisodios(horarios: readonly number[]): number {
   return episodios;
 }
 
+/**
+ * Os últimos envios que terminaram (saiu ou falhou) de CADA número, do mais novo para trás.
+ * Consulta por número e ordenada: o PostgREST corta toda resposta em 1.000 linhas
+ * (`PGRST_DB_MAX_ROWS`), e uma leitura única sem ordem das 24 h (2.157 envios em 19/11/2026)
+ * perdia justamente as recusas mais novas — o 7336 recusado com 131042 seguiu no rodízio.
+ */
+async function enviosRecentes(
+  admin: SupabaseClient,
+  organizationId: string,
+  ids: readonly string[],
+  desde: string,
+): Promise<Map<string, EnvioRecente[]>> {
+  const saida = new Map<string, EnvioRecente[]>();
+  await Promise.all(
+    ids.map(async (id) => {
+      const { data, error } = await admin
+        .from("messages")
+        .select("status, error_code, error_message, created_at")
+        .eq("organization_id", organizationId)
+        .eq("channel_session_id", id)
+        .eq("direction", "outbound")
+        .in("status", ["failed", "sent", "delivered", "read"])
+        .gte("created_at", desde)
+        .order("created_at", { ascending: false })
+        .limit(50);
+      if (error) logger.warn("[plataformas-de-anuncio.saude] envios recentes não lidos", { detalhe: error.message });
+      saida.set(id, (data ?? []) as EnvioRecente[]);
+    }),
+  );
+  return saida;
+}
+
 /** A nota PURA. Amostra pequena não pune: taxa só conta com volume mínimo. */
 export function notaDeSaude(s: SinaisDeSaude): number {
   let nota = 100;
@@ -165,7 +197,7 @@ export async function saudeDosNumeros(
       .limit(2000),
     admin
       .from("messages")
-      .select("channel_session_id, status, error_code, error_message, created_at")
+      .select("channel_session_id, status")
       .eq("organization_id", organizationId)
       .in("channel_session_id", ids)
       .eq("direction", "outbound")
@@ -207,14 +239,13 @@ export async function saudeDosNumeros(
     const s = sinais.get(id);
     if (s) s.quedas72h = contarEpisodios(horarios);
   }
-  const enviosPorSessao = new Map<string, EnvioRecente[]>();
-  for (const m of (saidas.data ?? []) as (EnvioRecente & { channel_session_id: string })[]) {
+  for (const m of (saidas.data ?? []) as { channel_session_id: string; status: string | null }[]) {
     const s = sinais.get(m.channel_session_id);
     if (!s) continue;
     s.enviadas24h += 1;
     if (m.status === "failed") s.falhas24h += 1;
-    enviosPorSessao.set(m.channel_session_id, [...(enviosPorSessao.get(m.channel_session_id) ?? []), m]);
   }
+  const enviosPorSessao = await enviosRecentes(admin, organizationId, ids, desde24h);
   const porHora = new Map<string, Map<number, number>>();
   for (const l of (ledger.data ?? []) as { channel_session_id: string; sent_at: string }[]) {
     const balde = Math.floor(Date.parse(l.sent_at) / HORA_MS);
