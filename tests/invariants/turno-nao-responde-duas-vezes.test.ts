@@ -78,7 +78,7 @@ async function inbound(texto: string, em: string, conv = CONV): Promise<string> 
  */
 async function turnoTerminado(opts: {
   vistoAte: string | null;
-  envio?: { status: "accepted" | "queued" | "vetoed" | "failed"; em: string; conv?: string };
+  envio?: { status: "accepted" | "queued" | "vetoed" | "failed"; em: string; conv?: string; mensagem?: "sent" | "failed" };
   kind?: "inbound_turn" | "followup_turn";
 }): Promise<string> {
   const jobId = crypto.randomUUID();
@@ -94,8 +94,8 @@ async function turnoTerminado(opts: {
     await pool.query(
       `insert into messages (id, organization_id, conversation_id, channel_session_id, contact_id,
          type, direction, status, body, sent_via, sent_at, created_at)
-       values ($1,$2,$3,$4,$5,'text','outbound','sent','Perfeito…','ai',$6,$6)`,
-      [msgId, ORG, opts.envio.conv ?? CONV, opts.envio.conv === OUTRA_CONV ? OUTRA_SESSION : SESSION, CONTACT, opts.envio.em],
+       values ($1,$2,$3,$4,$5,'text','outbound',$7,'Perfeito…','ai',$6,$6)`,
+      [msgId, ORG, opts.envio.conv ?? CONV, opts.envio.conv === OUTRA_CONV ? OUTRA_SESSION : SESSION, CONTACT, opts.envio.em, opts.envio.mensagem ?? "sent"],
     );
     await pool.query(
       `insert into send_ledger (organization_id, contact_id, job_id, seq, body_hash, status, crm_message_id)
@@ -278,6 +278,14 @@ describe("a régua: outro turno já viu e respondeu a última mensagem do client
     await turnoTerminado({ vistoAte: T("04:04"), envio: { status: "vetoed", em: T("04:26") } });
     await turnoTerminado({ vistoAte: T("04:04"), envio: { status: "failed", em: T("04:27") } });
     await turnoTerminado({ vistoAte: T("04:04") });
+    expect(await m.regua.ultimaInboundJaRespondida(pool, alvo(crypto.randomUUID()))).toBe(false);
+  });
+
+  it("aceito pelo provedor e recusado depois pela Meta não é resposta (7336 em 19/11)", async () => {
+    // O parceiro aceita (ledger 'accepted') e a recusa 131042 chega pelo webhook, marcando a
+    // mensagem 'failed'. Contar isso como resposta deixava o lead sem resposta para sempre.
+    await inbound("Oi", T("04:04"));
+    await turnoTerminado({ vistoAte: T("04:04"), envio: { status: "accepted", em: T("04:26"), mensagem: "failed" } });
     expect(await m.regua.ultimaInboundJaRespondida(pool, alvo(crypto.randomUUID()))).toBe(false);
   });
 
