@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   bloqueioDoNumero,
+  falhasQueContam,
+  picoPorHora,
+  ultimoEnvioQueSaiu,
   codigoDaMeta,
   contarEpisodios,
   fatorDaNota,
@@ -87,5 +90,30 @@ describe("bloqueioDoNumero", () => {
   it("falha comum ou recusa por destinatário não bloqueia", () => {
     expect(bloqueioDoNumero([e(0, "failed", "131026"), e(1, "failed", "queue_expired", "Ficou mais de 24 horas")])).toBeNull();
     expect(bloqueioDoNumero([])).toBeNull();
+  });
+});
+
+describe("a nota não pune de novo o episódio já resolvido (7336, 20/11/2026)", () => {
+  const e = (min: number, status: string, error_code: string | null = null, error_message: string | null = null): EnvioRecente => ({
+    status,
+    error_code,
+    error_message,
+    created_at: new Date(Date.UTC(2026, 10, 19, 20, min)).toISOString(),
+  });
+  const pagamento = "131042 — Business eligibility payment issue";
+
+  it("recusa de pagamento com envio que saiu DEPOIS não conta como falha", () => {
+    const falhas = [e(0, "failed", "zernio_error", pagamento), e(10, "failed", "zernio_error", pagamento)];
+    expect(falhasQueContam(falhas, ultimoEnvioQueSaiu([e(30, "delivered")]))).toBe(0);
+  });
+  it("sem envio que saiu depois, a recusa conta (o episódio está aberto)", () => {
+    expect(falhasQueContam([e(10, "failed", "zernio_error", pagamento)], ultimoEnvioQueSaiu([e(5, "sent")]))).toBe(1);
+  });
+  it("recusa por destinatário e falha sem código seguem contando", () => {
+    expect(falhasQueContam([e(0, "failed", "131026"), e(1, "failed", "meta_error", "fetch failed")], ultimoEnvioQueSaiu([e(30, "read")]))).toBe(2);
+  });
+  it("pico por hora conta os horários dados, por hora cheia", () => {
+    expect(picoPorHora([e(1, "x").created_at, e(2, "x").created_at, e(70, "x").created_at])).toBe(2);
+    expect(picoPorHora([])).toBe(0);
   });
 });
