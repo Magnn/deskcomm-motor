@@ -658,6 +658,9 @@ async function pedirDespachoDoAgente(admin: Admin, entrada: EntradaDeMensagem): 
   }
 }
 
+/** Até quanto tempo depois do clique a mensagem de quem já é contato ainda casa com ele. */
+export const JANELA_DO_CLIQUE_DE_QUEM_VOLTA_MS = 24 * 60 * 60 * 1000;
+
 /**
  * 4 · A origem de site/landing page veio junto com o texto? (#924)
  *
@@ -707,6 +710,24 @@ async function guardarOrigemDaPagina(admin: Admin, entrada: EntradaDeMensagem): 
         entrada.messageId,
       ))
     ) {
+      // QUEM JÁ É CONTATO E VOLTA PELO ANÚNCIO: o ref é de uso único e aponta para um clique gravado no servidor
+      // segundos antes — não é o link encaminhado meses depois que a regra da primeira mensagem barra. O clique
+      // recente é casado (a volta conta como entrada pelo anúncio), e a origem do primeiro contato não é tocada.
+      // Em 20/11/2026, 4 de 32 entradas do dia eram de quem já tinha conversado: o clique ficava solto e o nosso
+      // número de leads saía abaixo do Gerenciador.
+      if (ref) {
+        const casado = await casarClickRef(
+          admin,
+          entrada.organizationId,
+          ref,
+          entrada.contactId,
+          new Date(Date.now() - JANELA_DO_CLIQUE_DE_QUEM_VOLTA_MS),
+        );
+        logger.info(casado ? "pos-entrada: clique de quem já é contato casado" : "pos-entrada: ref de quem já é contato não casou", {
+          contactId: entrada.contactId,
+        });
+        return;
+      }
       logger.info("pos-entrada: código de origem fora da primeira mensagem (ignorado)", {
         contactId: entrada.contactId,
         messageId: entrada.messageId,
