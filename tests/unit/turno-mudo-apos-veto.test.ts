@@ -59,3 +59,19 @@ describe("veto numa tentativa anterior do mesmo job (Obede, 20/11/2026)", () => 
     );
   });
 });
+
+describe("recusa das travas de dentro do envio também refaz o turno mudo (Obede, 20/11/2026)", () => {
+  it("valor errado, link copiado e oferta em conflito são vetos de conteúdo", () => {
+    for (const code of ["valor_do_extra_errado", "link_de_cobranca_copiado", "oferta_em_conflito", "link_fora_do_valor"]) {
+      expect(VETOS_DE_CONTEUDO.has(code)).toBe(true);
+    }
+    // Falha do provedor não é conteúdo: reescrever não resolve.
+    expect(VETOS_DE_CONTEUDO.has("cobranca_indisponivel")).toBe(false);
+  });
+  it("a ferramenta de envio do run passa pelo marcador antes do breaker", () => {
+    expect(FONTE).toMatch(/wrapToolsWithBreaker\(comRecusaDoEnvioMarcada\(previewTools/);
+  });
+  it("o link copiado é conferido no texto da agente, ANTES de as marcas virarem links novos", () => {
+    expect(FONTE.indexOf("linkDeCobrancaCopiado(body, agentConfig)")).toBeLessThan(FONTE.indexOf("await pixDoExtraNoLugarDaMarca({"));
+  });
+});

@@ -329,6 +329,8 @@ import { renderAgora } from '@/lib/tempo/agora';
 import { decidirElegibilidadeDaConversa } from '@/lib/ai/elegibilidade/consulta-pg';
 import { anotarUltimaInboundVista, turnoSuperadoPorMensagemNova, ultimaInboundJaRespondida } from './turno-ja-respondido';
 import { vetoDeTentativaAnterior } from './veto-de-tentativa-anterior';
+import { linkDeCobrancaCopiado } from '@/lib/preco/link-de-cobranca-copiado';
+import { comRecusaDoEnvioMarcada } from './veto-da-ferramenta-de-envio';
 
 /**
  * Superfície ESTÁTICA das tools do agente (description + inputSchema) — parte do
@@ -610,6 +612,20 @@ export const VETOS_DE_CONTEUDO: ReadonlySet<string> = new Set([
   'promise_semantic',
   'promise_out_of_table',
   'internal_vocabulary_leak',
+  // As travas de dentro do envio (preço, link, fala do pagamento): reescrever resolve.
+  'valor_do_extra_errado',
+  'valor_do_produto_errado',
+  'quantidade_do_extra_menor',
+  'oferta_em_conflito',
+  'link_fora_do_valor',
+  'link_de_cobranca_copiado',
+  'fala_errada_do_pagamento',
+  'pagamento_em_duvida_confirmado',
+  'pergunta_antes_do_pix_da_entrada',
+  'pergunta_do_pix_repetida',
+  'cobrando_o_que_ja_caiu',
+  'reenvio_sem_cobranca',
+  'carta_fora_do_sorteio',
 ]);
 
 /**
@@ -4402,6 +4418,16 @@ async function executarTurnoDoAgente(
             return { ok: false, error: { code: 'cobrando_o_que_ja_caiu', message: jaPagou } };
           }
         }
+        // LINK DE CARTÃO COPIADO DO HISTÓRICO (`lib/preco/link-de-cobranca-copiado.ts`): cada link tem UM valor; reenviar
+        // o de uma cobrança anterior cobrou R$ 7 por três perguntas de R$ 27 em 20/11/2026. Roda no texto da agente,
+        // antes de o sistema trocar as marcas pelos links novos.
+        if (!preview) {
+          const copiado = linkDeCobrancaCopiado(body, agentConfig);
+          if (copiado) {
+            runLog.warn('link de cartão de cobrança anterior no texto — envio recusado', {});
+            return { ok: false, error: { code: 'link_de_cobranca_copiado', message: copiado } };
+          }
+        }
         // COBRANÇA AVULSA: a marca `[[PIX: nome]]` vira a instrução e o código do Pix. Marca que o turno não pode
         // cobrar, ou cobrança que não saiu, recusa o envio: marca crua não chega à pessoa.
         if (!preview) {
@@ -5677,7 +5703,10 @@ async function executarTurnoDoAgente(
             }),
           )
         : rawTools;
-    const tools = wrapToolsWithBreaker(previewTools, {
+    // Recusa das travas de dentro do envio conta como veto de conteúdo: o turno mudo depois dela é refeito.
+    const tools = wrapToolsWithBreaker(comRecusaDoEnvioMarcada(previewTools, (code) => {
+      if (VETOS_DE_CONTEUDO.has(code)) vetoDeConteudo ??= code;
+    }), {
       thresholds: deps.knobs.breaker,
       readOnlyTools: READ_ONLY_TOOLS,
       log: runLog, // os warns dos gates do breaker saem carimbados com o run
