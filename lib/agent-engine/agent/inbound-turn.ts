@@ -333,6 +333,7 @@ import { anotarUltimaInboundVista, turnoSuperadoPorMensagemNova, ultimaInboundJa
 import { vetoDeTentativaAnterior } from './veto-de-tentativa-anterior';
 import { linkDeCobrancaCopiado } from '@/lib/preco/link-de-cobranca-copiado';
 import { ofertaRepetidaSeguida } from '@/lib/preco/oferta-repetida';
+import { falaEmTerceiraPessoa } from '@/lib/preco/fala-em-terceira-pessoa';
 import { comRecusaDoEnvioMarcada } from './veto-da-ferramenta-de-envio';
 
 /**
@@ -623,6 +624,7 @@ export const VETOS_DE_CONTEUDO: ReadonlySet<string> = new Set([
   'link_fora_do_valor',
   'link_de_cobranca_copiado',
   'oferta_repetida_seguida',
+  'fala_em_terceira_pessoa',
   'fala_errada_do_pagamento',
   'pagamento_em_duvida_confirmado',
   'pergunta_antes_do_pix_da_entrada',
@@ -4448,6 +4450,13 @@ async function executarTurnoDoAgente(
           if (repetida) {
             runLog.warn('oferta repetida logo depois de uma resposta sem aceite — envio recusado', {});
             return { ok: false, error: { code: 'oferta_repetida_seguida', message: repetida } };
+          }
+          // A AGENTE NARRANDO A PRÓPRIA INSTRUÇÃO (`lib/preco/fala-em-terceira-pessoa.ts`): "Ele perguntou o valor, então
+          // vem na primeira frase, Angelo" saiu para o Angelo em 19/11/2026.
+          const narrada = falaEmTerceiraPessoa(body);
+          if (narrada) {
+            runLog.warn('balão narrando a pessoa em terceira pessoa — envio recusado', {});
+            return { ok: false, error: { code: 'fala_em_terceira_pessoa', message: narrada } };
           }
         }
         // COBRANÇA AVULSA: a marca `[[PIX: nome]]` vira a instrução e o código do Pix. Marca que o turno não pode

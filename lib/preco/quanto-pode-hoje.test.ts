@@ -21,7 +21,7 @@ describe("quanto ela pode hoje", () => {
   });
   it("a primeira reclamação pergunta quanto ela pode hoje, sem cartão e sem desconto", () => {
     const bloco = blocoDePreco(PRICING, { reclamacoes: 1, reclamouAgora: true });
-    expect(bloco).toContain("Quanto você consegue hoje?");
+    expect(bloco).toContain("Quanto você consegue hoje: 30, 50 ou 80?");
     expect(bloco).toContain("O restante a gente acerta depois");
     expect(bloco).not.toContain("parcelamento no cartão, Pix pelo link");
   });
@@ -116,5 +116,19 @@ describe("a porta aberta", () => {
     const bloco = blocoDaOportunidade(pergunta as never);
     expect(bloco.indexOf("Gere desejo")).toBeLessThan(bloco.indexOf("Ofereça só *Pergunta nova*"));
     expect(blocoDaOportunidade(null)).toBe("");
+  });
+});
+
+describe("as opções da entrada (20/11/2026)", () => {
+  it("saem do preço e da entrada mínima, sem R$, e a resposta com uma delas fecha a entrada", async () => {
+    const { opcoesDeEntrada } = await import("./bloco-do-prompt");
+    expect(opcoesDeEntrada(PRICING)).toBe("30, 50 ou 80");
+    expect(opcoesDeEntrada({ ...PRICING, min_down_payment_cents: 4000 })).toBe("40, 50 ou 80");
+    const pergunta = m("outbound", "Entendo, Lorena. Você não precisa pagar tudo hoje. Quanto você consegue hoje: 30, 50 ou 80? O restante a gente acerta depois.");
+    expect(entradaImediata(PRICING, [PRECO, m("inbound", "Valor está alto"), pergunta, m("inbound", "50")])).toEqual({ entradaCents: 5000, restanteCents: 8000 });
+  });
+  it("quem quer e não tem nada ouve o passo pequeno, também no menor valor", () => {
+    expect(blocoDePreco(PRICING, { reclamacoes: 1, reclamouAgora: true })).toContain("QUER MAS NÃO TEM NADA HOJE");
+    expect(blocoDePreco(PRICING, { reclamacoes: 9, reclamouAgora: true })).toContain("QUER MAS NÃO TEM NADA HOJE");
   });
 });

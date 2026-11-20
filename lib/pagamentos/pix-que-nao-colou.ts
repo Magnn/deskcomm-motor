@@ -9,11 +9,14 @@
  * A regra: a última fala da pessoa diz que o Pix não funcionou, e a conversa tem um código Pix enviado nas últimas
  * 24 h → o turno ganha um bloco que manda reenviar a cobrança (o envio gera um código novo e o link) e apontar o
  * link, que tem o Pix com botão de copiar. Pura.
+ *
+ * 20/11/2026: Ana disse por áudio "Não tô conseguindo fazer o pix" e o bloco não armou (faltavam "tô" e o gerúndio);
+ * ouviu oito vezes "Pix ou cartão?" e não pagou.
  */
 import type { MensagemDoHistorico } from "@/lib/preco/pos-venda";
 
 const PROBLEMA_NO_PIX =
-  /inv[aá]lid|n[aã]o encontr|n[aã]o (est[aá] |t[aá] )?(cola|colou|colando|deu|dando|funciona|funcionou|aceita|aceitou|vai|foi|consigo|consegui|acho|achei)|deu erro|(c[oó]digo|pix) (errado|vencid|expir)|n[aã]o (mandou|mandaste|enviou|recebi|chegou|veio)( (o|a|esse|essa))? ?(pix|c[oó]digo|chave|link)|cad[eê] o (pix|c[oó]digo|link)/i;
+  /inv[aá]lid|n[aã]o encontr|n[aã]o (est[aá] |t[aá] |t[oô] |estou )?(cola|colou|colando|deu|dando|funciona|funcionou|aceita|aceitou|vai|indo|foi|passa|passou|passando|consigo|consegui|conseguindo|acho|achei)|deu erro|trav(?:ou|ando|a)\b|(c[oó]digo|pix) (errado|vencid|expir)|n[aã]o (mandou|mandaste|enviou|recebi|chegou|veio)( (o|a|esse|essa))? ?(pix|c[oó]digo|chave|link)|cad[eê] o (pix|c[oó]digo|link)/i;
 
 /** A fala diz que o Pix não funcionou. */
 export function relatouProblemaNoPix(texto: string): boolean {
