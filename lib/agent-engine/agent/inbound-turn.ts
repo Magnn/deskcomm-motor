@@ -94,6 +94,8 @@ import { blocoDoBoletoPronto, temMarcaDeBoleto, valoresDoBoleto } from '@/lib/pr
 import {
   blocoDaEntregaPendente,
   blocoDosExtras,
+  blocoDoQueJaComprou,
+  type ExtraJaComprado,
   entregaPendente,
   perguntaPagaRecente,
   conversaFalouDeExtra,
@@ -2872,6 +2874,7 @@ async function executarTurnoDoAgente(
       ? extrasDaConfig(agentConfig?.pricing)
       : [];
   let extrasPagosNoTurno: ExtraPago[] = [];
+  let extrasJaCompradosNoTurno: ExtraJaComprado[] = [];
   if (extrasDoTurno.length > 0) {
     try {
       // Lê até o maior período pago entre os extras (um acompanhamento de 30 dias vale 30 dias, não 24 horas).
@@ -2888,6 +2891,15 @@ async function executarTurnoDoAgente(
         [tenantId, leadId, fusoDaOrg, janelaDeLeituraDosExtras(extrasDoTurno)],
       );
       extrasPagosNoTurno = rows.map((r) => ({ slug: r.slug, hora: r.hora, dia: r.dia, diasAtras: r.dias_atras, minutosAtras: r.minutos_atras, quantidade: r.quantidade }));
+      // Tudo o que ela já comprou, de qualquer data: a leitura acima só alcança a validade dos extras.
+      const comprados = await pool.query<{ slug: string; dia: string; vezes: number }>(
+        `select metadata->>'extra' as slug, to_char(max(occurred_at) at time zone $3, 'DD/MM') as dia, count(*)::int as vezes
+           from revenue_ledger
+          where organization_id = $1 and contact_id = $2 and event_type = 'charge' and metadata ? 'extra'
+          group by 1 order by max(occurred_at) desc limit 20`,
+        [tenantId, leadId, fusoDaOrg],
+      );
+      extrasJaCompradosNoTurno = comprados.rows;
     } catch (err) {
       runLog.warn('não consegui ler as cobranças avulsas pagas — o turno segue sem elas', {
         error: (err instanceof Error ? err.message : String(err)).slice(0, 120),
@@ -2917,6 +2929,7 @@ async function executarTurnoDoAgente(
   }
   const blocoDosExtrasDoTurno =
     blocoDosExtras(extrasDoTurno, extrasPagosNoTurno) +
+    blocoDoQueJaComprou(extrasDoTurno, extrasJaCompradosNoTurno) +
     blocoDoComprovante +
     blocoDoAcompanhamentoIncluso({ comprou: tagsDoContato.includes('pago'), diasDesdeACompra, extras: extrasDoTurno, pagos: extrasPagosNoTurno });
   // O LIMITE DA CONVERSA GRATUITA (`conversa-gratuita.ts`): quem ouviu a oferta, não comprou e não tem nada pago

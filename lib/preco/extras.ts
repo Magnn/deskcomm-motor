@@ -307,6 +307,33 @@ export function blocoDosExtras(extras: readonly Extra[], pagos: readonly ExtraPa
   return linhas.join("\n");
 }
 
+/** Uma cobrança à parte que a pessoa já pagou alguma vez (fora da janela de validade, inclusive). */
+export interface ExtraJaComprado {
+  slug: string;
+  /** "DD/MM" da última compra. */
+  dia: string;
+  vezes: number;
+}
+
+/**
+ * O QUE ELA JÁ COMPROU. `blocoDosExtras` só mostra o pagamento enquanto ele vale (uso único = 1 dia); depois disso a
+ * agente não sabia mais que a pessoa tinha comprado, e oferecia de novo como novidade. Em 20/11/2026 a Cigana ofereceu
+ * três vezes o Código da Conexão (a Sinastria Amorosa, R$ 37) a quem tinha comprado em 13/11, e ouviu "Já me mandou".
+ */
+export function blocoDoQueJaComprou(extras: readonly Extra[], comprados: readonly ExtraJaComprado[]): string {
+  const linhas = comprados.flatMap((c) => {
+    const extra = extras.find((e) => slugDoExtra(e.name) === c.slug);
+    return extra ? [`  · *${extra.name}*: comprou em ${c.dia}${c.vezes > 1 ? ` (${c.vezes} vezes)` : ""}`] : [];
+  });
+  if (linhas.length === 0) return "";
+  return [
+    "",
+    "- O QUE ELA JÁ COMPROU (do livro de receita; vale mais que a sua memória da conversa):",
+    ...linhas,
+    "  NUNCA ofereça como novidade algo desta lista, nem pelo outro nome que o roteiro dê a ele (ex.: Sinastria Amorosa = Código da Conexão). Se ela já tem, ajude a usar o que recebeu e ofereça o PRÓXIMO passo do catálogo, que ela ainda não tem. Comprar de novo só faz sentido para um pedido NOVO (outra pergunta, outra pessoa), e quem pede é ela.",
+  ].join("\n");
+}
+
 /** Até quantos minutos depois do pagamento a entrega ainda conta como "acabou de cair". */
 const MINUTOS_DA_ENTREGA_PENDENTE = 30;
 

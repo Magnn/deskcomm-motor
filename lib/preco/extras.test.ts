@@ -14,7 +14,7 @@ import { decidePromise } from "@/lib/agent-engine/guardrails/promise/engine";
 import { ErroDaStripe } from "@/lib/pagamentos/stripe";
 
 import { tabelaDoTurno } from "./estado-da-negociacao";
-import { blocoDosExtras, corpoComPixDoExtra, extrasDaConfig, marcaDeExtraNoCorpo, referenciaDoExtra, slugDoExtra } from "./extras";
+import { blocoDoQueJaComprou, blocoDosExtras, corpoComPixDoExtra, extrasDaConfig, marcaDeExtraNoCorpo, referenciaDoExtra, slugDoExtra } from "./extras";
 import { pricingSchema } from "./tipos";
 
 const PERGUNTA = { name: "Pergunta nova", price_cents: 1500, when: "a pessoa pede outra pergunta depois da leitura gratuita." };
@@ -248,5 +248,22 @@ describe("conversaFalouDeExtra", () => {
     expect(conversaFalouDeExtra([{ direction: "outbound", body: "Essa é uma pergunta nova, sobre o Fernando." }], extras)).toBe(true);
     expect(conversaFalouDeExtra([{ direction: "inbound", body: "quero uma pergunta nova" }], extras)).toBe(false);
     expect(conversaFalouDeExtra([{ direction: "outbound", body: "CARTA 1: O Diabo" }], extras)).toBe(false);
+  });
+});
+
+describe("o que ela já comprou (Fran, 20/11/2026)", () => {
+  const SINASTRIA = { name: "Sinastria Amorosa", price_cents: 3700, when: "a pessoa quer entender a combinação dos dois." };
+  it("lista a compra fora da validade e proíbe oferecer de novo como novidade", () => {
+    const bloco = blocoDoQueJaComprou([PERGUNTA, SINASTRIA], [
+      { slug: "sinastria-amorosa", dia: "13/11", vezes: 1 },
+      { slug: "pergunta-nova", dia: "20/11", vezes: 2 },
+    ]);
+    expect(bloco).toContain("*Sinastria Amorosa*: comprou em 13/11");
+    expect(bloco).toContain("*Pergunta nova*: comprou em 20/11 (2 vezes)");
+    expect(bloco).toContain("NUNCA ofereça como novidade");
+  });
+  it("sem compra, ou só de cobrança que não está mais na config, não escreve nada", () => {
+    expect(blocoDoQueJaComprou([PERGUNTA], [])).toBe("");
+    expect(blocoDoQueJaComprou([PERGUNTA], [{ slug: "corte-de-lacos", dia: "01/11", vezes: 1 }])).toBe("");
   });
 });
