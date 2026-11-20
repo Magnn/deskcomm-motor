@@ -56,6 +56,7 @@ import {
   whatsAppUrl,
 } from "@/lib/plataformas-de-anuncio/pagina-de-captura";
 import { logger } from "@/lib/logger";
+import { normalizePhoneBR } from "@/lib/webhooks/inbound";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
@@ -72,6 +73,7 @@ async function leadPeloServidor(
   organizationId: string,
   parametros: URLSearchParams,
   cliente: { ip: string | null; ua: string | null; pagina: string | null; origem: string },
+  telefone: string | null = null,
 ): Promise<void> {
   const eventoId = parametros.get("_eid");
   // Sem o id do navegador, mandar daria duas contagens para o mesmo clique: melhor não mandar.
@@ -87,7 +89,8 @@ async function leadPeloServidor(
       eventoId,
       ocorridoEm: new Date(),
       cliqueDeOrigem: "",
-      telefone: null,
+      // O WhatsApp digitado na página (POST): o Lead sai com o telefone e a correspondência na Meta sobe.
+      telefone: telefone ? telefone.replace(/\D/g, "") : null,
       pixelDoSite: true,
       paginaDoSite: cliente.pagina?.slice(0, 500) || cliente.origem,
       fbc: fbcDoClique(query, new Date().toISOString()),
@@ -112,8 +115,10 @@ interface RouteContext {
 const TETO_POR_IP = 30;
 const JANELA_SEGUNDOS = 60;
 
-export async function GET(req: NextRequest, ctx: RouteContext): Promise<Response> {
-  const { org } = await ctx.params;
+/** O destino do clique: o WhatsApp (com ou sem ref), `null` sem org/landing, ou `"limite"` no teto por IP. */
+type Destino = string | null | "limite";
+
+async function registrarClique(req: NextRequest, org: string, telefone: string | null): Promise<Destino> {
 
   const ip = clientIp(req);
   if (ip !== null) {
@@ -121,7 +126,7 @@ export async function GET(req: NextRequest, ctx: RouteContext): Promise<Response
     if (!limite.allowed) {
       // 429 sem corpo de marketing: quem estoura este teto num clique real não
       // existe — é abuso, não humano legítimo.
-      return new NextResponse(null, { status: 429, headers: { "Retry-After": String(JANELA_SEGUNDOS) } });
+      return "limite";
     }
   }
 
@@ -146,10 +151,10 @@ export async function GET(req: NextRequest, ctx: RouteContext): Promise<Response
     });
   }
   const organizationId = (organizacao as { id: string } | null)?.id ?? null;
-  if (!organizationId) return paginaDeSaida(null);
+  if (!organizationId) return null;
 
   const lida = await lerConfigDaLanding(admin, "meta_ads_landing_pages", organizationId);
-  if (!lida) return paginaDeSaida(null);
+  if (!lida) return null;
   // A página de outra oferta manda a própria frase (`frase=`), e o fluxo de palavra-chave começa a conversa certa.
   // `rodizio=1`: o clique vai para o número vivo com agente mais longe do orçamento de leads de hoje; sem nenhum
   // vivo, o configurado. Todos cheios: o menos carregado, marcado como transbordo (o clique pago nunca se perde).
@@ -165,7 +170,7 @@ export async function GET(req: NextRequest, ctx: RouteContext): Promise<Response
   // jeito, sem ref.
   if (Object.keys(utm).length === 0) {
     logger.warn("[anuncios.meta.landing] hit sem UTM", { org });
-    return paginaDeSaida(whatsAppUrl(config.whatsappE164, textoSemRef(config.messageTemplate)));
+    return whatsAppUrl(config.whatsappE164, textoSemRef(config.messageTemplate));
   }
 
   // `__ip`/`__ua` não vêm da página: são do pedido. Ficam junto da query para a VENDA, dias depois, sair com o
@@ -178,6 +183,8 @@ export async function GET(req: NextRequest, ctx: RouteContext): Promise<Response
     // Para onde o rodízio mandou: o clique conta "a caminho" na carga do número até a pessoa escrever.
     ...(sorteado ? { __numero: sorteado } : {}),
     ...(escolhaDoRodizio?.transbordo ? { __transbordo: "1" } : {}),
+    // O WhatsApp que a pessoa digitou na página antes do botão: quem clica e não manda mensagem pode ser chamado.
+    ...(telefone ? { __telefone: telefone } : {}),
   };
   const criado = await criarClickRef(admin, "meta_ads_click_refs", organizationId, {
     utm,
@@ -185,13 +192,42 @@ export async function GET(req: NextRequest, ctx: RouteContext): Promise<Response
   });
   // O LEAD PELO SERVIDOR, com o MESMO id do evento do navegador (`_eid`, gerado pela página): o que o bloqueador
   // ou o iPhone cortou do pixel chega por aqui, e a Meta deduplica o que vier pelos dois.
-  await leadPeloServidor(admin, organizationId, parametros, { ip, ua, pagina: req.headers.get("referer"), origem: new URL(req.url).origin });
+  await leadPeloServidor(admin, organizationId, parametros, { ip, ua, pagina: req.headers.get("referer"), origem: new URL(req.url).origin }, telefone);
   if (!criado) {
     // Falha ao gravar: mesma régua — a pessoa não paga o preço de um erro
     // nosso, só a atribuição é que se perde.
-    return paginaDeSaida(whatsAppUrl(config.whatsappE164, textoSemRef(config.messageTemplate)));
+    return whatsAppUrl(config.whatsappE164, textoSemRef(config.messageTemplate));
   }
 
   const mensagem = config.messageTemplate.replaceAll("{token}", criado.token);
-  return paginaDeSaida(whatsAppUrl(config.whatsappE164, mensagem));
+  return whatsAppUrl(config.whatsappE164, mensagem);
+}
+
+function semCorpoNoLimite(): Response {
+  // 429 sem corpo de marketing: quem estoura este teto num clique real não existe — é abuso, não humano legítimo.
+  return new NextResponse(null, { status: 429, headers: { "Retry-After": String(JANELA_SEGUNDOS) } });
+}
+
+export async function GET(req: NextRequest, ctx: RouteContext): Promise<Response> {
+  const { org } = await ctx.params;
+  const destino = await registrarClique(req, org, null);
+  return destino === "limite" ? semCorpoNoLimite() : paginaDeSaida(destino);
+}
+
+/**
+ * POST — o MESMO clique, com o WhatsApp que a pessoa digitou na página antes do botão (20/11/2026: de 116 cliques
+ * no dia, 37 não chegaram a mandar mensagem, e sem telefone ninguém podia chamá-los). O telefone vem no CORPO, nunca
+ * na query: não fica em log de acesso nem no endereço. Responde `{ data: { url } }` e a página abre o WhatsApp.
+ * Telefone inválido é 422 — a página pede de novo; o clique não é gravado sem a pessoa corrigir ou pular.
+ */
+export async function POST(req: NextRequest, ctx: RouteContext): Promise<Response> {
+  const { org } = await ctx.params;
+  const corpo = (await req.json().catch(() => null)) as { telefone?: unknown } | null;
+  const telefone = normalizePhoneBR(typeof corpo?.telefone === "string" ? corpo.telefone.slice(0, 40) : null);
+  if (!telefone || !/^\+\d{12,15}$/.test(telefone)) {
+    return NextResponse.json({ error: { code: "telefone_invalido", message: "Digite o seu WhatsApp com DDD." } }, { status: 422 });
+  }
+  const destino = await registrarClique(req, org, telefone);
+  if (destino === "limite") return semCorpoNoLimite();
+  return NextResponse.json({ data: { url: destino } });
 }
