@@ -84,6 +84,8 @@ export async function ultimaInboundJaRespondida(
           and s.status in ('accepted', 'queued')
           and j.kind = 'inbound_turn'
           and o.conversation_id = $2
+          -- aceita pelo provedor e recusada depois (webhook da Meta) não chegou ao cliente
+          and o.status is distinct from 'failed'
           and u.em is not null
           and (j.payload->>'ultima_inbound_vista_em')::timestamptz >= u.em
      ) as respondida`,
