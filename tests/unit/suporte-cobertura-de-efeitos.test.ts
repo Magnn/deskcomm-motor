@@ -55,6 +55,9 @@ it("todo handler mutante do app declara guarda de suporte ou é infraestrutura i
   if(path==="app/api/v1/tenants/subscription/route.ts")continue;
   // O mesmo aviso, vindo direto da Cakto: autenticado pela assinatura do webhook.
   if(path==="app/api/v1/tenants/subscription/cakto/route.ts")continue;
+  // A captura do clique da Meta (POST com o WhatsApp digitado na página, 20/11/2026): quem chama é o NAVEGADOR de quem
+  // clicou no anúncio, sem cookie nem ator — a mesma natureza do GET, que é rota pública em lib/auth/public-paths.ts.
+  if(path==="app/api/v1/anuncios/meta/[org]/route.ts")continue;
   // A área do cliente (migration 0928): quem chama é o COMPRADOR, identificado pelo cookie da área
   // (`lib/area-do-cliente/sessao.ts`), nunca uma sessão do Auth — não há sessão de suporte para a
   // guarda ler. As rotas da EQUIPE em app/api/v1/area/ seguem cobertas pela guarda.
