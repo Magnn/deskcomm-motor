@@ -647,3 +647,23 @@ it("resposta stale e aviso são atômicos: falha no aviso permite retry sem dupl
   ).toBe(1);
   expect(await state()).toEqual(before);
 });
+
+it("mensagem recusada pela Meta não entra no histórico do agente (5230 em 20/11)", async () => {
+  const conv = await makeConversation();
+  await inbound(conv);
+  await pool.query(
+    `insert into messages(organization_id,conversation_id,channel_session_id,contact_id,type,direction,status,sent_via,body,sent_at)
+     values ($1,$2,$3,$4,'text','outbound','sent','ai','ENTREGUE_OK',clock_timestamp()),
+            ($1,$2,$3,$4,'text','outbound','failed','ai','RECUSADA_PELA_META',clock_timestamp())`,
+    [GOV_ORG, conv, GOV_SESSION, contact],
+  );
+  const result = await getLeadContext(
+    pool,
+    {} as never,
+    { tenantId: GOV_ORG, leadId: contact, conversationId: conv, fuso: "America/Sao_Paulo" },
+    { historyLimit: 20, maxTokens: 4000 },
+  );
+  expect(result.ok).toBe(true);
+  expect(JSON.stringify(result)).toContain("ENTREGUE_OK");
+  expect(JSON.stringify(result)).not.toContain("RECUSADA_PELA_META");
+});

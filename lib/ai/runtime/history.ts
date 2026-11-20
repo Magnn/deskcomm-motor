@@ -35,6 +35,8 @@ export async function loadHistoryWithBudget(
     .select("id, body, direction, sent_at")
     .eq("organization_id", input.organizationId)
     .eq("conversation_id", input.conversationId)
+    // Recusada pelo provedor nunca chegou à pessoa: não é fala do agente.
+    .or("direction.eq.inbound,status.neq.failed")
     .order("sent_at", { ascending: false })
     .limit(limit);
 
