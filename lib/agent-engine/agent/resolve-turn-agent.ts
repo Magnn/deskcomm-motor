@@ -381,6 +381,7 @@ export async function resolveConversationTurn(
     const { rows: contextRows } = await db.query<ClassifierContextMessage>(
       `select direction,body from messages
        where organization_id=$1 and conversation_id=$2 and body is not null and id<>$3
+         and (direction='inbound' or status is distinct from 'failed')
        order by sent_at desc,created_at desc,id desc limit $4`,
       [input.tenantId, input.conversationId, signalRow.id, CLASSIFIER_CONTEXT_MESSAGES],
     );
