@@ -137,7 +137,13 @@ export async function destinoDaConversaoMeta(
   contactId: string,
   daTela: CredencialDeConversao,
   fetchImpl: typeof fetch = fetch,
+  doSite = false,
 ): Promise<DestinoDaConversao> {
+  // Clique da página: o conjunto de mensageria só aceita `ctwa_clid`, e o que temos é `fbclid` — vai para o pixel.
+  if (doSite) {
+    const clique = await cliqueDaLanding(admin, organizationId, contactId).catch(() => ({ fbc: null, fbp: null, cliente: null }));
+    return { ok: true, credencial: daTela, contaDoWhatsApp: null, pixelDoSite: true, ...clique };
+  }
   const mensageria = await lerDestinoDeMensageria(admin, organizationId, contactId, fetchImpl);
   if (mensageria.ok) {
     return {

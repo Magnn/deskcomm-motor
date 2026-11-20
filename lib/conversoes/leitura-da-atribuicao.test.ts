@@ -23,7 +23,7 @@ describe("lerAtribuicao", () => {
       "org",
       "contato",
     );
-    expect(r).toEqual({ temAtribuicao: true, atribuicao: { plataforma: "meta_ads", cliqueDeOrigem: "PAZXh0bgN", telefone: "5566999394450" } });
+    expect(r).toEqual({ temAtribuicao: true, atribuicao: { plataforma: "meta_ads", cliqueDeOrigem: "PAZXh0bgN", telefone: "5566999394450", doSite: true } });
   });
 
   it("clique de mensageria (ctwa) continua mandando, mesmo com fbclid junto", async () => {
