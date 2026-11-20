@@ -126,6 +126,15 @@ describe("a fiação", () => {
     expect(funcao).toContain("c.source_metadata->>'ad_id'");
     expect(funcao).toContain("c.created_at >= p_de and c.created_at <= p_ate");
     expect(funcao).toContain("e.event_type in ('refund', 'chargeback')");
+    // 0966 (20/11/2026): quem veio pelo botão tem o anúncio no utm_content; quem já era contato entra pelo clique casado.
+    expect(funcao).toContain("c.source_metadata->>'utm_content' ~ '^[0-9]{6,}$'");
+    expect(funcao).toContain("from public.meta_ads_click_refs r");
+    expect(funcao).toContain("r.matched_at >= p_de and r.matched_at <= p_ate");
+    expect(funcao).toContain("not exists (select 1 from novos n where n.id = r.contact_id)");
+    // A tabela de cliques é do servidor: a função não pode ficar executável por quem não a lê.
+    const depois = corpo.slice(corpo.indexOf("$function$;"), corpo.indexOf("$function$;") + 900);
+    expect(depois).toContain("from public, anon, authenticated;");
+    expect(depois).toMatch(/grant\s+execute on function public\.fn_resultado_por_anuncio\(uuid, timestamptz, timestamptz\) to service_role;/);
   });
 
   it("a tela tem porta na navegação", () => {
