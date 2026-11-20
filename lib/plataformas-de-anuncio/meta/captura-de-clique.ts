@@ -35,13 +35,17 @@ export async function casarClickRef(
   organizationId: string,
   token: string,
   contactId: string,
+  /** Só casa clique feito a partir deste instante (o de quem já é contato tem de ser recente). */
+  cliqueDesde?: Date,
 ): Promise<ClickRefDaPaginaCasado | null> {
-  const { data, error } = await admin
+  let consulta = admin
     .from("meta_ads_click_refs")
     .update({ matched_at: new Date().toISOString(), contact_id: contactId })
     .eq("organization_id", organizationId)
     .eq("token", token)
-    .is("matched_at", null)
+    .is("matched_at", null);
+  if (cliqueDesde) consulta = consulta.gte("created_at", cliqueDesde.toISOString());
+  const { data, error } = await consulta
     .select("utm")
     .maybeSingle();
 
