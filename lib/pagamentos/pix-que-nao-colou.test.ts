@@ -26,3 +26,11 @@ describe("Pix que não colou", () => {
     expect(blocoDoPixQueNaoColou([{ direction: "inbound", body: "não cola" }], AGORA)).toBe("");
   });
 });
+
+describe("Ana, 20/11/2026: o Pix travado dito de outro jeito", () => {
+  it("'não tô conseguindo' e 'travou' contam como Pix que não funcionou", async () => {
+    const { relatouProblemaNoPix } = await import("./pix-que-nao-colou");
+    for (const f of ["Não tô conseguindo fazer o pix, não.", "não estou conseguindo pagar", "o pix travou", "não tá passando"]) expect(relatouProblemaNoPix(f)).toBe(true);
+    for (const f of ["consegui sim", "tô indo no banco", "não tô com o celular agora"]) expect(relatouProblemaNoPix(f)).toBe(false);
+  });
+});

@@ -162,6 +162,25 @@ function blocoDoPosVenda(p: EstadoDoPosVenda): string {
 }
 
 /** A instrução de negociação PARA ESTE TURNO — uma só. */
+/**
+ * As opções da pergunta da entrada. Medido em 20/11/2026: dos 58 leads novos, os que ouviram "Quanto você consegue hoje?"
+ * sumiram sem dizer número; em 19/11 as três entradas pagas (R$ 38, 40 e 47) vieram de quem respondeu com um. Opção pronta
+ * é mais fácil de responder que pergunta aberta. Só os números, sem "R$": não é oferta de preço (as travas de preço leem R$).
+ */
+export function opcoesDeEntrada(c: PricingConfig): string {
+  const minimo = c.min_down_payment_cents ?? 0;
+  const dezena = (cents: number) => Math.max(1000, Math.round(cents / 1000) * 1000);
+  const opcoes = [...new Set([Math.max(minimo, dezena(c.list_price_cents * 0.25)), dezena(c.list_price_cents * 0.4), dezena(c.list_price_cents * 0.6)])]
+    .filter((v) => v >= minimo && v < c.list_price_cents)
+    .sort((x, y) => x - y)
+    .map((v) => String(v / 100));
+  return opcoes.length > 1 ? `${opcoes.slice(0, -1).join(", ")} ou ${opcoes.at(-1)}` : (opcoes[0] ?? "");
+}
+
+/** Quem QUER e não tem nada hoje sai com um passo pequeno, nunca com a porta fechada (Lari, 20/11/2026: "Quero demais"). */
+const QUER_MAS_NAO_TEM =
+  "- QUER MAS NÃO TEM NADA HOJE: se ela disser que quer (\"quero demais\", \"queria muito\") mas não tem nem a entrada, NÃO encerre com \"fica pra outro dia\": ofereça a pergunta avulsa mais barata da lista de EXTRAS, pelo nome e pelo valor da lista, como um passo pequeno hoje, e diga que o trabalho fica de pé para quando ela puder.";
+
 function instrucaoDeNegociacao(
   c: PricingConfig,
   reclamacoes: number | null,
@@ -197,7 +216,8 @@ function instrucaoDeNegociacao(
   // libera UM degrau — dizer quanto tem não pula nenhum (`degrauDoTurno`). Depois de uma rodada a
   // mais que o número de degraus, o mínimo já foi dito.
   if (reclamacoes > c.steps.length + 1) {
-    return `- NEGOCIAÇÃO: ela já recebeu o menor valor possível (${reais(piso)}) e ainda diz que não cabe. Responda com ESTE molde e nenhum outro, sem oferecer mais nada e sem perguntar o motivo: "Esse é o menor valor que consigo, ${reais(piso)}. Se hoje não der, me diz o dia em que você consegue e eu deixo combinado por esse valor."`;
+    return `- NEGOCIAÇÃO: ela já recebeu o menor valor possível (${reais(piso)}) e ainda diz que não cabe. Responda com ESTE molde e nenhum outro, sem oferecer mais nada e sem perguntar o motivo: "Esse é o menor valor que consigo, ${reais(piso)}. Se hoje não der, me diz o dia em que você consegue e eu deixo combinado por esse valor."
+${QUER_MAS_NAO_TEM}`;
   }
   const i = degrauDoTurno(c, reclamacoes, valorQueTemCents);
   const degrau = c.steps[i];
@@ -206,7 +226,8 @@ function instrucaoDeNegociacao(
     // do dono em 01/11/2026: "Valor está alto" ouviu cartão e parcelas, e a conversa acabou sem número nenhum.
     if (c.min_down_payment_cents !== undefined) {
       return [
-        `- NEGOCIAÇÃO: ela disse que o valor não cabe. Nesta resposta NÃO baixe, NÃO fale de valor menor e NÃO fale de cartão nem de parcelas: mantenha ${venda} e pergunte quanto ela consegue pagar hoje. Molde, em UM balão só: "Entendo, [nome]. Você não precisa pagar tudo hoje. Quanto você consegue hoje? O restante a gente acerta depois." Termine nessa pergunta. Se ela disser um valor, o sistema fecha a entrada no próximo turno. Se ela disser de novo que não cabe, esta instrução muda no próximo turno.`,
+        `- NEGOCIAÇÃO: ela disse que o valor não cabe. Nesta resposta NÃO baixe, NÃO fale de valor menor e NÃO fale de cartão nem de parcelas: mantenha ${venda} e pergunte quanto ela consegue pagar hoje, dando as opções. Molde, em UM balão só: "Entendo, [nome]. Você não precisa pagar tudo hoje. Quanto você consegue hoje: ${opcoesDeEntrada(c)}? O restante a gente acerta depois." Escreva as opções assim, só os números, sem R$. Termine nessa pergunta. Se ela disser um valor (uma das opções ou outro), o sistema fecha a entrada no próximo turno. Se ela disser de novo que não cabe, esta instrução muda no próximo turno.`,
+        QUER_MAS_NAO_TEM,
         "- Se ela disser que falta para o essencial (comida, remédio, aluguel, conta atrasada), NÃO insista em valor nenhum: acolha, e diga que a porta fica aberta quando ela puder.",
       ].join("\n");
     }
