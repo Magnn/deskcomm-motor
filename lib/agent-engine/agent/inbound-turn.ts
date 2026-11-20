@@ -332,6 +332,7 @@ import { decidirElegibilidadeDaConversa } from '@/lib/ai/elegibilidade/consulta-
 import { anotarUltimaInboundVista, turnoSuperadoPorMensagemNova, ultimaInboundJaRespondida } from './turno-ja-respondido';
 import { vetoDeTentativaAnterior } from './veto-de-tentativa-anterior';
 import { linkDeCobrancaCopiado } from '@/lib/preco/link-de-cobranca-copiado';
+import { ofertaRepetidaSeguida } from '@/lib/preco/oferta-repetida';
 import { comRecusaDoEnvioMarcada } from './veto-da-ferramenta-de-envio';
 
 /**
@@ -621,6 +622,7 @@ export const VETOS_DE_CONTEUDO: ReadonlySet<string> = new Set([
   'oferta_em_conflito',
   'link_fora_do_valor',
   'link_de_cobranca_copiado',
+  'oferta_repetida_seguida',
   'fala_errada_do_pagamento',
   'pagamento_em_duvida_confirmado',
   'pergunta_antes_do_pix_da_entrada',
@@ -4439,6 +4441,13 @@ async function executarTurnoDoAgente(
           if (copiado) {
             runLog.warn('link de cartão de cobrança anterior no texto — envio recusado', {});
             return { ok: false, error: { code: 'link_de_cobranca_copiado', message: copiado } };
+          }
+          // A OFERTA DUAS VEZES SEGUIDAS (`lib/preco/oferta-repetida.ts`): em 20/11/2026 a Cigana repetiu o Acompanhamento
+          // (R$ 75) logo depois de a cliente responder sem aceitar.
+          const repetida = ofertaRepetidaSeguida(body, openingContext.context.messages);
+          if (repetida) {
+            runLog.warn('oferta repetida logo depois de uma resposta sem aceite — envio recusado', {});
+            return { ok: false, error: { code: 'oferta_repetida_seguida', message: repetida } };
           }
         }
         // COBRANÇA AVULSA: a marca `[[PIX: nome]]` vira a instrução e o código do Pix. Marca que o turno não pode
