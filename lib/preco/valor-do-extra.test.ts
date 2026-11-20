@@ -167,3 +167,33 @@ describe("a quantidade combinada antes vale para a marca (30/10/2026)", () => {
     expect(quantidadeMenorQueACombinada("[[PIX: Acompanhamento do mês]]", EXTRAS, [nos("são dois acompanhamentos")])).toBeNull();
   });
 });
+
+describe("duas cobranças que dividem uma palavra (Pergunta nova × Pergunta da Terceira Pessoa, 20/11/2026)", () => {
+  const extras = [
+    {
+      name: "Pergunta nova",
+      when: "",
+      delivery: "",
+      price_cents: 700,
+      quantity_prices: [
+        { quantity: 2, price_cents: 1000 },
+        { quantity: 3, price_cents: 1500 },
+      ],
+    },
+    { name: "Pergunta da Terceira Pessoa", when: "", delivery: "", price_cents: 2700 },
+  ] as unknown as Parameters<typeof valorErradoDeExtra>[1];
+
+  it("a pergunta de R$ 7 passa — antes era recusada pelo valor da outra", () => {
+    expect(valorErradoDeExtra("Essa pergunta nova custa R$ 7.", extras)).toBeNull();
+    expect(valorErradoDeExtra("Pra eu olhar essa pergunta nas cartas, é R$ 7.", extras)).toBeNull();
+  });
+  it("a da terceira pessoa a R$ 27 continua passando", () => {
+    expect(valorErradoDeExtra("A Pergunta da Terceira Pessoa fica R$ 27.", extras)).toBeNull();
+  });
+  it("valor que não serve a nenhuma das duas continua recusado", () => {
+    expect(valorErradoDeExtra("Essa pergunta fica R$ 50.", extras)).not.toBeNull();
+  });
+  it("disse o nome inteiro: só aquela conta — pergunta nova a R$ 27 é recusada", () => {
+    expect(valorErradoDeExtra("A pergunta nova fica R$ 27.", extras)).toContain("Pergunta nova");
+  });
+});

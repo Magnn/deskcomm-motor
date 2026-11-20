@@ -117,31 +117,53 @@ export function valorErradoDeExtra(
     if (valores.length === 0) continue;
     const normalizada = semAcento(frase);
     if (produtoPrincipalCitado(normalizada, produtosPrincipais)) continue;
-    for (const extra of extras) {
-      const palavras = palavrasDoExtra(extra.name).filter((p) => !palavrasDoPrincipal.has(p));
-      if (palavras.length === 0 || !palavras.some((p) => new RegExp(`\\b${p}`).test(normalizada))) continue;
-      const ditas = palavras.flatMap((p) => quantidadesDitas(frase, p));
-      // Lista as opções da tabela ("2 por R$ 10, 3 por R$ 15"): cada valor tem de ser um total da tabela.
-      const listaOpcoes = temPrecoPorQuantidade(extra) && valores.length > 1;
-      // Disse QUANTAS: o valor é o unitário ou exatamente o total daquela quantidade.
-      if (ditas.length > 0 && !listaOpcoes) {
-        const aceitos = new Set([extra.price_cents, ...ditas.map((n) => valorDaCobranca(extra, n))]);
-        const fora = valores.find((v) => !aceitos.has(v));
-        if (fora !== undefined) return contaErrada(extra, ditas[0]!, fora);
-        continue;
+    // Duas cobranças podem dividir uma palavra ("Pergunta nova" e "Pergunta da Terceira Pessoa"): a frase
+    // está certa se o valor serve a UMA delas. Exigir de todas travava qualquer valor — em 20/11/2026 a
+    // pergunta de R$ 7 era recusada "porque a da terceira pessoa é R$ 27", 8 vezes seguidas, e o lead ficou sem resposta.
+    // Mas se a frase diz o NOME INTEIRO de uma cobrança ("pergunta nova"), só essa conta.
+    const citadas = extras
+      .map((extra) => ({ extra, palavras: palavrasDoExtra(extra.name).filter((p) => !palavrasDoPrincipal.has(p)) }))
+      .filter(({ palavras }) => palavras.length > 0 && palavras.some((p) => new RegExp(`\\b${p}`).test(normalizada)));
+    const peloNome = citadas.filter(({ extra }) => normalizada.includes(semAcento(extra.name)));
+    let primeiroErro: string | null = null;
+    let algumaAceita = false;
+    for (const { extra, palavras } of peloNome.length > 0 ? peloNome : citadas) {
+      const erro = erroDoValorNaFrase(extra, frase, palavras, valores);
+      if (erro === null) {
+        algumaAceita = true;
+        break;
       }
-      const totais = new Set(totaisDoExtra(extra));
-      const errado = valores.find((v) => !totais.has(v));
-      if (errado !== undefined) {
-        return (
-          `O valor de *${extra.name}* é ${reais(extra.price_cents)} — é o valor desta cobrança, não o do trabalho principal. ` +
-          `A sua mensagem diz ${reais(errado)}. Reescreva dizendo ${reais(extra.price_cents)} por ${extra.name.toLowerCase()} ` +
-          `(${temPrecoPorQuantidade(extra) ? "ou o total da tabela" : "ou um múltiplo exato"}, para mais de uma) e NÃO "corrija" o valor depois: o valor do Pix é o certo.`
-        );
-      }
+      primeiroErro ??= erro;
     }
+    if (!algumaAceita && primeiroErro !== null) return primeiroErro;
   }
   return null;
+}
+
+/** O erro do valor dito numa frase que cita ESTA cobrança, ou `null` se os valores servem a ela. */
+function erroDoValorNaFrase(
+  extra: Extra,
+  frase: string,
+  palavras: readonly string[],
+  valores: readonly number[],
+): string | null {
+  const ditas = palavras.flatMap((p) => quantidadesDitas(frase, p));
+  // Lista as opções da tabela ("2 por R$ 10, 3 por R$ 15"): cada valor tem de ser um total da tabela.
+  const listaOpcoes = temPrecoPorQuantidade(extra) && valores.length > 1;
+  // Disse QUANTAS: o valor é o unitário ou exatamente o total daquela quantidade.
+  if (ditas.length > 0 && !listaOpcoes) {
+    const aceitos = new Set([extra.price_cents, ...ditas.map((n) => valorDaCobranca(extra, n))]);
+    const fora = valores.find((v) => !aceitos.has(v));
+    return fora === undefined ? null : contaErrada(extra, ditas[0]!, fora);
+  }
+  const totais = new Set(totaisDoExtra(extra));
+  const errado = valores.find((v) => !totais.has(v));
+  if (errado === undefined) return null;
+  return (
+    `O valor de *${extra.name}* é ${reais(extra.price_cents)} — é o valor desta cobrança, não o do trabalho principal. ` +
+    `A sua mensagem diz ${reais(errado)}. Reescreva dizendo ${reais(extra.price_cents)} por ${extra.name.toLowerCase()} ` +
+    `(${temPrecoPorQuantidade(extra) ? "ou o total da tabela" : "ou um múltiplo exato"}, para mais de uma) e NÃO "corrija" o valor depois: o valor do Pix é o certo.`
+  );
 }
 
 /** "São R$ 130.": o valor sem dizer de quê. Vale para o que o balão citou por último. */
