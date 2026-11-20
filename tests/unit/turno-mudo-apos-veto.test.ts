@@ -31,7 +31,7 @@ describe("turno mudo depois de veto de conteúdo", () => {
   });
 
   it("nada enviado + veto de conteúdo + mensagem do cliente = o run é refeito pela fila", () => {
-    const i = FONTE.indexOf("vetoDeConteudo !== null &&");
+    const i = FONTE.indexOf("vetoNestaOuEmTentativaAnterior !== null &&");
     expect(i).toBeGreaterThan(0);
     const bloco = FONTE.slice(i, i + 400);
     expect(bloco).toMatch(/!preview/);
@@ -41,8 +41,21 @@ describe("turno mudo depois de veto de conteúdo", () => {
   });
 
   it("a checagem vem DEPOIS da fala em texto solto — que ainda pode mandar a resposta", () => {
-    expect(FONTE.indexOf("vetoDeConteudo !== null &&")).toBeGreaterThan(
+    expect(FONTE.indexOf("vetoNestaOuEmTentativaAnterior !== null &&")).toBeGreaterThan(
       FONTE.indexOf("a fala em texto solto foi vetada pela cadeia de envio"),
+    );
+  });
+});
+
+describe("veto numa tentativa anterior do mesmo job (Obede, 20/11/2026)", () => {
+  it("a nova tentativa muda também é refeita — antes ela terminava ok", () => {
+    expect(FONTE).toMatch(
+      /vetoNestaOuEmTentativaAnterior =\s*vetoDeConteudo \?\? \(preview \? null : vetoDeTentativaAnterior\(liveJob\(\)\.last_error\)\)/,
+    );
+  });
+  it("e a checagem vem ANTES do checkpoint: a fala vetada não entra no resumo como dita", () => {
+    expect(FONTE.indexOf("vetoNestaOuEmTentativaAnterior !== null &&")).toBeLessThan(
+      FONTE.indexOf("await insertCheckpoint(pool"),
     );
   });
 });

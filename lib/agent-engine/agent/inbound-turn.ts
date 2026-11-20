@@ -328,6 +328,7 @@ import { fusoDaOrganizacao } from './fuso-da-org';
 import { renderAgora } from '@/lib/tempo/agora';
 import { decidirElegibilidadeDaConversa } from '@/lib/ai/elegibilidade/consulta-pg';
 import { anotarUltimaInboundVista, turnoSuperadoPorMensagemNova, ultimaInboundJaRespondida } from './turno-ja-respondido';
+import { vetoDeTentativaAnterior } from './veto-de-tentativa-anterior';
 
 /**
  * Superfície ESTÁTICA das tools do agente (description + inputSchema) — parte do
@@ -5957,13 +5958,20 @@ async function executarTurnoDoAgente(
     // esperando a chave, em silêncio, até escrever de novo (medido em produção em 08/11/2026: 1 em 440
     // vetos de promessa em 36 h, justo numa cobrança). Uma nova amostra do modelo quase sempre passa;
     // a fila limita as tentativas e, esgotadas, vira `job_dead` com escalação humana na Central.
+    // O veto pode ter sido numa tentativa ANTERIOR deste job: a nova amostra às vezes fica muda
+    // (o modelo "lembra" de ter respondido) e o turno terminava `ok` gravando no checkpoint a fala
+    // vetada como dita — o próximo turno esperava resposta a algo que nunca chegou (20/11/2026).
+    const vetoNestaOuEmTentativaAnterior =
+      vetoDeConteudo ?? (preview ? null : vetoDeTentativaAnterior(liveJob().last_error));
     if (
-      vetoDeConteudo !== null &&
+      vetoNestaOuEmTentativaAnterior !== null &&
       !preview &&
       outcomes.length === 0 &&
       input.inboundMessageId !== undefined
     ) {
-      throw new Error(`turno terminou sem resposta depois do veto ${vetoDeConteudo} — run re-tentado pela fila`);
+      throw new Error(
+        `turno terminou sem resposta depois do veto ${vetoNestaOuEmTentativaAnterior} — run re-tentado pela fila`,
+      );
     }
 
     if (outcomes.some((o) => o.kind === 'failed')) {
