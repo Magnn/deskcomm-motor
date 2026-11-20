@@ -16,7 +16,8 @@
  * nenhum tem orçamento — e aí o rodízio volta a dividir por igual, como antes).
  *
  * Desde 18/11/2026: número OFICIAL com vaga recebe antes dos de QR (que viram reserva), e a nota de
- * saúde (`saude-do-numero.ts`) corta o orçamento de quem está prestes a cair.
+ * saúde (`saude-do-numero.ts`) corta o orçamento de quem está prestes a cair. Desde 19/11/2026,
+ * número cujos envios a Meta recusa por bloqueio (131031, 130497…) sai da escolha inteira.
  *
  * Opt-in pela página (`rodizio=1`): organização com um agente por produto em números diferentes
  * não pode ter o lead de uma oferta caindo no número da outra.
@@ -29,7 +30,7 @@ import { fusoDaJanela, parseWarmupCaps } from "@/lib/agent-engine/pacing/store";
 import { STATUS_SAUDAVEL } from "@/lib/channels/health";
 import { logger } from "@/lib/logger";
 import { numerosDoAgente, numerosExtrasPorAgente } from "@/lib/ai/agents/numeros-do-agente";
-import { CHANNEL_PROVIDER_META } from "@/lib/channels/capabilities";
+import { CHANNEL_PROVIDER_META, CHANNEL_PROVIDER_ZERNIO } from "@/lib/channels/capabilities";
 
 import { fatorDaNota, saudeDosNumeros } from "./saude-do-numero";
 
@@ -50,10 +51,12 @@ export interface NumeroNoRodizio {
   aCaminho: number;
   /** Orçamento de leads novos de hoje. `null` = sem orçamento (nunca enche). */
   orcamentoHoje: number | null;
-  /** Número oficial (Cloud API): recebe primeiro; os de QR são reserva. */
+  /** Número oficial (Cloud API direto ou pelo parceiro): recebe primeiro; os de QR são reserva. */
   oficial?: boolean;
   /** Nota de saúde 0–100 (`saude-do-numero.ts`). Ausente = saudável. */
   nota?: number | null;
+  /** A Meta recusa todo envio deste número (`bloqueioDoNumero`): fora da escolha, até do transbordo. */
+  bloqueado?: boolean;
 }
 
 export interface EscolhaDoRodizio {
@@ -71,9 +74,11 @@ export interface EscolhaDoRodizio {
  *    todos (pelo orçamento cheio, sem a nota), marcada como transbordo — clique pago nunca se perde.
  */
 export function escolherPorCapacidade(
-  numeros: readonly NumeroNoRodizio[],
+  todos: readonly NumeroNoRodizio[],
   aleatorio: () => number = Math.random,
 ): EscolhaDoRodizio | null {
+  // Bloqueado não "descansa": ninguém fala com ele, então nem o transbordo pode mandar para lá.
+  const numeros = todos.filter((n) => !n.bloqueado);
   if (numeros.length === 0) return null;
   const finitos = numeros.map((n) => n.orcamentoHoje).filter((o): o is number => o !== null);
   // Sem orçamento entra na proporção pelo maior orçamento dos outros: divide com eles sem "furar a fila".
@@ -106,12 +111,21 @@ interface VersaoPublicada {
 export interface SessaoDoRodizio {
   sessionId: string;
   telefone: string;
-  /** Cloud API (número oficial). */
+  /** Cloud API, direto ou pelo provedor parceiro (número oficial). */
   oficial?: boolean;
 }
 
 function soDigitos(telefone: string): string {
   return telefone.replace(/\D/g, "");
+}
+
+/**
+ * Cloud API da Meta, direto ou pelo provedor parceiro: os dois dividem o rodízio por igual.
+ * O parceiro (Zernio) é a mesma API oficial, sem o risco de queda do QR; tratá-lo como
+ * reserva deixava o número direto com todos os leads até encher.
+ */
+export function ehNumeroOficial(provider: string | null): boolean {
+  return provider === CHANNEL_PROVIDER_META || provider === CHANNEL_PROVIDER_ZERNIO;
 }
 
 /** Conexões vivas com agente publicado. Falha devolve `[]`: quem chama cai no número configurado. */
@@ -163,7 +177,7 @@ export async function sessoesDoRodizio(admin: SupabaseClient, organizationId: st
     // Dois registros do mesmo telefone contam como um número: o WhatsApp vê um só.
     if (telefone.length < 10 || vistos.has(telefone)) continue;
     vistos.add(telefone);
-    saida.push({ sessionId: s.id, telefone, oficial: s.provider === CHANNEL_PROVIDER_META });
+    saida.push({ sessionId: s.id, telefone, oficial: ehNumeroOficial(s.provider) });
   }
   return saida;
 }
@@ -287,14 +301,22 @@ export async function proximoNumeroDoRodizio(
       logger.warn("[plataformas-de-anuncio.rodizio] nota de saúde não calculada", {
         detalhe: err instanceof Error ? err.message : String(err),
       });
-      return new Map<string, { nota: number }>();
+      return new Map<string, { nota: number; bloqueio: string | null }>();
     }),
   ]);
+  const bloqueados = sessoes.filter((s) => saude.get(s.sessionId)?.bloqueio);
+  if (bloqueados.length > 0) {
+    logger.warn("[plataformas-de-anuncio.rodizio] número bloqueado pela Meta fora do rodízio", {
+      organizationId,
+      bloqueados: Object.fromEntries(bloqueados.map((s) => [s.telefone, saude.get(s.sessionId)?.bloqueio])),
+    });
+  }
   const escolha = escolherPorCapacidade(
     sessoes.map((s) => ({
       telefone: s.telefone,
       oficial: s.oficial ?? false,
       nota: saude.get(s.sessionId)?.nota ?? null,
+      bloqueado: Boolean(saude.get(s.sessionId)?.bloqueio),
       ...(carga.get(s.sessionId) ?? { leadsHoje: 0, aCaminho: 0, orcamentoHoje: null }),
     })),
   );

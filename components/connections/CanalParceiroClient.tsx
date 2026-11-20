@@ -379,7 +379,8 @@ export function CanalParceiroClient() {
                 </Button>
               )}
             </div>
-            {!conectado && !usarChavePropria && (
+            {/* Também com números já conectados pela instalação: outra conta no provedor entra pela chave dela. */}
+            {!usarChavePropria && (
               <button
                 type="button"
                 className="self-start text-xs text-muted-foreground underline underline-offset-4"

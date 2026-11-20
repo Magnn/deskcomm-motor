@@ -5057,6 +5057,7 @@ export const DICIONARIO: Traducoes = {
   "saúde": { es: "salud" },
   "msgs/h": { es: "msjs/h" },
   "descansando no rodízio": { es: "descansando en la rotación" },
+  "bloqueado pela Meta, fora do rodízio": { es: "bloqueado por Meta, fuera de la rotación" },
   "recebe metade dos leads": { es: "recibe la mitad de los leads" },
   "recebe leads normalmente": { es: "recibe leads normalmente" },
   "Saúde do número:": { es: "Salud del número:" },

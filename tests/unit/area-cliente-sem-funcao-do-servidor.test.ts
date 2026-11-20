@@ -31,3 +31,17 @@ describe("área do cliente: nada de componente como prop de componente de client
     expect(fonte).not.toMatch(/:\s*(?:LucideIcon|React\.ComponentType|ComponentType|React\.FC|FC)\b(?!\s*\[)/);
   });
 });
+
+/**
+ * A mesma queda por outro caminho, de 07/11 a 19/11/2026: `_vista.tsx` (servidor) passava
+ * `dataCurta={(iso) => …}` a `LeiturasDoQuiz` ("use client") e toda cliente logada via a tela de erro.
+ * Arquivo de servidor da área não passa função por atributo JSX: manda o valor já calculado.
+ */
+const DE_SERVIDOR = DA_AREA.filter((f) => !DE_CLIENTE.includes(f));
+
+describe("área do cliente: arquivo de servidor não passa função por prop", () => {
+  it.each(DE_SERVIDOR.map((f) => [f.slice(process.cwd().length + 1), f]))("%s", (_rotulo, f) => {
+    const fonte = readFileSync(f, "utf8");
+    expect(fonte).not.toMatch(/=\{\s*(?:async\s+)?(?:\([^()]*\)|[A-Za-z_$][\w$]*)\s*=>|=\{\s*function\b/);
+  });
+});

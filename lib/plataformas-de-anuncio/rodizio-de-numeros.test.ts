@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { escolherPorCapacidade, sortearNumero, type NumeroNoRodizio } from "./rodizio-de-numeros";
+import { ehNumeroOficial, escolherPorCapacidade, sortearNumero, type NumeroNoRodizio } from "./rodizio-de-numeros";
 
 describe("sortearNumero", () => {
   it("sem número vivo devolve null (a rota usa o número configurado)", () => {
@@ -139,5 +139,29 @@ describe("escolherPorCapacidade — oficial primeiro e nota de saúde", () => {
       telefone: "b",
       transbordo: true,
     });
+  });
+
+  it("bloqueado pela Meta sai da escolha, mesmo vazio e oficial (4871 em 19/11)", () => {
+    expect(escolherPorCapacidade([n("bloqueado", 0, 24, { oficial: true, bloqueado: true }), n("bom", 11, 24)])?.telefone).toBe("bom");
+  });
+
+  it("todos cheios: o transbordo também pula o bloqueado", () => {
+    expect(escolherPorCapacidade([n("bloqueado", 0, 24, { bloqueado: true }), n("cheio", 30, 24)])).toEqual({
+      telefone: "cheio",
+      transbordo: true,
+    });
+  });
+
+  it("só bloqueados: null (a rota usa o número configurado)", () => {
+    expect(escolherPorCapacidade([n("a", 0, 24, { bloqueado: true })])).toBeNull();
+  });
+});
+
+describe("ehNumeroOficial — quem divide o rodízio como oficial", () => {
+  it("Cloud API direto e pelo parceiro são oficiais; QR não", () => {
+    expect(ehNumeroOficial("meta_cloud")).toBe(true);
+    expect(ehNumeroOficial("zernio")).toBe(true);
+    expect(ehNumeroOficial("waha")).toBe(false);
+    expect(ehNumeroOficial(null)).toBe(false);
   });
 });

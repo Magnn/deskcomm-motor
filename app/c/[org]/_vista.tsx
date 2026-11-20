@@ -507,7 +507,7 @@ export function VistaDaArea(p: VistaDaAreaProps) {
     <>
       {topo(rotulos.trabalho)}
       <div className={corpo}>
-        <LeiturasDoQuiz slug={slug} leituras={p.leiturasDeQuiz} aberta={p.leituraAberta} dataCurta={(iso) => dataCurta(iso)} tx={p.tlq} />
+        <LeiturasDoQuiz slug={slug} leituras={p.leiturasDeQuiz.map((l) => ({ ...l, quandoCurto: dataCurta(l.quando) }))} aberta={p.leituraAberta} tx={p.tlq} />
         <MemoriasDaArea entradas={dados.diario} tag={tag} fuso={fuso} titulo={t("Suas memórias")} recentes={t("Reflexões recentes")} vazio={t("As suas reflexões ficam aqui. Comece pelo diário no ritual de hoje.")} />
         {p.grimorio.length > 0 ? <GrimorioDaArea cartas={p.grimorio} tg={p.tg} /> : null}
         {ultimaCompra ? (

@@ -45,7 +45,9 @@ export interface PacingTodayView {
 export interface PacingHealthView {
   score: number;
   /** "descansa" = fora do rodízio enquanto outro tiver vaga; "metade" = metade do orçamento. */
-  rotation: "inteiro" | "metade" | "descansa";
+  rotation: "inteiro" | "metade" | "descansa" | "bloqueado";
+  /** Código da Meta que tirou o número do rodízio ("bloqueado"), ou null. */
+  block_code: string | null;
   drops_72h: number;
   failed_24h: number;
   sent_24h: number;
