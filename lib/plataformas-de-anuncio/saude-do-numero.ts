@@ -89,6 +89,31 @@ export function bloqueioDoNumero(envios: readonly EnvioRecente[]): string | null
   return ultimoBloqueio && ultimoBloqueio.em > ultimoQueSaiu ? ultimoBloqueio.codigo : null;
 }
 
+/**
+ * As falhas que pesam na nota. Recusa de BLOQUEIO (conta, país, política, pagamento) com um envio que saiu
+ * DEPOIS dela é episódio encerrado: o bloqueio já tirou e devolveu o número, e contar de novo o deixava pela
+ * metade por 24 h — em 20/11/2026 o 7336 ficou com nota 57 por 92 recusas 131042 de um cartão já resolvido.
+ * Recusa por destinatário (131026…) e falha sem código seguem contando.
+ */
+export function falhasQueContam(falhas: readonly EnvioRecente[], ultimoQueSaiu: number): number {
+  let n = 0;
+  for (const f of falhas) {
+    const codigo = codigoDaMeta(f.error_code, f.error_message);
+    if (codigo && CODIGOS_DE_BLOQUEIO.has(codigo) && Date.parse(f.created_at) < ultimoQueSaiu) continue;
+    n += 1;
+  }
+  return n;
+}
+
+/** O último envio que saiu, em ms (ou -Infinity). */
+export function ultimoEnvioQueSaiu(envios: readonly EnvioRecente[]): number {
+  let ultimo = -Infinity;
+  for (const e of envios) {
+    if (e.status === "sent" || e.status === "delivered" || e.status === "read") ultimo = Math.max(ultimo, Date.parse(e.created_at));
+  }
+  return ultimo;
+}
+
 /** Quantos episódios de queda há numa lista de horários de aviso (qualquer ordem). */
 export function contarEpisodios(horarios: readonly number[]): number {
   const ordenados = [...horarios].sort((a, b) => a - b);
@@ -128,6 +153,81 @@ async function enviosRecentes(
         .limit(50);
       if (error) logger.warn("[plataformas-de-anuncio.saude] envios recentes não lidos", { detalhe: error.message });
       saida.set(id, (data ?? []) as EnvioRecente[]);
+    }),
+  );
+  return saida;
+}
+
+/** O maior número de envios numa mesma hora (horários em ISO). */
+export function picoPorHora(horarios: readonly string[]): number {
+  const porHora = new Map<number, number>();
+  for (const h of horarios) {
+    const balde = Math.floor(Date.parse(h) / HORA_MS);
+    porHora.set(balde, (porHora.get(balde) ?? 0) + 1);
+  }
+  return Math.max(0, ...porHora.values());
+}
+
+interface Envios24h {
+  enviadas: number;
+  falhas: EnvioRecente[];
+  /** Horários dos envios que NÓS iniciamos (`pacing_ledger.tipo = iniciada`). */
+  iniciadas: string[];
+}
+
+/**
+ * Os sinais de 24 h de CADA número, lidos um a um. A leitura única de todos cortava em 1.000 linhas
+ * (`PGRST_DB_MAX_ROWS`) sem ordem — com 2.649 envios em 20/11/2026, a taxa de falha saía de uma amostra
+ * qualquer. O total é contagem no banco; as falhas e as iniciadas são poucas.
+ *
+ * O PICO conta só o que NÓS iniciamos: responder a quem escreveu não é disparo em massa, e a retomada das
+ * conversas depois de uma queda (123 balões numa hora, 20/11/2026) derrubava a nota do número que a fez.
+ */
+async function envios24hPorNumero(
+  admin: SupabaseClient,
+  organizationId: string,
+  ids: readonly string[],
+  desde: string,
+): Promise<Map<string, Envios24h>> {
+  const saida = new Map<string, Envios24h>();
+  await Promise.all(
+    ids.map(async (id) => {
+      const [total, falhas, iniciadas] = await Promise.all([
+        admin
+          .from("messages")
+          .select("id", { count: "exact", head: true })
+          .eq("organization_id", organizationId)
+          .eq("channel_session_id", id)
+          .eq("direction", "outbound")
+          .gte("created_at", desde),
+        admin
+          .from("messages")
+          .select("status, error_code, error_message, created_at")
+          .eq("organization_id", organizationId)
+          .eq("channel_session_id", id)
+          .eq("direction", "outbound")
+          .eq("status", "failed")
+          .gte("created_at", desde)
+          .order("created_at", { ascending: false })
+          .limit(1000),
+        admin
+          .from("pacing_ledger")
+          .select("sent_at")
+          .eq("organization_id", organizationId)
+          .eq("channel_session_id", id)
+          .eq("tipo", "iniciada")
+          .gte("sent_at", desde)
+          .order("sent_at", { ascending: false })
+          .limit(1000),
+      ]);
+      for (const [qual, erro] of [["envios de 24 h", total.error], ["falhas de 24 h", falhas.error], ["envios iniciados", iniciadas.error]] as const) {
+        if (erro) logger.warn("[plataformas-de-anuncio.saude] sinal não lido", { qual, detalhe: erro.message });
+      }
+      saida.set(id, {
+        enviadas: total.count ?? 0,
+        falhas: (falhas.data ?? []) as EnvioRecente[],
+        iniciadas: ((iniciadas.data ?? []) as { sent_at: string }[]).map((l) => l.sent_at),
+      });
     }),
   );
   return saida;
@@ -184,7 +284,7 @@ export async function saudeDosNumeros(
   const desde24h = new Date(agora.getTime() - 24 * HORA_MS).toISOString();
   const ate2h = new Date(agora.getTime() - 2 * HORA_MS).toISOString();
 
-  const [avisos, saidas, ledger, conversas] = await Promise.all([
+  const [avisos, conversas, porNumero] = await Promise.all([
     admin
       .from("agent_inbox_items")
       .select("ref_id, created_at")
@@ -196,21 +296,6 @@ export async function saudeDosNumeros(
       .gte("created_at", desde72h)
       .limit(2000),
     admin
-      .from("messages")
-      .select("channel_session_id, status")
-      .eq("organization_id", organizationId)
-      .in("channel_session_id", ids)
-      .eq("direction", "outbound")
-      .gte("created_at", desde24h)
-      .limit(20_000),
-    admin
-      .from("pacing_ledger")
-      .select("channel_session_id, sent_at")
-      .eq("organization_id", organizationId)
-      .in("channel_session_id", ids)
-      .gte("sent_at", desde24h)
-      .limit(20_000),
-    admin
       .from("conversations")
       .select("channel_session_id, created_at, last_inbound_at")
       .eq("organization_id", organizationId)
@@ -220,11 +305,10 @@ export async function saudeDosNumeros(
       .lte("created_at", ate2h)
       .not("last_inbound_at", "is", null)
       .limit(10_000),
+    envios24hPorNumero(admin, organizationId, ids, desde24h),
   ]);
   for (const [qual, erro] of [
     ["avisos de queda", avisos.error],
-    ["mensagens de saída", saidas.error],
-    ["envios por hora", ledger.error],
     ["leads de 72 h", conversas.error],
   ] as const) {
     if (erro) logger.warn("[plataformas-de-anuncio.saude] sinal não lido", { qual, detalhe: erro.message });
@@ -239,23 +323,13 @@ export async function saudeDosNumeros(
     const s = sinais.get(id);
     if (s) s.quedas72h = contarEpisodios(horarios);
   }
-  for (const m of (saidas.data ?? []) as { channel_session_id: string; status: string | null }[]) {
-    const s = sinais.get(m.channel_session_id);
-    if (!s) continue;
-    s.enviadas24h += 1;
-    if (m.status === "failed") s.falhas24h += 1;
-  }
   const enviosPorSessao = await enviosRecentes(admin, organizationId, ids, desde24h);
-  const porHora = new Map<string, Map<number, number>>();
-  for (const l of (ledger.data ?? []) as { channel_session_id: string; sent_at: string }[]) {
-    const balde = Math.floor(Date.parse(l.sent_at) / HORA_MS);
-    const m = porHora.get(l.channel_session_id) ?? new Map<number, number>();
-    m.set(balde, (m.get(balde) ?? 0) + 1);
-    porHora.set(l.channel_session_id, m);
-  }
-  for (const [id, m] of porHora) {
+  for (const [id, n] of porNumero) {
     const s = sinais.get(id);
-    if (s) s.picoPorHora24h = Math.max(0, ...m.values());
+    if (!s) continue;
+    s.enviadas24h = n.enviadas;
+    s.falhas24h = falhasQueContam(n.falhas, ultimoEnvioQueSaiu(enviosPorSessao.get(id) ?? []));
+    s.picoPorHora24h = picoPorHora(n.iniciadas);
   }
   for (const c of (conversas.data ?? []) as { channel_session_id: string; created_at: string; last_inbound_at: string }[]) {
     const s = sinais.get(c.channel_session_id);
