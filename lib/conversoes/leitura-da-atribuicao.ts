@@ -21,6 +21,12 @@ export interface AtribuicaoParaEnvio {
   /** `ad_source_id` — o `ctwa_clid`, o clique que abriu a conversa. */
   cliqueDeOrigem: string;
   telefone: string | null;
+  /**
+   * O clique é da PÁGINA (`fbclid`/`_fbc`), não de mensageria. A venda vai para o pixel do site mesmo que a conversa
+   * tenha passado por um número oficial: `fbclid` no lugar do `ctwa_clid` é recusado (medido em 19–20/11/2026, três
+   * Compras recusadas com "O parâmetro ctwa_clid é inválido", todas de quem veio pela página e falou no 5416).
+   */
+  doSite?: boolean;
 }
 
 export type LeituraDeAtribuicao =
@@ -64,7 +70,7 @@ export async function lerAtribuicao(
   // duas vendas do dia vindas da página de pré-venda foram puladas sem registro, e o Gerenciador não marcou nenhuma.
   const fbclid = typeof meta.fbclid === "string" ? meta.fbclid.trim() : "";
   if (!clique && fbclid) {
-    return { temAtribuicao: true, atribuicao: { plataforma: "meta_ads", cliqueDeOrigem: fbclid, telefone } };
+    return { temAtribuicao: true, atribuicao: { plataforma: "meta_ads", cliqueDeOrigem: fbclid, telefone, doSite: true } };
   }
   // QUEM VEIO PELA PÁGINA SEM `fbclid` NA URL, MAS COM O COOKIE DE CLIQUE DA META: o navegador traz `_fbc`
   // (`fb.1.<instante>.<fbclid>`) de um clique em anúncio feito antes, e a página o guarda em `meta_ads_click_refs`.
@@ -72,7 +78,7 @@ export async function lerAtribuicao(
   if (!clique && meta.origem === "site") {
     const doCookie = await fbclidDoCookieDoClique(admin, organizationId, contactId);
     if (doCookie) {
-      return { temAtribuicao: true, atribuicao: { plataforma: "meta_ads", cliqueDeOrigem: doCookie, telefone } };
+      return { temAtribuicao: true, atribuicao: { plataforma: "meta_ads", cliqueDeOrigem: doCookie, telefone, doSite: true } };
     }
   }
   // Sem o clique não há atribuição utilizável: é ele que liga a venda ao anúncio.

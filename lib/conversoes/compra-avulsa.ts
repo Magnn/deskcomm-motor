@@ -100,7 +100,7 @@ export async function reportarCompraAvulsa(
     let credencialDoEnvio = credencial.credencial;
     if (plataforma === "meta_ads") {
       // Fora de número oficial, a venda vai para o pixel do site (`destinoDaConversaoMeta`).
-      const destino = await destinoDaConversaoMeta(admin, compra.organizationId, compra.contactId, credencial.credencial);
+      const destino = await destinoDaConversaoMeta(admin, compra.organizationId, compra.contactId, credencial.credencial, fetch, leitura.atribuicao.doSite);
       if (!destino.ok) {
         await registra("skipped", destino.motivo, destino.detalhe);
         return { status: "skipped", motivo: destino.motivo };

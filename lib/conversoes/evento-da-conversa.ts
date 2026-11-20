@@ -111,7 +111,7 @@ export async function reportarEventoDaConversa(
   let credencialDoEnvio = credencial.credencial;
   if (plataforma === "meta_ads") {
     // Fora de número oficial, o passo vai para o pixel do site (`destinoDaConversaoMeta`).
-    const destino = await destinoDaConversaoMeta(admin, org, contactId, credencial.credencial);
+    const destino = await destinoDaConversaoMeta(admin, org, contactId, credencial.credencial, fetch, leitura.atribuicao.doSite);
     if (!destino.ok) return { status: "skipped", motivo: destino.motivo };
     contaDoWhatsApp = destino.contaDoWhatsApp;
     pixelDoSite = destino.pixelDoSite;

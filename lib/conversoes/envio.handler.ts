@@ -166,7 +166,7 @@ async function handle(row: EventRow): Promise<HandlerResult> {
   let credencialDoEnvio = credencial.credencial;
   if (plataforma === "meta_ads") {
     // Fora de número oficial, a venda vai para o pixel do site (`destinoDaConversaoMeta`).
-    const destino = await destinoDaConversaoMeta(admin, row.organization_id, lead.contact_id as string, credencial.credencial);
+    const destino = await destinoDaConversaoMeta(admin, row.organization_id, lead.contact_id as string, credencial.credencial, fetch, leitura.atribuicao.doSite);
     if (!destino.ok) {
       await registra("skipped", destino.motivo, destino.detalhe);
       return ok("skipped", destino.motivo);
