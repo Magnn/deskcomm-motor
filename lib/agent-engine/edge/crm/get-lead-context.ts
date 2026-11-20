@@ -235,6 +235,8 @@ export async function getLeadContext(
            from messages
            where organization_id = $1 and conversation_id = $2
              and direction in ('inbound', 'outbound')
+             -- recusada pela Meta nunca chegou: contá-la faz o agente agir como se a pessoa tivesse lido
+             and (direction = 'inbound' or status is distinct from 'failed')
              and exists(select 1 from conversations c where c.organization_id=$1 and c.id=$2
                and ((messages.direction='inbound' and messages.service_revision=c.service_revision
                  and messages.demanda_id is not distinct from c.current_demanda_id)
