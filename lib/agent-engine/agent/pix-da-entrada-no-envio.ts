@@ -39,6 +39,8 @@ export interface EntradaDoPixDaEntrada {
   log: Registro;
   /** A chave da empresa, quando é a forma principal de receber: o provedor não é consultado. */
   chavePrincipal?: ChavePixDaEmpresa | null;
+  /** Ela pediu para pagar no cartão (`lib/preco/pediu-cartao.ts`): vai só o link de cartão, sem a chave. */
+  soCartao?: boolean;
   /** Injetáveis só para teste. */
   lerConexao?: (admin: SupabaseClient, organizationId: string) => Promise<ConexaoStripe | null>;
   criarPix?: (conexao: ConexaoStripe, pedido: PedidoDePix) => Promise<PixCriado>;
@@ -118,6 +120,8 @@ export async function pixDoRestanteNoLugarDaMarca(
     e.log.info('pix do restante pela chave principal', { conversation_id: e.conversationId, restante_cents: e.restanteCents });
     const marca = { extra: { name: MARCA_DO_RESTANTE, price_cents: e.restanteCents, when: '' }, texto: achada[0] };
     const cartao = await cartaoNoValor(e, cobranca);
+    // Ela pediu cartão: vai só o link. Se o link não saiu, a chave vai, para ela não ficar sem como pagar.
+    if (e.soCartao && cartao !== null) return { corpo: corpoComPixDoExtra(e.corpo, marca, null, cartao, null) };
     return { corpo: corpoComPixDoExtra(e.corpo, marca, null, cartao, { chave, titular: e.chavePrincipal.holder, tipo: tipoDaChave(e.chavePrincipal) }) };
   }
   try {
@@ -169,6 +173,8 @@ export async function pixDaEntradaNoLugarDaMarca(e: EntradaDoPixDaEntrada): Prom
     e.log.info('pix da entrada pela chave principal', { conversation_id: e.conversationId, entrada_cents: e.entrada.entradaCents });
     const marca = { extra: { name: MARCA_DA_ENTRADA, price_cents: e.entrada.entradaCents, when: '' }, texto: achada[0] };
     const cartao = await cartaoNoValor(e, cobranca);
+    // Ela pediu cartão: vai só o link. Se o link não saiu, a chave vai, para ela não ficar sem como pagar.
+    if (e.soCartao && cartao !== null) return { corpo: corpoComPixDoExtra(e.corpo, marca, null, cartao, null) };
     return { corpo: corpoComPixDoExtra(e.corpo, marca, null, cartao, { chave, titular: e.chavePrincipal.holder, tipo: tipoDaChave(e.chavePrincipal) }) };
   }
   try {

@@ -12,8 +12,23 @@ export interface TranscriptionCreds {
   apiKey: string;
   model?: string;
   baseUrl?: string;
-  /** Quanto esperar a resposta. Ausente = sem teto (o comportamento de sempre). */
+  /**
+   * Quanto esperar a resposta, no mínimo: áudio longo ganha mais (`prazoDaTranscricao`). Ausente = sem teto (o
+   * comportamento de sempre).
+   */
   timeoutMs?: number;
+}
+
+/** Até onde o prazo cresce com o tamanho: depois disso o áudio vai para a reserva ou para a próxima tentativa. */
+const PRAZO_MAXIMO_MS = 240_000;
+
+/**
+ * O prazo de UM áudio: o mínimo configurado, ou mais, pelo tamanho. Medido em 21/11/2026 no Whisper próprio (CPU):
+ * ~4,5 KB de áudio por segundo com o modelo carregado. Com o teto fixo de 75 s, todo áudio acima de ~300 KB (uns 3
+ * minutos de fala) estourava em todas as tentativas e ficava "não consegui interpretar". Folga de 2× sobre o medido.
+ */
+export function prazoDaTranscricao(minimoMs: number, bytes: number): number {
+  return Math.max(minimoMs, Math.min(PRAZO_MAXIMO_MS, Math.round(bytes / 2.2)));
 }
 
 const DEFAULT_BASE = "https://api.openai.com";
@@ -91,7 +106,7 @@ export function apiTranscriptionProvider(
         method: "POST",
         headers: { Authorization: `Bearer ${creds.apiKey}` },
         body: form,
-        ...(creds.timeoutMs ? { signal: AbortSignal.timeout(creds.timeoutMs) } : {}),
+        ...(creds.timeoutMs ? { signal: AbortSignal.timeout(prazoDaTranscricao(creds.timeoutMs, audio.byteLength)) } : {}),
       });
       if (!res.ok) throw new Error(`transcription_${res.status}${await codigoDaRecusa(res)}`);
       const json = (await res.json()) as { text?: string };

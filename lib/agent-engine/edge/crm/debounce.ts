@@ -13,10 +13,10 @@
  *   - mensagem que chega fora da janela abre janela nova;
  *   - `debounceMs = 0` desliga a coalescência: job imediato, zero consulta.
  *
- * A janela é ANCORADA no primeiro job, não deslizante: mensagens que chegam
- * dentro dela não empurram o `run_after` para frente (nada aqui faz update de
- * `run_after`). Quem mede o pior caso com contato falante é
- * `debounce.medicao.test.ts`.
+ * Por padrão a janela é ANCORADA no primeiro job: mensagens que chegam dentro
+ * dela não empurram o `run_after` para frente. Com `INBOUND_DEBOUNCE_MAX_MS`
+ * (teto) maior que a janela, ela DESLIZA até o teto (`SQL_ESTICAR_JANELA`).
+ * Quem mede o pior caso com contato falante é `debounce.medicao.test.ts`.
  */
 import type pg from 'pg';
 
@@ -40,6 +40,25 @@ const SQL_JOB_PARA_COALESCER = `select id from job_queue
    and kind = 'inbound_turn' and status = 'pending' and run_after > now()
    and not (payload ? 'held_run_after')
  limit 1`;
+
+/**
+ * A carona com janela DESLIZANTE (`INBOUND_DEBOUNCE_MAX_MS` > 0): a mensagem empurra o `run_after` do job para
+ * "agora + janela", sem passar de "criação do job + teto". Medido em 21/11/2026: quem escreve em partes manda a
+ * segunda 12–25 s depois da primeira; com a janela ancorada de 8 s, 150 respostas em 3 dias saíram no meio da
+ * rajada. O teto é o que a âncora protegia (#1390): contato falante não adia a resposta para sempre.
+ * Mesmo filtro do `SQL_JOB_PARA_COALESCER`; o `status = 'pending'` no update é o que impede esticar um job que um
+ * worker acabou de pegar — sem linha devolvida, a mensagem abre janela nova.
+ */
+const SQL_ESTICAR_JANELA = `update job_queue
+   set run_after = least(greatest(run_after, now() + $3 * interval '1 millisecond'),
+                         created_at + $4 * interval '1 millisecond')
+ where id = (select id from job_queue
+              where organization_id = $1 and contact_id = $2
+                and kind = 'inbound_turn' and status = 'pending' and run_after > now()
+                and not (payload ? 'held_run_after')
+              limit 1)
+   and status = 'pending'
+ returning id`;
 
 /** O que fazer com a mensagem que acabou de chegar. */
 export type DecisaoDeRajada =
@@ -75,8 +94,13 @@ export async function decidirRajada(
   alvo: { organizationId: string; contactId: string },
   debounceMs: number,
   agora: number = Date.now(),
+  /** Teto da janela deslizante; 0 = janela ancorada (o comportamento de sempre). */
+  tetoMs = 0,
 ): Promise<DecisaoDeRajada> {
-  if (debounceMs > 0) {
+  if (debounceMs > 0 && tetoMs > debounceMs) {
+    const { rows } = await pool.query<{ id: string }>(SQL_ESTICAR_JANELA, [alvo.organizationId, alvo.contactId, debounceMs, tetoMs]);
+    if (rows[0] !== undefined) return { tipo: 'coalescido', jobId: rows[0].id };
+  } else if (debounceMs > 0) {
     const jobId = await buscarJobParaCoalescer(pool, alvo);
     if (jobId !== undefined) return { tipo: 'coalescido', jobId };
   }
