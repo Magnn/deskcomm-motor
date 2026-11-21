@@ -165,11 +165,23 @@ export type ResultadoDeEnvio =
  * carrega o que falta: o refresh token decifrado e os três identificadores
  * de para onde reportar (migration 0307). `undefined` para quem não é Google.
  */
+/** Conta e chave do intermediário que serve o número da conversa. */
+export interface ChaveDoIntermediario {
+  accountId: string;
+  apiKey: string;
+  baseUrl: string;
+}
+
 export interface CredencialDeConversao {
   datasetId: string;
   accessToken: string;
   /** Preenchido = envio marcado como teste, não conta para otimização. */
   testEventCode: string | null;
+  /**
+   * A conversa de anúncio aconteceu num número do intermediário: a venda vai pela rota de conversões
+   * DELE (`lib/channels/conversao-pelo-intermediario.ts`), que tem o token da conta do WhatsApp e o clique.
+   */
+  intermediario?: ChaveDoIntermediario;
   google?: {
     /** Decifrado; NUNCA o access token — esse é derivado a cada envio. */
     refreshToken: string;
