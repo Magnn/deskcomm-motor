@@ -10,6 +10,8 @@
  */
 import type pg from "pg";
 
+import { CHANNEL_CAPABILITIES } from "@/lib/channels/capabilities";
+
 /** Franquia mensal de mensagens de atendimento grátis por número (Meta, desde 1º/10/2026). */
 export const FRANQUIA_MENSAL = 1000;
 
@@ -77,8 +79,10 @@ export function montarCobranca(linhas: readonly Linha[], inicio: Date): Cobranca
   };
 }
 
-/** Provedores que falam pela API oficial do WhatsApp (os que a Meta cobra). */
-const PROVEDORES_OFICIAIS = ["meta_cloud", "zernio", "kapso", "datafy"];
+/** Canais da API oficial do WhatsApp — os que a Meta cobra: exigem modelo fora da janela e custam por mensagem. */
+const PROVEDORES_OFICIAIS = Object.entries(CHANNEL_CAPABILITIES)
+  .filter(([, c]) => c.requiresTemplates && c.costPerMessage)
+  .map(([provedor]) => provedor);
 
 export async function lerCobrancaDoWhatsapp(pool: pg.Pool, organizationId: string, agora = new Date()): Promise<CobrancaDoMes> {
   // O mês da Meta é o do calendário em UTC.
