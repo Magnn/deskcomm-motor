@@ -49,7 +49,16 @@ export interface UsoDoComprovante {
 export interface DepsDoComprovante {
   lerUso(idDoPix: string): Promise<UsoDoComprovante | null>;
   registrar(contatoId: string, pagamento: PagamentoRecebido): Promise<ResultadoDoPagamento>;
+  /**
+   * A equipe já registrou À MÃO, há pouco, uma venda deste valor para este contato? 20/11/2026: o Sidnei mandou o Pix
+   * de R$ 130, a equipe registrou pelo painel às 20:08:21 e o conferidor registrou de novo 15 s depois — venda em dobro
+   * no faturamento e duas Compras para a Meta. Opcional: sem ela, o conferidor segue como antes.
+   */
+  registradoAMao?(contatoId: string, valorCents: number): Promise<boolean>;
 }
+
+/** Até onde um registro à mão do mesmo valor conta como o mesmo pagamento que o comprovante traz. */
+const JANELA_DO_REGISTRO_A_MAO_MS = 3 * 60 * 60 * 1000;
 
 export function depsReaisDoComprovante(admin: SupabaseClient, organizationId: string): DepsDoComprovante {
   return {
@@ -65,6 +74,21 @@ export function depsReaisDoComprovante(admin: SupabaseClient, organizationId: st
       if (error) throw new Error(`livro de receita: ${error.message}`);
       const uso = data as { contact_id: string | null; created_at: string } | null;
       return uso ? { contactId: uso.contact_id, criadoEm: new Date(uso.created_at) } : null;
+    },
+    async registradoAMao(contatoId, valorCents) {
+      const { data, error } = await admin
+        .from("revenue_ledger")
+        .select("id")
+        .eq("organization_id", organizationId)
+        .eq("contact_id", contatoId)
+        .eq("provider", "manual")
+        .eq("event_type", "charge")
+        .eq("amount_cents", valorCents)
+        .not("created_by_user_id", "is", null)
+        .gte("created_at", new Date(Date.now() - JANELA_DO_REGISTRO_A_MAO_MS).toISOString())
+        .limit(1);
+      if (error) throw new Error(`livro de receita: ${error.message}`);
+      return (data ?? []).length > 0;
     },
     registrar(contatoId, pagamento) {
       const deps = depsReaisDoPagamento(admin, {
@@ -167,6 +191,12 @@ export async function comprovanteDoTurno(
       return blocoDaConferencia(conferencia, chave);
     }
     e.aoConfirmar?.();
+
+    // Já registrado à mão pela equipe: confirma na conversa, sem registrar de novo.
+    if (await deps.registradoAMao?.(e.contactId, conferencia.valorCents)) {
+      e.log.info("comprovante já registrado à mão pela equipe — sem registro em dobro", { conversation_id: e.conversationId, valor_cents: conferencia.valorCents });
+      return conferencia.tipo === "confere_produto" || conferencia.tipo === "confere_valor" ? blocoDaConferencia(conferencia, chave) : "";
+    }
 
     const base = {
       chave: chaveDoComprovante(conferencia.idDoPix),
