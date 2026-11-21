@@ -167,6 +167,16 @@ describe("comprovante no turno", () => {
     expect(deps.registrar).toHaveBeenCalledWith("c1", expect.objectContaining({ produto: "Abertura do Coração", valor_cents: 6000, iniciar_entrega: true }));
   });
 
+  it("⭐ venda já registrada à mão pela equipe não é registrada de novo (Sidnei, 20/11/2026)", async () => {
+    const deps = { ...dublês(), registradoAMao: vi.fn(async () => true) };
+    const aoConfirmar = vi.fn();
+    const bloco = await comprovanteDoTurno(deps, { contactId: "c1", conversationId: "v", pricing, mensagens: [{ direction: "outbound", body: "O Abertura do Coração é o seu caminho.", sent_at: COBROU_EM }, cobranca("R$ 60"), imagem("R$ 60,00")], aoConfirmar, agora: AGORA, log });
+    expect(deps.registradoAMao).toHaveBeenCalledWith("c1", 6000);
+    expect(deps.registrar).not.toHaveBeenCalled();
+    expect(aoConfirmar).toHaveBeenCalled();
+    expect(bloco).not.toContain("não confere");
+  });
+
   it("⭐ o lead que reenvia o comprovante de um atendimento anterior para e chama a equipe", async () => {
     const deps = dublês({ contactId: "c1", criadoEm: new Date("2026-10-30T15:00:00.000Z") });
     const bloco = await turno(deps);
