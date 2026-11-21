@@ -107,7 +107,9 @@ describe("a entrada já combinada continua valendo", () => {
     const bloco = blocoDaEntradaImediata({ entradaCents: 5000, restanteCents: 8000, combinadaAntes: true });
     expect(bloco).toContain("ENTRADA JÁ COMBINADA");
     expect(bloco).toContain("[[PIX: Entrada]]");
-    expect(bloco).toContain("O link do cartão NÃO serve para a entrada");
+    // 21/11/2026: o cartão também serve para a entrada (link criado no valor dela); a frase antiga fazia a agente recusar.
+    expect(bloco).toContain("link de cartão já no valor de R$ 50");
+    expect(bloco).not.toContain("NÃO serve para a entrada");
     expect(bloco).not.toContain('"Fechado, [nome]');
   });
 });

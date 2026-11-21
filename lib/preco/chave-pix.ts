@@ -154,7 +154,7 @@ export function blocoDaChavePix(chave: ChavePixDaEmpresa | null | undefined, val
       `- Se ela pedir a chave de novo, cobre de novo do jeito de sempre. NUNCA digite a chave você mesma, e é PROIBIDO dizer que não trabalha com chave.`,
       ...comoEAChave(chave),
       `- A chave SÓ chega pela cobrança que você escreve NESTE envio (o link do produto ou a marca [[PIX: …]]). É PROIBIDO dizer "a chave vai aqui embaixo", "aqui está a chave", "te mandei a chave" ou "a chave está aí em cima" sem a cobrança no mesmo envio ou sem a chave já enviada na conversa. Se não há valor liberado para cobrar o que ela quer, diga o valor que está liberado; nunca finja que mandou.`,
-      `- O link do cartão tem o valor fixo do produto e NÃO tem campo de valor: nunca mande digitar ou trocar o valor no link. Valor diferente (entrada, avulsa) é pela chave.`,
+      `- O link do cartão tem o valor fixo do produto e NÃO tem campo de valor: nunca mande digitar ou trocar o valor no link. Valor diferente (entrada, avulsa) vai pela marca [[PIX: …]]: o sistema manda a chave e um link de cartão já nesse valor.`,
       `- SÓ se ela disser que a chave não funcionou ou que não conseguiu pagar com ela, escreva sozinha num balão a marca com o valor em reais, assim: [[CHAVE PIX: ${Math.round(valores[0]! / 100)}]]. O sistema troca a marca pelo Pix copia e cola. Valores liberados para esta pessoa agora: ${valores.map(reais).join(", ")}. Nunca use essa marca antes de ela ter problema com a chave.`,
       confirmacao,
     ].join("\n");
