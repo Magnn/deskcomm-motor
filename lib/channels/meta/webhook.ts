@@ -16,6 +16,7 @@
  * `{data:...}`. Envelopar quebra a verificação com uma mensagem inútil no dashboard.
  */
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { TEXTO_MENSAGEM_INDISPONIVEL } from "@/lib/channels/mensagem-indisponivel";
 
 import { parseMetaInboundContact } from "@/lib/channels/meta/contact-card";
 import type { SharedContact } from "@/lib/messaging/contact-card";
@@ -444,7 +445,9 @@ export function parseMetaWebhook(envelope: MetaWebhookEnvelope): MetaWebhookEven
               toque ??
               (tipoCrm === "text"
                 ? str((raw.text as Record<string, unknown>)?.body)
-                : sharedContact?.name ?? null),
+                : tipo === "unsupported"
+                  ? TEXTO_MENSAGEM_INDISPONIVEL
+                  : sharedContact?.name ?? null),
             ...(sharedContact ? { sharedContact } : {}),
             media:
               corpoMidia && str(corpoMidia.id)
