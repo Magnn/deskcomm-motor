@@ -38,6 +38,8 @@ export interface EntradaDoPixDoExtra {
   log: Registro;
   /** A chave da empresa, quando é a forma principal de receber: o Pix sai por ela, e o provedor só faz o link de cartão. */
   chavePrincipal?: ChavePixDaEmpresa | null;
+  /** Ela pediu para pagar no cartão (`lib/preco/pediu-cartao.ts`): vai só o link de cartão, sem a chave. */
+  soCartao?: boolean;
   /** Injetáveis só para teste. */
   lerConexao?: (admin: SupabaseClient, organizationId: string) => Promise<ConexaoStripe | null>;
   criarPix?: (conexao: ConexaoStripe, pedido: PedidoDePix) => Promise<PixCriado>;
@@ -87,6 +89,8 @@ export async function pixDoExtraNoLugarDaMarca(e: EntradaDoPixDoExtra): Promise<
         return null;
       }
     })();
+    // Ela pediu cartão: vai só o link. Se o link não saiu, a chave vai, para ela não ficar sem como pagar.
+    if (e.soCartao && cartao) return { corpo: corpoComPixDoExtra(e.corpo, marca, null, cartao.url, null) };
     return { corpo: corpoComPixDoExtra(e.corpo, marca, null, cartao?.url ?? null, { chave, titular: e.chavePrincipal.holder, tipo: tipoDaChave(e.chavePrincipal) }) };
   }
   try {

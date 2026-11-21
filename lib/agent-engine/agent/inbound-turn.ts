@@ -110,6 +110,7 @@ import { promessaDeReenvioSemCobranca } from '@/lib/preco/promessa-de-reenvio';
 import { recusaDeQuemJaPagou } from '@/lib/preco/pago-mas-cobrando';
 import { comprovanteDoTurno, depsReaisDoComprovante } from '@/lib/pagamentos/comprovante-no-turno';
 import { comprovanteSemRegistro, confirmaPagamentoEmDuvida, confirmaPagamentoSemRegistro } from '@/lib/pagamentos/comprovante-pix';
+import { pediuCartao } from '@/lib/preco/pediu-cartao';
 import { falasDesdeAUltimaCobranca, quantidadeMenorQueACombinada, valorErradoDeExtra } from '@/lib/preco/valor-do-extra';
 import { blocoDaOfertaAtiva, ofertaAtivaDaConversa, ofertaEmConflito, ouviuOMenorValor, pediuOTrabalho, blocoDaOportunidade, oportunidadeDaCliente, oportunidadeDeOferta } from '@/lib/preco/oferta-ativa';
 import { falaErradaDoPagamento } from '@/lib/preco/fala-do-pagamento';
@@ -2726,6 +2727,8 @@ async function executarTurnoDoAgente(
       valor_centavos: internacionalDoTurno.precoCents,
     });
   }
+  // ELA PEDIU CARTÃO (`lib/preco/pediu-cartao.ts`): a cobrança sai só como link de cartão, e o bloco avisa o modelo.
+  const pediuCartaoNoTurno = pediuCartao(openingContext.context.messages);
   // Com produto do catálogo na vez, o bloco de preço é o dele: a escada é da compra que já aconteceu.
   const blocoDePrecoDoTurno = ofertaDoCatalogoNoTurno !== null
     ? blocoDaOfertaDoCatalogo(ofertaDoCatalogoNoTurno)
@@ -2738,6 +2741,7 @@ async function executarTurnoDoAgente(
     reclamouAgora: negociacaoDoTurno.reclamouAgora,
     jaPerguntouDoPix: jaPerguntouDoPix(openingContext.context.messages),
     entradaJaPerguntada: entradaJaPerguntada(openingContext.context.messages),
+    pediuCartao: pediuCartaoNoTurno,
     // Ela deu a data e o degrau já foi oferecido: o turno fecha o combinado (data + valor + retorno).
     dataParaOValorCents:
       agentConfig?.pricing && deuDataParaPagar(openingContext.context.messages)
@@ -4216,6 +4220,7 @@ async function executarTurnoDoAgente(
           }
           if (temMarcaDoRestante(body)) {
             const comRestante = await pixDoRestanteNoLugarDaMarca({
+              soCartao: pediuCartaoNoTurno,
               chavePrincipal: chavePrincipal(agentConfig?.pricing),
               corpo: body,
               restanteCents: restanteDoTurno,
@@ -4243,6 +4248,7 @@ async function executarTurnoDoAgente(
             .find((l) => l !== null);
           const produtoDaEntrada = jaEnviado?.produto || conhecidos.find((l) => l.produto !== '')?.produto || '';
           const comEntrada = await pixDaEntradaNoLugarDaMarca({
+            soCartao: pediuCartaoNoTurno,
             chavePrincipal: chavePrincipal(agentConfig?.pricing),
             corpo: body,
             entrada: entradaImediataDoTurno,
@@ -4463,6 +4469,7 @@ async function executarTurnoDoAgente(
         // cobrar, ou cobrança que não saiu, recusa o envio: marca crua não chega à pessoa.
         if (!preview) {
           const comExtra = await pixDoExtraNoLugarDaMarca({
+            soCartao: pediuCartaoNoTurno,
             chavePrincipal: chavePrincipal(agentConfig?.pricing),
             corpo: body,
             extras: extrasDoTurno,
@@ -4512,6 +4519,7 @@ async function executarTurnoDoAgente(
           // cartão do provedor, a chave da empresa em último caso, ou o envio é recusado.
           const peloProvedor = agentConfig.pricing.provider_only_checkout || chavePrincipal(agentConfig.pricing) !== null
             ? await cobrancaPeloProvedorNoLugarDoLink({
+                soCartao: pediuCartaoNoTurno,
                 corpo: body,
                 pricing: agentConfig.pricing,
                 organizationId: tenantId,
