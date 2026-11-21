@@ -57,6 +57,8 @@ export interface DrainKnobs {
   idleIntervalMs: number;
   /** Janela de coalescência de rajada inbound por contato (0 = sem debounce). */
   debounceMs: number;
+  /** Teto da janela deslizante (`INBOUND_DEBOUNCE_MAX_MS`). Ausente/0 = janela ancorada. */
+  debounceMaxMs?: number;
   /** Evento 'processing' órfão volta a 'pending' após isto. */
   reapTimeoutMs: number;
   /**
@@ -477,6 +479,9 @@ async function processEvent(
     pool,
     { organizationId: event.organization_id, contactId: p.contact_id },
     janelaDoRoteiro ?? knobs.debounceMs,
+    Date.now(),
+    // A janela da Pergunta do roteiro é exata: não desliza.
+    janelaDoRoteiro === null ? (knobs.debounceMaxMs ?? 0) : 0,
   );
   if (rajada.tipo === 'coalescido') {
     log.info('drain: rajada coalescida em job pendente', {
