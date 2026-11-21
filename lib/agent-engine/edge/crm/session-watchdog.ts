@@ -36,10 +36,16 @@ const PROACTIVE_SEND_JOB_KIND = 'followup_turn';
  * O número do job. O retorno agendado (`followup_turn` do CRM) leva só a conversa, sem `channel_session_id`:
  * medido em 16/11/2026, com o número caído havia um dia, os retornos dele passavam pela trava, rodavam o
  * turno inteiro (token gasto) e a mensagem ficava presa em 'queued'. Sem o campo, vale o número da conversa.
+ *
+ * A conversa é procurada por uuid, não por texto: `c.id::text = …` não usa o índice e varria `conversations` a cada
+ * job retido. Medido em 21/11/2026: 2,3 s de média por chamada (máx. 14,7 s), o /healthz do worker passou dos 5 s do
+ * healthcheck e o deploy voltou atrás. O `case` só converte texto com cara de uuid: lixo no payload não derruba o tick.
  */
 const SESSAO_DO_JOB = `coalesce(j.payload->>'channel_session_id',
   (select c.channel_session_id::text from conversations c
-    where c.organization_id = j.organization_id and c.id::text = j.payload->>'conversation_id'))`;
+    where c.organization_id = j.organization_id
+      and c.id = case when j.payload->>'conversation_id' ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+                      then (j.payload->>'conversation_id')::uuid end))`;
 
 /** Sessão fora do ar retém tudo; hold de saúde retém tudo, menos a resposta sob `go_live` ($1 = WORKING, $3 = kind proativo). */
 const DEVE_RETER = `(

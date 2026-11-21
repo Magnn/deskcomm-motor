@@ -191,6 +191,19 @@ describe("enforceHolds nos holds que NÃO são go-live", () => {
     expect(await estado()).toEqual({ followup_turn: { retido: true } });
   });
 
+  it("conversa que não é uuid no payload não derruba o tick: o job só não casa com número nenhum", async () => {
+    await saude({ ativo: false, razao: null, statusDaSessao: "FAILED" });
+    await pool.query(
+      `insert into job_queue (organization_id, contact_id, kind, payload, status, run_after)
+       values ($1, $2, 'followup_turn', jsonb_build_object('conversation_id', 'nao-e-uuid'), 'pending', now())`,
+      [ORG, CONTATO],
+    );
+
+    const { held } = await enforceHolds(pool);
+
+    expect(held).toBe(0);
+  });
+
   it("sem hold e com canal no ar, nada é retido e o que estava preso volta", async () => {
     await saude({ ativo: false, razao: null });
     await enfileirar("inbound_turn", true);
