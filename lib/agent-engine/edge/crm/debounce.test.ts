@@ -27,6 +27,17 @@ it('mensagem dentro da janela viaja de carona no job pendente — sem abrir turn
   expect(chamadas[0]).toContain("kind = 'inbound_turn'");
 });
 
+it('com teto, a carona estica a janela do job (update com janela e teto); sem linha devolvida, abre janela nova', async () => {
+  const chamadas: string[] = [];
+  const pool = poolFalso((sql) => (sql.startsWith('update job_queue') ? [{ id: 'job-pendente' }] : []), chamadas);
+  expect(await decidirRajada(pool, alvo, 12_000, AGORA, 40_000)).toEqual({ tipo: 'coalescido', jobId: 'job-pendente' });
+  expect(chamadas[0]).toContain('least(greatest(run_after');
+  expect(chamadas[0]).toContain("not (payload ? 'held_run_after')");
+
+  const pego = poolFalso(() => []);
+  expect(await decidirRajada(pego, alvo, 12_000, AGORA, 40_000)).toEqual({ tipo: 'enfileirar', runAfter: new Date(AGORA + 12_000) });
+});
+
 it('sem job futuro: a janela abre em agora + debounceMs', async () => {
   const pool = poolFalso(() => []);
 
