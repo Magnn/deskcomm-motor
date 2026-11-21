@@ -170,6 +170,13 @@ describe("chave Pix como forma principal", () => {
     expect(blocoDaChavePix({ key: CHAVE.key, holder: CHAVE.holder }, [6000])).toContain("ÚLTIMO RECURSO");
   });
 
+  it("⭐ 21/11/2026: o bloco não diz mais que o link do cartão tem o valor fixo do produto", () => {
+    const bloco = blocoDaChavePix(CHAVE, [6000]);
+    expect(bloco).not.toContain("valor fixo do produto");
+    expect(bloco).toContain("JÁ SAI NO VALOR DA COBRANÇA");
+    expect(bloco).toContain("SÓ o link de cartão, sem a chave");
+  });
+
   it("chave que não funcionou: manda o copia e cola pela marca e não fala em vencer", () => {
     const mensagens = [
       { direction: "outbound", body: chaveParaCopiar(CHAVE), sent_at: "2026-11-01T12:00:00Z" },

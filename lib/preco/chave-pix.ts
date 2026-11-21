@@ -150,11 +150,13 @@ export function blocoDaChavePix(chave: ChavePixDaEmpresa | null | undefined, val
       "",
       "PIX PELA CHAVE DA EMPRESA (é a forma PRINCIPAL de receber; esta regra vence qualquer frase do roteiro sobre pagamento)",
       `- Todo Pix sai pela chave, em nome de ${chave.holder}. Cobre do jeito de sempre (o link do produto ou a marca [[PIX: …]]): o sistema troca pela chave para copiar e pelo link de cartão. Onde o roteiro disser "código", diga "chave". Se perguntarem por que aparece esse nome, é quem cuida do financeiro.`,
-      `- O link de cartão sai junto com o código. Se ela pedir cartão, cobre de novo do jeito de sempre e aponte o link. O cartão confirma sozinho, sem comprovante. A chave não vence: NUNCA diga que vai expirar.`,
+      `- O link de cartão sai junto com a chave. Se ela pedir cartão ou o link, cobre de novo do jeito de sempre: o sistema manda SÓ o link de cartão, sem a chave. O cartão confirma sozinho, sem comprovante. A chave não vence: NUNCA diga que vai expirar.`,
       `- Se ela pedir a chave de novo, cobre de novo do jeito de sempre. NUNCA digite a chave você mesma, e é PROIBIDO dizer que não trabalha com chave.`,
       ...comoEAChave(chave),
       `- A chave SÓ chega pela cobrança que você escreve NESTE envio (o link do produto ou a marca [[PIX: …]]). É PROIBIDO dizer "a chave vai aqui embaixo", "aqui está a chave", "te mandei a chave" ou "a chave está aí em cima" sem a cobrança no mesmo envio ou sem a chave já enviada na conversa. Se não há valor liberado para cobrar o que ela quer, diga o valor que está liberado; nunca finja que mandou.`,
-      `- O link do cartão tem o valor fixo do produto e NÃO tem campo de valor: nunca mande digitar ou trocar o valor no link. Valor diferente (entrada, avulsa) vai pela marca [[PIX: …]]: o sistema manda a chave e um link de cartão já nesse valor.`,
+      // Medido em 21/11/2026 (prévia de 3 versões do roteiro): "valor fixo do produto" virava "o link só cobra o valor
+      // inteiro, não dá metade no cartão", e a cliente que só tinha cartão ficava sem pagar a entrada.
+      `- O link do cartão JÁ SAI NO VALOR DA COBRANÇA e NÃO tem campo de valor: nunca mande digitar ou trocar o valor no link. Para entrada, restante ou cobrança avulsa, use a marca [[PIX: …]]: o sistema manda a chave e um link de cartão já nesse valor. É PROIBIDO dizer que o cartão só serve para o valor inteiro ou que metade ou entrada é só no Pix.`,
       `- SÓ se ela disser que a chave não funcionou ou que não conseguiu pagar com ela, escreva sozinha num balão a marca com o valor em reais, assim: [[CHAVE PIX: ${Math.round(valores[0]! / 100)}]]. O sistema troca a marca pelo Pix copia e cola. Valores liberados para esta pessoa agora: ${valores.map(reais).join(", ")}. Nunca use essa marca antes de ela ter problema com a chave.`,
       confirmacao,
     ].join("\n");
