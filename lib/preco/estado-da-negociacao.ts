@@ -695,8 +695,6 @@ export function entradaImediata(
     primeiroPreco = 0;
   }
   if (primeiroPreco === -1) return null;
-  const leitura = rodadasDeValor(msgs, primeiroPreco);
-  if (leitura === null) return null;
   // A ENTRADA JÁ COMBINADA CONTINUA VALENDO: ela disse "50", a agente fechou, e no turno seguinte ela perguntou outra
   // coisa. Sem isto a entrada sumia do turno, a cobrança dela não era mais liberada e a agente passou uma hora dizendo
   // "a chave vai aqui embaixo" sem chave nenhuma (Ana, 02/11/2026). Só com entrada mínima configurada.
@@ -706,6 +704,11 @@ export function entradaImediata(
   const totalAntesDe = (inicio: number) =>
     valorCombinadoNaConversa(c, msgs.slice(0, inicio).filter((m) => m.direction !== "outbound" || !FALA_DA_ENTRADA.test(m.body ?? ""))) ??
     c.list_price_cents;
+  // "Faz em 2x?" no Pix é metade agora: Ademir (04/11/2026) pediu, a agente disse que sim e nunca mandou a chave.
+  const leitura = rodadasDeValor(msgs, primeiroPreco, (inicio, texto) =>
+    pedeMetade(texto) ? Math.ceil(totalAntesDe(inicio) / 200) * 100 : null,
+  );
+  if (leitura === null) return null;
   if (leitura.atual === null && c.min_down_payment_cents !== undefined) {
     const aceito = leitura.aceitoAntes();
     if (aceito !== null) {
@@ -721,11 +724,6 @@ export function entradaImediata(
   if (minimo === undefined) return null;
   const piso = menorDegrau ?? minimo;
   let dito = leitura.atual;
-  // "Faz em 2x?" no Pix é metade agora: Ademir (04/11/2026) pediu, a agente disse que sim e nunca mandou a chave.
-  const rodada = leitura.textoDaRodada;
-  if (dito === null && EM_DUAS_VEZES.test(rodada) && FALA_DE_PAGAR_EM_PARTES.test(rodada) && !/cart[ãa]o|cr[ée]dito/i.test(rodada)) {
-    dito = Math.ceil(total / 200) * 100;
-  }
   // Quem configurou entrada mínima fecha no valor dito, sem pedir para completar. Decisão do dono em 01/11/2026: Marli
   // escreveu "Pago 30 Hj" e ouviu "30 não fica a entrada".
   const fechaNoValorDito = dito !== null && c.min_down_payment_cents !== undefined;
@@ -744,10 +742,22 @@ export function entradaImediata(
   return { entradaCents: dito, restanteCents: total - dito };
 }
 
-/** "Faz em 2x?", "dá pra dividir em duas vezes?", "metade agora". */
-const EM_DUAS_VEZES = /\b(?:2|duas)\s*(?:x|vezes)\b|\bmetade\b/i;
+/** "Faz em 2x?", "dá pra dividir em duas vezes?". */
+const EM_DUAS_VEZES = /\b(?:2|duas)\s*(?:x|vezes)\b/i;
 /** Só é pedido de pagar em partes com fala de pagamento junto: "ele me bloqueou 2 vezes" não é. */
 const FALA_DE_PAGAR_EM_PARTES = /\b(?:pag|pix|fa[zç]|parcel|divid)/i;
+/**
+ * "Metade" com fala de mandar ou de restante também é pagamento: medido em 21/11/2026, "posso te mandar a metade hoje
+ * e amanhã o restante?" não liberou a entrada, e o link do cartão nunca saiu no valor da metade.
+ */
+const FALA_DA_METADE = /\b(?:pag|pix|fa[zç]|parcel|divid|mand|transfir|envi|restante|resto)/i;
+const NEM_A_METADE = /\b(?:nem\s+|n[ãa]o\s+(?:\S+\s+){0,2})(?:a\s+)?metade\b/i;
+
+/** Ela pede para pagar metade agora: "2x" no Pix (no cartão é parcelamento) ou "metade hoje, o restante amanhã". */
+function pedeMetade(texto: string): boolean {
+  if (EM_DUAS_VEZES.test(texto)) return FALA_DE_PAGAR_EM_PARTES.test(texto) && !/cart[ãa]o|cr[ée]dito/i.test(texto);
+  return /\bmetade\b/i.test(texto) && FALA_DA_METADE.test(texto) && !NEM_A_METADE.test(texto);
+}
 /** As falas da agente que fecham ou cobram uma entrada: o valor delas não é o preço do trabalho. */
 const FALA_DA_ENTRADA = /\bentrada\b|\bentra\s+com\b|\brestante\b|pagar\s+no\s+pix/i;
 
@@ -769,7 +779,12 @@ const NAO_CONSEGUE_MAIS =
  * As rodadas da pessoa depois do preço (uma rodada = o que ela escreveu entre duas falas da agente) e o valor
  * que ela disse ter em cada uma. `null` = a última mensagem não é dela.
  */
-function rodadasDeValor(msgs: readonly MensagemParaContar[], primeiroPreco: number) {
+function rodadasDeValor(
+  msgs: readonly MensagemParaContar[],
+  primeiroPreco: number,
+  /** O valor de uma rodada sem número dito ("metade"), pelo índice em que ela começa e pelo texto dela. */
+  semNumero?: (inicio: number, texto: string) => number | null,
+) {
   const rodadas: MensagemParaContar[][] = [];
   /** As últimas falas da agente antes de cada rodada: são elas que dizem se um número sozinho responde "quanto você tem". */
   const falaAntes: MensagemParaContar[][] = [];
@@ -792,7 +807,10 @@ function rodadasDeValor(msgs: readonly MensagemParaContar[], primeiroPreco: numb
     }
   }
   if (aberta === null || rodadas.length === 0) return null;
-  const valorDa = (i: number) => valorQueAPessoaTem([msgs[primeiroPreco]!, ...falaAntes[i]!, ...rodadas[i]!]);
+  const valorDa = (i: number) =>
+    valorQueAPessoaTem([msgs[primeiroPreco]!, ...falaAntes[i]!, ...rodadas[i]!]) ??
+    semNumero?.(inicios[i]!, rodadas[i]!.map((m) => m.body ?? "").join("\n")) ??
+    null;
   const atual = rodadas[rodadas.length - 1]!;
   return {
     /**

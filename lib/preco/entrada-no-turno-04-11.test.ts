@@ -32,6 +32,14 @@ describe("entrada no valor dito — 04/11/2026", () => {
     expect(entradaImediata(PRICING, [PRECO, m("inbound", "faz em 12x?")])).toBeNull();
   });
 
+  it("⭐ 21/11: 'mandar a metade hoje e o restante amanhã' é entrada da metade, e segue valendo quando ela pede o link", () => {
+    const pedido = m("inbound", "dá pra eu te mandar a metade hoje e o resto amanhã?");
+    expect(entradaImediata(PRICING, [PRECO, pedido])).toEqual({ entradaCents: 6500, restanteCents: 6500 });
+    const depois = [PRECO, pedido, m("outbound", "Pode sim: você entra com *R$ 65* hoje e o restante de R$ 65 amanhã."), m("inbound", "só consigo pelo link")];
+    expect(entradaImediata(PRICING, depois)).toEqual({ entradaCents: 6500, restanteCents: 6500, combinadaAntes: true });
+    expect(entradaImediata(PRICING, [PRECO, m("inbound", "não consigo mandar nem a metade")])).toBeNull();
+  });
+
   it("⭐ '2 vezes' e 'metade' sem fala de pagamento não são entrada", () => {
     expect(entradaImediata(PRICING, [PRECO, m("inbound", "ele já me bloqueou 2 vezes")])).toBeNull();
     expect(entradaImediata(PRICING, [PRECO, m("inbound", "metade de mim quer desistir")])).toBeNull();
