@@ -59,14 +59,19 @@ const FRONTEIRA = {
   demanda_fechada_em: null,
 };
 
-function poolCom(linhas: object[], opcoes: { registra?: boolean; fila?: "ok" | "falha"; falas?: string[] } = {}) {
+function poolCom(
+  linhas: object[],
+  opcoes: { registra?: boolean; fila?: "ok" | "falha"; falas?: Array<string | { body: string; created_at: string }> } = {},
+) {
   const chamadas: Array<{ sql: string; params: unknown[] }> = [];
   return {
     chamadas,
     query: vi.fn(async (sql: string, params: unknown[] = []) => {
       chamadas.push({ sql, params });
       if (sql === CONSULTA_DE_SILENCIOSAS) return { rows: linhas };
-      if (sql === FALAS_COM_VALOR) return { rows: (opcoes.falas ?? []).map((body) => ({ body })) };
+      // Fala sem hora é de dois dias atrás: fora da conta de "um preço por dia".
+      if (sql === FALAS_COM_VALOR)
+        return { rows: (opcoes.falas ?? []).map((f) => (typeof f === "string" ? { body: f, created_at: ha(48 * 60) } : f)) };
       if (sql === REGISTRO_DA_CHAMADA) return { rows: opcoes.registra === false ? [] : [{ id: "registro-1" }] };
       if (sql.includes("insert into job_queue")) {
         if (opcoes.fila === "falha") throw new Error("fila fora");
@@ -102,6 +107,24 @@ describe("a oferta do passo olha o que a conversa já disse", () => {
     const pool = poolCom([comOferta], { falas: ["Pra você fica R$ 130."] });
     await recuperarSilenciosos(pool as never, log, { agora: AGORA });
     expect(motivoEnfileirado(pool)).toContain("R$ 100");
+  });
+
+  it("⭐ um preço por dia (21/11): quem ouviu R$ 100 há 3 h não recebe R$ 60 da régua; depois de 24 h, recebe", async () => {
+    const passoDe60 = silenciosa({
+      followup: { recovery: { ...RECUPERACAO_PADRAO, steps_minutes: [3, 15, 180], step_offers_cents: [null, null, 6000] } },
+      pricing: { steps: [{ price_cents: 10000 }, { price_cents: 6000 }] },
+      ouviu_preco: true,
+      feitas: 2,
+      last_inbound_at: ha(tresHoras + 10),
+      last_outbound_at: ha(tresHoras),
+    });
+    const hoje = poolCom([passoDe60], { falas: [{ body: "Consegui deixar por R$ 100 pra você.", created_at: ha(180) }] });
+    await recuperarSilenciosos(hoje as never, log, { agora: AGORA });
+    expect(motivoEnfileirado(hoje)).not.toContain("R$ 60");
+
+    const ontem = poolCom([passoDe60], { falas: [{ body: "Consegui deixar por R$ 100 pra você.", created_at: ha(25 * 60) }] });
+    await recuperarSilenciosos(ontem as never, log, { agora: AGORA });
+    expect(motivoEnfileirado(ontem)).toContain("R$ 60");
   });
 
   it("passo sem oferta não gasta a consulta das falas", async () => {

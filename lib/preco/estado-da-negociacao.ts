@@ -202,6 +202,24 @@ export function ofertaAindaDesce(
 }
 
 /**
+ * UM PREÇO POR DIA: a conversa já ouviu um valor da escada desde `desde`. A régua tem dois passos com oferta (3 h e
+ * 6 h), e com o envio de 24 h os dois caíam no mesmo dia. Medido em 21/11/2026: em 7 dias, 35 das 44 quedas de preço
+ * dentro de um mesmo dia vieram da régua, sem a pessoa pedir nada (R$ 130 → R$ 100 → R$ 60 em poucas horas).
+ */
+export function degrauDitoDesde(
+  c: Pick<PricingConfig, "steps">,
+  falas: readonly { body: string; created_at: string | Date }[],
+  desde: Date,
+): boolean {
+  const degraus = new Set(c.steps.map((s) => s.price_cents));
+  return falas.some(
+    (f) =>
+      new Date(f.created_at).getTime() >= desde.getTime() &&
+      [...f.body.matchAll(VALORES_EM_REAIS)].some((a) => degraus.has(Number(a[1]!.replace(/\./g, "")) * 100 + Number(a[2] ?? "0"))),
+  );
+}
+
+/**
  * O passo da régua só vale como oferta se o valor foi escrito na conversa: um passo que saiu sem oferta (quem já ouviu
  * valor menor, quem avisou a pausa) também fica registrado, e sem esta conferência liberaria um valor que ninguém disse.
  */

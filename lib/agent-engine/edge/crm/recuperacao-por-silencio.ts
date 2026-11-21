@@ -32,7 +32,7 @@ import { ehRecusaDaOferta } from '@/lib/opt-out/deteccao';
 import { lerRecuperacao, ofertaDoPasso, perguntaQuantoCabeNoPasso } from '@/lib/recuperacao/config';
 import { anunciouPausa, disseQueNaoTemPrevisao } from '@/lib/recuperacao/pausa-anunciada';
 import { agenteEncerrou, fechouPorHojeNasFalas, jaPerguntouQuantoCabe } from '@/lib/recuperacao/fechou-por-hoje';
-import { ofertaAindaDesce } from '@/lib/preco/estado-da-negociacao';
+import { degrauDitoDesde, ofertaAindaDesce } from '@/lib/preco/estado-da-negociacao';
 import { ofertaAtivaDaConversa, type OfertaAtiva } from '@/lib/preco/oferta-ativa';
 import type { PricingConfig } from '@/lib/preco/tipos';
 import {
@@ -193,7 +193,7 @@ export const CONSULTA_DE_SILENCIOSAS = `
  * candidatas roda a cada minuto, e varrer todas as mensagens de todas elas custaria o banco.
  */
 export const FALAS_COM_VALOR = `
-  select m.body from messages m
+  select m.body, m.created_at from messages m
   where m.organization_id = $1 and m.conversation_id = $2 and m.direction = 'outbound' and m.body ~ 'R[$] ?[0-9]'
   order by m.created_at`;
 
@@ -406,15 +406,20 @@ export async function recuperarSilenciosos(
     // Quem ouviu um preço: o que a conversa já disse manda no que este passo pode dizer. A régua tem valores fixos e
     // não sabe que a última oferta foi a pergunta de R$ 7 (`lib/preco/oferta-ativa.ts`).
     if (chamada.kind === 'step' && c.ouviu_preco === true && (c.pricing?.steps?.length ?? 0) > 0) {
-      const { rows: falas } = await pool.query<{ body: string }>(FALAS_COM_VALOR, [c.organization_id, c.conversation_id]);
+      const { rows: falas } = await pool.query<{ body: string; created_at: string | Date }>(FALAS_COM_VALOR, [
+        c.organization_id,
+        c.conversation_id,
+      ]);
       const corpos = falas.map((f) => f.body);
+      // Um preço por dia: quem já ouviu um degrau nas últimas 24 h recebe a retomada sem valor novo.
+      const baixouHoje = degrauDitoDesde(c.pricing!, falas, new Date(agora.getTime() - 24 * 60 * 60_000));
       const ativa = ofertaAtivaDaConversa(
         c.pricing!,
         c.pricing!.extras ?? [],
         corpos.map((body) => ({ direction: 'outbound', body })),
       );
       const ofertaDePe = ativa?.tipo === 'pequena' ? ativa : null;
-      if (ofertaDePe !== null || (chamada.ofertaCents !== null && !ofertaAindaDesce(c.pricing!, chamada.ofertaCents, corpos))) {
+      if (ofertaDePe !== null || (chamada.ofertaCents !== null && (baixouHoje || !ofertaAindaDesce(c.pricing!, chamada.ofertaCents, corpos)))) {
         chamada = decidirChamada(c, agora, canalTemPrazo(c.provider, c.so_dentro_da_janela === true), true, ofertaDePe) ?? chamada;
       }
     }
