@@ -19,6 +19,7 @@
  * garantido pela trava de promessas.
  */
 
+import { falaPedeCartao } from "./pediu-cartao";
 import type { PromiseTable } from "@/lib/agent-engine/guardrails/promise/table";
 
 import { reais, type PricingConfig } from "./tipos";
@@ -270,8 +271,10 @@ export function tabelaDoTurno(
 function reclamaDoValor(m: MensagemParaContar): boolean {
   // Adiar o pagamento também é dizer que o valor não cabe hoje: "vou ter o dinheiro só semana que
   // vem" não tem nenhuma palavra de reclamação, e em 08/10/2026 passou sem oferta nenhuma.
+  // Quem pede o cartão ("não tenho como fazer no Pix, não tenho dinheiro na conta") tem limite, não falta de dinheiro.
   return (
     m.direction === "inbound" &&
+    !falaPedeCartao(m.body ?? "") &&
     (RECLAMACAO_DE_VALOR.test(m.body ?? "") || adiaOPagamento(m.body ?? "") || negativaCurta(m.body ?? ""))
   );
 }

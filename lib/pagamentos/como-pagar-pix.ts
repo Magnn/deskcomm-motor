@@ -69,3 +69,8 @@ export function cobrancaNoTexto(texto: string): { valorCents: number; quantidade
 export function linhaDoLinkDePagamento(url: string): string {
   return `Se preferir pagar no cartão, é por este link: ${url}`;
 }
+
+/** O balão de quem paga só no cartão (pediu o link, ou o Pix não saiu): o valor e o link, sem Pix. */
+export function linhaSoDoCartao(valor: string, url: string): string {
+  return `O pagamento de *${valor}* é por este link, no cartão de crédito: ${url}`;
+}

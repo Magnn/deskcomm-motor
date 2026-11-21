@@ -22,7 +22,7 @@ import { codigoPixEstatico } from '@/lib/pagamentos/pix-estatico';
 import { criarClienteStripe, type LinkCriado, type PedidoDeLink, type PedidoDePix, type PixCriado } from '@/lib/pagamentos/stripe';
 import { chaveParaCopiar, chavePrincipal, tipoDaChave } from '@/lib/preco/chave-pix';
 import { reais, type PricingConfig } from '@/lib/preco/tipos';
-import { baloesPelaChave, instrucaoDoPixCopiaECola, linhaDoLinkDePagamento, PEDIDO_DO_COMPROVANTE } from "@/lib/pagamentos/como-pagar-pix";
+import { baloesPelaChave, instrucaoDoPixCopiaECola, linhaDoLinkDePagamento, linhaSoDoCartao, PEDIDO_DO_COMPROVANTE } from "@/lib/pagamentos/como-pagar-pix";
 
 interface Registro {
   info(msg: string, dados?: Record<string, unknown>): void;
@@ -37,6 +37,8 @@ export interface EntradaDaCobrancaPeloProvedor {
   conversationId: string;
   supabase: SupabaseClient;
   log: Registro;
+  /** Ela pediu para pagar no cartão (`lib/preco/pediu-cartao.ts`): vai só o link de cartão, sem Pix. */
+  soCartao?: boolean;
   /** Injetáveis só para teste. */
   lerConexao?: (admin: SupabaseClient, organizationId: string) => Promise<ConexaoStripe | null>;
   criarPix?: (conexao: ConexaoStripe, pedido: PedidoDePix) => Promise<PixCriado>;
@@ -62,7 +64,7 @@ export function baloesDaCobranca(
       ...(meios.urlDoCartao !== null ? [linhaDoLinkDePagamento(meios.urlDoCartao)] : []),
     ];
   }
-  if (meios.urlDoCartao !== null) return [`O pagamento de *${valor}* é por este link, no cartão de crédito: ${meios.urlDoCartao}`];
+  if (meios.urlDoCartao !== null) return [linhaSoDoCartao(valor, meios.urlDoCartao)];
   if (meios.pixDaChave !== null) {
     return [
       instrucaoDoPixCopiaECola(valor, meios.pixDaChave.titular),
@@ -127,6 +129,10 @@ export async function cobrancaPeloProvedorNoLugarDoLink(e: EntradaDaCobrancaPelo
     const chave = chaveParaCopiar(principal);
     if (chave === null) {
       return { recusa: 'O pagamento não pôde ser gerado agora. NÃO envie link nem chave: diga em uma frase que você manda o código em alguns minutos e chame o atendimento humano.' };
+    }
+    if (e.soCartao) {
+      e.log.info('cobrança só no cartão, a pedido da pessoa', { conversation_id: e.conversationId, valor_centavos: link.valorCentavos });
+      return { corpo: corpoComCobranca(e.corpo, link, [linhaSoDoCartao(reais(link.valorCentavos), await cartaoAoLadoDaChave(e, link))]) };
     }
     e.log.info('cobrança pela chave principal no lugar do link', { conversation_id: e.conversationId, valor_centavos: link.valorCentavos });
     const baloes = [...baloesPelaChave(reais(link.valorCentavos), chave, principal.holder, tipoDaChave(principal)), linhaDoLinkDePagamento(await cartaoAoLadoDaChave(e, link))];
