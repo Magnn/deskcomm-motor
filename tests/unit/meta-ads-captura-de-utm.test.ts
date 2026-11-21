@@ -48,7 +48,7 @@ vi.mock("@/lib/supabase/admin", () => ({
   }),
 }));
 
-import { GET } from "@/app/api/v1/anuncios/meta/[org]/route";
+import { GET, POST } from "@/app/api/v1/anuncios/meta/[org]/route";
 import { casarClickRef } from "@/lib/plataformas-de-anuncio/meta/captura-de-clique";
 import { textoSemRef } from "@/lib/plataformas-de-anuncio/pagina-de-captura";
 
@@ -213,5 +213,38 @@ describe("casarClickRef (Meta)", () => {
   it("linha sem UTM não vira atribuição", async () => {
     const casado = await casarClickRef(adminQueDevolve({ utm: {} }) as never, ORG, "K7M2P9", CONTATO);
     expect(casado).toBeNull();
+  });
+});
+
+describe("POST /api/v1/anuncios/meta/[org] — o WhatsApp digitado antes do botão (20/11/2026)", () => {
+  const enviar = (telefone: unknown) =>
+    POST(
+      new NextRequest(`https://crm.example/api/v1/anuncios/meta/acme${UTM_COMPLETA}`, {
+        method: "POST",
+        headers: { "x-forwarded-for": "203.0.113.7", "content-type": "application/json" },
+        body: JSON.stringify({ telefone }),
+      }),
+      { params: Promise.resolve({ org: "acme" }) },
+    );
+
+  it("guarda o telefone junto do clique e devolve o WhatsApp com o ref", async () => {
+    const resposta = await enviar("(24) 99902-3021");
+    expect(resposta.status).toBe(200);
+    const { data } = (await resposta.json()) as { data: { url: string } };
+    expect(data.url).toContain("wa.me/5511999999999");
+    expect(data.url).toContain("ref%3A");
+    expect((estado.inserts[0]?.query_raw as Record<string, string>).__telefone).toBe("+5524999023021");
+  });
+
+  it("telefone inválido é 422 e nada é gravado", async () => {
+    for (const t of ["123", "", null, "abc"]) {
+      expect((await enviar(t)).status).toBe(422);
+    }
+    expect(estado.inserts).toHaveLength(0);
+  });
+
+  it("o GET continua sem telefone nenhum", async () => {
+    await chamar(UTM_COMPLETA);
+    expect((estado.inserts[0]?.query_raw as Record<string, string>).__telefone).toBeUndefined();
   });
 });
