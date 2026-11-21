@@ -70,6 +70,8 @@ export function quantidadesDitas(frase: string, palavra: string): number[] {
 
 /** Fala do valor do conjunto, sem citar a cobrança pelo nome: "Fica em R$ 35 o pacote", "o total", "tudo num Pix só". */
 const FALA_DO_CONJUNTO = /\b(pacote|total|todas|tudo|juntas?|num (?:codigo|pix|pagamento) so)\b/;
+/** Quantidade sem o nome da cobrança: "as três por R$ 15", "as 2 por R$ 10". */
+const QUANTIDADE_SOLTA = /\b(?:duas|dois|tres|quatro|cinco|seis|sete|oito|nove|dez|[2-9]|10)\s+(?!reais\b)[a-z]/;
 
 function frases(corpo: string): string[] {
   return corpo.split(/(?<=[.!?…])\s+|\n+/).map((f) => f.trim()).filter(Boolean);
@@ -156,7 +158,14 @@ function erroDoValorNaFrase(
     const fora = valores.find((v) => !aceitos.has(v));
     return fora === undefined ? null : contaErrada(extra, ditas[0]!, fora);
   }
-  const totais = new Set(totaisDoExtra(extra));
+  // Múltiplo só quando a frase fala de mais de uma: em 19–20/11/2026 "o *Sentimento da Fotografia* é R$ 30, uma vez
+  // só" (cadastro R$ 15) passou três vezes porque 30 = 2 × 15.
+  const normalizada = semAcento(frase);
+  const maisDeUma =
+    palavras.some((p) => new RegExp(`\\b${p}s\\b`).test(normalizada)) ||
+    FALA_DO_CONJUNTO.test(normalizada) ||
+    QUANTIDADE_SOLTA.test(normalizada);
+  const totais = new Set(maisDeUma ? totaisDoExtra(extra) : [extra.price_cents]);
   const errado = valores.find((v) => !totais.has(v));
   if (errado === undefined) return null;
   return (
