@@ -38,6 +38,17 @@ describe("valor dito de cobrança avulsa", () => {
     expect(valorErradoDeExtra("As três perguntas saem por R$ 15.", EXTRAS)).toBeNull();
     expect(valorErradoDeExtra("A Sinastria Amorosa é R$ 37.", EXTRAS)).toBeNull();
     expect(valorErradoDeExtra("O acompanhamento do mês sai por 60 reais.", EXTRAS)).toBeNull();
+    expect(valorErradoDeExtra("Ficam as duas por R$ 10.", EXTRAS)).toBeNull();
+    expect(valorErradoDeExtra("Se quiser mais de uma, as perguntas saem por R$ 10.", EXTRAS)).toBeNull();
+  });
+
+  it("⭐ 19–20/11/2026: o dobro do valor numa frase de uma só é recusado", () => {
+    const motivo = valorErradoDeExtra(
+      "Se ainda quiser, o *Sentimento da Fotografia* é R$ 30, uma vez só. Quer que eu faça pra você?",
+      [{ name: "Sentimento da Fotografia", when: "x", price_cents: 1500 }] as unknown as Extra[],
+    );
+    expect(motivo).toContain("R$ 15");
+    expect(valorErradoDeExtra("A pergunta nova é R$ 10.", EXTRAS)).toContain("R$ 5");
   });
 
   it("⭐ 23/10/2026: o produto principal com palavra em comum com uma simpatia não é recusado", () => {
