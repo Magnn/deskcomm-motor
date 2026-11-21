@@ -635,7 +635,9 @@ function buildDeriveDeps(
  *
  * `buildDeps` roda a cada mensagem; se a fila nascesse lá dentro, cada áudio teria a sua e nenhum
  * esperaria o outro — por isso ela mora aqui, no módulo, e é refeita só quando a configuração muda.
- * Os 30 s de espera somados aos 75 s do pedido ficam abaixo dos 120 s que o turno aguarda.
+ * Os 30 s de espera somados aos 75 s do pedido ficam abaixo dos 120 s que o turno aguarda. Áudio longo ganha
+ * mais prazo (`prazoDaTranscricao`): se passar dos 120 s, o turno segue sem o texto, mas o texto ainda chega ao
+ * histórico em vez de virar "não consegui interpretar".
  */
 let filaEmUso: { assinatura: string; servico: NonNullable<DeriveDeps["transcriber"]> } | null = null;
 function filaDoServicoProprio(apiKey: string): NonNullable<DeriveDeps["transcriber"]> {
