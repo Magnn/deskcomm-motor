@@ -175,6 +175,18 @@ describe("eventos de DESFECHO", () => {
     expect(status("message.delivered", { pricing: { billable: "sim" } })?.cobranca).toBeNull();
   });
 
+  it("mensagem que a Meta recusa (131060) vira aviso legível, não '[Unsupported message]' (21/11/2026)", () => {
+    const r = parseZernioInbound(
+      payload(
+        { metadata: { unsupported: { code: 131060, title: "This message is unavailable.", type: "unknown" } } },
+        { text: "[Unsupported message]" },
+      ),
+    );
+    expect(r?.text).toContain("visualização única");
+    expect(r?.text).not.toContain("Unsupported");
+    expect(parseZernioInbound(payload())?.text).toBe("hola");
+  });
+
   it("message.sent é mensagem NOVA, não só desfecho — é o que faz o envio externo aparecer", () => {
     expect(status("message.sent")?.kind).toBe("message");
   });

@@ -24,6 +24,7 @@
  * saber o que está guardando.
  */
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { ehMensagemIndisponivel, TEXTO_MENSAGEM_INDISPONIVEL } from "@/lib/channels/mensagem-indisponivel";
 import type { Localizacao } from "@/lib/messaging/localizacao";
 
 /** Assinatura HMAC-SHA256 no header `X-Zernio-Signature`. */
@@ -244,7 +245,9 @@ export function parseZernioInbound(payload: unknown): ZernioInboundMessage | nul
     conversationId,
     externalId,
     accountId: str(obj(p.account)?.id) ?? str(obj(p.account)?.accountId) ?? str(p.accountId),
-    text: str(m.text),
+    text: ehMensagemIndisponivel(str(m.text), obj(obj(p.metadata)?.unsupported) !== null)
+      ? TEXTO_MENSAGEM_INDISPONIVEL
+      : str(m.text),
     attachments,
     sentAt: str(m.sentAt),
     // ─── De quem é o CONTATO, e por que depende da direção ─────────────────
