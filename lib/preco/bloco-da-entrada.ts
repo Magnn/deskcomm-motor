@@ -24,7 +24,7 @@ export function blocoDaEntrada(
     "",
     "",
     `ENTRADA + RESTANTE (ESTE BLOCO VENCE O BLOCO DE PREÇO E O MOTOR 13 NESTE TURNO)`,
-    `A pessoa propôs pagar uma parte hoje e o restante em uma data. Isso é venda fechada: ACEITE. Não ofereça cartão, não ofereça outro valor e não peça o valor cheio.`,
+    `A pessoa propôs pagar uma parte hoje e o restante em uma data. Isso é venda fechada: ACEITE. Não ofereça outro valor e não peça o valor cheio. O link de cartão no valor da entrada vai junto com o Pix, sem você pedir.`,
     `A entrada é ${e} hoje e o restante é ${r} na data que ela disse. O total não muda.`,
     `Faça, nesta ordem, numa resposta só:`,
     `1. Um balão confirmando, com o restante dito POR ÚLTIMO: "Combinado, [nome]. Você entra com ${e} hoje, e o restante de ${r} fica para o dia [data que ela disse]."`,
@@ -49,11 +49,12 @@ export function blocoDaPropostaDeEntrada(entrada: { entradaCents: number; restan
     "",
     "",
     `PROPONHA ENTRADA + RESTANTE (ESTE BLOCO VENCE O DESCONTO DO BLOCO DE PREÇO NESTE TURNO)`,
-    `A pessoa disse quanto tem hoje. NÃO ofereça desconto agora e NÃO ofereça cartão. Proponha, em 2 balões:`,
+    `A pessoa disse quanto tem hoje. NÃO ofereça desconto agora. Proponha, em 2 balões:`,
     `1. "Dá pra fazer assim, [nome]: você entra com ${e} hoje e o restante de ${r} fica para um dia que for bom pra você."`,
     `2. "Que dia fica bom pra você mandar o restante?"`,
     `NÃO envie link nem código neste turno: o pagamento da entrada vai quando ela disser o dia.`,
     `Se ela responder que não consegue pagar o restante em dia nenhum, aí sim siga a negociação de valor do bloco de preço.`,
+    `Se ela disser que não tem Pix ou saldo e quer pagar no cartão, diga que a entrada também pode ser no cartão: o link já no valor de ${e} vai junto com o Pix.`,
   ].join("\n");
 }
 
@@ -141,7 +142,7 @@ export function blocoDaEntradaImediata(entrada: { entradaCents: number; restante
       `Vocês já combinaram: ela entra com ${e} e o restante de ${r} fica para depois. NÃO mude esse valor, NÃO invente outro, NÃO ofereça desconto nem o valor cheio.`,
       `- Responda primeiro o que ela perguntou agora, em poucas palavras.`,
       `- Se ela pedir a chave, disser que vai pagar, que não achou ou que não chegou: mande de novo, escrevendo sozinha num balão a marca [[PIX: ${MARCA_DA_ENTRADA}]] (o sistema troca pela chave e pelo passo a passo de ${e}).`,
-      `- NUNCA diga que a chave está "aqui embaixo", "aí em cima" ou "é esta aqui" sem escrever a marca neste envio. O link do cartão NÃO serve para a entrada: ele cobra o valor cheio e não tem campo de valor.`,
+      `- NUNCA diga que a chave está "aqui embaixo", "aí em cima" ou "é esta aqui" sem escrever a marca neste envio. Se ela pedir cartão ou link, ou disser que não tem Pix ou saldo, mande a marca de novo: junto com a chave vai um link de cartão já no valor de ${e}. NUNCA diga que o cartão só serve para o valor cheio.`,
       `NÃO chame a equipe humana por causa disto.`,
     ].join("\n");
   }

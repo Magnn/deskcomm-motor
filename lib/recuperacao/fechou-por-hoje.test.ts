@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fechouPorHoje, jaPerguntouQuantoCabe } from "./fechou-por-hoje";
+import { agenteEncerrou, fechouPorHoje, fechouPorHojeNasFalas, jaPerguntouQuantoCabe } from "./fechou-por-hoje";
 
 describe("fechouPorHoje", () => {
   it("⭐ as falas medidas em 02/11 fecham por hoje", () => {
@@ -34,6 +34,32 @@ describe("fechouPorHoje", () => {
       expect(fechouPorHoje(fala), fala).toBe(false);
     }
     expect(fechouPorHoje(null)).toBe(false);
+  });
+});
+
+describe("fechouPorHojeNasFalas", () => {
+  it("⭐ caso de 21/11: despedida seguida de 'Ok' fecha por hoje", () => {
+    expect(fechouPorHojeNasFalas(["Vou mandando aos poucos", "Obrigada, até mais tarde", "Ok"])).toBe(true);
+    expect(fechouPorHojeNasFalas(["Obrigada", "👍"])).toBe(true);
+  });
+  it("'ok' depois de conversa que segue não fecha; 'ok?' é pergunta", () => {
+    expect(fechouPorHojeNasFalas(["Quanto fica?", "Ok"])).toBe(false);
+    expect(fechouPorHojeNasFalas(["Obrigada", "ok?"])).toBe(false);
+    expect(fechouPorHojeNasFalas(["Ok"])).toBe(false);
+    expect(fechouPorHojeNasFalas([])).toBe(false);
+    expect(fechouPorHojeNasFalas(null)).toBe(false);
+  });
+});
+
+describe("agenteEncerrou", () => {
+  it("⭐ a agente se despediu sem pergunta no ar", () => {
+    expect(agenteEncerrou("Combinado, minha flor. Até mais tarde. 🌙")).toBe(true);
+    expect(agenteEncerrou("Fica com Deus, minha flor. Boa noite 🌙")).toBe(true);
+  });
+  it("saudação no começo, ou pergunta no ar, não é encerramento", () => {
+    expect(agenteEncerrou("Boa noite, meu bem. Consegui deixar o seu trabalho por R$ 60, uma vez só.")).toBe(false);
+    expect(agenteEncerrou("Amanhã cedo passo aqui. Descansa hoje, tá bom?")).toBe(false);
+    expect(agenteEncerrou(null)).toBe(false);
   });
 });
 

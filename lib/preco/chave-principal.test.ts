@@ -116,6 +116,29 @@ describe("chave Pix como forma principal", () => {
     }
   });
 
+  it("⭐ a entrada e o restante levam um link de cartão no valor deles (21/11: cliente sem saldo no Pix pediu o link)", async () => {
+    const conexao = async () => ({ id: "c", organizationId: "org", chave: "sk_x", segredoDoAviso: "w" });
+    const criarLink = vi.fn(async () => ({ id: "plink", url: "https://buy.exemplo.com/entrada" }));
+    const entrada = await pixDaEntradaNoLugarDaMarca({
+      ...base,
+      lerConexao: conexao as never,
+      criarLink,
+      chavePrincipal: CHAVE,
+      corpo: "[[PIX: Entrada]]",
+      entrada: { entradaCents: 6000, restanteCents: 7000 },
+      produto: "Abertura",
+    });
+    expect("corpo" in entrada && entrada.corpo).toContain("https://buy.exemplo.com/entrada");
+    expect("corpo" in entrada && entrada.corpo).toContain("\n\n69900000000\n\n");
+    expect(criarLink).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ soCartao: true, valorCentavos: 6000, metadados: expect.objectContaining({ entrada: "sim", restante_cents: "7000", produto: "Abertura" }) }),
+    );
+    const restante = await pixDoRestanteNoLugarDaMarca({ ...base, lerConexao: conexao as never, criarLink, chavePrincipal: CHAVE, corpo: "[[PIX: Restante]]", restanteCents: 7000, produto: "Abertura" });
+    expect("corpo" in restante && restante.corpo).toContain("https://buy.exemplo.com/entrada");
+    expect(criarLink).toHaveBeenLastCalledWith(expect.anything(), expect.objectContaining({ valorCentavos: 7000, metadados: expect.objectContaining({ extra: expect.any(String) }) }));
+  });
+
   it("a marca da chave não espera outra forma de pagamento quando ela é a principal", () => {
     const comPrincipal = pixPelaChaveNoLugarDaMarca({
       corpo: "[[CHAVE PIX: 60]]",
