@@ -63,6 +63,8 @@ export interface EstadoDoBloco {
   reclamouAgora?: boolean;
   /** A agente já perguntou se manda o Pix e ele não saiu (`jaPerguntouDoPix`): o turno cobra em vez de perguntar. */
   jaPerguntouDoPix?: boolean;
+  /** A agente já perguntou quanto ela consegue hoje (`entradaJaPerguntada`): outro "não tenho" encerra a cobrança do dia. */
+  entradaJaPerguntada?: boolean;
   /**
    * A pessoa acabou de dar uma data para pagar (`deuDataParaPagar`) e a agente JÁ ofereceu este
    * degrau: o turno fecha o combinado — data + este valor + retorno agendado — em vez de descer
@@ -186,6 +188,7 @@ function instrucaoDeNegociacao(
   reclamacoes: number | null,
   valorQueTemCents: number | null,
   reclamouAgora: boolean,
+  entradaJaPerguntada = false,
 ): string {
   const venda = reais(c.list_price_cents);
   const piso = pisoEmCentavos(c);
@@ -211,6 +214,15 @@ function instrucaoDeNegociacao(
             .join(" | ")}`
         : "";
     return `- NEGOCIAÇÃO: você já ofereceu ${valorEmVigor} a ela, e AGORA ela fala de outra coisa. NÃO ofereça outro valor, NÃO baixe mais e NÃO repita a oferta por conta própria: responda o que ela disse. O valor dela é ${valorEmVigor}; se ELA quiser pagar ou pedir o link, ${comoPagar(jaLiberado)}.${linksEmVigor}`;
+  }
+  // Ela já ouviu as opções de entrada e respondeu com outro "não tenho", sem número: recusou até a menor. Nenhum degrau
+  // acima dela é oferecido hoje (`entradaJaPerguntada`); a régua do dia seguinte pergunta de novo quanto cabe.
+  if (c.min_down_payment_cents !== undefined && entradaJaPerguntada && reclamacoes >= 2 && valorQueTemCents === null) {
+    return [
+      `- NEGOCIAÇÃO: você já perguntou quanto ela consegue hoje e ela disse de novo que não tem. Nesta resposta NÃO cite valor nenhum, NÃO ofereça desconto nem outro preço e NÃO pergunte de novo quanto ela consegue. Responda com ESTE molde e nenhum outro, em UM balão só: "Eu entendo, [nome], e não vou insistir hoje. O seu trabalho fica guardado do jeito que as cartas mostraram. Me diz só o dia em que o dinheiro entra, que eu te chamo nesse dia." Se ela disser um valor ou uma data, esta instrução muda no próximo turno.`,
+      QUER_MAS_NAO_TEM,
+      "- Se ela disser que falta para o essencial (comida, remédio, aluguel, conta atrasada), NÃO pergunte data nem valor: acolha, e diga que a porta fica aberta quando ela puder.",
+    ].join("\n");
   }
   // A 1ª rodada de reclamação é respondida com a DEFESA do valor; da 2ª em diante cada rodada
   // libera UM degrau — dizer quanto tem não pula nenhum (`degrauDoTurno`). Depois de uma rodada a
@@ -316,7 +328,7 @@ export function blocoDePreco(
         ? instrucaoDoCombinado(c, combinado)
         : fechaAData
           ? instrucaoDeFecharADataCombinada(dataPara, estado.ofertaDeHoje ?? null)
-          : instrucaoDeNegociacao(c, estado.reclamacoes, estado.valorQueTemCents ?? null, estado.reclamouAgora ?? true),
+          : instrucaoDeNegociacao(c, estado.reclamacoes, estado.valorQueTemCents ?? null, estado.reclamouAgora ?? true, estado.entradaJaPerguntada ?? false),
     );
     // Medido em produção: o prompt escrito pelo operador mandava chamar a equipe para enviar
     // o link do valor negociado, e a agente obedecia — a negociação morria numa fila de

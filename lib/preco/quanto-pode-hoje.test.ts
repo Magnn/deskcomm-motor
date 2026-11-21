@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { conferirComprovante, entradasCombinadas } from "../pagamentos/comprovante-pix";
 import { blocoDePreco } from "./bloco-do-prompt";
-import { entradaImediata, reclamacoesDeValor, valorAbaixoDoPisoAgora, valorQueAPessoaTem } from "./estado-da-negociacao";
+import { entradaImediata, entradaJaPerguntada, estadoDaNegociacao, reclamacoesDeValor, valorAbaixoDoPisoAgora, valorQueAPessoaTem } from "./estado-da-negociacao";
 import { blocoDaOportunidade, ofertaAtivaDaConversa, ofertaEmConflito, oportunidadeDeOferta } from "./oferta-ativa";
 import { pricingSchema } from "./tipos";
 
@@ -24,6 +24,22 @@ describe("quanto ela pode hoje", () => {
     expect(bloco).toContain("Quanto você consegue hoje: 30, 50 ou 80?");
     expect(bloco).toContain("O restante a gente acerta depois");
     expect(bloco).not.toContain("parcelamento no cartão, Pix pelo link");
+  });
+  it("⭐ quem recusa as opções de entrada não ouve degrau maior nem depoimento (21/11): a cobrança do dia encerra", () => {
+    const conversa = [PRECO, m("inbound", "agora não consigo pagar"), PERGUNTA, m("inbound", "não tenho"), m("inbound", "obrigada, mas não tenho como pagar")];
+    expect(entradaJaPerguntada(conversa)).toBe(true);
+    const estado = estadoDaNegociacao(PRICING, conversa);
+    expect(estado).toMatchObject({ reclamacoes: 2, valorQueTemCents: null, reclamouAgora: true });
+    const bloco = blocoDePreco(PRICING, { ...estado, entradaJaPerguntada: true });
+    expect(bloco).toContain("não vou insistir hoje");
+    expect(bloco).toContain("o dia em que o dinheiro entra");
+    expect(bloco).not.toContain("R$ 100");
+    expect(bloco).not.toContain("Consigo fazer por");
+  });
+  it("sem a pergunta da entrada feita (o degrau veio da régua de silêncio), a escada segue como antes", () => {
+    const conversa = [PRECO, m("inbound", "não tenho esse valor"), m("outbound", "Consegui deixar o seu trabalho por R$ 100."), m("inbound", "não tenho")];
+    expect(entradaJaPerguntada(conversa)).toBe(false);
+    expect(blocoDePreco(PRICING, { reclamacoes: 2, reclamouAgora: true, entradaJaPerguntada: false })).toContain("Consigo fazer por R$ 100");
   });
   it("sem entrada configurada, segue a defesa do valor", () => {
     const { min_down_payment_cents: _, ...semEntrada } = PRICING;

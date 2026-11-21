@@ -163,6 +163,7 @@ import {
   deuDataParaPagar,
   entradaAPropor,
   entradaImediata,
+  entradaJaPerguntada,
   ofertaFoiDita,
   reclamacoesComOfertaPorSilencio,
   valorAbaixoDoPisoAgora,
@@ -2736,6 +2737,7 @@ async function executarTurnoDoAgente(
     // A oferta de degrau é do turno em que ela reclama — não de toda resposta depois da reclamação.
     reclamouAgora: negociacaoDoTurno.reclamouAgora,
     jaPerguntouDoPix: jaPerguntouDoPix(openingContext.context.messages),
+    entradaJaPerguntada: entradaJaPerguntada(openingContext.context.messages),
     // Ela deu a data e o degrau já foi oferecido: o turno fecha o combinado (data + valor + retorno).
     dataParaOValorCents:
       agentConfig?.pricing && deuDataParaPagar(openingContext.context.messages)
