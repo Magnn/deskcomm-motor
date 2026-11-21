@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { apiTranscriptionProvider, motivoDaFalhaDeTranscricao } from "@/lib/messaging/media/transcription";
+import { apiTranscriptionProvider, motivoDaFalhaDeTranscricao, prazoDaTranscricao } from "@/lib/messaging/media/transcription";
 
 describe("apiTranscriptionProvider", () => {
   it("POSTa multipart pro endpoint de transcrição e devolve o texto", async () => {
@@ -76,6 +76,26 @@ describe("apiTranscriptionProvider", () => {
       const provider = apiTranscriptionProvider({ apiKey: "sk-test", baseUrl: c.input }, fetchMock);
       await provider.transcribe(Buffer.from([1]), "audio/ogg");
       expect(String(fetchMock.mock.calls[0]![0])).toBe(c.esperado);
+    }
+  });
+});
+
+describe("prazo do serviço próprio cresce com o áudio", () => {
+  it("⭐ 21/11/2026: áudio de 3 a 6 minutos não estoura mais o teto fixo de 75 s", () => {
+    expect(prazoDaTranscricao(75_000, 45_000)).toBe(75_000);
+    expect(prazoDaTranscricao(75_000, 385_000)).toBeGreaterThan(150_000);
+    expect(prazoDaTranscricao(75_000, 5_000_000)).toBe(240_000);
+  });
+
+  it("o prazo vai no pedido: o áudio longo não é cortado em 75 s", async () => {
+    const espiao = vi.spyOn(AbortSignal, "timeout");
+    try {
+      const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ text: "ok" }), { status: 200 }));
+      const provider = apiTranscriptionProvider({ apiKey: "k", timeoutMs: 75_000 }, fetchMock);
+      await provider.transcribe(Buffer.alloc(385_000), "audio/ogg");
+      expect(espiao.mock.calls[0]![0]).toBeGreaterThan(150_000);
+    } finally {
+      espiao.mockRestore();
     }
   });
 });
