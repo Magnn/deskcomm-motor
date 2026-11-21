@@ -65,6 +65,8 @@ export interface EstadoDoBloco {
   jaPerguntouDoPix?: boolean;
   /** A agente já perguntou quanto ela consegue hoje (`entradaJaPerguntada`): outro "não tenho" encerra a cobrança do dia. */
   entradaJaPerguntada?: boolean;
+  /** Ela pediu para pagar no cartão (`lib/preco/pediu-cartao.ts`): a cobrança vai como link de cartão, sem chave Pix. */
+  pediuCartao?: boolean;
   /**
    * A pessoa acabou de dar uma data para pagar (`deuDataParaPagar`) e a agente JÁ ofereceu este
    * degrau: o turno fecha o combinado — data + este valor + retorno agendado — em vez de descer
@@ -278,6 +280,13 @@ ${QUER_MAS_NAO_TEM}`;
   ].join("\n");
 }
 
+/**
+ * Medido em 21/11/2026: ela pediu o link, ouviu que "o link cobra o valor inteiro" e que a entrada era só no Pix, e a
+ * conversa acabou em "sem dinheiro". O link de cartão sai em qualquer valor, inclusive o da entrada.
+ */
+export const LINHA_DO_CARTAO =
+  '- ELA QUER PAGAR NO CARTÃO (pediu o link, ou disse que não tem como fazer no Pix). Cobre do jeito de sempre (o link do valor, ou a marca [[PIX: …]]): o código manda SÓ o link de cartão, no valor certo, sem a chave. NÃO mande a chave Pix, NÃO insista no Pix e NÃO diga que o link não aceita metade ou entrada: o link sai no valor que vocês combinarem. "Sem dinheiro na conta" aqui quer dizer que ela paga no cartão, não que desistiu.';
+
 export function blocoDePreco(
   c: PricingConfig | null | undefined,
   estado: EstadoDoBloco = { reclamacoes: null },
@@ -339,6 +348,7 @@ export function blocoDePreco(
   }
 
   if (estado.jaPerguntouDoPix === true) linhas.push(LINHA_DA_PERGUNTA_DO_PIX);
+  if (estado.pediuCartao === true && estado.faltaParaOEssencial !== true) linhas.push(LINHA_DO_CARTAO);
   linhas.push(
     `- NUNCA cite valor abaixo de ${reais(piso)} e NUNCA repita o valor que ela propuser: diga só o seu. Nunca invente cupom, prazo, vaga ou promoção que não esteja escrito aqui.`,
   );
