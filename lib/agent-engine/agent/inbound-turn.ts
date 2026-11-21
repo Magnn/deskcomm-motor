@@ -3094,8 +3094,6 @@ async function executarTurnoDoAgente(
     passoDaLeituraNoTurno,
     perguntaPagaNoTurno ? { nome: perguntaPagaNoTurno.extra.name, quantidade: perguntaPagaNoTurno.quantidade } : null,
   );
-  // Depois que uma carta sai neste turno, os balões seguintes podem comentá-la (`recusaDaCartaForaDoSorteio`).
-  let cartaReveladaNoTurno = false;
   if (perguntaPagaNoTurno) {
     runLog.info('pergunta paga — rodada própria da leitura', { passo: passoDaLeituraNoTurno?.passo ?? 'aguardando_numeros' });
   }
@@ -4537,12 +4535,13 @@ async function executarTurnoDoAgente(
         }
         // CARTA SÓ A SORTEADA: sem os 3 números reconhecidos, ou fora da ordem, a revelação não sai.
         if (!preview) {
-          const recusa = recusaDaCartaForaDoSorteio(body, passoDaLeituraNoTurno, cartaReveladaNoTurno);
+          // A carta que JÁ SAIU neste turno (balão entregue, não só aprovado): os seguintes podem comentá-la, e não revelá-la de novo.
+          const cartaJaSaiu = corposEnviados.some((b) => MARCA_CARTA.test(b));
+          const recusa = recusaDaCartaForaDoSorteio(body, passoDaLeituraNoTurno, cartaJaSaiu);
           if (recusa !== null) {
             runLog.info('carta fora do sorteio — revelação recusada', { conversation_id: input.conversationId });
             return { ok: false, error: { code: 'carta_fora_do_sorteio', message: recusa } };
           }
-          if (MARCA_CARTA.test(body)) cartaReveladaNoTurno = true;
         }
         // CORPO VAZIO NÃO SAI. Medido ao vivo (2026-09-19): o `gpt-4o-mini`
         // chamou `send_message` várias vezes com corpo que virou vazio e o

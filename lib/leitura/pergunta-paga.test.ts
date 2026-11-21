@@ -141,6 +141,14 @@ describe("trava: leitura sem a carta sorteada (Adilson, 19/10/2026)", () => {
     expect(recusaDaCartaForaDoSorteio("A carta mostra que você já sabe a resposta.", passo(), true)).toBeNull();
   });
 
+  it("⭐ a mesma carta não é revelada duas vezes na mesma resposta (21/11/2026)", () => {
+    const p = passo();
+    const nome = p?.passo === "revelar_carta" ? p.carta.nome : "";
+    const revelacao = `Um alívio, meu bem.\n\nCARTA 1: ${nome}\n\nOlha o que ela mostra.`;
+    expect(recusaDaCartaForaDoSorteio(revelacao, p)).toBeNull();
+    expect(recusaDaCartaForaDoSorteio(revelacao, p, true)).toContain("já foi revelada");
+  });
+
   it("fora de uma rodada com carta a revelar, nada muda", () => {
     expect(recusaDaCartaForaDoSorteio(DO_ADILSON, null)).toBeNull();
     const encerrada = passoDaLeitura("org:lead", [...LEITURA_GRATIS, ...DEPOIS_DO_PAGAMENTO]);
