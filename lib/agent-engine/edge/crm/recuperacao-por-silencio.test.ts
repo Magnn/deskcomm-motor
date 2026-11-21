@@ -351,4 +351,42 @@ describe("fechou por hoje", () => {
   it("quem segue na conversa continua com a régua normal", () => {
     expect(decidirChamada(base({ falas_finais: "Sim", ultima_fala: "Conseguiu copiar a chave do Pix?" }), AGORA, true)).toMatchObject({ step: 1 });
   });
+
+  it("⭐ caso de 21/11: despedida seguida de 'Ok' não recebe os passos do dia", () => {
+    const despedida = base({ falas_finais: "Obrigada, até mais tarde / Ok", ultima_fala: "Tá certo. Do jeito que der." });
+    expect(decidirChamada(despedida, AGORA, true)).toBeNull();
+  });
+
+  it("⭐ a agente se despediu ('Até mais tarde 🌙'): não há silêncio para recuperar hoje", () => {
+    const encerrada = base({ falas_finais: "Ok", ultima_fala: "Combinado, minha flor. Até mais tarde. 🌙" });
+    expect(decidirChamada(encerrada, AGORA, true)).toBeNull();
+  });
+});
+
+describe("a régua dorme à noite", () => {
+  // Faixa 08:00–21:00 em São Paulo (UTC−3). A pessoa calou às 20:50 e o 1º passo saiu às 20:53; o 2º (15 min) vence às 21:05, já fechado.
+  const followup = { recovery: RECUPERACAO_PADRAO, send_window: { start: "08:00", end: "21:00", weekdays: [0, 1, 2, 3, 4, 5, 6] } };
+  const noite = {
+    followup,
+    last_inbound_at: "2026-10-06T23:45:00Z",
+    last_outbound_at: "2026-10-06T23:53:00Z",
+    silence_since: "2026-10-06T23:50:00Z",
+    feitas: 1,
+    ultima_em: "2026-10-06T23:53:00Z",
+  };
+
+  it("⭐ o passo que venceu de madrugada sai na abertura, não morre por atraso", () => {
+    expect(decidirChamada(silenciosa(noite), new Date("2026-10-07T07:00:00Z"), true)).toBeNull(); // 04:00, fechada
+    expect(decidirChamada(silenciosa(noite), new Date("2026-10-07T11:05:00Z"), true)).toMatchObject({ kind: "step", step: 2 });
+  });
+
+  it("o passo seguinte respeita o intervalo contado da chamada da manhã", () => {
+    const manha = { ...noite, feitas: 2, ultima_em: "2026-10-07T11:05:00Z" };
+    expect(decidirChamada(silenciosa(manha), new Date("2026-10-07T13:10:00Z"), true)).toBeNull(); // 165 min desde as 08:05 = 10:50
+    expect(decidirChamada(silenciosa(manha), new Date("2026-10-07T13:55:00Z"), true)).toMatchObject({ kind: "step", step: 3 });
+  });
+
+  it("acordada na abertura, a régua ainda respeita a folga de 3 h", () => {
+    expect(decidirChamada(silenciosa(noite), new Date("2026-10-07T14:30:00Z"), true)).toBeNull(); // 11:30, 3 h 30 depois de abrir
+  });
 });

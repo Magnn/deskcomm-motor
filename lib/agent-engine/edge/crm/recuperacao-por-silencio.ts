@@ -31,7 +31,7 @@ import type { ChannelProvider } from '@/lib/channels/types';
 import { ehRecusaDaOferta } from '@/lib/opt-out/deteccao';
 import { lerRecuperacao, ofertaDoPasso, perguntaQuantoCabeNoPasso } from '@/lib/recuperacao/config';
 import { anunciouPausa, disseQueNaoTemPrevisao } from '@/lib/recuperacao/pausa-anunciada';
-import { fechouPorHoje, jaPerguntouQuantoCabe } from '@/lib/recuperacao/fechou-por-hoje';
+import { agenteEncerrou, fechouPorHojeNasFalas, jaPerguntouQuantoCabe } from '@/lib/recuperacao/fechou-por-hoje';
 import { ofertaAindaDesce } from '@/lib/preco/estado-da-negociacao';
 import { ofertaAtivaDaConversa, type OfertaAtiva } from '@/lib/preco/oferta-ativa';
 import type { PricingConfig } from '@/lib/preco/tipos';
@@ -308,7 +308,7 @@ export function decidirChamada(
   // "Nao" recomeçava as cobranças do primeiro passo. Depois de "não", "não tenho" ou despedida, só o passo do dia
   // seguinte. Quando a agente já perguntou quanto cabe, os lembretes que repetiriam a pergunta saem da régua, e os
   // passos que baixam o valor seguem (a escada 100/60 é decisão do dono).
-  const fechou = fechouPorHoje(c.falas_finais?.split(' / ').at(-1));
+  const fechou = fechouPorHojeNasFalas(c.falas_finais?.split(' / ')) || agenteEncerrou(c.ultima_fala);
   const perguntou = !fechou && jaPerguntouQuantoCabe(c.ultima_fala);
   const permitido = (i: number) =>
     r.steps_minutes[i]! * 60_000 >= PASSO_DO_DIA_SEGUINTE_MS || (perguntou && ofertaDoPasso(r, i + 1) !== null);
@@ -325,7 +325,18 @@ export function decidirChamada(
   // seguinte, toda conversa calada havia mais de 6 h (até 23 h) ficou devendo esse passo de uma vez — 70 mensagens
   // em dois minutos, num número com a qualidade em vermelho. Um passo vale na hora dele; passada a folga, ele é
   // de uma conversa que já esfriou, e chamá-la agora é disparo em massa, não recuperação.
-  const devidoHaMs = silencioMs - (r.steps_minutes[passo - 1] ?? 0) * 60_000;
+  //
+  // O atraso conta de quando o passo PODIA sair: vencido, com o intervalo desde a chamada anterior cumprido e com a
+  // faixa de horário aberta. Sem a faixa no cálculo, ligar o horário matava a régua de quem calou à noite: o passo das
+  // 23 h chegava às 8 h com 9 h de atraso e nunca saía. Com ela, a régua dorme à noite e acorda na abertura.
+  const venceuEm = silencioDesde.getTime() + (r.steps_minutes[passo - 1] ?? 0) * 60_000;
+  const intervaloCumpridoEm =
+    !fechou && !perguntou && c.ultima_em !== null
+      ? new Date(c.ultima_em).getTime() + ((r.steps_minutes[passo - 1] ?? 0) - (r.steps_minutes[passo - 2] ?? 0)) * 60_000
+      : venceuEm;
+  const podiaSairDesde = Math.max(venceuEm, intervaloCumpridoEm);
+  const abriuEm = proximaAbertura(new Date(podiaSairDesde));
+  const devidoHaMs = agora.getTime() - (abriuEm?.getTime() ?? podiaSairDesde);
   // A régua que já começou tolera um atraso de worker (3 h); mais que isso, o passo perdeu a hora.
   // Só para a régua em curso: a que ainda não começou tem a sua própria régua de atraso, logo acima.
   if ((c.feitas ?? 0) > 0 && devidoHaMs > ATRASO_MAXIMO_DE_UM_PASSO_MS) return null;
