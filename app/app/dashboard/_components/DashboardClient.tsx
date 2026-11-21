@@ -23,6 +23,7 @@ import {
 } from "@phosphor-icons/react";
 import { FunilDaConversaPainel } from "./FunilDaConversaPainel";
 import { MotivoDaPerdaPainel } from "./MotivoDaPerdaPainel";
+import { CobrancaDoWhatsappPainel } from "./CobrancaDoWhatsappPainel";
 import { PosVendaPainel } from "./PosVendaPainel";
 import { ReceitaAtribuidaPainel } from "./ReceitaAtribuidaPainel";
 import { RetornoDaPlataformaPainel } from "./RetornoDaPlataformaPainel";
@@ -1376,6 +1377,7 @@ export function DashboardClient({ orgName }: { orgName: string }) {
       {activeTab === "receita" && (
         <div className="space-y-6">
           <RetornoDaPlataformaPainel period={period} tagDoIdioma={tagDoIdioma} />
+          <CobrancaDoWhatsappPainel tagDoIdioma={tagDoIdioma} />
           <ReceitaAtribuidaPainel period={period} tagDoIdioma={tagDoIdioma} />
           <PosVendaPainel period={period} tagDoIdioma={tagDoIdioma} />
           <FunilDaConversaPainel period={period} />

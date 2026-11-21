@@ -168,6 +168,13 @@ describe("eventos de DESFECHO", () => {
     expect(r?.errorReason).toContain("A janela fechou.");
   });
 
+  it("a cobrança da Meta repassada no delivered é lida (20/11/2026: era jogada fora)", () => {
+    const r = status("message.delivered", { pricing: { type: "regular", billable: true, category: "service", pricingModel: "PMP" } });
+    expect(r?.cobranca).toEqual({ cobrada: true, categoria: "service", tipo: "regular" });
+    expect(status("message.read")?.cobranca).toBeNull();
+    expect(status("message.delivered", { pricing: { billable: "sim" } })?.cobranca).toBeNull();
+  });
+
   it("message.sent é mensagem NOVA, não só desfecho — é o que faz o envio externo aparecer", () => {
     expect(status("message.sent")?.kind).toBe("message");
   });

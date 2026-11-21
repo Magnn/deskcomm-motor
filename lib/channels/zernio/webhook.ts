@@ -78,6 +78,12 @@ export interface ZernioInboundMessage {
   sentAt: string | null;
   identity: ZernioIdentity;
   /**
+   * A cobrança da Meta repassada pela Zernio no evento de status (`pricing`: `billable`, `category`, `type`). Era
+   * jogada fora: em 20/11/2026 o 7336 já tinha R$ 78 de cobrança no mês e o CRM não sabia de nenhuma.
+   * `null` quando o evento não traz o bloco (o `read` vem sem ele).
+   */
+  cobranca?: { cobrada: boolean; categoria: string | null; tipo: string | null } | null;
+  /**
    * O objeto `referral` do evento, cru — presente quando a conversa começou
    * por um clique em anúncio "Clique para o WhatsApp" da Meta. Repassado sem
    * interpretar (mesma regra deste módulo: PURO, decide só *o que o payload
@@ -113,6 +119,12 @@ type Bruto = Record<string, unknown>;
 const obj = (v: unknown): Bruto | null =>
   v && typeof v === "object" && !Array.isArray(v) ? (v as Bruto) : null;
 const str = (v: unknown): string | null => (typeof v === "string" && v.length > 0 ? v : null);
+
+/** `pricing` do evento → cobrança da mensagem. Sem `billable` booleano não há o que afirmar. */
+function cobrancaDoEvento(pricing: Bruto | null): ZernioInboundMessage["cobranca"] {
+  if (!pricing || typeof pricing.billable !== "boolean") return null;
+  return { cobrada: pricing.billable, categoria: str(pricing.category), tipo: str(pricing.type) };
+}
 
 /**
  * Identidade do remetente, com a ordem de precedência declarada.
@@ -228,6 +240,7 @@ export function parseZernioInbound(payload: unknown): ZernioInboundMessage | nul
     kind: deStatus ? "status" : "message",
     ...(deStatus ? { status: deStatus } : evento === "message.sent" ? { status: "sent" as const } : {}),
     errorReason: deStatus === "failed" ? explicacaoDoErro(obj(p.error)) : null,
+    cobranca: cobrancaDoEvento(obj(p.pricing)),
     conversationId,
     externalId,
     accountId: str(obj(p.account)?.id) ?? str(obj(p.account)?.accountId) ?? str(p.accountId),

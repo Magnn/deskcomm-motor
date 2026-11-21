@@ -108,6 +108,15 @@ export async function ingestZernioInbound(
       // ordem de entrega do webhook não é garantida.
       .not("status", "in", "(read)")
       .select("id");
+    // A cobrança vai à parte, sem a trava do `read`: um `delivered` atrasado é o evento que a traz.
+    if (msg.cobranca) {
+      await admin
+        .from("messages")
+        .update({ billing_billable: msg.cobranca.cobrada, billing_category: msg.cobranca.categoria, billing_type: msg.cobranca.tipo })
+        .eq("organization_id", input.organizationId)
+        .eq("channel_session_id", input.channelSessionId)
+        .eq("external_id", msg.externalId);
+    }
     const afetadas = (data ?? []).length;
     return afetadas > 0
       ? { status: "ingested", reason: `status_${msg.status}` }
