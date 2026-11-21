@@ -115,6 +115,12 @@ export function recusaDaCartaForaDoSorteio(
       "Se ela pedir para você escolher, peça que diga 3 números quaisquer de 1 a 22."
     );
   }
+  // A MESMA CARTA DUAS VEZES NO TURNO. O passo é calculado no começo do turno e só anda no turno seguinte; sem isto um
+  // segundo balão com "CARTA 2:" passava como se fosse a primeira revelação. Medido em 21/11/2026: uma resposta curta da
+  // cliente recebeu duas revelações da carta 2, com texto quase igual, a 4 s uma da outra.
+  if (cartaJaSaiuNoTurno) {
+    return `A CARTA ${pedida} já foi revelada nesta resposta, com a foto. NÃO revele de novo e não repita o que já disse: se falta algo, continue de onde parou, sem escrever "CARTA ${pedida}:".`;
+  }
   if (passo.passo !== "revelar_carta") {
     return "As 3 cartas desta leitura já foram reveladas. NÃO revele outra carta: siga para o passo seguinte do atendimento.";
   }
