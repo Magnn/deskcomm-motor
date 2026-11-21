@@ -26,6 +26,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { conjuntoDeDadosDaConta } from "@/lib/channels/meta/conjunto-de-dados-da-conta";
 import { resolveMetaCreds } from "@/lib/channels/meta/credentials";
+import { chaveDeConversaoDoIntermediario } from "@/lib/channels/conversao-pelo-intermediario";
 import { logger } from "@/lib/logger";
 import type { CredencialDeConversao } from "@/lib/plataformas-de-anuncio/types";
 
@@ -155,6 +156,16 @@ export async function destinoDaConversaoMeta(
   }
   if (mensageria.motivo === "conjunto_de_dados_indisponivel") {
     return { ok: false, motivo: "conjunto_de_dados_indisponivel", detalhe: mensageria.detalhe };
+  }
+  // Sem número oficial próprio, mas a conversa foi num número do intermediário: ele manda pela conta dele.
+  const intermediario = await chaveDeConversaoDoIntermediario(admin, organizationId, contactId).catch(() => null);
+  if (intermediario) {
+    return {
+      ok: true,
+      credencial: { ...daTela, intermediario },
+      contaDoWhatsApp: null,
+      pixelDoSite: false,
+    };
   }
   const clique = await cliqueDaLanding(admin, organizationId, contactId).catch(() => ({ fbc: null, fbp: null, cliente: null }));
   return { ok: true, credencial: daTela, contaDoWhatsApp: null, pixelDoSite: true, ...clique };

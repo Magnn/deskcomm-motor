@@ -34,6 +34,7 @@
  */
 import { createHash } from "node:crypto";
 
+import { enviarConversaoPelaZernio } from "@/lib/channels/zernio/conversoes";
 import { VERSAO_PADRAO_DA_GRAPH } from "@/lib/graph-version";
 import { logger } from "@/lib/logger";
 import { estadoDoTelefone } from "../estado-do-telefone";
@@ -89,6 +90,24 @@ async function enviar(
         `evento com ${dias} dias — a plataforma recusa acima de 7. ` +
         `A venda fechou em ${conversao.ocorridoEm.toISOString()} e não pode mais ser reportada.`,
     };
+  }
+
+  // Número do intermediário: ele tem o token da conta do WhatsApp e o clique, e manda por `business_messaging`.
+  if (credencial.intermediario) {
+    return enviarConversaoPelaZernio(
+      credencial.intermediario,
+      {
+        evento: conversao.evento,
+        eventoId: conversao.eventoId,
+        ocorridoEm: conversao.ocorridoEm,
+        telefone: conversao.telefone ?? "",
+        valorCentavos: conversao.valorCentavos,
+        moeda: conversao.moeda,
+        idExterno: conversao.identidade?.idExterno ?? null,
+        email: conversao.identidade?.email ?? null,
+        testEventCode: credencial.testEventCode,
+      },
+    );
   }
 
   // PIXEL DO SITE (conversa fora de número oficial): `ctwa_clid` e a conta do WhatsApp só valem em
