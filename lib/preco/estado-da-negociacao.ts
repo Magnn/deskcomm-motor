@@ -388,6 +388,19 @@ export function valorQueAPessoaTem(mensagens: readonly MensagemParaContar[]): nu
 }
 
 /**
+ * A AGENTE JÁ PERGUNTOU QUANTO ELA CONSEGUE, depois de dizer o preço ("Quanto você consegue hoje: 30, 50 ou 80?").
+ * Quem responde a essa pergunta com outro "não tenho" já recusou até a menor entrada: oferecer um degrau acima dela
+ * é empurrar valor mais alto (decisão do dono, 01/11/2026). Medido em 21/11/2026: "não tenho como pagar" depois das
+ * opções de entrada recebeu "Não vou insistir… Consigo fazer por R$ 100", e o depoimento que sai com o preço.
+ */
+export function entradaJaPerguntada(mensagens: readonly MensagemParaContar[]): boolean {
+  const msgs = expandirHistoricoColado(mensagens);
+  const primeiroPreco = msgs.findIndex((m) => m.direction === "outbound" && PRECO_DITO.test(m.body ?? ""));
+  if (primeiroPreco === -1) return false;
+  return msgs.slice(primeiroPreco).some((m) => m.direction === "outbound" && PERGUNTOU_QUANTO.test(m.body ?? ""));
+}
+
+/**
  * O estado que o turno usa: a contagem de rodadas, o valor que a pessoa disse ter e se ela
  * reclamou AGORA. Dizer o valor já é uma reclamação.
  */
