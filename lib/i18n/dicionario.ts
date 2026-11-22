@@ -16267,6 +16267,28 @@ export const DICIONARIO: Traducoes = {
   "A Meta não concluiu a conexão. Tente de novo.": { es: "Meta no completó la conexión. Inténtalo de nuevo." },
   "Chave da conta da instalação no provedor parceiro": { es: "Clave de la cuenta de la instalación en el proveedor asociado" },
   "Com ela, cada empresa conecta o número oficial do WhatsApp com um clique, sem ter conta no provedor. Os números ficam na conta da instalação e entram na fatura dela.": { es: "Con ella, cada empresa conecta el número oficial de WhatsApp con un clic, sin tener cuenta en el proveedor. Los números quedan en la cuenta de la instalación y entran en su factura." },
+  // Outros apps da Meta conectados ao lado do principal.
+  "Este token é de um app da Meta que não está conectado nesta instalação. Quem administra a instalação precisa conectá-lo em Outros apps conectados.": { es: "Este token es de una app de Meta que no está conectada en esta instalación. Quien administra la instalación debe conectarla en Otras apps conectadas." },
+  "App conectado e ativado na Meta.": { es: "App conectada y activada en Meta." },
+  "App conectado, mas a Meta recusou parte da ativação. Confira o webhook no painel do app.": { es: "App conectada, pero Meta rechazó parte de la activación. Revisa el webhook en el panel de la app." },
+  "App conectado, mas falta ativar o webhook: a instalação ainda não tem endereço público ou token de verificação.": { es: "App conectada, pero falta activar el webhook: la instalación aún no tiene dirección pública o token de verificación." },
+  "App desconectado.": { es: "App desconectada." },
+  "Confira o ID (só números) e a chave secreta do app.": { es: "Revisa el ID (solo números) y la clave secreta de la app." },
+  "Este já é o app principal da instalação.": { es: "Esta ya es la app principal de la instalación." },
+  "A Meta não reconheceu este ID com esta chave.": { es: "Meta no reconoció este ID con esta clave." },
+  "A cifra desta instalação não está configurada; nada foi gravado.": { es: "El cifrado de esta instalación no está configurado; no se guardó nada." },
+  "Não deu para gravar. Tente de novo.": { es: "No se pudo guardar. Inténtalo de nuevo." },
+  "Este app ainda tem números ativos. Desconecte os números antes:": { es: "Esta app aún tiene números activos. Desconecta los números antes:" },
+  "Não deu para desconectar. Tente de novo.": { es: "No se pudo desconectar. Inténtalo de nuevo." },
+  "Outros apps conectados": { es: "Otras apps conectadas" },
+  "Apps de outros portfólios atendidos por esta instalação, sem trocar o principal. Cada número colado com o token de um desses apps passa a ser conferido pela chave dele.": { es: "Apps de otros portafolios atendidas por esta instalación, sin cambiar la principal. Cada número pegado con el token de una de estas apps se verifica con la clave de ella." },
+  "1 número ativo": { es: "1 número activo" },
+  "números ativos": { es: "números activos" },
+  "desde": { es: "desde" },
+  "Nenhum outro app conectado.": { es: "Ninguna otra app conectada." },
+  "O webhook do app é apontado para esta instalação com o mesmo token de verificação do principal.": { es: "El webhook de la app se apunta a esta instalación con el mismo token de verificación de la principal." },
+  "Cadastre primeiro o app principal acima.": { es: "Registra primero la app principal arriba." },
+  "Conectar app": { es: "Conectar app" },
 };
 
 /**

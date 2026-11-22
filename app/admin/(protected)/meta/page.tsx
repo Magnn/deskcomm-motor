@@ -8,6 +8,7 @@ import type { Idioma } from "@/lib/i18n/idiomas";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 import { FormularioDaMeta } from "./_form";
+import { type OutroApp, OutrosAppsDaMeta } from "./_outros-apps";
 
 export const metadata = { title: "API Oficial da Meta da instalação" };
 export const dynamic = "force-dynamic";
@@ -71,7 +72,10 @@ export default async function Page() {
   const base = (env.NEXT_PUBLIC_APP_URL ?? "").replace(/\/+$/, "");
   const urlDoApp = base.startsWith("https://") ? `${base}/api/v1/webhooks/meta` : null;
 
+  const outros = await outrosAppsConectados(usuario.idioma);
+
   return (
+    <>
     <FormularioDaMeta
       temSegredoSalvo={Boolean(linha?.app_secret_encrypted)}
       temTokenSalvo={Boolean(linha?.verify_token_encrypted)}
@@ -87,7 +91,31 @@ export default async function Page() {
       // ver qual app a janela do Facebook abre hoje antes de trocar.
       app={emVigor}
     />
+    <OutrosAppsDaMeta apps={outros} principal={emVigor.appId} />
+    </>
   );
+}
+
+/** Só IDs, datas e contagens: a chave cifrada nem é selecionada. */
+async function outrosAppsConectados(idioma: Idioma): Promise<OutroApp[]> {
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("platform_meta_apps_anteriores")
+    .select("app_id, aposentado_em")
+    .order("aposentado_em", { ascending: false });
+  const linhas = (data ?? []) as { app_id: string; aposentado_em: string | null }[];
+  if (linhas.length === 0) return [];
+  const { data: numeros } = await admin
+    .from("channel_sessions")
+    .select("meta_app_id")
+    .in(
+      "meta_app_id",
+      linhas.map((l) => l.app_id),
+    )
+    .is("archived_at", null);
+  const porApp = new Map<string, number>();
+  for (const n of (numeros ?? []) as { meta_app_id: string }[]) porApp.set(n.meta_app_id, (porApp.get(n.meta_app_id) ?? 0) + 1);
+  return linhas.map((l) => ({ appId: l.app_id, desde: formatar(l.aposentado_em, idioma), numeros: porApp.get(l.app_id) ?? 0 }));
 }
 
 function formatar(iso: string | null, idioma: Idioma): string | null {

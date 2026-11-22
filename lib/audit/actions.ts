@@ -495,6 +495,10 @@ export const AUDIT_ACTIONS = [
   // WhatsApp, das páginas e endereços públicos do app). O metadata leva o
   // resultado de cada passo; `webhook_registered` fica pelas linhas antigas.
   "platform_meta_app.activated",
+  // Um app de OUTRO portfólio passou a ser aceito ao lado do principal (ou
+  // deixou de ser). Mesmo alcance da chave principal: a chave dele assina avisos.
+  "platform_meta_app.outro_app_conectado",
+  "platform_meta_app.outro_app_desconectado",
   // A conexão da ORGANIZAÇÃO com a conta de anúncios (migration 0213).
   // Auditável porque o token gravado aqui escreve conversões na conta de
   // mídia do cliente: "quem apontou minhas vendas para este destino?" só tem

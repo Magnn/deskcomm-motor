@@ -42,10 +42,24 @@ vi.mock("@/lib/auth/server", () => ({ loadAuthUser: async () => usuario }));
 vi.mock("@/lib/supabase/admin", () => ({
   // Sem `rpc`: se a página tentasse decifrar alguma coisa, estouraria aqui.
   createAdminClient: () => ({
-    from: () => ({
-      select: () => ({
-        eq: () => ({ maybeSingle: async () => ({ data: linha, error: erroDaLeitura }) }),
-      }),
+    from: (tabela: string) => ({
+      select: () => {
+        // Outros apps (a lista e os números deles): só IDs e datas, nunca a chave.
+        const lista = {
+          order: () => lista,
+          in: () => lista,
+          is: () => lista,
+          then: (ok: (v: unknown) => unknown) =>
+            Promise.resolve({
+              data:
+                tabela === "platform_meta_apps_anteriores"
+                  ? [{ app_id: "5555555555", aposentado_em: "2026-11-22T13:00:00.000Z" }]
+                  : [{ meta_app_id: "5555555555" }],
+              error: null,
+            }).then(ok),
+        };
+        return { ...lista, eq: () => ({ maybeSingle: async () => ({ data: linha, error: erroDaLeitura }) }) };
+      },
     }),
   }),
 }));
@@ -104,10 +118,16 @@ afterEach(() => {
 
 type Props = Parameters<typeof FormularioDaMeta>[0];
 
+/** A página devolve o formulário e, abaixo, a lista dos outros apps conectados. */
+async function filhosDaPagina(): Promise<{ type: unknown; props: Record<string, unknown> }[]> {
+  const elemento = (await Page()) as { props: { children: { type: unknown; props: Record<string, unknown> }[] } };
+  return elemento.props.children;
+}
+
 async function propsDaPagina(): Promise<Props> {
-  const elemento = (await Page()) as { type: unknown; props: Props };
-  expect(elemento.type).toBe(FormularioDaMeta);
-  return elemento.props;
+  const formulario = (await filhosDaPagina()).find((f) => f.type === FormularioDaMeta);
+  expect(formulario).toBeDefined();
+  return formulario!.props as unknown as Props;
 }
 
 describe("/admin/meta — o que a página entrega ao navegador", () => {
@@ -120,7 +140,9 @@ describe("/admin/meta — o que a página entrega ao navegador", () => {
     };
 
     const props = await propsDaPagina();
-    const payload = JSON.stringify(props);
+    // Tudo o que a página entrega, inclusive a lista dos outros apps.
+    const payload = JSON.stringify((await filhosDaPagina()).map((f) => f.props));
+    expect(payload).toContain("5555555555");
 
     for (const segredo of [CIFRA_DO_SEGREDO, CIFRA_DO_TOKEN, SEGREDO_DO_ENV, TOKEN_DO_ENV]) {
       expect(payload, `a página entregou ${segredo} ao navegador`).not.toContain(segredo);
