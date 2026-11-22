@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { lerOfertaProativa, ofertaProativaSchema, type OfertaProativa } from "./config";
-import { compraCabe, dentroDaFaixa, escolherOferta, motivoDaOferta, type PessoaParaOferta } from "./decisao";
+import { compraCabe, dentroDaFaixa, escolherOferta, motivoComPrecos, motivoDaOferta, type PessoaParaOferta } from "./decisao";
 import { ritmoPermite } from "@/lib/agent-engine/edge/crm/oferta-proativa";
 
 const AGORA = new Date("2026-10-21T13:00:00Z"); // 09:00 em Porto Velho
@@ -192,5 +192,35 @@ describe("condições de compra: quem comprou X, e há quanto tempo", () => {
     const base = { id: "x", motivo: "um motivo comprido o bastante para valer" };
     expect(() => ofertaProativaSchema.parse({ enabled: true, ofertas: [{ ...base, compra_ha_pelo_menos_dias: 0 }] })).toThrow();
     expect(() => ofertaProativaSchema.parse({ enabled: true, ofertas: [{ ...base, so_se_comprou: "(" }] })).toThrow();
+  });
+});
+
+describe("motivoComPrecos — o valor sai do cadastro, nunca do texto", () => {
+  const pricing = {
+    list_price_cents: 13000,
+    extras: [
+      { name: "Pergunta nova", price_cents: 1700 },
+      { name: "Reconstrução do Casamento", price_cents: 6000 },
+      { name: "Fotografia", price_cents: 1490 },
+    ],
+  } as unknown as Parameters<typeof motivoComPrecos>[1];
+
+  it("troca a marca pelo preço do extra, sem ligar para acento nem caixa", () => {
+    expect(motivoComPrecos("ofereça a Pergunta nova ({{preco:pergunta NOVA}})", pricing)).toBe("ofereça a Pergunta nova (R$ 17)");
+    expect(motivoComPrecos("({{ preco : Reconstrucao do casamento }})", pricing)).toBe("(R$ 60)");
+    expect(motivoComPrecos("{{preco:Fotografia}}", pricing)).toBe("R$ 14,90");
+  });
+
+  it("'trabalho' é o preço de tabela", () => {
+    expect(motivoComPrecos("o trabalho sai {{preco:trabalho}}", pricing)).toBe("o trabalho sai R$ 130");
+  });
+
+  it("nome sem preço cadastrado, ou sem cadastro nenhum, cala a oferta", () => {
+    expect(motivoComPrecos("{{preco:Simpatia inexistente}}", pricing)).toBeNull();
+    expect(motivoComPrecos("{{preco:Pergunta nova}}", null)).toBeNull();
+  });
+
+  it("texto sem marca passa igual", () => {
+    expect(motivoComPrecos("ofereça o depoimento", null)).toBe("ofereça o depoimento");
   });
 });

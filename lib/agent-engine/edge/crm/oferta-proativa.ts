@@ -25,7 +25,8 @@ import type pg from 'pg';
 
 import { readCurrentServiceBoundary } from '@/lib/atendimento/fronteira-server';
 import { lerOfertaProativa, type OfertaProativa } from '@/lib/oferta-proativa/config';
-import { dentroDaFaixa, escolherOferta, motivoDaOferta, type PessoaParaOferta } from '@/lib/oferta-proativa/decisao';
+import { dentroDaFaixa, escolherOferta, motivoComPrecos, motivoDaOferta, type PessoaParaOferta } from '@/lib/oferta-proativa/decisao';
+import { lerPricing } from '@/lib/preco/tipos';
 
 import type { Logger } from '../../obs/logger';
 import { enqueueJob } from '../../queue/queue';
@@ -43,10 +44,11 @@ interface AgenteComOferta {
   channel_session_id: string;
   timezone: string | null;
   followup: unknown;
+  config: unknown;
 }
 
 export const CONSULTA_DE_AGENTES = `
-  select a.organization_id, cs.id as channel_session_id, o.timezone, pv.followup
+  select a.organization_id, cs.id as channel_session_id, o.timezone, pv.followup, a.config
   from ai_agents a
   join ai_agent_versions pv on pv.id = a.published_version_id
   join organizations o on o.id = a.organization_id
@@ -163,6 +165,7 @@ export async function oferecerAQuemCabe(
   for (const ag of agentes) {
     const cfg = lerOfertaProativa(ag.followup);
     if (cfg === null || !dentroDaFaixa(cfg, agora, ag.timezone)) continue;
+    const pricing = lerPricing(ag.config);
     const ritmo = await pool.query<{ ultima_em: string | null; hoje: number }>(CONSULTA_DO_RITMO, [
       ag.organization_id,
       ag.timezone ?? 'UTC',
@@ -180,6 +183,12 @@ export async function oferecerAQuemCabe(
     for (const c of rows) {
       const escolha = escolherOferta(pessoaDaCandidata(c), cfg, agora);
       if (escolha.oferta === null) continue;
+      const motivo = motivoComPrecos(escolha.oferta.motivo, pricing);
+      if (motivo === null) {
+        // O nome da marca não bate com nenhum preço cadastrado: a oferta não sai até alguém corrigir.
+        log.warn('oferta proativa — preço da marca não cadastrado', { oferta: escolha.oferta.id });
+        continue;
+      }
       const fronteira = await readCurrentServiceBoundary(pool, ag.organization_id, c.conversation_id);
       if (fronteira === null) continue;
       await enqueueJob(pool, ag.organization_id, {
@@ -188,7 +197,7 @@ export async function oferecerAQuemCabe(
         // Oferta que falha não insiste: amanhã a regra decide de novo.
         maxAttempts: 2,
         payload: {
-          reason: motivoDaOferta(escolha.oferta),
+          reason: motivoDaOferta(escolha.oferta, motivo),
           conversation_id: c.conversation_id,
           service_boundary: {
             organization_id: fronteira.organization_id,
