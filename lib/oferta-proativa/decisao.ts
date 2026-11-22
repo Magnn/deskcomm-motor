@@ -9,6 +9,7 @@
  * e o detector de pedido de parar do produto.
  */
 import { ehOptOutProvavel, ehRecusaDaOferta } from "@/lib/opt-out/deteccao";
+import { reais, type PricingConfig } from "@/lib/preco/tipos";
 
 import { NAO_OFERECER_PADRAO, type Oferta, type OfertaProativa } from "./config";
 
@@ -106,9 +107,41 @@ export function escolherOferta(p: PessoaParaOferta, cfg: OfertaProativa, agora: 
  * O motivo que vai para o turno: o da organização mais a salvaguarda que nenhuma configuração tira. O turno
  * pode decidir não enviar — e é isso que a salvaguarda pede quando a conversa mostra que não é hora.
  */
-export function motivoDaOferta(o: Oferta): string {
+/** `{{preco:Nome}}` no motivo: o valor sai do cadastro de preços na hora, nunca do texto escrito à mão. */
+const MARCA_DE_PRECO = /\{\{\s*preco\s*:\s*([^}]+?)\s*\}\}/gi;
+
+const semAcento = (s: string) =>
+  s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
+
+/**
+ * Troca cada `{{preco:Nome}}` pelo valor do extra de mesmo nome (sem diferenciar acento nem caixa) ou, com o nome
+ * "trabalho", pelo preço de tabela. Devolve `null` quando alguma marca não acha preço: oferta com valor
+ * desconhecido não sai — melhor calar um dia do que dizer um preço que o Pix não cobra (21/11/2026: o texto da
+ * Pergunta nova dizia R$ 5 com o cadastro em R$ 27).
+ */
+export function motivoComPrecos(
+  motivo: string,
+  pricing: Pick<PricingConfig, "list_price_cents" | "extras"> | null,
+): string | null {
+  let faltou = false;
+  const texto = motivo.replace(MARCA_DE_PRECO, (_, nome: string) => {
+    const alvo = semAcento(nome);
+    const cents =
+      alvo === "trabalho"
+        ? pricing?.list_price_cents
+        : pricing?.extras?.find((e) => semAcento(e.name) === alvo)?.price_cents;
+    if (typeof cents !== "number") {
+      faltou = true;
+      return "";
+    }
+    return reais(cents);
+  });
+  return faltou ? null : texto;
+}
+
+export function motivoDaOferta(o: Oferta, motivo: string = o.motivo): string {
   return (
-    `oferta proativa (${o.id}): ${o.motivo} ` +
+    `oferta proativa (${o.id}): ${motivo} ` +
     "Uma mensagem só, curta, pelo nome. Não mande cobrança nem link nesta mensagem: só depois que a pessoa disser que quer. " +
     "Sem urgência inventada, sem prazo, sem prometer resultado. Se a conversa mostra que a pessoa pediu para não ser procurada, " +
     "desconfiou, está sem dinheiro para o básico ou em sofrimento grave, não envie nada."
