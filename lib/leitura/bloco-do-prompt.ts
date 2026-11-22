@@ -9,6 +9,7 @@
  * Um molde por vez, como o de preço: a carta seguinte NÃO aparece no prompt
  * antes da hora, então não há como o modelo "espiar" e revelar fora de ordem.
  */
+import { MARCA_DA_RAIZ } from "./raiz-registrada";
 import type { Carta } from "./sorteio";
 import type { PassoDaLeitura } from "./estado-da-leitura";
 
@@ -36,7 +37,8 @@ function blocoDaCausaRaiz(cartas: readonly [Carta, Carta, Carta]): string {
     "",
     "",
     "LEITURA — CAUSA RAIZ (as 3 cartas já foram reveladas; código sorteou: " + nomes + ")",
-    "Agora una as 3 cartas numa causa raiz só, em português simples, ligada ao que ela contou (a pergunta dela e o que ela já tentou fazer, se ela disse). Uma mensagem, algumas frases: (1) nomeie a causa raiz sem jargão de tarot; (2) diga por que o que ela já tentou (ou pensou em tentar) não resolve — porque não toca a causa raiz, só o sintoma; (3) estenda em UMA frase pra saúde, UMA pra dinheiro e UMA pra relacionamento, com um exemplo prático do dia a dia em cada uma (não invente detalhe específico da vida dela — fale em termos gerais reconhecíveis, tipo \"muita gente nessa fase começa a dormir mal\" ou \"é comum começar a adiar contas por cansaço\"). Feche perguntando se faz sentido pra ela, e espere a resposta antes de seguir para o trabalho espiritual certo (escolha UM, pela área da dor, como o resto destas instruções já explica) e a oferta.",
+    "Agora una as 3 cartas numa síntese só, em português simples e como POSSIBILIDADE (\"as cartas mostram\", \"pode ser que\"), nunca como causa comprovada. Use SÓ o que ela contou: a pergunta dela, o que ela já tentou e as áreas da vida que ela mesma citou. Sono, dinheiro, relacionamento ou qualquer outra área só entram se ela falou delas; nunca presuma dificuldade nem amplie o problema. Se ela contou o que tentou, não conclua que não resolve: no máximo reconheça \"pelo que você contou, isso ainda não trouxe o alívio que você buscava\". O jeito de dizer (quantos balões, a pergunta do fim) é o do seu roteiro; sem roteiro para isso, feche perguntando se faz sentido para ela.",
+    `Se ela respondeu à 3ª carta com uma dúvida ou outro assunto, responda só a isso, curto, SEM a marca: a síntese fica para a próxima resposta. A marca ${MARCA_DA_RAIZ}, no fim da mensagem, só vai na resposta que ENTREGA a síntese das 3 cartas (ela não aparece para a pessoa e diz ao sistema que esta etapa terminou).`,
   ].join("\n");
 }
 
@@ -79,6 +81,7 @@ function blocoDaPerguntaPaga(passo: PassoDaLeitura, nome: string, quantidade = 1
         ? `Ela pagou ${quantidade} perguntas, e as 3 cartas são a mesa de todas elas. Responda AS ${quantidade}, uma por uma, na ordem em que ela listou, cada uma em 1 ou 2 balões curtos começando pela pergunta ("Sobre [a pergunta]: …"): o que as cartas mostram para ela e uma orientação prática. Fale em português simples e em tendência.`
         : "Agora una as 3 cartas e RESPONDA a pergunta que ela pagou, em 2 a 4 balões curtos, em português simples: o que as cartas mostram para essa pergunta e uma orientação prática para os próximos dias. Fale em tendência.",
       SOBRE_A_OUTRA_PESSOA,
+      `Na resposta em que você responder a pergunta paga, escreva no fim a marca ${MARCA_DA_RAIZ} (ela não aparece para a pessoa). Se ela trouxe uma dúvida antes, responda a dúvida sem a marca.`,
       "Depois da resposta, num balão final, SUGIRA UMA pergunta nova que nasce do que as cartas mostraram e que ela vai querer saber (curiosidade, nunca medo), e pergunte se ela quer que você abra a mesa pra ela. Não mande cobrança neste turno: só se ela disser que quer.",
     ].join("\n");
   }
