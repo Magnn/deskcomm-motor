@@ -42,12 +42,14 @@ function blocoDaCausaRaiz(cartas: readonly [Carta, Carta, Carta]): string {
   ].join("\n");
 }
 
-function blocoDaLeituraEncerrada(cartas: readonly [Carta, Carta, Carta]): string {
+function blocoDaLeituraEncerrada(cartas: readonly [Carta, Carta, Carta], semEvidencia = false): string {
   const nomes = cartas.map((c) => c.nome).join(", ");
   return [
     "",
     "",
-    `LEITURA — JÁ TERMINOU (foram 3 cartas: ${nomes}; a causa raiz já foi dita)`,
+    semEvidencia
+      ? `LEITURA — AS 3 CARTAS JÁ SAÍRAM (${nomes}). Se ainda não ligou as 3 numa síntese, pode fazê-lo quando couber, curto, e só então escreva no fim a marca ${MARCA_DA_RAIZ}.`
+      : `LEITURA — JÁ TERMINOU (foram 3 cartas: ${nomes}; a causa raiz já foi dita)`,
     'A leitura tem só 3 cartas. NUNCA revele outra carta, nunca escreva "CARTA 4" nem ofereça "a próxima camada" ou "a próxima carta". Se ela pedir mais cartas, diga que a leitura dela foi dessas 3 e retome o que elas mostraram. Siga o roteiro a partir daqui: o trabalho certo para a dor dela, o valor e o link, conforme estas instruções.',
   ].join("\n");
 }
@@ -101,6 +103,6 @@ export function blocoDaLeitura(passo: PassoDaLeitura | null, pergunta?: { nome: 
   if (passo === null) return "";
   if (pergunta) return blocoDaPerguntaPaga(passo, pergunta.nome, pergunta.quantidade ?? 1);
   if (passo.passo === "revelar_carta") return blocoDaCartaRevelada(passo.indice, passo.carta);
-  if (passo.passo === "encerrada") return blocoDaLeituraEncerrada(passo.cartas);
+  if (passo.passo === "encerrada") return blocoDaLeituraEncerrada(passo.cartas, passo.semEvidencia === true);
   return blocoDaCausaRaiz(passo.cartas);
 }

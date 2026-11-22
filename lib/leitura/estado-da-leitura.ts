@@ -38,7 +38,9 @@ export const PEDIDO_DO_BARALHO = /\b22\s+cartas\b|\b1\s*(?:a|à|até)\s*22\b|\b(
 export type PassoDaLeitura =
   | { passo: "revelar_carta"; indice: 1 | 2 | 3; carta: Carta; cartas: readonly [Carta, Carta, Carta] }
   | { passo: "causa_raiz"; cartas: readonly [Carta, Carta, Carta] }
-  | { passo: "encerrada"; cartas: readonly [Carta, Carta, Carta] };
+  /** `semEvidencia`: a síntese NÃO foi registrada, mas a agente já falou 2 vezes depois da 3ª carta — o bloco para de pedi-la
+   *  (sem loop), e a etapa não conta como entregue: o turno registra o incidente. */
+  | { passo: "encerrada"; cartas: readonly [Carta, Carta, Carta]; semEvidencia?: true };
 
 /** `sent_at` (quando a conversa o tem) é a RODADA do sorteio: a mesma escolha, outro dia, é outra leitura. */
 type Mensagem = MensagemParaContar & { sent_at?: string | null };
@@ -49,21 +51,22 @@ const ehCartaRevelada = (m: MensagemParaContar): boolean =>
 /**
  * A causa raiz já foi dita? Vale o REGISTRO (`lib/leitura/raiz-registrada.ts`): a agente marcou a raiz
  * depois da última carta. Sem registro, a etapa só fecha quando a agente já falou em DOIS turnos depois da
- * resposta à 3ª carta (um turno pode ter sido a resposta a uma dúvida). Bolhas seguidas da agente, sem a
+ * resposta à 3ª carta (um turno pode ter sido a resposta a uma dúvida) — e aí fecha SEM evidência: o bloco para de pedir a
+ * síntese, mas ela não conta como entregue. Bolhas seguidas da agente, sem a
  * pessoa no meio, são um turno só. A resposta da agente anterior a `REGISTRO_DA_RAIZ_DESDE` segue a regra
  * antiga (um turno basta): conversa que estava no meio quando o registro entrou não volta para a raiz.
  */
-function causaRaizJaDita(depoisDaEscolha: readonly Mensagem[], raizesDitas: readonly Date[]): boolean {
+function causaRaizJaDita(depoisDaEscolha: readonly Mensagem[], raizesDitas: readonly Date[]): "registrada" | "sem_evidencia" | null {
   let ultimaCarta = -1;
   depoisDaEscolha.forEach((m, i) => {
     if (ehCartaRevelada(m)) ultimaCarta = i;
   });
   const horaDaCarta = depoisDaEscolha[ultimaCarta]?.sent_at;
   const desde = horaDaCarta ? new Date(horaDaCarta).getTime() : null;
-  if (raizesDitas.some((d) => desde === null || d.getTime() >= desde)) return true;
+  if (raizesDitas.some((d) => desde === null || d.getTime() >= desde)) return "registrada";
 
   const resposta = depoisDaEscolha.findIndex((m, i) => i > ultimaCarta && m.direction === "inbound");
-  if (resposta < 0) return false;
+  if (resposta < 0) return null;
   let turnos = 0;
   let primeiroTurno: Mensagem | null = null;
   for (let i = resposta + 1; i < depoisDaEscolha.length; i++) {
@@ -73,9 +76,9 @@ function causaRaizJaDita(depoisDaEscolha: readonly Mensagem[], raizesDitas: read
       primeiroTurno ??= m;
     }
   }
-  if (turnos >= 2) return true;
+  if (turnos >= 2) return "sem_evidencia";
   const antigo = primeiroTurno?.sent_at != null && new Date(primeiroTurno.sent_at).getTime() < REGISTRO_DA_RAIZ_DESDE.getTime();
-  return turnos === 1 && antigo;
+  return turnos === 1 && antigo ? "registrada" : null;
 }
 
 /**
@@ -176,7 +179,12 @@ export function passoDaLeitura(
   const depois = conversa.slice(escolha + 1);
   const jaReveladas = depois.filter(ehCartaRevelada).length;
 
-  if (jaReveladas >= 3) return causaRaizJaDita(depois, raizesDitas) ? { passo: "encerrada", cartas } : { passo: "causa_raiz", cartas };
+  if (jaReveladas >= 3) {
+    const raiz = causaRaizJaDita(depois, raizesDitas);
+    if (raiz === "registrada") return { passo: "encerrada", cartas };
+    if (raiz === "sem_evidencia") return { passo: "encerrada", cartas, semEvidencia: true };
+    return { passo: "causa_raiz", cartas };
+  }
   const indice = (jaReveladas + 1) as 1 | 2 | 3;
   return { passo: "revelar_carta", indice, carta: cartas[indice - 1]!, cartas };
 }
