@@ -26,6 +26,7 @@
 import type pg from 'pg';
 
 import { readCurrentServiceBoundary } from '@/lib/atendimento/fronteira-server';
+import { sqlReguaSemAutomaticaAlheia } from '@/lib/followup/dono-das-automaticas';
 import { capabilitiesOf } from '@/lib/channels/capabilities';
 import type { ChannelProvider } from '@/lib/channels/types';
 import { ehRecusaDaOferta } from '@/lib/opt-out/deteccao';
@@ -185,6 +186,8 @@ export const CONSULTA_DE_SILENCIOSAS = `
       select 1 from followup_enrollments e
       where e.organization_id = v.organization_id and e.contact_id = v.contact_id
         and e.status in ('active', 'waiting_reply', 'paused_handoff'))
+    -- Um dono por vez: a régua não persegue a oferta proativa nem o retorno agendado (dono-das-automaticas.ts).
+    and ${sqlReguaSemAutomaticaAlheia('ui.created_at')}
   order by ui.created_at
   limit ${LOTE}`;
 

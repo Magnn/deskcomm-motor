@@ -91,6 +91,7 @@ import { isStatusSendable } from '@/lib/channels/meta/template-binding';
 import { configDeVozDoItem, pixDoNoPelaChavePrincipal, temPixDeNo } from '@/lib/followup/nos-de-envio';
 import { IDS_DE_PROVEDOR_DE_VOZ } from '@/lib/voz/tipos';
 import { dependenciasReaisDeNota, enviarNotasDeVoz, prepararNotasDeVoz } from './nota-de-voz';
+import { retornoCaiEmCimaDeOutra } from '@/lib/followup/dono-das-automaticas';
 
 const DAY_MS = 86_400_000;
 const HOUR_MS = 3_600_000;
@@ -544,6 +545,20 @@ export function createFollowupTurnHandler(deps: FollowupTurnDeps) {
     // para o envio ser recusado na saída (`lib/messaging/so-dentro-da-janela.ts`).
     if (await foraDaJanelaExigida(pool, tenantId, target.conversationId, clock(), payload.so_dentro_da_janela === true)) {
       deps.log?.info('retorno descartado: a pessoa não escreveu nas últimas 24 h', {
+        job_id: job.id,
+        tenant_id: tenantId,
+        lead_id: leadId,
+        conversation_id: target.conversationId,
+      });
+      return;
+    }
+
+    // Um dono por vez: o retorno agendado não sai em cima da régua ou da oferta que já falou sem resposta.
+    if (
+      payload.promise !== undefined &&
+      (await retornoCaiEmCimaDeOutra(pool, { organizationId: tenantId, contactId: leadId, conversationId: target.conversationId, jobId: job.id }))
+    ) {
+      deps.log?.info('retorno descartado: outra mensagem automática já falou e o cliente não respondeu', {
         job_id: job.id,
         tenant_id: tenantId,
         lead_id: leadId,
