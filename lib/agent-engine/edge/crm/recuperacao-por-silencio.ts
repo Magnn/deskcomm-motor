@@ -34,7 +34,7 @@ import { lerRecuperacao, ofertaDoPasso, perguntaQuantoCabeNoPasso } from '@/lib/
 import { anunciouPausa, disseQueNaoTemPrevisao } from '@/lib/recuperacao/pausa-anunciada';
 import { agenteEncerrou, fechouPorHojeNasFalas, jaPerguntouQuantoCabe } from '@/lib/recuperacao/fechou-por-hoje';
 import { degrauDitoDesde, ofertaAindaDesce } from '@/lib/preco/estado-da-negociacao';
-import { ofertaAtivaDaConversa, type OfertaAtiva } from '@/lib/preco/oferta-ativa';
+import { comOfertasDoPosVenda, ofertaAtivaDaConversa, type OfertaAtiva } from '@/lib/preco/oferta-ativa';
 import type { PricingConfig } from '@/lib/preco/tipos';
 import {
   FOLGA_DO_FECHAMENTO_MS,
@@ -78,7 +78,7 @@ interface Candidata {
   timezone: string | null;
   followup: unknown;
   /** `ai_agents.config.pricing`: a escada que diz quais valores da conversa contam como oferta. */
-  pricing?: Pick<PricingConfig, 'steps' | 'list_price_cents' | 'extras'> | null;
+  pricing?: Pick<PricingConfig, 'steps' | 'list_price_cents' | 'extras' | 'post_sale'> | null;
   /**
    * Desde quando a recuperação está LIGADA neste agente: a publicação mais antiga da sequência de
    * versões com ela ligada. Republicar o roteiro não mexe nesta data.
@@ -418,7 +418,7 @@ export async function recuperarSilenciosos(
       const baixouHoje = degrauDitoDesde(c.pricing!, falas, new Date(agora.getTime() - 24 * 60 * 60_000));
       const ativa = ofertaAtivaDaConversa(
         c.pricing!,
-        c.pricing!.extras ?? [],
+        comOfertasDoPosVenda(c.pricing!.extras ?? [], c.pricing),
         corpos.map((body) => ({ direction: 'outbound', body })),
       );
       const ofertaDePe = ativa?.tipo === 'pequena' ? ativa : null;

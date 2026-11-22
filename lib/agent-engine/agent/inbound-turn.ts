@@ -181,7 +181,7 @@ import { reais } from '@/lib/preco/tipos';
 import { blocoDoCombinado } from '@/lib/followup/bloco-do-combinado';
 import { PAUSA_ANTES_DA_PRIMEIRA, RITMO_PADRAO, pausaEntreBolhas, sinalizaDigitandoEntreBolhas, type Ritmo } from '@/lib/ritmo/tipos';
 import { buscaRestanteCombinado, buscaValorCombinado, criaRetornoDbPg } from '@/lib/followup/retorno-pg';
-import { anunciaCobrancaSemCobranca, RECUSA_DA_COBRANCA_ANUNCIADA } from '@/lib/pagamentos/cobranca-anunciada';
+import { anunciaCobrancaSemCobranca, RECUSA_DA_COBRANCA_ANUNCIADA, RECUSA_DA_COBRANCA_NO_TOQUE, trazCobranca } from '@/lib/pagamentos/cobranca-anunciada';
 import { lerRaizesDitas, registrarRaizDita, semAMarcaDaRaiz, temMarcaDaRaiz } from '@/lib/leitura/raiz-registrada';
 import { MARCA_DO_RESTANTE, blocoDoRestante, temMarcaDoRestante } from '@/lib/preco/restante';
 import { blocoDaEntregaNaConversa, blocoDaOfertaDoCatalogo } from '@/lib/catalogo/bloco-do-prompt';
@@ -4097,6 +4097,11 @@ async function executarTurnoDoAgente(
         if (anunciaCobrancaSemCobranca(body, openingContext.context.messages)) {
           runLog.warn('send_message: cobrança anunciada sem cobrança — recusada', { conversation_id: input.conversationId });
           return { ok: false, error: { code: 'cobranca_anunciada_sem_cobranca', message: RECUSA_DA_COBRANCA_ANUNCIADA } };
+        }
+        // TOQUE DE SILÊNCIO NÃO COBRA: a régua retoma; a cobrança só sai quando ela disser que quer.
+        if (job?.kind === 'followup_turn' && (job.payload as { recovery?: unknown } | null)?.recovery !== undefined && trazCobranca(body)) {
+          runLog.warn('send_message: cobrança num toque de silêncio — recusada', { conversation_id: input.conversationId });
+          return { ok: false, error: { code: 'cobranca_no_toque_de_silencio', message: RECUSA_DA_COBRANCA_NO_TOQUE } };
         }
         // A CONVERSA GRATUITA ACABOU: uma mensagem só, curta. O que passar disso volta ao modelo.
         if (gratuitaEsgotadaNoTurno) {

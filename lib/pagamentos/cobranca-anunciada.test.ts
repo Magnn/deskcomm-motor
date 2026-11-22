@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { anunciaCobrancaSemCobranca } from "./cobranca-anunciada";
+import { anunciaCobrancaSemCobranca, trazCobranca } from "./cobranca-anunciada";
 
 const saiu = (body: string) => ({ direction: "outbound", body });
 
@@ -24,5 +24,13 @@ describe("anunciaCobrancaSemCobranca", () => {
   it("explicar como funciona o Pix, sem anunciar envio, passa", () => {
     expect(anunciaCobrancaSemCobranca("A chave é no nome do Matheus, que cuida do financeiro do Templo. Quer pagar no Pix ou no cartão?")).toBe(false);
     expect(anunciaCobrancaSemCobranca("Pix ou cartão, como fica melhor pra você?")).toBe(false);
+  });
+});
+
+describe("trazCobranca (toque de silêncio não cobra)", () => {
+  it("marca, chave ou link contam como cobrança; pergunta não", () => {
+    expect(trazCobranca("O seu trabalho ficou em R$ 100.\n\n[[PIX: Entrada]]")).toBe(true);
+    expect(trazCobranca("Se preferir, é por este link: https://buy.stripe.com/abc")).toBe(true);
+    expect(trazCobranca("Gracielle, quer que eu te mande o Pix da Oração dos Sonhos?")).toBe(false);
   });
 });
