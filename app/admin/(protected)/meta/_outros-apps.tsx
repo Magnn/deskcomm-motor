@@ -107,7 +107,7 @@ export function OutrosAppsDaMeta({ apps, principal }: { apps: readonly OutroApp[
                   <span className="font-mono">{a.appId}</span>
                   <span className="text-xs text-muted-foreground">
                     {a.numeros === 1 ? t("1 número ativo") : `${a.numeros} ${t("números ativos")}`}
-                    {a.desde ? ` · ${t("desde")} ${a.desde}` : ""}
+                    {a.desde ? ` · ${t("conectado em")} ${a.desde}` : ""}
                   </span>
                 </div>
                 <Button variant="outline" size="sm" disabled={ocupado || a.numeros > 0} onClick={() => desconectar(a.appId)}>

@@ -16284,7 +16284,7 @@ export const DICIONARIO: Traducoes = {
   "Apps de outros portfólios atendidos por esta instalação, sem trocar o principal. Cada número colado com o token de um desses apps passa a ser conferido pela chave dele.": { es: "Apps de otros portafolios atendidas por esta instalación, sin cambiar la principal. Cada número pegado con el token de una de estas apps se verifica con la clave de ella." },
   "1 número ativo": { es: "1 número activo" },
   "números ativos": { es: "números activos" },
-  "desde": { es: "desde" },
+  "conectado em": { es: "conectada el" },
   "Nenhum outro app conectado.": { es: "Ninguna otra app conectada." },
   "O webhook do app é apontado para esta instalação com o mesmo token de verificação do principal.": { es: "El webhook de la app se apunta a esta instalación con el mismo token de verificación de la principal." },
   "Cadastre primeiro o app principal acima.": { es: "Registra primero la app principal arriba." },
