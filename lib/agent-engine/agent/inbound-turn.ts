@@ -181,6 +181,7 @@ import { reais } from '@/lib/preco/tipos';
 import { blocoDoCombinado } from '@/lib/followup/bloco-do-combinado';
 import { PAUSA_ANTES_DA_PRIMEIRA, RITMO_PADRAO, pausaEntreBolhas, sinalizaDigitandoEntreBolhas, type Ritmo } from '@/lib/ritmo/tipos';
 import { buscaRestanteCombinado, buscaValorCombinado, criaRetornoDbPg } from '@/lib/followup/retorno-pg';
+import { anunciaCobrancaSemCobranca, RECUSA_DA_COBRANCA_ANUNCIADA } from '@/lib/pagamentos/cobranca-anunciada';
 import { lerRaizesDitas, registrarRaizDita, semAMarcaDaRaiz, temMarcaDaRaiz } from '@/lib/leitura/raiz-registrada';
 import { MARCA_DO_RESTANTE, blocoDoRestante, temMarcaDoRestante } from '@/lib/preco/restante';
 import { blocoDaEntregaNaConversa, blocoDaOfertaDoCatalogo } from '@/lib/catalogo/bloco-do-prompt';
@@ -3105,6 +3106,10 @@ async function executarTurnoDoAgente(
     passoDaLeituraNoTurno,
     perguntaPagaNoTurno ? { nome: perguntaPagaNoTurno.extra.name, quantidade: perguntaPagaNoTurno.quantidade } : null,
   );
+  if (passoDaLeituraNoTurno?.passo === 'encerrada' && passoDaLeituraNoTurno.semEvidencia === true) {
+    // Incidente medido: a agente falou 2 vezes depois da 3ª carta e a síntese não foi registrada (marca esquecida ou etapa pulada).
+    runLog.warn('leitura — síntese das cartas sem evidência de entrega', { conversation_id: input.conversationId });
+  }
   if (perguntaPagaNoTurno) {
     runLog.info('pergunta paga — rodada própria da leitura', { passo: passoDaLeituraNoTurno?.passo ?? 'aguardando_numeros' });
   }
@@ -4087,6 +4092,12 @@ async function executarTurnoDoAgente(
       execute: async ({ body: corpoDoModelo, produto_codigo }) => {
         // O modelo às vezes ESCREVE a quebra de linha em vez de quebrar; ver `quebrasDeVerdade`.
         let body = quebrasDeVerdade(corpoDoModelo);
+        // COBRANÇA ANUNCIADA SEM COBRANÇA (`lib/pagamentos/cobranca-anunciada.ts`): "a chave vai aqui:" sem marca nem link
+        // volta ao modelo antes de qualquer marca ser trocada. Vale na prévia também (sem efeito, só a recusa).
+        if (anunciaCobrancaSemCobranca(body, openingContext.context.messages)) {
+          runLog.warn('send_message: cobrança anunciada sem cobrança — recusada', { conversation_id: input.conversationId });
+          return { ok: false, error: { code: 'cobranca_anunciada_sem_cobranca', message: RECUSA_DA_COBRANCA_ANUNCIADA } };
+        }
         // A CONVERSA GRATUITA ACABOU: uma mensagem só, curta. O que passar disso volta ao modelo.
         if (gratuitaEsgotadaNoTurno) {
           if (outcomes.length > 0) {
@@ -4312,7 +4323,10 @@ async function executarTurnoDoAgente(
         }
         // RAIZ DITA: a marca sai do texto sempre; só no turno da raiz, e só depois do envio CONFIRMADO (`sent`, mais
         // abaixo), ela vira registro. Resposta que só esclarece dúvida sai sem a marca e a etapa segue pendente.
-        const raizNesteEnvio = temMarcaDaRaiz(body) && !preview && passoDaLeituraNoTurno?.passo === 'causa_raiz';
+        const raizNesteEnvio =
+          temMarcaDaRaiz(body) &&
+          !preview &&
+          (passoDaLeituraNoTurno?.passo === 'causa_raiz' || (passoDaLeituraNoTurno?.passo === 'encerrada' && passoDaLeituraNoTurno.semEvidencia === true));
         if (temMarcaDaRaiz(body)) body = semAMarcaDaRaiz(body);
         // ENCERRAMENTO: a marca `[[ENCERRAR_ACOMPANHAMENTO]]` sai do texto e grava a recusa no contato.
         // Gravar falhou: a mensagem sai mesmo assim (a despedida não pode travar), e o aviso fica no log.

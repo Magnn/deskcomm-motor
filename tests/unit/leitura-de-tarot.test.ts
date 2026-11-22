@@ -257,9 +257,13 @@ describe("passoDaLeitura — depois que a causa raiz é dita, a leitura acabou",
     expect(passoDaLeitura("lead-1", depois, undefined, [new Date("2026-11-30T10:00:00Z")])?.passo).toBe("causa_raiz");
   });
 
-  it("rede de segurança: dois turnos da agente depois da resposta, sem marca, fecham a etapa", () => {
+  it("rede de segurança: dois turnos da agente sem marca param de pedir a síntese, mas SEM evidência de entrega", () => {
     const depois = [...tresCartasComHora, emDez("inbound", "dúvida", 10), emDez("outbound", "resposta", 11), emDez("inbound", "ok", 12), emDez("outbound", "a raiz", 13), emDez("outbound", "segunda bolha", 13), emDez("inbound", "sim", 14)];
-    expect(passoDaLeitura("lead-1", depois)?.passo).toBe("encerrada");
+    const p = passoDaLeitura("lead-1", depois);
+    expect(p).toMatchObject({ passo: "encerrada", semEvidencia: true });
+    const bloco = blocoDaLeitura(p);
+    expect(bloco).not.toContain("a causa raiz já foi dita");
+    expect(bloco).toContain(MARCA_DA_RAIZ);
   });
 
   it("conversa que já estava no meio antes do registro segue a regra antiga (um turno basta)", () => {
