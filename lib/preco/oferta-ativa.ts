@@ -293,3 +293,19 @@ export function blocoDaOfertaAtiva(ativa: OfertaAtiva | null, liberado: boolean)
     "- Se ela recusar também esta oferta, acolha e deixe a porta aberta, sem outro valor.",
   ].join("\n");
 }
+
+/**
+ * As ofertas de PÓS-VENDA (`pricing.post_sale` e as seguintes) também são ofertas pequenas de pé. Medido em 22/11/2026: a
+ * agente ofereceu a Oração dos Sonhos (pós-venda, R$ 35) e a régua de silêncio, que só conhecia a escada e os extras,
+ * passou a oferecer "o seu trabalho por R$ 100" e depois mandou a cobrança dele. Só para LER qual oferta está de pé:
+ * não vira marca de cobrança. Puro.
+ */
+export function comOfertasDoPosVenda(extras: readonly Extra[], pricing: Pick<PricingConfig, "post_sale"> | null | undefined): Extra[] {
+  const ps = pricing?.post_sale;
+  if (!ps?.enabled) return [...extras];
+  const ofertas = [{ price_cents: ps.price_cents, product_links: ps.product_links }, ...(ps.next_offers ?? [])];
+  const doPosVenda = ofertas.flatMap((o) =>
+    o.product_links.slice(0, 1).map((l) => ({ name: l.name, price_cents: o.price_cents, when: "oferta de pós-venda" }) as Extra),
+  );
+  return [...extras, ...doPosVenda.filter((p) => !extras.some((e) => e.name === p.name))];
+}

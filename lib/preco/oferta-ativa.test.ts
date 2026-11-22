@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { conversaFalouDeExtra, ofertaPequenaDeHoje } from "./extras";
 import { reclamacoesDeValor, valorQueAPessoaTem } from "./estado-da-negociacao";
 import { falaErradaDoPagamento } from "./fala-do-pagamento";
-import { blocoDaOfertaAtiva, blocoDaOportunidade, ofertaAtivaDaConversa, ofertaEmConflito, oportunidadeDaCliente, oportunidadeDeOferta, ouviuOMenorValor, pediuOTrabalho } from "./oferta-ativa";
+import { blocoDaOfertaAtiva, blocoDaOportunidade, comOfertasDoPosVenda, ofertaAtivaDaConversa, ofertaEmConflito, oportunidadeDaCliente, oportunidadeDeOferta, ouviuOMenorValor, pediuOTrabalho } from "./oferta-ativa";
 import type { Extra } from "./tipos";
 import { valorErradoDeExtra } from "./valor-do-extra";
 
@@ -156,5 +156,29 @@ describe("a cliente da casa que pergunta de novo da outra pessoa (06/11/2026)", 
     const bloco = blocoDaOportunidade(sinastria, true);
     expect(bloco).toContain("O Código da Conexão");
     expect(bloco.indexOf("desejo")).toBeLessThan(bloco.indexOf("Ofereça só"));
+  });
+});
+
+describe("comOfertasDoPosVenda — a oferta de pós-venda também segura a régua", () => {
+  const posVenda = {
+    post_sale: {
+      enabled: true,
+      wait_hours: 0,
+      price_cents: 3500,
+      product_links: [{ name: "Oração dos Sonhos", url: "https://pay.example/1" }],
+      next_offers: [{ wait_hours: 0, price_cents: 4500, product_links: [{ name: "Sons Vocálicos", url: "https://pay.example/2" }] }],
+    },
+  } as never;
+
+  it("o caso medido: Oração dos Sonhos por R$ 35 é a oferta de pé, não o trabalho", () => {
+    const conversa = [agente("O trabalho é R$ 130."), agente("Pra quem deita e a cabeça não desliga, eu tenho a *Oração dos Sonhos*."), agente("É R$ 35, pagamento único. Quer que eu te mande?")];
+    expect(ofertaAtivaDaConversa(escada, comOfertasDoPosVenda(extras, posVenda), conversa)).toEqual({ tipo: "pequena", nome: "Oração dos Sonhos", cents: 3500 });
+    // Sem o pós-venda na leitura, o R$ 35 não era de ninguém e a régua voltava para a escada do trabalho.
+    expect(ofertaAtivaDaConversa(escada, extras, conversa)).toEqual({ tipo: "trabalho", cents: 13000 });
+  });
+
+  it("pós-venda desligado não acrescenta nada", () => {
+    expect(comOfertasDoPosVenda(extras, { post_sale: { enabled: false } } as never)).toHaveLength(extras.length);
+    expect(comOfertasDoPosVenda(extras, posVenda).map((e) => e.name)).toEqual([...extras.map((e) => e.name), "Oração dos Sonhos", "Sons Vocálicos"]);
   });
 });

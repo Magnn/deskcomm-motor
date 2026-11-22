@@ -42,3 +42,17 @@ export function anunciaCobrancaSemCobranca(
   }
   return false;
 }
+
+/** O corpo traz cobrança (marca de Pix/chave/boleto ou link)? */
+export function trazCobranca(corpo: string): boolean {
+  return COBRANCA_NO_CORPO.test(corpo);
+}
+
+/**
+ * TOQUE DE SILÊNCIO NÃO COBRA. Medido em 22/11/2026: o 3º toque da régua, mandado só para "retomar a conversa", saiu com a
+ * chave e o link de R$ 100 de um produto que ela nunca aceitou. Quem está calada não pediu cobrança: o toque pergunta, e a
+ * chave sai no turno em que ela disser que quer.
+ */
+export const RECUSA_DA_COBRANCA_NO_TOQUE =
+  "Esta é uma retomada de silêncio: a pessoa não respondeu e não pediu cobrança. NÃO mande chave, marca [[PIX: …]] nem link. " +
+  "Escreva uma mensagem curta, pelo nome, retomando a última oferta com uma pergunta (por exemplo, se ela quer que você mande o Pix); a cobrança sai quando ela disser que quer.";
