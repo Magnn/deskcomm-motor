@@ -5,6 +5,7 @@ import { BLOCOS_DO_TURNO } from "@/lib/agent-engine/agent/blocos-do-turno";
 import { BARALHO, CARTA_POR_ID, TAMANHO_DO_BARALHO } from "@/lib/leitura/baralho";
 import { blocoDaLeitura } from "@/lib/leitura/bloco-do-prompt";
 import { passoDaLeitura } from "@/lib/leitura/estado-da-leitura";
+import { MARCA_DA_RAIZ, semAMarcaDaRaiz } from "@/lib/leitura/raiz-registrada";
 import { caminhoDaCarta, destinoNaConversa, imagemDaLeitura, mesaJaMostrada } from "@/lib/leitura/imagens";
 import { extrairNumerosEscolhidos, sortearCartas } from "@/lib/leitura/sorteio";
 
@@ -150,7 +151,7 @@ describe("blocoDaLeitura — o molde que vai pro prompt", () => {
     expect(b).not.toContain(cartas[2].nome);
   });
 
-  it("causa raiz: cita as 3 cartas, pede extensão a saúde/dinheiro/relacionamento e liga no trabalho certo", () => {
+  it("causa raiz: cita as 3 cartas, fica no que ela contou e pede a marca da raiz", () => {
     const p = passoDaLeitura("lead-1", [
       PEDIDO,
       msg("inbound", "1, 2 e 3"),
@@ -160,10 +161,12 @@ describe("blocoDaLeitura — o molde que vai pro prompt", () => {
     ]);
     const b = blocoDaLeitura(p);
     expect(b).toContain("CAUSA RAIZ");
-    expect(b).toContain("saúde");
-    expect(b).toContain("dinheiro");
-    expect(b).toContain("relacionamento");
+    expect(b).toContain("SÓ o que ela contou");
+    expect(b).toContain("nunca presuma dificuldade");
+    expect(b).toContain("não conclua que não resolve");
+    expect(b).not.toContain("saúde");
     expect(b).toContain("já tentou");
+    expect(b).toContain(MARCA_DA_RAIZ);
     const cartas = sortearCartas("lead-1", [1, 2, 3]);
     for (const c of cartas) expect(b).toContain(c.nome);
   });
@@ -224,20 +227,45 @@ describe("passoDaLeitura — depois que a causa raiz é dita, a leitura acabou",
     expect(p?.passo).toBe("causa_raiz");
   });
 
-  it("a agente já disse a causa raiz e a pessoa respondeu: a leitura está ENCERRADA e o bloco só trava a carta 4", () => {
+  it("a agente REGISTROU a causa raiz e a pessoa respondeu: a leitura está ENCERRADA e o bloco só trava a carta 4", () => {
     const depois = [
       ...tresCartas,
       msg("inbound", "faz sentido"),
       msg("outbound", "O que eu vejo é um peso que você carrega há tempo. Você se reconhece nisso?"),
       msg("inbound", "me reconheço"),
     ];
-    expect(passoDaLeitura("lead-1", depois)?.passo).toBe("encerrada");
-    const bloco = blocoDaLeitura(passoDaLeitura("lead-1", depois));
+    const raiz = [new Date("2026-12-01T12:00:00Z")];
+    expect(passoDaLeitura("lead-1", depois, undefined, raiz)?.passo).toBe("encerrada");
+    const bloco = blocoDaLeitura(passoDaLeitura("lead-1", depois, undefined, raiz));
     expect(bloco).toContain("JÁ TERMINOU");
     expect(bloco).toContain('nunca escreva "CARTA 4"');
     // O bloco de encerramento não reabre a leitura: não manda revelar nem pede a causa raiz de novo.
     expect(bloco).not.toContain("REVELE");
     expect(bloco).not.toContain("CAUSA RAIZ");
+  });
+
+  const emDez = (direction: "inbound" | "outbound", body: string, min: number) => ({ direction, body, sent_at: `2026-12-01T10:${String(min).padStart(2, "0")}:00Z` });
+  const tresCartasComHora = tresCartas.map((m, i) => ({ ...m, sent_at: `2026-12-01T10:0${i}:00Z` }));
+
+  it("a pessoa respondeu à 3ª carta com uma DÚVIDA e a agente respondeu sem a marca: a raiz continua por dizer", () => {
+    const depois = [...tresCartasComHora, emDez("inbound", "o que é o enforcado?", 10), emDez("outbound", "O Enforcado é a carta da espera. Faz sentido?", 11), emDez("inbound", "faz", 12)];
+    expect(passoDaLeitura("lead-1", depois)?.passo).toBe("causa_raiz");
+  });
+
+  it("registro anterior à última carta (rodada velha) não fecha a etapa", () => {
+    const depois = [...tresCartasComHora, emDez("inbound", "faz sentido", 10)];
+    expect(passoDaLeitura("lead-1", depois, undefined, [new Date("2026-11-30T10:00:00Z")])?.passo).toBe("causa_raiz");
+  });
+
+  it("rede de segurança: dois turnos da agente depois da resposta, sem marca, fecham a etapa", () => {
+    const depois = [...tresCartasComHora, emDez("inbound", "dúvida", 10), emDez("outbound", "resposta", 11), emDez("inbound", "ok", 12), emDez("outbound", "a raiz", 13), emDez("outbound", "segunda bolha", 13), emDez("inbound", "sim", 14)];
+    expect(passoDaLeitura("lead-1", depois)?.passo).toBe("encerrada");
+  });
+
+  it("conversa que já estava no meio antes do registro segue a regra antiga (um turno basta)", () => {
+    const velho = (direction: "inbound" | "outbound", body: string, h: number) => ({ direction, body, sent_at: `2026-11-20T${String(h).padStart(2, "0")}:00:00Z` });
+    const depois = [PEDIDO, velho("inbound", "1, 2 e 3", 1), velho("outbound", "CARTA 1: X", 2), velho("outbound", "CARTA 2: Y", 3), velho("outbound", "CARTA 3: Z", 4), velho("inbound", "faz sentido", 5), velho("outbound", "a raiz", 6), velho("inbound", "sim", 7)];
+    expect(passoDaLeitura("lead-1", depois)?.passo).toBe("encerrada");
   });
 });
 
@@ -280,10 +308,10 @@ describe("a fiação no turno", () => {
   it("o turno computa o passo e anexa o bloco da leitura antes do preço e da entrega", async () => {
     const { readFileSync } = await import("node:fs");
     const turno = readFileSync("lib/agent-engine/agent/inbound-turn.ts", "utf8");
-    expect(turno).toContain("passoDaLeitura(`${tenantId}:${leadId}`, openingContext.context.messages)");
+    expect(turno).toContain("passoDaLeitura(`${tenantId}:${leadId}`, openingContext.context.messages, undefined, raizesDitasNoTurno)");
     expect(turno).toContain("blocoDaLeitura(\n    passoDaLeituraNoTurno,\n    perguntaPagaNoTurno ? { nome: perguntaPagaNoTurno.extra.name, quantidade: perguntaPagaNoTurno.quantidade } : null,");
     // A pergunta paga roda a leitura de novo, contada a partir do pagamento (`lib/leitura/pergunta-paga.test.ts`).
-    expect(turno).toContain("openingContext.context.messages, perguntaPagaNoTurno.pagoEm)");
+    expect(turno).toContain("openingContext.context.messages, perguntaPagaNoTurno.pagoEm, raizesDitasNoTurno)");
     // O contexto do anúncio (informativo) vem antes dos DIRETIVOS, e os três seguem na mesma
     // ordem — leitura, depois preço, depois entrega.
     expect(BLOCOS_DO_TURNO.indexOf("anuncio")).toBeLessThan(BLOCOS_DO_TURNO.indexOf("leitura"));
@@ -452,5 +480,11 @@ describe("recusaDaCartaForaDoSorteio — a agente só revela a carta sorteada", 
       msg("outbound", "CARTA 3: c"),
     ]);
     expect(r("CARTA 3: de novo", fim)).toMatch(/já foram reveladas/);
+  });
+});
+
+describe("marca da raiz", () => {
+  it("sai do texto sem deixar bolha vazia", () => {
+    expect(semAMarcaDaRaiz(`A raiz é o silêncio.\n\nFaz sentido?\n\n${MARCA_DA_RAIZ}`)).toBe("A raiz é o silêncio.\n\nFaz sentido?");
   });
 });

@@ -22,6 +22,7 @@
  */
 import { expandirHistoricoColado, type MensagemParaContar } from "@/lib/preco/estado-da-negociacao";
 
+import { REGISTRO_DA_RAIZ_DESDE } from "./raiz-registrada";
 import { extrairNumerosEscolhidos, numerosNaMensagem, sortearCartas, type Carta } from "./sorteio";
 
 /** O marcador que abre a mensagem de cada carta revelada. Exportado para o envio da imagem da carta. */
@@ -46,18 +47,35 @@ const ehCartaRevelada = (m: MensagemParaContar): boolean =>
   m.direction === "outbound" && MARCA_CARTA.test(m.body ?? "");
 
 /**
- * A causa raiz já foi dita? É quando, DEPOIS da última carta revelada, a pessoa respondeu e a
- * agente respondeu de novo. Bolhas do mesmo turno (várias mensagens da agente seguidas, sem a
- * pessoa no meio) não contam: a resposta à 3ª carta é justamente o turno da causa raiz.
+ * A causa raiz já foi dita? Vale o REGISTRO (`lib/leitura/raiz-registrada.ts`): a agente marcou a raiz
+ * depois da última carta. Sem registro, a etapa só fecha quando a agente já falou em DOIS turnos depois da
+ * resposta à 3ª carta (um turno pode ter sido a resposta a uma dúvida). Bolhas seguidas da agente, sem a
+ * pessoa no meio, são um turno só. A resposta da agente anterior a `REGISTRO_DA_RAIZ_DESDE` segue a regra
+ * antiga (um turno basta): conversa que estava no meio quando o registro entrou não volta para a raiz.
  */
-function causaRaizJaDita(depoisDaEscolha: readonly MensagemParaContar[]): boolean {
+function causaRaizJaDita(depoisDaEscolha: readonly Mensagem[], raizesDitas: readonly Date[]): boolean {
   let ultimaCarta = -1;
   depoisDaEscolha.forEach((m, i) => {
     if (ehCartaRevelada(m)) ultimaCarta = i;
   });
+  const horaDaCarta = depoisDaEscolha[ultimaCarta]?.sent_at;
+  const desde = horaDaCarta ? new Date(horaDaCarta).getTime() : null;
+  if (raizesDitas.some((d) => desde === null || d.getTime() >= desde)) return true;
+
   const resposta = depoisDaEscolha.findIndex((m, i) => i > ultimaCarta && m.direction === "inbound");
   if (resposta < 0) return false;
-  return depoisDaEscolha.some((m, i) => i > resposta && m.direction === "outbound");
+  let turnos = 0;
+  let primeiroTurno: Mensagem | null = null;
+  for (let i = resposta + 1; i < depoisDaEscolha.length; i++) {
+    const m = depoisDaEscolha[i]!;
+    if (m.direction === "outbound" && depoisDaEscolha[i - 1]!.direction !== "outbound") {
+      turnos++;
+      primeiroTurno ??= m;
+    }
+  }
+  if (turnos >= 2) return true;
+  const antigo = primeiroTurno?.sent_at != null && new Date(primeiroTurno.sent_at).getTime() < REGISTRO_DA_RAIZ_DESDE.getTime();
+  return turnos === 1 && antigo;
 }
 
 /**
@@ -133,9 +151,14 @@ export function recusaDaCartaForaDoSorteio(
 /**
  * O passo atual da leitura PARA ESTE TURNO. `null` = não há leitura: a pessoa ainda não escolheu 3
  * números válidos DEPOIS de a agente oferecer o baralho. `encerrada` = as 3 cartas e a causa raiz
- * já saíram; o bloco só lembra que não existe carta 4.
+ * já saíram; o bloco só lembra que não existe carta 4. `raizesDitas`: as horas registradas pela marca da raiz.
  */
-export function passoDaLeitura(contatoId: string, mensagens: readonly Mensagem[], desde?: Date): PassoDaLeitura | null {
+export function passoDaLeitura(
+  contatoId: string,
+  mensagens: readonly Mensagem[],
+  desde?: Date,
+  raizesDitas: readonly Date[] = [],
+): PassoDaLeitura | null {
   // O painel de Teste roda UMA mensagem: um histórico colado ali ("Lead: …" / "Esmeralda: …") vira
   // várias, como já vale para a escada de preço. Na produção nenhuma mensagem tem esse formato.
   // `desde`: uma RODADA nova da leitura (a pergunta paga) conta só o que veio depois do pagamento.
@@ -153,7 +176,7 @@ export function passoDaLeitura(contatoId: string, mensagens: readonly Mensagem[]
   const depois = conversa.slice(escolha + 1);
   const jaReveladas = depois.filter(ehCartaRevelada).length;
 
-  if (jaReveladas >= 3) return causaRaizJaDita(depois) ? { passo: "encerrada", cartas } : { passo: "causa_raiz", cartas };
+  if (jaReveladas >= 3) return causaRaizJaDita(depois, raizesDitas) ? { passo: "encerrada", cartas } : { passo: "causa_raiz", cartas };
   const indice = (jaReveladas + 1) as 1 | 2 | 3;
   return { passo: "revelar_carta", indice, carta: cartas[indice - 1]!, cartas };
 }

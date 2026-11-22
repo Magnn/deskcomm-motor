@@ -181,6 +181,7 @@ import { reais } from '@/lib/preco/tipos';
 import { blocoDoCombinado } from '@/lib/followup/bloco-do-combinado';
 import { PAUSA_ANTES_DA_PRIMEIRA, RITMO_PADRAO, pausaEntreBolhas, sinalizaDigitandoEntreBolhas, type Ritmo } from '@/lib/ritmo/tipos';
 import { buscaRestanteCombinado, buscaValorCombinado, criaRetornoDbPg } from '@/lib/followup/retorno-pg';
+import { lerRaizesDitas, registrarRaizDita, semAMarcaDaRaiz, temMarcaDaRaiz } from '@/lib/leitura/raiz-registrada';
 import { MARCA_DO_RESTANTE, blocoDoRestante, temMarcaDoRestante } from '@/lib/preco/restante';
 import { blocoDaEntregaNaConversa, blocoDaOfertaDoCatalogo } from '@/lib/catalogo/bloco-do-prompt';
 import {
@@ -3095,9 +3096,11 @@ async function executarTurnoDoAgente(
   // as cartas (medido em 19/10/2026: a agente se perdia com quem tinha pago). Com a rodada paga em andamento, a foto
   // e a trava das cartas seguem ELA; antes de ela escolher os números, nenhum bloco de leitura atrapalha o pedido.
   const perguntaPagaNoTurno = semBlocosDePreco ? null : perguntaPagaRecente(extrasDoTurno, extrasPagosNoTurno, new Date());
+  // A raiz dita é a REGISTRADA pela marca (`lib/leitura/raiz-registrada.ts`), não a deduzida de qualquer resposta.
+  const raizesDitasNoTurno = await lerRaizesDitas(pool, { organizationId: tenantId, conversationId: input.conversationId });
   const passoDaLeituraNoTurno = perguntaPagaNoTurno
-    ? passoDaLeitura(`${tenantId}:${leadId}:${perguntaPagaNoTurno.chave}`, openingContext.context.messages, perguntaPagaNoTurno.pagoEm)
-    : passoDaLeitura(`${tenantId}:${leadId}`, openingContext.context.messages);
+    ? passoDaLeitura(`${tenantId}:${leadId}:${perguntaPagaNoTurno.chave}`, openingContext.context.messages, perguntaPagaNoTurno.pagoEm, raizesDitasNoTurno)
+    : passoDaLeitura(`${tenantId}:${leadId}`, openingContext.context.messages, undefined, raizesDitasNoTurno);
   const blocoDaLeituraDoTurno = blocoDaLeitura(
     passoDaLeituraNoTurno,
     perguntaPagaNoTurno ? { nome: perguntaPagaNoTurno.extra.name, quantidade: perguntaPagaNoTurno.quantidade } : null,
@@ -4307,6 +4310,10 @@ async function executarTurnoDoAgente(
           body = comRelatorio.corpo;
           documentoDoTurno = comRelatorio.documento;
         }
+        // RAIZ DITA: a marca sai do texto sempre; só no turno da raiz, e só depois do envio CONFIRMADO (`sent`, mais
+        // abaixo), ela vira registro. Resposta que só esclarece dúvida sai sem a marca e a etapa segue pendente.
+        const raizNesteEnvio = temMarcaDaRaiz(body) && !preview && passoDaLeituraNoTurno?.passo === 'causa_raiz';
+        if (temMarcaDaRaiz(body)) body = semAMarcaDaRaiz(body);
         // ENCERRAMENTO: a marca `[[ENCERRAR_ACOMPANHAMENTO]]` sai do texto e grava a recusa no contato.
         // Gravar falhou: a mensagem sai mesmo assim (a despedida não pode travar), e o aviso fica no log.
         if (!preview && temMarcaDeEncerramento(body)) {
@@ -5021,6 +5028,15 @@ async function executarTurnoDoAgente(
           }
           const outcome = chain.outcome;
           outcomes.push(outcome);
+          if (outcome.kind === 'sent' && raizNesteEnvio) {
+            try {
+              await registrarRaizDita(pool, { organizationId: tenantId, conversationId: input.conversationId });
+              runLog.info('leitura — causa raiz registrada depois do envio', { message_id: outcome.messageId });
+            } catch (err) {
+              // Gravar falhou: a rede de 2 turnos de `passoDaLeitura` fecha a etapa; o aviso fica no log.
+              runLog.warn('não consegui registrar a causa raiz', { erro: err instanceof Error ? err.message.slice(0, 160) : 'desconhecido' });
+            }
+          }
           if (outcome.kind === 'sent' && pendingCitations.length > 0) {
             try {
               await pool.query(
