@@ -294,7 +294,48 @@ export async function conferirParDoAppNaMeta(
   }
 }
 
-// ── Os apps ANTERIORES (migration 0933) ─────────────────────────────────────
+/**
+ * De qual app é este token de acesso? A Graph responde `GET /app` com o app que
+ * emitiu o token (de usuário do sistema ou do login). `null` = não deu para saber
+ * (rede, token recusado) — quem chama decide sem inventar.
+ *
+ * Token no CORPO, nunca na URL (anti-pattern 12), como em `conferirParDoAppNaMeta`.
+ */
+export async function appDoToken(token: string): Promise<{ id: string; nome: string | null } | null> {
+  try {
+    const res = await fetch(`https://graph.facebook.com/${graphVersion()}/app`, {
+      method: "POST",
+      body: new URLSearchParams({ method: "GET", fields: "id,name", access_token: token }),
+      redirect: "error",
+      cache: "no-store",
+      signal: AbortSignal.timeout(15_000),
+    });
+    const corpo = (await res.json().catch(() => null)) as { id?: string; name?: string } | null;
+    const id = String(corpo?.id ?? "");
+    return res.ok && /^\d{5,25}$/.test(id) ? { id, nome: corpo?.name ?? null } : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Os apps que esta instalação reconhece: o principal e os da lista de "outros"
+ * (`platform_meta_apps_anteriores` — os que já foram o principal e os conectados
+ * ao lado dele). Número de app fora desta lista teria os avisos recusados por
+ * assinatura, em silêncio.
+ */
+export async function idsDosAppsDaInstalacao(): Promise<{ principal: string | null; outros: readonly string[] }> {
+  const { appId } = await appDaMeta();
+  return { principal: appId, outros: (await appsAnterioresDaMeta()).map((a) => a.appId) };
+}
+
+// ── Os OUTROS apps: anteriores (migration 0933) e conectados ao lado ─────────
+//
+// A mesma tabela guarda os dois casos, porque o que o código faz com eles é o
+// mesmo: conferir a assinatura dos avisos e servir a chave do app do número.
+// Conectar um app ao lado do principal (várias BMs, cada uma com o seu app, até a
+// Meta aprovar o principal como Provedor de Tecnologia) entra por
+// `app/actions/settings/outrosAppsDaMeta.ts`.
 //
 // Trocar o app da instalação não pode derrubar o número conectado pelo app de
 // antes: a Meta assina o aviso dele com a chave DAQUELE app, e o token de 60
@@ -374,4 +415,26 @@ export async function marcarNumerosSemAppComo(
     .eq("provider", CHANNEL_PROVIDER_META)
     .is("meta_app_id", null);
   return error ? (error.code ?? error.message) : null;
+}
+
+/**
+ * Quantos números ATIVOS (não arquivados) cada app atende. Serve à lista de
+ * outros apps e à recusa de desconectar app com número: sem a chave dele, esses
+ * números ficariam mudos.
+ */
+export async function numerosAtivosPorApp(
+  admin: ReturnType<typeof createAdminClient>,
+  appIds: readonly string[],
+): Promise<Map<string, number> | null> {
+  const porApp = new Map<string, number>();
+  if (appIds.length === 0) return porApp;
+  const { data, error } = await admin
+    .from("channel_sessions")
+    .select("meta_app_id")
+    .eq("provider", CHANNEL_PROVIDER_META)
+    .in("meta_app_id", [...appIds])
+    .is("archived_at", null);
+  if (error) return null;
+  for (const n of (data ?? []) as { meta_app_id: string }[]) porApp.set(n.meta_app_id, (porApp.get(n.meta_app_id) ?? 0) + 1);
+  return porApp;
 }

@@ -40,7 +40,12 @@ vi.mock("@/lib/webhooks/secrets", () => ({
   decryptWebhookSecret: vi.fn(),
 }));
 vi.mock("@/lib/channels/meta/validate-credentials", () => ({ validateMetaCredentials: vi.fn() }));
-vi.mock("@/lib/channels/meta/app", () => ({ appDaMeta: vi.fn() }));
+vi.mock("@/lib/channels/meta/app", () => ({
+  appDaMeta: vi.fn(),
+  // O app do token colado é coberto em `outros-apps-da-meta.test.ts`; aqui, sem resposta.
+  appDoToken: async () => null,
+  idsDosAppsDaInstalacao: async () => ({ principal: null, outros: [] }),
+}));
 vi.mock("@/lib/logger", () => ({
   logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn(), debug: vi.fn() },
 }));

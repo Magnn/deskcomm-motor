@@ -37,7 +37,7 @@ import { travaDeNovoNumero } from "@/lib/planos/trava-de-numero";
 import { requireRole } from "@/lib/auth/require-role";
 import { ARCHIVED_AT, queryTolerantToMissingArchived } from "@/lib/channels/archived";
 import { CHANNEL_PROVIDER_META } from "@/lib/channels/capabilities";
-import { appDaMeta, appDaMetaDoAmbiente } from "@/lib/channels/meta/app";
+import { appDaMeta, appDaMetaDoAmbiente, appDoToken, idsDosAppsDaInstalacao } from "@/lib/channels/meta/app";
 import {
   appDoCadastroIncorporado,
   credencialDoCadastroIncorporado,
@@ -299,7 +299,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   // Só o login do Facebook sabe quando o token vence; o colado fica nulo.
   let tokenExpiraEm: Date | null = null;
   // Por qual app o número entrou (0933): depois de uma troca de app, é por ele que
-  // o token renova. O colado fica nulo = o app em vigor.
+  // o token renova. O colado leva o app do próprio token; nulo = o app em vigor.
   let metaAppId: string | null = null;
   if ("code" in parsed.data) {
     const app = await appDoCadastroIncorporado();
@@ -327,6 +327,28 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     metaAppId = app.appId;
   } else {
     ({ phone_number_id, waba_id, token } = parsed.data);
+    // O token colado pode ser de OUTRO app conectado ao lado do principal: a Meta
+    // assina os avisos desse número com a chave DESSE app. Gravar nulo faria a
+    // assinatura ser conferida só por sorte, e a troca de app marcá-lo com o app
+    // errado. App que a instalação não conhece é recusado agora, não mudo depois.
+    const doToken = await appDoToken(token);
+    if (doToken) {
+      const { principal, outros } = await idsDosAppsDaInstalacao();
+      if (doToken.id === principal || outros.includes(doToken.id)) {
+        metaAppId = doToken.id;
+      } else if (principal) {
+        return fail(
+          "invalid_request",
+          `${t("Este token é de um app da Meta que não está conectado nesta instalação. Quem administra a instalação precisa conectá-lo em Outros apps conectados.")} (${doToken.nome ?? doToken.id})`,
+          422,
+          { requestId },
+        );
+      }
+    } else {
+      // Sem resposta da Meta aqui, a validação logo abaixo decide; o número fica
+      // com o app em vigor, como sempre ficou.
+      logger.warn("[canal-oficial.colado] não deu para saber o app do token", { requestId });
+    }
   }
 
   // VALIDA ANTES DE GRAVAR — a rota não sabe com quem fala; ela pergunta se a
