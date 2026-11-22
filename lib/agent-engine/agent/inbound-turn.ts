@@ -2143,6 +2143,8 @@ async function executarTurnoDoAgente(
   // Empty exists only in the in-memory scenario. Every CRM read uses preview's
   // context and all operational tools are replaced before entering the loop.
   const leadId = preview?.contactId ?? (preview ? '' : liveJob().contact_id);
+  // A prévia comparativa pode pedir os blocos de preço e de cobrança do turno (só leitura), com contato real.
+  const semBlocosDePreco = preview !== undefined && !(preview.blocosDoTurno === true && preview.contactId !== null);
   if (leadId === null) throw new Error('turn_without_contact');
   // O RELÓGIO, declarado antes de qualquer guarda de janela.
   //
@@ -2579,7 +2581,7 @@ async function executarTurnoDoAgente(
   // O valor que um lembrete de silêncio já ofereceu nesta conversa (`recovery.step_offers_cents`) vale como
   // degrau alcançado: quem responde "quero" ao lembrete é cobrado por ele.
   let ofertaPorSilencioCents: number | null = null;
-  if (!preview && agentConfig?.pricing?.enabled && agentConfig.pricing.steps.length > 0) {
+  if (!semBlocosDePreco && agentConfig?.pricing?.enabled && agentConfig.pricing.steps.length > 0) {
     try {
       const { rows } = await pool.query<{ oferta: number | null }>(
         `select min((pv.followup->'recovery'->'step_offers_cents'->>(s.step - 1))::int) as oferta
@@ -2624,7 +2626,7 @@ async function executarTurnoDoAgente(
   // catálogo (`pagouAlgo`). Medido em 21/10/2026: sem o bloco, a agente ofereceu a Oração dos Sonhos (R$ 35) a quem
   // tinha pago uma pergunta e inventou o valor — R$ 130, depois R$ 27 —, e depois não conseguia mais dizer o certo.
   const pagouNoTurno = pagouAlgo(tagsDoContato);
-  if (!preview && pagouNoTurno) {
+  if (!semBlocosDePreco && pagouNoTurno) {
     try {
       const { rows } = await pool.query<{ recusou: string | null }>(
         `select consent->'marketing'->>'declined_at' as recusou from contacts where organization_id = $1 and id = $2`,
@@ -2636,7 +2638,7 @@ async function executarTurnoDoAgente(
       recusouOfertasNoTurno = true;
     }
   }
-  if (!preview && temPosVenda && pagouNoTurno && !recusouOfertasNoTurno) {
+  if (!semBlocosDePreco && temPosVenda && pagouNoTurno && !recusouOfertasNoTurno) {
     try {
       const { rows } = await pool.query<{ ultima_compra: unknown; ultimo_pagamento: string | null }>(
         `select c.source_metadata->'ultima_compra' as ultima_compra,
@@ -2707,7 +2709,7 @@ async function executarTurnoDoAgente(
   let combinadoDoTurno: number | null = null;
   // O valor guardado como veio (o de venda também): referência da entrada quando o preço saiu da janela.
   let valorGuardadoDoCombinado: number | null = null;
-  if (!preview && agentConfig?.pricing?.enabled && agentConfig.pricing.steps.length > 0) {
+  if (!semBlocosDePreco && agentConfig?.pricing?.enabled && agentConfig.pricing.steps.length > 0) {
     try {
       valorGuardadoDoCombinado = await buscaValorCombinado(pool, tenantId, leadId);
       combinadoDoTurno = combinadoEmVigor(agentConfig.pricing, valorGuardadoDoCombinado);
@@ -2718,7 +2720,7 @@ async function executarTurnoDoAgente(
   // QUEM ESCREVE DE FORA DO BRASIL (`lib/preco/preco-internacional.ts`): preço fixo na moeda dela, sem escada,
   // entrada nem Pix. Só na primeira venda — catálogo e pós-venda seguem os valores deles.
   const internacionalDoTurno =
-    !preview && ofertaDoCatalogoNoTurno === null && posVendaDoTurno === null
+    !semBlocosDePreco && ofertaDoCatalogoNoTurno === null && posVendaDoTurno === null
       ? precoInternacionalDoContato(agentConfig?.pricing, openingContext.context.contact.phone)
       : null;
   if (internacionalDoTurno !== null) {
@@ -2753,7 +2755,7 @@ async function executarTurnoDoAgente(
     combinadoCents: combinadoDoTurno,
     faltaParaOEssencial: faltaParaOEssencialNoTurno,
     // Só pesa no turno de fechar a data: o combinado sai junto de uma oferta pequena para hoje (decisão do dono, 31/10).
-    ofertaDeHoje: preview
+    ofertaDeHoje: semBlocosDePreco
       ? null
       : ofertaPequenaDeHoje(
           extrasDaConfig(agentConfig?.pricing),
@@ -2767,7 +2769,7 @@ async function executarTurnoDoAgente(
   // ENTRADA + RESTANTE: a pessoa ofereceu uma parte hoje e deu a data do resto (`entradaComRestante`). Só na
   // primeira venda (sem catálogo nem pós-venda na vez) e nunca para quem disse que falta para o essencial.
   const entradaDoTurno =
-    !preview && agentConfig?.pricing?.enabled && internacionalDoTurno === null && ofertaDoCatalogoNoTurno === null && posVendaDoTurno === null && !faltaParaOEssencialNoTurno
+    !semBlocosDePreco && agentConfig?.pricing?.enabled && internacionalDoTurno === null && ofertaDoCatalogoNoTurno === null && posVendaDoTurno === null && !faltaParaOEssencialNoTurno
       ? entradaComRestante(agentConfig.pricing, openingContext.context.messages)
       : null;
   // "SÓ TENHO 90 NO PIX": a entrada é o valor que ela disse, e o Pix sai neste turno (`entradaImediata`). Vem antes
@@ -2778,11 +2780,11 @@ async function executarTurnoDoAgente(
   const referenciaDaEntrada =
     valorGuardadoDoCombinado !== null && agentConfig?.pricing && valorGuardadoDoCombinado <= agentConfig.pricing.list_price_cents
       ? valorGuardadoDoCombinado
-      : agentConfig?.pricing?.min_down_payment_cents !== undefined && !preview && (await nuncaOuviuPreco(pool, tenantId, leadId))
+      : agentConfig?.pricing?.min_down_payment_cents !== undefined && !semBlocosDePreco && (await nuncaOuviuPreco(pool, tenantId, leadId))
         ? agentConfig.pricing.list_price_cents
         : null;
   const entradaImediataLida =
-    entradaDoTurno === null && !preview && agentConfig?.pricing?.enabled && internacionalDoTurno === null && ofertaDoCatalogoNoTurno === null &&
+    entradaDoTurno === null && !semBlocosDePreco && agentConfig?.pricing?.enabled && internacionalDoTurno === null && ofertaDoCatalogoNoTurno === null &&
     posVendaDoTurno === null && !faltaParaOEssencialNoTurno
       ? entradaImediata(agentConfig.pricing, openingContext.context.messages, referenciaDaEntrada)
       : null;
@@ -2790,7 +2792,7 @@ async function executarTurnoDoAgente(
   // pagamentos. Quem já pagou a entrada que disse não recebe outra cobrança dela (04/11/2026: R$ 67 pagos, cobrados de novo).
   let comprovanteConfirmado = false;
   let comprovanteEmDuvida = false;
-  const blocoDoComprovante = preview
+  const blocoDoComprovante = semBlocosDePreco
     ? ''
     : await comprovanteDoTurno(depsReaisDoComprovante(deps.crmCfg.supabase, tenantId), {
         contactId: leadId,
@@ -2812,7 +2814,7 @@ async function executarTurnoDoAgente(
   // COMPROVANTE DE OUTRA RODADA SEM REGISTRO (`comprovanteSemRegistro`): a trava do "caiu" vale até o pagamento ser
   // registrado, não só na rodada em que o comprovante chegou. Falha ao ler o registro não liga a trava.
   let comprovanteSemRegistroNoTurno = false;
-  if (!preview && !comprovanteConfirmado && !comprovanteEmDuvida && agentConfig?.pricing?.enabled) {
+  if (!semBlocosDePreco && !comprovanteConfirmado && !comprovanteEmDuvida && agentConfig?.pricing?.enabled) {
     try {
       const { rows } = await pool.query<{ em: Date | null }>(
         `select max(occurred_at) as em from revenue_ledger where organization_id = $1 and contact_id = $2 and event_type = 'charge'`,
@@ -2834,13 +2836,13 @@ async function executarTurnoDoAgente(
   }
   // "Deixa por 80, te mando agora": oferta de pagar agora (`valorOferecidoParaPagarAgora`). Mesmas guardas da entrada.
   const ofertaDeAgoraNoTurno =
-    entradaImediataDoTurno === null && entradaDoTurno === null && !preview && agentConfig?.pricing?.enabled && internacionalDoTurno === null && ofertaDoCatalogoNoTurno === null &&
+    entradaImediataDoTurno === null && entradaDoTurno === null && !semBlocosDePreco && agentConfig?.pricing?.enabled && internacionalDoTurno === null && ofertaDoCatalogoNoTurno === null &&
     posVendaDoTurno === null && !faltaParaOEssencialNoTurno
       ? valorOferecidoParaPagarAgora(agentConfig.pricing, openingContext.context.messages)
       : null;
   // Ela disse quanto tem e ainda não deu a data: antes do desconto, a agente propõe entrada + restante.
   const propostaDeEntradaDoTurno =
-    entradaImediataDoTurno === null && entradaDoTurno === null && !preview && agentConfig?.pricing?.enabled && internacionalDoTurno === null && ofertaDoCatalogoNoTurno === null && posVendaDoTurno === null &&
+    entradaImediataDoTurno === null && entradaDoTurno === null && !semBlocosDePreco && agentConfig?.pricing?.enabled && internacionalDoTurno === null && ofertaDoCatalogoNoTurno === null && posVendaDoTurno === null &&
     !faltaParaOEssencialNoTurno && (negociacaoDoTurno.reclamouAgora || ofertaDeAgoraNoTurno !== null)
       ? entradaAPropor(agentConfig.pricing, openingContext.context.messages)
       : null;
@@ -2851,13 +2853,13 @@ async function executarTurnoDoAgente(
   }
   // Primeira vez abaixo do menor valor: a agente segura o menor valor antes de aceitar entrada.
   const abaixoDoPisoNoTurno =
-    entradaImediataDoTurno === null && entradaDoTurno === null && !preview && agentConfig?.pricing?.enabled && internacionalDoTurno === null &&
+    entradaImediataDoTurno === null && entradaDoTurno === null && !semBlocosDePreco && agentConfig?.pricing?.enabled && internacionalDoTurno === null &&
     ofertaDoCatalogoNoTurno === null && posVendaDoTurno === null && !faltaParaOEssencialNoTurno
       ? valorAbaixoDoPisoAgora(agentConfig.pricing, openingContext.context.messages)
       : null;
   // O RESTANTE DE QUEM JÁ PAGOU A ENTRADA (`lib/preco/restante.ts`): com ele, o link do produto cobraria o valor cheio.
   const restanteDoTurno =
-    !preview && agentConfig?.pricing?.enabled && internacionalDoTurno === null && entradaDoTurno === null && entradaImediataDoTurno === null
+    !semBlocosDePreco && agentConfig?.pricing?.enabled && internacionalDoTurno === null && entradaDoTurno === null && entradaImediataDoTurno === null
       ? await buscaRestanteCombinado(pool, tenantId, leadId, agentConfig.pricing.list_price_cents).catch((err: unknown) => {
           runLog.warn('restante não lido — o turno segue sem ele', { error: err instanceof Error ? err.message : String(err) });
           return null;
@@ -2876,7 +2878,7 @@ async function executarTurnoDoAgente(
   // COBRANÇAS AVULSAS (`lib/preco/extras.ts`): só depois que a oferta principal foi apresentada, ou para quem já
   // comprou — antes disso, cobrar uma pergunta atropelaria a venda do produto principal.
   const extrasDoTurno =
-    !preview && internacionalDoTurno === null &&
+    !semBlocosDePreco && internacionalDoTurno === null &&
     (tagsDoContato.includes('pago') ||
       openingContext.context.messages.some((m) => m.direction === 'outbound' && PRECO_DITO.test(m.body ?? '')) ||
       // A conversa já ofereceu a cobrança avulsa pelo nome (oferta proativa, ou a pessoa pediu outra pergunta).
@@ -2920,7 +2922,7 @@ async function executarTurnoDoAgente(
   // diária vira o Acompanhamento pago. A data é a da última compra do trabalho (receita sem `extra`); sem receita
   // (compra antiga, marcada à mão), a idade do contato.
   let diasDesdeACompra: number | null = null;
-  if (!preview && tagsDoContato.includes('pago') && extrasDoTurno.length > 0) {
+  if (!semBlocosDePreco && tagsDoContato.includes('pago') && extrasDoTurno.length > 0) {
     try {
       const { rows } = await pool.query<{ dias: number | null }>(
         `select coalesce(
@@ -2949,7 +2951,7 @@ async function executarTurnoDoAgente(
     return extra !== undefined && (p.diasAtras ?? 0) < (extra.valid_days ?? 1);
   });
   const gratuitaEsgotadaNoTurno =
-    !preview && agentConfig?.pricing?.enabled === true && internacionalDoTurno === null && !tagsDoContato.includes('pago') && !temExtraValendo &&
+    !semBlocosDePreco && agentConfig?.pricing?.enabled === true && internacionalDoTurno === null && !tagsDoContato.includes('pago') && !temExtraValendo &&
     conversaGratuitaEsgotada(openingContext.context.messages, agentConfig.pricing.free_replies_after_offer);
   if (gratuitaEsgotadaNoTurno) {
     runLog.info('conversa gratuita esgotada — resposta curta, com uma oferta por dia', {});
@@ -2968,7 +2970,7 @@ async function executarTurnoDoAgente(
   // PIX PELA CHAVE DA EMPRESA (`lib/preco/chave-pix.ts`): os valores que este turno pode cobrar por ela. O modelo
   // escreve o valor na marca; o envio só aceita um destes.
   const valoresCobraveisNoTurno: number[] =
-    preview || internacionalDoTurno !== null || !agentConfig?.pricing?.enabled
+    semBlocosDePreco || internacionalDoTurno !== null || !agentConfig?.pricing?.enabled
       ? []
       : [
           ...(promiseMinPriceCentsDaEscada !== undefined ? [promiseMinPriceCentsDaEscada] : []),
@@ -3070,8 +3072,8 @@ async function executarTurnoDoAgente(
   blocoDaEntrega += blocoDaEntregaNaConversa(entregaNaConversaNoTurno);
   // Quem quer pagar e o Pix não funcionou: código novo + o link que tem o Pix com botão de copiar
   // (`lib/pagamentos/pix-que-nao-colou.ts`).
-  if (!preview) blocoDaEntrega += blocoDoPixQueNaoColou(openingContext.context.messages, new Date(), { chaveDaEmpresa: agentConfig?.pricing?.pix_key?.primary ? chaveParaCopiar(agentConfig.pricing.pix_key) : null });
-  if (!preview && (openingContext.context.contact.tags ?? []).includes('pago') && !recusouOfertasNoTurno) {
+  if (!semBlocosDePreco) blocoDaEntrega += blocoDoPixQueNaoColou(openingContext.context.messages, new Date(), { chaveDaEmpresa: agentConfig?.pricing?.pix_key?.primary ? chaveParaCopiar(agentConfig.pricing.pix_key) : null });
+  if (!semBlocosDePreco && (openingContext.context.contact.tags ?? []).includes('pago') && !recusouOfertasNoTurno) {
     blocoDaEntrega += blocoDoEncerramento();
   }
   // Área do cliente: quem comprou e ainda não recebeu o link pela conversa recebe o link no fim da primeira
@@ -3092,7 +3094,7 @@ async function executarTurnoDoAgente(
   // isto, o passo da leitura grátis dizia "terminou, NUNCA revele outra carta" enquanto a cobrança paga mandava abrir
   // as cartas (medido em 19/10/2026: a agente se perdia com quem tinha pago). Com a rodada paga em andamento, a foto
   // e a trava das cartas seguem ELA; antes de ela escolher os números, nenhum bloco de leitura atrapalha o pedido.
-  const perguntaPagaNoTurno = preview ? null : perguntaPagaRecente(extrasDoTurno, extrasPagosNoTurno, new Date());
+  const perguntaPagaNoTurno = semBlocosDePreco ? null : perguntaPagaRecente(extrasDoTurno, extrasPagosNoTurno, new Date());
   const passoDaLeituraNoTurno = perguntaPagaNoTurno
     ? passoDaLeitura(`${tenantId}:${leadId}:${perguntaPagaNoTurno.chave}`, openingContext.context.messages, perguntaPagaNoTurno.pagoEm)
     : passoDaLeitura(`${tenantId}:${leadId}`, openingContext.context.messages);

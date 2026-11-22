@@ -36,6 +36,8 @@ export interface TurnPreview {
   contactId: string | null;
   channelId: string | null;
   gateContext?: GateContext;
+  /** Liga, na prévia, os blocos de preço e de cobrança do turno (só leitura; exige `contactId`). Para comparar versões. */
+  blocosDoTurno?: boolean;
   result: PreviewResult;
 }
 export interface PreviewResult {
