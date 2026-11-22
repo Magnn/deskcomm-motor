@@ -5,7 +5,7 @@ import { z } from "zod";
 
 import { audit } from "@/lib/audit";
 import { requirePlatformAdmin } from "@/lib/auth/requirePlatformAdmin";
-import { appDaMeta, conferirParDoAppNaMeta, invalidarAppDaMeta } from "@/lib/channels/meta/app";
+import { appDaMeta, conferirParDoAppNaMeta, invalidarAppDaMeta, numerosAtivosPorApp } from "@/lib/channels/meta/app";
 import { ativarTudoNoAppDaMeta, type ResultadoDoPasso } from "@/lib/channels/meta/ativar-app";
 import { env } from "@/lib/env";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -103,13 +103,10 @@ export async function desconectarOutroAppDaMeta(appIdBruto: string): Promise<Des
   if (!/^\d{5,25}$/.test(appId)) return { ok: false, error: "invalid_input" };
 
   const admin = createAdminClient();
-  const { count, error: erroDaContagem } = await admin
-    .from("channel_sessions")
-    .select("id", { count: "exact", head: true })
-    .eq("meta_app_id", appId)
-    .is("archived_at", null);
-  if (erroDaContagem) return { ok: false, error: "nao_removido" };
-  if ((count ?? 0) > 0) return { ok: false, error: "app_com_numeros", numeros: count ?? 0 };
+  const contagem = await numerosAtivosPorApp(admin, [appId]);
+  if (!contagem) return { ok: false, error: "nao_removido" };
+  const numeros = contagem.get(appId) ?? 0;
+  if (numeros > 0) return { ok: false, error: "app_com_numeros", numeros };
 
   const { error } = await admin.from("platform_meta_apps_anteriores").delete().eq("app_id", appId);
   if (error) return { ok: false, error: "nao_removido" };

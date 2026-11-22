@@ -50,6 +50,7 @@ vi.mock("@/lib/channels/meta/app", async (orig) => ({
   invalidarAppDaMeta: h.invalidar,
   appDoToken: h.doToken,
   idsDosAppsDaInstalacao: async () => ({ principal: h.principal.appId, outros: h.outros }),
+  numerosAtivosPorApp: async (_a: unknown, ids: string[]) => new Map(ids.map((id) => [id, h.contagem])),
 }));
 vi.mock("@/lib/channels/meta/ativar-app", async (orig) => ({
   ...((await orig()) as object),

@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { loadAuthUser } from "@/lib/auth/server";
-import { appDaMetaDoAmbiente, idsDoAppDaMeta } from "@/lib/channels/meta/app";
+import { appDaMetaDoAmbiente, idsDoAppDaMeta, numerosAtivosPorApp } from "@/lib/channels/meta/app";
 import { env } from "@/lib/env";
 import { tagDeIdioma } from "@/lib/i18n/datas";
 import type { Idioma } from "@/lib/i18n/idiomas";
@@ -105,16 +105,7 @@ async function outrosAppsConectados(idioma: Idioma): Promise<OutroApp[]> {
     .order("aposentado_em", { ascending: false });
   const linhas = (data ?? []) as { app_id: string; aposentado_em: string | null }[];
   if (linhas.length === 0) return [];
-  const { data: numeros } = await admin
-    .from("channel_sessions")
-    .select("meta_app_id")
-    .in(
-      "meta_app_id",
-      linhas.map((l) => l.app_id),
-    )
-    .is("archived_at", null);
-  const porApp = new Map<string, number>();
-  for (const n of (numeros ?? []) as { meta_app_id: string }[]) porApp.set(n.meta_app_id, (porApp.get(n.meta_app_id) ?? 0) + 1);
+  const porApp = (await numerosAtivosPorApp(admin, linhas.map((l) => l.app_id))) ?? new Map<string, number>();
   return linhas.map((l) => ({ appId: l.app_id, desde: formatar(l.aposentado_em, idioma), numeros: porApp.get(l.app_id) ?? 0 }));
 }
 

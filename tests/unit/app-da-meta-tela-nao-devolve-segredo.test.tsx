@@ -58,7 +58,7 @@ vi.mock("@/lib/supabase/admin", () => ({
               error: null,
             }).then(ok),
         };
-        return { ...lista, eq: () => ({ maybeSingle: async () => ({ data: linha, error: erroDaLeitura }) }) };
+        return { ...lista, eq: () => ({ ...lista, maybeSingle: async () => ({ data: linha, error: erroDaLeitura }) }) };
       },
     }),
   }),

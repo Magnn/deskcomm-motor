@@ -416,3 +416,25 @@ export async function marcarNumerosSemAppComo(
     .is("meta_app_id", null);
   return error ? (error.code ?? error.message) : null;
 }
+
+/**
+ * Quantos números ATIVOS (não arquivados) cada app atende. Serve à lista de
+ * outros apps e à recusa de desconectar app com número: sem a chave dele, esses
+ * números ficariam mudos.
+ */
+export async function numerosAtivosPorApp(
+  admin: ReturnType<typeof createAdminClient>,
+  appIds: readonly string[],
+): Promise<Map<string, number> | null> {
+  const porApp = new Map<string, number>();
+  if (appIds.length === 0) return porApp;
+  const { data, error } = await admin
+    .from("channel_sessions")
+    .select("meta_app_id")
+    .eq("provider", CHANNEL_PROVIDER_META)
+    .in("meta_app_id", [...appIds])
+    .is("archived_at", null);
+  if (error) return null;
+  for (const n of (data ?? []) as { meta_app_id: string }[]) porApp.set(n.meta_app_id, (porApp.get(n.meta_app_id) ?? 0) + 1);
+  return porApp;
+}
