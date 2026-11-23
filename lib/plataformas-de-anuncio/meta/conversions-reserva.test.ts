@@ -35,12 +35,13 @@ describe("reserva no pixel quando a mensageria não acha a conversa do anúncio"
   });
 
   it("⭐ mensageria própria recusa: a mesma compra vai ao pixel da tela como chat, com o mesmo event_id", async () => {
-    const f = vi.fn().mockResolvedValueOnce(new Response(SEM_CONVERSA, { status: 400 })).mockResolvedValueOnce(new Response("{}", { status: 200 }));
+    const f = vi.fn().mockResolvedValueOnce(new Response(SEM_CONVERSA, { status: 400 })).mockResolvedValueOnce(Response.json({ events_received: 1, fbtrace_id: "trace-pixel" }));
     vi.stubGlobal("fetch", f);
 
     const r = await transporteMeta.enviar({ datasetId: "msg-1", accessToken: "tok-msg", testEventCode: null, reservaNoPixel: PIXEL }, BASE);
 
     expect(r).toMatchObject({ tipo: "ok", detalhe: expect.stringContaining("pixel") });
+    expect(r).toMatchObject({ detalhe: expect.stringContaining("trace-pixel") });
     expect(chamadas(f)).toHaveLength(2);
     expect(chamadas(f)[1]![0]).toContain("/965/events");
     expect((chamadas(f)[1]![1].headers as Record<string, string>).authorization).toBe("Bearer tok-pixel");
@@ -51,7 +52,7 @@ describe("reserva no pixel quando a mensageria não acha a conversa do anúncio"
 
   it("⭐ intermediário recusa: vai ao pixel da tela que já está na credencial", async () => {
     zernio.mockResolvedValue({ tipo: "permanente", detalhe: "404: invalid_field_value: No CTWA-attributed conversation found for the given phone number" });
-    const f = vi.fn(async () => new Response("{}", { status: 200 }));
+    const f = vi.fn(async () => Response.json({ events_received: 1 }));
     vi.stubGlobal("fetch", f);
 
     const r = await transporteMeta.enviar({ ...PIXEL, intermediario: { accountId: "acc" } as never }, BASE);
