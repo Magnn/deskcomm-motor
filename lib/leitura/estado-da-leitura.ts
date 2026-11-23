@@ -60,6 +60,7 @@ const ehCartaRevelada = (m: MensagemParaContar): boolean =>
 function causaRaizJaDita(
   depoisDaEscolha: readonly Mensagem[],
   raizesDitas: readonly Date[],
+  cartas: readonly Carta[] = [],
 ): "registrada" | "sem_evidencia" | "reparo_esgotado" | null {
   let ultimaCarta = -1;
   depoisDaEscolha.forEach((m, i) => {
@@ -68,6 +69,11 @@ function causaRaizJaDita(
   const horaDaCarta = depoisDaEscolha[ultimaCarta]?.sent_at;
   const desde = horaDaCarta ? new Date(horaDaCarta).getTime() : null;
   if (raizesDitas.some((d) => desde === null || d.getTime() >= desde)) return "registrada";
+  // A marca escondida nunca veio do modelo em produção (0 de 130 leituras, 19–23/11/2026): a síntese também
+  // conta quando o PRÓPRIO TEXTO a mostra, numa mensagem da agente depois da 3ª carta.
+  if (depoisDaEscolha.some((m, i) => i > ultimaCarta && m.direction === "outbound" && ehSinteseDasCartas(m.body ?? "", cartas))) {
+    return "registrada";
+  }
 
   const resposta = depoisDaEscolha.findIndex((m, i) => i > ultimaCarta && m.direction === "inbound");
   if (resposta < 0) return null;
@@ -84,6 +90,20 @@ function causaRaizJaDita(
   if (turnos === 2) return "sem_evidencia";
   const antigo = primeiroTurno?.sent_at != null && new Date(primeiroTurno.sent_at).getTime() < REGISTRO_DA_RAIZ_DESDE.getTime();
   return turnos === 1 && antigo ? "registrada" : null;
+}
+
+const AS_TRES_JUNTAS =
+  /\b(?:juntando|unindo|somando|olhando)\s+(?:as\s+)?(?:tr[eê]s|3)\b|\b(?:tr[eê]s|3)\s+(?:cartas\s+)?juntas\b|\b(?:tr[eê]s|3)\s+cartas\s+(?:conversam|contam|mostram|falam)\b/i;
+
+/**
+ * A mensagem é a síntese das 3 cartas? Liga as três ("juntando as três", "as 3 cartas juntas") ou cita pelo
+ * nome completo pelo menos duas delas na mesma mensagem — o que a revelação de UMA carta não faz. Puro.
+ */
+export function ehSinteseDasCartas(texto: string, cartas: readonly Carta[]): boolean {
+  if (MARCA_CARTA.test(texto)) return false;
+  if (AS_TRES_JUNTAS.test(texto)) return true;
+  const baixo = texto.toLowerCase();
+  return cartas.filter((c) => baixo.includes(c.nome.toLowerCase())).length >= 2;
 }
 
 /**
@@ -185,7 +205,7 @@ export function passoDaLeitura(
   const jaReveladas = depois.filter(ehCartaRevelada).length;
 
   if (jaReveladas >= 3) {
-    const raiz = causaRaizJaDita(depois, raizesDitas);
+    const raiz = causaRaizJaDita(depois, raizesDitas, cartas);
     if (raiz === "registrada") return { passo: "encerrada", cartas };
     if (raiz === "sem_evidencia") return { passo: "encerrada", cartas, semEvidencia: true };
     if (raiz === "reparo_esgotado") return { passo: "encerrada", cartas, semEvidencia: true, reparoEsgotado: true };

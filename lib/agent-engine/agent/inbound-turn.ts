@@ -70,6 +70,8 @@ import { ERRO_DE_TEXTO_JA_ENVIADO, semBaloesJaEnviados } from './balao-ja-enviad
 import { linkInternacionalNoLugarDoLink } from './link-internacional-no-envio';
 import { linkDoValorPrometido } from '@/lib/preco/link-do-valor';
 import { boletoNoLugarDaMarca } from './boleto-no-envio';
+import { numerosAnotadosForaDaMesa } from '@/lib/leitura/numero-fora-da-mesa';
+import { descontoFalso } from '@/lib/preco/desconto-falso';
 import { pixDoRestanteNoLugarDaMarca, pixDaEntradaNoLugarDaMarca, temMarcaDaEntrada } from './pix-da-entrada-no-envio';
 import { pixDoExtraNoLugarDaMarca } from './pix-do-extra-no-envio';
 import { relatorioNoLugarDaMarca, type DocumentoDoTurno } from './relatorio-no-envio';
@@ -636,6 +638,8 @@ export const VETOS_DE_CONTEUDO: ReadonlySet<string> = new Set([
   'cobrando_o_que_ja_caiu',
   'reenvio_sem_cobranca',
   'carta_fora_do_sorteio',
+  'numero_fora_da_mesa',
+  'desconto_falso',
 ]);
 
 /**
@@ -3107,7 +3111,7 @@ async function executarTurnoDoAgente(
     perguntaPagaNoTurno ? { nome: perguntaPagaNoTurno.extra.name, quantidade: perguntaPagaNoTurno.quantidade } : null,
     job?.kind === 'followup_turn' && (job.payload as { recovery?: unknown } | null)?.recovery !== undefined,
   );
-  if (passoDaLeituraNoTurno?.passo === 'encerrada' && passoDaLeituraNoTurno.semEvidencia === true) {
+  if (passoDaLeituraNoTurno?.passo === 'encerrada' && passoDaLeituraNoTurno.semEvidencia === true && passoDaLeituraNoTurno.reparoEsgotado !== true) {
     // Incidente medido: a agente falou 2 vezes depois da 3ª carta e a síntese não foi registrada (marca esquecida ou etapa pulada).
     runLog.warn('leitura — síntese das cartas sem evidência de entrega', { conversation_id: input.conversationId });
   }
@@ -4183,6 +4187,21 @@ async function executarTurnoDoAgente(
             },
           };
         }
+        // O TETO ANTES DA COBRANÇA: daqui para baixo as marcas viram efeito no provedor (boleto, Pix, cobrança). Em
+        // 23/11/2026 a 4ª mensagem de um turno emitiu o boleto na Stripe e só depois esbarrou no teto de envios, que
+        // ficava no fim: a cobrança existia e a pessoa nunca a recebeu. O teto do fim continua valendo para o resto.
+        if (seq >= maxSendsPerTurn) {
+          runLog.warn('send_message: teto do turno antes da cobrança — nada foi emitido', { teto: maxSendsPerTurn });
+          return {
+            ok: false,
+            error: {
+              code: 'teto_antes_da_cobranca',
+              message:
+                `você já enviou ${seq} mensagens neste turno (teto: ${maxSendsPerTurn}). NÃO envie mais nada agora: ` +
+                'encerre o turno. O boleto, a chave ou o link vão na PRIMEIRA mensagem da próxima resposta, sem anunciar antes.',
+            },
+          };
+        }
         // PIX NA CONVERSA (`lib/pagamentos/pix-na-conversa.ts`): o link de pagamento que o agente escolheu —
         // no valor que a escada liberou — ganha o código do Pix na frente. Sem conta de Pix conectada, ou em
         // qualquer falha, o corpo segue como veio.
@@ -4604,6 +4623,19 @@ async function executarTurnoDoAgente(
           if (recusa !== null) {
             runLog.info('carta fora do sorteio — revelação recusada', { conversation_id: input.conversationId });
             return { ok: false, error: { code: 'carta_fora_do_sorteio', message: recusa } };
+          }
+          // NÚMERO FORA DA MESA DADO COMO ANOTADO (`lib/leitura/numero-fora-da-mesa.ts`): "2, 5 e 23, anotado" e, no balão
+          // seguinte, "o 23 fica fora" (23/11/2026).
+          const foraDaMesa = numerosAnotadosForaDaMesa(body);
+          if (foraDaMesa !== null) {
+            runLog.warn('número fora da mesa dado como anotado — envio recusado', {});
+            return { ok: false, error: { code: 'numero_fora_da_mesa', message: foraDaMesa } };
+          }
+          // DESCONTO FALSO (`lib/preco/desconto-falso.ts`): "consegui deixar em *R$ 130*" com R$ 130 de tabela (23/11/2026).
+          const falso = descontoFalso(body, agentConfig?.pricing?.enabled ? agentConfig.pricing.list_price_cents : null);
+          if (falso !== null) {
+            runLog.warn('desconto anunciado no preço de tabela — envio recusado', {});
+            return { ok: false, error: { code: 'desconto_falso', message: falso } };
           }
         }
         // CORPO VAZIO NÃO SAI. Medido ao vivo (2026-09-19): o `gpt-4o-mini`

@@ -119,6 +119,8 @@ export function blocoDoBoletoPronto(valoresPermitidosCents: readonly number[]): 
     "BOLETO PRONTO (para quem paga na lotérica, por boleto ou depósito, ou não tem Pix nem cartão)",
     `- Quando a pessoa disser isso, NÃO insista no Pix: diga que você emite o boleto pra ela pagar na lotérica, no banco ou no aplicativo, e peça numa mensagem só: *nome completo*, *CPF* e *CEP* de onde ela mora. Diga que é o que o banco exige para emitir o boleto.`,
     `- Quando ela mandar os três, escreva sozinha num balão a marca, com o valor em reais na frente: [[BOLETO: ${Math.round(valores[0]! / 100)} | Nome Completo | CPF | CEP]]. Valores liberados para esta pessoa agora: ${valores.map(reais).join(", ")}. O sistema emite o boleto e troca a marca pelo link e pela linha digitável.`,
+    "- A marca vai na PRIMEIRA mensagem da resposta, sem anunciar antes (\"vou soltar o boleto\", \"estou emitindo\"). Se o sistema recusar (CEP, CPF), peça só o dado que ele apontou; NUNCA diga que o boleto saiu antes de o link aparecer na conversa.",
+    "- Quem pediu boleto paga por boleto: NÃO volte a oferecer Pix nem link de cartão a essa pessoa, a menos que ela peça.",
     "- NÃO repita o CPF nem o CEP dela em nenhuma outra mensagem. NÃO invente dado que ela não mandou. Se faltar um dos três, peça só o que falta.",
     "- O boleto leva até 1 dia útil para confirmar depois de pago. NÃO diga que o pagamento caiu e NÃO entregue nada antes de o sistema confirmar.",
     `- Boleto só a partir de ${reais(BOLETO_MINIMO_CENTS)}. Valor menor que isso (uma pergunta nova, por exemplo) NÃO tem boleto: é Pix copia e cola ou cartão. NÃO ofereça, NÃO peça CPF para isso.`,
