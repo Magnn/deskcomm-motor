@@ -136,8 +136,7 @@ async function organizacoesDaInstalacao(): Promise<OrganizacaoDaLista[]> {
   const { data } = await createAdminClient()
     .from("organizations")
     .select("id, display_name, slug")
-    .order("display_name", { ascending: true })
-    .limit(500);
+    .order("display_name", { ascending: true });
   return ((data ?? []) as { id: string; display_name: string | null; slug: string | null }[]).map((o) => ({
     id: o.id,
     nome: [o.display_name, o.slug].find((v): v is string => Boolean(v)) ?? o.id,
