@@ -328,7 +328,7 @@ export async function DELETE(
   const { data: session } = await supabase
     .from("channel_sessions")
     .select(
-      "id, provider, waha_session_name, display_name, phone_number, meta_phone_number_id, meta_token_encrypted, messenger_page_id, messenger_page_token_encrypted, telegram_bot_token_encrypted, zernio_credencial_da_instalacao",
+      "id, provider, waha_session_name, display_name, phone_number, meta_phone_number_id, meta_token_encrypted, messenger_page_id, messenger_page_token_encrypted, telegram_bot_token_encrypted, zernio_credencial_da_instalacao, metadata",
     )
     .eq("organization_id", activeOrg.orgId)
     .eq("id", id)
@@ -497,7 +497,12 @@ export async function DELETE(
     // sem desligá-los a Meta segue entregando para uma página que não é mais
     // canal de ninguém aqui. Mesmo par do override acima: ANTES de zerar o token
     // (é ele que autoriza), best-effort, e o desfecho vai para a auditoria.
-    if (session.provider === CHANNEL_PROVIDER_MESSENGER && session.messenger_page_id) {
+    // A conta do Instagram ligada à página (0968) NÃO desliga nada: os avisos são
+    // os DA PÁGINA, que pode seguir conectada no Messenger.
+    const contaDoInstagram = (session.metadata as Record<string, unknown> | null)?.social_platform === "instagram";
+    if (session.provider === CHANNEL_PROVIDER_MESSENGER && session.messenger_page_id && contaDoInstagram) {
+      patch.messenger_page_token_encrypted = null;
+    } else if (session.provider === CHANNEL_PROVIDER_MESSENGER && session.messenger_page_id) {
       avisosDaPagina = await desligarAvisosDaPagina(createAdminClient(), {
         pageId: session.messenger_page_id,
         tokenCifrado: session.messenger_page_token_encrypted,

@@ -61,9 +61,10 @@ export async function GET(req: NextRequest): Promise<Response> {
       code: code.replace(/#_$/, ""),
     });
 
+    const db = createAdminClient();
     const resultados = await conectarPaginas(
-      createAdminClient(),
-      depsReaisDaConexao({ appId: app.appId, appSecret: app.appSecret, verifyToken: app.verifyToken, callbackUrl: webhookDoMessenger() }),
+      db,
+      depsReaisDaConexao({ appId: app.appId, appSecret: app.appSecret, verifyToken: app.verifyToken, callbackUrl: webhookDoMessenger() }, db),
       { organizationId: estado.organizationId, userId: estado.userId, tokenDoUsuario },
     );
     if (resultados.length === 0) return voltar({ erro: "nenhuma_pagina" });
@@ -77,7 +78,7 @@ export async function GET(req: NextRequest): Promise<Response> {
       resourceId: null,
       requestId,
       // Nome e id das páginas: o que permite reconhecer no histórico. Nenhum token.
-      metadata: { paginas: resultados.map((r) => ({ id: r.pageId, nome: r.nome, resultado: r.resultado })) },
+      metadata: { paginas: resultados.map((r) => ({ id: r.pageId, nome: r.nome, resultado: r.resultado, rede: r.rede ?? "messenger" })) },
     });
 
     const recusadas = resultados.filter((r) => !conectadas.includes(r)).map((r) => r.resultado);

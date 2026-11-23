@@ -20,6 +20,13 @@
  * ─── O endereço ─────────────────────────────────────────────────────────────
  * A pessoa é o PSID (id dela DENTRO desta página). É também o "id da thread"
  * deste canal: a conversa é sempre página × pessoa, e o envio endereça por ele.
+ *
+ * ─── O Instagram da página ──────────────────────────────────────────────────
+ * O direct da conta do Instagram ligada à página chega no MESMO formato
+ * (`messaging[]`), com `object: "instagram"` e `entry.id` = a CONTA. A pessoa é
+ * o IGSID. Muda só a rede da mensagem (`instagram`), que decide a identidade do
+ * contato e o rótulo do inbox. A leitura vem por `mid` (sem marca d'água): vale
+ * o instante do aviso.
  */
 import { socialMessageId } from "../social/catalog";
 import type { SocialMessage } from "../social/parser";
@@ -76,7 +83,9 @@ export function referralDoAnuncio(bruto: unknown): Bruto | null {
   };
 }
 
-function mensagemDe(pageId: string, ev: Bruto, nossosApps: ReadonlySet<string>): EventoDoMessenger | null {
+type Rede = "facebook" | "instagram";
+
+function mensagemDe(pageId: string, ev: Bruto, nossosApps: ReadonlySet<string>, rede: Rede): EventoDoMessenger | null {
   const sender = str(obj(ev.sender)?.id);
   const recipient = str(obj(ev.recipient)?.id);
   const message = obj(ev.message);
@@ -93,6 +102,7 @@ function mensagemDe(pageId: string, ev: Bruto, nossosApps: ReadonlySet<string>):
       tipo: "mensagem",
       pageId,
       mensagem: montar({
+        rede,
         pageId,
         psid: sender,
         mid,
@@ -130,6 +140,7 @@ function mensagemDe(pageId: string, ev: Bruto, nossosApps: ReadonlySet<string>):
     tipo: "mensagem",
     pageId,
     mensagem: montar({
+      rede,
       pageId,
       psid: eco ? recipient : sender,
       mid,
@@ -143,6 +154,7 @@ function mensagemDe(pageId: string, ev: Bruto, nossosApps: ReadonlySet<string>):
 }
 
 function montar(p: {
+  rede: Rede;
   pageId: string;
   psid: string;
   mid: string;
@@ -153,7 +165,7 @@ function montar(p: {
   referral: Bruto | null;
 }): SocialMessage {
   return {
-    platform: "facebook",
+    platform: p.rede,
     participantId: p.psid,
     accountId: p.pageId,
     conversationId: p.psid,
@@ -181,7 +193,8 @@ export function externalIdDoMessenger(pageId: string, mid: string): string {
 export function eventosDoAviso(payload: unknown, nossosApps: string | readonly string[]): EventoDoMessenger[] {
   const nossos = new Set(typeof nossosApps === "string" ? [nossosApps] : nossosApps);
   const p = obj(payload);
-  if (!p || p.object !== "page") return [];
+  if (!p || (p.object !== "page" && p.object !== "instagram")) return [];
+  const rede: Rede = p.object === "instagram" ? "instagram" : "facebook";
   const saida: EventoDoMessenger[] = [];
   for (const e of arr(p.entry)) {
     const entry = obj(e);
@@ -201,11 +214,12 @@ export function eventosDoAviso(payload: unknown, nossosApps: string | readonly s
       const read = obj(ev.read);
       if (read) {
         const psid = str(obj(ev.sender)?.id);
-        const ate = quando(read.watermark);
+        // Messenger: marca d'água. Instagram: `read.mid`, sem hora — vale a do aviso.
+        const ate = quando(read.watermark) ?? quando(ev.timestamp);
         if (psid && ate) saida.push({ tipo: "lida", pageId, psid, ate });
         continue;
       }
-      const msg = mensagemDe(pageId, ev, nossos);
+      const msg = mensagemDe(pageId, ev, nossos, rede);
       if (msg) saida.push(msg);
     }
   }

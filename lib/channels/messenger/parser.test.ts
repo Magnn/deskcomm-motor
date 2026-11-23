@@ -10,6 +10,47 @@ const NOSSO_APP = "1431224221868157";
 
 const aviso = (...messaging: unknown[]) => ({ object: "page", entry: [{ id: PAGINA, time: 1, messaging }] });
 
+describe("eventosDoAviso — Instagram ligado à página (0968)", () => {
+  const CONTA = "17841400000000001";
+  const IGSID = "5566778899";
+  const avisoDoInstagram = (...messaging: unknown[]) => ({ object: "instagram", entry: [{ id: CONTA, time: 1, messaging }] });
+
+  it("o direct vira entrada da rede instagram, roteada pela CONTA e endereçada pelo IGSID", () => {
+    const [e] = eventosDoAviso(
+      avisoDoInstagram({ sender: { id: IGSID }, recipient: { id: CONTA }, timestamp: 1_700_000_000_000, message: { mid: "ig_1", text: "quero saber" } }),
+      NOSSO_APP,
+    );
+    expect(e).toMatchObject({ tipo: "mensagem", pageId: CONTA });
+    if (e?.tipo !== "mensagem") return;
+    expect(e.mensagem).toMatchObject({
+      platform: "instagram",
+      accountId: CONTA,
+      participantId: IGSID,
+      conversationId: IGSID,
+      direction: "inbound",
+      text: "quero saber",
+      externalId: externalIdDoMessenger(CONTA, "ig_1"),
+    });
+  });
+
+  it("eco do nosso app é descartado; o do celular entra como saída", () => {
+    expect(
+      eventosDoAviso(avisoDoInstagram({ sender: { id: CONTA }, recipient: { id: IGSID }, message: { mid: "ig_2", text: "x", is_echo: true, app_id: NOSSO_APP } }), NOSSO_APP),
+    ).toEqual([]);
+    const [e] = eventosDoAviso(avisoDoInstagram({ sender: { id: CONTA }, recipient: { id: IGSID }, message: { mid: "ig_3", text: "respondi pelo app", is_echo: true } }), NOSSO_APP);
+    expect(e?.tipo === "mensagem" && e.mensagem).toMatchObject({ direction: "outbound", participantId: IGSID, platform: "instagram" });
+  });
+
+  it("a leitura sem marca d'água usa a hora do aviso", () => {
+    const [e] = eventosDoAviso(avisoDoInstagram({ sender: { id: IGSID }, recipient: { id: CONTA }, timestamp: 1_700_000_000_000, read: { mid: "ig_1" } }), NOSSO_APP);
+    expect(e).toEqual({ tipo: "lida", pageId: CONTA, psid: IGSID, ate: new Date(1_700_000_000_000).toISOString() });
+  });
+
+  it("o aviso de comentário (changes) não vira mensagem aqui — é das regras de comentário", () => {
+    expect(eventosDoAviso({ object: "instagram", entry: [{ id: CONTA, changes: [{ field: "comments", value: { id: "c1", text: "quero" } }] }] }, NOSSO_APP)).toEqual([]);
+  });
+});
+
 describe("eventosDoAviso", () => {
   it("mensagem de texto da pessoa vira entrada, endereçada pela pessoa (PSID)", () => {
     const [e] = eventosDoAviso(

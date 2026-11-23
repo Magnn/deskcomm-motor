@@ -1297,6 +1297,7 @@ export type Database = {
           ig_user_id: string
           name: string | null
           organization_id: string
+          pagina_id: string | null
           profile_picture_url: string | null
           status: string
           status_reason: string | null
@@ -1313,6 +1314,7 @@ export type Database = {
           ig_user_id: string
           name?: string | null
           organization_id: string
+          pagina_id?: string | null
           profile_picture_url?: string | null
           status?: string
           status_reason?: string | null
@@ -1329,6 +1331,7 @@ export type Database = {
           ig_user_id?: string
           name?: string | null
           organization_id?: string
+          pagina_id?: string | null
           profile_picture_url?: string | null
           status?: string
           status_reason?: string | null

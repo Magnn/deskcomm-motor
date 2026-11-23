@@ -1,9 +1,16 @@
 /**
  * A CONVERSA COM O INSTAGRAM — só as chamadas, sem banco.
  *
- * A conta é conectada pelo LOGIN DO INSTAGRAM (sem página do Facebook no meio):
- * autorização em `www.instagram.com`, troca do código em `api.instagram.com` e,
- * dali em diante, tudo em `graph.instagram.com`, onde a própria conta é `me`.
+ * A conta entra por um de dois caminhos:
+ *   - LOGIN DO INSTAGRAM (sem página do Facebook no meio): autorização em
+ *     `www.instagram.com`, troca do código em `api.instagram.com` e, dali em
+ *     diante, tudo em `graph.instagram.com`, onde a própria conta é `me`;
+ *   - PELA PÁGINA DO FACEBOOK a que a conta está ligada (migration 0968): quem
+ *     conecta a página pelo login do Facebook leva a conta junto, e tudo sai em
+ *     `graph.facebook.com` com o token da PÁGINA — a conta é chamada pelo id
+ *     dela, e a resposta privada sai pela página (`/{pagina}/messages`).
+ * As funções de uso (publicações, respostas) recebem `PelaPagina`: nulo é o
+ * primeiro caminho, preenchido é o segundo.
  *
  * O que este módulo sabe fazer é o que "comentou, recebe direct" precisa:
  * conectar, assinar os avisos de comentário, listar publicações, responder em
@@ -18,6 +25,14 @@
 import { graphVersion } from "@/lib/graph-version";
 
 export const INSTAGRAM_API = "https://graph.instagram.com";
+/** Onde fala a conta ligada pela página do Facebook. */
+const GRAPH_DO_FACEBOOK = "https://graph.facebook.com";
+
+/**
+ * A conta foi ligada pela página do Facebook? Nulo = login do Instagram.
+ * `igId` é o id da conta na Graph do Facebook (`instagram_business_account.id`).
+ */
+export type PelaPagina = { paginaId: string; igId: string } | null;
 const INSTAGRAM_TROCA_DE_CODIGO = "https://api.instagram.com/oauth/access_token";
 const INSTAGRAM_AUTORIZACAO = "https://www.instagram.com/oauth/authorize";
 
@@ -171,11 +186,14 @@ export async function cancelarAvisos(token: string, buscar: Buscar = fetch): Pro
 }
 
 /** As publicações mais recentes da conta, para a regra escolher em quais vale. */
-export async function listarPublicacoes(token: string, buscar: Buscar = fetch): Promise<PublicacaoDoInstagram[]> {
+export async function listarPublicacoes(token: string, pelaPagina: PelaPagina = null, buscar: Buscar = fetch): Promise<PublicacaoDoInstagram[]> {
   const q = new URLSearchParams({ fields: "id,caption,media_type,media_url,thumbnail_url,timestamp,permalink", limit: "50" });
+  const onde = pelaPagina
+    ? `${GRAPH_DO_FACEBOOK}/${versao()}/${encodeURIComponent(pelaPagina.igId)}/media`
+    : `${INSTAGRAM_API}/${versao()}/me/media`;
   const r = await chamar<{
     data?: Array<{ id: string; caption?: string; media_type?: string; media_url?: string; thumbnail_url?: string; timestamp?: string; permalink?: string }>;
-  }>(buscar, "listar_publicacoes", `${INSTAGRAM_API}/${versao()}/me/media?${q.toString()}`, { headers: comToken(token) });
+  }>(buscar, "listar_publicacoes", `${onde}?${q.toString()}`, { headers: comToken(token) });
   return (r.data ?? []).map((m) => ({
     id: String(m.id),
     caption: m.caption ?? null,
@@ -188,8 +206,15 @@ export async function listarPublicacoes(token: string, buscar: Buscar = fetch): 
 }
 
 /** A resposta PÚBLICA, embaixo do comentário. Só texto: a Meta não aceita mídia aqui. */
-export async function responderComentario(token: string, commentId: string, texto: string, buscar: Buscar = fetch): Promise<void> {
-  await chamar(buscar, "resposta_publica", `${INSTAGRAM_API}/${versao()}/${encodeURIComponent(commentId)}/replies`, {
+export async function responderComentario(
+  token: string,
+  commentId: string,
+  texto: string,
+  pelaPagina: PelaPagina = null,
+  buscar: Buscar = fetch,
+): Promise<void> {
+  const host = pelaPagina ? GRAPH_DO_FACEBOOK : INSTAGRAM_API;
+  await chamar(buscar, "resposta_publica", `${host}/${versao()}/${encodeURIComponent(commentId)}/replies`, {
     method: "POST",
     headers: { ...comToken(token), "Content-Type": "application/json" },
     body: JSON.stringify({ message: texto }),
@@ -200,8 +225,19 @@ export async function responderComentario(token: string, commentId: string, text
  * A resposta PRIVADA: o direct para quem comentou, ancorado no comentário. É o
  * que dispensa a pessoa ter escrito antes — e vale uma vez por comentário.
  */
-export async function enviarRespostaPrivada(token: string, commentId: string, texto: string, buscar: Buscar = fetch): Promise<void> {
-  await chamar(buscar, "resposta_privada", `${INSTAGRAM_API}/${versao()}/me/messages`, {
+export async function enviarRespostaPrivada(
+  token: string,
+  commentId: string,
+  texto: string,
+  pelaPagina: PelaPagina = null,
+  buscar: Buscar = fetch,
+): Promise<void> {
+  // Pela página, a resposta privada sai pela PÁGINA, com o token dela (a conta
+  // não é `me` na Graph do Facebook).
+  const onde = pelaPagina
+    ? `${GRAPH_DO_FACEBOOK}/${versao()}/${encodeURIComponent(pelaPagina.paginaId)}/messages`
+    : `${INSTAGRAM_API}/${versao()}/me/messages`;
+  await chamar(buscar, "resposta_privada", onde, {
     method: "POST",
     headers: { ...comToken(token), "Content-Type": "application/json" },
     body: JSON.stringify({ recipient: { comment_id: commentId }, message: { text: texto } }),

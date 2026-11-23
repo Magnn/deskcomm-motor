@@ -40595,3 +40595,10 @@ comment on table public.platform_meta_app_da_org is
 alter table public.platform_meta_app_da_org enable row level security;
 revoke all on public.platform_meta_app_da_org from anon, authenticated;
 grant select, insert, update, delete on public.platform_meta_app_da_org to service_role;
+
+-- ---- Instagram pela página do Facebook (migration 0968) ----
+alter table public.instagram_connections
+  add column if not exists pagina_id text;
+
+comment on column public.instagram_connections.pagina_id is
+  'Id da página do Facebook pela qual a conta foi ligada (login do Facebook). NULL = conta do login do Instagram. Não nulo: chamadas em graph.facebook.com com o token da página, resposta privada por /{pagina}/messages. Migration 0968.';

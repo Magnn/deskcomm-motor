@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../zernio/ingest", () => ({ ingestZernioInbound: vi.fn() }));
-vi.mock("./api", () => ({ lerPerfil: vi.fn() }));
+vi.mock("./api", () => ({ lerPerfil: vi.fn(), lerPerfilDoInstagram: vi.fn() }));
 vi.mock("@/lib/webhooks/secrets", () => ({
   decryptWebhookSecret: vi.fn(async (_db: unknown, c: string) => c),
   encryptWebhookSecret: vi.fn(async (_db: unknown, t: string) => t),
@@ -12,7 +12,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { criarBancoEmMemoria } from "@/tests/helpers/banco-em-memoria";
 
 import { ingestZernioInbound } from "../zernio/ingest";
-import { lerPerfil } from "./api";
+import { lerPerfil, lerPerfilDoInstagram } from "./api";
 import { ingerirAviso, ingerirEvento } from "./ingest";
 import { eventosDoAviso, externalIdDoMessenger } from "./parser";
 
@@ -52,6 +52,26 @@ describe("ingerirEvento — mensagem", () => {
     expect(chamada?.channelSessionId).toBe("s1");
     expect(chamada?.socialMessage?.identity.displayName).toBe("Maria Souza");
     expect(chamada?.socialMessage?.conversationId).toBe(PESSOA);
+  });
+
+  it("direct do Instagram: o perfil é o do Instagram e a identidade é instagram:<conta>:<pessoa>", async () => {
+    vi.mocked(lerPerfilDoInstagram).mockReset().mockResolvedValue({ nome: "@marina", fotoUrl: null });
+    const contaIg = { ...sessaoAtiva, id: "s-ig", messenger_page_id: "ig-1", metadata: { social_platform: "instagram", instagram_page_id: PAGINA } };
+    const b = criarBancoEmMemoria({
+      channel_sessions: [contaIg],
+      // Mesmo IGSID já contato pelo FACEBOOK não conta: a identidade é por rede.
+      contacts: [{ id: "ct1", organization_id: "org-1", social_identity: `facebook:ig-1:igsid-1`, is_merged_into: null }],
+    });
+    const [evento] = eventosDoAviso(
+      { object: "instagram", entry: [{ id: "ig-1", messaging: [{ sender: { id: "igsid-1" }, recipient: { id: "ig-1" }, message: { mid: "ig_m", text: "oi" } }] }] },
+      "app",
+    );
+    await ingerirEvento(b.cliente as unknown as SupabaseClient, { id: "s-ig", organizationId: "org-1" }, evento!);
+    expect(lerPerfilDoInstagram).toHaveBeenCalledWith("igsid-1", "token-da-pagina");
+    expect(lerPerfil).not.toHaveBeenCalled();
+    const chamada = vi.mocked(ingestZernioInbound).mock.calls[0]?.[1];
+    expect(chamada?.socialMessage).toMatchObject({ platform: "instagram", accountId: "ig-1", participantId: "igsid-1" });
+    expect(chamada?.socialMessage?.identity.displayName).toBe("@marina");
   });
 
   it("pessoa que já é contato não custa uma leitura de perfil por mensagem", async () => {

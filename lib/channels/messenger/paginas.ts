@@ -10,6 +10,11 @@
  *     tela.
  *   - Reconectar a mesma página atualiza o token e reacende o canal, sem criar
  *     linha nova — a conversa e o histórico continuam onde estavam.
+ *   - A conta do Instagram LIGADA à página vira canal próprio, no mesmo provider:
+ *     `messenger_page_id` = o id da CONTA (é por ele que o aviso do direct chega),
+ *     `metadata.social_platform = "instagram"` (o inbox mostra Instagram) e
+ *     `metadata.instagram_page_id` = a página por onde o envio sai. O token é o
+ *     da página.
  */
 import { randomBytes } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -19,7 +24,7 @@ import { decryptWebhookSecret, encryptWebhookSecret } from "@/lib/webhooks/secre
 
 import { CHANNEL_PROVIDER_MESSENGER } from "../capabilities";
 import { reactivateChannelSession } from "../reactivate";
-import { cancelarAvisosDaPagina, type PaginaAutorizada } from "./api";
+import { cancelarAvisosDaPagina, type ContaDoInstagramDaPagina, type PaginaAutorizada } from "./api";
 
 export class CifraIndisponivelError extends Error {
   constructor() {
@@ -36,6 +41,8 @@ export interface PaginaConectada {
   conectadaEm: string;
   /** O que a Meta disse quando o recebimento não ligou — é o que a pessoa precisa para consertar. */
   falha: string | null;
+  /** A página (Messenger) ou a conta do Instagram ligada a ela (0968). */
+  rede: "messenger" | "instagram";
 }
 
 export type DesfechoDaPagina =
@@ -73,6 +80,7 @@ export async function paginasDaOrganizacao(db: SupabaseClient, organizationId: s
     fotoUrl: typeof l.metadata?.page_picture_url === "string" ? l.metadata.page_picture_url : null,
     conectadaEm: l.created_at,
     falha: typeof l.metadata?.messenger_falha === "string" ? l.metadata.messenger_falha : null,
+    rede: l.metadata?.social_platform === "instagram" ? "instagram" : "messenger",
   }));
 }
 
@@ -116,6 +124,34 @@ export async function tokenDaPagina(
 }
 
 /**
+ * Por onde este canal fala: o token (o da página) e a PÁGINA pela qual o envio
+ * sai — a própria, no Messenger; a página ligada, no Instagram. Só para quem vai
+ * falar com a Meta agora.
+ */
+export async function credencialDoCanal(
+  db: SupabaseClient,
+  scope: { organizationId: string; ref: string },
+): Promise<{ token: string; enviaPela: string; instagram: boolean } | null> {
+  const { data, error } = await db
+    .from("channel_sessions")
+    .select("messenger_page_token_encrypted, metadata")
+    .eq("organization_id", scope.organizationId)
+    .eq("provider", CHANNEL_PROVIDER_MESSENGER)
+    .eq("messenger_page_id", scope.ref)
+    .is("archived_at", null)
+    .maybeSingle();
+  if (error || !data) return null;
+  const l = data as { messenger_page_token_encrypted: string | null; metadata: Record<string, unknown> | null };
+  if (!l.messenger_page_token_encrypted) return null;
+  const token = await decryptWebhookSecret(db, l.messenger_page_token_encrypted);
+  if (!token) return null;
+  const instagram = l.metadata?.social_platform === "instagram";
+  const paginaLigada = typeof l.metadata?.instagram_page_id === "string" ? l.metadata.instagram_page_id : null;
+  if (instagram && !paginaLigada) return null;
+  return { token, enviaPela: instagram && paginaLigada ? paginaLigada : scope.ref, instagram };
+}
+
+/**
  * Grava a página como canal desta organização. NÃO liga os avisos — quem chama
  * faz isso depois, com o token, e marca a falha na linha se não der (a página
  * aparece na tela com o motivo, em vez de parecer conectada e nunca responder).
@@ -124,10 +160,62 @@ export async function gravarPagina(
   db: SupabaseClient,
   input: { organizationId: string; userId: string; pagina: PaginaAutorizada },
 ): Promise<DesfechoDaPagina> {
-  const { organizationId, pagina } = input;
+  const { pagina } = input;
   if (!pagina.podeAtender) return { pageId: pagina.id, nome: pagina.name, resultado: "sem_permissao_de_mensagens" };
+  return gravarCanal(db, {
+    organizationId: input.organizationId,
+    userId: input.userId,
+    ref: pagina.id,
+    nomeDeExibicao: pagina.name,
+    rotulo: `Messenger · ${pagina.name}`,
+    token: pagina.accessToken,
+    metadata: { social_platform: "facebook", page_picture_url: pagina.pictureUrl },
+  });
+}
 
-  const tokenCifrado = await encryptWebhookSecret(db, pagina.accessToken);
+/**
+ * Grava a conta do Instagram ligada à página como canal desta organização. Mesma
+ * regra da página: uma conta, uma organização (índice único entre ativos), e
+ * reconectar reacende a mesma linha.
+ */
+export async function gravarContaDoInstagram(
+  db: SupabaseClient,
+  input: { organizationId: string; userId: string; pagina: PaginaAutorizada; conta: ContaDoInstagramDaPagina },
+): Promise<DesfechoDaPagina> {
+  const { pagina, conta } = input;
+  return gravarCanal(db, {
+    organizationId: input.organizationId,
+    userId: input.userId,
+    ref: conta.id,
+    nomeDeExibicao: `@${conta.username}`,
+    rotulo: `Instagram · @${conta.username}`,
+    token: pagina.accessToken,
+    metadata: {
+      social_platform: "instagram",
+      page_picture_url: conta.fotoUrl,
+      instagram_page_id: pagina.id,
+      instagram_username: conta.username,
+    },
+  });
+}
+
+async function gravarCanal(
+  db: SupabaseClient,
+  input: {
+    organizationId: string;
+    userId: string;
+    /** O `messenger_page_id` da linha: a página, ou a conta do Instagram. */
+    ref: string;
+    nomeDeExibicao: string;
+    rotulo: string;
+    token: string;
+    metadata: Record<string, unknown>;
+  },
+): Promise<DesfechoDaPagina> {
+  const { organizationId } = input;
+  const pagina = { id: input.ref, name: input.nomeDeExibicao };
+
+  const tokenCifrado = await encryptWebhookSecret(db, input.token);
   if (!tokenCifrado) throw new CifraIndisponivelError();
 
   // Só as páginas DESTA organização — a leitura nunca cruza tenant. Se outra
@@ -150,12 +238,8 @@ export async function gravarPagina(
   const linhaArquivada =
     desta.filter((l) => !!l.archived_at).sort((a, b) => String(b.archived_at).localeCompare(String(a.archived_at)))[0] ?? null;
 
-  const nome = `Messenger · ${pagina.name}`;
-  const metadataDaVolta = (atual: Record<string, unknown> | null) => ({
-    ...(atual ?? {}),
-    social_platform: "facebook",
-    page_picture_url: pagina.pictureUrl,
-  });
+  const nome = input.rotulo;
+  const metadataDaVolta = (atual: Record<string, unknown> | null) => ({ ...(atual ?? {}), ...input.metadata });
 
   if (linhaAtiva) {
     const { error } = await db
@@ -199,7 +283,7 @@ export async function gravarPagina(
       webhook_secret_encrypted: segredoCifrado,
       display_name: nome,
       status: "STARTING",
-      metadata: { ...metadataInicialDoCanal(), social_platform: "facebook", page_picture_url: pagina.pictureUrl },
+      metadata: { ...metadataInicialDoCanal(), ...input.metadata },
     })
     .select("id")
     .single();

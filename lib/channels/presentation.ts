@@ -14,8 +14,9 @@ export function channelBrand(
       if (session.social_platform === "instagram") return "instagram";
       if (session.social_platform === "facebook") return "messenger";
       return "unknown";
+    // A conta do Instagram ligada à página fala pelo mesmo provider (0968).
     case "meta_messenger":
-      return "messenger";
+      return session.social_platform === "instagram" ? "instagram" : "messenger";
     case "telegram_bot":
       return "telegram";
     default:

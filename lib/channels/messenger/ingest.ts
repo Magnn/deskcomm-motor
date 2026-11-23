@@ -22,7 +22,7 @@ import { logger } from "@/lib/logger";
 import { abrirArquivoDoWebhook, fecharArquivoDoWebhook } from "../arquivo-de-webhook";
 import { CHANNEL_PROVIDER_MESSENGER } from "../capabilities";
 import { ingestZernioInbound } from "../zernio/ingest";
-import { lerPerfil } from "./api";
+import { lerPerfil, lerPerfilDoInstagram } from "./api";
 import { sessaoDaPagina, tokenDaPagina } from "./paginas";
 import type { EventoDoMessenger } from "./parser";
 
@@ -93,12 +93,16 @@ export async function ingerirEvento(
   // Só a ENTRADA de quem ainda não é contato paga a leitura do perfil: depois
   // disso o nome já está gravado, e ler a cada mensagem seria uma chamada à Meta
   // por mensagem sem ganho nenhum.
-  const identidade = `facebook:${mensagem.accountId}:${mensagem.participantId}`;
+  // A MESMA identidade que o ramo social grava: `<rede>:<conta>:<pessoa>`.
+  const identidade = `${mensagem.platform}:${mensagem.accountId}:${mensagem.participantId}`;
   if (!(await contatoExiste(db, organizationId, identidade))) {
     const token = await tokenDaPagina(db, { organizationId, pageId: evento.pageId });
     if (token) {
       try {
-        const perfil = await lerPerfil(mensagem.participantId, token);
+        const perfil =
+          mensagem.platform === "instagram"
+            ? await lerPerfilDoInstagram(mensagem.participantId, token)
+            : await lerPerfil(mensagem.participantId, token);
         mensagem.identity.displayName = perfil.nome;
       } catch (err) {
         // Sem nome o contato nasce mesmo assim (o atendimento não pode esperar o
