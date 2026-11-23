@@ -257,13 +257,26 @@ describe("passoDaLeitura — depois que a causa raiz é dita, a leitura acabou",
     expect(passoDaLeitura("lead-1", depois, undefined, [new Date("2026-11-30T10:00:00Z")])?.passo).toBe("causa_raiz");
   });
 
-  it("rede de segurança: dois turnos da agente sem marca param de pedir a síntese, mas SEM evidência de entrega", () => {
+  it("dois turnos da agente sem marca: SÍNTESE PENDENTE — a síntese vem antes do trabalho e do valor", () => {
     const depois = [...tresCartasComHora, emDez("inbound", "dúvida", 10), emDez("outbound", "resposta", 11), emDez("inbound", "ok", 12), emDez("outbound", "a raiz", 13), emDez("outbound", "segunda bolha", 13), emDez("inbound", "sim", 14)];
     const p = passoDaLeitura("lead-1", depois);
     expect(p).toMatchObject({ passo: "encerrada", semEvidencia: true });
+    expect(p).not.toHaveProperty("reparoEsgotado");
     const bloco = blocoDaLeitura(p);
-    expect(bloco).not.toContain("a causa raiz já foi dita");
+    expect(bloco).toContain("SÍNTESE PENDENTE");
     expect(bloco).toContain(MARCA_DA_RAIZ);
+    expect(bloco).toContain("ANTES de falar de trabalho, valor ou link");
+    // O texto antigo mandava seguir para o valor e o link no mesmo bloco.
+    expect(bloco).not.toContain("o valor e o link, conforme");
+  });
+
+  it("o reparo também sem marca: para de pedir (sem loop) e segue sem contar como entregue", () => {
+    const depois = [...tresCartasComHora, emDez("inbound", "dúvida", 10), emDez("outbound", "resposta", 11), emDez("inbound", "ok", 12), emDez("outbound", "a raiz", 13), emDez("inbound", "sim", 14), emDez("outbound", "reparo sem marca", 15), emDez("inbound", "e aí?", 16)];
+    const p = passoDaLeitura("lead-1", depois);
+    expect(p).toMatchObject({ passo: "encerrada", semEvidencia: true, reparoEsgotado: true });
+    const bloco = blocoDaLeitura(p);
+    expect(bloco).not.toContain("SÍNTESE PENDENTE");
+    expect(bloco).not.toContain("a causa raiz já foi dita");
   });
 
   it("conversa que já estava no meio antes do registro segue a regra antiga (um turno basta)", () => {

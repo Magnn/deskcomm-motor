@@ -34,3 +34,21 @@ describe("trazCobranca (toque de silêncio não cobra)", () => {
     expect(trazCobranca("Gracielle, quer que eu te mande o Pix da Oração dos Sonhos?")).toBe(false);
   });
 });
+
+describe("link que não é de pagamento não desarma a trava (releitura de 22/11/2026)", () => {
+  it("o link da política não conta como cobrança", () => {
+    expect(anunciaCobrancaSemCobranca("Vou te mandar a chave agora. Veja nossa politica: https://example.com/privacidade")).toBe(true);
+    expect(trazCobranca("Dá uma olhada aqui: https://meumisterio.com/blog/tarot")).toBe(false);
+  });
+  it("links de pagamento reais seguem contando", () => {
+    for (const url of ["https://pay.cakto.com.br/6pabzsk_1132655", "https://buy.stripe.com/fZucN75F8gNy0L86AB3433n", "https://checkout.stripe.com/c/pay/x", "https://pagar.acassia.tech/x"]) {
+      expect(trazCobranca(`O link do cartão: ${url}`)).toBe(true);
+    }
+  });
+  it("a chave sozinha numa linha e o copia-e-cola contam; um número no meio da frase não", () => {
+    expect(trazCobranca("69912345678")).toBe(true);
+    expect(trazCobranca("A chave é esta:\n69912345678\nMe manda o comprovante?")).toBe(true);
+    expect(trazCobranca("00020126580014br.gov.bcb.pix")).toBe(true);
+    expect(trazCobranca("Meu telefone 69912345678 é o mesmo do zap")).toBe(false);
+  });
+});
