@@ -11,7 +11,7 @@ const { atenderComentario, comentariosDoAviso } = await import("./comentarios");
 type Deps = import("./comentarios").DepsDosComentarios;
 type Regra = import("./regras").RegraDeComentario;
 
-const CONEXAO = { id: "con-1", organizationId: "org-1", igId: "178400", igUserId: "999000", token: "token-da-conta" };
+const CONEXAO = { id: "con-1", organizationId: "org-1", igId: "178400", igUserId: "999000", token: "token-da-conta", pelaPagina: null };
 
 const regra = (mudancas: Partial<Regra> = {}): Regra => ({
   id: "regra-1",
@@ -73,8 +73,8 @@ describe("atender um comentário", () => {
     const r = await atenderComentario(d, comentario());
     expect(r).toEqual({ resultado: "atendido", dm: "sent", publica: "sent" });
     expect(passos).toEqual(["registrar", "direct", "publica", "concluir"]);
-    expect(d.enviarRespostaPrivada).toHaveBeenCalledWith("token-da-conta", "comentario-1", "Oi @marina! Aqui está o link.");
-    expect(d.responderComentario).toHaveBeenCalledWith("token-da-conta", "comentario-1", "Te mandei no direct, @marina!");
+    expect(d.enviarRespostaPrivada).toHaveBeenCalledWith(CONEXAO, "comentario-1", "Oi @marina! Aqui está o link.");
+    expect(d.responderComentario).toHaveBeenCalledWith(CONEXAO, "comentario-1", "Te mandei no direct, @marina!");
     expect(d.concluir).toHaveBeenCalledWith("evento-1", { dm: "sent", publica: "sent", erro: null });
   });
 

@@ -11,6 +11,14 @@ vi.mock("@/lib/channels/meta/app", () => ({
   idsDosAppsDaInstalacao: vi.fn(async () => ({ principal: "nosso-app", outros: ["outro-app"] })),
 }));
 
+// 0968: o comentário do Instagram ligado à página passa pelas regras de comentário.
+vi.mock("@/lib/channels/instagram/repositorio", () => ({ depsReaisDosComentarios: vi.fn(() => ({ marca: "deps-reais" })) }));
+vi.mock("@/lib/channels/instagram/comentarios", async (original) => ({
+  ...(await original<typeof import("@/lib/channels/instagram/comentarios")>()),
+  atenderComentario: vi.fn(async () => ({ resultado: "atendido", dm: "sent", publica: "sent" })),
+}));
+
+import { atenderComentario } from "@/lib/channels/instagram/comentarios";
 import { appDoMessenger } from "@/lib/channels/messenger/app";
 import { ingerirAviso } from "@/lib/channels/messenger/ingest";
 
@@ -44,6 +52,39 @@ describe("GET (handshake)", () => {
   it("instalação sem o app configurado não existe para a Meta", async () => {
     vi.mocked(appDoMessenger).mockResolvedValue(null);
     expect((await GET(new NextRequest(`${URL_BASE}?hub.mode=subscribe`))).status).toBe(404);
+  });
+});
+
+describe("POST — comentário do Instagram ligado à página", () => {
+  it("vai para as regras de comentário, pela conta do aviso, e não vira mensagem", async () => {
+    vi.mocked(atenderComentario).mockClear();
+    const comentario = JSON.stringify({
+      object: "instagram",
+      entry: [{ id: "ig-1", changes: [{ field: "comments", value: { id: "c-1", text: "quero", from: { id: "555", username: "marina" }, media: { id: "post-1" } } }] }],
+    });
+    const r = await POST(post(comentario, assinar(comentario)));
+    expect(r.status).toBe(200);
+    expect(atenderComentario).toHaveBeenCalledWith(
+      { marca: "deps-reais" },
+      { contaId: "ig-1", commentId: "c-1", texto: "quero", mediaId: "post-1", autorId: "555", autorUsername: "marina" },
+    );
+    expect(ingerirAviso).not.toHaveBeenCalled();
+  });
+
+  it("comentário que falha por dentro ainda responde 200 (ele fica registrado; reentregar não conserta)", async () => {
+    vi.mocked(atenderComentario).mockRejectedValueOnce(new Error("banco fora"));
+    const comentario = JSON.stringify({
+      object: "instagram",
+      entry: [{ id: "ig-1", changes: [{ field: "comments", value: { id: "c-2", text: "x", from: { id: "555" } } }] }],
+    });
+    expect((await POST(post(comentario, assinar(comentario)))).status).toBe(200);
+  });
+
+  it("assinatura errada não chega às regras", async () => {
+    vi.mocked(atenderComentario).mockClear();
+    const comentario = JSON.stringify({ object: "instagram", entry: [{ id: "ig-1", changes: [{ field: "comments", value: { id: "c-3", from: { id: "1" } } }] }] });
+    expect((await POST(post(comentario, assinar(comentario, "segredo-falso")))).status).toBe(401);
+    expect(atenderComentario).not.toHaveBeenCalled();
   });
 });
 

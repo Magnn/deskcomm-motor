@@ -11,7 +11,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { decryptWebhookSecret, encryptWebhookSecret } from "@/lib/webhooks/secrets";
 
-import { enviarRespostaPrivada, responderComentario, type ContaDoInstagram } from "./api";
+import { enviarRespostaPrivada, responderComentario, type ContaDoInstagram, type PelaPagina } from "./api";
 import type { ConexaoParaComentarios, DepsDosComentarios } from "./comentarios";
 import type { RegraDeComentario } from "./regras";
 
@@ -26,6 +26,8 @@ export interface ConexaoDoInstagram {
   status_reason: string | null;
   token_expires_at: string | null;
   created_at: string;
+  /** Página do Facebook pela qual a conta foi ligada (0968); nulo = login do Instagram. */
+  pagina_id: string | null;
 }
 
 export interface RegraSalva extends RegraDeComentario {
@@ -45,7 +47,12 @@ export interface EventoDeComentario {
   created_at: string;
 }
 
-const COLUNAS_DA_CONEXAO = "id, username, name, profile_picture_url, status, status_reason, token_expires_at, created_at";
+const COLUNAS_DA_CONEXAO = "id, username, name, profile_picture_url, status, status_reason, token_expires_at, created_at, pagina_id";
+
+/** A linha diz por onde a conta fala: pela página (0968) ou pelo login do Instagram. */
+function pelaPaginaDe(l: { pagina_id: string | null; ig_user_id: string }): PelaPagina {
+  return l.pagina_id ? { paginaId: l.pagina_id, igId: l.ig_user_id } : null;
+}
 const COLUNAS_DA_REGRA =
   "id, connection_id, name, is_active, post_scope, post_ids, match_type, keywords, dm_message, public_replies, created_at";
 
@@ -65,10 +72,23 @@ export class CifraIndisponivelError extends Error {
  * organização: reconectar na mesma atualiza o token; tentar em outra é recusado —
  * o aviso de comentário traz só o id da conta, e com duas donas não haveria como
  * saber de quem é a regra.
+ *
+ * `paginaId` preenchido = a conta veio junto da página do Facebook (0968): o
+ * token é o DA PÁGINA, não vence (fica fora da renovação), e a linha que já
+ * existia pelo login do Instagram passa a falar pela página — as regras dela
+ * continuam as mesmas. O `ig_id` antigo é mantido: é por ele que um aviso pode
+ * chamar a conta, e é ele que reconhece o comentário da própria conta.
  */
 export async function salvarConexao(
   admin: Admin,
-  p: { organizationId: string; userId: string; conta: ContaDoInstagram; token: string; expiraEm: Date | null },
+  p: {
+    organizationId: string;
+    userId: string;
+    conta: ContaDoInstagram;
+    token: string;
+    expiraEm: Date | null;
+    paginaId?: string | null;
+  },
 ): Promise<ConexaoDoInstagram> {
   const cifrado = await encryptWebhookSecret(admin, p.token);
   if (!cifrado) throw new CifraIndisponivelError();
@@ -82,21 +102,25 @@ export async function salvarConexao(
   const atual = existente as { id: string; organization_id: string } | null;
   if (atual && atual.organization_id !== p.organizationId) throw new ContaDeOutraOrganizacaoError();
 
+  const paginaId = p.paginaId ?? null;
   const linha = {
     organization_id: p.organizationId,
-    ig_id: p.conta.id,
     ig_user_id: p.conta.userId,
     username: p.conta.username,
     name: p.conta.name,
     profile_picture_url: p.conta.profilePictureUrl,
     access_token_encrypted: cifrado,
-    token_expires_at: p.expiraEm?.toISOString() ?? null,
+    token_expires_at: paginaId ? null : (p.expiraEm?.toISOString() ?? null),
+    pagina_id: paginaId,
     status: "active",
     status_reason: null,
   };
   const gravacao = atual
-    ? admin.from("instagram_connections").update(linha).eq("id", atual.id)
-    : admin.from("instagram_connections").insert({ ...linha, created_by: p.userId });
+    ? admin
+        .from("instagram_connections")
+        .update(paginaId ? linha : { ...linha, ig_id: p.conta.id })
+        .eq("id", atual.id)
+    : admin.from("instagram_connections").insert({ ...linha, ig_id: p.conta.id, created_by: p.userId });
   const { data, error } = await gravacao.select(COLUNAS_DA_CONEXAO).single();
   if (error) {
     // Corrida de duas conexões da mesma conta em organizações diferentes: o índice único decide.
@@ -116,17 +140,26 @@ export async function listarConexoes(admin: Admin, organizationId: string): Prom
   return (data ?? []) as ConexaoDoInstagram[];
 }
 
-/** O token decifrado de UMA conexão da organização — para listar publicações e desconectar. */
-export async function tokenDaConexao(admin: Admin, organizationId: string, conexaoId: string): Promise<string | null> {
+/**
+ * O token decifrado de UMA conexão da organização, e por onde ela fala — para
+ * listar publicações e desconectar.
+ */
+export async function acessoDaConexao(
+  admin: Admin,
+  organizationId: string,
+  conexaoId: string,
+): Promise<{ token: string; pelaPagina: PelaPagina } | null> {
   const { data, error } = await admin
     .from("instagram_connections")
-    .select("access_token_encrypted")
+    .select("access_token_encrypted, pagina_id, ig_user_id")
     .eq("organization_id", organizationId)
     .eq("id", conexaoId)
     .maybeSingle();
   if (error) throw new Error(`instagram: leitura do token falhou: ${error.message}`);
-  const cifrado = (data as { access_token_encrypted: string } | null)?.access_token_encrypted;
-  return cifrado ? await decryptWebhookSecret(admin, cifrado) : null;
+  const l = data as { access_token_encrypted: string; pagina_id: string | null; ig_user_id: string } | null;
+  if (!l?.access_token_encrypted) return null;
+  const token = await decryptWebhookSecret(admin, l.access_token_encrypted);
+  return token ? { token, pelaPagina: pelaPaginaDe(l) } : null;
 }
 
 export async function removerConexao(admin: Admin, organizationId: string, conexaoId: string): Promise<boolean> {
@@ -169,17 +202,31 @@ export function depsReaisDosComentarios(admin: Admin): DepsDosComentarios {
       for (const coluna of ["ig_user_id", "ig_id"] as const) {
         const { data, error } = await admin
           .from("instagram_connections")
-          .select("id, organization_id, ig_id, ig_user_id, access_token_encrypted, status")
+          .select("id, organization_id, ig_id, ig_user_id, access_token_encrypted, status, pagina_id")
           .eq(coluna, contaId)
           .eq("status", "active")
           .limit(1)
           .maybeSingle();
         if (error) throw new Error(`instagram: busca da conta do aviso falhou: ${error.message}`);
-        const l = data as { id: string; organization_id: string; ig_id: string; ig_user_id: string; access_token_encrypted: string } | null;
+        const l = data as {
+          id: string;
+          organization_id: string;
+          ig_id: string;
+          ig_user_id: string;
+          access_token_encrypted: string;
+          pagina_id: string | null;
+        } | null;
         if (!l) continue;
         const token = await decryptWebhookSecret(admin, l.access_token_encrypted);
         if (!token) return null;
-        return { id: l.id, organizationId: l.organization_id, igId: l.ig_id, igUserId: l.ig_user_id, token };
+        return {
+          id: l.id,
+          organizationId: l.organization_id,
+          igId: l.ig_id,
+          igUserId: l.ig_user_id,
+          token,
+          pelaPagina: pelaPaginaDe(l),
+        };
       }
       return null;
     },
@@ -225,7 +272,7 @@ export function depsReaisDosComentarios(admin: Admin): DepsDosComentarios {
       if (error) throw new Error(`instagram: desfecho do comentário não foi gravado: ${error.message}`);
     },
 
-    enviarRespostaPrivada: (token, commentId, texto) => enviarRespostaPrivada(token, commentId, texto),
-    responderComentario: (token, commentId, texto) => responderComentario(token, commentId, texto),
+    enviarRespostaPrivada: (conexao, commentId, texto) => enviarRespostaPrivada(conexao.token, commentId, texto, conexao.pelaPagina),
+    responderComentario: (conexao, commentId, texto) => responderComentario(conexao.token, commentId, texto, conexao.pelaPagina),
   };
 }

@@ -13,7 +13,7 @@ import { fail, ok } from "@/lib/api/wrappers";
 import { audit } from "@/lib/audit";
 import { requireRole } from "@/lib/auth/require-role";
 import { cancelarAvisos, InstagramApiError, listarPublicacoes } from "@/lib/channels/instagram/api";
-import { removerConexao, tokenDaConexao } from "@/lib/channels/instagram/repositorio";
+import { acessoDaConexao, removerConexao } from "@/lib/channels/instagram/repositorio";
 import { traduzir } from "@/lib/i18n/dicionario";
 import { requireSupportWrite } from "@/lib/impersonate/support";
 import { logger } from "@/lib/logger";
@@ -31,9 +31,9 @@ export async function GET(_req: NextRequest, { params }: Ctx): Promise<Response>
   if (!z.string().uuid().safeParse(id).success) return fail("not_found", t("Conta não encontrada."), 404, { requestId });
 
   try {
-    const token = await tokenDaConexao(createAdminClient(), auth.org.orgId, id);
-    if (!token) return fail("not_found", t("Conta não encontrada."), 404, { requestId });
-    return ok({ publicacoes: await listarPublicacoes(token) }, { requestId });
+    const acesso = await acessoDaConexao(createAdminClient(), auth.org.orgId, id);
+    if (!acesso) return fail("not_found", t("Conta não encontrada."), 404, { requestId });
+    return ok({ publicacoes: await listarPublicacoes(acesso.token, acesso.pelaPagina) }, { requestId });
   } catch (err) {
     if (err instanceof InstagramApiError) {
       return fail("instagram_recusou", t("O Instagram não devolveu as publicações. Reconecte a conta e tente de novo."), 502, {
@@ -60,8 +60,10 @@ export async function DELETE(_req: NextRequest, { params }: Ctx): Promise<Respon
   try {
     // Desligar os avisos é cortesia com a Meta; se falhar (token vencido, por
     // exemplo), a conexão sai do mesmo jeito — sem ela nenhum aviso é atendido.
-    const token = await tokenDaConexao(admin, auth.org.orgId, id);
-    if (token) await cancelarAvisos(token).catch((err) => logger.warn("[instagram] avisos não foram desligados na Meta", { requestId, erro: String(err) }));
+    // Conta ligada pela página (0968): os avisos são os DA PÁGINA, que segue
+    // conectada no Messenger — desligá-los aqui calaria a página inteira.
+    const acesso = await acessoDaConexao(admin, auth.org.orgId, id);
+    if (acesso && !acesso.pelaPagina) await cancelarAvisos(acesso.token).catch((err) => logger.warn("[instagram] avisos não foram desligados na Meta", { requestId, erro: String(err) }));
 
     if (!(await removerConexao(admin, auth.org.orgId, id))) return fail("not_found", t("Conta não encontrada."), 404, { requestId });
     void audit({

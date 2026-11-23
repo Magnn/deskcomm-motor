@@ -15,6 +15,7 @@
  */
 import { logger } from "@/lib/logger";
 
+import type { PelaPagina } from "./api";
 import { escolherRespostaPublica, preencherMensagem, regraQueAtende, type RegraDeComentario } from "./regras";
 
 export interface ComentarioRecebido {
@@ -34,6 +35,8 @@ export interface ConexaoParaComentarios {
   igId: string;
   igUserId: string;
   token: string;
+  /** Ligada pela página do Facebook (0968)? Decide por onde as respostas saem. */
+  pelaPagina: PelaPagina;
 }
 
 export interface DepsDosComentarios {
@@ -51,8 +54,8 @@ export interface DepsDosComentarios {
     eventoId: string,
     desfecho: { dm: "sent" | "failed"; publica: "sent" | "failed" | "skipped"; erro: string | null },
   ): Promise<void>;
-  enviarRespostaPrivada(token: string, commentId: string, texto: string): Promise<void>;
-  responderComentario(token: string, commentId: string, texto: string): Promise<void>;
+  enviarRespostaPrivada(conexao: ConexaoParaComentarios, commentId: string, texto: string): Promise<void>;
+  responderComentario(conexao: ConexaoParaComentarios, commentId: string, texto: string): Promise<void>;
   rng?: () => number;
 }
 
@@ -83,7 +86,7 @@ export async function atenderComentario(deps: DepsDosComentarios, comentario: Co
   let erro: string | null = null;
 
   try {
-    await deps.enviarRespostaPrivada(conexao.token, comentario.commentId, preencherMensagem(regra.dm_message, quem));
+    await deps.enviarRespostaPrivada(conexao, comentario.commentId, preencherMensagem(regra.dm_message, quem));
     dm = "sent";
   } catch (err) {
     erro = motivo(err);
@@ -94,7 +97,7 @@ export async function atenderComentario(deps: DepsDosComentarios, comentario: Co
     const resposta = escolherRespostaPublica(regra.public_replies, deps.rng);
     if (resposta !== null) {
       try {
-        await deps.responderComentario(conexao.token, comentario.commentId, preencherMensagem(resposta, quem));
+        await deps.responderComentario(conexao, comentario.commentId, preencherMensagem(resposta, quem));
         publica = "sent";
       } catch (err) {
         publica = "failed";

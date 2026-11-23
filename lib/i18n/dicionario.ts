@@ -14877,6 +14877,12 @@ export const DICIONARIO: Traducoes = {
   "As mensagens da sua página chegam na caixa de entrada, e o agente e os fluxos respondem como no WhatsApp. Responder é possível até 24h depois da última mensagem da pessoa.": {
     es: "Los mensajes de su página llegan a la bandeja de entrada, y el agente y los flujos responden como en WhatsApp. Se puede responder hasta 24 h después del último mensaje de la persona.",
   },
+  "Conectado.": { es: "Conectado." },
+  "Conectados.": { es: "Conectados." },
+  "Messenger e Instagram (página do Facebook)": { es: "Messenger e Instagram (página de Facebook)" },
+  "Se a página tiver uma conta profissional do Instagram ligada, ela entra junto: o direct chega na caixa de entrada e os comentários seguem as regras de Instagram › Comentou, recebe direct.": { es: "Si la página tiene una cuenta profesional de Instagram vinculada, entra junto: los mensajes directos llegan a la bandeja de entrada y los comentarios siguen las reglas de Instagram › Comentó, recibe directo." },
+  "Instagram ligado à página": { es: "Instagram vinculado a la página" },
+  "Página do Facebook": { es: "Página de Facebook" },
   "Página conectada.": { es: "Página conectada." },
   "Páginas conectadas.": { es: "Páginas conectadas." },
   "Não foi possível carregar o Messenger.": { es: "No fue posible cargar Messenger." },

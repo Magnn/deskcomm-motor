@@ -17,17 +17,23 @@
  * (anexo, depois o texto); o id devolvido é o do anexo, que é a linha gravada.
  * O eco da segunda volta com o `app_id` do nosso app e é descartado pelo parser
  * — sem isso ele pareceria resposta manual e pausaria a IA.
+ *
+ * ─── O Instagram da página ──────────────────────────────────────────────────
+ * O canal da conta do Instagram ligada à página (0968) usa este mesmo adapter: o
+ * `sessionRef` é a CONTA, mas o envio sai pela PÁGINA ligada, com o token dela
+ * (`credencialDoCanal` diz qual). O id gravado continua sendo `<conta>:<mid>`,
+ * o mesmo que o eco traz pelo `entry.id` da conta.
  */
 import { MAX_MEDIA_BYTES, MediaTooLargeError } from "@/lib/messaging/media/types";
 import { assertDestinoResolvidoSeguro } from "@/lib/automation/outbound-ip";
 import { assertSafeOutboundUrl } from "@/lib/automation/outbound-url";
-import { appDaMeta } from "@/lib/channels/meta/app";
+import { appDaMetaDaOrg } from "@/lib/channels/meta/app";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 import { CHANNEL_PROVIDER_MESSENGER } from "../capabilities";
 import type { ChannelAdapter, OutboundKind } from "../types";
 import { avisosLigados, enviarMensagem, MessengerApiError, sinalizarDigitando, type TipoDeAnexo } from "./api";
-import { tokenDaPagina } from "./paginas";
+import { credencialDoCanal } from "./paginas";
 import { externalIdDoMessenger } from "./parser";
 
 const TIPO_DO_ANEXO: Partial<Record<OutboundKind, TipoDeAnexo>> = {
@@ -39,10 +45,10 @@ const TIPO_DO_ANEXO: Partial<Record<OutboundKind, TipoDeAnexo>> = {
   sticker: "image",
 };
 
-async function token(organizationId: string, pageId: string): Promise<string> {
-  const t = await tokenDaPagina(createAdminClient(), { organizationId, pageId });
-  if (!t) throw new Error("Reconecte esta página em Conexões › Messenger.");
-  return t;
+async function credencial(organizationId: string, ref: string): Promise<{ token: string; enviaPela: string; instagram: boolean }> {
+  const c = await credencialDoCanal(createAdminClient(), { organizationId, ref });
+  if (!c) throw new Error("Reconecte esta página em Conexões › Messenger.");
+  return c;
 }
 
 /** A frase que quem atende lê quando a Meta recusa. */
@@ -73,8 +79,9 @@ export const messengerAdapter: ChannelAdapter = {
   async send(envelope) {
     const psid = envelope.providerConversationId;
     if (!psid) throw new Error("Aguarde uma mensagem da pessoa para responder pelo Messenger.");
-    const pageId = envelope.sessionRef;
-    const tokenDaPaginaAberto = await token(envelope.organizationId, pageId);
+    // `ref` = o canal (a página, ou a conta do Instagram); `pageId` = por onde sai.
+    const ref = envelope.sessionRef;
+    const { token: tokenDaPaginaAberto, enviaPela: pageId } = await credencial(envelope.organizationId, ref);
 
     const tipo = envelope.media ? TIPO_DO_ANEXO[envelope.kind] : undefined;
     if (envelope.media && !tipo) throw new Error("Este tipo de mensagem ainda não é suportado no Messenger.");
@@ -96,7 +103,7 @@ export const messengerAdapter: ChannelAdapter = {
         if (legenda) {
           await enviarMensagem({ pageId, tokenDaPagina: tokenDaPaginaAberto, psid, conteudo: { texto: legenda } });
         }
-        return { externalId: externalIdDoMessenger(pageId, mid) };
+        return { externalId: externalIdDoMessenger(ref, mid) };
       }
       const mid = await enviarMensagem({
         pageId,
@@ -105,7 +112,7 @@ export const messengerAdapter: ChannelAdapter = {
         conteudo: { texto: envelope.body ?? "" },
         respondeA: envelope.replyToExternalId ?? null,
       });
-      return { externalId: externalIdDoMessenger(pageId, mid) };
+      return { externalId: externalIdDoMessenger(ref, mid) };
     } catch (err) {
       throw motivoDaRecusa(err);
     }
@@ -120,20 +127,19 @@ export const messengerAdapter: ChannelAdapter = {
     // sinalizar, e o indicador é decoração — sai calado.
     const psid = input.providerConversationId;
     if (!psid) return;
-    await sinalizarDigitando({
-      pageId: input.sessionRef,
-      tokenDaPagina: await token(input.organizationId, input.sessionRef),
-      psid,
-    });
+    const c = await credencial(input.organizationId, input.sessionRef);
+    await sinalizarDigitando({ pageId: c.enviaPela, tokenDaPagina: c.token, psid });
   },
 
   async checkHealth(input) {
-    const t = await tokenDaPagina(createAdminClient(), { organizationId: input.organizationId, pageId: input.sessionRef });
-    if (!t) return { reachable: true, status: "FAILED", detail: "credencial_indisponivel" };
-    const { appId } = await appDaMeta();
+    const c = await credencialDoCanal(createAdminClient(), { organizationId: input.organizationId, ref: input.sessionRef });
+    if (!c) return { reachable: true, status: "FAILED", detail: "credencial_indisponivel" };
+    // O app pelo qual a organização conecta (0967): é nele que os avisos da página foram ligados.
+    const { appId } = await appDaMetaDaOrg(input.organizationId);
     if (!appId) return { reachable: true, status: "FAILED", detail: "app_nao_configurado" };
     try {
-      return (await avisosLigados(input.sessionRef, t, appId))
+      // No Instagram, os avisos que contam são os da página ligada.
+      return (await avisosLigados(c.enviaPela, c.token, appId))
         ? { reachable: true, status: "WORKING", detail: null }
         : { reachable: true, status: "FAILED", detail: "recebimento_nao_configurado" };
     } catch (err) {

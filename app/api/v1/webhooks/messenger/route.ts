@@ -17,9 +17,18 @@
  * aqui): a Meta reentrega o que não recebeu 200, e recusar um aviso que nunca
  * vai servir faria a reentrega durar para sempre. 500 só em falha de ESCRITA —
  * aí reentregar é o que queremos, e a idempotência por `mid` absorve o repetido.
+ *
+ * O INSTAGRAM ligado às páginas chega aqui também (`object: "instagram"`, 0968):
+ * o direct segue o caminho das mensagens; o COMENTÁRIO passa pelas regras de
+ * "comentou, recebe direct" (as mesmas da conta conectada pelo login do
+ * Instagram), achando a conta pelo `entry.id` no banco. O comentário que falha
+ * por dentro responde 200 como na rota do Instagram: ele fica registrado e a
+ * reentrega só o reconheceria como repetido.
  */
 import type { NextRequest } from "next/server";
 
+import { atenderComentario, comentariosDoAviso } from "@/lib/channels/instagram/comentarios";
+import { depsReaisDosComentarios } from "@/lib/channels/instagram/repositorio";
 import { appDoMessenger } from "@/lib/channels/messenger/app";
 import { ingerirAviso } from "@/lib/channels/messenger/ingest";
 import { eventosDoAviso } from "@/lib/channels/messenger/parser";
@@ -64,6 +73,24 @@ export async function POST(req: NextRequest): Promise<Response> {
     payload = JSON.parse(rawBody);
   } catch {
     return texto("ok", 200);
+  }
+
+  const comentarios = comentariosDoAviso(payload);
+  if (comentarios.length > 0) {
+    const deps = depsReaisDosComentarios(createAdminClient());
+    for (const comentario of comentarios) {
+      try {
+        const r = await atenderComentario(deps, comentario);
+        if (r.resultado === "atendido") {
+          logger.info("[webhooks.messenger] comentário do Instagram atendido", { conta: comentario.contaId, dm: r.dm, publica: r.publica });
+        }
+      } catch (err) {
+        logger.error("[webhooks.messenger] comentário do Instagram não pôde ser atendido", {
+          conta: comentario.contaId,
+          erro: err instanceof Error ? err.message.slice(0, 300) : String(err),
+        });
+      }
+    }
   }
 
   const { principal, outros } = await idsDosAppsDaInstalacao();

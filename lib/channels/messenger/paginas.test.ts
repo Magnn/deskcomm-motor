@@ -12,7 +12,7 @@ import { audit } from "@/lib/audit";
 import { criarBancoEmMemoria } from "@/tests/helpers/banco-em-memoria";
 
 import { conectarPaginas, type DepsDaConexao } from "./conexao";
-import { gravarPagina, paginasDaOrganizacao, sessaoDaPagina, tokenDaPagina } from "./paginas";
+import { credencialDoCanal, gravarPagina, paginasDaOrganizacao, sessaoDaPagina, tokenDaPagina } from "./paginas";
 import type { PaginaAutorizada } from "./api";
 
 const pagina = (p: Partial<PaginaAutorizada> = {}): PaginaAutorizada => ({
@@ -121,6 +121,9 @@ describe("conectarPaginas", () => {
     listarPaginas: vi.fn(async () => [pagina(), pagina({ id: "pg-2", name: "Outra", accessToken: "token-2" })]),
     assinarWebhookDoApp: vi.fn(async () => {}),
     assinarAvisosDaPagina: vi.fn(async () => {}),
+    contaDoInstagram: vi.fn(async () => null),
+    assinarWebhookDoInstagram: vi.fn(async () => "ligado" as const),
+    salvarConexaoDeComentarios: vi.fn(async () => {}),
     ...over,
   });
 
@@ -153,6 +156,68 @@ describe("conectarPaginas", () => {
     const d = deps({ assinarWebhookDoApp: vi.fn(async () => Promise.reject(new Error("sem permissão de app"))) });
     const r = await conectarPaginas(db, d, { organizationId: "org-1", userId: "u", tokenDoUsuario: "tu" });
     expect(r.every((x) => x.resultado === "conectada")).toBe(true);
+  });
+
+  it("página com Instagram ligado: a conta vira canal próprio, fala pela página e entra nas regras de comentário", async () => {
+    const { b, db } = banco();
+    const conta = { id: "ig-1", username: "loja", name: "Loja", fotoUrl: null };
+    const d = deps({
+      listarPaginas: vi.fn(async () => [pagina()]),
+      contaDoInstagram: vi.fn(async (pageId: string) => (pageId === "pg-1" ? conta : null)),
+    });
+    const r = await conectarPaginas(db, d, { organizationId: "org-1", userId: "u", tokenDoUsuario: "tu" });
+    expect(r.map((x) => [x.rede, x.resultado])).toEqual([
+      ["messenger", "conectada"],
+      ["instagram", "conectada"],
+    ]);
+    const ig = (b.tabelas.channel_sessions ?? []).find((l) => l.messenger_page_id === "ig-1");
+    expect(ig).toMatchObject({
+      organization_id: "org-1",
+      provider: "meta_messenger",
+      status: "WORKING",
+      display_name: "Instagram · @loja",
+      messenger_page_token_encrypted: "cifrado(token-1)",
+    });
+    expect(ig?.metadata).toMatchObject({ social_platform: "instagram", instagram_page_id: "pg-1", ai_gate_mode: "pre_go_live" });
+    // O envio do canal do Instagram sai pela PÁGINA ligada.
+    await expect(credencialDoCanal(db, { organizationId: "org-1", ref: "ig-1" })).resolves.toEqual({
+      token: "token-1",
+      enviaPela: "pg-1",
+      instagram: true,
+    });
+    await expect(credencialDoCanal(db, { organizationId: "org-1", ref: "pg-1" })).resolves.toEqual({
+      token: "token-1",
+      enviaPela: "pg-1",
+      instagram: false,
+    });
+    expect(d.assinarWebhookDoInstagram).toHaveBeenCalledTimes(1);
+    expect(d.salvarConexaoDeComentarios).toHaveBeenCalledWith({ organizationId: "org-1", userId: "u", pagina: pagina(), conta });
+    const [p, i] = await paginasDaOrganizacao(db, "org-1");
+    expect([p?.rede, i?.rede]).toEqual(["messenger", "instagram"]);
+  });
+
+  it("página cujos avisos não ligaram não traz o Instagram (o direct também não chegaria)", async () => {
+    const { b, db } = banco();
+    const d = deps({
+      listarPaginas: vi.fn(async () => [pagina()]),
+      assinarAvisosDaPagina: vi.fn(async () => Promise.reject(new Error("(#200)"))),
+      contaDoInstagram: vi.fn(async () => ({ id: "ig-1", username: "loja", name: null, fotoUrl: null })),
+    });
+    await conectarPaginas(db, d, { organizationId: "org-1", userId: "u", tokenDoUsuario: "tu" });
+    expect(d.contaDoInstagram).not.toHaveBeenCalled();
+    expect((b.tabelas.channel_sessions ?? []).some((l) => l.messenger_page_id === "ig-1")).toBe(false);
+  });
+
+  it("falha nas regras de comentário não desfaz o canal do Instagram", async () => {
+    const { b, db } = banco();
+    const d = deps({
+      listarPaginas: vi.fn(async () => [pagina()]),
+      contaDoInstagram: vi.fn(async () => ({ id: "ig-1", username: "loja", name: null, fotoUrl: null })),
+      salvarConexaoDeComentarios: vi.fn(async () => Promise.reject(new Error("instagram_conta_de_outra_organizacao"))),
+    });
+    const r = await conectarPaginas(db, d, { organizationId: "org-1", userId: "u", tokenDoUsuario: "tu" });
+    expect(r.map((x) => x.resultado)).toEqual(["conectada", "conectada"]);
+    expect((b.tabelas.channel_sessions ?? []).find((l) => l.messenger_page_id === "ig-1")?.status).toBe("WORKING");
   });
 
   it("nenhuma página autorizada: nada é gravado e o webhook do app nem é tocado", async () => {

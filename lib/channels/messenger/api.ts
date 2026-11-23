@@ -11,6 +11,15 @@
  * Dali em diante tudo sai com o token da página: responder (`/{page}/messages`),
  * "digitando…", o nome e a foto de quem escreveu.
  *
+ * ─── O Instagram da página ──────────────────────────────────────────────────
+ * A conta profissional do Instagram LIGADA à página (`instagram_business_account`)
+ * vem junto: o direct dela chega pelo mesmo webhook do app (objeto `instagram`,
+ * `entry.id` = a conta) e sai pela PÁGINA (`/{page}/messages`, com o IGSID de
+ * quem escreveu), com o mesmo token. Pede `instagram_basic`,
+ * `instagram_manage_messages` e `instagram_manage_comments` na configuração do
+ * login; sem elas a leitura da conta falha calada e a página conecta só com o
+ * Messenger.
+ *
  * Toda falha vira `MessengerApiError`, com o status e a mensagem que a Meta deu —
  * é o que aparece para quem conecta, e "falhou" sem motivo não ajuda ninguém a
  * achar a permissão que faltou.
@@ -32,6 +41,11 @@ export const PERMISSOES_DO_MESSENGER = [
   "pages_messaging",
   "pages_manage_metadata",
   "pages_read_engagement",
+  // O Instagram ligado à página (ver o cabeçalho). Só vale sem configuração de
+  // login — com ela, quem decide é a configuração.
+  "instagram_basic",
+  "instagram_manage_messages",
+  "instagram_manage_comments",
 ] as const;
 
 /**
@@ -47,6 +61,14 @@ export const AVISOS_DA_PAGINA = [
   "message_reads",
   "messaging_referrals",
 ] as const;
+
+/**
+ * O que o app recebe da conta do Instagram ligada à página: o direct (com o eco
+ * da resposta dada pelo celular, que vem no próprio `messages`), o toque em
+ * botão, a leitura, a origem do anúncio e o COMENTÁRIO (regras de "comentou,
+ * recebe direct").
+ */
+export const AVISOS_DO_INSTAGRAM = ["messages", "messaging_postbacks", "messaging_seen", "messaging_referral", "comments"] as const;
 
 const TETO_MS = 15_000;
 
@@ -69,6 +91,15 @@ export interface PaginaAutorizada {
   /** Pode atender mensagens? Só quem tem a tarefa MESSAGING (ou MODERATE) na página. */
   podeAtender: boolean;
   pictureUrl: string | null;
+}
+
+/** A conta profissional do Instagram ligada à página. */
+export interface ContaDoInstagramDaPagina {
+  /** O id da conta na Graph do Facebook — é o `entry.id` dos avisos dela. */
+  id: string;
+  username: string;
+  name: string | null;
+  fotoUrl: string | null;
 }
 
 export interface PerfilDoContato {
@@ -198,6 +229,67 @@ export async function assinarWebhookDoApp(
   });
 }
 
+/**
+ * Liga o webhook do APP para o objeto "instagram" — mas SÓ se ninguém ligou
+ * antes para outro endereço. O mesmo app pode atender contas pelo login do
+ * Instagram, com o webhook delas apontado para outra rota; trocar a URL por cima
+ * calaria aquelas contas sem aviso. Ali quem decide é quem administra o app.
+ * Devolve o que aconteceu, para quem chama registrar.
+ */
+export async function assinarWebhookDoInstagram(
+  p: { appId: string; appSecret: string; callbackUrl: string; verifyToken: string },
+  buscar: Buscar = fetch,
+): Promise<"ligado" | "ja_estava" | "outro_endereco"> {
+  const tokenDoApp = `${p.appId}|${p.appSecret}`;
+  const atuais = await chamar<{ data?: { object?: string; callback_url?: string; active?: boolean }[] }>(
+    buscar,
+    "webhook_do_instagram",
+    `${GRAPH}/${v()}/${encodeURIComponent(p.appId)}/subscriptions?${new URLSearchParams({ access_token: tokenDoApp }).toString()}`,
+  );
+  const atual = (atuais.data ?? []).find((s) => s.object === "instagram");
+  if (atual?.callback_url && atual.callback_url !== p.callbackUrl) return "outro_endereco";
+  await chamar(buscar, "webhook_do_instagram", `${GRAPH}/${v()}/${encodeURIComponent(p.appId)}/subscriptions`, {
+    method: "POST",
+    body: new URLSearchParams({
+      object: "instagram",
+      callback_url: p.callbackUrl,
+      verify_token: p.verifyToken,
+      fields: AVISOS_DO_INSTAGRAM.join(","),
+      include_values: "true",
+      access_token: tokenDoApp,
+    }),
+  });
+  return atual ? "ja_estava" : "ligado";
+}
+
+/**
+ * A conta do Instagram ligada a esta página, ou `null` (página sem Instagram, ou
+ * o login sem `instagram_basic`). Pedida À PARTE da lista de páginas de
+ * propósito: o campo pedido junto da lista derruba a lista INTEIRA quando falta a
+ * permissão, e a página tem de conectar no Messenger mesmo assim.
+ */
+export async function contaDoInstagramDaPagina(
+  pageId: string,
+  tokenDaPagina: string,
+  buscar: Buscar = fetch,
+): Promise<ContaDoInstagramDaPagina | null> {
+  try {
+    const r = await chamar<{
+      instagram_business_account?: { id?: string; username?: string; name?: string; profile_picture_url?: string };
+    }>(
+      buscar,
+      "instagram_da_pagina",
+      `${GRAPH}/${v()}/${encodeURIComponent(pageId)}?fields=${encodeURIComponent("instagram_business_account{id,username,name,profile_picture_url}")}`,
+      { headers: comToken(tokenDaPagina) },
+    );
+    const conta = r.instagram_business_account;
+    if (!conta?.id || !conta.username) return null;
+    return { id: conta.id, username: conta.username, name: conta.name ?? null, fotoUrl: conta.profile_picture_url ?? null };
+  } catch {
+    return null;
+  }
+}
+
 /** Liga os avisos DESTA página no nosso app. */
 export async function assinarAvisosDaPagina(pageId: string, tokenDaPagina: string, buscar: Buscar = fetch): Promise<void> {
   const r = await chamar<{ success?: boolean }>(
@@ -274,6 +366,22 @@ export async function sinalizarDigitando(
     headers: comToken(p.tokenDaPagina, { "Content-Type": "application/json" }),
     body: JSON.stringify({ recipient: { id: p.psid }, sender_action: "typing_on" }),
   });
+}
+
+/**
+ * Nome e foto de quem escreveu pelo Instagram (IGSID), com o token da página. O
+ * aviso do direct não traz nome; sem o nome, o `@` serve.
+ */
+export async function lerPerfilDoInstagram(igsid: string, tokenDaPagina: string, buscar: Buscar = fetch): Promise<PerfilDoContato> {
+  const r = await chamar<{ name?: string; username?: string; profile_pic?: string }>(
+    buscar,
+    "perfil",
+    `${GRAPH}/${v()}/${encodeURIComponent(igsid)}?fields=name,username,profile_pic`,
+    { headers: comToken(tokenDaPagina) },
+  );
+  const nome = r.name?.trim();
+  const arroba = r.username ? `@${r.username}` : null;
+  return { nome: nome ? nome : arroba, fotoUrl: r.profile_pic ?? null };
 }
 
 /**

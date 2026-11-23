@@ -23,6 +23,7 @@ interface Pagina {
   fotoUrl: string | null;
   conectadaEm: string;
   falha: string | null;
+  rede: "messenger" | "instagram";
 }
 
 interface Estado {
@@ -52,7 +53,9 @@ const FRASE_DA_RECUSA: Record<string, string> = {
  * Conexões › Messenger — a página do Facebook atendendo pelo CRM, direto pela
  * Meta (sem intermediário). Conectar é um clique: a escolha das páginas acontece
  * na tela do próprio Facebook. Cada página vira um canal como os outros: inbox,
- * agente, fluxo, janela de 24h.
+ * agente, fluxo, janela de 24h. A conta do Instagram LIGADA à página entra junto,
+ * como canal próprio (o direct dela no inbox) — e os comentários dela passam a
+ * seguir as regras de Instagram › Comentou, recebe direct.
  */
 export function MessengerClient() {
   const t = useT();
@@ -69,7 +72,7 @@ export function MessengerClient() {
   const recusas = params.get("recusas");
   useEffect(() => {
     if (conectadas && Number(conectadas) > 0) {
-      toast.success(Number(conectadas) === 1 ? t("Página conectada.") : t("Páginas conectadas."));
+      toast.success(Number(conectadas) === 1 ? t("Conectado.") : t("Conectados."));
     }
   }, [conectadas, t]);
 
@@ -78,9 +81,12 @@ export function MessengerClient() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-1">
-        <h2 className="text-base font-medium">{t("Messenger (página do Facebook)")}</h2>
+        <h2 className="text-base font-medium">{t("Messenger e Instagram (página do Facebook)")}</h2>
         <p className="text-sm text-muted-foreground">
           {t("As mensagens da sua página chegam na caixa de entrada, e o agente e os fluxos respondem como no WhatsApp. Responder é possível até 24h depois da última mensagem da pessoa.")}
+        </p>
+        <p className="text-sm text-muted-foreground">
+          {t("Se a página tiver uma conta profissional do Instagram ligada, ela entra junto: o direct chega na caixa de entrada e os comentários seguem as regras de Instagram › Comentou, recebe direct.")}
         </p>
       </div>
 
@@ -128,7 +134,9 @@ export function MessengerClient() {
                     ) : null}
                     <div className="flex min-w-0 flex-col">
                       <span className="truncate font-medium">{p.nome ?? p.pageId}</span>
-                      <span className="text-xs text-muted-foreground">ID {p.pageId}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {p.rede === "instagram" ? t("Instagram ligado à página") : t("Página do Facebook")} · ID {p.pageId}
+                      </span>
                     </div>
                     <Badge className="ml-auto" variant={p.status === "WORKING" ? "neutral" : "warning"}>
                       {p.status === "WORKING" ? t("Recebendo") : t("Precisa de atenção")}

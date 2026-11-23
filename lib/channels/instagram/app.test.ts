@@ -108,7 +108,7 @@ describe("as chamadas à Meta", () => {
 
   it("⭐ a resposta PRIVADA vai ancorada no comentário, com o token no cabeçalho", async () => {
     const f = comResposta({ message_id: "m1" });
-    await api.enviarRespostaPrivada("token-da-conta", "comentario-1", "Aqui está o link", f as never);
+    await api.enviarRespostaPrivada("token-da-conta", "comentario-1", "Aqui está o link", null, f as never);
     const [url, init] = f.mock.calls[0]!;
     expect(String(url)).toBe("https://graph.instagram.com/v22.0/me/messages");
     expect((init!.headers as Record<string, string>).Authorization).toBe("Bearer token-da-conta");
@@ -117,7 +117,7 @@ describe("as chamadas à Meta", () => {
 
   it("a resposta pública vai para as respostas do comentário, só com texto", async () => {
     const f = comResposta({ id: "r1" });
-    await api.responderComentario("t", "comentario 1", "Te mandei no direct!", f as never);
+    await api.responderComentario("t", "comentario 1", "Te mandei no direct!", null, f as never);
     const [url, init] = f.mock.calls[0]!;
     expect(String(url)).toBe("https://graph.instagram.com/v22.0/comentario%201/replies");
     expect(JSON.parse(String(init!.body))).toEqual({ message: "Te mandei no direct!" });
@@ -125,7 +125,7 @@ describe("as chamadas à Meta", () => {
 
   it("recusa da Meta vira erro com o status e a MENSAGEM dela — é o que aparece no registro", async () => {
     const f = comResposta({ error: { message: "This user cannot receive messages" } }, 400);
-    await expect(api.enviarRespostaPrivada("t", "c", "x", f as never)).rejects.toMatchObject({
+    await expect(api.enviarRespostaPrivada("t", "c", "x", null, f as never)).rejects.toMatchObject({
       status: 400,
       detalhe: "This user cannot receive messages",
       onde: "resposta_privada",
@@ -155,7 +155,7 @@ describe("as chamadas à Meta", () => {
         { id: "2", media_type: "VIDEO", media_url: "https://cdn/video.mp4", thumbnail_url: "https://cdn/capa.jpg" },
       ],
     });
-    const lista = await api.listarPublicacoes("t", f as never);
+    const lista = await api.listarPublicacoes("t", null, f as never);
     expect(lista.map((p) => p.thumbnailUrl)).toEqual(["https://cdn/img.jpg", "https://cdn/capa.jpg"]);
   });
 });

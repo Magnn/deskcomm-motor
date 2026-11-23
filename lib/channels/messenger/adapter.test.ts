@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: () => ({}) }));
-vi.mock("./paginas", () => ({ tokenDaPagina: vi.fn() }));
+vi.mock("./paginas", () => ({ credencialDoCanal: vi.fn() }));
 
 import { messengerAdapter } from "./adapter";
 import { externalIdDoMessenger } from "./parser";
-import { tokenDaPagina } from "./paginas";
+import { credencialDoCanal } from "./paginas";
 
 const resposta = (corpo: unknown, status = 200) =>
   new Response(JSON.stringify(corpo), { status, headers: { "Content-Type": "application/json" } });
@@ -20,7 +20,7 @@ const envelope = {
 describe("messengerAdapter.send", () => {
   const buscar = vi.fn();
   beforeEach(() => {
-    vi.mocked(tokenDaPagina).mockResolvedValue("token-da-pagina");
+    vi.mocked(credencialDoCanal).mockResolvedValue({ token: "token-da-pagina", enviaPela: "pagina-1", instagram: false });
     buscar.mockReset();
     vi.stubGlobal("fetch", buscar);
   });
@@ -31,6 +31,17 @@ describe("messengerAdapter.send", () => {
     const r = await messengerAdapter.send({ ...envelope, kind: "text", body: "olá" });
     expect(r.externalId).toBe(externalIdDoMessenger("pagina-1", "m_1"));
     expect(JSON.parse(String((buscar.mock.calls[0] as [string, RequestInit])[1].body)).recipient).toEqual({ id: "psid-1" });
+  });
+
+  it("Instagram da página: sai pela PÁGINA ligada, e o id gravado é o da CONTA (o que o eco traz)", async () => {
+    vi.mocked(credencialDoCanal).mockResolvedValue({ token: "token-da-pagina", enviaPela: "pagina-1", instagram: true });
+    buscar.mockResolvedValue(resposta({ message_id: "m_ig" }));
+    const r = await messengerAdapter.send({ ...envelope, sessionRef: "conta-ig-1", providerConversationId: "igsid-1", kind: "text", body: "oi" });
+    const [url, init] = buscar.mock.calls[0] as [string, RequestInit];
+    expect(url).toMatch(/\/pagina-1\/messages$/);
+    expect(JSON.parse(String(init.body)).recipient).toEqual({ id: "igsid-1" });
+    expect(r.externalId).toBe(externalIdDoMessenger("conta-ig-1", "m_ig"));
+    expect(vi.mocked(credencialDoCanal)).toHaveBeenCalledWith(expect.anything(), { organizationId: "org-1", ref: "conta-ig-1" });
   });
 
   it("sem thread não há a quem responder", async () => {
@@ -62,7 +73,7 @@ describe("messengerAdapter.send", () => {
   });
 
   it("sem token da página, pede para reconectar", async () => {
-    vi.mocked(tokenDaPagina).mockResolvedValue(null);
+    vi.mocked(credencialDoCanal).mockResolvedValue(null);
     await expect(messengerAdapter.send({ ...envelope, kind: "text", body: "x" })).rejects.toThrow(/Reconecte/);
   });
 
