@@ -92,9 +92,11 @@ const PERSONALIZADO = "personalizado";
 interface Props {
   contaPadrao: string | null;
   idioma: Idioma;
+  /** Pode pausar e reativar campanha (admin) — a mesma porta de quem conecta a conta. */
+  podeGerenciar: boolean;
 }
 
-export function MetaAdsClient({ contaPadrao }: Props) {
+export function MetaAdsClient({ contaPadrao, podeGerenciar }: Props) {
   const t = useT();
   // O carimbo "lido em" é uma DATA, e data segue o idioma de quem lê — fixar
   // "pt-BR" deixaria a tela em espanhol com a hora em português.
@@ -254,7 +256,12 @@ export function MetaAdsClient({ contaPadrao }: Props) {
       )}
 
       {resumo.data && !erro && (
-        <ResumoDaConta resumo={resumo.data.data} moeda={moeda} statusDaConta={contaAtual?.status ?? null} />
+        <ResumoDaConta
+          resumo={resumo.data.data}
+          moeda={moeda}
+          statusDaConta={contaAtual?.status ?? null}
+          podeGerenciar={podeGerenciar}
+        />
       )}
 
       {campanhas.data && !erro && (

@@ -9919,6 +9919,11 @@ export const DICIONARIO: Traducoes = {
   "pelo menos: só conta venda registrada": { es: "como mínimo: solo cuenta ventas registradas" },
   "conta em outra moeda": { es: "cuenta en otra moneda" },
   "Custo por cliente": { es: "Costo por cliente" },
+  "Campanha pausada.": { es: "Campaña pausada." },
+  "Campanha reativada.": { es: "Campaña reactivada." },
+  "Não foi possível mudar a campanha. Tente de novo.": { es: "No fue posible cambiar la campaña. Inténtelo de nuevo." },
+  "Pausando…": { es: "Pausando…" },
+  "Reativando…": { es: "Reactivando…" },
   "Rodando agora": { es: "Activas ahora" },
   "Nenhuma campanha rodou neste período.": { es: "Ninguna campaña se ejecutó en este período." },
   "Anúncios que mais vendem": { es: "Anuncios que más venden" },
@@ -10036,8 +10041,9 @@ export const DICIONARIO: Traducoes = {
   "Ocultar transcrição": { es: "Ocultar transcripción" },
 
   // ─── Meta Ads pelo login do Facebook (settings/meta-ads) ───
-  "Conecte a sua conta de anúncios para o sistema ler o desempenho das suas campanhas e mostrá-lo em Análise › Meta Ads. É uma conexão só de leitura: nada é criado, pausado ou alterado na sua conta de anúncios.":
-    { es: "Conecta tu cuenta publicitaria para que el sistema lea el rendimiento de tus campañas y lo muestre en Análisis › Meta Ads. Es una conexión de solo lectura: no se crea, pausa ni modifica nada en tu cuenta publicitaria." },
+  "Conecte a sua conta de anúncios para o sistema ler o desempenho das suas campanhas e mostrá-lo em Análise › Meta Ads. Se a conexão incluir a permissão de gerenciar anúncios, quem administra a organização pode pausar e reativar campanhas por lá; nada é criado, editado ou gasto além disso.": {
+    es: "Conecte su cuenta publicitaria para que el sistema lea el rendimiento de sus campañas y lo muestre en Análisis › Meta Ads. Si la conexión incluye el permiso de administrar anuncios, quien administra la organización puede pausar y reactivar campañas desde allí; nada se crea, edita o gasta además de eso.",
+  },
   "Conectar com Facebook":
     { es: "Conectar con Facebook" },
   "A janela do Facebook abre aqui mesmo: você escolhe o portfólio, a conta do WhatsApp e o número. Nada para copiar ou colar.":
@@ -10072,8 +10078,9 @@ export const DICIONARIO: Traducoes = {
     { es: "Para conectar, usa el botón Conectar WhatsApp en la parte superior de la pantalla y elige API oficial." },
   "Reconectar com Facebook":
     { es: "Reconectar con Facebook" },
-  "Você entra no Facebook, autoriza a leitura e volta para cá com a conta já conectada.":
-    { es: "Entras en Facebook, autorizas la lectura y vuelves aquí con la cuenta ya conectada." },
+  "Você entra no Facebook, autoriza o acesso e volta para cá com a conta já conectada.": {
+    es: "Usted entra en Facebook, autoriza el acceso y vuelve aquí con la cuenta ya conectada.",
+  },
   "Conta escolhida.":
     { es: "Cuenta elegida." },
   "A conexão não está mais valendo — ela expirou ou foi revogada. Reconecte com o Facebook.":
