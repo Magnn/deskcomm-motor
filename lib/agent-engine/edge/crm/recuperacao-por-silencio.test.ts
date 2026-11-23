@@ -380,6 +380,12 @@ describe("fechou por hoje", () => {
     expect(decidirChamada(despedida, AGORA, true)).toBeNull();
   });
 
+  it("⭐ caso de 21/11: quem já comprou não recebe os passos do dia, só o do dia seguinte", () => {
+    expect(decidirChamada(base({ ja_pagou: true, falas_finais: "Sim" }), AGORA, true)).toBeNull();
+    const amanha = base({ ja_pagou: true, falas_finais: "Sim", last_inbound_at: ha(1270), last_outbound_at: ha(1262) });
+    expect(decidirChamada(amanha, AGORA, true)).toMatchObject({ kind: "step", step: 5 });
+  });
+
   it("⭐ a agente se despediu ('Até mais tarde 🌙'): não há silêncio para recuperar hoje", () => {
     const encerrada = base({ falas_finais: "Ok", ultima_fala: "Combinado, minha flor. Até mais tarde. 🌙" });
     expect(decidirChamada(encerrada, AGORA, true)).toBeNull();
