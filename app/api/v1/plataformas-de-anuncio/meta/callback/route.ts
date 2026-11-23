@@ -65,9 +65,6 @@ export async function GET(req: NextRequest): Promise<Response> {
   const requestId = randomUUID();
   const url = new URL(req.url);
 
-  const app = await appDoMetaAds();
-  if (!app) return voltar({ erro: "nao_configurado" });
-
   let estado: ReturnType<typeof verificarEstado>;
   try {
     estado = verificarEstado(url.searchParams.get("state"), { segredo: env.INTERNAL_SECRET, agora: new Date() });
@@ -75,6 +72,11 @@ export async function GET(req: NextRequest): Promise<Response> {
     estado = null;
   }
   if (estado === null) return voltar({ erro: "sessao_expirada" });
+
+  // O app que abriu o consentimento é o da organização (0967): o código só troca
+  // pela credencial de quem o emitiu.
+  const app = await appDoMetaAds(estado.organizationId);
+  if (!app) return voltar({ erro: "nao_configurado" });
 
   // A pessoa recusou na tela do Facebook, ou a Meta devolveu erro no lugar do código.
   const code = url.searchParams.get("code");
@@ -110,7 +112,7 @@ export async function GET(req: NextRequest): Promise<Response> {
   // Lido ANTES de gravar: um login que não alcança conta nenhuma (permissão
   // desmarcada no consentimento, pessoa sem conta de anúncios) não pode
   // substituir uma conexão que funcionava por uma que abre uma tela vazia.
-  const contas = await listarContas(token);
+  const contas = await listarContas(token, estado.organizationId);
   if (!contas.ok) {
     // `detalhe` é a mensagem da plataforma — nunca o token nem a URL.
     logger.error("[meta-ads.oauth] o token novo não leu as contas", {

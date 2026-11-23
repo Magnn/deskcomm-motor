@@ -16288,6 +16288,16 @@ export const DICIONARIO: Traducoes = {
   "Nenhum outro app conectado.": { es: "Ninguna otra app conectada." },
   "O webhook do app é apontado para esta instalação com o mesmo token de verificação do principal.": { es: "El webhook de la app se apunta a esta instalación con el mismo token de verificación de la principal." },
   "Cadastre primeiro o app principal acima.": { es: "Registra primero la app principal arriba." },
+  "organizações conectam por ele": { es: "organizaciones conectan por ella" },
+  "Quem conecta por este app": { es: "Quién conecta por esta app" },
+  "As configurações do Login do Facebook para Empresas deste app (painel do app › Login do Facebook para Empresas › Configurações).": { es: "Las configuraciones del Inicio de sesión con Facebook para empresas de esta app (panel de la app › Inicio de sesión con Facebook para empresas › Configuraciones)." },
+  "Configuração do WhatsApp": { es: "Configuración de WhatsApp" },
+  "Configuração do Messenger": { es: "Configuración de Messenger" },
+  "Configuração dos anúncios": { es: "Configuración de anuncios" },
+  "Organizações que conectam por este app": { es: "Organizaciones que conectan por esta app" },
+  "As configurações levam só números.": { es: "Las configuraciones llevan solo números." },
+  "Este app não está mais conectado.": { es: "Esta app ya no está conectada." },
+  "Salvo. As organizações marcadas já conectam por este app.": { es: "Guardado. Las organizaciones marcadas ya conectan por esta app." },
   "Conectar app": { es: "Conectar app" },
 };
 

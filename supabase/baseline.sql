@@ -40575,3 +40575,23 @@ comment on column public.channel_sessions.kapso_customer_id is
   'Cliente que a instalação criou no provedor para esta organização. A volta do cadastro só aceita número deste cliente. Migration 0965.';
 comment on column public.channel_sessions.kapso_webhook_id is
   'Assinatura de webhook do número, registrada pela instalação com segredo gerado aqui (webhook_secret_encrypted). Migration 0965.';
+
+-- ---- App da Meta por organização (migration 0967) ----
+alter table public.platform_meta_apps_anteriores
+  add column if not exists whatsapp_config_id text,
+  add column if not exists messenger_config_id text,
+  add column if not exists ads_config_id text;
+
+create table if not exists public.platform_meta_app_da_org (
+  organization_id uuid primary key references public.organizations(id) on delete cascade,
+  app_id text not null references public.platform_meta_apps_anteriores(app_id) on delete cascade,
+  definido_em timestamptz not null default now(),
+  definido_por uuid
+);
+
+comment on table public.platform_meta_app_da_org is
+  'Organizações que conectam WhatsApp, Messenger e anúncios por um app da Meta que NÃO é o principal (um dos apps de platform_meta_apps_anteriores). Ausente = app principal. Configuração da plataforma (gate de admin da plataforma): RLS ligada sem policies, grants revogados de anon/authenticated. Migration 0967.';
+
+alter table public.platform_meta_app_da_org enable row level security;
+revoke all on public.platform_meta_app_da_org from anon, authenticated;
+grant select, insert, update, delete on public.platform_meta_app_da_org to service_role;

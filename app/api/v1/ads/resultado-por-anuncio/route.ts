@@ -71,7 +71,7 @@ export async function GET(req: NextRequest): Promise<Response> {
     // Todos os anúncios, na ordem dos que mais trouxeram gente: a leitura pelas contas cobre a
     // maioria de uma vez, e o teto só limita o que sobrar para perguntar um a um.
     const alvos = anunciosParaLerGasto(funil, Number.MAX_SAFE_INTEGER);
-    const lido = await lerGastoPorAnuncio(credencial.credencial.accessToken, alvos, de, ate, TETO_DE_LEITURAS);
+    const lido = await lerGastoPorAnuncio(credencial.credencial.accessToken, alvos, de, ate, TETO_DE_LEITURAS, org.orgId);
     gastos = lido.gastos;
     if (lido.naoConsultados > 0) {
       avisos.push(`${lido.naoConsultados} ${t("anúncios ficaram sem consulta de gasto nesta leitura: são os que menos trouxeram gente. Um período menor alcança todos.")}`);

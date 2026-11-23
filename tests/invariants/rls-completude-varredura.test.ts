@@ -373,6 +373,15 @@ const PROVA_PROPRIA: readonly Excecao[] = [
       "worker grava e lê o registro das chamadas de recuperação.",
   },
   {
+    tabela: "platform_meta_app_da_org",
+    razao:
+      "tests/invariants/credencial-de-anuncios-e-server-side.test.ts — mesmo " +
+      "`describe.each` das de anúncio (0967): privilégio NENHUM para anon e " +
+      "authenticated, `permission denied` medido sob `set role`, RLS ligada, zero " +
+      "policies, organization_id NOT NULL com FK em cascata. Deny-all porque só o " +
+      "admin da plataforma escolhe por qual app da Meta cada organização conecta.",
+  },
+  {
     tabela: "google_ads_landing_pages",
     razao:
       "tests/invariants/captura-de-clique-e-server-side.test.ts — mesmo desenho " +

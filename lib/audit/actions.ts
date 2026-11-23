@@ -499,6 +499,8 @@ export const AUDIT_ACTIONS = [
   // deixou de ser). Mesmo alcance da chave principal: a chave dele assina avisos.
   "platform_meta_app.outro_app_conectado",
   "platform_meta_app.outro_app_desconectado",
+  // 0967: quais organizações conectam por um app conectado ao lado do principal.
+  "platform_meta_app.uso_do_outro_app_definido",
   // A conexão da ORGANIZAÇÃO com a conta de anúncios (migration 0213).
   // Auditável porque o token gravado aqui escreve conversões na conta de
   // mídia do cliente: "quem apontou minhas vendas para este destino?" só tem

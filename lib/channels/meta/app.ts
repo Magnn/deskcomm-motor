@@ -384,6 +384,63 @@ export async function chavesQueAssinamAvisos(): Promise<string[]> {
 }
 
 /**
+ * O app pelo qual ESTA organização conecta: cadastro incorporado do WhatsApp,
+ * login do Messenger e login dos anúncios (migration 0967).
+ *
+ * Organização sem linha em `platform_meta_app_da_org` → o principal. Com linha,
+ * o app dela (um dos apps conectados ao lado do principal), com a chave dele e
+ * as configurações de login DELE: é o nome desse app que a janela da Meta mostra.
+ * O verify token é sempre o do principal — o handshake do webhook confere um só.
+ *
+ * Linha apontando para app cuja chave não decifra, ou banco sem a 0967: volta o
+ * principal e registra. Nunca lança — quem chama é um clique de "Conectar".
+ */
+export async function appDaMetaDaOrg(organizationId: string | null | undefined): Promise<AppDaMetaEmVigor> {
+  const principal = await appDaMeta();
+  const org = texto(organizationId);
+  if (!org) return principal;
+  try {
+    const admin = createAdminClient();
+    const { data: escolha, error } = await admin
+      .from("platform_meta_app_da_org")
+      .select("app_id")
+      .eq("organization_id", org)
+      .maybeSingle();
+    if (error) {
+      logger.info("[meta.app] app da organização ilegível; vale o principal", { codigo: error.code });
+      return principal;
+    }
+    const appId = texto((escolha as { app_id?: string } | null)?.app_id);
+    if (!appId || appId === principal.appId) return principal;
+
+    const chave = (await appsAnterioresDaMeta()).find((a) => a.appId === appId);
+    const { data: ids } = await admin
+      .from("platform_meta_apps_anteriores")
+      .select("whatsapp_config_id, messenger_config_id, ads_config_id")
+      .eq("app_id", appId)
+      .maybeSingle();
+    if (!chave) {
+      logger.warn("[meta.app] app da organização sem chave legível; vale o principal", { org, app: appId });
+      return principal;
+    }
+    const l = (ids ?? {}) as { whatsapp_config_id?: string | null; messenger_config_id?: string | null; ads_config_id?: string | null };
+    return {
+      appSecret: chave.appSecret,
+      verifyToken: principal.verifyToken,
+      appId,
+      whatsappConfigId: texto(l.whatsapp_config_id) || null,
+      messengerConfigId: texto(l.messenger_config_id) || null,
+      adsConfigId: texto(l.ads_config_id) || null,
+    };
+  } catch (err) {
+    logger.warn("[meta.app] leitura do app da organização falhou; vale o principal", {
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return principal;
+  }
+}
+
+/**
  * A credencial do app pelo qual um número foi conectado. `null`/ausente/o app em
  * vigor → o app em vigor; um app aposentado → a chave guardada dele; um app que a
  * instalação não conhece → `null` (quem chama registra e não inventa).

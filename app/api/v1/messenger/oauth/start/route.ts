@@ -24,7 +24,7 @@ export async function GET(): Promise<Response> {
   if (!auth.ok) return auth.response;
   const t = (texto: string) => traduzir(texto, auth.user.idioma);
 
-  const app = await appDoMessenger();
+  const app = await appDoMessenger(auth.org.orgId);
   if (!app) return fail("messenger_nao_configurado", t("O Messenger não está configurado nesta instalação."), 503, { requestId });
 
   const state = emitirEstado({ organizationId: auth.org.orgId, userId: auth.user.id }, { segredo: env.INTERNAL_SECRET, agora: new Date() });
