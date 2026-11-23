@@ -177,6 +177,14 @@ describe("comOfertasDoPosVenda — a oferta de pós-venda também segura a régu
     expect(ofertaAtivaDaConversa(escada, extras, conversa)).toEqual({ tipo: "trabalho", cents: 13000 });
   });
 
+  it("o turno comum usa a mesma lista: oferecer o trabalho por cima da Oração dos Sonhos é recusado", () => {
+    const conversa = [agente("Pra quem deita e a cabeça não desliga, eu tenho a *Oração dos Sonhos*."), agente("É R$ 35, pagamento único. Quer que eu te mande?")];
+    const comPosVenda = comOfertasDoPosVenda(extras, posVenda);
+    expect(ofertaEmConflito(escada, comPosVenda, { corpo: "O seu trabalho continua em *R$ 100*.", baloesDoTurno: [], mensagens: conversa, liberado: false })).not.toBeNull();
+    // Sem o pós-venda na lista, o mesmo corpo passava.
+    expect(ofertaEmConflito(escada, extras, { corpo: "O seu trabalho continua em *R$ 100*.", baloesDoTurno: [], mensagens: conversa, liberado: false })).toBeNull();
+  });
+
   it("pós-venda desligado não acrescenta nada", () => {
     expect(comOfertasDoPosVenda(extras, { post_sale: { enabled: false } } as never)).toHaveLength(extras.length);
     expect(comOfertasDoPosVenda(extras, posVenda).map((e) => e.name)).toEqual([...extras.map((e) => e.name), "Oração dos Sonhos", "Sons Vocálicos"]);

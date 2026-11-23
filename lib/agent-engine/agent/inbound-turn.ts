@@ -112,7 +112,7 @@ import { comprovanteDoTurno, depsReaisDoComprovante } from '@/lib/pagamentos/com
 import { comprovanteSemRegistro, confirmaPagamentoEmDuvida, confirmaPagamentoSemRegistro } from '@/lib/pagamentos/comprovante-pix';
 import { pediuCartao } from '@/lib/preco/pediu-cartao';
 import { falasDesdeAUltimaCobranca, quantidadeMenorQueACombinada, valorErradoDeExtra } from '@/lib/preco/valor-do-extra';
-import { blocoDaOfertaAtiva, ofertaAtivaDaConversa, ofertaEmConflito, ouviuOMenorValor, pediuOTrabalho, blocoDaOportunidade, oportunidadeDaCliente, oportunidadeDeOferta } from '@/lib/preco/oferta-ativa';
+import { blocoDaOfertaAtiva, comOfertasDoPosVenda, ofertaAtivaDaConversa, ofertaEmConflito, ouviuOMenorValor, pediuOTrabalho, blocoDaOportunidade, oportunidadeDaCliente, oportunidadeDeOferta } from '@/lib/preco/oferta-ativa';
 import { falaErradaDoPagamento } from '@/lib/preco/fala-do-pagamento';
 import { destinoDaProva, legendaDaProva, provasParaEnviar } from '@/lib/preco/prova-social';
 import { classificarPerdaDoAtendimento } from '@/lib/resultado/motivo-da-perda-do-agente';
@@ -3280,7 +3280,7 @@ async function executarTurnoDoAgente(
     valorAceitoDoTurno !== null ||
     pediuOTrabalho(openingContext.context.messages, (agentConfig?.pricing?.list_product_links ?? []).map((l) => l.name));
   const ofertaAtivaNoTurno = agentConfig?.pricing?.enabled
-    ? ofertaAtivaDaConversa(agentConfig.pricing, extrasDaConfig(agentConfig.pricing), openingContext.context.messages)
+    ? ofertaAtivaDaConversa(agentConfig.pricing, comOfertasDoPosVenda(extrasDaConfig(agentConfig.pricing), agentConfig.pricing), openingContext.context.messages)
     : null;
   const ofertaPequenaDePe = ofertaAtivaNoTurno?.tipo === 'pequena' && !trabalhoLiberadoNoTurno ? ofertaAtivaNoTurno : null;
   const blocoDoAtropeloDoTurno =
@@ -4397,7 +4397,9 @@ async function executarTurnoDoAgente(
           }
           // UMA OFERTA POR VEZ: em 01/11/2026 quem comprou a pergunta de R$ 7 ouviu o trabalho de R$ 130 logo depois.
           if (agentConfig?.pricing?.enabled) {
-            const conflito = ofertaEmConflito(agentConfig.pricing, extrasDaConfig(agentConfig.pricing), {
+            // A mesma lista da régua (`comOfertasDoPosVenda`): sem o pós-venda, a Oração dos Sonhos de R$ 35 não era oferta de ninguém
+            // e o turno comum deixava o trabalho entrar por cima dela.
+            const conflito = ofertaEmConflito(agentConfig.pricing, comOfertasDoPosVenda(extrasDaConfig(agentConfig.pricing), agentConfig.pricing), {
               corpo: body,
               baloesDoTurno: corposEnviados,
               mensagens: openingContext.context.messages,

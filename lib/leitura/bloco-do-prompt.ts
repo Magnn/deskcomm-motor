@@ -42,8 +42,21 @@ function blocoDaCausaRaiz(cartas: readonly [Carta, Carta, Carta]): string {
   ].join("\n");
 }
 
-function blocoDaLeituraEncerrada(cartas: readonly [Carta, Carta, Carta], semEvidencia = false): string {
+function blocoDaLeituraEncerrada(cartas: readonly [Carta, Carta, Carta], semEvidencia = false, reparoEsgotado = false): string {
   const nomes = cartas.map((c) => c.nome).join(", ");
+  // SÍNTESE PENDENTE (releitura de 22/11/2026): o bloco antigo dizia "pode fazê-la quando couber" e, na mesma frase, mandava
+  // seguir para o trabalho, o valor e o link — a leitura grátis terminava sem a síntese e a venda andava. Agora é UMA resposta
+  // de reparo com a síntese primeiro; se ela também sair sem a marca, o bloco para de pedir (sem loop).
+  if (semEvidencia && !reparoEsgotado) {
+    return [
+      "",
+      "",
+      `LEITURA — SÍNTESE PENDENTE (as 3 cartas já saíram: ${nomes}; a síntese delas ainda não foi entregue)`,
+      `Nesta resposta, ANTES de falar de trabalho, valor ou link: una as 3 cartas numa síntese curta, como possibilidade ("as cartas mostram", "pode ser que"), usando só o que ela contou, e responda ao que ela acabou de dizer. Escreva no fim a marca ${MARCA_DA_RAIZ} (ela não aparece para a pessoa). A síntese faz parte da leitura grátis: nunca a cobre.`,
+      "Se ela pediu o valor, o Pix ou disse que quer pagar, a síntese vem curta e o que ela pediu sai nesta mesma resposta, depois da síntese. Fora isso, o trabalho e o valor ficam para a próxima resposta.",
+      'A leitura tem só 3 cartas. NUNCA revele outra carta nem escreva "CARTA 4".',
+    ].join("\n");
+  }
   return [
     "",
     "",
@@ -103,6 +116,6 @@ export function blocoDaLeitura(passo: PassoDaLeitura | null, pergunta?: { nome: 
   if (passo === null) return "";
   if (pergunta) return blocoDaPerguntaPaga(passo, pergunta.nome, pergunta.quantidade ?? 1);
   if (passo.passo === "revelar_carta") return blocoDaCartaRevelada(passo.indice, passo.carta);
-  if (passo.passo === "encerrada") return blocoDaLeituraEncerrada(passo.cartas, passo.semEvidencia === true);
+  if (passo.passo === "encerrada") return blocoDaLeituraEncerrada(passo.cartas, passo.semEvidencia === true, passo.reparoEsgotado === true);
   return blocoDaCausaRaiz(passo.cartas);
 }

@@ -38,9 +38,10 @@ export const PEDIDO_DO_BARALHO = /\b22\s+cartas\b|\b1\s*(?:a|à|até)\s*22\b|\b(
 export type PassoDaLeitura =
   | { passo: "revelar_carta"; indice: 1 | 2 | 3; carta: Carta; cartas: readonly [Carta, Carta, Carta] }
   | { passo: "causa_raiz"; cartas: readonly [Carta, Carta, Carta] }
-  /** `semEvidencia`: a síntese NÃO foi registrada, mas a agente já falou 2 vezes depois da 3ª carta — o bloco para de pedi-la
-   *  (sem loop), e a etapa não conta como entregue: o turno registra o incidente. */
-  | { passo: "encerrada"; cartas: readonly [Carta, Carta, Carta]; semEvidencia?: true };
+  /** `semEvidencia`: a síntese NÃO foi registrada e a agente já falou 2 vezes depois da 3ª carta. É SÍNTESE PENDENTE: o bloco
+   *  manda entregá-la antes do trabalho e do valor, numa única resposta de reparo. `reparoEsgotado`: o reparo também saiu sem a
+   *  marca — o bloco para de pedir (sem loop) e a etapa segue sem contar como entregue; o turno registra o incidente. */
+  | { passo: "encerrada"; cartas: readonly [Carta, Carta, Carta]; semEvidencia?: true; reparoEsgotado?: true };
 
 /** `sent_at` (quando a conversa o tem) é a RODADA do sorteio: a mesma escolha, outro dia, é outra leitura. */
 type Mensagem = MensagemParaContar & { sent_at?: string | null };
@@ -56,7 +57,10 @@ const ehCartaRevelada = (m: MensagemParaContar): boolean =>
  * pessoa no meio, são um turno só. A resposta da agente anterior a `REGISTRO_DA_RAIZ_DESDE` segue a regra
  * antiga (um turno basta): conversa que estava no meio quando o registro entrou não volta para a raiz.
  */
-function causaRaizJaDita(depoisDaEscolha: readonly Mensagem[], raizesDitas: readonly Date[]): "registrada" | "sem_evidencia" | null {
+function causaRaizJaDita(
+  depoisDaEscolha: readonly Mensagem[],
+  raizesDitas: readonly Date[],
+): "registrada" | "sem_evidencia" | "reparo_esgotado" | null {
   let ultimaCarta = -1;
   depoisDaEscolha.forEach((m, i) => {
     if (ehCartaRevelada(m)) ultimaCarta = i;
@@ -76,7 +80,8 @@ function causaRaizJaDita(depoisDaEscolha: readonly Mensagem[], raizesDitas: read
       primeiroTurno ??= m;
     }
   }
-  if (turnos >= 2) return "sem_evidencia";
+  if (turnos >= 3) return "reparo_esgotado";
+  if (turnos === 2) return "sem_evidencia";
   const antigo = primeiroTurno?.sent_at != null && new Date(primeiroTurno.sent_at).getTime() < REGISTRO_DA_RAIZ_DESDE.getTime();
   return turnos === 1 && antigo ? "registrada" : null;
 }
@@ -183,6 +188,7 @@ export function passoDaLeitura(
     const raiz = causaRaizJaDita(depois, raizesDitas);
     if (raiz === "registrada") return { passo: "encerrada", cartas };
     if (raiz === "sem_evidencia") return { passo: "encerrada", cartas, semEvidencia: true };
+    if (raiz === "reparo_esgotado") return { passo: "encerrada", cartas, semEvidencia: true, reparoEsgotado: true };
     return { passo: "causa_raiz", cartas };
   }
   const indice = (jaReveladas + 1) as 1 | 2 | 3;
