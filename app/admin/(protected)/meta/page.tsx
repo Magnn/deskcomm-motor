@@ -8,7 +8,7 @@ import type { Idioma } from "@/lib/i18n/idiomas";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 import { FormularioDaMeta } from "./_form";
-import { type OutroApp, OutrosAppsDaMeta } from "./_outros-apps";
+import { type OrganizacaoDaLista, type OutroApp, OutrosAppsDaMeta } from "./_outros-apps";
 
 export const metadata = { title: "API Oficial da Meta da instalação" };
 export const dynamic = "force-dynamic";
@@ -72,7 +72,7 @@ export default async function Page() {
   const base = (env.NEXT_PUBLIC_APP_URL ?? "").replace(/\/+$/, "");
   const urlDoApp = base.startsWith("https://") ? `${base}/api/v1/webhooks/meta` : null;
 
-  const outros = await outrosAppsConectados(usuario.idioma);
+  const [outros, organizacoes] = await Promise.all([outrosAppsConectados(usuario.idioma), organizacoesDaInstalacao()]);
 
   return (
     <>
@@ -91,7 +91,7 @@ export default async function Page() {
       // ver qual app a janela do Facebook abre hoje antes de trocar.
       app={emVigor}
     />
-    <OutrosAppsDaMeta apps={outros} principal={emVigor.appId} />
+    <OutrosAppsDaMeta apps={outros} principal={emVigor.appId} organizacoes={organizacoes} />
     </>
   );
 }
@@ -101,12 +101,47 @@ async function outrosAppsConectados(idioma: Idioma): Promise<OutroApp[]> {
   const admin = createAdminClient();
   const { data } = await admin
     .from("platform_meta_apps_anteriores")
-    .select("app_id, aposentado_em")
+    .select("app_id, aposentado_em, whatsapp_config_id, messenger_config_id, ads_config_id")
     .order("aposentado_em", { ascending: false });
-  const linhas = (data ?? []) as { app_id: string; aposentado_em: string | null }[];
+  const linhas = (data ?? []) as {
+    app_id: string;
+    aposentado_em: string | null;
+    whatsapp_config_id: string | null;
+    messenger_config_id: string | null;
+    ads_config_id: string | null;
+  }[];
   if (linhas.length === 0) return [];
-  const porApp = (await numerosAtivosPorApp(admin, linhas.map((l) => l.app_id))) ?? new Map<string, number>();
-  return linhas.map((l) => ({ appId: l.app_id, desde: formatar(l.aposentado_em, idioma), numeros: porApp.get(l.app_id) ?? 0 }));
+  const [porAppBruto, { data: usos }] = await Promise.all([
+    numerosAtivosPorApp(admin, linhas.map((l) => l.app_id)),
+    admin.from("platform_meta_app_da_org").select("organization_id, app_id"),
+  ]);
+  const porApp = porAppBruto ?? new Map<string, number>();
+  const orgsDoApp = new Map<string, string[]>();
+  for (const u of (usos ?? []) as { organization_id: string; app_id: string }[]) {
+    orgsDoApp.set(u.app_id, [...(orgsDoApp.get(u.app_id) ?? []), u.organization_id]);
+  }
+  return linhas.map((l) => ({
+    appId: l.app_id,
+    desde: formatar(l.aposentado_em, idioma),
+    numeros: porApp.get(l.app_id) ?? 0,
+    whatsappConfigId: l.whatsapp_config_id ?? "",
+    messengerConfigId: l.messenger_config_id ?? "",
+    adsConfigId: l.ads_config_id ?? "",
+    organizacoes: orgsDoApp.get(l.app_id) ?? [],
+  }));
+}
+
+/** Para escolher quem conecta por cada app (0967). Só id e nome. */
+async function organizacoesDaInstalacao(): Promise<OrganizacaoDaLista[]> {
+  const { data } = await createAdminClient()
+    .from("organizations")
+    .select("id, display_name, slug")
+    .order("display_name", { ascending: true })
+    .limit(500);
+  return ((data ?? []) as { id: string; display_name: string | null; slug: string | null }[]).map((o) => ({
+    id: o.id,
+    nome: [o.display_name, o.slug].find((v): v is string => Boolean(v)) ?? o.id,
+  }));
 }
 
 function formatar(iso: string | null, idioma: Idioma): string | null {

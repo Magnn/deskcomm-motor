@@ -20,7 +20,7 @@ export async function GET(): Promise<Response> {
   if (!auth.ok) return auth.response;
   const t = (texto: string) => traduzir(texto, auth.user.idioma);
   try {
-    const [app, paginas] = await Promise.all([appDoMessenger(), paginasDaOrganizacao(createAdminClient(), auth.org.orgId)]);
+    const [app, paginas] = await Promise.all([appDoMessenger(auth.org.orgId), paginasDaOrganizacao(createAdminClient(), auth.org.orgId)]);
     return ok({ configurado: app !== null, paginas }, { requestId });
   } catch (err) {
     logger.error("[messenger] leitura falhou", { requestId, erro: err instanceof Error ? err.message : String(err) });

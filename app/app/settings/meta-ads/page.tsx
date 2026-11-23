@@ -76,7 +76,7 @@ export default async function MetaAdsSettingsPage({
 
   const admin = createAdminClient();
   const conexao = await existeConexaoDeLeitura(admin, activeOrg.orgId, "meta_ads");
-  const loginDisponivel = (await appDoMetaAds()) !== null;
+  const loginDisponivel = (await appDoMetaAds(activeOrg.orgId)) !== null;
   const { erro, conectado } = await searchParams;
 
   const idioma = user.idioma;

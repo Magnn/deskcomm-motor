@@ -126,3 +126,84 @@ export async function desconectarOutroAppDaMeta(appIdBruto: string): Promise<Des
   });
   return { ok: true };
 }
+
+const usoSchema = z.object({
+  app_id: z.string().trim().regex(/^\d{5,25}$/),
+  whatsapp_config_id: z.string().trim().regex(/^\d{0,25}$/),
+  messenger_config_id: z.string().trim().regex(/^\d{0,25}$/),
+  ads_config_id: z.string().trim().regex(/^\d{0,25}$/),
+  organizacoes: z.array(z.string().uuid()).max(500),
+});
+
+export type SalvarUsoDoOutroAppResult = { ok: true } | { ok: false; error: "invalid_input" | "app_desconhecido" | "nao_gravado"; motivo?: string };
+
+/**
+ * QUEM conecta por um app conectado ao lado do principal (0967), e as
+ * configurações de login DELE. As organizações marcadas passam a abrir o
+ * cadastro do WhatsApp, o login do Messenger e o dos anúncios por este app — a
+ * janela da Meta mostra o nome dele. Desmarcar devolve a organização ao principal.
+ *
+ * Marcar uma organização que estava em OUTRO app a move para este (a chave
+ * primária da tabela é a organização). Números já conectados não mudam: cada um
+ * guarda o app pelo qual entrou (`channel_sessions.meta_app_id`).
+ */
+export async function salvarUsoDoOutroAppDaMeta(input: {
+  app_id: string;
+  whatsapp_config_id: string;
+  messenger_config_id: string;
+  ads_config_id: string;
+  organizacoes: string[];
+}): Promise<SalvarUsoDoOutroAppResult> {
+  const { user } = await requirePlatformAdmin();
+  const parsed = usoSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: "invalid_input" };
+  const d = parsed.data;
+  const organizacoes = [...new Set(d.organizacoes)];
+
+  const admin = createAdminClient();
+  const { data: atualizado, error: erroIds } = await admin
+    .from("platform_meta_apps_anteriores")
+    .update({
+      whatsapp_config_id: d.whatsapp_config_id || null,
+      messenger_config_id: d.messenger_config_id || null,
+      ads_config_id: d.ads_config_id || null,
+    })
+    .eq("app_id", d.app_id)
+    .select("app_id");
+  if (erroIds) return { ok: false, error: "nao_gravado", motivo: erroIds.code };
+  if (!atualizado || atualizado.length === 0) return { ok: false, error: "app_desconhecido" };
+
+  // Sai quem estava neste app e foi desmarcado; entra (ou muda de app) quem foi marcado.
+  let saida = admin.from("platform_meta_app_da_org").delete().eq("app_id", d.app_id);
+  if (organizacoes.length > 0) saida = saida.not("organization_id", "in", `(${organizacoes.join(",")})`);
+  const { error: erroSaida } = await saida;
+  if (erroSaida) return { ok: false, error: "nao_gravado", motivo: erroSaida.code };
+  if (organizacoes.length > 0) {
+    const agora = new Date().toISOString();
+    const { error: erroEntrada } = await admin
+      .from("platform_meta_app_da_org")
+      .upsert(
+        organizacoes.map((organization_id) => ({ organization_id, app_id: d.app_id, definido_por: user.id, definido_em: agora })),
+        { onConflict: "organization_id" },
+      );
+    if (erroEntrada) return { ok: false, error: "nao_gravado", motivo: erroEntrada.code };
+  }
+
+  const cabecalhos = await headers();
+  await audit({
+    action: "platform_meta_app.uso_do_outro_app_definido",
+    actorUserId: user.id,
+    resourceType: "platform_meta_app",
+    resourceId: null,
+    requestId: cabecalhos.get("x-request-id") ?? undefined,
+    ip: cabecalhos.get("x-forwarded-for") ?? undefined,
+    userAgent: cabecalhos.get("user-agent") ?? undefined,
+    actingAsPlatformAdmin: true,
+    metadata: {
+      app_id: d.app_id,
+      organizacoes,
+      configuracoes: { whatsapp: Boolean(d.whatsapp_config_id), messenger: Boolean(d.messenger_config_id), ads: Boolean(d.ads_config_id) },
+    },
+  });
+  return { ok: true };
+}

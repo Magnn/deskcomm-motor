@@ -5,6 +5,11 @@ import { NextRequest } from "next/server";
 vi.mock("@/lib/channels/messenger/app", () => ({ appDoMessenger: vi.fn() }));
 vi.mock("@/lib/channels/messenger/ingest", () => ({ ingerirAviso: vi.fn() }));
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: () => ({}) }));
+// 0967: a página pode ter entrado por um app conectado ao lado do principal.
+vi.mock("@/lib/channels/meta/app", () => ({
+  chavesQueAssinamAvisos: vi.fn(async () => ["segredo-do-app", "segredo-do-outro-app"]),
+  idsDosAppsDaInstalacao: vi.fn(async () => ({ principal: "nosso-app", outros: ["outro-app"] })),
+}));
 
 import { appDoMessenger } from "@/lib/channels/messenger/app";
 import { ingerirAviso } from "@/lib/channels/messenger/ingest";
@@ -59,6 +64,21 @@ describe("POST (avisos)", () => {
   it("aviso sem nada de interesse responde 200 sem gravar (senão a Meta reentrega para sempre)", async () => {
     const vazio = JSON.stringify({ object: "page", entry: [{ id: "pg-1", messaging: [{ sender: { id: "psid" }, recipient: { id: "pg-1" }, reaction: { mid: "m1" } }] }] });
     expect((await POST(post(vazio, assinar(vazio)))).status).toBe(200);
+    expect(ingerirAviso).not.toHaveBeenCalled();
+  });
+
+  it("aviso assinado pela chave de OUTRO app da instalação é aceito (0967)", async () => {
+    const r = await POST(post(corpo, assinar(corpo, "segredo-do-outro-app")));
+    expect(r.status).toBe(200);
+    expect(ingerirAviso).toHaveBeenCalledTimes(1);
+  });
+
+  it("eco de qualquer app da instalação não vira mensagem (já foi gravado no envio)", async () => {
+    const eco = JSON.stringify({
+      object: "page",
+      entry: [{ id: "pg-1", messaging: [{ sender: { id: "pg-1" }, recipient: { id: "psid" }, message: { mid: "m2", text: "oi", is_echo: true, app_id: "outro-app" } }] }],
+    });
+    expect((await POST(post(eco, assinar(eco)))).status).toBe(200);
     expect(ingerirAviso).not.toHaveBeenCalled();
   });
 

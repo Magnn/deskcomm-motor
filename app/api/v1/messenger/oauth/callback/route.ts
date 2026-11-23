@@ -40,11 +40,13 @@ export async function GET(req: NextRequest): Promise<Response> {
   const requestId = randomUUID();
   const url = new URL(req.url);
 
-  const app = await appDoMessenger();
-  if (!app) return voltar({ erro: "nao_configurado" });
-
   const estado = verificarEstado(url.searchParams.get("state"), { segredo: env.INTERNAL_SECRET, agora: new Date() });
   if (estado === null) return voltar({ erro: "sessao_expirada" });
+
+  // O MESMO app que abriu o consentimento (o da organização, 0967): o código só
+  // troca pela credencial de quem o emitiu.
+  const app = await appDoMessenger(estado.organizationId);
+  if (!app) return voltar({ erro: "nao_configurado" });
 
   // A pessoa recusou na tela do Facebook, ou a Meta devolveu erro no lugar do código.
   const code = url.searchParams.get("code");

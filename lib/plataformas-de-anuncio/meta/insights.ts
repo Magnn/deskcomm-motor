@@ -354,8 +354,9 @@ const CAMPOS_DA_CONTA = "account_id,name,currency,account_status";
  * `null` = não há como perguntar (instalação sem o app, inspeção recusada ou
  * nenhuma conta concedida); quem chama fica com a recusa que já tinha.
  */
-async function contasConcedidasAoToken(token: string): Promise<ResultadoDeLeitura<ContaCrua[]> | null> {
-  const app = await appDoMetaAds();
+async function contasConcedidasAoToken(token: string, organizationId: string | null): Promise<ResultadoDeLeitura<ContaCrua[]> | null> {
+  // Só o app que emitiu o token consegue inspecioná-lo: o da organização (0967).
+  const app = await appDoMetaAds(organizationId);
   if (!app) return null;
 
   let ids: string[];
@@ -395,6 +396,8 @@ async function contasConcedidasAoToken(token: string): Promise<ResultadoDeLeitur
  */
 export async function listarContas(
   token: string,
+  /** De quem é o token: escolhe o app que o inspeciona (0967). Nulo = o principal. */
+  organizationId: string | null = null,
 ): Promise<ResultadoDeLeitura<ContaDeAnuncio[]>> {
   let resultado = await buscarPaginado<ContaCrua>(
     montarUrl("me/adaccounts", { fields: CAMPOS_DA_CONTA, limit: "200" }),
@@ -404,7 +407,7 @@ export async function listarContas(
   if (!resultado.ok && resultado.falha === "permissao_insuficiente") {
     // Se não houver lista do consentimento, fica a recusa da PRIMEIRA: é ela que
     // descreve o caso comum (token de pessoa sem `ads_read`).
-    const concedidas = await contasConcedidasAoToken(token);
+    const concedidas = await contasConcedidasAoToken(token, organizationId);
     if (concedidas !== null) resultado = concedidas;
   }
   if (!resultado.ok) return resultado;
@@ -558,6 +561,8 @@ export async function lerGastoPorAnuncio(
   ate: string,
   /** Quantos anúncios, no máximo, são perguntados UM A UM depois da leitura pelas contas. */
   tetoUmAUm = 60,
+  /** De quem é o token (0967): escolhe o app que o inspeciona. Nulo = o principal. */
+  organizationId: string | null = null,
 ): Promise<{ gastos: Map<string, GastoLidoDoAnuncio>; semLeitura: number; naoConsultados: number }> {
   const gastos = new Map<string, GastoLidoDoAnuncio>();
   let semLeitura = 0;
@@ -578,7 +583,7 @@ export async function lerGastoPorAnuncio(
   // rodaram no período. Sem isto, quem tem mais anúncios que o teto de leituras um a um ficava com
   // metade do gasto em branco — medido em 10/10/2026: 146 anúncios, 60 lidos, 49% dos leads sem custo.
   // Falha aqui não é falha da tela: o passo 2 pergunta pelo anúncio.
-  const contas = await listarContas(token);
+  const contas = await listarContas(token, organizationId);
   if (contas.ok) {
     for (const conta of contas.dados) {
       const leitura = await buscarPaginado<InsightDoAnuncioCru & { ad_id?: string }>(

@@ -202,7 +202,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   const base = basePublicaDoWebhookMeta(req);
   const desfecho = data?.id ? await lerDesfechoDoWebhook(admin, data.id) : null;
-  const appDoLogin = await appDoCadastroIncorporado();
+  const appDoLogin = await appDoCadastroIncorporado(orgId);
   return ok({
     connected: Boolean(data),
     /**
@@ -302,7 +302,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   // o token renova. O colado leva o app do próprio token; nulo = o app em vigor.
   let metaAppId: string | null = null;
   if ("code" in parsed.data) {
-    const app = await appDoCadastroIncorporado();
+    const app = await appDoCadastroIncorporado(orgId);
     if (!app) {
       return fail("invalid_request", t("O login do Facebook não está configurado nesta instalação."), 422, {
         requestId,

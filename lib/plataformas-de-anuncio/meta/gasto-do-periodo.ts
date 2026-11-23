@@ -54,7 +54,7 @@ export function somarGastoEmCentavos(linhas: readonly LinhaDeInsightCrua[]): num
 export interface DepsDoGasto {
   lerCredencial: typeof lerCredencialDeLeitura;
   lerInsights: (token: string, conta: string, de: string, ate: string) => Promise<ResultadoDeLeitura<LinhaDeInsightCrua[]>>;
-  listarContas: (token: string) => Promise<ResultadoDeLeitura<ContaDeAnuncio[]>>;
+  listarContas: (token: string, organizationId: string | null) => Promise<ResultadoDeLeitura<ContaDeAnuncio[]>>;
   agora: () => number;
 }
 
@@ -89,7 +89,7 @@ export async function lerGastoDeAnuncios(
   if (guardado && guardado.ate > deps.agora()) return guardado.valor;
 
   const token = credencial.credencial.accessToken;
-  const [insights, contas] = await Promise.all([deps.lerInsights(token, conta, inicio, fim), deps.listarContas(token)]);
+  const [insights, contas] = await Promise.all([deps.lerInsights(token, conta, inicio, fim), deps.listarContas(token, organizationId)]);
   let valor: GastoDeAnuncios;
   if (!insights.ok) {
     // Token recusado não é instabilidade: a autorização venceu e só reconectar resolve. A tela diz isso e leva

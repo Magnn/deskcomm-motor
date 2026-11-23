@@ -23,6 +23,7 @@ import type { NextRequest } from "next/server";
 import { appDoMessenger } from "@/lib/channels/messenger/app";
 import { ingerirAviso } from "@/lib/channels/messenger/ingest";
 import { eventosDoAviso } from "@/lib/channels/messenger/parser";
+import { chavesQueAssinamAvisos, idsDosAppsDaInstalacao } from "@/lib/channels/meta/app";
 import { verificationChallenge, verifyMetaSignature } from "@/lib/channels/meta/webhook";
 import { logger } from "@/lib/logger";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -37,7 +38,7 @@ const texto = (corpo: string, status: number) =>
   new Response(corpo, { status, headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" } });
 
 export async function GET(req: NextRequest): Promise<Response> {
-  const app = await appDoMessenger();
+  const app = await appDoMessenger(null);
   if (!app) return texto("not found", 404);
   const challenge = verificationChallenge(new URL(req.url).searchParams, app.verifyToken);
   if (challenge === null) return texto("forbidden", 403);
@@ -45,11 +46,15 @@ export async function GET(req: NextRequest): Promise<Response> {
 }
 
 export async function POST(req: NextRequest): Promise<Response> {
-  const app = await appDoMessenger();
+  const app = await appDoMessenger(null);
   if (!app) return texto("not found", 404);
 
+  // Cada app assina com a chave DELE (0967: a página pode ter entrado por um app
+  // conectado ao lado do principal) — a mesma regra do webhook do WhatsApp.
   const rawBody = await req.text();
-  if (rawBody.length > TAMANHO_MAXIMO_DO_CORPO || !verifyMetaSignature(rawBody, req.headers.get("x-hub-signature-256"), app.appSecret)) {
+  const assinatura = req.headers.get("x-hub-signature-256");
+  const chaves = await chavesQueAssinamAvisos();
+  if (rawBody.length > TAMANHO_MAXIMO_DO_CORPO || !chaves.some((chave) => verifyMetaSignature(rawBody, assinatura, chave))) {
     logger.warn("[webhooks.messenger] assinatura recusada", { tamanho: rawBody.length });
     return texto("invalid signature", 401);
   }
@@ -61,7 +66,8 @@ export async function POST(req: NextRequest): Promise<Response> {
     return texto("ok", 200);
   }
 
-  const eventos = eventosDoAviso(payload, app.appId);
+  const { principal, outros } = await idsDosAppsDaInstalacao();
+  const eventos = eventosDoAviso(payload, [principal ?? app.appId, ...outros]);
   if (eventos.length === 0) return texto("ok", 200);
 
   try {

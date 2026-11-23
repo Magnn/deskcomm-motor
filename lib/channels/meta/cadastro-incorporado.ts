@@ -39,7 +39,7 @@
  */
 import { createHmac } from "node:crypto";
 
-import { appDaMeta } from "@/lib/channels/meta/app";
+import { appDaMetaDaOrg } from "@/lib/channels/meta/app";
 import { graphVersion } from "@/lib/graph-version";
 
 const GRAPH = "https://graph.facebook.com";
@@ -62,8 +62,8 @@ export interface AppDoCadastroIncorporado {
  * o formulário. A configuração é obrigatória aqui (no Messenger e no Meta Ads
  * ela é opcional): a janela do Cadastro Incorporado só abre a partir dela.
  */
-export async function appDoCadastroIncorporado(): Promise<AppDoCadastroIncorporado | null> {
-  const { appId, appSecret, whatsappConfigId: configId } = await appDaMeta();
+export async function appDoCadastroIncorporado(organizationId: string | null): Promise<AppDoCadastroIncorporado | null> {
+  const { appId, appSecret, whatsappConfigId: configId } = await appDaMetaDaOrg(organizationId);
   if (!appId || !configId || !appSecret) return null;
   return { appId, appSecret, configId };
 }

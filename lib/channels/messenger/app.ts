@@ -9,7 +9,7 @@
  * Sem os três (id, segredo, token), o recurso inteiro fica DESLIGADO: as rotas
  * respondem que não está configurado e o webhook não aceita nada.
  */
-import { appDaMeta } from "@/lib/channels/meta/app";
+import { appDaMetaDaOrg } from "@/lib/channels/meta/app";
 import { env } from "@/lib/env";
 
 export interface AppDoMessenger {
@@ -20,8 +20,12 @@ export interface AppDoMessenger {
   configId: string | null;
 }
 
-export async function appDoMessenger(): Promise<AppDoMessenger | null> {
-  const { appId, appSecret, verifyToken, messengerConfigId } = await appDaMeta();
+/**
+ * `organizationId` = o app pelo qual ESSA organização conecta (0967); nulo = o
+ * principal (o handshake do webhook, que não sabe de organização).
+ */
+export async function appDoMessenger(organizationId: string | null): Promise<AppDoMessenger | null> {
+  const { appId, appSecret, verifyToken, messengerConfigId } = await appDaMetaDaOrg(organizationId);
   if (!appId || !appSecret || !verifyToken) return null;
   return { appId, appSecret, verifyToken, configId: messengerConfigId };
 }

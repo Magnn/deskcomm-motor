@@ -30,7 +30,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   if (!autorizado.ok) return autorizado.response;
   const { user, org } = autorizado;
 
-  const app = await appDoMetaAds();
+  const app = await appDoMetaAds(org.orgId);
   if (!app) return voltarComErro("nao_configurado");
 
   let state: string;

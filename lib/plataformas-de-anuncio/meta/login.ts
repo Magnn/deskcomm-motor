@@ -15,7 +15,7 @@
  * clique). Com `META_ADS_CONFIG_ID` apontando para uma configuração do "Login do
  * Facebook para Empresas" que emite token de usuário do sistema, ele não expira.
  */
-import { appDaMeta } from "@/lib/channels/meta/app";
+import { appDaMetaDaOrg } from "@/lib/channels/meta/app";
 import { env } from "@/lib/env";
 import { graphVersion } from "@/lib/graph-version";
 
@@ -36,8 +36,9 @@ export interface AppDoMetaAds {
 }
 
 /** `null` = o login não está disponível nesta instalação; a tela cai para o token colado. */
-export async function appDoMetaAds(): Promise<AppDoMetaAds | null> {
-  const { appId, appSecret, adsConfigId } = await appDaMeta();
+/** `organizationId` nulo = o app principal (quem não tem organização à mão, como o handshake). */
+export async function appDoMetaAds(organizationId: string | null): Promise<AppDoMetaAds | null> {
+  const { appId, appSecret, adsConfigId } = await appDaMetaDaOrg(organizationId);
   if (!appId || !appSecret) return null;
   return { appId, appSecret, configId: adsConfigId };
 }

@@ -40,7 +40,7 @@ export async function GET(): Promise<Response> {
   const credencial = await lerCredencialDeLeitura(admin, org.orgId, "meta_ads");
   if (!credencial.ok) return respostaSemConexao(credencial.motivo, { requestId });
 
-  const contas = await listarContas(credencial.credencial.accessToken);
+  const contas = await listarContas(credencial.credencial.accessToken, org.orgId);
   if (!contas.ok) return respostaDeFalha(contas.falha, contas.detalhe, { requestId });
 
   return ok(

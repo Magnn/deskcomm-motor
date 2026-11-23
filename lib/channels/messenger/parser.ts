@@ -76,7 +76,7 @@ export function referralDoAnuncio(bruto: unknown): Bruto | null {
   };
 }
 
-function mensagemDe(pageId: string, ev: Bruto, nossoAppId: string): EventoDoMessenger | null {
+function mensagemDe(pageId: string, ev: Bruto, nossosApps: ReadonlySet<string>): EventoDoMessenger | null {
   const sender = str(obj(ev.sender)?.id);
   const recipient = str(obj(ev.recipient)?.id);
   const message = obj(ev.message);
@@ -114,7 +114,7 @@ function mensagemDe(pageId: string, ev: Bruto, nossoAppId: string): EventoDoMess
   const eco = message.is_echo === true;
   if (eco) {
     // Do nosso app: já gravado no envio. Ver o cabeçalho.
-    if (String(message.app_id ?? "") === nossoAppId) return null;
+    if (nossosApps.has(String(message.app_id ?? ""))) return null;
     // No eco, quem "escreveu" é a página e a pessoa é o destinatário.
     if (sender !== pageId) return null;
   } else if (recipient !== pageId) {
@@ -174,7 +174,12 @@ export function externalIdDoMessenger(pageId: string, mid: string): string {
 }
 
 /** Todos os acontecimentos que interessam, de todas as páginas do corpo. */
-export function eventosDoAviso(payload: unknown, nossoAppId: string): EventoDoMessenger[] {
+/**
+ * `nossosApps` = todos os apps desta instalação (o principal e os conectados ao
+ * lado, 0967): o eco de qualquer um deles já foi gravado no envio.
+ */
+export function eventosDoAviso(payload: unknown, nossosApps: string | readonly string[]): EventoDoMessenger[] {
+  const nossos = new Set(typeof nossosApps === "string" ? [nossosApps] : nossosApps);
   const p = obj(payload);
   if (!p || p.object !== "page") return [];
   const saida: EventoDoMessenger[] = [];
@@ -200,7 +205,7 @@ export function eventosDoAviso(payload: unknown, nossoAppId: string): EventoDoMe
         if (psid && ate) saida.push({ tipo: "lida", pageId, psid, ate });
         continue;
       }
-      const msg = mensagemDe(pageId, ev, nossoAppId);
+      const msg = mensagemDe(pageId, ev, nossos);
       if (msg) saida.push(msg);
     }
   }
