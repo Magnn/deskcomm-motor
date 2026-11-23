@@ -1,5 +1,12 @@
 "use client";
 
+import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+
+import { Button } from "@/components/ui/button";
+import { apiClient } from "@/lib/api/client";
+import { ApiError } from "@/lib/api/types";
 import { useT } from "@/hooks/i18n/useT";
 import { useTagDeIdioma } from "@/hooks/i18n/useLocaleDeData";
 import type { ResumoResposta } from "@/hooks/ads/useMetaAds";
@@ -40,10 +47,31 @@ interface Props {
   resumo: ResumoResposta;
   moeda: string;
   statusDaConta: number | null;
+  /** Mostra Pausar/Reativar em cada campanha (admin). */
+  podeGerenciar: boolean;
 }
 
-export function ResumoDaConta({ resumo, moeda, statusDaConta }: Props) {
+/** Status de veiculação que a pessoa pode reverter daqui: o que está no ar pausa, o que ELA pausou reativa. */
+const PODE_PAUSAR = new Set(["ACTIVE"]);
+const PODE_REATIVAR = new Set(["PAUSED", "CAMPAIGN_PAUSED"]);
+
+export function ResumoDaConta({ resumo, moeda, statusDaConta, podeGerenciar }: Props) {
   const t = useT();
+  const queryClient = useQueryClient();
+  const [mudando, setMudando] = useState<string | null>(null);
+
+  async function mudarVeiculacao(campanhaId: string, status: "PAUSED" | "ACTIVE") {
+    setMudando(campanhaId);
+    try {
+      await apiClient.post(`/api/v1/ads/meta/campaigns/${campanhaId}/veiculacao`, { status });
+      toast.success(status === "PAUSED" ? t("Campanha pausada.") : t("Campanha reativada."));
+      await queryClient.invalidateQueries({ queryKey: ["ads", "meta"] });
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : t("Não foi possível mudar a campanha. Tente de novo."));
+    } finally {
+      setMudando(null);
+    }
+  }
   const tag = useTagDeIdioma();
   const dinheiro = (cents: number) =>
     (cents / 100).toLocaleString(tag, { style: "currency", currency: moeda, maximumFractionDigits: 0 });
@@ -128,7 +156,31 @@ export function ResumoDaConta({ resumo, moeda, statusDaConta }: Props) {
                       <td className="px-3 py-2 text-right tabular-nums">{dinheiro(c.receitaCents)}</td>
                       <td className="px-3 py-2 text-right tabular-nums">{emReal ? vezes(c.retorno) : "—"}</td>
                       <td className="px-3 py-2 text-right">
-                        {v && <span className={`rounded-md px-2 py-0.5 text-xs font-medium ${ETIQUETA[v].classe}`}>{t(ETIQUETA[v].texto)}</span>}
+                        <div className="flex items-center justify-end gap-2">
+                          {v && <span className={`rounded-md px-2 py-0.5 text-xs font-medium ${ETIQUETA[v].classe}`}>{t(ETIQUETA[v].texto)}</span>}
+                          {podeGerenciar && c.veiculacao && PODE_PAUSAR.has(c.veiculacao) && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={mudando !== null}
+                              data-testid={`pausar-campanha-${c.id}`}
+                              onClick={() => void mudarVeiculacao(c.id, "PAUSED")}
+                            >
+                              {mudando === c.id ? t("Pausando…") : t("Pausar")}
+                            </Button>
+                          )}
+                          {podeGerenciar && c.veiculacao && PODE_REATIVAR.has(c.veiculacao) && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={mudando !== null}
+                              data-testid={`reativar-campanha-${c.id}`}
+                              onClick={() => void mudarVeiculacao(c.id, "ACTIVE")}
+                            >
+                              {mudando === c.id ? t("Reativando…") : t("Reativar")}
+                            </Button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );

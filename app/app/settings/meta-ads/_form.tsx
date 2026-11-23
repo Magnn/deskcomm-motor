@@ -162,7 +162,7 @@ export function FormularioDeMetaAds({
           </Button>
           {!conectada && (
             <span className="text-sm text-muted-foreground">
-              {t("Você entra no Facebook, autoriza a leitura e volta para cá com a conta já conectada.")}
+              {t("Você entra no Facebook, autoriza o acesso e volta para cá com a conta já conectada.")}
             </span>
           )}
         </div>

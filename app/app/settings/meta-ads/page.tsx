@@ -88,7 +88,7 @@ export default async function MetaAdsSettingsPage({
         <h1 className="text-2xl font-semibold tracking-tight">{t("Meta Ads")}</h1>
         <p className="max-w-2xl text-sm text-muted-foreground">
           {t(
-            "Conecte a sua conta de anúncios para o sistema ler o desempenho das suas campanhas e mostrá-lo em Análise › Meta Ads. É uma conexão só de leitura: nada é criado, pausado ou alterado na sua conta de anúncios.",
+            "Conecte a sua conta de anúncios para o sistema ler o desempenho das suas campanhas e mostrá-lo em Análise › Meta Ads. Se a conexão incluir a permissão de gerenciar anúncios, quem administra a organização pode pausar e reativar campanhas por lá; nada é criado, editado ou gasto além disso.",
           )}
         </p>
       </header>
