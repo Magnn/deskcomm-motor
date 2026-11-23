@@ -31,6 +31,24 @@ import { valoresDitos } from "@/lib/preco/valor-do-extra";
 
 /** ID de ponta a ponta do Pix: E + ISPB (8) + AAAAMMDDHHMM em UTC (12) + 11 caracteres. */
 export const ID_DO_PIX = /\bE[0-9A-Z]{8}(\d{12})[0-9A-Za-z]{11}\b/;
+const ID_INTEIRO = /^E[0-9A-Z]{8}(\d{12})[0-9A-Za-z]{11}$/;
+/** Começo de ID seguido de pedaços que levam dígito, separados por espaço, quebra de linha ou " / ". */
+const ID_EM_PEDACOS = /\bE[0-9A-Z]{8}\d{12}[0-9A-Za-z]*(?:[ \t]*[\n/]?[ \t]*(?=[0-9A-Za-z]*\d)[0-9A-Za-z]+)+/g;
+
+/**
+ * O ID do Pix no texto, inteiro ou quebrado em pedaços pela transcrição ("E0036…221281 / 635bc5c11", Caixa, 22/11/2026).
+ * Só junta pedaços que têm dígito, e só aceita o resultado com os 32 caracteres exatos: palavra solta ao lado não completa
+ * um ID cortado.
+ */
+export function idDoPix(texto: string): RegExpMatchArray | null {
+  const inteiro = texto.match(ID_DO_PIX);
+  if (inteiro) return inteiro;
+  for (const pedacos of texto.matchAll(ID_EM_PEDACOS)) {
+    const achado = pedacos[0].replace(/[^0-9A-Za-z]/g, "").match(ID_INTEIRO);
+    if (achado) return achado;
+  }
+  return null;
+}
 const FALA_DE_COMPROVANTE = /comprovante|pix (?:enviado|realizado|efetuado|feito)|transfer[êe]ncia (?:realizada|efetuada|enviada)|id da transa|autentica[çc][ãa]o/i;
 
 /** Quanto tempo depois da cobrança um comprovante ainda vale. */
@@ -57,10 +75,12 @@ export interface CobrancaEnviada {
 
 /** A data e a hora impressas, lidas como se fossem UTC: "01/11/2026 às 12:10" ou "01 NOV 2026 - 12:10:05". */
 export function dataImpressa(texto: string): Date | null {
-  // Data e hora podem vir em linhas separadas ("Data: 22/11/2026" / "- **Hora:** 21:54:17", Banrisul, 22/11/2026).
-  const numerica = texto.match(/\b(\d{2})\/(\d{2})\/(\d{4})(?:\D{1,8}|[^\d\n]*\n[^\d\n]{0,24})(\d{2}):(\d{2})/);
+  // Até 30 sinais sem número entre data e hora: a transcrição põe "Data: … / - **Hora:** …" em linhas separadas
+  // (Banrisul, 22/11/2026). Sem dígito no meio, não há outra hora para pegar no lugar.
+  const numerica = texto.match(/\b(\d{2})\/(\d{2})\/(\d{4})\D{1,30}(\d{2}):(\d{2})/);
   if (numerica) return new Date(Date.UTC(Number(numerica[3]), Number(numerica[2]) - 1, Number(numerica[1]), Number(numerica[4]), Number(numerica[5])));
-  const escrita = semAcento(texto).match(/\b(\d{1,2})\s+(?:de\s+)?(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)[a-z]*\.?\s+(?:de\s+)?(\d{4})\D{1,8}(\d{2}):(\d{2})/);
+  // "1 de novembro de 2026", "01 NOV 2026" e o "22/novembro/2026" do Mercado Pago (4 vendas paradas em 22/11/2026).
+  const escrita = semAcento(texto).match(/\b(\d{1,2})(?:\s+(?:de\s+)?|\/)(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)[a-z]*\.?(?:\s+(?:de\s+)?|\/)(\d{4})\D{1,30}(\d{2}):(\d{2})/);
   if (escrita) return new Date(Date.UTC(Number(escrita[3]), MESES[escrita[2]!]! - 1, Number(escrita[1]), Number(escrita[4]), Number(escrita[5])));
   return null;
 }
@@ -83,7 +103,7 @@ export function textoDaMidia(corpo: string): string {
   return i < 0 ? "" : corpo.slice(i + marca.length);
 }
 
-export const pareceComprovante = (texto: string): boolean => ID_DO_PIX.test(texto) || FALA_DE_COMPROVANTE.test(texto);
+export const pareceComprovante = (texto: string): boolean => idDoPix(texto) !== null || FALA_DE_COMPROVANTE.test(texto);
 
 /** A data embutida no ID do Pix, ou `null` se ela não é uma data de verdade. */
 function dataDoId(digitos: string): Date | null {
@@ -160,7 +180,7 @@ export function conferirComprovante(e: {
   }
   const valor = valores[0]!;
   if (!citaQuemRecebe(e.texto, e.chave)) return { tipo: "nao_confere", motivo: `não aparece ${e.chave.holder} como quem recebeu` };
-  const id = e.texto.match(ID_DO_PIX);
+  const id = idDoPix(e.texto);
   if (!id) return { tipo: "nao_confere", motivo: "não dá para ler o ID da transação do Pix (começa com E, 32 caracteres)" };
   const pagoEm = dataDoId(id[1]!);
   if (pagoEm === null) return { tipo: "nao_confere", motivo: "o ID da transação não é válido" };
@@ -222,9 +242,9 @@ export function produtoCitado(mensagens: readonly FalaDaConversa[], nomes: reado
   return null;
 }
 
-// "confere com"/"bateu": em 22/11/2026, com o comprovante em dúvida, saiu "o comprovante de R$ 60 confere com o que a gente
-// combinou". "A equipe confere" (o que ela deve dizer) segue passando.
-const DIZ_QUE_CAIU = /\b(?:caiu|confirmad[oa]s?|certinho|tudo\s+certo|entrou|aprovad[oa]|pagamento\s+(?:ok|feito)|confere\s+com|bateu)\b/i;
+// "o comprovante confere com o que a gente combinou": dito sem registro em 22/11/2026, e a venda não entrou. "a equipe
+// confere" não conta.
+const DIZ_QUE_CAIU = /\b(?:caiu|confirmad[oa]s?|certinho|tudo\s+certo|entrou|aprovad[oa]|pagamento\s+(?:ok|feito)|confere\s+com|bateu|(?:est[áa]|foi)\s+conferid[oa])\b/i;
 
 /**
  * Com o comprovante em dúvida, o balão que diz que caiu é recusado. Em 06/11/2026 o comprovante de R$ 130 veio sem o ID

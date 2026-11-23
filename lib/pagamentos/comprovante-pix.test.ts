@@ -5,7 +5,7 @@ import type { ChavePixDaEmpresa } from "@/lib/preco/chave-pix";
 import type { Extra } from "@/lib/preco/tipos";
 
 import { comprovanteDoTurno, PRODUTO_DO_VALOR_SOLTO, type DepsDoComprovante } from "./comprovante-no-turno";
-import { cobrancasEnviadas, confirmaPagamentoEmDuvida, conferirComprovante, dataImpressa, produtoCitado, textoDaMidia, type FalaDaConversa } from "./comprovante-pix";
+import { cobrancasEnviadas, confirmaPagamentoEmDuvida, confirmaPagamentoSemRegistro, conferirComprovante, dataImpressa, produtoCitado, textoDaMidia, type FalaDaConversa } from "./comprovante-pix";
 
 describe("comprovante em dúvida no envio", () => {
   it("⭐ 06/11: comprovante sem ID não vira 'está certinho' nem entrega", () => {
@@ -330,5 +330,37 @@ describe("comprovante Banrisul e o 'confere' em dúvida (22/11/2026)", () => {
   it("'o comprovante confere' com o comprovante em dúvida é recusado; 'estou conferindo' passa", () => {
     expect(confirmaPagamentoEmDuvida("Meu bem, o comprovante de *R$ 60* confere com o que a gente combinou, viu?", true)).not.toBeNull();
     expect(confirmaPagamentoEmDuvida("Recebi o seu comprovante. Já estou conferindo aqui com a equipe.", true)).toBeNull();
+  });
+});
+
+describe("⭐ 22/11/2026: 7 vendas pela chave paradas na leitura do comprovante", () => {
+  // Formatos reais da transcrição; nomes e IDs trocados. O ID traz 15:10 UTC = 12:10 no horário de Brasília.
+  const MERCADO_PAGO = `Comprovante Pix pelo Mercado Pago. - **Valor:** R$ 7 / - **Data e hora:** 01/novembro/2026 às 12:10:30. / - **Nome de quem recebeu:** Fulano de Tal Silva / - **ID de transação Pix:** ${ID}`;
+  const LINHAS_SEPARADAS = `Comprovante Pix.\n- **Valor:** R$ 7,00\n- **Data:** 01/11/2026\n- **Hora:** 12:10:17\n- **Nome de quem recebeu:** FULANO DE TAL SILVA\n- **ID da Transação:** ${ID}`;
+  const ID_QUEBRADO = `Comprovante de Pix / 01/11/2026, 12:10:08 / Valor R$ 7,00 / Nome Fulano de Tal Silva / ID transação ${ID.slice(0, 23)} / ${ID.slice(23)} / Chave de segurança ABC`;
+
+  it("lê a data por extenso entre barras e a data e a hora em linhas separadas", () => {
+    expect(dataImpressa("01/novembro/2026 às 12:10:30")?.toISOString()).toBe("2026-11-01T12:10:00.000Z");
+    expect(dataImpressa("- **Data:** 01/11/2026\n- **Hora:** 12:10:17")?.toISOString()).toBe("2026-11-01T12:10:00.000Z");
+  });
+
+  it.each([
+    ["Mercado Pago, data por extenso", MERCADO_PAGO],
+    ["data e hora em linhas separadas", LINHAS_SEPARADAS],
+    ["ID quebrado em duas linhas", ID_QUEBRADO],
+  ])("%s confere", (_n, texto) => {
+    expect(conferir(texto)).toMatchObject({ tipo: "confere_extra", valorCents: 700, idDoPix: ID });
+  });
+
+  it("ID cortado continua em dúvida: palavra ao lado não completa o ID", () => {
+    const cortado = `Comprovante de Pix / 01/11/2026, 12:10:08 / Valor R$ 7,00 / Nome Fulano de Tal Silva / ID transação ${ID.slice(0, 23)} / Chave Pix 69 99367 7810`;
+    expect(conferir(cortado)).toMatchObject({ tipo: "nao_confere" });
+  });
+
+  it("'o comprovante confere' sem registro é recusado; 'a equipe confere' passa", () => {
+    expect(confirmaPagamentoEmDuvida("O comprovante de *R$ 60* confere com o que a gente combinou, viu?", true)).not.toBeNull();
+    expect(confirmaPagamentoSemRegistro("O comprovante de *R$ 60* confere com o que a gente combinou, viu?", true)).not.toBeNull();
+    expect(confirmaPagamentoEmDuvida("Recebi o comprovante, a equipe confere e já te falo.", true)).toBeNull();
+    expect(confirmaPagamentoSemRegistro("Já estou conferindo o seu comprovante com a equipe.", true)).toBeNull();
   });
 });

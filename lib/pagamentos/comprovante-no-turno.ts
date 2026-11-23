@@ -19,7 +19,7 @@ import {
   blocoDaConferencia,
   cobrancasEnviadas,
   conferirComprovante, entradasCombinadas,
-  ID_DO_PIX,
+  idDoPix,
   produtoCitado,
   textoDaMidia,
   type FalaDaConversa,
@@ -119,7 +119,7 @@ function midiaDaVez(mensagens: readonly FalaDaConversa[]): { texto: string; daRo
     if (m.type !== "image" && m.type !== "document") continue;
     const texto = textoDaMidia(m.body ?? "");
     if (daRodada) return { texto, daRodada };
-    if (ID_DO_PIX.test(texto)) return { texto, daRodada };
+    if (idDoPix(texto) !== null) return { texto, daRodada };
   }
   return { texto: "", daRodada: true };
 }
