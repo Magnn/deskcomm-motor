@@ -311,7 +311,11 @@ export function decidirChamada(
   // "Nao" recomeçava as cobranças do primeiro passo. Depois de "não", "não tenho" ou despedida, só o passo do dia
   // seguinte. Quando a agente já perguntou quanto cabe, os lembretes que repetiriam a pergunta saem da régua, e os
   // passos que baixam o valor seguem (a escada 100/60 é decisão do dono).
-  const fechou = fechouPorHojeNasFalas(c.falas_finais?.split(' / ')) || agenteEncerrou(c.ultima_fala);
+  // QUEM JÁ COMPROU recebe só o passo do dia seguinte. Medido em 21/11/2026: um cliente com o trabalho pago recebeu oito
+  // retomadas num dia (a régua recomeçava a cada fala dele, a primeira em 3 min), todas retomando a pergunta de R$ 27,
+  // e respondeu "parece IA falando". Cliente da casa é acompanhamento, não lead esfriando.
+  const fechou =
+    c.ja_pagou === true || fechouPorHojeNasFalas(c.falas_finais?.split(' / ')) || agenteEncerrou(c.ultima_fala);
   const perguntou = !fechou && jaPerguntouQuantoCabe(c.ultima_fala);
   const permitido = (i: number) =>
     r.steps_minutes[i]! * 60_000 >= PASSO_DO_DIA_SEGUINTE_MS || (perguntou && ofertaDoPasso(r, i + 1) !== null);
