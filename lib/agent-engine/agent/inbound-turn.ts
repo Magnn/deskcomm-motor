@@ -111,7 +111,7 @@ import { recusaDeQuemJaPagou } from '@/lib/preco/pago-mas-cobrando';
 import { comprovanteDoTurno, depsReaisDoComprovante } from '@/lib/pagamentos/comprovante-no-turno';
 import { comprovanteSemRegistro, confirmaPagamentoEmDuvida, confirmaPagamentoSemRegistro } from '@/lib/pagamentos/comprovante-pix';
 import { pediuCartao } from '@/lib/preco/pediu-cartao';
-import { falasDesdeAUltimaCobranca, quantidadeMenorQueACombinada, valorErradoDeExtra } from '@/lib/preco/valor-do-extra';
+import { falasDesdeAUltimaCobranca, quantidadeMenorQueACombinada, trabalhoNoValorDeExtra, valorErradoDeExtra } from '@/lib/preco/valor-do-extra';
 import { blocoDaOfertaAtiva, comOfertasDoPosVenda, ofertaAtivaDaConversa, ofertaEmConflito, ouviuOMenorValor, pediuOTrabalho, blocoDaOportunidade, oportunidadeDaCliente, oportunidadeDeOferta } from '@/lib/preco/oferta-ativa';
 import { falaErradaDoPagamento } from '@/lib/preco/fala-do-pagamento';
 import { destinoDaProva, legendaDaProva, provasParaEnviar } from '@/lib/preco/prova-social';
@@ -3105,6 +3105,7 @@ async function executarTurnoDoAgente(
   const blocoDaLeituraDoTurno = blocoDaLeitura(
     passoDaLeituraNoTurno,
     perguntaPagaNoTurno ? { nome: perguntaPagaNoTurno.extra.name, quantidade: perguntaPagaNoTurno.quantidade } : null,
+    job?.kind === 'followup_turn' && (job.payload as { recovery?: unknown } | null)?.recovery !== undefined,
   );
   if (passoDaLeituraNoTurno?.passo === 'encerrada' && passoDaLeituraNoTurno.semEvidencia === true) {
     // Incidente medido: a agente falou 2 vezes depois da 3ª carta e a síntese não foi registrada (marca esquecida ou etapa pulada).
@@ -4094,6 +4095,17 @@ async function executarTurnoDoAgente(
         let body = quebrasDeVerdade(corpoDoModelo);
         // COBRANÇA ANUNCIADA SEM COBRANÇA (`lib/pagamentos/cobranca-anunciada.ts`): "a chave vai aqui:" sem marca nem link
         // volta ao modelo antes de qualquer marca ser trocada. Vale na prévia também (sem efeito, só a recusa).
+        // MOLDE COPIADO AO PÉ DA LETRA: em 22/11/2026 saiu, para a pessoa, '"CARTA N: *O Mago* (carta número 3 da mesa)."'.
+        if (/\bCARTA N\b|\[Nome\]|\[X\]/.test(body)) {
+          runLog.warn('send_message: molde do roteiro copiado sem preencher — recusado', {});
+          return {
+            ok: false,
+            error: {
+              code: 'molde_sem_preencher',
+              message: 'Envio recusado: a mensagem copiou o molde do roteiro ("CARTA N", "[Nome]", "[X]"). Escreva com o número e o nome de verdade da carta, sem aspas, ex.: CARTA 1: *O Mago* (carta número 3 da mesa).',
+            },
+          };
+        }
         if (anunciaCobrancaSemCobranca(body, openingContext.context.messages)) {
           runLog.warn('send_message: cobrança anunciada sem cobrança — recusada', { conversation_id: input.conversationId });
           return { ok: false, error: { code: 'cobranca_anunciada_sem_cobranca', message: RECUSA_DA_COBRANCA_ANUNCIADA } };
@@ -4395,6 +4407,17 @@ async function executarTurnoDoAgente(
             runLog.warn('valor de cobrança avulsa diferente do cadastrado — envio recusado', {});
             return { ok: false, error: { code: 'valor_do_extra_errado', message: valorErrado } };
           }
+          const trabalhoBarato = trabalhoNoValorDeExtra(
+            body,
+            extrasDaConfig(agentConfig?.pricing),
+            (agentConfig?.pricing?.list_product_links ?? []).map((l) => l.name),
+            promiseMinPriceCentsDaEscada,
+            valoresDoProdutoPrincipal,
+          );
+          if (trabalhoBarato) {
+            runLog.warn('trabalho no valor de uma cobrança avulsa, abaixo do piso — envio recusado', {});
+            return { ok: false, error: { code: 'trabalho_no_valor_do_extra', message: trabalhoBarato } };
+          }
           // UMA OFERTA POR VEZ: em 01/11/2026 quem comprou a pergunta de R$ 7 ouviu o trabalho de R$ 130 logo depois.
           if (agentConfig?.pricing?.enabled) {
             // A mesma lista da régua (`comOfertasDoPosVenda`): sem o pós-venda, a Oração dos Sonhos de R$ 35 não era oferta de ninguém
@@ -4517,7 +4540,7 @@ async function executarTurnoDoAgente(
         // O LINK COBRA O VALOR QUE A MENSAGEM DIZ (`lib/preco/link-do-valor.ts`): link cadastrado de outro valor é
         // trocado pelo do valor dito; link do site de pagamento fora da configuração recusa o envio.
         if (!preview && agentConfig?.pricing?.enabled && internacionalDoTurno === null) {
-          const conferido = linkDoValorPrometido(body, agentConfig.pricing);
+          const conferido = linkDoValorPrometido(body, agentConfig.pricing, corposEnviados);
           if ('recusa' in conferido) {
             runLog.warn('link de pagamento fora da configuração ou sem par no valor dito — envio recusado', {});
             return { ok: false, error: { code: 'link_fora_do_valor', message: conferido.recusa } };

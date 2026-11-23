@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 
 import type { Extra } from "./tipos";
 import {
+  trabalhoNoValorDeExtra,
   falasDesdeAUltimaCobranca,
   palavrasDoExtra,
   quantidadeMenorQueACombinada,
@@ -206,5 +207,20 @@ describe("duas cobranças que dividem uma palavra (Pergunta nova × Pergunta da 
   });
   it("disse o nome inteiro: só aquela conta — pergunta nova a R$ 27 é recusada", () => {
     expect(valorErradoDeExtra("A pergunta nova fica R$ 27.", extras)).toContain("Pergunta nova");
+  });
+});
+
+describe("trabalhoNoValorDeExtra — o trabalho não sai pelo valor do Acompanhamento (22/11/2026)", () => {
+  const acompanhamento = { name: "Acompanhamento do mês", when: "x", delivery: "x", price_cents: 6000 } as unknown as Extra;
+  const principais = ["Desbloqueio dos Caminhos", "Abertura do Coração"];
+  it("⭐ o caso medido: 'Desbloqueio dos Caminhos é R$ 60' com piso de R$ 130 é recusado", () => {
+    expect(trabalhoNoValorDeExtra("O seu *Desbloqueio dos Caminhos* é *R$ 60*, uma vez só.", [acompanhamento], principais, 13000, [13000])).toContain("R$ 130");
+  });
+  it("o degrau liberado de R$ 60 passa, e a frase do Acompanhamento também", () => {
+    expect(trabalhoNoValorDeExtra("O seu *Desbloqueio dos Caminhos* é *R$ 60*.", [acompanhamento], principais, 6000, [6000])).toBeNull();
+    expect(trabalhoNoValorDeExtra("O Acompanhamento do mês do seu Desbloqueio dos Caminhos é R$ 60.", [acompanhamento], principais, 13000, [13000])).toBeNull();
+  });
+  it("entrada combinada de R$ 60 no trabalho passa", () => {
+    expect(trabalhoNoValorDeExtra("Você entra com R$ 60 no seu Desbloqueio dos Caminhos.", [acompanhamento], principais, 13000, [13000, 6000])).toBeNull();
   });
 });

@@ -138,7 +138,8 @@ export function motivoDoPasso(
   return (
     `recuperação de silêncio, chamada ${passo} de ${total}: o cliente não respondeu à sua última mensagem há ` +
     `${duracao(silencioMs)}. Retome de onde a conversa parou com UMA mensagem curta e natural, ligada ao último ` +
-    "assunto, que seja fácil de responder. Não repita o que já disse, não pressione e não invente urgência nem " +
+    "assunto, que seja fácil de responder. Não repita o que já disse, NÃO avance para a próxima etapa (próxima carta, síntese, " +
+    "trabalho, valor ou chave: elas esperam a resposta dela), não pressione e não invente urgência nem " +
     `novidade. ${saida}Se a conversa já tinha terminado, ou se o cliente pediu para não ser procurado, não envie nada`
   );
 }

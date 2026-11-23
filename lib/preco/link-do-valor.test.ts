@@ -56,3 +56,13 @@ describe("o link cobra o valor que a mensagem diz", () => {
     expect(ok(linkDoValorPrometido(corpo, semLinks))).toEqual({ corpo, trocas: [] });
   });
 });
+
+describe("o valor dito no balão de cima vale para o link sozinho (22/11/2026)", () => {
+  it("'é R$ 50' num balão e o link de R$ 60 no seguinte: troca pelo de R$ 50", () => {
+    const r = ok(linkDoValorPrometido("https://pay.exemplo.com.br/k60", pricing, ["O seu *Caminhos* é *R$ 50*, uma vez só."]));
+    expect(r.corpo).toContain("pay.exemplo.com.br/k50");
+  });
+  it("sem valor no turno, o link segue como está", () => {
+    expect(ok(linkDoValorPrometido("https://pay.exemplo.com.br/k60", pricing, ["Que bom, meu bem."])).trocas).toHaveLength(0);
+  });
+});

@@ -57,7 +57,8 @@ export interface CobrancaEnviada {
 
 /** A data e a hora impressas, lidas como se fossem UTC: "01/11/2026 às 12:10" ou "01 NOV 2026 - 12:10:05". */
 export function dataImpressa(texto: string): Date | null {
-  const numerica = texto.match(/\b(\d{2})\/(\d{2})\/(\d{4})\D{1,8}(\d{2}):(\d{2})/);
+  // Data e hora podem vir em linhas separadas ("Data: 22/11/2026" / "- **Hora:** 21:54:17", Banrisul, 22/11/2026).
+  const numerica = texto.match(/\b(\d{2})\/(\d{2})\/(\d{4})(?:\D{1,8}|[^\d\n]*\n[^\d\n]{0,24})(\d{2}):(\d{2})/);
   if (numerica) return new Date(Date.UTC(Number(numerica[3]), Number(numerica[2]) - 1, Number(numerica[1]), Number(numerica[4]), Number(numerica[5])));
   const escrita = semAcento(texto).match(/\b(\d{1,2})\s+(?:de\s+)?(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)[a-z]*\.?\s+(?:de\s+)?(\d{4})\D{1,8}(\d{2}):(\d{2})/);
   if (escrita) return new Date(Date.UTC(Number(escrita[3]), MESES[escrita[2]!]! - 1, Number(escrita[1]), Number(escrita[4]), Number(escrita[5])));
@@ -221,7 +222,9 @@ export function produtoCitado(mensagens: readonly FalaDaConversa[], nomes: reado
   return null;
 }
 
-const DIZ_QUE_CAIU = /\b(?:caiu|confirmad[oa]s?|certinho|tudo\s+certo|entrou|aprovad[oa]|pagamento\s+(?:ok|feito))\b/i;
+// "confere com"/"bateu": em 22/11/2026, com o comprovante em dúvida, saiu "o comprovante de R$ 60 confere com o que a gente
+// combinou". "A equipe confere" (o que ela deve dizer) segue passando.
+const DIZ_QUE_CAIU = /\b(?:caiu|confirmad[oa]s?|certinho|tudo\s+certo|entrou|aprovad[oa]|pagamento\s+(?:ok|feito)|confere\s+com|bateu)\b/i;
 
 /**
  * Com o comprovante em dúvida, o balão que diz que caiu é recusado. Em 06/11/2026 o comprovante de R$ 130 veio sem o ID

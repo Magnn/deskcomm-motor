@@ -505,3 +505,25 @@ describe("marca da raiz", () => {
     expect(semAMarcaDaRaiz(`A raiz é o silêncio.\n\nFaz sentido?\n\n${MARCA_DA_RAIZ}`)).toBe("A raiz é o silêncio.\n\nFaz sentido?");
   });
 });
+
+describe("retomada de silêncio não vira a próxima carta (22/11/2026)", () => {
+  const semResposta = [PEDIDO, msg("inbound", "3, 19 e 13"), msg("outbound", "CARTA 1: O Carro\nVocê sente esse cansaço?")];
+  it("carta 1 revelada e ela calada: a retomada retoma a pergunta, sem a carta 2", () => {
+    const p = passoDaLeitura("lead-1", semResposta);
+    expect(p?.passo).toBe("revelar_carta");
+    const bloco = blocoDaLeitura(p, null, true);
+    expect(bloco).toContain("ESPERANDO A RESPOSTA DELA");
+    expect(bloco).not.toContain("REVELE A CARTA");
+    // O turno de quem respondeu continua revelando a carta 2.
+    expect(blocoDaLeitura(p, null, false)).toContain("REVELE A CARTA");
+  });
+  it("números escolhidos e nenhuma carta ainda: a carta 1 sai mesmo na retomada", () => {
+    const p = passoDaLeitura("lead-1", [PEDIDO, msg("inbound", "3, 19 e 13")]);
+    expect(blocoDaLeitura(p, null, true)).toContain("REVELE A CARTA");
+  });
+  it("carta 3 revelada e ela calada: a retomada não faz a síntese", () => {
+    const p = passoDaLeitura("lead-1", [...semResposta, msg("inbound", "sim"), msg("outbound", "CARTA 2: Y"), msg("inbound", "sim"), msg("outbound", "CARTA 3: Z")]);
+    expect(p?.passo).toBe("causa_raiz");
+    expect(blocoDaLeitura(p, null, true)).toContain("NÃO faça a síntese");
+  });
+});

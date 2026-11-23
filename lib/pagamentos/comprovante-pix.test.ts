@@ -321,3 +321,14 @@ describe("cobrança com o nome do produto", () => {
     expect(conferir(comprovante("R$ 60,00"), [cobranca("R$ 60")], extras)).toMatchObject({ tipo: "confere_principal" });
   });
 });
+
+describe("comprovante Banrisul e o 'confere' em dúvida (22/11/2026)", () => {
+  it("data e hora em linhas separadas são lidas", () => {
+    const d = dataImpressa("- **Valor:** R$ 60,00\n- **Data:** 22/11/2026\n- **Hora:** 21:54:17\n- **Nome de quem recebeu:** FULANO");
+    expect(d?.toISOString()).toBe("2026-11-22T21:54:00.000Z");
+  });
+  it("'o comprovante confere' com o comprovante em dúvida é recusado; 'estou conferindo' passa", () => {
+    expect(confirmaPagamentoEmDuvida("Meu bem, o comprovante de *R$ 60* confere com o que a gente combinou, viu?", true)).not.toBeNull();
+    expect(confirmaPagamentoEmDuvida("Recebi o seu comprovante. Já estou conferindo aqui com a equipe.", true)).toBeNull();
+  });
+});

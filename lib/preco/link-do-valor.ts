@@ -66,7 +66,12 @@ export type LinkConferido =
   | { corpo: string; trocas: { de: string; para: string; cents: number }[] }
   | { recusa: string };
 
-export function linkDoValorPrometido(corpo: string, pricing: PricingConfig): LinkConferido {
+/**
+ * `baloesAnteriores`: os balões já enviados neste turno. O roteiro manda o link SOZINHO num balão, depois do balão que diz
+ * o valor; medido em 22/11/2026: "é *R$ 60*" num balão e, no seguinte, o link de R$ 130 — o Pix saiu de R$ 130 e ela
+ * perguntou "qual o valor, 130 ou 60?". Sem valor no próprio balão, vale o último valor dito no turno.
+ */
+export function linkDoValorPrometido(corpo: string, pricing: PricingConfig, baloesAnteriores: readonly string[] = []): LinkConferido {
   const principais = linksDoProdutoPrincipal(pricing);
   if (principais.length === 0) return { corpo, trocas: [] };
   const porUrl = new Map(principais.map((l) => [l.url, l]));
@@ -74,7 +79,8 @@ export function linkDoValorPrometido(corpo: string, pricing: PricingConfig): Lin
   const hosts = new Set(principais.map((l) => hostDe(l.url)));
   const validos = new Set(principais.map((l) => l.cents));
   const ditos = valoresDitos(corpo, validos);
-  const dito = ditos.length > 0 ? ditos[ditos.length - 1]! : null;
+  const ditosAntes = baloesAnteriores.flatMap((b) => valoresDitos(b, validos));
+  const dito = ditos.length > 0 ? ditos[ditos.length - 1]! : ditosAntes.length > 0 ? ditosAntes[ditosAntes.length - 1]! : null;
 
   const trocas: { de: string; para: string; cents: number }[] = [];
   let novo = corpo;
