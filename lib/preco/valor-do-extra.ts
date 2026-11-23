@@ -316,3 +316,36 @@ export function quantidadeMenorQueACombinada(corpo: string, extras: readonly Ext
     `Só cobre menos se a pessoa escolheu pagar uma agora — e então diga isso na resposta ("cobro só uma agora").`
   );
 }
+
+/**
+ * O TRABALHO NÃO SAI PELO VALOR DE UMA COBRANÇA AVULSA. Medido em 22/11/2026: a agente escreveu "O seu *Desbloqueio dos
+ * Caminhos* é *R$ 60*" a quem nunca reclamou do preço (piso do turno: R$ 130). A trava de promessas deixa passar o valor
+ * exato de uma avulsa (`precosLiberadosCents`) e o Acompanhamento do mês custa R$ 60: o desconto do trabalho passou como
+ * se fosse o Acompanhamento, e o Pix seguinte saiu de R$ 130.
+ *
+ * Frase que cita um produto principal pelo nome, não cita nenhuma avulsa e diz um valor abaixo do piso que não é valor
+ * do principal neste turno (entrada, valor aceito) → recusa. Pura.
+ */
+export function trabalhoNoValorDeExtra(
+  corpo: string,
+  extras: readonly Extra[],
+  produtosPrincipais: readonly string[],
+  pisoCents: number | undefined,
+  valoresDoPrincipalNoTurno: readonly number[],
+): string | null {
+  if (pisoCents === undefined) return null;
+  const valoresDeExtra = new Set(extras.flatMap((e) => totaisDoExtra(e)));
+  for (const frase of frases(corpo)) {
+    const n = semAcento(frase);
+    if (!produtoPrincipalCitado(n, produtosPrincipais)) continue;
+    if (extras.some((e) => palavrasDoExtra(e.name).some((p) => n.includes(p)))) continue;
+    const errado = valoresDitos(frase).find((v) => v < pisoCents && valoresDeExtra.has(v) && !valoresDoPrincipalNoTurno.includes(v));
+    if (errado !== undefined) {
+      return (
+        `Envio recusado: ${reais(errado)} é o valor de uma cobrança à parte, não do trabalho. Neste turno o trabalho vale ${reais(pisoCents)} ` +
+        "(o bloco PREÇO E NEGOCIAÇÃO): o valor só desce quando ela disser que não cabe. Reescreva com o valor do bloco."
+      );
+    }
+  }
+  return null;
+}

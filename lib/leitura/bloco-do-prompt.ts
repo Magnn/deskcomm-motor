@@ -112,10 +112,37 @@ function blocoDaPerguntaPaga(passo: PassoDaLeitura, nome: string, quantidade = 1
  * O bloco pra ESTE turno. `""` quando não há leitura na conversa. `pergunta`: esta é a rodada de uma pergunta
  * PAGA (`perguntaPagaRecente`), com o nome da cobrança.
  */
-export function blocoDaLeitura(passo: PassoDaLeitura | null, pergunta?: { nome: string; quantidade?: number } | null): string {
+export function blocoDaLeitura(
+  passo: PassoDaLeitura | null,
+  pergunta?: { nome: string; quantidade?: number } | null,
+  /** O turno é uma retomada de silêncio: ela não respondeu à última fala. */
+  toqueDeSilencio = false,
+): string {
   if (passo === null) return "";
+  if (toqueDeSilencio && aguardaRespostaDela(passo)) return blocoDaLeituraEmEspera(passo.cartas);
   if (pergunta) return blocoDaPerguntaPaga(passo, pergunta.nome, pergunta.quantidade ?? 1);
   if (passo.passo === "revelar_carta") return blocoDaCartaRevelada(passo.indice, passo.carta);
   if (passo.passo === "encerrada") return blocoDaLeituraEncerrada(passo.cartas, passo.semEvidencia === true, passo.reparoEsgotado === true);
   return blocoDaCausaRaiz(passo.cartas);
+}
+
+/**
+ * A carta já revelada espera a resposta dela. Medido em 22/11/2026: a retomada de 3 minutos acordava a agente, o bloco do
+ * turno dizia "revele a carta 2" (ou "faça a síntese"), e a leitura andava sozinha: carta 2 e carta 3 viradas sem uma
+ * palavra dela, síntese repetida em dois toques. Na retomada, a leitura NÃO anda: só retoma a pergunta da última carta.
+ * A carta 1 com os números já escolhidos é a resposta que ela espera, e sai normalmente.
+ */
+function aguardaRespostaDela(passo: PassoDaLeitura): boolean {
+  if (passo.passo === "revelar_carta") return passo.indice > 1;
+  if (passo.passo === "causa_raiz") return true;
+  return passo.semEvidencia === true && passo.reparoEsgotado !== true;
+}
+
+function blocoDaLeituraEmEspera(cartas: readonly [Carta, Carta, Carta]): string {
+  return [
+    "",
+    "",
+    `LEITURA — ESPERANDO A RESPOSTA DELA (retomada de silêncio; cartas da mesa: ${cartas.map((c) => c.nome).join(", ")})`,
+    "Ela ainda não respondeu à sua última pergunta. NÃO revele a próxima carta, NÃO faça a síntese e NÃO fale de trabalho nem de valor. Em UM balão curto, pelo nome, retome com outras palavras a pergunta da última carta, fácil de responder.",
+  ].join("\n");
 }
