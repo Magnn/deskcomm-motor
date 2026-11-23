@@ -10,9 +10,11 @@ import { supportCallbackWriteAllowed } from "@/lib/impersonate/support";
  */
 
 import { randomBytes, randomUUID } from "node:crypto";
-import { NextResponse, type NextRequest } from "next/server";
+import type { NextRequest } from "next/server";
 import { env } from "@/lib/env";
 import { audit } from "@/lib/audit";
+import { respostaDePonte } from "@/lib/auth/ponte-de-volta";
+import { marcaDaSaida } from "@/lib/branding/saida";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getConfig, SUBSCRIBED_EVENTS, eventToSlug } from "@/lib/nuvemshop/config";
 import { exchangeCodeForToken } from "@/lib/nuvemshop/oauth";
@@ -21,12 +23,17 @@ import { verifyState } from "@/lib/nuvemshop/state";
 
 export const dynamic = "force-dynamic";
 
-function redirectTo(path: string): NextResponse {
-  const base = env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-  return NextResponse.redirect(new URL(path, base));
+/**
+ * A volta é uma PONTE (200 com HTML same-origin), não um 302: num redirect vindo
+ * de outro site o cookie de sessão `SameSite=Strict` não viaja e a pessoa cai em
+ * `/login` logo depois de conectar. Porquê completo em `lib/auth/ponte-de-volta.ts`.
+ */
+async function redirectTo(path: string): Promise<Response> {
+  const marca = await marcaDaSaida(null);
+  return respostaDePonte(path, marca.nome, "Voltando para a integração…");
 }
 
-export async function GET(req: NextRequest): Promise<NextResponse> {
+export async function GET(req: NextRequest): Promise<Response> {
   const url = new URL(req.url);
   const code = url.searchParams.get("code");
   const stateParam = url.searchParams.get("state");

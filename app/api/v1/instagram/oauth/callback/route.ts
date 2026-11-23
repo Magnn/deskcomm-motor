@@ -15,6 +15,8 @@ import { randomUUID } from "node:crypto";
 import type { NextRequest } from "next/server";
 
 import { audit } from "@/lib/audit";
+import { respostaDePonte } from "@/lib/auth/ponte-de-volta";
+import { marcaDaSaida } from "@/lib/branding/saida";
 import { assinarAvisos, InstagramApiError, lerConta, trocarCodigoPorToken } from "@/lib/channels/instagram/api";
 import { appDoInstagram, redirectDoInstagram } from "@/lib/channels/instagram/app";
 import { verificarEstado } from "@/lib/channels/instagram/estado";
@@ -26,12 +28,15 @@ import { createAdminClient } from "@/lib/supabase/admin";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-function voltar(parametro: "conectado" | "erro", valor: string): Response {
-  const base = (env.NEXT_PUBLIC_APP_URL ?? "").replace(/\/+$/, "");
-  return new Response(null, {
-    status: 302,
-    headers: { Location: `${base}/app/instagram?${parametro}=${encodeURIComponent(valor)}`, "Cache-Control": "no-store" },
-  });
+/**
+ * A volta é uma PONTE (200 com HTML same-origin), não um 302: num redirect vindo
+ * do Facebook o cookie de sessão `SameSite=Strict` não viaja e a pessoa caía em
+ * `/login` logo depois de conectar (medido 23/11). Porquê completo em
+ * `lib/auth/ponte-de-volta.ts`.
+ */
+async function voltar(parametro: "conectado" | "erro", valor: string): Promise<Response> {
+  const marca = await marcaDaSaida(null);
+  return respostaDePonte(`/app/instagram?${parametro}=${encodeURIComponent(valor)}`, marca.nome, "Voltando para o Instagram…");
 }
 
 export async function GET(req: NextRequest): Promise<Response> {
