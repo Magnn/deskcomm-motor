@@ -75,7 +75,7 @@ export function ResumoDaConta({ resumo, moeda, statusDaConta }: Props) {
         <Numero
           rotulo={t("Vendas")}
           valor={dinheiro(atual.receitaCents)}
-          detalhe={`${atual.compradores} ${t(atual.compradores === 1 ? "cliente" : "clientes")}`}
+          detalhe={`${t("Clientes")}: ${atual.compradores}`}
           delta={variacao(atual.receitaCents, anterior.receitaCents)}
         />
         <Numero
@@ -128,7 +128,7 @@ export function ResumoDaConta({ resumo, moeda, statusDaConta }: Props) {
                       <td className="px-3 py-2 text-right tabular-nums">{dinheiro(c.receitaCents)}</td>
                       <td className="px-3 py-2 text-right tabular-nums">{emReal ? vezes(c.retorno) : "—"}</td>
                       <td className="px-3 py-2 text-right">
-                        {v && <span className={`rounded px-2 py-0.5 text-xs font-medium ${ETIQUETA[v].classe}`}>{t(ETIQUETA[v].texto)}</span>}
+                        {v && <span className={`rounded-md px-2 py-0.5 text-xs font-medium ${ETIQUETA[v].classe}`}>{t(ETIQUETA[v].texto)}</span>}
                       </td>
                     </tr>
                   );
@@ -148,9 +148,9 @@ export function ResumoDaConta({ resumo, moeda, statusDaConta }: Props) {
                 {a.miniatura ? (
                   // Miniatura servida pela plataforma; `next/image` exigiria liberar o domínio dela.
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={a.miniatura} alt="" className="size-12 shrink-0 rounded object-cover" />
+                  <img src={a.miniatura} alt="" className="size-12 shrink-0 rounded-md object-cover" />
                 ) : (
-                  <div className="size-12 shrink-0 rounded bg-muted" aria-hidden />
+                  <div className="size-12 shrink-0 rounded-md bg-muted" aria-hidden />
                 )}
                 <div className="min-w-0 text-sm">
                   <p className="truncate font-medium">{a.nome ?? a.adId}</p>

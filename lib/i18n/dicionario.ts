@@ -9916,8 +9916,6 @@ export const DICIONARIO: Traducoes = {
   reprovada: { es: "rechazada" },
   "em análise": { es: "en revisión" },
   "em processamento": { es: "en procesamiento" },
-  cliente: { es: "cliente" },
-  clientes: { es: "clientes" },
   "pelo menos: só conta venda registrada": { es: "como mínimo: solo cuenta ventas registradas" },
   "conta em outra moeda": { es: "cuenta en otra moneda" },
   "Custo por cliente": { es: "Costo por cliente" },
