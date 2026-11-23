@@ -93,6 +93,11 @@ const TABELAS = [
   "conversation_loss_reasons",
   // 0916. Recuperação de silêncio: só o worker grava e lê. Deny-all.
   "silence_recovery_attempts",
+  // 0967. Qual app da Meta abre a janela de "Conectar" de cada organização. Só o
+  // admin da plataforma escolhe; uma policy de tenant deixaria a própria
+  // organização se trocar de app pelo PostgREST. Deny-all; quem lê é o servidor
+  // (`lib/channels/meta/app.ts`). A chave é o próprio organization_id (sem `id`).
+  "platform_meta_app_da_org",
 ] as const;
 
 function erroSob(papel: string, comando: string): string | null {
@@ -194,11 +199,11 @@ describe.each(TABELAS)("o PostgREST não serve `%s`", (tabela) => {
   });
 
   it("`anon` é BARRADO ao ler — permission denied, não zero linhas", () => {
-    esperaBarrado("anon", `select id from public.${tabela}`);
+    esperaBarrado("anon", `select 1 from public.${tabela}`);
   });
 
   it("`authenticated` é BARRADO ao ler", () => {
-    esperaBarrado("authenticated", `select id from public.${tabela}`);
+    esperaBarrado("authenticated", `select 1 from public.${tabela}`);
   });
 
   it("a RLS está LIGADA — o segundo degrau, para o dia em que o grant voltar", () => {
