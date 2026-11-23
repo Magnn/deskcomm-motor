@@ -182,6 +182,12 @@ export interface CredencialDeConversao {
    * DELE (`lib/channels/conversao-pelo-intermediario.ts`), que tem o token da conta do WhatsApp e o clique.
    */
   intermediario?: ChaveDoIntermediario;
+  /**
+   * O pixel da tela de Conversões, quando a venda vai primeiro ao conjunto de mensageria. A Meta recusa ali a venda sem
+   * conversa de anúncio aberta ("No CTWA-attributed conversation found": clique de mais de um mês, 22/11/2026), e a
+   * compradora sumia do conjunto; pelo pixel ela segue conhecida pelo telefone.
+   */
+  reservaNoPixel?: Pick<CredencialDeConversao, "datasetId" | "accessToken" | "testEventCode">;
   google?: {
     /** Decifrado; NUNCA o access token — esse é derivado a cada envio. */
     refreshToken: string;
