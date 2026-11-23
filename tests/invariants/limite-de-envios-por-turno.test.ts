@@ -243,7 +243,8 @@ describe("turno completo — send_message chamado repetidamente pelo modelo", ()
     // E o modelo RECEBEU o motivo do bloqueio — sem isto, "bloqueou" não distingue de
     // "engoliu em silêncio", que é o mesmo defeito medido em produção com outra cara.
     const vistos = JSON.stringify(resultadosVistos);
-    expect(vistos).toMatch(/max_sends_per_turn/);
+    // O teto pode recusar antes das marcas de cobrança (`teto_antes_da_cobranca`, 23/11/2026) ou no fim do envio.
+    expect(vistos).toMatch(/max_sends_per_turn|teto_antes_da_cobranca/);
     expect(vistos).toMatch(/encerre o turno/);
   });
 
@@ -260,6 +261,6 @@ describe("turno completo — send_message chamado repetidamente pelo modelo", ()
     const erro = await rodaTurno(montaHandler(modeloQueInsisteEmMandar(2, "caso-c"), 3));
     expect(erro).toBeNull();
     expect(enviados).toHaveLength(2);
-    expect(JSON.stringify(resultadosVistos)).not.toMatch(/max_sends_per_turn/);
+    expect(JSON.stringify(resultadosVistos)).not.toMatch(/max_sends_per_turn|teto_antes_da_cobranca/);
   });
 });
