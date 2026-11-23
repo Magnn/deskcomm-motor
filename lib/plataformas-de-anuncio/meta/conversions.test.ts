@@ -28,8 +28,20 @@ function corpoEnviado(fetchMock: ReturnType<typeof vi.fn>): { data: Array<Record
 describe("transporteMeta", () => {
   afterEach(() => vi.unstubAllGlobals());
 
+  it("só confirma com events_received e preserva o recibo sem expor o token", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ events_received: 1, fbtrace_id: "trace-123", messages: [] })));
+    expect(await transporteMeta.enviar(CRED, BASE)).toEqual({ tipo: "ok", detalhe: "Meta: 1 evento recebido; trace trace-123" });
+  });
+
+  it.each(["{}", '{"events_received":0}', '{"events_received":"1"}', "<html>gateway</html>", "null"])(
+    "200 sem confirmação não marca compra como enviada: %s", async (body) => {
+      vi.stubGlobal("fetch", vi.fn(async () => new Response(body, { status: 200 })));
+      expect((await transporteMeta.enviar(CRED, BASE)).tipo).toBe("transitorio");
+    },
+  );
+
   it("número oficial: business_messaging, com o clique e a conta do WhatsApp", async () => {
-    const f = vi.fn(async () => new Response("{}", { status: 200 }));
+    const f = vi.fn(async () => Response.json({ events_received: 1 }));
     vi.stubGlobal("fetch", f);
     await transporteMeta.enviar(CRED, { ...BASE, contaDoWhatsApp: "waba" });
     const ev = corpoEnviado(f).data[0]!;
@@ -39,7 +51,7 @@ describe("transporteMeta", () => {
   });
 
   it("⭐ pixel do site: `chat`, sem clique nem conta do WhatsApp, telefone e país em hash, com o valor", async () => {
-    const f = vi.fn(async () => new Response("{}", { status: 200 }));
+    const f = vi.fn(async () => Response.json({ events_received: 1 }));
     vi.stubGlobal("fetch", f);
     const r = await transporteMeta.enviar(CRED, { ...BASE, pixelDoSite: true });
     expect(r.tipo).toBe("ok");
@@ -56,7 +68,7 @@ describe("transporteMeta", () => {
   });
 
   it("⭐ o Lead da página pelo servidor: website, com a página, IP, navegador, fbc e o mesmo id do navegador", async () => {
-    const f = vi.fn(async () => new Response("{}", { status: 200 }));
+    const f = vi.fn(async () => Response.json({ events_received: 1 }));
     vi.stubGlobal("fetch", f);
     await transporteMeta.enviar(CRED, {
       ...BASE,
@@ -76,7 +88,7 @@ describe("transporteMeta", () => {
   });
 
   it("⭐ pixel do site com o clique da landing: fbc e fbp vão em claro, ligando a venda ao anúncio", async () => {
-    const f = vi.fn(async () => new Response("{}", { status: 200 }));
+    const f = vi.fn(async () => Response.json({ events_received: 1 }));
     vi.stubGlobal("fetch", f);
     await transporteMeta.enviar(CRED, { ...BASE, pixelDoSite: true, fbc: "fb.1.1760000000000.IwAR0abc", fbp: "fb.1.1760000000000.123456789" });
     const ud = corpoEnviado(f).data[0]!.user_data as Record<string, unknown>;

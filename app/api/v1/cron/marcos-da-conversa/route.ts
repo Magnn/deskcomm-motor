@@ -17,6 +17,7 @@ import { audit } from "@/lib/audit";
 import { autorizaCron } from "@/lib/auth/cron-auth";
 import { logger } from "@/lib/logger";
 import { EVENTO_DO_LINK_DE_PAGAMENTO, reportarEventoDaConversa } from "@/lib/conversoes/evento-da-conversa";
+import { recuperarAvulsas } from "@/lib/conversoes/recuperar-avulsas";
 import { classificarNovasMensagens, type LinkDePagamentoEnviado } from "@/lib/resultado/marcos";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -70,10 +71,14 @@ async function handle(req: NextRequest): Promise<Response> {
     }
   }
 
-  if (marcos > 0 || passosReportados > 0) {
-    void audit({ action: "cron.marcos_da_conversa", requestId, bypassedRls: true, metadata: { lidas, marcos, ha_mais: haMais, passos_reportados: passosReportados } });
+  const recuperacao = await recuperarAvulsas(admin).catch((err: unknown) => {
+    logger.warn("[cron.marcos-da-conversa] recuperação de conversões falhou", { requestId, erro: err instanceof Error ? err.message : "falha inesperada" });
+    return { tentadas: 0, enviadas: 0 };
+  });
+  if (marcos > 0 || passosReportados > 0 || recuperacao.tentadas > 0) {
+    void audit({ action: "cron.marcos_da_conversa", requestId, bypassedRls: true, metadata: { lidas, marcos, ha_mais: haMais, passos_reportados: passosReportados, conversoes_tentadas: recuperacao.tentadas, conversoes_recuperadas: recuperacao.enviadas } });
   }
-  return ok({ lidas, marcos, ha_mais: haMais, passos_reportados: passosReportados }, { requestId });
+  return ok({ lidas, marcos, ha_mais: haMais, passos_reportados: passosReportados, conversoes_recuperadas: recuperacao.enviadas }, { requestId });
 }
 
 export async function GET(req: NextRequest): Promise<Response> {
