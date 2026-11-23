@@ -35,6 +35,8 @@ export interface CompraAvulsa {
   moeda: string;
   ocorridaEm: Date;
   produto: string | null;
+  /** Recuperação: mantém o negócio do registro original. */
+  negocioId?: string;
 }
 
 export type ResultadoDaCompraAvulsa = { status: "sent" } | { status: "skipped" | "error"; motivo: string };
@@ -54,11 +56,13 @@ export async function reportarCompraAvulsa(
 
     // ⚠️ Filtro de organização: o client é service-role. O livro de envios é por negócio; a compra avulsa fica no
     // negócio mais recente do contato.
-    const { data } = await admin
+    let consulta = admin
       .from("crm_leads")
       .select("id")
       .eq("organization_id", compra.organizationId)
-      .eq("contact_id", compra.contactId)
+      .eq("contact_id", compra.contactId);
+    if (compra.negocioId) consulta = consulta.eq("id", compra.negocioId);
+    const { data } = await consulta
       .order("updated_at", { ascending: false })
       .limit(1)
       .maybeSingle();

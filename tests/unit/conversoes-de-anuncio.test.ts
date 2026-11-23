@@ -136,7 +136,7 @@ describe("as duas portas do fechamento", () => {
     );
     const fetchSpy = vi
       .spyOn(globalThis, "fetch")
-      .mockResolvedValue(new Response("{}", { status: 200 }));
+      .mockResolvedValue(Response.json({ events_received: 1 }));
 
     const r = await conversaoDeVendaHandler.handle(evento("lead.stage_changed"));
 

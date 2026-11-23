@@ -212,9 +212,24 @@ async function enviarUmaVez(
     };
   }
 
-  if (resposta.ok) return { tipo: "ok" };
-
   const texto = await resposta.text().catch(() => "");
+  if (resposta.ok) {
+    // HTTP 200 confirma o transporte, não o recebimento do evento. Guardar o
+    // recibo permite distinguir envio aceito de falha silenciosa no gateway.
+    try {
+      const recibo = JSON.parse(texto) as { events_received?: unknown; fbtrace_id?: unknown; messages?: unknown };
+      if (recibo?.events_received !== 1) {
+        return { tipo: "transitorio", detalhe: "Meta não confirmou o recebimento de 1 evento" };
+      }
+      const trace = typeof recibo.fbtrace_id === "string" && /^[\w-]{1,100}$/.test(recibo.fbtrace_id)
+        ? `; trace ${recibo.fbtrace_id}` : "";
+      const avisos = Array.isArray(recibo.messages) ? recibo.messages.length : 0;
+      return { tipo: "ok", detalhe: `Meta: 1 evento recebido${trace}${avisos ? `; ${avisos} aviso(s)` : ""}` };
+    } catch {
+      return { tipo: "transitorio", detalhe: "Meta respondeu sem recibo JSON válido" };
+    }
+  }
+
   let codigo: number | null = null;
   let mensagem = texto.slice(0, 400);
   try {

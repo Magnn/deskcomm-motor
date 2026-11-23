@@ -44,19 +44,25 @@ export interface RegistroDeEnvio {
 export async function jaFoiEnviada(
   admin: SupabaseClient,
   organizationId: string,
-  leadId: string,
+  _leadId: string,
   evento: NomeDoEvento,
   eventoId: string,
 ): Promise<boolean> {
-  const { data } = await admin
+  const { data, error } = await admin
     .from("ad_conversion_dispatches")
     .select("status")
     .eq("organization_id", organizationId)
-    .eq("lead_id", leadId)
     .eq("event_name", evento)
     // Um negócio pode ter mais de uma compra reportada (a do produto e as avulsas): a pergunta é por ESTE evento.
     .eq("event_id", eventoId)
+    // A referência da cobrança não muda quando o contato ganha outro negócio.
+    // O mesmo evento já enviado em outro lead continua sendo a mesma compra.
+    .eq("status", "sent")
+    .limit(1)
     .maybeSingle();
+
+  // Falha de leitura não prova que a compra ainda não foi enviada.
+  if (error) throw new Error(`leitura do recibo de conversão falhou: ${error.message}`);
 
   return (data as { status?: string } | null)?.status === "sent";
 }
