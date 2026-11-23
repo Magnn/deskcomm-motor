@@ -132,7 +132,7 @@ export async function reportarCompraAvulsa(
     };
     const resultado = await transporte.enviar(credencialDoEnvio, conversao);
     if (resultado.tipo === "ok") {
-      await registra("sent", null);
+      await registra("sent", null, resultado.detalhe ?? null);
       return { status: "sent" };
     }
     // Aqui não há fila para tentar de novo: a instabilidade também vai para o livro, para aparecer na tela.

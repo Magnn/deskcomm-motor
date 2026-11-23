@@ -149,7 +149,14 @@ export async function destinoDaConversaoMeta(
   if (mensageria.ok) {
     return {
       ok: true,
-      credencial: { ...daTela, datasetId: mensageria.destino.datasetId, accessToken: mensageria.destino.accessToken },
+      credencial: {
+        ...daTela,
+        datasetId: mensageria.destino.datasetId,
+        accessToken: mensageria.destino.accessToken,
+        ...(daTela.datasetId && daTela.datasetId !== mensageria.destino.datasetId
+          ? { reservaNoPixel: { datasetId: daTela.datasetId, accessToken: daTela.accessToken, testEventCode: daTela.testEventCode } }
+          : {}),
+      },
       contaDoWhatsApp: mensageria.destino.contaDoWhatsApp,
       pixelDoSite: false,
     };

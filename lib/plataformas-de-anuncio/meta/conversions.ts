@@ -77,7 +77,28 @@ function classifica4xx(codigo: number | null, mensagem: string): ResultadoDeEnvi
   return { tipo: "permanente", detalhe: mensagem };
 }
 
-async function enviar(
+/** A recusa da mensageria para venda sem conversa de anúncio aberta — direta ou pelo intermediário. */
+const SEM_CONVERSA_DE_ANUNCIO = /No CTWA-attributed conversation found/i;
+
+/**
+ * Manda pela mensageria e, se a Meta recusar por não achar a conversa do anúncio, manda UMA vez pelo pixel da tela,
+ * com o telefone e a identidade (`action_source: chat`). Não é atribuída ao clique, mas a compra volta a contar no
+ * pixel e na otimização por compradora. Mesmo `event_id`: se a mensageria aceitar depois, a Meta deduplica.
+ */
+async function enviar(credencial: CredencialDeConversao, conversao: ConversaoOffline): Promise<ResultadoDeEnvio> {
+  const primeiro = await enviarUmaVez(credencial, conversao);
+  if (primeiro.tipo !== "permanente" || !SEM_CONVERSA_DE_ANUNCIO.test(primeiro.detalhe)) return primeiro;
+  if (conversao.pixelDoSite || conversao.paginaDoSite) return primeiro;
+  const { intermediario: _i, reservaNoPixel, ...semIntermediario } = credencial;
+  const pixel = credencial.intermediario ? semIntermediario : reservaNoPixel ? { ...semIntermediario, ...reservaNoPixel } : null;
+  if (!pixel?.datasetId || !pixel.accessToken) return primeiro;
+  const reserva = await enviarUmaVez(pixel, { ...conversao, pixelDoSite: true });
+  return reserva.tipo === "ok"
+    ? { tipo: "ok", detalhe: "pelo pixel: a mensageria não achou a conversa do anúncio" }
+    : { ...reserva, detalhe: `${primeiro.detalhe} | pixel: ${reserva.detalhe}`.slice(0, 400) };
+}
+
+async function enviarUmaVez(
   credencial: CredencialDeConversao,
   conversao: ConversaoOffline,
 ): Promise<ResultadoDeEnvio> {
