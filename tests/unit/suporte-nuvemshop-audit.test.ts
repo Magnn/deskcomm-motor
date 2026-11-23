@@ -17,7 +17,9 @@ it("callback sem JWT encaminha identidade do state validado e recurso UUID à au
  const state=issueState(org,{userId:actor,authSessionId:session});
  const {GET}=await import("@/app/api/v1/integrations/nuvemshop/callback/route");
  const response=await GET(new NextRequest(`http://localhost/api/v1/integrations/nuvemshop/callback?code=local&state=${encodeURIComponent(state)}`));
- expect(response.status).toBe(307);
+ // Volta por ponte (200 + HTML same-origin), não 302: o cookie Strict não viaja num redirect vindo da loja.
+ expect(response.status).toBe(200);
+ expect(await response.text()).toContain("/app/integrations/nuvemshop?ok=1");
  expect(fake.allowed).toHaveBeenCalledWith(org,actor,session);
  expect(fake.audit).toHaveBeenCalledWith(expect.objectContaining({action:"nuvemshop.connected",actorUserId:actor,actorAuthSessionId:session,organizationId:org,resourceId:fake.integration}));
 });

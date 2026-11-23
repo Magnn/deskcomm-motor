@@ -15,6 +15,8 @@ import { randomUUID } from "node:crypto";
 import type { NextRequest } from "next/server";
 
 import { audit } from "@/lib/audit";
+import { respostaDePonte } from "@/lib/auth/ponte-de-volta";
+import { marcaDaSaida } from "@/lib/branding/saida";
 import { MessengerApiError, trocarCodigoPorTokenLongo } from "@/lib/channels/messenger/api";
 import { appDoMessenger, redirectDoMessenger, webhookDoMessenger } from "@/lib/channels/messenger/app";
 import { conectarPaginas, depsReaisDaConexao } from "@/lib/channels/messenger/conexao";
@@ -27,13 +29,16 @@ import { createAdminClient } from "@/lib/supabase/admin";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-function voltar(parametros: Record<string, string>): Response {
-  const base = (env.NEXT_PUBLIC_APP_URL ?? "").replace(/\/+$/, "");
+/**
+ * A volta é uma PONTE (200 com HTML same-origin), não um 302: num redirect vindo
+ * do Facebook o cookie de sessão `SameSite=Strict` não viaja e a pessoa caía em
+ * `/login` logo depois de conectar (medido 23/11). Porquê completo em
+ * `lib/auth/ponte-de-volta.ts`.
+ */
+async function voltar(parametros: Record<string, string>): Promise<Response> {
   const q = new URLSearchParams({ aba: "messenger", ...parametros });
-  return new Response(null, {
-    status: 302,
-    headers: { Location: `${base}/app/connections?${q.toString()}`, "Cache-Control": "no-store" },
-  });
+  const marca = await marcaDaSaida(null);
+  return respostaDePonte(`/app/connections?${q.toString()}`, marca.nome, "Voltando para suas conexões…");
 }
 
 export async function GET(req: NextRequest): Promise<Response> {

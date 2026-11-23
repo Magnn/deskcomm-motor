@@ -134,3 +134,31 @@ describe("todo callback de OAuth é alcançável sem cookie de sessão", () => {
     ).toBeLessThan(queima);
   });
 });
+
+/**
+ * Callbacks que podem voltar com 302. Cada um com o motivo — o resto volta por
+ * `respostaDePonte` (`lib/auth/ponte-de-volta.ts`).
+ */
+const VOLTA_POR_REDIRECT_DE_PROPOSITO: Record<string, string> = {
+  "app/auth/callback/route.ts":
+    "é a própria entrada: a sessão é criada NESTA resposta e o destino vem de safeNext; a ponte do login social mora em app/auth/social-return",
+};
+
+describe("callback de navegador volta por ponte, não por 302", () => {
+  // Medido em 23/11/2026: o retorno do Messenger (302) deixava a pessoa em
+  // /login logo depois de conectar 41 páginas — o cookie Strict não viaja num
+  // redirect iniciado pelo Facebook. A Agenda e o Meta Ads já voltavam por
+  // ponte; Messenger, Instagram, Nuvemshop e Google Ads não.
+  it.each(rotasDeCallback())("%s não responde com redirect", (arquivo) => {
+    const motivo = VOLTA_POR_REDIRECT_DE_PROPOSITO[arquivo];
+    if (motivo) {
+      expect(motivo.length).toBeGreaterThan(20);
+      return;
+    }
+    const fonte = readFileSync(arquivo, "utf8");
+    expect(
+      /status:\s*30[1278]\b|NextResponse\.redirect\(|Response\.redirect\(/.test(fonte),
+      `${arquivo} volta com redirect: depois do consentimento a pessoa cai em /login. Use respostaDePonte.`,
+    ).toBe(false);
+  });
+});
