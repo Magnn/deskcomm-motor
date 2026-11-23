@@ -1,0 +1,203 @@
+"use client";
+
+import { useT } from "@/hooks/i18n/useT";
+import { useTagDeIdioma } from "@/hooks/i18n/useLocaleDeData";
+import type { ResumoResposta } from "@/hooks/ads/useMetaAds";
+import { vereditoDaCampanha, type NumerosDoPeriodo, type Veredito } from "@/lib/anuncio/resumo-da-conta";
+
+/**
+ * O topo da tela de Meta Ads: os quatro números que decidem verba, o que está rodando com uma
+ * etiqueta de decisão, e os anúncios que mais vendem. As colunas técnicas ficam recolhidas embaixo.
+ */
+
+const ETIQUETA: Record<Veredito, { texto: string; classe: string }> = {
+  escalar: { texto: "Escalar", classe: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300" },
+  segurar: { texto: "Segurar", classe: "bg-amber-500/15 text-amber-700 dark:text-amber-300" },
+  cortar: { texto: "Cortar", classe: "bg-red-500/15 text-red-700 dark:text-red-300" },
+  pouco_dado: { texto: "Pouco dado", classe: "bg-muted text-muted-foreground" },
+};
+
+const VEICULACAO: Record<string, string> = {
+  WITH_ISSUES: "com problema",
+  DISAPPROVED: "reprovada",
+  PENDING_REVIEW: "em análise",
+  IN_PROCESS: "em processamento",
+  PENDING_BILLING_INFO: "aguardando pagamento",
+};
+
+/** Conta que a plataforma marcou (status ≠ 1): o alerta mais importante da tela. */
+const STATUS_DA_CONTA: Record<number, string> = {
+  2: "desativada",
+  3: "pendência de cobrança",
+  7: "em análise de risco",
+  8: "aguardando pagamento",
+  9: "em período de carência",
+  100: "encerramento pendente",
+  101: "encerrada",
+};
+
+interface Props {
+  resumo: ResumoResposta;
+  moeda: string;
+  statusDaConta: number | null;
+}
+
+export function ResumoDaConta({ resumo, moeda, statusDaConta }: Props) {
+  const t = useT();
+  const tag = useTagDeIdioma();
+  const dinheiro = (cents: number) =>
+    (cents / 100).toLocaleString(tag, { style: "currency", currency: moeda, maximumFractionDigits: 0 });
+  const vezes = (r: number | null) => (r === null ? "—" : `${r.toLocaleString(tag, { maximumFractionDigits: 1 })}×`);
+  const { atual, anterior } = resumo;
+  const emReal = moeda === "BRL";
+
+  const alertaDaConta = statusDaConta !== null ? STATUS_DA_CONTA[statusDaConta] : undefined;
+
+  return (
+    <div className="flex flex-col gap-6">
+      {(alertaDaConta || resumo.alertas.length > 0) && (
+        <ul role="alert" className="flex flex-col gap-1 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
+          {alertaDaConta && (
+            <li>
+              ⚠ {t("Conta de anúncios")} {t(alertaDaConta)}
+            </li>
+          )}
+          {resumo.alertas.map((a) => (
+            <li key={a.campanha}>
+              ⚠ {a.campanha}: {t(VEICULACAO[a.veiculacao] ?? a.veiculacao)}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <Numero rotulo={t("Gasto")} valor={dinheiro(atual.gastoCents)} delta={variacao(atual.gastoCents, anterior.gastoCents)} />
+        <Numero
+          rotulo={t("Vendas")}
+          valor={dinheiro(atual.receitaCents)}
+          detalhe={`${t("Clientes")}: ${atual.compradores}`}
+          delta={variacao(atual.receitaCents, anterior.receitaCents)}
+        />
+        <Numero
+          rotulo={t("Retorno")}
+          valor={emReal ? vezes(atual.retorno) : "—"}
+          detalhe={emReal ? t("pelo menos: só conta venda registrada") : t("conta em outra moeda")}
+          delta={emReal && atual.retorno !== null && anterior.retorno !== null ? diferencaDeRetorno(atual, anterior, tag) : null}
+        />
+        <Numero
+          rotulo={t("Custo por cliente")}
+          valor={atual.custoPorClienteCents === null ? "—" : dinheiro(atual.custoPorClienteCents)}
+          delta={
+            atual.custoPorClienteCents !== null && anterior.custoPorClienteCents !== null
+              ? variacao(atual.custoPorClienteCents, anterior.custoPorClienteCents, true)
+              : null
+          }
+        />
+      </div>
+
+      <section className="flex flex-col gap-2">
+        <h2 className="text-sm font-semibold">{t("Rodando agora")}</h2>
+        {resumo.rodando.length === 0 ? (
+          <p className="text-sm text-muted-foreground">{t("Nenhuma campanha rodou neste período.")}</p>
+        ) : (
+          <div className="overflow-x-auto rounded-md border">
+            <table className="w-full text-sm">
+              <thead className="text-left text-xs text-muted-foreground">
+                <tr>
+                  <th className="px-3 py-2 font-medium">{t("Campanha")}</th>
+                  <th className="px-3 py-2 text-right font-medium">{t("Gasto")}</th>
+                  <th className="px-3 py-2 text-right font-medium">{t("Conversas")}</th>
+                  <th className="px-3 py-2 text-right font-medium">{t("Vendas")}</th>
+                  <th className="px-3 py-2 text-right font-medium">{t("Retorno")}</th>
+                  <th className="px-3 py-2" />
+                </tr>
+              </thead>
+              <tbody>
+                {resumo.rodando.map((c) => {
+                  const v = vereditoDaCampanha(c, moeda);
+                  return (
+                    <tr key={c.id} className="border-t">
+                      <td className="px-3 py-2">
+                        <span className={c.veiculacao === "ACTIVE" ? "text-emerald-600" : "text-muted-foreground"} aria-hidden>
+                          ●
+                        </span>{" "}
+                        {c.nome}
+                      </td>
+                      <td className="px-3 py-2 text-right tabular-nums">{dinheiro(c.gastoCents)}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{c.conversas}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{dinheiro(c.receitaCents)}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{emReal ? vezes(c.retorno) : "—"}</td>
+                      <td className="px-3 py-2 text-right">
+                        {v && <span className={`rounded-md px-2 py-0.5 text-xs font-medium ${ETIQUETA[v].classe}`}>{t(ETIQUETA[v].texto)}</span>}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      {resumo.campeoes.length > 0 && (
+        <section className="flex flex-col gap-2">
+          <h2 className="text-sm font-semibold">{t("Anúncios que mais vendem")}</h2>
+          <ul className="grid gap-3 sm:grid-cols-3">
+            {resumo.campeoes.map((a) => (
+              <li key={a.adId} className="flex items-center gap-3 rounded-md border p-3">
+                {a.miniatura ? (
+                  // Miniatura servida pela plataforma; `next/image` exigiria liberar o domínio dela.
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={a.miniatura} alt="" className="size-12 shrink-0 rounded-md object-cover" />
+                ) : (
+                  <div className="size-12 shrink-0 rounded-md bg-muted" aria-hidden />
+                )}
+                <div className="min-w-0 text-sm">
+                  <p className="truncate font-medium">{a.nome ?? a.adId}</p>
+                  <p className="text-muted-foreground">
+                    {a.compradores} {t(a.compradores === 1 ? "venda" : "vendas")} · {dinheiro(a.receitaCents)}
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {resumo.paradas > 0 && (
+        <p className="text-xs text-muted-foreground">
+          {resumo.paradas} {t("campanhas paradas, sem gasto no período (estão nos números técnicos).")}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/** Variação percentual; `menorEMelhor` pinta queda de verde (custo). */
+function variacao(atual: number, anterior: number, menorEMelhor = false): { texto: string; bom: boolean } | null {
+  if (anterior === 0) return null;
+  const pct = Math.round(((atual - anterior) / anterior) * 100);
+  if (pct === 0) return { texto: "=", bom: true };
+  return { texto: `${pct > 0 ? "▲" : "▼"} ${Math.abs(pct)}%`, bom: menorEMelhor ? pct < 0 : pct > 0 };
+}
+
+function diferencaDeRetorno(atual: NumerosDoPeriodo, anterior: NumerosDoPeriodo, tag: string): { texto: string; bom: boolean } {
+  const d = (atual.retorno ?? 0) - (anterior.retorno ?? 0);
+  return { texto: `${d >= 0 ? "▲" : "▼"} ${Math.abs(d).toLocaleString(tag, { maximumFractionDigits: 1 })}`, bom: d >= 0 };
+}
+
+function Numero({ rotulo, valor, detalhe, delta }: { rotulo: string; valor: string; detalhe?: string; delta: { texto: string; bom: boolean } | null }) {
+  const t = useT();
+  return (
+    <div className="rounded-md border p-4">
+      <p className="text-xs text-muted-foreground">{rotulo}</p>
+      <p className="mt-1 text-2xl font-semibold tabular-nums">{valor}</p>
+      {detalhe && <p className="text-xs text-muted-foreground">{detalhe}</p>}
+      {delta && (
+        <p className={`mt-1 text-xs ${delta.bom ? "text-emerald-600" : "text-red-600"}`}>
+          {delta.texto} <span className="text-muted-foreground">{t("vs período anterior")}</span>
+        </p>
+      )}
+    </div>
+  );
+}

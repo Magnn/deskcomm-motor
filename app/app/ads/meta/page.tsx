@@ -63,11 +63,11 @@ export default async function MetaAdsPage() {
         <h1 className="text-2xl font-semibold tracking-tight">{t("Meta Ads")}</h1>
         <p className="max-w-3xl text-sm text-muted-foreground">
           {t(
-            "O desempenho das campanhas que estão trazendo gente para cá. Os números vêm da plataforma no momento em que você clica em Atualizar — nada fica guardado aqui.",
+            "Quanto você gastou, quanto voltou em vendas e qual anúncio está vendendo.",
           )}
         </p>
         <a className="mt-2 inline-block text-sm font-medium underline underline-offset-2" href="/app/ads/resultado">
-          {t("Ver qual anúncio traz quem compra")}
+          {t("Funil completo por anúncio")}
         </a>
       </header>
 

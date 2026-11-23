@@ -1,6 +1,7 @@
 "use client";
 import { useQuery } from "@tanstack/react-query";
 
+import type { ResumoDaConta } from "@/lib/anuncio/resumo-da-conta";
 import { apiClient } from "@/lib/api/client";
 import type { ContaDeAnuncio, LinhaDeCampanha } from "@/lib/plataformas-de-anuncio/types";
 
@@ -85,6 +86,30 @@ export function useMetaCampaigns({ contaId, de, ate }: ParametrosDeCampanhas) {
         // depois de ela ter gasto a cota do mesmo jeito.
         timeoutMs: 45_000,
       });
+    },
+    enabled: Boolean(contaId),
+    staleTime: 0,
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+}
+
+export interface ResumoResposta extends ResumoDaConta {
+  campeoes: (ResumoDaConta["campeoes"][number] & { miniatura: string | null })[];
+  periodo: { from: string; to: string };
+  periodo_anterior: { from: string; to: string };
+  account_id: string;
+  lido_em: string;
+}
+
+/** O topo da tela: números do período contra o anterior, o que roda e quem vende. */
+export function useMetaResumo({ contaId, de, ate }: ParametrosDeCampanhas) {
+  return useQuery({
+    queryKey: ["ads", "meta", "resumo", contaId, de, ate],
+    queryFn: async () => {
+      const qs = new URLSearchParams({ account_id: contaId as string, from: de, to: ate });
+      // Mesma razão do timeout das campanhas: várias leituras da plataforma por pedido.
+      return apiClient.get<{ data: ResumoResposta }>(`/api/v1/ads/meta/resumo?${qs}`, { timeoutMs: 45_000 });
     },
     enabled: Boolean(contaId),
     staleTime: 0,

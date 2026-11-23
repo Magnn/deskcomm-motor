@@ -633,3 +633,63 @@ export async function lerGastoPorAnuncio(
   await Promise.all(trabalhadores);
   return { gastos, semLeitura, naoConsultados };
 }
+
+// ─── Anúncios da CONTA (resumo da tela) ───────────────────────────────────
+
+/**
+ * Os anúncios que rodaram na conta no período, com a campanha (pelo id) e o gasto. Uma leitura só
+ * por período: o resumo soma por campanha e cruza com o funil do banco pelo id do anúncio.
+ */
+export async function lerAnunciosDaConta(
+  token: string,
+  contaId: string,
+  de: string,
+  ate: string,
+): Promise<ResultadoDeLeitura<{ adId: string; nome: string | null; campanhaId: string | null; gastoCents: number }[]>> {
+  const leitura = await buscarPaginado<{ ad_id?: string; ad_name?: string; campaign_id?: string; spend?: string }>(
+    montarUrl(`${encodeURIComponent(contaId)}/insights`, {
+      level: "ad",
+      fields: "ad_id,ad_name,campaign_id,spend",
+      time_range: JSON.stringify({ since: de, until: ate }),
+      limit: "500",
+    }),
+    token,
+    "anuncios_da_conta",
+  );
+  if (!leitura.ok) return leitura;
+  return {
+    ok: true,
+    dados: leitura.dados
+      .filter((l): l is typeof l & { ad_id: string } => Boolean(l.ad_id))
+      .map((l) => {
+        const gasto = Number(l.spend);
+        return {
+          adId: l.ad_id,
+          nome: l.ad_name ?? null,
+          campanhaId: l.campaign_id ?? null,
+          gastoCents: Number.isFinite(gasto) && gasto > 0 ? Math.round(gasto * 100) : 0,
+        };
+      }),
+  };
+}
+
+/**
+ * A miniatura do criativo de cada anúncio. Enfeite: falha devolve mapa vazio e a tela mostra o
+ * anúncio sem imagem.
+ */
+export async function lerMiniaturas(token: string, anuncios: readonly string[]): Promise<Map<string, string>> {
+  const miniaturas = new Map<string, string>();
+  if (anuncios.length === 0) return miniaturas;
+  const leitura = await buscarPaginado<{ id?: string; creative?: { thumbnail_url?: string } }>(
+    montarUrl("", { ids: anuncios.join(","), fields: "creative{thumbnail_url}" }),
+    token,
+    "miniaturas",
+    // `?ids=` devolve um objeto por id, sem `data`.
+    (corpo) => Object.values(corpo as unknown as Record<string, { id?: string; creative?: { thumbnail_url?: string } }>),
+  );
+  if (!leitura.ok) return miniaturas;
+  for (const a of leitura.dados) {
+    if (a.id && a.creative?.thumbnail_url) miniaturas.set(a.id, a.creative.thumbnail_url);
+  }
+  return miniaturas;
+}

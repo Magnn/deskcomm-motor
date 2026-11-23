@@ -13,11 +13,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useT } from "@/hooks/i18n/useT";
-import { useMetaAdAccounts, useMetaCampaigns } from "@/hooks/ads/useMetaAds";
+import { useMetaAdAccounts, useMetaCampaigns, useMetaResumo } from "@/hooks/ads/useMetaAds";
 import { ApiError } from "@/lib/api/types";
 import { useTagDeIdioma } from "@/hooks/i18n/useLocaleDeData";
 import type { Idioma } from "@/lib/i18n/idiomas";
 
+import { ResumoDaConta } from "./ResumoDaConta";
 import { TabelaDeCampanhas } from "./TabelaDeCampanhas";
 
 /**
@@ -122,13 +123,16 @@ export function MetaAdsClient({ contaPadrao }: Props) {
     return ativa?.id ?? listaDeContas[0]?.id ?? null;
   }, [conta, contaPadrao, listaDeContas]);
 
-  const moeda = listaDeContas.find((c) => c.id === contaEfetiva)?.moeda ?? "BRL";
+  const contaAtual = listaDeContas.find((c) => c.id === contaEfetiva);
+  const moeda = contaAtual?.moeda ?? "BRL";
 
   const campanhas = useMetaCampaigns({
     contaId: contaEfetiva,
     de: intervalo.de,
     ate: intervalo.ate,
   });
+
+  const resumo = useMetaResumo({ contaId: contaEfetiva, de: intervalo.de, ate: intervalo.ate });
 
   function trocarPreset(valor: string) {
     setPreset(valor);
@@ -142,8 +146,8 @@ export function MetaAdsClient({ contaPadrao }: Props) {
     return t("Não consegui carregar os dados agora.");
   }
 
-  const erro = contas.error ?? campanhas.error;
-  const carregando = contas.isLoading || campanhas.isFetching;
+  const erro = contas.error ?? resumo.error ?? campanhas.error;
+  const carregando = contas.isLoading || campanhas.isFetching || resumo.isFetching;
 
   return (
     <div className="flex flex-col gap-4">
@@ -222,7 +226,13 @@ export function MetaAdsClient({ contaPadrao }: Props) {
           `development_access`, cuja cota é justa. Um botão clicável durante a
           busca convida ao clique repetido que provoca o próprio rate limit.
         */}
-        <Button onClick={() => campanhas.refetch()} disabled={carregando || !contaEfetiva}>
+        <Button
+          onClick={() => {
+            void resumo.refetch();
+            void campanhas.refetch();
+          }}
+          disabled={carregando || !contaEfetiva}
+        >
           {carregando ? t("Atualizando…") : t("Atualizar")}
         </Button>
       </div>
@@ -243,13 +253,25 @@ export function MetaAdsClient({ contaPadrao }: Props) {
         </div>
       )}
 
+      {resumo.data && !erro && (
+        <ResumoDaConta resumo={resumo.data.data} moeda={moeda} statusDaConta={contaAtual?.status ?? null} />
+      )}
+
       {campanhas.data && !erro && (
         <>
-          <TabelaDeCampanhas
-            linhas={campanhas.data.data.campanhas}
-            moeda={moeda}
-            avisos={campanhas.data.data.avisos}
-          />
+          {/* As colunas do Gerenciador ficam a um clique: quem decide verba lê o resumo acima. */}
+          <details className="rounded-md border p-3">
+            <summary className="cursor-pointer text-sm font-medium">
+              {t("Ver números técnicos (CPM, CTR, alcance, frequência)")}
+            </summary>
+            <div className="mt-3">
+              <TabelaDeCampanhas
+                linhas={campanhas.data.data.campanhas}
+                moeda={moeda}
+                avisos={campanhas.data.data.avisos}
+              />
+            </div>
+          </details>
           {/*
             Sem carimbo, uma tabela que falhou ao atualizar é visualmente
             idêntica a uma recém-atualizada — e a promessa desta tela é
@@ -262,7 +284,7 @@ export function MetaAdsClient({ contaPadrao }: Props) {
         </>
       )}
 
-      {campanhas.isLoading && !erro && (
+      {(campanhas.isLoading || resumo.isLoading) && !erro && (
         <p className="text-sm text-muted-foreground">{t("Carregando campanhas…")}</p>
       )}
     </div>
