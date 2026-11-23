@@ -94,7 +94,7 @@ async function enviar(credencial: CredencialDeConversao, conversao: ConversaoOff
   if (!pixel?.datasetId || !pixel.accessToken) return primeiro;
   const reserva = await enviarUmaVez(pixel, { ...conversao, pixelDoSite: true });
   return reserva.tipo === "ok"
-    ? { tipo: "ok", detalhe: "pelo pixel: a mensageria não achou a conversa do anúncio" }
+    ? { tipo: "ok", detalhe: `pelo pixel: a mensageria não achou a conversa do anúncio; ${reserva.detalhe ?? ""}`.slice(0, 400) }
     : { ...reserva, detalhe: `${primeiro.detalhe} | pixel: ${reserva.detalhe}`.slice(0, 400) };
 }
 
