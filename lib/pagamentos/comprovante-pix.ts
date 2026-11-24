@@ -121,13 +121,30 @@ function citaQuemRecebe(texto: string, chave: ChavePixDaEmpresa): boolean {
   return digitos.length >= 8 && texto.replace(/\D/g, "").includes(digitos.slice(-8));
 }
 
-/** As cobranças pela chave que nós mandamos nesta conversa, da mais nova para a mais velha. */
-export function cobrancasEnviadas(mensagens: readonly FalaDaConversa[]): CobrancaEnviada[] {
+/** A fala traz a chave da empresa: os 8 últimos dígitos (celular, CPF, CNPJ) ou a chave inteira (e-mail, aleatória). */
+function citaAChave(texto: string, chave: ChavePixDaEmpresa): boolean {
+  const digitos = chave.key.replace(/\D/g, "");
+  if (/^[+\d\s().-]+$/.test(chave.key) && digitos.length >= 8) return texto.replace(/[\s().-]/g, "").includes(digitos.slice(-8));
+  return chave.key.trim() !== "" && texto.toLowerCase().includes(chave.key.trim().toLowerCase());
+}
+
+/**
+ * As cobranças pela chave que nós mandamos nesta conversa, da mais nova para a mais velha. Vale o balão padrão e, com a
+ * `chave`, a fala em que a agente escreveu a chave por conta própria ("A chave do Pix de R$ 50 é 6999…", 23/11/2026: o
+ * comprovante certo de R$ 50 caiu em "não há cobrança" e a venda não entrou). Nessa fala o valor só conta se for um só;
+ * senão fica 0 e quem decide o que liberar é o resto da conferência (entrada combinada, preço do principal).
+ */
+export function cobrancasEnviadas(mensagens: readonly FalaDaConversa[], chave?: ChavePixDaEmpresa): CobrancaEnviada[] {
   const achadas: CobrancaEnviada[] = [];
   for (const m of mensagens) {
     if (m.direction !== "outbound") continue;
-    const c = cobrancaNoTexto(m.body ?? "");
+    const corpo = m.body ?? "";
+    const c = cobrancaNoTexto(corpo);
     if (c) achadas.push({ ...c, enviadaEm: new Date(m.sent_at) });
+    else if (chave && citaAChave(corpo, chave)) {
+      const valores = [...new Set(valoresDitos(corpo))];
+      achadas.push({ valorCents: valores.length === 1 ? valores[0]! : 0, quantidade: 1, nome: null, enviadaEm: new Date(m.sent_at) });
+    }
   }
   return achadas.sort((a, b) => b.enviadaEm.getTime() - a.enviadaEm.getTime());
 }
