@@ -12,6 +12,8 @@ import { cargaDosNumeros, sessoesDoRodizio } from "@/lib/plataformas-de-anuncio/
 export interface CapacidadeDeHoje {
   numeros: number;
   leadsHoje: number;
+  /** Leads de hoje só nos números que TÊM orçamento — é isto que se compara com `orcamento`. */
+  leadsComTeto: number;
   /** Soma dos orçamentos de hoje dos números que TÊM orçamento; `null` quando nenhum tem. */
   orcamento: number | null;
   /** Números que já bateram o orçamento de hoje. */
@@ -21,6 +23,7 @@ export interface CapacidadeDeHoje {
 export function somarCapacidade(cargas: Iterable<{ leadsHoje: number; aCaminho: number; orcamentoHoje: number | null }>): CapacidadeDeHoje {
   let numeros = 0;
   let leadsHoje = 0;
+  let leadsComTeto = 0;
   let orcamento: number | null = null;
   let cheios = 0;
   for (const c of cargas) {
@@ -28,10 +31,11 @@ export function somarCapacidade(cargas: Iterable<{ leadsHoje: number; aCaminho: 
     leadsHoje += c.leadsHoje;
     if (c.orcamentoHoje !== null) {
       orcamento = (orcamento ?? 0) + c.orcamentoHoje;
+      leadsComTeto += c.leadsHoje;
       if (c.leadsHoje + c.aCaminho >= c.orcamentoHoje) cheios += 1;
     }
   }
-  return { numeros, leadsHoje, orcamento, cheios };
+  return { numeros, leadsHoje, leadsComTeto, orcamento, cheios };
 }
 
 export async function capacidadeDeHoje(admin: SupabaseClient, organizationId: string): Promise<CapacidadeDeHoje | null> {

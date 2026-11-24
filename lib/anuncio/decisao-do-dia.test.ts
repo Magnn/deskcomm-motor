@@ -91,7 +91,7 @@ describe("capacidade de hoje", () => {
         { leadsHoje: 5, aCaminho: 0, orcamentoHoje: 40 },
         { leadsHoje: 9, aCaminho: 0, orcamentoHoje: null },
       ]),
-    ).toEqual({ numeros: 3, leadsHoje: 34, orcamento: 64, cheios: 1 });
+    ).toEqual({ numeros: 3, leadsHoje: 34, leadsComTeto: 25, orcamento: 64, cheios: 1 });
     expect(somarCapacidade([{ leadsHoje: 3, aCaminho: 0, orcamentoHoje: null }]).orcamento).toBeNull();
   });
 });
