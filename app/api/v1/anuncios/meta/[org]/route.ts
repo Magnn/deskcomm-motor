@@ -41,10 +41,11 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 import { checkRateLimit } from "@/lib/ai/dispatcher/rate-limit";
-import { fbcDoClique } from "@/lib/conversoes/destino-de-mensageria";
+import { clienteDoClique, fbcDoClique } from "@/lib/conversoes/destino-de-mensageria";
 import { normalizarUtm } from "@/lib/leads/origem-do-site";
 import { lerCredencial } from "@/lib/plataformas-de-anuncio/credenciais";
 import { transporteMeta } from "@/lib/plataformas-de-anuncio/meta/conversions";
+import type { NomeDoEvento } from "@/lib/plataformas-de-anuncio/types";
 import { criarClickRef } from "@/lib/plataformas-de-anuncio/captura-de-clique";
 import { lerConfigDaLanding } from "@/lib/plataformas-de-anuncio/landing-config";
 import { proximoNumeroDoRodizio } from "@/lib/plataformas-de-anuncio/rodizio-de-numeros";
@@ -65,7 +66,21 @@ export const dynamic = "force-dynamic";
 const TETO_DO_LEAD_MS = 1500;
 
 /**
- * Manda o Lead do botão à Meta pela API de Conversões, no conjunto da tela de Conversões. Nunca lança e nunca
+ * Os eventos que o navegador dispara no botão, com o id que a página usa em cada um: o servidor manda os MESMOS ids
+ * e a Meta conta uma vez só. Só no navegador, Contato e Iniciar teste ficavam sem dado da pessoa (nota 7,2), e o
+ * Lead que ia pelo servidor sem `fbp` chegava só com IP e navegador (nota 3, erro "sem chave de user_data").
+ * `StartTrial` só quando a página avisa (`_st=1`): o navegador também só o dispara no botão de texto.
+ */
+function eventosDoBotao(eventoId: string, parametros: URLSearchParams): Array<{ evento: NomeDoEvento; eventoId: string }> {
+  return [
+    { evento: "Lead", eventoId },
+    { evento: "Contact", eventoId: `c-${eventoId}` },
+    ...(parametros.get("_st") === "1" ? [{ evento: "StartTrial" as const, eventoId: `t-${eventoId}` }] : []),
+  ];
+}
+
+/**
+ * Manda os eventos do botão à Meta pela API de Conversões, no conjunto da tela de Conversões. Nunca lança e nunca
  * segura a pessoa mais que `TETO_DO_LEAD_MS`: perder este evento é aceitável, perder o lead não.
  */
 async function leadPeloServidor(
@@ -82,11 +97,13 @@ async function leadPeloServidor(
     const credencial = await lerCredencial(admin, organizationId, "meta_ads");
     if (!credencial.ok) return;
     const query = Object.fromEntries(parametros.entries());
-    const envio = transporteMeta.enviar(credencial.credencial, {
+    // O visitante (`_vid`) vai como id externo: é o mesmo `external_id` do pixel do navegador.
+    const quem = clienteDoClique(query, cliente.ip, cliente.ua);
+    const envio = Promise.all(eventosDoBotao(eventoId, parametros).map((ev) => transporteMeta.enviar(credencial.credencial, {
       organizationId,
       leadId: eventoId,
-      evento: "Lead",
-      eventoId,
+      evento: ev.evento,
+      eventoId: ev.eventoId,
       ocorridoEm: new Date(),
       cliqueDeOrigem: "",
       // O WhatsApp digitado na página (POST): o Lead sai com o telefone e a correspondência na Meta sobe.
@@ -95,13 +112,14 @@ async function leadPeloServidor(
       paginaDoSite: cliente.pagina?.slice(0, 500) || cliente.origem,
       fbc: fbcDoClique(query, new Date().toISOString()),
       fbp: typeof query._fbp === "string" && /^[\w.-]{8,300}$/.test(query._fbp) ? query._fbp : null,
-      cliente: { ip: cliente.ip, ua: cliente.ua },
+      cliente: quem,
+      ...(quem?.visitante ? { identidade: { idExterno: quem.visitante } } : {}),
       moeda: "BRL",
       valorCentavos: null,
-    });
-    const resultado = await Promise.race([envio, new Promise<null>((ok) => setTimeout(() => ok(null), TETO_DO_LEAD_MS))]);
-    if (resultado && resultado.tipo !== "ok") {
-      logger.warn("[anuncios.meta.landing] Lead pelo servidor recusado", { detalhe: resultado.detalhe?.slice(0, 200) });
+    })));
+    const resultados = await Promise.race([envio, new Promise<null>((ok) => setTimeout(() => ok(null), TETO_DO_LEAD_MS))]);
+    for (const resultado of resultados ?? []) {
+      if (resultado.tipo !== "ok") logger.warn("[anuncios.meta.landing] evento do botão recusado pelo servidor", { detalhe: resultado.detalhe?.slice(0, 200) });
     }
   } catch (err) {
     logger.warn("[anuncios.meta.landing] Lead pelo servidor falhou", { erro: err instanceof Error ? err.message : String(err) });

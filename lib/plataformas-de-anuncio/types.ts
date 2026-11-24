@@ -56,6 +56,7 @@ export const EVENTOS_DE_CONVERSAO = [
   "ViewContent",
   "Contact",
   "CustomizeProduct",
+  "StartTrial",
 ] as const;
 export type NomeDoEvento = (typeof EVENTOS_DE_CONVERSAO)[number];
 
@@ -72,6 +73,18 @@ export interface IdentidadeDoCliente {
   primeiroNome?: string | null;
   sobrenome?: string | null;
   nascimento?: string | null;
+}
+
+/**
+ * Quem clicou na landing, como o pedido e a página o viram. `visitante` é o id que a página guarda no aparelho e
+ * manda ao pixel do navegador como `external_id`: repetido no servidor, liga a visita, o Lead e a venda à MESMA
+ * pessoa. `pais` é o que a página declarou ao pixel (ISO de 2 letras). Os dois são opcionais.
+ */
+export interface ClienteDoClique {
+  ip: string | null;
+  ua: string | null;
+  visitante?: string | null;
+  pais?: string | null;
 }
 
 export interface ConversaoOffline {
@@ -116,7 +129,7 @@ export interface ConversaoOffline {
   fbc?: string | null;
   fbp?: string | null;
   /** IP e navegador de quem clicou na landing (guardados no `[ref:]`). Sobem a qualidade da correspondência. */
-  cliente?: { ip: string | null; ua: string | null } | null;
+  cliente?: ClienteDoClique | null;
   /**
    * O evento aconteceu NA PÁGINA (o Lead do botão de WhatsApp, mandado pelo servidor junto com o do navegador):
    * `action_source: website` com o endereço da página. Ausente = evento da conversa (`chat`).

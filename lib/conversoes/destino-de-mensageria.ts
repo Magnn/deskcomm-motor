@@ -28,7 +28,7 @@ import { conjuntoDeDadosDaConta } from "@/lib/channels/meta/conjunto-de-dados-da
 import { resolveMetaCreds } from "@/lib/channels/meta/credentials";
 import { chaveDeConversaoDoIntermediario } from "@/lib/channels/conversao-pelo-intermediario";
 import { logger } from "@/lib/logger";
-import type { CredencialDeConversao } from "@/lib/plataformas-de-anuncio/types";
+import type { ClienteDoClique, CredencialDeConversao } from "@/lib/plataformas-de-anuncio/types";
 
 const CHAVE_NO_CANAL = "conversions_dataset_id";
 
@@ -79,7 +79,7 @@ export type DestinoDaConversao =
       /** No pixel do site: o clique (`fbc`) e o navegador (`fbp`) da landing, quando a pessoa veio por ela. */
       fbc?: string | null;
       fbp?: string | null;
-      cliente?: { ip: string | null; ua: string | null } | null;
+      cliente?: ClienteDoClique | null;
     }
   | { ok: false; motivo: "conjunto_de_dados_indisponivel"; detalhe?: string };
 
@@ -100,11 +100,18 @@ export function fbcDoClique(query: Record<string, unknown>, criadoEm: string): s
   return fbclid ? `fb.1.${new Date(criadoEm).getTime()}.${fbclid}` : null;
 }
 
+/** O cliente do clique: IP e navegador do pedido, e o visitante e o país que a página repassou (`_vid`, `_pais`). Pura. */
+export function clienteDoClique(query: Record<string, unknown>, ip: string | null, ua: string | null): ClienteDoClique | null {
+  const visitante = parametroSeguro(query._vid);
+  const pais = typeof query._pais === "string" && /^[a-z]{2}$/i.test(query._pais) ? query._pais.toLowerCase() : null;
+  return ip || ua || visitante ? { ip, ua, ...(visitante ? { visitante } : {}), ...(pais ? { pais } : {}) } : null;
+}
+
 async function cliqueDaLanding(
   admin: SupabaseClient,
   organizationId: string,
   contactId: string,
-): Promise<{ fbc: string | null; fbp: string | null; cliente: { ip: string | null; ua: string | null } | null }> {
+): Promise<{ fbc: string | null; fbp: string | null; cliente: ClienteDoClique | null }> {
   const { data } = await admin
     .from("meta_ads_click_refs")
     .select("query_raw, created_at")
@@ -119,7 +126,7 @@ async function cliqueDaLanding(
   // `__ip`/`__ua` não vêm da página: a rota de captura os grava ao receber o clique (ver a rota).
   const ip = typeof query.__ip === "string" ? query.__ip.slice(0, 64) : null;
   const ua = typeof query.__ua === "string" ? query.__ua.slice(0, 400) : null;
-  return { fbc: fbcDoClique(query, linha.created_at), fbp: parametroSeguro(query._fbp), cliente: ip || ua ? { ip, ua } : null };
+  return { fbc: fbcDoClique(query, linha.created_at), fbp: parametroSeguro(query._fbp), cliente: clienteDoClique(query, ip, ua) };
 }
 
 /**
