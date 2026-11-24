@@ -109,9 +109,10 @@ describe("a porta aberta", () => {
     m("inbound", fala),
   ];
 
-  it("⭐ pergunta sobre a pessoa ou novidade abre a oferta menor", () => {
-    expect(oportunidadeDeOferta(PRICING, extras, conversa("será que ele ainda me ama?"))?.name).toBe("Pergunta nova");
-    expect(oportunidadeDeOferta(PRICING, extras, conversa("ele me respondeu agora"))?.name).toBe("Pergunta nova");
+  it("⭐ pergunta sobre a pessoa ou novidade abre a oferta, sem tema a primeira da lista do operador (24/11)", () => {
+    expect(oportunidadeDeOferta(PRICING, extras, conversa("será que ele ainda me ama?"))?.name).toBe("Recado do Coração");
+    expect(oportunidadeDeOferta(PRICING, extras, conversa("ele me respondeu agora"))?.name).toBe("Recado do Coração");
+    expect(oportunidadeDeOferta(PRICING, [pergunta, recado] as never, conversa("ele me respondeu agora"))?.name).toBe("Pergunta nova");
   });
   it("sem preço dito, com oferta recente, ou em assunto de pagamento e trabalho, não abre", () => {
     expect(oportunidadeDeOferta(PRICING, extras, [m("outbound", "Oi."), m("inbound", "ele vai voltar?")])).toBeNull();
@@ -146,5 +147,20 @@ describe("as opções da entrada (20/11/2026)", () => {
   it("quem quer e não tem nada ouve o passo pequeno, também no menor valor", () => {
     expect(blocoDePreco(PRICING, { reclamacoes: 1, reclamouAgora: true })).toContain("QUER MAS NÃO TEM NADA HOJE");
     expect(blocoDePreco(PRICING, { reclamacoes: 9, reclamouAgora: true })).toContain("QUER MAS NÃO TEM NADA HOJE");
+  });
+});
+
+describe("o combinado da data sai com a oferta de hoje (24/11/2026)", () => {
+  it("⭐ a oferta vem no lugar do gesto de graça e com desejo antes do preço", () => {
+    const bloco = blocoDePreco(PRICING, { reclamacoes: 0, dataParaOValorCents: 13000, ofertaDeHoje: { nome: "Pergunta nova", precoCents: 2700 } });
+    expect(bloco).toContain("eu te chamo aqui com o link");
+    expect(bloco).toContain("eu faço a *Pergunta nova* por R$ 27");
+    expect(bloco).toContain("NO LUGAR do gesto de hoje");
+    expect(bloco).toContain("desejo antes do preço");
+  });
+  it("sem oferta de hoje, o molde da data sai sozinho", () => {
+    const bloco = blocoDePreco(PRICING, { reclamacoes: 0, dataParaOValorCents: 13000, ofertaDeHoje: null });
+    expect(bloco).toContain("eu te chamo aqui com o link");
+    expect(bloco).not.toContain("NO LUGAR do gesto de hoje");
   });
 });

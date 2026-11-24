@@ -444,15 +444,16 @@ describe("ela deu a data para pagar: o turno fecha o combinado com o valor já o
     expect(blocoDePreco(cfg, { reclamacoes: 2, ofertaDeHoje: { nome: "Pergunta nova", precoCents: 500 } })).not.toContain("E pra hoje");
   });
 
-  it("a oferta pequena é a avulsa de entrega única mais barata que a conversa ainda não falou (a já falada dá a vez à seguinte)", () => {
+  it("a oferta pequena é a avulsa de entrega única da vez, a primeira da lista do operador que a conversa ainda não falou (a já falada dá a vez à seguinte)", () => {
     const extras = [
       { name: "Sinastria Amorosa", price_cents: 3700, when: "quando falar do outro" },
       { name: "Pergunta nova", price_cents: 500, when: "outra pergunta às cartas" },
       { name: "Acompanhamento", price_cents: 300, when: "todo dia", valid_days: 30 },
     ];
-    expect(ofertaPequenaDeHoje(extras, [nossa("O trabalho custa R$ 130.")])).toEqual({ nome: "Pergunta nova", precoCents: 500 });
+    // 24/11/2026: sem tema, a primeira da lista (a ordem é do operador, pela venda), não a mais barata.
+    expect(ofertaPequenaDeHoje(extras, [nossa("O trabalho custa R$ 130.")])).toEqual({ nome: "Sinastria Amorosa", precoCents: 3700 });
     // Decisão de 23/11/2026: recusada uma oferta, a próxima é OUTRA, nunca a mesma repetida nem nenhuma.
-    expect(ofertaPequenaDeHoje(extras, [nossa("Se quiser, faço uma pergunta nova por R$ 5.")])).toEqual({ nome: "Sinastria Amorosa", precoCents: 3700 });
+    expect(ofertaPequenaDeHoje(extras, [nossa("Se quiser, faço a Sinastria Amorosa por R$ 37.")])).toEqual({ nome: "Pergunta nova", precoCents: 500 });
     expect(ofertaPequenaDeHoje(extras, [nossa("Uma pergunta nova por R$ 5."), nossa("Ou a Sinastria Amorosa por R$ 37.")])).toBeNull();
     expect(ofertaPequenaDeHoje([], [])).toBeNull();
   });
