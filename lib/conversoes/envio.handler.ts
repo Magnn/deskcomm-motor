@@ -43,7 +43,7 @@
 import type { EventHandler, EventRow, HandlerResult } from "@/lib/event-log/dispatcher";
 import { lerCredencial } from "@/lib/plataformas-de-anuncio/credenciais";
 import { transporteDe } from "@/lib/plataformas-de-anuncio/registry";
-import type { ConversaoOffline, NomeDoEvento } from "@/lib/plataformas-de-anuncio/types";
+import type { ClienteDoClique, ConversaoOffline, NomeDoEvento } from "@/lib/plataformas-de-anuncio/types";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { destinoDaConversaoMeta } from "./destino-de-mensageria";
 import { lerAtribuicao } from "./leitura-da-atribuicao";
@@ -162,7 +162,7 @@ async function handle(row: EventRow): Promise<HandlerResult> {
   let pixelDoSite = false;
   let fbc: string | null = null;
   let fbp: string | null = null;
-  let cliente: { ip: string | null; ua: string | null } | null = null;
+  let cliente: ClienteDoClique | null = null;
   let credencialDoEnvio = credencial.credencial;
   if (plataforma === "meta_ads") {
     // Fora de número oficial, a venda vai para o pixel do site (`destinoDaConversaoMeta`).

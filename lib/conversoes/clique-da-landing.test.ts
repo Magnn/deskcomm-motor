@@ -4,7 +4,7 @@
  */
 import { describe, expect, it } from "vitest";
 
-import { fbcDoClique } from "./destino-de-mensageria";
+import { clienteDoClique, fbcDoClique } from "./destino-de-mensageria";
 
 describe("fbcDoClique", () => {
   it("o cookie _fbc repassado pela página vence", () => {
@@ -38,5 +38,15 @@ describe("destinoDaConversaoMeta com clique da página (19–20/11/2026: ctwa_cl
     expect(d.ok && d.pixelDoSite).toBe(true);
     expect(d.ok && d.fbc).toBe(`fb.1.${Date.parse("2026-11-20T12:00:00Z")}.IwAR0xyz123`);
     expect(tabelas).toEqual(["meta_ads_click_refs"]);
+  });
+});
+
+describe("clienteDoClique", () => {
+  it("⭐ leva o visitante e o país que a página repassou, junto do IP e do navegador", () => {
+    expect(clienteDoClique({ _vid: "v-mi1x2y-ab12cd34", _pais: "BR" }, "200.1.2.3", "UA")).toEqual({ ip: "200.1.2.3", ua: "UA", visitante: "v-mi1x2y-ab12cd34", pais: "br" });
+  });
+  it("valor estranho não entra; sem nada, null", () => {
+    expect(clienteDoClique({ _vid: "<x>", _pais: "brasil" }, "1.1.1.1", null)).toEqual({ ip: "1.1.1.1", ua: null });
+    expect(clienteDoClique({}, null, null)).toBeNull();
   });
 });

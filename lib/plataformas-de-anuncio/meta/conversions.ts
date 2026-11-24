@@ -146,14 +146,19 @@ async function enviarUmaVez(
   // Array de propósito: o formato aceita múltiplos valores por campo, e mandar
   // string crua onde ele espera lista é aceito com aviso e ignorado no match.
   if (conversao.telefone) userData.ph = [hash(conversao.telefone)];
-  if (conversao.telefone?.startsWith("55")) userData.country = [hash("br")];
+  // País: o do telefone; sem telefone, o que a página declarou ao pixel do navegador (o Lead da landing).
+  const pais = conversao.telefone?.startsWith("55") ? "br" : doSite ? conversao.cliente?.pais : null;
+  if (pais) userData.country = [hash(pais)];
   const estado = estadoDoTelefone(conversao.telefone);
   if (estado) userData.st = [hash(estado)];
   // Quem é o cliente, além do telefone: cada campo sobe a nota de correspondência do evento (medido em
   // 29/10/2026: a Compra com só telefone/país/clique/IP/navegador tinha 7,2/10). Todos com hash; nome em
   // minúsculas e só letras, nascimento AAAAMMDD, como a plataforma pede antes do hash.
   const id = conversao.identidade;
-  if (id?.idExterno) userData.external_id = [hash(id.idExterno)];
+  // O id do contato e, no pixel do site, o visitante da landing: o MESMO valor que o pixel do navegador manda como
+  // `external_id`. Com os dois, a Meta liga a visita e o Lead do navegador à venda feita dias depois na conversa.
+  const idsExternos = [id?.idExterno, doSite ? conversao.cliente?.visitante : null].filter((v): v is string => Boolean(v));
+  if (idsExternos.length) userData.external_id = [...new Set(idsExternos)].map(hash);
   if (id?.email) userData.em = [hash(id.email)];
   if (id?.primeiroNome) userData.fn = [hash(id.primeiroNome)];
   if (id?.sobrenome) userData.ln = [hash(id.sobrenome)];

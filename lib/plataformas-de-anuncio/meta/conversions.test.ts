@@ -5,7 +5,11 @@
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { createHash } from "node:crypto";
+
 import { transporteMeta } from "./conversions";
+
+const sha = (v: string) => createHash("sha256").update(v).digest("hex");
 
 const BASE = {
   organizationId: "org",
@@ -94,5 +98,34 @@ describe("transporteMeta", () => {
     const ud = corpoEnviado(f).data[0]!.user_data as Record<string, unknown>;
     expect(ud.fbc).toBe("fb.1.1760000000000.IwAR0abc");
     expect(ud.fbp).toBe("fb.1.1760000000000.123456789");
+  });
+
+  it("⭐ visitante da landing: o MESMO external_id do pixel do navegador, junto do id do contato, e o país da página", async () => {
+    const f = vi.fn(async () => Response.json({ events_received: 1 }));
+    vi.stubGlobal("fetch", f);
+    // Lead sem telefone: só a página sabe o país.
+    await transporteMeta.enviar(CRED, {
+      ...BASE, evento: "Lead", eventoId: "eid-1234-abcd", telefone: null, valorCentavos: null,
+      pixelDoSite: true, paginaDoSite: "https://acassia.tech/presel/",
+      cliente: { ip: "200.1.2.3", ua: "Mozilla/5.0", visitante: "v-abc-123", pais: "br" },
+      identidade: { idExterno: "v-abc-123" },
+    });
+    const ud = corpoEnviado(f).data[0]!.user_data as Record<string, unknown>;
+    expect(ud.external_id).toEqual([sha("v-abc-123")]);
+    expect(ud.country).toEqual([sha("br")]);
+
+    // A venda: id do contato E o visitante do clique.
+    f.mockClear();
+    await transporteMeta.enviar(CRED, { ...BASE, pixelDoSite: true, identidade: { idExterno: "contato-1" }, cliente: { ip: null, ua: null, visitante: "v-abc-123" } });
+    expect((corpoEnviado(f).data[0]!.user_data as Record<string, unknown>).external_id).toEqual([sha("contato-1"), sha("v-abc-123")]);
+  });
+
+  it("mensageria não leva o visitante da landing nem o país da página (não é evento do site)", async () => {
+    const f = vi.fn(async () => Response.json({ events_received: 1 }));
+    vi.stubGlobal("fetch", f);
+    await transporteMeta.enviar(CRED, { ...BASE, telefone: null, identidade: { idExterno: "contato-1" }, cliente: { ip: null, ua: null, visitante: "v-abc-123", pais: "pt" } });
+    const ud = corpoEnviado(f).data[0]!.user_data as Record<string, unknown>;
+    expect(ud.external_id).toEqual([sha("contato-1")]);
+    expect(ud).not.toHaveProperty("country");
   });
 });
