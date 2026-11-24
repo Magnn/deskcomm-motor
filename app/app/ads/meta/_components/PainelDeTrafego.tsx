@@ -270,7 +270,7 @@ export function FunilPorAnuncio({ resumo, moeda }: { resumo: ResumoResposta; moe
                   <td className="px-2 py-3 text-right font-mono tabular-nums">{dinheiro(a.gastoCents)}</td>
                   <td className="px-2 py-3">
                     <div className="flex flex-col gap-1.5">
-                      <div className="flex h-2 overflow-hidden rounded bg-surface-elevated" aria-hidden>
+                      <div className="flex h-2 overflow-hidden rounded-sm bg-surface-elevated" aria-hidden>
                         <div className="bg-accent/40" style={{ width: pct(Math.max(0, a.ouviramPreco - a.compradores), a.conversas) }} />
                         <div className="bg-accent" style={{ width: pct(a.compradores, a.conversas) }} />
                       </div>
