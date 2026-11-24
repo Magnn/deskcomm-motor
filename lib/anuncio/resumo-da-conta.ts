@@ -26,6 +26,8 @@ export interface CampanhaDaConta {
   nome: string;
   /** `effective_status` da plataforma. */
   veiculacao: string | null;
+  /** Orçamento diário da campanha; `null`/ausente quando o orçamento é dos conjuntos. */
+  orcamentoDiarioCents?: number | null;
 }
 
 export interface NumerosDoPeriodo {
@@ -43,6 +45,20 @@ export interface CampanhaRodando extends NumerosDoPeriodo {
   id: string;
   nome: string;
   veiculacao: string | null;
+  orcamentoDiarioCents?: number | null;
+}
+
+/** O funil de UM anúncio da conta no período: do gasto ao Pix. */
+export interface FunilNaConta {
+  adId: string;
+  nome: string | null;
+  gastoCents: number;
+  conversas: number;
+  engajaram: number;
+  ouviramPreco: number;
+  compradores: number;
+  receitaCents: number;
+  retorno: number | null;
 }
 
 export interface AnuncioCampeao {
@@ -63,6 +79,8 @@ export interface ResumoDaConta {
   anterior: NumerosDoPeriodo;
   rodando: CampanhaRodando[];
   campeoes: AnuncioCampeao[];
+  /** Todos os anúncios que gastaram no período, do que mais gastou ao que menos. */
+  anuncios: FunilNaConta[];
   /** Campanhas que não rodaram nem gastaram no período. */
   paradas: number;
   alertas: AlertaDeCampanha[];
@@ -127,7 +145,9 @@ export function montarResumoDaConta(entrada: {
   for (const c of entrada.campanhas) {
     const doPeriodo = anunciosPorCampanha.get(c.id) ?? [];
     const soma = somar(doPeriodo, funil);
-    if (c.veiculacao === "ACTIVE" || soma.gastoCents > 0) rodando.push({ id: c.id, nome: c.nome, veiculacao: c.veiculacao, ...soma });
+    if (c.veiculacao === "ACTIVE" || soma.gastoCents > 0) {
+      rodando.push({ id: c.id, nome: c.nome, veiculacao: c.veiculacao, orcamentoDiarioCents: c.orcamentoDiarioCents ?? null, ...soma });
+    }
     else paradas += 1;
   }
   rodando.sort((a, b) => b.gastoCents - a.gastoCents || b.receitaCents - a.receitaCents);
@@ -139,6 +159,25 @@ export function montarResumoDaConta(entrada: {
     .sort((x, y) => y.receitaCents - x.receitaCents || y.compradores - x.compradores)
     .slice(0, 3);
 
+  const anuncios: FunilNaConta[] = entrada.anuncios
+    .filter((a) => a.gastoCents > 0)
+    .map((a) => {
+      const f = funil.get(a.adId);
+      const receitaCents = n(f?.receita_cents);
+      return {
+        adId: a.adId,
+        nome: a.nome ?? f?.titulo ?? null,
+        gastoCents: a.gastoCents,
+        conversas: n(f?.leads),
+        engajaram: n(f?.engajaram),
+        ouviramPreco: n(f?.ouviram_preco),
+        compradores: n(f?.compradores),
+        receitaCents,
+        retorno: Number((receitaCents / a.gastoCents).toFixed(2)),
+      };
+    })
+    .sort((x, y) => y.gastoCents - x.gastoCents);
+
   const alertas = entrada.campanhas
     .filter((c) => c.veiculacao !== null && VEICULACAO_COM_ALERTA.has(c.veiculacao))
     .map((c) => ({ campanha: c.nome, veiculacao: c.veiculacao as string }));
@@ -148,6 +187,7 @@ export function montarResumoDaConta(entrada: {
     anterior: somar(entrada.anunciosAnteriores, porAnuncio(entrada.funilAnterior)),
     rodando,
     campeoes,
+    anuncios,
     paradas,
     alertas,
   };

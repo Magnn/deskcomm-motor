@@ -53,6 +53,14 @@ describe("montarResumoDaConta", () => {
     expect(r.campeoes.map((c) => c.nome)).toEqual(["Ele esfriou?", "Carta do mês"]);
   });
 
+  it("funil de cada anúncio que gastou, do que mais gastou ao que menos", () => {
+    expect(r.anuncios.length).toBeGreaterThan(0);
+    expect(r.anuncios.every((a) => a.gastoCents > 0)).toBe(true);
+    expect([...r.anuncios].sort((x, y) => y.gastoCents - x.gastoCents)).toEqual(r.anuncios);
+    const vendeu = r.anuncios.find((a) => a.compradores > 0);
+    expect(vendeu?.retorno).toBe(Number(((vendeu?.receitaCents ?? 0) / (vendeu?.gastoCents ?? 1)).toFixed(2)));
+  });
+
   it("alerta para campanha com problema na veiculação", () => {
     expect(r.alertas).toEqual([{ campanha: "Nova", veiculacao: "WITH_ISSUES" }]);
   });
