@@ -92,8 +92,14 @@ function ofertasDoCorpo(c: Escada, pequenos: readonly Extra[], corpo: string): V
     if (FALA_DE_PARCELA.test(frase)) continue;
     for (const cents of valoresDitos(frase)) {
       const pequena = pequenaDoValor(pequenos, cents, frase, corpo);
+      const pelaFrase = pequena !== null && citaOExtra(frase, pequena);
+      // 24/11/2026: "os R$ 90 do restante" virou "6× Sentimento da Fotografia" e a régua cobrou uma foto que nunca chegou.
+      // O restante e o combinado não oferecem nada, e um total de várias unidades só é a cobrança se ela for citada.
+      const porValor =
+        pequena !== null &&
+        (pelaFrase || (!FALA_DO_COMBINADO.test(frase) && (cents === pequena.price_cents || citaOExtra(corpo, pequena))));
       // Um valor pode existir nas duas tabelas: quem diz de qual se trata é a frase.
-      const daPequena = pequena !== null && (!escada.has(cents) || (citaOExtra(frase, pequena) && !FALA_DO_TRABALHO.test(frase)));
+      const daPequena = porValor && (!escada.has(cents) || (pelaFrase && !FALA_DO_TRABALHO.test(frase)));
       if (daPequena) achados.push({ cents, frase, pequena });
       else if (escada.has(cents) && !FALA_DO_COMBINADO.test(frase)) achados.push({ cents, frase, pequena: null });
     }
