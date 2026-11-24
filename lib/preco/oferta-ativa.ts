@@ -41,7 +41,7 @@ const VALIDADE_DA_OFERTA_MS = 24 * 60 * 60 * 1000;
 
 /** Frase que lembra uma data acertada: não oferece nada. */
 const FALA_DO_COMBINADO = /\bcombinad|\bdia\s+\d{1,2}\b|\brestante\b/i;
-const FALA_DA_ENTRADA = /\bentra(?:r)?\s+com\s+\*?R\$\s?\d[\d.,]*/i;
+const FALA_DA_ENTRADA = /\bentra(?:r)?\s+com\s+(?:[oa]s\s+)?\*?R\$\s?\d[\d.,]*|\bentrada\s+de\s+\*?R\$\s?\d[\d.,]*/i;
 /** Parcela não é preço: "12x de R$ 15". */
 const FALA_DE_PARCELA = /\b\d{1,2}\s*x\b|\bparcela/i;
 const FALA_DO_TRABALHO = /\btrabalh\w*/i;
@@ -92,8 +92,16 @@ function ofertasDoCorpo(c: Escada, pequenos: readonly Extra[], corpo: string): V
     if (FALA_DE_PARCELA.test(frase)) continue;
     for (const cents of valoresDitos(frase)) {
       const pequena = pequenaDoValor(pequenos, cents, frase, corpo);
+      const pelaFrase = pequena !== null && citaOExtra(frase, pequena);
+      // 24/11/2026: "os R$ 90 do restante" virou "6× Sentimento da Fotografia" e a régua cobrou uma foto que nunca chegou.
+      // O restante, o combinado e a frase do trabalho não oferecem cobrança pequena sem citá-la, e um total de várias
+      // unidades só é a cobrança se ela for citada.
+      const porValor =
+        pequena !== null &&
+        (pelaFrase ||
+          (!FALA_DO_COMBINADO.test(frase) && !FALA_DO_TRABALHO.test(frase) && (cents === pequena.price_cents || citaOExtra(corpo, pequena))));
       // Um valor pode existir nas duas tabelas: quem diz de qual se trata é a frase.
-      const daPequena = pequena !== null && (!escada.has(cents) || (citaOExtra(frase, pequena) && !FALA_DO_TRABALHO.test(frase)));
+      const daPequena = porValor && (!escada.has(cents) || (pelaFrase && !FALA_DO_TRABALHO.test(frase)));
       if (daPequena) achados.push({ cents, frase, pequena });
       else if (escada.has(cents) && !FALA_DO_COMBINADO.test(frase)) achados.push({ cents, frase, pequena: null });
     }
