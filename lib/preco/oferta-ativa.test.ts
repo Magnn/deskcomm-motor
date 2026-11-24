@@ -44,6 +44,20 @@ describe("a oferta de pé é a última dita", () => {
     ];
     expect(ofertaAtivaDaConversa(escada, [...extras, foto], conversa)).not.toMatchObject({ nome: "Sentimento da Fotografia" });
   });
+  it("⭐ 22/11/2026: a entrada de R$ 15 no trabalho é a entrada, não a cobrança de R$ 15", () => {
+    const foto = { name: "Sentimento da Fotografia", when: "x", delivery: "x", price_cents: 1500 } as unknown as Extra;
+    expect(ofertaAtivaDaConversa(escada, [foto], [agente("O que a gente combinou segue: você entra com os R$ 15 agora no trabalho.")])).toEqual({
+      tipo: "pequena",
+      nome: "Entrada de hoje",
+      cents: 1500,
+    });
+    expect(ofertaAtivaDaConversa(escada, [foto], [agente("Vou te mandar a chave da entrada de R$ 30 agora, meu bem.")])).toEqual({
+      tipo: "pequena",
+      nome: "Entrada de hoje",
+      cents: 3000,
+    });
+    expect(ofertaAtivaDaConversa(escada, [foto], [agente("O seu trabalho começa com R$ 15 hoje.")])).toBeNull();
+  });
   it("várias unidades contam quando a cobrança é citada", () => {
     const foto = { name: "Sentimento da Fotografia", when: "x", delivery: "x", price_cents: 1500 } as unknown as Extra;
     expect(ofertaAtivaDaConversa(escada, [foto], [agente("Olhar as duas fotos, Sentimento da Fotografia, fica R$ 30.")])).toEqual({
