@@ -5,7 +5,7 @@ import type { ChavePixDaEmpresa } from "@/lib/preco/chave-pix";
 import type { Extra } from "@/lib/preco/tipos";
 
 import { comprovanteDoTurno, PRODUTO_DO_VALOR_SOLTO, type DepsDoComprovante } from "./comprovante-no-turno";
-import { cobrancasEnviadas, confirmaPagamentoEmDuvida, confirmaPagamentoSemRegistro, conferirComprovante, dataImpressa, produtoCitado, textoDaMidia, type FalaDaConversa } from "./comprovante-pix";
+import { cobrancasEnviadas, entradasCombinadas, confirmaPagamentoEmDuvida, confirmaPagamentoSemRegistro, conferirComprovante, dataImpressa, produtoCitado, textoDaMidia, type FalaDaConversa } from "./comprovante-pix";
 
 describe("comprovante em dúvida no envio", () => {
   it("⭐ 06/11: comprovante sem ID não vira 'está certinho' nem entrega", () => {
@@ -362,5 +362,29 @@ describe("⭐ 22/11/2026: 7 vendas pela chave paradas na leitura do comprovante"
     expect(confirmaPagamentoSemRegistro("O comprovante de *R$ 60* confere com o que a gente combinou, viu?", true)).not.toBeNull();
     expect(confirmaPagamentoEmDuvida("Recebi o comprovante, a equipe confere e já te falo.", true)).toBeNull();
     expect(confirmaPagamentoSemRegistro("Já estou conferindo o seu comprovante com a equipe.", true)).toBeNull();
+  });
+});
+
+describe("chave escrita pela agente fora do balão padrão", () => {
+  const fala = (body: string, sent_at = COBROU_EM): FalaDaConversa => ({ direction: "outbound", body, sent_at });
+  const falas = [
+    fala("O que fica de pé é o combinado: você entra com R$ 50 hoje.", "2026-11-01T14:50:00.000Z"),
+    fala("A chave do Pix de R$ 50 é 69900001234, no nome de Fulano de Tal Silva. O tipo é celular."),
+  ];
+  const conferirSolto = (cobrancas: ReturnType<typeof cobrancasEnviadas>) =>
+    conferirComprovante({ texto: comprovante("R$ 50,00"), chave: CHAVE, cobrancas, extras: [PERGUNTA], valoresDoPrincipal: [13000], entradas: entradasCombinadas(falas), agora: AGORA });
+
+  it("⭐ 23/11: comprovante certo de R$ 50 depois da chave em texto livre entra como entrada", () => {
+    expect(cobrancasEnviadas(falas, CHAVE)).toEqual([{ valorCents: 5000, quantidade: 1, nome: null, enviadaEm: new Date(COBROU_EM) }]);
+    expect(conferirSolto(cobrancasEnviadas(falas, CHAVE))).toMatchObject({ tipo: "confere_principal", valorCents: 5000, idDoPix: ID });
+  });
+
+  it("sem a chave na fala, segue sem cobrança", () => {
+    expect(conferirSolto(cobrancasEnviadas(falas))).toEqual({ tipo: "nao_confere", motivo: "não há cobrança pela chave nesta conversa" });
+    expect(cobrancasEnviadas([fala("Meu número é 69911112222, R$ 50")], CHAVE)).toEqual([]);
+  });
+
+  it("fala com a chave e mais de um valor vira cobrança sem valor", () => {
+    expect(cobrancasEnviadas([fala("Chave (69) 9 0000-1234: R$ 50 agora e R$ 80 depois.")], CHAVE)[0]).toMatchObject({ valorCents: 0 });
   });
 });
