@@ -9941,6 +9941,17 @@ export const DICIONARIO: Traducoes = {
   "Nenhuma campanha rodou neste período.": { es: "Ninguna campaña se ejecutó en este período." },
   "Anúncios que mais vendem": { es: "Anuncios que más venden" },
   // Painel de tráfego (decisão do dia, pode escalar, funil por anúncio, o que mudou).
+  "otimiza para": { es: "optimiza para" },
+  'não para compras por mensagem. A meta não muda depois de publicada: recrie o conjunto com "Maximizar o número de compras por meio de mensagens".': {
+    es: 'no para compras por mensaje. El objetivo no cambia después de publicado: vuelve a crear el conjunto con "Maximizar el número de compras por mensaje".',
+  },
+  "cliques no link": { es: "clics en el enlace" },
+  "visualizações da página": { es: "visitas a la página" },
+  alcance: { es: "alcance" },
+  impressões: { es: "impresiones" },
+  cadastros: { es: "registros" },
+  "reproduções de vídeo": { es: "reproducciones de video" },
+  engajamento: { es: "interacción" },
   "Não foi possível mudar o orçamento. Tente de novo.": { es: "No fue posible cambiar el presupuesto. Inténtalo de nuevo." },
   "Cada R$ 1 em anúncio voltou": { es: "Cada R$ 1 en anuncios volvió" },
   "em vendas registradas. Dá para subir 20%.": { es: "en ventas registradas. Se puede subir un 20%." },
