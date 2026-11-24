@@ -16,6 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { CampoDeSenha } from "@/components/auth/CampoDeSenha";
 import { signUp } from "@/app/actions/auth/signUp";
 
 /**
@@ -216,10 +217,11 @@ export function SignupForm({ convite }: { convite?: ConviteDoSignup }) {
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="password">{t("Senha")}</Label>
-        <Input
+        <CampoDeSenha
           id="password"
-          type="password"
           autoComplete="new-password"
+          rotuloMostrar={t("Mostrar senha")}
+          rotuloOcultar={t("Ocultar senha")}
           aria-invalid={errors.password ? true : undefined}
           {...register("password")}
         />
@@ -229,10 +231,11 @@ export function SignupForm({ convite }: { convite?: ConviteDoSignup }) {
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="password_confirm">{t("Confirmar senha")}</Label>
-        <Input
+        <CampoDeSenha
           id="password_confirm"
-          type="password"
           autoComplete="new-password"
+          rotuloMostrar={t("Mostrar confirmação da senha")}
+          rotuloOcultar={t("Ocultar confirmação da senha")}
           aria-invalid={errors.password_confirm ? true : undefined}
           {...register("password_confirm")}
         />

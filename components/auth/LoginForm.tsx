@@ -10,6 +10,7 @@ import { loginSchema, type LoginInput } from "@/lib/auth/schemas";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { CampoDeSenha } from "@/components/auth/CampoDeSenha";
 import { signInWithPassword } from "@/app/actions/auth/signInWithPassword";
 
 export function LoginForm({ next }: { next?: string }) {
@@ -75,10 +76,11 @@ export function LoginForm({ next }: { next?: string }) {
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="password">{t("Senha")}</Label>
-        <Input
+        <CampoDeSenha
           id="password"
-          type="password"
           autoComplete="current-password"
+          rotuloMostrar={t("Mostrar senha")}
+          rotuloOcultar={t("Ocultar senha")}
           aria-invalid={errors.password ? true : undefined}
           {...register("password")}
         />
