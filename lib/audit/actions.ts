@@ -541,6 +541,8 @@ export const AUDIT_ACTIONS = [
   "ad_insights_connection.deleted",
   // Pausar/reativar campanha pela tela de Meta Ads (ads_management): a única escrita na conta do cliente.
   "ad_campaign.veiculacao_alterada",
+  // Orçamento diário trocado pelo painel de tráfego (subir 20% / desfazer). A linha do tempo lê daqui.
+  "ad_campaign.orcamento_alterado",
   // A marca da ORGANIZAÇÃO (nome + cor) trocada em `organizations.settings.branding`
   // — mutação de TENANT, e por isso COM `organization_id` e com `resource_id` =
   // o uuid da org. É outra ação, e não `org.updated`, porque a pergunta que a

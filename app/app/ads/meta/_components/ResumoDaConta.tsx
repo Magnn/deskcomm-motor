@@ -12,6 +12,8 @@ import { useTagDeIdioma } from "@/hooks/i18n/useLocaleDeData";
 import type { ResumoResposta } from "@/hooks/ads/useMetaAds";
 import { vereditoDaCampanha, type NumerosDoPeriodo, type Veredito } from "@/lib/anuncio/resumo-da-conta";
 
+import { DecisaoDoDia, FunilPorAnuncio, LinhaDoTempo, PodeEscalar } from "./PainelDeTrafego";
+
 /**
  * O topo da tela de Meta Ads: os quatro números que decidem verba, o que está rodando com uma
  * etiqueta de decisão, e os anúncios que mais vendem. As colunas técnicas ficam recolhidas embaixo.
@@ -98,6 +100,14 @@ export function ResumoDaConta({ resumo, moeda, statusDaConta, podeGerenciar }: P
         </ul>
       )}
 
+      <DecisaoDoDia
+        resumo={resumo}
+        moeda={moeda}
+        podeGerenciar={podeGerenciar}
+        pausando={mudando !== null}
+        onPausar={(id) => void mudarVeiculacao(id, "PAUSED")}
+      />
+
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <Numero rotulo={t("Gasto")} valor={dinheiro(atual.gastoCents)} delta={variacao(atual.gastoCents, anterior.gastoCents)} />
         <Numero
@@ -122,6 +132,8 @@ export function ResumoDaConta({ resumo, moeda, statusDaConta, podeGerenciar }: P
           }
         />
       </div>
+
+      <PodeEscalar resumo={resumo} alertaDaConta={alertaDaConta} />
 
       <section className="flex flex-col gap-2">
         <h2 className="text-sm font-semibold">{t("Rodando agora")}</h2>
@@ -191,30 +203,10 @@ export function ResumoDaConta({ resumo, moeda, statusDaConta, podeGerenciar }: P
         )}
       </section>
 
-      {resumo.campeoes.length > 0 && (
-        <section className="flex flex-col gap-2">
-          <h2 className="text-sm font-semibold">{t("Anúncios que mais vendem")}</h2>
-          <ul className="grid gap-3 sm:grid-cols-3">
-            {resumo.campeoes.map((a) => (
-              <li key={a.adId} className="flex items-center gap-3 rounded-md border p-3">
-                {a.miniatura ? (
-                  // Miniatura servida pela plataforma; `next/image` exigiria liberar o domínio dela.
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={a.miniatura} alt="" className="size-12 shrink-0 rounded-md object-cover" />
-                ) : (
-                  <div className="size-12 shrink-0 rounded-md bg-muted" aria-hidden />
-                )}
-                <div className="min-w-0 text-sm">
-                  <p className="truncate font-medium">{a.nome ?? a.adId}</p>
-                  <p className="text-muted-foreground">
-                    {a.compradores} {t(a.compradores === 1 ? "venda" : "vendas")} · {dinheiro(a.receitaCents)}
-                  </p>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+      {/* Os campeões viraram a miniatura na linha deles: o funil mostra TODOS os anúncios, do gasto ao Pix. */}
+      <FunilPorAnuncio resumo={resumo} moeda={moeda} />
+
+      <LinhaDoTempo resumo={resumo} moeda={moeda} />
 
       {resumo.paradas > 0 && (
         <p className="text-xs text-muted-foreground">

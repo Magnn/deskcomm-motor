@@ -2,6 +2,9 @@
 import { useQuery } from "@tanstack/react-query";
 
 import type { ResumoDaConta } from "@/lib/anuncio/resumo-da-conta";
+import type { CapacidadeDeHoje } from "@/lib/anuncio/capacidade-de-hoje";
+import type { DecisaoDoDia, MudancaNaCampanha } from "@/lib/anuncio/decisao-do-dia";
+import type { NotaDoEvento } from "@/lib/plataformas-de-anuncio/meta/qualidade-do-conjunto";
 import { apiClient } from "@/lib/api/client";
 import type { ContaDeAnuncio, LinhaDeCampanha } from "@/lib/plataformas-de-anuncio/types";
 
@@ -96,6 +99,10 @@ export function useMetaCampaigns({ contaId, de, ate }: ParametrosDeCampanhas) {
 
 export interface ResumoResposta extends ResumoDaConta {
   campeoes: (ResumoDaConta["campeoes"][number] & { miniatura: string | null })[];
+  decisao: DecisaoDoDia;
+  mudancas: MudancaNaCampanha[];
+  capacidade: CapacidadeDeHoje | null;
+  pixel: NotaDoEvento[] | null;
   periodo: { from: string; to: string };
   periodo_anterior: { from: string; to: string };
   account_id: string;
@@ -103,11 +110,11 @@ export interface ResumoResposta extends ResumoDaConta {
 }
 
 /** O topo da tela: números do período contra o anterior, o que roda e quem vende. */
-export function useMetaResumo({ contaId, de, ate }: ParametrosDeCampanhas) {
+export function useMetaResumo({ contaId, de, ate, moeda }: ParametrosDeCampanhas & { moeda?: string }) {
   return useQuery({
-    queryKey: ["ads", "meta", "resumo", contaId, de, ate],
+    queryKey: ["ads", "meta", "resumo", contaId, de, ate, moeda],
     queryFn: async () => {
-      const qs = new URLSearchParams({ account_id: contaId as string, from: de, to: ate });
+      const qs = new URLSearchParams({ account_id: contaId as string, from: de, to: ate, ...(moeda ? { moeda } : {}) });
       // Mesma razão do timeout das campanhas: várias leituras da plataforma por pedido.
       return apiClient.get<{ data: ResumoResposta }>(`/api/v1/ads/meta/resumo?${qs}`, { timeoutMs: 45_000 });
     },

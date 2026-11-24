@@ -124,7 +124,7 @@ const CAMPOS_DE_INSIGHTS = [...CAMPOS_DE_INSIGHTS_BASE, ...CAMPOS_DO_CONNECT_RAT
  */
 const CAMPOS_DE_INSIGHTS_SEM_CONNECT_RATE = CAMPOS_DE_INSIGHTS_BASE.join(",");
 
-const CAMPOS_DE_CAMPANHA = ["id", "name", "status", "effective_status", "objective"].join(",");
+const CAMPOS_DE_CAMPANHA = ["id", "name", "status", "effective_status", "objective", "daily_budget"].join(",");
 
 // ─────────────────────────────────────────────────────────────────────────────
 // O formato do fio — tipos do que a plataforma devolve
@@ -172,6 +172,8 @@ export interface CampanhaCrua {
   status?: string;
   effective_status?: string;
   objective?: string;
+  /** Orçamento diário DA CAMPANHA, em centavos, como string. Ausente quando o orçamento é do conjunto. */
+  daily_budget?: string;
 }
 
 interface RespostaPaginada<T> {
