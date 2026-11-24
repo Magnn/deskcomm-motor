@@ -149,6 +149,12 @@ export const extraSchema = z.object({
     .optional(),
   when: z.string().trim().min(5).max(400),
   /**
+   * AS PALAVRAS DELA que mostram que esta é a cobrança do tema ("esfriou", "meu filho", "tem outra"). É por elas que o
+   * código escolhe QUAL cobrança oferecer quando a conversa abre espaço (`cobrancaDoTema`); sem palavras, a cobrança só
+   * entra pela escolha do modelo, como antes. Comparadas sem acento e como palavra inteira.
+   */
+  themes: z.array(z.string().trim().min(2).max(40)).max(30).optional(),
+  /**
    * Por quantos dias o pagamento vale. Ausente = uma entrega (uma pergunta). Com dias, é um período: quem pagou é
    * atendido sem nova cobrança até o fim dele (um acompanhamento de 30 dias).
    */

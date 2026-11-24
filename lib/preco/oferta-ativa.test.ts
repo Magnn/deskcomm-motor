@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { conversaFalouDeExtra, ofertaPequenaDeHoje } from "./extras";
+import { cobrancaDoTema, conversaFalouDeExtra, ofertaPequenaDeHoje } from "./extras";
 import { reclamacoesDeValor, valorQueAPessoaTem } from "./estado-da-negociacao";
 import { falaErradaDoPagamento } from "./fala-do-pagamento";
 import { blocoDaOfertaAtiva, blocoDaOportunidade, comOfertasDoPosVenda, ofertaAtivaDaConversa, ofertaEmConflito, oportunidadeDaCliente, oportunidadeDeOferta, ouviuOMenorValor, pediuOTrabalho } from "./oferta-ativa";
@@ -188,5 +188,45 @@ describe("comOfertasDoPosVenda — a oferta de pós-venda também segura a régu
   it("pós-venda desligado não acrescenta nada", () => {
     expect(comOfertasDoPosVenda(extras, { post_sale: { enabled: false } } as never)).toHaveLength(extras.length);
     expect(comOfertasDoPosVenda(extras, posVenda).map((e) => e.name)).toEqual([...extras.map((e) => e.name), "Oração dos Sonhos", "Sons Vocálicos"]);
+  });
+});
+
+describe("a cobrança do tema dela vence a mais barata (23/11/2026)", () => {
+  const recado = { name: "Recado do Coração", when: "x", price_cents: 1500, themes: ["o que eu falo", "mando mensagem"] } as unknown as Extra;
+  const filhos = { name: "Proteção dos Filhos", when: "x", price_cents: 4700, themes: ["meu filho", "minha filha"] } as unknown as Extra;
+  const casal = { ...sinastria, themes: ["esfriou", "sumiu", "frio comigo"] } as Extra;
+  const comTemas = [pergunta, recado, filhos, casal];
+  const ouviuPreco = [agente("Aqui o seu trabalho é *R$ 130*."), pessoa("não dá"), agente("Fica comigo."), agente("Sem pressa."), agente("Tô aqui."), agente("Me conta.")];
+
+  it("⭐ ela fala do filho: a porta aberta oferece a Proteção dos Filhos, não a de R$ 7", () => {
+    const m = [pessoa("é o meu filho que me preocupa"), ...ouviuPreco, pessoa("será que ele vai sair dessa?")];
+    expect(oportunidadeDeOferta(escada, comTemas, m)?.name).toBe("Proteção dos Filhos");
+  });
+
+  it("o assunto mais novo vence o do começo, palavra inteira e sem acento", () => {
+    const m = [pessoa("meu filho brigou comigo"), pessoa("e ele esfriou do nada, o que será?")];
+    expect(cobrancaDoTema(comTemas, m)?.name).toBe("Sinastria Amorosa");
+    expect(cobrancaDoTema(comTemas, [pessoa("O QUE EU FALO pra ele?")])?.name).toBe("Recado do Coração");
+    expect(cobrancaDoTema(comTemas, [pessoa("fiquei esfriando a cabeça")])).toBeNull();
+    expect(cobrancaDoTema(comTemas, [agente("meu filho"), pessoa("oi")])).toBeNull();
+  });
+
+  it("sem palavras cadastradas, nada muda: segue a mais barata", () => {
+    const m = [pessoa("é o meu filho"), ...ouviuPreco, pessoa("será que ele vai sair dessa?")];
+    expect(oportunidadeDeOferta(escada, extras, m)?.name).toBe("Pergunta nova");
+  });
+
+  it("cliente da casa: o tema primeiro, e o casal já oferecido não volta", () => {
+    const AGORA = new Date("2026-11-23T20:00:00Z");
+    const em = (iso: string, m: { direction: string; body: string }) => ({ ...m, sent_at: iso });
+    const base = [em("2026-11-23T07:00:00Z", agente("Recebi o seu Pix, o trabalho começa hoje."))];
+    expect(oportunidadeDaCliente(escada, comTemas, [...base, em("2026-11-23T19:59:00Z", pessoa("e a minha filha, será que ela volta a falar comigo?"))], AGORA)?.name).toBe("Proteção dos Filhos");
+    const jaOuviuCasal = [em("2026-11-22T07:00:00Z", agente("Eu faço o *Código da Conexão* de vocês.")), ...base, em("2026-11-23T19:59:00Z", pessoa("ele sumiu de novo, por que ele faz isso?"))];
+    expect(oportunidadeDaCliente(escada, comTemas, jaOuviuCasal, AGORA)?.name).toBe("Pergunta nova");
+  });
+
+  it("a oferta de hoje é a do tema, e a já falada dá a vez à seguinte", () => {
+    expect(ofertaPequenaDeHoje(comTemas, [pessoa("não sei o que eu falo pra ele")])?.nome).toBe("Recado do Coração");
+    expect(ofertaPequenaDeHoje(comTemas, [agente("Uma pergunta nova sai por R$ 7."), pessoa("hoje não")])?.nome).toBe("Recado do Coração");
   });
 });

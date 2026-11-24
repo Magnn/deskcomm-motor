@@ -152,7 +152,7 @@ function formularioInicial(config: Props["config"]): Formulario {
       : {}),
     ...(c.provider_only_checkout !== undefined ? { soPeloProvedor: c.provider_only_checkout } : {}),
     ...(c.social_proof ? { provas: c.social_proof } : {}),
-    extras: (c.extras ?? []).map((e) => `${e.name} | ${emTexto(e.price_cents)} | ${e.when}${e.valid_days ? ` | ${e.valid_days}` : ""}${e.delivery ? ` | entrega: ${e.delivery}` : ""}${e.team_delivers ? " | equipe entrega" : ""}${e.quantity_prices?.length ? ` | quantidade: ${e.quantity_prices.map((q) => `${q.quantity}=${emTexto(q.price_cents)}`).join("; ")}` : ""}`).join("\n"),
+    extras: (c.extras ?? []).map((e) => `${e.name} | ${emTexto(e.price_cents)} | ${e.when}${e.valid_days ? ` | ${e.valid_days}` : ""}${e.delivery ? ` | entrega: ${e.delivery}` : ""}${e.team_delivers ? " | equipe entrega" : ""}${e.themes?.length ? ` | palavras: ${e.themes.join(", ")}` : ""}${e.quantity_prices?.length ? ` | quantidade: ${e.quantity_prices.map((q) => `${q.quantity}=${emTexto(q.price_cents)}`).join("; ")}` : ""}`).join("\n"),
   };
 }
 
@@ -235,7 +235,11 @@ function paraCorpo(f: Formulario): { corpo: PricingConfig } | { erro: string } {
     }
     // "equipe entrega" em qualquer posição: quem entrega é a equipe, e o pagamento abre um aviso na Central.
     const equipeEntrega = todas.some((p) => /^equipe entrega$/i.test(p));
-    const partes = todas.filter((p) => !/^(?:entrega|quantidade)\s*:/i.test(p) && !/^equipe entrega$/i.test(p));
+    // "palavras: esfriou, sumiu, meu filho" em qualquer posição: o que ela diz quando esta é a cobrança do tema dela.
+    const palavras = (todas.find((p) => /^palavras\s*:/i.test(p))?.replace(/^palavras\s*:\s*/i, "") ?? "")
+      .split(",").map((p) => p.trim()).filter((p) => p.length >= 2);
+    if (palavras.some((p) => p.length > 40) || palavras.length > 30) return { erro: "As palavras da cobrança vão separadas por vírgula: até 30, cada uma com até 40 letras." };
+    const partes = todas.filter((p) => !/^(?:entrega|quantidade|palavras)\s*:/i.test(p) && !/^equipe entrega$/i.test(p));
     const preco = emCentavos(partes[1] ?? "");
     if (partes.length < 3 || preco === null) return { erro: "Cada cobrança à parte deve ser: Nome | valor | quando cobrar" };
     // Um número inteiro no fim da linha é o período em dias ("… | 30"); sem ele, a cobrança vale uma entrega.
@@ -251,6 +255,7 @@ function paraCorpo(f: Formulario): { corpo: PricingConfig } | { erro: string } {
       ...(f.relatorios?.[partes[0] ?? ""] ? { report: f.relatorios[partes[0] ?? ""] } : {}),
       ...(f.abreLeitura?.[partes[0] ?? ""] !== undefined ? { opens_reading: f.abreLeitura[partes[0] ?? ""] } : {}),
       ...(equipeEntrega ? { team_delivers: true } : {}),
+      ...(palavras.length > 0 ? { themes: palavras } : {}),
     });
   }
   const gratuitas = f.respostasGratuitas.trim() === "" ? null : Number(f.respostasGratuitas);
@@ -507,7 +512,7 @@ export function PrecoDoAgente({ agentId, config, readOnly }: Props) {
           </p>
         </div>
         <div className="flex flex-col gap-1">
-          <Label htmlFor="preco-extras">{t("Uma linha por cobrança: Nome | valor | quando cobrar | dias que vale (opcional) | entrega: como entregar depois de pago (opcional) | quantidade: 2=10,00; 3=15,00 (opcional) | equipe entrega (opcional: quem entrega é a equipe, e o pagamento abre um aviso na Central)")}</Label>
+          <Label htmlFor="preco-extras">{t("Uma linha por cobrança: Nome | valor | quando cobrar | dias que vale (opcional) | entrega: como entregar depois de pago (opcional) | quantidade: 2=10,00; 3=15,00 (opcional) | equipe entrega (opcional: quem entrega é a equipe, e o pagamento abre um aviso na Central) | palavras: esfriou, sumiu, meu filho (opcional: o que ela diz quando esta é a cobrança do tema dela, separado por vírgula)")}</Label>
           <Textarea
             id="preco-extras"
             rows={4}

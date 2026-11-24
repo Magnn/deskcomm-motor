@@ -60,9 +60,41 @@ export function nomesDoExtra(extra: Pick<Extra, "name" | "report">): string[] {
     .filter((n) => n.length >= 6);
 }
 
+const semAcentoMinusculo = (t: string): string => t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+
+function falaTemPalavra(fala: string, palavra: string): boolean {
+  const p = semAcentoMinusculo(palavra).trim();
+  if (p.length < 2) return false;
+  const escapada = p.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\s+");
+  return new RegExp(`(?:^|[^a-z0-9])${escapada}(?:[^a-z0-9]|$)`).test(semAcentoMinusculo(fala));
+}
+
 /**
- * A OFERTA PEQUENA DE HOJE: a cobrança avulsa de entrega única (sem período) mais barata, se a conversa ainda não falou
- * dela. É o que a agente oferece a quem só pode pagar o trabalho em outra data (`instrucaoDeFecharADataCombinada`). Pura.
+ * A COBRANÇA DO TEMA DELA: a primeira cobrança (na ordem do operador) cujas palavras (`themes`) aparecem no que ela disse,
+ * olhando da mensagem mais nova para a mais velha — o assunto de agora vence o do começo da conversa. `null` = nenhuma
+ * cobrança tem palavra que case. Medido em 23/11/2026, 14 dias: quem escolhia a oferta pequena olhava só o PREÇO, e a
+ * mais barata (R$ 15) saía para quem falou de filho ou de traição; 109 conversas falaram de filho e nenhuma ouviu a
+ * cobrança do filho, e o relatório do casal, que converte 4× mais, chegou a 10 de 474 conversas sobre "ele". Pura.
+ */
+export function cobrancaDoTema<E extends Pick<Extra, "themes">>(
+  extras: readonly E[],
+  mensagens: readonly { direction: string; body?: string | null }[],
+): E | null {
+  const comPalavras = extras.filter((e) => (e.themes ?? []).length > 0);
+  if (comPalavras.length === 0) return null;
+  for (let i = mensagens.length - 1; i >= 0; i -= 1) {
+    const m = mensagens[i]!;
+    if (m.direction !== "inbound" || !m.body) continue;
+    const achada = comPalavras.find((e) => (e.themes ?? []).some((p) => falaTemPalavra(m.body ?? "", p)));
+    if (achada) return achada;
+  }
+  return null;
+}
+
+/**
+ * A OFERTA PEQUENA DE HOJE: a cobrança avulsa de entrega única (sem período) que é do tema dela (`cobrancaDoTema`) ou,
+ * sem tema, a mais barata — se a conversa ainda não falou dela. É o que a agente oferece a quem só pode pagar o trabalho
+ * em outra data (`instrucaoDeFecharADataCombinada`). Pura.
  */
 export function ofertaPequenaDeHoje(
   extras: readonly Extra[],
@@ -71,10 +103,9 @@ export function ofertaPequenaDeHoje(
 ): { nome: string; precoCents: number } | null {
   const casal = ouviuOMenorValor ? extraDoCasalPronto(extras, mensagens) : null;
   if (casal) return { nome: casal.name, precoCents: casal.price_cents };
-  const unicas = extras.filter((e) => e.valid_days === undefined).sort((a, b) => a.price_cents - b.price_cents);
-  const mais = unicas[0];
-  if (!mais || conversaFalouDeExtra(mensagens, [mais])) return null;
-  return { nome: mais.name, precoCents: mais.price_cents };
+  const unicas = extras.filter((e) => e.valid_days === undefined && !conversaFalouDeExtra(mensagens, [e]));
+  const mais = cobrancaDoTema(unicas, mensagens) ?? [...unicas].sort((a, b) => a.price_cents - b.price_cents)[0];
+  return mais ? { nome: mais.name, precoCents: mais.price_cents } : null;
 }
 
 /** Duas datas de nascimento na mesma mensagem dela: a dela e a da outra pessoa ("15/10/1999 … 06/10/2000"). */
