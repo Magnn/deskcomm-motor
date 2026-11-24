@@ -19,7 +19,7 @@
  *
  * Pura.
  */
-import { conversaFalouDeExtra, extraDoCasalPronto, nomesDoExtra, totaisDoExtra } from "./extras";
+import { cobrancaDoTema, conversaFalouDeExtra, extraDoCasalPronto, nomesDoExtra, totaisDoExtra } from "./extras";
 import type { Extra, PricingConfig } from "./tipos";
 import { reais } from "./tipos";
 import { valoresDitos } from "./valor-do-extra";
@@ -164,7 +164,8 @@ export function oportunidadeDeOferta(c: Escada, extras: readonly Extra[], mensag
   const pequenos = extrasPequenos(c, extras);
   // Ela já ouviu o menor valor do trabalho e deu as duas datas: a porta sobre a outra pessoa é o relatório do casal.
   const casal = ouviuOMenorValor(c, mensagens) ? extraDoCasalPronto(pequenos, mensagens) : null;
-  return casal ?? [...pequenos].sort((a, b) => a.price_cents - b.price_cents)[0] ?? null;
+  // O tema dela vence o preço: a mais barata só quando nada do que ela disse casa com as palavras de uma cobrança.
+  return casal ?? cobrancaDoTema(pequenos, mensagens) ?? [...pequenos].sort((a, b) => a.price_cents - b.price_cents)[0] ?? null;
 }
 
 /** Sem valor nosso nas últimas 12 h: a cliente da casa ouve uma oferta por vez, e o dia do pagamento fica com a entrega. */
@@ -185,7 +186,11 @@ export function oportunidadeDaCliente(c: Escada, extras: readonly Extra[], mensa
   if (falas.some((m) => FALA_DE_VALOR.test(m.body ?? "") && (!m.sent_at || Date.parse(m.sent_at) >= desde))) return null;
   const pequenos = extrasPequenos(c, extras);
   const casal = pequenos.find((e) => e.report?.kind === "sinastria" && e.valid_days === undefined);
-  if (casal && !conversaFalouDeExtra(mensagens, [casal])) return casal;
+  const casalJaOferecido = casal !== undefined && conversaFalouDeExtra(mensagens, [casal]);
+  // O tema dela primeiro (o relatório do casal só se ainda não foi oferecido); depois o casal; depois a mais barata.
+  const tema = cobrancaDoTema(pequenos.filter((e) => !(e === casal && casalJaOferecido)), mensagens);
+  if (tema) return tema;
+  if (casal && !casalJaOferecido) return casal;
   return [...pequenos].filter((e) => e !== casal).sort((a, b) => a.price_cents - b.price_cents)[0] ?? null;
 }
 

@@ -97,6 +97,7 @@ import {
   blocoDaEntregaPendente,
   blocoDosExtras,
   blocoDoQueJaComprou,
+  cobrancaDoTema,
   type ExtraJaComprado,
   entregaPendente,
   perguntaPagaRecente,
@@ -3288,6 +3289,8 @@ async function executarTurnoDoAgente(
     ? ofertaAtivaDaConversa(agentConfig.pricing, comOfertasDoPosVenda(extrasDaConfig(agentConfig.pricing), agentConfig.pricing), openingContext.context.messages)
     : null;
   const ofertaPequenaDePe = ofertaAtivaNoTurno?.tipo === 'pequena' && !trabalhoLiberadoNoTurno ? ofertaAtivaNoTurno : null;
+  const temaDoTurno = cobrancaDoTema(extrasDoTurno, openingContext.context.messages);
+  if (temaDoTurno !== null) runLog.info('cobrança do tema dela', { cobranca: temaDoTurno.name });
   const blocoDoAtropeloDoTurno =
     blocoDaOfertaAtiva(ofertaAtivaNoTurno, trabalhoLiberadoNoTurno) +
     blocoDaEntregaPendente(entregaPendenteDoTurno) +
@@ -3296,7 +3299,10 @@ async function executarTurnoDoAgente(
     blocoDaRecusa(recusouNaRodada) +
     blocoDaConversaGratuitaEsgotada(
       gratuitaEsgotadaNoTurno,
-      ofertaPequenaDePe !== null ? [ofertaPequenaDePe.nome] : ['o trabalho', ...extrasDoTurno.map((e) => e.name)],
+      ofertaPequenaDePe !== null
+        ? [ofertaPequenaDePe.nome]
+        : // O tema dela decide a cobrança; a lista inteira só quando nenhuma cobrança casa com o que ela disse.
+          ['o trabalho', ...(temaDoTurno ? [temaDoTurno] : extrasDoTurno).map((e) => e.name)],
       ofereceuHoje(openingContext.context.messages),
     ) +
     blocoDaOportunidade(oportunidadeNoTurno, clienteDaCasaNoTurno);
