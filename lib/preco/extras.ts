@@ -92,8 +92,20 @@ export function cobrancaDoTema<E extends Pick<Extra, "themes">>(
 }
 
 /**
- * A OFERTA PEQUENA DE HOJE: a cobrança avulsa de entrega única (sem período) que é do tema dela (`cobrancaDoTema`) ou,
- * sem tema, a mais barata — se a conversa ainda não falou dela. É o que a agente oferece a quem só pode pagar o trabalho
+ * A COBRANÇA DA VEZ: a do tema dela (`cobrancaDoTema`) ou, sem tema, a primeira da lista na ordem do operador. Medido em
+ * 24/11/2026: sem tema saía a mais barata, o Sentimento da Fotografia (R$ 15), que pede uma foto que a pessoa nem mandou,
+ * para quem tinha dito "voltaria com ele". A ordem da lista é decisão do operador; o preço não diz o que cabe. Pura.
+ */
+export function cobrancaDaVez<E extends Pick<Extra, "themes">>(
+  extras: readonly E[],
+  mensagens: readonly { direction: string; body?: string | null }[],
+): E | null {
+  return cobrancaDoTema(extras, mensagens) ?? extras[0] ?? null;
+}
+
+/**
+ * A OFERTA PEQUENA DE HOJE: a cobrança avulsa de entrega única (sem período) da vez (`cobrancaDaVez`) — se a conversa
+ * ainda não falou dela. Quem chama passa só as pequenas (abaixo do menor valor do trabalho). É o que a agente oferece a quem só pode pagar o trabalho
  * em outra data (`instrucaoDeFecharADataCombinada`). Pura.
  */
 export function ofertaPequenaDeHoje(
@@ -104,7 +116,7 @@ export function ofertaPequenaDeHoje(
   const casal = ouviuOMenorValor ? extraDoCasalPronto(extras, mensagens) : null;
   if (casal) return { nome: casal.name, precoCents: casal.price_cents };
   const unicas = extras.filter((e) => e.valid_days === undefined && !conversaFalouDeExtra(mensagens, [e]));
-  const mais = cobrancaDoTema(unicas, mensagens) ?? [...unicas].sort((a, b) => a.price_cents - b.price_cents)[0];
+  const mais = cobrancaDaVez(unicas, mensagens);
   return mais ? { nome: mais.name, precoCents: mais.price_cents } : null;
 }
 

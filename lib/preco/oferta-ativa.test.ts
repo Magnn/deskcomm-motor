@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { cobrancaDoTema, conversaFalouDeExtra, ofertaPequenaDeHoje } from "./extras";
 import { reclamacoesDeValor, valorQueAPessoaTem } from "./estado-da-negociacao";
 import { falaErradaDoPagamento } from "./fala-do-pagamento";
-import { blocoDaOfertaAtiva, blocoDaOportunidade, comOfertasDoPosVenda, ofertaAtivaDaConversa, ofertaEmConflito, oportunidadeDaCliente, oportunidadeDeOferta, ouviuOMenorValor, pediuOTrabalho } from "./oferta-ativa";
+import { blocoDaOfertaAtiva, blocoDaOportunidade, comOfertasDoPosVenda, extrasPequenos, ofertaAtivaDaConversa, ofertaEmConflito, oportunidadeDaCliente, oportunidadeDeOferta, ouviuOMenorValor, pediuOTrabalho } from "./oferta-ativa";
 import type { Extra } from "./tipos";
 import { valorErradoDeExtra } from "./valor-do-extra";
 
@@ -242,7 +242,7 @@ describe("a cobrança do tema dela vence a mais barata (23/11/2026)", () => {
     expect(cobrancaDoTema(comTemas, [agente("meu filho"), pessoa("oi")])).toBeNull();
   });
 
-  it("sem palavras cadastradas, nada muda: segue a mais barata", () => {
+  it("sem palavras cadastradas, nada muda: segue a primeira da lista", () => {
     const m = [pessoa("é o meu filho"), ...ouviuPreco, pessoa("será que ele vai sair dessa?")];
     expect(oportunidadeDeOferta(escada, extras, m)?.name).toBe("Pergunta nova");
   });
@@ -259,5 +259,23 @@ describe("a cobrança do tema dela vence a mais barata (23/11/2026)", () => {
   it("a oferta de hoje é a do tema, e a já falada dá a vez à seguinte", () => {
     expect(ofertaPequenaDeHoje(comTemas, [pessoa("não sei o que eu falo pra ele")])?.nome).toBe("Recado do Coração");
     expect(ofertaPequenaDeHoje(comTemas, [agente("Uma pergunta nova sai por R$ 7."), pessoa("hoje não")])?.nome).toBe("Recado do Coração");
+  });
+});
+
+describe("a oferta de hoje de quem dá a data (24/11/2026)", () => {
+  const foto = { name: "Sentimento da Fotografia", when: "x", price_cents: 1500, themes: ["foto", "na foto"] } as unknown as Extra;
+  const casamento = { name: "Reconstrução do Casamento", when: "x", price_cents: 6000, themes: ["meu marido"] } as unknown as Extra;
+  const lista = [pergunta, foto, casamento];
+
+  it("⭐ sem tema que case, sai a primeira da lista do operador, não a mais barata que pede foto", () => {
+    const m = [pessoa("voltaria com ele"), agente("O seu trabalho é *R$ 130*."), pessoa("só dia 30")];
+    expect(ofertaPequenaDeHoje(extrasPequenos(escada, lista), m)?.nome).toBe("Pergunta nova");
+  });
+
+  it("⭐ só as pequenas: o tema que casa com uma cobrança do tamanho do trabalho não vira a oferta de hoje", () => {
+    const m = [pessoa("é o meu marido"), agente("O seu trabalho é *R$ 130*."), pessoa("só dia 30")];
+    expect(extrasPequenos(escada, lista).map((e) => e.name)).not.toContain("Reconstrução do Casamento");
+    expect(ofertaPequenaDeHoje(extrasPequenos(escada, lista), m)?.nome).toBe("Pergunta nova");
+    expect(ofertaPequenaDeHoje(extrasPequenos(escada, lista), [pessoa("olha essa foto dele"), ...m])?.nome).toBe("Sentimento da Fotografia");
   });
 });
