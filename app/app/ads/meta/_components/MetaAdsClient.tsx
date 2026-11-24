@@ -134,7 +134,7 @@ export function MetaAdsClient({ contaPadrao, podeGerenciar }: Props) {
     ate: intervalo.ate,
   });
 
-  const resumo = useMetaResumo({ contaId: contaEfetiva, de: intervalo.de, ate: intervalo.ate });
+  const resumo = useMetaResumo({ contaId: contaEfetiva, de: intervalo.de, ate: intervalo.ate, moeda: contaAtual?.moeda });
 
   function trocarPreset(valor: string) {
     setPreset(valor);
