@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { updatePassword } from "@/app/actions/auth/updatePassword";
-import { Eye, EyeSlash } from "@/lib/ui/icons";
+import { CampoDeSenha } from "@/components/auth/CampoDeSenha";
 
 const PASSWORD_REQUIREMENTS = [
   { label: "8 ou mais caracteres", test: (value: string) => value.length >= 8 },
@@ -77,8 +77,6 @@ export function ResetPasswordForm() {
   const [isPending, startTransition] = useTransition();
   const [serverError, setServerError] = useState<string | null>(null);
   const [needsMfa, setNeedsMfa] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [showPasswordConfirm, setShowPasswordConfirm] = useState(false);
 
   const {
     register,
@@ -131,26 +129,15 @@ export function ResetPasswordForm() {
     >
       <div className="space-y-1.5">
         <Label htmlFor="password">{t("Nova senha")}</Label>
-        <div className="relative">
-          <Input
-            id="password"
-            type={showPassword ? "text" : "password"}
-            autoComplete="new-password"
-            autoFocus
-            className="pr-12"
-            aria-invalid={errors.password ? true : undefined}
-            {...register("password")}
-          />
-          <button
-            type="button"
-            className="absolute inset-y-0 right-0 flex w-11 items-center justify-center rounded-r-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent-500"
-            aria-label={t(showPassword ? "Ocultar nova senha" : "Mostrar nova senha")}
-            aria-pressed={showPassword}
-            onClick={() => setShowPassword((visible) => !visible)}
-          >
-            {showPassword ? <EyeSlash size={20} aria-hidden /> : <Eye size={20} aria-hidden />}
-          </button>
-        </div>
+        <CampoDeSenha
+          id="password"
+          autoComplete="new-password"
+          autoFocus
+          rotuloMostrar={t("Mostrar nova senha")}
+          rotuloOcultar={t("Ocultar nova senha")}
+          aria-invalid={errors.password ? true : undefined}
+          {...register("password")}
+        />
         {errors.password && (
           <p className="text-xs text-destructive">{t(errors.password.message ?? "")}</p>
         )}
@@ -158,31 +145,14 @@ export function ResetPasswordForm() {
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="password_confirm">{t("Confirmar nova senha")}</Label>
-        <div className="relative">
-          <Input
-            id="password_confirm"
-            type={showPasswordConfirm ? "text" : "password"}
-            autoComplete="new-password"
-            className="pr-12"
-            aria-invalid={errors.password_confirm ? true : undefined}
-            {...register("password_confirm")}
-          />
-          <button
-            type="button"
-            className="absolute inset-y-0 right-0 flex w-11 items-center justify-center rounded-r-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent-500"
-            aria-label={t(
-              showPasswordConfirm ? "Ocultar confirmação da senha" : "Mostrar confirmação da senha",
-            )}
-            aria-pressed={showPasswordConfirm}
-            onClick={() => setShowPasswordConfirm((visible) => !visible)}
-          >
-            {showPasswordConfirm ? (
-              <EyeSlash size={20} aria-hidden />
-            ) : (
-              <Eye size={20} aria-hidden />
-            )}
-          </button>
-        </div>
+        <CampoDeSenha
+          id="password_confirm"
+          autoComplete="new-password"
+          rotuloMostrar={t("Mostrar confirmação da senha")}
+          rotuloOcultar={t("Ocultar confirmação da senha")}
+          aria-invalid={errors.password_confirm ? true : undefined}
+          {...register("password_confirm")}
+        />
         {errors.password_confirm && (
           <p className="text-xs text-destructive">{t(errors.password_confirm.message ?? "")}</p>
         )}

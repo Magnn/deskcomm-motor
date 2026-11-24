@@ -8350,6 +8350,8 @@ export const DICIONARIO: Traducoes = {
   },
   "Nova senha": { es: "Nueva contraseña" },
   "Confirmar nova senha": { es: "Confirmar nueva contraseña" },
+  "Mostrar senha": { es: "Mostrar contraseña" },
+  "Ocultar senha": { es: "Ocultar contraseña" },
   "Mostrar nova senha": { es: "Mostrar nueva contraseña" },
   "Ocultar nova senha": { es: "Ocultar nueva contraseña" },
   "Mostrar confirmação da senha": { es: "Mostrar confirmación de la contraseña" },
