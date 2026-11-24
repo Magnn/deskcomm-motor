@@ -173,7 +173,8 @@ export function PodeEscalar({ resumo, alertaDaConta }: { resumo: ResumoResposta;
     const carga =
       capacidade.orcamento === null
         ? `${capacidade.leadsHoje} ${t("conversas novas hoje, sem teto definido.")}`
-        : `${capacidade.leadsHoje} ${t("de")} ${capacidade.orcamento} ${t("conversas novas hoje.")}`;
+        : `${capacidade.leadsComTeto} ${t("de")} ${capacidade.orcamento} ${t("conversas novas hoje nos números com limite")}` +
+          (capacidade.leadsHoje > capacidade.leadsComTeto ? ` (${capacidade.leadsHoje} ${t("no total")}).` : ".");
     const cheio = capacidade.cheios > 0;
     sinais.push({
       titulo: `${capacidade.numeros} ${plural}`,
