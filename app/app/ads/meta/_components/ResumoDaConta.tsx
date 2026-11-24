@@ -20,9 +20,9 @@ import { DecisaoDoDia, FunilPorAnuncio, LinhaDoTempo, PodeEscalar } from "./Pain
  */
 
 const ETIQUETA: Record<Veredito, { texto: string; classe: string }> = {
-  escalar: { texto: "Escalar", classe: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300" },
-  segurar: { texto: "Segurar", classe: "bg-amber-500/15 text-amber-700 dark:text-amber-300" },
-  cortar: { texto: "Cortar", classe: "bg-red-500/15 text-red-700 dark:text-red-300" },
+  escalar: { texto: "Escalar", classe: "bg-success-bg text-success-fg" },
+  segurar: { texto: "Segurar", classe: "bg-warning-bg text-warning-fg" },
+  cortar: { texto: "Cortar", classe: "bg-error-bg text-error-fg" },
   pouco_dado: { texto: "Pouco dado", classe: "bg-muted text-muted-foreground" },
 };
 
@@ -86,7 +86,7 @@ export function ResumoDaConta({ resumo, moeda, statusDaConta, podeGerenciar }: P
   return (
     <div className="flex flex-col gap-6">
       {(alertaDaConta || resumo.alertas.length > 0) && (
-        <ul role="alert" className="flex flex-col gap-1 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
+        <ul role="alert" className="flex flex-col gap-1 rounded-xl border border-warning/40 bg-warning-bg p-4 text-sm text-warning-fg">
           {alertaDaConta && (
             <li>
               ⚠ {t("Conta de anúncios")} {t(alertaDaConta)}
@@ -135,14 +135,14 @@ export function ResumoDaConta({ resumo, moeda, statusDaConta, podeGerenciar }: P
 
       <PodeEscalar resumo={resumo} alertaDaConta={alertaDaConta} />
 
-      <section className="flex flex-col gap-2">
-        <h2 className="text-sm font-semibold">{t("Rodando agora")}</h2>
+      <section className="flex flex-col gap-3 rounded-xl border bg-surface p-5 shadow-sm">
+        <h2 className="text-base font-bold">{t("Rodando agora")}</h2>
         {resumo.rodando.length === 0 ? (
           <p className="text-sm text-muted-foreground">{t("Nenhuma campanha rodou neste período.")}</p>
         ) : (
-          <div className="overflow-x-auto rounded-md border">
+          <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="text-left text-xs text-muted-foreground">
+              <thead className="text-left text-xs uppercase tracking-wide text-muted-foreground">
                 <tr>
                   <th className="px-3 py-2 font-medium">{t("Campanha")}</th>
                   <th className="px-3 py-2 text-right font-medium">{t("Gasto")}</th>
@@ -158,7 +158,7 @@ export function ResumoDaConta({ resumo, moeda, statusDaConta, podeGerenciar }: P
                   return (
                     <tr key={c.id} className="border-t">
                       <td className="px-3 py-2">
-                        <span className={c.veiculacao === "ACTIVE" ? "text-emerald-600" : "text-muted-foreground"} aria-hidden>
+                        <span className={c.veiculacao === "ACTIVE" ? "text-success" : "text-muted-foreground"} aria-hidden>
                           ●
                         </span>{" "}
                         {c.nome}
@@ -233,12 +233,12 @@ function diferencaDeRetorno(atual: NumerosDoPeriodo, anterior: NumerosDoPeriodo,
 function Numero({ rotulo, valor, detalhe, delta }: { rotulo: string; valor: string; detalhe?: string; delta: { texto: string; bom: boolean } | null }) {
   const t = useT();
   return (
-    <div className="rounded-md border p-4">
-      <p className="text-xs text-muted-foreground">{rotulo}</p>
-      <p className="mt-1 text-2xl font-semibold tabular-nums">{valor}</p>
+    <div className="rounded-xl border bg-surface p-5 shadow-sm">
+      <p className="text-sm text-muted-foreground">{rotulo}</p>
+      <p className="mt-1 font-mono text-[28px] font-semibold tabular-nums">{valor}</p>
       {detalhe && <p className="text-xs text-muted-foreground">{detalhe}</p>}
       {delta && (
-        <p className={`mt-1 text-xs ${delta.bom ? "text-emerald-600" : "text-red-600"}`}>
+        <p className={`mt-1 text-xs ${delta.bom ? "text-success" : "text-error"}`}>
           {delta.texto} <span className="text-muted-foreground">{t("vs período anterior")}</span>
         </p>
       )}
