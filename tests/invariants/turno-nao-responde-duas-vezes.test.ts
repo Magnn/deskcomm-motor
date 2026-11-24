@@ -296,6 +296,14 @@ describe("a régua: outro turno já viu e respondeu a última mensagem do client
     expect(await m.regua.ultimaInboundJaRespondida(pool, alvo(crypto.randomUUID()))).toBe(false);
   });
 
+  it("⭐ 24/11/2026: a retentativa anota a mensagem nova, mas o envio é da tentativa anterior: não é resposta", async () => {
+    await inbound("primeira", T("01:00"));
+    // A tentativa 1 respondeu à primeira (04:00 da manhã na régua); a 2 viu a segunda e morreu sem saldo.
+    await turnoTerminado({ vistoAte: T("06:48"), envio: { status: "accepted", em: T("04:08") } });
+    await inbound("segunda", T("06:48"));
+    expect(await m.regua.ultimaInboundJaRespondida(pool, alvo(crypto.randomUUID()))).toBe(false);
+  });
+
   it("o próprio job não conta (retentativa depois de enviar é assunto do send_ledger)", async () => {
     await inbound("365,00 2x na semana", T("04:04"));
     const proprio = await turnoTerminado({

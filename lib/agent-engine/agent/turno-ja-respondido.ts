@@ -88,6 +88,10 @@ export async function ultimaInboundJaRespondida(
           and o.status is distinct from 'failed'
           and u.em is not null
           and (j.payload->>'ultima_inbound_vista_em')::timestamptz >= u.em
+          -- A resposta saiu DEPOIS da mensagem: medido em 24/11/2026, a retentativa de um job reescreveu a
+          -- anotação ("vi a das 21:06") e morreu sem saldo; o envio era da tentativa anterior (21:04, resposta
+          -- à mensagem de antes). A régua juntava as duas e a cliente ficou sem resposta, resgate incluído.
+          and o.created_at > u.em
      ) as respondida`,
     [alvo.organizationId, alvo.conversationId, alvo.contactId, alvo.jobId],
   );
