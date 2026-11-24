@@ -51,16 +51,17 @@ export default async function MetaAdsPage() {
 
   return (
     /*
-      Superfície clara — mesmo escopo de Desempenho, a vizinha no menu. `-m-6`
-      cancela o respiro do `<main>` do AppShell para o Paper alcançar a borda, e
-      o `p-6` o repõe.
+      Superfície ESCURA, com os tokens do tema escuro do produto (`[data-theme="dark"]`
+      em `app/globals.css` vale para a subárvore): é o painel de tráfego, desenhado como
+      sala de controle — fundo #161510, índigo #7c79fa. `-m-6` cancela o respiro do
+      `<main>` do AppShell para o fundo alcançar a borda, e o `p-6` o repõe.
     */
     <div
-      data-superficie="clara"
+      data-theme="dark"
       className="-m-6 flex min-h-[calc(100%+3rem)] flex-col gap-6 bg-bg p-6 text-text"
     >
       <header>
-        <h1 className="text-2xl font-semibold tracking-tight">{t("Meta Ads")}</h1>
+        <h1 className="text-3xl font-bold tracking-tight">{t("Meta Ads")}</h1>
         <p className="max-w-3xl text-sm text-muted-foreground">
           {t(
             "Quanto você gastou, quanto voltou em vendas e qual anúncio está vendendo.",
