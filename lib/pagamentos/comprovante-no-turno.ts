@@ -151,7 +151,7 @@ export async function comprovanteDoTurno(
     let conferencia = conferirComprovante({
       texto: midia.texto,
       chave,
-      cobrancas: cobrancasEnviadas(e.mensagens),
+      cobrancas: cobrancasEnviadas(e.mensagens, chave),
       extras: extrasDaConfig(e.pricing),
       valoresDoPrincipal,
       entradas: [...entradasCombinadas(e.mensagens), ...(e.entradaDoTurnoCents ? [e.entradaDoTurnoCents] : [])],
