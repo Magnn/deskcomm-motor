@@ -35,6 +35,37 @@ describe("a oferta de pé é a última dita", () => {
   it("lembrar o combinado da data não tira a pequena de pé", () => {
     expect(ofertaAtivaDaConversa(escada, extras, [agente("Uma pergunta por R$ 7."), agente("O combinado do dia 20 segue, R$ 130.")])?.tipo).toBe("pequena");
   });
+  it("⭐ 24/11/2026: o restante do combinado não vira 6× de uma cobrança de R$ 15", () => {
+    const foto = { name: "Sentimento da Fotografia", when: "x", delivery: "x", price_cents: 1500 } as unknown as Extra;
+    const conversa = [
+      agente("Aqui o seu completo é *R$ 130*, uma vez só."),
+      agente("Fechado: você entra com R$ 40 amanhã e o restante de R$ 90 a gente acerta depois."),
+      agente("Os R$ 40 combinados pra amanhã, dia 25, e os R$ 90 do restante ficam marcados aqui comigo."),
+    ];
+    expect(ofertaAtivaDaConversa(escada, [...extras, foto], conversa)).not.toMatchObject({ nome: "Sentimento da Fotografia" });
+  });
+  it("⭐ 22/11/2026: a entrada de R$ 15 no trabalho é a entrada, não a cobrança de R$ 15", () => {
+    const foto = { name: "Sentimento da Fotografia", when: "x", delivery: "x", price_cents: 1500 } as unknown as Extra;
+    expect(ofertaAtivaDaConversa(escada, [foto], [agente("O que a gente combinou segue: você entra com os R$ 15 agora no trabalho.")])).toEqual({
+      tipo: "pequena",
+      nome: "Entrada de hoje",
+      cents: 1500,
+    });
+    expect(ofertaAtivaDaConversa(escada, [foto], [agente("Vou te mandar a chave da entrada de R$ 30 agora, meu bem.")])).toEqual({
+      tipo: "pequena",
+      nome: "Entrada de hoje",
+      cents: 3000,
+    });
+    expect(ofertaAtivaDaConversa(escada, [foto], [agente("O seu trabalho começa com R$ 15 hoje.")])).toBeNull();
+  });
+  it("várias unidades contam quando a cobrança é citada", () => {
+    const foto = { name: "Sentimento da Fotografia", when: "x", delivery: "x", price_cents: 1500 } as unknown as Extra;
+    expect(ofertaAtivaDaConversa(escada, [foto], [agente("Olhar as duas fotos, Sentimento da Fotografia, fica R$ 30.")])).toEqual({
+      tipo: "pequena",
+      nome: "Sentimento da Fotografia",
+      cents: 3000,
+    });
+  });
   it("oferta de mais de um dia não vale", () => {
     const antiga = { ...agente("Uma pergunta por R$ 7."), sent_at: "2026-11-01T10:00:00Z" };
     expect(ofertaAtivaDaConversa(escada, extras, [antiga], new Date("2026-11-03T10:00:00Z"))).toBeNull();
