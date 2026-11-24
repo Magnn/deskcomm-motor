@@ -8,7 +8,8 @@
  *
  * Desde o painel de tráfego, também: a decisão do dia (`lib/anuncio/decisao-do-dia.ts`), as mudanças
  * feitas pelo painel (audit log), a capacidade dos números hoje e a nota do pixel. As três últimas são
- * sinais: falha de leitura vira `null` e o resto da tela sai igual.
+ * sinais: falha de leitura vira `null` e o resto da tela sai igual. E a conferência de meta
+ * (`lib/anuncio/conferencia-de-meta.ts`): conjunto de vendas no WhatsApp que não otimiza para compra.
  *
  * Read-only ⇒ sem audit. Piso `manager`, mesmo das outras rotas de anúncio.
  */
@@ -18,6 +19,7 @@ import { z } from "zod";
 
 import type { FunilDoAnuncio } from "@/lib/anuncio/resultado-por-anuncio";
 import { capacidadeDeHoje } from "@/lib/anuncio/capacidade-de-hoje";
+import { conferirMetas } from "@/lib/anuncio/conferencia-de-meta";
 import { decisaoDoDia, type MudancaNaCampanha } from "@/lib/anuncio/decisao-do-dia";
 import { montarResumoDaConta, periodoAnterior } from "@/lib/anuncio/resumo-da-conta";
 import { fail, ok } from "@/lib/api/wrappers";
@@ -25,7 +27,7 @@ import { requireRole } from "@/lib/auth/require-role";
 import { lerCredencial } from "@/lib/plataformas-de-anuncio/credenciais";
 import { lerCredencialDeLeitura } from "@/lib/plataformas-de-anuncio/credenciais-de-leitura";
 import { lerNotaDoConjunto } from "@/lib/plataformas-de-anuncio/meta/qualidade-do-conjunto";
-import { lerAnunciosDaConta, lerCampanhas, lerMiniaturas } from "@/lib/plataformas-de-anuncio/meta/insights";
+import { lerAnunciosDaConta, lerCampanhas, lerConjuntosAtivos, lerMiniaturas } from "@/lib/plataformas-de-anuncio/meta/insights";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 import { respostaDeFalha, respostaSemConexao } from "../_falha";
@@ -74,7 +76,7 @@ export async function GET(req: NextRequest): Promise<Response> {
     return error ? null : ((data ?? []) as unknown as FunilDoAnuncio[]);
   };
 
-  const [campanhas, anuncios, anunciosAnteriores, funil, funilAnterior, mudancas, capacidade, pixel] = await Promise.all([
+  const [campanhas, anuncios, anunciosAnteriores, funil, funilAnterior, mudancas, capacidade, pixel, conjuntos] = await Promise.all([
     lerCampanhas(token, contaId),
     lerAnunciosDaConta(token, contaId, de, ate),
     lerAnunciosDaConta(token, contaId, antes.de, antes.ate),
@@ -83,6 +85,7 @@ export async function GET(req: NextRequest): Promise<Response> {
     mudancasDoPainel(admin, org.orgId),
     capacidadeDeHoje(admin, org.orgId).catch(() => null),
     notaDoPixel(admin, org.orgId),
+    lerConjuntosAtivos(token, contaId),
   ]);
 
   if (!campanhas.ok) return respostaDeFalha(campanhas.falha, campanhas.detalhe, { requestId });
@@ -106,6 +109,15 @@ export async function GET(req: NextRequest): Promise<Response> {
         orcamentoDiarioCents: Number(c.daily_budget) > 0 ? Number(c.daily_budget) : null,
       })),
   });
+  // Sinal, como capacidade e pixel: leitura que falha não derruba a tela, só deixa de conferir.
+  const metasErradas = conjuntos.ok
+    ? conferirMetas(
+        conjuntos.dados,
+        campanhas.dados
+          .filter((c): c is typeof c & { id: string } => Boolean(c.id))
+          .map((c) => ({ id: c.id, nome: c.name ?? c.id, objetivo: c.objective ?? null })),
+      )
+    : [];
   const decisao = decisaoDoDia({ rodando: resumo.rodando, mudancas, moeda });
   const miniaturas = await lerMiniaturas(token, resumo.campeoes.map((c) => c.adId));
 
@@ -117,6 +129,7 @@ export async function GET(req: NextRequest): Promise<Response> {
       mudancas,
       capacidade,
       pixel,
+      metas_erradas: metasErradas,
       periodo: { from: de, to: ate },
       periodo_anterior: { from: antes.de, to: antes.ate },
       account_id: contaId,

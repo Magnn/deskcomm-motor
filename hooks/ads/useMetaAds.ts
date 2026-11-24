@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import type { ResumoDaConta } from "@/lib/anuncio/resumo-da-conta";
 import type { CapacidadeDeHoje } from "@/lib/anuncio/capacidade-de-hoje";
+import type { MetaErrada } from "@/lib/anuncio/conferencia-de-meta";
 import type { DecisaoDoDia, MudancaNaCampanha } from "@/lib/anuncio/decisao-do-dia";
 import type { NotaDoEvento } from "@/lib/plataformas-de-anuncio/meta/qualidade-do-conjunto";
 import { apiClient } from "@/lib/api/client";
@@ -103,6 +104,7 @@ export interface ResumoResposta extends ResumoDaConta {
   mudancas: MudancaNaCampanha[];
   capacidade: CapacidadeDeHoje | null;
   pixel: NotaDoEvento[] | null;
+  metas_erradas: MetaErrada[];
   periodo: { from: string; to: string };
   periodo_anterior: { from: string; to: string };
   account_id: string;
