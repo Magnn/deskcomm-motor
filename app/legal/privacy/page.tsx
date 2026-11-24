@@ -66,6 +66,12 @@ export default async function PrivacyPage() {
             <strong>{t("De quem usa o sistema:")}</strong>{" "}
             {t("nome, e-mail, papel de acesso e registro das ações realizadas.")}
           </li>
+          <li>
+            <strong>{t("Da Meta (Facebook, Instagram e WhatsApp), quando a empresa conecta uma conta:")}</strong>{" "}
+            {t(
+              "o identificador, o nome público e a foto de perfil de quem escreveu para a empresa; o conteúdo das mensagens e dos comentários; os dados da página, da conta do Instagram, da conta do WhatsApp Business e das contas de anúncio que a empresa conectou, com os resultados das campanhas. As credenciais de acesso ficam guardadas cifradas. Esses dados servem só para a empresa que conectou a conta atender e medir os próprios anúncios — quando uma venda é confirmada, o evento de compra vai para a conta de anúncios da própria empresa.",
+            )}
+          </li>
         </ul>
       </section>
 
@@ -99,6 +105,11 @@ export default async function PrivacyPage() {
           </li>
           <li>{t("o provedor de infraestrutura onde o servidor está hospedado.")}</li>
         </ul>
+        <p>
+          {t(
+            "Conforme o provedor que o operador contratou, esses terceiros podem estar fora do Brasil; cada um recebe só o necessário para prestar o serviço.",
+          )}
+        </p>
         <p>{t("Os dados não são vendidos nem cedidos para publicidade de terceiros.")}</p>
       </section>
 
@@ -123,6 +134,11 @@ export default async function PrivacyPage() {
             "O sistema atende esses pedidos por um fluxo próprio: a exportação reúne o que existe sobre a pessoa, e a anonimização remove a identificação preservando o histórico de atendimento — por isso ela",
           )}{" "}
           <strong>{t("não pode ser desfeita")}</strong>.
+        </p>
+        <p>
+          <a className="underline underline-offset-2" href="/legal/data-deletion">
+            {t("Como pedir a exclusão dos seus dados")}
+          </a>
         </p>
       </section>
 

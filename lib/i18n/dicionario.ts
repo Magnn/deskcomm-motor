@@ -7674,6 +7674,16 @@ export const DICIONARIO: Traducoes = {
   "Os dados não são vendidos nem cedidos para publicidade de terceiros.": {
     es: "Los datos no se venden ni se ceden para publicidad de terceros.",
   },
+  "Da Meta (Facebook, Instagram e WhatsApp), quando a empresa conecta uma conta:": {
+    es: "De Meta (Facebook, Instagram y WhatsApp), cuando la empresa conecta una cuenta:",
+  },
+  "o identificador, o nome público e a foto de perfil de quem escreveu para a empresa; o conteúdo das mensagens e dos comentários; os dados da página, da conta do Instagram, da conta do WhatsApp Business e das contas de anúncio que a empresa conectou, com os resultados das campanhas. As credenciais de acesso ficam guardadas cifradas. Esses dados servem só para a empresa que conectou a conta atender e medir os próprios anúncios — quando uma venda é confirmada, o evento de compra vai para a conta de anúncios da própria empresa.": {
+    es: "el identificador, el nombre público y la foto de perfil de quien escribió a la empresa; el contenido de los mensajes y de los comentarios; los datos de la página, de la cuenta de Instagram, de la cuenta de WhatsApp Business y de las cuentas publicitarias que la empresa conectó, con los resultados de las campañas. Las credenciales de acceso se guardan cifradas. Estos datos sirven solo para que la empresa que conectó la cuenta atienda y mida sus propios anuncios — cuando se confirma una venta, el evento de compra va a la cuenta publicitaria de la propia empresa.",
+  },
+  "Conforme o provedor que o operador contratou, esses terceiros podem estar fora do Brasil; cada um recebe só o necessário para prestar o serviço.": {
+    es: "Según el proveedor que contrató el operador, estos terceros pueden estar fuera de Brasil; cada uno recibe solo lo necesario para prestar el servicio.",
+  },
+  "Como pedir a exclusão dos seus dados": { es: "Cómo pedir la eliminación de tus datos" },
   "5. Por quanto tempo": { es: "5. Por cuánto tiempo" },
   "Conversas e registros de negócio são mantidos enquanto houver relação com o cliente ou obrigação legal de guarda. Arquivos de mídia têm prazo próprio, configurado pelo operador. Registros de auditoria são mantidos por período mais longo, por serem prova de quem fez o quê.": {
     es: "Las conversaciones y los registros de negocio se conservan mientras exista relación con el cliente o una obligación legal de conservarlos. Los archivos multimedia tienen un plazo propio, que configura el operador. Los registros de auditoría se conservan por más tiempo, porque prueban quién hizo qué.",
