@@ -19,7 +19,7 @@
  *
  * Pura.
  */
-import { cobrancaDoTema, conversaFalouDeExtra, extraDoCasalPronto, nomesDoExtra, totaisDoExtra } from "./extras";
+import { cobrancaDaVez, cobrancaDoTema, conversaFalouDeExtra, extraDoCasalPronto, nomesDoExtra, totaisDoExtra } from "./extras";
 import type { Extra, PricingConfig } from "./tipos";
 import { reais } from "./tipos";
 import { valoresDitos } from "./valor-do-extra";
@@ -60,7 +60,7 @@ function degraus(c: Escada): Set<number> {
 }
 
 /** As cobranças avulsas que são "passo pequeno": abaixo do menor valor do trabalho. */
-function extrasPequenos(c: Escada, extras: readonly Extra[]): Extra[] {
+export function extrasPequenos(c: Escada, extras: readonly Extra[]): Extra[] {
   const todos = [...degraus(c)];
   if (todos.length === 0) return [];
   const menor = Math.min(...todos);
@@ -172,8 +172,7 @@ export function oportunidadeDeOferta(c: Escada, extras: readonly Extra[], mensag
   const pequenos = extrasPequenos(c, extras);
   // Ela já ouviu o menor valor do trabalho e deu as duas datas: a porta sobre a outra pessoa é o relatório do casal.
   const casal = ouviuOMenorValor(c, mensagens) ? extraDoCasalPronto(pequenos, mensagens) : null;
-  // O tema dela vence o preço: a mais barata só quando nada do que ela disse casa com as palavras de uma cobrança.
-  return casal ?? cobrancaDoTema(pequenos, mensagens) ?? [...pequenos].sort((a, b) => a.price_cents - b.price_cents)[0] ?? null;
+  return casal ?? cobrancaDaVez(pequenos, mensagens);
 }
 
 /** Sem valor nosso nas últimas 12 h: a cliente da casa ouve uma oferta por vez, e o dia do pagamento fica com a entrega. */
@@ -195,11 +194,11 @@ export function oportunidadeDaCliente(c: Escada, extras: readonly Extra[], mensa
   const pequenos = extrasPequenos(c, extras);
   const casal = pequenos.find((e) => e.report?.kind === "sinastria" && e.valid_days === undefined);
   const casalJaOferecido = casal !== undefined && conversaFalouDeExtra(mensagens, [casal]);
-  // O tema dela primeiro (o relatório do casal só se ainda não foi oferecido); depois o casal; depois a mais barata.
+  // O tema dela primeiro (o relatório do casal só se ainda não foi oferecido); depois o casal; depois a primeira da lista.
   const tema = cobrancaDoTema(pequenos.filter((e) => !(e === casal && casalJaOferecido)), mensagens);
   if (tema) return tema;
   if (casal && !casalJaOferecido) return casal;
-  return [...pequenos].filter((e) => e !== casal).sort((a, b) => a.price_cents - b.price_cents)[0] ?? null;
+  return pequenos.find((e) => e !== casal) ?? null;
 }
 
 /** O bloco do turno em que ela abriu uma porta: desejo primeiro, oferta depois. */

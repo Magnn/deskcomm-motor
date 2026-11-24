@@ -79,7 +79,7 @@ export interface EstadoDoBloco {
    */
   faltaParaOEssencial?: boolean;
   /**
-   * A cobrança avulsa mais barata (`ofertaPequenaDeHoje`), ainda não oferecida nesta conversa: no turno de fechar a
+   * A cobrança avulsa da vez (`ofertaPequenaDeHoje`), ainda não oferecida nesta conversa: no turno de fechar a
    * data, ela entra UMA vez como o que cabe hoje. Ausente/`null` = o molde da data sai sem oferta.
    */
   ofertaDeHoje?: { nome: string; precoCents: number } | null;
@@ -98,8 +98,10 @@ function instrucaoDeFecharADataCombinada(valorCents: number, ofertaDeHoje: Estad
   // Decisão do dono, 31/10/2026: quem dá a data sai com o combinado E com uma oferta pequena para hoje. Medido no
   // mesmo dia: 6 pessoas disseram "só dia 7", "dia 28", "sexta", e nenhuma ouviu oferta — o retorno da data paga
   // semanas depois, quando paga.
+  // Medido em 24/11/2026: desde 21/11 nenhum combinado de data saiu com a oferta; no lugar dela vinham o gesto de hoje
+  // do roteiro (presente de graça) e o depoimento. O que cabe hoje é a oferta; o gesto fica para quem disser não.
   const hoje = ofertaDeHoje
-    ? ` Na MESMA resposta, num balão separado depois do combinado, ofereça UMA vez o que cabe hoje: "E pra hoje, se quiser, eu faço uma *${ofertaDeHoje.nome}* por ${reais(ofertaDeHoje.precoCents)}. Quer?" Se ela disser que sim, cobre como está em COBRANÇAS À PARTE. Se disser não ou não responder a isso, NÃO ofereça de novo: o combinado da data continua de pé.`
+    ? ` Na MESMA resposta, num balão separado depois do combinado, ofereça UMA vez o que cabe hoje, com desejo antes do preço: UMA frase ligando o que ela quer saber agora (com as palavras dela) ao que a *${ofertaDeHoje.nome}* responde, e então "Pra hoje, enquanto o dia não chega, eu faço a *${ofertaDeHoje.nome}* por ${reais(ofertaDeHoje.precoCents)}. Quer?" Este balão vem NO LUGAR do gesto de hoje, de simpatia de graça e de depoimento: neste turno, nenhum deles. Se ela disser que sim, cobre como está em COBRANÇAS À PARTE. Se disser não ou não responder a isso, NÃO ofereça de novo: o combinado da data continua de pé, e o gesto de hoje pode vir depois.`
     : "";
   return [
     `- NEGOCIAÇÃO: ela disse que só consegue pagar em outra data, e o valor dela é ${valor}. NÃO ofereça outro valor e NÃO diga "me chama quando receber" nem "quando o dinheiro entrar": quem volta é VOCÊ, na data. Faça as DUAS coisas neste turno:`,

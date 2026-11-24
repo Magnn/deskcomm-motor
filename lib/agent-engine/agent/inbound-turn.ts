@@ -115,7 +115,7 @@ import { comprovanteDoTurno, depsReaisDoComprovante } from '@/lib/pagamentos/com
 import { comprovanteSemRegistro, confirmaPagamentoEmDuvida, confirmaPagamentoSemRegistro } from '@/lib/pagamentos/comprovante-pix';
 import { pediuCartao } from '@/lib/preco/pediu-cartao';
 import { falasDesdeAUltimaCobranca, quantidadeMenorQueACombinada, trabalhoNoValorDeExtra, valorErradoDeExtra } from '@/lib/preco/valor-do-extra';
-import { blocoDaOfertaAtiva, comOfertasDoPosVenda, ofertaAtivaDaConversa, ofertaEmConflito, ouviuOMenorValor, pediuOTrabalho, blocoDaOportunidade, oportunidadeDaCliente, oportunidadeDeOferta } from '@/lib/preco/oferta-ativa';
+import { blocoDaOfertaAtiva, comOfertasDoPosVenda, extrasPequenos, ofertaAtivaDaConversa, ofertaEmConflito, ouviuOMenorValor, pediuOTrabalho, blocoDaOportunidade, oportunidadeDaCliente, oportunidadeDeOferta } from '@/lib/preco/oferta-ativa';
 import { falaErradaDoPagamento } from '@/lib/preco/fala-do-pagamento';
 import { destinoDaProva, legendaDaProva, provasParaEnviar } from '@/lib/preco/prova-social';
 import { classificarPerdaDoAtendimento } from '@/lib/resultado/motivo-da-perda-do-agente';
@@ -2765,7 +2765,8 @@ async function executarTurnoDoAgente(
     ofertaDeHoje: semBlocosDePreco
       ? null
       : ofertaPequenaDeHoje(
-          extrasDaConfig(agentConfig?.pricing),
+          // Só as pequenas: a quem não tem o trabalho hoje não cabe uma cobrança do tamanho dele.
+          agentConfig?.pricing ? extrasPequenos(agentConfig.pricing, extrasDaConfig(agentConfig.pricing)) : [],
           openingContext.context.messages,
           !!agentConfig?.pricing && ouviuOMenorValor(agentConfig.pricing, openingContext.context.messages),
         ),
