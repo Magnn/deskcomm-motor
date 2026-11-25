@@ -54,6 +54,12 @@ describe("conferência do comprovante Pix", () => {
     expect(dataImpressa("01 NOV 2026 - 12:10:05")?.toISOString()).toBe("2026-11-01T12:10:00.000Z");
     expect(dataImpressa("1 de novembro de 2026, 12:10")?.toISOString()).toBe("2026-11-01T12:10:00.000Z");
     expect(dataImpressa("sem data")).toBeNull();
+    // PicPay: hora sem dois-pontos (24/11/2026).
+    expect(dataImpressa("Comprovante de Pix\n24/nov/2026 - 204459\nValor")?.toISOString()).toBe("2026-11-24T20:44:00.000Z");
+    expect(dataImpressa("24/11/2026 - 204459")?.toISOString()).toBe("2026-11-24T20:44:00.000Z");
+    // Valor de 4 dígitos ao lado da data não vira hora; 6 dígitos impossíveis também não.
+    expect(dataImpressa("24/11/2026 - R$ 1300")).toBeNull();
+    expect(dataImpressa("24/11/2026 - 997788")).toBeNull();
   });
 
   it("comprovante certo libera a avulsa com a quantidade cobrada", () => {
