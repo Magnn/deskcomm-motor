@@ -77,12 +77,23 @@ export interface CobrancaEnviada {
 export function dataImpressa(texto: string): Date | null {
   // Até 30 sinais sem número entre data e hora: a transcrição põe "Data: … / - **Hora:** …" em linhas separadas
   // (Banrisul, 22/11/2026). Sem dígito no meio, não há outra hora para pegar no lugar.
-  const numerica = texto.match(/\b(\d{2})\/(\d{2})\/(\d{4})\D{1,30}(\d{2}):(\d{2})/);
-  if (numerica) return new Date(Date.UTC(Number(numerica[3]), Number(numerica[2]) - 1, Number(numerica[1]), Number(numerica[4]), Number(numerica[5])));
+  // A hora é "20:44" ou, no PicPay, "204459" sem dois-pontos (venda de R$ 130 parada em 24/11/2026). A compacta só com os 6
+  // dígitos HHMMSS: valor solto ao lado não vira hora, e a hora ainda é conferida contra o ID da transação.
+  const numerica = texto.match(/\b(\d{2})\/(\d{2})\/(\d{4})\D{1,30}(?:(\d{2}):(\d{2})|(\d{2})(\d{2})\d{2}(?!\d))/);
+  if (numerica) return emUtc(Number(numerica[3]), Number(numerica[2]), Number(numerica[1]), numerica[4] ?? numerica[6], numerica[5] ?? numerica[7]);
   // "1 de novembro de 2026", "01 NOV 2026" e o "22/novembro/2026" do Mercado Pago (4 vendas paradas em 22/11/2026).
-  const escrita = semAcento(texto).match(/\b(\d{1,2})(?:\s+(?:de\s+)?|\/)(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)[a-z]*\.?(?:\s+(?:de\s+)?|\/)(\d{4})\D{1,30}(\d{2}):(\d{2})/);
-  if (escrita) return new Date(Date.UTC(Number(escrita[3]), MESES[escrita[2]!]! - 1, Number(escrita[1]), Number(escrita[4]), Number(escrita[5])));
+  const escrita = semAcento(texto).match(
+    /\b(\d{1,2})(?:\s+(?:de\s+)?|\/)(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)[a-z]*\.?(?:\s+(?:de\s+)?|\/)(\d{4})\D{1,30}(?:(\d{2}):(\d{2})|(\d{2})(\d{2})\d{2}(?!\d))/,
+  );
+  if (escrita) return emUtc(Number(escrita[3]), MESES[escrita[2]!]!, Number(escrita[1]), escrita[4] ?? escrita[6], escrita[5] ?? escrita[7]);
   return null;
+}
+
+function emUtc(ano: number, mes: number, dia: number, hora: string | undefined, minuto: string | undefined): Date | null {
+  const h = Number(hora);
+  const m = Number(minuto);
+  if (!(h < 24 && m < 60)) return null;
+  return new Date(Date.UTC(ano, mes - 1, dia, h, m));
 }
 
 export type Conferencia =
