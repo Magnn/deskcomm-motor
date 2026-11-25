@@ -119,6 +119,27 @@ export function montarIdentidade(contato: LinhaDoContato, respostas: unknown[], 
   };
 }
 
+/**
+ * O SOBRENOME PELO COMPROVANTE. Medido em 25/11/2026: o funil não pede mais "nome completo e nascimento", e nas 48
+ * Compras de 7 dias só 4 iam com sobrenome (nota 7,8/10). Toda venda é Pix pela chave, e o comprovante que a
+ * confirma traz o nome de quem pagou — a leitura da imagem o escreve numa linha `Pagador: …`.
+ *
+ * Quem paga pode ser outra pessoa (o marido, a filha): o nome só vale quando o primeiro nome do pagador é o mesmo
+ * que já se sabe da cliente. Sem primeiro nome conhecido não há como conferir, e nada é usado. Pura.
+ */
+export function sobrenomeDoPagador(
+  textosDerivados: readonly (string | null | undefined)[],
+  primeiroNomeConhecido: string | null | undefined,
+): { primeiro: string; sobrenome: string } | null {
+  if (!primeiroNomeConhecido) return null;
+  for (const t of textosDerivados) {
+    const linha = /(?:^|\n)[\s*\-]*pagador\**\s*:\**\s*([^\n]+)/i.exec(t ?? "")?.[1];
+    const { primeiro, sobrenome } = partesDoNome(linha);
+    if (primeiro === primeiroNomeConhecido && sobrenome) return { primeiro, sobrenome };
+  }
+  return null;
+}
+
 /** O começo da conversa basta: nome e nascimento são pedidos antes da leitura. */
 const MENSAGENS_LIDAS = 60;
 
@@ -159,7 +180,24 @@ export async function lerIdentidade(admin: SupabaseClient, organizationId: strin
     const daConversa = ((mensagens ?? []) as Array<{ body: string | null }>)
       .map((m) => nomeENascimentoDaMensagem(m.body))
       .filter((v): v is string => v !== null);
-    return montarIdentidade(contato as LinhaDoContato, [...respostas, ...daConversa]);
+    const completa = montarIdentidade(contato as LinhaDoContato, [...respostas, ...daConversa]);
+    if (completa.sobrenome) return completa;
+
+    // Ainda sem sobrenome: o pagador dos comprovantes mais recentes (ver `sobrenomeDoPagador`).
+    const { data: comprovantes } = await admin
+      .from("messages")
+      .select("media_derived_text")
+      .eq("organization_id", organizationId)
+      .eq("contact_id", contactId)
+      .eq("direction", "inbound")
+      .ilike("media_derived_text", "%pagador%")
+      .order("created_at", { ascending: false })
+      .limit(5);
+    const pagador = sobrenomeDoPagador(
+      ((comprovantes ?? []) as Array<{ media_derived_text: string | null }>).map((m) => m.media_derived_text),
+      completa.primeiroNome,
+    );
+    return pagador ? { ...completa, sobrenome: pagador.sobrenome } : completa;
   } catch {
     return { idExterno: contactId };
   }
