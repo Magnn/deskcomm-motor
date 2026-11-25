@@ -4104,6 +4104,11 @@ async function executarTurnoDoAgente(
       execute: async ({ body: corpoDoModelo, produto_codigo }) => {
         // O modelo às vezes ESCREVE a quebra de linha em vez de quebrar; ver `quebrasDeVerdade`.
         let body = quebrasDeVerdade(corpoDoModelo);
+        // O TEXTO QUE A AGENTE ESCREVEU, antes de o sistema trocar as marcas pela chave e pelo link de cartão novo. As
+        // travas que julgam a FALA dela leem este, não `body`: em 25/11/2026 o Pix da entrada (R$ 30) trocou a marca por
+        // chave + link de cartão recém-criado, a trava de link copiado viu o link do próprio sistema como cópia, e a
+        // chave não saiu em nenhuma das 9 tentativas — a pessoa ficou pedindo "número de pix qual é?".
+        const corpoDaAgente = body;
         // COBRANÇA ANUNCIADA SEM COBRANÇA (`lib/pagamentos/cobranca-anunciada.ts`): "a chave vai aqui:" sem marca nem link
         // volta ao modelo antes de qualquer marca ser trocada. Vale na prévia também (sem efeito, só a recusa).
         // MOLDE COPIADO AO PÉ DA LETRA: em 22/11/2026 saiu, para a pessoa, '"CARTA N: *O Mago* (carta número 3 da mesa)."'.
@@ -4463,7 +4468,7 @@ async function executarTurnoDoAgente(
           // O QUE A AGENTE DIZ DO PAGAMENTO (`lib/preco/fala-do-pagamento.ts`): com a chave Pix, o link é só de cartão e
           // ninguém avisa que o Pix caiu.
           if (chavePrincipal(agentConfig?.pricing) !== null) {
-            const falaErrada = falaErradaDoPagamento(body, [
+            const falaErrada = falaErradaDoPagamento(corpoDaAgente, [
               ...openingContext.context.messages,
               ...corposEnviados.map((b) => ({ direction: 'outbound' as const, body: b })),
             ]);
@@ -4524,7 +4529,7 @@ async function executarTurnoDoAgente(
         // o de uma cobrança anterior cobrou R$ 7 por três perguntas de R$ 27 em 20/11/2026. Roda no texto da agente,
         // antes de o sistema trocar as marcas pelos links novos.
         if (!preview) {
-          const copiado = linkDeCobrancaCopiado(body, agentConfig);
+          const copiado = linkDeCobrancaCopiado(corpoDaAgente, agentConfig);
           if (copiado) {
             runLog.warn('link de cartão de cobrança anterior no texto — envio recusado', {});
             return { ok: false, error: { code: 'link_de_cobranca_copiado', message: copiado } };
