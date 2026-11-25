@@ -676,6 +676,38 @@ export async function lerAnunciosDaConta(
 }
 
 /**
+ * Os conjuntos ATIVOS da conta com a meta de desempenho e o destino — o que a conferência de meta
+ * (`lib/anuncio/conferencia-de-meta.ts`) julga. O insights não expõe `optimization_goal`; é leitura própria.
+ */
+export async function lerConjuntosAtivos(
+  token: string,
+  contaId: string,
+): Promise<ResultadoDeLeitura<{ id: string; nome: string; campanhaId: string | null; meta: string | null; destino: string | null }[]>> {
+  const leitura = await buscarPaginado<{ id?: string; name?: string; campaign_id?: string; optimization_goal?: string; destination_type?: string }>(
+    montarUrl(`${encodeURIComponent(contaId)}/adsets`, {
+      fields: "id,name,campaign_id,optimization_goal,destination_type",
+      effective_status: JSON.stringify(["ACTIVE"]),
+      limit: "500",
+    }),
+    token,
+    "conjuntos_ativos",
+  );
+  if (!leitura.ok) return leitura;
+  return {
+    ok: true,
+    dados: leitura.dados
+      .filter((s): s is typeof s & { id: string } => Boolean(s.id))
+      .map((s) => ({
+        id: s.id,
+        nome: s.name ?? s.id,
+        campanhaId: s.campaign_id ?? null,
+        meta: s.optimization_goal ?? null,
+        destino: s.destination_type ?? null,
+      })),
+  };
+}
+
+/**
  * A miniatura do criativo de cada anúncio. Enfeite: falha devolve mapa vazio e a tela mostra o
  * anúncio sem imagem.
  */

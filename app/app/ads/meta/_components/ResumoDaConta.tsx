@@ -34,6 +34,19 @@ const VEICULACAO: Record<string, string> = {
   PENDING_BILLING_INFO: "aguardando pagamento",
 };
 
+/** A meta de desempenho crua da plataforma, como a tela de anúncios a chama. */
+const META_DE_DESEMPENHO: Record<string, string> = {
+  CONVERSATIONS: "conversas",
+  LINK_CLICKS: "cliques no link",
+  LANDING_PAGE_VIEWS: "visualizações da página",
+  REACH: "alcance",
+  IMPRESSIONS: "impressões",
+  LEAD_GENERATION: "cadastros",
+  QUALITY_LEAD: "cadastros",
+  THRUPLAY: "reproduções de vídeo",
+  POST_ENGAGEMENT: "engajamento",
+};
+
 /** Conta que a plataforma marcou (status ≠ 1): o alerta mais importante da tela. */
 const STATUS_DA_CONTA: Record<number, string> = {
   2: "desativada",
@@ -85,13 +98,18 @@ export function ResumoDaConta({ resumo, moeda, statusDaConta, podeGerenciar }: P
 
   return (
     <div className="flex flex-col gap-6">
-      {(alertaDaConta || resumo.alertas.length > 0) && (
+      {(alertaDaConta || resumo.alertas.length > 0 || (resumo.metas_erradas ?? []).length > 0) && (
         <ul role="alert" className="flex flex-col gap-1 rounded-xl border border-warning/40 bg-warning-bg p-4 text-sm text-warning-fg">
           {alertaDaConta && (
             <li>
               ⚠ {t("Conta de anúncios")} {t(alertaDaConta)}
             </li>
           )}
+          {(resumo.metas_erradas ?? []).map((m) => (
+            <li key={m.conjuntoId}>
+              ⚠ {m.campanha} › {m.conjunto}: {t("otimiza para")} {t(META_DE_DESEMPENHO[m.meta] ?? m.meta)}, {t("não para compras por mensagem. A meta não muda depois de publicada: recrie o conjunto com \"Maximizar o número de compras por meio de mensagens\".")}
+            </li>
+          ))}
           {resumo.alertas.map((a) => (
             <li key={a.campanha}>
               ⚠ {a.campanha}: {t(VEICULACAO[a.veiculacao] ?? a.veiculacao)}
