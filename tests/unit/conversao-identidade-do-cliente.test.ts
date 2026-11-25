@@ -10,7 +10,7 @@ import { createHash } from "node:crypto";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { identidadeDaResposta, montarIdentidade, nomeENascimentoDaMensagem, partesDoNome } from "@/lib/conversoes/identidade-do-cliente";
+import { identidadeDaResposta, montarIdentidade, nomeENascimentoDaMensagem, partesDoNome, sobrenomeDoPagador } from "@/lib/conversoes/identidade-do-cliente";
 import { estadoDoTelefone } from "@/lib/plataformas-de-anuncio/estado-do-telefone";
 import { transporteMeta } from "@/lib/plataformas-de-anuncio/meta/conversions";
 import type { ConversaoOffline } from "@/lib/plataformas-de-anuncio/types";
@@ -165,5 +165,24 @@ describe("envio à Meta com a identidade", () => {
       conversao({ pixelDoSite: false, contaDoWhatsApp: "waba-1", identidade: { idExterno: "ct-1" } }),
     );
     expect(ud).toMatchObject({ ctwa_clid: "fbclid-1", country: [h("br")], external_id: [h("ct-1")] });
+  });
+});
+
+describe("o sobrenome pelo pagador do comprovante (25/11/2026)", () => {
+  const comprovante = "Comprovante Pix R$ 130,00\n- **Nome de quem recebeu:** FULANA RECEBEDORA\n- **Pagador:** MARIA APARECIDA SOUZA";
+  it("o primeiro nome bate com o da cliente: o sobrenome vem do comprovante", () => {
+    expect(sobrenomeDoPagador([comprovante], "maria")).toEqual({ primeiro: "maria", sobrenome: "souza" });
+  });
+  it("quem pagou foi outra pessoa: nada é usado", () => {
+    expect(sobrenomeDoPagador([comprovante], "joana")).toBeNull();
+  });
+  it("sem primeiro nome conhecido não há como conferir", () => {
+    expect(sobrenomeDoPagador([comprovante], null)).toBeNull();
+  });
+  it("o nome de quem recebeu nunca vira pagador", () => {
+    expect(sobrenomeDoPagador(["Nome de quem recebeu: MARIA RECEBEDORA SILVA"], "maria")).toBeNull();
+  });
+  it("aceita a linha sem negrito e o pagador de um comprovante mais antigo", () => {
+    expect(sobrenomeDoPagador(["sem pagador aqui", "Pagador: Maria Souza"], "maria")).toEqual({ primeiro: "maria", sobrenome: "souza" });
   });
 });
