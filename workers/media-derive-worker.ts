@@ -510,8 +510,16 @@ function buildDeriveDeps(
             modelo: r.model,
           });
           return texto;
-        } catch {
-          // Próxima reserva; se todas falharem, o erro da principal segue para a fila.
+        } catch (errDaReserva) {
+          // Próxima reserva; se todas falharem, o erro da principal segue para a fila. O log diz por que
+          // cada reserva recusou: em 25/11/2026 a visão caiu por cota do Google com outra chave do Google
+          // cadastrada, e sem esta linha não havia como saber se ela foi tentada nem o que respondeu.
+          logger.warn("[media-derive] reserva da visão também recusou", {
+            organization_id: orgId,
+            reserva: r.provider,
+            credencial: r.credentialId,
+            motivo: normalizarErro(errDaReserva).error_code,
+          });
         }
       }
       throw err;

@@ -71,7 +71,14 @@ describe("recusa das travas de dentro do envio também refaz o turno mudo (Obede
   it("a ferramenta de envio do run passa pelo marcador antes do breaker", () => {
     expect(FONTE).toMatch(/wrapToolsWithBreaker\(comRecusaDoEnvioMarcada\(previewTools/);
   });
-  it("o link copiado é conferido no texto da agente, ANTES de as marcas virarem links novos", () => {
-    expect(FONTE.indexOf("linkDeCobrancaCopiado(body, agentConfig)")).toBeLessThan(FONTE.indexOf("await pixDoExtraNoLugarDaMarca({"));
+  it("⭐ 25/11/2026: link copiado e fala do pagamento leem o texto da agente, guardado antes de QUALQUER troca de marca", () => {
+    // O Pix da entrada e a chave da empresa trocam a marca bem antes das travas: o link de cartão novo era lido como cópia.
+    expect(FONTE).toContain("linkDeCobrancaCopiado(corpoDaAgente, agentConfig)");
+    expect(FONTE).toContain("falaErradaDoPagamento(corpoDaAgente, [");
+    const guardado = FONTE.indexOf("const corpoDaAgente = body;");
+    expect(guardado).toBeGreaterThan(-1);
+    for (const troca of ["pixPelaChaveNoLugarDaMarca({", "await pixDaEntradaNoLugarDaMarca({", "await pixDoRestanteNoLugarDaMarca({", "await pixDoExtraNoLugarDaMarca({"]) {
+      expect(guardado).toBeLessThan(FONTE.indexOf(troca));
+    }
   });
 });

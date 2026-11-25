@@ -68,6 +68,7 @@ describe("as chaves dos outros provedores também", () => {
     ["Anthropic", "sk-ant-api03-AbCdEfGhIjKlMnOp"],
     ["OpenRouter", "sk-or-v1-0123456789abcdef"],
     ["Google", "AIzaSyA-0123456789abcdefgh"],
+    ["Google (formato AQ.)", "AQ.Ab8RN6-fake0123456789abcdefXYZ"],
   ])("%s solta no texto", (_nome, chave) => {
     const saida = redigirMensagemDoProvedor(`chave recusada: ${chave}`);
     expect(saida).not.toContain(chave);
