@@ -39,6 +39,7 @@ import {
 import { lerPricing, type PricingConfig } from '@/lib/preco/tipos';
 
 import type { Logger } from '../../obs/logger';
+import { canalTemPrazo } from './recuperacao-por-silencio';
 import { enqueueJob } from '../../queue/queue';
 import { sqlNumeroExtra } from '@/lib/ai/agents/numeros-do-agente';
 
@@ -55,10 +56,13 @@ interface AgenteComOferta {
   timezone: string | null;
   followup: unknown;
   config: unknown;
+  provider: string | null;
+  so_dentro_da_janela: boolean | null;
 }
 
 export const CONSULTA_DE_AGENTES = `
-  select a.organization_id, cs.id as channel_session_id, o.timezone, pv.followup, a.config
+  select a.organization_id, cs.id as channel_session_id, o.timezone, pv.followup, a.config, cs.provider,
+         (o.settings->'envio'->>'so_dentro_da_janela' = 'true') as so_dentro_da_janela
   from ai_agents a
   join ai_agent_versions pv on pv.id = a.published_version_id
   join organizations o on o.id = a.organization_id
@@ -127,6 +131,7 @@ export const CONSULTA_DE_CANDIDATAS = `
     and v.assigned_to_user_id is null
     and v.last_inbound_at > now() - make_interval(days => $3::int)
     and v.last_inbound_at < now() - make_interval(mins => $4::int)
+    and ($6::int is null or v.last_inbound_at > now() - make_interval(hours => $6::int))
     and coalesce(c.force_human, false) = false
     and coalesce(c.is_blocked, false) = false
     and (v.last_handoff_at is null or v.last_handoff_at < now() - interval '24 hours')
@@ -157,6 +162,17 @@ export function pessoaDaCandidata(c: Candidata): PessoaParaOferta {
     saidas: (c.saidas ?? []).map((s) => ({ texto: s.texto, em: new Date(s.em) })),
     ofertasFeitas: (c.feitas ?? []).filter((f) => typeof f.id === 'string').map((f) => ({ id: f.id, em: new Date(f.em) })),
   };
+}
+
+/**
+ * Até quantas horas depois da última mensagem da pessoa a oferta ainda pode sair, ou `null` sem prazo. Com prazo de 24 h
+ * (canal oficial, ou a organização exige a janela em todo envio automático), só entra quem falou nas últimas 23 h — a
+ * hora que sobra é do turno e da fila. Medido em 26/11/2026: a oferta escolhia quem falou até 7 dias antes e o turno
+ * barrava pela janela: das 50 ofertas do dia, 45 caíram fora da janela e nenhuma virou mensagem, e o teto do dia se
+ * esgotou ao meio-dia sem uma venda possível.
+ */
+export function horasDaJanela(provider: string | null, soDentroDaJanela: boolean | null): number | null {
+  return canalTemPrazo(provider, soDentroDaJanela === true) ? 23 : null;
 }
 
 /** O catálogo do agente, como o turno o lê. Ausente, desligado ou inválido = `null`. */
@@ -237,6 +253,7 @@ export async function oferecerAQuemCabe(
       cfg.falou_nos_ultimos_dias,
       cfg.quieto_ha_minutos,
       cfg.horas_entre_ofertas,
+      horasDaJanela(ag.provider, ag.so_dentro_da_janela),
     ]);
 
     for (const c of rows) {
