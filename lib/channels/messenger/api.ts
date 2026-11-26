@@ -60,6 +60,8 @@ export const AVISOS_DA_PAGINA = [
   "message_deliveries",
   "message_reads",
   "messaging_referrals",
+  // Comentários das publicações e anúncios da página: viram resposta privada no Messenger (`comentarios.ts`).
+  "feed",
 ] as const;
 
 /**
@@ -303,6 +305,24 @@ export async function assinarAvisosDaPagina(pageId: string, tokenDaPagina: strin
     },
   );
   if (r.success !== true) throw new MessengerApiError(200, "a Meta não confirmou os avisos da página", "avisos_da_pagina");
+}
+
+/**
+ * A resposta PRIVADA a um comentário da página: a mensagem chega no Messenger de quem comentou, ancorada no
+ * comentário. Dispensa a pessoa ter escrito antes e vale uma vez por comentário, até 7 dias depois.
+ */
+export async function responderComentarioEmPrivado(
+  pageId: string,
+  tokenDaPagina: string,
+  commentId: string,
+  texto: string,
+  buscar: Buscar = fetch,
+): Promise<void> {
+  await chamar(buscar, "resposta_privada", `${GRAPH}/${v()}/${encodeURIComponent(pageId)}/messages`, {
+    method: "POST",
+    headers: { ...comToken(tokenDaPagina), "Content-Type": "application/json" },
+    body: JSON.stringify({ recipient: { comment_id: commentId }, message: { text: texto } }),
+  });
 }
 
 /** Desliga os avisos desta página no nosso app (ao desconectar). */
