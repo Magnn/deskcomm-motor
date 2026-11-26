@@ -174,7 +174,7 @@ describe("aba Catálogo", () => {
 
     fireEvent.click(diaria);
     expect(previa()).toHaveTextContent("A OFERTA DE HOJE é Sons Vocálicos");
-    expect(previa()).toHaveTextContent("ACOLHER ANTES");
+    expect(previa()).toHaveTextContent("ACOLHER JUNTO");
 
     fireEvent.click(screen.getByRole("button", { name: "Salvar catálogo" }));
     await waitFor(() => expect(api.put).toHaveBeenCalledTimes(1));

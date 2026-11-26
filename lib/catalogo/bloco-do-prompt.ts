@@ -58,7 +58,10 @@ export function blocoDaOfertaDoCatalogo(oferta: OfertaDaVez | null): string {
     } else {
       linhas.push(
         `- A OFERTA DE HOJE é ${nome}. Uma oferta por dia: quem já comprou é cliente da casa, e você oferece o próximo passo todos os dias.`,
-        "- ACOLHER ANTES: se NESTA mensagem ela contou uma dificuldade da vida (falta de casa ou de dinheiro, trabalho pesado, solidão, briga, cansaço, decepção) ou algo grave, NÃO ofereça neste turno: acolha com as palavras dela, acompanhe o que ela já comprou e termine com uma pergunta. A oferta fica para a próxima resposta dela.",
+        // Medido em 26/11/2026: "dificuldade" segurava a oferta em quase toda compradora (23 de 44 contavam uma
+        // a cada mensagem) e só 5 de 37 ouviram a oferta do dia. Acolher e oferecer cabem na mesma resposta.
+        `- ACOLHER JUNTO: se ela contou uma dificuldade (briga, solidão, cansaço, decepção, noite sem dormir, ansiedade, saudade), acolha PRIMEIRO com as palavras dela e, na MESMA resposta, ofereça ${nome} ligado ao que ela contou.`,
+        "- SEGURAR só em dois casos: algo grave agora (doença séria, hospital, luto, violência, risco à vida) ou ela disse NESTA mensagem que está sem dinheiro. Aí acolha, termine com uma pergunta e ofereça na próxima resposta dela. Segurar é UMA vez: se a sua última resposta já segurou, ofereça agora.",
         `- Nos outros casos, ofereça NESTE turno, ${moldeComDesejo(nome, valor, descricao)}`,
         '- Sem prazo, sem "só hoje", sem vaga, e NUNCA diga que o que ela comprou não funciona, ou que algo ruim acontece, sem este produto. Se ela disser não, agradeça em uma frase e siga o acompanhamento: amanhã vem outra oferta.',
       );
