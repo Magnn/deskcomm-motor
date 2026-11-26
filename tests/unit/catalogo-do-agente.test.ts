@@ -249,16 +249,16 @@ describe("ofertaDaVez — oferta diária: uma por dia, e a recusa não trava", (
     expect(o).toMatchObject({ produto: { nome: "Sons Vocálicos" }, jaOferecida: true });
   });
 
-  it("o bloco do dia manda acolher antes quando ela conta uma dificuldade, e não repete a oferta feita", () => {
+  it("o bloco do dia manda acolher e oferecer na mesma resposta quando ela conta uma dificuldade, e não repete a oferta feita", () => {
     const novo = blocoDaOfertaDoCatalogo({ produto: produto(), jaOferecida: false, diaria: true });
     expect(novo).toContain("A OFERTA DE HOJE é Sons Vocálicos");
-    expect(novo).toContain("ACOLHER ANTES");
+    expect(novo).toContain("ACOLHER JUNTO");
     expect(novo).toContain("R$ 45");
     expect(novo).not.toContain("uma vez só");
     expect(novo).toContain("https://pay.exemplo.com/sons");
     const feita = blocoDaOfertaDoCatalogo({ produto: produto(), jaOferecida: true, diaria: true });
     expect(feita).toContain("JÁ FOI FEITA");
-    expect(feita).not.toContain("ACOLHER ANTES");
+    expect(feita).not.toContain("ACOLHER JUNTO");
   });
 });
 
