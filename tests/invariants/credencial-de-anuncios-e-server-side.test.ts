@@ -98,6 +98,9 @@ const TABELAS = [
   // organização se trocar de app pelo PostgREST. Deny-all; quem lê é o servidor
   // (`lib/channels/meta/app.ts`). A chave é o próprio organization_id (sem `id`).
   "platform_meta_app_da_org",
+  // 0969. Comentou na página do Facebook, recebe Messenger: o aviso chega da Meta SEM sessão e quem grava é o
+  // servidor (`lib/channels/messenger/comentarios.ts`), pelo id da página. Deny-all.
+  "messenger_comment_replies",
 ] as const;
 
 function erroSob(papel: string, comando: string): string | null {

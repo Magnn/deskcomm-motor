@@ -30,6 +30,7 @@ import type { NextRequest } from "next/server";
 import { atenderComentario, comentariosDoAviso } from "@/lib/channels/instagram/comentarios";
 import { depsReaisDosComentarios } from "@/lib/channels/instagram/repositorio";
 import { appDoMessenger } from "@/lib/channels/messenger/app";
+import { atenderComentarioDaPagina, comentariosDaPagina, depsReaisDoComentarioDaPagina } from "@/lib/channels/messenger/comentarios";
 import { ingerirAviso } from "@/lib/channels/messenger/ingest";
 import { eventosDoAviso } from "@/lib/channels/messenger/parser";
 import { chavesQueAssinamAvisos, idsDosAppsDaInstalacao } from "@/lib/channels/meta/app";
@@ -87,6 +88,23 @@ export async function POST(req: NextRequest): Promise<Response> {
       } catch (err) {
         logger.error("[webhooks.messenger] comentário do Instagram não pôde ser atendido", {
           conta: comentario.contaId,
+          erro: err instanceof Error ? err.message.slice(0, 300) : String(err),
+        });
+      }
+    }
+  }
+
+  // Comentário em publicação ou anúncio da PÁGINA do Facebook: resposta privada pelo Messenger.
+  const daPagina = comentariosDaPagina(payload);
+  if (daPagina.length > 0) {
+    const deps = depsReaisDoComentarioDaPagina(createAdminClient());
+    for (const comentario of daPagina) {
+      try {
+        const desfecho = await atenderComentarioDaPagina(deps, comentario);
+        if (desfecho === "respondido") logger.info("[webhooks.messenger] comentário da página respondido no Messenger", { pagina: comentario.pageId });
+      } catch (err) {
+        logger.error("[webhooks.messenger] comentário da página não pôde ser atendido", {
+          pagina: comentario.pageId,
           erro: err instanceof Error ? err.message.slice(0, 300) : String(err),
         });
       }

@@ -26,7 +26,7 @@ vi.mock("@/lib/channels/meta/app", () => ({ appDaMeta: async () => ({ appId: h.e
 vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
 
 const CAMPOS_WHATSAPP = ["messages", "message_template_status_update", "smb_message_echoes", "smb_app_state_sync", "history", "account_update"];
-const CAMPOS_PAGINA = ["messages", "messaging_postbacks", "message_echoes", "message_deliveries", "message_reads", "messaging_referrals"];
+const CAMPOS_PAGINA = ["messages", "messaging_postbacks", "message_echoes", "message_deliveries", "message_reads", "messaging_referrals", "feed"];
 
 type Pedido = { url: string; corpo: URLSearchParams };
 let pedidos: Pedido[] = [];
