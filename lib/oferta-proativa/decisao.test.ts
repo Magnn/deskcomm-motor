@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { lerOfertaProativa, ofertaProativaSchema, type OfertaProativa } from "./config";
-import { compraCabe, dentroDaFaixa, escolherOferta, motivoComPrecos, motivoDaOferta, type PessoaParaOferta } from "./decisao";
-import { ritmoPermite } from "@/lib/agent-engine/edge/crm/oferta-proativa";
+import { lerOfertaProativa, ofertaProativaSchema, ofertaSchema, type OfertaProativa } from "./config";
+import { compraCabe, dentroDaFaixa, escolherOferta, motivoComPrecos, motivoDaOferta, ofertasDoCatalogo, type PessoaParaOferta } from "./decisao";
+import { automaticasDaCandidata, lerCatalogo, ritmoPermite, type Candidata } from "@/lib/agent-engine/edge/crm/oferta-proativa";
+
+const lista0 = { ofertas: [] };
 
 const AGORA = new Date("2026-10-21T13:00:00Z"); // 09:00 em Porto Velho
 const DIA = 24 * 3_600_000;
@@ -222,5 +224,102 @@ describe("motivoComPrecos — o valor sai do cadastro, nunca do texto", () => {
 
   it("texto sem marca passa igual", () => {
     expect(motivoComPrecos("ofereça o depoimento", null)).toBe("ofereça o depoimento");
+  });
+});
+
+describe("⭐ 26/11/2026: o catálogo inteiro entra na oferta proativa, em rodízio", () => {
+  const extras = [
+    { name: "Pergunta nova", when: "outra pergunta às cartas depois da leitura", themes: ["pergunta"] },
+    { name: "Proteção dos Filhos", when: "quando a dor dela é um filho ou neto", themes: ["meu filho", "minha filha"] },
+    { name: "Simpatia da Prosperidade", when: "ela fala de dinheiro curto" },
+    { name: "Pergunta da Terceira Pessoa", when: "SOMENTE quando desconfia de traição", themes: ["tem outra", "amante"] },
+  ];
+  const produto = { nome: "Oração dos Sonhos", preco_cents: 3500, descricao: "Para quem deita e a cabeça não desliga.", recebe: "a oração em imagem" };
+  const lista = ofertaProativaSchema.parse({
+    enabled: true,
+    ofertas: [{ id: "pergunta_nova", motivo: "ofereça a pergunta nova por {{preco:Pergunta nova}}", dias_entre_repeticoes: 1 }],
+  });
+
+  it("entra o produto da vez e a cobrança do tema dela; fica de fora a sem tema, a de outro tema e a que a lista já oferece", () => {
+    const auto = ofertasDoCatalogo({ extras, produto }, ["meu filho anda com más companhias"], lista);
+    expect(auto.map((o) => o.id)).toEqual(["cat-oracao-dos-sonhos", "x-protecao-dos-filhos"]);
+    expect(auto[1]!.motivo).toContain("{{preco:Proteção dos Filhos}}");
+    for (const o of auto) expect(() => ofertaSchema.parse(o)).not.toThrow();
+  });
+
+  it("produto que a lista já oferece pelo nome não entra duas vezes", () => {
+    const comOracao = ofertaProativaSchema.parse({
+      enabled: true,
+      ofertas: [{ id: "oracao", motivo: "ofereça a Oração dos Sonhos a quem comprou o trabalho" }],
+    });
+    expect(ofertasDoCatalogo({ extras: [], produto }, [], comOracao)).toEqual([]);
+  });
+
+  it("a cobrança do assunto mais recente vem primeiro", () => {
+    const auto = ofertasDoCatalogo({ extras, produto: null }, ["acho que tem outra", "meu filho sumiu"], lista);
+    expect(auto.map((o) => o.id)).toEqual(["x-pergunta-da-terceira-pessoa", "x-protecao-dos-filhos"]);
+  });
+
+  it("quem já ouviu a pergunta nova recebe a que ainda não ouviu, e não a pergunta de novo", () => {
+    const auto = ofertasDoCatalogo({ extras, produto: null }, ["meu filho anda sumido"], lista);
+    const p = pessoa({
+      falas: ["meu filho anda sumido"],
+      ofertasFeitas: [{ id: "pergunta_nova", em: new Date(AGORA.getTime() - 2 * DIA) }],
+    });
+    expect(escolherOferta(p, lista, AGORA, auto).oferta?.id).toBe("x-protecao-dos-filhos");
+  });
+
+  it("ouviu todas: volta a que ouviu há mais tempo", () => {
+    const auto = ofertasDoCatalogo({ extras, produto: null }, ["meu filho anda sumido"], lista);
+    const p = pessoa({
+      falas: ["meu filho anda sumido"],
+      ofertasFeitas: [
+        { id: "pergunta_nova", em: new Date(AGORA.getTime() - 2 * DIA) },
+        { id: "x-protecao-dos-filhos", em: new Date(AGORA.getTime() - 9 * DIA) },
+      ],
+    });
+    expect(escolherOferta(p, lista, AGORA, auto).oferta?.id).toBe("x-protecao-dos-filhos");
+  });
+
+  it("comprou a cobrança: não oferece de novo", () => {
+    const auto = ofertasDoCatalogo({ extras, produto: null }, ["meu filho anda sumido"], lista);
+    const p = pessoa({ comprou: true, produtosComprados: ["Proteção dos Filhos"], falas: ["meu filho anda sumido"] });
+    expect(escolherOferta(p, lista, AGORA, auto).oferta?.id).toBe("pergunta_nova");
+  });
+});
+
+describe("automaticasDaCandidata — o produto do catálogo pela mesma regra do turno", () => {
+  const catalogo = lerCatalogo({
+    catalog: {
+      enabled: true,
+      oferta_diaria: true,
+      produtos: [
+        { nome: "Oração dos Sonhos", preco_cents: 3500, link: "https://pay.exemplo.com/a", ativo: true, entrega: "conversa", descricao: "Para quem deita e a cabeça não desliga, repassando a dúvida.", recebe: "a oração em imagem", pede: [], espera_horas: 0 },
+      ],
+    },
+  });
+  const base: Candidata = {
+    conversation_id: "c1",
+    contact_id: "p1",
+    comprou: true,
+    produtos: ["Abertura do Coração"],
+    compras: null,
+    falas: ["obrigada"],
+    saidas: [],
+    feitas: [],
+    tags: ["pago"],
+    pago_em: new Date(AGORA.getTime() - 2 * DIA).toISOString(),
+    recusou_ofertas: false,
+  };
+
+  it("cliente que pagou recebe o produto da vez", () => {
+    expect(catalogo).not.toBeNull();
+    const auto = automaticasDaCandidata(base, null, catalogo, [], lista0, AGORA);
+    expect(auto.map((o) => o.id)).toEqual(["cat-oracao-dos-sonhos"]);
+  });
+
+  it("quem pediu para parar o acompanhamento, e quem não pagou, não recebem o produto", () => {
+    expect(automaticasDaCandidata({ ...base, recusou_ofertas: true }, null, catalogo, [], lista0, AGORA)).toEqual([]);
+    expect(automaticasDaCandidata({ ...base, tags: [], comprou: false }, null, catalogo, [], lista0, AGORA)).toEqual([]);
   });
 });
