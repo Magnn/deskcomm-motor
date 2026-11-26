@@ -259,11 +259,28 @@ export function parseZernioInbound(payload: unknown): ZernioInboundMessage | nul
     identity: saida
       ? resolveZernioIdentity(participanteDaConversa(obj(p.conversation)))
       : resolveZernioIdentity(obj(m.sender)),
-    // Posição exata NÃO VERIFICADA contra o provider real (nunca chegou um
-    // clique de anúncio nesta instalação) — tenta na mensagem primeiro (forma
-    // documentada da Cloud API), cai para o nível do evento como fallback.
-    referral: m.referral ?? p.referral ?? null,
+    // Medido em 26/11/2026 pela API do provider: o clique de anúncio NÃO vem na
+    // mensagem, vem na CONVERSA (`conversation.metadata.ctwa_*`). Os dois primeiros
+    // degraus ficam para o caso de o provider passar a repassar o `referral` cru.
+    referral: m.referral ?? p.referral ?? referralDaConversa(obj(p.conversation)),
   };
+}
+
+/**
+ * O clique de anúncio como o provider o guarda: na conversa, em `metadata.ctwa_*`
+ * (`ctwa_clid`, `ctwa_source_id` = id do anúncio, `ctwa_source_type`, `ctwa_headline`…).
+ * Devolve no formato do `referral` da Cloud API, que é o que `extrairAtribuicaoMeta` lê.
+ * `null` quando a conversa não veio de anúncio. Pura.
+ */
+export function referralDaConversa(conversa: Bruto | null): Bruto | null {
+  const meta = obj(conversa?.metadata);
+  if (!meta) return null;
+  const referral: Bruto = {};
+  for (const campo of ["clid", "source_id", "source_url", "source_type", "headline", "body"] as const) {
+    const v = str(meta[`ctwa_${campo}`]);
+    if (v) referral[campo === "clid" ? "ctwa_clid" : campo] = v;
+  }
+  return Object.keys(referral).length > 0 ? referral : null;
 }
 
 /** O outro lado da conversa, na forma que `resolveZernioIdentity` entende. */
