@@ -11,12 +11,14 @@
  * ─── O que é "conduzindo" ─────────────────────────────────────────────────────────────────────────────────
  *   • `waiting_reply`: o fluxo fez uma pergunta, e a resposta da pessoa é DELE — sempre, por
  *     mais antiga que seja a pergunta (a resposta cai no nó e o fluxo segue de onde parou).
- *   • `active` com o próximo passo dentro de 1 dia: o fluxo está no meio de uma sequência.
+ *   • `active` com o próximo passo dentro de 1 hora: o fluxo está no meio de uma sequência. Era 1 dia, e em
+ *     26/11/2026 isso calava a agente por 20 h com quem acabara de pagar: o fluxo de Entrega espera 20 h entre
+ *     a 1ª e a 2ª mensagem, e a cliente que perguntou algo nesse meio ficou sem resposta.
  *
  * ─── O que NÃO é ──────────────────────────────────────────────────────────────────────────────────────────
  *   • `com_agente` e `coletando`: o nó "Agente de IA" e o roteiro de atendimento — os dois são conduzidos PELO
  *     turno da agente, por desenho (`agente-no-fluxo.ts`, `atendimento.ts`).
- *   • `active` estacionado (o próximo passo só daqui a dias, ex.: um "espera 7 dias"): o fluxo não está
+ *   • `active` estacionado (o próximo passo só daqui a horas ou dias, ex.: a espera de 20 h da Entrega): o fluxo não está
  *     conversando, e a pessoa que escreve no meio dessa espera precisa de alguém. Calar a agente aí deixaria
  *     a pessoa sem resposta por dias.
  *   • Inscrição de fluxo DESATIVADO (ponteiro fora de `active`): fluxo desligado para de guiar na hora.
@@ -38,7 +40,7 @@ export function sqlFluxoNoComando(org: string, contato: string): string {
       where fe.organization_id = ${org} and fe.contact_id = ${contato}
         and fep.status = 'active'
         and (fe.status = 'waiting_reply'
-             or (fe.status = 'active' and (fe.next_eval_at is null or fe.next_eval_at < now() + interval '1 day'))))`;
+             or (fe.status = 'active' and (fe.next_eval_at is null or fe.next_eval_at < now() + interval '1 hour'))))`;
 }
 
 export async function fluxoNoComando(
