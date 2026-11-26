@@ -79,7 +79,7 @@ describe("conferência do comprovante Pix", () => {
     ["sem valor legível", `Comprovante. ${QUANDO}. Fulano de Tal Silva. ID ${ID}`, "valor"],
     ["dois valores", `${comprovante("R$ 7,00")} Saldo R$ 90,00`, "mais de um valor"],
     ["outra pessoa recebeu", comprovante("R$ 7,00", "Beltrano Souza"), "recebeu"],
-    ["sem ID", `Comprovante. ${QUANDO}. R$ 7,00. Fulano de Tal Silva.`, "ID da transação"],
+    ["ID que o banco imprime e a leitura não pegou", `Comprovante. ${QUANDO}. R$ 7,00. Fulano de Tal Silva. ID da transação ilegível`, "ID da transação"],
     ["pago antes da cobrança", comprovante("R$ 7,00", undefined, "E12345678202610201510abcDEF12345"), "data"],
     ["data impossível", comprovante("R$ 7,00", undefined, "E12345678202613451510abcDEF12345"), "válido"],
     ["sem a hora impressa", comprovante("R$ 7,00", undefined, ID, "hoje"), "data e a hora"],
@@ -88,6 +88,22 @@ describe("conferência do comprovante Pix", () => {
     const r = conferir(texto);
     expect(r.tipo).toBe("nao_confere");
     if (r.tipo === "nao_confere") expect(r.motivo).toContain(trecho);
+  });
+
+  describe("⭐ 26/11/2026: banco que não imprime o ID do Pix (Banco do Brasil, 'Deb Pix Chave')", () => {
+    const bb = (valor: string, quando = "01/11/2026 12h10") => `O cliente enviou um comprovante de pagamento via Pix. -${valor}, ${quando}, Fulano de Tal Silva, ***.237.392-**, Nº doc 261259`;
+    it("valor da cobrança, quem recebe e hora depois da cobrança: confere, com a chave de uso tirada da data e do valor", () => {
+      expect(conferir(bb("R$ 7,00"))).toMatchObject({ tipo: "confere_extra", valorCents: 700, idDoPix: "sem-id-202611011210-700-261259", pagoEm: new Date("2026-11-01T15:10:00.000Z") });
+    });
+    it("valor que não foi cobrado nesta conversa fica com a equipe", () => {
+      expect(conferir(bb("R$ 30,00"))).toMatchObject({ tipo: "nao_confere", motivo: expect.stringContaining("cobrança") });
+    });
+    it("hora de antes da cobrança fica com a equipe", () => {
+      expect(conferir(bb("R$ 7,00", "31/10/2026 12h10"))).toMatchObject({ tipo: "nao_confere", motivo: expect.stringContaining("data") });
+    });
+    it("sem ID e sem hora fica com a equipe", () => {
+      expect(conferir(`Comprovante. R$ 7,00. Fulano de Tal Silva.`)).toMatchObject({ tipo: "nao_confere" });
+    });
   });
 
   it("entrada, restante ou valor combinado: o dinheiro entra, o que liberar fica com a equipe", () => {
