@@ -49,6 +49,16 @@ export const FALHAS_QUE_PEDEM_OUTRA_CHAVE: ReadonlySet<string> = new Set([
 /** Quantas reservas uma chamada tenta antes de devolver o erro original. */
 export const MAXIMO_DE_RESERVAS_POR_CHAMADA = 3;
 
+/**
+ * Os modelos mais leves da mesma família, para quando o modelo esgota a cota. No Google a cota grátis é
+ * contada POR MODELO: em 26/11/2026 o gemini-3.5-flash parou em 20 leituras/dia nas duas chaves, e o
+ * gemini-3.5-flash-lite, com cota própria, leu o mesmo comprovante (valor e ID) com as mesmas chaves.
+ */
+export function modelosLevesDaMesmaFamilia(provider: string, model: string): string[] {
+  if (provider !== 'google' || !/^gemini-.*flash$/.test(model)) return [];
+  return [`${model}-lite`, 'gemini-flash-lite-latest'];
+}
+
 export interface ChaveReserva {
   credentialId: string;
   provider: string;

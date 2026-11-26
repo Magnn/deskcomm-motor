@@ -11,6 +11,16 @@ const listarMock = vi.fn();
 const generateTextMock = vi.fn();
 const visao = vi.hoisted(() => ({ enxerga: (_p: string, _m: string): boolean => true }));
 
+const cfg = vi.hoisted(() => ({
+  provider: "xai",
+  apiKey: "chave-xai",
+  credentialId: "cred-xai",
+  origemDaChave: "credencial_da_organizacao",
+  defaultModel: "grok-4.20-non-reasoning",
+  params: {},
+  enabledModels: [] as string[],
+}));
+
 const BINDING = { provider: "xai", model_id: "grok-4.20-non-reasoning", credential_id: "cred-xai", base_url: null as string | null };
 
 vi.mock("@/lib/supabase/admin", () => ({
@@ -39,15 +49,7 @@ vi.mock("@/lib/supabase/admin", () => ({
 }));
 vi.mock("@/lib/messaging/media/derive", () => ({ deriveMediaText: vi.fn(async () => "derivado") }));
 vi.mock("@/lib/agent-engine/edge/llm/credentials", () => ({
-  resolveOrgLlmConfig: vi.fn(async () => ({
-    provider: "xai",
-    apiKey: "chave-xai",
-    credentialId: "cred-xai",
-    origemDaChave: "credencial_da_organizacao",
-    defaultModel: "grok-4.20-non-reasoning",
-    params: {},
-    enabledModels: [],
-  })),
+  resolveOrgLlmConfig: vi.fn(async () => ({ ...cfg })),
 }));
 vi.mock("@/lib/agent-engine/edge/llm/providers", () => ({
   createDefaultRegistry: () => ({ xai: factoryMock, google: factoryMock, openai: factoryMock }),
@@ -63,6 +65,7 @@ vi.mock("ai", () => ({ generateText: (...a: unknown[]) => generateTextMock(...a)
 
 import { deriveMediaText, type DeriveDeps } from "@/lib/messaging/media/derive";
 import { deriveMessageMedia } from "@/workers/media-derive-worker";
+import { modelosLevesDaMesmaFamilia } from "@/lib/agent-engine/edge/llm/chave-reserva";
 
 const proibido = Object.assign(new Error("Forbidden"), { statusCode: 403 });
 const evento = { id: "ev1", organization_id: "org1", event_type: "media.derive_requested", entity_kind: "message", entity_id: "msg1", payload: { message_id: "msg1" }, metadata: {}, consumed_by: [], attempts: 0 };
@@ -76,6 +79,8 @@ async function descrever(): Promise<string> {
 beforeEach(() => {
   vi.clearAllMocks();
   BINDING.base_url = null;
+  BINDING.provider = "xai"; BINDING.model_id = "grok-4.20-non-reasoning";
+  cfg.provider = "xai"; cfg.defaultModel = "grok-4.20-non-reasoning";
   visao.enxerga = () => true;
   listarMock.mockResolvedValue([
     { credentialId: "cred-google", provider: "google", rotulo: "Google", apiKey: "chave-google", model: "gemini-3.5-flash" },
@@ -101,6 +106,20 @@ describe("visão com chave reserva — 11/11/2026", () => {
     generateTextMock.mockRejectedValueOnce(Object.assign(new Error("boom"), { statusCode: 500 }));
     await expect(descrever()).rejects.toThrow("boom");
     expect(listarMock).not.toHaveBeenCalled();
+  });
+
+  it("⭐ cota esgotada no modelo (26/11/2026): o modelo leve da mesma família lê com a mesma chave", async () => {
+    BINDING.provider = "google"; BINDING.model_id = "gemini-3.5-flash";
+    cfg.provider = "google"; cfg.defaultModel = "gemini-3.5-flash";
+    const cota = Object.assign(new Error("You exceeded your current quota"), { statusCode: 429 });
+    generateTextMock.mockRejectedValueOnce(cota).mockRejectedValueOnce(cota).mockResolvedValueOnce({ text: "Pix R$ 130,00" });
+    expect(await descrever()).toBe("Pix R$ 130,00");
+    expect(factoryMock).toHaveBeenLastCalledWith("chave-xai", "gemini-3.5-flash-lite");
+  });
+
+  it("modelo fora da família flash não ganha modelo leve", async () => {
+    expect(modelosLevesDaMesmaFamilia("xai", "grok-4.20-non-reasoning")).toEqual([]);
+    expect(modelosLevesDaMesmaFamilia("google", "gemini-3.5-flash-lite")).toEqual([]);
   });
 
   it("com endereço próprio no binding a chave não sai para outro provedor", async () => {

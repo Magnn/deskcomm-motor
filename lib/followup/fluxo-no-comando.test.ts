@@ -9,7 +9,7 @@ describe("fluxoNoComando", () => {
   it("⭐ pergunta esperando resposta ou sequência em curso = fluxo no comando", () => {
     const sql = sqlFluxoNoComando("v.organization_id", "v.contact_id");
     expect(sql).toContain("fe.status = 'waiting_reply'");
-    expect(sql).toContain("fe.status = 'active' and (fe.next_eval_at is null or fe.next_eval_at < now() + interval '1 day')");
+    expect(sql).toContain("fe.status = 'active' and (fe.next_eval_at is null or fe.next_eval_at < now() + interval '1 hour')");
     // Fluxo desligado para de guiar na hora.
     expect(sql).toContain("fep.status = 'active'");
   });
