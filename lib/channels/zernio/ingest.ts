@@ -41,6 +41,7 @@ import {
 
 import { aplicarEfeitosPosEntrada } from "../pos-entrada";
 
+import { completarAtribuicaoDaConversa } from "./atribuicao";
 import { completarLocalizacao } from "./localizacao";
 import { parseZernioInbound, type ZernioIdentity, type ZernioInboundMessage } from "./webhook";
 
@@ -286,7 +287,9 @@ export async function ingestZernioInbound(
   if (msg.attachments[0]?.url) {
     await pedirPersistenciaDaMidia(admin, input.organizationId, conversationId, inserted);
   }
-  await efeitosDaEntrada(admin, input, msg, contactId, conversationId, inserted);
+  // Conversa nova: a origem de anúncio mora na conversa do provider, não na mensagem.
+  const comOrigem = input.socialMessage ? msg : await completarAtribuicaoDaConversa(admin, input.organizationId, msg);
+  await efeitosDaEntrada(admin, input, comOrigem, contactId, conversationId, inserted);
 
   // SAÍDA feita por fora do CRM = uma pessoa respondeu o cliente à mão (celular,
   // outra plataforma na mesma conta). A IA para nesta conversa. O eco do nosso
