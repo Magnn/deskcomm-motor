@@ -346,6 +346,15 @@ const PROVA_PROPRIA: readonly Excecao[] = [
       "conexão guarda o token da conta do Instagram e o aviso chega sem sessão.",
   },
   {
+    tabela: "messenger_comment_replies",
+    razao:
+      "tests/invariants/credencial-de-anuncios-e-server-side.test.ts — mesmo " +
+      "`describe.each` das server-side (0969): privilégio NENHUM para anon e " +
+      "authenticated, `permission denied` medido sob `set role`, RLS ligada, zero " +
+      "policies, organization_id NOT NULL com FK em cascata. Deny-all porque o " +
+      "aviso de comentário da página chega da Meta sem sessão.",
+  },
+  {
     tabela: "conversation_milestones",
     razao:
       "tests/invariants/credencial-de-anuncios-e-server-side.test.ts — mesmo " +
