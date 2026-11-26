@@ -290,10 +290,11 @@ describe("o pino do WhatsApp — o webhook não traz as coordenadas", () => {
     vi.mocked(resolveZernioCreds).mockReset();
   });
 
-  it("texto comum não consulta a API", async () => {
-    const f = vi.spyOn(globalThis, "fetch");
+  it("texto comum não consulta a API de mensagens (a da conversa, para a origem de anúncio, é outra)", async () => {
+    const f = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("{}", { status: 200 }));
     await ingestZernioInbound(admin, { ...ENTRADA, payload: evento() });
-    expect(f).not.toHaveBeenCalled();
+    expect(f.mock.calls.map((c) => String(c[0])).filter((u) => u.includes("/messages"))).toEqual([]);
+    f.mockRestore();
   });
 });
 
