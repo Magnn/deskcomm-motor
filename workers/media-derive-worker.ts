@@ -19,6 +19,7 @@ import { createDefaultRegistry } from "@/lib/agent-engine/edge/llm/providers";
 import {
   FALHAS_QUE_PEDEM_OUTRA_CHAVE,
   listarChavesDeReserva,
+  modelosLevesDaMesmaFamilia,
   MAXIMO_DE_RESERVAS_POR_CHAMADA,
 } from "@/lib/agent-engine/edge/llm/chave-reserva";
 import { normalizarErro } from "@/lib/agent-engine/edge/llm/run-model-call";
@@ -520,6 +521,29 @@ function buildDeriveDeps(
             credencial: r.credentialId,
             motivo: normalizarErro(errDaReserva).error_code,
           });
+        }
+      }
+      // Cota esgotada no modelo: o modelo leve da mesma família tem cota própria, nas mesmas chaves.
+      if (motivo === "limite_ou_saldo") {
+        const chaves = [llm.apiKey, ...reservas.filter((r) => r.provider === llm.provider).map((r) => r.apiKey)];
+        for (const modelo of modelosLevesDaMesmaFamilia(llm.provider, llm.defaultModel ?? "")) {
+          for (const chave of chaves) {
+            try {
+              const texto = await descrever(factory(chave, modelo));
+              logger.warn("[media-derive] visão pelo modelo leve — o modelo principal esgotou a cota", {
+                organization_id: orgId,
+                principal: llm.defaultModel,
+                modelo,
+              });
+              return texto;
+            } catch (errDoLeve) {
+              logger.warn("[media-derive] modelo leve da visão também recusou", {
+                organization_id: orgId,
+                modelo,
+                motivo: normalizarErro(errDoLeve).error_code,
+              });
+            }
+          }
         }
       }
       throw err;
