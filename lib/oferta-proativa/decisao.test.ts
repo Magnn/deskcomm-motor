@@ -325,9 +325,9 @@ describe("automaticasDaCandidata — o produto do catálogo pela mesma regra do 
 });
 
 describe("⭐ 26/11/2026: a oferta só escolhe quem ainda está dentro da janela", () => {
-  it("organização que exige a janela, ou canal oficial: 23 h; sem prazo: nenhum limite", () => {
-    expect(horasDaJanela("waha", true)).toBe(23);
-    expect(horasDaJanela("meta_cloud", false)).toBe(23);
-    expect(horasDaJanela("waha", false)).toBeNull();
+  it("organização que exige a janela: 23 h; sem prazo: nenhum limite", () => {
+    expect(horasDaJanela(null, true)).toBe(23);
+    expect(horasDaJanela(null, false)).toBeNull();
+    expect(horasDaJanela(null, null)).toBeNull();
   });
 });
