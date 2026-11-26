@@ -57,6 +57,8 @@ const VALIDADE_DA_COBRANCA_MS = 72 * 60 * 60 * 1000;
 const FOLGA_MS = 10 * 60 * 1000;
 /** O ID vem em UTC e a hora impressa no fuso do banco: no Brasil, de 2 a 5 horas atrás. */
 const MAIOR_FUSO_MS = 5 * 60 * 60 * 1000;
+/** Comprovante sem ID: a hora impressa é lida como de Brasília (UTC−3). */
+const BRASILIA_MS = 3 * 60 * 60 * 1000;
 const MESES: Record<string, number> = { jan: 1, fev: 2, mar: 3, abr: 4, mai: 5, jun: 6, jul: 7, ago: 8, set: 9, out: 10, nov: 11, dez: 12 };
 
 export interface FalaDaConversa {
@@ -79,11 +81,11 @@ export function dataImpressa(texto: string): Date | null {
   // (Banrisul, 22/11/2026). Sem dígito no meio, não há outra hora para pegar no lugar.
   // A hora é "20:44" ou, no PicPay, "204459" sem dois-pontos (venda de R$ 130 parada em 24/11/2026). A compacta só com os 6
   // dígitos HHMMSS: valor solto ao lado não vira hora, e a hora ainda é conferida contra o ID da transação.
-  const numerica = texto.match(/\b(\d{2})\/(\d{2})\/(\d{4})\D{1,30}(?:(\d{2}):(\d{2})|(\d{2})(\d{2})\d{2}(?!\d))/);
+  const numerica = texto.match(/\b(\d{2})\/(\d{2})\/(\d{4})\D{1,30}(?:(\d{2})[:h](\d{2})|(\d{2})(\d{2})\d{2}(?!\d))/);
   if (numerica) return emUtc(Number(numerica[3]), Number(numerica[2]), Number(numerica[1]), numerica[4] ?? numerica[6], numerica[5] ?? numerica[7]);
   // "1 de novembro de 2026", "01 NOV 2026" e o "22/novembro/2026" do Mercado Pago (4 vendas paradas em 22/11/2026).
   const escrita = semAcento(texto).match(
-    /\b(\d{1,2})(?:\s+(?:de\s+)?|\/)(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)[a-z]*\.?(?:\s+(?:de\s+)?|\/)(\d{4})\D{1,30}(?:(\d{2}):(\d{2})|(\d{2})(\d{2})\d{2}(?!\d))/,
+    /\b(\d{1,2})(?:\s+(?:de\s+)?|\/)(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)[a-z]*\.?(?:\s+(?:de\s+)?|\/)(\d{4})\D{1,30}(?:(\d{2})[:h](\d{2})|(\d{2})(\d{2})\d{2}(?!\d))/,
   );
   if (escrita) return emUtc(Number(escrita[3]), MESES[escrita[2]!]!, Number(escrita[1]), escrita[4] ?? escrita[6], escrita[5] ?? escrita[7]);
   return null;
@@ -209,9 +211,24 @@ export function conferirComprovante(e: {
   const valor = valores[0]!;
   if (!citaQuemRecebe(e.texto, e.chave)) return { tipo: "nao_confere", motivo: `não aparece ${e.chave.holder} como quem recebeu` };
   const id = idDoPix(e.texto);
-  if (!id) return { tipo: "nao_confere", motivo: "não dá para ler o ID da transação do Pix (começa com E, 32 caracteres)" };
-  const pagoEm = dataDoId(id[1]!);
-  if (pagoEm === null) return { tipo: "nao_confere", motivo: "o ID da transação não é válido" };
+  const impressa = dataImpressa(e.texto);
+  let pagoEm: Date | null;
+  let idDoPagamento: string;
+  if (id) {
+    pagoEm = dataDoId(id[1]!);
+    if (pagoEm === null) return { tipo: "nao_confere", motivo: "o ID da transação não é válido" };
+    idDoPagamento = id[0];
+  } else {
+    // Banco que não imprime o ID do Pix (Banco do Brasil, "Deb Pix Chave", 26/11/2026: R$ 130 verdadeiro foi para a
+    // equipe e a venda não entrou). Vale a hora impressa, lida como de Brasília, e a chave de uso nasce da data e do
+    // valor: o mesmo print mandado de novo, ou por outro contato, é recusado como já usado.
+    // O banco imprime o ID e a leitura não o pegou inteiro: a dúvida continua, como antes.
+    if (/\bid\b.{0,20}transa/i.test(e.texto)) return { tipo: "nao_confere", motivo: "não dá para ler o ID da transação do Pix (começa com E, 32 caracteres)" };
+    if (impressa === null) return { tipo: "nao_confere", motivo: "não dá para ler o ID da transação nem a data e a hora do pagamento" };
+    pagoEm = new Date(impressa.getTime() + BRASILIA_MS);
+    const doc = /n[º°o.]*\s*(?:do\s+)?doc(?:umento)?\D{0,3}(\d{4,})/i.exec(e.texto)?.[1];
+    idDoPagamento = `sem-id-${impressa.toISOString().slice(0, 16).replace(/\D/g, "")}-${valor}${doc ? `-${doc}` : ""}`;
+  }
   const instante = pagoEm.getTime();
   const depoisDa = (c: CobrancaEnviada) => instante >= c.enviadaEm.getTime() - FOLGA_MS && instante <= c.enviadaEm.getTime() + VALIDADE_DA_COBRANCA_MS;
   // A cobrança do mesmo valor, quando há; senão basta uma cobrança pela chave que o pagamento veio depois.
@@ -219,14 +236,18 @@ export function conferirComprovante(e: {
   if ((cobranca === null && !e.cobrancas.some(depoisDa)) || instante > e.agora.getTime() + FOLGA_MS) {
     return { tipo: "nao_confere", motivo: "a data do pagamento não combina com a data da cobrança" };
   }
-  const impressa = dataImpressa(e.texto);
-  if (impressa === null) return { tipo: "nao_confere", motivo: "não dá para ler a data e a hora do pagamento" };
-  const diferenca = instante - impressa.getTime();
-  if (diferenca < -FOLGA_MS || diferenca > MAIOR_FUSO_MS + FOLGA_MS) {
-    return { tipo: "nao_confere", motivo: "a hora impressa não combina com o ID da transação" };
+  if (id) {
+    if (impressa === null) return { tipo: "nao_confere", motivo: "não dá para ler a data e a hora do pagamento" };
+    const diferenca = instante - impressa.getTime();
+    if (diferenca < -FOLGA_MS || diferenca > MAIOR_FUSO_MS + FOLGA_MS) {
+      return { tipo: "nao_confere", motivo: "a hora impressa não combina com o ID da transação" };
+    }
+  } else if (cobranca === null && !e.entradas?.includes(valor)) {
+    // Sem ID, o valor tem de ser o de uma cobrança ou entrada desta conversa.
+    return { tipo: "nao_confere", motivo: "sem ID do Pix, o valor não é o de uma cobrança desta conversa" };
   }
   // Daqui em diante o Pix é nosso: o valor só decide o que liberar.
-  const pago = { valorCents: valor, idDoPix: id[0], pagoEm };
+  const pago = { valorCents: valor, idDoPix: idDoPagamento, pagoEm };
   const soODinheiro: Conferencia = { tipo: "confere_valor", ...pago };
   // A cobrança diz o nome do produto: vale ele, mesmo que o trabalho ou outra avulsa tenham o mesmo valor.
   const nomeada = cobranca !== null && cobranca.nome !== null ? extraDaCobranca(cobranca, e.extras) : null;
