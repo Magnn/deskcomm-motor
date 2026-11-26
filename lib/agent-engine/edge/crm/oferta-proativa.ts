@@ -25,8 +25,18 @@ import type pg from 'pg';
 
 import { readCurrentServiceBoundary } from '@/lib/atendimento/fronteira-server';
 import { lerOfertaProativa, type OfertaProativa } from '@/lib/oferta-proativa/config';
-import { dentroDaFaixa, escolherOferta, motivoComPrecos, motivoDaOferta, type PessoaParaOferta } from '@/lib/oferta-proativa/decisao';
-import { lerPricing } from '@/lib/preco/tipos';
+import { produtosComFluxoDeEntrega } from '@/lib/catalogo/fluxos-de-entrega';
+import { comMarcaDePago, ofertaDaVez } from '@/lib/catalogo/oferta-da-vez';
+import { catalogoSchema, type CatalogoConfig } from '@/lib/catalogo/tipos';
+import {
+  dentroDaFaixa,
+  escolherOferta,
+  motivoComPrecos,
+  motivoDaOferta,
+  ofertasDoCatalogo,
+  type PessoaParaOferta,
+} from '@/lib/oferta-proativa/decisao';
+import { lerPricing, type PricingConfig } from '@/lib/preco/tipos';
 
 import type { Logger } from '../../obs/logger';
 import { enqueueJob } from '../../queue/queue';
@@ -66,7 +76,7 @@ export const CONSULTA_DO_RITMO = `
   where q.organization_id = $1 and q.kind = 'followup_turn' and q.payload ? '${CHAVE_DA_OFERTA}'
     and q.created_at > now() - interval '2 days'`;
 
-interface Candidata {
+export interface Candidata {
   conversation_id: string;
   contact_id: string;
   comprou: boolean;
@@ -75,6 +85,9 @@ interface Candidata {
   falas: string[] | null;
   saidas: { texto: string; em: string }[] | null;
   feitas: { id: string; em: string }[] | null;
+  tags: string[] | null;
+  pago_em: string | null;
+  recusou_ofertas: boolean;
 }
 
 /**
@@ -102,7 +115,11 @@ export const CONSULTA_DE_CANDIDATAS = `
              order by m.created_at desc limit 80) x) as saidas,
          (select jsonb_agg(jsonb_build_object('id', q.payload->'${CHAVE_DA_OFERTA}'->>'id', 'em', q.created_at))
             from job_queue q where q.organization_id = v.organization_id and q.contact_id = v.contact_id
-             and q.payload ? '${CHAVE_DA_OFERTA}' and q.created_at > now() - interval '90 days') as feitas
+             and q.payload ? '${CHAVE_DA_OFERTA}' and q.created_at > now() - interval '90 days') as feitas,
+         c.tags,
+         (select max(l.occurred_at) from revenue_ledger l where l.organization_id = v.organization_id
+           and l.contact_id = v.contact_id and l.event_type = 'charge' and l.amount_cents > 0) as pago_em,
+         (c.consent->'marketing'->>'declined_at') is not null as recusou_ofertas
   from conversations v
   join contacts c on c.id = v.contact_id and c.organization_id = v.organization_id
   where v.organization_id = $1 and v.channel_session_id = $2
@@ -142,6 +159,45 @@ export function pessoaDaCandidata(c: Candidata): PessoaParaOferta {
   };
 }
 
+/** O catálogo do agente, como o turno o lê. Ausente, desligado ou inválido = `null`. */
+export function lerCatalogo(config: unknown): CatalogoConfig | null {
+  const bruto = config !== null && typeof config === 'object' ? (config as Record<string, unknown>).catalog : undefined;
+  const r = catalogoSchema.safeParse(bruto);
+  return r.success && r.data.enabled ? r.data : null;
+}
+
+/**
+ * As ofertas automáticas desta pessoa: o produto que a oferta da vez do catálogo libera (a MESMA regra do turno, para
+ * a agente saber cobrar o que ofereceu) e as cobranças avulsas do tema dela. Quem pediu para parar o acompanhamento
+ * não recebe nenhuma automática.
+ */
+export function automaticasDaCandidata(
+  c: Candidata,
+  pricing: Pick<PricingConfig, 'extras'> | null,
+  catalogo: CatalogoConfig | null,
+  produtosComFluxo: readonly string[],
+  cfg: Pick<OfertaProativa, 'ofertas'>,
+  agora: Date,
+) {
+  if (c.recusou_ofertas) return [];
+  const vez =
+    catalogo === null
+      ? null
+      : ofertaDaVez(
+          catalogo,
+          { tags: comMarcaDePago(c.tags ?? []), pagoEm: c.pago_em ? new Date(c.pago_em) : null },
+          (c.saidas ?? []).map((s) => ({ direction: 'outbound', body: s.texto, sent_at: s.em })),
+          produtosComFluxo,
+          agora,
+        );
+  const produto = vez !== null && !vez.jaOferecida ? vez.produto : null;
+  return ofertasDoCatalogo(
+    { extras: pricing?.extras ?? [], produto },
+    (c.falas ?? []).filter((f) => f.trim() !== ''),
+    cfg,
+  );
+}
+
 /** Pode sair uma oferta deste agente nesta rodada? Ritmo e teto do dia. */
 export function ritmoPermite(
   cfg: Pick<OfertaProativa, 'espaco_segundos' | 'maximo_por_dia'>,
@@ -166,6 +222,9 @@ export async function oferecerAQuemCabe(
     const cfg = lerOfertaProativa(ag.followup);
     if (cfg === null || !dentroDaFaixa(cfg, agora, ag.timezone)) continue;
     const pricing = lerPricing(ag.config);
+    const catalogo = lerCatalogo(ag.config);
+    // Falha ao ler os fluxos = nenhum produto de material completo: na dúvida, o catálogo não oferece.
+    const produtosComFluxo = catalogo === null ? [] : await produtosComFluxoDeEntrega(pool, ag.organization_id).catch(() => []);
     const ritmo = await pool.query<{ ultima_em: string | null; hoje: number }>(CONSULTA_DO_RITMO, [
       ag.organization_id,
       ag.timezone ?? 'UTC',
@@ -181,7 +240,8 @@ export async function oferecerAQuemCabe(
     ]);
 
     for (const c of rows) {
-      const escolha = escolherOferta(pessoaDaCandidata(c), cfg, agora);
+      const automaticas = automaticasDaCandidata(c, pricing, catalogo, produtosComFluxo, cfg, agora);
+      const escolha = escolherOferta(pessoaDaCandidata(c), cfg, agora, automaticas);
       if (escolha.oferta === null) continue;
       const motivo = motivoComPrecos(escolha.oferta.motivo, pricing);
       if (motivo === null) {

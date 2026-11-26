@@ -9,7 +9,10 @@
  * e o detector de pedido de parar do produto.
  */
 import { ehOptOutProvavel, ehRecusaDaOferta } from "@/lib/opt-out/deteccao";
-import { reais, type PricingConfig } from "@/lib/preco/tipos";
+import type { ProdutoDoCatalogo } from "@/lib/catalogo/tipos";
+import { cobrancaDoTema } from "@/lib/preco/extras";
+import { slugDoProduto } from "@/lib/preco/pos-venda";
+import { reais, type Extra, type PricingConfig } from "@/lib/preco/tipos";
 
 import { NAO_OFERECER_PADRAO, type Oferta, type OfertaProativa } from "./config";
 
@@ -75,32 +78,115 @@ export function naoOferecer(cfg: Pick<OfertaProativa, "nao_oferecer_se_cliente_d
   return falas.some((f) => padrao.test(f) || (daOrg?.test(f) ?? false) || ehOptOutProvavel(f) || ehRecusaDaOferta(f));
 }
 
-export function escolherOferta(p: PessoaParaOferta, cfg: OfertaProativa, agora: Date): Escolha {
+/** A oferta cabe nesta pessoa agora? Todas as condições dela, menos a ordem. */
+function cabe(o: Oferta, p: PessoaParaOferta, agora: Date, tudoQueOAgenteDisse: readonly string[]): boolean {
+  if (o.so_quem_comprou === true && !p.comprou) return false;
+  if (o.so_quem_comprou === false && p.comprou) return false;
+  if (o.ja_tem_se_comprou !== undefined && casa(o.ja_tem_se_comprou, p.produtosComprados)) return false;
+  if (!compraCabe(o, p, agora)) return false;
+  if (!casa(o.agente_ja_disse, tudoQueOAgenteDisse)) return false;
+  if (!casa(o.cliente_disse, p.falas)) return false;
+  const desde = agora.getTime() - o.dias_entre_repeticoes * DIA_MS;
+  if (p.ofertasFeitas.some((f) => f.id === o.id && f.em.getTime() > desde)) return false;
+  if (
+    o.ja_ofertada_se_agente_disse !== undefined &&
+    casa(
+      o.ja_ofertada_se_agente_disse,
+      p.saidas.filter((s) => s.em.getTime() > desde).map((s) => s.texto),
+    )
+  ) {
+    return false;
+  }
+  return true;
+}
+
+/** Quando esta oferta foi feita a ela pela última vez. `null` = nunca, no registro. */
+function ultimaVez(id: string, p: PessoaParaOferta): number | null {
+  const vezes = p.ofertasFeitas.filter((f) => f.id === id).map((f) => f.em.getTime());
+  return vezes.length === 0 ? null : Math.max(...vezes);
+}
+
+/**
+ * QUAL oferta: entre as que cabem — as da lista da organização e, depois delas, as automáticas do catálogo
+ * (`ofertasDoCatalogo`) —, a primeira, na ordem, que ela ainda não ouviu; ouviu todas, a que ouviu há mais tempo.
+ * Medido em 26/11/2026: era sempre "a primeira que cabe", e a Pergunta nova cabia em quase todo mundo — 290 das 321
+ * ofertas da semana, nenhuma simpatia, nenhum produto do catálogo. O rodízio faz o catálogo inteiro passar.
+ */
+export function escolherOferta(
+  p: PessoaParaOferta,
+  cfg: OfertaProativa,
+  agora: Date,
+  automaticas: readonly Oferta[] = [],
+): Escolha {
   if (naoOferecer(cfg, p.falas)) return { oferta: null, porque: "recusou_ou_fragil" };
   const tudoQueOAgenteDisse = p.saidas.map((s) => s.texto);
+  const cabem = [...cfg.ofertas, ...automaticas].filter((o) => cabe(o, p, agora, tudoQueOAgenteDisse));
+  if (cabem.length === 0) return { oferta: null, porque: "nenhuma_cabe" };
+  const nova = cabem.find((o) => ultimaVez(o.id, p) === null);
+  if (nova !== undefined) return { oferta: nova };
+  return { oferta: cabem.reduce((a, b) => ((ultimaVez(b.id, p) ?? 0) < (ultimaVez(a.id, p) ?? 0) ? b : a)) };
+}
 
-  for (const o of cfg.ofertas) {
-    if (o.so_quem_comprou === true && !p.comprou) continue;
-    if (o.so_quem_comprou === false && p.comprou) continue;
-    if (o.ja_tem_se_comprou !== undefined && casa(o.ja_tem_se_comprou, p.produtosComprados)) continue;
-    if (!compraCabe(o, p, agora)) continue;
-    if (!casa(o.agente_ja_disse, tudoQueOAgenteDisse)) continue;
-    if (!casa(o.cliente_disse, p.falas)) continue;
+const escapar = (t: string) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const idDe = (prefixo: string, nome: string) => `${prefixo}-${slugDoProduto(nome)}`.slice(0, 40);
 
-    const desde = agora.getTime() - o.dias_entre_repeticoes * DIA_MS;
-    if (p.ofertasFeitas.some((f) => f.id === o.id && f.em.getTime() > desde)) continue;
-    if (
-      o.ja_ofertada_se_agente_disse !== undefined &&
-      casa(
-        o.ja_ofertada_se_agente_disse,
-        p.saidas.filter((s) => s.em.getTime() > desde).map((s) => s.texto),
-      )
-    ) {
-      continue;
-    }
-    return { oferta: o };
+export interface CatalogoParaOferta {
+  /** As cobranças avulsas da aba Preço. Entra a que tem palavra do tema e a pessoa disse uma delas. */
+  extras: readonly Pick<Extra, "name" | "when" | "themes">[];
+  /** O produto do catálogo que a oferta da vez (`ofertaDaVez`) libera para ela agora, se ainda não foi oferecido. */
+  produto: Pick<ProdutoDoCatalogo, "nome" | "preco_cents" | "descricao" | "recebe"> | null;
+}
+
+/**
+ * AS OFERTAS AUTOMÁTICAS: o catálogo vira oferta proativa sem ninguém escrever uma por uma. O produto da vez (a
+ * mesma regra que o turno usa, então a agente sabe cobrar o que ofereceu) e cada cobrança avulsa cujo tema a pessoa
+ * trouxe — a do assunto mais recente primeiro. Cobrança que a lista da organização já oferece (`{{preco:Nome}}` no
+ * motivo) não entra de novo; cobrança sem palavras de tema não entra (a `when` dela pede que a pessoa traga o
+ * assunto, e oferecer sem ele é oferecer no escuro). Pura.
+ */
+export function ofertasDoCatalogo(
+  catalogo: CatalogoParaOferta,
+  falas: readonly string[],
+  cfg: Pick<OfertaProativa, "ofertas">,
+): Oferta[] {
+  const daLista = new Set<string>();
+  for (const o of cfg.ofertas) for (const m of o.motivo.matchAll(MARCA_DE_PRECO)) daLista.add(semAcento(m[1]!));
+  const mensagens = [...falas].reverse().map((body) => ({ direction: "inbound", body }));
+  const doTema = catalogo.extras.filter(
+    (e) => !daLista.has(semAcento(e.name)) && cobrancaDoTema([e], mensagens) !== null,
+  );
+  const primeira = cobrancaDoTema(doTema, mensagens);
+  const ordem = primeira === null ? doTema : [primeira, ...doTema.filter((e) => e !== primeira)];
+
+  const ofertas: Oferta[] = [];
+  const pr = catalogo.produto;
+  // Produto que a lista da organização já oferece pelo nome (ex.: uma oferta escrita da Oração dos Sonhos) não entra de novo.
+  const listaJaOferece = pr !== null && cfg.ofertas.some((o) => semAcento(o.motivo).includes(semAcento(pr.nome)));
+  if (pr !== null && !listaJaOferece) {
+    ofertas.push({
+      id: idDe("cat", pr.nome),
+      motivo:
+        [
+          `ofereça, pelo nome, o ${pr.nome} (${reais(pr.preco_cents)}), do catálogo.`,
+          pr.descricao,
+          pr.recebe ? `Ela recebe: ${pr.recebe}.` : undefined,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .slice(0, 2000),
+      ja_tem_se_comprou: escapar(pr.nome),
+      dias_entre_repeticoes: 7,
+    });
   }
-  return { oferta: null, porque: "nenhuma_cabe" };
+  for (const e of ordem) {
+    ofertas.push({
+      id: idDe("x", e.name),
+      motivo: `ofereça, pelo nome, o ${e.name} ({{preco:${e.name}}}), pelo assunto que ela trouxe. Quando cabe: ${e.when}`.slice(0, 2000),
+      ja_tem_se_comprou: escapar(e.name),
+      dias_entre_repeticoes: 7,
+    });
+  }
+  return ofertas;
 }
 
 /**
