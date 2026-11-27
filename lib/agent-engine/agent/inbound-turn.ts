@@ -4149,7 +4149,12 @@ async function executarTurnoDoAgente(
             },
           };
         }
-        if (anunciaCobrancaSemCobranca(body, openingContext.context.messages)) {
+        if (
+          anunciaCobrancaSemCobranca(body, [
+            ...openingContext.context.messages,
+            ...corposEnviados.map((b) => ({ direction: 'outbound' as const, body: b })),
+          ])
+        ) {
           runLog.warn('send_message: cobrança anunciada sem cobrança — recusada', { conversation_id: input.conversationId });
           return { ok: false, error: { code: 'cobranca_anunciada_sem_cobranca', message: RECUSA_DA_COBRANCA_ANUNCIADA } };
         }
