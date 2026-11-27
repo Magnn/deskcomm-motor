@@ -121,7 +121,7 @@ export const NAO_OFERECER_PADRAO =
  * menor. Decisão do dono, 27/11/2026: "só deve dar um tempo quando a pessoa recusar ou estiver sem dinheiro,
  * dependendo do caso oferecer algo mais barato ou entrada para acertar o restante depois".
  */
-export const SEM_DINHEIRO_PADRAO = "sem dinheiro|n[ãa]o tenho (dinheiro|condi)|desempregad|sem condi|t[ôo] (dura|liso|lisa|apertad)|sem grana";
+export const SEM_DINHEIRO_PADRAO = "sem dinheiro|n[ãa]o tenho (dinheiro|condi)|n[ãa]o tenho (\\S+ ){0,2}(agora|hoje|no momento)|n[ãa]o tenho (o valor |dinheiro )?dispon[ií]vel|n[ãa]o cab[ea] (no|em) (meu )?bolso|desempregad|sem condi|t[ôo] (dura|liso|lisa|apertad)|sem grana";
 
 /** Recusa dita com todas as letras, além do detector de recusa (`ehRecusaDaOferta`). */
 export const RECUSA_PADRAO = "n[ãa]o quero mais|n[ãa]o tenho interesse|agora n[ãa]o|fica pra (outra|depois)";

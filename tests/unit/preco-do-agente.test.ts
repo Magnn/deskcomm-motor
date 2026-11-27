@@ -289,6 +289,10 @@ describe("reclamacoesDeValor", () => {
     "Não tenho pois estou fazendo tratamento cardíaco e gasto muito",
     "Eu não tenho se eu tivesse era minha vontade",
     "só no final do mês",
+    // 27/11/2026: a palavra no meio quebrava "não tenho hoje".
+    "Realmente não é caro, eu é que não tenho disponível hoje, mas voltarei aqui.",
+    "não tenho esse dinheiro agora",
+    "não cabe no meu bolso",
   ])("reconhece a reclamação: %s", (frase) => {
     expect(reclamacoesDeValor([nossa("Custa R$ 130."), dela(frase)])).toBe(1);
   });
