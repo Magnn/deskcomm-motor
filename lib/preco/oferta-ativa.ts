@@ -203,11 +203,14 @@ export function oportunidadeDaCliente(
   // de "sem dinheiro" (`emPausaDaOferta`).
   if (FALA_DE_VALOR.test(falas.at(-1)?.body ?? "")) return null;
   if (emPausaDaOferta(mensagens, agora)) return null;
+  // Quem já comprou não está escolhendo entre o trabalho e uma cobrança menor: o tema dela vale para TODAS as
+  // cobranças, de qualquer valor. Medido em 27/11/2026: com a Sinastria a R$ 67 (acima do menor degrau, R$ 50), o
+  // filtro de "pequenas" a tirava da cliente da casa, que é a porta dela. Só o último recurso, sem tema, fica nas pequenas.
   const pequenos = extrasPequenos(c, extras);
-  const casal = pequenos.find((e) => e.report?.kind === "sinastria" && e.valid_days === undefined);
+  const casal = extras.find((e) => e.report?.kind === "sinastria" && e.valid_days === undefined);
   const casalJaOferecido = casal !== undefined && conversaFalouDeExtra(mensagens, [casal]);
   // O tema dela primeiro (o relatório do casal só se ainda não foi oferecido); depois o casal; depois a primeira da lista.
-  const tema = cobrancaDoTema(pequenos.filter((e) => !(e === casal && casalJaOferecido)), mensagens, meta);
+  const tema = cobrancaDoTema(extras.filter((e) => !(e === casal && casalJaOferecido)), mensagens, meta);
   if (tema) return tema;
   if (casal && !casalJaOferecido) return casal;
   return pelaMeta(pequenos.filter((e) => e !== casal), (e) => e.name, meta)[0] ?? null;

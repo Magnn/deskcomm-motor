@@ -283,3 +283,14 @@ describe("a oferta de hoje de quem dá a data (24/11/2026)", () => {
     expect(ofertaPequenaDeHoje(extrasPequenos(escada, lista), [pessoa("olha essa foto dele"), ...m])?.nome).toBe("Sentimento da Fotografia");
   });
 });
+
+describe("cliente da casa: o tema vale para cobrança de qualquer valor (27/11/2026)", () => {
+  const AGORA = new Date("2026-11-27T20:00:00Z");
+  const em = (iso: string, m: { direction: string; body: string }) => ({ ...m, sent_at: iso });
+  const cara = { ...sinastria, price_cents: 6700 } as Extra;
+  const pagou = [em("2026-11-27T10:00:00Z", agente("Recebi, meu bem. O seu trabalho começa hoje."))];
+  it("a Sinastria a R$ 67 (acima do menor degrau) continua sendo a porta de quem pergunta da outra pessoa", () => {
+    const rodada = [...pagou, em("2026-11-27T19:59:00Z", pessoa("Será que ele vai sentir minha falta"))];
+    expect(oportunidadeDaCliente(escada, [pergunta, cara, acompanhamento], rodada, AGORA)?.name).toBe("Sinastria Amorosa");
+  });
+});
