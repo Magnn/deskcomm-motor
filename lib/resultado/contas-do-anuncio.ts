@@ -6,7 +6,7 @@
  * sei quanto o anúncio custou".
  */
 export type GastoDoPeriodo =
-  | { estado: "ok"; centavos: number; moeda: string }
+  | { estado: "ok"; centavos: number; moeda: string; campanhas?: { id: string; nome: string; centavos: number }[] }
   | { estado: "sem_conexao" | "sem_conta" | "indisponivel" | "autorizacao_vencida" | "restrito" };
 
 export interface ContasDoAnuncio {

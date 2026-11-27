@@ -36,8 +36,15 @@ import { lerCredencialDeLeitura } from "../credenciais-de-leitura";
 import type { ContaDeAnuncio, ResultadoDeLeitura } from "../types";
 import { lerInsights, listarContas, type LinhaDeInsightCrua } from "./insights";
 
+/** O gasto de uma campanha no período: é por ele que o painel separa o gasto por funil (`lib/resultado/funis.ts`). */
+export interface GastoDaCampanha {
+  id: string;
+  nome: string;
+  centavos: number;
+}
+
 export type GastoDeAnuncios =
-  | { estado: "ok"; centavos: number; moeda: string }
+  | { estado: "ok"; centavos: number; moeda: string; campanhas?: GastoDaCampanha[] }
   | { estado: "sem_conexao" | "sem_conta" | "indisponivel" | "autorizacao_vencida" };
 
 /** A soma do `spend` das campanhas, em centavos. Linha sem número conta zero. Pura. */
@@ -99,7 +106,10 @@ export async function lerGastoDeAnuncios(
     // Sem a lista de contas a moeda é desconhecida, e gasto sem moeda não entra em conta nenhuma: a moeda
     // "?" faz ROAS e lucro ficarem de fora, mas o valor gasto continua visível.
     const moeda = contas.ok ? (contas.dados.find((c) => c.id === conta)?.moeda ?? "?") : "?";
-    valor = { estado: "ok", centavos: somarGastoEmCentavos(insights.dados), moeda };
+    const campanhas = insights.dados
+      .filter((l) => l.campaign_id)
+      .map((l) => ({ id: l.campaign_id!, nome: l.campaign_name ?? l.campaign_id!, centavos: somarGastoEmCentavos([l]) }));
+    valor = { estado: "ok", centavos: somarGastoEmCentavos(insights.dados), moeda, campanhas };
   }
   cache.set(chave, { ate: deps.agora() + VALIDADE_MS, valor });
   return valor;

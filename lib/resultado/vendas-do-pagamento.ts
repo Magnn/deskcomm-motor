@@ -31,6 +31,8 @@ export interface VendaDoPainel {
   conversation_id?: string | null;
   /** Cobrança avulsa (`metadata.extra`): é receita, mas não é uma venda do produto principal. */
   extra?: boolean;
+  /** O nome da cobrança avulsa (`metadata.extra`): diz, por exemplo, que a venda fechou num quiz (`lib/resultado/funis.ts`). */
+  extra_nome?: string | null;
 }
 
 export interface LinhaDoLedger {
@@ -68,6 +70,7 @@ export function vendasDoLedger(
       notes: typeof l.metadata?.produto === "string" && l.metadata.produto.trim() !== "" ? l.metadata.produto.trim() : null,
       conversation_id: typeof l.metadata?.conversa === "string" ? l.metadata.conversa : null,
       extra: typeof l.metadata?.extra === "string" && l.metadata.extra !== "",
+      extra_nome: typeof l.metadata?.extra === "string" && l.metadata.extra !== "" ? l.metadata.extra : null,
     }));
 }
 
