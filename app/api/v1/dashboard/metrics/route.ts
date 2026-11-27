@@ -18,9 +18,13 @@ import {
   lerPainel,
   lerPassosDoFunil,
   listarFunis,
+  nomesDeExibicaoDoAgente,
   separarVendasPorFunil,
   sugerirFunilDaCampanha,
 } from "@/lib/resultado/funis";
+import { instanteDe, partesNoFuso } from "@/lib/agenda/fuso";
+import { lerPricing } from "@/lib/preco/tipos";
+import { progressoDaMeta, type LinhaDaMeta } from "@/lib/venda/meta-do-mes";
 
 interface ConversaDoPainel {
   id: string;
@@ -229,6 +233,26 @@ export async function GET(req: NextRequest) {
               .map((c) => ({ id: c.id, nome: c.nome, gasto: c.centavos / 100, sugestao: sugerirFunilDaCampanha(c.nome, funis) }))
           : [];
       const passos = funil && funil.tipo !== "agente" ? await lerPassosDoFunil(admin, orgId, funil, start, end) : null;
+      // META DO MÊS (`lib/venda/meta-do-mes.ts`): no funil de um agente com meta, cada produto dele contra a meta,
+      // no mês do relógio da organização — o mesmo número que ordena as ofertas da agente.
+      let metaDoMes: LinhaDaMeta[] | null = null;
+      const agenteDoFunil = funil?.tipo === "agente" ? agentes.find((a) => a.id === funil.id) : undefined;
+      const pricingDoFunil = agenteDoFunil ? lerPricing(agenteDoFunil.config) : null;
+      if (agenteDoFunil && pricingDoFunil?.meta_mensal_por_produto) {
+        const agoraMeta = new Date();
+        const hoje = partesNoFuso(agoraMeta, fuso);
+        const inicioDoMes = instanteDe({ ano: hoje.ano, mes: hoje.mes, dia: 1, hora: 0, minuto: 0 }, fuso);
+        const diasNoMes = new Date(Date.UTC(hoje.ano, hoje.mes, 0)).getUTCDate();
+        const doMes = await lerVendasDoPagamento(admin, orgId, inicioDoMes, agoraMeta);
+        const doMesPorFunil = await separarVendasPorFunil(admin, orgId, agentes, painel.produtos, doMes, agoraMeta);
+        metaDoMes = progressoDaMeta(
+          nomesDeExibicaoDoAgente(agenteDoFunil.config),
+          doMesPorFunil.get(funil!.chave) ?? [],
+          pricingDoFunil,
+          hoje.dia,
+          diasNoMes,
+        );
+      }
 
       // Venda é produto principal; extra é receita, com contagem à parte. Medido em outubro: 55 das 130 "vendas"
       // eram cobranças avulsas, quase todas de R$ 5, o que dobrava a conversão aparente.
@@ -464,6 +488,7 @@ export async function GET(req: NextRequest) {
         funis: listaDeFunis,
         funil: funil?.chave ?? null,
         passos,
+        metaDoMes,
         pendencias: { produtos: [...produtosSemFunil.values()], campanhas: campanhasSemFunil },
         kpis: {
           leadsNovos: { valor: leadsCount, delta: calcularDelta(leadsCount, prevLeadsNovosCount ?? 0) },

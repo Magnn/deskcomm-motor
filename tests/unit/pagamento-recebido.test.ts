@@ -48,6 +48,15 @@ function dublês(opts: { parecido?: { valorCentavos: number; provedor: string; q
 }
 
 describe("registrarPagamentoRecebido", () => {
+  it("⭐ a assinatura do app paga pela chave libera o acesso na área, como o aviso da Stripe", async () => {
+    const d = dublês();
+    const liberadas: Array<Record<string, unknown>> = [];
+    d.deps.liberarNaArea = async (_id, compra) => { liberadas.push(compra); };
+    const pagamento = pagamentoRecebidoSchema.parse({ chave: CHAVE, valor_cents: 2900, produto: "Círculo", extra: "circulo" });
+    await registrarPagamentoRecebido(d.deps, { contatoId: "contato-1", pagamento, agora: AGORA });
+    expect(liberadas).toEqual([{ chave: CHAVE, extra: "circulo", metodo: "pix" }]);
+  });
+
   it("⭐ marca como pago, grava o valor e SÓ ENTÃO fecha o negócio aberto", async () => {
     const d = dublês();
     const r = await registrarPagamentoRecebido(d.deps, { contatoId: "contato-1", pagamento: PAGAMENTO, agora: AGORA });

@@ -83,6 +83,18 @@ describe("aba Preço", () => {
     expect(pricingSchema.safeParse(corpo).success).toBe(true);
   });
 
+  it("a meta do mês volta da config, vai ao servidor e não some ao salvar", async () => {
+    renderizar({ pricing: { enabled: true, list_price_cents: 13_000, steps: [], meta_mensal_por_produto: 150, metas_por_produto: { "Círculo": 100 } } });
+    expect(screen.getByLabelText("Vendas por produto no mês")).toHaveValue("150");
+    expect(screen.getByLabelText("Meta própria de um produto (uma por linha)")).toHaveValue("Círculo: 100");
+    fireEvent.change(screen.getByLabelText("Meta própria de um produto (uma por linha)"), { target: { value: "Círculo: 100\nPergunta nova: 200" } });
+    fireEvent.click(screen.getByRole("button", { name: "Salvar preço" }));
+    await waitFor(() => expect(api.put).toHaveBeenCalledTimes(1));
+    const corpo = api.put.mock.calls[0]![1] as Record<string, unknown>;
+    expect(corpo).toMatchObject({ meta_mensal_por_produto: 150, metas_por_produto: { "Círculo": 100, "Pergunta nova": 200 } });
+    expect(pricingSchema.safeParse(corpo).success).toBe(true);
+  });
+
   it("referência sem a confirmação de que é real NÃO sai", async () => {
     renderizar({});
     fireEvent.change(screen.getByLabelText("Valor de venda (R$)"), { target: { value: "130" } });

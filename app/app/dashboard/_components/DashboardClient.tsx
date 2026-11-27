@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useT } from "@/hooks/i18n/useT";
-import { FaixaDePendencias, FunilDePassos, type FunilDaLista, type PassosDoFunil, type Pendencias } from "./PainelDoFunil";
+import { FaixaDePendencias, FunilDePassos, MetaDoMes, type LinhaDaMeta, type FunilDaLista, type PassosDoFunil, type Pendencias } from "./PainelDoFunil";
 import { useTagDeIdioma } from "@/hooks/i18n/useLocaleDeData";
 import {
   Users,
@@ -179,6 +179,7 @@ interface DashboardData {
   funil?: string | null;
   /** O funil de passos, quando o recorte é uma página ou um quiz. */
   passos?: PassosDoFunil | null;
+  metaDoMes?: LinhaDaMeta[] | null;
   pendencias?: Pendencias;
   kpis: {
     leadsNovos: KPI;
@@ -530,6 +531,7 @@ export function DashboardClient({ orgName }: { orgName: string }) {
             <FaixaDePendencias pendencias={data.pendencias} funis={data.funis ?? []} aoLigar={() => void fetchData(true)} />
           ) : null}
           {data?.passos ? <FunilDePassos passos={data.passos} /> : null}
+          {data?.metaDoMes && data.metaDoMes.length > 0 ? <MetaDoMes linhas={data.metaDoMes} /> : null}
           {/* GRID 1: 4 KPIS SUPERIORES */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* 1. Leads novos */}

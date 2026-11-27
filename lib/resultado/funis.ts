@@ -71,9 +71,14 @@ export function nomeComparavel(nome: string): string {
 
 /** Os nomes de produto que o agente cobra (aba Preço e Catálogo), já comparáveis. Pura. */
 export function nomesDosProdutosDoAgente(config: unknown): Set<string> {
-  const nomes = new Set<string>();
+  return new Set(nomesDeExibicaoDoAgente(config).map(nomeComparavel));
+}
+
+/** Os produtos que o agente vende (Preço e Catálogo), com o nome como a tela mostra, sem repetir. Pura. */
+export function nomesDeExibicaoDoAgente(config: unknown): string[] {
+  const vistos = new Map<string, string>();
   const add = (n: unknown) => {
-    if (typeof n === "string" && n.trim() !== "") nomes.add(nomeComparavel(n));
+    if (typeof n === "string" && n.trim() !== "" && !vistos.has(nomeComparavel(n))) vistos.set(nomeComparavel(n), n.trim());
   };
   const pricing = lerPricing(config);
   if (pricing) {
@@ -86,7 +91,7 @@ export function nomesDosProdutosDoAgente(config: unknown): Set<string> {
   const bruto = config !== null && typeof config === "object" ? (config as Record<string, unknown>).catalog : undefined;
   const catalogo = catalogoSchema.safeParse(bruto);
   if (catalogo.success) for (const p of catalogo.data.produtos) add(p.nome);
-  return nomes;
+  return [...vistos.values()];
 }
 
 /**

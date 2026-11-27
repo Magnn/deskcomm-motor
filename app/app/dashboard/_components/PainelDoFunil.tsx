@@ -28,6 +28,47 @@ export interface Pendencias {
 
 const formatBRL = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
+export interface LinhaDaMeta {
+  produto: string;
+  vendidos: number;
+  meta: number;
+  ritmo: number;
+}
+
+/** META DO MÊS: cada produto do agente contra a meta, o mais atrás primeiro (`lib/venda/meta-do-mes.ts`). */
+export function MetaDoMes({ linhas }: { linhas: LinhaDaMeta[] }) {
+  const t = useT();
+  return (
+    <div className="bg-surface p-4 rounded-2xl border border-border shadow-sm space-y-3" data-testid="dashboard-meta-do-mes">
+      <div className="flex items-baseline justify-between">
+        <div className="text-sm font-semibold text-text">{t("Meta do mês por produto")}</div>
+        <div className="text-xs text-text-muted">{t("vendidos / meta · no ritmo de hoje")}</div>
+      </div>
+      <div className="space-y-2">
+        {linhas.map((l) => {
+          const feito = Math.min(1, l.vendidos / l.meta);
+          return (
+            <div key={l.produto} className="space-y-1">
+              <div className="flex items-center justify-between gap-2 text-xs">
+                <span className="text-text truncate">{l.produto}</span>
+                <span className="text-text-muted tabular-nums shrink-0">
+                  {l.vendidos} / {l.meta} · {l.ritmo}
+                </span>
+              </div>
+              <div className="h-2 rounded-full bg-surface-elevated overflow-hidden">
+                <div
+                  className={`h-full rounded-full ${l.ritmo >= l.meta ? "bg-success" : "bg-accent"}`}
+                  style={{ width: `${Math.max(2, Math.round(feito * 100))}%` }}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export function FunilDePassos({ passos }: { passos: PassosDoFunil }) {
   const t = useT();
   const nomeDoPasso: Record<string, string> = {
