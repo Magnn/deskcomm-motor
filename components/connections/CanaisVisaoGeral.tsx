@@ -56,7 +56,8 @@ interface CartaoProps {
   nome: string;
   descricao: string;
   estado: Estado;
-  rotuloDoEstado: string;
+  /** Ausente = o canal não tem estado medido: o cartão mostra só a ação "Configurar". */
+  rotuloDoEstado?: string;
   testId: string;
 }
 
@@ -79,9 +80,9 @@ function CartaoDeCanal({ href, icone: Icone, nome, descricao, estado, rotuloDoEs
         </span>
       </span>
       <span className="mt-auto flex items-center justify-between gap-2">
-        <Selo estado={estado}>{rotuloDoEstado}</Selo>
+        {rotuloDoEstado ? <Selo estado={estado}>{rotuloDoEstado}</Selo> : <span aria-hidden />}
         <span className="inline-flex items-center gap-1 text-sm font-semibold text-primary">
-          {estado === "off" ? t("Conectar") : t("Abrir")}
+          {!rotuloDoEstado ? t("Configurar") : estado === "off" ? t("Conectar") : t("Abrir")}
           <CaretRight size={14} aria-hidden className="transition-transform group-hover:translate-x-0.5" />
         </span>
       </span>
@@ -207,7 +208,6 @@ export function CanaisVisaoGeral({
             nome={t("Chat no seu site")}
             descricao={t("Uma janelinha de conversa no seu site.")}
             estado="off"
-            rotuloDoEstado={t("Configurar")}
             testId="canal-webchat"
           />
           <CartaoDeCanal
@@ -216,7 +216,6 @@ export function CanaisVisaoGeral({
             nome={t("Ligações")}
             descricao={t("Atenda e ligue para clientes pelo navegador.")}
             estado="off"
-            rotuloDoEstado={t("Configurar")}
             testId="canal-telefone"
           />
           <CartaoDeCanal
@@ -258,7 +257,6 @@ export function CanaisVisaoGeral({
             nome={t("Nuvemshop")}
             descricao={t("Pedidos e clientes da loja aparecem no atendimento.")}
             estado="off"
-            rotuloDoEstado={t("Configurar")}
             testId="porta-da-nuvemshop"
           />
           <CartaoDeCanal
@@ -267,7 +265,6 @@ export function CanaisVisaoGeral({
             nome={t("Instagram: comentou, recebe direct")}
             descricao={t("Responda por direct quem comenta nas suas publicações.")}
             estado="off"
-            rotuloDoEstado={t("Configurar")}
             testId="porta-do-instagram"
           />
         </div>
