@@ -103,7 +103,7 @@ test.describe("jornada WAHA — baseline do seam de canais", () => {
 
     // Com a org já onboardada, o wizard `/onboarding/connect-whatsapp` devolve
     // para `/app` — a superfície viva de conectar número é a de Conexões.
-    await page.goto("/app/connections");
+    await page.goto("/app/connections?aba=numeros");
     await expect(page.locator("main").first()).toBeVisible({ timeout: 30_000 });
     // O QR só nasce com WAHA no ar E sessão em SCAN_QR_CODE; sem isso a tela
     // mostra o estado real da sessão. Os DOIS são baseline legítimo — o que não

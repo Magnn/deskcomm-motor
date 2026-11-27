@@ -128,7 +128,7 @@ test.describe("Proteção de envio: o Switch sabe dizer 'não mexi'", () => {
     expect(await lerAllowSunday(sessionId), "fixture não ficou como o previsto").toBe(true);
 
     await loginComoAdmin(page, lerCreds());
-    await page.goto("/app/connections");
+    await page.goto("/app/connections?aba=numeros");
 
     await abrirFicha(page);
 
@@ -157,7 +157,7 @@ test.describe("Proteção de envio: o Switch sabe dizer 'não mexi'", () => {
     );
 
     await loginComoAdmin(page, lerCreds());
-    await page.goto("/app/connections");
+    await page.goto("/app/connections?aba=numeros");
     await abrirFicha(page);
 
     const sw = page.locator("#allow-sunday");

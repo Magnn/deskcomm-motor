@@ -40,10 +40,10 @@ describe.each(["pt-BR", "es"] as const)("alerta de conexão em %s", locale => {
     const mounted = render(view(role, locale, who));
     const alert = screen.getByRole("alert");
     expect(alert).toHaveTextContent("Vendas");
-    expect(within(alert).getByRole("link", { name: copy[locale].qr })).toHaveAttribute("href", "/app/connections");
+    expect(within(alert).getByRole("link", { name: copy[locale].qr })).toHaveAttribute("href", "/app/connections?aba=numeros");
     expect(within(alert).queryByText(copy[locale].help)).toBeNull();
     mounted.rerender(view(role, locale, who, [{ id: "channel", apelido: "Vendas", status: "FAILED" }]));
-    expect(within(screen.getByRole("alert")).getByRole("link", { name: copy[locale].connections })).toHaveAttribute("href", "/app/connections");
+    expect(within(screen.getByRole("alert")).getByRole("link", { name: copy[locale].connections })).toHaveAttribute("href", "/app/connections?aba=numeros");
   });
 
   it.each([
