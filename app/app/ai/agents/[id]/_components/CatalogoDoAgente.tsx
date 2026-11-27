@@ -66,6 +66,7 @@ interface Formulario {
   enabled: boolean;
   /** Oferta diária: uma por dia, e a recusa passa a vez para o próximo produto no dia seguinte. */
   diaria?: boolean;
+  livre?: boolean;
   produtos: ProdutoNaTela[];
 }
 
@@ -81,7 +82,7 @@ const PRODUTO_VAZIO: ProdutoNaTela = {
   horas: String(ESPERA_PADRAO_DO_CATALOGO_H),
   ativo: true,
 };
-const VAZIO: Formulario = { enabled: false, diaria: false, produtos: [] };
+const VAZIO: Formulario = { enabled: false, diaria: false, livre: false, produtos: [] };
 
 /** Item de lista que o servidor aceita: sem aspas duplas, ponto e vírgula nem quebra de linha. */
 const PROIBIDOS_NA_LISTA = ['"', ";", "\n"] as const;
@@ -108,6 +109,7 @@ function formularioInicial(config: Props["config"]): Formulario {
   return {
     enabled: r.data.enabled,
     diaria: r.data.oferta_diaria === true,
+    livre: r.data.oferta_livre === true,
     produtos: r.data.produtos.map((p) => ({
       nome: p.nome,
       descricao: p.descricao ?? "",
@@ -147,7 +149,12 @@ export function paraCorpo(f: Formulario): { corpo: CatalogoConfig } | { erro: st
       ativo: p.ativo,
     });
   }
-  const r = catalogoSchema.safeParse({ enabled: f.enabled, ...(f.diaria === true ? { oferta_diaria: true } : {}), produtos });
+  const r = catalogoSchema.safeParse({
+    enabled: f.enabled,
+    ...(f.diaria === true ? { oferta_diaria: true } : {}),
+    ...(f.livre === true ? { oferta_livre: true } : {}),
+    produtos,
+  });
   if (!r.success) return { erro: r.error.issues[0]?.message ?? "Confira os campos." };
   return { corpo: r.data };
 }
@@ -196,7 +203,7 @@ export function CatalogoDoAgente({ agentId, config, readOnly }: Props) {
     if (!("corpo" in r)) return "";
     const primeiro = r.corpo.produtos.find((p) => p.ativo);
     if (!primeiro) return "";
-    return `${blocoDaOfertaDoCatalogo({ produto: primeiro, jaOferecida: false, diaria: form.diaria === true })}${blocoDaEntregaNaConversa(primeiro)}`.trim();
+    return `${blocoDaOfertaDoCatalogo({ produto: primeiro, jaOferecida: false, diaria: form.diaria === true, livre: form.livre === true })}${blocoDaEntregaNaConversa(primeiro)}`.trim();
   }, [form]);
 
   const salvar = async () => {
@@ -256,6 +263,23 @@ export function CatalogoDoAgente({ agentId, config, readOnly }: Props) {
               disabled={readOnly}
               aria-label={t("Oferecer todo dia")}
               data-testid="catalogo-oferta-diaria"
+            />
+          </div>
+          <div className="flex items-start justify-between gap-4 border-t border-border pt-3">
+            <div className="space-y-1">
+              <h3 className="text-sm font-medium">{t("Oferecer sempre que encaixar")}</h3>
+              <p className="max-w-2xl text-sm text-text-muted">
+                {t(
+                  "Sem relógio: o agente oferece o próximo produto sempre que o assunto da pessoa encaixar, quantas vezes encaixar, por caminhos diferentes. Só dá um tempo quando ela diz não ou que está sem dinheiro; na volta, oferece o passo menor (o mais barato ou a entrada). Vale mais que Oferecer todo dia.",
+                )}
+              </p>
+            </div>
+            <Switch
+              checked={form.livre === true}
+              onCheckedChange={(v) => patch({ livre: v })}
+              disabled={readOnly}
+              aria-label={t("Oferecer sempre que encaixar")}
+              data-testid="catalogo-oferta-livre"
             />
           </div>
         </Card>

@@ -95,6 +95,12 @@ export const catalogoSchema = z
      * sempre (oferecida e não comprada, a vez não passa). Ver `ofertaDaVez`.
      */
     oferta_diaria: z.boolean().optional(),
+    /**
+     * `true` = OFERTA SEM RELÓGIO: o próximo passo sai sempre que o assunto da pessoa encaixar, quantas vezes encaixar.
+     * O único tempo é depois de um não ou de "sem dinheiro" — e aí, na volta, o passo menor (mais barato ou entrada).
+     * Vence `oferta_diaria`. Ver `ofertaDaVez`.
+     */
+    oferta_livre: z.boolean().optional(),
   })
   .superRefine((c, ctx) => {
     const vistos = new Set<string>();

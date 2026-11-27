@@ -382,3 +382,31 @@ describe("o piso da trava de promessas", () => {
     expect(menorPrecoDoCatalogo(null)).toBeNull();
   });
 });
+
+
+describe("oferta sem relógio (oferta_livre)", async () => {
+  const { ofertaDaVez } = await import("@/lib/catalogo/oferta-da-vez");
+  const { blocoDaOfertaDoCatalogo } = await import("@/lib/catalogo/bloco-do-prompt");
+  const { catalogoSchema } = await import("@/lib/catalogo/tipos");
+  const agora = new Date("2026-11-27T20:00:00Z");
+  const prod = (nome: string, link: string) => ({ nome, preco_cents: 3500, link, ativo: true, entrega: "conversa" as const, pede: [], espera_horas: 0 });
+  const cat = catalogoSchema.parse({ enabled: true, oferta_livre: true, produtos: [prod("Oração dos Sonhos", "https://pay.exemplo.com/a"), prod("Sons da Noite", "https://pay.exemplo.com/b")] });
+  const compra = { tags: ["pago"], pagoEm: new Date(agora.getTime() - 48 * 3_600_000) };
+  const disse = (link: string, horas: number) => ({ direction: "outbound", body: `segue ${link}`, sent_at: new Date(agora.getTime() - horas * 3_600_000).toISOString() });
+
+  it("oferecido hoje não trava o dia: vai o que ela ainda não ouviu", () => {
+    const v = ofertaDaVez(cat, compra, [disse("https://pay.exemplo.com/a", 1)], [], agora);
+    expect(v?.produto.nome).toBe("Sons da Noite");
+    expect(v?.jaOferecida).toBe(false);
+  });
+
+  it("ouviu todos: volta o de mais tempo, e o bloco deixa oferecer de novo por outro caminho", () => {
+    const v = ofertaDaVez(cat, compra, [disse("https://pay.exemplo.com/a", 5), disse("https://pay.exemplo.com/b", 1)], [], agora)!;
+    expect(v.produto.nome).toBe("Oração dos Sonhos");
+    const bloco = blocoDaOfertaDoCatalogo(v);
+    expect(bloco).toContain("quantas vezes encaixar");
+    expect(bloco).toContain("OUTRO caminho");
+    expect(bloco).toContain("DAR UM TEMPO só em dois casos");
+    expect(bloco).not.toContain("JÁ FOI FEITA");
+  });
+});

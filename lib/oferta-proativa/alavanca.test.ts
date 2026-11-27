@@ -91,3 +91,40 @@ describe("caminhos da mesma oferta", () => {
     expect(motivoDaOferta(o)).not.toContain("Desta vez");
   });
 });
+
+describe("o único relógio: um tempo depois do não ou do sem dinheiro", () => {
+  const HORA = 3_600_000;
+  const so = { ...cfg, ofertas: cfg.ofertas.slice(0, 2), pausa_apos_recusa_horas: 12 };
+  const comFala = (texto: string, horasAtras: number) => ({
+    ...pessoa(),
+    falas: [texto],
+    falasDatadas: [{ texto, em: new Date(AGORA.getTime() - horasAtras * HORA) }],
+  });
+
+  it("sem dinheiro há pouco: espera; passada a pausa, volta a oferecer, com o passo menor", () => {
+    expect(escolherOferta(comFala("to sem dinheiro agora", 2), so, AGORA)).toEqual({ oferta: null, porque: "em_pausa" });
+    const depois = escolherOferta(comFala("to sem dinheiro agora", 13), so, AGORA);
+    expect(depois.oferta?.id).toBe("barata");
+    expect(depois.oferta && depois.passoMenor).toBe(true);
+  });
+
+  it("recusou: espera a pausa e depois oferece de novo, sem o passo menor", () => {
+    expect(escolherOferta(comFala("não quero mais", 1), so, AGORA).oferta).toBeNull();
+    const depois = escolherOferta(comFala("não quero mais", 20), so, AGORA);
+    expect(depois.oferta && depois.passoMenor).toBe(false);
+  });
+
+  it("pedido de parar, desconfiança e sofrimento continuam fechando a porta, com ou sem tempo", () => {
+    expect(escolherOferta(comFala("isso é golpe", 200), so, AGORA)).toEqual({ oferta: null, porque: "recusou_ou_fragil" });
+    expect(escolherOferta(comFala("para de me mandar mensagem", 200), so, AGORA).oferta).toBeNull();
+  });
+
+  it("dias_entre_repeticoes 0: a mesma oferta volta quando couber", () => {
+    const zero = { ...cfg, ofertas: [{ ...cfg.ofertas[0]!, dias_entre_repeticoes: 0 }] };
+    expect(escolherOferta(pessoa([{ id: "barata", dias: 0.05 }]), zero, AGORA).oferta?.id).toBe("barata");
+  });
+
+  it("o motivo do passo menor pede o valor mais baixo ou a entrada", () => {
+    expect(motivoDaOferta(cfg.ofertas[0]!, undefined, null, false, true)).toContain("o passo menor");
+  });
+});

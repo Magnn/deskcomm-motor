@@ -14,7 +14,7 @@ import { cobrancaDoTema } from "@/lib/preco/extras";
 import { slugDoProduto } from "@/lib/preco/pos-venda";
 import { reais, type Extra, type PricingConfig } from "@/lib/preco/tipos";
 
-import { NAO_OFERECER_PADRAO, type Oferta, type OfertaProativa } from "./config";
+import { NAO_OFERECER_PADRAO, RECUSA_PADRAO, SEM_DINHEIRO_PADRAO, type Oferta, type OfertaProativa } from "./config";
 import { pelaMeta, type MetaDoMes } from "@/lib/venda/meta-do-mes";
 import { valorDaOferta, type DesempenhoDasOfertas } from "./desempenho";
 
@@ -45,15 +45,24 @@ export interface PessoaParaOferta {
   compras?: readonly { produto: string; em: Date }[];
   /** O que a pessoa disse, nas mensagens recentes. */
   falas: readonly string[];
+  /**
+   * As mesmas falas com a hora: é por elas que a pausa depois de um não conta o tempo. Ausente = sem hora, e uma
+   * recusa ou um "sem dinheiro" em qualquer fala recente segura a oferta (o comportamento de antes).
+   */
+  falasDatadas?: readonly MensagemDatada[];
   /** O que o agente disse, com a hora. */
   saidas: readonly MensagemDatada[];
   /** As ofertas proativas já feitas a ela, pelo id. */
   ofertasFeitas: readonly { id: string; em: Date }[];
 }
 
-export type MotivoDeNaoOferecer = "recusou_ou_fragil" | "nenhuma_cabe";
+export type MotivoDeNaoOferecer = "recusou_ou_fragil" | "em_pausa" | "nenhuma_cabe";
 
-export type Escolha = { oferta: Oferta } | { oferta: null; porque: MotivoDeNaoOferecer };
+/** `passoMenor` = ela disse há pouco que está sem dinheiro: a oferta vira a mais barata do assunto ou a entrada. */
+export type Escolha = { oferta: Oferta; passoMenor: boolean } | { oferta: null; porque: MotivoDeNaoOferecer };
+
+/** Até quantos dias depois de "sem dinheiro" a oferta segue sendo o passo menor. */
+const DIAS_DO_PASSO_MENOR = 7;
 
 function casa(padrao: string | undefined, textos: readonly string[]): boolean {
   if (padrao === undefined) return true;
@@ -84,11 +93,35 @@ export function compraCabe(
   return agora.getTime() - maisRecente >= o.compra_ha_pelo_menos_dias * DIA_MS;
 }
 
-/** A pessoa disse algo que tira qualquer oferta da mesa. */
+/** A pessoa disse algo que tira qualquer oferta da mesa: desconfiança, pedido de parar, fome, sofrimento. */
 export function naoOferecer(cfg: Pick<OfertaProativa, "nao_oferecer_se_cliente_disse">, falas: readonly string[]): boolean {
   const padrao = new RegExp(NAO_OFERECER_PADRAO, "i");
   const daOrg = cfg.nao_oferecer_se_cliente_disse === undefined ? null : new RegExp(cfg.nao_oferecer_se_cliente_disse, "i");
-  return falas.some((f) => padrao.test(f) || (daOrg?.test(f) ?? false) || ehOptOutProvavel(f) || ehRecusaDaOferta(f));
+  return falas.some((f) => padrao.test(f) || (daOrg?.test(f) ?? false) || ehOptOutProvavel(f));
+}
+
+const semDinheiro = (f: string) => new RegExp(SEM_DINHEIRO_PADRAO, "i").test(f);
+const recusou = (f: string) => new RegExp(RECUSA_PADRAO, "i").test(f) || ehRecusaDaOferta(f);
+
+/**
+ * O ÚNICO relógio da venda: depois de um não ou de "sem dinheiro", um tempo sem oferta; passado o tempo, quem disse
+ * que está sem dinheiro ouve o passo menor. Sem hora nas falas, qualquer recusa recente segura (como antes). Pura.
+ */
+export function pausaDaOferta(
+  cfg: Pick<OfertaProativa, "pausa_apos_recusa_horas">,
+  p: Pick<PessoaParaOferta, "falas" | "falasDatadas">,
+  agora: Date,
+): { emPausa: boolean; passoMenor: boolean } {
+  if (p.falasDatadas === undefined) {
+    return { emPausa: p.falas.some((f) => semDinheiro(f) || recusou(f)), passoMenor: false };
+  }
+  const ultima = (teste: (f: string) => boolean) =>
+    Math.max(-Infinity, ...p.falasDatadas!.filter((f) => teste(f.texto)).map((f) => f.em.getTime()));
+  const ultimoNao = Math.max(ultima(semDinheiro), ultima(recusou));
+  return {
+    emPausa: agora.getTime() - ultimoNao < cfg.pausa_apos_recusa_horas * 3_600_000,
+    passoMenor: agora.getTime() - ultima(semDinheiro) < DIAS_DO_PASSO_MENOR * DIA_MS,
+  };
 }
 
 /** A oferta cabe nesta pessoa agora? Todas as condições dela, menos a ordem. */
@@ -135,6 +168,8 @@ export function escolherOferta(
   alavanca?: AlavancaDaOferta | null,
 ): Escolha {
   if (naoOferecer(cfg, p.falas)) return { oferta: null, porque: "recusou_ou_fragil" };
+  const { emPausa, passoMenor } = pausaDaOferta(cfg, p, agora);
+  if (emPausa) return { oferta: null, porque: "em_pausa" };
   const tudoQueOAgenteDisse = p.saidas.map((s) => s.texto);
   const cabem = [...cfg.ofertas, ...automaticas].filter((o) => cabe(o, p, agora, tudoQueOAgenteDisse));
   if (cabem.length === 0) return { oferta: null, porque: "nenhuma_cabe" };
@@ -142,8 +177,8 @@ export function escolherOferta(
   const d = alavanca?.receita ? alavanca.desempenho : null;
   // sort é estável: no empate de valor, fica a ordem da meta.
   const nova = (d ? [...novas].sort((a, b) => valorDaOferta(d, b.id) - valorDaOferta(d, a.id)) : novas)[0];
-  if (nova !== undefined) return { oferta: nova };
-  return { oferta: cabem.reduce((a, b) => ((ultimaVez(b.id, p) ?? 0) < (ultimaVez(a.id, p) ?? 0) ? b : a)) };
+  if (nova !== undefined) return { oferta: nova, passoMenor };
+  return { oferta: cabem.reduce((a, b) => ((ultimaVez(b.id, p) ?? 0) < (ultimaVez(a.id, p) ?? 0) ? b : a)), passoMenor };
 }
 
 /** O produto que a oferta vende, para a meta do mês: o declarado, ou o que ela exclui de quem já tem, ou o id. */
@@ -269,16 +304,21 @@ export function motivoDaOferta(
   angulo: string | null = null,
   /** Ela já recebeu esta oferta antes. */
   jaOuviu = false,
+  /** Ela disse há pouco que está sem dinheiro (`pausaDaOferta`). */
+  passoMenor = false,
 ): string {
   return (
     `oferta proativa (${o.id}): ${motivo} ` +
+    (passoMenor
+      ? "Ela contou há poucos dias que estava sem dinheiro: ofereça o passo menor — o valor mais baixo que serve ao assunto dela, ou a entrada agora com o restante combinado para depois, como o bloco de preços manda. Sem cobrar o valor cheio de cara. "
+      : "") +
     (angulo ? `Desta vez, entre por este caminho: ${angulo} ` : "") +
     (jaOuviu
       ? "Ela já ouviu esta oferta antes: não repita frase, imagem nem abertura que você já mandou — parta do que ela contou de novo, como quem lembra dela. "
       : "") +
     "Uma mensagem só, curta, pelo nome. Não mande cobrança nem link nesta mensagem: só depois que a pessoa disser que quer. " +
     "Sem urgência inventada, sem prazo, sem prometer resultado. Se a conversa mostra que a pessoa pediu para não ser procurada, " +
-    "desconfiou, está sem dinheiro para o básico ou em sofrimento grave, não envie nada."
+    "desconfiou, acabou de recusar ou está em sofrimento grave, não envie nada."
   );
 }
 

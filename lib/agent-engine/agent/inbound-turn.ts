@@ -84,7 +84,7 @@ import {
   TAMANHO_DA_RESPOSTA_LIMITADA,
   blocoDaConversaGratuitaEsgotada,
   conversaGratuitaEsgotada,
-  ofereceuHoje,
+  pausaDepoisDoNao,
 } from './conversa-gratuita';
 import { blocoDaRespostaAtropelada, respostaAtropelada } from './resposta-atropelada';
 import { blocoDaEntrada, blocoDaEntradaImediata, blocoDaPropostaDeEntrada, blocoDoValorAbaixoDoPiso, blocoDoValorAceito, perguntaAntesDoPixDaEntrada } from '@/lib/preco/bloco-da-entrada';
@@ -2960,7 +2960,7 @@ async function executarTurnoDoAgente(
     blocoDoComprovante +
     blocoDoAcompanhamentoIncluso({ comprou: tagsDoContato.includes('pago'), diasDesdeACompra, extras: extrasDoTurno, pagos: extrasPagosNoTurno });
   // O LIMITE DA CONVERSA GRATUITA (`conversa-gratuita.ts`): quem ouviu a oferta, não comprou e não tem nada pago
-  // valendo recebe um número de respostas de graça; depois disso, respostas curtas com uma oferta por dia.
+  // valendo recebe um número de respostas de graça; depois disso, respostas curtas, cada uma com UMA oferta.
   const temExtraValendo = extrasPagosNoTurno.some((p) => {
     const extra = extrasDoTurno.find((e) => slugDoExtra(e.name) === p.slug);
     return extra !== undefined && (p.diasAtras ?? 0) < (extra.valid_days ?? 1);
@@ -2969,7 +2969,7 @@ async function executarTurnoDoAgente(
     !semBlocosDePreco && agentConfig?.pricing?.enabled === true && internacionalDoTurno === null && !tagsDoContato.includes('pago') && !temExtraValendo &&
     conversaGratuitaEsgotada(openingContext.context.messages, agentConfig.pricing.free_replies_after_offer);
   if (gratuitaEsgotadaNoTurno) {
-    runLog.info('conversa gratuita esgotada — resposta curta, com uma oferta por dia', {});
+    runLog.info('conversa gratuita esgotada — resposta curta, com uma oferta', {});
   }
   const promiseMinPriceCentsDaEscada =
     ofertaDoCatalogoNoTurno !== null
@@ -3324,7 +3324,7 @@ async function executarTurnoDoAgente(
         ? [ofertaPequenaDePe.nome]
         : // O tema dela decide a cobrança; a lista inteira só quando nenhuma cobrança casa com o que ela disse.
           ['o trabalho', ...(temaDoTurno ? [temaDoTurno] : extrasDoTurno).map((e) => e.name)],
-      ofereceuHoje(openingContext.context.messages),
+      pausaDepoisDoNao(openingContext.context.messages),
     ) +
     blocoDaOportunidade(oportunidadeNoTurno, clienteDaCasaNoTurno);
   if (atropeladaNoTurno) {

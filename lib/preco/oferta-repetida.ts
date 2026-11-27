@@ -47,6 +47,6 @@ export function ofertaRepetidaSeguida(corpo: string, historico: readonly Mensage
   return (
     `Você já ofereceu R$ ${repetidos.join(", R$ ")} na sua resposta anterior, e ela respondeu sem aceitar. ` +
     "NÃO repita a oferta nem o valor agora: responda ao que ela disse, com cuidado, e siga a conversa. " +
-    "A oferta só volta quando ela der abertura (disser que quer, perguntar o valor ou como pagar) ou em outro dia."
+    "A oferta volta quando ela der abertura (disser que quer, perguntar o valor ou como pagar) ou quando o assunto dela encaixar de novo, por outro caminho e sem repetir frase."
   );
 }

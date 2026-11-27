@@ -74,6 +74,8 @@ export const DICIONARIO: Traducoes = {
   "Trazer páginas e quizzes de volta para Vendas": { es: "Traer páginas y quizzes de vuelta a Ventas" },
   "Levar páginas e quizzes para uma aba própria": { es: "Llevar páginas y quizzes a una pestaña propia" },
   "Páginas e quizzes": { es: "Páginas y quizzes" },
+  "Oferecer sempre que encaixar": { es: "Ofrecer siempre que encaje" },
+  "Sem relógio: o agente oferece o próximo produto sempre que o assunto da pessoa encaixar, quantas vezes encaixar, por caminhos diferentes. Só dá um tempo quando ela diz não ou que está sem dinheiro; na volta, oferece o passo menor (o mais barato ou a entrada). Vale mais que Oferecer todo dia.": { es: "Sin reloj: el agente ofrece el próximo producto siempre que el tema de la persona encaje, las veces que encaje, por caminos distintos. Solo da un tiempo cuando ella dice que no o que no tiene dinero; a la vuelta, ofrece el paso menor (lo más barato o la entrada). Vale más que Ofrecer todos los días." },
   "Ofertas automáticas: o que cada uma rende": { es: "Ofertas automáticas: lo que rinde cada una" },
   "Mês atrasado: quem ainda não ouviu uma oferta recebe primeiro a que mais rende por envio. Quem já ouviu todas continua no rodízio, e o espaço entre ofertas não muda.": { es: "Mes atrasado: quien aún no escuchó una oferta recibe primero la que más rinde por envío. Quien ya escuchó todas sigue en la rotación, y el espacio entre ofertas no cambia." },
   "No ritmo: as ofertas se espalham pelo catálogo para cada produto chegar à sua meta.": { es: "Al ritmo: las ofertas se reparten por el catálogo para que cada producto llegue a su meta." },
