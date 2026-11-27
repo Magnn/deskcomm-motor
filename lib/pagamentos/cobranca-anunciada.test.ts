@@ -27,6 +27,65 @@ describe("anunciaCobrancaSemCobranca", () => {
   });
 });
 
+const pediu = (body: string) => ({ direction: "inbound", body });
+const falas = (n: number) => Array.from({ length: n }, (_, i) => saiu(`fala ${i}`));
+
+describe("chave dada como ENVIADA sem ter saído (medido em 27/11/2026)", () => {
+  // A chave tinha saído na VÉSPERA, para outra cobrança. A pessoa pediu o Pix; a agente respondeu que a chave "chegou aí" /
+  // "já foi aí", e a pessoa não achou: "achei não, manda aí".
+  const chaveDeOntem = [saiu("69993677810"), ...falas(12)];
+
+  it("'a chave é o número que chegou aí' volta ao modelo quando nenhuma chave saiu nas últimas falas", () => {
+    expect(anunciaCobrancaSemCobranca("A chave é o número que chegou aí, de *Matheus*. Se o banco perguntar o tipo, é *Celular*.", chaveDeOntem)).toBe(true);
+    expect(anunciaCobrancaSemCobranca("O Pix que te mandei é no nome do Matheus.", [saiu("Perfeito, então é no Pix.")])).toBe(true);
+  });
+
+  it("'conseguiu achar a chave aí?' também precisa de uma chave recente", () => {
+    expect(anunciaCobrancaSemCobranca("Conseguiu achar a chave aí?", chaveDeOntem)).toBe(true);
+  });
+
+  it("com a chave nas últimas falas (ou neste turno), falar dela passa", () => {
+    const recente = [...falas(3), saiu("69993677810"), saiu("Assim que fizer, me manda o comprovante.")];
+    expect(anunciaCobrancaSemCobranca("A chave do Pix é o número que já foi aí pra você, de *Matheus*.", recente)).toBe(false);
+    expect(anunciaCobrancaSemCobranca("Conseguiu achar a chave aí?", recente)).toBe(false);
+  });
+});
+
+describe("pediu a chave: a resposta que fala da chave tem que trazer a chave (medido em 27/11/2026)", () => {
+  const base = [saiu("69993677810"), ...falas(12)];
+
+  it("'manda a chave de novo' respondido com 'é o número que já foi aí' volta ao modelo", () => {
+    const h = [...base, pediu("Manda a chave de novo")];
+    expect(anunciaCobrancaSemCobranca("Claro, meu bem. A chave do Pix é no nome do *Matheus*, que cuida do financeiro do Templo.", h)).toBe(true);
+  });
+
+  it("'achei não' / 'manda aí' depois de falar da chave também conta como pedido", () => {
+    const h = [...base, saiu("A chave do Pix é no nome do Matheus."), pediu("?"), pediu("Achei nao"), pediu("Manda ai")];
+    expect(anunciaCobrancaSemCobranca("Calma, meu bem, a chave do Pix é a mesma de antes.", h)).toBe(true);
+  });
+
+  it("balão que não fala da chave passa (a chave vem no balão seguinte)", () => {
+    const h = [...base, pediu("Manda a chave de novo")];
+    expect(anunciaCobrancaSemCobranca("Claro, meu bem.", h)).toBe(false);
+  });
+
+  it("o pedido continua valendo depois de um balão do turno sem a chave", () => {
+    const h = [...base, pediu("Manda a chave de novo"), saiu("Claro, meu bem.")];
+    expect(anunciaCobrancaSemCobranca("A chave do Pix é o número que já foi aí pra você.", h)).toBe(true);
+  });
+
+  it("balão com a marca passa, e depois que a chave saiu no turno falar dela também passa", () => {
+    const h = [...base, pediu("Manda a chave de novo")];
+    expect(anunciaCobrancaSemCobranca("[[PIX: Pergunta nova]]", h)).toBe(false);
+    expect(anunciaCobrancaSemCobranca("A chave do Pix é essa aí de cima, meu bem.", [...h, saiu("69993677810")])).toBe(false);
+  });
+
+  it("falar de Pix sem a pessoa ter pedido a chave não é pedido", () => {
+    const h = [...base, pediu("Quanto custa a pergunta?")];
+    expect(anunciaCobrancaSemCobranca("A pergunta nova é R$ 27. Prefere no Pix ou no cartão?", h)).toBe(false);
+  });
+});
+
 describe("trazCobranca (toque de silêncio não cobra)", () => {
   it("marca, chave ou link contam como cobrança; pergunta não", () => {
     expect(trazCobranca("O seu trabalho ficou em R$ 100.\n\n[[PIX: Entrada]]")).toBe(true);
