@@ -16,6 +16,18 @@ import { reais, type Extra, type PricingConfig } from "@/lib/preco/tipos";
 
 import { NAO_OFERECER_PADRAO, type Oferta, type OfertaProativa } from "./config";
 import { pelaMeta, type MetaDoMes } from "@/lib/venda/meta-do-mes";
+import { valorDaOferta, type DesempenhoDasOfertas } from "./desempenho";
+
+/**
+ * A ALAVANCA DO RITMO. Com a meta de receita do mês atrasada (`lib/venda/ritmo-do-mes.ts`), entre as ofertas que a
+ * pessoa ainda não ouviu vai primeiro a que mais rende por oferta (`desempenho.ts`); no ritmo, vale a meta de
+ * quantidade, que espalha as vendas pelo catálogo. A alavanca só mexe na ORDEM: quem recebe, quantas vezes, em que
+ * janela e com que cuidado não muda — e a pessoa que já ouviu tudo continua ouvindo a que ouviu há mais tempo.
+ */
+export interface AlavancaDaOferta {
+  receita: boolean;
+  desempenho: DesempenhoDasOfertas | null;
+}
 
 const DIA_MS = 24 * 3_600_000;
 
@@ -120,12 +132,16 @@ export function escolherOferta(
   automaticas: readonly Oferta[] = [],
   /** Entre as que ela ainda não ouviu, vai primeiro a do produto mais atrás da meta do mês. */
   meta?: MetaDoMes | null,
+  alavanca?: AlavancaDaOferta | null,
 ): Escolha {
   if (naoOferecer(cfg, p.falas)) return { oferta: null, porque: "recusou_ou_fragil" };
   const tudoQueOAgenteDisse = p.saidas.map((s) => s.texto);
   const cabem = [...cfg.ofertas, ...automaticas].filter((o) => cabe(o, p, agora, tudoQueOAgenteDisse));
   if (cabem.length === 0) return { oferta: null, porque: "nenhuma_cabe" };
-  const nova = pelaMeta(cabem.filter((o) => ultimaVez(o.id, p) === null), produtoDaOferta, meta)[0];
+  const novas = pelaMeta(cabem.filter((o) => ultimaVez(o.id, p) === null), produtoDaOferta, meta);
+  const d = alavanca?.receita ? alavanca.desempenho : null;
+  // sort é estável: no empate de valor, fica a ordem da meta.
+  const nova = (d ? [...novas].sort((a, b) => valorDaOferta(d, b.id) - valorDaOferta(d, a.id)) : novas)[0];
   if (nova !== undefined) return { oferta: nova };
   return { oferta: cabem.reduce((a, b) => ((ultimaVez(b.id, p) ?? 0) < (ultimaVez(a.id, p) ?? 0) ? b : a)) };
 }
@@ -236,9 +252,30 @@ export function motivoComPrecos(
   return faltou ? null : texto;
 }
 
-export function motivoDaOferta(o: Oferta, motivo: string = o.motivo): string {
+/**
+ * O caminho desta vez, em rodízio pelo número de vezes que ela já recebeu esta oferta. `null` = a oferta não tem
+ * caminhos. Pura.
+ */
+export function anguloDaVez(o: Pick<Oferta, "id" | "angulos">, p: Pick<PessoaParaOferta, "ofertasFeitas">): string | null {
+  const angulos = o.angulos ?? [];
+  if (angulos.length === 0) return null;
+  return angulos[p.ofertasFeitas.filter((f) => f.id === o.id).length % angulos.length] ?? null;
+}
+
+export function motivoDaOferta(
+  o: Oferta,
+  motivo: string = o.motivo,
+  /** O caminho desta vez (`anguloDaVez`), já com os preços trocados. */
+  angulo: string | null = null,
+  /** Ela já recebeu esta oferta antes. */
+  jaOuviu = false,
+): string {
   return (
     `oferta proativa (${o.id}): ${motivo} ` +
+    (angulo ? `Desta vez, entre por este caminho: ${angulo} ` : "") +
+    (jaOuviu
+      ? "Ela já ouviu esta oferta antes: não repita frase, imagem nem abertura que você já mandou — parta do que ela contou de novo, como quem lembra dela. "
+      : "") +
     "Uma mensagem só, curta, pelo nome. Não mande cobrança nem link nesta mensagem: só depois que a pessoa disser que quer. " +
     "Sem urgência inventada, sem prazo, sem prometer resultado. Se a conversa mostra que a pessoa pediu para não ser procurada, " +
     "desconfiou, está sem dinheiro para o básico ou em sofrimento grave, não envie nada."

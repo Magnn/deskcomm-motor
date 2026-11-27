@@ -15,6 +15,7 @@ import type pg from "pg";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { diaLocalISO, instanteDe, partesNoFuso } from "@/lib/agenda/fuso";
+import { lerDesempenhoDasOfertas, valorDaOferta } from "@/lib/oferta-proativa/desempenho";
 import { lerGastoDeAnuncios } from "@/lib/plataformas-de-anuncio/meta/gasto-do-periodo";
 import { lerFusoDaOrganizacao } from "@/lib/resultado/periodo";
 import { lerVendasDoPagamento } from "@/lib/resultado/vendas-do-pagamento";
@@ -55,6 +56,13 @@ export interface PainelDeEscala {
   numeros: NumeroDoPainel[];
   anuncios: { estado: string; gastoDoMes: number | null };
   assinaturasAtivas: number;
+  /**
+   * A alavanca que a oferta proativa está usando agora: `receita` (mês atrasado — vai primeiro a oferta que mais
+   * rende) ou `variedade` (no ritmo — espalha pelo catálogo). `null` sem meta.
+   */
+  alavanca: "receita" | "variedade" | null;
+  /** Quanto cada oferta proativa rendeu (receita até 3 dias depois), de 33 a 3 dias atrás. */
+  ofertas: { media: number; linhas: { id: string; ofertas: number; receita: number; valor: number }[] } | null;
   /** Receita por dia dos últimos 60 dias, com a meta do dia quando há meta. */
   porDia: { dia: string; receita: number; meta: number | null }[];
 }
@@ -149,7 +157,7 @@ export async function lerPainelDeEscala(
   const doMesPassado = vendas.filter((v) => v.dia >= diaDoMesPassado && v.dia < diaDoMes);
   const de30 = vendas.filter((v) => v.dia >= ha30);
 
-  const [contatos, numeros, conversasDasVendas, assinaturas, gasto] = await Promise.all([
+  const [contatos, numeros, conversasDasVendas, assinaturas, gasto, desempenho] = await Promise.all([
     pool.query<{ mes: string; passado: string }>(
       `select count(*) filter (where created_at >= $2) as mes,
               count(*) filter (where created_at >= $3 and created_at < $2) as passado
@@ -184,6 +192,7 @@ export async function lerPainelDeEscala(
       .eq("organization_id", orgId)
       .gt("valido_ate", agora.toISOString()),
     opcoes.podeVerGasto ? lerGastoDeAnuncios(admin, orgId, inicioDoMes, agora, fuso).catch(() => ({ estado: "indisponivel" as const })) : null,
+    lerDesempenhoDasOfertas(pool, orgId, agora),
   ]);
 
   const canalDaConversa = new Map<string, string | null>();
@@ -231,6 +240,14 @@ export async function lerPainelDeEscala(
         ? { estado: "restrito", gastoDoMes: null }
         : { estado: gasto.estado, gastoDoMes: gasto.estado === "ok" ? gasto.centavos : null },
     assinaturasAtivas: assinaturas.count ?? 0,
+    alavanca: plano ? (plano.mes.ritmo === "atrasada" ? "receita" : "variedade") : null,
+    ofertas:
+      desempenho === null || desempenho.linhas.length === 0
+        ? null
+        : {
+            media: Math.round(desempenho.media),
+            linhas: desempenho.linhas.map((l) => ({ ...l, valor: Math.round(valorDaOferta(desempenho, l.id)) })),
+          },
     porDia: diasEntre(somarDias(hoje, -59), hoje).map((dia) => ({
       dia,
       receita: receitaPorDia.get(dia) ?? 0,
