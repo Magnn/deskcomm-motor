@@ -12,24 +12,14 @@ import { audit } from "@/lib/audit";
 import { fail, ok } from "@/lib/api/wrappers";
 import { requireRole } from "@/lib/auth/require-role";
 import { configDaRespostaAComentario } from "@/lib/channels/messenger/comentarios";
+import { canalDaPaginaNaOrganizacao } from "@/lib/channels/messenger/paginas";
 import { requireSupportWrite } from "@/lib/impersonate/support";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 type Context = { params: Promise<{ id: string }> };
 
-async function canalDaOrganizacao(orgId: string, id: string) {
-  const { data, error } = await createAdminClient()
-    .from("channel_sessions")
-    .select("id, metadata")
-    .eq("organization_id", orgId)
-    .eq("id", id)
-    .eq("provider", "meta_messenger")
-    .is("archived_at", null)
-    .maybeSingle();
-  if (error) throw new Error(error.message);
-  return data as { id: string; metadata: Record<string, unknown> | null } | null;
-}
+const canalDaOrganizacao = (orgId: string, id: string) => canalDaPaginaNaOrganizacao(createAdminClient(), orgId, id);
 
 export async function GET(_req: NextRequest, { params }: Context): Promise<Response> {
   const requestId = randomUUID();

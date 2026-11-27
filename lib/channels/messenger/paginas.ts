@@ -105,6 +105,24 @@ export async function sessaoDaPagina(
   return l ? { id: l.id, organizationId: l.organization_id } : null;
 }
 
+/** O canal ATIVO de página desta organização, com o metadata — para a tela que configura o canal. */
+export async function canalDaPaginaNaOrganizacao(
+  db: SupabaseClient,
+  organizationId: string,
+  id: string,
+): Promise<{ id: string; metadata: Record<string, unknown> | null } | null> {
+  const { data, error } = await db
+    .from("channel_sessions")
+    .select("id, metadata")
+    .eq("organization_id", organizationId)
+    .eq("id", id)
+    .eq("provider", CHANNEL_PROVIDER_MESSENGER)
+    .is("archived_at", null)
+    .maybeSingle();
+  if (error) throw new Error(`messenger: leitura do canal falhou: ${error.message}`);
+  return data as { id: string; metadata: Record<string, unknown> | null } | null;
+}
+
 /** O token da página, aberto — só para quem vai falar com a Meta agora. */
 export async function tokenDaPagina(
   db: SupabaseClient,
