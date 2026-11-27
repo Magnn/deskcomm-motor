@@ -188,6 +188,7 @@ import { anunciaCobrancaSemCobranca, RECUSA_DA_COBRANCA_ANUNCIADA, RECUSA_DA_COB
 import { lerRaizesDitas, registrarRaizDita, semAMarcaDaRaiz, temMarcaDaRaiz } from '@/lib/leitura/raiz-registrada';
 import { MARCA_DO_RESTANTE, blocoDoRestante, temMarcaDoRestante } from '@/lib/preco/restante';
 import { blocoDaEntregaNaConversa, blocoDaOfertaDoCatalogo } from '@/lib/catalogo/bloco-do-prompt';
+import { idDaOfertaDoCatalogo } from '@/lib/oferta-proativa/decisao';
 import {
   blocoDoEncerramento,
   registrarEncerramento,
@@ -2745,8 +2746,14 @@ async function executarTurnoDoAgente(
   // ELA PEDIU CARTÃO (`lib/preco/pediu-cartao.ts`): a cobrança sai só como link de cartão, e o bloco avisa o modelo.
   const pediuCartaoNoTurno = pediuCartao(openingContext.context.messages);
   // Com produto do catálogo na vez, o bloco de preço é o dele: a escada é da compra que já aconteceu.
+  // Turno de oferta proativa de outra coisa: a oferta é a do motivo, e o produto do catálogo não disputa com ela.
+  const idDaOfertaProativa = (job?.payload as { oferta_proativa?: { id?: unknown } } | null)?.oferta_proativa?.id;
+  const outraOfertaNoTurno =
+    typeof idDaOfertaProativa === 'string' &&
+    ofertaDoCatalogoNoTurno !== null &&
+    idDaOfertaProativa !== idDaOfertaDoCatalogo(ofertaDoCatalogoNoTurno.produto.nome);
   const blocoDePrecoDoTurno = ofertaDoCatalogoNoTurno !== null
-    ? blocoDaOfertaDoCatalogo(ofertaDoCatalogoNoTurno)
+    ? blocoDaOfertaDoCatalogo(ofertaDoCatalogoNoTurno, outraOfertaNoTurno)
     : internacionalDoTurno !== null
     ? blocoDoPrecoInternacional(agentConfig?.pricing, internacionalDoTurno)
     : blocoDePreco(agentConfig?.pricing, {
