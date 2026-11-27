@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import { anunciaCobrancaSemCobranca, trazCobranca } from "./cobranca-anunciada";
@@ -109,5 +112,45 @@ describe("link que não é de pagamento não desarma a trava (releitura de 22/11
     expect(trazCobranca("A chave é esta:\n69912345678\nMe manda o comprovante?")).toBe(true);
     expect(trazCobranca("00020126580014br.gov.bcb.pix")).toBe(true);
     expect(trazCobranca("Meu telefone 69912345678 é o mesmo do zap")).toBe(false);
+  });
+});
+
+describe("toda chave que o envio manda conta como chave enviada (revisão de 27/11/2026)", () => {
+  // `chaveParaCopiar` manda celular/CPF, CNPJ, e-mail ou aleatória sozinha no balão; só celular/CPF contava, e numa conta
+  // com chave de e-mail "a chave que te mandei" era recusada logo depois da chave.
+  it.each(["69993677810", "12345678000199", "financeiro@loja.com.br", "123e4567-e89b-12d3-a456-426614174000"])(
+    "a chave %s logo acima deixa a fala passar",
+    (chave) => {
+      expect(anunciaCobrancaSemCobranca("A chave que te mandei é no nome da loja.", [saiu(chave)])).toBe(false);
+      expect(trazCobranca(chave)).toBe(true);
+    },
+  );
+
+  it("link de pagamento do próprio checkout conta no balão e no histórico (um padrão só)", () => {
+    expect(trazCobranca("https://pagar.acassia.tech/x")).toBe(true);
+    expect(anunciaCobrancaSemCobranca("Conseguiu achar o link aí?", [saiu("https://pagar.acassia.tech/x")])).toBe(false);
+  });
+
+  it("e-mail no meio da frase não é chave", () => {
+    expect(trazCobranca("Qualquer dúvida, escreve pra financeiro@loja.com.br que respondemos.")).toBe(false);
+  });
+});
+
+describe("pergunta sobre o Pix não é pedido da chave (revisão de 27/11/2026)", () => {
+  const base = [saiu("69993677810"), ...falas(12)];
+  it.each(["Qual o valor do pix?", "Passa no pix?", "Qual a diferença do pix pro cartão?"])("'%s' não obriga a mandar a chave", (pergunta) => {
+    expect(anunciaCobrancaSemCobranca("O Pix fica R$ 27, meu bem.", [...base, pediu(pergunta)])).toBe(false);
+  });
+  it.each(["Qual é a chave?", "Me manda aí a chave", "Cadê o pix", "Passa a chave pra mim de novo"])("'%s' é pedido", (pedido) => {
+    expect(anunciaCobrancaSemCobranca("A chave do Pix é no nome do Matheus.", [...base, pediu(pedido)])).toBe(true);
+  });
+});
+
+describe("fiação: o envio passa à trava os balões já enviados neste turno", () => {
+  // O turno não tem seam isolável (ver tests/unit/gate-vazamento-interno.test.ts); a asserção é sobre a fonte. Sem os
+  // balões do turno, "a chave tá aí em cima" logo depois do balão da chave seria recusada.
+  it("a chamada junta corposEnviados ao histórico", () => {
+    const fonte = readFileSync(path.join(process.cwd(), "lib/agent-engine/agent/inbound-turn.ts"), "utf8");
+    expect(fonte).toMatch(/anunciaCobrancaSemCobranca\(body, \[\s*\.\.\.openingContext\.context\.messages,\s*\.\.\.corposEnviados\.map/);
   });
 });

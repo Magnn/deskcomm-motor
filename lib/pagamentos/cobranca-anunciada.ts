@@ -15,8 +15,17 @@
  * Medido na releitura de 22/11/2026: qualquer link desarmava a trava ("vou te mandar a chave agora" + o link da política de
  * privacidade passava como se a cobrança tivesse ido), e a chave de celular isolada não contava como cobrança.
  */
-const COBRANCA_NO_CORPO =
-  /\[\[\s*(?:PIX|CHAVE PIX|BOLETO)\b[^\]]*\]\]|https?:\/\/\S*(?:pay|buy|checkout|boleto|pagar|pagamento|invoice)\S*|(?:^|\n)\s*000201|(?:^|\n)\s*\d{10,11}\s*(?:\n|$)/i;
+const COBRANCA_ENVIADA = new RegExp(
+  [
+    String.raw`(?:^|\n)\s*000201`,
+    String.raw`https?:\/\/\S*(?:pay|buy|checkout|boleto|pagar|pagamento|invoice)\S*`,
+    // A chave sozinha numa linha, em todo tipo que `chaveParaCopiar` (lib/preco/chave-pix.ts) devolve: celular/CPF, CNPJ,
+    // e-mail e aleatória.
+    String.raw`(?:^|\n)\s*(?:\d{10,11}|\d{14}|[^\s@]+@[^\s@]+\.[^\s@]+|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})\s*(?:\n|$)`,
+  ].join("|"),
+  "i",
+);
+const COBRANCA_NO_CORPO = new RegExp(String.raw`\[\[\s*(?:PIX|CHAVE PIX|BOLETO)\b[^\]]*\]\]|` + COBRANCA_ENVIADA.source, "i");
 
 /** "a chave … vai aqui", "o link segue abaixo", "vou te mandar a chave", "te mando o Pix agora". */
 const ANUNCIO = [
@@ -40,9 +49,6 @@ const PERGUNTA_SE_COPIOU = /\bconseguiu\s+(?:copiar|colar|fazer|pagar|achar|enco
 const DIZ_QUE_JA_SAIU =
   /\b(?:chave|pix|c[óo]digo|link)\b[^.!?\n]{0,80}?(?:\b(?:chegou|foi|est[áa]|t[áa])\s+(?:a[íi]|acima|pra\s+voc[êe]|para\s+voc[êe])(?![\p{L}])|\b(?:te\s+|lhe\s+)?(?:mandei|enviei|passei)\b)/iu;
 
-/** Uma cobrança que de fato saiu: código copia-e-cola, link de pagamento ou a chave (celular, sozinha no balão). */
-const COBRANCA_ENVIADA = /(?:^|\n)000201|https?:\/\/\S*(?:pay|buy|checkout|boleto)\S*|^\s*\d{10,11}\s*$/im;
-
 export const RECUSA_DA_COBRANCA_ANUNCIADA =
   "Você anunciou a chave, o Pix ou o link, mas esta mensagem não traz cobrança nenhuma — a pessoa não recebeu nada. " +
   "Se é hora de cobrar, escreva SOZINHA num balão a marca [[PIX: Nome]] que o bloco do turno indica (ou o link oficial do valor que vale): " +
@@ -56,7 +62,7 @@ const FALAS_RECENTES = 10;
 
 /** "manda a chave", "qual o pix?", "me passa a chave de novo". */
 const PEDE_A_CHAVE =
-  /\b(?:manda|mande|envia|envie|passa|passe|me\s+d[áa]|qual(?:\s+[ée])?|cad[êe])\b[^.!?\n]{0,25}?\b(?:chave|pix)\b/i;
+  /\b(?:manda|mande|envia|envie|passa|passe|me\s+d[áa]|qual(?:\s+[ée])?|cad[êe])\s+(?:(?:a|o|me|a[íi]|pra\s+mim|de\s+novo)\s+){0,3}(?:chave|pix)\b/i;
 /** "achei não", "manda aí" — pedido só quando a última fala da agente era sobre a chave. */
 const NAO_ACHOU = /\b(?:achei|encontrei)\s+n[ãa]o\b|\bn[ãa]o\s+(?:achei|encontrei)\b|\b(?:manda|mande|envia|envie)\s+a[íi]\b/i;
 const FALA_DA_CHAVE = /\b(?:chave|pix)\b/i;
