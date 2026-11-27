@@ -10059,7 +10059,6 @@ export const DICIONARIO: Traducoes = {
   },
   "Funil completo por anúncio": { es: "Embudo completo por anuncio" },
   "Ver números técnicos (CPM, CTR, alcance, frequência)": { es: "Ver números técnicos (CPM, CTR, alcance, frecuencia)" },
-  Escalar: { es: "Escalar" },
   Segurar: { es: "Mantener" },
   Cortar: { es: "Cortar" },
   "Pouco dado": { es: "Pocos datos" },
