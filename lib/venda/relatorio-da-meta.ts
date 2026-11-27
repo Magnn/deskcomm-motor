@@ -28,6 +28,9 @@ export function textoDoRelatorioDoDia(
     `Semana: ${reais(plano.semana.feito)} de ${reais(plano.semana.meta)} — ${NOME_DO_RITMO[plano.semana.ritmo]}.`,
     `Trimestre: ${reais(plano.trimestre.feito)} de ${reais(plano.trimestre.meta)} — ${NOME_DO_RITMO[plano.trimestre.ritmo]}.`,
     `Funil do mês: ${f.contatos} contatos novos, ${f.compradoras} compradoras (${(conversaoDe(f) * 100).toFixed(1)}%), ${reais(Math.round(porCompradoraDe(f)))} por compradora.`,
+    painel.alavanca === "receita"
+      ? "Ofertas automáticas: com o mês atrasado, quem ainda não ouviu uma oferta recebe primeiro a que mais rende por envio. O cuidado com cada pessoa e o espaço entre ofertas não mudam."
+      : "Ofertas automáticas: no ritmo, as ofertas se espalham pelo catálogo para cada produto chegar à sua meta.",
     "O painel completo está em Escalar.",
   ];
   const [d, m] = [painel.hoje.slice(8, 10), painel.hoje.slice(5, 7)];

@@ -57,6 +57,12 @@ export const ofertaSchema = z
     compra_ha_pelo_menos_dias: z.number().int().min(1).max(90).optional(),
     /** O produto que esta oferta vende, como o pagamento o registra: é por ele que a meta do mês ordena. */
     produto: z.string().min(1).max(120).optional(),
+    /**
+     * Caminhos diferentes para a MESMA oferta (outro desejo, outra imagem, outra porta de entrada). A pessoa ouve um
+     * por vez, em rodízio: a 1ª oferta usa o 1º, a 2ª o 2º... Assim quem ouve a oferta de novo não ouve o mesmo
+     * discurso. Pode usar `{{preco:Nome}}`. Ausente = só o motivo.
+     */
+    angulos: z.array(z.string().min(20).max(600)).min(2).max(6).optional(),
     dias_entre_repeticoes: z.number().int().min(1).max(90).default(5),
   })
   .strict();
@@ -64,7 +70,7 @@ export const ofertaSchema = z
 export const ofertaProativaSchema = z
   .object({
     enabled: z.boolean(),
-    ofertas: z.array(ofertaSchema).min(1).max(10),
+    ofertas: z.array(ofertaSchema).min(1).max(12),
     /** Ritmo da organização: no mínimo isto entre duas ofertas, para qualquer pessoa. */
     espaco_segundos: z.number().int().min(30).max(3600).default(120),
     /** Teto de ofertas da organização por dia (fuso da organização). */

@@ -28,7 +28,10 @@ import { lerOfertaProativa, type OfertaProativa } from '@/lib/oferta-proativa/co
 import { produtosComFluxoDeEntrega } from '@/lib/catalogo/fluxos-de-entrega';
 import { comMarcaDePago, ofertaDaVez } from '@/lib/catalogo/oferta-da-vez';
 import { catalogoSchema, type CatalogoConfig } from '@/lib/catalogo/tipos';
+import { lerDesempenhoDasOfertas } from '@/lib/oferta-proativa/desempenho';
+import { lerRitmoDoMes } from '@/lib/venda/ritmo-do-mes';
 import {
+  anguloDaVez,
   dentroDaFaixa,
   escolherOferta,
   motivoComPrecos,
@@ -251,6 +254,12 @@ export async function oferecerAQuemCabe(
     ]);
     if (!ritmoPermite(cfg, ritmo.rows[0] ?? { ultima_em: null, hoje: 0 }, agora)) continue;
     const meta = await lerMetaDoMes(pool, ag.organization_id, pricing, agora, ag.timezone ?? undefined);
+    // A alavanca do ritmo: mês atrasado na meta de receita = entre as ofertas novas para a pessoa, a que mais rende.
+    const [desempenho, ritmoDoMes] = await Promise.all([
+      lerDesempenhoDasOfertas(pool, ag.organization_id, agora),
+      lerRitmoDoMes(pool, ag.organization_id, ag.timezone ?? 'America/Sao_Paulo', agora),
+    ]);
+    const alavanca = { receita: ritmoDoMes === 'atrasada', desempenho };
 
     const { rows } = await pool.query<Candidata>(CONSULTA_DE_CANDIDATAS, [
       ag.organization_id,
@@ -263,8 +272,14 @@ export async function oferecerAQuemCabe(
 
     for (const c of rows) {
       const automaticas = automaticasDaCandidata(c, pricing, catalogo, produtosComFluxo, cfg, agora, meta);
-      const escolha = escolherOferta(pessoaDaCandidata(c), cfg, agora, automaticas, meta);
+      const pessoa = pessoaDaCandidata(c);
+      const escolha = escolherOferta(pessoa, cfg, agora, automaticas, meta, alavanca);
       if (escolha.oferta === null) continue;
+      const idDaOferta = escolha.oferta.id;
+      const jaOuviu = pessoa.ofertasFeitas.some((f) => f.id === idDaOferta);
+      const anguloBruto = anguloDaVez(escolha.oferta, pessoa);
+      // Caminho com preço que não bate com o cadastro sai sem o caminho, não sem a oferta.
+      const angulo = anguloBruto === null ? null : motivoComPrecos(anguloBruto, pricing);
       const motivo = motivoComPrecos(escolha.oferta.motivo, pricing);
       if (motivo === null) {
         // O nome da marca não bate com nenhum preço cadastrado: a oferta não sai até alguém corrigir.
@@ -279,7 +294,7 @@ export async function oferecerAQuemCabe(
         // Oferta que falha não insiste: amanhã a regra decide de novo.
         maxAttempts: 2,
         payload: {
-          reason: motivoDaOferta(escolha.oferta, motivo),
+          reason: motivoDaOferta(escolha.oferta, motivo, angulo, jaOuviu),
           conversation_id: c.conversation_id,
           service_boundary: {
             organization_id: fronteira.organization_id,
@@ -289,12 +304,18 @@ export async function oferecerAQuemCabe(
             demanda_id: fronteira.demanda_id,
             demanda_revision: fronteira.demanda_revision,
           },
-          [CHAVE_DA_OFERTA]: { id: escolha.oferta.id },
+          // `alavanca` fica no registro para medir depois se a ordem pelo valor rendeu mais que a da meta.
+          [CHAVE_DA_OFERTA]: { id: escolha.oferta.id, alavanca: alavanca.receita ? 'receita' : 'variedade' },
         },
       });
       resultado.ofertas += 1;
       // Só ids: o texto da conversa não vai para o log.
-      log.info('oferta proativa — agente acordado', { conversation_id: c.conversation_id, oferta: escolha.oferta.id });
+      log.info('oferta proativa — agente acordado', {
+        conversation_id: c.conversation_id,
+        oferta: escolha.oferta.id,
+        alavanca: alavanca.receita ? 'receita' : 'variedade',
+        com_angulo: angulo !== null,
+      });
       break; // uma por agente por rodada: o ritmo é o espaço entre rodadas
     }
   }

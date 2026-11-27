@@ -24,6 +24,8 @@ function painel(comMeta: boolean): PainelDeEscala {
     numeros: [],
     anuncios: { estado: "ok", gastoDoMes: 0 },
     assinaturasAtivas: 0,
+    alavanca: comMeta ? "receita" : null,
+    ofertas: null,
     porDia: [...receita].map(([dia, r]) => ({ dia, receita: r, meta: null })),
   };
 }
@@ -41,5 +43,6 @@ describe("relatório do dia da meta", () => {
     expect(r.corpo).toContain("atrasada");
     expect(r.corpo).toContain("nos 4 dias que faltam");
     expect(r.corpo).toContain("140 compradoras (6.7%)");
+    expect(r.corpo).toContain("recebe primeiro a que mais rende");
   });
 });

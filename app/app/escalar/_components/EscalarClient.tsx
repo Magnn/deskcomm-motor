@@ -15,10 +15,16 @@ import type { PainelDeEscala } from "@/lib/venda/painel-de-escala";
 
 const moeda = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
 const reais = (centavos: number) => moeda.format(Math.round(centavos / 100));
+const moedaComCentavos = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const inteiro = (n: number) => Math.round(n).toLocaleString("pt-BR");
 const pct = (x: number, casas = 1) => `${(x * 100).toFixed(casas).replace(".", ",")}%`;
 
 const CARTAO = "bg-surface p-4 rounded-2xl border border-border shadow-sm";
+/** O id da oferta como gente lê: sem o prefixo das automáticas (`x-`, `cat-`) e sem `_`/`-`. */
+const nomeDaOferta = (id: string) => {
+  const s = id.replace(/^(x|cat)-/, "").replace(/[_-]+/g, " ").trim();
+  return s.charAt(0).toUpperCase() + s.slice(1);
+};
 
 function SeloDoRitmo({ ritmo }: { ritmo: Ritmo }) {
   const t = useT();
@@ -456,6 +462,49 @@ export function EscalarClient() {
             </tbody>
           </table>
         </div>
+      </div>
+
+      {/* A engrenagem das ofertas automáticas */}
+      <div className={`${CARTAO} space-y-3`} data-testid="escalar-ofertas">
+        <div>
+          <div className="text-sm font-semibold text-text">{t("Ofertas automáticas: o que cada uma rende")}</div>
+          <div className="text-xs text-text-muted">
+            {dados.alavanca === "receita"
+              ? t("Mês atrasado: quem ainda não ouviu uma oferta recebe primeiro a que mais rende por envio. Quem já ouviu todas continua no rodízio, e o espaço entre ofertas não muda.")
+              : dados.alavanca === "variedade"
+                ? t("No ritmo: as ofertas se espalham pelo catálogo para cada produto chegar à sua meta.")
+                : t("Defina a meta do mês para a oferta automática seguir o ritmo.")}
+          </div>
+        </div>
+        {dados.ofertas ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="text-left text-text-muted">
+                  <th className="py-1 pr-3 font-medium">{t("Oferta")}</th>
+                  <th className="py-1 pr-3 text-right font-medium">{t("Envios")}</th>
+                  <th className="py-1 pr-3 text-right font-medium">{t("Receita em 3 dias")}</th>
+                  <th className="py-1 text-right font-medium">{t("Rende por envio")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {dados.ofertas.linhas.map((o) => (
+                  <tr key={o.id} className="border-t border-border text-text">
+                    <td className="py-1.5 pr-3">{nomeDaOferta(o.id)}</td>
+                    <td className="py-1.5 pr-3 text-right tabular-nums">{inteiro(o.ofertas)}</td>
+                    <td className="py-1.5 pr-3 text-right tabular-nums">{reais(o.receita)}</td>
+                    <td className="py-1.5 text-right tabular-nums">{moedaComCentavos.format(o.valor / 100)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div className="pt-2 text-[11px] text-text-muted">
+              {t("Rende por envio já puxa para a média quem saiu poucas vezes; oferta nova começa na média")} ({moedaComCentavos.format(dados.ofertas.media / 100)}).
+            </div>
+          </div>
+        ) : (
+          <div className="text-xs text-text-muted">{t("Ainda sem ofertas automáticas com 3 dias de resultado.")}</div>
+        )}
       </div>
 
       {/* O plano */}
