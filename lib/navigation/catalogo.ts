@@ -141,6 +141,15 @@ export const NAV_CATALOG = [
     sidebar: true,
   },
   {
+    href: "/app/escalar",
+    label: "Escalar",
+    description: "Como a operação está hoje, a meta de receita (dia, semana, mês e trimestre) e o plano para chegar nela.",
+    icon: "ChartLineUp",
+    group: "atendimento",
+    minRole: "manager",
+    sidebar: true,
+  },
+  {
     href: "/app/inbox",
     label: "Inbox",
     description: "As conversas de WhatsApp, com você e a IA atendendo lado a lado.",

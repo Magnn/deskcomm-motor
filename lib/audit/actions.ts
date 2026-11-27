@@ -217,6 +217,7 @@ export const AUDIT_ACTIONS = [
   // A rodada que reconheceu marco novo de conversa (oferta apresentada, objeção).
   "cron.marcos_da_conversa",
   "cron.resumo_pos_venda",
+  "cron.relatorio_da_meta",
   // Motivo da perda (`lib/resultado/motivo-da-perda.ts`): a análise pedida por uma
   // pessoa que gravou algum motivo, e a correção manual de um motivo.
   "resultado.perdas_analisadas",
@@ -992,6 +993,8 @@ export const AUDIT_ACTIONS = [
   "campaign.settings_updated",
   // Painel por funil: o funil em que abre e a que funil pertence cada produto e campanha (muda o que TODO membro vê).
   "org.dashboard_funnel_updated",
+  // Meta de receita da organização (painel Escalar e relatório do dia).
+  "org.revenue_goal_updated",
 
   // ── Entrada com Google (issue #1388) ────────────────────────────────────
   // UM código para as recusas do OAuth, com `motivo` no metadata. Da partida

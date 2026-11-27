@@ -75,6 +75,9 @@ CRONS="
 # O RESUMO DO PÓS-VENDA. Segunda, 12:17 UTC (manhã no Brasil): um aviso na Central de cada
 # organização com catálogo ligado — ofertas, compras e receita da semana. Um por semana.
 17 12 * * 1|60|api/v1/cron/resumo-pos-venda
+# A META DO DIA. Todo dia, 11:07 UTC (08:07 no Brasil): um aviso na Central de cada organizacao
+# com meta de receita - ontem contra a meta, o ritmo e o que falta por dia. Um por dia.
+7 11 * * *|120|api/v1/cron/relatorio-da-meta
 # OS LANÇAMENTOS EM GRUPOS. Minuto a minuto: é a rodada que manda os disparos
 # vencidos aos grupos (com pausa entre um grupo e outro, dentro do orçamento de
 # tempo) e a que abre o próximo grupo quando as vagas estão no fim. Barato quando
