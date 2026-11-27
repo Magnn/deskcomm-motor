@@ -71,6 +71,8 @@ export const DICIONARIO: Traducoes = {
   "Todos os funis": { es: "Todos los embudos" },
   "Visitas": { es: "Visitas" },
   "Funil completo": { es: "Embudo completo" },
+  "Mostrar também páginas e quizzes": { es: "Mostrar también páginas y quizzes" },
+  "Acompanhar páginas e quizzes fora daqui": { es: "Seguir páginas y quizzes fuera de aquí" },
   "Meta do mês por produto": { es: "Meta del mes por producto" },
   "Vendas por produto no mês": { es: "Ventas por producto en el mes" },
   "Meta própria de um produto (uma por linha)": { es: "Meta propia de un producto (una por línea)" },

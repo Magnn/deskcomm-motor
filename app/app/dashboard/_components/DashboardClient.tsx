@@ -176,6 +176,8 @@ interface DashboardData {
   conexoes: ChannelSession[];
   /** Os funis da organização e o do recorte em vigor (`null` = todos). `lib/resultado/funis.ts`. */
   funis?: FunilDaLista[];
+  /** Tipos de funil acompanhados fora deste painel (página, quiz). */
+  foraDoPainel?: string[];
   funil?: string | null;
   /** O funil de passos, quando o recorte é uma página ou um quiz. */
   passos?: PassosDoFunil | null;
@@ -206,6 +208,9 @@ interface DashboardData {
   conversoesPorColuna?: ConversaoColuna[];
   leadsPorAtendente?: Array<{ id: string; name: string; totalAtendimentos: number }>;
 }
+
+/** Valor da opção que liga e desliga páginas e quizzes no painel (`painel.fora_do_painel`). */
+const ALTERNAR_FORA = "__alternar_fora";
 
 export function DashboardClient({ orgName }: { orgName: string }) {
   const t = useT();
@@ -274,6 +279,18 @@ export function DashboardClient({ orgName }: { orgName: string }) {
   // Trocar o funil grava o novo padrão do painel da organização; quem não é gerente recebe 403 e
   // fica só com o recorte desta tela.
   const trocarFunil = (valor: string) => {
+    // Páginas e quizzes de anúncio podem ter painel próprio fora do CRM: a opção liga e desliga para a organização.
+    if (valor === ALTERNAR_FORA) {
+      const fora = (data?.foraDoPainel?.length ?? 0) > 0 ? [] : ["pagina", "quiz"];
+      void fetch("/api/v1/settings/painel", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fora_do_painel: fora }),
+      })
+        .then(() => fetchData())
+        .catch(() => undefined);
+      return;
+    }
     setFunil(valor);
     void fetch("/api/v1/settings/painel", {
       method: "PATCH",
@@ -482,6 +499,11 @@ export function DashboardClient({ orgName }: { orgName: string }) {
                   {f.nome}
                 </option>
               ))}
+              <option value={ALTERNAR_FORA}>
+                {(data?.foraDoPainel?.length ?? 0) > 0
+                  ? t("Mostrar também páginas e quizzes")
+                  : t("Acompanhar páginas e quizzes fora daqui")}
+              </option>
             </select>
           ) : null}
 

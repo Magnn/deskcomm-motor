@@ -13,3 +13,8 @@ meta e o ritmo para fechar o mês.
 
 Também: a assinatura da área do cliente vendida na conversa e paga pela chave Pix agora libera o
 acesso na hora, como já acontecia no pagamento por cartão.
+
+No Painel, uma opção no seletor de funil — "Acompanhar páginas e quizzes fora daqui" — tira da lista,
+dos totais e dos avisos de "ligar a um funil" as páginas de venda e os quizzes de anúncio, para quem
+os acompanha em outro lugar. A compra na área do cliente de quem o agente atendeu continua contando
+para o agente, e o gasto de campanha sem ligação vai para o funil padrão.

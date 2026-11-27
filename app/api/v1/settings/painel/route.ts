@@ -29,6 +29,7 @@ const corpoSchema = z.union([
   z.object({ funil_padrao: chave.nullable() }).strict(),
   z.object({ produto: z.object({ nome: z.string().trim().min(1).max(200), funil: chave.nullable() }).strict() }).strict(),
   z.object({ campanha: z.object({ id: z.string().regex(/^\d{1,40}$/), funil: chave.nullable() }).strict() }).strict(),
+  z.object({ fora_do_painel: z.array(z.enum(["quiz", "pagina"])).max(2) }).strict(),
 ]);
 
 export async function GET(): Promise<Response> {
@@ -74,7 +75,8 @@ export async function PATCH(req: NextRequest): Promise<Response> {
   const painel = lerPainel(settings);
 
   // O funil escolhido precisa existir NESTA organização (agente vivo, quiz ou página dela).
-  const destino = "funil_padrao" in mudanca ? mudanca.funil_padrao : "produto" in mudanca ? mudanca.produto.funil : mudanca.campanha.funil;
+  const destino =
+    "fora_do_painel" in mudanca ? null : "funil_padrao" in mudanca ? mudanca.funil_padrao : "produto" in mudanca ? mudanca.produto.funil : mudanca.campanha.funil;
   if (destino) {
     try {
       const { funis } = await listarFunis(admin, authz.org.orgId, [destino]);
@@ -92,7 +94,9 @@ export async function PATCH(req: NextRequest): Promise<Response> {
     return novo;
   };
   const novo =
-    "funil_padrao" in mudanca
+    "fora_do_painel" in mudanca
+      ? { ...painel, fora_do_painel: [...new Set(mudanca.fora_do_painel)] }
+      : "funil_padrao" in mudanca
       ? { ...painel, funil_padrao: mudanca.funil_padrao }
       : "produto" in mudanca
         ? { ...painel, produtos: tirar(painel.produtos, nomeComparavel(mudanca.produto.nome), mudanca.produto.funil) }

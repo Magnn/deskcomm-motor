@@ -38,6 +38,12 @@ export interface Funil {
 
 /** O valor da URL que pede o geral, mesmo havendo funil padrão. */
 export const TODOS_OS_FUNIS = "todos";
+/**
+ * A venda de um funil que a organização acompanha FORA do CRM (`painel.fora_do_painel`): não entra em total nenhum
+ * do painel nem vira pendência. Pedido do dono em 27/11/2026: o painel do CRM é o dos atendimentos, da área do
+ * cliente e das vendas do agente; página e quiz de anúncio têm painel próprio fora daqui.
+ */
+export const FORA_DO_PAINEL = "fora";
 
 const chaveDoFunil = z.string().regex(/^(agente|quiz|pagina):[\w-]{1,80}$/);
 
@@ -48,6 +54,8 @@ export const painelSchema = z.object({
   produtos: z.record(z.string().max(200), chaveDoFunil).optional(),
   /** Id da campanha → funil. */
   campanhas: z.record(z.string().max(40), chaveDoFunil).optional(),
+  /** Tipos de funil acompanhados fora do CRM: somem da lista, dos totais e das pendências. */
+  fora_do_painel: z.array(z.enum(["quiz", "pagina"])).max(2).optional(),
 });
 export type Painel = z.infer<typeof painelSchema>;
 
@@ -56,7 +64,7 @@ export function lerPainel(settings: unknown): Required<Painel> {
   const bruto = settings !== null && typeof settings === "object" ? (settings as Record<string, unknown>).painel : null;
   const r = painelSchema.safeParse(bruto ?? {});
   const p = r.success ? r.data : {};
-  return { funil_padrao: p.funil_padrao ?? null, produtos: p.produtos ?? {}, campanhas: p.campanhas ?? {} };
+  return { funil_padrao: p.funil_padrao ?? null, produtos: p.produtos ?? {}, campanhas: p.campanhas ?? {}, fora_do_painel: p.fora_do_painel ?? [] };
 }
 
 /** Nome comparável: sem quantidade na frente, sem acento, minúsculo. Pura. */
@@ -129,14 +137,25 @@ export interface ContextoDosFunis {
   agentesDoContato: ReadonlyMap<string, readonly { agentId: string; ultimaEm: string }[]>;
   /** Por agente vivo, os nomes de produto dele. */
   nomesPorAgente: ReadonlyMap<string, ReadonlySet<string>>;
+  /** Tipos de funil fora do painel (`painel.fora_do_painel`). */
+  fora?: readonly string[];
 }
 
-/** O funil onde a venda fechou, ou `null` (sem funil). Pura. */
+/**
+ * O funil onde a venda fechou, ou `null` (sem funil). Com tipos fora do painel, a venda de um deles volta para o
+ * agente que atendeu a pessoa (a compra na área de quem a Cigana atendeu é da Cigana) e, sem agente, sai do painel
+ * (`FORA_DO_PAINEL`) em vez de virar pendência. Pura.
+ */
 export function funilDaVenda(venda: VendaParaFunil, ctx: ContextoDosFunis): string | null {
+  const fora = ctx.fora ?? [];
+  const noPainel = (chave: string): boolean => !fora.includes(chave.split(":")[0]!);
+  const semFunil = fora.length > 0 ? FORA_DO_PAINEL : null;
   const nome = venda.notes ? nomeComparavel(venda.notes) : null;
-  if (nome && ctx.produtos[nome]) return ctx.produtos[nome]!;
+  const ligado = nome ? ctx.produtos[nome] : undefined;
+  if (ligado && noPainel(ligado)) return ligado;
   const quiz = quizDoExtra(venda.extra_nome);
-  if (quiz) return `quiz:${quiz}`;
+  if (quiz && noPainel(`quiz:${quiz}`)) return `quiz:${quiz}`;
+  const deFora = (ligado !== undefined) || quiz !== null;
   if (venda.contact_id) {
     const agentes = (ctx.agentesDoContato.get(venda.contact_id) ?? []).filter((a) => ctx.nomesPorAgente.has(a.agentId));
     if (agentes.length > 0) {
@@ -145,10 +164,21 @@ export function funilDaVenda(venda: VendaParaFunil, ctx: ContextoDosFunis): stri
       const escolha = (antes.length > 0 ? antes : agentes).reduce((x, y) => (y.ultimaEm > x.ultimaEm ? y : x));
       return `agente:${escolha.agentId}`;
     }
-    return null;
+    return deFora ? FORA_DO_PAINEL : semFunil;
   }
-  if (nome) for (const [agentId, nomes] of ctx.nomesPorAgente) if (nomes.has(nome)) return `agente:${agentId}`;
-  return null;
+  if (nome && !deFora) for (const [agentId, nomes] of ctx.nomesPorAgente) if (nomes.has(nome)) return `agente:${agentId}`;
+  return deFora ? FORA_DO_PAINEL : semFunil;
+}
+
+/** A campanha aponta para um funil fora do painel (ligada a ele, ou o nome bate com uma página/quiz de fora). Pura. */
+export function campanhaForaDoPainel(id: string, nome: string, ligadas: Readonly<Record<string, string>>, funis: readonly Funil[], fora: readonly string[]): boolean {
+  if (fora.length === 0) return false;
+  const ligada = ligadas[id];
+  if (ligada) return fora.includes(ligada.split(":")[0]!);
+  const n = nomeComparavel(nome);
+  return funis.some(
+    (f) => fora.includes(f.tipo) && [nomeComparavel(f.id).replace(/-/g, " "), nomeComparavel(f.id).split("-")[0] ?? ""].some((t) => t.length >= 4 && n.includes(t)),
+  );
 }
 
 /** O funil do recorte: o da URL, senão o padrão; `todos` ou funil que não existe = geral. Pura. */
@@ -256,12 +286,14 @@ export async function separarVendasPorFunil<V extends VendaParaFunil>(
   produtos: Readonly<Record<string, string>>,
   vendas: readonly V[],
   ate: Date,
+  fora: readonly string[] = [],
 ): Promise<Map<string | null, V[]>> {
   const contatos = vendas.map((v) => v.contact_id).filter((c): c is string => !!c);
   const ctx: ContextoDosFunis = {
     produtos,
     agentesDoContato: contatos.length > 0 ? await agentesDosContatos(db, organizationId, contatos, ate) : new Map(),
     nomesPorAgente: new Map(agentes.map((a) => [a.id, nomesDosProdutosDoAgente(a.config)])),
+    fora,
   };
   const porFunil = new Map<string | null, V[]>();
   for (const v of vendas) {

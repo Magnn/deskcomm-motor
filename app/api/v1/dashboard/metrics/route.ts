@@ -21,6 +21,8 @@ import {
   nomesDeExibicaoDoAgente,
   separarVendasPorFunil,
   sugerirFunilDaCampanha,
+  campanhaForaDoPainel,
+  FORA_DO_PAINEL,
 } from "@/lib/resultado/funis";
 import { instanteDe, partesNoFuso } from "@/lib/agenda/fuso";
 import { lerPricing } from "@/lib/preco/tipos";
@@ -108,8 +110,17 @@ export async function GET(req: NextRequest) {
     // (`settings.painel.funil_padrao`); `funil=todos` mostra o geral.
     const { data: orgData } = await admin.from("organizations").select("settings").eq("id", orgId).maybeSingle();
     const painel = lerPainel((orgData as { settings?: unknown } | null)?.settings);
-    const { funis, agentes } = await listarFunis(admin, orgId, [...Object.values(painel.produtos), ...Object.values(painel.campanhas)]);
+    const { funis: todosOsFunis, agentes } = await listarFunis(admin, orgId, [...Object.values(painel.produtos), ...Object.values(painel.campanhas)]);
+    // Página e quiz acompanhados fora do CRM (`painel.fora_do_painel`) nem aparecem na lista.
+    const fora = painel.fora_do_painel;
+    const funis = todosOsFunis.filter((f) => !(fora as readonly string[]).includes(f.tipo));
     const funil = funilDoPainel(searchParams.get("funil"), painel.funil_padrao, funis);
+    // Para onde vai o gasto de cada campanha: a ligada, a de fora do painel, a sugerida pelo nome, senão o funil padrão.
+    const destinoDaCampanha = (c: { id: string; nome: string }): string | null =>
+      painel.campanhas[c.id] ??
+      (campanhaForaDoPainel(c.id, c.nome, painel.campanhas, todosOsFunis, fora)
+        ? FORA_DO_PAINEL
+        : (sugerirFunilDaCampanha(c.nome, funis) ?? (fora.length > 0 ? painel.funil_padrao : null)));
     // Funil de agente: os canais dele. Página/quiz não tem conversa: nenhum canal (id que não existe), nunca o geral.
     const canaisDoRecorte = !funil
       ? null
@@ -205,8 +216,8 @@ export async function GET(req: NextRequest) {
       let prevSales: VendaDoPainel[] = [...((prevSalesData ?? []) as VendaDoPainel[]), ...vendasDoGatewayAntes];
       // Cada venda num funil só, onde fechou. As sem funil viram pendência na tela ("ligar a um funil").
       const [porFunil, porFunilAntes] = await Promise.all([
-        separarVendasPorFunil(admin, orgId, agentes, painel.produtos, todas, end),
-        separarVendasPorFunil(admin, orgId, agentes, painel.produtos, prevSales, prevEnd),
+        separarVendasPorFunil(admin, orgId, agentes, painel.produtos, todas, end, fora),
+        separarVendasPorFunil(admin, orgId, agentes, painel.produtos, prevSales, prevEnd, fora),
       ]);
       const produtosSemFunil = new Map<string, { nome: string; vendas: number; valor: number }>();
       for (const v of porFunil.get(null) ?? []) {
@@ -219,15 +230,27 @@ export async function GET(req: NextRequest) {
       if (funil) {
         todas = porFunil.get(funil.chave) ?? [];
         prevSales = porFunilAntes.get(funil.chave) ?? [];
+      } else if (fora.length > 0) {
+        const foraAgora = new Set(porFunil.get(FORA_DO_PAINEL) ?? []);
+        const foraAntes = new Set(porFunilAntes.get(FORA_DO_PAINEL) ?? []);
+        todas = todas.filter((v) => !foraAgora.has(v));
+        prevSales = prevSales.filter((v) => !foraAntes.has(v));
       }
       const sales = todas.sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
       // O gasto do funil é o das campanhas ligadas a ele; o custo de IA segue sendo o da organização.
-      const doFunil = (g: GastoDoPeriodo): GastoDoPeriodo =>
-        funil && g.estado === "ok" ? { ...g, centavos: gastoDoFunil(g.campanhas ?? [], painel.campanhas, funil.chave) } : g;
+      const doFunil = (g: GastoDoPeriodo): GastoDoPeriodo => {
+        if (g.estado !== "ok") return g;
+        if (fora.length > 0) {
+          const conta = (c: { id: string; nome: string }) => (funil ? destinoDaCampanha(c) === funil.chave : destinoDaCampanha(c) !== FORA_DO_PAINEL);
+          return { ...g, centavos: (g.campanhas ?? []).filter(conta).reduce((s, c) => s + c.centavos, 0) };
+        }
+        return funil ? { ...g, centavos: gastoDoFunil(g.campanhas ?? [], painel.campanhas, funil.chave) } : g;
+      };
       const gastoDoPeriodo = doFunil(gastoDoPeriodoGeral);
       const gastoAnterior = doFunil(gastoAnteriorGeral);
+      // Com funis fora do painel, toda campanha tem destino (`destinoDaCampanha`): não sobra pendência.
       const campanhasSemFunil =
-        gastoDoPeriodoGeral.estado === "ok"
+        gastoDoPeriodoGeral.estado === "ok" && fora.length === 0
           ? (gastoDoPeriodoGeral.campanhas ?? [])
               .filter((c) => c.centavos > 0 && !painel.campanhas[c.id])
               .map((c) => ({ id: c.id, nome: c.nome, gasto: c.centavos / 100, sugestao: sugerirFunilDaCampanha(c.nome, funis) }))
@@ -244,7 +267,7 @@ export async function GET(req: NextRequest) {
         const inicioDoMes = instanteDe({ ano: hoje.ano, mes: hoje.mes, dia: 1, hora: 0, minuto: 0 }, fuso);
         const diasNoMes = new Date(Date.UTC(hoje.ano, hoje.mes, 0)).getUTCDate();
         const doMes = await lerVendasDoPagamento(admin, orgId, inicioDoMes, agoraMeta);
-        const doMesPorFunil = await separarVendasPorFunil(admin, orgId, agentes, painel.produtos, doMes, agoraMeta);
+        const doMesPorFunil = await separarVendasPorFunil(admin, orgId, agentes, painel.produtos, doMes, agoraMeta, fora);
         metaDoMes = progressoDaMeta(
           nomesDeExibicaoDoAgente(agenteDoFunil.config),
           doMesPorFunil.get(funil!.chave) ?? [],
@@ -486,6 +509,7 @@ export async function GET(req: NextRequest) {
         totalLeadsAcumulados: totalLeadsAcumulados ?? 0,
         conexoes: canais ?? [],
         funis: listaDeFunis,
+        foraDoPainel: fora,
         funil: funil?.chave ?? null,
         passos,
         metaDoMes,
@@ -636,6 +660,7 @@ export async function GET(req: NextRequest) {
       totalLeadsAcumulados: totalLeadsAcumulados ?? 0,
       conexoes: canais ?? [],
       funis: listaDeFunis,
+      foraDoPainel: fora,
       funil: funil?.chave ?? null,
       kpis: {
         leadsNovos: { valor: leadsNovosCount ?? 0, delta: calcularDelta(leadsNovosCount ?? 0, prevLeadsNovosCount ?? 0) },
