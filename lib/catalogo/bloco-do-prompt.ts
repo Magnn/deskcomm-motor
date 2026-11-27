@@ -32,7 +32,16 @@ const dadosAPedir = (p: ProdutoDoCatalogo): string =>
     .filter((d) => d !== "")
     .join("; ");
 
-export function blocoDaOfertaDoCatalogo(oferta: OfertaDaVez | null): string {
+export function blocoDaOfertaDoCatalogo(
+  oferta: OfertaDaVez | null,
+  /**
+   * O turno é uma oferta proativa de OUTRA coisa (o id da oferta não é deste produto). Uma fonte por decisão: neste
+   * turno a oferta é a do motivo do retorno, e o produto do catálogo não disputa com ela. Medido em 27/11/2026: a
+   * oferta proativa pediu a Pergunta nova como passo menor para quem estava sem dinheiro, e o turno ofereceu a
+   * Limpeza de R$ 60, porque o bloco do catálogo também dizia "ofereça NESTE turno".
+   */
+  outraOfertaNoTurno = false,
+): string {
   if (oferta === null) return "";
   const p = oferta.produto;
   const nome = umaLinha(p.nome);
@@ -50,7 +59,11 @@ export function blocoDaOfertaDoCatalogo(oferta: OfertaDaVez | null): string {
   ];
   if (recebe !== "") linhas.push(`  O que ela recebe: ${recebe}`);
 
-  if (oferta.livre === true) {
+  if (outraOfertaNoTurno) {
+    linhas.push(
+      `- NESTE turno a oferta é a do motivo do retorno: ofereça só ela, e NÃO ofereça ${nome} agora. ${nome} fica para quando o assunto dela encaixar numa conversa. Se ELA pedir ${nome} ou o link, mande o link.`,
+    );
+  } else if (oferta.livre === true) {
     linhas.push(
       `- O PRÓXIMO PASSO para ela é ${nome}. Ofereça sempre que o assunto dela encaixar, quantas vezes encaixar: quem já comprou é cliente da casa. Primeiro desperte o desejo com o que ELA contou, depois o valor.`,
       `- ACOLHER JUNTO: se ela contou uma dificuldade, acolha PRIMEIRO com as palavras dela e, na MESMA resposta, ofereça ${nome} ligado ao que ela contou.`,

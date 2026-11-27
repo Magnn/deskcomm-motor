@@ -410,3 +410,34 @@ describe("oferta sem relógio (oferta_livre)", async () => {
     expect(bloco).not.toContain("JÁ FOI FEITA");
   });
 });
+
+
+describe("turno de oferta proativa de outra coisa: o catálogo não disputa (27/11/2026)", async () => {
+  const { blocoDaOfertaDoCatalogo } = await import("@/lib/catalogo/bloco-do-prompt");
+  const { idDaOfertaDoCatalogo } = await import("@/lib/oferta-proativa/decisao");
+  const produto = { nome: "Limpeza e Proteção", preco_cents: 6000, link: "https://pay.exemplo.com/l", ativo: true, entrega: "conversa" as const, pede: [], espera_horas: 0 };
+
+  it("com outra oferta no turno, o bloco manda oferecer só a do motivo", () => {
+    const bloco = blocoDaOfertaDoCatalogo({ produto, jaOferecida: false, livre: true }, true);
+    expect(bloco).toContain("NESTE turno a oferta é a do motivo do retorno");
+    expect(bloco).not.toContain("Ofereça NESTE turno se o assunto encaixa");
+  });
+
+  it("sem outra oferta, o bloco segue oferecendo o produto da vez", () => {
+    expect(blocoDaOfertaDoCatalogo({ produto, jaOferecida: false, livre: true })).toContain("Ofereça NESTE turno se o assunto encaixa");
+  });
+
+  it("o id da oferta do catálogo é o mesmo que a oferta proativa usa", () => {
+    expect(idDaOfertaDoCatalogo("Limpeza e Proteção")).toBe("cat-limpeza-e-protecao");
+  });
+});
+
+describe("a regra vale nos três modos do catálogo", async () => {
+  const { blocoDaOfertaDoCatalogo } = await import("@/lib/catalogo/bloco-do-prompt");
+  const produto = { nome: "Limpeza e Proteção", preco_cents: 6000, link: "https://pay.exemplo.com/l", ativo: true, entrega: "conversa" as const, pede: [], espera_horas: 0 };
+  it.each([{ diaria: true }, {}, { livre: true }])("modo %o", (modo) => {
+    const bloco = blocoDaOfertaDoCatalogo({ produto, jaOferecida: false, ...modo }, true);
+    expect(bloco).toContain("NESTE turno a oferta é a do motivo do retorno");
+    expect(bloco).not.toMatch(/A OFERTA DE HOJE é|OFERTA \(uma vez só\)|Ofereça NESTE turno se/);
+  });
+});

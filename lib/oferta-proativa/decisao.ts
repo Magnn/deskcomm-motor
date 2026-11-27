@@ -189,6 +189,9 @@ export function produtoDaOferta(o: Pick<Oferta, "id" | "produto" | "ja_tem_se_co
 const escapar = (t: string) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const idDe = (prefixo: string, nome: string) => `${prefixo}-${slugDoProduto(nome)}`.slice(0, 40);
 
+/** O id que a oferta proativa dá ao produto do catálogo — o turno o compara com o produto da vez. */
+export const idDaOfertaDoCatalogo = (nome: string): string => idDe("cat", nome);
+
 export interface CatalogoParaOferta {
   /** As cobranças avulsas da aba Preço. Entra a que tem palavra do tema e a pessoa disse uma delas. */
   extras: readonly Pick<Extra, "name" | "when" | "themes">[];
@@ -224,7 +227,7 @@ export function ofertasDoCatalogo(
   const listaJaOferece = pr !== null && cfg.ofertas.some((o) => semAcento(o.motivo).includes(semAcento(pr.nome)));
   if (pr !== null && !listaJaOferece) {
     ofertas.push({
-      id: idDe("cat", pr.nome),
+      id: idDaOfertaDoCatalogo(pr.nome),
       motivo:
         [
           `ofereça, pelo nome, o ${pr.nome} (${reais(pr.preco_cents)}), do catálogo.`,
