@@ -73,7 +73,7 @@ const CORPO_DO_ESTADO = {
 const LINK_DO_ESTADO: Partial<Record<CodigoDoEstadoDoAviso, string>> = {
   sem_conexao: "/app/connections",
   so_canal_oficial: "/app/connections",
-  conexao_fora_do_ar: "/app/connections",
+  conexao_fora_do_ar: "/app/connections?aba=numeros",
   casos_desligados: "/app/ai/agents",
   agente_assistido: "/app/ai/agents",
 };

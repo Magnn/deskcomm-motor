@@ -15,16 +15,29 @@ import { expect, test } from "@playwright/test";
 const EVIDENCE = path.join(process.cwd(), "evidence/canais/conexoes");
 fs.mkdirSync(EVIDENCE, { recursive: true });
 
-test("as duas formas de conectar vivem lado a lado, na mesma tela", async ({ page }) => {
+test("a porta é a visão geral, e o botão de conectar WhatsApp mora só no WhatsApp", async ({ page }) => {
   await page.goto("/app/connections");
-  await expect(page.getByRole("tab", { name: /Números por QR/i })).toBeVisible();
-  await expect(page.getByRole("tab", { name: /API Oficial/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Por onde seus clientes falam com você/i })).toBeVisible();
+  await expect(page.getByTestId("conectar-whatsapp")).toHaveCount(1);
+  await page.screenshot({ path: `${EVIDENCE}/00-visao-geral.png`, fullPage: true });
+
+  await page.getByTestId("canal-telegram").click();
+  await page.waitForURL(/aba=telegram/);
+  await expect(page.getByTestId("conectar-whatsapp")).toHaveCount(0);
+  await page.getByTestId("voltar-aos-canais").click();
+  await expect(page.getByRole("heading", { name: /Por onde seus clientes falam com você/i })).toBeVisible();
+});
+
+test("as duas formas de ver os números vivem lado a lado, na mesma tela", async ({ page }) => {
+  await page.goto("/app/connections?aba=numeros");
+  await expect(page.getByRole("tab", { name: /Números conectados/i })).toBeVisible();
+  await expect(page.getByRole("tab", { name: /WhatsApp oficial/i })).toBeVisible();
   await page.screenshot({ path: `${EVIDENCE}/01-abas.png`, fullPage: true });
 });
 
 test("a aba oficial abre a conexão e tem os templates da Meta como sub-aba", async ({ page }) => {
-  await page.goto("/app/connections");
-  await page.getByRole("tab", { name: /API Oficial/i }).click();
+  await page.goto("/app/connections?aba=numeros");
+  await page.getByRole("tab", { name: /WhatsApp oficial/i }).click();
 
   // A tela de conectar é a MESMA de antes — mudou o lugar, não o que ela faz.
   await expect(page.getByTestId("canal-oficial-root")).toBeVisible({ timeout: 20_000 });

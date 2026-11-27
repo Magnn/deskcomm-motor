@@ -39,7 +39,7 @@ test("o admin chega ao canal oficial pela área de Conexões", async ({ page }) 
   // oficial — vive em Conexões, e não mais espalhado em Configurações. Este caso
   // acompanha a decisão em vez de fossilizar o caminho antigo; o redirect da rota
   // velha e o card-ponte do hub são cobertos por `conexoes-abas.spec.ts`.
-  await page.goto("/app/connections");
+  await page.goto("/app/connections?aba=numeros");
 
   // Foto ANTES da asserção: quando a aba não aparece, o artefato de erro do
   // Playwright nem sempre traz o snapshot, e ler evidência indireta me levou a
@@ -47,7 +47,7 @@ test("o admin chega ao canal oficial pela área de Conexões", async ({ page }) 
   await page.waitForLoadState("networkidle");
   await page.screenshot({ path: `${EVIDENCE}/00-hub-antes-da-assercao.png`, fullPage: true });
 
-  await page.getByRole("tab", { name: /API Oficial/i }).click();
+  await page.getByRole("tab", { name: /WhatsApp oficial/i }).click();
 
   await page.waitForURL(/aba=oficial/, { timeout: 20_000 });
   await expect(page.getByTestId("canal-oficial-root")).toBeVisible({ timeout: 20_000 });

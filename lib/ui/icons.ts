@@ -95,6 +95,8 @@ export {
   InstagramLogo,
   MessengerLogo,
   TelegramLogo,
+  TiktokLogo,
+  PinterestLogo,
   Phone,
   DeviceMobile,
   PhoneIncoming,

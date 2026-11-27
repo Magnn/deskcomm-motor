@@ -50,7 +50,7 @@ describe("destinos da Central", () => {
     ["handoff", "conversation", `/app/inbox/${ID}`], ["job_dead", "conversation", `/app/inbox/${ID}`],
     ["handoff", "contact", `/app/contacts/${ID}`], ["other", "lead", `/app/pipelines/${PIPELINE}?lead=${ID}`],
     ["followup_dead", "followup_enrollment", `/app/ai/followups/enrollments/${ID}`],
-    ["qr_rescan", "channel_session", "/app/connections"], ["conhecimento_nao_indexado", "ai_knowledge_source", "/app/ai/knowledge/sources"],
+    ["qr_rescan", "channel_session", "/app/connections?aba=numeros"], ["conhecimento_nao_indexado", "ai_knowledge_source", "/app/ai/knowledge/sources"],
   ])("%s/%s abre somente contexto real", async (kind, ref, href) => {
     const l = leitor(); const [item] = await resolverDestinosDosAvisos(l.client, ORG, "admin", [aviso(kind, ref)]);
     expect(item?.destination).toMatchObject({ estado: "disponivel", href });
