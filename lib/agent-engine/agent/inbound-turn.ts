@@ -643,6 +643,10 @@ export const VETOS_DE_CONTEUDO: ReadonlySet<string> = new Set([
   'carta_fora_do_sorteio',
   'numero_fora_da_mesa',
   'desconto_falso',
+  // A cobrança recusada (marca que o turno não cobra, anúncio sem a chave): medido em 27/11/2026, "dá pra fazer hoje?"
+  // teve a resposta recusada aqui e o turno terminou com 0 mensagens — a pessoa querendo pagar, no vácuo.
+  'cobranca_avulsa_indisponivel',
+  'cobranca_anunciada_sem_cobranca',
 ]);
 
 /**
@@ -3731,6 +3735,8 @@ async function executarTurnoDoAgente(
   // incluídas), nunca em veto de gate. Checar `seq` antes de tentar o próximo envio
   // barra o modelo sem gastar uma chamada de before-send à toa.
   const maxSendsPerTurn = deps.knobs.maxSendsPerTurn ?? DEFAULT_MAX_SENDS_PER_TURN;
+  /** O balão que traz a cobrança (marca, chave, código ou link) cabe um acima do teto; um segundo, não. */
+  const tetoDoBalao = (corpo: string): number => maxSendsPerTurn + (trazCobranca(corpo) ? 1 : 0);
   // F3-11: estágio que o MODELO confirmou via update_lead_state neste turno (a máquina
   // F2-10 é a única porta). Comparado com a sugestão do classificador no fim → divergência.
   let confirmedStage: LeadStage | null = null;
@@ -4234,7 +4240,9 @@ async function executarTurnoDoAgente(
         // O TETO ANTES DA COBRANÇA: daqui para baixo as marcas viram efeito no provedor (boleto, Pix, cobrança). Em
         // 23/11/2026 a 4ª mensagem de um turno emitiu o boleto na Stripe e só depois esbarrou no teto de envios, que
         // ficava no fim: a cobrança existia e a pessoa nunca a recebeu. O teto do fim continua valendo para o resto.
-        if (seq >= maxSendsPerTurn) {
+        // A COBRANÇA PASSA DO TETO POR UM BALÃO. Medido em 27/11/2026: "é pix", a agente gastou os 3 balões do turno
+        // em conversa e a chave, no 4º, esbarrou aqui; a pessoa ficou sem a chave e a próxima resposta também não veio.
+        if (seq >= tetoDoBalao(body)) {
           runLog.warn('send_message: teto do turno antes da cobrança — nada foi emitido', { teto: maxSendsPerTurn });
           return {
             ok: false,
@@ -4727,7 +4735,7 @@ async function executarTurnoDoAgente(
             vetos: falseEmptyInboundVetoCount,
           });
         }
-        if (seq >= maxSendsPerTurn) {
+        if (seq >= tetoDoBalao(body)) {
           return {
             ok: false,
             error: {
