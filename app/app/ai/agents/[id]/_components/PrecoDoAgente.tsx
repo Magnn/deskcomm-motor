@@ -76,6 +76,10 @@ interface Formulario {
   provas?: PricingConfig["social_proof"];
   /** Quantas respostas de graça depois da oferta. Vazio = sem limite. */
   respostasGratuitas: string;
+  /** Vendas que cada produto deve fazer no mês (desempata a oferta). Vazio = sem meta. */
+  metaDoMes: string;
+  /** Meta própria de alguns produtos, uma por linha: "Nome: 100". */
+  metasPorProduto: string;
   /** A chave Pix da empresa e o nome de quem recebe. Os dois vazios = sem chave. */
   chavePix: string;
   nomeDaChavePix: string;
@@ -113,7 +117,7 @@ function formularioInicial(config: Props["config"]): Formulario {
   // Tolerante como o atendimento: um extra inválido não pode apagar a configuração inteira da tela.
   const lido = pricingTolerante(bruto);
   if (lido === null) {
-    return { enabled: false, venda: "", referencia: "", referenciaReal: false, degraus: [], posVenda: POS_VENDA_VAZIO, linksDaVenda: "", euro: "", dolar: "", extras: "", respostasGratuitas: "", chavePix: "", nomeDaChavePix: "" };
+    return { enabled: false, venda: "", referencia: "", referenciaReal: false, degraus: [], posVenda: POS_VENDA_VAZIO, linksDaVenda: "", euro: "", dolar: "", extras: "", respostasGratuitas: "", metaDoMes: "", metasPorProduto: "", chavePix: "", nomeDaChavePix: "" };
   }
   const c = lido.pricing;
   return {
@@ -140,6 +144,8 @@ function formularioInicial(config: Props["config"]): Formulario {
     euro: emTexto(c.international_prices?.find((p) => p.currency === "EUR")?.price_cents),
     dolar: emTexto(c.international_prices?.find((p) => p.currency === "USD")?.price_cents),
     respostasGratuitas: c.free_replies_after_offer === undefined ? "" : String(c.free_replies_after_offer),
+    metaDoMes: c.meta_mensal_por_produto === undefined ? "" : String(c.meta_mensal_por_produto),
+    metasPorProduto: Object.entries(c.metas_por_produto ?? {}).map(([n, v]) => `${n}: ${v}`).join("\n"),
     chavePix: c.pix_key?.key ?? "",
     nomeDaChavePix: c.pix_key?.holder ?? "",
     ...(c.pix_key?.city ? { cidadeDaChavePix: c.pix_key.city } : {}),
@@ -266,6 +272,21 @@ function paraCorpo(f: Formulario): { corpo: PricingConfig } | { erro: string } {
   if (temChave && (f.chavePix.trim() === "" || f.nomeDaChavePix.trim() === "")) {
     return { erro: "Para usar a chave Pix da empresa, informe a chave e o nome de quem recebe." };
   }
+  const metaDoMes = f.metaDoMes.trim() === "" ? null : Number(f.metaDoMes);
+  if (metaDoMes !== null && (!Number.isInteger(metaDoMes) || metaDoMes < 1 || metaDoMes > 100_000)) {
+    return { erro: "A meta do mês é um número inteiro de vendas por produto, ou em branco para não usar meta." };
+  }
+  const metasPorProduto: Record<string, number> = {};
+  for (const linha of f.metasPorProduto.split("\n").map((l) => l.trim()).filter(Boolean)) {
+    const m = /^(.+?)\s*[:|]\s*(\d+)$/.exec(linha);
+    if (!m || Number(m[2]) < 1 || Number(m[2]) > 100_000) {
+      return { erro: `Meta por produto: escreva "Nome: número", uma por linha. Não entendi "${linha}".` };
+    }
+    metasPorProduto[m[1]!.trim()] = Number(m[2]);
+  }
+  if (metaDoMes === null && Object.keys(metasPorProduto).length > 0) {
+    return { erro: "Preencha a meta do mês de todos os produtos antes das metas próprias." };
+  }
   const candidato = {
     enabled: f.enabled,
     list_price_cents: venda,
@@ -274,6 +295,8 @@ function paraCorpo(f: Formulario): { corpo: PricingConfig } | { erro: string } {
     ...(internacionais.length > 0 ? { international_prices: internacionais } : {}),
     ...(extras.length > 0 ? { extras } : {}),
     ...(gratuitas !== null ? { free_replies_after_offer: gratuitas } : {}),
+    ...(metaDoMes !== null ? { meta_mensal_por_produto: metaDoMes } : {}),
+    ...(Object.keys(metasPorProduto).length > 0 ? { metas_por_produto: metasPorProduto } : {}),
     ...(f.entradaMinima !== undefined ? { min_down_payment_cents: f.entradaMinima } : {}),
     ...(f.modeloDoRelatorio !== undefined ? { report_model: f.modeloDoRelatorio } : {}),
     ...(f.soPeloProvedor !== undefined ? { provider_only_checkout: f.soPeloProvedor } : {}),
@@ -576,6 +599,39 @@ export function PrecoDoAgente({ agentId, config, readOnly }: Props) {
             placeholder="2"
             value={form.respostasGratuitas}
             onChange={(e) => patch({ respostasGratuitas: e.target.value })}
+            disabled={readOnly}
+          />
+        </div>
+      </Card>
+
+      <Card className="flex flex-col gap-3 p-4" data-testid="preco-meta-do-mes">
+        <div className="space-y-1">
+          <h2 className="text-base font-medium">{t("Meta do mês por produto")}</h2>
+          <p className="max-w-2xl text-sm text-muted-foreground">
+            {t(
+              "Quantas vendas cada produto deve fazer no mês. Entre as ofertas que cabem no assunto da pessoa, a agente oferece primeiro a do produto mais atrás da meta; o assunto sempre vem antes da meta. O andamento aparece no Painel, no funil deste agente. Em branco, vale a ordem da lista.",
+            )}
+          </p>
+        </div>
+        <div className="flex max-w-xs flex-col gap-1">
+          <Label htmlFor="preco-meta-do-mes">{t("Vendas por produto no mês")}</Label>
+          <Input
+            id="preco-meta-do-mes"
+            inputMode="numeric"
+            placeholder="150"
+            value={form.metaDoMes}
+            onChange={(e) => patch({ metaDoMes: e.target.value })}
+            disabled={readOnly}
+          />
+        </div>
+        <div className="flex max-w-md flex-col gap-1">
+          <Label htmlFor="preco-metas-por-produto">{t("Meta própria de um produto (uma por linha)")}</Label>
+          <Textarea
+            id="preco-metas-por-produto"
+            rows={3}
+            placeholder={"Assinatura: 100"}
+            value={form.metasPorProduto}
+            onChange={(e) => patch({ metasPorProduto: e.target.value })}
             disabled={readOnly}
           />
         </div>

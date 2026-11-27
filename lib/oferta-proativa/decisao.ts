@@ -15,6 +15,7 @@ import { slugDoProduto } from "@/lib/preco/pos-venda";
 import { reais, type Extra, type PricingConfig } from "@/lib/preco/tipos";
 
 import { NAO_OFERECER_PADRAO, type Oferta, type OfertaProativa } from "./config";
+import { pelaMeta, type MetaDoMes } from "@/lib/venda/meta-do-mes";
 
 const DIA_MS = 24 * 3_600_000;
 
@@ -117,14 +118,21 @@ export function escolherOferta(
   cfg: OfertaProativa,
   agora: Date,
   automaticas: readonly Oferta[] = [],
+  /** Entre as que ela ainda não ouviu, vai primeiro a do produto mais atrás da meta do mês. */
+  meta?: MetaDoMes | null,
 ): Escolha {
   if (naoOferecer(cfg, p.falas)) return { oferta: null, porque: "recusou_ou_fragil" };
   const tudoQueOAgenteDisse = p.saidas.map((s) => s.texto);
   const cabem = [...cfg.ofertas, ...automaticas].filter((o) => cabe(o, p, agora, tudoQueOAgenteDisse));
   if (cabem.length === 0) return { oferta: null, porque: "nenhuma_cabe" };
-  const nova = cabem.find((o) => ultimaVez(o.id, p) === null);
+  const nova = pelaMeta(cabem.filter((o) => ultimaVez(o.id, p) === null), produtoDaOferta, meta)[0];
   if (nova !== undefined) return { oferta: nova };
   return { oferta: cabem.reduce((a, b) => ((ultimaVez(b.id, p) ?? 0) < (ultimaVez(a.id, p) ?? 0) ? b : a)) };
+}
+
+/** O produto que a oferta vende, para a meta do mês: o declarado, ou o que ela exclui de quem já tem, ou o id. */
+export function produtoDaOferta(o: Pick<Oferta, "id" | "produto" | "ja_tem_se_comprou">): string {
+  return o.produto ?? o.ja_tem_se_comprou?.replace(/\\/g, "") ?? o.id;
 }
 
 const escapar = (t: string) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -148,6 +156,7 @@ export function ofertasDoCatalogo(
   catalogo: CatalogoParaOferta,
   falas: readonly string[],
   cfg: Pick<OfertaProativa, "ofertas">,
+  meta?: MetaDoMes | null,
 ): Oferta[] {
   const daLista = new Set<string>();
   for (const o of cfg.ofertas) for (const m of o.motivo.matchAll(MARCA_DE_PRECO)) daLista.add(semAcento(m[1]!));
@@ -155,7 +164,7 @@ export function ofertasDoCatalogo(
   const doTema = catalogo.extras.filter(
     (e) => !daLista.has(semAcento(e.name)) && cobrancaDoTema([e], mensagens) !== null,
   );
-  const primeira = cobrancaDoTema(doTema, mensagens);
+  const primeira = cobrancaDoTema(doTema, mensagens, meta);
   const ordem = primeira === null ? doTema : [primeira, ...doTema.filter((e) => e !== primeira)];
 
   const ofertas: Oferta[] = [];
@@ -175,6 +184,7 @@ export function ofertasDoCatalogo(
           .join(" ")
           .slice(0, 2000),
       ja_tem_se_comprou: escapar(pr.nome),
+      produto: pr.nome,
       dias_entre_repeticoes: 7,
     });
   }
@@ -183,6 +193,7 @@ export function ofertasDoCatalogo(
       id: idDe("x", e.name),
       motivo: `ofereça, pelo nome, o ${e.name} ({{preco:${e.name}}}), pelo assunto que ela trouxe. Quando cabe: ${e.when}`.slice(0, 2000),
       ja_tem_se_comprou: escapar(e.name),
+      produto: e.name,
       dias_entre_repeticoes: 7,
     });
   }

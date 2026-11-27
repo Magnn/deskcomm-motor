@@ -23,6 +23,7 @@ import { cobrancaDaVez, cobrancaDoTema, conversaFalouDeExtra, extraDoCasalPronto
 import type { Extra, PricingConfig } from "./tipos";
 import { reais } from "./tipos";
 import { valoresDitos } from "./valor-do-extra";
+import { pelaMeta, type MetaDoMes } from "@/lib/venda/meta-do-mes";
 
 export type OfertaAtiva =
   | { tipo: "pequena"; nome: string; cents: number }
@@ -163,7 +164,12 @@ function abriuPorta(mensagens: readonly MensagemDaConversa[]): boolean {
 }
 
 /** A cobrança pequena que cabe oferecer neste turno, ou `null`. Só para quem já ouviu o preço. */
-export function oportunidadeDeOferta(c: Escada, extras: readonly Extra[], mensagens: readonly MensagemDaConversa[]): Extra | null {
+export function oportunidadeDeOferta(
+  c: Escada,
+  extras: readonly Extra[],
+  mensagens: readonly MensagemDaConversa[],
+  meta?: MetaDoMes | null,
+): Extra | null {
   const falas = mensagens.filter((m) => m.direction === "outbound").map((m) => m.body ?? "");
   if (!falas.some((f) => FALA_DE_VALOR.test(f)) || !abriuPorta(mensagens)) return null;
   // A agente acabou de pedir a pergunta que ela já pagou: isto é a resposta, não uma porta.
@@ -172,7 +178,7 @@ export function oportunidadeDeOferta(c: Escada, extras: readonly Extra[], mensag
   const pequenos = extrasPequenos(c, extras);
   // Ela já ouviu o menor valor do trabalho e deu as duas datas: a porta sobre a outra pessoa é o relatório do casal.
   const casal = ouviuOMenorValor(c, mensagens) ? extraDoCasalPronto(pequenos, mensagens) : null;
-  return casal ?? cobrancaDaVez(pequenos, mensagens);
+  return casal ?? cobrancaDaVez(pequenos, mensagens, meta);
 }
 
 /** Sem valor nosso nas últimas 12 h: a cliente da casa ouve uma oferta por vez, e o dia do pagamento fica com a entrega. */
@@ -184,7 +190,13 @@ const PAUSA_DA_CLIENTE_MS = 12 * 60 * 60 * 1000;
  * Código da Conexão; as perguntas saíam respondidas de graça, várias por dia. O próximo passo do trabalho é o relatório do
  * casal; depois dele, a pergunta nova.
  */
-export function oportunidadeDaCliente(c: Escada, extras: readonly Extra[], mensagens: readonly MensagemDaConversa[], agora: Date): Extra | null {
+export function oportunidadeDaCliente(
+  c: Escada,
+  extras: readonly Extra[],
+  mensagens: readonly MensagemDaConversa[],
+  agora: Date,
+  meta?: MetaDoMes | null,
+): Extra | null {
   if (!abriuPorta(mensagens)) return null;
   const falas = mensagens.filter((m) => m.direction === "outbound");
   if (/\bpergunta\b/i.test(falas.at(-1)?.body ?? "")) return null;
@@ -195,10 +207,10 @@ export function oportunidadeDaCliente(c: Escada, extras: readonly Extra[], mensa
   const casal = pequenos.find((e) => e.report?.kind === "sinastria" && e.valid_days === undefined);
   const casalJaOferecido = casal !== undefined && conversaFalouDeExtra(mensagens, [casal]);
   // O tema dela primeiro (o relatório do casal só se ainda não foi oferecido); depois o casal; depois a primeira da lista.
-  const tema = cobrancaDoTema(pequenos.filter((e) => !(e === casal && casalJaOferecido)), mensagens);
+  const tema = cobrancaDoTema(pequenos.filter((e) => !(e === casal && casalJaOferecido)), mensagens, meta);
   if (tema) return tema;
   if (casal && !casalJaOferecido) return casal;
-  return pequenos.find((e) => e !== casal) ?? null;
+  return pelaMeta(pequenos.filter((e) => e !== casal), (e) => e.name, meta)[0] ?? null;
 }
 
 /** O bloco do turno em que ela abriu uma porta: desejo primeiro, oferta depois. */

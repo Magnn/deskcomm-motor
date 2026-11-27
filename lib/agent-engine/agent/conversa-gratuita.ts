@@ -134,7 +134,7 @@ export function blocoDaConversaGratuitaEsgotada(esgotada: boolean, caminhos: rea
   return [
     '',
     '',
-    'CONVERSA DEPOIS DA OFERTA (ESTE BLOCO VENCE TODO O RESTO NESTE TURNO)',
+    'CONVERSA DEPOIS DA OFERTA (VALE PARA ESTE TURNO, ABAIXO DO CUIDADO E DO PEDIDO DELA)',
     '- Esta pessoa já recebeu a leitura e a oferta e ainda não comprou. Seu papel é vender: mantenha o contato e procure a oportunidade. Quem não aceitou hoje pode aceitar amanhã.',
     `- Responda com UMA mensagem só, de até ${TAMANHO_DA_RESPOSTA_LIMITADA} caracteres, e acolha em meia frase o que ela disse.`,
     jaOfereceuHoje

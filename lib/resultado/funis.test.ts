@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  FORA_DO_PAINEL,
+  campanhaForaDoPainel,
   funilDaVenda,
   funilDoPainel,
   gastoDoFunil,
@@ -129,7 +131,27 @@ describe("peças", () => {
 
   it("lerPainel tolera lixo", () => {
     expect(lerPainel({ painel: { funil_padrao: "agente:a1" } }).funil_padrao).toBe("agente:a1");
-    expect(lerPainel({ painel: { funil_padrao: 12 } })).toEqual({ funil_padrao: null, produtos: {}, campanhas: {} });
+    expect(lerPainel({ painel: { funil_padrao: 12 } })).toEqual({ funil_padrao: null, produtos: {}, campanhas: {}, fora_do_painel: [] });
     expect(lerPainel(null).produtos).toEqual({});
+  });
+});
+
+describe("funis acompanhados fora do painel", () => {
+  const fora = { fora: ["pagina", "quiz"] as const };
+  it("venda de página sem contato sai do painel em vez de virar pendência", () => {
+    const c = ctx({ produtos: { "mega pack": "pagina:mandalas" }, ...fora });
+    expect(funilDaVenda(venda({ notes: "MEGA PACK" }), c)).toBe(FORA_DO_PAINEL);
+    expect(funilDaVenda(venda({ notes: "algo sem dono" }), ctx(fora))).toBe(FORA_DO_PAINEL);
+    expect(funilDaVenda(venda({ notes: "algo sem dono" }), ctx())).toBeNull();
+  });
+  it("compra de quiz na área de quem o agente atendeu volta para o agente", () => {
+    expect(funilDaVenda(venda({ contact_id: "c1", extra_nome: "quiz-sombra" }), ctx(fora))).toBe("agente:a1");
+    expect(funilDaVenda(venda({ contact_id: "c1", extra_nome: "quiz-sombra" }), ctx())).toBe("quiz:sombra");
+  });
+  it("campanha com nome de página de fora não conta no painel", () => {
+    const funis = [{ chave: "pagina:mandalas-lider", tipo: "pagina" as const, id: "mandalas-lider", nome: "Página mandalas-lider" }];
+    expect(campanhaForaDoPainel("1", "MANDALAS - teste 3", {}, funis, ["pagina"])).toBe(true);
+    expect(campanhaForaDoPainel("2", "A4 SUMIU", {}, funis, ["pagina"])).toBe(false);
+    expect(campanhaForaDoPainel("1", "MANDALAS", {}, funis, [])).toBe(false);
   });
 });

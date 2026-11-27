@@ -222,6 +222,13 @@ export const pricingSchema = z
      */
     free_replies_after_offer: z.number().int().min(1).max(20).optional(),
     /**
+     * Quantas vendas por mês cada produto deve fazer (`lib/venda/meta-do-mes.ts`). Entre as ofertas que cabem, vai
+     * primeiro o produto mais atrás da meta; o tema que a pessoa trouxe continua vencendo. Ausente = ordem da lista.
+     */
+    meta_mensal_por_produto: z.number().int().min(1).max(100_000).optional(),
+    /** Meta própria de um produto (nome como o pagamento registra → vendas no mês); vence a meta geral. */
+    metas_por_produto: z.record(z.string().min(1).max(120), z.number().int().min(1).max(100_000)).optional(),
+    /**
      * A menor entrada que o agente aceita quando a pessoa diz quanto consegue pagar agora. Ausente = o menor degrau
      * da escada. A entrada paga inicia a entrega do produto inteiro, então este é o menor valor por que ele sai.
      */

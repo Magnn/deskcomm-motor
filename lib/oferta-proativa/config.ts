@@ -55,6 +55,8 @@ export const ofertaSchema = z
      * dias. Ex.: pedir depoimento só depois de a pessoa ter vivido a entrega. Exige que a pessoa tenha comprado.
      */
     compra_ha_pelo_menos_dias: z.number().int().min(1).max(90).optional(),
+    /** O produto que esta oferta vende, como o pagamento o registra: é por ele que a meta do mês ordena. */
+    produto: z.string().min(1).max(120).optional(),
     dias_entre_repeticoes: z.number().int().min(1).max(90).default(5),
   })
   .strict();

@@ -26,6 +26,7 @@
 import { slugDoProduto, type CompraDoContato, type MensagemDoHistorico } from "@/lib/preco/pos-venda";
 
 import type { CatalogoConfig, ProdutoDoCatalogo } from "./tipos";
+import { pelaMeta, type MetaDoMes } from "@/lib/venda/meta-do-mes";
 
 const MARCA_DE_PAGO = "pago";
 const MARCAS_DE_DEVOLUCAO = ["reembolso", "chargeback"] as const;
@@ -118,6 +119,8 @@ export function ofertaDaVez(
   mensagens: readonly MensagemDoHistorico[],
   produtosComFluxo: readonly string[],
   agora: Date,
+  /** Entre os produtos que ela pode receber, vai primeiro o mais atrás da meta do mês. Ausente = ordem do catálogo. */
+  meta?: MetaDoMes | null,
 ): OfertaDaVez | null {
   if (!catalogo || !catalogo.enabled) return null;
   if (!compra.tags.includes(MARCA_DE_PAGO)) return null;
@@ -136,7 +139,7 @@ export function ofertaDaVez(
 
   if (catalogo.oferta_diaria === true) {
     const quando = (p: ProdutoDoCatalogo) => ultimaOferta(p, mensagens, agora);
-    const elegiveis = catalogo.produtos.filter(podeReceber);
+    const elegiveis = pelaMeta(catalogo.produtos.filter(podeReceber), (p) => p.nome, meta);
     const deHoje = elegiveis.find((p) => {
       const t = quando(p);
       return t !== null && agora.getTime() - t < DIA_MS;
@@ -149,7 +152,7 @@ export function ofertaDaVez(
     return proxima === undefined ? null : { produto: proxima, jaOferecida: false, diaria: true };
   }
 
-  const produto = catalogo.produtos.find(podeReceber);
+  const produto = pelaMeta(catalogo.produtos.filter(podeReceber), (p) => p.nome, meta)[0];
   if (produto === undefined) return null;
 
   const jaOferecida = ultimaOferta(produto, mensagens, agora) !== null;

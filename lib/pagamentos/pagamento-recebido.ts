@@ -48,6 +48,8 @@ export {
   type ResultadoDoPagamento,
   type SugestaoDePagamento,
 } from "./pagamento-recebido-tipos";
+import { liberarCompraDaArea } from "@/lib/area-do-cliente/compras-da-area";
+import { EXTRA_DO_CIRCULO, ativarCirculo } from "@/lib/area-do-cliente/circulo";
 
 export interface DepsDoPagamento extends Pick<DepsDaCompra, "gravarCompra" | "registrarValorNoNegocio" | "pararFluxosVivos" | "acharFluxoDeEntrega" | "inscrever"> {
   lerContato(contatoId: string): Promise<{ id: string; tags: string[] } | null>;
@@ -66,6 +68,11 @@ export interface DepsDoPagamento extends Pick<DepsDaCompra, "gravarCompra" | "re
   marcarContato(contatoId: string, tags: string[]): Promise<void>;
   /** Leva a cobrança avulsa à plataforma de anúncio que trouxe o lead. Nunca lança. */
   reportarAvulsa(contatoId: string, compra: { chave: string; valorCentavos: number; produto: string; pagoEm: string }): Promise<void>;
+  /**
+   * Libera na área do cliente o que a cobrança avulsa compra lá (o Círculo, um quiz…), como o aviso da Stripe faz.
+   * Sem isto, o Círculo vendido pela agente e pago pela chave entrava no livro e o app seguia fechado. Nunca lança.
+   */
+  liberarNaArea?(contatoId: string, compra: { chave: string; extra: string; metodo: string }): Promise<void>;
   /** Acorda a agente na conversa, para ela entregar a cobrança avulsa paga. Falha aqui não desfaz o registro. */
   pedirTurnoDaAgente(contatoId: string, conversaId: string): Promise<void>;
   /** A cobrança já no livro que parece ser este mesmo pagamento: mesmo contato, valor próximo, até 2 dias. */
@@ -121,6 +128,7 @@ export async function registrarPagamentoRecebido(
       `Pagamento recebido fora do checkout: ${pagamento.produto} (${reaisTexto(pagamento.valor_cents)}, ${ROTULO_DO_METODO[pagamento.metodo]}). ${assinatura}.`,
     );
     await deps.reportarAvulsa(contato.id, { chave: pagamento.chave, valorCentavos: pagamento.valor_cents, produto: pagamento.produto, pagoEm });
+    await deps.liberarNaArea?.(contato.id, { chave: pagamento.chave, extra: pagamento.extra, metodo: pagamento.metodo });
     if (conversaId === undefined) return { resultado: "registrado", negocio: "sem_negocio", entrega: "nao_pedida" };
     await deps.pedirTurnoDaAgente(contato.id, conversaId);
     return { resultado: "registrado", negocio: "sem_negocio", entrega: "iniciada" };
@@ -191,6 +199,20 @@ export function depsReaisDoPagamento(
     acharFluxoDeEntrega: daCompra.acharFluxoDeEntrega,
     inscrever: daCompra.inscrever,
     fecharComoGanho: ctx.fecharComoGanho,
+
+    async liberarNaArea(contatoId, compra) {
+      const pagamentoId = `manual-${compra.chave}`;
+      try {
+        await liberarCompraDaArea(admin, organizationId, contatoId, pagamentoId, compra.extra, {}, compra.metodo);
+        if (compra.extra === EXTRA_DO_CIRCULO) await ativarCirculo(admin, organizationId, contatoId, pagamentoId);
+      } catch (err) {
+        logger.error("pagamento recebido: liberar na área falhou", {
+          organization_id: organizationId,
+          extra: compra.extra,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    },
 
     async lerContato(contatoId) {
       const { data } = await admin.from("contacts").select("id, tags").eq("organization_id", organizationId).eq("id", contatoId).maybeSingle();
