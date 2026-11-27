@@ -1055,6 +1055,8 @@ export const AUDIT_ACTIONS = [
   "channel.phone_verification_requested",
   "channel.phone_verified",
   "channel.number_reregistered",
+  // Comentou na página, recebe Messenger (`/api/v1/messenger/[id]/resposta-a-comentario`): liga/desliga e tamanho do texto.
+  "channel.comment_reply_updated",
 ] as const;
 
 /** Um código de auditoria. Derivado de `AUDIT_ACTIONS` — não redigite a lista. */

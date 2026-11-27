@@ -14,6 +14,7 @@ import { Trash } from "@/lib/ui/icons";
 
 import { ChannelAiAccess } from "./ChannelAiAccess";
 import { DesconectarCanalDialog } from "./DesconectarCanalDialog";
+import { RespostaAComentario } from "./RespostaAComentario";
 
 interface Pagina {
   id: string;
@@ -153,6 +154,7 @@ export function MessengerClient() {
                     </p>
                   )}
                   <ChannelAiAccess channelId={p.id} phoneTesting={false} />
+                  {p.rede === "messenger" && <RespostaAComentario channelId={p.id} />}
                   <div className="flex flex-wrap gap-2">
                     <Button asChild variant="outline">
                       <Link href="/app/inbox">{t("Abrir atendimento")}</Link>
