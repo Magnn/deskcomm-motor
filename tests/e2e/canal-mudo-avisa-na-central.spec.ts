@@ -132,7 +132,7 @@ test.describe("o canal em modo de teste avisa na Central", () => {
     // encontrado", 60s depois. Os seletores abaixo são os mesmos que
     // `pre-go-live-whatsapp.spec.ts` já exerce nesta mesma tela — o painel se
     // abre por "Configurar acesso da IA", e a lista é um campo com rótulo.
-    await page.goto("/app/connections");
+    await page.goto("/app/connections?aba=numeros");
     await expect(page.getByText(`WhatsApp mudo ${SUFIXO}`, { exact: true })).toBeVisible({
       timeout: 60_000,
     });

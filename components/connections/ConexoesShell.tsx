@@ -14,6 +14,7 @@ import { CanalOficialClient } from "./CanalOficialClient";
 import { CanalParceiroClient } from "./CanalParceiroClient";
 import { CanalVozClient } from "./CanalVozClient";
 import { ConnectionsClient } from "./ConnectionsClient";
+import { CanaisVisaoGeral } from "./CanaisVisaoGeral";
 import { EscolherConexao } from "./EscolherConexao";
 import { TemplatesClient } from "./TemplatesClient";
 import { TemplatesParceiroClient } from "./TemplatesParceiroClient";
@@ -22,6 +23,7 @@ import { WebchatClient } from "./WebchatClient";
 import { useOfficialChannel } from "@/hooks/channels/useOfficialChannel";
 import { useT } from "@/hooks/i18n/useT";
 import { rotaDeTemplates } from "@/lib/channels/templates-fonte";
+import { CaretLeft } from "@/lib/ui/icons";
 
 /**
  * Conexões — TODOS os canais em um lugar só.
@@ -68,28 +70,17 @@ export function ConexoesShell({
   const router = useRouter();
   const params = useSearchParams();
   const abaParam = params.get("aba");
+  const ABAS = ["numeros", "oficial", "parceiro", "voz", "messenger", "telegram", "sociais", "webchat", "telefonia"];
+  // Sem `?aba=` abre a VISÃO GERAL (a porta para quem vende). Aba técnica que a instalação não
+  // liga (`graph`, `link`) também cai nela — nem por `?aba=` na URL ela é montada.
   const aba =
-    abaParam === "sociais"
-      ? "sociais"
-      : abaParam === "messenger"
-      ? "messenger"
-      : abaParam === "telegram"
-      ? "telegram"
-      : abaParam === "oficial"
-      ? "oficial"
-      : abaParam === "parceiro"
-        ? "parceiro"
-        : abaParam === "telefonia"
-          ? "telefonia"
-          : abaParam === "voz"
-            ? "voz"
-            : abaParam === "webchat"
-              ? "webchat"
-              : abaParam === "graph" && graphParceiro
-                ? "graph"
-                : abaParam === "link" && linkDeCadastro
-                  ? "link"
-                  : "numeros";
+    abaParam && ABAS.includes(abaParam)
+      ? abaParam
+      : abaParam === "graph" && graphParceiro
+        ? "graph"
+        : abaParam === "link" && linkDeCadastro
+          ? "link"
+          : "inicio";
   const sub = params.get("sub") === "templates" ? "templates" : "conexao";
   // O botão único "Conectar WhatsApp" abre a janela do Facebook ali mesmo; para
   // isso precisa do login da instalação antes do clique.
@@ -101,7 +92,7 @@ export function ConexoesShell({
 
   const irPara = (proximaAba: string, proximaSub?: string): void => {
     const q = new URLSearchParams();
-    if (proximaAba !== "numeros") q.set("aba", proximaAba);
+    if (proximaAba !== "inicio") q.set("aba", proximaAba);
     if (proximaSub && proximaSub !== "conexao") q.set("sub", proximaSub);
     const qs = q.toString();
     // `scroll: false`: trocar de aba não é navegar para outra página; jogar o
@@ -109,56 +100,71 @@ export function ConexoesShell({
     router.replace(qs ? `/app/connections?${qs}` : "/app/connections", { scroll: false });
   };
 
-  return (
-    <Tabs value={aba} onValueChange={(v) => irPara(v, sub)} className="flex flex-col gap-5">
-      {/* Uma linha só: os canais à esquerda, a ação principal à direita. A escolha fica ao lado
-          das abas porque quem chega para conectar não sabe em qual delas entrar — e é o ÚNICO
-          botão principal da tela (o atalho de QR, dentro da aba, é secundário). */}
-      <div className="flex flex-wrap items-start justify-between gap-3">
-      <TabsList className="h-auto max-w-full flex-wrap items-center justify-start gap-y-1">
-        {/* Rótulos pelo que o usuário RECONHECE, não pelo nome técnico do motor por
-            trás: ele sabe se leu um QR ou se tem conta na Meta; a sigla do provedor
-            não diz nada a quem instalou o sistema para vender.
+  // O botão de conectar WhatsApp mora SÓ onde se fala de WhatsApp: no cartão da visão geral e
+  // nas telas dos números. Antes ficava ao lado da barra de abas e aparecia até no Telegram.
+  const botaoDeConectar = (
+    <EscolherConexao
+      login={oficial?.login ?? null}
+      oficialConectado={Boolean(oficial?.connected)}
+      onEscolher={(tipo) => {
+        if (tipo === "qr") setQrPendente(true);
+        irPara(tipo === "oficial" ? "oficial" : "numeros");
+      }}
+    />
+  );
 
-            Este comentário já citou a sigla como exemplo — e o `lint:channels`
-            reprovou, porque o regex da doutrina não distingue prosa de código
-            (limitação registrada no próprio `scripts/lint-channels.ts`). Reescrever
-            a frase custou menos que abrir exceção no gate, e o gate continua
-            estrito: o dia em que alguém escrever o nome do provider aqui DE VERDADE,
-            ele reprova igual. */}
-        {/* Dois grupos: WhatsApp (quatro jeitos de ligar um número) e os outros canais. Nove abas
-            em fila única não diziam que as quatro primeiras são o mesmo canal. */}
-        <span className="px-2 text-[10px] font-semibold uppercase tracking-wider text-text-subtle" aria-hidden>
-          {t("WhatsApp")}
-        </span>
-        <TabsTrigger value="numeros">{t("Números por QR")}</TabsTrigger>
-        <TabsTrigger value="oficial">{t("API Oficial (Meta)")}</TabsTrigger>
-        {/* "Provedor parceiro" e não a marca: o rótulo da marca vem do servidor
-            (`lib/channels/connect`), porque a tela não pode nomear provider — e
-            porque no dia em que houver um segundo parceiro esta aba não muda.
-            Aqui fica o CONCEITO; lá dentro o cartão diz de quem se trata. */}
-        <TabsTrigger value="parceiro">{t("Provedor parceiro")}</TabsTrigger>
-        <TabsTrigger value="voz">{t("Chamada de voz")}</TabsTrigger>
-        {graphParceiro && <TabsTrigger value="graph">{graphParceiro.label}</TabsTrigger>}
-        {linkDeCadastro && <TabsTrigger value="link">{linkDeCadastro.label}</TabsTrigger>}
-        <span className="mx-1 hidden h-5 w-px bg-border sm:block" aria-hidden />
-        <span className="px-2 text-[10px] font-semibold uppercase tracking-wider text-text-subtle" aria-hidden>
-          {t("Outros canais")}
-        </span>
-        <TabsTrigger value="messenger">{t("Messenger")}</TabsTrigger>
-        <TabsTrigger value="telegram">{t("Telegram")}</TabsTrigger>
-        <TabsTrigger value="sociais">{t("Redes sociais")}</TabsTrigger>
-        <TabsTrigger value="webchat">{t("Webchat (Site)")}</TabsTrigger>
-        <TabsTrigger value="telefonia">{t("Telefone")}</TabsTrigger>
-      </TabsList>
-        <EscolherConexao
-          login={oficial?.login ?? null}
-          oficialConectado={Boolean(oficial?.connected)}
-          onEscolher={(tipo) => {
-            if (tipo === "qr") setQrPendente(true);
-            irPara(tipo === "oficial" ? "oficial" : "numeros");
-          }}
-        />
+  // Os jeitos de ligar número que pedem alguém técnico. Rótulo pelo CONCEITO; a marca do
+  // parceiro, quando há, vem do servidor (a tela não pode nomear provider).
+  const avancadas = [
+    { aba: "parceiro", nome: t("Provedor parceiro"), descricao: t("Número oficial contratado por um parceiro, com chave de acesso.") },
+    { aba: "voz", nome: t("Chamada de voz no WhatsApp"), descricao: t("Receber ligações de WhatsApp por um serviço externo.") },
+    ...(graphParceiro ? [{ aba: "graph", nome: graphParceiro.label, descricao: t("Outro jeito de ligar o número oficial, oferecido nesta instalação.") }] : []),
+    ...(linkDeCadastro ? [{ aba: "link", nome: linkDeCadastro.label, descricao: t("Número oficial por link de cadastro.") }] : []),
+  ];
+
+  const TITULO: Record<string, string> = {
+    numeros: t("WhatsApp"),
+    oficial: t("WhatsApp"),
+    parceiro: t("Provedor parceiro"),
+    voz: t("Chamada de voz no WhatsApp"),
+    graph: graphParceiro?.label ?? "",
+    link: linkDeCadastro?.label ?? "",
+    messenger: t("Facebook Messenger e Instagram"),
+    telegram: t("Telegram"),
+    sociais: t("Redes sociais"),
+    webchat: t("Chat no seu site"),
+    telefonia: t("Ligações"),
+  };
+  const ehWhatsapp = aba === "numeros" || aba === "oficial";
+
+  if (aba === "inicio") {
+    return <CanaisVisaoGeral botaoDeConectar={botaoDeConectar} avancadas={avancadas} />;
+  }
+
+  return (
+    <Tabs value={aba} onValueChange={(v) => irPara(v)} className="flex flex-col gap-5">
+      <div className="flex flex-col gap-3">
+        <Link
+          href="/app/connections"
+          scroll={false}
+          data-testid="voltar-aos-canais"
+          className="inline-flex min-h-11 items-center gap-1.5 self-start text-sm font-semibold text-primary"
+        >
+          <CaretLeft size={16} aria-hidden />
+          {t("Todos os canais")}
+        </Link>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-xl font-semibold text-text">{TITULO[aba]}</h2>
+          {ehWhatsapp && botaoDeConectar}
+        </div>
+        {/* Os dois jeitos de todo dia de ver os números. Os técnicos (parceiro, voz…) se abrem
+            pela visão geral, em "Opções avançadas", e não disputam espaço aqui. */}
+        {ehWhatsapp && (
+          <TabsList className="self-start">
+            <TabsTrigger value="numeros">{t("Números conectados")}</TabsTrigger>
+            <TabsTrigger value="oficial">{t("WhatsApp oficial (Meta)")}</TabsTrigger>
+          </TabsList>
+        )}
       </div>
 
       <TabsContent value="numeros" className="mt-0">
@@ -249,34 +255,6 @@ export function ConexoesShell({
       </TabsContent>
 
 
-      {/* As portas de telas que não são canal de conversa. Eram dois links sublinhados soltos no
-          topo, disputando com o botão principal; aqui têm nome, uma linha de explicação e alvo
-          de clique do tamanho de um cartão. */}
-      <section aria-label={t("Mais integrações")} className="flex flex-col gap-2 border-t border-border pt-5">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-text-subtle">{t("Mais integrações")}</h2>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Link
-            href="/app/instagram"
-            data-testid="porta-do-instagram"
-            className="rounded-lg border border-border bg-surface p-4 transition-colors hover:border-border-strong hover:bg-surface-elevated"
-          >
-            <span className="block text-sm font-semibold text-text">{t("Instagram: comentou, recebe direct")}</span>
-            <span className="mt-0.5 block text-xs text-text-muted">
-              {t("Responda por direct quem comenta nas suas publicações.")}
-            </span>
-          </Link>
-          <Link
-            href="/app/integrations/nuvemshop"
-            data-testid="porta-da-nuvemshop"
-            className="rounded-lg border border-border bg-surface p-4 transition-colors hover:border-border-strong hover:bg-surface-elevated"
-          >
-            <span className="block text-sm font-semibold text-text">{t("Nuvemshop: conectar a loja")}</span>
-            <span className="mt-0.5 block text-xs text-text-muted">
-              {t("Traga pedidos e clientes da loja para o atendimento.")}
-            </span>
-          </Link>
-        </div>
-      </section>
     </Tabs>
   );
 }

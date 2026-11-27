@@ -124,7 +124,7 @@ test("o administrador conecta o WhatsApp digitando o código no celular", async 
     await page.getByRole("button", { name: "Entrar", exact: true }).click();
     await page.waitForURL(/\/app(?:\/|$)/);
 
-    await page.goto("/app/connections");
+    await page.goto("/app/connections?aba=numeros");
     await page.getByRole("button", { name: "Reconectar" }).first().click();
 
     const dialogo = page.getByRole("dialog");

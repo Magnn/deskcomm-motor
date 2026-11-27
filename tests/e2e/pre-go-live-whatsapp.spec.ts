@@ -36,7 +36,7 @@ test("admin configura testes, remove número, confirma abertura e volta a restri
   await page.locator("#password").fill(password);
   await page.getByRole("button", { name: "Entrar", exact: true }).click();
   await page.waitForURL(/\/app/);
-  await page.goto("/app/connections");
+  await page.goto("/app/connections?aba=numeros");
   await expect(page.getByText("Canal de validação", { exact: true })).toBeVisible();
   await expect(page.getByText("IA em modo de teste", { exact: true })).toBeVisible();
   const openPanel = () => page.getByRole("button", { name: "Configurar acesso da IA" }).click();

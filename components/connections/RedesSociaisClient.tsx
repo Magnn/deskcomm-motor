@@ -40,7 +40,8 @@ export function RedesSociaisClient() {
   const [key, setKey] = useState("");
   const [profiles, setProfiles] = useState<{ id: string; name: string }[]>([]);
   const [profile, setProfile] = useState("");
-  const [platform, setPlatform] = useState("instagram");
+  // `?rede=` vem do cartão da visão geral (TikTok, Pinterest…): a escolha já chega feita.
+  const [platform, setPlatform] = useState(() => params.get("rede") ?? "instagram");
   const [editing, setEditing] = useState(false);
   const [health, setHealth] = useState<Record<string, string>>({});
   const load = () => query.refetch();

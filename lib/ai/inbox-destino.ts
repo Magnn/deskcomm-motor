@@ -20,7 +20,7 @@ export const REFERENCIAS_DE_AVISO = {
   contact: { tabela: "contacts", papel: "agent", rotulo: "Ver contato", href: (id: string) => `/app/contacts/${id}` },
   lead: { tabela: "crm_leads", papel: "agent", rotulo: "Abrir negócio", href: (id: string, pipelineId?: string) => `/app/pipelines/${pipelineId}?lead=${id}` },
   followup_enrollment: { tabela: "followup_enrollments", papel: "viewer", rotulo: "Abrir acompanhamento", href: (id: string) => `/app/ai/followups/enrollments/${id}` },
-  channel_session: { tabela: "channel_sessions", papel: "admin", rotulo: "Revisar conexão", href: () => "/app/connections", ativo: true },
+  channel_session: { tabela: "channel_sessions", papel: "admin", rotulo: "Revisar conexão", href: () => "/app/connections?aba=numeros", ativo: true },
   ai_knowledge_source: { tabela: "ai_knowledge_sources", papel: "manager", rotulo: "Abrir base de conhecimento", href: () => "/app/ai/knowledge/sources" },
   agent_case: { tabela: "agent_cases", papel: "agent", rotulo: "Abrir atendimento", href: (id: string) => `/app/ai/cases?caso=${id}` },
   // O PONTEIRO do fluxo, não a inscrição: o aviso de `followup_sem_agente` é
