@@ -67,7 +67,7 @@ function CartaoDeCanal({ href, icone: Icone, nome, descricao, estado, rotuloDoEs
       href={href}
       scroll={false}
       data-testid={testId}
-      className="group flex flex-col gap-3 rounded-xl border border-border bg-surface p-5 transition-colors hover:border-border-strong hover:bg-surface-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="group flex flex-col gap-3 rounded-xl border border-border bg-surface p-5 transition-colors hover:border-border-strong hover:bg-surface-elevated focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
     >
       <span className="flex items-center gap-3">
         <span className="flex h-11 w-11 flex-none items-center justify-center rounded-lg bg-surface-elevated text-primary">
