@@ -23,6 +23,7 @@ import type { Extra, PricingConfig } from "./tipos";
 import { reais } from "./tipos";
 import { comoEntregarRelatorio } from "./relatorio-pronto";
 import { baloesPelaChave, instrucaoDoPixCopiaECola, linhaDoLinkDePagamento } from "@/lib/pagamentos/como-pagar-pix";
+import { pelaMeta, type MetaDoMes } from "@/lib/venda/meta-do-mes";
 
 /** "Pergunta nova" → "pergunta-nova": é o que vai na marca, nos metadados da cobrança e no registro da receita. */
 export function slugDoExtra(nome: string): string {
@@ -76,17 +77,19 @@ function falaTemPalavra(fala: string, palavra: string): boolean {
  * mais barata (R$ 15) saía para quem falou de filho ou de traição; 109 conversas falaram de filho e nenhuma ouviu a
  * cobrança do filho, e o relatório do casal, que converte 4× mais, chegou a 10 de 474 conversas sobre "ele". Pura.
  */
-export function cobrancaDoTema<E extends Pick<Extra, "themes">>(
+export function cobrancaDoTema<E extends Pick<Extra, "themes" | "name">>(
   extras: readonly E[],
   mensagens: readonly { direction: string; body?: string | null }[],
+  /** Mais de uma cobrança casa com a mesma fala: vai a mais atrás da meta do mês (`lib/venda/meta-do-mes.ts`). */
+  meta?: MetaDoMes | null,
 ): E | null {
   const comPalavras = extras.filter((e) => (e.themes ?? []).length > 0);
   if (comPalavras.length === 0) return null;
   for (let i = mensagens.length - 1; i >= 0; i -= 1) {
     const m = mensagens[i]!;
     if (m.direction !== "inbound" || !m.body) continue;
-    const achada = comPalavras.find((e) => (e.themes ?? []).some((p) => falaTemPalavra(m.body ?? "", p)));
-    if (achada) return achada;
+    const achadas = comPalavras.filter((e) => (e.themes ?? []).some((p) => falaTemPalavra(m.body ?? "", p)));
+    if (achadas.length > 0) return pelaMeta(achadas, (e) => e.name, meta)[0]!;
   }
   return null;
 }
@@ -96,11 +99,12 @@ export function cobrancaDoTema<E extends Pick<Extra, "themes">>(
  * 24/11/2026: sem tema saía a mais barata, o Sentimento da Fotografia (R$ 15), que pede uma foto que a pessoa nem mandou,
  * para quem tinha dito "voltaria com ele". A ordem da lista é decisão do operador; o preço não diz o que cabe. Pura.
  */
-export function cobrancaDaVez<E extends Pick<Extra, "themes">>(
+export function cobrancaDaVez<E extends Pick<Extra, "themes" | "name">>(
   extras: readonly E[],
   mensagens: readonly { direction: string; body?: string | null }[],
+  meta?: MetaDoMes | null,
 ): E | null {
-  return cobrancaDoTema(extras, mensagens) ?? extras[0] ?? null;
+  return cobrancaDoTema(extras, mensagens, meta) ?? pelaMeta(extras, (e) => e.name, meta)[0] ?? null;
 }
 
 /**
@@ -112,11 +116,12 @@ export function ofertaPequenaDeHoje(
   extras: readonly Extra[],
   mensagens: readonly { direction: string; body?: string | null }[],
   ouviuOMenorValor = false,
+  meta?: MetaDoMes | null,
 ): { nome: string; precoCents: number } | null {
   const casal = ouviuOMenorValor ? extraDoCasalPronto(extras, mensagens) : null;
   if (casal) return { nome: casal.name, precoCents: casal.price_cents };
   const unicas = extras.filter((e) => e.valid_days === undefined && !conversaFalouDeExtra(mensagens, [e]));
-  const mais = cobrancaDaVez(unicas, mensagens);
+  const mais = cobrancaDaVez(unicas, mensagens, meta);
   return mais ? { nome: mais.name, precoCents: mais.price_cents } : null;
 }
 
@@ -299,7 +304,7 @@ export function blocoDosExtras(extras: readonly Extra[], pagos: readonly ExtraPa
   const linhas = [
     "",
     "",
-    "COBRANÇAS À PARTE (definidas pelo operador; valem mais que qualquer regra de cobrança avulsa escrita antes neste prompt)",
+    "COBRANÇAS À PARTE (definidas pelo operador; o nome e o valor daqui valem mais que qualquer valor escrito antes neste prompt)",
     "- O que está abaixo NÃO faz parte do que é gratuito nem do trabalho principal. Quando a situação descrita acontecer, NÃO atenda de graça: diga o valor e cobre.",
   ];
   for (const e of extras) {

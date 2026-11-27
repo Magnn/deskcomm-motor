@@ -342,6 +342,7 @@ import { linkDeCobrancaCopiado } from '@/lib/preco/link-de-cobranca-copiado';
 import { ofertaRepetidaSeguida } from '@/lib/preco/oferta-repetida';
 import { falaEmTerceiraPessoa } from '@/lib/preco/fala-em-terceira-pessoa';
 import { comRecusaDoEnvioMarcada } from './veto-da-ferramenta-de-envio';
+import { lerMetaDoMes } from '@/lib/venda/meta-do-mes';
 
 /**
  * Superfície ESTÁTICA das tools do agente (description + inputSchema) — parte do
@@ -2633,6 +2634,10 @@ async function executarTurnoDoAgente(
   // catálogo (`pagouAlgo`). Medido em 21/10/2026: sem o bloco, a agente ofereceu a Oração dos Sonhos (R$ 35) a quem
   // tinha pago uma pergunta e inventou o valor — R$ 130, depois R$ 27 —, e depois não conseguia mais dizer o certo.
   const pagouNoTurno = pagouAlgo(tagsDoContato);
+  // A meta do mês por produto (`lib/venda/meta-do-mes.ts`): o desempate único de todo seletor de oferta deste turno.
+  const metaDoMes = semBlocosDePreco
+    ? null
+    : await lerMetaDoMes(pool, tenantId, agentConfig?.pricing);
   if (!semBlocosDePreco && pagouNoTurno) {
     try {
       const { rows } = await pool.query<{ recusou: string | null }>(
@@ -2669,6 +2674,7 @@ async function executarTurnoDoAgente(
           openingContext.context.messages,
           await produtosComFluxoDeEntrega(pool, tenantId),
           agora,
+          metaDoMes,
         );
         entregaNaConversaNoTurno = entregaNaConversaEmAberto(
           catalogoDoAgente,
@@ -2769,6 +2775,7 @@ async function executarTurnoDoAgente(
           agentConfig?.pricing ? extrasPequenos(agentConfig.pricing, extrasDaConfig(agentConfig.pricing)) : [],
           openingContext.context.messages,
           !!agentConfig?.pricing && ouviuOMenorValor(agentConfig.pricing, openingContext.context.messages),
+          metaDoMes,
         ),
       });
   // A REDE: o mesmo passo vira o piso de preço da trava de promessas deste turno. Se o modelo
@@ -3264,14 +3271,20 @@ async function executarTurnoDoAgente(
         ? // A cliente da casa: sem entrega avulsa por fazer e sem sinal de risco na conversa (LEI 11).
           entregaPendenteDoTurno === null &&
           !openingContext.context.messages.some((m) => m.direction === 'inbound' && ehRiscoDeVida(m.body))
-          ? oportunidadeDaCliente(agentConfig.pricing, extrasDoTurno, openingContext.context.messages, new Date())
+          ? oportunidadeDaCliente(agentConfig.pricing, extrasDoTurno, openingContext.context.messages, new Date(), metaDoMes)
           : null
-        : oportunidadeDeOferta(agentConfig.pricing, extrasDoTurno, openingContext.context.messages)
+        : oportunidadeDeOferta(agentConfig.pricing, extrasDoTurno, openingContext.context.messages, metaDoMes)
       : null;
   // UMA OFERTA POR VEZ (`lib/preco/oferta-ativa.ts`). O turno fica livre para falar do trabalho quando tem motivo próprio:
   // a data que ela deu, a entrada, o valor que ela disse ter, o combinado guardado ou o retorno agendado.
+  // Oferta proativa e sequência do catálogo NÃO são retorno combinado: são o turno que oferece, e é nele que
+  // a trava "uma oferta por vez" mais importa (medido no mapa de 27/11/2026: o turno da oferta desligava a trava).
+  const payloadDoJob = job?.payload as { recovery?: unknown; oferta_proativa?: unknown; source?: unknown } | null;
   const retornoAgendadoNoTurno =
-    job?.kind === 'followup_turn' && (job.payload as { recovery?: unknown } | null)?.recovery === undefined;
+    job?.kind === 'followup_turn' &&
+    payloadDoJob?.recovery === undefined &&
+    payloadDoJob?.oferta_proativa === undefined &&
+    payloadDoJob?.source !== 'sequencia_do_catalogo';
   const trabalhoLiberadoNoTurno =
     !agentConfig?.pricing?.enabled ||
     retornoAgendadoNoTurno ||
@@ -3287,10 +3300,17 @@ async function executarTurnoDoAgente(
     valorAceitoDoTurno !== null ||
     pediuOTrabalho(openingContext.context.messages, (agentConfig?.pricing?.list_product_links ?? []).map((l) => l.name));
   const ofertaAtivaNoTurno = agentConfig?.pricing?.enabled
-    ? ofertaAtivaDaConversa(agentConfig.pricing, comOfertasDoPosVenda(extrasDaConfig(agentConfig.pricing), agentConfig.pricing), openingContext.context.messages)
+    ? ofertaAtivaDaConversa(
+        agentConfig.pricing,
+        // Com o catálogo ligado, o pós-venda da aba Preço não oferece nada (o turno escolhe um OU outro): não conta.
+        catalogoDoAgente !== null
+          ? extrasDaConfig(agentConfig.pricing)
+          : comOfertasDoPosVenda(extrasDaConfig(agentConfig.pricing), agentConfig.pricing),
+        openingContext.context.messages,
+      )
     : null;
   const ofertaPequenaDePe = ofertaAtivaNoTurno?.tipo === 'pequena' && !trabalhoLiberadoNoTurno ? ofertaAtivaNoTurno : null;
-  const temaDoTurno = cobrancaDoTema(extrasDoTurno, openingContext.context.messages);
+  const temaDoTurno = cobrancaDoTema(extrasDoTurno, openingContext.context.messages, metaDoMes);
   if (temaDoTurno !== null) runLog.info('cobrança do tema dela', { cobranca: temaDoTurno.name });
   const blocoDoAtropeloDoTurno =
     blocoDaOfertaAtiva(ofertaAtivaNoTurno, trabalhoLiberadoNoTurno) +

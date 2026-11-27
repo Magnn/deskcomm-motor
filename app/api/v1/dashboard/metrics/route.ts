@@ -18,9 +18,15 @@ import {
   lerPainel,
   lerPassosDoFunil,
   listarFunis,
+  nomesDeExibicaoDoAgente,
   separarVendasPorFunil,
   sugerirFunilDaCampanha,
+  campanhaForaDoPainel,
+  FORA_DO_PAINEL,
 } from "@/lib/resultado/funis";
+import { instanteDe, partesNoFuso } from "@/lib/agenda/fuso";
+import { lerPricing } from "@/lib/preco/tipos";
+import { progressoDaMeta, type LinhaDaMeta } from "@/lib/venda/meta-do-mes";
 
 interface ConversaDoPainel {
   id: string;
@@ -104,8 +110,26 @@ export async function GET(req: NextRequest) {
     // (`settings.painel.funil_padrao`); `funil=todos` mostra o geral.
     const { data: orgData } = await admin.from("organizations").select("settings").eq("id", orgId).maybeSingle();
     const painel = lerPainel((orgData as { settings?: unknown } | null)?.settings);
-    const { funis, agentes } = await listarFunis(admin, orgId, [...Object.values(painel.produtos), ...Object.values(painel.campanhas)]);
-    const funil = funilDoPainel(searchParams.get("funil"), painel.funil_padrao, funis);
+    const { funis: todosOsFunis, agentes } = await listarFunis(admin, orgId, [...Object.values(painel.produtos), ...Object.values(painel.campanhas)]);
+    // Página e quiz acompanhados fora do CRM (`painel.fora_do_painel`) nem aparecem na lista.
+    const fora = painel.fora_do_painel;
+    const ehDeFora = (f: { tipo: string }) => (fora as readonly string[]).includes(f.tipo);
+    // `escopo=fora`: a aba das páginas e quizzes, que ficam de fora do painel principal até terem painel próprio.
+    // Ali não há "todos": cada página ou quiz tem as suas métricas, e a atribuição é a normal (sem desvio para o agente).
+    const escopoFora = searchParams.get("escopo") === "fora" && fora.length > 0;
+    const funis = todosOsFunis.filter((f) => (escopoFora ? ehDeFora(f) : !ehDeFora(f)));
+    const funil = escopoFora
+      ? (funis.find((f) => f.chave === searchParams.get("funil")) ?? funis[0] ?? null)
+      : funilDoPainel(searchParams.get("funil"), painel.funil_padrao, funis);
+    const foraDaAtribuicao = escopoFora ? [] : fora;
+    // Para onde vai o gasto de cada campanha: a ligada, a de fora do painel, a sugerida pelo nome, senão o funil padrão.
+    const destinoDaCampanha = (c: { id: string; nome: string }): string | null =>
+      painel.campanhas[c.id] ??
+      (escopoFora
+        ? sugerirFunilDaCampanha(c.nome, funis)
+        : campanhaForaDoPainel(c.id, c.nome, painel.campanhas, todosOsFunis, fora)
+          ? FORA_DO_PAINEL
+          : (sugerirFunilDaCampanha(c.nome, funis) ?? (fora.length > 0 ? painel.funil_padrao : null)));
     // Funil de agente: os canais dele. Página/quiz não tem conversa: nenhum canal (id que não existe), nunca o geral.
     const canaisDoRecorte = !funil
       ? null
@@ -201,8 +225,8 @@ export async function GET(req: NextRequest) {
       let prevSales: VendaDoPainel[] = [...((prevSalesData ?? []) as VendaDoPainel[]), ...vendasDoGatewayAntes];
       // Cada venda num funil só, onde fechou. As sem funil viram pendência na tela ("ligar a um funil").
       const [porFunil, porFunilAntes] = await Promise.all([
-        separarVendasPorFunil(admin, orgId, agentes, painel.produtos, todas, end),
-        separarVendasPorFunil(admin, orgId, agentes, painel.produtos, prevSales, prevEnd),
+        separarVendasPorFunil(admin, orgId, agentes, painel.produtos, todas, end, foraDaAtribuicao),
+        separarVendasPorFunil(admin, orgId, agentes, painel.produtos, prevSales, prevEnd, foraDaAtribuicao),
       ]);
       const produtosSemFunil = new Map<string, { nome: string; vendas: number; valor: number }>();
       for (const v of porFunil.get(null) ?? []) {
@@ -215,20 +239,52 @@ export async function GET(req: NextRequest) {
       if (funil) {
         todas = porFunil.get(funil.chave) ?? [];
         prevSales = porFunilAntes.get(funil.chave) ?? [];
+      } else if (fora.length > 0) {
+        const foraAgora = new Set(porFunil.get(FORA_DO_PAINEL) ?? []);
+        const foraAntes = new Set(porFunilAntes.get(FORA_DO_PAINEL) ?? []);
+        todas = todas.filter((v) => !foraAgora.has(v));
+        prevSales = prevSales.filter((v) => !foraAntes.has(v));
       }
       const sales = todas.sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
       // O gasto do funil é o das campanhas ligadas a ele; o custo de IA segue sendo o da organização.
-      const doFunil = (g: GastoDoPeriodo): GastoDoPeriodo =>
-        funil && g.estado === "ok" ? { ...g, centavos: gastoDoFunil(g.campanhas ?? [], painel.campanhas, funil.chave) } : g;
+      const doFunil = (g: GastoDoPeriodo): GastoDoPeriodo => {
+        if (g.estado !== "ok") return g;
+        if (fora.length > 0) {
+          const conta = (c: { id: string; nome: string }) => (funil ? destinoDaCampanha(c) === funil.chave : destinoDaCampanha(c) !== FORA_DO_PAINEL);
+          return { ...g, centavos: (g.campanhas ?? []).filter(conta).reduce((s, c) => s + c.centavos, 0) };
+        }
+        return funil ? { ...g, centavos: gastoDoFunil(g.campanhas ?? [], painel.campanhas, funil.chave) } : g;
+      };
       const gastoDoPeriodo = doFunil(gastoDoPeriodoGeral);
       const gastoAnterior = doFunil(gastoAnteriorGeral);
+      // Com funis fora do painel, toda campanha tem destino (`destinoDaCampanha`): não sobra pendência.
       const campanhasSemFunil =
-        gastoDoPeriodoGeral.estado === "ok"
+        gastoDoPeriodoGeral.estado === "ok" && fora.length === 0
           ? (gastoDoPeriodoGeral.campanhas ?? [])
               .filter((c) => c.centavos > 0 && !painel.campanhas[c.id])
               .map((c) => ({ id: c.id, nome: c.nome, gasto: c.centavos / 100, sugestao: sugerirFunilDaCampanha(c.nome, funis) }))
           : [];
       const passos = funil && funil.tipo !== "agente" ? await lerPassosDoFunil(admin, orgId, funil, start, end) : null;
+      // META DO MÊS (`lib/venda/meta-do-mes.ts`): no funil de um agente com meta, cada produto dele contra a meta,
+      // no mês do relógio da organização — o mesmo número que ordena as ofertas da agente.
+      let metaDoMes: LinhaDaMeta[] | null = null;
+      const agenteDoFunil = funil?.tipo === "agente" ? agentes.find((a) => a.id === funil.id) : undefined;
+      const pricingDoFunil = agenteDoFunil ? lerPricing(agenteDoFunil.config) : null;
+      if (agenteDoFunil && pricingDoFunil?.meta_mensal_por_produto) {
+        const agoraMeta = new Date();
+        const hoje = partesNoFuso(agoraMeta, fuso);
+        const inicioDoMes = instanteDe({ ano: hoje.ano, mes: hoje.mes, dia: 1, hora: 0, minuto: 0 }, fuso);
+        const diasNoMes = new Date(Date.UTC(hoje.ano, hoje.mes, 0)).getUTCDate();
+        const doMes = await lerVendasDoPagamento(admin, orgId, inicioDoMes, agoraMeta);
+        const doMesPorFunil = await separarVendasPorFunil(admin, orgId, agentes, painel.produtos, doMes, agoraMeta, foraDaAtribuicao);
+        metaDoMes = progressoDaMeta(
+          nomesDeExibicaoDoAgente(agenteDoFunil.config),
+          doMesPorFunil.get(funil!.chave) ?? [],
+          pricingDoFunil,
+          hoje.dia,
+          diasNoMes,
+        );
+      }
 
       // Venda é produto principal; extra é receita, com contagem à parte. Medido em outubro: 55 das 130 "vendas"
       // eram cobranças avulsas, quase todas de R$ 5, o que dobrava a conversão aparente.
@@ -462,8 +518,10 @@ export async function GET(req: NextRequest) {
         totalLeadsAcumulados: totalLeadsAcumulados ?? 0,
         conexoes: canais ?? [],
         funis: listaDeFunis,
+        foraDoPainel: fora,
         funil: funil?.chave ?? null,
         passos,
+        metaDoMes,
         pendencias: { produtos: [...produtosSemFunil.values()], campanhas: campanhasSemFunil },
         kpis: {
           leadsNovos: { valor: leadsCount, delta: calcularDelta(leadsCount, prevLeadsNovosCount ?? 0) },
@@ -611,6 +669,7 @@ export async function GET(req: NextRequest) {
       totalLeadsAcumulados: totalLeadsAcumulados ?? 0,
       conexoes: canais ?? [],
       funis: listaDeFunis,
+      foraDoPainel: fora,
       funil: funil?.chave ?? null,
       kpis: {
         leadsNovos: { valor: leadsNovosCount ?? 0, delta: calcularDelta(leadsNovosCount ?? 0, prevLeadsNovosCount ?? 0) },

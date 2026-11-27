@@ -110,7 +110,7 @@ function instrucaoDeFecharADataCombinada(valorCents: number, ofertaDeHoje: Estad
     `- Se ela não disse um dia que dê para marcar ("quando eu receber", sem dia), NÃO agende ainda: pergunte só "Qual dia cai o seu pagamento? Eu já deixo combinado por ${valor}."`,
     ofertaDeHoje
       ? "- Pergunte o dia UMA vez só."
-      : "- Pergunte o dia UMA vez só. Depois de combinar, se o bloco COBRANÇAS À PARTE aparecer, ofereça UMA vez a pergunta nova como o que cabe hoje; se ela disser não, não insista.",
+      : "- Pergunte o dia UMA vez só. Depois de combinar, se o bloco COBRANÇAS À PARTE aparecer, ofereça a cobrança à parte do assunto dela como o que cabe hoje; depois de um não, não insista nela: a próxima oferta é outra.",
     "- Se ela disser que falta para o essencial (comida, remédio, aluguel, conta atrasada), NÃO insista em valor nenhum nem use o molde: acolha, e diga que a porta fica aberta quando ela puder.",
   ].join("\n");
 }
@@ -185,7 +185,7 @@ export function opcoesDeEntrada(c: PricingConfig): string {
 
 /** Quem QUER e não tem nada hoje sai com um passo pequeno, nunca com a porta fechada (Lari, 20/11/2026: "Quero demais"). */
 const QUER_MAS_NAO_TEM =
-  "- QUER MAS NÃO TEM NADA HOJE: se ela disser que quer (\"quero demais\", \"queria muito\") mas não tem nem a entrada, NÃO encerre com \"fica pra outro dia\": ofereça a pergunta avulsa mais barata da lista de EXTRAS, pelo nome e pelo valor da lista, como um passo pequeno hoje, e diga que o trabalho fica de pé para quando ela puder.";
+  "- QUER MAS NÃO TEM NADA HOJE: se ela disser que quer (\"quero demais\", \"queria muito\") mas não tem nem a entrada, NÃO encerre com \"fica pra outro dia\": ofereça UMA cobrança à parte do assunto dela (a de A OFERTA DE HOJE, ou a da PORTA ABERTA, quando o bloco trouxer), pelo nome e pelo valor da lista, como um passo pequeno hoje, e diga que o trabalho fica de pé para quando ela puder.";
 
 function instrucaoDeNegociacao(
   c: PricingConfig,

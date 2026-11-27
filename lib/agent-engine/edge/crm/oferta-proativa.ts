@@ -42,6 +42,7 @@ import type { Logger } from '../../obs/logger';
 import { canalTemPrazo } from './recuperacao-por-silencio';
 import { enqueueJob } from '../../queue/queue';
 import { sqlNumeroExtra } from '@/lib/ai/agents/numeros-do-agente';
+import { lerMetaDoMes, type MetaDoMes } from '@/lib/venda/meta-do-mes';
 
 /** Chave do payload do job: é por ela que o ritmo e a repetição são contados. */
 export const CHAVE_DA_OFERTA = 'oferta_proativa';
@@ -194,6 +195,7 @@ export function automaticasDaCandidata(
   produtosComFluxo: readonly string[],
   cfg: Pick<OfertaProativa, 'ofertas'>,
   agora: Date,
+  meta?: MetaDoMes | null,
 ) {
   if (c.recusou_ofertas) return [];
   const vez =
@@ -205,12 +207,14 @@ export function automaticasDaCandidata(
           (c.saidas ?? []).map((s) => ({ direction: 'outbound', body: s.texto, sent_at: s.em })),
           produtosComFluxo,
           agora,
+          meta,
         );
   const produto = vez !== null && !vez.jaOferecida ? vez.produto : null;
   return ofertasDoCatalogo(
     { extras: pricing?.extras ?? [], produto },
     (c.falas ?? []).filter((f) => f.trim() !== ''),
     cfg,
+    meta,
   );
 }
 
@@ -246,6 +250,7 @@ export async function oferecerAQuemCabe(
       ag.timezone ?? 'UTC',
     ]);
     if (!ritmoPermite(cfg, ritmo.rows[0] ?? { ultima_em: null, hoje: 0 }, agora)) continue;
+    const meta = await lerMetaDoMes(pool, ag.organization_id, pricing, agora, ag.timezone ?? undefined);
 
     const { rows } = await pool.query<Candidata>(CONSULTA_DE_CANDIDATAS, [
       ag.organization_id,
@@ -257,8 +262,8 @@ export async function oferecerAQuemCabe(
     ]);
 
     for (const c of rows) {
-      const automaticas = automaticasDaCandidata(c, pricing, catalogo, produtosComFluxo, cfg, agora);
-      const escolha = escolherOferta(pessoaDaCandidata(c), cfg, agora, automaticas);
+      const automaticas = automaticasDaCandidata(c, pricing, catalogo, produtosComFluxo, cfg, agora, meta);
+      const escolha = escolherOferta(pessoaDaCandidata(c), cfg, agora, automaticas, meta);
       if (escolha.oferta === null) continue;
       const motivo = motivoComPrecos(escolha.oferta.motivo, pricing);
       if (motivo === null) {
