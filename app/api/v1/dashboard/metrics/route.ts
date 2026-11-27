@@ -11,6 +11,7 @@ import { custoDeIaPorVenda, lerConsumoDeIa } from "@/lib/resultado/custo-de-ia";
 import { descontarIa, lerCotacaoDoDolar } from "@/lib/resultado/cotacao-do-dolar";
 import { lerTodasAsLinhas } from "@/lib/resultado/ler-todas-as-linhas";
 import { lerVendasDoPagamento, type VendaDoPainel } from "@/lib/resultado/vendas-do-pagamento";
+import { agenteDoPainel, canaisDoAgente, filtrarVendasDoAgente, nomesDosProdutosDoAgente } from "@/lib/resultado/vendas-do-agente";
 
 interface ConversaDoPainel {
   id: string;
@@ -26,6 +27,7 @@ interface ConversaDoPainel {
 export const dynamic = "force-dynamic";
 
 const RESTRITO: GastoDoPeriodo = { estado: "restrito" };
+const SEM_CANAL = "00000000-0000-0000-0000-000000000000";
 
 // Mapeamento de DDDs para Estados Brasileiros (UFs)
 const DDD_TO_UF: Record<string, string> = {
@@ -89,6 +91,30 @@ export async function GET(req: NextRequest) {
     const fuso = await lerFusoDaOrganizacao(admin, orgId);
     const { start, end, prevStart, prevEnd } = calcularIntervalo(period, now, fuso);
 
+    // O recorte por agente (`lib/resultado/vendas-do-agente.ts`): sem `agentId` na URL vale o padrão da
+    // organização (`settings.painel.agente_id`); `agentId=todos` mostra a organização inteira.
+    const [{ data: agentesData }, { data: orgData }] = await Promise.all([
+      admin.from("ai_agents").select("id, name, config").eq("organization_id", orgId).is("archived_at", null).order("created_at"),
+      admin.from("organizations").select("settings").eq("id", orgId).maybeSingle(),
+    ]);
+    const agentesDaOrg = (agentesData ?? []) as { id: string; name: string; config: unknown }[];
+    const agente = agenteDoPainel(searchParams.get("agentId"), (orgData as { settings?: unknown } | null)?.settings, agentesDaOrg);
+    // Sem canal ligado, o recorte não acha lead nenhum (id que não existe), em vez de cair na organização inteira.
+    const canaisDoRecorte = agente
+      ? await canaisDoAgente(admin, orgId, agente.id).then((c) => (c.length > 0 ? c : [SEM_CANAL]))
+      : null;
+    const agentes = agentesDaOrg.map((a) => ({ id: a.id, name: a.name }));
+    // Lead do agente = contato com conversa num canal dele (o lead novo ainda não ouviu o agente).
+    const contarLeads = (de: Date, ate: Date) => {
+      const q = canaisDoRecorte
+        ? admin
+            .from("contacts")
+            .select("id, conversations!inner(channel_session_id)", { count: "exact", head: true })
+            .in("conversations.channel_session_id", canaisDoRecorte)
+        : admin.from("contacts").select("*", { count: "exact", head: true });
+      return q.eq("organization_id", orgId).gte("created_at", de.toISOString()).lte("created_at", ate.toISOString());
+    };
+
     // Buscar conexões e canais da organização
     const { data: canais } = await admin
       .from("channel_sessions")
@@ -100,6 +126,7 @@ export async function GET(req: NextRequest) {
       .is("archived_at", null);
 
     // Contagem total de leads acumulados da organização
+    // Fica na organização inteira: pelo canal o acumulado perde quem chegou por número que já saiu do agente.
     const { count: totalLeadsAcumulados } = await admin
       .from("contacts")
       .select("*", { count: "exact", head: true })
@@ -108,18 +135,8 @@ export async function GET(req: NextRequest) {
     if (tab === "vendas") {
       // 1. Leads novos no período
       const [{ count: leadsNovosCount }, { count: prevLeadsNovosCount }] = await Promise.all([
-        admin
-          .from("contacts")
-          .select("*", { count: "exact", head: true })
-          .eq("organization_id", orgId)
-          .gte("created_at", start.toISOString())
-          .lte("created_at", end.toISOString()),
-        admin
-          .from("contacts")
-          .select("*", { count: "exact", head: true })
-          .eq("organization_id", orgId)
-          .gte("created_at", prevStart.toISOString())
-          .lte("created_at", prevEnd.toISOString()),
+        contarLeads(start, end),
+        contarLeads(prevStart, prevEnd),
       ]);
 
       // 2. Vendas e Faturamento no período
@@ -159,10 +176,16 @@ export async function GET(req: NextRequest) {
         podeVerGasto ? lerConsumoDeIa(admin, orgId, start, end) : null,
         podeVerGasto ? lerConsumoDeIa(admin, orgId, prevStart, prevEnd) : null,
       ]);
-      const sales: VendaDoPainel[] = [...((salesData ?? []) as VendaDoPainel[]), ...vendasDoGateway].sort((a, b) =>
-        a.created_at < b.created_at ? 1 : -1,
-      );
-      const prevSales = [...(prevSalesData ?? []), ...vendasDoGatewayAntes];
+      let todas: VendaDoPainel[] = [...((salesData ?? []) as VendaDoPainel[]), ...vendasDoGateway];
+      let prevSales: VendaDoPainel[] = [...((prevSalesData ?? []) as VendaDoPainel[]), ...vendasDoGatewayAntes];
+      if (agente) {
+        const [doAgente = [], antesDoAgente = []] = await filtrarVendasDoAgente(
+          admin, orgId, agente.id, nomesDosProdutosDoAgente(agente.config), todas, prevSales,
+        );
+        todas = doAgente;
+        prevSales = antesDoAgente;
+      }
+      const sales = todas.sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
 
       // Venda é produto principal; extra é receita, com contagem à parte. Medido em outubro: 55 das 130 "vendas"
       // eram cobranças avulsas, quase todas de R$ 5, o que dobrava a conversão aparente.
@@ -395,6 +418,8 @@ export async function GET(req: NextRequest) {
         tab: "vendas",
         totalLeadsAcumulados: totalLeadsAcumulados ?? 0,
         conexoes: canais ?? [],
+        agentes,
+        agenteId: agente?.id ?? null,
         kpis: {
           leadsNovos: { valor: leadsCount, delta: calcularDelta(leadsCount, prevLeadsNovosCount ?? 0) },
           faturamento: { valor: faturamentoReais, delta: calcularDelta(faturamentoReais, prevFaturamentoReais) },
@@ -450,32 +475,24 @@ export async function GET(req: NextRequest) {
     // TAB ATENDIMENTO
     // ──────────────────────────────────────────────────────────────────────────
     const [{ count: leadsNovosCount }, { count: prevLeadsNovosCount }] = await Promise.all([
-      admin
-        .from("contacts")
-        .select("*", { count: "exact", head: true })
-        .eq("organization_id", orgId)
-        .gte("created_at", start.toISOString())
-        .lte("created_at", end.toISOString()),
-      admin
-        .from("contacts")
-        .select("*", { count: "exact", head: true })
-        .eq("organization_id", orgId)
-        .gte("created_at", prevStart.toISOString())
-        .lte("created_at", prevEnd.toISOString()),
+      contarLeads(start, end),
+      contarLeads(prevStart, prevEnd),
     ]);
 
     // Conversas atendidas e finalizadas
     const [conversas, { data: atendentesData }, { data: stagesData }] = await Promise.all([
-      lerTodasAsLinhas<ConversaDoPainel>((de, ate) => admin
-        .from("conversations")
-        // `last_outbound_at` e `service_closed_at` são as colunas que existem. A consulta pedia
-        // `first_outbound_at` e `closed_at`, era recusada, e a aba Atendimento mostrava zero em tudo.
-        .select("id, contact_id, status, assigned_to_user_id, channel_session_id, last_outbound_at, created_at, service_closed_at")
-        .eq("organization_id", orgId)
-        .gte("created_at", start.toISOString())
-        .lte("created_at", end.toISOString())
-        .order("id")
-        .range(de, ate)),
+      lerTodasAsLinhas<ConversaDoPainel>((de, ate) => {
+        let q = admin
+          .from("conversations")
+          // `last_outbound_at` e `service_closed_at` são as colunas que existem. A consulta pedia
+          // `first_outbound_at` e `closed_at`, era recusada, e a aba Atendimento mostrava zero em tudo.
+          .select("id, contact_id, status, assigned_to_user_id, channel_session_id, last_outbound_at, created_at, service_closed_at")
+          .eq("organization_id", orgId)
+          .gte("created_at", start.toISOString())
+          .lte("created_at", end.toISOString());
+        if (canaisDoRecorte) q = q.in("channel_session_id", canaisDoRecorte);
+        return q.order("id").range(de, ate);
+      }),
       admin
         // A tabela de membros é `user_organizations`; `organization_members` nunca existiu.
         .from("user_organizations")
@@ -548,6 +565,8 @@ export async function GET(req: NextRequest) {
       tab: "atendimento",
       totalLeadsAcumulados: totalLeadsAcumulados ?? 0,
       conexoes: canais ?? [],
+      agentes,
+      agenteId: agente?.id ?? null,
       kpis: {
         leadsNovos: { valor: leadsNovosCount ?? 0, delta: calcularDelta(leadsNovosCount ?? 0, prevLeadsNovosCount ?? 0) },
         leadsAtendidos: { valor: leadsAtendidos, delta: 0 },

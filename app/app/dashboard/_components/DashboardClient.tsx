@@ -173,6 +173,9 @@ interface DashboardData {
   tab: string;
   totalLeadsAcumulados: number;
   conexoes: ChannelSession[];
+  /** Os agentes da organização e o do recorte em vigor (`null` = organização inteira). */
+  agentes?: { id: string; name: string }[];
+  agenteId?: string | null;
   kpis: {
     leadsNovos: KPI;
     faturamento?: KPI;
@@ -205,6 +208,8 @@ export function DashboardClient({ orgName }: { orgName: string }) {
   const [activeTab, setActiveTab] = useState<"vendas" | "atendimento" | "receita">("vendas");
   const [period, setPeriod] = useState<string>("today");
   const [selectedChannel, setSelectedChannel] = useState<string>("all");
+  // `null` = o padrão da organização (a rota decide); "todos" = organização inteira.
+  const [agente, setAgente] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [data, setData] = useState<DashboardData | null>(null);
   const [atualizadoEm, setAtualizadoEm] = useState<Date | null>(null);
@@ -246,6 +251,7 @@ export function DashboardClient({ orgName }: { orgName: string }) {
       if (selectedChannel !== "all") {
         url.searchParams.set("channelSessionId", selectedChannel);
       }
+      if (agente) url.searchParams.set("agentId", agente);
 
       const res = await fetch(url.toString());
       if (res.ok) {
@@ -258,7 +264,18 @@ export function DashboardClient({ orgName }: { orgName: string }) {
     } finally {
       setLoading(false);
     }
-  }, [activeTab, period, selectedChannel]);
+  }, [activeTab, period, selectedChannel, agente]);
+
+  // Trocar o agente grava o novo padrão do painel da organização; quem não é gerente recebe 403 e
+  // fica só com o recorte desta tela.
+  const trocarAgente = (valor: string) => {
+    setAgente(valor);
+    void fetch("/api/v1/settings/painel", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ agente_id: valor === "todos" ? null : valor }),
+    }).catch(() => undefined);
+  };
 
   useEffect(() => {
     fetchData();
@@ -443,6 +460,24 @@ export function DashboardClient({ orgName }: { orgName: string }) {
             <option value="this_month">{t("Este mês")}</option>
             <option value="last_month">{t("Mês passado")}</option>
           </select>
+
+          {/* Seletor de Agente: o painel mostra só o que o agente vendeu e atendeu */}
+          {(data?.agentes?.length ?? 0) > 0 ? (
+            <select
+              value={agente ?? data?.agenteId ?? "todos"}
+              onChange={(e) => trocarAgente(e.target.value)}
+              aria-label={t("Agente")}
+              data-testid="dashboard-agente"
+              className="text-xs font-medium bg-surface-elevated border border-border rounded-xl px-3 py-2 text-text focus:outline-hidden focus:ring-2 focus:ring-accent"
+            >
+              <option value="todos">{t("Todos os agentes")}</option>
+              {data?.agentes?.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.name}
+                </option>
+              ))}
+            </select>
+          ) : null}
 
           {/* Seletor de Conexão */}
           <select

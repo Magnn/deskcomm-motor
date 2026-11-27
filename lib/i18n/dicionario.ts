@@ -68,6 +68,7 @@ export const DICIONARIO: Traducoes = {
   "Este mês": { es: "Este mes" },
   "Mês passado": { es: "Mes pasado" },
   "Todas as conexões": { es: "Todas las conexiones" },
+  "Todos os agentes": { es: "Todos los agentes" },
   "Taxa de Conversão": { es: "Tasa de conversión" },
   "Vendas por período": { es: "Ventas por período" },
   "Histórico temporal das conversões e faturamento": { es: "Historial temporal de conversiones y facturación" },
