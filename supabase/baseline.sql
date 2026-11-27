@@ -40636,3 +40636,27 @@ create trigger trg_messenger_comment_replies_updated_at
 comment on table public.messenger_comment_replies is
   'Comentário na página do Facebook respondido em privado pelo Messenger: um por comentário (índice único canal+comentário trava a reentrega da Meta). Server-side only. Migration 0969.';
 
+
+-- ---- painel: agentes dos contatos (migration 0970) ----
+create or replace function public.fn_painel_agentes_dos_contatos(p_org uuid, p_contatos uuid[], p_ate timestamptz)
+returns table (contact_id uuid, agent_id uuid, ultima_em timestamptz)
+language sql
+stable
+security invoker
+set search_path = public
+as $$
+  select m.contact_id, (m.metadata->>'ai_actor_id')::uuid as agent_id, max(m.created_at) as ultima_em
+    from public.messages m
+   where m.organization_id = p_org
+     and m.contact_id = any(p_contatos)
+     and m.direction = 'outbound'
+     and m.created_at <= p_ate
+     and (m.metadata->>'ai_actor_id') ~ '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'
+   group by m.contact_id, (m.metadata->>'ai_actor_id')::uuid
+$$;
+
+revoke execute on function public.fn_painel_agentes_dos_contatos(uuid, uuid[], timestamptz) from public, anon, authenticated;
+grant execute on function public.fn_painel_agentes_dos_contatos(uuid, uuid[], timestamptz) to service_role;
+
+comment on function public.fn_painel_agentes_dos_contatos(uuid, uuid[], timestamptz) is
+  'Painel por funil: por contato, cada agente que enviou mensagem e a última até p_ate. Server-side only. Migration 0970.';

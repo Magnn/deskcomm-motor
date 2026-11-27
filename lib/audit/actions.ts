@@ -990,8 +990,8 @@ export const AUDIT_ACTIONS = [
   // ritmo que campanha nova herda). Auditável porque muda o comportamento de
   // TODA campanha futura, e a de atribuição muda a métrica das já enviadas.
   "campaign.settings_updated",
-  // Agente padrão do painel: muda o que TODO membro vê de vendas e leads ao abrir o painel.
-  "org.dashboard_agent_updated",
+  // Painel por funil: o funil em que abre e a que funil pertence cada produto e campanha (muda o que TODO membro vê).
+  "org.dashboard_funnel_updated",
 
   // ── Entrada com Google (issue #1388) ────────────────────────────────────
   // UM código para as recusas do OAuth, com `motivo` no metadata. Da partida

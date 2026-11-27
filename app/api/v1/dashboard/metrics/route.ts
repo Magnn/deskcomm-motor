@@ -11,7 +11,16 @@ import { custoDeIaPorVenda, lerConsumoDeIa } from "@/lib/resultado/custo-de-ia";
 import { descontarIa, lerCotacaoDoDolar } from "@/lib/resultado/cotacao-do-dolar";
 import { lerTodasAsLinhas } from "@/lib/resultado/ler-todas-as-linhas";
 import { lerVendasDoPagamento, type VendaDoPainel } from "@/lib/resultado/vendas-do-pagamento";
-import { agenteDoPainel, canaisDoAgente, filtrarVendasDoAgente, nomesDosProdutosDoAgente } from "@/lib/resultado/vendas-do-agente";
+import {
+  canaisDoAgente,
+  funilDoPainel,
+  gastoDoFunil,
+  lerPainel,
+  lerPassosDoFunil,
+  listarFunis,
+  separarVendasPorFunil,
+  sugerirFunilDaCampanha,
+} from "@/lib/resultado/funis";
 
 interface ConversaDoPainel {
   id: string;
@@ -91,29 +100,41 @@ export async function GET(req: NextRequest) {
     const fuso = await lerFusoDaOrganizacao(admin, orgId);
     const { start, end, prevStart, prevEnd } = calcularIntervalo(period, now, fuso);
 
-    // O recorte por agente (`lib/resultado/vendas-do-agente.ts`): sem `agentId` na URL vale o padrão da
-    // organização (`settings.painel.agente_id`); `agentId=todos` mostra a organização inteira.
-    const [{ data: agentesData }, { data: orgData }] = await Promise.all([
-      admin.from("ai_agents").select("id, name, config").eq("organization_id", orgId).is("archived_at", null).order("created_at"),
-      admin.from("organizations").select("settings").eq("id", orgId).maybeSingle(),
-    ]);
-    const agentesDaOrg = (agentesData ?? []) as { id: string; name: string; config: unknown }[];
-    const agente = agenteDoPainel(searchParams.get("agentId"), (orgData as { settings?: unknown } | null)?.settings, agentesDaOrg);
-    // Sem canal ligado, o recorte não acha lead nenhum (id que não existe), em vez de cair na organização inteira.
-    const canaisDoRecorte = agente
-      ? await canaisDoAgente(admin, orgId, agente.id).then((c) => (c.length > 0 ? c : [SEM_CANAL]))
-      : null;
-    const agentes = agentesDaOrg.map((a) => ({ id: a.id, name: a.name }));
+    // O recorte por funil (`lib/resultado/funis.ts`): sem `funil` na URL vale o padrão da organização
+    // (`settings.painel.funil_padrao`); `funil=todos` mostra o geral.
+    const { data: orgData } = await admin.from("organizations").select("settings").eq("id", orgId).maybeSingle();
+    const painel = lerPainel((orgData as { settings?: unknown } | null)?.settings);
+    const { funis, agentes } = await listarFunis(admin, orgId, [...Object.values(painel.produtos), ...Object.values(painel.campanhas)]);
+    const funil = funilDoPainel(searchParams.get("funil"), painel.funil_padrao, funis);
+    // Funil de agente: os canais dele. Página/quiz não tem conversa: nenhum canal (id que não existe), nunca o geral.
+    const canaisDoRecorte = !funil
+      ? null
+      : funil.tipo === "agente"
+        ? await canaisDoAgente(admin, orgId, funil.id).then((c) => (c.length > 0 ? c : [SEM_CANAL]))
+        : [SEM_CANAL];
     // Lead do agente = contato com conversa num canal dele (o lead novo ainda não ouviu o agente).
+    // Lead de página/quiz = visita que abriu (`area_quiz_passos`, passo `abriu`).
     const contarLeads = (de: Date, ate: Date) => {
+      if (funil && funil.tipo !== "agente") {
+        let q = admin
+          .from("area_quiz_passos")
+          .select("id", { count: "exact", head: true })
+          .eq("organization_id", orgId)
+          .in("quiz", [funil.tipo === "pagina" ? "pagina" : funil.id])
+          .in("passo", ["abriu"]);
+        if (funil.tipo === "pagina") q = q.in("pagina", [funil.id]);
+        return q.gte("created_at", de.toISOString()).lte("created_at", ate.toISOString());
+      }
       const q = canaisDoRecorte
         ? admin
             .from("contacts")
             .select("id, conversations!inner(channel_session_id)", { count: "exact", head: true })
+            .eq("organization_id", orgId)
             .in("conversations.channel_session_id", canaisDoRecorte)
-        : admin.from("contacts").select("*", { count: "exact", head: true });
-      return q.eq("organization_id", orgId).gte("created_at", de.toISOString()).lte("created_at", ate.toISOString());
+        : admin.from("contacts").select("*", { count: "exact", head: true }).eq("organization_id", orgId);
+      return q.gte("created_at", de.toISOString()).lte("created_at", ate.toISOString());
     };
+    const listaDeFunis = funis.map((f) => ({ chave: f.chave, tipo: f.tipo, nome: f.nome }));
 
     // Buscar conexões e canais da organização
     const { data: canais } = await admin
@@ -166,7 +187,7 @@ export async function GET(req: NextRequest) {
       // venda: quem vende pelo link nunca passa pela comanda. As vendas do gateway entram na MESMA lista,
       // já sem as estornadas, e todo o resto do painel (gráficos, estado, histórico) as soma junto.
       const podeVerGasto = user.is_platform_admin || roleAtLeast(org.role, "manager");
-      const [vendasDoGateway, vendasDoGatewayAntes, gastoDoPeriodo, gastoAnterior, consumoDeIa, consumoDeIaAntes] = await Promise.all([
+      const [vendasDoGateway, vendasDoGatewayAntes, gastoDoPeriodoGeral, gastoAnteriorGeral, consumoDeIa, consumoDeIaAntes] = await Promise.all([
         lerVendasDoPagamento(admin, orgId, start, end),
         lerVendasDoPagamento(admin, orgId, prevStart, prevEnd),
         // Gasto de anúncio é dado de gerente para cima, como a tela de anúncios (`requireRole("manager")`).
@@ -178,14 +199,36 @@ export async function GET(req: NextRequest) {
       ]);
       let todas: VendaDoPainel[] = [...((salesData ?? []) as VendaDoPainel[]), ...vendasDoGateway];
       let prevSales: VendaDoPainel[] = [...((prevSalesData ?? []) as VendaDoPainel[]), ...vendasDoGatewayAntes];
-      if (agente) {
-        const [doAgente = [], antesDoAgente = []] = await filtrarVendasDoAgente(
-          admin, orgId, agente.id, nomesDosProdutosDoAgente(agente.config), todas, prevSales,
-        );
-        todas = doAgente;
-        prevSales = antesDoAgente;
+      // Cada venda num funil só, onde fechou. As sem funil viram pendência na tela ("ligar a um funil").
+      const [porFunil, porFunilAntes] = await Promise.all([
+        separarVendasPorFunil(admin, orgId, agentes, painel.produtos, todas, end),
+        separarVendasPorFunil(admin, orgId, agentes, painel.produtos, prevSales, prevEnd),
+      ]);
+      const produtosSemFunil = new Map<string, { nome: string; vendas: number; valor: number }>();
+      for (const v of porFunil.get(null) ?? []) {
+        const nome = v.notes?.trim() || "(sem nome)";
+        const p = produtosSemFunil.get(nome) ?? { nome, vendas: 0, valor: 0 };
+        p.vendas++;
+        p.valor += v.total_cents / 100;
+        produtosSemFunil.set(nome, p);
+      }
+      if (funil) {
+        todas = porFunil.get(funil.chave) ?? [];
+        prevSales = porFunilAntes.get(funil.chave) ?? [];
       }
       const sales = todas.sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
+      // O gasto do funil é o das campanhas ligadas a ele; o custo de IA segue sendo o da organização.
+      const doFunil = (g: GastoDoPeriodo): GastoDoPeriodo =>
+        funil && g.estado === "ok" ? { ...g, centavos: gastoDoFunil(g.campanhas ?? [], painel.campanhas, funil.chave) } : g;
+      const gastoDoPeriodo = doFunil(gastoDoPeriodoGeral);
+      const gastoAnterior = doFunil(gastoAnteriorGeral);
+      const campanhasSemFunil =
+        gastoDoPeriodoGeral.estado === "ok"
+          ? (gastoDoPeriodoGeral.campanhas ?? [])
+              .filter((c) => c.centavos > 0 && !painel.campanhas[c.id])
+              .map((c) => ({ id: c.id, nome: c.nome, gasto: c.centavos / 100, sugestao: sugerirFunilDaCampanha(c.nome, funis) }))
+          : [];
+      const passos = funil && funil.tipo !== "agente" ? await lerPassosDoFunil(admin, orgId, funil, start, end) : null;
 
       // Venda é produto principal; extra é receita, com contagem à parte. Medido em outubro: 55 das 130 "vendas"
       // eram cobranças avulsas, quase todas de R$ 5, o que dobrava a conversão aparente.
@@ -418,8 +461,10 @@ export async function GET(req: NextRequest) {
         tab: "vendas",
         totalLeadsAcumulados: totalLeadsAcumulados ?? 0,
         conexoes: canais ?? [],
-        agentes,
-        agenteId: agente?.id ?? null,
+        funis: listaDeFunis,
+        funil: funil?.chave ?? null,
+        passos,
+        pendencias: { produtos: [...produtosSemFunil.values()], campanhas: campanhasSemFunil },
         kpis: {
           leadsNovos: { valor: leadsCount, delta: calcularDelta(leadsCount, prevLeadsNovosCount ?? 0) },
           faturamento: { valor: faturamentoReais, delta: calcularDelta(faturamentoReais, prevFaturamentoReais) },
@@ -565,8 +610,8 @@ export async function GET(req: NextRequest) {
       tab: "atendimento",
       totalLeadsAcumulados: totalLeadsAcumulados ?? 0,
       conexoes: canais ?? [],
-      agentes,
-      agenteId: agente?.id ?? null,
+      funis: listaDeFunis,
+      funil: funil?.chave ?? null,
       kpis: {
         leadsNovos: { valor: leadsNovosCount ?? 0, delta: calcularDelta(leadsNovosCount ?? 0, prevLeadsNovosCount ?? 0) },
         leadsAtendidos: { valor: leadsAtendidos, delta: 0 },

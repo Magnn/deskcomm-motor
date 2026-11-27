@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useT } from "@/hooks/i18n/useT";
+import { FaixaDePendencias, FunilDePassos, type FunilDaLista, type PassosDoFunil, type Pendencias } from "./PainelDoFunil";
 import { useTagDeIdioma } from "@/hooks/i18n/useLocaleDeData";
 import {
   Users,
@@ -173,9 +174,12 @@ interface DashboardData {
   tab: string;
   totalLeadsAcumulados: number;
   conexoes: ChannelSession[];
-  /** Os agentes da organização e o do recorte em vigor (`null` = organização inteira). */
-  agentes?: { id: string; name: string }[];
-  agenteId?: string | null;
+  /** Os funis da organização e o do recorte em vigor (`null` = todos). `lib/resultado/funis.ts`. */
+  funis?: FunilDaLista[];
+  funil?: string | null;
+  /** O funil de passos, quando o recorte é uma página ou um quiz. */
+  passos?: PassosDoFunil | null;
+  pendencias?: Pendencias;
   kpis: {
     leadsNovos: KPI;
     faturamento?: KPI;
@@ -208,8 +212,8 @@ export function DashboardClient({ orgName }: { orgName: string }) {
   const [activeTab, setActiveTab] = useState<"vendas" | "atendimento" | "receita">("vendas");
   const [period, setPeriod] = useState<string>("today");
   const [selectedChannel, setSelectedChannel] = useState<string>("all");
-  // `null` = o padrão da organização (a rota decide); "todos" = organização inteira.
-  const [agente, setAgente] = useState<string | null>(null);
+  // `null` = o padrão da organização (a rota decide); "todos" = todos os funis.
+  const [funil, setFunil] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [data, setData] = useState<DashboardData | null>(null);
   const [atualizadoEm, setAtualizadoEm] = useState<Date | null>(null);
@@ -251,7 +255,7 @@ export function DashboardClient({ orgName }: { orgName: string }) {
       if (selectedChannel !== "all") {
         url.searchParams.set("channelSessionId", selectedChannel);
       }
-      if (agente) url.searchParams.set("agentId", agente);
+      if (funil) url.searchParams.set("funil", funil);
 
       const res = await fetch(url.toString());
       if (res.ok) {
@@ -264,18 +268,19 @@ export function DashboardClient({ orgName }: { orgName: string }) {
     } finally {
       setLoading(false);
     }
-  }, [activeTab, period, selectedChannel, agente]);
+  }, [activeTab, period, selectedChannel, funil]);
 
-  // Trocar o agente grava o novo padrão do painel da organização; quem não é gerente recebe 403 e
+  // Trocar o funil grava o novo padrão do painel da organização; quem não é gerente recebe 403 e
   // fica só com o recorte desta tela.
-  const trocarAgente = (valor: string) => {
-    setAgente(valor);
+  const trocarFunil = (valor: string) => {
+    setFunil(valor);
     void fetch("/api/v1/settings/painel", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ agente_id: valor === "todos" ? null : valor }),
+      body: JSON.stringify({ funil_padrao: valor === "todos" ? null : valor }),
     }).catch(() => undefined);
   };
+  const funilAtual = data?.funis?.find((f) => f.chave === (funil ?? data?.funil));
 
   useEffect(() => {
     fetchData();
@@ -461,19 +466,19 @@ export function DashboardClient({ orgName }: { orgName: string }) {
             <option value="last_month">{t("Mês passado")}</option>
           </select>
 
-          {/* Seletor de Agente: o painel mostra só o que o agente vendeu e atendeu */}
-          {(data?.agentes?.length ?? 0) > 0 ? (
+          {/* Seletor de Funil: cada funil com as suas métricas; "Todos" é o geral */}
+          {(data?.funis?.length ?? 0) > 0 ? (
             <select
-              value={agente ?? data?.agenteId ?? "todos"}
-              onChange={(e) => trocarAgente(e.target.value)}
-              aria-label={t("Agente")}
-              data-testid="dashboard-agente"
+              value={funil ?? data?.funil ?? "todos"}
+              onChange={(e) => trocarFunil(e.target.value)}
+              aria-label={t("Funil")}
+              data-testid="dashboard-funil"
               className="text-xs font-medium bg-surface-elevated border border-border rounded-xl px-3 py-2 text-text focus:outline-hidden focus:ring-2 focus:ring-accent"
             >
-              <option value="todos">{t("Todos os agentes")}</option>
-              {data?.agentes?.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.name}
+              <option value="todos">{t("Todos os funis")}</option>
+              {data?.funis?.map((f) => (
+                <option key={f.chave} value={f.chave}>
+                  {f.nome}
                 </option>
               ))}
             </select>
@@ -521,6 +526,10 @@ export function DashboardClient({ orgName }: { orgName: string }) {
       {/* ─────────────────────────────────────────────────────────────────── */}
       {activeTab === "vendas" && (
         <div className="space-y-6">
+          {data?.pendencias ? (
+            <FaixaDePendencias pendencias={data.pendencias} funis={data.funis ?? []} aoLigar={() => void fetchData(true)} />
+          ) : null}
+          {data?.passos ? <FunilDePassos passos={data.passos} /> : null}
           {/* GRID 1: 4 KPIS SUPERIORES */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* 1. Leads novos */}
@@ -538,7 +547,7 @@ export function DashboardClient({ orgName }: { orgName: string }) {
                   {data?.kpis.leadsNovos.valor ?? 0}
                 </div>
                 <div className="text-xs text-text-muted flex items-center justify-between mt-1">
-                  <span>Leads novos</span>
+                  <span>{funilAtual && funilAtual.tipo !== "agente" ? t("Visitas") : "Leads novos"}</span>
                   <Info size={14} className="text-text-subtle" />
                 </div>
               </div>

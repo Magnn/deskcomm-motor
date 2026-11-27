@@ -31,7 +31,7 @@ describe("vendasDoLedger", () => {
       new Set(["p2"]),
     );
     expect(vendas).toEqual([
-      { id: "a", number: null, contact_id: "c1", status: "paid", total_cents: 13000, created_at: "2026-10-02T10:00:00Z", attendant_user_id: null, notes: null, conversation_id: null, extra: false },
+      { id: "a", number: null, contact_id: "c1", status: "paid", total_cents: 13000, created_at: "2026-10-02T10:00:00Z", attendant_user_id: null, notes: null, conversation_id: null, extra: false, extra_nome: null },
     ]);
   });
 });
@@ -80,7 +80,7 @@ describe("gasto de anúncios", () => {
 
   it("lê a conta padrão no recorte de dias e devolve o gasto com a moeda da conta", async () => {
     const d = deps();
-    expect(await ler(d)).toEqual({ estado: "ok", centavos: 13000, moeda: "BRL" });
+    expect(await ler(d)).toEqual({ estado: "ok", centavos: 13000, moeda: "BRL", campanhas: [] });
     expect(d.lerInsights).toHaveBeenCalledWith("t", "act_1", "2026-10-01", "2026-10-04");
   });
 
@@ -113,7 +113,7 @@ describe("gasto de anúncios", () => {
 
   it("moeda desconhecida não vira real", async () => {
     const d = deps({ listarContas: vi.fn(async () => ({ ok: false as const, falha: "rede" as never, detalhe: "" })) });
-    expect(await ler(d)).toEqual({ estado: "ok", centavos: 13000, moeda: "?" });
+    expect(await ler(d)).toEqual({ estado: "ok", centavos: 13000, moeda: "?", campanhas: [] });
   });
 });
 
@@ -208,5 +208,33 @@ describe("o período no fuso da organização", () => {
     expect(diaNoFuso(marco.start, SP)).toBe("2026-02-01");
     expect(diaNoFuso(marco.end, SP)).toBe("2026-02-28");
     expect(diaNoFuso(agora, "Europe/Lisbon")).toBe("2026-10-05");
+  });
+});
+
+describe("gasto por campanha", () => {
+  it("devolve o gasto de cada campanha, para o painel separar por funil", async () => {
+    limparCacheDoGasto();
+    const d: DepsDoGasto = {
+      lerCredencial: vi.fn(async () => ({ ok: true as const, credencial: { accessToken: "t", contaPadrao: "act_1" } })) as never,
+      lerInsights: vi.fn(async () => ({
+        ok: true as const,
+        dados: [
+          { campaign_id: "1", campaign_name: "A", spend: "10.00" },
+          { campaign_id: "2", campaign_name: "B", spend: "2.5" },
+        ],
+      })),
+      listarContas: vi.fn(async () => ({ ok: true as const, dados: [{ id: "act_1", nome: "Conta", moeda: "BRL", status: 1 }] })),
+      agora: () => 5_000_000,
+    };
+    const g = await lerGastoDeAnuncios({} as SupabaseClient, "org-9", new Date("2026-10-01T03:00:00Z"), new Date("2026-10-02T03:00:00Z"), "America/Sao_Paulo", d);
+    expect(g).toEqual({
+      estado: "ok",
+      centavos: 1250,
+      moeda: "BRL",
+      campanhas: [
+        { id: "1", nome: "A", centavos: 1000 },
+        { id: "2", nome: "B", centavos: 250 },
+      ],
+    });
   });
 });
