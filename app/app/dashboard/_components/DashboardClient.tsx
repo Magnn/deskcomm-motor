@@ -215,7 +215,10 @@ const ALTERNAR_FORA = "__alternar_fora";
 export function DashboardClient({ orgName }: { orgName: string }) {
   const t = useT();
   const tagDoIdioma = useTagDeIdioma();
-  const [activeTab, setActiveTab] = useState<"vendas" | "atendimento" | "receita">("vendas");
+  const [activeTab, setActiveTab] = useState<"vendas" | "fora" | "atendimento" | "receita">("vendas");
+  // Páginas e quizzes acompanhados à parte (`painel.fora_do_painel`): a aba só existe quando a organização liga.
+  const [temAbaDeFora, setTemAbaDeFora] = useState<boolean>(false);
+  const [funilDeFora, setFunilDeFora] = useState<string | null>(null);
   const [period, setPeriod] = useState<string>("today");
   const [selectedChannel, setSelectedChannel] = useState<string>("all");
   // `null` = o padrão da organização (a rota decide); "todos" = todos os funis.
@@ -256,17 +259,21 @@ export function DashboardClient({ orgName }: { orgName: string }) {
     if (!silencioso) setLoading(true);
     try {
       const url = new URL("/api/v1/dashboard/metrics", window.location.origin);
-      url.searchParams.set("tab", activeTab);
+      url.searchParams.set("tab", activeTab === "fora" ? "vendas" : activeTab);
+      if (activeTab === "fora") url.searchParams.set("escopo", "fora");
       url.searchParams.set("period", period);
       if (selectedChannel !== "all") {
         url.searchParams.set("channelSessionId", selectedChannel);
       }
-      if (funil) url.searchParams.set("funil", funil);
+      const funilDaAba = activeTab === "fora" ? funilDeFora : funil;
+      if (funilDaAba) url.searchParams.set("funil", funilDaAba);
 
       const res = await fetch(url.toString());
       if (res.ok) {
         const json = await res.json();
-        setData(json.data || json);
+        const lido = (json.data || json) as DashboardData;
+        setData(lido);
+        if (lido.foraDoPainel !== undefined) setTemAbaDeFora(lido.foraDoPainel.length > 0);
         setAtualizadoEm(new Date());
       }
     } catch (e) {
@@ -274,11 +281,15 @@ export function DashboardClient({ orgName }: { orgName: string }) {
     } finally {
       setLoading(false);
     }
-  }, [activeTab, period, selectedChannel, funil]);
+  }, [activeTab, period, selectedChannel, funil, funilDeFora]);
 
   // Trocar o funil grava o novo padrão do painel da organização; quem não é gerente recebe 403 e
   // fica só com o recorte desta tela.
   const trocarFunil = (valor: string) => {
+    if (activeTab === "fora") {
+      setFunilDeFora(valor);
+      return;
+    }
     // Páginas e quizzes de anúncio podem ter painel próprio fora do CRM: a opção liga e desliga para a organização.
     if (valor === ALTERNAR_FORA) {
       const fora = (data?.foraDoPainel?.length ?? 0) > 0 ? [] : ["pagina", "quiz"];
@@ -445,6 +456,19 @@ export function DashboardClient({ orgName }: { orgName: string }) {
           >
             Vendas
           </button>
+          {temAbaDeFora ? (
+            <button
+              onClick={() => setActiveTab("fora")}
+              data-testid="aba-paginas-e-quizzes"
+              className={`px-5 py-2 text-sm font-semibold rounded-lg transition-all ${
+                activeTab === "fora"
+                  ? "bg-accent text-white shadow-sm"
+                  : "text-text-muted hover:text-text dark:hover:text-white"
+              }`}
+            >
+              {t("Páginas e quizzes")}
+            </button>
+          ) : null}
           <button
             onClick={() => setActiveTab("atendimento")}
             className={`px-5 py-2 text-sm font-semibold rounded-lg transition-all ${
@@ -487,23 +511,25 @@ export function DashboardClient({ orgName }: { orgName: string }) {
           {/* Seletor de Funil: cada funil com as suas métricas; "Todos" é o geral */}
           {(data?.funis?.length ?? 0) > 0 ? (
             <select
-              value={funil ?? data?.funil ?? "todos"}
+              value={(activeTab === "fora" ? funilDeFora : funil) ?? data?.funil ?? "todos"}
               onChange={(e) => trocarFunil(e.target.value)}
               aria-label={t("Funil")}
               data-testid="dashboard-funil"
               className="text-xs font-medium bg-surface-elevated border border-border rounded-xl px-3 py-2 text-text focus:outline-hidden focus:ring-2 focus:ring-accent"
             >
-              <option value="todos">{t("Todos os funis")}</option>
+              {activeTab !== "fora" ? <option value="todos">{t("Todos os funis")}</option> : null}
               {data?.funis?.map((f) => (
                 <option key={f.chave} value={f.chave}>
                   {f.nome}
                 </option>
               ))}
-              <option value={ALTERNAR_FORA}>
-                {(data?.foraDoPainel?.length ?? 0) > 0
-                  ? t("Mostrar também páginas e quizzes")
-                  : t("Acompanhar páginas e quizzes fora daqui")}
-              </option>
+              {activeTab !== "fora" ? (
+                <option value={ALTERNAR_FORA}>
+                  {(data?.foraDoPainel?.length ?? 0) > 0
+                    ? t("Trazer páginas e quizzes de volta para Vendas")
+                    : t("Levar páginas e quizzes para uma aba própria")}
+                </option>
+              ) : null}
             </select>
           ) : null}
 
@@ -547,7 +573,7 @@ export function DashboardClient({ orgName }: { orgName: string }) {
       {/* ─────────────────────────────────────────────────────────────────── */}
       {/* ABA VENDAS                                                          */}
       {/* ─────────────────────────────────────────────────────────────────── */}
-      {activeTab === "vendas" && (
+      {(activeTab === "vendas" || activeTab === "fora") && (
         <div className="space-y-6">
           {data?.pendencias ? (
             <FaixaDePendencias pendencias={data.pendencias} funis={data.funis ?? []} aoLigar={() => void fetchData(true)} />

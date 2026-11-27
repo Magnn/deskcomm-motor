@@ -113,14 +113,23 @@ export async function GET(req: NextRequest) {
     const { funis: todosOsFunis, agentes } = await listarFunis(admin, orgId, [...Object.values(painel.produtos), ...Object.values(painel.campanhas)]);
     // Página e quiz acompanhados fora do CRM (`painel.fora_do_painel`) nem aparecem na lista.
     const fora = painel.fora_do_painel;
-    const funis = todosOsFunis.filter((f) => !(fora as readonly string[]).includes(f.tipo));
-    const funil = funilDoPainel(searchParams.get("funil"), painel.funil_padrao, funis);
+    const ehDeFora = (f: { tipo: string }) => (fora as readonly string[]).includes(f.tipo);
+    // `escopo=fora`: a aba das páginas e quizzes, que ficam de fora do painel principal até terem painel próprio.
+    // Ali não há "todos": cada página ou quiz tem as suas métricas, e a atribuição é a normal (sem desvio para o agente).
+    const escopoFora = searchParams.get("escopo") === "fora" && fora.length > 0;
+    const funis = todosOsFunis.filter((f) => (escopoFora ? ehDeFora(f) : !ehDeFora(f)));
+    const funil = escopoFora
+      ? (funis.find((f) => f.chave === searchParams.get("funil")) ?? funis[0] ?? null)
+      : funilDoPainel(searchParams.get("funil"), painel.funil_padrao, funis);
+    const foraDaAtribuicao = escopoFora ? [] : fora;
     // Para onde vai o gasto de cada campanha: a ligada, a de fora do painel, a sugerida pelo nome, senão o funil padrão.
     const destinoDaCampanha = (c: { id: string; nome: string }): string | null =>
       painel.campanhas[c.id] ??
-      (campanhaForaDoPainel(c.id, c.nome, painel.campanhas, todosOsFunis, fora)
-        ? FORA_DO_PAINEL
-        : (sugerirFunilDaCampanha(c.nome, funis) ?? (fora.length > 0 ? painel.funil_padrao : null)));
+      (escopoFora
+        ? sugerirFunilDaCampanha(c.nome, funis)
+        : campanhaForaDoPainel(c.id, c.nome, painel.campanhas, todosOsFunis, fora)
+          ? FORA_DO_PAINEL
+          : (sugerirFunilDaCampanha(c.nome, funis) ?? (fora.length > 0 ? painel.funil_padrao : null)));
     // Funil de agente: os canais dele. Página/quiz não tem conversa: nenhum canal (id que não existe), nunca o geral.
     const canaisDoRecorte = !funil
       ? null
@@ -216,8 +225,8 @@ export async function GET(req: NextRequest) {
       let prevSales: VendaDoPainel[] = [...((prevSalesData ?? []) as VendaDoPainel[]), ...vendasDoGatewayAntes];
       // Cada venda num funil só, onde fechou. As sem funil viram pendência na tela ("ligar a um funil").
       const [porFunil, porFunilAntes] = await Promise.all([
-        separarVendasPorFunil(admin, orgId, agentes, painel.produtos, todas, end, fora),
-        separarVendasPorFunil(admin, orgId, agentes, painel.produtos, prevSales, prevEnd, fora),
+        separarVendasPorFunil(admin, orgId, agentes, painel.produtos, todas, end, foraDaAtribuicao),
+        separarVendasPorFunil(admin, orgId, agentes, painel.produtos, prevSales, prevEnd, foraDaAtribuicao),
       ]);
       const produtosSemFunil = new Map<string, { nome: string; vendas: number; valor: number }>();
       for (const v of porFunil.get(null) ?? []) {
@@ -267,7 +276,7 @@ export async function GET(req: NextRequest) {
         const inicioDoMes = instanteDe({ ano: hoje.ano, mes: hoje.mes, dia: 1, hora: 0, minuto: 0 }, fuso);
         const diasNoMes = new Date(Date.UTC(hoje.ano, hoje.mes, 0)).getUTCDate();
         const doMes = await lerVendasDoPagamento(admin, orgId, inicioDoMes, agoraMeta);
-        const doMesPorFunil = await separarVendasPorFunil(admin, orgId, agentes, painel.produtos, doMes, agoraMeta, fora);
+        const doMesPorFunil = await separarVendasPorFunil(admin, orgId, agentes, painel.produtos, doMes, agoraMeta, foraDaAtribuicao);
         metaDoMes = progressoDaMeta(
           nomesDeExibicaoDoAgente(agenteDoFunil.config),
           doMesPorFunil.get(funil!.chave) ?? [],
