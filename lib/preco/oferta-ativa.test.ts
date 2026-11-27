@@ -179,10 +179,14 @@ describe("a cliente da casa que pergunta de novo da outra pessoa (06/11/2026)", 
     expect(oportunidadeDaCliente(escada, extras, jaOuviu, AGORA)?.name).toBe("Pergunta nova");
   });
 
-  it("uma oferta a cada 12 h, fala do trabalho não é porta, e o bloco gera desejo antes do preço", () => {
-    const recente = [...pagou, em("2026-11-06T15:00:00Z", agente("O Código da Conexão de vocês sai por R$ 37.")), em("2026-11-06T16:00:00Z", agente("Tô aqui, meu bem.")), em("2026-11-06T19:59:00Z", pessoa("ela vai me desbloquear??"))];
-    expect(oportunidadeDaCliente(escada, extras, recente, AGORA)).toBeNull();
-    expect(oportunidadeDaCliente(escada, extras, recente, new Date("2026-11-07T04:00:00Z"))?.name).toBe("Pergunta nova");
+  it("sem relógio: oferece de novo quando encaixa; só para em cima do valor recém-dito ou depois de um não", () => {
+    const ofereceuAntes = [...pagou, em("2026-11-06T15:00:00Z", agente("O Código da Conexão de vocês sai por R$ 37.")), em("2026-11-06T16:00:00Z", agente("Tô aqui, meu bem.")), em("2026-11-06T19:59:00Z", pessoa("ela vai me desbloquear??"))];
+    expect(oportunidadeDaCliente(escada, extras, ofereceuAntes, AGORA)?.name).toBe("Pergunta nova");
+    const emCimaDoValor = [...pagou, em("2026-11-06T19:00:00Z", agente("O Código da Conexão de vocês sai por R$ 37.")), em("2026-11-06T19:59:00Z", pessoa("ela vai me desbloquear??"))];
+    expect(oportunidadeDaCliente(escada, extras, emCimaDoValor, AGORA)).toBeNull();
+    const disseNao = [...ofereceuAntes.slice(0, -1), em("2026-11-06T17:00:00Z", pessoa("to sem dinheiro agora")), em("2026-11-06T17:01:00Z", agente("Entendo, meu bem.")), em("2026-11-06T19:59:00Z", pessoa("ela vai me desbloquear??"))];
+    expect(oportunidadeDaCliente(escada, extras, disseNao, AGORA)).toBeNull();
+    expect(oportunidadeDaCliente(escada, extras, disseNao, new Date("2026-11-07T06:00:00Z"))?.name).toBe("Pergunta nova");
     expect(oportunidadeDaCliente(escada, extras, [...pagou, pessoa("quantos dias tem que fazer do trabalho?")], AGORA)).toBeNull();
     const bloco = blocoDaOportunidade(sinastria, true);
     expect(bloco).toContain("O Código da Conexão");

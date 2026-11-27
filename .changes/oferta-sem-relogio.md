@@ -16,3 +16,8 @@ Pedido de parar, desconfiança, fome e sofrimento continuam fechando a porta. `h
 `dias_entre_repeticoes` aceitam 0 (sem relógio), e uma nova oferta automática só sai depois que a pessoa
 voltou a falar desde a anterior — nunca duas seguidas em quem ficou calada. Os padrões não mudam para
 quem não mexer na configuração.
+
+Dentro da conversa saem os outros relógios: a cliente da casa não espera mais 12 h depois de qualquer valor
+dito, e a conversa depois da oferta deixa de segurar o valor por 16 h ("volta em outro dia"). O valor só não
+volta logo em seguida, sem abertura, ou nas 12 h depois de um não ou de "sem dinheiro" — e aí o agente
+oferece o passo menor.

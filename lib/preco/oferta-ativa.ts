@@ -24,6 +24,7 @@ import type { Extra, PricingConfig } from "./tipos";
 import { reais } from "./tipos";
 import { valoresDitos } from "./valor-do-extra";
 import { pelaMeta, type MetaDoMes } from "@/lib/venda/meta-do-mes";
+import { emPausaDaOferta } from "./pausa-da-oferta";
 
 export type OfertaAtiva =
   | { tipo: "pequena"; nome: string; cents: number }
@@ -181,8 +182,6 @@ export function oportunidadeDeOferta(
   return casal ?? cobrancaDaVez(pequenos, mensagens, meta);
 }
 
-/** Sem valor nosso nas últimas 12 h: a cliente da casa ouve uma oferta por vez, e o dia do pagamento fica com a entrega. */
-const PAUSA_DA_CLIENTE_MS = 12 * 60 * 60 * 1000;
 
 /**
  * CLIENTE DA CASA: quem já comprou e pergunta de novo sobre a outra pessoa ("ela sente minha falta?", "ele vai voltar?").
@@ -200,9 +199,10 @@ export function oportunidadeDaCliente(
   if (!abriuPorta(mensagens)) return null;
   const falas = mensagens.filter((m) => m.direction === "outbound");
   if (/\bpergunta\b/i.test(falas.at(-1)?.body ?? "")) return null;
-  const desde = agora.getTime() - PAUSA_DA_CLIENTE_MS;
-  // Sem data é recente: na dúvida, não oferece.
-  if (falas.some((m) => FALA_DE_VALOR.test(m.body ?? "") && (!m.sent_at || Date.parse(m.sent_at) >= desde))) return null;
+  // Sem relógio (27/11/2026): só não oferece em cima de um valor que a agente acabou de dizer, ou depois de um não ou
+  // de "sem dinheiro" (`emPausaDaOferta`).
+  if (FALA_DE_VALOR.test(falas.at(-1)?.body ?? "")) return null;
+  if (emPausaDaOferta(mensagens, agora)) return null;
   const pequenos = extrasPequenos(c, extras);
   const casal = pequenos.find((e) => e.report?.kind === "sinastria" && e.valid_days === undefined);
   const casalJaOferecido = casal !== undefined && conversaFalouDeExtra(mensagens, [casal]);

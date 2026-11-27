@@ -6,7 +6,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { blocoDaConversaGratuitaEsgotada, conversaGratuitaEsgotada, ofereceuHoje } from './conversa-gratuita';
+import { blocoDaConversaGratuitaEsgotada, conversaGratuitaEsgotada, pausaDepoisDoNao } from './conversa-gratuita';
 
 const m = (direction: 'inbound' | 'outbound', body: string) => ({ direction, body });
 const OFERTA = m('outbound', 'O seu trabalho completo é R$ 130, uma vez só.');
@@ -57,20 +57,22 @@ describe('blocoDaConversaGratuitaEsgotada', () => {
     expect(bloco).toContain('É PROIBIDO');
   });
 
-  it('⭐ com valor dito hoje, responde sem repetir oferta, e nunca se cala', () => {
+  it('⭐ depois de um não, não repete o valor recusado, oferece o passo menor, e nunca se cala', () => {
     const bloco = blocoDaConversaGratuitaEsgotada(true, ['o trabalho', 'Pergunta nova'], true);
-    expect(bloco).toContain('NÃO repita esse valor');
-    expect(bloco).toContain('A oferta do trabalho volta em outro dia');
-    expect(bloco).toContain('ofereça UMA destas, a que mais responde ao que ela contou: Pergunta nova');
+    expect(bloco).toContain('NÃO repita o valor que ela recusou');
+    expect(bloco).toContain('o passo menor');
+    expect(bloco).not.toContain('outro dia');
+    expect(bloco).toContain('UMA destas, a que mais responde ao que ela contou: Pergunta nova');
     expect(bloco).toContain('Termine sempre com uma pergunta curta');
     expect(blocoDaConversaGratuitaEsgotada(true, ['o trabalho'], true)).not.toContain('ofereça UMA destas');
   });
 
-  it('a oferta volta no dia seguinte', () => {
+  it('sem relógio: valor dito hoje não segura a oferta; só o não ou o sem dinheiro, por 12 h', () => {
     const agora = new Date('2026-11-02T12:00:00Z');
-    const fala = (sent_at: string) => [{ direction: 'outbound', body: 'O trabalho é R$ 130.', sent_at }];
-    expect(ofereceuHoje(fala('2026-11-02T08:00:00Z'), agora)).toBe(true);
-    expect(ofereceuHoje(fala('2026-11-01T12:00:00Z'), agora)).toBe(false);
+    const oferta = { direction: 'outbound', body: 'O trabalho é R$ 130.', sent_at: '2026-11-02T08:00:00Z' };
+    expect(pausaDepoisDoNao([oferta, { direction: 'inbound', body: 'e ele, volta?', sent_at: '2026-11-02T11:00:00Z' }], agora)).toBe(false);
+    expect(pausaDepoisDoNao([oferta, { direction: 'inbound', body: 'tô sem dinheiro', sent_at: '2026-11-02T09:00:00Z' }], agora)).toBe(true);
+    expect(pausaDepoisDoNao([oferta, { direction: 'inbound', body: 'tô sem dinheiro', sent_at: '2026-11-01T20:00:00Z' }], agora)).toBe(false);
   });
 });
 

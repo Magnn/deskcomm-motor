@@ -11,8 +11,9 @@
  * Depois que o preço foi dito, cada RODADA da pessoa (o que ela escreve entre duas falas do agente) é
  * comercial ou não. Comercial é a que fala de pagar, de valor, de data, do que está à venda, ou traz um número.
  * As rodadas não comerciais que o agente já respondeu são a conversa gratuita. Quando elas chegam ao limite
- * que o operador definiu e a rodada atual também não é comercial, cada resposta fica curta e leva no máximo uma
- * oferta por dia. O envio recusa o que passar disso.
+ * que o operador definiu e a rodada atual também não é comercial, cada resposta fica curta e leva UMA oferta, a que
+ * mais responde ao que ela contou. Sem relógio (27/11/2026): só depois de um não ou de "sem dinheiro" o valor recusado
+ * não volta por um tempo (`emPausaDaOferta`), e a oferta vira o passo menor.
  *
  * ─── Nunca em silêncio ───────────────────────────────────────────────────────────────
  * Até 01/11/2026, depois de dois avisos o turno terminava sem responder. Decisão do dono no mesmo dia: quem não
@@ -26,6 +27,8 @@
  *
  * Tudo aqui é puro.
  */
+import { emPausaDaOferta } from '@/lib/preco/pausa-da-oferta';
+
 export interface MensagemDaConversa {
   direction: string;
   body: string | null | undefined;
@@ -47,8 +50,6 @@ const COMERCIAL =
 const RISCO =
   /suic|me matar|tirar (a )?minha vida|n[ãa]o quero mais viver|quero morrer|vontade de morrer|me machucar|me cortar|me bate\b|me bateu|me agrid|apanh(o|ei|ando)|viol[êe]ncia|me amea[çc]/i;
 
-/** Uma oferta por dia: dentro deste intervalo, a agente responde sem repetir valor. */
-const INTERVALO_ENTRE_OFERTAS_MS = 16 * 60 * 60 * 1000;
 
 /** Tamanho máximo da resposta do turno em que o limite vale: um balão curto. */
 export const TAMANHO_DA_RESPOSTA_LIMITADA = 420;
@@ -115,19 +116,17 @@ export function conversaGratuitaEsgotada(mensagens: readonly MensagemDaConversa[
   return gratuitas !== null && gratuitas >= limite;
 }
 
-/** A agente já falou um valor nas últimas horas: a próxima oferta fica para o dia seguinte. */
-export function ofereceuHoje(mensagens: readonly MensagemDaConversa[], agora: Date = new Date()): boolean {
-  return mensagens.some(
-    (m) =>
-      m.direction === 'outbound' &&
-      m.sent_at !== undefined &&
-      agora.getTime() - new Date(m.sent_at).getTime() < INTERVALO_ENTRE_OFERTAS_MS &&
-      PRECO_DITO.test(m.body ?? ''),
-  );
+/**
+ * Ela acabou de dizer não ou "sem dinheiro" (`emPausaDaOferta`): o valor recusado não volta por um tempo, e a oferta
+ * vira o passo menor. Era "a agente falou um valor nas últimas 16 h" — um relógio que segurava a venda de quem não
+ * tinha recusado nada.
+ */
+export function pausaDepoisDoNao(mensagens: readonly MensagemDaConversa[], agora: Date = new Date()): boolean {
+  return emPausaDaOferta(mensagens, agora);
 }
 
 /** O bloco do turno depois da conversa gratuita. `caminhos` = os nomes do que está à venda. */
-export function blocoDaConversaGratuitaEsgotada(esgotada: boolean, caminhos: readonly string[], jaOfereceuHoje = false): string {
+export function blocoDaConversaGratuitaEsgotada(esgotada: boolean, caminhos: readonly string[], emPausa = false): string {
   if (!esgotada) return '';
   const lista = caminhos.length > 0 ? caminhos.join(', ') : 'o trabalho';
   const outras = caminhos.filter((c) => c !== 'o trabalho').join(', ');
@@ -137,10 +136,10 @@ export function blocoDaConversaGratuitaEsgotada(esgotada: boolean, caminhos: rea
     'CONVERSA DEPOIS DA OFERTA (VALE PARA ESTE TURNO, ABAIXO DO CUIDADO E DO PEDIDO DELA)',
     '- Esta pessoa já recebeu a leitura e a oferta e ainda não comprou. Seu papel é vender: mantenha o contato e procure a oportunidade. Quem não aceitou hoje pode aceitar amanhã.',
     `- Responda com UMA mensagem só, de até ${TAMANHO_DA_RESPOSTA_LIMITADA} caracteres, e acolha em meia frase o que ela disse.`,
-    jaOfereceuHoje
+    emPausa
       ? // Medido em 01/11/2026: Elisangela recusou R$ 60 de manhã, voltou à noite com a resposta do Lineu e não ouviu oferta nenhuma.
-        `- Hoje ela já ouviu o valor do trabalho: NÃO repita esse valor. A oferta do trabalho volta em outro dia.${outras === '' ? '' : ` Se ela trouxe algo novo sobre a pessoa ou a situação, ofereça UMA destas, a que mais responde ao que ela contou: ${outras}, pelo valor do bloco de cobranças.`} Termine sempre com uma pergunta curta.`
-      : `- Ligue o que ela contou a UMA oferta, a que mais responde a isso: ${lista}. Use o valor que os blocos de preço e de cobranças liberarem e termine perguntando se ela quer, ou quanto ela consegue hoje.`,
+        `- Ela disse há pouco que não, ou que está sem dinheiro: NÃO repita o valor que ela recusou agora.${outras === '' ? ' Acolha e pergunte quanto ela consegue, se for dinheiro: a entrada com o restante depois.' : ` Se ela trouxe algo novo sobre a pessoa ou a situação, ofereça o passo menor: UMA destas, a que mais responde ao que ela contou: ${outras}, pelo valor do bloco de cobranças — ou a entrada do trabalho com o restante depois.`} Termine sempre com uma pergunta curta.`
+      : `- Ligue o que ela contou a UMA oferta, a que mais responde a isso: ${lista}. Pode ser uma que ela já ouviu, por outro caminho e sem repetir frase. Use o valor que os blocos de preço e de cobranças liberarem e termine perguntando se ela quer, ou quanto ela consegue hoje.`,
     '- É PROIBIDO neste turno: aconselhar em detalhe, interpretar o que ela contou, reler as cartas ou prometer acompanhamento. Isso é o que está à venda.',
     '- Se ela disser que hoje não dá, aceite sem insistir e não se despeça de vez. Se ela pedir para parar ou para não ser procurada, pare.',
   ].join('\n');
