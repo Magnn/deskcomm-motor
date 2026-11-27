@@ -19,7 +19,8 @@
  * arquivado, contato dentro de um fluxo, turno em andamento, quem falou há menos de `quieto_ha_minutos`
  * (a conversa está viva e é do atendimento), quem pagou nas últimas 24 h, quem recebeu do agente a última
  * mensagem há menos de 6 h sem responder (insistir em cima de quem não respondeu é o passo antes do
- * bloqueio), e quem recebeu oferta proativa há menos de `horas_entre_ofertas`.
+ * bloqueio), quem recebeu oferta proativa e não falou desde então, e quem recebeu oferta há menos de
+ * `horas_entre_ofertas` (0 = sem esse relógio). A pausa depois de um não ou de "sem dinheiro" é de `pausaDaOferta`.
  */
 import type pg from 'pg';
 
@@ -91,6 +92,7 @@ export interface Candidata {
   produtos: string[] | null;
   compras: { produto: string | null; em: string }[] | null;
   falas: string[] | null;
+  falas_datadas: { texto: string; em: string }[] | null;
   saidas: { texto: string; em: string }[] | null;
   feitas: { id: string; em: string }[] | null;
   tags: string[] | null;
@@ -116,6 +118,11 @@ export const CONSULTA_DE_CANDIDATAS = `
              where m.organization_id = v.organization_id and m.contact_id = v.contact_id and m.direction = 'inbound'
                and m.created_at > now() - interval '30 days'
              order by m.created_at desc limit 40) x) as falas,
+         (select jsonb_agg(jsonb_build_object('texto', x.t, 'em', x.em)) from (
+            select coalesce(m.body, m.media_derived_text, '') as t, m.created_at as em from messages m
+             where m.organization_id = v.organization_id and m.contact_id = v.contact_id and m.direction = 'inbound'
+               and m.created_at > now() - interval '30 days'
+             order by m.created_at desc limit 40) x) as falas_datadas,
          (select jsonb_agg(jsonb_build_object('texto', x.t, 'em', x.em)) from (
             select coalesce(m.body, '') as t, m.created_at as em from messages m
              where m.organization_id = v.organization_id and m.contact_id = v.contact_id and m.direction = 'outbound'
@@ -143,6 +150,9 @@ export const CONSULTA_DE_CANDIDATAS = `
                      and q.status in ('pending', 'running'))
     and not exists (select 1 from job_queue q where q.organization_id = v.organization_id and q.contact_id = v.contact_id
                      and q.payload ? '${CHAVE_DA_OFERTA}' and q.created_at > now() - make_interval(hours => $5::int))
+    -- Nunca duas ofertas seguidas em quem ficou calada: a próxima só depois que ela voltou a falar.
+    and not exists (select 1 from job_queue q where q.organization_id = v.organization_id and q.contact_id = v.contact_id
+                     and q.payload ? '${CHAVE_DA_OFERTA}' and q.created_at > v.last_inbound_at)
     and not exists (select 1 from followup_enrollments e where e.organization_id = v.organization_id
                      and e.contact_id = v.contact_id and e.status in ('active', 'waiting_reply', 'paused_handoff'))
     and not exists (select 1 from revenue_ledger l where l.organization_id = v.organization_id
@@ -163,6 +173,9 @@ export function pessoaDaCandidata(c: Candidata): PessoaParaOferta {
     produtosComprados: (c.produtos ?? []).filter((p) => p !== ''),
     compras: (c.compras ?? []).map((x) => ({ produto: x.produto ?? '', em: new Date(x.em) })),
     falas: (c.falas ?? []).filter((f) => f.trim() !== ''),
+    falasDatadas: (c.falas_datadas ?? [])
+      .filter((f) => f.texto.trim() !== '')
+      .map((f) => ({ texto: f.texto, em: new Date(f.em) })),
     saidas: (c.saidas ?? []).map((s) => ({ texto: s.texto, em: new Date(s.em) })),
     ofertasFeitas: (c.feitas ?? []).filter((f) => typeof f.id === 'string').map((f) => ({ id: f.id, em: new Date(f.em) })),
   };
@@ -294,7 +307,7 @@ export async function oferecerAQuemCabe(
         // Oferta que falha não insiste: amanhã a regra decide de novo.
         maxAttempts: 2,
         payload: {
-          reason: motivoDaOferta(escolha.oferta, motivo, angulo, jaOuviu),
+          reason: motivoDaOferta(escolha.oferta, motivo, angulo, jaOuviu, escolha.passoMenor),
           conversation_id: c.conversation_id,
           service_boundary: {
             organization_id: fronteira.organization_id,

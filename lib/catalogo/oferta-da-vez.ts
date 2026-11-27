@@ -84,6 +84,8 @@ export interface OfertaDaVez {
   jaOferecida: boolean;
   /** O catálogo está na oferta diária — o bloco do turno muda de molde. */
   diaria?: boolean;
+  /** O catálogo está na oferta sem relógio (`oferta_livre`) — o bloco do turno muda de molde. */
+  livre?: boolean;
 }
 
 const DIA_MS = 24 * 3_600_000;
@@ -136,6 +138,18 @@ export function ofertaDaVez(
     !nomeCasaComCompra(p.nome, comprados) &&
     (p.depois_de === undefined || nomeCasaComCompra(p.depois_de, comprados)) &&
     desdeOPagamento >= p.espera_horas * 3_600_000;
+
+  if (catalogo.oferta_livre === true) {
+    // Sem relógio: entre os que ela pode receber, o que ainda não ouviu (pela meta); ouviu todos, o de mais tempo.
+    const elegiveis = pelaMeta(catalogo.produtos.filter(podeReceber), (p) => p.nome, meta);
+    if (elegiveis.length === 0) return null;
+    const quando = (p: ProdutoDoCatalogo) => ultimaOferta(p, mensagens, agora);
+    const produto =
+      elegiveis.find((p) => quando(p) === null) ??
+      elegiveis.reduce((a, b) => ((quando(b) ?? 0) < (quando(a) ?? 0) ? b : a));
+    const t = quando(produto);
+    return { produto, jaOferecida: t !== null && agora.getTime() - t < DIA_MS, livre: true };
+  }
 
   if (catalogo.oferta_diaria === true) {
     const quando = (p: ProdutoDoCatalogo) => ultimaOferta(p, mensagens, agora);

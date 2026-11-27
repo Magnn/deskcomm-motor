@@ -63,7 +63,8 @@ export const ofertaSchema = z
      * discurso. Pode usar `{{preco:Nome}}`. Ausente = só o motivo.
      */
     angulos: z.array(z.string().min(20).max(600)).min(2).max(6).optional(),
-    dias_entre_repeticoes: z.number().int().min(1).max(90).default(5),
+    /** Dias até esta MESMA oferta voltar. `0` = volta sempre que couber (a pausa depois de um não continua valendo). */
+    dias_entre_repeticoes: z.number().int().min(0).max(90).default(5),
   })
   .strict();
 
@@ -79,8 +80,17 @@ export const ofertaProativaSchema = z
     falou_nos_ultimos_dias: z.number().int().min(1).max(30).default(7),
     /** E está calado há pelo menos isto: conversa viva é do atendimento, não da oferta. */
     quieto_ha_minutos: z.number().int().min(10).max(1440).default(40),
-    /** Intervalo mínimo entre duas ofertas para a MESMA pessoa. */
-    horas_entre_ofertas: z.number().int().min(6).max(720).default(20),
+    /**
+     * Intervalo mínimo entre duas ofertas para a MESMA pessoa. `0` = sem relógio: a próxima sai quando couber. Com ou
+     * sem ele, uma nova oferta proativa só sai depois que a pessoa voltou a falar desde a anterior (nunca duas em quem
+     * ficou calada).
+     */
+    horas_entre_ofertas: z.number().int().min(0).max(720).default(20),
+    /**
+     * Depois que a pessoa recusou uma oferta ou disse que está sem dinheiro, nenhuma oferta proativa por tantas horas.
+     * Passada a pausa, quem disse que está sem dinheiro ouve o passo menor (o mais barato do assunto dela, ou a entrada).
+     */
+    pausa_apos_recusa_horas: z.number().int().min(1).max(720).default(12),
     /** Faixa do dia (hora cheia, fuso da organização) em que a oferta pode sair: [inicio, fim). */
     hora_inicio: z.number().int().min(0).max(23).default(8),
     hora_fim: z.number().int().min(1).max(24).default(21),
@@ -98,13 +108,23 @@ export type Oferta = z.infer<typeof ofertaSchema>;
 export type OfertaProativa = z.infer<typeof ofertaProativaSchema>;
 
 /**
- * Recusa, desconfiança, aperto e sofrimento, em português: quem disse qualquer uma destas coisas não recebe
+ * Desconfiança, pedido de parar, fome e sofrimento, em português: quem disse qualquer uma destas coisas não recebe
  * oferta, mesmo sem a organização ter escrito a sua. Somada à da organização, nunca trocada por ela.
  * O pedido de parar tem detector próprio (`lib/opt-out/deteccao.ts`), aplicado à parte.
  */
 // Crise escrita abreviada também conta: em 21/10/2026 "Ate minha vd ja pensei em tirar" passou pela regra antiga.
 export const NAO_OFERECER_PADRAO =
-  "sem dinheiro|n[ãa]o tenho (dinheiro|condi)|desempregad|sem condi|passando fome|n[ãa]o quero mais|para de me|n[ãa]o me mand|parar atendimento|golpe|golpista|denunci|vou bloque|suic[ií]d|me matar|quero morrer|tirar minha vida|pensei em (me )?(tirar|matar|sumir)|(minha )?(vida|vd) j[áa] pensei|tirar a (minha )?(vida|vd)|acabar com (a minha vida|tudo)|n[ãa]o (quero|aguento) mais viver";
+  "passando fome|nem (pra|para) (comer|comida|o b[áa]sico)|n[ãa]o tenho (o que|nada pra) comer|para de me|n[ãa]o me mand|parar atendimento|golpe|golpista|denunci|vou bloque|suic[ií]d|me matar|quero morrer|tirar minha vida|pensei em (me )?(tirar|matar|sumir)|(minha )?(vida|vd) j[áa] pensei|tirar a (minha )?(vida|vd)|acabar com (a minha vida|tudo)|n[ãa]o (quero|aguento) mais viver";
+
+/**
+ * Aperto de dinheiro: não fecha a porta, dá um tempo (`pausa_apos_recusa_horas`) e depois muda a oferta para o passo
+ * menor. Decisão do dono, 27/11/2026: "só deve dar um tempo quando a pessoa recusar ou estiver sem dinheiro,
+ * dependendo do caso oferecer algo mais barato ou entrada para acertar o restante depois".
+ */
+export const SEM_DINHEIRO_PADRAO = "sem dinheiro|n[ãa]o tenho (dinheiro|condi)|desempregad|sem condi|t[ôo] (dura|liso|lisa|apertad)|sem grana";
+
+/** Recusa dita com todas as letras, além do detector de recusa (`ehRecusaDaOferta`). */
+export const RECUSA_PADRAO = "n[ãa]o quero mais|n[ãa]o tenho interesse|agora n[ãa]o|fica pra (outra|depois)";
 
 /**
  * Lê `followup.oferta_proativa` da versão publicada. `null` = desligada, ausente ou shape inválido — nos três

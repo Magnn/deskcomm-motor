@@ -305,6 +305,7 @@ describe("automaticasDaCandidata — o produto do catálogo pela mesma regra do 
     produtos: ["Abertura do Coração"],
     compras: null,
     falas: ["obrigada"],
+    falas_datadas: null,
     saidas: [],
     feitas: [],
     tags: ["pago"],

@@ -50,7 +50,24 @@ export function blocoDaOfertaDoCatalogo(oferta: OfertaDaVez | null): string {
   ];
   if (recebe !== "") linhas.push(`  O que ela recebe: ${recebe}`);
 
-  if (oferta.diaria === true) {
+  if (oferta.livre === true) {
+    linhas.push(
+      `- O PRÓXIMO PASSO para ela é ${nome}. Ofereça sempre que o assunto dela encaixar, quantas vezes encaixar: quem já comprou é cliente da casa. Primeiro desperte o desejo com o que ELA contou, depois o valor.`,
+      `- ACOLHER JUNTO: se ela contou uma dificuldade, acolha PRIMEIRO com as palavras dela e, na MESMA resposta, ofereça ${nome} ligado ao que ela contou.`,
+    );
+    if (oferta.jaOferecida) {
+      linhas.push(
+        `- Você já ofereceu ${nome} há pouco. Volte a ele quando a conversa tocar de novo no assunto, por OUTRO caminho (outro desejo, outra imagem) e sem repetir frase que você já mandou. Se ELA pedir o link ou disser que quer, mande o link.`,
+      );
+    } else {
+      linhas.push(`- Ofereça NESTE turno se o assunto encaixa, ${moldeComDesejo(nome, valor, descricao)}`);
+    }
+    linhas.push(
+      "- DAR UM TEMPO só em dois casos: ela disse não a esta oferta, ou disse que está sem dinheiro. Aí acolha e não ofereça nas próximas respostas. Quando ela voltar ao assunto: se o problema era dinheiro, ofereça o passo menor — a cobrança mais barata do assunto dela, ou a entrada agora com o restante depois; se foi um não, ofereça outra coisa que sirva ao assunto dela.",
+      "- SEGURAR também diante de algo grave agora (doença séria, hospital, luto, violência, risco à vida): só acolha.",
+      '- Sem prazo, sem "só hoje", sem vaga, e NUNCA diga que o que ela comprou não funciona, ou que algo ruim acontece, sem este produto.',
+    );
+  } else if (oferta.diaria === true) {
     if (oferta.jaOferecida) {
       linhas.push(
         `- A OFERTA DE HOJE (${nome}, ${valor}) JÁ FOI FEITA. NÃO ofereça de novo nem ofereça outra coisa hoje. Se ELA pedir o link ou disser que quer, mande só o link. Siga o acompanhamento do que ela comprou.`,
