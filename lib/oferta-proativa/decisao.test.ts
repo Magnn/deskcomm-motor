@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { lerOfertaProativa, ofertaProativaSchema, ofertaSchema, type OfertaProativa } from "./config";
 import { compraCabe, dentroDaFaixa, escolherOferta, motivoComPrecos, motivoDaOferta, ofertasDoCatalogo, type PessoaParaOferta } from "./decisao";
-import { automaticasDaCandidata, lerCatalogo, ritmoPermite, type Candidata } from "@/lib/agent-engine/edge/crm/oferta-proativa";
+import { automaticasDaCandidata, horasDaJanela, lerCatalogo, ritmoPermite, type Candidata } from "@/lib/agent-engine/edge/crm/oferta-proativa";
 
 const lista0 = { ofertas: [] };
 
@@ -321,5 +321,13 @@ describe("automaticasDaCandidata — o produto do catálogo pela mesma regra do 
   it("quem pediu para parar o acompanhamento, e quem não pagou, não recebem o produto", () => {
     expect(automaticasDaCandidata({ ...base, recusou_ofertas: true }, null, catalogo, [], lista0, AGORA)).toEqual([]);
     expect(automaticasDaCandidata({ ...base, tags: [], comprou: false }, null, catalogo, [], lista0, AGORA)).toEqual([]);
+  });
+});
+
+describe("⭐ 26/11/2026: a oferta só escolhe quem ainda está dentro da janela", () => {
+  it("organização que exige a janela: 23 h; sem prazo: nenhum limite", () => {
+    expect(horasDaJanela(null, true)).toBe(23);
+    expect(horasDaJanela(null, false)).toBeNull();
+    expect(horasDaJanela(null, null)).toBeNull();
   });
 });
