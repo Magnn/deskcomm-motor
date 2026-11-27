@@ -128,3 +128,13 @@ describe("o único relógio: um tempo depois do não ou do sem dinheiro", () => 
     expect(motivoDaOferta(cfg.ofertas[0]!, undefined, null, false, true)).toContain("o passo menor");
   });
 });
+
+describe("sem dinheiro com palavra no meio (27/11/2026)", async () => {
+  const { ehSemDinheiro } = await import("@/lib/preco/pausa-da-oferta");
+  it.each(["eu é que não tenho disponível hoje", "não tenho esse dinheiro agora", "não cabe no meu bolso"])("reconhece: %s", (f) => {
+    expect(ehSemDinheiro(f)).toBe(true);
+  });
+  it.each(["não tenho dúvida", "não tenho cartão"])("não confunde: %s", (f) => {
+    expect(ehSemDinheiro(f)).toBe(false);
+  });
+});
