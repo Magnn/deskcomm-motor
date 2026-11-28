@@ -105,12 +105,14 @@ describe("POST /conversations/[id]/pix", () => {
     expect(res.status).toBe(200);
     expect(criarPix).not.toHaveBeenCalled();
     const corpos = vi.mocked(sendMessageHandler).mock.calls.map((c) => (c[2] as { body: string }).body);
-    expect(corpos).toHaveLength(3);
+    expect(corpos).toHaveLength(4);
     expect(corpos[0]).toContain("Fulano de Tal");
     // Celular vai sem o +55, e o passo a passo diz o tipo da chave (02/11/2026).
     expect(corpos[1]).toBe("69900000000");
     expect(corpos[0]).toContain("escolha *Celular*");
-    expect(corpos[2]).toContain("comprovante");
+    // O nome do titular num balão só dele, depois da chave (27/11/2026).
+    expect(corpos[2]).toBe("No nome de *Fulano de Tal*");
+    expect(corpos[3]).toContain("comprovante");
   });
 
   it("a Stripe recusou: 502 com mensagem, e nenhuma mensagem sai para a pessoa", async () => {

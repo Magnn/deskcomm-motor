@@ -31,8 +31,8 @@ export function instrucaoDoPixCopiaECola(valor: string, noBancoAparece?: string)
 export const PEDIDO_DO_COMPROVANTE = "Assim que fizer, me manda o comprovante aqui, que eu confiro.";
 
 /**
- * Os balões do Pix pela chave da empresa: a instrução, a chave sozinha para copiar com um toque e o pedido do
- * comprovante. Decisão do dono em 01/11/2026: a chave vem primeiro, e o copia e cola só sai para quem teve problema
+ * Os balões do Pix pela chave da empresa: a instrução, a chave sozinha para copiar com um toque, o nome do titular e o
+ * pedido do comprovante. Decisão do dono em 01/11/2026: a chave vem primeiro, e o copia e cola só sai para quem teve problema
  * com ela (a marca `[[CHAVE PIX: valor]]`, em `lib/preco/chave-pix.ts`).
  */
 export function baloesPelaChave(valor: string, chave: string, titular: string, tipo?: string | null): string[] {
@@ -45,6 +45,9 @@ export function baloesPelaChave(valor: string, chave: string, titular: string, t
       `3. Cole a chave, confira o nome *${titular}*, coloque o valor *${soOValor(valor)}* e confirme.`,
     ].join("\n"),
     chave,
+    // O nome num balão só dele, depois da chave. Pedido do dono em 27/11/2026: chave e nome juntos confundiam quem
+    // copia (o balão da chave tem que ser SÓ a chave), e o nome solto é o que a pessoa confere no app do banco.
+    `No nome de *${titular}*`,
     PEDIDO_DO_COMPROVANTE,
   ];
 }
