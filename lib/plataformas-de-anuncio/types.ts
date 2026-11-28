@@ -183,6 +183,11 @@ export interface ChaveDoIntermediario {
   accountId: string;
   apiKey: string;
   baseUrl: string;
+  /**
+   * A conversa do contato no intermediário (`conversations.provider_conversation_id`). É por ela que o intermediário
+   * acha o clique do anúncio; pelo telefone ele erra quando o número salvo tem o 9 e o do WhatsApp não (27/11/2026).
+   */
+  conversaId?: string;
 }
 
 export interface CredencialDeConversao {

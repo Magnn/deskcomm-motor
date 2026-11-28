@@ -32,6 +32,11 @@ export interface ConversaoPelaZernio {
   ocorridoEm: Date;
   /** E.164 sem `+`: o intermediário acha por ele a conversa mais recente que veio de anúncio. */
   telefone: string;
+  /**
+   * A conversa no intermediário: a busca que ele prefere. Pelo telefone ele não acha a conversa do anúncio quando o
+   * número salvo tem o 9 e o do WhatsApp não ("No CTWA-attributed conversation found", 27/11/2026).
+   */
+  conversaId?: string | null;
   valorCentavos: number | null;
   moeda: string;
   idExterno?: string | null;
@@ -103,7 +108,8 @@ export async function enviarConversaoPelaZernio(
     return { tipo: "permanente", detalhe: `evento ${conversao.evento} não é aceito em mensageria` };
   }
   const telefone = conversao.telefone.replace(/\D/g, "");
-  if (!telefone) return { tipo: "permanente", detalhe: "contato sem telefone" };
+  const conversaId = conversao.conversaId?.trim() || null;
+  if (!telefone && !conversaId) return { tipo: "permanente", detalhe: "contato sem telefone" };
 
   const conjunto = await garantirConjunto(creds, fetchImpl);
   if (conjunto.tipo !== "ok") return conjunto;
@@ -113,7 +119,8 @@ export async function enviarConversaoPelaZernio(
     eventName: conversao.evento,
     eventId: conversao.eventoId,
     eventTime: Math.floor(conversao.ocorridoEm.getTime() / 1000),
-    phoneE164: telefone,
+    // Um OU outro: a conversa quando a temos (a busca certa), senão o telefone.
+    ...(conversaId ? { conversationId: conversaId } : { phoneE164: telefone }),
   };
   // Sem valor, sem `value`: zero seria aceito e ensinaria que a venda não vale nada.
   if (conversao.valorCentavos !== null && conversao.valorCentavos > 0) {

@@ -38,6 +38,17 @@ describe("conversão pela Zernio", () => {
     expect(envio).toMatchObject({ accountId: "acc1", eventName: "Purchase", eventId: "lead1:Purchase", phoneE164: "5569999990000", value: 60, currency: "BRL", eventTime: 1795262400 });
   });
 
+  it("com a conversa do intermediário, busca por ela e não pelo telefone (o 9 do número salvo não casa)", async () => {
+    const f = fetchFalso({
+      "/v1/whatsapp/dataset": { status: 200, corpo: { datasetId: "d1" } },
+      "/v1/whatsapp/conversions": { status: 200, corpo: { eventsReceived: 1, eventsFailed: 0 } },
+    });
+    expect((await enviarConversaoPelaZernio(chave, { ...venda, conversaId: "6b09fc01" }, f.impl)).tipo).toBe("ok");
+    const envio = f.chamadas.find((c) => c.url.endsWith("/conversions"))!.corpo;
+    expect(envio.conversationId).toBe("6b09fc01");
+    expect(envio).not.toHaveProperty("phoneE164");
+  });
+
   it("200 com eventsFailed é recusa, não sucesso", async () => {
     const f = fetchFalso({
       "/v1/whatsapp/dataset": { status: 200, corpo: { datasetId: "d1" } },

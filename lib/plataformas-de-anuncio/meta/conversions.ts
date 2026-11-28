@@ -122,6 +122,7 @@ async function enviarUmaVez(
         eventoId: conversao.eventoId,
         ocorridoEm: conversao.ocorridoEm,
         telefone: conversao.telefone ?? "",
+        conversaId: credencial.intermediario.conversaId ?? null,
         valorCentavos: conversao.valorCentavos,
         moeda: conversao.moeda,
         idExterno: conversao.identidade?.idExterno ?? null,

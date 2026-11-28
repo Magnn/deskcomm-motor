@@ -22,7 +22,7 @@ export async function chaveDeConversaoDoIntermediario(
 ): Promise<ChaveDoIntermediario | null> {
   const { data } = await admin
     .from("conversations")
-    .select("last_message_at, channel_sessions!inner(provider, zernio_account_id)")
+    .select("last_message_at, provider_conversation_id, channel_sessions!inner(provider, zernio_account_id)")
     .eq("organization_id", organizationId)
     .eq("contact_id", contactId)
     .eq("channel_sessions.provider", "zernio")
@@ -30,11 +30,13 @@ export async function chaveDeConversaoDoIntermediario(
     .order("last_message_at", { ascending: false, nullsFirst: false })
     .limit(1);
   type Canal = { zernio_account_id: string | null };
-  const linha = ((data ?? []) as unknown as Array<{ channel_sessions: Canal | Canal[] }>)[0];
+  const linha = ((data ?? []) as unknown as Array<{ provider_conversation_id: string | null; channel_sessions: Canal | Canal[] }>)[0];
   if (!linha) return null;
   const canal = Array.isArray(linha.channel_sessions) ? linha.channel_sessions[0] : linha.channel_sessions;
   if (!canal?.zernio_account_id) return null;
   const creds = await zernioCredsForAccountId(admin, { organizationId, accountId: canal.zernio_account_id });
-  return creds ? { accountId: creds.accountId, apiKey: creds.apiKey, baseUrl: creds.baseUrl } : null;
+  if (!creds) return null;
+  const conversaId = linha.provider_conversation_id?.trim();
+  return { accountId: creds.accountId, apiKey: creds.apiKey, baseUrl: creds.baseUrl, ...(conversaId ? { conversaId } : {}) };
 }
 
