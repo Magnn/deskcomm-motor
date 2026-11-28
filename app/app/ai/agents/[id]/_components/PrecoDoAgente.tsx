@@ -83,6 +83,10 @@ interface Formulario {
   /** A chave Pix da empresa e o nome de quem recebe. Os dois vazios = sem chave. */
   chavePix: string;
   nomeDaChavePix: string;
+  /** Portas de entrada: leitura grátis só na primeira vez, a cobrança que é a Leitura Completa, indicação vai direto ao trabalho. */
+  portaSoPrimeira: boolean;
+  portaCompleta: string;
+  portaIndicacao: boolean;
   /** Campos da configuração que esta tela não mostra: vão e voltam como vieram. */
   cidadeDaChavePix?: string | undefined;
   /** A chave é a forma principal de receber Pix: nada passa pelo provedor. */
@@ -117,7 +121,7 @@ function formularioInicial(config: Props["config"]): Formulario {
   // Tolerante como o atendimento: um extra inválido não pode apagar a configuração inteira da tela.
   const lido = pricingTolerante(bruto);
   if (lido === null) {
-    return { enabled: false, venda: "", referencia: "", referenciaReal: false, degraus: [], posVenda: POS_VENDA_VAZIO, linksDaVenda: "", euro: "", dolar: "", extras: "", respostasGratuitas: "", metaDoMes: "", metasPorProduto: "", chavePix: "", nomeDaChavePix: "" };
+    return { enabled: false, venda: "", referencia: "", referenciaReal: false, degraus: [], posVenda: POS_VENDA_VAZIO, linksDaVenda: "", euro: "", dolar: "", extras: "", respostasGratuitas: "", metaDoMes: "", metasPorProduto: "", chavePix: "", nomeDaChavePix: "", portaSoPrimeira: false, portaCompleta: "", portaIndicacao: false };
   }
   const c = lido.pricing;
   return {
@@ -148,6 +152,9 @@ function formularioInicial(config: Props["config"]): Formulario {
     metasPorProduto: Object.entries(c.metas_por_produto ?? {}).map(([n, v]) => `${n}: ${v}`).join("\n"),
     chavePix: c.pix_key?.key ?? "",
     nomeDaChavePix: c.pix_key?.holder ?? "",
+    portaSoPrimeira: c.portas_de_entrada?.leitura_gratis_so_primeira === true,
+    portaCompleta: c.portas_de_entrada?.leitura_completa ?? "",
+    portaIndicacao: c.portas_de_entrada?.indicacao_trabalho_direto === true,
     ...(c.pix_key?.city ? { cidadeDaChavePix: c.pix_key.city } : {}),
     chavePixPrincipal: c.pix_key?.primary === true,
     ...(c.min_down_payment_cents !== undefined ? { entradaMinima: c.min_down_payment_cents } : {}),
@@ -158,7 +165,7 @@ function formularioInicial(config: Props["config"]): Formulario {
       : {}),
     ...(c.provider_only_checkout !== undefined ? { soPeloProvedor: c.provider_only_checkout } : {}),
     ...(c.social_proof ? { provas: c.social_proof } : {}),
-    extras: (c.extras ?? []).map((e) => `${e.name} | ${emTexto(e.price_cents)} | ${e.when}${e.valid_days ? ` | ${e.valid_days}` : ""}${e.delivery ? ` | entrega: ${e.delivery}` : ""}${e.team_delivers ? " | equipe entrega" : ""}${e.themes?.length ? ` | palavras: ${e.themes.join(", ")}` : ""}${e.quantity_prices?.length ? ` | quantidade: ${e.quantity_prices.map((q) => `${q.quantity}=${emTexto(q.price_cents)}`).join("; ")}` : ""}`).join("\n"),
+    extras: (c.extras ?? []).map((e) => `${e.name} | ${emTexto(e.price_cents)} | ${e.when}${e.valid_days ? ` | ${e.valid_days}` : ""}${e.delivery ? ` | entrega: ${e.delivery}` : ""}${e.team_delivers ? " | equipe entrega" : ""}${e.reading_cards ? ` | cartas: ${e.reading_cards}` : ""}${e.themes?.length ? ` | palavras: ${e.themes.join(", ")}` : ""}${e.quantity_prices?.length ? ` | quantidade: ${e.quantity_prices.map((q) => `${q.quantity}=${emTexto(q.price_cents)}`).join("; ")}` : ""}`).join("\n"),
   };
 }
 
@@ -245,7 +252,10 @@ function paraCorpo(f: Formulario): { corpo: PricingConfig } | { erro: string } {
     const palavras = (todas.find((p) => /^palavras\s*:/i.test(p))?.replace(/^palavras\s*:\s*/i, "") ?? "")
       .split(",").map((p) => p.trim()).filter((p) => p.length >= 2);
     if (palavras.some((p) => p.length > 40) || palavras.length > 30) return { erro: "As palavras da cobrança vão separadas por vírgula: até 30, cada uma com até 40 letras." };
-    const partes = todas.filter((p) => !/^(?:entrega|quantidade|palavras)\s*:/i.test(p) && !/^equipe entrega$/i.test(p));
+    // "cartas: 5" em qualquer posição: a leitura que esta cobrança abre tem 5 cartas (de 3 a 7).
+    const cartasTexto = todas.find((p) => /^cartas\s*:/i.test(p))?.replace(/^cartas\s*:\s*/i, "");
+    if (cartasTexto !== undefined && !/^[3-7]$/.test(cartasTexto)) return { erro: "As cartas da leitura de uma cobrança vão de 3 a 7: cartas: 5" };
+    const partes = todas.filter((p) => !/^(?:entrega|quantidade|palavras|cartas)\s*:/i.test(p) && !/^equipe entrega$/i.test(p));
     const preco = emCentavos(partes[1] ?? "");
     if (partes.length < 3 || preco === null) return { erro: "Cada cobrança à parte deve ser: Nome | valor | quando cobrar" };
     // Um número inteiro no fim da linha é o período em dias ("… | 30"); sem ele, a cobrança vale uma entrega.
@@ -262,6 +272,8 @@ function paraCorpo(f: Formulario): { corpo: PricingConfig } | { erro: string } {
       ...(f.abreLeitura?.[partes[0] ?? ""] !== undefined ? { opens_reading: f.abreLeitura[partes[0] ?? ""] } : {}),
       ...(equipeEntrega ? { team_delivers: true } : {}),
       ...(palavras.length > 0 ? { themes: palavras } : {}),
+      // Cartas só valem em cobrança que abre leitura: marcar as cartas é dizer que ela abre.
+      ...(cartasTexto !== undefined ? { reading_cards: Number(cartasTexto), opens_reading: f.abreLeitura?.[partes[0] ?? ""] ?? true } : {}),
     });
   }
   const gratuitas = f.respostasGratuitas.trim() === "" ? null : Number(f.respostasGratuitas);
@@ -271,6 +283,9 @@ function paraCorpo(f: Formulario): { corpo: PricingConfig } | { erro: string } {
   const temChave = f.chavePix.trim() !== "" || f.nomeDaChavePix.trim() !== "";
   if (temChave && (f.chavePix.trim() === "" || f.nomeDaChavePix.trim() === "")) {
     return { erro: "Para usar a chave Pix da empresa, informe a chave e o nome de quem recebe." };
+  }
+  if (f.portaCompleta.trim() !== "" && !extras.some((e) => e.name.trim().toLowerCase() === f.portaCompleta.trim().toLowerCase())) {
+    return { erro: "A Leitura Completa das portas de entrada precisa ser o nome de uma cobrança à parte." };
   }
   const metaDoMes = f.metaDoMes.trim() === "" ? null : Number(f.metaDoMes);
   if (metaDoMes !== null && (!Number.isInteger(metaDoMes) || metaDoMes < 1 || metaDoMes > 100_000)) {
@@ -301,6 +316,15 @@ function paraCorpo(f: Formulario): { corpo: PricingConfig } | { erro: string } {
     ...(f.modeloDoRelatorio !== undefined ? { report_model: f.modeloDoRelatorio } : {}),
     ...(f.soPeloProvedor !== undefined ? { provider_only_checkout: f.soPeloProvedor } : {}),
     ...(f.provas ? { social_proof: f.provas } : {}),
+    ...(f.portaSoPrimeira || f.portaIndicacao || f.portaCompleta.trim() !== ""
+      ? {
+          portas_de_entrada: {
+            leitura_gratis_so_primeira: f.portaSoPrimeira,
+            indicacao_trabalho_direto: f.portaIndicacao,
+            ...(f.portaCompleta.trim() !== "" ? { leitura_completa: f.portaCompleta.trim() } : {}),
+          },
+        }
+      : {}),
     ...(temChave
       ? { pix_key: { key: f.chavePix.trim(), holder: f.nomeDaChavePix.trim(), ...(f.cidadeDaChavePix ? { city: f.cidadeDaChavePix } : {}), ...(f.chavePixPrincipal ? { primary: true } : {}) } }
       : {}),
@@ -577,6 +601,40 @@ export function PrecoDoAgente({ agentId, config, readOnly }: Props) {
             <Label htmlFor="preco-chave-principal">{t("Usar esta chave como forma principal de receber")}</Label>
             <p className="max-w-2xl text-sm text-muted-foreground">
               {t("Todo Pix em reais sai por esta chave. O cartão continua pelo link da Stripe, com o da Cakto de reserva. Cada Pix precisa do comprovante conferido e de Registrar pagamento para a entrega começar.")}
+            </p>
+          </div>
+        </div>
+      </Card>
+
+      <Card className="flex flex-col gap-3 p-4" data-testid="preco-portas-de-entrada">
+        <div className="space-y-1">
+          <h2 className="text-base font-medium">{t("Portas de entrada")}</h2>
+          <p className="max-w-2xl text-sm text-muted-foreground">
+            {t("Como começa a conversa de quem ainda não comprou. Quem já comprou segue o atendimento de cliente da casa.")}
+          </p>
+        </div>
+        <div className="flex items-start gap-3">
+          <Switch id="preco-porta-primeira" checked={form.portaSoPrimeira} onCheckedChange={(v) => patch({ portaSoPrimeira: v })} disabled={readOnly} />
+          <div className="space-y-0.5">
+            <Label htmlFor="preco-porta-primeira">{t("Leitura grátis só na primeira vez")}</Label>
+            <p className="max-w-2xl text-sm text-muted-foreground">
+              {t("Quem já teve a leitura grátis com a empresa, em qualquer número, não ganha outra: a agente oferece a Leitura Completa.")}
+            </p>
+          </div>
+        </div>
+        <div className="flex max-w-md flex-col gap-1">
+          <Label htmlFor="preco-porta-completa">{t("Leitura Completa (nome de uma cobrança à parte)")}</Label>
+          <Input id="preco-porta-completa" placeholder="Leitura Completa" value={form.portaCompleta} onChange={(e) => patch({ portaCompleta: e.target.value })} disabled={readOnly} />
+          <p className="max-w-2xl text-sm text-muted-foreground">
+            {t("A leitura maior, vendida já no começo para quem pergunta o valor. Na cobrança, escreva cartas: 5 para dizer quantas cartas ela abre.")}
+          </p>
+        </div>
+        <div className="flex items-start gap-3">
+          <Switch id="preco-porta-indicacao" checked={form.portaIndicacao} onCheckedChange={(v) => patch({ portaIndicacao: v })} disabled={readOnly} />
+          <div className="space-y-0.5">
+            <Label htmlFor="preco-porta-indicacao">{t("Quem vem por indicação ouve o trabalho direto")}</Label>
+            <p className="max-w-2xl text-sm text-muted-foreground">
+              {t("Quando a pessoa diz que foi indicada, a agente apresenta o trabalho sem abrir as cartas antes. A leitura grátis continua se ela pedir.")}
             </p>
           </div>
         </div>

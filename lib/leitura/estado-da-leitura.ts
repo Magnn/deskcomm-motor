@@ -23,25 +23,25 @@
 import { expandirHistoricoColado, type MensagemParaContar } from "@/lib/preco/estado-da-negociacao";
 
 import { REGISTRO_DA_RAIZ_DESDE } from "./raiz-registrada";
-import { extrairNumerosEscolhidos, numerosNaMensagem, sortearCartas, type Carta } from "./sorteio";
+import { CARTAS_DA_LEITURA_SIMPLES, extrairNumerosEscolhidos, numerosNaMensagem, sortearCartas, type Carta } from "./sorteio";
 
 /** O marcador que abre a mensagem de cada carta revelada. Exportado para o envio da imagem da carta. */
-export const MARCA_CARTA = /^CARTA\s+([123]):/m;
+export const MARCA_CARTA = /^CARTA\s+([1-7]):/m;
 
 /** A agente interpretando "as cartas" — o que só pode vir depois de a carta sorteada sair no formato `CARTA N:`. */
 export const LEITURA_SEM_CARTA =
   /\b(?:as|a|essas?|estas?|suas?)\s+cartas?\s+(?:mostra|mostram|diz|dizem|fala|falam|revela|revelam|aponta|apontam|indica|indicam|trazem|traz)\b|\bo\s+que\s+as\s+cartas\b/i;
 
 /** O pedido da agente para a pessoa escolher no baralho fechado (o molde do prompt cai em qualquer um dos três). */
-export const PEDIDO_DO_BARALHO = /\b22\s+cartas\b|\b1\s*(?:a|à|até)\s*22\b|\b(?:3|três)\s+números\b/i;
+export const PEDIDO_DO_BARALHO = /\b22\s+cartas\b|\b1\s*(?:a|à|até)\s*22\b|\b(?:[3-7]|três|quatro|cinco|seis|sete)\s+números\b/i;
 
 export type PassoDaLeitura =
-  | { passo: "revelar_carta"; indice: 1 | 2 | 3; carta: Carta; cartas: readonly [Carta, Carta, Carta] }
-  | { passo: "causa_raiz"; cartas: readonly [Carta, Carta, Carta] }
+  | { passo: "revelar_carta"; indice: number; carta: Carta; cartas: readonly Carta[] }
+  | { passo: "causa_raiz"; cartas: readonly Carta[] }
   /** `semEvidencia`: a síntese NÃO foi registrada e a agente já falou 2 vezes depois da 3ª carta. É SÍNTESE PENDENTE: o bloco
    *  manda entregá-la antes do trabalho e do valor, numa única resposta de reparo. `reparoEsgotado`: o reparo também saiu sem a
    *  marca — o bloco para de pedir (sem loop) e a etapa segue sem contar como entregue; o turno registra o incidente. */
-  | { passo: "encerrada"; cartas: readonly [Carta, Carta, Carta]; semEvidencia?: true; reparoEsgotado?: true };
+  | { passo: "encerrada"; cartas: readonly Carta[]; semEvidencia?: true; reparoEsgotado?: true };
 
 /** `sent_at` (quando a conversa o tem) é a RODADA do sorteio: a mesma escolha, outro dia, é outra leitura. */
 type Mensagem = MensagemParaContar & { sent_at?: string | null };
@@ -115,17 +115,18 @@ export function ehSinteseDasCartas(texto: string, cartas: readonly Carta[]): boo
 function escolhaDepoisDoPedido(
   conversa: readonly Mensagem[],
   pedido: number,
-): { escolha: number; numeros: readonly [number, number, number] } | null {
+  quantidade: number,
+): { escolha: number; numeros: readonly number[] } | null {
   const somados: number[] = [];
   for (let i = pedido + 1; i < conversa.length; i++) {
     const m = conversa[i]!;
     if (m.direction !== "inbound") continue;
-    const deUmaVez = extrairNumerosEscolhidos(m.body ?? "");
+    const deUmaVez = extrairNumerosEscolhidos(m.body ?? "", quantidade);
     if (deUmaVez !== null) return { escolha: i, numeros: deUmaVez };
     const lido = numerosNaMensagem(m.body ?? "");
     if (!lido.soNumeros) continue;
     for (const n of lido.numeros) if (!somados.includes(n)) somados.push(n);
-    if (somados.length >= 3) return { escolha: i, numeros: [somados[0]!, somados[1]!, somados[2]!] };
+    if (somados.length >= quantidade) return { escolha: i, numeros: somados.slice(0, quantidade) };
   }
   return null;
 }
@@ -139,6 +140,8 @@ export function recusaDaCartaForaDoSorteio(
   corpo: string,
   passo: PassoDaLeitura | null,
   cartaJaSaiuNoTurno = false,
+  /** Quantas cartas a leitura em andamento tem (a simples, 3). */
+  quantidade = CARTAS_DA_LEITURA_SIMPLES,
 ): string | null {
   const marca = MARCA_CARTA.exec(corpo);
   if (!marca) {
@@ -156,9 +159,9 @@ export function recusaDaCartaForaDoSorteio(
   const pedida = Number(marca[1]);
   if (passo === null) {
     return (
-      "A pessoa ainda não escolheu 3 números válidos de 1 a 22, então não há carta sorteada: NÃO revele carta agora. " +
+      `A pessoa ainda não escolheu ${quantidade} números válidos de 1 a 22, então não há carta sorteada: NÃO revele carta agora. ` +
       "Diga com leveza quais números você já recebeu (se recebeu algum) e peça os que faltam, de 1 a 22, sem repetir. " +
-      "Se ela pedir para você escolher, peça que diga 3 números quaisquer de 1 a 22."
+      `Se ela pedir para você escolher, peça que diga ${quantidade} números quaisquer de 1 a 22.`
     );
   }
   // A MESMA CARTA DUAS VEZES NO TURNO. O passo é calculado no começo do turno e só anda no turno seguinte; sem isto um
@@ -168,7 +171,7 @@ export function recusaDaCartaForaDoSorteio(
     return `A CARTA ${pedida} já foi revelada nesta resposta, com a foto. NÃO revele de novo e não repita o que já disse: se falta algo, continue de onde parou, sem escrever "CARTA ${pedida}:".`;
   }
   if (passo.passo !== "revelar_carta") {
-    return "As 3 cartas desta leitura já foram reveladas. NÃO revele outra carta: siga para o passo seguinte do atendimento.";
+    return `As ${passo.cartas.length} cartas desta leitura já foram reveladas. NÃO revele outra carta: siga para o passo seguinte do atendimento.`;
   }
   if (pedida !== passo.indice) {
     return `A carta a revelar agora é a CARTA ${passo.indice} ("${passo.carta.nome}"), e só ela. Reescreva começando por "CARTA ${passo.indice}: ${passo.carta.nome}".`;
@@ -186,6 +189,8 @@ export function passoDaLeitura(
   mensagens: readonly Mensagem[],
   desde?: Date,
   raizesDitas: readonly Date[] = [],
+  /** Quantas cartas esta rodada tem: a leitura simples, 3; a de uma cobrança, `Extra.reading_cards`. */
+  quantidade = CARTAS_DA_LEITURA_SIMPLES,
 ): PassoDaLeitura | null {
   // O painel de Teste roda UMA mensagem: um histórico colado ali ("Lead: …" / "Esmeralda: …") vira
   // várias, como já vale para a escada de preço. Na produção nenhuma mensagem tem esse formato.
@@ -196,7 +201,7 @@ export function passoDaLeitura(
   const pedido = conversa.findIndex((m) => m.direction === "outbound" && PEDIDO_DO_BARALHO.test(m.body ?? ""));
   if (pedido < 0) return null;
 
-  const achada = escolhaDepoisDoPedido(conversa, pedido);
+  const achada = escolhaDepoisDoPedido(conversa, pedido, quantidade);
   if (achada === null) return null;
   const { escolha, numeros } = achada;
   const cartas = sortearCartas(contatoId, numeros, conversa[escolha]!.sent_at ?? undefined);
@@ -204,13 +209,13 @@ export function passoDaLeitura(
   const depois = conversa.slice(escolha + 1);
   const jaReveladas = depois.filter(ehCartaRevelada).length;
 
-  if (jaReveladas >= 3) {
+  if (jaReveladas >= cartas.length) {
     const raiz = causaRaizJaDita(depois, raizesDitas, cartas);
     if (raiz === "registrada") return { passo: "encerrada", cartas };
     if (raiz === "sem_evidencia") return { passo: "encerrada", cartas, semEvidencia: true };
     if (raiz === "reparo_esgotado") return { passo: "encerrada", cartas, semEvidencia: true, reparoEsgotado: true };
     return { passo: "causa_raiz", cartas };
   }
-  const indice = (jaReveladas + 1) as 1 | 2 | 3;
+  const indice = jaReveladas + 1;
   return { passo: "revelar_carta", indice, carta: cartas[indice - 1]!, cartas };
 }
