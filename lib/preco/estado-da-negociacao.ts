@@ -85,6 +85,11 @@ export const RECLAMACAO_DE_VALOR = new RegExp(
     "\\bs[óo]\\s+(?:no\\s+)?(?:fim|final)\\s+d[oe]\\s+m[êe]s\\b",
     "arrumar\\s+(?:um\\s+)?(?:servi[çc]o|emprego|trabalho)\\b",
     "\\bsem\\s+(?:emprego|servi[çc]o)\\b",
+    // Medido em 27/11/2026: "Realmente não é caro, eu é que não tenho disponível hoje" não contava (a palavra no meio
+    // quebrava "não tenho hoje"); a negociação não começou e a conversa acabou em despedida, sem a pergunta da entrada.
+    "n[ãa]o\\s+tenho\\s+(?:\\S+\\s+){1,2}(?:agora|hoje|no\\s+momento)\\b",
+    "n[ãa]o\\s+tenho\\s+(?:o\\s+valor\\s+|dinheiro\\s+)?dispon[ií]vel\\b",
+    "n[ãa]o\\s+cab(?:e|a)\\s+(?:no|em)\\s+(?:meu\\s+)?(?:bolso|or[çc]amento)\\b",
   ].join("|"),
   "i",
 );
