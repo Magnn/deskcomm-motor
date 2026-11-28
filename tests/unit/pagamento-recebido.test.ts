@@ -96,18 +96,21 @@ describe("registrarPagamentoRecebido", () => {
     expect(r).toMatchObject({ resultado: "registrado", negocio: "ja_estava_ganho" });
     expect(d.passos).not.toContain("fechar:neg-ganho");
     expect(d.passos).toContain("valor");
+    expect(d.passos).not.toContain("meta");
   });
 
   it("contato sem negócio: o pagamento fica registrado e o desfecho diz que não havia o que fechar", async () => {
     const d = dublês({ negocios: [] });
     expect(await registrarPagamentoRecebido(d.deps, { contatoId: "contato-1", pagamento: PAGAMENTO, agora: AGORA })).toMatchObject({ resultado: "registrado", negocio: "sem_negocio" });
-    expect(d.passos).toEqual(["gravar", "receita", "anotar", "valor", "parar"]);
+    expect(d.passos).toEqual(["gravar", "receita", "anotar", "valor", "meta", "parar"]);
   });
 
   it("⭐ se o negócio não fechar, o pagamento continua registrado e a tela é avisada", async () => {
     const d = dublês({ fecha: false });
     const r = await registrarPagamentoRecebido(d.deps, { contatoId: "contato-1", pagamento: PAGAMENTO, agora: AGORA });
     expect(r).toMatchObject({ resultado: "registrado", negocio: "nao_fechou" });
+    // Sem fechamento, a venda vai à plataforma de anúncio como compra avulsa.
+    expect(d.passos).toContain("meta");
     expect(d.passos).toContain("gravar");
     expect(d.passos).toContain("parar");
   });

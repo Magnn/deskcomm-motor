@@ -17,6 +17,7 @@ import { audit } from "@/lib/audit";
 import { autorizaCron } from "@/lib/auth/cron-auth";
 import { logger } from "@/lib/logger";
 import { EVENTO_DO_LINK_DE_PAGAMENTO, reportarEventoDaConversa } from "@/lib/conversoes/evento-da-conversa";
+import { conciliarVendasNaMeta } from "@/lib/conversoes/conciliar-vendas";
 import { recuperarAvulsas } from "@/lib/conversoes/recuperar-avulsas";
 import { classificarNovasMensagens, type LinkDePagamentoEnviado } from "@/lib/resultado/marcos";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -75,8 +76,13 @@ async function handle(req: NextRequest): Promise<Response> {
     logger.warn("[cron.marcos-da-conversa] recuperação de conversões falhou", { requestId, erro: err instanceof Error ? err.message : "falha inesperada" });
     return { tentadas: 0, enviadas: 0 };
   });
-  if (marcos > 0 || passosReportados > 0 || recuperacao.tentadas > 0) {
-    void audit({ action: "cron.marcos_da_conversa", requestId, bypassedRls: true, metadata: { lidas, marcos, ha_mais: haMais, passos_reportados: passosReportados, conversoes_tentadas: recuperacao.tentadas, conversoes_recuperadas: recuperacao.enviadas } });
+  // A rede que fecha o laço: venda de anúncio no caixa sem compra na plataforma vai agora (`lib/conversoes/conciliar-vendas.ts`).
+  const conciliacao = await conciliarVendasNaMeta(admin).catch((err: unknown) => {
+    logger.warn("[cron.marcos-da-conversa] conciliação de vendas falhou", { requestId, erro: err instanceof Error ? err.message : "falha inesperada" });
+    return { tentadas: 0, enviadas: 0 };
+  });
+  if (marcos > 0 || passosReportados > 0 || recuperacao.tentadas > 0 || conciliacao.tentadas > 0) {
+    void audit({ action: "cron.marcos_da_conversa", requestId, bypassedRls: true, metadata: { lidas, marcos, ha_mais: haMais, passos_reportados: passosReportados, conversoes_tentadas: recuperacao.tentadas, conversoes_recuperadas: recuperacao.enviadas, vendas_conciliadas: conciliacao.enviadas } });
   }
   return ok({ lidas, marcos, ha_mais: haMais, passos_reportados: passosReportados, conversoes_recuperadas: recuperacao.enviadas }, { requestId });
 }
