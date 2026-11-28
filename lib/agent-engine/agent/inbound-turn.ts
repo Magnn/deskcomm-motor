@@ -71,6 +71,8 @@ import { linkInternacionalNoLugarDoLink } from './link-internacional-no-envio';
 import { linkDoValorPrometido } from '@/lib/preco/link-do-valor';
 import { boletoNoLugarDaMarca } from './boleto-no-envio';
 import { numerosAnotadosForaDaMesa } from '@/lib/leitura/numero-fora-da-mesa';
+import { lerLeituraAnterior } from '@/lib/leitura/leitura-anterior';
+import { blocoDaPortaDeEntrada, leituraCompletaDaConfig, liberaOTrabalho, portaDeEntrada } from '@/lib/preco/porta-de-entrada';
 import { descontoFalso } from '@/lib/preco/desconto-falso';
 import { pixDoRestanteNoLugarDaMarca, pixDaEntradaNoLugarDaMarca, temMarcaDaEntrada } from './pix-da-entrada-no-envio';
 import { pixDoExtraNoLugarDaMarca } from './pix-do-extra-no-envio';
@@ -180,7 +182,7 @@ import {
   reclamacoesDeValor,
   valorCombinadoNaConversa,
 } from '@/lib/preco/estado-da-negociacao';
-import { reais } from '@/lib/preco/tipos';
+import { reais, type Extra } from '@/lib/preco/tipos';
 import { blocoDoCombinado } from '@/lib/followup/bloco-do-combinado';
 import { PAUSA_ANTES_DA_PRIMEIRA, RITMO_PADRAO, pausaEntreBolhas, sinalizaDigitandoEntreBolhas, type Ritmo } from '@/lib/ritmo/tipos';
 import { buscaRestanteCombinado, buscaValorCombinado, criaRetornoDbPg } from '@/lib/followup/retorno-pg';
@@ -2906,7 +2908,10 @@ async function executarTurnoDoAgente(
       // A conversa já ofereceu a cobrança avulsa pelo nome (oferta proativa, ou a pessoa pediu outra pergunta).
       conversaFalouDeExtra(openingContext.context.messages, extrasDaConfig(agentConfig?.pricing)))
       ? extrasDaConfig(agentConfig?.pricing)
-      : [];
+      : // PORTA DE ENTRADA: a Leitura Completa se vende já no começo; antes da oferta, só ela entre as cobranças à parte.
+        !semBlocosDePreco && internacionalDoTurno === null
+        ? [leituraCompletaDaConfig(agentConfig?.pricing?.portas_de_entrada, extrasDaConfig(agentConfig?.pricing))].filter((e): e is Extra => e !== null)
+        : [];
   let extrasPagosNoTurno: ExtraPago[] = [];
   let extrasJaCompradosNoTurno: ExtraJaComprado[] = [];
   if (extrasDoTurno.length > 0) {
@@ -3119,8 +3124,10 @@ async function executarTurnoDoAgente(
   const perguntaPagaNoTurno = semBlocosDePreco ? null : perguntaPagaRecente(extrasDoTurno, extrasPagosNoTurno, new Date());
   // A raiz dita é a REGISTRADA pela marca (`lib/leitura/raiz-registrada.ts`), não a deduzida de qualquer resposta.
   const raizesDitasNoTurno = await lerRaizesDitas(pool, { organizationId: tenantId, conversationId: input.conversationId });
+  // Quantas cartas a rodada tem: a leitura simples, 3; a de uma cobrança que abre leitura maior, `reading_cards`.
+  const cartasDaRodada = perguntaPagaNoTurno?.extra.reading_cards ?? 3;
   const passoDaLeituraNoTurno = perguntaPagaNoTurno
-    ? passoDaLeitura(`${tenantId}:${leadId}:${perguntaPagaNoTurno.chave}`, openingContext.context.messages, perguntaPagaNoTurno.pagoEm, raizesDitasNoTurno)
+    ? passoDaLeitura(`${tenantId}:${leadId}:${perguntaPagaNoTurno.chave}`, openingContext.context.messages, perguntaPagaNoTurno.pagoEm, raizesDitasNoTurno, cartasDaRodada)
     : passoDaLeitura(`${tenantId}:${leadId}`, openingContext.context.messages, undefined, raizesDitasNoTurno);
   const blocoDaLeituraDoTurno = blocoDaLeitura(
     passoDaLeituraNoTurno,
@@ -3136,6 +3143,24 @@ async function executarTurnoDoAgente(
   }
   // A mesa vai uma vez por conversa: já oferecida antes, ou já enviada neste turno.
   let mesaDaLeituraJaFoi = mesaJaMostrada(openingContext.context.messages);
+  // PORTAS DE ENTRADA (`lib/preco/porta-de-entrada.ts`): indicação, quem já teve a leitura grátis, primeira leitura.
+  // Uma decisão só; a rodada paga da leitura e a cliente da casa são donas do turno e a porta fica de fora.
+  const portasDoTurno = semBlocosDePreco || internacionalDoTurno !== null || agentConfig?.pricing?.enabled !== true
+    ? undefined
+    : agentConfig.pricing.portas_de_entrada;
+  const portaDoTurno = portasDoTurno === undefined || perguntaPagaNoTurno !== null
+    ? null
+    : portaDeEntrada(portasDoTurno, {
+        mensagens: openingContext.context.messages,
+        extras: extrasDaConfig(agentConfig?.pricing),
+        jaComprou: tagsDoContato.includes('pago'),
+        leituraEmAndamento: mesaDaLeituraJaFoi,
+        leituraAnterior: portasDoTurno.leitura_gratis_so_primeira && !tagsDoContato.includes('pago')
+          ? await lerLeituraAnterior(pool, { organizationId: tenantId, contactId: leadId, conversationId: input.conversationId })
+          : null,
+      });
+  const blocoDaPortaDoTurno = blocoDaPortaDeEntrada(portaDoTurno, fusoDaOrg);
+  if (portaDoTurno !== null) runLog.info('porta de entrada', { porta: portaDoTurno.porta });
   // Contexto do anúncio: quem chegou por um anúncio (atribuição de 1º toque em `contacts.source_metadata`)
   // tem o título/texto dele no prompt DO COMEÇO da conversa. Vai ANTES dos blocos diretivos acima, para
   // que leitura, preço e entrega vençam em caso de conflito. No painel de Teste não há contato real.
@@ -3305,6 +3330,7 @@ async function executarTurnoDoAgente(
     entradaImediataDoTurno !== null ||
     propostaDeEntradaDoTurno !== null ||
     valorAceitoDoTurno !== null ||
+    liberaOTrabalho(portaDoTurno) ||
     pediuOTrabalho(openingContext.context.messages, (agentConfig?.pricing?.list_product_links ?? []).map((l) => l.name));
   const ofertaAtivaNoTurno = agentConfig?.pricing?.enabled
     ? ofertaAtivaDaConversa(
@@ -3352,7 +3378,7 @@ async function executarTurnoDoAgente(
     anuncio: blocoDoAnuncioDoTurno,
     estilo: blocoDeVariacaoDoTurno,
     fluxo: blocoDoFluxoDoTurno,
-    leitura: blocoDaLeituraDoTurno,
+    leitura: blocoDaLeituraDoTurno + blocoDaPortaDoTurno,
     preco: blocoDePrecoDoTurno + blocoDaEntradaDoTurno + blocoDosExtrasDoTurno + blocoDaChavePixDoTurno,
     combinado: blocoDoCombinadoDoTurno,
     entrega: blocoDaEntrega,
@@ -4663,14 +4689,14 @@ async function executarTurnoDoAgente(
         if (!preview) {
           // A carta que JÁ SAIU neste turno (balão entregue, não só aprovado): os seguintes podem comentá-la, e não revelá-la de novo.
           const cartaJaSaiu = corposEnviados.some((b) => MARCA_CARTA.test(b));
-          const recusa = recusaDaCartaForaDoSorteio(body, passoDaLeituraNoTurno, cartaJaSaiu);
+          const recusa = recusaDaCartaForaDoSorteio(body, passoDaLeituraNoTurno, cartaJaSaiu, cartasDaRodada);
           if (recusa !== null) {
             runLog.info('carta fora do sorteio — revelação recusada', { conversation_id: input.conversationId });
             return { ok: false, error: { code: 'carta_fora_do_sorteio', message: recusa } };
           }
           // NÚMERO FORA DA MESA DADO COMO ANOTADO (`lib/leitura/numero-fora-da-mesa.ts`): "2, 5 e 23, anotado" e, no balão
           // seguinte, "o 23 fica fora" (23/11/2026).
-          const foraDaMesa = numerosAnotadosForaDaMesa(body);
+          const foraDaMesa = numerosAnotadosForaDaMesa(body, cartasDaRodada);
           if (foraDaMesa !== null) {
             runLog.warn('número fora da mesa dado como anotado — envio recusado', {});
             return { ok: false, error: { code: 'numero_fora_da_mesa', message: foraDaMesa } };

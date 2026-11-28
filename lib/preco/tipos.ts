@@ -171,6 +171,11 @@ export const extraSchema = z.object({
    */
   opens_reading: z.boolean().optional(),
   /**
+   * Quantas cartas a leitura desta cobrança abre (de 3 a 7). Ausente = 3, a leitura simples. Só vale com a leitura
+   * aberta (`opens_reading` ou "pergunta" no nome): é o que faz uma Leitura Completa ser maior que a pergunta nova.
+   */
+  reading_cards: z.number().int().min(3).max(7).optional(),
+  /**
    * Quem entrega é a EQUIPE, não a agente (vela acesa no altar com vídeo, um trabalho feito à mão). Pago, o turno da
    * entrega abre um aviso na Central para alguém fazer e mandar a prova pela conversa; a agente só confirma o que a
    * equipe vai fazer, nunca diz que já foi feito. Ausente = a agente entrega sozinha.
@@ -221,6 +226,20 @@ export const pricingSchema = z
      * coisa que não a compra (`lib/agent-engine/agent/conversa-gratuita.ts`). Ausente = sem limite.
      */
     free_replies_after_offer: z.number().int().min(1).max(20).optional(),
+    /**
+     * PORTAS DE ENTRADA (`lib/preco/porta-de-entrada.ts`): por onde começa a conversa de quem ainda não comprou.
+     * `leitura_gratis_so_primeira`: a leitura grátis é uma por pessoa na empresa (em qualquer número).
+     * `leitura_completa`: o nome da cobrança à parte que é a leitura maior, vendida já no começo.
+     * `indicacao_trabalho_direto`: quem diz que foi indicada ouve o trabalho direto, sem a leitura antes.
+     * Ausente = a conversa começa como sempre.
+     */
+    portas_de_entrada: z
+      .object({
+        leitura_gratis_so_primeira: z.boolean().default(false),
+        leitura_completa: z.string().trim().min(2).max(80).optional(),
+        indicacao_trabalho_direto: z.boolean().default(false),
+      })
+      .optional(),
     /**
      * Quantas vendas por mês cada produto deve fazer (`lib/venda/meta-do-mes.ts`). Entre as ofertas que cabem, vai
      * primeiro o produto mais atrás da meta; o tema que a pessoa trouxe continua vencendo. Ausente = ordem da lista.

@@ -45,17 +45,21 @@ function pseudoAleatorioDaSemente(semente: string): () => number {
   };
 }
 
+/** Quantas cartas uma leitura pode ter: a simples tem 3; uma cobrança pode abrir uma maior (`Extra.reading_cards`). */
+export const CARTAS_DA_LEITURA_SIMPLES = 3;
+export const MAXIMO_DE_CARTAS = 7;
+
 /**
- * As 3 cartas, na ordem de revelação, a partir dos 3 números que a pessoa
- * escolheu no baralho fechado. Determinístico: mesma entrada, mesma saída.
+ * As cartas, na ordem de revelação, a partir dos números que a pessoa escolheu no baralho fechado — uma carta por
+ * número (de 3 a 7). Determinístico: mesma entrada, mesma saída (e, com 3 números, as mesmas 3 cartas de sempre).
  */
 export function sortearCartas(
   contatoId: string,
   numerosEscolhidos: readonly number[],
   rodada?: string,
-): readonly [Carta, Carta, Carta] {
-  if (numerosEscolhidos.length !== 3) {
-    throw new Error(`sortearCartas espera exatamente 3 números escolhidos, recebeu ${numerosEscolhidos.length}`);
+): readonly Carta[] {
+  if (numerosEscolhidos.length < CARTAS_DA_LEITURA_SIMPLES || numerosEscolhidos.length > MAXIMO_DE_CARTAS) {
+    throw new Error(`sortearCartas espera de ${CARTAS_DA_LEITURA_SIMPLES} a ${MAXIMO_DE_CARTAS} números escolhidos, recebeu ${numerosEscolhidos.length}`);
   }
   const numeros = [...numerosEscolhidos].sort((a, b) => a - b).join(",");
   const semente = rodada ? `${contatoId}:${numeros}:${rodada}` : `${contatoId}:${numeros}`;
@@ -68,7 +72,7 @@ export function sortearCartas(
     const j = Math.floor(rng() * (i + 1));
     [baralho[i], baralho[j]] = [baralho[j]!, baralho[i]!];
   }
-  return [baralho[0]!, baralho[1]!, baralho[2]!];
+  return baralho.slice(0, numerosEscolhidos.length);
 }
 
 /**
@@ -135,20 +139,20 @@ export function numerosNaMensagem(texto: string): { numeros: number[]; soNumeros
 }
 
 /**
- * A escolha feita numa mensagem só: `null` se ela não trouxer exatamente 3 números distintos do baralho.
+ * A escolha feita numa mensagem só: `null` se ela não trouxer exatamente `quantidade` números distintos do baralho.
  * Algarismos valem em qualquer frase ("quero a 3, a 8 e a 22"); por extenso e colados, só quando a
  * mensagem é só números.
  */
-export function extrairNumerosEscolhidos(texto: string): readonly [number, number, number] | null {
+export function extrairNumerosEscolhidos(texto: string, quantidade = CARTAS_DA_LEITURA_SIMPLES): readonly number[] | null {
   const achados = [...texto.matchAll(/\d{1,2}/g)]
     .map((m) => Number(m[0]))
     .filter((n) => n >= 1 && n <= TAMANHO_DO_BARALHO);
   const distintos = [...new Set(achados)];
   const semColados = !/\d{3,}/.test(texto);
-  if (semColados && distintos.length === 3) return [distintos[0]!, distintos[1]!, distintos[2]!];
-  if (semColados && distintos.length > 3) return null;
+  if (semColados && distintos.length === quantidade) return distintos;
+  if (semColados && distintos.length > quantidade) return null;
   const lido = numerosNaMensagem(texto);
-  if (lido.soNumeros && lido.numeros.length === 3) return [lido.numeros[0]!, lido.numeros[1]!, lido.numeros[2]!];
+  if (lido.soNumeros && lido.numeros.length === quantidade) return lido.numeros;
   return null;
 }
 
