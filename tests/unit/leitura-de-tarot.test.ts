@@ -76,7 +76,7 @@ describe("sortearCartas — o sorteio real, feito pelo código", () => {
 
   it("nunca repete carta dentro da mesma leitura", () => {
     const [x, y, z] = sortearCartas("lead-3", [1, 2, 3]);
-    expect(new Set([x.id, y.id, z.id]).size).toBe(3);
+    expect(new Set([x!.id, y!.id, z!.id]).size).toBe(3);
   });
 
   it("recusa entrada que não seja exatamente 3 números", () => {
@@ -85,7 +85,7 @@ describe("sortearCartas — o sorteio real, feito pelo código", () => {
 
   it("é bem distribuído o bastante: 200 leads distintos não caem todos na mesma 1ª carta", () => {
     const primeiras = new Set(
-      Array.from({ length: 200 }, (_, i) => sortearCartas(`lead-${i}`, [1, 2, 3])[0].id),
+      Array.from({ length: 200 }, (_, i) => sortearCartas(`lead-${i}`, [1, 2, 3])[0]!.id),
     );
     expect(primeiras.size).toBeGreaterThan(5);
   });
@@ -146,9 +146,9 @@ describe("blocoDaLeitura — o molde que vai pro prompt", () => {
     // as 3 cartas foram sorteadas (determinístico pra este seed), mas só a 1ª
     // pode aparecer nomeada no molde — as outras duas não vazam.
     const cartas = sortearCartas("lead-1", [1, 2, 3]);
-    expect(b).toContain(cartas[0].nome);
-    expect(b).not.toContain(cartas[1].nome);
-    expect(b).not.toContain(cartas[2].nome);
+    expect(b).toContain(cartas[0]!.nome);
+    expect(b).not.toContain(cartas[1]!.nome);
+    expect(b).not.toContain(cartas[2]!.nome);
   });
 
   it("causa raiz: cita as 3 cartas, fica no que ela contou e pede a marca da raiz", () => {
@@ -187,7 +187,7 @@ describe("passoDaLeitura — o sorteio só dispara com a escolha DEPOIS do pedid
 
     const p = passoDaLeitura("lead-1", [...antes, msg("inbound", "4, 9 e 17")]);
     expect(p?.passo).toBe("revelar_carta");
-    if (p?.passo === "revelar_carta") expect(p.carta.id).toBe(sortearCartas("lead-1", [4, 9, 17])[0].id);
+    if (p?.passo === "revelar_carta") expect(p.carta.id).toBe(sortearCartas("lead-1", [4, 9, 17])[0]!.id);
   });
 
   it("o pedido conta em qualquer das três formas do molde", () => {
@@ -328,7 +328,7 @@ describe("a fiação no turno", () => {
     expect(turno).toContain("passoDaLeitura(`${tenantId}:${leadId}`, openingContext.context.messages, undefined, raizesDitasNoTurno)");
     expect(turno).toContain("blocoDaLeitura(\n    passoDaLeituraNoTurno,\n    perguntaPagaNoTurno ? { nome: perguntaPagaNoTurno.extra.name, quantidade: perguntaPagaNoTurno.quantidade } : null,");
     // A pergunta paga roda a leitura de novo, contada a partir do pagamento (`lib/leitura/pergunta-paga.test.ts`).
-    expect(turno).toContain("openingContext.context.messages, perguntaPagaNoTurno.pagoEm, raizesDitasNoTurno)");
+    expect(turno).toContain("openingContext.context.messages, perguntaPagaNoTurno.pagoEm, raizesDitasNoTurno, cartasDaRodada)");
     // O contexto do anúncio (informativo) vem antes dos DIRETIVOS, e os três seguem na mesma
     // ordem — leitura, depois preço, depois entrega.
     expect(BLOCOS_DO_TURNO.indexOf("anuncio")).toBeLessThan(BLOCOS_DO_TURNO.indexOf("leitura"));
@@ -525,5 +525,29 @@ describe("retomada de silêncio não vira a próxima carta (22/11/2026)", () => 
     const p = passoDaLeitura("lead-1", [...semResposta, msg("inbound", "sim"), msg("outbound", "CARTA 2: Y"), msg("inbound", "sim"), msg("outbound", "CARTA 3: Z")]);
     expect(p?.passo).toBe("causa_raiz");
     expect(blocoDaLeitura(p, null, true)).toContain("NÃO faça a síntese");
+  });
+});
+
+describe("leitura com mais cartas (reading_cards)", () => {
+  it("sorteia uma carta por número, sem repetir", () => {
+    const cinco = sortearCartas("lead-9", [1, 2, 3, 4, 5]);
+    expect(cinco).toHaveLength(5);
+    expect(new Set(cinco.map((c) => c.id)).size).toBe(5);
+    expect(() => sortearCartas("lead-9", [1, 2, 3, 4, 5, 6, 7, 8])).toThrow();
+  });
+  it("a escolha de 5 números só vale com 5", () => {
+    expect(extrairNumerosEscolhidos("3, 8, 12, 19 e 22", 5)).toEqual([3, 8, 12, 19, 22]);
+    expect(extrairNumerosEscolhidos("3, 8 e 12", 5)).toBeNull();
+    expect(extrairNumerosEscolhidos("3, 8, 12, 19 e 22")).toBeNull();
+  });
+  it("a rodada de 5 revela até a 5a carta e só então pede a causa raiz", () => {
+    const pedido = msg("outbound", "Escolha 5 números de 1 a 22");
+    const escolha = msg("inbound", "2, 7, 11, 15 e 20");
+    const cartas = [1, 2, 3, 4].map((i) => msg("outbound", "CARTA " + i + ": x"));
+    const p4 = passoDaLeitura("lead-5", [pedido, escolha, ...cartas], undefined, [], 5);
+    expect(p4?.passo).toBe("revelar_carta");
+    if (p4?.passo === "revelar_carta") expect(p4.indice).toBe(5);
+    const p5 = passoDaLeitura("lead-5", [pedido, escolha, ...cartas, msg("outbound", "CARTA 5: y")], undefined, [], 5);
+    expect(p5?.passo).toBe("causa_raiz");
   });
 });

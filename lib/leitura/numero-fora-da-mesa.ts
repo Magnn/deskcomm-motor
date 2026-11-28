@@ -8,7 +8,7 @@
 const ANOTADO = /\banot(?:ad[oa]s?|ei|o)\b/i;
 
 /** A recusa para o modelo, ou `null` quando a confirmação é válida (ou não há confirmação de números). */
-export function numerosAnotadosForaDaMesa(texto: string): string | null {
+export function numerosAnotadosForaDaMesa(texto: string, quantidade = 3): string | null {
   const frases = texto.split(/(?<=[.!?\n])\s+/);
   for (let i = 0; i < frases.length; i++) {
     if (!ANOTADO.test(frases[i]!)) continue;
@@ -18,10 +18,10 @@ export function numerosAnotadosForaDaMesa(texto: string): string | null {
     if (numeros.length < 2) continue;
     const fora = numeros.filter((n) => n < 1 || n > 22);
     if (fora.length > 0) {
-      return `Envio recusado: a mensagem dá como anotado o ${fora.join(" e o ")}, que não existe na mesa (são 22 cartas, de 1 a 22). Não confirme a escolha: diga que esse número fica fora e peça só o que falta para completar 3 números de 1 a 22.`;
+      return `Envio recusado: a mensagem dá como anotado o ${fora.join(" e o ")}, que não existe na mesa (são 22 cartas, de 1 a 22). Não confirme a escolha: diga que esse número fica fora e peça só o que falta para completar ${quantidade} números de 1 a 22.`;
     }
-    if (numeros.length > 3) {
-      return "Envio recusado: a mensagem dá como anotados mais de 3 números, e a leitura é de 3 cartas. Não confirme a escolha: peça que ela diga só 3 números de 1 a 22.";
+    if (numeros.length > quantidade) {
+      return `Envio recusado: a mensagem dá como anotados mais de ${quantidade} números, e a leitura é de ${quantidade} cartas. Não confirme a escolha: peça que ela diga só ${quantidade} números de 1 a 22.`;
     }
   }
   return null;
