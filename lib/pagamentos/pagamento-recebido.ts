@@ -170,6 +170,12 @@ export async function registrarPagamentoRecebido(
   // O fechamento vem DEPOIS do valor: é o evento de fechamento que reporta a venda, e ele precisa
   // encontrar o valor gravado.
   else negocio = (await deps.fecharComoGanho(alvo.id)) ? "fechado" : "nao_fechou";
+  // Sem negócio fechado agora, nenhum evento de fechamento reporta a venda: ela vai como compra avulsa (id próprio,
+  // pela referência do pagamento). Medido em 27/11/2026: R$ 65 de anúncio, registrado à mão, nunca chegou à Meta.
+  // `ja_estava_ganho` fica de fora: ali o envio da venda já é refeito por `registrarValorNoNegocio`.
+  if (negocio === "sem_negocio" || negocio === "nao_fechou") {
+    await deps.reportarAvulsa(contato.id, { chave: pagamento.chave, valorCentavos: pagamento.valor_cents, produto: pagamento.produto, pagoEm });
+  }
 
   // Quem pagou não pode continuar recebendo "quer continuar?".
   await deps.pararFluxosVivos(contato.id, "compra_aprovada");
